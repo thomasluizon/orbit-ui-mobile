@@ -2,7 +2,7 @@
 
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 
-import { useContext, type CSSProperties, type ReactNode } from 'react'
+import { useContext, type CSSProperties } from 'react'
 import { MovingDaySelection } from './month-selection'
 import { SelectionIndicator } from '@/components/ui/selection-indicator'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
@@ -51,6 +51,8 @@ function PartialArc({ fraction, size }: Readonly<{ fraction: number; size: numbe
 }
 
 function DayCellContents({ props, outcome, size }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number }>) {
+  if (props.future) return <span data-day-future-numeral="" style={{ color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{props.day}</span>
+  if (props.habitHistory) return <HabitHistoryContents props={props} outcome={outcome} size={size} />
   const fraction = props.scheduled && props.done !== undefined ? props.done / props.scheduled : 0.5
   const numeralClass = outcome === 'full' ? 'text-[var(--bg)]' : 'text-[var(--fg-2)]'
   return (
@@ -111,12 +113,19 @@ export function DayCell(props: Readonly<DayCellProps>) {
     'data-state': outcome,
     style: { width: '100%', minHeight: Math.max(size, MONTH_GRID_TARGET_MIN), opacity: props.outsideMonth ? 0 : 1 },
   }
-  const contents = props.future
-    ? <span data-day-future-numeral="" style={{ color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{props.day}</span>
-    : props.habitHistory
-      ? <HabitHistoryContents props={props} outcome={outcome} size={statusSize} />
-      : <DayCellContents props={props} outcome={outcome} size={statusSize} />
-  const circle = <DayCellCircle props={props} size={size} contents={contents} selectionId={selectionId} />
+  const contents = <DayCellContents props={props} outcome={outcome} size={statusSize} />
+  const selectedClass = selectionId ? '' : 'orbit-day-selected'
+  const circle = <span
+    data-day-circle=""
+    className={'orbit-day-circle isolate relative inline-flex items-center justify-center ' + (props.selected ? selectedClass : props.loggable || props.raised ? 'orbit-day-well' : '')}
+    style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2 }}
+  >
+    {props.selected && selectionId ? <SelectionIndicator id={selectionId} calendar /> : null}
+    <PressFill selected={props.selected} />
+    {contents}
+    <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0"
+      style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${props.today || (props.selected && !selectionId) ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />
+  </span>
 
   if (interactive) {
     return <button {...commonProps} type="button" onClick={props.onPress}
@@ -127,18 +136,4 @@ export function DayCell(props: Readonly<DayCellProps>) {
   }
   return <span {...commonProps} role="img" aria-hidden={props.outsideMonth ? true : undefined}
     className="inline-flex shrink-0 items-center justify-center">{circle}</span>
-}
-
-function DayCellCircle({ props, size, contents, selectionId }: Readonly<{ props: DayCellProps; size: number; contents: ReactNode; selectionId: string | null }>) {
-  return <span
-    data-day-circle=""
-    className={'orbit-day-circle isolate relative inline-flex items-center justify-center ' + (props.selected ? selectionId ? '' : 'orbit-day-selected' : props.loggable || props.raised ? 'orbit-day-well' : '')}
-    style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2 }}
-  >
-    {props.selected && selectionId ? <SelectionIndicator id={selectionId} calendar /> : null}
-    <PressFill selected={props.selected} />
-    {contents}
-    <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0"
-      style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${props.today || (props.selected && !selectionId) ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />
-  </span>
 }

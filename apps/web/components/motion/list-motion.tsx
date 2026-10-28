@@ -54,7 +54,7 @@ export function MotionDisclosure({ expanded, id, children }: Readonly<{ expanded
 function DisclosureBody({ children, duration }: Readonly<{ children: ReactNode; duration: number }>) {
   const present = useExitDeadline(duration)
   const presence = useContext(PresenceContext)
-  return <PresenceContext.Provider value={null}><motion.div className="flex flex-col gap-2" initial={presence?.initial === false ? false : { height: 0, opacity: 0 }}
+  return <PresenceContext.Provider value={null}><motion.div className="flex flex-col gap-2" initial={duration === 0 || presence?.initial === false ? false : { height: 0, opacity: 0 }}
     animate={present ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
     transition={{ duration: duration / 1000, ease: motionEasings.standard }}>{children}</motion.div></PresenceContext.Provider>
 }

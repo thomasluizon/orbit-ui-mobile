@@ -1,9 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ListMotionItem, ListPresence, MotionDisclosure } from '@/components/motion/list-motion'
 
 const preference = vi.hoisted(() => ({ reduced: false }))
 vi.mock('@/hooks/use-viewport-match', () => ({ useViewportMatch: () => preference.reduced }))
+
+beforeEach(() => { preference.reduced = false })
 
 describe('list motion', () => {
   it('makes a departing row inert while the replacement accepts input immediately', async () => {
@@ -26,5 +28,14 @@ describe('list motion', () => {
     preference.reduced = true
     view.rerender(<MotionDisclosure expanded id="children"><button>Child</button></MotionDisclosure>)
     expect(screen.getByRole('button', { name: 'Child' })).toBeVisible()
+  })
+
+  it('opens reduced-motion children at their final height immediately', () => {
+    preference.reduced = true
+    const view = render(<MotionDisclosure expanded={false}><button>Child</button></MotionDisclosure>)
+    expect(screen.queryByRole('button', { name: 'Child' })).toBeNull()
+    view.rerender(<MotionDisclosure expanded><button>Child</button></MotionDisclosure>)
+    expect(screen.getByRole('button', { name: 'Child' })).toBeVisible()
+    expect(view.container.querySelector('[data-motion-disclosure] > div')).toHaveStyle({ height: 'auto', opacity: '1' })
   })
 })
