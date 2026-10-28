@@ -98,3 +98,15 @@ it.each(['legacy-create-pt', 'legacy-moderation-pt', 'single-create-pt', 'compos
     if (test.vars.clientContext.supportsParts) expect(test.vars.clientContext.supportsSkippedHabitRows).toBe(true)
   },
 )
+
+
+it.each(JSON.parse(readFileSync(new URL('./fixtures/read-scope.json', import.meta.url), 'utf8')))(
+  'keeps unrequested calendar, summary and history reads outside $caseId: $prompt', ({ caseId, prompt, toolCalls }) => {
+    const test = scenario(caseId)
+    expect(test.vars.input).toBe(prompt)
+    const gradeResult = grade(test, toolCalls.map(({ name, arguments: supplied, resultStatus }, index) =>
+      toolCall(name, supplied, resultStatus, `read-${index}`)))
+    expect(gradeResult.pass).toBe(false)
+    expect(gradeResult.reason).toContain('outside the allowed set')
+  },
+)

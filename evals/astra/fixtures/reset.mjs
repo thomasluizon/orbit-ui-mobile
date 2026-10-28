@@ -162,7 +162,10 @@ function fixtureEvidence(exported, fixture, today) {
   if (!Array.isArray(exported.apiKeys)) throw new Error('Fixture export lacks API key evidence.')
   return { ...Object.fromEntries(['habits', 'goals', 'tags', 'checklistTemplates', 'apiKeys', 'notifications']
     .map((field) => [field, exported[field]])),
-    loggedState: { fixture, date: today } }
+    loggedState: { fixture, date: today, habits: exported.habits.map((habit, index) => ({
+      title: habit.title, completed: habit.logs.some((log) => log.date === today && log.value > 0),
+      skipped: fixture === 'skipped' && index === 1,
+    })) } }
 }
 
 export async function resetFixture(test, today = new Date().toISOString().slice(0, 10), unmetered = false,

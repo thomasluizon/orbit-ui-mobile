@@ -1067,7 +1067,8 @@
       required: &a45
         - name: query_habits
           argumentsAnyOf: &todayHabitArguments
-            - { relative_period: today }
+            - { relative_period: today, date: { optional: '{accountDate}' } }
+            - { relative_period: today, date: today }
             - { date: today, relative_period: { optional: null } }
             - { date: '{accountDate}', relative_period: { optional: null } }
       allowed:

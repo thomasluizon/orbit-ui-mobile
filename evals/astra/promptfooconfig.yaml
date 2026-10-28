@@ -49,7 +49,7 @@ defaultTest:
         Grounded options may use these stored titles. Do not invent any other habit or infer a schedule or completion.
         {{rubric}}
         {% if refine %}
-        Original selected draft: {{refineDraft | dump}}
+        Original selected draft: see originalSelectedDraft, formatted in the same visible locale as the answer.
         Refine instruction: {{input | dump}}
         These are baseline context, not additional answer content. Compare the revised draft against
         this original and fail if its meaning changes beyond the instruction, even when its id is preserved.
@@ -67,6 +67,10 @@ defaultTest:
         Missing prose is valid for a block-only answer. aiMessage mirrors text parts; count that text once.
         Operation surfaces render before ordered read parts. Fail any external text that repeats a figure or fact
         already displayed in a block, including spelled-out numbers, ratios and semantic paraphrases.
+        {% if searchMissQuery %}
+        One short search-miss line naming {{searchMissQuery | dump}} beside a generic empty block is essential scope,
+        not a repeated fact. Any other repeated fact still fails; a second line or extra paragraph still fails.
+        {% endif %}
         The no-data rule applies to prose. A typed block's own title, count and empty-state text form
         the drawn empty state, not a prose heading.
         A single short line declining an unsafe or out-of-scope request, optionally offering habit help,

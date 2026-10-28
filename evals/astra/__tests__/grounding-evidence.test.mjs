@@ -55,9 +55,9 @@ it('grounds only successful results and removes identifiers and credentials recu
   const succeeded = toolCall('get_retrospective', { period: 'month' })
   succeeded.result.payload = retrospectiveResponse(true)
   const failed = toolCall('get_profile', {}, 'Failed', 'failure')
-  const payload = gradingInput({ answer: 'Saved retrospective narrative.', trace: { calls: [
+  const payload = gradingInput({ answer: 'Saved retrospective narrative.', trace: { state: 'available', requestId: 'request', responseRequestId: 'request', calls: [
     { ...succeeded, resultStatus: succeeded.status }, { ...failed, resultStatus: failed.status },
-  ] } }, { vars: { fixtureEvidence: { apiKeys: [{ id: 'private-key-id', name: 'Read access',
+  ] } }, { vars: { evalRequestId: 'request', fixtureEvidence: { apiKeys: [{ id: 'private-key-id', name: 'Read access',
     keyPrefix: 'private-key-prefix', token: 'private-token' }], habits: [{ title: 'Water', id: 'private-habit-id' }] } } })
   expect(payload).toContain('Saved retrospective narrative.')
   expect(payload).toContain('Read access')
