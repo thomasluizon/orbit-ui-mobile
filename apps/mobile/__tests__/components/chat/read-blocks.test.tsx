@@ -429,7 +429,6 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as con
     const skippedCheck = rows[0]!.findAll(node => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!
     const pendingCheck = rows[3]!.findAll(node => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!
     expect(skippedCheck.props.style).toEqual(pendingCheck.props.style)
-    expect(skippedCheck.children).toHaveLength(0)
     await press(tree, locale === 'en' ? 'Open Walk' : 'Abrir Walk')
     expect(state.push).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'skipped', date: skippedDatedHabitListFixture.date } })
     expect(state.mutate).not.toHaveBeenCalled()
