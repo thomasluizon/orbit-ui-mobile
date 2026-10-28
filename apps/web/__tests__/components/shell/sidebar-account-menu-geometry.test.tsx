@@ -1,3 +1,4 @@
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -132,6 +133,7 @@ describe('sidebar account menu geometry in Chromium', () => {
         const menu = document.querySelector('[role="menu"]')
         return menu?.getAttribute('data-side') === 'top' && menu.getBoundingClientRect().top > 0
       })
+      await menu.evaluate(settleAnimations)
       const geometry = await menu.evaluate(element => {
         const bounds = element.getBoundingClientRect()
         const anchor = document.querySelector('[data-shell-account]')!.getBoundingClientRect()
