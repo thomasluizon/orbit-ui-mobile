@@ -48,3 +48,20 @@ it('presents the account time zone as a localized name', () => {
 it('retains an unsupported account time zone without blanking the block', () => {
   expect(formatAccountRowValue({ key: 'timeZone', value: 'Unsupported/Zone', valueType: 'text' }, 'pt-BR', t)).toBe('Unsupported/Zone')
 })
+
+
+it('omits unset plan details and false lifetime while preserving allowance and other account kinds', () => {
+  const rows: AccountRowsCard['rows'] = [
+    { key: 'plan', value: 'Pro', valueType: 'enum' },
+    { key: 'trialEnd', value: '2026-11-01T12:00:00Z', valueType: 'date' },
+    { key: 'planExpiry', value: null, valueType: 'date' },
+    { key: 'interval', value: '', valueType: 'enum' },
+    { key: 'source', value: null, valueType: 'enum' },
+    { key: 'lifetime', value: 'false', valueType: 'boolean' },
+    { key: 'astraAllowance', value: '78/250', valueType: 'count' },
+  ]
+  expect(presentAccountRows({ kind: 'plan', rows, surfaceId: 'profile' })).toEqual([rows[0], rows[1], rows[6]])
+  for (const kind of ['profile', 'referral'] as const) expect(presentAccountRows({ kind, rows, surfaceId: 'profile' })).toEqual(rows)
+  const lifetime = { key: 'lifetime', value: 'true', valueType: 'boolean' } as const
+  expect(presentAccountRows({ kind: 'plan', rows: [lifetime], surfaceId: 'profile' })).toEqual([lifetime])
+})

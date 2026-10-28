@@ -51,7 +51,7 @@ describe('Astra account rows on mobile', () => {
     ] }} />)
     const output = renderedText(tree.toJSON())
     expect(output).toContain('chat.account.value.plan.Pro')
-    expect(output).toContain('chat.account.no')
+    expect(output).not.toContain('chat.account.no')
     expect(output).not.toContain('hidden')
     expect(output).not.toContain('upgrade.')
     expect(mocks.push).not.toHaveBeenCalled()
@@ -142,3 +142,25 @@ it('renders the profile when the time zone is unsupported', () => {
   const tree = render(<AccountRowsCard accountRows={{ kind: 'profile', surfaceId: 'profile', rows: [{ key: 'timeZone', value: 'Unsupported/Zone', valueType: 'text' }] }} />)
   expect(renderedText(tree.toJSON())).toContain('Unsupported/Zone')
 })
+
+  it.each(['plan', 'profile', 'referral'] as const)('filters missing values only for the %s card', (kind) => {
+    const tree = render(<AccountRowsCard accountRows={{ kind, surfaceId: 'profile', rows: [
+      { key: 'plan', value: 'Pro', valueType: 'enum' },
+      { key: 'trialEnd', value: '2026-11-01T12:00:00Z', valueType: 'date' },
+      { key: 'planExpiry', value: null, valueType: 'date' },
+      { key: 'interval', value: '', valueType: 'enum' },
+      { key: 'source', value: null, valueType: 'enum' },
+      { key: 'lifetime', value: 'false', valueType: 'boolean' },
+      { key: 'astraAllowance', value: '78/250', valueType: 'count' },
+    ] }} />)
+    const output = renderedText(tree.toJSON())
+    expect(output).toContain('chat.account.value.plan.Pro')
+    expect(output).toContain('chat.account.row.trialEnd')
+    expect(output).toContain('78 / 250')
+    for (const key of ['planExpiry', 'interval', 'source', 'lifetime']) {
+      expect(output.includes(`chat.account.row.${key}`)).toBe(kind !== 'plan')
+    }
+    expect(output.includes('chat.account.notSet')).toBe(kind !== 'plan')
+    expect(output.includes('chat.account.no')).toBe(kind !== 'plan')
+    TestRenderer.act(() => tree.unmount())
+  })
