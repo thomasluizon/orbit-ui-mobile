@@ -54,7 +54,7 @@ one tap away there. Rows reuse Hoje's leading emoji well and initial fallback; t
 completion control remains independent and loading rows stay disabled.
 
 A labelled Switch row at the top of the day list shares `calendarShowRecurring`
-with Options. Its compact ON-state label is Recorrentes / Recurring. Hiding recurring
+with Options. Its ON-state label is Mostrar hábitos / Show habits, in the habit form's Task and Habit terms: off leaves one-time tasks. Hiding recurring
 habits leaves one-time tasks and dated calendar events; the completion summary counts
 only visible habits. A fully hidden list reuses the existing empty-day copy. Both
 controls retain one shape-following focus indicator and inset paint that clears neighbours.

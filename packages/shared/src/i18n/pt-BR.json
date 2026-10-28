@@ -1204,7 +1204,7 @@
     "entryLabel": "{title}, {time}, {status}",
     "entryMeta": "{time} · {status}",
     "completionHistory": "Histórico de conclusões",
-    "showRecurringShort": "Recorrentes",
+    "showRecurringShort": "Mostrar hábitos",
     "showRecurring": "Mostrar hábitos que se repetem",
     "googleCalendar": "Google Agenda",
     "options": "Opções do calendário",
