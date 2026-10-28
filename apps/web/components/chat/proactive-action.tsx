@@ -1,11 +1,10 @@
 'use client'
 
-import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 
 import { useId } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import type { ProactiveItem } from '@orbit/shared/types'
-import { proactiveActionLabelKey } from '@orbit/shared/utils'
+import { createAstraAllowanceTranslator, proactiveActionLabelKey } from '@orbit/shared/utils'
 import { useProactiveAction } from '@/hooks/use-proactive-action'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 
@@ -17,9 +16,9 @@ export function ProactiveAction({ item, acted, isOnline, onSend }: Readonly<{
   onSend: (prompt: string) => Promise<void>
 }>) {
   const t = useTranslations()
-  const allowanceText = useAstraAllowanceCopy()
   const reasonId = useId()
-  const { reason, allowance, act } = useProactiveAction(item, acted, isOnline, onSend)
+  const { reason, allowance, act, aiMessagesPeriod } = useProactiveAction(item, acted, isOnline, onSend)
+  const allowanceText = createAstraAllowanceTranslator(t, { aiMessagesPeriod }, useLocale())
   const label = item.actionLabel || t(proactiveActionLabelKey(item.trigger))
   const explanation = reason ? allowanceText(reason, { allowance }) : undefined
   return <div className="flex flex-col items-start py-[8px]" style={{ gap: 8 }}>

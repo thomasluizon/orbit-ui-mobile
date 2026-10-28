@@ -1,10 +1,9 @@
-import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import type { ProactiveItem } from '@orbit/shared/types'
-import { proactiveActionLabelKey } from '@orbit/shared/utils'
+import { createAstraAllowanceTranslator, proactiveActionLabelKey } from '@orbit/shared/utils'
 import { useProactiveAction } from '@/hooks/use-proactive-action'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
@@ -15,11 +14,11 @@ export function ProactiveAction({ item, acted, isOnline, onSend }: Readonly<{
   isOnline: boolean
   onSend: (prompt: string) => Promise<void>
 }>) {
-  const { t } = useTranslation()
-  const allowanceText = useAstraAllowanceCopy()
+  const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { reason, allowance, act } = useProactiveAction(item, acted, isOnline, onSend)
+  const { reason, allowance, act, aiMessagesPeriod } = useProactiveAction(item, acted, isOnline, onSend)
+  const allowanceText = createAstraAllowanceTranslator(t, { aiMessagesPeriod }, i18n.language)
   const label = item.actionLabel || t(proactiveActionLabelKey(item.trigger))
   const explanation = reason ? allowanceText(reason, { allowance }) : undefined
   return <View style={{ alignItems: 'flex-start', gap: 8, paddingVertical: 8 }}>
