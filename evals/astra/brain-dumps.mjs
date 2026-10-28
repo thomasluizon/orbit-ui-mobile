@@ -4,7 +4,7 @@ import { validDraft } from './suggestions.mjs'
 const result = (pass, reason) => ({ pass, score: pass ? 1 : 0, reason })
 const normalize = (value) => typeof value === 'string'
   ? value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim() : ''
-const sameTime = (left, right) => typeof left === 'string' && typeof right === 'string'
+export const sameTime = (left, right) => typeof left === 'string' && typeof right === 'string'
   && /^\d{2}:\d{2}(?::00)?$/.test(left) && /^\d{2}:\d{2}(?::00)?$/.test(right)
   && left.slice(0, 5) === right.slice(0, 5)
 const field = (item, name) => item.fields.find((change) => change.field === name)?.proposedValue
@@ -61,6 +61,7 @@ export function brainDumpPreview(output, vars) {
     const item = pending[0].items.find((item) => item.entityName === habit.title)
     const type = habit.frequency_unit === 'OneTime' ? 'Task' : 'Habit'
     if (!item || item.habitType !== type || (item.entityId ?? null) !== (habit.habit_id ?? null)
+      || (habit.habit_id && !expected.items.some((requested) => requested.habit_id === habit.habit_id))
       || habit.parent_habit_id || habit.sub_habits?.length || calls[0].arguments.parent_habit_id
       || (habit.frequency_unit != null && !['OneTime', 'Day'].includes(habit.frequency_unit))) {
       return result(false, 'Brain dump preview does not preserve item types and identities.')

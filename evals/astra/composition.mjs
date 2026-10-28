@@ -110,7 +110,11 @@ export function composition(output, context) {
   if (!expected || !response) return result(false, 'Missing composition evidence or scenario policy.', { unavailable: true })
   if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
   if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
-  if (context.vars.brainDump) return brainDumpPreview(parsed, context.vars)
+  if (context.vars.brainDump) {
+    const preview = brainDumpPreview(parsed, context.vars)
+    return !preview.pass ? preview : parsed.brainDumpReadback?.pass === true
+      ? parsed.brainDumpReadback : result(false, parsed.brainDumpReadback?.reason ?? 'Missing brain dump approval readback.')
+  }
   if (expected.mode === 'suggestions') return suggestionComposition(response, context.vars)
   if ((response.followUps?.length ?? 0) > 2 || (response.followUpContext?.length ?? 0) > 2
     || !(response.followUps ?? []).every(text)) return result(false, 'Malformed or excessive follow-ups.')

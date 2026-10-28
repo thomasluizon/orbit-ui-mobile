@@ -13,10 +13,13 @@ it('includes all brain dump families in both locales', () => {
 
 it.each(brainDumpCases)('grades the producer contract for $metadata.id', async (source) => {
   const { test, output } = brainDumpAttempt(source)
-  for (const grade of [structural, behavior, composition]) {
+  for (const grade of [structural, behavior]) {
     const verdict = await grade(output, { vars: test.vars, test })
     expect(verdict.pass, verdict.reason).toBe(true)
   }
+  expect(composition(output, { vars: test.vars }).pass).toBe(false)
+  output.brainDumpReadback = { pass: true, score: 1, reason: 'Verified persisted readback.' }
+  expect(composition(output, { vars: test.vars }).pass).toBe(true)
   output.composition.aiMessage = 'Confira a prévia.'
   output.composition.parts = [{ type: 'text', text: output.composition.aiMessage }]
   expect(brainDumpPreview(output, test.vars).pass).toBe(true)
