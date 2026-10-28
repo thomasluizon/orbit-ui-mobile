@@ -739,7 +739,7 @@
       "otherReminders": "At set times",
       "noReminders": "No reminders",
       "repeatEvery": "Repeat every",
-      "repeatMinutes": "{count} minutes",
+      "repeatMinutes": "{count, plural, one {# minute} other {# minutes}}",
       "repeatHours": "{count, plural, one {# hour} other {# hours}}",
       "repeatStart": "Start time",
       "repeatAllDay": "All day",

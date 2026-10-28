@@ -61,7 +61,7 @@ function DoseTimeEditor({ habitId, log, onClose }: Readonly<{ habitId: string; l
     finally { saving.current = false }
   }
   return <Sheet ref={sheetRef} open title={t('habits.changeTakenAt')} onClose={mutation.isPending ? undefined : onClose} actions={<ActionRow>
-    <IconButton label={t('common.cancel')} disabled={mutation.isPending} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} /></IconButton>
+    <IconButton label={t('common.cancel')} disabled={mutation.isPending} onClick={() => closeSheet()}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     <PillButton size="sm" loading={mutation.isPending} disabled={mutation.isPending} onClick={() => void save()}>{t('common.save')}</PillButton>
   </ActionRow>}>
     <View style={{ gap: 12 }}>
@@ -72,7 +72,7 @@ function DoseTimeEditor({ habitId, log, onClose }: Readonly<{ habitId: string; l
         setExactInstant(new Date(log.reminderAtUtc!).toISOString())
         setDate(getAccountDateTime(new Date(log.reminderAtUtc!), timeZone).date)
         setClock(repeatReminderClock(log.reminderAtUtc!, timeZone))
-      }}><Clock size={20} strokeWidth={1.5} /></IconButton> : null}
+      }}><Clock size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
     </View>
   </Sheet>
 }

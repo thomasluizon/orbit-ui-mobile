@@ -2343,3 +2343,20 @@ it('saves the repeat contract from the owning native form and replaces fixed rem
   expect(request).toMatchObject({ repeatReminder: { intervalMinutes: 30, startAtUtc: expect.stringMatching(/Z$/) }, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
   TestRenderer.act(() => tree.unmount())
 })
+
+it.each([
+  [{ frequencyUnit: 'Week', frequencyQuantity: 1 }, false],
+  [{ frequencyUnit: 'Day', frequencyQuantity: 2 }, false],
+  [{ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'] }, false],
+  [{ frequencyUnit: 'Day', frequencyQuantity: 4, isFlexible: true }, true],
+  [{ isGeneral: true }, true],
+] as const)('limits the native repeat choice to everyday schedules %j', (schedule, expected) => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  const helpers = createFormHelpers({ title: 'Water', ...schedule })
+  helpers.isGeneral = 'isGeneral' in schedule
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />) })
+  expect(tree!.root.findAllByProps({ accessibilityLabel: 'habits.form.reminderKind' }).length > 0).toBe(expected)
+  TestRenderer.act(() => tree.unmount())
+})

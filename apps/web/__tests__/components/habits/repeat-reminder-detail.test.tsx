@@ -15,7 +15,7 @@ vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key
   return typeof template === 'string' ? template.replace('{time}', values?.time ?? '') : key
 } }))
 vi.mock('@/components/ui/sheet', () => ({ Sheet: ({ children, actions }: { children: ReactNode; actions: ReactNode }) => <section role="dialog">{children}{actions}</section>, useSheetHost: () => ({ sheetRef: { current: null }, closeSheet: (action?: () => void) => action?.() }) }))
-const log = { id: 'log-1', date: '2026-10-28', value: 1, createdAtUtc: '2026-10-29T02:30:00Z', takenAtUtc: '2026-10-29T02:30:00Z', reminderAtUtc: '2026-10-29T02:00:00Z' }
+const log = { id: 'log-1', date: '2026-10-28', value: 1, createdAtUtc: '2026-10-29T02:30:00Z', takenAtUtc: '2026-10-29T02:30:00Z', reminderAtUtc: '2026-10-29T02:00:30.125Z' }
 const habit = createMockHabit({ repeatReminder: { intervalMinutes: 30 }, nextReminderAtUtc: '2026-10-29T03:00:00Z' })
 beforeEach(() => { mutation.mutateAsync.mockReset().mockResolvedValue(undefined) })
 it('shows server next time and corrects a dose using the reminder instant across midnight', async () => {
@@ -25,7 +25,7 @@ it('shows server next time and corrects a dose using the reminder instant across
   fireEvent.click(screen.getByRole('button', { name: 'Change time taken' }))
   fireEvent.click(screen.getByRole('button', { name: 'Use reminder time' }))
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-  await waitFor(() => expect(mutation.mutateAsync).toHaveBeenCalledExactlyOnceWith({ logId: log.id, takenAtUtc: '2026-10-29T02:00:00.000Z' }))
+  await waitFor(() => expect(mutation.mutateAsync).toHaveBeenCalledExactlyOnceWith({ logId: log.id, takenAtUtc: '2026-10-29T02:00:30.125Z' }))
   view.rerender(<RepeatReminderDetail habit={{ ...habit, nextReminderAtUtc: '2026-10-29T06:00:00Z' }} logs={[{ ...log, takenAtUtc: log.reminderAtUtc }]} />)
   expect(screen.getByText('Next at 03:00')).toBeInTheDocument()
   expect(screen.getByText('Taken at 23:00')).toBeInTheDocument()

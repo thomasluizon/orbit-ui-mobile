@@ -17,7 +17,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: 'en
   return typeof template === 'string' ? template.replace('{time}', values?.time ?? '') : key
 } }) }))
 vi.mock('@/components/ui/sheet', () => ({ Sheet: ({ children, actions }: { children: React.ReactNode; actions: React.ReactNode }) => <View testID="dose-dialog">{children}{actions}</View>, useSheetHost: () => ({ sheetRef: { current: null }, closeSheet: (action?: () => void) => action?.() }) }))
-const log = { id: 'log-1', date: '2026-10-28', value: 1, createdAtUtc: '2026-10-29T02:30:00Z', takenAtUtc: '2026-10-29T02:30:00Z', reminderAtUtc: '2026-10-29T02:00:00Z' }
+const log = { id: 'log-1', date: '2026-10-28', value: 1, createdAtUtc: '2026-10-29T02:30:00Z', takenAtUtc: '2026-10-29T02:30:00Z', reminderAtUtc: '2026-10-29T02:00:30.125Z' }
 const habit = createMockHabit({ repeatReminder: { intervalMinutes: 30 }, nextReminderAtUtc: '2026-10-29T03:00:00Z' })
 function press(root: ReactTestInstance, label: string) {
   const button = root.findAll((node) => String(node.type) === 'Pressable').find((node) => (node.props.accessibilityLabel ?? renderedText(node)) === label)
@@ -35,7 +35,7 @@ it('shows supplied next time and corrects a dose with the reminder instant acros
   TestRenderer.act(() => press(tree.root, 'Change time taken'))
   TestRenderer.act(() => press(tree.root, 'Use reminder time'))
   await TestRenderer.act(async () => { press(tree.root, 'Save'); await Promise.resolve() })
-  expect(mutation.mutateAsync).toHaveBeenCalledExactlyOnceWith({ logId: log.id, takenAtUtc: '2026-10-29T02:00:00.000Z' })
+  expect(mutation.mutateAsync).toHaveBeenCalledExactlyOnceWith({ logId: log.id, takenAtUtc: '2026-10-29T02:00:30.125Z' })
   TestRenderer.act(() => tree.update(<RepeatReminderDetail habit={{ ...habit, nextReminderAtUtc: '2026-10-29T06:00:00Z' }} logs={[{ ...log, takenAtUtc: log.reminderAtUtc }]} />))
   expect(renderedText(tree!.root)).toContain('Next at 03:00')
   expect(renderedText(tree!.root)).toContain('Taken at 23:00')
