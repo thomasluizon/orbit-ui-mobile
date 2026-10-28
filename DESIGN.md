@@ -89,8 +89,8 @@ Owners above are under each app's `components/` directory. Both languages and bo
 
 **Conversation copying:** message text stays selectable on web and Android. A copyable block in an Astra reply carries one copy control; every fenced or indented code block qualifies. No message carries a per-message copy control. The small control sits in its own row above the block, never over its text; this rule supersedes the per-message copy pill in `design/canvas/Orbit Astra Conversation.dc.html` (#1388).
 
-**Compact Astra answers (#1743).** Astra read blocks omit manual refresh while current and footer links to shell destinations.
-Every stale signed read offers one named refresh icon to recover its saved answer.
+**Compact Astra answers (#1743).** Astra read blocks omit manual refresh and footer links to shell destinations.
+The one exception is a stale signed read: it offers one named refresh icon to recover its saved answer.
 Account, calendar, day summary, goal list, recap and streak answers keep their useful rows,
 figures and in-place actions; Perfil, Calendário, Hoje and Progresso remain shell destinations.
 The streak figure and plural day unit replace the separate current-streak label.
