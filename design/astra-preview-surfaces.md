@@ -168,7 +168,9 @@ the locale database's long generic name, falling back to the supplied id when un
 
 Write previews retain inline rename, editing, rejection, parent resolution and approval.
 The preview title names a create count or the habit being edited. The emoji well and
-short schedule summary share the row. Creates omit default tracking flags and root
+short schedule summary share the row. Enabled reminders add one summary token with the
+supplied timing, or the reminder action when timing is absent. Summary tokens wrap only
+at their separators on both platforms. Creates omit default tracking flags and root
 identity; schedule edits show supplied before and after values. Proposed semantics and
 feedback remain while the dashed outline is removed from the framed rows.
 

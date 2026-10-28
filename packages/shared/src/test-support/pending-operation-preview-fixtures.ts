@@ -344,3 +344,21 @@ export function makePlacementPreview(selected: 'sub_habit' | 'checklist_item' | 
     },
   }, operation.items![1]!] })
 }
+
+
+export function makeReminderHabitPreview(reminder: 'enabled' | 'atTime' | 'before' | 'scheduled' | 'disabled'): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(1)
+  const item = operation.items![0]!
+  const enabled = reminder !== 'disabled'
+  const reminderTimes = reminder === 'scheduled' ? [] : [reminder === 'before' ? 15 : 0]
+  const fields = makeSuggestionBatchPreview().items![0]!.fields.filter(field =>
+    ['title', 'frequency_unit', 'frequency_quantity', 'due_time', 'reminder_enabled', 'reminder_times'].includes(field.field))
+    .filter(field => reminder !== 'enabled' || field.field !== 'reminder_times')
+    .map(field => {
+      if (field.field === 'reminder_enabled') return { ...field, newValue: enabled ? 'True' : 'False', proposedValue: enabled }
+      if (field.field === 'reminder_times') return { ...field, newValue: JSON.stringify(reminderTimes), proposedValue: reminderTimes }
+      return field
+    })
+  if (reminder === 'scheduled') fields.push({ ...item.fields[0]!, field: 'scheduled_reminders', newValue: '[{"time":"20:00","when":"day_before"}]', proposedValue: [{ when: 'day_before', time: '20:00' }] })
+  return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...item, fields }] })
+}

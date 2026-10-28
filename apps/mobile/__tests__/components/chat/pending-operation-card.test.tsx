@@ -1,4 +1,4 @@
-import { makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -10,13 +10,17 @@ import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import type { PendingOperationRevisionResponse, RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
 import { makeHeldHabitMessage, makePendingAgentOperation, pendingWriteSummaryCases, makePendingWriteSummaryOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
-import { controlName, renderedText } from '../../support/react-test-renderer'
+import { controlName, renderedText as collectRenderedText } from '../../support/react-test-renderer'
 import { createTokensV2, radius } from '@/lib/theme'
 import { sheetTestControls } from '../../support/sheet-double'
 import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 import { __resetTestHostConfig, __setFocusImpl, __setTouchMode, __focusHost, __getFocusedNativeTag } from '../../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
+
+function renderedText(node: unknown): string {
+  return collectRenderedText(node).replace(/\u00a0/g, ' ')
+}
 
 vi.mock('react-native', async (importOriginal) => ({
   ...await importOriginal<typeof import('react-native')>(),
@@ -356,7 +360,7 @@ describe('PendingOperationCard (mobile)', () => {
       const operation = makePendingWriteSummaryOperation(scenario)
       const expected = locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')
       const { tree } = renderCard(operation)
-      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === expected)).toHaveLength(1)
+      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => renderedText(node.props.children) === expected)).toHaveLength(1)
       expect(renderedText(tree.toJSON())).not.toContain(operation.items![0]!.entityId!)
     })
 
@@ -366,7 +370,7 @@ describe('PendingOperationCard (mobile)', () => {
       const operation = makePartialScheduleSummaryOperation(scenario)
       const expected = locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1')
       const { tree } = renderCard(operation)
-      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === expected)).toHaveLength(1)
+      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => renderedText(node.props.children) === expected)).toHaveLength(1)
     })
   })
 
@@ -1485,4 +1489,23 @@ describe('placement states (mobile)', () => {
     expect(radio(tree, 'New parent habit').props.accessibilityState.checked).toBe(true)
     expect(tree.root.findAllByProps({ accessibilityLabel: en.chat.operation.field.title })).toHaveLength(0)
   })
+})
+
+
+it.each((['en', 'pt-BR'] as const).flatMap(locale => (['enabled', 'atTime', 'before', 'scheduled', 'disabled'] as const).map(reminder => ({ locale, reminder }))))('keeps the $reminder reminder and whole schedule tokens in the create preview in $locale', ({ locale, reminder }) => {
+  visibleLocale.actual = true
+  visibleLocale.language = locale
+  const operation = makeReminderHabitPreview(reminder)
+  const { tree } = renderCard(operation)
+  const meta = tree.root.findByProps({ testID: 'preview-item-meta' }).props.children as string
+  const messages = locale === 'en' ? en : ptBR
+  const expected = reminder === 'enabled' ? messages.chat.preview.summary.sendReminders
+    : reminder === 'scheduled' ? translateVisible('chat.preview.summary.remindDayBefore', { time: '8:00 PM' })
+    : translateVisible('chat.preview.summary.remindWhen', { when: reminder === 'before' ? messages.habits.form.reminder15min : messages.habits.form.reminderAtTime })
+  const tokens = meta.replace(/\u00a0/g, ' ').split(' · ')
+  expect.soft(tokens.filter(token => token === expected)).toHaveLength(reminder === 'disabled' ? 0 : 1)
+  expect.soft(tokens).toHaveLength(reminder === 'disabled' ? 2 : 3)
+  expect(meta).toContain(locale === 'en' ? 'at\u00a08:15\u00a0AM' : 'às\u00a08:15\u00a0AM')
+  for (const token of meta.split(' · ')) expect(token).not.toContain(' ')
+  TestRenderer.act(() => tree.unmount())
 })

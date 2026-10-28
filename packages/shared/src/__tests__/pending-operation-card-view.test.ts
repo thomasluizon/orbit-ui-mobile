@@ -1,4 +1,4 @@
-import { makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -1088,4 +1088,19 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('
   const operation = { ...makeCreateHabitsPreview(3), actionKey: 'updateHabits' }
   const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale)
   expect(labels.name).toBe(locale === 'en' ? 'Change 3 habits' : 'Alterar 3 hábitos')
+})
+
+
+it.each(['en', 'pt-BR'])('includes one enabled reminder token in create summaries in %s', locale => {
+  const messages = locale === 'en' ? en : ptBR
+  for (const reminder of ['enabled', 'atTime', 'before', 'scheduled', 'disabled'] as const) {
+    const operation = makeReminderHabitPreview(reminder)
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale)
+    const tokens = labels.summarize(operation.items![0]!.fields).split(' · ')
+    const expected = reminder === 'enabled' ? messages.chat.preview.summary.sendReminders
+      : reminder === 'scheduled' ? translateMessages(messages, 'chat.preview.summary.remindDayBefore', { time: '20:00' })
+      : translateMessages(messages, 'chat.preview.summary.remindWhen', { when: reminder === 'before' ? messages.habits.form.reminder15min : messages.habits.form.reminderAtTime })
+    expect(tokens.filter(token => token === expected)).toHaveLength(reminder === 'disabled' ? 0 : 1)
+    expect(tokens).toHaveLength(reminder === 'disabled' ? 2 : 3)
+  }
 })
