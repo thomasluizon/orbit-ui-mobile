@@ -78,7 +78,7 @@ it.each(['en', 'pt-BR'])('requires one existing target without a new duplicate i
 })
 it.each(['en', 'pt-BR'])('drives verified chat setup and one real HTTP refine request in %s', async (locale) => {
   offlineCredentials()
-  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
   const test = scenario('suggestions-refine', locale)
   let baseline
   let requests = 0

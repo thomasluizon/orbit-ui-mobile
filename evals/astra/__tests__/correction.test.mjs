@@ -30,7 +30,7 @@ function batchPreview(arguments_) {
 
 it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^3 reporting: %s', async (locale) => {
   offlineCredentials()
-  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
   const scenario = corpus.find((entry) => entry.metadata.family === 'medical-correction' && entry.metadata.locale === locale)
   const original = JSON.parse(JSON.stringify({ habits: scenario.vars.setup.expectations.required[0].arguments.habits.map((habit) => ({
