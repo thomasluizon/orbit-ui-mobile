@@ -261,12 +261,13 @@ are 15, 20, 30 and 45 minutes, then whole hours from 1 through 23. The default s
 default window is all day. A supplied window may cross midnight but its endpoints must differ.
 Only everyday daily, daily count and General habits offer the choice. Changing to an incompatible
 cadence clears it from the draft. Selecting repeat clears relative and scheduled reminder stores;
-shared request builders send the exclusive repeat contract. General retains only this reminder kind.
+shared request builders send the exclusive repeat contract while preserving the habit time window. General retains only this reminder kind, including its enabled state through edit initialization.
 
 The paired `repeat-reminder-detail.tsx` owners show the supplied next instant and each positive log's
-Taken at value. Their correction sheet retains the full original instant until the person changes a
+Done at value. Their correction sheet retains the full original instant until the person changes a
 calendar or clock control; Use reminder time preserves the reminder's seconds and fractional seconds.
-Save corrects that log and refreshes habit reads. Failure keeps the draft and its recovery message.
+Use reminder time is a labelled small ghost pill. The footer pairs a small ghost Cancel pill with
+the filled Save action. Save corrects that log and refreshes habit reads. Failure keeps the draft and its recovery message.
 The existing Select, DateField, TimeField, ListRow, ActionRow and sheet footer own these controls.
 
 Shared validation and normalization tests preserve absent versus null next instants, recursively

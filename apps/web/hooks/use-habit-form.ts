@@ -233,7 +233,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     form.setValue('dueTime', '')
     form.setValue('dueEndTime', '')
     form.setValue('endDate', '')
-    form.setValue('reminderEnabled', false)
+    if (!form.getValues('repeatReminder')) form.setValue('reminderEnabled', false)
     form.setValue('scheduledReminders', [])
     if (draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
   }, [form, modeDrafts])

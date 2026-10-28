@@ -2025,9 +2025,11 @@ footer owns Save and Cancel; no repeat-specific token or surface is introduced.
 
 Hoje rows keep the complete next-time phrase as a single metadata token in the canonical wrapping
 flow. Its existing measured footer takes over when the heading column cannot fit it. Detail repeats
-the API-supplied next instant and offers Taken at correction through the existing sheet controls,
-including the original reminder instant. Both respect the person's clock preference and account
-zone. An absent or null next instant adds no estimated time. Corrections refresh authoritative reads.
+the API-supplied next instant and offers Done at correction through the existing sheet controls,
+including the original reminder instant through a labelled small ghost pill. Its approved Use
+reminder time label retains its full wording in both locales on these two owners. The correction sheet
+uses a trailing small ghost Cancel pill before the filled Save action. Both respect the person's clock
+preference and account zone. An absent or null next instant adds no estimated time. Corrections refresh authoritative reads.
 
 Android Done runs without opening an activity. Failure replaces that reminder with one actionless
 recovery notification whose body opens the habit. Web opens detail directly after failed Done.

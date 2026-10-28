@@ -1,3 +1,4 @@
+import { ActionRow } from '@/components/ui/action-row'
 import React from 'react'
 import type { ReactTestInstance } from 'react-test-renderer'
 import { beforeEach, expect, it, vi } from 'vitest'
@@ -31,23 +32,46 @@ it('shows supplied next time and corrects a dose with the reminder instant acros
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[log]} />) })
   expect(renderedText(tree!.root)).toContain('Next at 00:00')
-  expect(renderedText(tree!.root)).toContain('Taken at 23:30')
-  TestRenderer.act(() => press(tree.root, 'Change time taken'))
+  expect(renderedText(tree!.root)).toContain('Done at 23:30')
+  TestRenderer.act(() => press(tree.root, 'Change time'))
   TestRenderer.act(() => press(tree.root, 'Use reminder time'))
   await TestRenderer.act(async () => { press(tree.root, 'Save'); await Promise.resolve() })
   expect(mutation.mutateAsync).toHaveBeenCalledExactlyOnceWith({ logId: log.id, takenAtUtc: '2026-10-29T02:00:30.125Z' })
   TestRenderer.act(() => tree.update(<RepeatReminderDetail habit={{ ...habit, nextReminderAtUtc: '2026-10-29T06:00:00Z' }} logs={[{ ...log, takenAtUtc: log.reminderAtUtc }]} />))
   expect(renderedText(tree!.root)).toContain('Next at 03:00')
-  expect(renderedText(tree!.root)).toContain('Taken at 23:00')
-  TestRenderer.act(() => tree.unmount())
+  expect(renderedText(tree!.root)).toContain('Done at 23:00')
+  TestRenderer.act(() => tree.update(<></>))
 })
 it('retains the editor and error after a refused correction', async () => {
   mutation.mutateAsync.mockRejectedValue(new Error('Offline'))
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[log]} />) })
-  TestRenderer.act(() => press(tree.root, 'Change time taken'))
+  TestRenderer.act(() => press(tree.root, 'Change time'))
   await TestRenderer.act(async () => { press(tree.root, 'Save'); await Promise.resolve() })
   expect(renderedText(tree!.root)).toContain(en.habits.doseSaveError)
   expect(tree!.root.findAllByProps({ testID: 'dose-dialog' }).length).toBeGreaterThan(0)
-  TestRenderer.act(() => tree.unmount())
+  TestRenderer.act(() => tree.update(<></>))
+})
+
+it('uses visible small ghost actions for Cancel and Use reminder time', () => {
+  let tree!: import('react-test-renderer').ReactTestRenderer
+  TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[log]} />) })
+  TestRenderer.act(() => press(tree.root, en.habits.changeTakenAt))
+  for (const label of [en.common.cancel, en.habits.useReminderTime]) {
+    const button = tree.root.findAll((node) => String(node.type) === 'Pressable').find((node) => (node.props.accessibilityLabel ?? renderedText(node)) === label)!
+    expect(renderedText(button)).toBe(label)
+    expect(button.props.testID).toBe('button-ghost-sm')
+  }
+  const actions = tree.root.findAll((node) => node.type === ActionRow)[0]!
+  expect(actions.findAll((node) => String(node.type) === 'Pressable').map(renderedText)).toEqual([en.common.cancel, en.common.save])
+  TestRenderer.act(() => tree.update(<></>))
+})
+
+it('labels the reminder-time choice visibly', () => {
+  let tree!: import('react-test-renderer').ReactTestRenderer
+  TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[log]} />) })
+  TestRenderer.act(() => press(tree.root, en.habits.changeTakenAt))
+  const button = tree.root.findAll((node) => String(node.type) === 'Pressable').find((node) => (node.props.accessibilityLabel ?? renderedText(node)) === en.habits.useReminderTime)!
+  expect(renderedText(button)).toBe(en.habits.useReminderTime)
+  TestRenderer.act(() => tree.update(<></>))
 })

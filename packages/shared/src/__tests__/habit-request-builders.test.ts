@@ -595,3 +595,11 @@ describe('repeat reminder requests', () => {
     expect(buildUpdateHabitRequest({ ...makeFormData(), repeatReminder: null }, true, '', [], [])).toMatchObject({ clearRepeatReminder: true })
   })
 })
+
+
+it.each(['create', 'sub-habit', 'update'] as const)('preserves the daily time window when %s replaces the reminder stores', (operation) => {
+  const repeatReminder = { intervalMinutes: 30 }
+  const form = makeFormData({ frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '09:00', dueEndTime: '10:00', reminderEnabled: true, repeatReminder, scheduledReminders: [{ when: 'same_day', time: '08:00' }] })
+  const request = operation === 'create' ? buildCreateHabitRequest(form, [15], [], [], []) : operation === 'sub-habit' ? buildSubHabitRequest(form, [15], []) : buildUpdateHabitRequest(form, false, '', [15], [])
+  expect(request).toMatchObject({ dueTime: '09:00', dueEndTime: '10:00', repeatReminder, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
+})

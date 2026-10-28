@@ -11,6 +11,8 @@ const drawnTextSurfaces = [
       '/apps/mobile/components/ui/confirm-sheet.tsx',
       '/apps/web/components/habits/habit-create-actions.tsx',
       '/apps/mobile/components/habits/habit-create-actions.tsx',
+      '/apps/web/components/habits/repeat-reminder-detail.tsx',
+      '/apps/mobile/components/habits/repeat-reminder-detail.tsx',
       '/apps/web/components/habits/edit-habit-modal.tsx',
       '/apps/mobile/components/habits/edit-habit-modal.tsx',
       '/apps/web/components/goals/create-goal-sheet.tsx',

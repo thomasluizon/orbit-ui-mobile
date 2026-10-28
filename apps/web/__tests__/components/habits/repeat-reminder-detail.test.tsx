@@ -21,20 +21,39 @@ beforeEach(() => { mutation.mutateAsync.mockReset().mockResolvedValue(undefined)
 it('shows server next time and corrects a dose using the reminder instant across midnight', async () => {
   const view = render(<RepeatReminderDetail habit={habit} logs={[log]} />)
   expect(screen.getByText('Next at 00:00')).toBeInTheDocument()
-  expect(screen.getByText('Taken at 23:30')).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Change time taken' }))
+  expect(screen.getByText('Done at 23:30')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Change time' }))
   fireEvent.click(screen.getByRole('button', { name: 'Use reminder time' }))
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(mutation.mutateAsync).toHaveBeenCalledExactlyOnceWith({ logId: log.id, takenAtUtc: '2026-10-29T02:00:30.125Z' }))
   view.rerender(<RepeatReminderDetail habit={{ ...habit, nextReminderAtUtc: '2026-10-29T06:00:00Z' }} logs={[{ ...log, takenAtUtc: log.reminderAtUtc }]} />)
   expect(screen.getByText('Next at 03:00')).toBeInTheDocument()
-  expect(screen.getByText('Taken at 23:00')).toBeInTheDocument()
+  expect(screen.getByText('Done at 23:00')).toBeInTheDocument()
 })
 it('keeps the dose draft open after a refused correction', async () => {
   mutation.mutateAsync.mockRejectedValue(new Error('Offline'))
   render(<RepeatReminderDetail habit={habit} logs={[log]} />)
-  fireEvent.click(screen.getByRole('button', { name: 'Change time taken' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Change time' }))
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   expect(await screen.findByRole('alert')).toHaveTextContent(en.habits.doseSaveError)
   expect(screen.getByRole('dialog')).toBeInTheDocument()
+})
+
+it('uses visible small ghost actions for Cancel and Use reminder time', () => {
+  render(<RepeatReminderDetail habit={habit} logs={[log]} />)
+  fireEvent.click(screen.getByRole('button', { name: en.habits.changeTakenAt }))
+  for (const label of [en.common.cancel, en.habits.useReminderTime]) {
+    const button = screen.getByRole('button', { name: label })
+    expect(button).toHaveTextContent(label)
+    expect(button).toHaveAttribute('data-variant', 'ghost')
+    expect(button).toHaveAttribute('data-size', 'sm')
+  }
+  const actions = screen.getByRole('button', { name: en.common.save }).parentElement!
+  expect(Array.from(actions.querySelectorAll('button')).map((button) => button.textContent)).toEqual([en.common.cancel, en.common.save])
+})
+
+it('labels the reminder-time choice visibly', () => {
+  render(<RepeatReminderDetail habit={habit} logs={[log]} />)
+  fireEvent.click(screen.getByRole('button', { name: en.habits.changeTakenAt }))
+  expect(screen.getByRole('button', { name: en.habits.useReminderTime })).toHaveTextContent(en.habits.useReminderTime)
 })

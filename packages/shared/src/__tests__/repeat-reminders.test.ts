@@ -55,3 +55,13 @@ it('makes the reminder utility resolvable through the public package used by bot
   const require = createRequire(import.meta.url)
   expect(require.resolve('@orbit/shared/utils/repeat-reminders')).toMatch(/utils\/repeat-reminders\.ts$/)
 })
+
+import en from '../i18n/en.json'
+import pt from '../i18n/pt-BR.json'
+
+it.each([
+  [en, { takenAt: 'Done at {time}', changeTakenAt: 'Change time', doseDate: 'Date', doseTime: 'Time', repeatRecoveryTitle: "Couldn't log from the reminder", repeatRecoveryBody: 'Open the habit to log it.', form: { repeatDailyOnly: 'Repeat reminders work only for habits set for every day or with no set days.', repeatInvalid: 'Choose a supported interval and two different active times, or turn on All day.' } }],
+  [pt, { takenAt: 'Feito às {time}', changeTakenAt: 'Alterar horário', doseDate: 'Data', doseTime: 'Horário', repeatRecoveryTitle: 'Não deu para registrar pelo lembrete', repeatRecoveryBody: 'Abra o hábito para registrar.', form: { repeatDailyOnly: 'Lembretes com repetição só funcionam em hábitos de todos os dias ou sem dias definidos.', repeatInvalid: 'Escolha um intervalo disponível e dois horários diferentes, ou ative Dia inteiro.' } }],
+])('uses the approved repeat copy in each locale', (locale, expected) => {
+  expect(locale.habits).toMatchObject(expected)
+})

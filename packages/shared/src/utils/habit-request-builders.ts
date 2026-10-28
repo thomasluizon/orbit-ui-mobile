@@ -47,13 +47,15 @@ function applyReminderFields(
   data: HabitFormData,
   reminderTimes: number[],
 ): void {
+  if (data.dueTime) {
+    req.dueTime = data.dueTime
+    if (data.dueEndTime) req.dueEndTime = data.dueEndTime
+  }
   if (data.repeatReminder && data.reminderEnabled) {
     Object.assign(req, { repeatReminder: data.repeatReminder, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
     return
   }
   if (data.dueTime) {
-    req.dueTime = data.dueTime
-    if (data.dueEndTime) req.dueEndTime = data.dueEndTime
     req.reminderEnabled = data.reminderEnabled
     req.reminderTimes = []
     req.relativeReminders = data.reminderEnabled
@@ -164,14 +166,16 @@ function applyUpdateReminderFields(
   data: HabitFormData,
   reminderTimes: number[],
 ): void {
+  if (data.dueTime) {
+    request.dueTime = data.dueTime
+    request.dueEndTime = data.dueEndTime || undefined
+  }
   if (data.repeatReminder === null || (data.repeatReminder && !data.reminderEnabled)) request.clearRepeatReminder = true
   if (data.repeatReminder && data.reminderEnabled) {
     Object.assign(request, { repeatReminder: data.repeatReminder, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
     return
   }
   if (data.dueTime) {
-    request.dueTime = data.dueTime
-    request.dueEndTime = data.dueEndTime || undefined
     request.reminderEnabled = data.reminderEnabled
     request.reminderTimes = []
     request.relativeReminders = data.reminderEnabled

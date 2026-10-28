@@ -1,4 +1,5 @@
-import { createApiClientError } from '@orbit/shared/utils'
+import { applyHabitFormMode, buildEditHabitFormState, buildUpdateHabitRequest, normalizeHabitFormData, createApiClientError } from '@orbit/shared/utils'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useHabitForm } from '@/hooks/use-habit-form'
@@ -261,4 +262,34 @@ it('requests focus and disclosure for mixed description and unknown validation',
   expect(result.current.backendFieldErrors.description).toBe('Server description failure')
   expect(result.current.backendFocusField).toBe('description')
   expect(result.current.backendFocusRequest).toBe(1)
+})
+
+
+describe('General repeat edit initialization', () => {
+  it.each([false, true])('preserves the reminder through reset and apply-mode unless explicitly removed=%s', (removeReminder) => {
+    const habit = createMockHabit({ isGeneral: true, frequencyUnit: null, frequencyQuantity: null, reminderEnabled: true, repeatReminder: { intervalMinutes: 30 } })
+    const prefill = buildEditHabitFormState(habit)
+    const { result } = renderHook(() => useHabitForm())
+    const helpers = () => result.current
+    act(() => {
+      helpers().resetModeDrafts()
+      helpers().form.reset(prefill.formValues)
+      applyHabitFormMode(prefill.mode, helpers())
+    })
+    expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    act(() => {
+      helpers().form.setValue('title', 'Water renamed')
+      if (removeReminder) helpers().form.setValue('reminderEnabled', false)
+    })
+    const request = buildUpdateHabitRequest(normalizeHabitFormData(helpers().form.getValues()), prefill.mode === 'oneTime', prefill.originalEndDate, prefill.reminderTimes, prefill.selectedGoalIds)
+    expect(request.title).toBe('Water renamed')
+    if (removeReminder) {
+      expect(request.clearRepeatReminder).toBe(true)
+      expect(request.repeatReminder).toBeUndefined()
+    } else {
+      expect(request.reminderEnabled).toBe(true)
+      expect(request.repeatReminder).toEqual(habit.repeatReminder)
+      expect(request.clearRepeatReminder).toBeUndefined()
+    }
+  })
 })
