@@ -277,7 +277,7 @@ describe('CalendarDayDetail (mobile)', () => {
   })
 
   it('keeps the day switch, visible rows, count and Options checkbox in sync in both directions', () => {
-    const tree = renderDetail({ showOptions: true, entries: [
+    const tree = renderDetail({ showOptions: true, calendarEvents: [{ id: 'dated', title: 'Dated item', description: null, startDate: '2025-06-15', startTime: '09:00', endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }], entries: [
       makeEntry({ title: 'Read', status: 'missed' }),
       makeEntry({ habitId: 'task', title: 'Appointment', isOneTime: true }),
     ] })
@@ -286,6 +286,7 @@ describe('CalendarDayDetail (mobile)', () => {
     TestRenderer.act(() => { (nodes(tree, 'SwitchMock')[0]!.props.onPress as () => void)() })
     expect(useUIStore.getState().calendarShowRecurring).toBe(false)
     expect(text()).toContain('1 of 1 logged')
+    expect(nodes(tree, 'EventRowMock').some(node => node.props.title === 'Dated item')).toBe(true)
     expect(text()).not.toContain('Read')
     expect(text()).toContain('Appointment')
     const options = nodes(tree, 'Pressable').find(node => node.props.accessibilityLabel === 'calendar.options')!

@@ -80,7 +80,7 @@ function DayWithOptions() {
     createMockHabitScheduleItem({ id: 'task', title: 'Appointment', frequencyUnit: null, scheduledDates: [date], instances: [] }),
   ], logs: { task: [{ id: 'log', date, value: 1, createdAtUtc: `${date}T12:00:00Z` }] } }, { from: date, to: date }).get(date)!
   return <><CalendarOptions /><CalendarDayDetail dateStr={date} today={date} entries={entries}
-    calendarEvents={[]} calendarEventsState="ready" onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()}
+    calendarEvents={[{ id: 'dated', title: 'Dated item', description: null, startDate: date, startTime: '09:00', endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }]} calendarEventsState="ready" onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()}
     onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} loggable={false} showRecurring={showRecurring}
     pendingEntryStates={new Map()} onEntryChange={() => null} /></>
 }
@@ -93,6 +93,7 @@ it('keeps the day switch, visible rows, count and Options checkbox in sync in bo
   fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurringShort' }))
   expect(useUIStore.getState().calendarShowRecurring).toBe(false)
   expect(summary()).toHaveTextContent('1 of 1')
+  expect(screen.getByRole('button', { name: '09:00, Dated item' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /^Read,/ })).toBeNull()
   expect(screen.getByRole('button', { name: /^Appointment,/ })).toBeInTheDocument()
   const dialog = openOptions()

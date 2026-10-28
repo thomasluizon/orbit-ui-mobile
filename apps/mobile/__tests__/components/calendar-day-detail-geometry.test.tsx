@@ -1,4 +1,3 @@
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 import React from 'react'
 import { StyleSheet } from 'react-native'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -11,6 +10,8 @@ import type { CalendarSyncEvent } from '@orbit/shared'
 import { calendarDayCardDate, makeCalendarDayCardEntries } from '@orbit/shared/test-support/calendar-day-card-fixtures'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { CheckRow } from '@/components/ui/check-row'
+
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 vi.unmock('react-i18next')
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
