@@ -561,3 +561,18 @@ it.each(['https://api.useorbit.org', 'https://orbit-api-staging-uqu2.onrender.co
     expect(request).not.toHaveBeenCalled()
   },
 )
+
+it('grounds the skipped identity independently of export order', async () => {
+  const intercepted = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    const response = await intercepted(url, options)
+    if (new URL(url).pathname !== '/api/profile/export') return response
+    const exported = await response.json()
+    exported.habits.reverse()
+    return Response.json(exported)
+  })
+  const test = scenario('skipped')
+  await resetFixture(test)
+  expect(test.vars.fixtureEvidence.loggedState.habits.filter((habit) => habit.skipped).map((habit) => habit.title))
+    .toEqual(['Caminhada'])
+})

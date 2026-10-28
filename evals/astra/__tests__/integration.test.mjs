@@ -34,7 +34,8 @@ describe('real promptfoo CLI with an offline provider', () => {
     scratch.push(directory)
     const configPath = resolve(directory, 'config.yaml')
     const assertions = configuration.defaultTest.assert.filter((assertion) => responseMode !== 'missing-composition' || assertion.metric !== 'composition').map((assertion) => ({
-      ...assertion, ...(responseMode === 'skipped-composition' && assertion.metric === 'composition'
+      ...assertion, ...(assertion.transform?.startsWith('file://')
+        ? { transform: assertion.transform.replace('file://', `file://${root}/`) } : {}), ...(responseMode === 'skipped-composition' && assertion.metric === 'composition'
         ? { value: "({ pass: true, score: 1, reason: 'Calibration skip.', metadata: { skipped: true } })" } : assertion.type === 'javascript'
         ? { value: assertion.value.replace('file://', `file://${root}/`) } : {}),
     }))
@@ -136,8 +137,11 @@ describe('HTTP provider wiring without a server', () => {
         } }],
         defaultTest: { ...configuration.defaultTest,
           options: { provider: `file://${root}/__tests__/fixtures/grader.mjs` },
-          assert: configuration.defaultTest.assert.map((assertion) => assertion.type === 'javascript'
-            ? { ...assertion, value: assertion.value.replace('file://', `file://${root}/`) } : assertion),
+          assert: configuration.defaultTest.assert.map((assertion) => ({ ...assertion,
+            ...(assertion.type === 'javascript' ? { value: assertion.value.replace('file://', `file://${root}/`) } : {}),
+            ...(assertion.transform?.startsWith('file://')
+              ? { transform: assertion.transform.replace('file://', `file://${root}/`) } : {}),
+          })),
         },
         tests: (mode === 'reset-stop' ? ['healthy', mode, 'healthy-next'] : [mode, 'healthy']).map((input) => ({ metadata: {
           id: input, fixture: input === 'reset-stop' ? 'unknown' : 'pro', locale: 'en',

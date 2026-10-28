@@ -19,11 +19,22 @@ async function gradeRecorded(attempt, unsupported = false) {
     const source = structuredClone(corpus.find((entry) => entry.metadata.id === attempt.caseId))
     const { test } = await prepareAttempt({ test: source })
     const grader = { id: () => 'grounding-control', callApi: vi.fn(async (prompt) => {
-      const rendered = JSON.parse(prompt).map((message) => message.content).join('\n')
-      const grounded = rendered.includes('Consistent hydration') && rendered.includes('targetValue')
-        && rendered.includes('"value":1') && rendered.includes('Unsupported figures still fail');
-      return { output: JSON.stringify({ pass: grounded && !rendered.includes('99 completions'), score: grounded && !rendered.includes('99 completions') ? 1 : 0,
-        reason: grounded ? 'Evidence received; unsupported figures still fail.' : 'Missing fixture evidence.' }) }
+      const messages = JSON.parse(prompt)
+      const output = JSON.parse(messages.at(-1).content.split('<Output>\n')[1].split('\n</Output>')[0])
+      const fixture = output.groundingEvidence?.fixture
+      const answer = JSON.parse(output.answer ?? '{}')
+      const block = answer.parts?.[0]?.block
+      const supportedGoals = block?.items?.every((item) => fixture?.goals?.some((goal) =>
+        goal.title === item.title && item.progress === `${goal.currentValue} / ${goal.targetValue} ${goal.unit}`))
+      const supportedRanking = block?.rows?.every((row) => {
+        const title = row.label.replace(/^\d+\. /, '')
+        const habit = fixture?.habits?.find((candidate) => candidate.title === title)
+        return habit && row.value === `${habit.logs.filter((log) => log.value > 0).length} completions`
+      })
+      const grounded = Boolean(supportedGoals || supportedRanking)
+      return { output: JSON.stringify({ pass: grounded, score: grounded ? 1 : 0,
+        reason: grounded ? 'Fixture facts support the answer.' : 'Fixture facts do not support the answer.' }) }
+
     }) }
     const result = await assertions.runAssertion({ prompt: test.vars.input,
       assertion: configuration.defaultTest.assert.find(({ type }) => type === 'llm-rubric'),

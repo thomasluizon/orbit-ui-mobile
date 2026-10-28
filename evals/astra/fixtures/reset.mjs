@@ -158,13 +158,13 @@ async function verifyFixture(api, account, fixture, today, names) {
   return restored
 }
 
-function fixtureEvidence(exported, fixture, today) {
+function fixtureEvidence(exported, fixture, today, account) {
   if (!Array.isArray(exported.apiKeys)) throw new Error('Fixture export lacks API key evidence.')
   return { ...Object.fromEntries(['habits', 'goals', 'tags', 'checklistTemplates', 'apiKeys', 'notifications']
     .map((field) => [field, exported[field]])),
-    loggedState: { fixture, date: today, habits: exported.habits.map((habit, index) => ({
+    loggedState: { fixture, date: today, habits: exported.habits.map((habit) => ({
       title: habit.title, completed: habit.logs.some((log) => log.date === today && log.value > 0),
-      skipped: fixture === 'skipped' && index === 1,
+      skipped: fixture === 'skipped' && habit.id === account.secondHabitId,
     })) } }
 }
 
@@ -218,7 +218,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   if (empty) {
     const restored = await snapshot(api)
     if (restored.habits.length) throw new Error('Empty fixture readback still contains habits.')
-    test.vars.fixtureEvidence = fixtureEvidence(restored, fixture, today)
+    test.vars.fixtureEvidence = fixtureEvidence(restored, fixture, today, account)
     return
   }
   await restoreHabits(api, exported, account, fixture, today, titles)
@@ -229,7 +229,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     for (const title of titles.slice(2)) await api('POST', 'habits', dailyHabit(title, today))
   }
   if (fixture === 'free-at-limit') await fillCapacity(api, today)
-  test.vars.fixtureEvidence = fixtureEvidence(await verifyFixture(api, account, fixture, today, titles), fixture, today)
+  test.vars.fixtureEvidence = fixtureEvidence(await verifyFixture(api, account, fixture, today, titles), fixture, today, account)
   if (fixture === 'composition-stale') return seedStaleRetrospective(api, today, test.metadata.locale ?? 'en')
 }
 
