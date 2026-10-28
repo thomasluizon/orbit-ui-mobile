@@ -51,13 +51,16 @@ export function restartProposal(output, vars) {
   const response = output.composition
   const pending = response?.pendingOperations
   if (pending?.length !== 1 || pending[0].actionKey !== 'rescheduleHabits'
+    || typeof pending[0].previewFingerprint !== 'string' || !pending[0].previewFingerprint.trim()
     || !sameIds(pending[0].items?.map((item) => item.entityId), ids)
     || response.parts?.length || response.aiMessage?.trim() || response.actions?.length || response.policyDenials?.length) {
     return result(false, 'Restart must return only one complete reschedule preview.')
   }
   for (const item of pending[0].items) {
     const field = item.fields?.[0]
-    if (item.fields?.length !== 1 || field.field !== 'due_date' || field.valueType !== 'date'
+    const original = vars.restartBaseline.find(({ habit }) => habit.id === item.entityId).habit
+    if (item.entityName !== original.title || item.fields?.length !== 1 || field.field !== 'due_date' || field.valueType !== 'date'
+      || field.entityId !== item.entityId || field.entityName !== original.title
       || field.isEditable !== true || field.newValue !== dates.get(item.entityId)
       || field.proposedValue !== dates.get(item.entityId)) return result(false, 'Restart preview dates differ from the stored proposal.')
   }

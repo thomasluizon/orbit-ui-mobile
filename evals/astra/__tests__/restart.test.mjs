@@ -50,6 +50,8 @@ it.each([
   ['preference ignored', (output) => { output.trace.calls[1].arguments.revised_items[2].updates.due_date = today }],
   ['preview missing', (output) => { output.composition.pendingOperations = [] }],
   ['preview incomplete', (output) => { output.composition.pendingOperations[0].items.pop() }],
+  ['preview title changed', (output) => { output.composition.pendingOperations[0].items[0].entityName = 'Wrong habit' }],
+  ['preview fingerprint missing', (output) => { delete output.composition.pendingOperations[0].previewFingerprint }],
   ['preview date differs', (output) => { output.composition.pendingOperations[0].items[0].fields[0].newValue = '2026-10-30' }],
   ['read block repeated', (output) => { output.composition.parts.push({ type: 'block', kind: 'habitList', block: {} }) }],
   ['extra write', (output) => { output.trace.calls.push({ ...output.trace.calls[1], id: 'extra' }) }],
@@ -64,6 +66,7 @@ it('requires all pages in order before the write', () => {
   const first = output.trace.calls[0]
   const second = structuredClone(first)
   second.id = second.result.id = 'read-2'
+  first.arguments.limit = second.arguments.limit = 3
   second.arguments.offset = 3
   second.result.payload.items = first.result.payload.items.splice(3)
   output.trace.calls.splice(1, 0, second)
@@ -80,7 +83,7 @@ it.each(['preview', 'approve', 'reject'])('requires independent persisted eviden
   if (decision === 'approve') after.forEach((entry, index) => { entry.habit.dueDate = index < 2 ? today : '2026-10-29' })
   output.restartReadback = { held: structuredClone(baseline), after }
   expect(restartReadback(output, policy).pass).toBe(true)
-  for (const field of ['title', 'frequencyUnit', 'frequencyQuantity', 'days', 'dueTime', 'dueEndTime', 'reminderEnabled', 'reminderTimes', 'scheduledReminders', 'relativeReminders', 'checklistItems']) {
+  for (const field of ['title', 'dueDate', 'frequencyUnit', 'frequencyQuantity', 'days', 'dueTime', 'dueEndTime', 'reminderEnabled', 'reminderTimes', 'scheduledReminders', 'relativeReminders', 'checklistItems']) {
     const broken = structuredClone(output)
     broken.restartReadback.after[0].habit[field] = null
     expect(restartReadback(broken, policy).pass, field).toBe(false)

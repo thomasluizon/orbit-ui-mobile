@@ -214,7 +214,9 @@ The Action has only `workflow_dispatch`; it never runs on a schedule, push, or p
 Runs record real message usage and incur endpoint and rubric-grader charges. The main account's
 flag exempts its daily message, model-call and spend ceilings; the refusal accounts remain metered.
 Use disposable eval accounts. Write scenarios require held previews; correction scenarios create
-a verified setup turn first. The corpus does not approve them or prove persisted changes.
+a verified setup turn first. Most write cases stop at held previews. Restart cases also
+exercise approval and rejection through the pending-operation gateway and require independent
+persisted readback.
 
 The standalone eval package declares the ICU translator and its React peer at the versions locked
 for the clients; the shared-only install does not install peer dependencies.
@@ -258,6 +260,20 @@ three attempts record six messages even with the main account's exemption. Harne
 this flow offline; never treat their passing result as evidence from a live model run.
 
 ### Environment and reproducible fixtures
+
+Restart cases cover proposal, approval, rejection and the preference for exactly two habits
+today, in en and pt-BR on the Pro account. The isolated `restart` fixture seeds six unfinished
+habits: four overdue and two due today, with times, reminders, checklists and historical logs.
+The tool grader requires the remaining-work read, every page before the write, and one held
+`bulk_reschedule_habits` call with complete per-habit `revised_items`. A smaller set stays today
+and the rest falls within seven days. The response contains only the `rescheduleHabits` preview.
+Every attempt reads each habit independently through `GET /api/habits/{id}` and its complete
+history through `GET /api/profile/export`, before any approval and after the decision. Approval
+uses confirm then execute; rejection revises to an empty item list and verifies confirmation
+returns 404. The grader compares proposed dates and preserves titles, cadence, times, reminders,
+checklists and logs. Attempt evidence retains sanitized proposed dates and both readbacks.
+Run these cases in the next capability gate after staging serves the catalog's API commit
+carrying `orbit-api#980`; offline tests do not establish real-call pass^3.
 
 | Key | Purpose |
 |---|---|
