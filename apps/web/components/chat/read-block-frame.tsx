@@ -52,8 +52,8 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
 function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; context: ReadBlockState }>) {
   const t = useTranslations()
   const locale = useLocale()
-  const { snapshot, pending, failure, run } = context
-  const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure)
+  const { snapshot, pending, failure, stale, run } = context
+  const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure, stale)
   const actions = <>
     {snapshot.kind === 'gamification' ? <IconButton label={t('blockFrame.refresh')} disabled={pending} onClick={() => { void run(false) }}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
     {canPage && snapshot.kind !== 'gamification' ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
@@ -61,8 +61,7 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
   </>
   const body = <>{window ? <p className="text-sm text-[var(--fg-3)]">{formatReadWindow(window, locale)}</p> : null}{message && state !== 'stale' ? <p role="status" className="text-sm text-[var(--fg-2)]">{t(message)}</p> : null}{props.body}</>
   const frameProps = readBlockFrameProps(props, state, message, () => { void run(false) }, t, actions)
-  if (snapshot.kind === 'gamification' && frameProps.state === 'stale') return <Frame {...frameProps} body={body} />
-  return <Frame {...frameProps} onRefresh={undefined} body={body} />
+  return <Frame {...frameProps} body={body} />
 }
 
 export function useReadActionScope() {

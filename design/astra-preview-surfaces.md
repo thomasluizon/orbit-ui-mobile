@@ -140,7 +140,7 @@ constraints rather than request state.
 
 All fifteen typed block kinds share the paired BlockFrame surface: a 16px inset,
 12px content rhythm and a quiet Orbit mark in the header. Read blocks have no manual
-refresh or shell-navigation footer. Stale rankings retain an exact-query recovery icon;
+refresh or shell-navigation footer. Every stale signed read retains a named refresh recovery icon;
 disconnected calendar blocks retain their named reconnection icon. Signed paging,
 actual record actions and expanded retrospective details retain named icon controls. Stale write previews retain their
 existing authorization recovery, which prepares a replacement proposal before approval.
@@ -168,7 +168,9 @@ the locale database's long generic name, falling back to the supplied id when un
 
 Write previews retain inline rename, editing, rejection, parent resolution and approval.
 The preview title names a create count or the habit being edited. The emoji well and
-short schedule summary share the row. Creates omit default tracking flags and root
+short schedule summary share the row. Enabled reminders add one summary token with the
+supplied timing, or the reminder action when timing is absent. Summary tokens wrap only
+at their separators on both platforms. Creates omit default tracking flags and root
 identity; schedule edits show supplied before and after values. Proposed semantics and
 feedback remain while the dashed outline is removed from the framed rows.
 

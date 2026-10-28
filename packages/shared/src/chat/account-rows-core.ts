@@ -23,6 +23,8 @@ const ENUM_VALUES: Partial<Record<keyof typeof LABELS, readonly string[]>> = {
 }
 
 export function presentAccountRows(card: AccountRowsCard): AccountRow[] {
+  if (card.kind === 'plan') return card.rows.filter((row) => row.value != null && row.value !== ''
+    && (row.key !== 'lifetime' || row.value === 'true'))
   if (card.kind !== 'referral') return card.rows
   const rewardType = card.rows.find((row) => row.key === 'rewardType')?.value
   return card.rows.filter((row) => row.key !== 'discountPercent'

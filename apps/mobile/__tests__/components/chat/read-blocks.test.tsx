@@ -1,3 +1,4 @@
+import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
@@ -16,6 +17,7 @@ import { habitMonthFixture } from '@orbit/shared/test-support/habit-month-fixtur
 import { apiClient } from '@/lib/api-client'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { API } from '@orbit/shared/api'
+import { motionDurations } from '@orbit/shared/theme'
 import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
 const state = vi.hoisted(() => ({ isError: false, locale: 'en', actualCopy: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
@@ -178,6 +180,43 @@ describe('focused Android read compositions', () => {
     expect(renderedText(tree.toJSON())).not.toContain('99')
     await act(() => tree.unmount())
   })
+
+  it('keeps refresh recovery after paging detects staleness and refresh fails', async () => {
+    state.actualCopy = true
+    const next = readBlockResponseSchema.parse({ kind: 'recordList', block: {
+      ...focusedHistoryFixture, items: [{ id: 'replacement', title: '2026-09-02', logDate: '2026-09-02', value: -1 }],
+    }, read: { ...focusedHistoryFixture.read, revision: 'recovered' } })
+    vi.mocked(apiClient).mockRejectedValueOnce(Object.assign(new Error('stale'), { code: 'READ_QUERY_STALE' }))
+      .mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(next)
+    const tree = await mount({ kind: 'recordList', block: focusedHistoryFixture })
+    const buttons = (label: string) => tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === label)
+    await press(tree, en.chat.recordList.more)
+    expect(renderedText(tree.toJSON())).toContain(en.chat.readBlock.stale)
+    expect(buttons(en.chat.recordList.more)).toHaveLength(0)
+    await press(tree, en.blockFrame.refresh)
+    expect(renderedText(tree.toJSON())).toContain(en.chat.readBlock.error)
+    expect(buttons(en.blockFrame.refresh)).toHaveLength(1)
+    expect(buttons(en.blockFrame.refresh)[0]!.props.accessibilityState).toMatchObject({ disabled: false })
+    expect(buttons(en.chat.recordList.more)).toHaveLength(0)
+    expect(renderedText(tree.toJSON())).toContain('Sep 1, 2026')
+    vi.useFakeTimers()
+    try {
+      await press(tree, en.blockFrame.refresh)
+      await act(() => { vi.advanceTimersByTime(motionDurations.micro) })
+      const text = renderedText(tree.toJSON())
+      expect(text).toContain('Sep 2, 2026')
+      expect(tree.root.findAll(node => node.props.testID === 'block-frame-item-log-one-pending')).toHaveLength(0)
+      expect(text).not.toContain(en.chat.readBlock.error)
+      expect(buttons(en.blockFrame.refresh)).toHaveLength(0)
+      expect(buttons(en.chat.recordList.more)).toHaveLength(1)
+      expect(buttons(en.chat.recordList.more)[0]!.props.accessibilityState).toMatchObject({ disabled: false })
+      expect(vi.mocked(apiClient).mock.calls.map(call => JSON.parse(call[1]!.body as string))).toEqual([
+        { token: 'signed-page', page: true, clientContext: expect.anything() },
+        { token: 'signed-query', page: false, clientContext: expect.anything() },
+        { token: 'signed-query', page: false, clientContext: expect.anything() },
+      ])
+    } finally { await act(() => tree.unmount()); vi.useRealTimers() }
+  })
 })
 
 it('shows a saved metric window only once through the owning read composition', async () => {
@@ -211,7 +250,7 @@ it('logs the eligible current occurrence on the exact requested day', async () =
   await act(() => tree.unmount())
 })
 
-it('keeps stale recap disclosure and Progress available without refreshing', async () => {
+it('keeps stale recap disclosure and refresh recovery available', async () => {
   const tree = await mount({ kind: 'periodInsight', block: focusedStaleRecapFixture })
   expect(tree.root.findAll(node => node.props.testID === 'block-frame-stale')).not.toHaveLength(0)
   expect(renderedText(tree.toJSON())).toContain('chat.readBlock.stale')
@@ -228,7 +267,7 @@ it('keeps stale recap disclosure and Progress available without refreshing', asy
 it('withholds signed paging for a stale query', async () => {
   const tree = await mount({ kind: 'recordList', block: { ...focusedHistoryFixture, read: { ...focusedHistoryFixture.read, completeness: 'stale' } } })
   expect(tree.root.findAll(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'chat.recordList.more')).toHaveLength(0)
-  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh' && String(node.type) === 'Pressable')).toHaveLength(0)
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh' && String(node.type) === 'Pressable')).toHaveLength(1)
   expect(apiClient).not.toHaveBeenCalled()
   await act(() => tree.unmount())
 })
@@ -337,4 +376,29 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as con
     expect(figures).toHaveLength(kind === 'periodTotal' ? 1 : 2)
     for (const figure of figures) expect(renderedText(figure)).toContain(locale === 'en' ? 'days' : 'dias')
     await act(() => tree.unmount())
+})
+
+
+const staleReadCases = [
+  ...chatNavigationCases.filter((testCase, index, cases) => cases.findIndex(other => other.part.kind === testCase.part.kind) === index).map(testCase => testCase.part),
+  { kind: 'periodTotal', block: focusedPeriodTotalFixture },
+  { kind: 'periodComparison', block: focusedPeriodComparisonFixture },
+  { kind: 'habitMonth', block: habitMonthCardSchema.parse(habitMonthFixture) },
+] as const
+
+it.each(staleReadCases)('refreshes a stale $kind through its owning composition', async part => {
+  const initialRead = 'read' in part.block && part.block.read ? part.block.read : focusedReadMetadataFixture
+  const staleRead = { ...initialRead, completeness: 'stale' as const }
+  const read = { ...initialRead, completeness: 'complete' as const, recovery: null, revision: 'refreshed' }
+  const next = { ...part, block: { ...part.block, read }, read }
+  vi.mocked(apiClient).mockResolvedValue(next)
+  const tree = await mount({ ...part, block: { ...part.block, read: staleRead } })
+  expect(renderedText(tree.toJSON())).toContain('chat.readBlock.stale')
+  await press(tree, 'blockFrame.refresh')
+  expect(apiClient).toHaveBeenCalledExactlyOnceWith(part.kind === 'habitMonth' ? API.chat.refreshHabitMonth : API.chat.refreshRead,
+    expect.objectContaining({ body: expect.stringContaining(`"token":"${initialRead.refreshToken}"`) }), expect.anything())
+  if (part.kind !== 'habitMonth') expect(apiClient).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ body: expect.stringContaining('"page":false') }), expect.anything())
+  expect(renderedText(tree.toJSON())).not.toContain('chat.readBlock.stale')
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh')).toHaveLength(0)
+  await act(() => tree.unmount())
 })

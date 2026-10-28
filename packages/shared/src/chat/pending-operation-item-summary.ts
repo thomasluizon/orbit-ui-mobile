@@ -38,7 +38,7 @@ export function summarizePendingOperationItem(
   const date = value('due_date') ?? value('date')
   const dateLabel = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? formatLocaleDate(parseAPIDate(date), locale, { dateStyle: 'medium' }) : null
   const time = value('due_time')
-  const summary = [cadence.label, intervalLabel, dateLabel, time ? translate('chat.preview.atTime', { time: formatTime(time) }) : null, ...additionalChanges(fields, translate, formatTime, locale, cadence.complete, creating)].filter(Boolean).join(' · ')
+  const summary = [cadence.label, intervalLabel, dateLabel, time ? translate('chat.preview.atTime', { time: formatTime(time) }) : null, ...additionalChanges(fields, translate, formatTime, locale, cadence.complete, creating), creating ? createReminderSummary(fields, translate, formatTime) : null].filter(Boolean).join(' · ')
   return summary || (actionKey && PREVIEW_ACTION_KEYS.includes(actionKey) ? translate(`chat.operation.source.${actionKey}`) : '')
 }
 
@@ -124,6 +124,7 @@ function additionalChanges(
   formatTime: (value: string) => string, locale: string, scheduleSummarized: boolean, creating: boolean,
 ): string[] {
   return fields.flatMap((field) => {
+    if (creating && ['reminder_enabled', 'reminder_times', 'scheduled_reminders'].includes(field.field)) return []
     const createOutcome = creating ? createChange(field, translate) : undefined
     if (createOutcome) return createOutcome
     const booleanOutcome = booleanChange(field, translate, scheduleSummarized)
@@ -142,6 +143,14 @@ function scheduleAndListChanges(field: PendingOperationChange, translate: Previe
   if (field.field === 'end_date') return [field.newValue ? translate('chat.preview.summary.endsOn', { date: formatLocaleDate(parseAPIDate(field.newValue), locale, { dateStyle: 'medium' }) }) : translate('chat.preview.summary.removeEndDate')]
   if (['checklist_items', 'sub_habits', 'reminder_times', 'scheduled_reminders'].includes(field.field)) return [listSummary(field, translate, formatTime)]
   return []
+}
+
+function createReminderSummary(fields: readonly PendingOperationChange[], translate: PreviewTranslation, formatTime: (value: string) => string): string | null {
+  if (fields.find(field => field.field === 'reminder_enabled')?.newValue?.toLowerCase() !== 'true') return null
+  const reminders = fields.filter(field => ['reminder_times', 'scheduled_reminders'].includes(field.field)
+    && Array.isArray(field.proposedValue) && field.proposedValue.length > 0)
+    .map(field => listSummary(field, translate, formatTime)).filter(Boolean)
+  return reminders.join(', ') || translate('chat.preview.summary.sendReminders')
 }
 
 function weekdaySummary(field: PendingOperationChange, translate: PreviewTranslation): string {

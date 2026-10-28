@@ -1,3 +1,4 @@
+import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
 import { personalText } from '@/__tests__/support/personal-text'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,7 +15,7 @@ import { ChatBlock } from '@/components/chat/block-registry'
 import { habitMonthFixture } from '@orbit/shared/test-support/habit-month-fixture'
 import { refreshGamification, refreshHabitMonth, refreshReadBlock } from '@/app/actions/chat'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
-import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
+import { chatPartSchema, habitMonthCardSchema, habitMonthReadBlockResponseSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
 const state = vi.hoisted(() => ({ isError: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('@/app/actions/chat', () => ({ refreshReadBlock: vi.fn(), refreshHabitMonth: vi.fn(), refreshGamification: vi.fn() }))
@@ -141,7 +142,7 @@ describe('focused read compositions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
     await waitFor(() => expect(view.container.querySelector('section')).toHaveAttribute('data-state', code === 'READ_QUERY_STALE' ? 'stale' : 'partiallyFailed'))
     expect(screen.getByText(personalText('Sep 1, 2026'))).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Refresh' }) !== null).toBe(code === 'READ_QUERY_STALE')
   })
 
   it('discards a late page after the account changes', async () => {
@@ -152,6 +153,35 @@ describe('focused read compositions', () => {
     act(() => advanceAccountGeneration())
     await act(async () => { resolve({ ok: true, data: { kind: 'recordList', block: { ...focusedHistoryFixture, items: [{ id: 'late', title: 'Other account' }] }, read: focusedHistoryFixture.read } }) })
     expect(screen.queryByText('Other account')).not.toBeInTheDocument()
+  })
+
+  it('keeps refresh recovery after paging detects staleness and refresh fails', async () => {
+    const next = readBlockResponseSchema.parse({ kind: 'recordList', block: {
+      ...focusedHistoryFixture, items: [{ id: 'replacement', title: '2026-09-02', logDate: '2026-09-02', value: -1 }],
+    }, read: { ...focusedHistoryFixture.read, revision: 'recovered' } })
+    vi.mocked(refreshReadBlock)
+      .mockResolvedValueOnce({ ok: false, error: 'stale', code: 'READ_QUERY_STALE', status: 409, sessionRefreshFailed: false })
+      .mockResolvedValueOnce({ ok: false, error: 'offline', code: 'offline', status: 0, sessionRefreshFailed: false })
+      .mockResolvedValueOnce({ ok: true, data: next })
+    const view = mount({ kind: 'recordList', block: focusedHistoryFixture })
+    fireEvent.click(screen.getByRole('button', { name: en.chat.recordList.more }))
+    await screen.findByText(en.chat.readBlock.stale)
+    expect(screen.queryByRole('button', { name: en.chat.recordList.more })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en.blockFrame.refresh }))
+    await screen.findByText(en.chat.readBlock.error)
+    expect(screen.getByRole('button', { name: en.blockFrame.refresh })).toBeEnabled()
+    expect(view.container.querySelector('section')).toHaveAttribute('data-state', 'stale')
+    expect(screen.queryByRole('button', { name: en.chat.recordList.more })).not.toBeInTheDocument()
+    expect(screen.getByText(personalText('Sep 1, 2026'))).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en.blockFrame.refresh }))
+    await screen.findByText(personalText('Sep 2, 2026'))
+    await waitFor(() => expect(screen.queryByText(personalText('Sep 1, 2026'))).not.toBeInTheDocument())
+    expect(screen.queryByText(en.chat.readBlock.error)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: en.blockFrame.refresh })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: en.chat.recordList.more })).toBeEnabled()
+    expect(refreshReadBlock).toHaveBeenNthCalledWith(1, 'signed-page', expect.anything(), true, null)
+    expect(refreshReadBlock).toHaveBeenNthCalledWith(2, 'signed-query', expect.anything(), false, null)
+    expect(refreshReadBlock).toHaveBeenNthCalledWith(3, 'signed-query', expect.anything(), false, null)
   })
 })
 
@@ -183,12 +213,12 @@ it('allows only a currently eligible occurrence while retaining the query rows',
   expect(state.mutate).toHaveBeenCalledWith({ habitId: 'habit-one', date: today, intent: 'log' })
 })
 
-it('keeps stale recap disclosure and Progress available without refreshing', () => {
+it('keeps stale recap disclosure and refresh recovery available', () => {
   const view = mount({ kind: 'periodInsight', block: focusedStaleRecapFixture })
   expect(view.container.querySelector('section')).toHaveAttribute('data-state', 'stale')
   expect(screen.getByRole('status')).toHaveTextContent(en.chat.readBlock.stale)
   expect(screen.queryByText('Walked')).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled()
   expect(screen.queryByRole('link', { name: en.chat.insight.progressLink })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
   for (const text of ['Walked', 'Mornings', 'Start small', 'Reading']) expect(screen.getByText(text)).toBeInTheDocument()
@@ -202,7 +232,7 @@ it('keeps stale recap disclosure and Progress available without refreshing', () 
 it('withholds signed paging for a stale query', () => {
   mount({ kind: 'recordList', block: { ...focusedHistoryFixture, read: { ...focusedHistoryFixture.read, completeness: 'stale' } } })
   expect(screen.queryByRole('button', { name: 'Show more' })).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled()
   expect(refreshReadBlock).not.toHaveBeenCalled()
 })
 
@@ -301,4 +331,29 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as con
     expect(view.container.querySelectorAll('[data-compact-figure]')).toHaveLength(kind === 'periodTotal' ? 1 : 2)
     for (const figure of view.container.querySelectorAll('[data-compact-figure]')) expect(figure).toHaveTextContent(locale === 'en' ? 'days' : 'dias')
     view.unmount()
+})
+
+
+const staleReadCases = [
+  ...chatNavigationCases.filter((testCase, index, cases) => cases.findIndex(other => other.part.kind === testCase.part.kind) === index).map(testCase => testCase.part),
+  { kind: 'periodTotal', block: focusedPeriodTotalFixture },
+  { kind: 'periodComparison', block: focusedPeriodComparisonFixture },
+  { kind: 'habitMonth', block: habitMonthCardSchema.parse(habitMonthFixture) },
+] as const
+
+it.each(staleReadCases)('refreshes a stale $kind through its owning composition', async part => {
+  const initialRead = 'read' in part.block && part.block.read ? part.block.read : focusedReadMetadataFixture
+  const staleRead = { ...initialRead, completeness: 'stale' as const }
+  const read = { ...initialRead, completeness: 'complete' as const, recovery: null, revision: 'refreshed' }
+  const next = { ...part, block: { ...part.block, read }, read }
+  const refresh = part.kind === 'habitMonth' ? refreshHabitMonth : refreshReadBlock
+  if (part.kind === 'habitMonth') vi.mocked(refreshHabitMonth).mockResolvedValue({ ok: true, data: habitMonthReadBlockResponseSchema.parse(next) })
+  else vi.mocked(refreshReadBlock).mockResolvedValue({ ok: true, data: readBlockResponseSchema.parse(next) })
+  const view = mount({ ...part, block: { ...part.block, read: staleRead } } as Parameters<typeof mount>[0])
+  expect(screen.getByText(en.chat.readBlock.stale)).toHaveAttribute('role', 'status')
+  fireEvent.click(screen.getByRole('button', { name: en.blockFrame.refresh }))
+  await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+  expect(refresh).toHaveBeenCalledWith(initialRead.refreshToken, expect.anything(), ...(part.kind === 'habitMonth' ? [null] : [false, null]))
+  await waitFor(() => expect(view.container.querySelector('section[data-state="stale"]')).not.toBeInTheDocument())
+  expect(screen.queryByRole('button', { name: en.blockFrame.refresh })).not.toBeInTheDocument()
 })

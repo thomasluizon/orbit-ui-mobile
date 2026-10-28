@@ -1362,9 +1362,9 @@
       "nothingDue": "Nothing scheduled.",
       "actionsUnavailable": "Some actions are unavailable.",
       "less": "Show less",
-      "stale": "These records changed. Refresh this query.",
+      "stale": "These records changed. Refresh to see the latest.",
       "partial": "Some records are unavailable.",
-      "error": "Could not refresh this query. Try again.",
+      "error": "Could not refresh. Try again.",
       "expired": "Ask the original question again.",
       "delta": "Change",
       "metric": {
