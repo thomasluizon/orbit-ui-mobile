@@ -6,7 +6,9 @@ const { apiCommit } = parse(readFileSync(new URL('../../catalog.yaml', import.me
 
 const exportedHabit = (body) => ({ id: randomUUID(), title: body.title, description: body.description, emoji: null,
   isBadHabit: false, isGeneral: false, dueDate: body.startDate ? new Date().toISOString().slice(0, 10) : body.dueDate, startDate: body.startDate ?? body.dueDate, endDate: null, frequencyUnit: 'Day', frequencyQuantity: 1,
-  days: [], checklistItems: [], createdAtUtc: '2026-10-01T00:00:00Z', logs: [], intervalWeeks: null })
+  days: [], checklistItems: [], createdAtUtc: '2026-10-01T00:00:00Z', logs: [], intervalWeeks: null,
+  dueTime: null, dueEndTime: null, reminderEnabled: false, reminderTimes: [], scheduledReminders: [],
+  relativeReminders: [], slipAlertEnabled: false, isFlexible: false })
 
 // Producer: GetRetrospectiveQueryHandler and RetrospectivePeriodRange.Resolve.
 export function retrospectiveResponse(fromCache) {
@@ -95,7 +97,8 @@ export function fixtureFetch(getState) {
       } else if (operation === 'skip') {
         if (habit.dueDate > body.date) return Response.json({ error: 'Habit not yet due.' }, { status: 400 })
         habit.dueDate = new Date(Date.parse(`${body.date}T12:00:00Z`) + 86400000).toISOString().slice(0, 10)
-      } else if (method === 'PUT') {
+      } else if (method === 'GET') return Response.json(habit)
+      else if (method === 'PUT') {
         habit.title = body.title
         if (body.startDate && (body.startDate !== habit.startDate || body.frequencyUnit !== habit.frequencyUnit || body.frequencyQuantity !== habit.frequencyQuantity)) {
           habit.startDate = body.startDate
@@ -103,6 +106,10 @@ export function fixtureFetch(getState) {
         } else if (!body.startDate) habit.dueDate = body.dueDate ?? habit.dueDate
         habit.frequencyUnit = body.frequencyUnit
         habit.frequencyQuantity = body.frequencyQuantity
+        for (const field of ['dueTime', 'dueEndTime', 'reminderEnabled', 'reminderTimes', 'scheduledReminders',
+          'relativeReminders', 'slipAlertEnabled', 'checklistItems', 'isFlexible']) {
+          if (Object.hasOwn(body, field)) habit[field] = body[field]
+        }
       }
       else if (method === 'DELETE') habit.deleted = true
       else throw new Error('Unexpected habit request.')

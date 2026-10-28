@@ -11,7 +11,7 @@ import parseResponse from '../response.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
 
-const apiCommit = '3b3d9069988d4766166565e458ba045cb4745ab3'
+const apiCommit = 'c90d1d61298bcdc86cc771a85939bbd097cf9ac6'
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 

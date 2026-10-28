@@ -1,4 +1,5 @@
 import { refineResult } from './suggestions.mjs'
+import { restartProposal, restartReadback } from './restart.mjs'
 export { composition } from './composition.mjs'
 import { assertions } from 'promptfoo'
 import { isDeepStrictEqual } from 'node:util'
@@ -156,6 +157,10 @@ export function behavior(output, context) {
   }
   for (const [name, count] of Object.entries(expectations.counts ?? {})) {
     if (trace.calls.filter((call) => call.name === name).length !== count) return result(false, `Wrong call count: ${name}`)
+  }
+  if (context.vars.restart) {
+    const proposal = restartProposal(decode(output), context.vars)
+    return proposal.pass ? restartReadback(decode(output), context.vars) : proposal
   }
   return result(true, 'Required tools, arguments and results matched.')
 }

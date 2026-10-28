@@ -2566,3 +2566,461 @@
       allowed: []
     rubric: Answer in Brazilian Portuguese. Only the first draft changes to weekdays at 22:30. Keep its
       meaning, identity and language. The other draft remains exactly as supplied. No saved claim.
+- description: restart-preview in en
+  metadata:
+    id: composition-restart-preview-en
+    category: composition
+    family: restart-preview
+    locale: en
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: I fell behind on my habits. Help me restart.
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: preview
+      windowDays: 7
+    expectations:
+      required:
+        - name: query_habits
+          arguments:
+            date: today
+            is_completed: false
+            include_overdue: true
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in English. Return the complete held restart preview alone. Keep a smaller set today
+      and defer the rest within the next week. All dates and figures belong in the preview. Do not
+      repeat prerequisite reads or claim the proposal was saved. Stored habit titles remain
+      verbatim.
+- description: restart-approve in en
+  metadata:
+    id: composition-restart-approve-en
+    category: composition
+    family: restart-approve
+    locale: en
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: I fell behind on my habits. Help me restart.
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: approve
+      windowDays: 7
+    expectations:
+      required:
+        - name: query_habits
+          arguments:
+            date: today
+            is_completed: false
+            include_overdue: true
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in English. Return the complete held restart preview alone. Keep a smaller set today
+      and defer the rest within the next week. All dates and figures belong in the preview. Do not
+      repeat prerequisite reads or claim the proposal was saved. Stored habit titles remain
+      verbatim.
+- description: restart-reject in en
+  metadata:
+    id: composition-restart-reject-en
+    category: composition
+    family: restart-reject
+    locale: en
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: I fell behind on my habits. Help me restart.
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: reject
+      windowDays: 7
+    expectations:
+      required:
+        - name: query_habits
+          arguments:
+            date: today
+            is_completed: false
+            include_overdue: true
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in English. Return the complete held restart preview alone. Keep a smaller set today
+      and defer the rest within the next week. All dates and figures belong in the preview. Do not
+      repeat prerequisite reads or claim the proposal was saved. Stored habit titles remain
+      verbatim.
+- description: restart-preference in en
+  metadata:
+    id: composition-restart-preference-en
+    category: composition
+    family: restart-preference
+    locale: en
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: I fell behind on my habits. Help me restart, with only two things today.
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: preview
+      windowDays: 7
+      todayCount: 2
+    expectations:
+      required:
+        - name: query_habits
+          arguments:
+            date: today
+            is_completed: false
+            include_overdue: true
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in English. Return the complete held restart preview alone. Keep a smaller set today,
+      exactly two habits and defer the rest within the next week. All dates and figures belong in
+      the preview. Do not repeat prerequisite reads or claim the proposal was saved. Stored habit
+      titles remain verbatim.
+- description: restart-preview in pt-BR
+  metadata:
+    id: composition-restart-preview-pt-BR
+    category: composition
+    family: restart-preview
+    locale: pt-BR
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: Fiquei para trás nos meus hábitos. Me ajude a recomeçar.
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: preview
+      windowDays: 7
+    expectations:
+      required:
+        - name: query_habits
+          arguments:
+            date: today
+            is_completed: false
+            include_overdue: true
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in Brazilian Portuguese. Return the complete held restart preview alone. Keep a
+      smaller set today and defer the rest within the next week. All dates and figures belong in the
+      preview. Do not repeat prerequisite reads or claim the proposal was saved. Stored habit titles
+      remain verbatim.
+- description: restart-approve in pt-BR
+  metadata:
+    id: composition-restart-approve-pt-BR
+    category: composition
+    family: restart-approve
+    locale: pt-BR
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: Fiquei para trás nos meus hábitos. Me ajude a recomeçar.
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: approve
+      windowDays: 7
+    expectations:
+      required:
+        - name: query_habits
+          arguments:
+            date: today
+            is_completed: false
+            include_overdue: true
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in Brazilian Portuguese. Return the complete held restart preview alone. Keep a
+      smaller set today and defer the rest within the next week. All dates and figures belong in the
+      preview. Do not repeat prerequisite reads or claim the proposal was saved. Stored habit titles
+      remain verbatim.
+- description: restart-reject in pt-BR
+  metadata:
+    id: composition-restart-reject-pt-BR
+    category: composition
+    family: restart-reject
+    locale: pt-BR
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: Fiquei para trás nos meus hábitos. Me ajude a recomeçar.
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: reject
+      windowDays: 7
+    expectations:
+      required:
+        - name: query_habits
+          arguments:
+            date: today
+            is_completed: false
+            include_overdue: true
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in Brazilian Portuguese. Return the complete held restart preview alone. Keep a
+      smaller set today and defer the rest within the next week. All dates and figures belong in the
+      preview. Do not repeat prerequisite reads or claim the proposal was saved. Stored habit titles
+      remain verbatim.
+- description: restart-preference in pt-BR
+  metadata:
+    id: composition-restart-preference-pt-BR
+    category: composition
+    family: restart-preference
+    locale: pt-BR
+    fixture: restart
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: Fiquei para trás nos meus hábitos. Me ajude a recomeçar, com só duas coisas hoje.
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      currentAppArea: habits
+      supportsParts: true
+      supportsHabitListCard: true
+      supportsHabitListDoneStatus: true
+      supportsDatedHabitListCard: true
+      supportsHabitHistoryCard: true
+      supportsGoalListCard: true
+      supportsMetricsCard: true
+      supportsPeriodInsightCard: true
+      supportsDaySummaryCard: true
+      supportsStreakCard: true
+      supportsCalendarCard: true
+      supportsRecordListCard: true
+      supportsAccountRowsCard: true
+      supportsPendingOperationChanges: true
+      supportsFollowUps: true
+      supportsFollowUpContext: true
+    composition:
+      mode: preview
+      previews: 1
+    restart:
+      decision: preview
+      windowDays: 7
+      todayCount: 2
+    expectations:
+      required:
+        - name: query_habits
+          arguments:
+            date: today
+            is_completed: false
+            include_overdue: true
+        - name: bulk_reschedule_habits
+          arguments:
+            orbit_write_complete: true
+          resultStatus: PendingConfirmation
+      allowed:
+        - query_habits
+        - bulk_reschedule_habits
+      counts:
+        bulk_reschedule_habits: 1
+    rubric: Answer in Brazilian Portuguese. Return the complete held restart preview alone. Keep a
+      smaller set today, exactly two habits and defer the rest within the next week. All dates and
+      figures belong in the preview. Do not repeat prerequisite reads or claim the proposal was
+      saved. Stored habit titles remain verbatim.

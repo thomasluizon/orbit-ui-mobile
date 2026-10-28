@@ -6,12 +6,13 @@ import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage, upda
 import { publicApi, requireEvalAccess } from './api.mjs'
 import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle } from './names.mjs'
 import { exhaustAllowance } from './allowance.mjs'
+import { seedRestart } from './restart.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
   parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')))
 const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-history', 'empty', 'overdue', 'skipped',
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
-  'composition-offline', 'composition-logged', 'medical', 'existing-parents'])
+  'composition-offline', 'composition-logged', 'medical', 'existing-parents', 'restart'])
 export const disposableStagingOrigin = 'https://orbit-api-staging-uqu2.onrender.com'
 export function requireStagingOrigin() {
   if (apiOrigin() !== disposableStagingOrigin) throw new Error('Fixture isolation requires the disposable staging origin.')
@@ -210,6 +211,10 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     return
   }
   await restoreHabits(api, exported, account, fixture, today, titles)
+  if (fixture === 'restart') {
+    test.vars.restartBaseline = await seedRestart(api, account, today, titles, dailyHabit, dateOffset)
+    return
+  }
   if (fixture === 'skipped') await api('POST', `habits/${account.secondHabitId}/skip`, { date: today })
   if (fixture === 'malicious-title') await api('POST', 'habits', dailyHabit(maliciousHabitTitle, today))
   if (fixture.startsWith('composition')) await seedComposition(api, account, today, fixture, names)
