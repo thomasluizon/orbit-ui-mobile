@@ -73,11 +73,11 @@ describe('sidebar brand and account geometry in Chromium', () => {
         const bell = sidebar.querySelector<HTMLElement>('button:has(.tabler-icon-bell)')!
         const bounds = (element: Element) => {
           const rect = element.getBoundingClientRect()
-          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height, centerX: rect.left + rect.width / 2, radius: getComputedStyle(element).borderRadius }
+          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height, centerX: rect.left + rect.width / 2, centerY: rect.top + rect.height / 2, radius: getComputedStyle(element).borderRadius }
         }
         const controls = [...sidebar.querySelectorAll<HTMLElement>('button, a[href]')]
         const navigationEnd = sidebar.querySelector('nav')!.lastElementChild as HTMLElement
-        const create = sidebar.querySelector<HTMLElement>('.orbit-pill-action')!
+        const create = sidebar.querySelector<HTMLElement>('.orbit-pill-action[data-variant="primary"]')!
         return {
           sidebar: bounds(sidebar), brand: bounds(brand), bell: bounds(bell), toggle: bounds(toggle),
           lockup: bounds(sidebar.querySelector('[data-asset="orbit-lockup"]')!),
@@ -96,9 +96,9 @@ describe('sidebar brand and account geometry in Chromium', () => {
       expect(header.overflow).toBe(false)
       expect(header.afterNavigation).toEqual(['create', 'account'])
       for (const control of [header.bell, header.toggle]) {
-        expect(control.width).toBe(48)
-        expect(control.height).toBe(48)
-        expect(control.radius).toBe('12px')
+        expect.soft(control.width).toBe(44)
+        expect.soft(control.height).toBe(44)
+        expect.soft(Math.min(Number.parseFloat(control.radius), control.width / 2)).toBe(22)
         expect(control.left).toBeGreaterThanOrEqual(header.brand.left)
         expect(control.right).toBeLessThanOrEqual(header.brand.right)
         expect(control.top).toBeGreaterThanOrEqual(header.brand.top)
@@ -107,6 +107,10 @@ describe('sidebar brand and account geometry in Chromium', () => {
       for (const icon of header.icons) {
         expect([icon.width, icon.height]).toEqual([20, 20])
         expect(icon.strokeWidth).toBe('2px')
+      }
+      for (const [index, control] of [header.bell, header.toggle].entries()) {
+        expect.soft(Math.abs(header.icons[index]!.centerX - control.centerX), 'glyph inline centre').toBeLessThanOrEqual(0.5)
+        expect(Math.abs(header.icons[index]!.centerY - control.centerY), 'glyph block centre').toBeLessThanOrEqual(0.5)
       }
       if (collapsed) {
         expect(header.firstControlIsToggle).toBe(true)
@@ -118,7 +122,7 @@ describe('sidebar brand and account geometry in Chromium', () => {
         expect(header.toggle.left - header.bell.right).toBe(12)
         expect(header.lockup.right).toBeLessThanOrEqual(header.bell.left)
         expect.soft(Math.abs(header.lockup.left - header.search.left)).toBeLessThanOrEqual(1)
-        expect.soft(Math.abs(header.trailingGlyph.right - header.search.right)).toBeLessThanOrEqual(1)
+        expect.soft(header.bell.left - header.lockup.right, 'lockup to bell paint').toBeGreaterThanOrEqual(8)
       }
       await assertBrandFills(page)
       const shortAccount = await measureAccount(page)
@@ -171,7 +175,14 @@ async function assertBrandFills(page: Page) {
       }
       await control.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
       await control.evaluate(settleAnimations)
-      const fill = await control.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+      const offset = await control.evaluate(element => {
+        const paint = element.getBoundingClientRect()
+        const glyph = element.querySelector('svg')!.getBoundingClientRect()
+        return { inline: Math.abs(glyph.left + glyph.width / 2 - paint.left - paint.width / 2), block: Math.abs(glyph.top + glyph.height / 2 - paint.top - paint.height / 2) }
+      })
+      expect(offset.inline, `${state} inline centre`).toBeLessThanOrEqual(0.5)
+      expect(offset.block, `${state} block centre`).toBeLessThanOrEqual(0.5)
+      const fill = await control.evaluate(inspectInteractionFill, Math.max(8, INTERACTION_FILL_CLEARANCE))
       expect(fill.hasFill, `${fill.control} ${state}`).toBe(true)
       expect(fill.violations, `${fill.control} ${state}`).toEqual([])
       await page.mouse.move(0, 0)

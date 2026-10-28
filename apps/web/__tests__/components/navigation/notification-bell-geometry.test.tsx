@@ -127,8 +127,7 @@ describe('root bell count geometry in Chromium', () => {
       })
       expect(focus).toMatchObject({ outlineStyle: 'solid', outlineWidth: '2px', outlineOffset: '2px', boxShadow: 'none' })
       expect(focus.outlineColor).not.toBe('rgba(0, 0, 0, 0)')
-      if (countPlacement === 'corner') expect(focus.borderRadius).toBe('12px')
-      else expect(parseFloat(focus.borderRadius)).toBeGreaterThanOrEqual(focus.height / 2)
+      expect(parseFloat(focus.borderRadius)).toBeGreaterThanOrEqual(focus.height / 2)
     } finally { await page.close() }
   })
 })

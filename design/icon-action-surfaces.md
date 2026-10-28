@@ -4,6 +4,8 @@
 
 Each source reference identifies the action after migration. Labels remain localized through the existing shared locale keys or caller-supplied translated labels. Both platform primitives use the same 48px round target: 44px neutral interaction paint at radius 22 plus a transparent 2px hit extension on every side. Disabled and busy behavior share that geometry. Web exposes its label through both aria-label and the native title tooltip.
 
+The wide sidebar bell (`components/navigation/notification-bell.tsx`, corner placement) and collapse control (`components/shell/shell-wide.tsx`) use the same primitive. Their glyphs centre within 0.5px on both axes, with at least 8px between feedback and the lockup or sibling control. The 232px expanded and 96px collapsed rails retain their widths. Android retains its tab navigation shell.
+
 The inventory includes retries, stale refresh, signed paging, disclosure, add controls, copy and sharing, drawn sheet footer actions and per-record actions. Read-block revisions, preview drafts, clipboard feedback, pending requests and focus handoffs retain their original owners.
 
 Text remains for the primary consequence ending a form or confirmation, required sign-in wording, and contextual requests, choices or destinations drawn in the active canvas. In particular, approval and destructive confirmation name their consequence; a pending preview's edit, reject and retry controls use icons. Personal text, calendar values, menu rows and selectable records remain content-bearing controls.

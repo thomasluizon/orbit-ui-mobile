@@ -27,6 +27,7 @@ import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { Lockup } from '@/components/ui/lockup'
 import { Keycap } from '@/components/ui/keycap'
 import { Button } from '@/components/ui/pill-button'
+import { IconButton } from '@/components/ui/icon-button'
 import { useShellScrollerRegistration } from './shell-scroller-context'
 import { useModalFocusTrap } from './use-modal-focus-trap'
 import { getShellHeading } from './shell-header'
@@ -160,20 +161,18 @@ function SidebarBrandRow({ collapsed, navigationId, notifications }: Readonly<{ 
   const toggleSidebar = useShellStore(state => state.toggleSidebar)
   const toggleLabel = collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')
   const sidebarToggle = (
-    <button
+    <IconButton
       key="toggle"
       type="button"
       data-shell-sidebar-toggle=""
-      aria-label={toggleLabel}
-      title={toggleLabel}
+      label={toggleLabel}
       aria-expanded={!collapsed}
       aria-controls={navigationId}
       disabled={!client}
       onClick={toggleSidebar}
-      className={`orbit-hover-text flex min-h-[var(--touch-min)] w-12 shrink-0 touch-manipulation items-center rounded-[12px] text-[var(--fg-3)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40 ${collapsed ? 'justify-center' : 'justify-start ps-2'}`}
     >
       {collapsed ? <PanelLeft size={20} aria-hidden="true" /> : <PanelLeftClose size={20} aria-hidden="true" />}
-    </button>
+    </IconButton>
   )
 
   return (
