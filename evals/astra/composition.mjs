@@ -3,12 +3,14 @@ import { isDeepStrictEqual } from 'node:util'
 import { getRelatedSurfaces } from '../../packages/shared/src/chat/related-surfaces.ts'
 import { tsImport } from 'tsx/esm/api'
 
+const { habitMonthCardSchema } = await tsImport('../../packages/shared/src/types/chat.ts', import.meta.url)
 const { questionBlockSchema } = await tsImport('../../packages/shared/src/types/question-block.ts', import.meta.url)
 
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const text = (value) => typeof value === 'string' && value.trim().length > 0
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const shapes = {
+  habitMonth: { dateFrom: 'string', dateTo: 'string', today: 'string', weekStartDay: 'number', calendar: 'object', surfaceId: 'string' },
   habitList: { scope: 'string', items: 'array' }, goalList: { items: 'array' },
   metrics: { period: 'string', completionRate: 'number', totalCompletions: 'number', totalScheduled: 'number', activeDays: 'number', currentStreak: 'number', bestStreak: 'number', hasData: 'boolean', surfaceId: 'string' },
   periodTotal: { metrics: 'object', metric: 'string', unit: 'string', value: 'number', series: 'object' },
@@ -36,6 +38,7 @@ function validBlock(part, client) {
   if (!Object.entries(shape).every(([key, type]) => type === 'array' ? Array.isArray(part.block[key])
     : type === 'object' ? object(part.block[key]) : typeof part.block[key] === type)) return false
   const block = part.block
+  if (part.kind === 'habitMonth' && !habitMonthCardSchema.safeParse(block).success) return false
   if (part.kind === 'question' && !questionBlockSchema.safeParse(block).success) return false
   if (part.kind === 'recordList' && !['notifications', 'tags', 'templates', 'keys', 'habitHistory'].includes(block.kind)) return false
   if (part.kind === 'accountRows' && !['profile', 'plan', 'referral'].includes(block.kind)) return false

@@ -1,9 +1,11 @@
 import { tsImport } from 'tsx/esm/api'
+import { suggestionAnswer } from './suggestions.mjs'
 
 const shared = Object.assign({}, ...await Promise.all([
   'chat/account-rows-core', 'chat/metrics-card-core', 'chat/habit-ranking-core', 'chat/habit-list-core',
   'chat/day-summary-core', 'chat/read-block-core', 'chat/record-list-core', 'chat/answer-block-controller',
   'chat/gamification-card-core', 'utils/goal-metrics', 'utils/progress', 'utils/streak-week', 'utils/completion-series', 'types/chat',
+  'chat/block-kinds', 'chat/habit-month', 'utils/calendar-month',
 ].map((path) => tsImport(`../../packages/shared/src/${path}.ts`, import.meta.url))))
 
 function habitList(card, { t }) {
@@ -179,9 +181,23 @@ function questionBlock(block, { t }) {
       freeText: question.allowFreeText ? t('chat.choice.freeText') : undefined,
     })), submit: t('chat.choice.submit') }
 }
-const renderers = { habitList, goalList, metrics, periodTotal, periodComparison, periodInsight, daySummary, streak,
-  gamification, calendar, recordList, accountRows, habitRanking, choice: (card, options) => answerBlock(card, options, 'choice'),
-  pickList: (card, options) => answerBlock(card, options, 'pickList'), question: questionBlock }
+function habitMonth(card, { t, locale }) {
+  const { months, dayMap, range } = shared.buildHabitMonthCalendar(card)
+  const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' })
+  const dayLabel = new Intl.DateTimeFormat(locale, { dateStyle: 'long' })
+  return { title: t('chat.habitMonth.title'), months: months.map((month) => ({
+    title: monthLabel.format(month),
+    days: shared.buildCalendarMonthModel(month, dayMap, card.weekStartDay, card.today, range).gridDays
+      .filter((day) => day.isCurrentMonth).map((day) => ({
+        date: dayLabel.format(day.date), completed: day.completedCount, scheduled: day.totalCount,
+      })),
+  })) }
+}
+const renderers = shared.createChatBlockRegistry({ habitList, goalList, metrics, periodTotal, periodComparison, periodInsight, daySummary, streak,
+  gamification, calendar, habitMonth, recordList, accountRows, habitRanking, choice: (card, options) => answerBlock(card, options, 'choice'),
+  pickList: (card, options) => answerBlock(card, options, 'pickList'), question: questionBlock,
+  habitSuggestions: (block, { locale }) => JSON.parse(suggestionAnswer([{ type: 'block', kind: 'habitSuggestions', block }], locale)).parts[0].block,
+})
 
 function projectBlock(part, options) {
   const parsed = shared.chatPartSchema.parse(part)

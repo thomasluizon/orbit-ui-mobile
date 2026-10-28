@@ -109,9 +109,23 @@ it.each(gamificationCardCases.flatMap(testCase => ['en', 'pt-BR'].map(locale => 
       if (!block.state.achievements) expect(visible.title).toBe(visible.streak.title)
     }
   })
+const { habitMonthFixture } = await import('../../../packages/shared/src/test-support/habit-month-fixture.ts')
+it.each(['en', 'pt-BR'])('projects the client month grid counts and localized dates in %s', async (locale) => {
+  const { output, error } = await receive({ parts: [{ type: 'block', kind: 'habitMonth', block: habitMonthFixture }] }, locale)
+  expect(error).toBeUndefined()
+  const visible = JSON.parse(output.answer).parts[0].block
+  expect(visible.months[0].title).toBe(locale === 'en' ? 'September 2026' : 'setembro de 2026')
+  expect(visible.months[0].days).toHaveLength(30)
+  expect(visible.months[0].days[0]).toEqual({
+    date: locale === 'en' ? 'September 1, 2026' : '1 de setembro de 2026', completed: 1, scheduled: 1,
+  })
+  expect(visible.months[0].days[2]).toMatchObject({ completed: 0, scheduled: 1 })
+  expect(output.answer).not.toContain('signed-month')
+  expect(output.answer).not.toContain('habit-one')
+})
 const typedBlocks = [...fixtures.blocks, ...[
   ['periodTotal', focused.focusedPeriodTotalFixture], ['periodComparison', focused.focusedPeriodComparisonFixture],
-  ['habitRanking', focused.habitRankingCardFixture],
+  ['habitRanking', focused.habitRankingCardFixture], ['habitMonth', habitMonthFixture],
 ].map(([kind, block]) => ({ type: 'block', kind, block }))]
 
 it.each(typedBlocks.map((part) => [part.kind, part]))('projects %s from the existing client contract fixture', async (_, part) => {
