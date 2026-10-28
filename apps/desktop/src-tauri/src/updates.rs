@@ -11,6 +11,8 @@ use tauri_plugin_updater::{Update, UpdaterExt};
 use uuid::Uuid;
 
 const CHECK_INTERVAL: Duration = Duration::from_secs(60);
+// WHY: Allow the one-second web poll to settle Quit without trapping a blocked webview.
+const QUIT_HANDOFF_TIMEOUT: Duration = Duration::from_secs(3);
 struct Package {
     update: Update,
     bytes: Option<Vec<u8>>,
@@ -129,11 +131,39 @@ pub fn request_quit(app: &AppHandle) -> bool {
     let Some(state) = app.try_state::<PendingUpdate>() else {
         return false;
     };
-    let waiting = state.lock().unwrap().request_quit();
+    let (waiting, attempt) = {
+        let mut state = state.lock().unwrap();
+        let waiting = state.request_quit();
+        (waiting, state.quit_handoff())
+    };
+    if let Some(attempt) = attempt {
+        let app = app.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            wait_for_quit_handoff(
+                &app.state::<PendingUpdate>(),
+                attempt,
+                std::thread::sleep,
+                || app.exit(0),
+            );
+        });
+    }
     if waiting {
         show_status(app);
     }
     waiting
+}
+
+fn wait_for_quit_handoff<T>(
+    state: &Mutex<UpdateState<T>>,
+    attempt: Uuid,
+    wait: impl FnOnce(Duration),
+    exit: impl FnOnce(),
+) {
+    wait(QUIT_HANDOFF_TIMEOUT);
+    let exiting = state.lock().unwrap().expire_quit(attempt);
+    if exiting {
+        exit();
+    }
 }
 
 pub fn show_prompt(app: &AppHandle) {
@@ -388,6 +418,94 @@ mod tests {
         );
         assert_eq!(state.lock().unwrap().take_prompt(true), None);
         assert_eq!(state.lock().unwrap().phase, Phase::Failed);
+    }
+
+    fn waiting_to_quit() -> Mutex<UpdateState<&'static str>> {
+        let mut state = UpdateState::new(true);
+        state.checked(Ok(Some(("0.2.0".into(), "package"))));
+        let package = state.begin_download(Uuid::new_v4()).unwrap();
+        state.downloaded(package, true);
+        let version = state.take_prompt(true).unwrap();
+        state.answer_prompt(&version, false);
+        assert!(state.request_quit());
+        Mutex::new(state)
+    }
+
+    #[test]
+    fn quit_timer_exits_after_the_bound_even_if_web_never_acknowledges() {
+        for acknowledged in [false, true] {
+            let state = waiting_to_quit();
+            let attempt = state.lock().unwrap().quit_handoff().unwrap();
+            let exited = std::cell::Cell::new(false);
+            wait_for_quit_handoff(
+                &state,
+                attempt,
+                |bound| {
+                    assert_eq!(bound, Duration::from_secs(3));
+                    let mut state = state.lock().unwrap();
+                    assert!(state.quit_requested);
+                    assert_eq!(state.phase, Phase::Downloaded);
+                    if acknowledged {
+                        state.clear_restart();
+                    }
+                    assert!(!exited.get());
+                },
+                || {
+                    let mut state = state.try_lock().unwrap();
+                    assert!(!state.quit_requested);
+                    assert!(!state.request_quit());
+                    assert!(state.begin_install().is_err());
+                    exited.set(true);
+                },
+            );
+            assert!(exited.get());
+        }
+    }
+
+    #[test]
+    fn quit_timer_exits_if_a_reservation_never_reaches_installing() {
+        let state = waiting_to_quit();
+        let attempt = state.lock().unwrap().quit_handoff().unwrap();
+        let reservation = Uuid::new_v4();
+        wait_for_quit_handoff(
+            &state,
+            attempt,
+            |_| {
+                let mut state = state.lock().unwrap();
+                let package = state.begin_download(reservation).unwrap();
+                state.downloaded(package, true);
+            },
+            || assert!(!state.lock().unwrap().request_quit()),
+        );
+        assert!(state.lock().unwrap().begin_install().is_err());
+        assert!(state.lock().unwrap().begin_download(reservation).is_err());
+    }
+
+    #[test]
+    fn quit_timer_leaves_installing_and_successor_attempts_running() {
+        for installing in [false, true] {
+            let state = waiting_to_quit();
+            let attempt = state.lock().unwrap().quit_handoff().unwrap();
+            wait_for_quit_handoff(
+                &state,
+                attempt,
+                |_| {
+                    let mut state = state.lock().unwrap();
+                    let reservation = Uuid::new_v4();
+                    let package = state.begin_download(reservation).unwrap();
+                    state.downloaded(package, true);
+                    if installing {
+                        state.begin_install().unwrap();
+                    } else {
+                        state.release_install(reservation);
+                        assert!(state.request_quit());
+                        assert_ne!(state.quit_handoff(), Some(attempt));
+                    }
+                },
+                || panic!("active installation or successor handoff must keep running"),
+            );
+            assert!(state.lock().unwrap().quit_requested);
+        }
     }
 
     #[test]
