@@ -34,7 +34,8 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
     const occurrence = occurrences.data?.habitsById.get(item.id)
     const snapshotCheck = habitSnapshotCheck(item)
     const { control, logged, unavailable } = habitListRowState(item, occurrence, Boolean(habitList.read), occurrenceDate, pendingIds.has(item.id), readScope)
-    return <HabitBlockRow key={item.id} title={item.title} emoji={item.emoji} error={failedIds.has(item.id) ? t('chat.liveBlock.error') : undefined}
+    const skippedLabel = item.isSkippedOnDate && !logged ? t('habits.statusDot.skip') : undefined
+    return <HabitBlockRow key={item.id} title={item.title} emoji={item.emoji} meta={skippedLabel} error={failedIds.has(item.id) ? t('chat.liveBlock.error') : undefined}
       label={t('chat.habitList.open', { name: item.title })}
       onOpen={() => navigate(habitList.date ? `/habits/${item.id}?date=${habitList.date}` : `/habits/${item.id}`)}
       control={occurrence ? (
@@ -42,9 +43,9 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
           if (unavailable || !habitListReadControl(occurrence, item.status, occurrenceDate, readScope).writeAllowed) return
           void log({ habitId: item.id, date: occurrenceDate, intent: logged ? 'unlog' : 'log' })
         }} type="button">
-          <HabitCheck status={control.status} label={t(control.statusKey)} />
+          <HabitCheck status={skippedLabel ? 'empty' : control.status} label={skippedLabel ?? t(control.statusKey)} />
         </button>
-      ) : <span className="grid size-[var(--touch-min)] place-items-center"><HabitCheck status={snapshotCheck.status} label={t(snapshotCheck.statusKey)} /></span>} />
+      ) : <span className="grid size-[var(--touch-min)] place-items-center"><HabitCheck status={skippedLabel ? 'empty' : snapshotCheck.status} label={skippedLabel ?? t(snapshotCheck.statusKey)} /></span>} />
   })
 
   return (

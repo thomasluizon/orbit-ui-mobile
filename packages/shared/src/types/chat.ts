@@ -22,6 +22,7 @@ export const chatClientContextSchema = z.object({
   supportsHabitListCard: z.boolean(),
   supportsHabitListDoneStatus: z.boolean().optional(),
   supportsDatedHabitListCard: z.boolean().optional(),
+  supportsSkippedHabitRows: z.boolean().optional(),
   supportsHabitHistoryCard: z.boolean().optional(),
   supportsGoalListCard: z.boolean(),
   supportsMetricsCard: z.boolean().optional(),
@@ -251,6 +252,7 @@ export const habitListCardItemSchema = z.object({
   depth: z.number(),
   isBadHabit: z.boolean(),
   status: habitListCardStatusSchema,
+  isSkippedOnDate: z.boolean().nullish(),
 })
 
 export type HabitListCardItem = z.infer<typeof habitListCardItemSchema>

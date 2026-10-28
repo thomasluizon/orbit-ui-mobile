@@ -6,7 +6,7 @@ import { act, create } from 'react-test-renderer'
 import type { GeometryTree } from '../../support/safe-area-geometry'
 import { renderedText } from '../../support/react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, skippedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { gamificationCardCases, gamificationCardFixture } from '@orbit/shared/test-support/gamification-card-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -416,5 +416,55 @@ it.each(staleReadCases)('refreshes a stale $kind through its owning composition'
   if (part.kind !== 'habitMonth') expect(apiClient).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ body: expect.stringContaining('"page":false') }), expect.anything())
   expect(renderedText(tree.toJSON())).not.toContain('chat.readBlock.stale')
   expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh')).toHaveLength(0)
+  await act(() => tree.unmount())
+})
+
+it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as const).flatMap(source =>
+  (['missing', 'live', 'error'] as const).map(occurrences => ({ locale, source, occurrences })))))(
+  'shows only the skipped row status in $locale through $source with $occurrences occurrences', async ({ locale, source, occurrences }) => {
+    state.isError = occurrences === 'error'
+    if (occurrences === 'live') for (const item of skippedDatedHabitListFixture.items) {
+      state.habits.set(item.id, createMockHabit({ id: item.id, isBadHabit: item.isBadHabit, isLoggedInRange: item.status === 'done' }))
+    }
+    const parsed = source === 'chat'
+      ? chatPartSchema.parse({ type: 'block', kind: 'habitList', block: skippedDatedHabitListFixture })
+      : readBlockResponseSchema.parse({ kind: 'habitList', block: skippedDatedHabitListFixture, read: skippedDatedHabitListFixture.read })
+    if (!parsed || !('kind' in parsed) || parsed.kind !== 'habitList') throw new Error('Skipped habit block did not parse')
+    const messages = locale === 'en' ? en : pt
+    state.locale = locale
+    state.actualCopy = true
+    const tree = await mount(parsed)
+    const rows = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'habit-block-row')
+    const names = [messages.habits.statusDot.skip, messages.chat.habitList.logged, messages.chat.habitList.overdue, messages.chat.habitList.pending, messages.habits.statusDot.bad]
+    expect(rows).toHaveLength(5)
+    rows.forEach((row, index) => {
+      const check = row.findAll(node => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!
+      expect(check.props.accessibilityLabel).toBe(names[index])
+      expect(row.findAll(node => String(node.type) === 'Text' && node.props.children === messages.habits.statusDot.skip)).toHaveLength(index === 0 ? 1 : 0)
+    })
+    const skippedCheck = rows[0]!.findAll(node => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!
+    const pendingCheck = rows[3]!.findAll(node => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!
+    expect(skippedCheck.props.style).toEqual(pendingCheck.props.style)
+    await press(tree, locale === 'en' ? 'Open Walk' : 'Abrir Walk')
+    expect(state.push).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'skipped', date: skippedDatedHabitListFixture.date } })
+    expect(state.mutate).not.toHaveBeenCalled()
+    await act(() => tree.unmount())
+})
+
+it.each(['en', 'pt-BR'] as const)('lets a live completion supersede the saved skipped status in %s', async (locale) => {
+  for (const item of skippedDatedHabitListFixture.items) {
+    state.habits.set(item.id, createMockHabit({ id: item.id, isBadHabit: item.isBadHabit, isLoggedInRange: item.id === 'skipped' || item.status === 'done' }))
+  }
+  const parsed = chatPartSchema.parse({ type: 'block', kind: 'habitList', block: skippedDatedHabitListFixture })
+  if (!parsed || !('kind' in parsed) || parsed.kind !== 'habitList') throw new Error('Skipped habit block did not parse')
+  const messages = locale === 'en' ? en : pt
+  state.locale = locale
+  state.actualCopy = true
+  const tree = await mount(parsed)
+  const rows = tree.root.findAll(node => String(node.type) === 'View' && node.props.testID === 'habit-block-row')
+  const [skippedCheck, loggedCheck] = rows.slice(0, 2).map(row => row.findAll(node => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!)
+  expect(skippedCheck!.props.accessibilityLabel).toBe(messages.chat.habitList.logged)
+  expect(skippedCheck!.props.style).toEqual(loggedCheck!.props.style)
+  expect(rows[0]!.findAll(node => String(node.type) === 'Text' && node.props.children === messages.habits.statusDot.skip)).toHaveLength(0)
   await act(() => tree.unmount())
 })

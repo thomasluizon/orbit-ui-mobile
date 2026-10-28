@@ -342,3 +342,16 @@ export const focusedStaleRecapFixture = {
 
 export { habitSuggestionDraftFixture, habitSuggestionsFixture, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from './habit-suggestion-fixtures'
 export { questionBlockFixture, questionAnswersFixture } from './question-fixtures'
+
+export const skippedDatedHabitListFixture = {
+  ...focusedDatedHabitListFixture,
+  totalCount: 5,
+  read: { ...focusedDatedHabitListFixture.read, totalCount: 5 },
+  items: [
+    { id: 'skipped', title: 'Walk', emoji: null, depth: 0, isBadHabit: false, status: 'today', isSkippedOnDate: true },
+    { id: 'done', title: 'Read', emoji: null, depth: 0, isBadHabit: false, status: 'done', isSkippedOnDate: false },
+    { id: 'overdue', title: 'Stretch', emoji: null, depth: 0, isBadHabit: false, status: 'overdue' },
+    { id: 'pending', title: 'Water', emoji: null, depth: 0, isBadHabit: false, status: 'today', isSkippedOnDate: null },
+    { id: 'bad', title: 'Smoke', emoji: null, depth: 0, isBadHabit: true, status: 'done', isSkippedOnDate: false },
+  ],
+} satisfies HabitListCard

@@ -25,6 +25,7 @@ export function buildChatClientContext({
     supportsHabitListCard: true,
     supportsHabitListDoneStatus: true,
     supportsDatedHabitListCard: true,
+    supportsSkippedHabitRows: true,
     supportsHabitHistoryCard: true,
     supportsGoalListCard: true,
     supportsMetricsCard: true,
