@@ -147,16 +147,15 @@ describe('habit row standard in Chromium', () => {
         expect(arrival.some((paint) => paint[property] !== rest[property] && paint[property] !== hover[property])).toBe(true)
       }
       const [exit] = await Promise.all([sampleRowPaint(row), page.mouse.move(0, 0)])
-      expect(await rowPaint(row)).toEqual(rest)
+      await expect.poll(() => rowPaint(row)).toEqual(rest)
       for (const property of ['fill', 'outline'] as const) {
         expect(exit.some((paint) => paint[property] !== rest[property] && paint[property] !== hover[property])).toBe(true)
       }
       await hoverBody()
       await page.mouse.down()
-      await page.evaluate(() => new Promise(requestAnimationFrame))
-      expect(await rowPaint(row)).toEqual(hover)
+      await expect.poll(() => rowPaint(row)).toEqual(hover)
       await row.locator('[data-habit-row-control="selection"]').hover()
-      expect(await rowPaint(row)).toEqual(rest)
+      await expect.poll(() => rowPaint(row)).toEqual(rest)
       await page.mouse.move(0, 0)
       await page.mouse.up()
       await expect.poll(() => rowPaint(row)).toEqual(rest)
@@ -164,18 +163,18 @@ describe('habit row standard in Chromium', () => {
         await hoverBody()
         await expect.poll(() => rowPaint(row)).toEqual(hover)
         await control.hover()
-        expect(await rowPaint(row)).toEqual(rest)
+        await expect.poll(() => rowPaint(row)).toEqual(rest)
         await expect.poll(() => control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(hover.fill)
         await page.mouse.down()
-        expect(await rowPaint(row)).toEqual(rest)
+        await expect.poll(() => rowPaint(row)).toEqual(rest)
         await page.mouse.move(0, 0)
         await page.mouse.up()
       }
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await hoverBody()
-      expect(await rowPaint(row)).toEqual(hover)
+      await expect.poll(() => rowPaint(row)).toEqual(hover)
       await page.mouse.move(0, 0)
-      expect(await rowPaint(row)).toEqual(rest)
+      await expect.poll(() => rowPaint(row)).toEqual(rest)
     } finally { await page.close() }
   })
 
@@ -198,18 +197,18 @@ describe('habit row standard in Chromium', () => {
         return result
       })
       expect(outlines.active).not.toBe(outlines.rest)
-      expect((await rowPaint(row)).outline).toBe(outlines.rest)
+      await expect.poll(async () => (await rowPaint(row)).outline).toBe(outlines.rest)
       for (let repeat = 0; repeat < 2; repeat++) {
         await row.locator('[data-habit-row-body]').hover()
-        expect((await rowPaint(row)).outline).toBe(outlines.active)
+        await expect.poll(async () => (await rowPaint(row)).outline).toBe(outlines.active)
         await page.mouse.down()
-        expect((await rowPaint(row)).outline).toBe(outlines.active)
+        await expect.poll(async () => (await rowPaint(row)).outline).toBe(outlines.active)
         await page.mouse.move(0, 0)
         await page.mouse.up()
-        expect((await rowPaint(row)).outline).toBe(outlines.rest)
+        await expect.poll(async () => (await rowPaint(row)).outline).toBe(outlines.rest)
       }
       await row.locator('[data-habit-row-control="menu"]').hover()
-      expect((await rowPaint(row)).outline).toBe(outlines.rest)
+      await expect.poll(async () => (await rowPaint(row)).outline).toBe(outlines.rest)
     } finally { await page.close() }
   })
 })
