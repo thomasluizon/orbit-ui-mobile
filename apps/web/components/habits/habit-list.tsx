@@ -1424,63 +1424,62 @@ export function HabitList({
         {!drill.currentParent && showAllDone ? <HabitListAllDone onSeeUpcoming={onSeeUpcoming} /> : null}
         {renderMainContent()}
       </div>
-
-      <DeferredEditHabitModal
-        open={showEditModal}
-        onOpenChange={handleEditModalOpenChange}
-        habit={habitToEdit}
-        onSaved={editModalOnSaved ?? undefined}
-        lockedGeneral={editHabitLockedGeneral}
-      />
-
-      <DeferredRescheduleSheet
-        open={showRescheduleSheet}
-        onOpenChange={(open) => {
-          setShowRescheduleSheet(open)
-          if (!open) setHabitToReschedule(null)
-        }}
-        habit={habitToReschedule}
-      />
-
-      <DeferredCreateHabitModal
-        open={showSubHabitModal}
-        onOpenChange={setShowSubHabitModal}
-        parentHabit={subHabitParent}
-      />
-
-      <DeferredConfirmDialogs
-        key={accountGeneration}
-        t={t}
-        showDeleteConfirm={showDeleteConfirm}
-        deletePending={deletePending}
-        deleteHabitName={deleteConfirmation.name}
-        deleteDescendantCount={deleteConfirmation.descendantCount}
-        duplicateHabitName={habitToDuplicate?.title ?? null}
-        parentPrompt={parentPrompt?.date === selectedDateStr
-          ? { id: parentPrompt.habit.id, name: parentPrompt.habit.title, mode: parentPrompt.mode }
-          : null}
-        onConfirmDelete={() => void confirmDelete()}
-        onDeleteClosed={() => {
-          setHabitToDelete(null)
-          listContainerRef.current?.focus()
-        }}
-        onCancelDelete={() => {
-          setHabitToDelete(null)
-          setShowDeleteConfirm(false)
-        }}
-        onConfirmDuplicate={() => void confirmDuplicate()}
-        onCancelDuplicate={() => setHabitToDuplicate(null)}
-        onConfirmParent={confirmParentSettlement}
-        onCancelParent={() => setParentPromptQueue(
-          (current) => shiftParentPrompt(current, selectedDateStr),
-        )}
-      />
     </div></TodayLaunchContent></ContentFade>
   }
 
   return <>
     <ListPresence>{habitsQuery.isLoading ? <ContentFade key="loading"><HabitListSkeleton /></ContentFade> : null}</ListPresence>
     {renderList()}
+    <DeferredEditHabitModal
+      open={showEditModal}
+      onOpenChange={handleEditModalOpenChange}
+      habit={habitToEdit}
+      onSaved={editModalOnSaved ?? undefined}
+      lockedGeneral={editHabitLockedGeneral}
+    />
+
+    <DeferredRescheduleSheet
+      open={showRescheduleSheet}
+      onOpenChange={(open) => {
+        setShowRescheduleSheet(open)
+        if (!open) setHabitToReschedule(null)
+      }}
+      habit={habitToReschedule}
+    />
+
+    <DeferredCreateHabitModal
+      open={showSubHabitModal}
+      onOpenChange={setShowSubHabitModal}
+      parentHabit={subHabitParent}
+    />
+
+    <DeferredConfirmDialogs
+      key={accountGeneration}
+      t={t}
+      showDeleteConfirm={showDeleteConfirm}
+      deletePending={deletePending}
+      deleteHabitName={deleteConfirmation.name}
+      deleteDescendantCount={deleteConfirmation.descendantCount}
+      duplicateHabitName={habitToDuplicate?.title ?? null}
+      parentPrompt={parentPrompt?.date === selectedDateStr
+        ? { id: parentPrompt.habit.id, name: parentPrompt.habit.title, mode: parentPrompt.mode }
+        : null}
+      onConfirmDelete={() => void confirmDelete()}
+      onDeleteClosed={() => {
+        setHabitToDelete(null)
+        listContainerRef.current?.focus()
+      }}
+      onCancelDelete={() => {
+        setHabitToDelete(null)
+        setShowDeleteConfirm(false)
+      }}
+      onConfirmDuplicate={() => void confirmDuplicate()}
+      onCancelDuplicate={() => setHabitToDuplicate(null)}
+      onConfirmParent={confirmParentSettlement}
+      onCancelParent={() => setParentPromptQueue(
+        (current) => shiftParentPrompt(current, selectedDateStr),
+      )}
+    />
     {moveIntent && moveIntent.accountGeneration === accountGeneration ? (
       <Suspense key="move-parent" fallback={<PendingMoveParent onClose={closeMoveParentPicker} />}>
         <MoveParentController key={moveIntent.key} intent={moveIntent}

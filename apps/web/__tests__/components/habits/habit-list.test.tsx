@@ -402,7 +402,7 @@ vi.mock('@/components/habits/reschedule-sheet', () => ({
 }))
 
 vi.mock('@/components/habits/edit-habit-modal', () => ({
-  EditHabitModal: ({
+  EditHabitModal: function EditHabitModal({
     open,
     habit,
     onSaved,
@@ -412,14 +412,17 @@ vi.mock('@/components/habits/edit-habit-modal', () => ({
     habit?: NormalizedHabit | null
     onSaved?: () => void | Promise<void>
     lockedGeneral?: boolean | null
-  }) =>
-    open ? (
+  }) {
+    const [title, setTitle] = React.useState(habit?.title ?? '')
+    return open ? (
       <>
+        <input aria-label="Habit title" value={title} onChange={(event) => setTitle(event.target.value)} />
         <button data-testid="edit-habit-modal-save" onClick={() => void onSaved?.()}>save</button>
         <span data-testid="edit-habit-modal-title">{habit?.title ?? ''}</span>
         <span data-testid="edit-habit-modal-locked-general">{String(lockedGeneral)}</span>
       </>
-    ) : null,
+    ) : null
+  },
 }))
 
 vi.mock('@/components/habits/log-habit-modal', () => ({
@@ -1025,6 +1028,25 @@ describe('HabitList', () => {
     fireEvent.click(screen.getByTestId(`delete-${id}`))
     await confirmVisibleSheet('habits.deleteConfirmTitle', 'habits.deleteHabit')
     expect(deleteHabitMutateAsync).toHaveBeenCalledWith(id)
+  })
+
+  it('preserves the General editor and its unsaved title across account midnight', async () => {
+    accountDate.timeZone = 'Pacific/Honolulu'
+    vi.setSystemTime(new Date('2026-09-13T09:59:59Z'))
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, 'general'))
+    const list = <HabitList view="general" filters={{ isGeneral: true }} />
+    const rendered = renderWithProviders(list)
+    fireEvent.click(screen.getByTestId('edit-general'))
+    const editor = await screen.findByRole('textbox', { name: 'Habit title' })
+    fireEvent.change(editor, { target: { value: 'Unsaved habit title' } })
+    expect(editor).toHaveValue('Unsaved habit title')
+
+    vi.setSystemTime(new Date('2026-09-13T10:00:01Z'))
+    rendered.rerenderWithProviders(<HabitList view="general" filters={{ isGeneral: true }} />)
+
+    expect(await screen.findByRole('textbox', { name: 'Habit title' })).toBe(editor)
+    expect(editor).toHaveValue('Unsaved habit title')
+    expect(mockHabitsData.habitsById.get('general')?.title).toBe('Any day')
   })
 
   it.each(['today', 'all', 'general'] as const)('restores production membership and nesting in %s', (view) => {
