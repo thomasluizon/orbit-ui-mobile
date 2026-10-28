@@ -207,8 +207,12 @@ export function CalendarTimeGrid({
   const nowMinutes = getAccountDateTime(now, timeZone).minutes
 
   useEffect(() => {
+    const hydrationTimer = setTimeout(() => setNow(nowDate()), 0)
     const interval = setInterval(() => setNow(nowDate()), 60_000)
-    return () => clearInterval(interval)
+    return () => {
+      clearTimeout(hydrationTimer)
+      clearInterval(interval)
+    }
   }, [])
 
   const perColumn = useMemo(

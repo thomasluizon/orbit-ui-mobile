@@ -249,6 +249,41 @@ describe('Today server preload', () => {
     }
   })
 
+  it('catches up the week marker immediately when opened after document hydration', async () => {
+    vi.useFakeTimers()
+    const serverClient = createTestQueryClient()
+    const browserClient = createTestQueryClient()
+    const container = document.createElement('div')
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    const settings = { route: 'today', locale: 'en', timeZone: 'America/Sao_Paulo', initialToday: '2026-10-27', now: new Date('2026-10-28T01:25:00Z').getTime() }
+    vi.setSystemTime(settings.now)
+    container.innerHTML = renderToString(createTodayTree(serverClient, [], null, settings))
+    document.body.append(container)
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, createTodayTree(browserClient, [], null, settings), { onRecoverableError: recoverableError })
+      })
+      expect(recoverableError).not.toHaveBeenCalled()
+      expect(container.querySelector('[aria-label="Now"]')).toBeNull()
+      await act(async () => { await vi.advanceTimersByTimeAsync(5 * 60_000) })
+      calendarSearch.value = 'view=week'
+      await act(async () => {
+        root?.render(createTodayTree(browserClient, [], null, { ...settings, route: 'calendar' }))
+      })
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(container.querySelector('[role="img"][aria-label="Now"]')).toHaveStyle({ top: '67.5rem' })
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+      expect(container.querySelector('[role="img"][aria-label="Now"]')).toHaveStyle({ top: '67.55rem' })
+      expect(recoverableError).not.toHaveBeenCalled()
+    } finally {
+      await act(async () => root?.unmount())
+      container.remove()
+      browserClient.clear()
+      serverClient.clear()
+    }
+  })
+
   it('keeps the first opened row menu and preloaded queries after confirming the rendered account', async () => {
     await retireHeldAccount()
     const queryClient = getQueryClient()
