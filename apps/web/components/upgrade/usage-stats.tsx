@@ -10,7 +10,7 @@ export function UsageStats({ usagePercent, profile, t, locale = 'en' }: Readonly
   profile: ({ aiMessagesUsed: number; aiMessagesLimit: number } & AstraAllowance) | null
   t: ReturnType<typeof useTranslations>
 }>) {
-  const allowanceText = createAstraAllowanceTranslator(t, profile, locale)
+  const translate = createAstraAllowanceTranslator(t, profile, locale)
   const remaining = profile ? profile.aiMessagesLimit - profile.aiMessagesUsed : null
   const nearLimit = remaining !== null && remaining <= AI_MESSAGE_COUNTER_THRESHOLD
   return (
@@ -19,7 +19,7 @@ export function UsageStats({ usagePercent, profile, t, locale = 'en' }: Readonly
       <h2 className="text-sm font-medium text-[var(--fg-2)]">{t('upgrade.billing.usage.title')}</h2>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-1)' }}>
-          {allowanceText('upgrade.billing.usage.aiMessages')}
+          {translate('upgrade.billing.usage.aiMessages')}
         </span>
         <span
           style={{
@@ -35,15 +35,15 @@ export function UsageStats({ usagePercent, profile, t, locale = 'en' }: Readonly
       </div>
       <ProgressBar
         value={usagePercent / 100} max={1}
-        label={allowanceText('upgrade.billing.usage.aiMessages')}
+        label={translate('upgrade.billing.usage.aiMessages')}
 
       />
     </section>
-    {profile?.aiMessagesPeriod === 'week' && !nearLimit ? <p className="text-sm text-[var(--fg-3)]">{allowanceText('shell.composer.limit.renewal')}</p> : null}
+    {profile?.aiMessagesPeriod === 'week' && !nearLimit ? <p className="text-sm text-[var(--fg-3)]">{translate('shell.composer.limit.renewal')}</p> : null}
     {nearLimit ? (
       <CapacityNotice
-        message={allowanceText(remaining <= 0 ? 'shell.composer.limit.exhausted' : 'upgrade.billing.usage.nearLimit')}
-        body={allowanceText('shell.composer.limit.renewal')}
+        message={translate(remaining <= 0 ? 'shell.composer.limit.exhausted' : 'upgrade.billing.usage.nearLimit')}
+        body={translate('shell.composer.limit.renewal')}
       />
     ) : null}
     </div>

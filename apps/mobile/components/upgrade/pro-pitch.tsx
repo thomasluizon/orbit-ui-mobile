@@ -38,7 +38,7 @@ export function ProPitch({ inset = true, profile, trialDaysLeft, t, focusOnMount
         {dateHint ? <Text style={[styles.convertTrust, { color: tokens.fg3 }]}>{dateHint}</Text> : null}
       </View>
 
-      <View style={[styles.allowanceSection, !inset && { paddingHorizontal: SPACING.s0 }]}>
+      <View accessibilityLabel={t('upgrade.convert.allowanceLabel')} style={[styles.allowanceSection, !inset && { paddingHorizontal: SPACING.s0 }]}>
         <View
           style={[
             styles.allowanceCard,

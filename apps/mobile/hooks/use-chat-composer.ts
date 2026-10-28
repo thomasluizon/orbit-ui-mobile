@@ -435,6 +435,23 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     if (draftMessageId) useChatStore.setState(state => ({ messages: state.messages.filter(message => message.id !== draftMessageId) }))
   }, [today, setDailyBudgetDate, setSendError, setLastFailedSend, setSelectedImage, setImagePreview, setSelectedTextFile])
 
+  const handleAllowanceExceeded = useCallback((draftMessageId: string | null) => {
+    setSendError(null)
+    setLastFailedSend(null)
+    const limitReason = allowanceText("chat.limitReachedError");
+    if (draftMessageId) {
+      updateMessage(draftMessageId, { content: limitReason });
+    } else {
+      addMessage({
+        id: createChatMessageId(),
+        role: "ai",
+        content: limitReason,
+        timestamp: new Date(),
+      });
+    }
+    scrollToBottom();
+  }, [addMessage, allowanceText, scrollToBottom, setSendError, setLastFailedSend, updateMessage])
+
   const handleFailedSend = useCallback(
     (
       failureInput: StreamSendFailure,
@@ -469,19 +486,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         setSendError(t("chat.timeoutError"));
         setLastFailedSend(failedAttempt);
       } else if (failure.kind === "limit") {
-        setSendError(null);
-        const limitReason = allowanceText("chat.limitReachedError");
-        if (draftMessageId) {
-          updateMessage(draftMessageId, { content: limitReason });
-        } else {
-          addMessage({
-            id: createChatMessageId(),
-            role: "ai",
-            content: limitReason,
-            timestamp: new Date(),
-          });
-        }
-        scrollToBottom();
+        handleAllowanceExceeded(draftMessageId);
         return;
       } else {
         setSendError(t("chat.sendError"));
@@ -500,7 +505,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       }
       scrollToBottom();
     },
-    [allowanceText, addMessage, handleDailyBudgetExceeded, scrollToBottom, setInput, setIsTyping, t, updateMessage, setSendError, setLastFailedSend, setActiveSteps],
+    [addMessage, handleAllowanceExceeded, handleDailyBudgetExceeded, scrollToBottom, setInput, setIsTyping, t, updateMessage, setSendError, setLastFailedSend, setActiveSteps],
   );
 
   const applyFinalResponse = useCallback(
@@ -712,13 +717,13 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
   const sendBlockAnswer = useCallback((request: BlockAnswerRequest): Promise<BlockAnswerResult> =>
     blockSubmission.send(request, {
-      isOnline, atMessageLimit, dailyBudgetReached, onDailyBudgetExceeded: handleDailyBudgetExceeded, locale: i18n.language,
+      isOnline, atMessageLimit, dailyBudgetReached, onAllowanceExceeded: handleAllowanceExceeded, onDailyBudgetExceeded: handleDailyBudgetExceeded, locale: i18n.language,
       getChat: useChatStore.getState, createMessageId: createChatMessageId,
       conversation: useUIStore.getState(), beginSend, run: runStreamingSend,
       refreshProfile: () => queryClient.invalidateQueries({ queryKey: profileKeys.all }),
       words: { answered: content => t('chat.choice.answered', { options: content }),
         closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered') },
-    }), [atMessageLimit, beginSend, blockSubmission, dailyBudgetReached, handleDailyBudgetExceeded, isOnline, i18n.language, queryClient, runStreamingSend, t])
+    }), [atMessageLimit, beginSend, blockSubmission, dailyBudgetReached, handleAllowanceExceeded, handleDailyBudgetExceeded, isOnline, i18n.language, queryClient, runStreamingSend, t])
   const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, dailyBudgetReached, allowance: aiMessagesLimit, limitReason: allowanceText('chat.choice.limit', { allowance: aiMessagesLimit }), send: sendBlockAnswer }
 
   const queueAttempt = useCallback((attempted: AttemptedSend, sendsComposerDraft: boolean) => {

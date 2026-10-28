@@ -65,6 +65,7 @@ function PlanSummary({ status, billing, locale, t }: Readonly<{
   t: UpgradeTranslations
 }>) {
   const summary = subscriptionSummary(status, billing)
+  const translate = createAstraAllowanceTranslator(t, status, locale)
   const price = !status.isLifetimePro && billing ? planPrice(billing, t) : null
   return (
     <section className="flex flex-col gap-4 py-4">
@@ -72,7 +73,7 @@ function PlanSummary({ status, billing, locale, t }: Readonly<{
         <h2 className="min-w-0 t-display-heading text-balance">{t(summary.nameKey)}</h2>
         {summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
       </div>
-      <p className="t-body text-pretty" style={{ color: 'var(--fg-2)' }}>{createAstraAllowanceTranslator(t, status, locale)(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
+      <p className="t-body text-pretty" style={{ color: 'var(--fg-2)' }}>{translate(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
       {price || summary.renewal ? <div className="flex flex-col gap-1 font-mono text-xs tabular-nums leading-[1.4] text-[var(--fg-2)]">
         {price ? <p>{price}</p> : null}
         {summary.renewal ? <p>{t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) })}</p> : null}

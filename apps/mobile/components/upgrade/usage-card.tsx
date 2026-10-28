@@ -19,7 +19,7 @@ export function UsageCard({
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
-  const allowanceText = createAstraAllowanceTranslator(t, profile, locale)
+  const translate = createAstraAllowanceTranslator(t, profile, locale)
   const remaining = profile ? profile.aiMessagesLimit - profile.aiMessagesUsed : null
   const nearLimit = remaining !== null && remaining <= AI_MESSAGE_COUNTER_THRESHOLD
   return (
@@ -30,7 +30,7 @@ export function UsageCard({
       </Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
         <Text style={[styles.billingSecondary, { color: tokens.fg1 }]}>
-          {allowanceText('upgrade.billing.usage.aiMessages')}
+          {translate('upgrade.billing.usage.aiMessages')}
         </Text>
         <Text
           style={[
@@ -46,15 +46,15 @@ export function UsageCard({
       </View>
       <ProgressBar
         value={usagePercent / 100} max={1}
-        label={allowanceText('upgrade.billing.usage.aiMessages')}
+        label={translate('upgrade.billing.usage.aiMessages')}
 
       />
     </View>
-    {profile?.aiMessagesPeriod === 'week' && !nearLimit ? <Text style={[styles.billingSecondary, { color: tokens.fg3 }]}>{allowanceText('shell.composer.limit.renewal')}</Text> : null}
+    {profile?.aiMessagesPeriod === 'week' && !nearLimit ? <Text style={[styles.billingSecondary, { color: tokens.fg3 }]}>{translate('shell.composer.limit.renewal')}</Text> : null}
     {nearLimit ? (
       <CapacityNotice
-        message={allowanceText(remaining <= 0 ? 'shell.composer.limit.exhausted' : 'upgrade.billing.usage.nearLimit')}
-        body={allowanceText('shell.composer.limit.renewal')}
+        message={translate(remaining <= 0 ? 'shell.composer.limit.exhausted' : 'upgrade.billing.usage.nearLimit')}
+        body={translate('shell.composer.limit.renewal')}
       />
     ) : null}
     </View>

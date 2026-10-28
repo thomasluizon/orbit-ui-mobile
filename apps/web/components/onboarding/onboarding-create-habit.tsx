@@ -101,7 +101,7 @@ export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps
   const t = useTranslations('onboarding.flow')
   const locale = useLocale()
   const translateDays = useTranslations()
-  const allowanceText = createAstraAllowanceTranslator(translateDays, { aiMessagesPeriod: props.allowancePeriod }, locale)
+  const translate = createAstraAllowanceTranslator(translateDays, { aiMessagesPeriod: props.allowancePeriod }, locale)
   const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
   const mode = getOnboardingScheduleMode(schedule)
   const frequencyUnitOptions = [
@@ -135,7 +135,7 @@ export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps
     : t('when.correctSchedule')
   return <section className="flex flex-col gap-6">
     <div className={props.proposed ? "flex flex-col items-start gap-2" : "flex items-start gap-3"}>{props.proposed ? <span role="img" aria-label="Astra" className="text-[var(--fg-1)]"><AstraGlyph size={24} /></span> : null}<h1 id="onboarding-title" className="m-0 min-w-0 flex-1 text-pretty text-[17px] font-normal leading-[1.5] text-[var(--fg-1)]">{props.proposed ? t('when.astraRead') : t('when.direct')}</h1></div>
-    {props.atLimit ? <CapacityNotice message={allowanceText('onboarding.flow.when.limit', { allowance: props.allowance })} /> : null}
+    {props.atLimit ? <CapacityNotice message={translate('onboarding.flow.when.limit', { allowance: props.allowance })} /> : null}
     {props.proposed && !props.correcting ? <><button type="button" aria-label={correctScheduleLabel} aria-describedby="onboarding-proposal-details" className="group w-full rounded-[20px] text-left outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] active:scale-[0.99]" onClick={props.onCorrect}><Proposed proposed scope="block" label={t('when.proposedBy')}><div className="flex flex-col gap-4 rounded-[20px] p-6 transition-colors duration-[var(--dur-hover)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover)]"><div className="flex items-center gap-3">{props.emoji ? <span role="img" aria-label={t('when.emojiLabel')} className="grid size-11 place-items-center rounded-[12px] bg-[var(--bg-well)] text-[22px]">{props.emoji}</span> : null}<strong className="text-[17px] font-medium text-[var(--fg-1)]">{props.title}</strong></div><CadenceSentence schedule={schedule} />{schedule.days.length ? <div className="grid grid-cols-7 gap-1" aria-label={t('when.daysLabel')}>{DAYS.map((day) => <span key={day} className={`grid min-h-9 w-full max-w-9 place-items-center justify-self-center rounded-[8px] text-sm break-all ${schedule.days.includes(day) ? 'bg-[var(--bg-well)] text-[var(--fg-1)]' : 'text-[var(--fg-2)]'}`}>{t(`when.days.${day.toLowerCase()}`)}</span>)}</div> : null}<div className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--fg-2)]">{t('when.timeLabel')}</span><span className="rounded-[12px] bg-[var(--bg-field)] px-4 py-3 text-base text-[var(--fg-1)]">{schedule.dueTime || '--:--'}</span><span className="text-xs text-[var(--fg-2)]">{t('when.timeHint')}</span></div></div></Proposed></button><span id="onboarding-proposal-details" className="sr-only">{t('when.scheduleDetails', { title: props.title, cadence: proposalCadence.text, time: schedule.dueTime || t('when.anyTime') })}</span></> : controls}
   </section>
 }

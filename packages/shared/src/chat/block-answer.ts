@@ -2,7 +2,7 @@ import { formatConjunctionList } from '../utils/conjunction-list'
 import type { ChatStoreState } from '../stores/chat-store'
 import type { BlockAnswer, ChatMessage, ChoiceBlock, PickListBlock } from '../types/chat'
 
-export type BlockAnswerResult = { ok: true } | { ok: false; status: number | null; dailyBudgetReached?: true }
+export type BlockAnswerResult = { ok: true } | { ok: false; status: number | null; dailyBudgetReached?: true; allowanceReached?: true }
 
 export interface BlockAnswerRequest {
   kind: 'choice' | 'pickList' | 'question'

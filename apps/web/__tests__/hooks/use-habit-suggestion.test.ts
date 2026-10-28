@@ -1,3 +1,5 @@
+import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
+import { profileKeys } from '@orbit/shared/query'
 import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -73,11 +75,12 @@ describe('useHabitSuggestion', () => {
     })
   })
 
-  it('propagates a pay-gate error so the caller can show the limit message', async () => {
+  it.each(allowanceRefusals)('refreshes the $period allowance after a producer refusal in $locale for habits and onboarding', async ({ body }) => {
     mockSuggestHabitSetup.mockRejectedValue(
-      createApiClientError(403, { error: 'limit', errorCode: 'PAY_GATE' }, 'limit'),
+      createApiClientError(403, body, 'limit'),
     )
     const queryClient = createClient()
+    queryClient.setQueryData(profileKeys.detail(), { aiMessagesUsed: 0 })
 
     const { result } = renderHook(() => useHabitSuggestion(), {
       wrapper: createWrapper(queryClient),
@@ -92,6 +95,7 @@ describe('useHabitSuggestion', () => {
 
     expect(caught).toBeTruthy()
     expect(extractBackendErrorCode(caught)).toBe('PAY_GATE')
+    expect(queryClient.getQueryState(profileKeys.detail())?.isInvalidated).toBe(true)
   })
 
   it('rejects when the response fails schema validation', async () => {

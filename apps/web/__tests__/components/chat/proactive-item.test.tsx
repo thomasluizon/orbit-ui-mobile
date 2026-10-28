@@ -26,7 +26,11 @@ vi.mock('@/stores/auth-store', () => ({
 }))
 vi.mock('@/lib/session-epoch', () => ({ getSessionEpoch: () => mocks.epoch }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { aiMessagesUsed: mocks.used, aiMessagesLimit: 5 } }) }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', async (importOriginal) => ({
+  ...await importOriginal<typeof import('next-intl')>(),
+  useTranslations: () => (key: string) => key,
+  useLocale: () => 'en',
+}))
 
 const item = proactiveItemSchema.parse(createMockProactiveItem())
 function setup() {

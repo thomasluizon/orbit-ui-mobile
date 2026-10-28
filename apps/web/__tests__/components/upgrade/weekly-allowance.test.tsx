@@ -24,6 +24,7 @@ describe('weekly Astra allowance surfaces', () => {
       <Surfaces profile={profile} locale={locale} />
     </NextIntlClientProvider>)
     expect(screen.getByText(locale === 'en' ? '200 of 250' : '200 de 250')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: locale === 'en' ? 'Astra allowance' : 'Cota da Astra' })).toBeInTheDocument()
     expect(screen.getAllByText(locale === 'en' ? 'Resets Sunday.' : 'Próxima renovação: domingo.')).toHaveLength(3)
     expect(screen.getByText(locale === 'en' ? "This week's messages" : 'Mensagens da semana')).toBeInTheDocument()
     expect(screen.getByText(locale === 'en' ? 'messages/week' : 'por semana')).toBeInTheDocument()

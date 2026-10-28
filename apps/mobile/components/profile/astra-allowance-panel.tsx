@@ -18,7 +18,7 @@ export function AstraAllowancePanel({
   onPlanAction,
 }: Readonly<AstraAllowancePanelProps>) {
   const { t, i18n } = useTranslation()
-  const allowanceText = createAstraAllowanceTranslator(t, profile, i18n.language)
+  const translate = createAstraAllowanceTranslator(t, profile, i18n.language)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const isNonTrialPro = profile.hasProAccess && !profile.isTrialActive
@@ -44,7 +44,7 @@ export function AstraAllowancePanel({
     >
       <View style={styles.header}>
         <Text style={[styles.title, { color: tokens.fg1 }]}>
-          {allowanceText('profile.allowance.title')}
+          {translate('profile.allowance.title')}
         </Text>
         <Text style={[styles.usage, { color: tokens.fg3 }]}>
           {t('profile.allowance.usage', {
@@ -53,15 +53,15 @@ export function AstraAllowancePanel({
           })}
         </Text>
       </View>
-      {profile.aiMessagesPeriod === 'week' ? <Text style={[styles.spent, { color: tokens.fg3 }]}>{allowanceText('shell.composer.limit.renewal')}</Text> : null}
+      {profile.aiMessagesPeriod === 'week' ? <Text style={[styles.spent, { color: tokens.fg3 }]}>{translate('shell.composer.limit.renewal')}</Text> : null}
       <ProgressBar
         value={profile.aiMessagesUsed}
         max={profile.aiMessagesLimit}
-        label={allowanceText('profile.allowance.title')}
+        label={translate('profile.allowance.title')}
       />
       {isSpent ? (
         <Text style={[styles.spent, { color: tokens.fg3 }]}>
-          {allowanceText('profile.allowance.spent')}
+          {translate('profile.allowance.spent')}
         </Text>
       ) : null}
       <View style={styles.planRow}>

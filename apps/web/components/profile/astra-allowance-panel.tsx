@@ -16,7 +16,7 @@ export function AstraAllowancePanel({
   profile,
 }: Readonly<AstraAllowancePanelProps>) {
   const t = useTranslations()
-  const allowanceText = createAstraAllowanceTranslator(t, profile, useLocale())
+  const translate = createAstraAllowanceTranslator(t, profile, useLocale())
   const isNonTrialPro = profile.hasProAccess && !profile.isTrialActive
   const canManageSubscription = isNonTrialPro && !profile.isLifetimePro
   const isSpent = profile.aiMessagesLimit > 0
@@ -43,7 +43,7 @@ export function AstraAllowancePanel({
     >
       <div className="flex min-w-0 flex-col" style={{ gap: 4 }}>
         <p className="m-0 min-w-0 font-sans text-[17px] leading-[1.4] text-[var(--fg-1)]">
-          {allowanceText('profile.allowance.title')}
+          {translate('profile.allowance.title')}
         </p>
         <p className="m-0 font-mono text-[12px] leading-[1.4] text-[var(--fg-3)] tabular-nums">
           {t('profile.allowance.usage', {
@@ -52,15 +52,15 @@ export function AstraAllowancePanel({
           })}
         </p>
       </div>
-      {profile.aiMessagesPeriod === 'week' ? <p className="m-0 text-sm text-[var(--fg-3)]">{allowanceText('shell.composer.limit.renewal')}</p> : null}
+      {profile.aiMessagesPeriod === 'week' ? <p className="m-0 text-sm text-[var(--fg-3)]">{translate('shell.composer.limit.renewal')}</p> : null}
       <ProgressBar
         value={profile.aiMessagesUsed}
         max={profile.aiMessagesLimit}
-        label={allowanceText('profile.allowance.title')}
+        label={translate('profile.allowance.title')}
       />
       {isSpent ? (
         <p className="m-0 font-sans text-[14px] leading-[1.5] text-[var(--fg-3)] [text-wrap:pretty]">
-          {allowanceText('profile.allowance.spent')}
+          {translate('profile.allowance.spent')}
         </p>
       ) : null}
       <div className="flex items-center" style={{ gap: 12 }}>

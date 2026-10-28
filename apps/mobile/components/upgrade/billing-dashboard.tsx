@@ -67,10 +67,11 @@ function PlanDetails({ status, data, locale, t, tokens }: Readonly<{
   tokens: Tokens
 }>) {
   const summary = subscriptionSummary(status, data)
+  const translate = createAstraAllowanceTranslator(t, status, locale)
   const price = status.isLifetimePro ? null : planPrice(data, t, tokens)
   const renewal = summary.renewal ? t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) }) : null
   return <PlanSummaryCard planLabel={t(summary.nameKey)}
-    body={createAstraAllowanceTranslator(t, status, locale)(summary.bodyKey, { limit: status.aiMessagesLimit })}
+    body={translate(summary.bodyKey, { limit: status.aiMessagesLimit })}
     facts={[price, renewal]}
     badges={summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
     tokens={tokens} />

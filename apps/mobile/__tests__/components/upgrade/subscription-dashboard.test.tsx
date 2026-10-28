@@ -545,7 +545,7 @@ describe('subscription dashboards (mobile)', () => {
     expect(tree.root.findAll(
       (node) => node.type === 'View'
         && node.props.accessibilityLabel === 'upgrade.convert.allowanceLabel',
-    )).toHaveLength(0)
+    )).toHaveLength(1)
     const outcomes = tree.root.findAll((node) => node.type === 'View'
       && node.props.accessibilityLabel === 'upgrade.outcomes.label')
     expect(outcomes).toHaveLength(2)

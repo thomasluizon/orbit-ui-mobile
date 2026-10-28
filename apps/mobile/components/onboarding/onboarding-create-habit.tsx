@@ -71,7 +71,7 @@ function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, c
 
 export function OnboardingCreateHabit(props: Readonly<Props>) {
   const { t, i18n } = useTranslation()
-  const allowanceText = createAstraAllowanceTranslator(t, { aiMessagesPeriod: props.allowancePeriod }, i18n.language)
+  const translate = createAstraAllowanceTranslator(t, { aiMessagesPeriod: props.allowancePeriod }, i18n.language)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
@@ -98,7 +98,7 @@ export function OnboardingCreateHabit(props: Readonly<Props>) {
     : t('onboarding.flow.when.correctSchedule')
   return <View style={styles.root}>
     <View style={props.proposed ? styles.astraIntro : styles.intro}>{props.proposed ? <View accessibilityLabel="Astra" accessibilityRole="image"><AstraGlyph size={24} color={tokens.fg1} /></View> : null}<Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t(props.proposed ? 'onboarding.flow.when.astraRead' : 'onboarding.flow.when.direct')}</Text></View>
-    {props.atLimit ? <CapacityNotice message={allowanceText('onboarding.flow.when.limit', { allowance: props.allowance })} /> : null}
+    {props.atLimit ? <CapacityNotice message={translate('onboarding.flow.when.limit', { allowance: props.allowance })} /> : null}
     {props.proposed && !props.correcting ? <Pressable accessibilityRole="button" accessibilityLabel={correctScheduleLabel} accessibilityHint={t('onboarding.flow.when.scheduleDetails', { title: props.title, cadence: proposalCadence.text, time: schedule.dueTime || t('onboarding.flow.when.anyTime') })} onPress={props.onCorrect} style={({ pressed }) => pressed ? styles.proposalPressed : undefined}><Proposed proposed scope="block" label={t('onboarding.flow.when.proposedBy')}><View style={[styles.proposal, { backgroundColor: tokens.bgCard }]}><View style={styles.proposalTitle}>{props.emoji ? <View importantForAccessibility="no-hide-descendants" style={[styles.proposalEmojiWell, { backgroundColor: tokens.bgWell }]}><Text style={styles.proposalEmoji}>{props.emoji}</Text></View> : null}<Text style={[styles.proposalHabit, { color: tokens.fg1 }]}>{props.title}</Text></View><CadenceSentence schedule={schedule} color={tokens.fg2} emphasis={tokens.fg1} />{schedule.days.length ? <View accessibilityLabel={t('onboarding.flow.when.daysLabel')} style={styles.previewDays}>{DAYS.map((day) => <View key={day} testID={`weekday-preview-${day}`} style={[styles.previewDay, schedule.days.includes(day) ? { backgroundColor: tokens.bgWell } : null]}><Text style={[styles.previewDayText, { color: schedule.days.includes(day) ? tokens.fg1 : tokens.fg3 }]}>{t(`onboarding.flow.when.days.${day.toLowerCase()}`)}</Text></View>)}</View> : null}<View style={styles.previewTime}><Text style={[styles.label, { color: tokens.fg2 }]}>{t('onboarding.flow.when.timeLabel')}</Text><View style={[styles.previewTimeWell, { backgroundColor: tokens.bgField }]}><Text style={[styles.previewTimeText, { color: tokens.fg1 }]}>{schedule.dueTime || '--:--'}</Text></View><Text style={[styles.previewHint, { color: tokens.fg2 }]}>{t('onboarding.flow.when.timeHint')}</Text></View></View></Proposed></Pressable> : controls}
   </View>
 }

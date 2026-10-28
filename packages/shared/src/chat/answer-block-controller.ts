@@ -65,7 +65,7 @@ export class AnswerBlockController {
     try {
       const result = await interaction.send({ kind: definition.kind, labels, answer })
       if (result.ok) this.update({ settled: { text: t('answered', { options: formatBlockAnswer(labels, freeText, locale) }), answered: true } })
-      else if (result.dailyBudgetReached) this.update({ error: null, uncertainAnswer: null })
+      else if (result.dailyBudgetReached || result.allowanceReached) this.update({ error: null, uncertainAnswer: null })
       else {
         const key = blockAnswerErrorKey(result.status)
         if (key === 'closed' || key === 'alreadyAnswered') this.update({ settled: { text: t(key), answered: false } })
