@@ -1,4 +1,4 @@
-import { makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -73,6 +73,64 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it.each(['en', 'pt-BR'])('groups mixed preview items once in %s', locale => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const { container } = render(<PendingOperationCard pendingOperation={makeTypedHabitsPreview()} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const headings = screen.getAllByRole('heading', { level: 4 })
+    expect(headings.map(heading => heading.textContent)).toEqual(locale === 'en' ? ['Tasks', 'Habits', 'General habits'] : ['Tarefas', 'Hábitos', 'Hábitos gerais'])
+    const readingOrder = Array.from(container.querySelectorAll('h4, button[aria-label^="Habit "]')).map(node => node.getAttribute('aria-label') ?? node.textContent)
+    expect(readingOrder).toEqual(['Tasks', 'Habit 3', 'Habit 5', 'Habits', 'Habit 2', 'Habit 4', 'General habits', 'Habit 1'].map(text => locale === 'en' ? text : ({ Tasks: 'Tarefas', Habits: 'Hábitos', 'General habits': 'Hábitos gerais' }[text] ?? text)))
+    expect(container.querySelectorAll('[data-conversation-block]')).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: translateVisible('chat.operation.approveCount.createHabits', { count: 5 }) })).toHaveLength(1)
+  })
+
+  it.each(['approve', 'edit', 'reject'])('keeps %s on the whole grouped operation', async action => {
+    visibleLocale.actual = true
+    const operation = makeTypedHabitsPreview()
+    confirm.mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(['Success', 'Success', 'Success', 'Success', 'Success']) })
+    revise.mockResolvedValue({ ok: true, result: { cancelled: true, preview: null } })
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    if (action === 'approve') {
+      fireEvent.click(screen.getByRole('button', { name: 'Create 5 habits' }))
+      await waitFor(() => expect(confirm).toHaveBeenCalledExactlyOnceWith(operation.id))
+    } else if (action === 'reject') {
+      fireEvent.click(screen.getByRole('button', { name: en.chat.preview.reject }))
+      await waitFor(() => expect(revise).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [] }))
+      expect(confirm).not.toHaveBeenCalled()
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: en.chat.preview.edit }))
+      expect(screen.getAllByRole('radio').map(radio => radio.getAttribute('aria-label'))).toEqual(operation.items!.map(item => item.entityName))
+      expect(confirm).not.toHaveBeenCalled()
+      expect(revise).not.toHaveBeenCalled()
+    }
+  })
+
+  it('keeps reused item fields editable inside a mixed preview', async () => {
+    visibleLocale.actual = true
+    const operation = makeTypedHabitsPreview(['Task', 'Habit'])
+    const existing = makeExistingHabitPreview().items![0]!
+    operation.items![1] = { ...existing, habitType: 'Habit' }
+    revise.mockResolvedValue({ ok: true, result: { cancelled: false, preview: operation } })
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByText('Nov 4, 2026')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en.chat.preview.edit }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Dentista' }))
+    expect(screen.getByRole('textbox', { name: en.chat.operation.field.due_date })).toHaveValue('2026-11-04')
+    fireEvent.change(screen.getByRole('textbox', { name: en.chat.operation.field.due_date }), { target: { value: '2026-11-05' } })
+    fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    await waitFor(() => expect(revise).toHaveBeenCalledWith(operation.id, {
+      previewFingerprint: operation.previewFingerprint,
+      items: [{ itemId: '0' }, { itemId: existing.itemId, edits: { due_date: '2026-11-05' } }],
+    }))
+  })
+
+  it.each(['Task', 'Habit', 'General', undefined, null, 'Future'])('keeps a flat preview for type %s', habitType => {
+    const { container } = render(<PendingOperationCard pendingOperation={makeTypedHabitsPreview([habitType, habitType])} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.queryAllByRole('heading', { level: 4 })).toHaveLength(0)
+    expect(Array.from(container.querySelectorAll('button[aria-label^="Habit "]')).map(node => node.getAttribute('aria-label'))).toEqual(['Habit 1', 'Habit 2'])
+  })
+
   it.each(['updateHabit', 'skipHabit', 'rescheduleHabits', 'deleteHabit', 'logHabit'].flatMap(actionKey => [false, true].map(changesOnly => ({ actionKey, changesOnly }))))('shows the stored emoji for $actionKey with changesOnly=$changesOnly', ({ actionKey, changesOnly }) => {
     render(<PendingOperationCard pendingOperation={makeExistingHabitPreview('🦷', actionKey, changesOnly)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     expect(within(screen.getByRole('button', { name: 'Dentista' }).closest('[data-personal-text-action]') as HTMLElement).getByText('🦷')).toBeInTheDocument()

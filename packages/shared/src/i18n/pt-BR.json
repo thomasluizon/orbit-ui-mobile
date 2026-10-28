@@ -1966,6 +1966,11 @@
     },
     "followUps": {"label": "Próximas perguntas"},
     "preview": {
+      "itemGroup": {
+        "Task": "Tarefas",
+        "Habit": "Hábitos",
+        "General": "Hábitos gerais"
+      },
       "proposed": "Proposto pela Astra",
       "notSet": "Não definido",
       "atTime": "às {time}",

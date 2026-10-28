@@ -11,7 +11,7 @@ import { SPACING } from '@orbit/shared/theme'
 
 import { ActionRow } from './action-row'
 
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import type {
   BlockFrameItemStatus,
   BlockFrameProps,
@@ -134,7 +134,10 @@ function FrameRows({ frameProps }: Readonly<{ frameProps: Readonly<BlockFramePro
   }
 
   return resolveBlockFrameRows(frameProps, labels).map((rowProps) => (
-    <FrameRow key={rowProps.item.id} {...rowProps} />
+    <Fragment key={rowProps.item.id}>
+      {rowProps.item.groupHeading ? <h4 className="px-3 pt-4 text-sm font-medium text-[var(--fg-2)]">{rowProps.item.groupHeading}</h4> : null}
+      <FrameRow {...rowProps} />
+    </Fragment>
   ))
 }
 
