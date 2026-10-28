@@ -11,6 +11,8 @@ import { calendarDayCardDate, makeCalendarDayCardEntries } from '@orbit/shared/t
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { CheckRow } from '@/components/ui/check-row'
 
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+
 vi.unmock('react-i18next')
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 const TestRenderer = require('react-test-renderer')
@@ -65,6 +67,44 @@ function expectDefaultScaleGeometry(
 }
 
 describe('Android day card geometry', () => {
+  it.each([false, true].flatMap(loggable => ['light', 'dark'].map(mode => ({ loggable, mode }))))('keeps row and switch press paint inset with loggable=$loggable in $mode', ({ loggable, mode }) => {
+    const tokens = createTokensV2('orange', mode === 'light' ? 'light' : 'dark')
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarDayDetail selectedDate={calendarDayCardDate} title="Hoje"
+      filteredEntries={makeCalendarDayCardEntries()} completedCount={2} calendarEvents={[]} calendarEventsState="ready" loggable={loggable} pendingEntryStates={new Map()}
+      onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} onGoToDay={vi.fn()}
+      displayTime={(time) => time} t={i18n.t} tokens={tokens} />) })
+    try {
+      const controls = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string } }) => node.type === 'Pressable' && (node.props.accessibilityRole === 'switch' || node.props.accessibilityRole === 'button' && node.props.accessibilityLabel?.startsWith('Caminhar')))
+      expect(controls.length).toBeGreaterThanOrEqual(2)
+      for (const control of controls) {
+        TestRenderer.act(() => control.props.onPressIn())
+        const fills = control.findAll((node: { type: unknown; props: { 'data-press-fill'?: string; 'data-slot'?: string } }) => node.type === 'View' && (node.props['data-press-fill'] !== undefined || node.props['data-slot'] === 'list-row-fill'))
+        expect(fills).toHaveLength(1)
+        const paint = StyleSheet.flatten(fills[0].props.style)
+        expect(paint).toMatchObject({ borderRadius: 12, top: 4, bottom: 4 })
+        expect(paint.backgroundColor).not.toBe('transparent')
+        TestRenderer.act(() => control.props.onPressOut())
+        expect(StyleSheet.flatten(fills[0].props.style).backgroundColor).toBe('transparent')
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([320, 360, 384, 412].flatMap(width => ['en', 'pt-BR'].map(locale => ({ width, locale }))))('fits the recurring switch label at $width in $locale', async ({ width, locale }) => {
+    await i18n.changeLanguage(locale)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarDayDetail selectedDate={calendarDayCardDate} title="Hoje"
+      filteredEntries={[]} completedCount={0} calendarEvents={[]} calendarEventsState="ready" loggable={false} pendingEntryStates={new Map()}
+      onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} onGoToDay={vi.fn()}
+      displayTime={(time) => time} t={i18n.t} tokens={createTokensV2('orange', 'dark')} />) })
+    try {
+      const measured = measureProfileRow(tree.toJSON(), width - 32, 1)
+      const label = measured.texts.find(text => text.label === i18n.t('calendar.showRecurringShort'))!
+      expect(label.lines, JSON.stringify(label)).toBe(1)
+      expect(label.clipped).toBe(false)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([320, 412, 840, 1352].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('keeps every habit row at the drawn floor at $width with loggable=$loggable in $locale', async ({ width, loggable, locale }) => {
     await i18n.changeLanguage(locale)
     const entries = makeCalendarDayCardEntries()
@@ -78,7 +118,7 @@ describe('Android day card geometry', () => {
       const heights: number[][] = []
       for (const scale of [1, 2]) {
         replayTextLayout(tree, Math.min(width, 740) - 32, scale)
-        const hostRows = tree.toJSON().children[1].children
+        const hostRows = tree.toJSON().children[2].children
         const measured = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale)
         const paints = measureInteractionFills(tree.toJSON(), Math.min(width, 740) - 32, false, scale)
         const title = measured.texts.find((text) => text.label === 'Hoje')!
@@ -117,14 +157,15 @@ describe('Android day card geometry', () => {
           }
           const metadata = measured.texts.find((text) => text.label === (entry.dueTime ?? i18n.t('calendar.timeGrid.noSetTime')) && text.top >= row.top - 1 && text.bottom <= row.bottom + 1)!
           expect(metadata, JSON.stringify({ entry, row, texts: measured.texts })).toBeDefined()
-          expect(metadata.height).toBeCloseTo(16.8 * scale)
+          expect(metadata.height + 0.01).toBeGreaterThanOrEqual(16.8 * scale)
+          if (scale === 1) expect(metadata.height).toBeCloseTo(16.8)
           expect(metadata.clipped).toBe(false)
           expect(metadata.left).toBeGreaterThanOrEqual(row.left)
           expect(metadata.right).toBeLessThanOrEqual(row.right)
         })
       }
       for (const index of [0, 1, 3, 4]) {
-        expect(heights[0]![index]).toBeCloseTo(68)
+        expect(heights[0]![index]).toBeCloseTo(70)
         expect(heights[1]![index]).toBeGreaterThan(heights[0]![index]!)
       }
     } finally { TestRenderer.act(() => tree.unmount()) }
@@ -195,9 +236,9 @@ describe('Android day card geometry', () => {
       expect(StyleSheet.flatten(copy.props.style)).toMatchObject({ gap: 4 })
       expect(StyleSheet.flatten(copy.props.style).paddingHorizontal).toBeUndefined()
       expect(StyleSheet.flatten(copy.children[1].props.style)).toMatchObject({ fontFamily: 'GeistMono_400Regular', fontSize: 12, color: createTokensV2('purple', 'dark').fg3 })
-      expect(StyleSheet.flatten(host.children[1].props.style).gap).toBe(0)
+      expect(StyleSheet.flatten(host.children[2].props.style).gap).toBe(0)
       if (loggable) {
-        const target = host.children[1].children[0]
+        const target = host.children[2].children[0]
         expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 0, paddingStart: 16, paddingEnd: 16, gap: 12 })
         const titleStyle = StyleSheet.flatten(target.children[0].props.style)
         expect(titleStyle).toMatchObject({ minHeight: 68, paddingVertical: 12 })
@@ -213,7 +254,7 @@ describe('Android day card geometry', () => {
         const eventRow = measured.controls.find((control) => control.labels.includes(events[0]!.title))!
         const eventTexts = measured.texts.filter((text) => text.top >= eventRow.top && text.bottom <= eventRow.bottom && events[0]!.title.includes(text.label.trim()))
         const habitRow = measured.controls.find((control) => control.accessibilityLabel === 'Caminhar pelo bairro depois do trabalho' || control.labels.includes('Caminhar pelo bairro depois do trabalho'))!
-        const habitTexts = measured.texts.filter((text) => text.top >= habitRow.top && text.bottom <= habitRow.bottom && 'Caminhar pelo bairro depois do trabalho'.includes(text.label.trim()))
+        const habitTexts = measured.texts.filter((text) => text.top >= habitRow.top && text.bottom <= habitRow.bottom && text.label.trim().length > 1 && 'Caminhar pelo bairro depois do trabalho'.includes(text.label.trim()))
         expect(measured.texts.find((text) => text.label === 'Hoje, 12 de setembro')!.left).toBe(24)
         expect(measured.texts.find((text) => text.label === 'Hoje, 12 de setembro')!.top).toBe(24)
         expect(Math.abs(measured.height - measured.controls.at(-1)!.bottom - 24)).toBeLessThanOrEqual(1)

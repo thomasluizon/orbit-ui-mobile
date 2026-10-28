@@ -1,5 +1,8 @@
 import { PersonalText } from '@/components/ui/personal-text'
-import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useOpenHabit } from '@/hooks/use-open-habit'
+import { useUIStore } from '@/stores/ui-store'
+import { Switch } from '@/components/ui/switch'
+import { HabitRowLeading } from '@/components/habits/habit-row-leading'
 import { Fragment, useMemo } from 'react'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -15,7 +18,6 @@ import {
 import { CheckRow } from '@/components/ui/check-row'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { PillButton } from '@/components/ui/pill-button'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { CalendarDayEvents } from './calendar-day-events'
 import { ListRow } from '@/components/ui/list-row'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -38,7 +40,7 @@ interface CalendarDayDetailProps {
   onOpenCalendarImport: (eventId: string | null) => void
   onViewPro: () => void
   onOpenEvents?: () => void
-  onOpenHabitTitle?: (title: string) => void
+  onOpenHabit?: (habitId: string) => void
   completedCount: number
   loggable: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -115,15 +117,17 @@ function CalendarDayCheckRow({
   isPending,
   pendingChecked,
   onEntryChange,
-  onOpenTitle,
+  onOpenHabit,
+  tokens,
 }: Readonly<{
+  tokens: Tokens
   disabled?: boolean
   entry: CalendarDayEntry
   value: string
   isPending: boolean
   pendingChecked: boolean | undefined
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
-  onOpenTitle: (title: string) => void
+  onOpenHabit: (habitId: string) => void
 }>) {
   const sourceChecked = entry.status === 'completed'
   const displayedChecked = pendingChecked === undefined || pendingChecked === sourceChecked
@@ -140,10 +144,11 @@ function CalendarDayCheckRow({
   return (
     <CheckRow
       disabled={disabled}
+      leading={<HabitRowLeading habitTitle={entry.title} emoji={entry.emoji} emojiSize={22} wellSize={46} wellRadius={12} monogramColor={tokens.fg3} tokens={tokens} />}
       label={entry.title}
       textMode="personal"
       variant="calendar-day"
-      onOpenLabel={() => onOpenTitle(entry.title)}
+      onOpenLabel={() => onOpenHabit(entry.habitId)}
       checked={checked}
       value={value}
       loading={isPending}
@@ -166,7 +171,7 @@ export function CalendarDayDetail({
   onOpenCalendarImport,
   onViewPro,
   onOpenEvents,
-  onOpenHabitTitle,
+  onOpenHabit,
   completedCount,
   loggable,
   pendingEntryStates,
@@ -176,8 +181,9 @@ export function CalendarDayDetail({
   t,
   tokens,
 }: Readonly<CalendarDayDetailProps>) {
-  const [expandedTitle, setExpandedTitle] = useAccountScopedState<string | null>(null)
-  const { sheetRef } = useSheetHost()
+  const openHabit = useOpenHabit()
+  const setShowRecurring = useUIStore(state => state.setCalendarShowRecurring)
+  const showRecurring = useUIStore(state => state.calendarShowRecurring)
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const summary = filteredEntries.length > 0
     ? t('calendar.dayDetail.completionSummary', {
@@ -188,14 +194,12 @@ export function CalendarDayDetail({
 
   return (
     <View style={styles.container} accessibilityState={loadingLabel ? { busy: true } : undefined}>
-      {expandedTitle ? <Sheet ref={sheetRef} open title={t('habits.form.title')} onClose={() => setExpandedTitle(null)}>
-        <PersonalText expanded style={styles.fullTitle}>{expandedTitle}</PersonalText>
-      </Sheet> : null}
       <View style={styles.copyBlock}>
         {showTitle ? <Text style={[styles.dayTitle, { color: tokens.fg1 }]}>{title}</Text> : null}
         <Text accessibilityElementsHidden={Boolean(loadingLabel)} importantForAccessibility={loadingLabel ? "no-hide-descendants" : "auto"} style={[styles.summaryText, { color: tokens.fg3, opacity: loadingLabel ? 0 : 1 }]}>{summary}</Text>
 
       </View>
+      <Switch label={t('calendar.showRecurringShort')} checked={showRecurring} onChange={setShowRecurring} />
       {!loadingLabel && filteredEntries.length === 0 ? (
         <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>{t('calendar.noHabitsScheduled')}</Text>
       ) : null}
@@ -214,18 +218,20 @@ export function CalendarDayDetail({
             const row = loggable ? (
                 <CalendarDayCheckRow
                   disabled={Boolean(loadingLabel)}
+                  tokens={tokens}
                   entry={entry}
                   value={value}
                   isPending={pendingEntryStates.has(entryKey)}
                   pendingChecked={pendingEntryStates.get(entryKey)}
                   onEntryChange={onEntryChange}
-                  onOpenTitle={onOpenHabitTitle ?? setExpandedTitle}
+                  onOpenHabit={onOpenHabit ?? ((id) => openHabit(id, selectedDate))}
                 />
               ) : (
-              <Pressable disabled={Boolean(loadingLabel)} focusable={!loadingLabel} focusOffset={-6} accessibilityRole="button" accessibilityLabel={`${entry.title}, ${outcome.ringLabel}`} onPress={() => (onOpenHabitTitle ?? setExpandedTitle)(entry.title)} style={styles.habitDisclosure}>
+              <Pressable disabled={Boolean(loadingLabel)} focusable={!loadingLabel} focusOffset={-6} accessibilityRole="button" accessibilityLabel={`${entry.title}, ${outcome.ringLabel}`} onPress={() => (onOpenHabit ?? ((id) => openHabit(id, selectedDate)))(entry.habitId)} style={styles.habitDisclosure}>
                 {({ pressed, focused }) => <>
-                <View pointerEvents="none" accessible={false} style={[styles.habitFill, { backgroundColor: pressed || focused ? tokens.bgHover : 'transparent' }]} />
+                <View pointerEvents="none" accessible={false} data-press-fill="" style={[styles.habitFill, { backgroundColor: pressed || focused ? tokens.bgHover : 'transparent' }]} />
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 }}>
+                  <HabitRowLeading habitTitle={entry.title} emoji={entry.emoji} emojiSize={22} wellSize={46} wellRadius={12} monogramColor={tokens.fg3} tokens={tokens} />
                   <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                     <PersonalText style={{ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{entry.title}</PersonalText>
                     <Text style={{ fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg2 }}>{value}</Text>
@@ -290,6 +296,5 @@ function createStyles(tokens: Tokens) {
     eventErrorText: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
     eventTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
     emptyEventText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
-    fullTitle: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8, color: tokens.fg1 },
   })
 }

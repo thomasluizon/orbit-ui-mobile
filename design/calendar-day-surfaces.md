@@ -47,3 +47,17 @@ together, with the existing named refresh icon and retained failure recovery.
 Shared contract tests cover legacy text and range boundaries. Paired component
 tests cover day states, navigation and refresh; the native screen test covers
 routed dates, later requests and account changes.
+
+The selected-day habit body opens that habit's detail with the selected date on web
+and Android, including from the week day sheet after dismissal. The full title remains
+one tap away there. Rows reuse Hoje's leading emoji well and initial fallback. The
+46px well and 12px block insets give short rows a 70px resting floor; longer titles
+and larger text grow the row. The completion control remains independent and
+loading rows stay disabled. The title-only sheet is removed under #1858; habit detail
+supplies the full title.
+
+A labelled Switch row at the top of the day list shares `calendarShowRecurring`
+with Options. Its ON-state label is Mostrar hábitos / Show habits, in the habit form's Task and Habit terms: off leaves one-time tasks. Hiding recurring
+habits leaves one-time tasks and dated calendar events; the completion summary counts
+only visible habits. A fully hidden list reuses the existing empty-day copy. Both
+controls retain one shape-following focus indicator and inset paint that clears neighbours.

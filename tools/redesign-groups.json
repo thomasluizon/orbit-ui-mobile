@@ -105,14 +105,12 @@
       "route-search"
     ],
     "Orbit Calendario": [
-      "m-overlay-components-calendar-day-detail",
       "m-overlay-components-calendar-day-events",
       "m-overlay-components-calendar-entry-details",
       "m-overlay-components-calendar-options",
       "m-overlay-components-calendar-shell",
       "m-overlay-onboarding-calendar-import-prompt",
       "m-route-tabs-calendar",
-      "overlay-calendar-calendar-day-detail",
       "overlay-calendar-calendar-day-events",
       "overlay-calendar-calendar-entry-details",
       "overlay-components-calendar-options",
@@ -447,6 +445,14 @@
     {
       "surfaceId": "block-chat-chat-link",
       "decision": "#1743 removes the redundant shell-navigation footer from read blocks."
+    },
+    {
+      "surfaceId": "overlay-calendar-calendar-day-detail",
+      "decision": "#1858 replaces the title sheet with dated habit detail navigation; the selected-day card remains in its calendar route."
+    },
+    {
+      "surfaceId": "m-overlay-components-calendar-day-detail",
+      "decision": "#1858 replaces the title sheet with dated habit detail navigation; the selected-day card remains in its calendar route."
     }
   ],
   "excluded": [

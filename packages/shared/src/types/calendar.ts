@@ -15,6 +15,7 @@ export type HabitDayStatus = z.infer<typeof habitDayStatusSchema>
 
 export const calendarDayEntrySchema = z.object({
   habitId: z.string(),
+  emoji: z.string().nullable().optional(),
   title: z.string(),
   status: habitDayStatusSchema,
   isBadHabit: z.boolean(),
