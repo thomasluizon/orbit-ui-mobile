@@ -23,6 +23,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 const logHabitAction = vi.hoisted(() => vi.fn())
 const routerPush = vi.hoisted(() => vi.fn())
+const calendarSearch = vi.hoisted(() => ({ value: '' }))
 
 vi.mock('@/lib/actions/habits', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/actions/habits')>(),
@@ -40,7 +41,7 @@ vi.mock('@orbit/shared/utils/intl-format-cache', async (importOriginal) => {
 vi.mock('next/navigation', () => ({
   usePathname: () => '/',
   useRouter: () => ({ push: routerPush, replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(calendarSearch.value),
 }))
 vi.mock('@/hooks/use-color-scheme', () => ({
   useColorScheme: () => ({
@@ -115,6 +116,7 @@ describe('Today server preload', () => {
   beforeEach(() => {
     vi.setSystemTime(new Date('2026-08-29T12:00:00.000Z'))
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)))
+    calendarSearch.value = ''
     logHabitAction.mockReset()
     routerPush.mockReset()
   })
@@ -204,6 +206,41 @@ describe('Today server preload', () => {
       expect(container).toHaveTextContent(label)
     } finally {
       await act(async () => root?.unmount())
+      container.remove()
+      browserClient.clear()
+      serverClient.clear()
+      if (originalTimeZone === undefined) delete process.env.TZ
+      else process.env.TZ = originalTimeZone
+    }
+  })
+
+  it('hydrates the week marker from the seeded account instant while the profile is loading', async () => {
+    calendarSearch.value = 'view=week'
+    const originalTimeZone = process.env.TZ
+    const serverClient = createTestQueryClient()
+    const browserClient = createTestQueryClient()
+    const container = document.createElement('div')
+    const recoverableError = vi.fn()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    const settings = { route: 'calendar', locale: 'en', timeZone: 'America/Sao_Paulo', initialToday: '2026-10-27', now: new Date('2026-10-28T01:29:59Z').getTime() }
+    try {
+      process.env.TZ = 'UTC'
+      vi.setSystemTime(settings.now)
+      container.innerHTML = renderToString(createTodayTree(serverClient, [], null, settings))
+      expect(container.querySelector('[role="img"][aria-label="Now"]')).toHaveStyle({ top: '67.45rem' })
+      document.body.append(container)
+      process.env.TZ = 'America/Sao_Paulo'
+      vi.setSystemTime(new Date('2026-10-28T01:30:01Z'))
+      await act(async () => {
+        root = hydrateRoot(container, createTodayTree(browserClient, [], null, settings), { onRecoverableError: recoverableError })
+      })
+      expect(recoverableError).not.toHaveBeenCalled()
+      expect(consoleError).not.toHaveBeenCalled()
+      expect(container.querySelector('[role="img"][aria-label="Now"]')).toHaveStyle({ top: '67.45rem' })
+    } finally {
+      await act(async () => root?.unmount())
+      consoleError.mockRestore()
       container.remove()
       browserClient.clear()
       serverClient.clear()
