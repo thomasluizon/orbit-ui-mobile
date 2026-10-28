@@ -7,7 +7,7 @@ import { summarize } from '../report.mjs'
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 it.each([false, true])('verifies the real setup turn before a correction; wrongRequest=%s', async (wrongRequest) => {
   offlineCredentials()
-  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
   let setupRequestId
   vi.stubGlobal('fetch', async (url, options) => {

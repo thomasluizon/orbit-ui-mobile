@@ -121,11 +121,11 @@ it('does not cycle capacity roots or reset counters on repeated free attempts', 
   const count = requests.length
   await resetFixture(scenario('free-at-limit'))
   expect(habits.filter((habit) => !habit.deleted)).toHaveLength(7)
-  expect(requests.slice(count).some(({ method }) => method === 'DELETE')).toBe(false)
+  expect(requests.slice(count).some(({ method, path }) => method === 'DELETE' && path.startsWith('habits/'))).toBe(false)
 })
 it('rejects budget setup beyond five ordinary requests without spending a chat message', async () => {
   await expect(resetFixture(scenario('budget-exhausted'))).rejects.toThrow('more than five')
-  expect(requests).toHaveLength(3)
+  expect(requests.map(({ path }) => path)).toEqual(['eval/pending-operations', 'eval/pending-operations', 'profile', 'profile/timezone', 'profile/language'])
 })
 it('keeps old positive history and IDs intact when public undo cannot restore zero history', async () => {
   await resetFixture(scenario('pro'))
@@ -208,7 +208,7 @@ it('still requires profile and usage evidence for an exempt account', async () =
     ? Response.json({ email, hasProAccess: true, aiMessagesUsed: null, aiMessagesLimit: 50 })
     : intercepted(url, options))
   await expect(resetFixture(scenario('pro'), undefined, true)).rejects.toThrow('lacks access or allowance evidence')
-  expect(requests).toEqual([])
+  expect(requests.map(({ path }) => path)).toEqual(['eval/pending-operations', 'eval/pending-operations'])
 })
 
 it('the standalone reset also reads the exemption before resetting an exhausted ordinary fixture', async () => {
@@ -254,13 +254,13 @@ it('prepares composition again across a UTC day boundary without replacing IDs',
   expect(habits.map((habit) => habit.dueDate)).toEqual(['2026-10-25', '2026-10-25'])
   expect(habits[0].logs.map((log) => log.date).sort()).toEqual(['2026-10-19', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24'])
 })
-it.each(['origin', 'email'])('refuses every reset write for an unsafe %s', async (unsafe) => {
+it.each(['origin', 'email'])('refuses fixture writes for an unsafe %s', async (unsafe) => {
   await resetFixture(scenario('pro'))
   requests.length = 0
   if (unsafe === 'origin') vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://api.useorbit.org')
   else email = 'thomaslrgregorio@gmail.com'
   await expect(resetFixture(scenario('empty'))).rejects.toThrow(/disposable|staging/)
-  expect(requests.every((request) => request.method === 'GET')).toBe(true)
+  expect(requests.every((request) => request.method === 'GET' || request.path === 'eval/pending-operations')).toBe(true)
 })
 it('rejects an ignored occurrence cursor update on independent readback', async () => {
   await resetFixture(scenario('pro'))
@@ -449,3 +449,94 @@ it('requires a fresh Free window once and permits the case to consume its three 
   const { test } = await prepareAttempt({ test: structuredClone(source) })
   expect(test.vars.preconditionFailure).toContain('fresh Free daily window')
 })
+
+
+it('isolates every repeat before fixture writes and restores completed and skipped occurrences', async () => {
+  const source = structuredClone(corpus.find((entry) => entry.metadata.id === 'single-read-en'))
+  const intercepted = globalThis.fetch
+  let pending = 2
+  vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname !== '/api/eval/pending-operations') return intercepted(url, options)
+    requests.push({ path: 'eval/pending-operations', method: options.method })
+    expect(options.headers.Authorization).toBe('Bearer pro-access')
+    expect(options.headers['api-version']).toBe('2.0')
+    expect(options.body).toBeUndefined()
+    if (options.method === 'GET') return Response.json({ pendingCount: pending })
+    const cancelledCount = pending
+    pending = 0
+    return Response.json({ cancelledCount })
+  })
+  for (let repeat = 0; repeat < 3; repeat++) {
+    const start = requests.length
+    const { test } = await prepareAttempt({ test: structuredClone(source) })
+    expect(test.vars.preconditionFailure).toBeUndefined()
+    const attemptRequests = requests.slice(start).filter(({ path }) => !['health', 'auth/refresh'].includes(path))
+    expect(attemptRequests.slice(0, 3).map(({ method, path }) => `${method} ${path}`)).toEqual([
+      'DELETE eval/pending-operations', 'GET eval/pending-operations', 'GET profile',
+    ])
+    expect(pending).toBe(0)
+    expect(habits.every((habit) => habit.logs.length === 0 && habit.dueDate === test.vars.accountDate)).toBe(true)
+    await intercepted(`${process.env.ORBIT_EVAL_BASE_URL}/api/habits/${habits[0].id}/log`, {
+      method: 'POST', headers: { Authorization: 'Bearer pro-access', 'api-version': '2.0' }, body: JSON.stringify({ date: test.vars.accountDate }),
+    })
+    await intercepted(`${process.env.ORBIT_EVAL_BASE_URL}/api/habits/${habits[1].id}/skip`, {
+      method: 'POST', headers: { Authorization: 'Bearer pro-access', 'api-version': '2.0' }, body: JSON.stringify({ date: test.vars.accountDate }),
+    })
+    pending = 3
+  }
+})
+
+it.each(['403', 'nonzero', 'malformed-delete', 'malformed-get', 'transport', 'exhausted-conflicts'])(
+  'marks failed isolation unavailable and sends no fixture or case writes: %s', async (mode) => {
+    const intercepted = globalThis.fetch
+    let cleanupCalls = 0
+    vi.stubGlobal('fetch', async (url, options) => {
+      if (new URL(url).pathname !== '/api/eval/pending-operations') return intercepted(url, options)
+      cleanupCalls++
+      if (mode === 'transport') throw new Error('Network unavailable')
+      if (mode === '403' || mode === 'exhausted-conflicts') return new Response(null, { status: mode === '403' ? 403 : 409 })
+      return Response.json(options.method === 'DELETE'
+        ? (mode === 'malformed-delete' ? {} : { cancelledCount: 1 })
+        : (mode === 'malformed-get' ? {} : { pendingCount: 1 }))
+    })
+    const { test } = await prepareAttempt({ test: scenario('pro') })
+    expect(test.vars.preconditionFailure).toMatch(mode === '403' ? /403/ : /[Ii]solation|[Pp]ending|409/)
+    expect(cleanupCalls).toBeGreaterThan(0)
+    expect(cleanupCalls).toBeLessThanOrEqual(3)
+    const response = await new AstraHttpProvider({ config: { url: `${process.env.ORBIT_EVAL_BASE_URL}/api/chat` } })
+      .callApi('Read my habits', { vars: test.vars })
+    expect(response.metadata.astraPreconditionFailure).toBe(true)
+    expect(summarize([{ testCase: test, response, error: response.error, success: false }], [test.metadata]).cases[0])
+      .toMatchObject({ pass3: 'incomplete', unavailable: 1, passed: 0 })
+    expect(requests.every(({ path }) => ['health', 'auth/refresh'].includes(path))).toBe(true)
+  },
+)
+
+it('retries cleanup conflicts within a bound then independently verifies zero pending operations', async () => {
+  const intercepted = globalThis.fetch
+  const methods = []
+  vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname !== '/api/eval/pending-operations') return intercepted(url, options)
+    methods.push(options.method)
+    if (methods.length < 3) return new Response(null, { status: 409 })
+    return Response.json(options.method === 'DELETE' ? { cancelledCount: 2 } : { pendingCount: 0 })
+  })
+  const { test } = await prepareAttempt({ test: scenario('pro') })
+  expect(test.vars.preconditionFailure).toBeUndefined()
+  expect(methods).toEqual(['DELETE', 'DELETE', 'DELETE', 'GET'])
+})
+
+it.each(['https://api.useorbit.org', 'https://orbit-api-staging-uqu2.onrender.com.evil.invalid'])(
+  'refuses an attempt on another origin before any request: %s', async (origin) => {
+    vi.stubEnv('ORBIT_EVAL_BASE_URL', origin)
+    const request = vi.fn(async (url) => new URL(url).pathname === '/health'
+      ? Response.json({ status: 'Healthy', commit: null, checks: [] })
+      : Response.json({ token: 'pro-access', refreshToken: 'rotated-refresh' }))
+    vi.stubGlobal('fetch', request)
+    const { test } = await prepareAttempt({ test: scenario('pro') })
+    expect(test.vars.preconditionFailure).toMatch(/staging/)
+    expect(request).not.toHaveBeenCalled()
+    await expect(resetFixture(scenario('pro'))).rejects.toThrow(/staging/)
+    expect(request).not.toHaveBeenCalled()
+  },
+)

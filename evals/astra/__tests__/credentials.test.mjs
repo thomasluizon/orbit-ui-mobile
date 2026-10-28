@@ -17,7 +17,7 @@ function credentials(mode = 0o600) {
   const path = join(directory, 'credentials.json')
   writeFileSync(path, JSON.stringify({ ORBIT_EVAL_TOKEN: { refreshToken: 'old-refresh' } }), { mode })
   vi.stubEnv('ORBIT_EVAL_CREDENTIALS_FILE', path)
-  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'expired-access')
   return path
 }
@@ -25,7 +25,7 @@ const attempt = (credentialKey = 'ORBIT_EVAL_TOKEN') => ({ test: { metadata: { i
 it('refreshes before an attempt and durably rotates only the selected account', async () => {
   const path = credentials()
   const request = vi.fn(async (url, options) => {
-    expect(url).toBe('https://astra.invalid/api/auth/refresh')
+    expect(url).toBe('https://orbit-api-staging-uqu2.onrender.com/api/auth/refresh')
     expect(options.headers['api-version']).toBe('2.0')
     expect(JSON.parse(options.body)).toEqual({ refreshToken: 'old-refresh' })
     return Response.json({ token: 'fresh-access', refreshToken: 'rotated-refresh' })

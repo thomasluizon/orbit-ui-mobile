@@ -36,6 +36,10 @@ export function fixtureFetch(getState) {
     if (options.headers['api-version'] !== '2.0') throw new Error('Expected API version.')
     if (path === 'auth/refresh') return Response.json({ token: 'pro-access', refreshToken: 'rotated-refresh' })
     if (!/^Bearer (pro|free|budget)-access$/.test(options.headers.Authorization)) throw new Error('Expected refreshed fixture access.')
+    if (path === 'eval/pending-operations') {
+      if (method === 'DELETE') return Response.json({ cancelledCount: 0 })
+      if (method === 'GET') return Response.json({ pendingCount: 0 })
+    }
     if (path === 'config' && method === 'GET') return Response.json({
       limits: { MaxHabitDepth: '5', MaxTagsPerHabit: '5', MaxReferrals: '10', ReferralRewardDays: '10' },
       features: { astra_eval_unmetered: { enabled: unmetered, planRequirement: null } },

@@ -15,7 +15,7 @@ export function offlineCredentials() {
     ['ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN'].map((key) => [key, { refreshToken: 'offline-refresh' }]),
   )), { mode: 0o600 })
   vi.stubEnv('ORBIT_EVAL_CREDENTIALS_FILE', path)
-  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
   vi.stubGlobal('fetch', async () => { throw new Error('Unexpected offline HTTP request.') })
   return path
 }
