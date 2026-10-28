@@ -10,7 +10,7 @@ describe('isolated desktop completion document', () => {
   it.each(['en', 'pt-BR'] as const)('contains only the native destination and localized copy in %s', async locale => {
     for (const failed of [false, true]) {
       const destination = new URL(`org.useorbit.desktop://auth/callback?state=${state}&${failed ? 'error=authentication_failed' : `code=${code}`}`)
-      const result = await desktopAuthPage(destination, locale, 'light')
+      const result = await desktopAuthPage(destination, locale, 'light', 'proxy-nonce')
       const page = new DOMParser().parseFromString(await new Response(result.body).text(), 'text/html')
       const copy = (locale === 'en' ? en : ptBR).auth.desktopCallback
       expect(page.documentElement.lang).toBe(locale)
@@ -24,12 +24,22 @@ describe('isolated desktop completion document', () => {
       expect(scripts).toHaveLength(1)
       const script = scripts[0]!
       expect(script.src).toBe('')
-      expect(result.headers['Content-Security-Policy']).toContain(`script-src 'nonce-${script.nonce}'`)
-      expect(result.headers['Content-Security-Policy']).toContain("default-src 'none'")
+      expect(script.nonce).toBe('proxy-nonce')
+      expect(new Headers(result.headers).has('Content-Security-Policy')).toBe(false)
       expect(page.querySelectorAll('link, iframe, img, form')).toHaveLength(0)
       page.querySelector('a')!.remove()
       expect(page.documentElement.outerHTML).not.toContain(code)
       expect(page.documentElement.outerHTML).not.toContain(state)
     }
+  })
+
+  it.each([undefined, null, ''])('keeps the manual action without a script when the nonce is %s', async nonce => {
+    const destination = new URL(`org.useorbit.desktop://auth/callback?state=${state}&code=${code}`)
+    const result = await desktopAuthPage(destination, 'en', 'dark', nonce)
+    const page = new DOMParser().parseFromString(await new Response(result.body).text(), 'text/html')
+    expect(page.querySelectorAll('script')).toHaveLength(0)
+    expect(page.querySelector('a')?.href).toBe(destination.toString())
+    expect(page.querySelector('a')?.textContent).toBe(en.auth.desktopCallback.openApp)
+    expect(new Headers(result.headers).has('Content-Security-Policy')).toBe(false)
   })
 })

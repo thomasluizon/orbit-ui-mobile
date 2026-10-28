@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
   }
   const page = await desktopAuthPage(destination,
     resolveRequestLanguage(request.cookies.get('i18n_locale')?.value, request.headers.get('accept-language')),
-    normalizeThemeMode(request.cookies.get('orbit_theme_mode')?.value))
+    normalizeThemeMode(request.cookies.get('orbit_theme_mode')?.value), request.headers.get('x-nonce'))
   const response = new NextResponse(page.body, { status: 200, headers: { ...headers, ...page.headers } })
   response.cookies.delete(GOOGLE_OAUTH_COOKIE)
   return response

@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { renderToReadableStream } from 'react-dom/server.edge'
@@ -18,7 +17,7 @@ const themeStyles = (['dark', 'light'] as const).map(mode =>
   `.${mode}{color-scheme:${mode};${Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')}}`,
 ).join('')
 const styles = `${fonts}${themeStyles}
-:root { --font-sans:Geist,sans-serif; --font-display:'Space Grotesk',sans-serif; }
+:root { --font-sans:Geist,sans-serif; --font-display:'Space Grotesk',sans-serif; --r-card:20px; }
 * { box-sizing:border-box; margin:0; }
 html { font-synthesis:none; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
 body { background:var(--bg); color:var(--fg-1); font-family:var(--font-sans); }
@@ -35,12 +34,11 @@ p { font-size:16px; line-height:1.55; color:var(--fg-2); overflow-wrap:anywhere;
 `
 const openAppScript = `window.addEventListener('load',function(){window.location.href=document.querySelector('a').href;},{once:true});`
 
-export async function desktopAuthPage(destination: URL, locale: string, mode: 'light' | 'dark') {
+export async function desktopAuthPage(destination: URL, locale: string, mode: 'light' | 'dark', nonce: string | null = null) {
   const language = locale === 'pt-BR' ? 'pt-BR' : 'en'
   const t = createTranslator({ locale: language, messages: language === 'pt-BR' ? ptBR : en, namespace: 'auth.desktopCallback' })
   const failed = destination.searchParams.has('error')
   const title = t(failed ? 'failureTitle' : 'successTitle')
-  const nonce = randomBytes(16).toString('base64')
   const stream = await renderToReadableStream(
     <html lang={language} className={mode}>
       <head>
@@ -61,13 +59,12 @@ export async function desktopAuthPage(destination: URL, locale: string, mode: 'l
             <PillAnchor href={destination.toString()}>{t('openApp')}</PillAnchor>
           </AuthPagePanel>
         </main>
-        <script nonce={nonce}>{openAppScript}</script>
+        {nonce ? <script nonce={nonce}>{openAppScript}</script> : null}
       </body>
     </html>,
   )
   await stream.allReady
   return { body: stream, headers: {
     'Content-Type': 'text/html; charset=utf-8',
-    'Content-Security-Policy': `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
   } }
 }

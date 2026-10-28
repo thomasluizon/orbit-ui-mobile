@@ -86,6 +86,8 @@ describe('desktop Google BFF handoff', () => {
     api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(Response.json({ code: handoffCode, expiresIn: 60 }))
     const returned = await callback(new NextRequest(redirect.headers.get('location')!, { headers: browserHeaders }))
     expect(returned.status).toBe(200)
+    const document = new DOMParser().parseFromString(await returned.clone().text(), 'text/html')
+    expect(document.querySelectorAll('script')).toHaveLength(0)
     const destination = await pageDestination(returned)
     expect(destination.toString()).toBe(`${redirectUri}?state=${state}&code=${handoffCode}`)
     expect(api.mock.calls[0]?.[0]).toBe('http://localhost:5000/api/auth/google/code')
@@ -125,6 +127,36 @@ describe('desktop Google BFF handoff', () => {
     expect(response.cookies.get(GOOGLE_OAUTH_COOKIE)).toBeUndefined()
   })
 
+  it.each([false, true])('allows the completion script under every proxy and route policy, failure %s', async failed => {
+    const pending = attempt()
+    const incoming = pending.request(`${failed ? 'error=access_denied' : 'code=google-code'}&state=${pending.googleState}`)
+    incoming.headers.set('x-nonce', 'untrusted-client-nonce')
+    const secured = await proxy(incoming)
+    const forwarded = new Headers()
+    const overridden = secured.headers.get('x-middleware-override-headers')!.split(',')
+    for (const name of overridden) {
+      forwarded.set(name, secured.headers.get(`x-middleware-request-${name}`)!)
+    }
+    if (!failed) {
+      api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(Response.json({ code: handoffCode, expiresIn: 60 }))
+    }
+    const response = await callback(new NextRequest(incoming.url, { headers: forwarded }))
+    const document = new DOMParser().parseFromString(await response.clone().text(), 'text/html')
+    const scripts = document.querySelectorAll('script')
+    expect(scripts).toHaveLength(1)
+    const nonce = scripts[0]!.nonce
+    const policies = [secured.headers.get('content-security-policy')!, response.headers.get('content-security-policy')]
+      .filter((policy): policy is string => policy !== null)
+    for (const policy of policies) {
+      const scriptSources = policy.split(';').map(directive => directive.trim()).find(directive => directive.startsWith('script-src '))!.split(/\s+/)
+      expect(scriptSources).toContain(`'nonce-${nonce}'`)
+    }
+    expect(nonce).toBe(forwarded.get('x-nonce'))
+    expect(nonce).not.toBe('untrusted-client-nonce')
+    expect(response.headers.get('content-security-policy')).toBeNull()
+    expect((await pageDestination(response)).toString()).toBe(`${redirectUri}?state=${state}&${failed ? 'error=authentication_failed' : `code=${handoffCode}`}`)
+  })
+
   it('rejects desktop calendar scope and unrecognised deployment origins', () => {
     expect(start(new NextRequest(`${origin}/api/auth/google/start?purpose=calendar&desktopState=${state}&codeChallenge=${codeChallenge}`)).status).toBe(400)
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://other.example')
@@ -146,6 +178,8 @@ describe('desktop Google BFF handoff', () => {
   it('returns browser cancellation to the owning native attempt', async () => {
     const pending = attempt()
     const response = await callback(pending.request(`error=access_denied&state=${pending.googleState}`))
+    const document = new DOMParser().parseFromString(await response.clone().text(), 'text/html')
+    expect(document.querySelectorAll('script')).toHaveLength(0)
     expect((await pageDestination(response)).toString()).toBe(`${redirectUri}?state=${state}&error=authentication_failed`)
     expect(api).not.toHaveBeenCalled()
   })
