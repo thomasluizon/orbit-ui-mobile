@@ -1558,3 +1558,14 @@ describe('restart plan preview', () => {
     await waitFor(() => expect(onConfirmExecute).toHaveBeenCalledExactlyOnceWith(operation.id))
   })
 })
+
+
+it.each(['en', 'pt-BR'])('shows the producer repeat reminder text in the preview in %s', (locale) => {
+  visibleLocale.actual = true
+  visibleLocale.language = locale
+  const operation = makeReminderHabitPreview('enabled')
+  const text = locale === 'en' ? 'Every 30 minutes; active 8:00 AM to 8:00 PM' : 'A cada 30 minutos; das 08:00 às 20:00'
+  operation.items![0]!.fields.push({ entityId: 'habit', entityName: 'Water', field: 'repeat_reminder', oldValue: null, newValue: text, valueType: 'string', isEditable: false })
+  const { container } = render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+  expect(container.querySelector('[data-preview-item-meta]')!.textContent!.replace(/\u00a0/g, ' ')).toContain(text)
+})

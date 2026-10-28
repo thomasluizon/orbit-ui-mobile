@@ -200,6 +200,7 @@ export const PREVIEW_ACTION_KEYS: readonly string[] = [
 
 function writeOutcome(field: PendingOperationChange, translate: PreviewTranslation, formatTime: (value: string) => string, locale: string): string[] {
   const text = field.newValue
+  if (field.field === 'repeat_reminder') return [text || translate('chat.preview.summary.stopReminders')]
   if (['note', 'subject', 'message', 'email', 'text', 'summary'].includes(field.field) && text) return [text]
   if (['parent_id', 'new_parent_id'].includes(field.field)) return [translate(`chat.preview.summary.${text ? 'moveUnderHabit' : 'moveToTop'}`)]
   if (field.field === 'parent_habit_id') return [field.proposedValue === null ? translate('habits.moveParent.toRoot') : text ?? '']

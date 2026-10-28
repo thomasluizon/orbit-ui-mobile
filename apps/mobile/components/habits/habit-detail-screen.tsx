@@ -1,3 +1,4 @@
+import { RepeatReminderDetail } from './repeat-reminder-detail'
 import { IconButton } from '@/components/ui/icon-button'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { DescriptionCopyButton } from './description-copy-button'
@@ -603,6 +604,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         <HabitDueDate habit={habit} language={language} />
 
       </View>
+      {habit.repeatReminder || habit.nextReminderAtUtc ? <RepeatReminderDetail habit={habit} logs={logs} /> : null}
       <HabitChecklist items={habit.checklistItems} interactive onToggle={(index) => void toggleItem(index)} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} />
       {children.length > 0 ? <Surface>
         <SectionTitle color={tokens.fg1}>{t('habits.detail.inside')}</SectionTitle>

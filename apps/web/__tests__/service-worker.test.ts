@@ -236,7 +236,7 @@ describe('repeat reminder action', () => {
     await worker.startClick(payload, 'done').handled
     expect(worker.request).toHaveBeenCalledExactlyOnceWith('/api/reminders/done', expect.objectContaining({ method: 'POST', credentials: 'omit', body: JSON.stringify({ token: payload.doneToken }) }))
     expect(client.focus).not.toHaveBeenCalled()
-    expect(client.postMessage).toHaveBeenCalledWith({ type: 'orbit:push-received' })
+    expect(client.postMessage).toHaveBeenCalledWith({ type: 'orbit:reminder-done' })
   })
   it.each(['refused', 'offline'])('opens detail after %s Done', async (failure) => {
     const worker = loadServiceWorker()

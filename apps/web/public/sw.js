@@ -66,6 +66,7 @@ self.addEventListener('push', (event) => {
   if (typeof payload.doneToken === 'string' && typeof payload.doneLabel === 'string') {
     options.actions = [{ action: 'done', title: payload.doneLabel }]
     options.data.doneToken = payload.doneToken
+    if (typeof payload.habitId === 'string') options.data.url = `/habits/${encodeURIComponent(payload.habitId)}`
     if (typeof payload.tag === 'string') options.tag = payload.tag
   }
 
@@ -96,5 +97,5 @@ async function completeReminder(payload) {
     return
   }
   const windows = await findOrbitWindows()
-  for (const client of windows) client.postMessage({ type: 'orbit:push-received' })
+  for (const client of windows) client.postMessage({ type: 'orbit:reminder-done' })
 }

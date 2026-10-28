@@ -24,15 +24,15 @@ export function registerRepeatReminderCategory(doneLabel?: string) {
 
 async function completeRepeatReminder(identifier: string, payload: z.infer<typeof actionPayloadSchema>) {
   const storageKey = `repeat-reminder-action:${payload.habitId}`
-  if (await AsyncStorage.getItem(storageKey) === payload.reminderAtUtc) return
-  await AsyncStorage.setItem(storageKey, payload.reminderAtUtc)
   try {
+    if (await AsyncStorage.getItem(storageKey) === payload.reminderAtUtc) return
+    await AsyncStorage.setItem(storageKey, payload.reminderAtUtc)
     if (!payload.doneToken) throw new Error('Missing reminder action token')
     await apiClient(API.reminders.done, { method: 'POST', body: JSON.stringify({ token: payload.doneToken }), anonymous: true, silent: true })
   } catch {
     await Notifications.scheduleNotificationAsync({
       identifier,
-      content: { title: i18n.t('habits.repeatRecoveryTitle'), body: i18n.t('habits.repeatRecoveryBody'), data: { url: `/habits/${payload.habitId}` } },
+      content: { title: i18n.t('habits.repeatRecoveryTitle'), body: i18n.t('habits.repeatRecoveryBody'), data: { url: `/habits/${encodeURIComponent(payload.habitId)}`, reminderAtUtc: payload.reminderAtUtc } },
       trigger: null,
     })
   }

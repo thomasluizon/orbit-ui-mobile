@@ -307,7 +307,7 @@ export const HabitRow = memo(function HabitRow({
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const { displayTime } = useTimeFormat()
+  const { displayTime, displayReminderClock: displayClock } = useTimeFormat()
 
   const isChild = depth > 0
   const todayStr = today ?? formatAPIDate(new Date())
@@ -335,6 +335,7 @@ export const HabitRow = memo(function HabitRow({
     t,
     locale,
   })
+  if (habit.nextReminderAtUtc) metaParts.push({ kind: 'next', label: t('habits.nextReminder', { time: displayClock(habit.nextReminderAtUtc) }) })
   const { onContentWidth, onTokenWidth, narrow } = useHabitRowMetadataFit(metaParts)
   const supportingMeta = largeText || depthBoundary || narrow
 

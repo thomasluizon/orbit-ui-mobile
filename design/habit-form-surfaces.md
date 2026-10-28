@@ -252,3 +252,25 @@ late reads, complete pagination, cache rollback and persisted queue resolution. 
 field/picker geometry cases extend the existing radio-text Chromium owner. Frozen combined-build
 rendering, installed Android fonts and assistive technology, and staging combined write/readback
 remain separate acceptance boundaries.
+
+## Repeat reminder
+
+`habit-form-fields/repeat-reminder-section.tsx` on web and Android owns the Repeat every choice,
+interval and start-time pickers and the optional paired active-hour controls. The supported values
+are 15, 20, 30 and 45 minutes, then whole hours from 1 through 23. The default start is now and the
+default window is all day. A supplied window may cross midnight but its endpoints must differ.
+Only everyday daily, daily count and General habits offer the choice. Changing to an incompatible
+cadence clears it from the draft. Selecting repeat clears relative and scheduled reminder stores;
+shared request builders send the exclusive repeat contract. General retains only this reminder kind.
+
+The paired `repeat-reminder-detail.tsx` owners show the supplied next instant and each positive log's
+Taken at value. Their correction sheet retains the full original instant until the person changes a
+calendar or clock control; Use reminder time preserves the reminder's seconds and fractional seconds.
+Save corrects that log and refreshes habit reads. Failure keeps the draft and its recovery message.
+The existing Select, DateField, TimeField, ListRow, ActionRow and sheet footer own these controls.
+
+Shared validation and normalization tests preserve absent versus null next instants, recursively
+retain repeat fields, reject unsupported schedules and options, and cover overnight account clocks.
+Paired form, row, detail, preview and notification tests cover their owning compositions. Chromium
+Vitest measures the new form controls and complete Hoje metadata at compact widths in both locales.
+Staging delivery and installed Android behavior remain rollout verification owned by the coordinator.

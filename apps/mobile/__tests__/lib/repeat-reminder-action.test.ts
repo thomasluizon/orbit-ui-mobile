@@ -24,7 +24,7 @@ describe('repeat notification Done', () => {
     vi.mocked(apiClient).mockRejectedValue(new Error(failure))
     await handleRepeatReminderAction({ actionIdentifier: 'done', notification: { request: { ...request, identifier: failure, content: { data: { ...request.content.data, reminderAtUtc: failure } } } } })
     expect(apiClient).toHaveBeenCalledTimes(1)
-    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledExactlyOnceWith({ identifier: failure, content: { title: 'habits.repeatRecoveryTitle', body: 'habits.repeatRecoveryBody', data: { url: '/habits/habit-1' } }, trigger: null })
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledExactlyOnceWith({ identifier: failure, content: { title: 'habits.repeatRecoveryTitle', body: 'habits.repeatRecoveryBody', data: { url: '/habits/habit-1', reminderAtUtc: failure } }, trigger: null })
   })
   it('leaves notification body taps to the detail router', async () => {
     expect(await handleRepeatReminderAction({ actionIdentifier: 'expo.modules.notifications.actions.DEFAULT', notification: { request } })).toBe(false)

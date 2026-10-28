@@ -86,6 +86,8 @@ function openRescueGate() {
   mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
 }
 
+vi.mock('@/hooks/use-correct-habit-dose', () => ({ useCorrectHabitDose: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+
 const mocks = vi.hoisted(() => ({
   screenFocused: true,
   realTimeField: false,
@@ -533,6 +535,16 @@ describe('HabitDetailScreen', () => {
   afterEach(() => {
     __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
     vi.useRealTimers()
+  })
+
+  it('renders repeat next time and Taken at in the owning detail screen', () => {
+    mocks.detail = { ...makeDetail(), repeatReminder: { intervalMinutes: 30 }, nextReminderAtUtc: '2026-10-29T04:00:00Z' }
+    mocks.logs = [{ id: 'dose-1', date: '2026-08-28', value: 1, createdAtUtc: '2026-08-28T02:00:00Z', takenAtUtc: '2026-08-28T02:00:00Z' }]
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(renderedText(tree!.toJSON())).toContain('habits.nextReminder')
+    expect(renderedText(tree!.toJSON())).toContain('habits.takenAt')
+    TestRenderer.act(() => tree.unmount())
   })
 
   it.each([false, true])('keeps the whole type below the full detail title, task: %s', (task) => {

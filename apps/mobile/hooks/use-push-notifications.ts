@@ -33,7 +33,7 @@ import * as Sentry from '@sentry/react-native'
 import { useAuthStore } from '@/stores/auth-store'
 import { hasPushSubscriptionCapacity } from '@/hooks/use-push-subscriptions'
 import { openCurrentProactiveItem } from '@/lib/proactive-item'
-import { proactiveKeys } from '@orbit/shared/query'
+import { habitKeys, proactiveKeys } from '@orbit/shared/query'
 import { getAccountId } from '@/lib/account-scope'
 import { getAccountGeneration, getSessionEpoch } from '@/lib/session-epoch'
 
@@ -710,6 +710,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
 
     const appStateSubscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
+        void queryClient.invalidateQueries({ queryKey: habitKeys.all })
         void syncGrantedPermission()
       }
     })
@@ -723,10 +724,12 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
       if (!useAuthStore.getState().isAuthenticated) return
       const maybeUrl = response.notification.request.content?.data?.url
       if (typeof maybeUrl !== 'string') return
-      const destination = getNotificationDestination(maybeUrl)
+      const habitId = response.notification.request.content?.data?.habitId
+      const destination = getNotificationDestination(maybeUrl, typeof habitId === 'string' ? habitId : null)
       if (!destination) return
 
-      const responseIdentifier = response.notification.request.identifier
+      const reminderAtUtc = response.notification.request.content?.data?.reminderAtUtc
+      const responseIdentifier = `${response.notification.request.identifier}:${typeof reminderAtUtc === 'string' ? reminderAtUtc : ''}`
       if (handledNotificationResponseIdentifiers.current.has(responseIdentifier)) return
       handledNotificationResponseIdentifiers.current.add(responseIdentifier)
       activeNotificationsModule.clearLastNotificationResponse()

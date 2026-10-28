@@ -105,6 +105,7 @@ export const repeatReminderOptionsSchema = z.object({
 export type RepeatReminderOptions = z.infer<typeof repeatReminderOptionsSchema>
 
 const childReminderFieldsSchema = z.object({
+  nextReminderAtUtc: z.iso.datetime({ offset: true }).nullish(),
   repeatReminder: repeatReminderOptionsSchema.nullish(),
   reminderEnabled: z.boolean().nullable().optional(),
   reminderTimes: z.array(z.number()).nullable().optional(),
@@ -121,6 +122,7 @@ const linkedGoalInfoSchema = z.object({
 })
 
 const baseHabitFieldsSchema = z.object({
+  nextReminderAtUtc: z.iso.datetime({ offset: true }).nullish(),
   startDate: z.iso.date().optional(),
   schedule: habitScheduleSchema.optional(),
   id: z.string(),
@@ -696,3 +698,5 @@ export const bulkMoveHabitParentResultSchema = z.object({
   })),
 })
 export type BulkMoveHabitParentResult = z.infer<typeof bulkMoveHabitParentResultSchema>
+
+export const correctHabitDoseRequestSchema = z.object({ takenAtUtc: z.iso.datetime() })
