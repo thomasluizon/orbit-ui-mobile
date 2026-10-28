@@ -355,3 +355,17 @@ export const skippedDatedHabitListFixture = {
     { id: 'bad', title: 'Smoke', emoji: null, depth: 0, isBadHabit: true, status: 'done', isSkippedOnDate: false },
   ],
 } satisfies HabitListCard
+
+export function makeOneSmallStepCard(language: 'en' | 'pt-BR' = 'en') {
+  const portuguese = language === 'pt-BR'
+  const goal = portuguese ? 'Ler' : 'Read'
+  const step = portuguese ? 'Abra o livro.' : 'Open the book.'
+  return {
+    suggestion: { goal, step, language },
+    actions: [
+      { id: 'smaller' as const, label: portuguese ? 'Menor ainda' : 'Smaller', message: portuguese ? `Quero um passo ainda menor para "${goal}". O passo anterior foi "${step}".` : `Give me an even smaller starting step for "${goal}". The previous step was "${step}".` },
+      { id: 'saveTask' as const, label: portuguese ? 'Salvar como tarefa' : 'Save as task', message: portuguese ? `Quero salvar "${step}" como tarefa.` : `Save "${step}" as a task.` },
+      { id: 'saveChecklistItem' as const, label: portuguese ? 'Salvar no checklist' : 'Save as checklist item', message: portuguese ? `Quero adicionar "${step}" ao checklist de um hábito.` : `Add "${step}" to a habit's checklist.` },
+    ],
+  }
+}
