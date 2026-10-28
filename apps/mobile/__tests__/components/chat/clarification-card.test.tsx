@@ -80,6 +80,7 @@ vi.mock('@/lib/theme', () => ({
 const mutateAsync = vi.fn()
 const isPendingRef = { current: false }
 
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'UTC' } }) }))
 vi.mock('@/hooks/use-resolve-clarification', () => ({
   useResolveClarification: () => ({
     mutateAsync,

@@ -1,4 +1,5 @@
 import { pendingOperationSubHabits } from './pending-operation-sub-habits'
+import { groupPendingOperationItems } from './pending-operation-item-groups'
 import type { AgentOperationResult, HabitPlacement, PendingAgentOperation, PendingOperationChange, PendingOperationItem, PendingOperationFieldOptions, PendingOperationPlacement } from '../types/ai'
 import type {
   PendingOperationCardStatus,
@@ -79,6 +80,7 @@ interface PendingOperationFrameBase<Node> {
   count?: number
   items: readonly {
     id: string
+    groupHeading?: string
     label: string | Node
     meta: string
     status: PendingOperationCardStatus
@@ -171,7 +173,7 @@ export interface PendingOperationCardActions {
 }
 
 type CardRevision = NonNullable<PendingOperationCardActions['revision']>
-type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'entityEmoji' | 'fields' | 'removesData' | 'fieldOptions' | 'placement'>
+type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'entityEmoji' | 'habitType' | 'fields' | 'removesData' | 'fieldOptions' | 'placement'>
 
 const NAVIGABLE_OPERATION_ACTIONS: Readonly<Record<string, string | null>> = {
   create_habit: 'CreateHabit', update_habit: 'UpdateHabit', create_sub_habit: 'CreateSubHabit',
@@ -333,7 +335,9 @@ function previewRows<Node>(
   const firstParentChoiceId = items.find((item) => item.fieldOptions?.some((field) => field.field === 'parent_habit_id'))?.itemId
   const results = getPendingOperationItemResults(card.completedOperation)
   const resultsByIndex = new Map(results?.map((result) => [result.index, result]))
-  const rows: PendingOperationFrame<Node>['items'][number][] = items.flatMap((item, index) => {
+  const groups = groupPendingOperationItems(items.map((item, index) => ({ item, index, habitType: item.habitType })))
+    .map(group => ({ ...group, heading: group.habitType ? labels.itemGroup(group.habitType) : undefined }))
+  const rows: PendingOperationFrame<Node>['items'][number][] = groups.flatMap(group => group.items.flatMap(({ item, index }, groupIndex) => {
     const result = resultsByIndex.get(index)
     const status: PendingOperationCardStatus = result ? result.status === 'Success' ? 'done' : 'failed'
       : results || card.status === 'failed' ? undefined : card.status
@@ -342,6 +346,7 @@ function previewRows<Node>(
     const summary = placementSummary(item, pendingOperation, labels, Boolean(parentChoice))
     const parent: PendingOperationFrame<Node>['items'][number] = {
       id: item.itemId,
+      groupHeading: groupIndex === 0 ? group.heading : undefined,
       label: item.fields.find((field) => ['title', 'name'].includes(field.field))?.newValue || item.entityName || labels.name,
       icon: item.fields.find((field) => field.field === 'emoji')?.newValue || item.entityEmoji || undefined,
       rename: revision?.canRevise && revision.renameItem && card.status == null && !revision.stale
@@ -371,7 +376,7 @@ function previewRows<Node>(
         ? render.removeItem(`${labels.remove} ${child.title}`, card.busy || revision.busy,
           () => { void revision.rejectSubHabit!(item.itemId, childIndex) }) : undefined,
     }))]
-  })
+  }))
   const remaining = Math.max(0, (pendingOperation.changeTargetCount ?? items.length) - items.length)
   if (remaining > 0) rows.push({
     id: 'remaining', label: labels.more(remaining), meta: '', status: undefined,

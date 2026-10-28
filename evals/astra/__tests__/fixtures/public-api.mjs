@@ -81,6 +81,7 @@ export function fixtureFetch(getState) {
       const habit = habits.find((entry) => entry.id === id)
       if (!habit) throw new Error('Unknown habit at the HTTP boundary.')
       if (operation === 'restore') habit.deleted = false
+      else if (operation === 'checklist' && method === 'PUT') habit.checklistItems = structuredClone(body.checklistItems)
       else if (operation === 'log') {
         const existing = habit.logs.findIndex((log) => log.date === body.date && log.value > 0)
         const today = new Date().toISOString().slice(0, 10)
@@ -108,7 +109,7 @@ export function fixtureFetch(getState) {
         habit.frequencyQuantity = body.frequencyQuantity
         for (const field of ['dueTime', 'dueEndTime', 'reminderEnabled', 'reminderTimes', 'scheduledReminders',
           'relativeReminders', 'slipAlertEnabled', 'checklistItems', 'isFlexible']) {
-          if (Object.hasOwn(body, field)) habit[field] = body[field]
+          if (Object.hasOwn(body, field)) habit[field] = structuredClone(body[field])
         }
       }
       else if (method === 'DELETE') habit.deleted = true

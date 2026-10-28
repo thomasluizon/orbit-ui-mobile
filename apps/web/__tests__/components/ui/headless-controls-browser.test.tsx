@@ -10,6 +10,8 @@ const entry = `
   import React, { useState } from 'react';
   import { createRoot } from 'react-dom/client';
   import { NextIntlClientProvider } from 'next-intl';
+  import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+  import { profileKeys } from '../../packages/shared/src/query/keys';
   import en from '../../packages/shared/src/i18n/en.json';
   import { HabitCreateActions } from './components/habits/habit-create-actions';
   import { Sheet } from './components/ui/sheet';
@@ -38,7 +40,9 @@ const entry = `
         document.addEventListener('settle', event => resolve(event.detail === 'failure' ? {ok:false,error:'option_not_offered'} : {ok:true,result:{isSuccess:true,error:null,pendingOperationId:operation.id,preview:{...resolveParentChoicePreview(operation,'0',null),changes:[],changeTargetCount:operation.changeTargetCount},cancelled:false}}), {once:true});
       }); }} /></>;
   }
-  createRoot(document.getElementById('root')).render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC"><Example /></NextIntlClientProvider>);
+  const profileClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  profileClient.setQueryData(profileKeys.detail(), { timeZone: 'UTC' });
+  createRoot(document.getElementById('root')).render(<QueryClientProvider client={profileClient}><NextIntlClientProvider locale="en" messages={en} timeZone="UTC"><Example /></NextIntlClientProvider></QueryClientProvider>);
 `
 
 describe('mounted headless controls', () => {
@@ -133,6 +137,8 @@ describe('mounted headless controls', () => {
   it.each([{ count: 2, outcome: 'success' }, { count: 1, outcome: 'success' }, { count: 2, outcome: 'failure' }, { count: 2, outcome: 'outside' }])('recovers ParentChoice focus after $outcome with $count items', async ({ count, outcome }) => {
     const page = await browser.newPage({ reducedMotion: 'reduce' })
     try {
+      await page.route('https://orbit.test/', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body></body></html>' }))
+      await page.goto('https://orbit.test/')
       await page.setContent(`<style>${stylesheet}</style><div id="root" data-surface="parent" data-count="${count}"></div>`)
       await page.addScriptTag({ content: script })
       const chosen = page.getByRole('radio').first()

@@ -1,4 +1,4 @@
-import { makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -49,7 +49,7 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
     open ? (capturedSheet.onConfirm = onConfirm, <div role="dialog" aria-label={title} data-destructive={destructive}><button type="button" onClick={onConfirm}>confirm-sheet</button><p>{message}</p><span>{confirmLabel}</span></div>) : null,
 }))
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false, timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/components/ui/otp-input', () => ({
   OtpInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) =>
     <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} />,
@@ -73,6 +73,64 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it.each(['en', 'pt-BR'])('groups mixed preview items once in %s', locale => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const { container } = render(<PendingOperationCard pendingOperation={makeTypedHabitsPreview()} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const headings = screen.getAllByRole('heading', { level: 4 })
+    expect(headings.map(heading => heading.textContent)).toEqual(locale === 'en' ? ['Tasks', 'Habits', 'General habits'] : ['Tarefas', 'Hábitos', 'Hábitos gerais'])
+    const readingOrder = Array.from(container.querySelectorAll('h4, button[aria-label^="Habit "]')).map(node => node.getAttribute('aria-label') ?? node.textContent)
+    expect(readingOrder).toEqual(['Tasks', 'Habit 3', 'Habit 5', 'Habits', 'Habit 2', 'Habit 4', 'General habits', 'Habit 1'].map(text => locale === 'en' ? text : ({ Tasks: 'Tarefas', Habits: 'Hábitos', 'General habits': 'Hábitos gerais' }[text] ?? text)))
+    expect(container.querySelectorAll('[data-conversation-block]')).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: translateVisible('chat.operation.approveCount.createHabits', { count: 5 }) })).toHaveLength(1)
+  })
+
+  it.each(['approve', 'edit', 'reject'])('keeps %s on the whole grouped operation', async action => {
+    visibleLocale.actual = true
+    const operation = makeTypedHabitsPreview()
+    confirm.mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(['Success', 'Success', 'Success', 'Success', 'Success']) })
+    revise.mockResolvedValue({ ok: true, result: { cancelled: true, preview: null } })
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    if (action === 'approve') {
+      fireEvent.click(screen.getByRole('button', { name: 'Create 5 habits' }))
+      await waitFor(() => expect(confirm).toHaveBeenCalledExactlyOnceWith(operation.id))
+    } else if (action === 'reject') {
+      fireEvent.click(screen.getByRole('button', { name: en.chat.preview.reject }))
+      await waitFor(() => expect(revise).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [] }))
+      expect(confirm).not.toHaveBeenCalled()
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: en.chat.preview.edit }))
+      expect(screen.getAllByRole('radio').map(radio => radio.getAttribute('aria-label'))).toEqual(operation.items!.map(item => item.entityName))
+      expect(confirm).not.toHaveBeenCalled()
+      expect(revise).not.toHaveBeenCalled()
+    }
+  })
+
+  it('keeps reused item fields editable inside a mixed preview', async () => {
+    visibleLocale.actual = true
+    const operation = makeTypedHabitsPreview(['Task', 'Habit'])
+    const existing = makeExistingHabitPreview().items![0]!
+    operation.items![1] = { ...existing, habitType: 'Habit' }
+    revise.mockResolvedValue({ ok: true, result: { cancelled: false, preview: operation } })
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByText('Nov 4, 2026')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en.chat.preview.edit }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Dentista' }))
+    expect(screen.getByRole('textbox', { name: en.chat.operation.field.due_date })).toHaveValue('2026-11-04')
+    fireEvent.change(screen.getByRole('textbox', { name: en.chat.operation.field.due_date }), { target: { value: '2026-11-05' } })
+    fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    await waitFor(() => expect(revise).toHaveBeenCalledWith(operation.id, {
+      previewFingerprint: operation.previewFingerprint,
+      items: [{ itemId: '0' }, { itemId: existing.itemId, edits: { due_date: '2026-11-05' } }],
+    }))
+  })
+
+  it.each(['Task', 'Habit', 'General', undefined, null, 'Future'])('keeps a flat preview for type %s', habitType => {
+    const { container } = render(<PendingOperationCard pendingOperation={makeTypedHabitsPreview([habitType, habitType])} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.queryAllByRole('heading', { level: 4 })).toHaveLength(0)
+    expect(Array.from(container.querySelectorAll('button[aria-label^="Habit "]')).map(node => node.getAttribute('aria-label'))).toEqual(['Habit 1', 'Habit 2'])
+  })
+
   it.each(['updateHabit', 'skipHabit', 'rescheduleHabits', 'deleteHabit', 'logHabit'].flatMap(actionKey => [false, true].map(changesOnly => ({ actionKey, changesOnly }))))('shows the stored emoji for $actionKey with changesOnly=$changesOnly', ({ actionKey, changesOnly }) => {
     render(<PendingOperationCard pendingOperation={makeExistingHabitPreview('🦷', actionKey, changesOnly)} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     expect(within(screen.getByRole('button', { name: 'Dentista' }).closest('[data-personal-text-action]') as HTMLElement).getByText('🦷')).toBeInTheDocument()
@@ -1447,4 +1505,56 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['enabled', 'atTime', 'bef
   expect.soft(tokens).toHaveLength(reminder === 'disabled' ? 2 : 3)
   expect(meta).toContain(locale === 'en' ? 'at\u00a08:15\u00a0AM' : 'às\u00a08:15\u00a0AM')
   for (const token of meta.split(' · ')) expect(token).not.toContain(' ')
+})
+
+
+describe('restart plan preview', () => {
+  beforeEach(() => {
+    visibleLocale.actual = true
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-29T06:00:00Z'))
+  })
+  afterEach(() => { vi.useRealTimers(); visibleLocale.actual = false; visibleLocale.language = 'en' })
+
+  it.each(['en', 'pt-BR'])('keeps a single unchanged date visible and rejects the complete restart in %s', async locale => {
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const operation = makeRestartPlanPreview()
+    const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { cancelled: true, preview: null } })
+    const onConfirmExecute = vi.fn()
+    const single = render(<PendingOperationCard pendingOperation={{ ...operation, items: operation.items!.slice(0, 1), changes: [], changeTargetCount: 1 }} onRevise={onRevise} onConfirmExecute={onConfirmExecute} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(single.container.querySelector('[data-preview-item-meta]')).toHaveTextContent(messages.dates.today)
+    single.unmount()
+    const { container } = render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={onConfirmExecute} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: messages.chat.operation.reject }))
+    await waitFor(() => expect(onRevise).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [] }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(translateVisible('chat.operation.rejected', { count: 5 })))
+    expect(container.querySelectorAll('[data-preview-item-meta]')).toHaveLength(0)
+    expect(onConfirmExecute).not.toHaveBeenCalled()
+  })
+
+  it.each(['en', 'pt-BR'])('renders each proposed date and preserves the batch when editing in %s', async locale => {
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const operation = makeRestartPlanPreview()
+    const items = operation.items!
+    const revised = items.map((item, index) => index === 0 ? { ...item, fields: item.fields.map(field => ({ ...field, newValue: '2026-10-30', proposedValue: '2026-10-30' })) } : item)
+    const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { cancelled: false, preview: { ...operation, items: revised, previewFingerprint: 'restart-edited' } } })
+    const onConfirmExecute = vi.fn().mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
+    const { container } = render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={onConfirmExecute} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    const expected = locale === 'en' ? ['Today', 'Today', '10/26 → Today', '10/27 → 10/29/26', 'Today → 11/4/26'] : ['Hoje', 'Hoje', '26/10 → Hoje', '27/10 → 29/10/26', 'Hoje → 04/11/26']
+    expect(Array.from(container.querySelectorAll('[data-preview-item-meta]'), row => row.textContent.replace(/\u00a0/g, ' '))).toEqual(expected)
+    fireEvent.click(screen.getByRole('button', { name: messages.chat.operation.edit }))
+    fireEvent.change(screen.getByLabelText(messages.chat.operation.field.due_date), { target: { value: '2026-10-30' } })
+    fireEvent.click(screen.getByRole('button', { name: messages.common.save }))
+    await waitFor(() => expect(onRevise).toHaveBeenCalledWith(operation.id, {
+      previewFingerprint: operation.previewFingerprint,
+      items: items.map((item, index) => ({ itemId: item.itemId, ...(index === 0 ? { edits: { due_date: '2026-10-30' } } : {}) })),
+    }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(Array.from(container.querySelectorAll('[data-preview-item-meta]'), row => row.textContent.replace(/\u00a0/g, ' '))).toEqual([`${messages.chat.operation.edited} · ${locale === 'en' ? 'Today → 10/30/26' : 'Hoje → 30/10/26'}`, ...expected.slice(1)])
+    expect(onConfirmExecute).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: translateVisible('chat.operation.approveCount.rescheduleHabits', { count: 5 }) }))
+    await waitFor(() => expect(onConfirmExecute).toHaveBeenCalledExactlyOnceWith(operation.id))
+  })
 })

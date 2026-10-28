@@ -32,6 +32,27 @@ function outputFor(calls = []) {
   } })
 }
 
+it('preserves independent saved-step readback in the private attempt artifact', () => {
+  const savedStep = { approved: true, unchangedBeforeApproval: true, action: 'saveTask', title: 'Open the book',
+    frequencyUnit: null, frequencyQuantity: null, checklistItems: [] }
+  const { evidence } = persist(outputFor(), { gradingResult: { componentResults: [
+    { assertion: { metric: 'savedStep' }, pass: true, metadata: { savedStep } },
+  ] } })
+  expect(evidence.savedStep).toEqual(savedStep)
+})
+
+it('retains sanitized brain dump approval and persisted schedule evidence', () => {
+  const output = outputFor()
+  output.brainDumpReadback = { pass: true, score: 1, reason: 'Persisted schedules verified.',
+    beforeApprovalUnchanged: true, persistedItems: [{ title: 'Water', schedule: 'Recurring', reused: true,
+      dueDate: '2026-10-28', dueTime: '08:00:00', identity: '12345678-1234-1234-1234-123456789abc' }] }
+  const { evidence, text } = persist(output)
+  expect(evidence.brainDumpReadback).toMatchObject({ pass: true, beforeApprovalUnchanged: true,
+    persistedItems: [{ title: 'Water', schedule: 'Recurring', reused: true, identity: '[redacted]' }] })
+  expect(text).not.toContain('12345678-1234-1234-1234-123456789abc')
+  expect(text).not.toContain('confirmationToken')
+})
+
 it('preserves the graded projection, block subtypes, full verdicts and schema-confirmed timing', () => {
   const output = outputFor([toolCall('query_habits', { date: 'today' })])
   output.answer = ' Water is ready.\n\n  Keep this spacing.\n'

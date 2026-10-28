@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import { matchesOperation } from './operation-matcher.mjs'
 
 const result = (pass, reason) => ({ pass, score: pass ? 1 : 0, reason })
 const sameIds = (actual, expected) => Array.isArray(actual) && actual.length === expected.length
@@ -6,14 +7,19 @@ const sameIds = (actual, expected) => Array.isArray(actual) && actual.length ===
 const isoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
   && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value
 
-function completeReads(calls, ids) {
+function completeReads(calls, ids, accountDate) {
+  const todayRead = { name: 'query_habits', argumentsAnyOf: [
+    { relative_period: 'today' },
+    { date: 'today', relative_period: { optional: null } },
+    { date: accountDate, relative_period: { optional: null } },
+  ] }
   const seen = []
   for (const call of calls) {
     const args = call.arguments
     const page = call.result?.payload
-    if (call.name !== 'query_habits' || call.resultStatus !== 'Succeeded' || call.result?.success !== true
-      || args.date !== 'today' || args.is_completed !== false || args.include_overdue !== true
-      || ['search', 'tag', 'frequency', 'is_general', 'is_bad_habit', 'relative_period'].some((key) => args[key] != null)
+    if (!matchesOperation(call, todayRead) || call.resultStatus !== 'Succeeded' || call.result?.success !== true
+      || args.is_completed !== false || args.include_overdue !== true
+      || ['search', 'tag', 'frequency', 'is_general', 'is_bad_habit'].some((key) => args[key] != null)
       || (args.offset ?? 0) !== seen.length || page?.totalCount !== ids.length || !Array.isArray(page.items)
       || !page.items.length || page.items.some((item) => !['today', 'overdue'].includes(item.status))) return false
     seen.push(...page.items.map((item) => item.id))
@@ -26,7 +32,7 @@ export function restartProposal(output, vars) {
   const calls = output.trace?.calls
   if (!ids?.length || !Array.isArray(calls) || calls.length < 2) return result(false, 'Restart lacks fixture or tool evidence.')
   const write = calls.at(-1)
-  if (!completeReads(calls.slice(0, -1), ids)) return result(false, 'Restart must read every unfinished page before its write.')
+  if (!completeReads(calls.slice(0, -1), ids, vars.accountDate)) return result(false, 'Restart must read every unfinished page before its write.')
   const args = write.arguments
   if (write.name !== 'bulk_reschedule_habits' || write.resultStatus !== 'PendingConfirmation'
     || write.result?.success !== true || args.orbit_write_complete !== true

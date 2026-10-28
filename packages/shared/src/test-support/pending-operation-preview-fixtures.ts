@@ -2,6 +2,34 @@ import { agentExecuteOperationResponseSchema, pendingAgentOperationSchema, type 
 
 const emptyId = '00000000-0000-0000-0000-000000000000'
 
+export function makeRestartPlanPreview(): PendingAgentOperation {
+  const operation = makeExistingHabitPreview('📖', 'rescheduleHabits')
+  const dates = [
+    ['Read', '2026-10-28', '2026-10-28'],
+    ['Stretch', '2026-10-28', '2026-10-28'],
+    ['Walk', '2026-10-26', '2026-10-28'],
+    ['Practice', '2026-10-27', '2026-10-29'],
+    ['Tidy', '2026-10-28', '2026-11-04'],
+  ] as const
+  const items = dates.map(([entityName, oldValue, newValue], index) => {
+    const entityId = `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`
+    return { ...operation.items![0]!, itemId: entityId, entityId, entityName,
+      stateFingerprint: `restart-state-${index}`,
+      fields: [{ ...operation.items![0]!.fields[0]!, entityId, entityName, oldValue, newValue, proposedValue: newValue }],
+    }
+  })
+  return pendingAgentOperationSchema.parse({ ...operation, capabilityId: 'habits.bulk.write',
+    displayName: 'bulk_reschedule_habits', changeTargetCount: items.length, items,
+    changes: items.flatMap(item => item.fields.filter(field => field.oldValue !== field.newValue)),
+    previewFingerprint: 'restart-preview',
+  })
+}
+
+export function makeTypedHabitsPreview(types: readonly (string | null | undefined)[] = ['General', 'Habit', 'Task', 'Habit', 'Task']): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(types.length)
+  return pendingAgentOperationSchema.parse({ ...operation, items: operation.items!.map((item, index) => ({ ...item, habitType: types[index] })) })
+}
+
 export function makeExistingHabitPreview(entityEmoji?: string | null, actionKey = 'updateHabit', changesOnly = false): PendingAgentOperation {
   const entityId = '00000000-0000-4000-8000-000000000006'
   const entityName = 'Dentista'

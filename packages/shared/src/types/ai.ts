@@ -109,6 +109,7 @@ export const pendingOperationItemSchema = z.object({
   entityId: z.string().nullable(),
   entityName: z.string(),
   entityEmoji: z.string().nullish(),
+  habitType: z.string().nullish(),
   fields: z.array(pendingOperationChangeSchema),
   stateFingerprint: z.string(),
   removesData: z.boolean().nullable().optional(),

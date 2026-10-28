@@ -1,6 +1,6 @@
 import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import type { Page } from '@playwright/test'
-import { makeExistingHabitPreview, makePlacementPreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeRestartPlanPreview, makeTypedHabitsPreview, makeExistingHabitPreview, makePlacementPreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -24,6 +24,7 @@ import { readControlHitArea } from '@/test-support/control-hit-area'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }), useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 
@@ -106,35 +107,69 @@ describe('Pending preview geometry in Chromium', () => {
     const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
     stylesheet = `${compiled.css}\n${fonts}\n@font-face { font-family: TestSpaceGrotesk; font-weight: 500; src: url(data:font/ttf;base64,${displayFont}); }\n:root { ${variables}; --font-sans: TestGeist; --font-mono: TestMono; --font-display: TestSpaceGrotesk; }`
   })
-  afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
+  afterEach(() => { vi.useRealTimers(); cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([320, 390, 412, 480, 840, 1280].flatMap(width => locales.flatMap(locale => [1, 2].map(textScale => ({ width, locale, textScale })))))('fits the date change at $width in $locale at text scale $textScale', async ({ width, locale, textScale }) => {
+  it.each([320, 1352].flatMap(width => locales.flatMap(locale => [1, 2].map(textScale => ({ width, locale, textScale })))))('fits typed preview groups at $width in $locale at text scale $textScale', async ({ width, locale, textScale }) => {
     setViewport(width)
     const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt} timeZone="UTC"><div style={{ width: Math.min(width, 740), padding: 16 }}>
-      <PendingOperationCard pendingOperation={makeExistingHabitPreview()} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+      <PendingOperationCard pendingOperation={makeTypedHabitsPreview()} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+    </div></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 1800 } })
+    try {
+      await page.setContent(`<style>${stylesheet} html { font-size: ${16 * textScale}px; }</style>${container.innerHTML}`)
+      await page.evaluate(() => document.fonts.ready)
+      const headings = await page.locator('h4').evaluateAll(nodes => nodes.map(node => {
+        const heading = node.getBoundingClientRect()
+        const row = node.nextElementSibling!.getBoundingClientRect()
+        return { left: heading.left, right: heading.right, bottom: heading.bottom, rowTop: row.top, rowRight: row.right, rowLeft: row.left }
+      }))
+      expect(headings).toHaveLength(3)
+      for (const heading of headings) {
+        expect(heading.left).toBeGreaterThanOrEqual(16)
+        expect(heading.right).toBeLessThanOrEqual(width - 16)
+        expect(heading.bottom).toBeLessThanOrEqual(heading.rowTop)
+        expect(heading.rowLeft).toBeGreaterThanOrEqual(16)
+        expect(heading.rowRight).toBeLessThanOrEqual(width - 16)
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    } finally { await page.close() }
+  })
+
+  it.each([320, 390, 412, 480, 840, 1280].flatMap(width => locales.flatMap(locale => [1, 2].flatMap(textScale => [false, true].map(restart => ({ width, locale, textScale, restart }))))))('fits date changes at $width in $locale at text scale $textScale with restart=$restart', async ({ width, locale, textScale, restart }) => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-29T06:00:00Z'))
+    setViewport(width)
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt} timeZone="UTC"><div style={{ width: Math.min(width, 740), padding: 16 }}>
+      <PendingOperationCard pendingOperation={restart ? makeRestartPlanPreview() : makeExistingHabitPreview()} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
     </div></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 1200 } })
     try {
       await page.setContent(`<style>${stylesheet} html { font-size: ${16 * textScale}px; }</style>${container.innerHTML}`)
       await page.evaluate(() => document.fonts.ready)
       const geometry = await page.evaluate(() => {
-        const meta = document.querySelector<HTMLElement>('[data-preview-item-meta]')!
-        const range = document.createRange()
-        range.selectNodeContents(meta)
-        const fragments = Array.from(range.getClientRects())
-        const bounds = meta.getBoundingClientRect()
-        return { text: meta.textContent, lines: new Set(fragments.map(rect => rect.top)).size,
-          clipped: fragments.some(rect => rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.bottom > bounds.bottom + 1),
-          overflow: document.documentElement.scrollWidth > window.innerWidth,
-          fontSize: parseFloat(getComputedStyle(meta).fontSize) }
+        return Array.from(document.querySelectorAll<HTMLElement>('[data-preview-item-meta]')).map(meta => {
+          const range = document.createRange()
+          range.selectNodeContents(meta)
+          const fragments = Array.from(range.getClientRects())
+          const bounds = meta.getBoundingClientRect()
+          return { text: meta.textContent, lines: new Set(fragments.map(rect => rect.top)).size,
+            clipped: fragments.some(rect => rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.bottom > bounds.bottom + 1),
+            overflow: document.documentElement.scrollWidth > window.innerWidth,
+            fontSize: parseFloat(getComputedStyle(meta).fontSize) }
+        })
       })
-      expect(geometry.text).toContain('→')
-      expect(geometry.lines).toBeGreaterThan(0)
-      if (textScale === 1) expect(geometry.lines).toBe(1)
-      expect(geometry.clipped).toBe(false)
-      expect(geometry.overflow).toBe(false)
-      expect(geometry.fontSize).toBe(12 * textScale)
+      expect(geometry).toHaveLength(restart ? 5 : 1)
+      expect(geometry.filter(row => row.text.includes('→'))).toHaveLength(restart ? 3 : 1)
+      if (restart) expect(geometry[0]!.text).toBe((locale === 'en' ? en : pt).dates.today)
+      for (const row of geometry) {
+        expect(row.text).not.toBe('')
+        expect(row.lines).toBeGreaterThan(0)
+        if (textScale === 1) expect(row.lines).toBe(1)
+        expect(row.clipped).toBe(false)
+        expect(row.overflow).toBe(false)
+        expect(row.fontSize).toBe(12 * textScale)
+      }
     } finally { await page.close() }
   })
 

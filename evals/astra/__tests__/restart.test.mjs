@@ -32,12 +32,30 @@ function proposal() {
     { response: { status: 200, headers: { 'x-orbit-request-id': 'restart' } } })
 }
 
+const todayReadForms = [
+  { relative_period: 'today' },
+  { date: 'today' },
+  { date: today },
+]
+
+it.each(todayReadForms)('accepts a complete restart proposal with today scope %j', (scope) => {
+  const output = proposal()
+  delete output.trace.calls[0].arguments.date
+  Object.assign(output.trace.calls[0].arguments, scope)
+  const verdict = restartProposal(output, vars)
+  expect(verdict.pass, verdict.reason).toBe(true)
+})
+
 it('accepts a complete held restart proposal grounded in the unfinished read', () => {
   const verdict = restartProposal(proposal(), vars)
   expect(verdict.pass, verdict.reason).toBe(true)
 })
 
 it.each([
+  ['another relative period', (output) => { output.trace.calls[0].arguments.relative_period = 'yesterday' }],
+  ...['search', 'tag', 'frequency', 'is_general', 'is_bad_habit'].map((key) => [
+    `filtered remaining work: ${key}`, (output) => { output.trace.calls[0].arguments[key] = key.startsWith('is_') ? false : 'filter' },
+  ]),
   ['wrong read date', (output) => { output.trace.calls[0].arguments.date = null }],
   ['completed filter', (output) => { output.trace.calls[0].arguments.is_completed = true }],
   ['overdue excluded', (output) => { output.trace.calls[0].arguments.include_overdue = false }],
@@ -196,13 +214,19 @@ it('never approves malformed tool evidence', async () => {
 
 it.each(cases)('grades the complete production policy for $metadata.id', async (entry) => {
   const { behavior } = await import('../assertions.mjs')
-  const policy = { ...entry.vars, accountDate: today, evalRequestId: 'restart', restartBaseline: baseline }
+  const bound = JSON.parse(JSON.stringify(entry.vars).replaceAll('{accountDate}', today))
+  const policy = { ...bound, accountDate: today, evalRequestId: 'restart', restartBaseline: baseline }
   const output = proposal()
   const after = structuredClone(baseline)
   if (policy.restart.decision === 'approve') after.forEach((item, index) => { item.habit.dueDate = index >= 4 ? today : '2026-10-29' })
   output.restartReadback = { held: structuredClone(baseline), after }
-  const verdict = behavior(output, { vars: policy })
-  expect(verdict.pass, verdict.reason).toBe(true)
+  for (const scope of todayReadForms) {
+    delete output.trace.calls[0].arguments.date
+    delete output.trace.calls[0].arguments.relative_period
+    Object.assign(output.trace.calls[0].arguments, scope)
+    const verdict = behavior(output, { vars: policy })
+    expect(verdict.pass, `${JSON.stringify(scope)}: ${verdict.reason}`).toBe(true)
+  }
   delete output.restartReadback
   expect(behavior(output, { vars: policy }).pass).toBe(false)
 })

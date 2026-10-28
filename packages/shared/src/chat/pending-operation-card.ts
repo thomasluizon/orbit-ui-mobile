@@ -1,11 +1,13 @@
 import type { HabitPlacement, PendingAgentOperation, PendingOperationChange, PendingOperationPlacement } from '../types/ai'
 import { PENDING_OPERATION_WEEKDAYS, PREVIEW_ACTION_KEYS, summarizePendingOperationItem } from './pending-operation-item-summary'
 import { getAgentCapabilityActionLabelKey, getAgentCapabilityLabelKey } from '../utils/agent-pending-operation'
+import type { PendingOperationItemGroupType } from './pending-operation-item-groups'
 
 export { PENDING_OPERATION_WEEKDAYS } from './pending-operation-item-summary'
 export const PENDING_OPERATION_ITEM_SEARCH_THRESHOLD = 8
 
 export interface PendingOperationCardLabels {
+  itemGroup: (habitType: PendingOperationItemGroupType) => string
   placementGroup: (name: string) => string
   placementOption: (value: HabitPlacement, destination: string) => string
   placementRecommended: string
@@ -119,6 +121,7 @@ export function buildPendingOperationCardLabels(
   translate: (key: string, values?: Record<string, string | number>) => string,
   formatTime: (value: string) => string,
   locale = 'en',
+  today?: string,
 ): PendingOperationCardLabels {
   const hasMixedDeletion = pendingOperation.items?.some((item) => item.removesData === true)
     && pendingOperation.items.some((item) => item.removesData !== true)
@@ -138,6 +141,7 @@ export function buildPendingOperationCardLabels(
       ? `chat.operation.source.${actionKey}`
       : getAgentCapabilityActionLabelKey(pendingOperation.capabilityId) ?? 'chat.pendingOp.action.applyChanges')
   return {
+    itemGroup: (habitType) => translate(`chat.preview.itemGroup.${habitType}`),
     placementGroup: (name) => translate('chat.placement.group', { name }),
     placementOption: (value, name) => translate(`chat.placement.option.${value}`, { name }),
     placementRecommended: translate('chat.placement.recommended'),
@@ -166,7 +170,7 @@ export function buildPendingOperationCardLabels(
     summarize: (fields, summaryActionKey = actionKey ?? undefined) => {
       const outcome = getToggleOutcome(actionKey, fields)
       return outcome ? translate(`chat.operation.toggleSource.${actionKey}.${outcome}`)
-        : summarizePendingOperationItem(fields, translate, formatTime, locale, summaryActionKey)
+        : summarizePendingOperationItem(fields, translate, formatTime, locale, summaryActionKey, today)
     },
     save: translate('common.save'),
     search: translate('common.search'),

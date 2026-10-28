@@ -25,6 +25,7 @@ const reload = vi.fn()
 const native = {
   phase: 'idle', shellVersion: null as string | null, webCommit: null as string | null,
   deferred: false, restartRequested: false, checking: false, checkFailed: false,
+  promptPending: false,
 }
 let installReservation: string | null = null
 async function operateNative(_command: string, payload: Record<string, unknown>) {
@@ -58,6 +59,7 @@ beforeEach(() => {
   useUIStore.setState(useUIStore.getInitialState())
   useDesktopUpdateStore.setState({ notice: null, restart: null, later: null })
   Object.assign(native, { phase: 'idle', shellVersion: null, webCommit: null, deferred: false, restartRequested: false, checking: false, checkFailed: false })
+  native.promptPending = false
   installReservation = null
   invoke.mockReset().mockImplementation(operateNative)
   reload.mockClear()
@@ -188,7 +190,7 @@ it('waits for Astra, typing, overlays and attachment work before showing the not
   expect(reload).not.toHaveBeenCalled()
 })
 
-it('downloads a shell update on Restart, then waits for edits made during the download before installing', async () => {
+it('waits for the native dialog and edits made during the download before installing', async () => {
   native.phase = 'available'
   native.shellVersion = '0.2.0'
   let finishDownload!: () => void
@@ -199,6 +201,7 @@ it('downloads a shell update on Restart, then waits for edits made during the do
       native.phase = 'downloading'
       await new Promise<void>(resolve => { finishDownload = resolve })
       native.phase = 'downloaded'
+      native.promptPending = true
       return { ...native }
     }
     return original(command, payload)
@@ -217,6 +220,10 @@ it('downloads a shell update on Restart, then waits for edits made during the do
   await tick()
   expect(actions()).not.toContain('install')
   input.remove()
+  await tick()
+  expect(actions()).not.toContain('install')
+  native.promptPending = false
+  native.restartRequested = true
   await tick()
   expect(actions().filter(action => action === 'install')).toHaveLength(1)
   expect(reload).not.toHaveBeenCalled()
@@ -385,6 +392,66 @@ it('a native menu restart waits for streaming and acknowledges the request befor
   useChatStore.setState({ isTyping: false })
   await tick()
   expect(reload).toHaveBeenCalledOnce()
+})
+
+it('a native Later decision cancels a pending restart until Quit requests the settled checkpoint', async () => {
+  native.phase = 'available'
+  native.shellVersion = '0.2.0'
+  invoke.mockImplementation(async (command, payload) => {
+    const snapshot = await operateNative(command, payload)
+    if (payload.action === 'download' && !native.restartRequested && !native.deferred) {
+      native.deferred = true
+      return { ...native }
+    }
+    return snapshot
+  })
+  mount()
+  await tick()
+  await click(en.versionUpdate.restartCta)
+  await tick()
+  expect(actions()).not.toContain('install')
+  expect(screen.queryByRole('button', { name: en.versionUpdate.restartCta })).toBeNull()
+  invoke.mockImplementation(operateNative)
+  useChatStore.setState({ isTyping: true, draft: 'Continue after launch' })
+  native.deferred = false
+  native.restartRequested = true
+  await tick()
+  expect(actions()).not.toContain('install')
+  useChatStore.setState({ isTyping: false })
+  await tick()
+  expect(actions().filter(action => action === 'install')).toHaveLength(1)
+  sessionStorage.clear()
+  expect(takeDesktopChatCheckpoint('desktop-account')?.chat.draft).toBe('Continue after launch')
+})
+
+it('a ready native prompt stays hidden from the web notice until its decision arrives', async () => {
+  native.shellVersion = '0.2.0'
+  native.phase = 'downloaded'
+  native.promptPending = true
+  mount()
+  await tick()
+  expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  expect(actions()).not.toContain('download')
+  expect(actions()).not.toContain('install')
+  native.promptPending = false
+  native.restartRequested = true
+  await tick()
+  expect(actions().filter(action => action === 'install')).toHaveLength(1)
+})
+
+it('keeps restart offers usable in shells without native dialog status', async () => {
+  native.shellVersion = '0.2.0'
+  native.phase = 'available'
+  invoke.mockImplementation(async (command, payload) => {
+    const snapshot = await operateNative(command, payload)
+    Reflect.deleteProperty(snapshot, 'promptPending')
+    return snapshot
+  })
+  mount()
+  await tick()
+  await click(en.versionUpdate.restartCta)
+  expect(native.phase).toBe('installing')
+  expect(actions().filter(action => action === 'install')).toHaveLength(1)
 })
 
 it('retains the conversation and exposes Retry when checkpoint persistence fails', async () => {

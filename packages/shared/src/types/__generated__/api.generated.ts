@@ -154,7 +154,8 @@ export const PostApiAiPendingOperationsIdPreviewRefreshResponse = zod.object({
   "destinationId": zod.uuid(),
   "destinationName": zod.string()
 })]).optional(),
-  "entityEmoji": zod.string().nullish()
+  "entityEmoji": zod.string().nullish(),
+  "habitType": zod.string().nullish()
 })).nullish(),
   "previewFingerprint": zod.string().nullish()
 })]),
@@ -1833,7 +1834,8 @@ export const PostApiChatResponse = zod.object({
   "destinationId": zod.uuid(),
   "destinationName": zod.string()
 })]).optional(),
-  "entityEmoji": zod.string().nullish()
+  "entityEmoji": zod.string().nullish(),
+  "habitType": zod.string().nullish()
 })).nullish(),
   "previewFingerprint": zod.string().nullish(),
   "actionKey": zod.string().nullish()
@@ -3131,7 +3133,8 @@ export const PostApiChatHabitSuggestionsPreviewResponse = zod.object({
   "destinationId": zod.uuid(),
   "destinationName": zod.string()
 })]).optional(),
-  "entityEmoji": zod.string().nullish()
+  "entityEmoji": zod.string().nullish(),
+  "habitType": zod.string().nullish()
 })).nullish(),
   "previewFingerprint": zod.string().nullish(),
   "actionKey": zod.string().nullish()
@@ -3276,7 +3279,8 @@ export const PostApiChatHabitSuggestionsPreviewAllResponse = zod.object({
   "destinationId": zod.uuid(),
   "destinationName": zod.string()
 })]).optional(),
-  "entityEmoji": zod.string().nullish()
+  "entityEmoji": zod.string().nullish(),
+  "habitType": zod.string().nullish()
 })).nullish(),
   "previewFingerprint": zod.string().nullish(),
   "actionKey": zod.string().nullish()

@@ -482,6 +482,13 @@
     }
   },
   "auth": {
+    "desktopCallback": {
+      "successTitle": "Você entrou",
+      "successBody": "Você já pode fechar esta aba e voltar ao Orbit.",
+      "failureTitle": "Falha ao entrar",
+      "failureBody": "Abra o Orbit para tentar entrar de novo.",
+      "openApp": "Abrir Orbit"
+    },
     "signIn": "Entrar",
     "enterCode": "Digite o código",
     "email": "E-mail",
@@ -1959,6 +1966,11 @@
     },
     "followUps": {"label": "Próximas perguntas"},
     "preview": {
+      "itemGroup": {
+        "Task": "Tarefas",
+        "Habit": "Hábitos",
+        "General": "Hábitos gerais"
+      },
       "proposed": "Proposto pela Astra",
       "notSet": "Não definido",
       "atTime": "às {time}",

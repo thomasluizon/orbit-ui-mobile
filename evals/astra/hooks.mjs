@@ -79,6 +79,7 @@ async function prepareAttempt(test) {
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
     accountDate: today,
+    tomorrowDate: dateOffset(today, 1),
     accountYear: today.slice(0, 4),
     retrospectiveFrom: dateOffset(today, -29),
     habitId: account.habitId ?? process.env.ORBIT_EVAL_HABIT_ID,
@@ -90,7 +91,7 @@ async function prepareAttempt(test) {
     substitutions[`${key}Localized`] = new Intl.DateTimeFormat(test.metadata.locale ?? 'en', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${substitutions[key]}T12:00:00Z`))
   }
   const substitute = (value) => {
-    if (typeof value === 'string') return value.replace(/\{(accountDate|accountYear|retrospectiveFrom|habitId|secondHabitId|overdueDate|historyFrom|historyTo|comparisonFrom|comparisonTo|historyFromLocalized|historyToLocalized|comparisonFromLocalized|comparisonToLocalized)\}/g, (_, key) => {
+    if (typeof value === 'string') return value.replace(/\{(accountDate|tomorrowDate|accountYear|retrospectiveFrom|habitId|secondHabitId|overdueDate|historyFrom|historyTo|comparisonFrom|comparisonTo|historyFromLocalized|historyToLocalized|comparisonFromLocalized|comparisonToLocalized)\}/g, (_, key) => {
       if (!substitutions[key]) throw new Error(`Missing fixture substitution: ${key}`)
       return substitutions[key]
     })

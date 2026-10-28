@@ -11,7 +11,7 @@ import parseResponse from '../response.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
 
-const apiCommit = 'c90d1d61298bcdc86cc771a85939bbd097cf9ac6'
+const { apiCommit } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 

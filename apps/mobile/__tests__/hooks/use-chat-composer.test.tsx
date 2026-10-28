@@ -1,6 +1,6 @@
 import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
-import { questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { makeOneSmallStepCard, questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
 import Animated from 'react-native-reanimated'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -1128,6 +1128,26 @@ describe('mobile useChatComposer', () => {
     const formData = mocks.openChatStream.mock.calls[0]?.[0] as { get(name: string): string | null }
     const context = JSON.parse(formData.get('clientContext') as string)
     expect(context.timeFormat).toBe('24h')
+  })
+
+  it.each(makeOneSmallStepCard().actions)('sends the complete $id request with current history and no confirmation token', async action => {
+    const card = makeOneSmallStepCard()
+    useChatStore.setState({ messages: [
+      makeHeldHabitMessage({ id: 'request', role: 'user', content: 'Help me start reading', pendingOperations: [] }),
+      makeHeldHabitMessage({ id: 'step', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'oneSmallStep', block: card }] }),
+    ] })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => { await composer.current.sendMessage(action.message) })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    const formData = mocks.openChatStream.mock.calls[0]?.[0] as { get(name: string): string | null }
+    expect(formData.get('message')).toBe(action.message)
+    expect(formData.get('confirmationToken')).toBeNull()
+    expect(formData.get('blockAnswer')).toBeNull()
+    const history = JSON.parse(formData.get('history') as string)
+    expect(history).toContainEqual({ role: 'user', content: 'Help me start reading' })
+    expect(history).toContainEqual({ role: 'assistant', content: JSON.stringify([{ kind: 'oneSmallStep', block: card }]) })
+    expect(JSON.parse(formData.get('clientContext') as string).partKinds).toContain('oneSmallStep')
   })
 
   it('keeps tool steps and follow-ups on the final answer and marks a chip send', async () => {
