@@ -23,7 +23,6 @@ const PERIOD_KEYS = new Set([
   'upgrade.billing.plan.proBody',
   'upgrade.billing.usage.aiMessages',
   'upgrade.billing.usage.nearLimit',
-  'upgrade.billing.lapsed.lostMessages',
   'errors.api.astraLimit',
 ])
 

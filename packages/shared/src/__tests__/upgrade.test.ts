@@ -66,19 +66,21 @@ describe('upgrade utils', () => {
   it('keeps the D70 plan breakdown on the rendered upgrade screen in both locales', () => {
     expect(en.upgrade.convert).toMatchObject({
       promise: 'The plan changes what Astra can do, never your habits and logs.',
-      freeHeading: '250 a week.',
+      freeHeading: '7 times more Astra.',
       trialHeading: '250 a week.',
       freeAllowance: '5',
       proAllowance: '250',
       perDay: 'messages/day',
+      perWeek: 'messages/week',
     })
     expect(ptBR.upgrade.convert).toMatchObject({
       promise: 'O plano muda a Astra, nunca os seus hábitos e registros.',
-      freeHeading: '250 por semana.',
+      freeHeading: '7 vezes mais Astra.',
       trialHeading: '250 por semana.',
       freeAllowance: '5',
       proAllowance: '250',
-      perDay: 'mensagens/dia',
+      perDay: 'por dia',
+      perWeek: 'por semana',
     })
     for (const messages of [en, ptBR]) {
       expect(Object.keys(messages.upgrade.outcomes)).toEqual(['label', 'astra', 'calendar', 'retrospective', 'noticing'])
