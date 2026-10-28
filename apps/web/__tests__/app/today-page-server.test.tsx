@@ -46,6 +46,19 @@ describe('Today server page', () => {
     expect(mocks.serverAuthFetch).toHaveBeenCalledWith(API.profile.get, { cache: 'no-store' }, expect.anything())
   })
 
+  it('preloads the account day while the server is on the next UTC day', async () => {
+    vi.setSystemTime(new Date('2026-10-28T01:30:00Z'))
+    mocks.serverAuthFetch.mockImplementation(async (url: string) => url === API.profile.get
+      ? { ...profileFixture, timeZone: 'America/Sao_Paulo' }
+      : { items: [], page: 1, pageSize: 50, totalCount: 0, totalPages: 1 })
+    const page = await TodayPage({ searchParams: Promise.resolve({}) })
+    expect(renderToString(page)).toContain('2026-10-27:0:')
+    expect(mocks.serverAuthFetch).toHaveBeenCalledWith(
+      '/api/habits?dateFrom=2026-10-27&dateTo=2026-10-27&includeOverdue=true',
+      { cache: 'no-store' }, expect.anything(),
+    )
+  })
+
   it('keeps the habits preload when the profile request fails', async () => {
     mocks.serverAuthFetch.mockImplementation(async (url: string) => {
       if (url === API.profile.get) throw new Error('Profile unavailable')

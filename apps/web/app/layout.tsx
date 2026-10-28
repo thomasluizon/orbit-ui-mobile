@@ -19,6 +19,7 @@ import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
 import { PublicSessionBootstrap } from '@/lib/public-session-bootstrap'
 import { SessionCookieProvider } from '@/lib/session-cookie-provider'
 import { KeyboardPlatformProvider } from '@/components/shell/keyboard-platform-provider'
+import { AccountClock } from '@/lib/account-clock'
 import { NotificationsPreload } from '@/lib/notifications-preload'
 import { loadInitialNotifications } from '@/lib/server-notifications'
 import './globals.css'
@@ -39,17 +40,17 @@ const variablesByScheme = Object.fromEntries(
     },
   ]),
 )
-async function loadInitialTheme(hasSessionCookie: boolean, cookieTheme: string | undefined) {
+async function loadInitialAccount(hasSessionCookie: boolean, cookieTheme: string | undefined) {
   if (hasSessionCookie) {
     try {
       const profile = await serverRenderFetch(API.profile.get, { cache: 'no-store', signal: AbortSignal.timeout(10000) }, profileSchema)
-      return normalizeThemeMode(profile?.themePreference ?? cookieTheme)
+      return { theme: normalizeThemeMode(profile?.themePreference ?? cookieTheme), timeZone: profile?.timeZone ?? null, now: Date.now() }
     } catch (error) {
       // WHY: Public routes must still render when the profile API or session is unavailable; https://github.com/thomasluizon/orbit-tickets/issues/1311.
       captureException(error)
     }
   }
-  return normalizeThemeMode(cookieTheme)
+  return { theme: normalizeThemeMode(cookieTheme), timeZone: null, now: Date.now() }
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -105,10 +106,12 @@ export default async function RootLayout({
   const applePlatform = /Mac|iPhone|iPad|iPod|iOS/i.test(platform)
   const cookieStore = await cookies()
   const hasSessionCookie = Boolean(cookieStore.get(AUTH_COOKIE)?.value || cookieStore.get(REFRESH_COOKIE)?.value)
-  const [initialTheme, initialNotifications] = await Promise.all([
-    loadInitialTheme(hasSessionCookie, cookieStore.get('orbit_theme_mode')?.value),
+  const [initialAccount, initialNotifications] = await Promise.all([
+    loadInitialAccount(hasSessionCookie, cookieStore.get('orbit_theme_mode')?.value),
     loadInitialNotifications(hasSessionCookie),
   ])
+  const initialTheme = initialAccount.theme
+  const initialNow = initialAccount.now
   const initialThemeStyle = {
     ...resolveWebThemeVariables('orange', initialTheme),
     colorScheme: initialTheme,
@@ -173,7 +176,7 @@ export default async function RootLayout({
               <SessionCookieProvider hasSessionCookie={hasSessionCookie}>
                 <KeyboardPlatformProvider applePlatform={applePlatform}>
                   <NotificationsPreload initialNotifications={initialNotifications}>
-                    {children}
+                    <AccountClock now={initialNow} timeZone={initialAccount.timeZone}>{children}</AccountClock>
                   </NotificationsPreload>
                 </KeyboardPlatformProvider>
               </SessionCookieProvider>

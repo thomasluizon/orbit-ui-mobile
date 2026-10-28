@@ -8,6 +8,8 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { notificationsFixture } from '../../test-support/hermetic/mock-api/fixtures/secondary'
 import { mintHermeticJwt } from '../../test-support/hermetic/hermetic-session'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { useAccountClockSeed } from '@/lib/account-clock'
+import { getAccountDay } from '@orbit/shared/utils'
 import RootLayout from '@/app/layout'
 import { captureException } from '@sentry/nextjs'
 import { cookies } from 'next/headers'
@@ -56,12 +58,35 @@ vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }
 beforeEach(() => { requestCookies.clear(); vi.clearAllMocks() })
 afterEach(() => vi.unstubAllGlobals())
 
+function AccountDayProbe() {
+  const clock = useAccountClockSeed()
+  return <time>{clock ? getAccountDay(new Date(clock.now), clock.timeZone) : 'missing'}</time>
+}
+
 async function serverDocument() {
   const tree = await RootLayout({ children: <main>Theme fixture</main> })
   return new DOMParser().parseFromString(renderToStaticMarkup(tree), 'text/html')
 }
 
 describe('root theme before hydration', () => {
+  it('seeds the account clock from the profile already loaded for the theme', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-28T01:30:00Z'))
+    requestCookies.set('auth_token', mintHermeticJwt(profileFixture))
+    const upstream = vi.fn(async (input: string | URL | Request) => {
+      const path = input instanceof Request ? input.url : input.toString()
+      return Response.json(path.endsWith(API.notifications.list) ? notificationsFixture : { ...profileFixture, timeZone: 'America/Sao_Paulo' })
+    })
+    vi.stubGlobal('fetch', upstream)
+    try {
+      const html = renderToStaticMarkup(await RootLayout({ children: <AccountDayProbe /> }))
+      expect(html).toContain('<time>2026-10-27</time>')
+      expect(upstream).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it.each([undefined, 'dark', 'light'])('renders a light profile with theme cookie %s', async (cookieTheme) => {
     const profile = profileSchema.parse({ ...profileFixture, themePreference: 'light' })
     const token = mintHermeticJwt(profile)
