@@ -1722,7 +1722,7 @@ may use only the gap to the nearest neighbour minus 4px, the first spacing step.
 Reserve the extension in layout; a negative inset never grants permission to overlap.
 Grouped list rows inset their paint and single focus indicator by 4px without reducing the target.
 Month-navigation controls reserve clearance inside their unchanged targets. Composer actions keep
-the same gap between their targets. Touching calendar day rows inset their paint by 4px. Their body opens the habit detail for the selected date and reuses Hoje's emoji tile and monogram fallback; the completion control remains independent. A labelled recurring switch at the top of the selected-day list shares the Options preference and filters its completion count.
+the same gap between their targets. Touching calendar day rows inset their paint by 4px. Their body opens the habit detail for the selected date and reuses Hoje's emoji tile and monogram fallback; the 46px well and 12px block insets give short rows a 70px resting floor. The completion control remains independent. The title-only sheet is removed under #1858; habit detail supplies the full title. A labelled recurring switch at the top of the selected-day list shares the Options preference and filters its completion count.
 Measure painted fills and visible text or graphics, excluding transparent hit areas.
 A grid cell may fill its own column and adjoin another cell, provided its paint and focus
 indicator stay inside that cell; this never permits paint over neighbouring content.

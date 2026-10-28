@@ -50,8 +50,11 @@ routed dates, later requests and account changes.
 
 The selected-day habit body opens that habit's detail with the selected date on web
 and Android, including from the week day sheet after dismissal. The full title remains
-one tap away there. Rows reuse Hoje's leading emoji well and initial fallback; their
-completion control remains independent and loading rows stay disabled.
+one tap away there. Rows reuse Hoje's leading emoji well and initial fallback. The
+46px well and 12px block insets give short rows a 70px resting floor; longer titles
+and larger text grow the row. The completion control remains independent and
+loading rows stay disabled. The title-only sheet is removed under #1858; habit detail
+supplies the full title.
 
 A labelled Switch row at the top of the day list shares `calendarShowRecurring`
 with Options. Its ON-state label is Mostrar hábitos / Show habits, in the habit form's Task and Habit terms: off leaves one-time tasks. Hiding recurring

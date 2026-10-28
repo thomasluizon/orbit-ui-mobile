@@ -54,14 +54,21 @@ for (const width of [320, 412, 1280]) {
       await page.evaluate(async () => { await document.fonts.ready })
       const geometry = await card.evaluate((element, habitTitle) => {
         const bounds = element.getBoundingClientRect()
-        const groups = [...element.firstElementChild!.children] as HTMLElement[]
+        const directGroups = [...element.firstElementChild!.children] as HTMLElement[]
+        const groupContaining = (target: Element) => directGroups.find((group) => group.contains(target))!
         const title = element.querySelector('h2')!
         const summary = title.nextElementSibling!
         const summaryStyle = getComputedStyle(summary)
         const label = [...element.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.getAttribute('aria-label') === habitTitle && button.getAttribute('role') !== 'checkbox')!
-        const rows = [...groups[1]!.children] as HTMLElement[]
-        const eventRows = [...groups.at(-1)!.querySelectorAll<HTMLElement>('button[data-all-day], button[aria-label^="09:00,"]')]
         const rowBody = label.closest('[data-slot="list-row-body"]')!
+        const habitGroup = groupContaining(rowBody)
+        const switchGroup = groupContaining(element.querySelector('[role="switch"]')!)
+        const goToDayGroup = groupContaining(element.querySelector('a[href^="/?date="]')!)
+        const eventSelector = 'button[data-all-day], button[aria-label^="09:00,"]'
+        const eventGroup = groupContaining(element.querySelector(eventSelector)!)
+        const groups = [groupContaining(title), switchGroup, habitGroup, goToDayGroup, eventGroup]
+        const rows = [...habitGroup.children] as HTMLElement[]
+        const eventRows = [...eventGroup.querySelectorAll<HTMLElement>(eventSelector)]
         const rowBodyBox = rowBody.getBoundingClientRect()
         const labelBox = label.getBoundingClientRect()
         const labelStyle = getComputedStyle(rowBody)
@@ -74,7 +81,7 @@ for (const width of [320, 412, 1280]) {
         element.append(muted)
         const mutedColor = getComputedStyle(muted).color
         muted.remove()
-        const fills = [...rows, ...element.querySelectorAll<HTMLElement>('a, button:not([role="checkbox"])')].filter((target) => rows.includes(target) || !groups[1]!.contains(target))
+        const fills = [...rows, ...element.querySelectorAll<HTMLElement>('a, button:not([role="checkbox"])')].filter((target) => rows.includes(target) || !habitGroup.contains(target))
         return {
           titleInsets: [title.getBoundingClientRect().left - bounds.left, title.getBoundingClientRect().top - bounds.top],
           summaryGap: summary.getBoundingClientRect().top - title.getBoundingClientRect().bottom,
@@ -99,7 +106,7 @@ for (const width of [320, 412, 1280]) {
       expect(geometry.summarySize).toBe(12)
       expect(geometry.summaryColor).toBe(geometry.mutedColor)
       expect(geometry.bottomInset).toBeCloseTo(24)
-      expect(geometry.groupGaps).toEqual([16, 16, 16])
+      expect(geometry.groupGaps).toEqual([16, 16, 16, 16])
       for (const insets of geometry.fillInsets) expect(insets).toEqual([24, 24])
       expect(geometry.dayGap).toBeCloseTo(0)
       expect(geometry.eventGaps).toEqual([4, 4])
