@@ -66,8 +66,7 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
   </>
   const body = <>{window ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{formatReadWindow(window, locale)}</Text> : null}{message && state !== 'stale' ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: 14 }}>{t(message)}</Text> : null}{props.body}</>
   const frameProps = readBlockFrameProps(props, state, message, () => { void run(false) }, t, actions)
-  if (snapshot.kind === 'gamification' && frameProps.state === 'stale') return <Frame {...frameProps} body={body} />
-  return <Frame {...frameProps} onRefresh={undefined} body={body} />
+  return <Frame {...frameProps} body={body} />
 }
 
 export function useReadActionScope() {

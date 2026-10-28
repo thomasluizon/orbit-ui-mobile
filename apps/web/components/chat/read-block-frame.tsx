@@ -61,8 +61,7 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
   </>
   const body = <>{window ? <p className="text-sm text-[var(--fg-3)]">{formatReadWindow(window, locale)}</p> : null}{message && state !== 'stale' ? <p role="status" className="text-sm text-[var(--fg-2)]">{t(message)}</p> : null}{props.body}</>
   const frameProps = readBlockFrameProps(props, state, message, () => { void run(false) }, t, actions)
-  if (snapshot.kind === 'gamification' && frameProps.state === 'stale') return <Frame {...frameProps} body={body} />
-  return <Frame {...frameProps} onRefresh={undefined} body={body} />
+  return <Frame {...frameProps} body={body} />
 }
 
 export function useReadActionScope() {

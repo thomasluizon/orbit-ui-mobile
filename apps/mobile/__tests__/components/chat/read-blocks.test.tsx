@@ -1,3 +1,4 @@
+import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
@@ -211,7 +212,7 @@ it('logs the eligible current occurrence on the exact requested day', async () =
   await act(() => tree.unmount())
 })
 
-it('keeps stale recap disclosure and Progress available without refreshing', async () => {
+it('keeps stale recap disclosure and refresh recovery available', async () => {
   const tree = await mount({ kind: 'periodInsight', block: focusedStaleRecapFixture })
   expect(tree.root.findAll(node => node.props.testID === 'block-frame-stale')).not.toHaveLength(0)
   expect(renderedText(tree.toJSON())).toContain('chat.readBlock.stale')
@@ -228,7 +229,7 @@ it('keeps stale recap disclosure and Progress available without refreshing', asy
 it('withholds signed paging for a stale query', async () => {
   const tree = await mount({ kind: 'recordList', block: { ...focusedHistoryFixture, read: { ...focusedHistoryFixture.read, completeness: 'stale' } } })
   expect(tree.root.findAll(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'chat.recordList.more')).toHaveLength(0)
-  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh' && String(node.type) === 'Pressable')).toHaveLength(0)
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh' && String(node.type) === 'Pressable')).toHaveLength(1)
   expect(apiClient).not.toHaveBeenCalled()
   await act(() => tree.unmount())
 })
@@ -337,4 +338,29 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as con
     expect(figures).toHaveLength(kind === 'periodTotal' ? 1 : 2)
     for (const figure of figures) expect(renderedText(figure)).toContain(locale === 'en' ? 'days' : 'dias')
     await act(() => tree.unmount())
+})
+
+
+const staleReadCases = [
+  ...chatNavigationCases.filter((testCase, index, cases) => cases.findIndex(other => other.part.kind === testCase.part.kind) === index).map(testCase => testCase.part),
+  { kind: 'periodTotal', block: focusedPeriodTotalFixture },
+  { kind: 'periodComparison', block: focusedPeriodComparisonFixture },
+  { kind: 'habitMonth', block: habitMonthCardSchema.parse(habitMonthFixture) },
+] as const
+
+it.each(staleReadCases)('refreshes a stale $kind through its owning composition', async part => {
+  const initialRead = 'read' in part.block && part.block.read ? part.block.read : focusedReadMetadataFixture
+  const staleRead = { ...initialRead, completeness: 'stale' as const }
+  const read = { ...initialRead, completeness: 'complete' as const, recovery: null, revision: 'refreshed' }
+  const next = { ...part, block: { ...part.block, read }, read }
+  vi.mocked(apiClient).mockResolvedValue(next)
+  const tree = await mount({ ...part, block: { ...part.block, read: staleRead } })
+  expect(renderedText(tree.toJSON())).toContain('chat.readBlock.stale')
+  await press(tree, 'blockFrame.refresh')
+  expect(apiClient).toHaveBeenCalledExactlyOnceWith(part.kind === 'habitMonth' ? API.chat.refreshHabitMonth : API.chat.refreshRead,
+    expect.objectContaining({ body: expect.stringContaining(`"token":"${initialRead.refreshToken}"`) }), expect.anything())
+  if (part.kind !== 'habitMonth') expect(apiClient).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ body: expect.stringContaining('"page":false') }), expect.anything())
+  expect(renderedText(tree.toJSON())).not.toContain('chat.readBlock.stale')
+  expect(tree.root.findAll(node => node.props.accessibilityLabel === 'blockFrame.refresh')).toHaveLength(0)
+  await act(() => tree.unmount())
 })

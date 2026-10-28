@@ -140,7 +140,7 @@ constraints rather than request state.
 
 All fifteen typed block kinds share the paired BlockFrame surface: a 16px inset,
 12px content rhythm and a quiet Orbit mark in the header. Read blocks have no manual
-refresh or shell-navigation footer. Stale rankings retain an exact-query recovery icon;
+refresh or shell-navigation footer. Every stale signed read retains a named refresh recovery icon;
 disconnected calendar blocks retain their named reconnection icon. Signed paging,
 actual record actions and expanded retrospective details retain named icon controls. Stale write previews retain their
 existing authorization recovery, which prepares a replacement proposal before approval.
