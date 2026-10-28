@@ -3,7 +3,7 @@ import { loadApiProvider } from 'promptfoo'
 import { visibleAnswer } from './visible-answer.mjs'
 import { structural, behavior } from './assertions.mjs'
 import { brainDumpPreview } from './brain-dumps.mjs'
-import { approveBrainDump, brainDumpSnapshot } from './brain-dump-approval.mjs'
+import { approveBrainDump, brainDumpBaseline } from './brain-dump-approval.mjs'
 
 export default class AstraHttpProvider {
   constructor(options) {
@@ -33,7 +33,7 @@ export default class AstraHttpProvider {
 
   async callApi(prompt, context, options) {
     if (!context.vars.brainDump || context.vars.preconditionFailure) return this.chat(prompt, context, options)
-    const baseline = await brainDumpSnapshot(context.vars)
+    const baseline = await brainDumpBaseline(context.vars)
     const response = await this.chat(prompt, context, options)
     let verdict = { pass: false, score: 0, reason: response.error ?? 'Missing brain dump response.' }
     if (response.output?.composition && !response.error) {

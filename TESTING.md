@@ -248,7 +248,8 @@ as `existingHabitId`, rejecting a second draft for the same habit.
 
 Brain dump cases cover mixed tasks and habits, existing activity reuse and requested ideas in
 en and pt-BR. Each attempt uses the isolated fixture reset, snapshots stored habits before chat,
-and checks one `bulk_create_habits` preview with `Task` and `Habit` item types. The harness refuses
+including full habit details omitted from exports, and checks one `bulk_create_habits` preview
+with `Task` and `Habit` item types. The harness refuses
 approval unless tool structure, mutation scope and preview checks pass. It verifies unchanged
 storage before confirmation, executes through the existing approval gateway, and independently
 reads every saved item's schedule and time. Existing fixture habits must remain unchanged and

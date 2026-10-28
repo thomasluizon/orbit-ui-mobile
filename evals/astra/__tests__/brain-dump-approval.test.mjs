@@ -50,7 +50,7 @@ function approvalApi(source, failure) {
       if (failure !== 'no-write') {
         for (const habit of attempt.output.trace.calls.find((call) => call.name === 'bulk_create_habits').arguments.habits) {
           if (habit.habit_id && failure !== 'duplicate') continue
-          habits.push({ ...baseline[0], id: `new-${habits.length}`, title: habit.title,
+          habits.push({ ...baseline[0], id: `00000000-0000-4000-8000-${String(habits.length).padStart(12, '0')}`, title: habit.title,
             frequencyUnit: habit.frequency_unit === 'OneTime' ? null : habit.frequency_unit,
             frequencyQuantity: habit.frequency_unit === 'OneTime' ? null : habit.frequency_quantity,
             dueDate: failure === 'wrong-date' ? '2026-12-01' : habit.due_date,
@@ -62,13 +62,15 @@ function approvalApi(source, failure) {
     if (path.startsWith('habits/')) {
       const row = habits.find((habit) => habit.id === path.split('/')[1])
       const proposed = attempt.output.trace.calls.find((call) => call.name === 'bulk_create_habits').arguments.habits.find((habit) => habit.title === row.title)
-      return Response.json({ schedule: failure === 'wrong-schedule' ? 'General' : row.frequencyUnit === null ? 'OneTime' : 'Recurring',
-        dueTime: failure === 'wrong-time' ? '23:00:00' : proposed.due_time ?? null, dueEndTime: proposed.due_end_time ?? null })
+      return Response.json({ schedule: approved && failure === 'wrong-schedule' ? 'General' : row.frequencyUnit === null ? 'OneTime' : 'Recurring',
+        dueTime: (approved && failure === 'wrong-time') || (!approved && failure === 'early-time-write')
+          ? '23:00:00' : proposed?.due_time ?? null, dueEndTime: proposed?.due_end_time ?? null })
     }
     throw new Error(`Unexpected approval request: ${method} ${path}`)
   })
   vi.stubGlobal('fetch', fetch)
-  return { ...attempt, baseline, habits, requests, fetch }
+  return { ...attempt, baseline: { habits: baseline, details: baseline.map((habit) => [habit.id,
+    { schedule: 'Recurring', dueTime: null, dueEndTime: null }]) }, habits, requests, fetch }
 }
 
 it.each(brainDumpCases)('approves and independently reads every schedule for $metadata.id', async (source) => {
@@ -82,13 +84,13 @@ it.each(brainDumpCases)('approves and independently reads every schedule for $me
   expect(requests.slice(-2)).toEqual([{ path: 'eval/pending-operations', method: 'DELETE' }, { path: 'eval/pending-operations', method: 'GET' }])
 })
 
-it.each(['early-write', 'extra-pending', 'missing-token', 'no-write', 'wrong-date', 'wrong-schedule', 'wrong-time', 'still-pending', 'duplicate'])(
+it.each(['early-write', 'early-time-write', 'extra-pending', 'missing-token', 'no-write', 'wrong-date', 'wrong-schedule', 'wrong-time', 'still-pending', 'duplicate'])(
   'fails approval readback for %s and clears pending state', async (failure) => {
     const source = brainDumpCases.find((entry) => entry.metadata.family === 'brain-dump-reuse')
     const { test, output, baseline, requests } = approvalApi(source, failure)
     const verdict = await approveBrainDump(output, test.vars, baseline, brainDumpPreview(output, test.vars))
     expect(verdict.pass, verdict.reason).toBe(false)
-    if (['early-write', 'extra-pending', 'missing-token'].includes(failure)) expect(requests.some(({ path }) => path.endsWith('/execute'))).toBe(false)
+    if (['early-write', 'early-time-write', 'extra-pending', 'missing-token'].includes(failure)) expect(requests.some(({ path }) => path.endsWith('/execute'))).toBe(false)
     expect(requests.slice(-2).map(({ method }) => method)).toEqual(['DELETE', 'GET'])
   },
 )

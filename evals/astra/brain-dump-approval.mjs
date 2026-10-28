@@ -7,11 +7,19 @@ import { sameTime } from './brain-dumps.mjs'
 const result = (pass, reason, evidence = {}) => ({ pass, score: pass ? 1 : 0, reason, ...evidence })
 const ordered = (habits) => [...habits].sort((left, right) => left.id.localeCompare(right.id))
 
-export async function brainDumpSnapshot(vars) {
+async function brainDumpSnapshot(vars) {
   requireStagingOrigin()
   const { payload } = await publicApi(vars.credentialKey)('GET', 'profile/export')
   if (!Array.isArray(payload?.habits)) throw new Error('Brain dump export lacks persisted habits.')
   return ordered(payload.habits)
+}
+
+export async function brainDumpBaseline(vars) {
+  const habits = await brainDumpSnapshot(vars)
+  const api = publicApi(vars.credentialKey)
+  const details = []
+  for (const habit of habits) details.push([habit.id, (await api('GET', `habits/${habit.id}`)).payload])
+  return { habits, details }
 }
 
 async function verifySavedItem(api, habit, saved, baseline) {
@@ -45,7 +53,7 @@ async function verifySavedItem(api, habit, saved, baseline) {
 }
 
 async function approveAndRead(output, vars, baseline, api) {
-  const before = await brainDumpSnapshot(vars)
+  const before = await brainDumpBaseline(vars)
   if (!isDeepStrictEqual(before, baseline)) throw new Error('Brain dump persisted a change before approval.')
   const { payload: held } = await api('GET', 'eval/pending-operations')
   if (held?.pendingCount !== 1) throw new Error('Brain dump did not hold exactly one pending operation.')
@@ -58,12 +66,17 @@ async function approveAndRead(output, vars, baseline, api) {
   await api('POST', `${path}/execute`, { confirmationToken: confirmation.confirmationToken, clientContext: vars.clientContext })
   const saved = await brainDumpSnapshot(vars)
   const habits = output.trace.calls.find((call) => call.name === 'bulk_create_habits').arguments.habits
-  if (saved.length !== baseline.length + habits.filter((habit) => !habit.habit_id).length
-    || !baseline.every((original) => isDeepStrictEqual(saved.find((row) => row.id === original.id), original))) {
+  if (saved.length !== baseline.habits.length + habits.filter((habit) => !habit.habit_id).length
+    || !baseline.habits.every((original) => isDeepStrictEqual(saved.find((row) => row.id === original.id), original))) {
     throw new Error('Brain dump approval duplicated a habit or changed an existing fixture.')
   }
+  for (const [id, original] of baseline.details) {
+    if (!isDeepStrictEqual((await api('GET', `habits/${id}`)).payload, original)) {
+      throw new Error('Brain dump approval changed an existing fixture detail.')
+    }
+  }
   const persistedItems = []
-  for (const habit of habits) persistedItems.push(await verifySavedItem(api, habit, saved, baseline))
+  for (const habit of habits) persistedItems.push(await verifySavedItem(api, habit, saved, baseline.habits))
   const { payload: completed } = await api('GET', 'eval/pending-operations')
   if (completed?.pendingCount !== 0) throw new Error('Brain dump approval left a pending operation.')
   return result(true, 'Verified no changes before approval and every persisted schedule after approval.',
