@@ -155,6 +155,17 @@ async function verifyFixture(api, account, fixture, today, names) {
     const expected = fixture === 'overdue' ? process.env.ORBIT_EVAL_OVERDUE_DATE : dateOffset(today, advanced ? 1 : 0)
     if (habit.dueDate !== expected) throw new Error('Fixture occurrence readback failed.')
   }
+  return restored
+}
+
+function fixtureEvidence(exported, fixture, today, account) {
+  if (!Array.isArray(exported.apiKeys)) throw new Error('Fixture export lacks API key evidence.')
+  return { ...Object.fromEntries(['habits', 'goals', 'tags', 'checklistTemplates', 'apiKeys', 'notifications']
+    .map((field) => [field, exported[field]])),
+    loggedState: { fixture, date: today, habits: exported.habits.map((habit) => ({
+      title: habit.title, completed: habit.logs.some((log) => log.date === today && log.value > 0),
+      skipped: fixture === 'skipped' && habit.id === account.secondHabitId,
+    })) } }
 }
 
 export async function resetFixture(test, today = new Date().toISOString().slice(0, 10), unmetered = false,
@@ -206,7 +217,9 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   const empty = habitlessFixtures.includes(fixture)
   await cleanCollections(api, fixture === 'free-at-limit' ? { ...exported, habits: [] } : exported, empty ? [] : [account.habitId, account.secondHabitId])
   if (empty) {
-    if ((await snapshot(api)).habits.length) throw new Error('Empty fixture readback still contains habits.')
+    const restored = await snapshot(api)
+    if (restored.habits.length) throw new Error('Empty fixture readback still contains habits.')
+    test.vars.fixtureEvidence = fixtureEvidence(restored, fixture, today, account)
     return
   }
   await restoreHabits(api, exported, account, fixture, today, titles)
@@ -223,7 +236,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     for (const title of titles.slice(2)) await api('POST', 'habits', dailyHabit(title, today))
   }
   if (fixture === 'free-at-limit') await fillCapacity(api, today)
-  await verifyFixture(api, account, fixture, today, titles)
+  test.vars.fixtureEvidence = fixtureEvidence(await verifyFixture(api, account, fixture, today, titles), fixture, today, account)
   if (fixture === 'composition-stale') return seedStaleRetrospective(api, today, test.metadata.locale ?? 'en')
 }
 

@@ -93,7 +93,8 @@ it('negotiates client-supported kinds and explicit starting-step API contract ca
       expect(client.partKinds).toEqual(entry.vars.clientContext.partKinds)
     }
     expect(client.locale).toBe(entry.vars.clientContext.locale)
-    expect(client.currentAppArea).toBe(entry.vars.clientContext.currentAppArea)
+    expect(client.currentAppArea).toBe(entry.vars.clientContext.currentAppArea ?? (entry.vars.clientContext.supportsParts ? 'chat' : undefined))
+    if (client.supportsParts) expect(client.supportsSkippedHabitRows).toBe(true)
   }
 })
 it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishes %s exclusively through intercepted public routes', async (fixture) => {
@@ -572,3 +573,18 @@ it.each(['https://api.useorbit.org', 'https://orbit-api-staging-uqu2.onrender.co
     expect(request).not.toHaveBeenCalled()
   },
 )
+
+it('grounds the skipped identity independently of export order', async () => {
+  const intercepted = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    const response = await intercepted(url, options)
+    if (new URL(url).pathname !== '/api/profile/export') return response
+    const exported = await response.json()
+    exported.habits.reverse()
+    return Response.json(exported)
+  })
+  const test = scenario('skipped')
+  await resetFixture(test)
+  expect(test.vars.fixtureEvidence.loggedState.habits.filter((habit) => habit.skipped).map((habit) => habit.title))
+    .toEqual(['Caminhada'])
+})

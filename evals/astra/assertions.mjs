@@ -103,6 +103,7 @@ function matchesArguments(actual, expected, orderedArrays = false) {
     })
   }
   if (expected && typeof expected === 'object') {
+    if ('allOf' in expected) return expected.allOf.every((value) => matchesArguments(actual, value, orderedArrays))
     if ('optional' in expected) return actual == null || matchesArguments(actual, expected.optional, orderedArrays)
     if ('textContains' in expected) {
       return typeof actual === 'string' && normalizeText(actual).includes(normalizeText(expected.textContains))

@@ -70,7 +70,8 @@ export function fixtureFetch(getState) {
       return Response.json({ results, applied_count: results.length, total_matched: results.length, skipped_count: 0, partial: false }, { status: 201 })
     }
     if (['goals', 'tags', 'checklist-templates'].includes(path) && method === 'POST') {
-      const item = { id: randomUUID(), ...body }
+      const item = { id: randomUUID(), ...body, ...(path === 'goals' ? { currentValue: 0, status: 'Active',
+        deadline: null, createdAtUtc: new Date().toISOString(), completedAtUtc: null, progressLogs: [] } : {}) }
       ;({ goals, tags, 'checklist-templates': templates })[path].push(item)
       return Response.json({ id: item.id }, { status: 201 })
     }

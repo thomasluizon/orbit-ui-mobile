@@ -125,7 +125,10 @@ it.each(['en', 'pt-BR'])('drives verified chat setup and one real HTTP refine re
   expect(grade.pass).toBe(true)
   const gradingPrompt = grader.callApi.mock.calls[0][0]
   expect(gradingPrompt).toContain('Original selected draft:')
-  expect(gradingPrompt).toContain(JSON.stringify(baseline[0]).replaceAll('"', '\\"'))
+  const originalVisible = JSON.parse(suggestionAnswer([{ type: 'block', kind: 'habitSuggestions',
+    block: { drafts: [baseline[0]] } }], locale)).parts[0].block.drafts[0]
+  expect(gradingPrompt).toContain(JSON.stringify(originalVisible).replaceAll('"', '\\"'))
+  expect(gradingPrompt).not.toContain(JSON.stringify(baseline[0]).replaceAll('"', '\\"'))
   expect(gradingPrompt).toContain(test.vars.input)
   response.output.drafts[1].title = 'Unrequested change'
   expect(composition(response.output, { vars: test.vars }).pass).toBe(false)

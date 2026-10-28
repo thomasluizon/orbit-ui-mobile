@@ -1067,7 +1067,8 @@
       required: &a45
         - name: query_habits
           argumentsAnyOf: &todayHabitArguments
-            - { relative_period: today }
+            - { relative_period: today, date: { optional: '{accountDate}' } }
+            - { relative_period: today, date: today }
             - { date: today, relative_period: { optional: null } }
             - { date: '{accountDate}', relative_period: { optional: null } }
       allowed:
@@ -1990,6 +1991,64 @@
                 frequency_unit: OneTime
                 due_date: '{accountYear}-10-30'
                 due_end_time: 13:30
+          argumentsAnyOf:
+            - habits:
+                - title:
+                    textContains: cholesterol
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-26"
+                  due_time: 15:50
+                - title:
+                    textContains: blood
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_time: 13:30
+                - title:
+                    textContains: Don't take multivitamins
+                  frequency_unit: Day
+                  due_date: "{accountYear}-10-27"
+                  end_date: "{accountYear}-10-30"
+                  is_bad_habit: false
+                - title:
+                    textContains: Don't go to Muay Thai
+                  frequency_unit: Day
+                  due_date: "{accountYear}-10-29"
+                  end_date: "{accountYear}-10-30"
+                  is_bad_habit: false
+                - title:
+                    textContains: fast
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_end_time: 13:30
+            - habits:
+                - title:
+                    textContains: cholesterol
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-26"
+                  due_time: 15:50
+                - title:
+                    textContains: blood
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_time: 13:30
+                  sub_habits:
+                    - title:
+                        textContains: Don't take multivitamins
+                      frequency_unit: Day
+                      due_date: "{accountYear}-10-27"
+                      end_date: "{accountYear}-10-30"
+                      is_bad_habit: false
+                    - title:
+                        textContains: Don't go to Muay Thai
+                      frequency_unit: Day
+                      due_date: "{accountYear}-10-29"
+                      end_date: "{accountYear}-10-30"
+                      is_bad_habit: false
+                    - title:
+                        textContains: fast
+                      frequency_unit: OneTime
+                      due_date: "{accountYear}-10-30"
+                      due_end_time: 13:30
       allowed:
         - query_habits
         - bulk_create_habits
@@ -2075,7 +2134,9 @@
         create_habit: 1
     rubric: "Answer in English. One avoid habit is named for the behavior itself:
       Fumar or Smoking. Never a negated title. Preview only, no saved claim or
-      follow-up question. Canonical dates inside typed fields are transport
+      follow-up question. An ongoing avoid habit needs a recurring cadence, so
+      a daily cadence when none was stated is the required default, not an
+      invented schedule. Canonical dates inside typed fields are transport
       values; visible prose must use locale dates. Rendered date formatting is
       checked separately."
 - description: existing-parents in en
@@ -2108,6 +2169,58 @@
                 parent_habit_id: "{secondHabitId}"
                 frequency_unit: Day
                 frequency_quantity: 1
+          argumentsAnyOf:
+            - habits:
+                - &a1
+                  title:
+                    textContains: vitamin D
+                  parent_habit_id: "{habitId}"
+                  frequency_unit: Week
+                  frequency_quantity: 1
+                - &a2
+                  title:
+                    textContains: rosuvastatin
+                  parent_habit_id: "{secondHabitId}"
+                  frequency_unit: Day
+                  frequency_quantity: 1
+            - habits:
+                - allOf:
+                    - title: Post Lunch
+                      habit_id: "{habitId}"
+                      sub_habits:
+                        - *a1
+                    - &unchangedParentEn
+                      description: { optional: null }
+                      emoji: { optional: null }
+                      frequency_unit: { optional: Day }
+                      frequency_quantity: { optional: 1 }
+                      interval_weeks: { optional: null }
+                      days: { optional: [] }
+                      due_date: { optional: null }
+                      end_date: { optional: null }
+                      due_time: { optional: null }
+                      due_end_time: { optional: null }
+                      is_bad_habit: { optional: false }
+                      is_general: { optional: false }
+                      is_flexible: { optional: false }
+                      checklist_items: { optional: [] }
+                      start_date: { optional: null }
+                      placement: { optional: null }
+                      reminder_enabled: { optional: false }
+                      reminder_times: { optional: [] }
+                      scheduled_reminders: { optional: [] }
+                      relative_reminders: { optional: [] }
+                      slip_alert_enabled: { optional: false }
+                      tag_names: { optional: [] }
+                      tag_ids: { optional: [] }
+                      goal_ids: { optional: [] }
+                      parent_habit_id: { optional: null }
+                - allOf:
+                    - title: Before Bed
+                      habit_id: "{secondHabitId}"
+                      sub_habits:
+                        - *a2
+                    - *unchangedParentEn
       allowed:
         - query_habits
         - bulk_create_habits
@@ -2170,6 +2283,64 @@
                 frequency_unit: OneTime
                 due_date: '{accountYear}-10-30'
                 due_end_time: 13:30
+          argumentsAnyOf:
+            - habits:
+                - title:
+                    textContains: colesterol
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-26"
+                  due_time: 15:50
+                - title:
+                    textContains: sangue
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_time: 13:30
+                - title:
+                    textContains: Não tomar multivitamínico
+                  frequency_unit: Day
+                  due_date: "{accountYear}-10-27"
+                  end_date: "{accountYear}-10-30"
+                  is_bad_habit: false
+                - title:
+                    textContains: Não ir ao Muay Thai
+                  frequency_unit: Day
+                  due_date: "{accountYear}-10-29"
+                  end_date: "{accountYear}-10-30"
+                  is_bad_habit: false
+                - title:
+                    textContains: jejum
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_end_time: 13:30
+            - habits:
+                - title:
+                    textContains: colesterol
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-26"
+                  due_time: 15:50
+                - title:
+                    textContains: sangue
+                  frequency_unit: OneTime
+                  due_date: "{accountYear}-10-30"
+                  due_time: 13:30
+                  sub_habits:
+                    - title:
+                        textContains: Não tomar multivitamínico
+                      frequency_unit: Day
+                      due_date: "{accountYear}-10-27"
+                      end_date: "{accountYear}-10-30"
+                      is_bad_habit: false
+                    - title:
+                        textContains: Não ir ao Muay Thai
+                      frequency_unit: Day
+                      due_date: "{accountYear}-10-29"
+                      end_date: "{accountYear}-10-30"
+                      is_bad_habit: false
+                    - title:
+                        textContains: jejum
+                      frequency_unit: OneTime
+                      due_date: "{accountYear}-10-30"
+                      due_end_time: 13:30
       allowed:
         - query_habits
         - bulk_create_habits
@@ -2256,7 +2427,9 @@
         create_habit: 1
     rubric: "Answer in Brazilian Portuguese. One avoid habit is named for the
       behavior itself: Fumar or Smoking. Never a negated title. Preview only, no
-      saved claim or follow-up question. Canonical dates inside typed fields are
+      saved claim or follow-up question. An ongoing avoid habit needs a
+      recurring cadence, so a daily cadence when none was stated is the required
+      default, not an invented schedule. Canonical dates inside typed fields are
       transport values; visible prose must use locale dates. Rendered date
       formatting is checked separately."
 - description: existing-parents in pt-BR
@@ -2289,6 +2462,58 @@
                 parent_habit_id: "{secondHabitId}"
                 frequency_unit: Day
                 frequency_quantity: 1
+          argumentsAnyOf:
+            - habits:
+                - &a1
+                  title:
+                    textContains: vitamina D
+                  parent_habit_id: "{habitId}"
+                  frequency_unit: Week
+                  frequency_quantity: 1
+                - &a2
+                  title:
+                    textContains: rosuvastatina
+                  parent_habit_id: "{secondHabitId}"
+                  frequency_unit: Day
+                  frequency_quantity: 1
+            - habits:
+                - allOf:
+                    - title: Depois do almoço
+                      habit_id: "{habitId}"
+                      sub_habits:
+                        - *a1
+                    - &unchangedParentPt
+                      description: { optional: null }
+                      emoji: { optional: null }
+                      frequency_unit: { optional: Day }
+                      frequency_quantity: { optional: 1 }
+                      interval_weeks: { optional: null }
+                      days: { optional: [] }
+                      due_date: { optional: null }
+                      end_date: { optional: null }
+                      due_time: { optional: null }
+                      due_end_time: { optional: null }
+                      is_bad_habit: { optional: false }
+                      is_general: { optional: false }
+                      is_flexible: { optional: false }
+                      checklist_items: { optional: [] }
+                      start_date: { optional: null }
+                      placement: { optional: null }
+                      reminder_enabled: { optional: false }
+                      reminder_times: { optional: [] }
+                      scheduled_reminders: { optional: [] }
+                      relative_reminders: { optional: [] }
+                      slip_alert_enabled: { optional: false }
+                      tag_names: { optional: [] }
+                      tag_ids: { optional: [] }
+                      goal_ids: { optional: [] }
+                      parent_habit_id: { optional: null }
+                - allOf:
+                    - title: Antes de dormir
+                      habit_id: "{secondHabitId}"
+                      sub_habits:
+                        - *a2
+                    - *unchangedParentPt
       allowed:
         - query_habits
         - bulk_create_habits
