@@ -2,7 +2,10 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { type StyleProp, type ViewStyle } from 'react-native'
 import Animated, { cancelAnimation, Easing, LinearTransition, ReduceMotion, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated'
 import { resolveConversationMotion } from '@orbit/shared/theme'
+import { createUseConversationCrossfadeSnapshot } from '@orbit/shared/hooks'
 import { usePrefersReducedMotion } from '@/lib/motion'
+
+const useConversationCrossfadeSnapshot = createUseConversationCrossfadeSnapshot({ useState, useEffect })
 
 export function useConversationMotion(index = 0) {
   return resolveConversationMotion(usePrefersReducedMotion(), index)
@@ -68,14 +71,7 @@ function DepartingSnapshot({ children }: Readonly<{ children: ReactNode }>) {
 
 export function ConversationCrossfade({ children, changeKey }: Readonly<{ children: ReactNode; changeKey: string }>) {
   const configuration = useConversationMotion()
-  const [snapshot, setSnapshot] = useState({ key: changeKey, children, previous: null as ReactNode })
-  if (snapshot.key !== changeKey) setSnapshot({ key: changeKey, children, previous: snapshot.children })
-  else if (snapshot.children !== children) setSnapshot({ ...snapshot, children })
-  useEffect(() => {
-    if (!snapshot.previous) return
-    const timer = setTimeout(() => setSnapshot(current => ({ ...current, previous: null })), configuration.changeDuration)
-    return () => clearTimeout(timer)
-  }, [snapshot.key, snapshot.previous, configuration.changeDuration])
+  const snapshot = useConversationCrossfadeSnapshot(changeKey, children, configuration.changeDuration)
   return <Animated.View style={{ minWidth: 0 }}>
     <ConversationChange changeKey={changeKey}>{children}</ConversationChange>
     {snapshot.previous && configuration.changeDuration > 0 ? <DepartingSnapshot key={snapshot.key}>{snapshot.previous}</DepartingSnapshot> : null}
