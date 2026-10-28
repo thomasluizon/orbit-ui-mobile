@@ -433,3 +433,16 @@ describe('catch-all API proxy route', () => {
 })
 
 afterEach(() => expectApiVersion2Requests(mockFetch.mock.calls))
+
+
+it('forwards one-use reminder actions without session cookies or auth retries', async () => {
+  vi.mocked(resolveServerSession).mockClear()
+  mockFetch.mockReset().mockResolvedValue(new Response('{}', { status: 400 }))
+  const response = await POST(new NextRequest('https://app.useorbit.org/api/reminders/done', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'one-use' }) }), { params: Promise.resolve({ path: ['reminders', 'done'] }) })
+  expect(response.status).toBe(400)
+  expect(resolveServerSession).not.toHaveBeenCalled()
+  expect(mockFetch).toHaveBeenCalledTimes(1)
+  const options = mockFetch.mock.calls[0]![1]
+  expect(options.headers).not.toHaveProperty('Authorization')
+  expect(options.body).toBe(JSON.stringify({ token: 'one-use' }))
+})

@@ -561,6 +561,8 @@
     }
   },
   "habits": {
+    "repeatRecoveryTitle": "Abra o hábito para registrar",
+    "repeatRecoveryBody": "Não foi possível concluir pelo lembrete. Você pode registrar no hábito.",
     "reorderMoved": "{title} foi movido para a posição {position} de {total}",
     "reorderBoundary": "{title} já está na posição {position} de {total}",
     "listOptions": "Opções da lista",

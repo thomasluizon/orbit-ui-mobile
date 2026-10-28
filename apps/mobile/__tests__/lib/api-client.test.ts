@@ -774,4 +774,16 @@ describe('selected request language', () => {
     expect(new Headers(fetchMock.mock.calls.at(-1)?.[1].headers).get('Accept-Language')).toBe(language)
     await i18n.changeLanguage('en')
   })
+  it('sends a token-only notification action once without reading or recovering account credentials', async () => {
+    vi.clearAllMocks()
+    getTokenMock.mockResolvedValue('account-token')
+    fetchMock.mockResolvedValue(Response.json({ error: 'Expired' }, { status: 401 }))
+    await expect(apiClient('/api/reminders/done', { method: 'POST', anonymous: true, silent: true, body: JSON.stringify({ token: 'one-use' }) })).rejects.toMatchObject({ status: 401 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0]![1].headers).not.toHaveProperty('Authorization')
+    expect(getTokenMock).not.toHaveBeenCalled()
+    expect(refreshSessionMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
+  })
+
 })

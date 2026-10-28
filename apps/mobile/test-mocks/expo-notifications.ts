@@ -93,3 +93,7 @@ const expoNotificationsMock = {
 }
 
 export default expoNotificationsMock
+
+export const setNotificationCategoryAsync = vi.fn(() => Promise.resolve(null))
+export const scheduleNotificationAsync = vi.fn(() => Promise.resolve('notification'))
+export const registerTaskAsync = vi.fn(() => Promise.resolve(null))

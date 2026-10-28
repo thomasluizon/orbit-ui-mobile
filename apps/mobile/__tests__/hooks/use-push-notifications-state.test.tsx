@@ -1216,4 +1216,26 @@ describe('usePushNotifications', () => {
       expect.anything(),
     )
   })
+  it('handles repeat Done without opening the app', async () => {
+    await renderHarness()
+    await flush()
+    mocks.apiClient.mockClear()
+    const response = createNotificationResponse('repeat-done', '/habits/habit-1')
+    response.actionIdentifier = 'done'
+    response.notification.request.content.data = { url: '/habits/habit-1', habitId: 'habit-1', reminderAtUtc: '2026-10-28T04:00:00Z', doneToken: 'one-use' }
+    const listener = vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mock.calls.at(-1)![0]
+    await TestRenderer.act(() => { listener(response); listener(response) })
+    await flush()
+    expect(mocks.apiClient).toHaveBeenCalledExactlyOnceWith('/api/reminders/done', expect.objectContaining({ method: 'POST', body: JSON.stringify({ token: 'one-use' }) }))
+    expect(mocks.router.push).not.toHaveBeenCalled()
+  })
+
+  it('opens habit detail when a recovery notification is tapped', async () => {
+    await renderHarness()
+    await flush()
+    const listener = vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mock.calls.at(-1)![0]
+    await TestRenderer.act(() => listener(createNotificationResponse('recovery', '/habits/habit-1')))
+    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/habits/habit-1')
+  })
+
 })

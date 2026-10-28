@@ -561,6 +561,8 @@
     }
   },
   "habits": {
+    "repeatRecoveryTitle": "Open this habit to log it",
+    "repeatRecoveryBody": "The reminder action could not finish. You can log it in the habit.",
     "reorderMoved": "{title} moved to position {position} of {total}",
     "reorderBoundary": "{title} is already at position {position} of {total}",
     "listOptions": "List options",

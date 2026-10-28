@@ -63,6 +63,11 @@ self.addEventListener('push', (event) => {
   const options = { icon: NOTIFICATION_ICON, data: {} }
   if (typeof payload.body === 'string') options.body = payload.body
   if (typeof payload.url === 'string') options.data.url = payload.url
+  if (typeof payload.doneToken === 'string' && typeof payload.doneLabel === 'string') {
+    options.actions = [{ action: 'done', title: payload.doneLabel }]
+    options.data.doneToken = payload.doneToken
+    if (typeof payload.tag === 'string') options.tag = payload.tag
+  }
 
   event.waitUntil(
     Promise.all([
@@ -76,5 +81,20 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  event.waitUntil(openNotification(event.notification.data.url))
+  event.waitUntil(event.action === 'done' ? completeReminder(event.notification.data) : openNotification(event.notification.data.url))
 })
+
+
+async function completeReminder(payload) {
+  try {
+    const response = await fetch('/api/reminders/done', {
+      method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: payload.doneToken }),
+    })
+    if (!response.ok) throw new Error('Reminder action failed')
+  } catch {
+    await openNotification(payload.url)
+    return
+  }
+  const windows = await findOrbitWindows()
+  for (const client of windows) client.postMessage({ type: 'orbit:push-received' })
+}

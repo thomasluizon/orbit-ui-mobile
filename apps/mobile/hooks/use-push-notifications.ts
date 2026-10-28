@@ -28,6 +28,8 @@ import {
   type NotificationPermissionStatus,
   type NotificationPermissionsResponse,
 } from '@/lib/push-notification-permissions'
+import { handleRepeatReminderAction } from '@/lib/repeat-reminder-action'
+import * as Sentry from '@sentry/react-native'
 import { useAuthStore } from '@/stores/auth-store'
 import { hasPushSubscriptionCapacity } from '@/hooks/use-push-subscriptions'
 import { openCurrentProactiveItem } from '@/lib/proactive-item'
@@ -36,6 +38,7 @@ import { getAccountId } from '@/lib/account-scope'
 import { getAccountGeneration, getSessionEpoch } from '@/lib/session-epoch'
 
 interface ExpoNotificationResponse {
+  actionIdentifier?: string
   notification: {
     request: {
       identifier: string
@@ -712,6 +715,11 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
     })
 
     const routeNotificationResponse = (response: ExpoNotificationResponse) => {
+      if (response.actionIdentifier === 'done') {
+        activeNotificationsModule.clearLastNotificationResponse()
+        void handleRepeatReminderAction(response).then(() => queryClient.invalidateQueries()).catch(Sentry.captureException)
+        return
+      }
       if (!useAuthStore.getState().isAuthenticated) return
       const maybeUrl = response.notification.request.content?.data?.url
       if (typeof maybeUrl !== 'string') return
