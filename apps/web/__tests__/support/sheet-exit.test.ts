@@ -6,11 +6,13 @@ import { resolve } from 'node:path'
 import { resolveWebMotionVariables } from '@/lib/theme-dom'
 import { goBackDuringSheetExit } from '@/test-support/sheet-exit'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
+import { bundleGeometry } from './profile-settings-browser'
 
 describe('sheet exit animation observation in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let script: string
 
   registerChromeLaunchHook(beforeAll, async (launch) => {
     browserLaunch = launch
@@ -20,9 +22,57 @@ describe('sheet exit animation observation in Chromium', () => {
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    script = bundleGeometry(`
+      import React, { useLayoutEffect } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { flushSync } from 'react-dom';
+      import { NextIntlClientProvider } from 'next-intl';
+      import en from '../../packages/shared/src/i18n/en.json';
+      import { DiscardChangesSheet } from './components/ui/discard-changes-sheet';
+      import { useDismissGuard } from './hooks/use-dismiss-guard';
+      import { useHabitCreateNavigationGuard } from './hooks/use-habit-create-navigation-guard';
+      import { goBackDuringSheetExit } from './test-support/sheet-exit';
+      function Fixture() {
+        const guard = useDismissGuard({ isDirty: true, onDismiss() {} });
+        useHabitCreateNavigationGuard({ active: true, dirty: true, leaving: false, onNavigate: guard.requestDismiss, onReturn() {} });
+        useLayoutEffect(() => {
+          Object.assign(window, { openConfirmation: () => flushSync(guard.requestDismiss), goBackDuringSheetExit });
+        }, [guard]);
+        return <DiscardChangesSheet open={guard.showDiscardDialog} onKeepEditing={guard.cancelDismiss}
+          onKeepEditingStart={guard.beginCancelDismiss} onDiscard={guard.confirmDismiss} />;
+      }
+      createRoot(document.getElementById('root')).render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC"><Fixture /></NextIntlClientProvider>);
+    `, {
+      'next/navigation': "export const useRouter = () => ({ push() {} }); export const unstable_isUnrecognizedActionError = () => false;",
+    })
   })
 
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['before first paint', 'after entrance'])('observes the mounted discard sheet exit %s', async (phase) => {
+    const page = await browser.newPage({ reducedMotion: 'no-preference', viewport: { width: 600, height: 915 } })
+    try {
+      const variables = Object.entries(resolveWebMotionVariables()).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<style>${stylesheet} :root { ${variables} }</style><div id="root"></div>`)
+      await page.addScriptTag({ content: script })
+      await page.waitForFunction(() => Reflect.has(window, 'openConfirmation'))
+      const duringExit = await page.evaluate(async (phase) => {
+        Reflect.get(window, 'openConfirmation')()
+        const panel = document.querySelector('[role="dialog"]')!
+        if (!panel.classList.contains('orbit-sheet-panel')) throw new Error('Expected the sheet popup to own the dialog role')
+        if (phase === 'after entrance') {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+          await Promise.all(panel.getAnimations().map((animation) => animation.finished))
+        }
+        return Reflect.get(window, 'goBackDuringSheetExit')(panel.querySelector('footer button')) as ReturnType<typeof goBackDuringSheetExit>
+      }, phase)
+      expect(duringExit.mountedDuringBack).toBe(true)
+      expect(duringExit.animationCount).toBeGreaterThan(0)
+      await expect.poll(() => page.getByRole('button', { name: 'Keep editing', exact: true }).isEnabled()).toBe(true)
+    } finally {
+      await page.close()
+    }
+  })
 
   it.each([false, true])('observes a real exit before browser Back with delayed styles=%s', async (delayed) => {
     const page = await browser.newPage({ reducedMotion: 'no-preference' })

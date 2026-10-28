@@ -39,7 +39,14 @@ export function goBackDuringSheetExit(button: Element) {
       window.addEventListener('popstate', onRestored)
       history.back()
     }
-    observer.observe(panel, { attributes: true, attributeFilter: ['data-ending-style'] })
-    button.click()
+    const waitForEntrance = () => {
+      if (panel.hasAttribute('data-starting-style') || panel.getAnimations().length) {
+        frame = requestAnimationFrame(waitForEntrance)
+        return
+      }
+      observer.observe(panel, { attributes: true, attributeFilter: ['data-ending-style'] })
+      button.click()
+    }
+    frame = requestAnimationFrame(waitForEntrance)
   })
 }
