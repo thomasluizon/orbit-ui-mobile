@@ -132,6 +132,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -162,6 +163,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -192,6 +194,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -222,6 +225,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -252,6 +256,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -282,6 +287,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -312,6 +318,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -342,6 +349,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -6167,58 +6175,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-calendar-calendar-day-detail",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/calendar/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/calendar/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-calendar-calendar-day-detail",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/calendar/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/calendar/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-calendar-calendar-day-detail",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/calendar/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/calendar/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-calendar-calendar-day-detail",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/calendar/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/calendar/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "overlay-calendar-calendar-day-events",
       "platform": "web",
       "kind": "overlay",
@@ -9347,6 +9303,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -9375,6 +9332,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -9403,6 +9361,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -9431,6 +9390,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -9459,6 +9419,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -9487,6 +9448,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -9515,6 +9477,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -9543,6 +9506,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -14449,58 +14413,6 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/shell/composer.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-components-calendar-day-detail",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-components-calendar-day-detail",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-components-calendar-day-detail",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-components-calendar-day-detail",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx"
       ],
       "state": "default",
       "theme": "dark",

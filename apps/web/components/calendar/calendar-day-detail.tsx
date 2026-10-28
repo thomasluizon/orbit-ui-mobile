@@ -323,7 +323,7 @@ export function CalendarDayDetail({
       aria-label={formattedDate}
       aria-busy={loadingLabel ? true : undefined}
       data-field-surface="card"
-      className="rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"
+      className="[--habit-row-meta-color:var(--fg-3)] rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"
       style={{ padding: PADDING.cardInset }}
     >
       {body}

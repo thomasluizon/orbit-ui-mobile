@@ -18,6 +18,7 @@ import {
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import { createTokensV2 } from '@/lib/theme'
 import { CalendarDayDetail } from '@/app/(tabs)/calendar/_components/calendar-day-detail'
+import { CalendarOptions } from '@/app/(tabs)/calendar/_components/calendar-options'
 import { CheckRow } from '@/components/ui/check-row'
 import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
 import { CalendarPickerSection } from '@/components/calendar-sync/calendar-picker-section'
@@ -36,6 +37,8 @@ vi.mock('@/hooks/use-calendars', () => ({
 
 const network = { isOnline: true }
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => network }))
+
+vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => null }))
 
 vi.mock('@/components/ui/list-row', () => ({
   ListRow: (props: Record<string, unknown>) => React.createElement('ListRowMock', props),
@@ -143,6 +146,7 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
 }
 
 interface RenderDetailProps {
+  showOptions?: boolean
   selectedDate?: string
   entries?: CalendarDayEntry[]
   calendarEvents?: CalendarSyncEvent[]
@@ -159,6 +163,7 @@ interface RenderDetailProps {
 }
 
 function CalendarDayDetailHarness({
+  showOptions = false,
   selectedDate = '2025-06-15',
   entries = [],
   calendarEvents = [],
@@ -196,6 +201,8 @@ function CalendarDayDetailHarness({
   }
 
   return (
+    <>
+    {showOptions ? <CalendarOptions tokens={tokens} /> : null}
     <CalendarDayDetail
       key={selectedDate}
       selectedDate={selectedDate}
@@ -216,6 +223,7 @@ function CalendarDayDetailHarness({
       t={translate}
       tokens={tokens}
     />
+    </>
   )
 }
 
@@ -266,6 +274,32 @@ describe('CalendarDayDetail (mobile)', () => {
   it('shows the recurring switch inside the day card', () => {
     const tree = renderDetail()
     expect(nodes(tree, 'SwitchMock')).toHaveLength(1)
+  })
+
+  it('keeps the day switch, visible rows, count and Options checkbox in sync in both directions', () => {
+    const tree = renderDetail({ showOptions: true, entries: [
+      makeEntry({ title: 'Read', status: 'missed' }),
+      makeEntry({ habitId: 'task', title: 'Appointment', isOneTime: true }),
+    ] })
+    const text = () => nodes(tree, 'Text').map(node => node.props.children)
+    expect(text()).toContain('1 of 2 logged')
+    TestRenderer.act(() => { (nodes(tree, 'SwitchMock')[0]!.props.onPress as () => void)() })
+    expect(useUIStore.getState().calendarShowRecurring).toBe(false)
+    expect(text()).toContain('1 of 1 logged')
+    expect(text()).not.toContain('Read')
+    expect(text()).toContain('Appointment')
+    const options = nodes(tree, 'Pressable').find(node => node.props.accessibilityLabel === 'calendar.options')!
+    TestRenderer.act(() => { (options.props.onPress as () => void)() })
+    const checkbox = nodes(tree, 'Pressable').find(node => node.props.accessibilityRole === 'checkbox' && node.props.accessibilityLabel === 'calendar.showRecurring')!
+    expect(checkbox.props.accessibilityState).toMatchObject({ checked: false })
+    TestRenderer.act(() => { (checkbox.props.onPress as () => void)() })
+    expect(useUIStore.getState().calendarShowRecurring).toBe(true)
+    expect(nodes(tree, 'SwitchMock')[0]!.props.accessibilityState).toMatchObject({ checked: true })
+    expect(text()).toContain('1 of 2 logged')
+    expect(text()).toContain('Read')
+    TestRenderer.act(() => { (nodes(tree, 'SwitchMock')[0]!.props.onPress as () => void)() })
+    TestRenderer.act(() => { tree.update(detailElement({ entries: [makeEntry({ title: 'Read' })] })) })
+    expect(text()).toContain('No habit was scheduled on this day.')
   })
 
   it('keeps the summary and its own no-habits line when the day is empty', () => {

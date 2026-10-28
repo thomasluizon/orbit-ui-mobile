@@ -164,16 +164,21 @@ function PersonalCheckRow({ leading, label, selection, placement, variant, onOpe
     <View data-slot="list-row-body" style={getPersonalRowStyle(calendarDay, Boolean(error || description || value !== undefined), placement, selection)}>
       <View style={[styles.personalCopy, calendarDay ? styles.calendarDayCopy : null]}>
       <PersonalControl disabled={disabled} focusable={!disabled} tokens={tokens} fillStyle={getPersonalLabelFill(calendarDay)} hitSlop={{ left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={styles.personalAction} />
-      <View pointerEvents="none" style={{ flexDirection: 'row', alignItems: 'center', gap: leading ? 8 : 0 }}>
-      {leading}
-      <View style={{ flex: 1, minWidth: 0 }}>
+      <PersonalLeading leading={leading}>
       <PersonalCheckRowContent selection={selection} checked={checked} label={label} placement={placement} variant={variant} labelExpanded={labelExpanded} error={error} description={description} value={value} tokens={tokens} />
-      </View>
-      </View>
+      </PersonalLeading>
       </View>
       {control}
     </View>
   )
+}
+
+function PersonalLeading({ leading, children }: Readonly<{ leading: CheckRowProps['leading']; children: React.ReactNode }>) {
+  if (!leading) return children
+  return <View pointerEvents="none" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+    {leading}
+    <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
+  </View>
 }
 
 function PersonalControl({ tokens, fillStyle, containContent = false, children, ...props }: Readonly<PressableProps & { tokens: ReturnType<typeof createTokensV2>; fillStyle: ViewStyle; containContent?: boolean }>) {

@@ -229,7 +229,7 @@ export function CalendarDayDetail({
               ) : (
               <Pressable disabled={Boolean(loadingLabel)} focusable={!loadingLabel} focusOffset={-6} accessibilityRole="button" accessibilityLabel={`${entry.title}, ${outcome.ringLabel}`} onPress={() => (onOpenHabit ?? ((id) => openHabit(id, selectedDate)))(entry.habitId)} style={styles.habitDisclosure}>
                 {({ pressed, focused }) => <>
-                <View pointerEvents="none" accessible={false} style={[styles.habitFill, { backgroundColor: pressed || focused ? tokens.bgHover : 'transparent' }]} />
+                <View pointerEvents="none" accessible={false} data-press-fill="" style={[styles.habitFill, { backgroundColor: pressed || focused ? tokens.bgHover : 'transparent' }]} />
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 }}>
                   <HabitRowLeading habitTitle={entry.title} emoji={entry.emoji} emojiSize={22} wellSize={46} wellRadius={12} monogramColor={tokens.fg3} tokens={tokens} />
                   <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
