@@ -133,7 +133,7 @@ describe('Composer compact geometry in Chromium', () => {
       try {
         await page.emulateMedia({ forcedColors: forcedColors ? 'active' : 'none' })
         await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate((variables) => { for (const [key, value] of Object.entries(variables)) document.documentElement.style.setProperty(key, value) }, resolveWebThemeVariables('orange', mode))
         await page.keyboard.press('Tab')
         const field = page.getByRole('textbox')
@@ -170,7 +170,7 @@ describe('Composer compact geometry in Chromium', () => {
         const menu = await screen.findByRole('menu')
         const markup = width < 900 ? menu.closest('[role="dialog"]')!.outerHTML : menu.outerHTML
         await page.setContent(`<style>${stylesheet}</style>${markup}`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.keyboard.press('Tab')
         for (const name of [en.shell.composer.attach.image, en.shell.composer.attach.file]) {
           const control = page.getByRole('menuitem', { name, exact: true })
@@ -192,7 +192,7 @@ describe('Composer compact geometry in Chromium', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}:root{${theme}}.orbit-menu-item{--test-hover:0}.orbit-menu-item:hover{--test-hover:1}</style>${markup}`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         for (const name of [en.shell.composer.attach.file, en.shell.composer.attach.image]) {
           const control = page.getByRole('menuitem', { name, exact: true })
           expect(await control.isDisabled()).toBe(true)
@@ -222,7 +222,7 @@ describe('Composer compact geometry in Chromium', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style>${markup}`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         for (const item of await page.getByRole('menuitem').all()) {
           const measured = await item.evaluate((element) => {
             const style = getComputedStyle(element)
@@ -244,7 +244,7 @@ describe('Composer compact geometry in Chromium', () => {
     try {
       await page.emulateMedia({ reducedMotion })
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       const target = page.locator('[data-open-conversation]')
       const bounds = (await target.boundingBox())!
       expect(bounds.width).toBeGreaterThanOrEqual(48)
@@ -286,7 +286,7 @@ describe('Composer compact geometry in Chromium', () => {
         const markup = dialog.outerHTML
         view.unmount()
         await page.setContent(`<style>${stylesheet}html{font-size:32px}</style>${markup}`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await loadAppFonts(page)
         const header = await page.locator('.orbit-sheet-title').evaluate((title) => {
           const font = getComputedStyle(title).font
@@ -320,18 +320,18 @@ describe('Composer compact geometry in Chromium', () => {
     try {
       const initial = geometryProps('idle', messages, true)
       await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(initial)}</script>`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await loadAppFonts(page)
       await page.addScriptTag({ content: composerScript })
       await page.locator('[data-composer-test-ready]').waitFor()
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       for (const withOpener of [true, false]) for (const scenario of ['idle', 'oneLine', 'typing', 'longText', 'sending', 'recording', 'transcribing', 'tray1', 'tray2', 'tray3', 'atLimit', 'offline', 'retry'] as const) {
         const props = geometryProps(scenario, messages, withOpener)
         await page.evaluate(configuration => {
           document.dispatchEvent(new CustomEvent('composer-test-remount', { detail: configuration }))
         }, JSON.parse(JSON.stringify({ ...props, attachmentRemoveTemplate: messages.shell.composer.attach.remove })))
         await page.locator('[data-composer-test-ready]').waitFor()
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.waitForTimeout(motionDurations.micro)
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
         const measured = await page.evaluate(() => {
@@ -373,7 +373,7 @@ describe('Composer compact geometry in Chromium', () => {
       try {
         const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
         await page.setContent(`<style>${stylesheet}:root{${theme}}[data-composer-input-row] button{--test-hover:0}[data-composer-input-row] button:hover{--test-hover:1}</style>${container.innerHTML}`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         for (const selector of ['[data-composer-controls] button', '[data-composer-trailing-controls] > button']) {
           const control = page.locator(selector)
           expect(await control.count()).toBe(1)
