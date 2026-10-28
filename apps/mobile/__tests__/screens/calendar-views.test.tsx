@@ -2126,14 +2126,20 @@ describe("CalendarScreen views (mobile)", () => {
     try {
       TestRenderer.act(() => {
         if (disclosure === 'events') calendarDayDetailProps.current!.onOpenEvents?.();
-        else calendarDayDetailProps.current!.onOpenHabitTitle?.('Long habit title');
+        else calendarDayDetailProps.current!.onOpenHabit?.('habit-1');
       });
       expect(sheetTestControls.isDismissPending).toBe(true);
+      expect(state.routerPush).not.toHaveBeenCalled();
       expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.open)).toHaveLength(0);
       TestRenderer.act(() => { sheetTestControls.completeDismissal(); });
       const sheets = tree.root.findAll((node) => node.type === 'Sheet');
+      if (disclosure === 'habit') {
+        expect(state.routerPush).toHaveBeenCalledExactlyOnceWith({ pathname: '/habits/[id]', params: { id: 'habit-1', date: '2026-09-10' } });
+        expect(sheets).toHaveLength(0);
+        return;
+      }
       expect(sheets).toHaveLength(1);
-      expect(sheets[0]!.props.title).toBe(disclosure === 'events' ? 'calendar.dayDetail.eventsTitle' : 'habits.form.title');
+      expect(sheets[0]!.props.title).toBe('calendar.dayDetail.eventsTitle');
       TestRenderer.act(() => { tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]!.props.onPress(); });
       TestRenderer.act(() => { sheetTestControls.completeDismissal(); });
       TestRenderer.act(() => { week.props.onSelectDay('2026-09-10'); });

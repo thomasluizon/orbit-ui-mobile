@@ -11,7 +11,7 @@ import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination
 import { Fragment, Suspense, useMemo, useCallback, useEffect, useLayoutEffect, useId, useState, useRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
+import { useOpenHabit } from '@/hooks/use-open-habit'
 import {
   buildHabitDateBuckets,
   filterHabitViewRoots,
@@ -356,7 +356,7 @@ export function HabitList({
   const accountGeneration = useAccountGeneration()
   const t = useTranslations()
   const { isOnline } = useOffline()
-  const router = useRouter()
+  const openHabit = useOpenHabit()
   const { profile } = useProfile()
   const todayStr = useToday(profile?.timeZone)
   const locale = useLocale()
@@ -999,7 +999,7 @@ export function HabitList({
   })()
 
   function openDetail(habit: NormalizedHabit) {
-    router.push(`/habits/${habit.id}?date=${selectedDateStr}&from=today`)
+    openHabit(habit.id, selectedDateStr, true)
   }
 
   const handleEditModalOpenChange = useCallback((open: boolean) => {

@@ -5,7 +5,10 @@ import { PADDING, SPACING } from '@orbit/shared/theme'
 
 import { PersonalText } from '@/components/ui/personal-text'
 
-import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useOpenHabit } from '@/hooks/use-open-habit'
+import { useUIStore } from '@/stores/ui-store'
+import { Switch } from '@/components/ui/switch'
+import { HabitRowLeading } from '@/components/habits/habit-row-leading'
 import { Fragment, useMemo } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -22,7 +25,6 @@ import { CheckRow } from '@/components/ui/check-row'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { PillButton } from '@/components/ui/pill-button'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { CalendarDayEvents } from '@/components/calendar/calendar-day-events'
 import { ListRow } from '@/components/ui/list-row'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -41,7 +43,7 @@ interface CalendarDayDetailProps {
   onOpenCalendarImport: (eventId: string | null) => void
   onViewPro: () => void
   onOpenEvents?: () => void
-  onOpenHabitTitle?: (title: string) => void
+  onOpenHabit?: (habitId: string) => void
   loggable: boolean
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -115,7 +117,7 @@ function CalendarDayCheckRow({
   isPending,
   pendingChecked,
   onEntryChange,
-  onOpenTitle,
+  onOpenHabit,
 }: Readonly<{
   disabled?: boolean
   entry: CalendarDayEntry
@@ -123,7 +125,7 @@ function CalendarDayCheckRow({
   isPending: boolean
   pendingChecked: boolean | undefined
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
-  onOpenTitle: (title: string) => void
+  onOpenHabit: (habitId: string) => void
 }>) {
   const sourceChecked = entry.status === 'completed'
   const displayedChecked = pendingChecked === undefined || pendingChecked === sourceChecked
@@ -140,10 +142,11 @@ function CalendarDayCheckRow({
   return (
     <CheckRow
       disabled={disabled}
+      leading={<HabitRowLeading title={entry.title} emoji={entry.emoji} emojiSize={22} wellSize={46} wellRadius={12} />}
       label={entry.title}
       textMode="personal"
       variant="calendar-day"
-      onOpenLabel={() => onOpenTitle(entry.title)}
+      onOpenLabel={() => onOpenHabit(entry.habitId)}
       checked={checked}
       value={value}
       loading={isPending}
@@ -160,7 +163,7 @@ function CalendarDayRows({
   displayTime,
   pendingEntryStates,
   onEntryChange,
-  onOpenTitle,
+  onOpenHabit,
   t,
 }: Readonly<{
   dateStr: string
@@ -170,7 +173,7 @@ function CalendarDayRows({
   displayTime: (time: string) => string
   pendingEntryStates: ReadonlyMap<string, boolean>
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
-  onOpenTitle: (title: string) => void
+  onOpenHabit: (habitId: string) => void
   t: ReturnType<typeof useTranslations>
 }>) {
   return entries.map((entry) => {
@@ -186,12 +189,13 @@ function CalendarDayRows({
           isPending={pendingEntryStates.has(entryKey)}
           pendingChecked={pendingEntryStates.get(entryKey)}
           onEntryChange={onEntryChange}
-          onOpenTitle={onOpenTitle}
+          onOpenHabit={onOpenHabit}
         />
       ) : (
       // eslint-disable-next-line local/max-button-words -- #1342 requires the existing no-set-time metadata beneath the personal title.
-      <button disabled={Boolean(loadingLabel)} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="orbit-calendar-day-disclosure relative min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start">
+      <button disabled={Boolean(loadingLabel)} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenHabit(entry.habitId)} className="orbit-calendar-day-disclosure relative min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start">
         <span className="relative flex min-w-0 items-start" style={{ gap: 8, paddingInline: SPACING.s16, paddingBlock: SPACING.s12 }}>
+          <HabitRowLeading title={entry.title} emoji={entry.emoji} emojiSize={22} wellSize={46} wellRadius={12} />
           <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
             <PersonalText className=" text-base  text-[var(--fg-1)]">{entry.title}</PersonalText>
             <span className="font-mono text-xs tabular-nums text-[var(--fg-2)]">{value}</span>
@@ -220,15 +224,15 @@ export function CalendarDayDetail({
   onOpenCalendarImport,
   onViewPro,
   onOpenEvents,
-  onOpenHabitTitle,
+  onOpenHabit,
   loggable,
   showRecurring,
   pendingEntryStates,
   onEntryChange,
   showTitle = true,
 }: Readonly<CalendarDayDetailProps>) {
-  const [expandedTitle, setExpandedTitle] = useAccountScopedState<string | null>(null)
-  const { sheetRef } = useSheetHost()
+  const openHabit = useOpenHabit()
+  const setShowRecurring = useUIStore(state => state.setCalendarShowRecurring)
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
   const locale = useLocale()
@@ -274,6 +278,7 @@ export function CalendarDayDetail({
           {summary}
         </p>
       </div>
+      <Switch label={t('calendar.showRecurringShort')} checked={showRecurring} onChange={setShowRecurring} />
       {!loadingLabel && filteredEntries.length === 0 ? (
         <p className="m-0 text-sm text-[var(--fg-3)]">{t('calendar.noHabitsScheduled')}</p>
       ) : null}
@@ -290,7 +295,7 @@ export function CalendarDayDetail({
             displayTime={displayTime}
             pendingEntryStates={pendingEntryStates}
             onEntryChange={onEntryChange}
-            onOpenTitle={onOpenHabitTitle ?? setExpandedTitle}
+            onOpenHabit={onOpenHabit ?? ((id) => openHabit(id, dateStr))}
             t={t}
           />}
         </div>
@@ -322,9 +327,6 @@ export function CalendarDayDetail({
       style={{ padding: PADDING.cardInset }}
     >
       {body}
-      {expandedTitle ? <Sheet ref={sheetRef} open title={t('habits.form.title')} onClose={() => setExpandedTitle(null)}>
-        <PersonalText expanded className="text-base text-[var(--fg-1)]">{expandedTitle}</PersonalText>
-      </Sheet> : null}
     </section>
   )
 }

@@ -1722,7 +1722,7 @@ may use only the gap to the nearest neighbour minus 4px, the first spacing step.
 Reserve the extension in layout; a negative inset never grants permission to overlap.
 Grouped list rows inset their paint and single focus indicator by 4px without reducing the target.
 Month-navigation controls reserve clearance inside their unchanged targets. Composer actions keep
-the same gap between their targets. Touching calendar day rows inset their paint by 4px.
+the same gap between their targets. Touching calendar day rows inset their paint by 4px. Their body opens the habit detail for the selected date and reuses Hoje's emoji tile and monogram fallback; the completion control remains independent. A labelled recurring switch at the top of the selected-day list shares the Options preference and filters its completion count.
 Measure painted fills and visible text or graphics, excluding transparent hit areas.
 A grid cell may fill its own column and adjoin another cell, provided its paint and focus
 indicator stay inside that cell; this never permits paint over neighbouring content.
@@ -1917,7 +1917,7 @@ The same test governs any future external component, from any source. Nothing en
 - **A set of options never wraps onto a second line.** If measured whole words cannot fit in one segmented row, move the selector into the existing Menu, preserving its selected view.
 - **No app-authored label, title, caption, chip, tab, segment or button text that wraps or ends in an ellipsis**, in either locale, at 320, 360, 384 or 412, at the default text size; at large accessibility text a label may wrap but never ellipsizes or clips. Person-typed and Google-provided text follows the full-width, two-line rule in Type roles.
 - **No hover, press or focus fill that touches its content.**
-- **No screen-level setting, sync status or legend inline on a destination root in the compact shell.** It lives in a sheet or menu with one visible entry. The one primary view switch of a view is exempt.
+- **No screen-level setting, sync status or legend inline on a destination root in the compact shell.** It lives in a sheet or menu with one visible entry. The one primary view switch of a view is exempt. The Calendário day list recurring switch is also exempt by owner order (#1858).
 - **No two floating controls in one screen position, no floating control that covers content at the end of a scroll, and no back-to-top control outside Hoje.**
 - **No inline link inside a sentence as a row's only action.** The row is the action.
 - **No rendered text below 12.**

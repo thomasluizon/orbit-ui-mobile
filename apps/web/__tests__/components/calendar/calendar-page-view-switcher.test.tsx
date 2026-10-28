@@ -124,7 +124,7 @@ const calendarDayDetailProps: {
   onRetryCalendarEvents?: () => void
   onReconnectCalendarEvents?: () => void
   onOpenEvents?: () => void
-  onOpenHabitTitle?: (title: string) => void
+  onOpenHabit?: (title: string) => void
   onViewPro?: () => void
   loggable?: boolean
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
@@ -309,7 +309,7 @@ vi.mock('@/components/calendar/calendar-day-detail', async (importOriginal) => {
     return (
       <div data-testid="day-detail">
         <button onClick={props.onOpenEvents}>open-events</button>
-        <button onClick={() => props.onOpenHabitTitle?.('Long habit title')}>open-habit-title</button>
+        <button onClick={() => props.onOpenHabit?.('habit-1')}>open-habit</button>
         {displayedAutoSyncState?.hasGoogleConnection ? (
           <button
             type="button"
@@ -1290,11 +1290,17 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByTestId('week-day'))
     sheetTestControls.defer(true)
     try {
-      fireEvent.click(screen.getByRole('button', { name: disclosure === 'events' ? 'open-events' : 'open-habit-title' }))
+      fireEvent.click(screen.getByRole('button', { name: disclosure === 'events' ? 'open-events' : 'open-habit' }))
       expect(sheetTestControls.isDismissPending).toBe(true)
+      expect(routerPush).not.toHaveBeenCalled()
       expect(screen.queryByRole('dialog')).toBeNull()
       act(() => sheetTestControls.completeDismissal())
-      expect(screen.getByRole('dialog')).toHaveAccessibleName(disclosure === 'events' ? 'calendar.dayDetail.eventsTitle' : 'habits.form.title')
+      if (disclosure === 'habit') {
+        expect(routerPush).toHaveBeenCalledWith('/habits/habit-1?date=2026-09-12')
+        expect(screen.queryByRole('dialog')).toBeNull()
+        return
+      }
+      expect(screen.getByRole('dialog')).toHaveAccessibleName('calendar.dayDetail.eventsTitle')
       expect(screen.queryByTestId('day-detail')).toBeNull()
       expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toHaveAttribute('aria-checked', 'true')
       fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))

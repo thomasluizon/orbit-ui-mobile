@@ -1204,6 +1204,7 @@
     "entryLabel": "{title}, {time}, {status}",
     "entryMeta": "{time} · {status}",
     "completionHistory": "Completion history",
+    "showRecurringShort": "Recurring",
     "showRecurring": "Show habits that repeat",
     "googleCalendar": "Google Calendar",
     "options": "Calendar options",

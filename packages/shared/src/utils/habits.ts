@@ -78,6 +78,7 @@ function appendCalendarEntry(
   entries.push({
     habitId: habit.id,
     title: habit.title,
+    emoji: habit.emoji,
     status,
     isBadHabit: habit.isBadHabit,
     dueTime: habit.dueTime ?? null,
