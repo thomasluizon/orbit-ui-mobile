@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderToString } from 'react-dom/server'
+import { hydrateRoot } from 'react-dom/client'
+import { AccountClock } from '@/lib/account-clock'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { act, render, screen } from '@testing-library/react'
 
 const invalidateQueriesMock = vi.fn()
+const profileState = vi.hoisted(() => ({ timeZone: 'Pacific/Kiritimati' as string | null | undefined }))
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: invalidateQueriesMock }),
@@ -12,7 +17,7 @@ vi.mock('@orbit/shared/query', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { timeZone: 'Pacific/Kiritimati' } }),
+  useProfile: () => ({ profile: profileState.timeZone === undefined ? undefined : { timeZone: profileState.timeZone } }),
 }))
 
 import { TodayProvider, useToday } from '@/app/(app)/today-provider'
@@ -46,6 +51,7 @@ function renderProvider() {
 describe('TodayProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    profileState.timeZone = 'Pacific/Kiritimati'
     vi.useRealTimers()
     process.env.TZ = 'America/Sao_Paulo'
   })
@@ -143,6 +149,41 @@ describe('TodayProvider', () => {
 
     expect(screen.getByTestId('today')).toHaveTextContent('2026-04-07')
     expect(invalidateQueriesMock).not.toHaveBeenCalled()
+  })
+
+  it('hydrates the seeded account day before catching up across account midnight', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-09-11T09:59:59Z').getTime()
+    vi.setSystemTime(now)
+    const tree = <AccountClock now={now} timeZone="Pacific/Kiritimati"><TodayProvider><TodayProbe /></TodayProvider></AccountClock>
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(tree)
+    expect(container).toHaveTextContent('2026-09-11')
+    document.body.append(container)
+    vi.setSystemTime(new Date('2026-09-11T10:00:01Z'))
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    try {
+      await act(async () => { root = hydrateRoot(container, tree, { onRecoverableError: recoverableError }) })
+      expect(recoverableError).not.toHaveBeenCalled()
+      expect(container).toHaveTextContent('2026-09-11')
+      await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(container).toHaveTextContent('2026-09-12')
+      expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['gamification'] })
+    } finally {
+      await act(async () => root?.unmount())
+      container.remove()
+    }
+  })
+
+  it('uses the server account zone during profile loading and drops it after an account change', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-28T01:30:00Z'))
+    profileState.timeZone = undefined
+    render(<AccountClock now={Date.now()} timeZone="America/Sao_Paulo"><TodayProvider><TodayProbe /></TodayProvider></AccountClock>)
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-10-27')
+    act(() => { advanceAccountGeneration() })
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-10-28')
   })
 
   it('throws when useToday is read without a provider', () => {

@@ -173,7 +173,10 @@ describe('Today server preload', () => {
     ['calendar', 'pt-BR', 'America/Sao_Paulo', '2026-10-27', '2026-10-28T01:30:00Z', '27 de outubro'],
     ['today', 'en', 'Pacific/Kiritimati', '2026-10-28', '2026-10-27T12:30:00Z', 'October 28'],
     ['calendar', 'en', 'Pacific/Kiritimati', '2026-10-28', '2026-10-27T12:30:00Z', 'October 28'],
-  ])('hydrates %s in %s using %s across host calendar days', async (route, locale, timeZone, initialToday, instant, label) => {
+    ['today', 'en', null, '2026-10-28', '2026-10-28T01:30:00Z', 'October 28'],
+    ['calendar', 'en', null, '2026-10-28', '2026-10-28T01:30:00Z', 'October 28'],
+    ['calendar', 'en', 'America/Sao_Paulo', '2026-10-31', '2026-11-01T01:30:00Z', 'October 31'],
+  ] as const)('hydrates %s in %s using %s across host calendar days', async (route, locale, timeZone, initialToday, instant, label) => {
     const originalTimeZone = process.env.TZ
     const serverClient = createTestQueryClient()
     const browserClient = createTestQueryClient()
@@ -186,11 +189,12 @@ describe('Today server preload', () => {
     const items = [habitScheduleItemSchema.parse({ ...createMockHabit({ dueDate: '2026-10-27', scheduledDates: ['2026-10-27'] }), children: [], linkedGoals: [] })]
     try {
       process.env.TZ = 'UTC'
+      const serverDay = new Date().getDate()
       container.innerHTML = renderToString(createTodayTree(serverClient, items, null, settings))
       expect(container).toHaveTextContent(label)
       document.body.append(container)
-      process.env.TZ = timeZone
-      expect(new Date().getDate()).toBe(Number(initialToday.slice(-2)))
+      process.env.TZ = timeZone ?? 'America/Sao_Paulo'
+      expect(new Date().getDate()).not.toBe(serverDay)
       await act(async () => {
         root = hydrateRoot(container, createTodayTree(browserClient, items, null, settings), {
           onRecoverableError: recoverableError,
