@@ -2,12 +2,16 @@ import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { calendarDayCardDate, makeCalendarDayCardEntries, makeCalendarDayCardMonth } from '@orbit/shared/test-support/calendar-day-card-fixtures'
 import { profileSchema } from '@orbit/shared/types/profile'
+import { SPACING } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { expectCalendarDayHabitRows } from './calendar-day-habit-geometry'
+
+const emojiWellSize = 46
+const restingRowHeight = emojiWellSize + 2 * SPACING.s12
 
 for (const width of [412, 1352]) {
   for (const { locale, messages } of [{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const) {
@@ -38,7 +42,7 @@ for (const width of [412, 1352]) {
             heights.push(await expectCalendarDayHabitRows(card, entries, messages.calendar.timeGrid.noSetTime, scale))
           }
           for (const index of [0, 1, 3, 4]) {
-            expect(heights[0]![index]).toBeCloseTo(68)
+            expect(heights[0]![index]).toBeCloseTo(restingRowHeight)
             expect(heights[1]![index]).toBeGreaterThan(heights[0]![index]!)
           }
         })

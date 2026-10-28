@@ -1,4 +1,5 @@
 export type CheckRowProps = {
+  leading?: React.ReactNode
   label: string
   placement?: 'inset' | 'column'
   textMode?: 'personal'

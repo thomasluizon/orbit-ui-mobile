@@ -1,3 +1,4 @@
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { execFileSync } from 'node:child_process'

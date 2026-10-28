@@ -10,6 +10,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
 export function CheckRow({
+  leading,
   label,
   placement = 'inset',
   textMode,
@@ -33,7 +34,7 @@ export function CheckRow({
   const [pressed, setPressed] = useState(false)
   const colors = checkRowTextColors(tokens, proposed, checked, pressed, Boolean(error), selection)
 
-  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow selection={selection} placement={placement} label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
+  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow leading={leading} selection={selection} placement={placement} label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
   if (placement === 'column') return <ColumnCheckRow label={label} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
 
   return (
@@ -153,7 +154,7 @@ function PersonalCheckRowContent({ label, selection, checked, placement, variant
   )
 }
 
-function PersonalCheckRow({ label, selection, placement, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
+function PersonalCheckRow({ leading, label, selection, placement, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const { fontScale } = useWindowDimensions()
   const calendarDay = variant === 'calendar-day'
   const control = <PersonalControl data-slot={selection ? 'check-row-control' : undefined} tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent hitSlop={calendarDay ? 12 : undefined} focusable={!disabled && !loading} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, calendarDay ? styles.calendarDayControl : null, selection ? { minHeight: 22.4 * fontScale + SPACING.s12 * 2 } : null, disabled || loading ? styles.disabled : null]}>
@@ -163,11 +164,21 @@ function PersonalCheckRow({ label, selection, placement, variant, onOpenLabel, l
     <View data-slot="list-row-body" style={getPersonalRowStyle(calendarDay, Boolean(error || description || value !== undefined), placement, selection)}>
       <View style={[styles.personalCopy, calendarDay ? styles.calendarDayCopy : null]}>
       <PersonalControl disabled={disabled} focusable={!disabled} tokens={tokens} fillStyle={getPersonalLabelFill(calendarDay)} hitSlop={{ left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={styles.personalAction} />
+      <PersonalLeading leading={leading}>
       <PersonalCheckRowContent selection={selection} checked={checked} label={label} placement={placement} variant={variant} labelExpanded={labelExpanded} error={error} description={description} value={value} tokens={tokens} />
+      </PersonalLeading>
       </View>
       {control}
     </View>
   )
+}
+
+function PersonalLeading({ leading, children }: Readonly<{ leading: CheckRowProps['leading']; children: React.ReactNode }>) {
+  if (!leading) return children
+  return <View pointerEvents="none" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+    {leading}
+    <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
+  </View>
 }
 
 function PersonalControl({ tokens, fillStyle, containContent = false, children, ...props }: Readonly<PressableProps & { tokens: ReturnType<typeof createTokensV2>; fillStyle: ViewStyle; containContent?: boolean }>) {

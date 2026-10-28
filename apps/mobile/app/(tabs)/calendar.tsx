@@ -1,3 +1,4 @@
+import { useOpenHabit } from '@/hooks/use-open-habit'
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { PADDING, SPACING } from '@orbit/shared/theme'
@@ -284,7 +285,7 @@ function CalendarScreenContent({
   const [rangeOffset, setRangeOffset] = useAccountScopedState(0);
   const [isDayDetailOpen, setIsDayDetailOpen] = useAccountScopedState(false);
   const [isEventsOpen, setIsEventsOpen] = useAccountScopedState(false)
-  const [expandedHabitTitle, setExpandedHabitTitle] = useAccountScopedState<string | null>(null)
+  const openHabit = useOpenHabit()
   const disclosedWeekDay = view === 'week' ? selectedDay : null
   const openDayDisclosure = (open: () => void) => closeSheet(() => { setIsDayDetailOpen(false); open() })
   const [isImportOpen, setIsImportOpen] = useAccountScopedState(false);
@@ -815,7 +816,7 @@ function CalendarScreenContent({
             onReconnectCalendarEvents={() => openImport(null)}
             onOpenCalendarImport={openImport}
             onOpenEvents={() => openDayDisclosure(() => setIsEventsOpen(true))}
-            onOpenHabitTitle={(title) => openDayDisclosure(() => setExpandedHabitTitle(title))}
+            onOpenHabit={(id) => openDayDisclosure(() => openHabit(id, selectedDay))}
             onViewPro={openOrbitPro}
             completedCount={completedCount}
             loggable={selectedDayLoggable}
@@ -829,7 +830,6 @@ function CalendarScreenContent({
         </View>
       </Sheet>) : null}
       {disclosedWeekDay ? <CalendarDayEvents key={disclosedWeekDay} sheetOnly open={isEventsOpen} onClose={() => setIsEventsOpen(false)} calendarEvents={selectedCalendarEvents} showEventSource={showEventSource} onOpenImport={openImport} t={t} displayTime={displayTime} /> : null}
-      <ExpandedHabitTitleSheet title={expandedHabitTitle} onClose={() => setExpandedHabitTitle(null)} tokens={tokens} />
       {showImportSheet ? (<Sheet
         ref={importSheetRef}
         onClose={closeImport}
@@ -899,10 +899,3 @@ function createStyles() {
   });
 }
 
-function ExpandedHabitTitleSheet({ title, onClose, tokens }: Readonly<{ title: string | null; onClose: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
-  const { t } = useTranslation()
-  if (!title) return null
-  return <Sheet open title={t('habits.form.title')} onClose={onClose}>
-    <Text style={{ fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8, color: tokens.fg1 }}>{title}</Text>
-  </Sheet>
-}

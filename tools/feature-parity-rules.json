@@ -629,12 +629,6 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
-    "mobile:control:habits.form.title": {
-      "targets": [
-        "mobile:content:habits.form.title"
-      ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
-    },
     "mobile:control:habits.form.titlePlaceholder": {
       "targets": [
         "mobile:content:habits.form.describe"
@@ -3721,6 +3715,11 @@
       "citation": "DESIGN.md",
       "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
+    },
+    "mobile:control:habits.form.title": {
+      "citation": "DESIGN.md",
+      "rule": "The title-only sheet is removed under #1858; habit detail supplies the full title.",
+      "reason": "#1858 replaces the calendar title-only sheet with the selected habit's detail; no reachable mobile surface renders the former title label."
     },
     "mobile:control:onboarding.featureGuide.astra": {
       "citation": "DESIGN.md",

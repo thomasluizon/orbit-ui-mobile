@@ -482,6 +482,13 @@
     }
   },
   "auth": {
+    "desktopCallback": {
+      "successTitle": "Signed in",
+      "successBody": "You can close this tab and return to Orbit.",
+      "failureTitle": "Sign-in failed",
+      "failureBody": "Open Orbit to try signing in again.",
+      "openApp": "Open Orbit"
+    },
     "signIn": "Sign in",
     "enterCode": "Enter the code",
     "email": "Email",
@@ -1204,6 +1211,7 @@
     "entryLabel": "{title}, {time}, {status}",
     "entryMeta": "{time} · {status}",
     "completionHistory": "Completion history",
+    "showRecurringShort": "Show habits",
     "showRecurring": "Show habits that repeat",
     "googleCalendar": "Google Calendar",
     "options": "Calendar options",

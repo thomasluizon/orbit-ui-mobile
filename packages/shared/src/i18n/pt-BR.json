@@ -482,6 +482,13 @@
     }
   },
   "auth": {
+    "desktopCallback": {
+      "successTitle": "Você entrou",
+      "successBody": "Você já pode fechar esta aba e voltar ao Orbit.",
+      "failureTitle": "Falha ao entrar",
+      "failureBody": "Abra o Orbit para tentar entrar de novo.",
+      "openApp": "Abrir Orbit"
+    },
     "signIn": "Entrar",
     "enterCode": "Digite o código",
     "email": "E-mail",
@@ -1204,6 +1211,7 @@
     "entryLabel": "{title}, {time}, {status}",
     "entryMeta": "{time} · {status}",
     "completionHistory": "Histórico de conclusões",
+    "showRecurringShort": "Mostrar hábitos",
     "showRecurring": "Mostrar hábitos que se repetem",
     "googleCalendar": "Google Agenda",
     "options": "Opções do calendário",
