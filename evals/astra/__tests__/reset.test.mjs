@@ -413,3 +413,19 @@ it.each(['en', 'pt-BR'])('keeps the stated medical date before account today in 
   expect(test.vars.rubric).toContain('2031-10-26, even when it is before today')
   expect(test.vars.rubric).toContain('The account date is 2031-10-27')
 })
+
+it('preserves weekday positions when comparing the seeded cached metrics', async () => {
+  const intercepted = globalThis.fetch
+  const saved = retrospectiveResponse(true)
+  saved.metrics.weeklyConsistency = [0, 25, 50, 75, 100, 0, 0]
+  vi.stubGlobal('fetch', async (url, options) => new URL(url).pathname === '/api/habits/retrospective'
+    ? Response.json(saved) : intercepted(url, options))
+  const { test } = await prepareAttempt({ test: scenario('composition-stale') })
+  const { status, ...call } = toolCall('get_retrospective', { period: 'month' })
+  call.result.payload = structuredClone(saved)
+  const output = { trace: { state: 'available', requestId: test.vars.evalRequestId,
+    responseRequestId: test.vars.evalRequestId, calls: [{ ...call, resultStatus: status }] } }
+  expect(behavior(output, { vars: test.vars }).pass).toBe(true)
+  call.result.payload.metrics.weeklyConsistency.reverse()
+  expect(behavior(output, { vars: test.vars }).pass).toBe(false)
+})

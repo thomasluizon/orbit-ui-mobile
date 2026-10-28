@@ -33,9 +33,9 @@ it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^
   vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
   const scenario = corpus.find((entry) => entry.metadata.family === 'medical-correction' && entry.metadata.locale === locale)
-  const original = { habits: scenario.vars.setup.expectations.required[0].arguments.habits.map((habit) => ({
+  const original = JSON.parse(JSON.stringify({ habits: scenario.vars.setup.expectations.required[0].arguments.habits.map((habit) => ({
     ...habit, title: habit.title.textContains,
-  })) }
+  })) }).replaceAll('{accountYear}', new Date().toISOString().slice(0, 4)))
   const revised = structuredClone(original)
   revised.habits[0].due_time = '16:00'
   let correctionArguments = revised

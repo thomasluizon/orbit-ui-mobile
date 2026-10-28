@@ -75,10 +75,11 @@ export async function structural(output, context) {
   })
 }
 
-function matchesArguments(actual, expected) {
+function matchesArguments(actual, expected, orderedArrays = false) {
   if (actual === '[redacted]') return false
   if (Array.isArray(expected)) {
     if (!Array.isArray(actual) || actual.length !== expected.length) return false
+    if (orderedArrays) return expected.every((value, index) => matchesArguments(actual[index], value, true))
     const unmatched = [...actual]
     return expected.every((value) => {
       const index = unmatched.findIndex((candidate) => matchesArguments(candidate, value))
@@ -88,12 +89,12 @@ function matchesArguments(actual, expected) {
     })
   }
   if (expected && typeof expected === 'object') {
-    if ('optional' in expected) return actual == null || matchesArguments(actual, expected.optional)
+    if ('optional' in expected) return actual == null || matchesArguments(actual, expected.optional, orderedArrays)
     if ('textContains' in expected) {
       return typeof actual === 'string' && normalizeText(actual).includes(normalizeText(expected.textContains))
     }
     return actual && typeof actual === 'object'
-      && Object.entries(expected).every(([key, value]) => matchesArguments(actual[key], value))
+      && Object.entries(expected).every(([key, value]) => matchesArguments(actual[key], value, orderedArrays))
   }
   return actual === expected
 }
@@ -149,7 +150,7 @@ export function behavior(output, context) {
   for (const required of expectations.required ?? []) {
     const index = unmatched.findIndex((call) => matchesOperation(call, required)
       && (required.resultStatus === undefined || call.resultStatus === required.resultStatus)
-      && (required.result === undefined || matchesArguments(call.result, required.result)))
+      && (required.result === undefined || matchesArguments(call.result, required.result, true)))
     if (index < 0) return result(false, `Missing tool or incorrect arguments/result: ${required.name ?? required.anyOf.map(({ name }) => name).join(' or ')}`)
     unmatched.splice(index, 1)
   }
