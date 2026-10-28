@@ -10,6 +10,13 @@ export default class CodexGrader {
   id() { return 'astra-codex-grader' }
 
   async callApi(prompt, _context, options) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await this.grade(prompt, options)
+      if (!response.error || attempt === 1) return response
+    }
+  }
+
+  async grade(prompt, options) {
     const directory = mkdtempSync(join(tmpdir(), 'astra-grader-'))
     const outputPath = join(directory, 'grade.json')
     try {
