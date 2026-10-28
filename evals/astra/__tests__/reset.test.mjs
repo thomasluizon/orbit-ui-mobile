@@ -87,7 +87,7 @@ it('negotiates client-supported kinds and explicit starting-step API contract ca
     expect(test.vars).not.toHaveProperty('preconditionFailure')
     const client = JSON.parse(test.vars.clientContextJson)
     expect(client.partKinds.filter((kind) => !CHAT_BLOCK_KINDS.includes(kind)))
-      .toEqual(entry.metadata.family.startsWith('one-small-step') && entry.vars.clientContext.partKinds.includes('oneSmallStep') ? ['oneSmallStep'] : [])
+      .toEqual([])
     if (entry.vars.clientContext.supportsParts && !entry.vars.clientContext.partKinds) {
       expect(client.partKinds).toEqual([...CHAT_BLOCK_KINDS])
     } else {
