@@ -15,6 +15,7 @@ const { buildChatClientContext } = await tsImport('../../packages/shared/src/cha
 let completedResults = []
 let selectedCases = []
 const accountAccess = new Map()
+const freshFreeWindows = new Set()
 
 function persistResults(results, expectedCases) {
   writeResults(results)
@@ -28,6 +29,7 @@ export async function beforeAll({ suite }) {
   completedResults = []
   selectedCases = suite.tests.map(describeCase)
   accountAccess.clear()
+  freshFreeWindows.clear()
   persistResults(completedResults, selectedCases)
   const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE']
   for (const key of new Set(required)) {
@@ -65,7 +67,11 @@ async function prepareAttempt(test) {
   const today = new Date().toISOString().slice(0, 10)
   test.vars.accountDate = today
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
-  const retrospective = await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true)
+  const windowKey = `${test.vars.credentialKey}:${test.metadata.id}:${today}`
+  const needsFreshWindow = test.vars.preconditions?.freshFreeDailyWindow === true
+  const retrospective = await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true,
+    needsFreshWindow && !freshFreeWindows.has(windowKey))
+  if (needsFreshWindow) freshFreeWindows.add(windowKey)
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
     accountDate: today,

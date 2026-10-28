@@ -388,7 +388,9 @@ it.each(['en', 'pt-BR'])('grades only the independently verified stale retrospec
   }
 })
 it('marks the Free capacity case incomplete before chat when its daily window is already used', async () => {
-  pro = false
+  pro = false; unmetered = false
+  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  await preflight({ suite: { tests: [scenario('free-at-limit')] } })
   const intercepted = globalThis.fetch
   vi.stubGlobal('fetch', async (url, options) => new URL(url).pathname === '/api/profile'
     ? Response.json({ email, hasProAccess: false, hasGoogleConnection: false, aiMessagesUsed: 1, aiMessagesLimit: 50 })
@@ -428,4 +430,22 @@ it('preserves weekday positions when comparing the seeded cached metrics', async
   expect(behavior(output, { vars: test.vars }).pass).toBe(true)
   call.result.payload.metrics.weeklyConsistency.reverse()
   expect(behavior(output, { vars: test.vars }).pass).toBe(false)
+})
+
+it('requires a fresh Free window once and permits the case to consume its three attempts', async () => {
+  pro = false; unmetered = false
+  vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
+  const source = scenario('free-at-limit')
+  await preflight({ suite: { tests: [source] } })
+  const intercepted = globalThis.fetch
+  let used = 0
+  vi.stubGlobal('fetch', async (url, options) => new URL(url).pathname === '/api/profile'
+    ? Response.json({ email, hasProAccess: false, hasGoogleConnection: false, aiMessagesUsed: used, aiMessagesLimit: 3 })
+    : intercepted(url, options))
+  for (; used < 3; used++) {
+    const { test } = await prepareAttempt({ test: structuredClone(source) })
+    expect(test.vars.preconditionFailure).toBeUndefined()
+  }
+  const { test } = await prepareAttempt({ test: structuredClone(source) })
+  expect(test.vars.preconditionFailure).toContain('fresh Free daily window')
 })

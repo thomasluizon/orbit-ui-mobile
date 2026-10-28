@@ -142,7 +142,8 @@ async function verifyFixture(api, account, fixture, today, labels) {
   }
 }
 
-export async function resetFixture(test, today = new Date().toISOString().slice(0, 10), unmetered = false) {
+export async function resetFixture(test, today = new Date().toISOString().slice(0, 10), unmetered = false,
+  requireFreshFreeWindow = test.vars.preconditions?.freshFreeDailyWindow === true) {
   const fixture = test.metadata.fixture
   const names = fixtureNames(test.metadata.locale)
   if (!fixtures.has(fixture)) throw new Error('Unknown fixture.')
@@ -154,7 +155,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     throw new Error('Fixture reset requires the staging origin and a disposable eval account.')
   }
   if (typeof profile?.hasProAccess !== 'boolean' || !Number.isInteger(profile.aiMessagesUsed) || !Number.isInteger(profile.aiMessagesLimit)) throw new Error('Fixture profile lacks access or allowance evidence.')
-  if (test.vars.preconditions?.freshFreeDailyWindow && (profile.hasProAccess || profile.aiMessagesUsed !== 0)) {
+  if (requireFreshFreeWindow && (profile.hasProAccess || profile.aiMessagesUsed !== 0)) {
     throw new Error('Fixture needs a fresh Free daily window with zero Astra messages used.')
   }
   await api('PUT', 'profile/timezone', { timeZone: 'UTC' })
@@ -164,7 +165,11 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     return
   }
   if ((fixture === 'free-at-limit') === profile.hasProAccess) throw new Error('Fixture account has the wrong plan access.')
-  if (!unmetered && profile.aiMessagesUsed >= profile.aiMessagesLimit) throw new Error('Fixture daily allowance is exhausted; resume in another daily window.')
+  if (!unmetered && profile.aiMessagesUsed >= profile.aiMessagesLimit) {
+    throw new Error(test.vars.preconditions?.freshFreeDailyWindow
+      ? 'Fixture needs a fresh Free daily window; its Astra allowance is exhausted.'
+      : 'Fixture daily allowance is exhausted; resume in another daily window.')
+  }
   if (fixture.startsWith('composition') && profile.hasGoogleConnection !== false) throw new Error('Composition fixtures require a disconnected disposable calendar account.')
   if (fixture === 'overdue') {
     const overdue = process.env.ORBIT_EVAL_OVERDUE_DATE ?? dateOffset(today, -1)
