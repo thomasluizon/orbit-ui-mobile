@@ -52,6 +52,67 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     return page
   }
 
+  it.each(['no-preference', 'reduce'] as const)('samples compact entrance transition frames with %s motion', async (reducedMotion) => {
+    const page = await mount('habit', 'en', 390, 844, 'dark', reducedMotion)
+    const trigger = page.locator('[data-habit-row-control="menu"]')
+    await trigger.waitFor({ state: 'visible' })
+    const [frames] = await Promise.all([
+      page.evaluate(() => new Promise<{ y: number; top: number; opacity: number; backdrop: number }[]>((resolve) => {
+        const frames: { y: number; top: number; opacity: number; backdrop: number }[] = []
+        const start = performance.now()
+        function sample() {
+          const panel = document.querySelector('.orbit-sheet-panel')
+          const backdrop = document.querySelector('.orbit-sheet-backdrop')
+          if (panel && backdrop) {
+            const style = getComputedStyle(panel)
+            frames.push({ y: new DOMMatrixReadOnly(style.transform).m42, top: panel.getBoundingClientRect().top,
+              opacity: Number(style.opacity), backdrop: Number(getComputedStyle(backdrop).opacity) })
+          }
+          if (performance.now() - start < 700) requestAnimationFrame(sample)
+          else resolve(frames)
+        }
+        requestAnimationFrame(sample)
+      })),
+      trigger.click(),
+    ])
+    expect(frames.length).toBeGreaterThan(2)
+    if (reducedMotion === 'no-preference') {
+      expect(Math.max(...frames.map(frame => frame.y))).toBeGreaterThan(1)
+      expect(frames.some(frame => frame.opacity > 0 && frame.opacity < 1)).toBe(true)
+      expect(frames.some(frame => frame.backdrop > 0 && frame.backdrop < 1)).toBe(true)
+      expect(Math.max(...frames.map(frame => frame.top)) - frames.at(-1)!.top).toBeGreaterThan(1)
+    } else expect(frames.every(frame => frame.y === 0)).toBe(true)
+    expect(frames.at(-1)).toMatchObject({ y: 0, opacity: 1, backdrop: 1 })
+  })
+
+  it('samples reduced anchored exit transition frames without scale or travel', async () => {
+    const page = await mount('habit', 'en', 1280, 900)
+    await page.locator('[data-habit-row-control="menu"]').click()
+    await page.getByRole('menu').waitFor({ state: 'visible' })
+    const [frames] = await Promise.all([
+      page.evaluate(() => new Promise<{ scaleX: number; scaleY: number; x: number; y: number; opacity: number }[]>((resolve) => {
+        const frames: { scaleX: number; scaleY: number; x: number; y: number; opacity: number }[] = []
+        const start = performance.now()
+        function sample() {
+          const panel = document.querySelector('.orbit-menu-panel[data-state="closed"]')
+          if (panel) {
+            const style = getComputedStyle(panel)
+            const matrix = new DOMMatrixReadOnly(style.transform)
+            frames.push({ scaleX: matrix.m11, scaleY: matrix.m22, x: matrix.m41, y: matrix.m42, opacity: Number(style.opacity) })
+          }
+          if (performance.now() - start < 500) requestAnimationFrame(sample)
+          else resolve(frames)
+        }
+        requestAnimationFrame(sample)
+      })),
+      page.keyboard.press('Escape'),
+    ])
+    expect(frames.length).toBeGreaterThan(0)
+    expect(frames.every(frame => frame.scaleX === 1 && frame.scaleY === 1 && frame.x === 0 && frame.y === 0), JSON.stringify(frames)).toBe(true)
+    expect(frames.some(frame => frame.opacity < 1)).toBe(true)
+    expect(await page.getByRole('menu').count()).toBe(0)
+  })
+
   it.each([320, 360, 384, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
     (['dark', 'light'] as const).map(mode => ({ width, locale, mode })))))
     ('reopens the Today menu with a real pointer and checks its fill at $width pixels in $locale, $mode', async ({ width, locale, mode }) => {

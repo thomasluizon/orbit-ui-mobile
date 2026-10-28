@@ -33,7 +33,7 @@ describe('Menu interaction colours in Chromium', () => {
     const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       const words = await page.locator('.orbit-sheet-typed-title > span').evaluateAll((elements) =>
         elements.map((element) => ({ text: element.textContent, decoration: getComputedStyle(element).textDecorationLine })))
       expect(words.map((word) => word.text)).toEqual(title.split(' '))
@@ -57,7 +57,7 @@ describe('Menu interaction colours in Chromium', () => {
       await page.emulateMedia({ reducedMotion })
       const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
       await page.setContent(`<style>${stylesheet} :root { ${theme} }</style>${markup}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       const remove = page.getByRole('menuitem', { name: 'Delete', exact: true })
       const measure = () => remove.evaluate((row) => {
         const style = getComputedStyle(row)
