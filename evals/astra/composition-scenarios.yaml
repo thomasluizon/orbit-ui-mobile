@@ -474,7 +474,7 @@
     fixture: composition
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Mostre meu calendário e o estado da sincronização.
+    input: Mostre minha agenda do Google e o estado da sincronização.
     clientContext: *a5
     composition: *a20
     expectations:
@@ -1221,7 +1221,7 @@
     fixture: composition-stale
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Show my retrospective for the rolling month with its saved narrative and indicate whether it needs refreshing.
+    input: Show my saved month retrospective from {retrospectiveFrom} through {accountDate}, including its saved narrative, and indicate whether it needs refreshing.
     clientContext: *a4
     composition: &a50
       mode: data
@@ -1232,6 +1232,10 @@
     expectations:
       required: &a51
         - name: get_retrospective
+          arguments:
+            period: month
+            date_from: '{retrospectiveFrom}'
+            date_to: '{accountDate}'
           result:
             payload:
               fromCache: true
@@ -1254,12 +1258,16 @@
     fixture: composition-stale
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Mostre minha retrospectiva do mês móvel com a narrativa salva e indique se precisa atualizar.
+    input: Mostre minha retrospectiva mensal salva de {retrospectiveFrom} até {accountDate}, incluindo a narrativa salva, e indique se precisa atualizar.
     clientContext: *a5
     composition: *a50
     expectations:
       required:
         - name: get_retrospective
+          arguments:
+            period: month
+            date_from: '{retrospectiveFrom}'
+            date_to: '{accountDate}'
           result:
             payload:
               fromCache: true
@@ -1313,7 +1321,7 @@
     fixture: composition-error
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Mostre meu calendário mesmo se a conexão precisar de recuperação.
+    input: Mostre minha agenda do Google mesmo se a conexão precisar de recuperação.
     clientContext: *a5
     composition: *a52
     expectations:
@@ -1363,7 +1371,7 @@
     fixture: composition-offline
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Mostre meu calendário enquanto o provedor está temporariamente
+    input: Mostre minha agenda do Google enquanto o provedor está temporariamente
       indisponível.
     clientContext: *a5
     composition: *a54
