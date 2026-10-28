@@ -100,7 +100,7 @@ describe('goal card interaction feedback', () => {
     expect(card.style.transform).toBe('scaleX(0.8) scaleY(1.4)')
     expect(card.style.transform).not.toContain('translate')
     expect(card.style.transition).toBe(
-      'background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), scale 150ms var(--ease-out)',
+      'background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard), scale var(--dur-press) var(--ease-out)',
     )
     expect(card).toHaveAttribute('data-dragging', 'true')
     expect(card).toHaveClass(

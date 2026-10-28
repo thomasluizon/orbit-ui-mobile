@@ -13,6 +13,7 @@ function useExitDeadline(duration: number) {
   const [present, remove] = usePresence()
   useEffect(() => {
     if (present) return
+    if (duration === 0) { remove(); return }
     const timer = setTimeout(() => remove(), duration)
     return () => clearTimeout(timer)
   }, [duration, present, remove])
@@ -32,7 +33,7 @@ export function ListMotionItem({ children, className, style, ref }: Readonly<{
   const presence = useContext(PresenceContext)
   return <PresenceContext.Provider value={null}><motion.div ref={ref} layout={reduced ? false : 'position'}
     data-list-motion="" className={className} style={style} inert={!present} aria-hidden={!present || undefined}
-    initial={presence?.initial === false ? false : { opacity: 0, y: enter.shift }}
+    initial={reduced || presence?.initial === false ? false : { opacity: 0, y: enter.shift }}
     animate={present ? { opacity: 1, y: 0 } : { opacity: 0, y: exit.shift, transition: { duration: reduced ? 0 : exit.exitDuration / 1000, ease: exit.exitEasing } }}
     transition={{ duration: reduced ? 0 : enter.enterDuration / 1000, ease: enter.enterEasing,
       layout: reduced ? { duration: 0 } : { type: 'spring', ...motionSprings.soft } }}>

@@ -2172,8 +2172,13 @@ describe('HabitList', () => {
     expect(screen.queryByText('habits.nothingOpen')).not.toBeInTheDocument()
   })
 
-  it('keeps a completed row in place for 1400 ms', () => {
+  it.each([false, true])('keeps a completed row in place for 1400 ms with reduced motion=%s', (reduced) => {
     vi.useFakeTimers()
+    const matchMedia = globalThis.matchMedia
+    vi.stubGlobal('matchMedia', (query: string) => {
+      const result = matchMedia(query)
+      return query === '(prefers-reduced-motion: reduce)' ? { ...result, matches: reduced } : result
+    })
     useActualHabitVisibility = true
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
     const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
@@ -2194,11 +2199,15 @@ describe('HabitList', () => {
     expect(screen.getByTestId('habit-card-h-1')).toBeInTheDocument()
 
     act(() => {
-      vi.advanceTimersByTime(1400)
+      vi.advanceTimersByTime(1399)
     })
+    expect(screen.getByTestId('habit-card-h-1').closest('[inert]')).toBeNull()
+    act(() => { vi.advanceTimersByTime(1) })
 
-    expect(screen.getByTestId('habit-card-h-1').closest('[inert]')).not.toBeNull()
+    if (reduced) expect(screen.queryByTestId('habit-card-h-1')).toBeNull()
+    else expect(screen.getByTestId('habit-card-h-1').closest('[inert]')).not.toBeNull()
     result.unmount()
+    vi.stubGlobal('matchMedia', matchMedia)
     setTimeoutSpy.mockRestore()
     vi.useRealTimers()
   })

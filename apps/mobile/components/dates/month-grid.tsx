@@ -1,5 +1,6 @@
 import { MovingDaySelection, useMonthSelection } from './month-selection'
 import { SelectionIndicator } from '@/components/ui/selection-indicator'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { Children } from 'react'
 import type { MonthGridProps } from '@orbit/shared/contracts/dates'
 import { StyleSheet, Text, View } from 'react-native'
@@ -18,6 +19,7 @@ export function MonthGrid({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const selection = useMonthSelection(selectionIndex)
+  const reduced = usePrefersReducedMotion()
   const columns = weekdayLabels.length
   const numericGap = typeof gap === 'number' ? gap : Number.parseFloat(gap)
   const dayChildren = Children.toArray(children)
@@ -28,7 +30,7 @@ export function MonthGrid({
     : []
 
   return (
-    <MovingDaySelection.Provider value={Boolean(selection.bounds)}><View accessibilityRole="summary" accessibilityLabel={label} testID={`month-grid-${columns}-columns`} style={{ rowGap: 8 }}>
+    <MovingDaySelection.Provider value={Boolean(selection.bounds) && !reduced}><View accessibilityRole="summary" accessibilityLabel={label} testID={`month-grid-${columns}-columns`} style={{ rowGap: 8 }}>
       {columns > 0 ? (
         <View testID="month-grid-header" accessibilityElementsHidden={Boolean(loadingLabel)} importantForAccessibility={loadingLabel ? "no-hide-descendants" : "auto"} style={[styles.row, { columnGap: numericGap, opacity: loadingLabel ? 0 : undefined }]}>
           {weekdayLabels.map((weekday, index) => (
@@ -38,22 +40,24 @@ export function MonthGrid({
           ))}
         </View>
       ) : null}
-      <View testID="month-grid-days" accessibilityRole={loadingLabel ? "progressbar" : undefined} accessibilityLabel={loadingLabel} accessibilityState={loadingLabel ? { busy: true } : undefined} style={{ rowGap: numericGap, minHeight: minimumDayGridHeight }}>
-        <SelectionIndicator bounds={selection.bounds} color={tokens.selectionBg} borderColor={tokens.primary} radius={999} />
-        {columns > 0
-          ? rows.map((row, rowIndex) => (
-              <View onLayout={(event) => selection.measureRow(rowIndex, event)} key={rowIndex} testID={`month-grid-row-${rowIndex}`} style={[styles.row, { columnGap: numericGap }]}>
-                {row.map((child, columnIndex) => (
-                  <View onLayout={(event) => selection.measureCell(rowIndex * columns + columnIndex, event)} key={columnIndex} style={styles.cellSlot}>
-                    {child}
-                  </View>
-                ))}
-                {Array.from({ length: columns - row.length }, (_, emptyIndex) => (
-                  <View key={`empty-${emptyIndex}`} style={styles.cellSlot} />
-                ))}
-              </View>
-            ))
-          : dayChildren}
+      <View>
+        <View testID="month-grid-days" accessibilityRole={loadingLabel ? "progressbar" : undefined} accessibilityLabel={loadingLabel} accessibilityState={loadingLabel ? { busy: true } : undefined} style={{ rowGap: numericGap, minHeight: minimumDayGridHeight }}>
+          {columns > 0
+            ? rows.map((row, rowIndex) => (
+                <View onLayout={(event) => selection.measureRow(rowIndex, event)} key={rowIndex} testID={`month-grid-row-${rowIndex}`} style={[styles.row, { columnGap: numericGap }]}>
+                  {row.map((child, columnIndex) => (
+                    <View onLayout={(event) => selection.measureCell(rowIndex * columns + columnIndex, event)} key={columnIndex} style={styles.cellSlot}>
+                      {child}
+                    </View>
+                  ))}
+                  {Array.from({ length: columns - row.length }, (_, emptyIndex) => (
+                    <View key={`empty-${emptyIndex}`} style={styles.cellSlot} />
+                  ))}
+                </View>
+              ))
+            : dayChildren}
+        </View>
+        <SelectionIndicator bounds={reduced ? undefined : selection.bounds} color="transparent" borderColor={tokens.primary} radius={999} />
       </View>
     </View></MovingDaySelection.Provider>
   )

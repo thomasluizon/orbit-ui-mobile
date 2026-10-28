@@ -24,6 +24,6 @@ describe('interaction motion', () => {
   it('keeps reduced-motion presses at unit scale and uses the shared duration', () => {
     const stylesheet = readFileSync('app/globals.css', 'utf8')
     expect(stylesheet).toMatch(/habit-check-motion\s*\{\s*transition: background-color var\(--dur-press\)/)
-    expect(stylesheet).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*:is\(button, a,.*?:active\s*\{\s*scale: 1 !important/s)
+    expect(stylesheet).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*:is\(button, a,.*?:active\s*\{\s*scale: none !important/s)
   })
 })

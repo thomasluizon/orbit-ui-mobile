@@ -44,7 +44,7 @@ describe('completion control paint stack', () => {
           const control = () => tree.root.findAll((node) => String(node.type) === 'Pressable')[0]!
           const props = () => control().props as { style: StyleProp<ViewStyle>; onPressIn: () => void; onPressOut: () => void; onPress?: () => void; accessibilityState: { disabled: boolean } }
           const track = () => kind === 'habit check'
-            ? tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'habit-check')[0]!
+            ? tree.root.findAll((node) => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!
             : control().findAll((node) => String(node.type) === 'View')[0]!
           const resting = style(props().style)
           expect(resting.minHeight).toBe(48)
@@ -54,7 +54,7 @@ describe('completion control paint stack', () => {
           for (const pressed of [false, true, false]) {
             await act(() => { props()[pressed ? 'onPressIn' : 'onPressOut']() })
             const target = style(props().style)
-            const parent = kind === 'habit check' ? { ...target, ...style(tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'habit-check')[0]!.props.style) } : target
+            const parent = kind === 'habit check' ? { ...target, ...style(track().props.style) } : target
             const trackStyle = style(track().props.style)
             expect(trackStyle.borderColor).toBe(color)
             for (const surface of [tokens.bgCard, tokens.bg]) {

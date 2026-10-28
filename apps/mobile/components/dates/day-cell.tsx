@@ -78,10 +78,9 @@ function DayCellCircle({ props, size, tokens, pressed, focused }: Readonly<{ pro
     : props.habitHistory
       ? <HabitHistoryContents props={props} outcome={outcome} size={34} tokens={tokens} pressed={pressed} />
       : <DayCellContents props={props} outcome={outcome} size={34} tokens={tokens} pressed={pressed} />
-  const selectedFill = moving ? 'transparent' : tokens.selectionBg
   const restingFill = props.loggable || props.raised ? tokens.bgWell : 'transparent'
-  const backgroundColor = props.selected ? selectedFill : pressed ? 'transparent' : restingFill
-  const ring = props.today || (props.selected && !moving) || focused || props.focused
+  const backgroundColor = props.selected ? tokens.selectionBg : pressed ? 'transparent' : restingFill
+  const ring = (props.today || props.selected || focused || props.focused) && !(props.selected && moving)
     ? <View pointerEvents="none" testID={props.today ? 'day-today-ring' : 'day-selection-ring'} style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.primary, borderWidth: 2 }]} />
     : null
   return <View style={{ width: '100%', maxWidth: size }}><View testID="day-circle" style={[styles.container, { width: '100%', aspectRatio: 1, borderRadius: size / 2, overflow: 'hidden', backgroundColor }]}>

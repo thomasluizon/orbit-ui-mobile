@@ -114,17 +114,17 @@ export function DayCell(props: Readonly<DayCellProps>) {
     style: { width: '100%', minHeight: Math.max(size, MONTH_GRID_TARGET_MIN), opacity: props.outsideMonth ? 0 : 1 },
   }
   const contents = <DayCellContents props={props} outcome={outcome} size={statusSize} />
-  const selectedClass = selectionId ? '' : 'orbit-day-selected'
+  const showPositionRing = (props.today || props.selected) && !(props.selected && selectionId)
   const circle = <span
     data-day-circle=""
-    className={'orbit-day-circle isolate relative inline-flex items-center justify-center ' + (props.selected ? selectedClass : props.loggable || props.raised ? 'orbit-day-well' : '')}
+    className={'orbit-day-circle isolate relative inline-flex items-center justify-center ' + (props.selected ? 'orbit-day-selected' : props.loggable || props.raised ? 'orbit-day-well' : '')}
     style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2 }}
   >
     {props.selected && selectionId ? <SelectionIndicator id={selectionId} calendar /> : null}
     <PressFill selected={props.selected} />
     {contents}
     <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0"
-      style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${props.today || (props.selected && !selectionId) ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />
+      style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${showPositionRing ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />
   </span>
 
   if (interactive) {

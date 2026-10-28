@@ -1411,7 +1411,7 @@ export function HabitList({
       title={t('habits.loadError')} description="" actionLabel={t('common.retry')} actionIcon="refresh"
       onAction={() => { void habitsQuery.refetch() }} variant="secondary" />
 
-    return <ContentFade key="content"><TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty={habits.length === 0}><div
+    return <ContentFade key={JSON.stringify([view, selectedDateStr, searchQuery, filters])}><TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty={habits.length === 0}><div
       ref={setListContainerRef}
       data-habit-list=""
       tabIndex={-1}

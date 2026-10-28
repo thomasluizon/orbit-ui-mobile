@@ -2619,6 +2619,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .orbit-day-target:focus-visible {
   outline: none;
   --day-focus-ring: inset 0 0 0 2px var(--primary);
+  --day-selection-ring: none;
 }
 
 @media (forced-colors: active) {
@@ -2918,7 +2919,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 @media (prefers-reduced-motion: reduce) {
   :is(button, a, [role="button"], [role="radio"], [role="tab"]):active {
-    scale: 1 !important;
+    scale: none !important;
   }
 }
 

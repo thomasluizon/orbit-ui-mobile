@@ -75,6 +75,7 @@ vi.mock('motion/react', async (importOriginal) => {
       return { stop }
     },
     motion: {
+      span: actual.motion.span,
       div: ({
         children,
         style,
