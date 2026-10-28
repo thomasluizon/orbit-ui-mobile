@@ -56,8 +56,8 @@ export function startingStepComposition(parsed, vars) {
     || response.aiMessage != null && response.aiMessage !== '' || !validStartingBlock(parts[0].block, vars.clientContext.locale)
     || !isDeepStrictEqual(parts[0].block.suggestion, suggestion)) return result(false, 'Missing one starting-step block with server actions and no prose.')
   const previous = vars.previousStartingStep
-  if (previous && (suggestion.goal !== previous.goal || suggestion.step === previous.step)) {
-    return result(false, 'A smaller step must preserve the activity and change the previous action.')
+  if (previous && suggestion.step === previous.step) {
+    return result(false, 'A smaller step must change the previous action; the rubric checks effort and activity.')
   }
   return result(true, 'One starting step and its server actions match the tool evidence.')
 }

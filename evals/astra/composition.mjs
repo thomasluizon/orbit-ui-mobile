@@ -108,7 +108,8 @@ export function composition(output, context) {
   const response = parsed?.composition
   const expected = context.vars.composition
   if (!expected || !response) return result(false, 'Missing composition evidence or scenario policy.', { unavailable: true })
-  if (['one-small-step', 'one-small-step-legacy'].includes(expected.mode)) return startingStepComposition(parsed, context.vars)
+  if (['one-small-step', 'one-small-step-legacy'].includes(expected.mode)) return validOperations(response)
+    ? startingStepComposition(parsed, context.vars) : result(false, 'Malformed operation or action surfaces.')
   if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
   if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
   if (expected.mode === 'suggestions') return suggestionComposition(response, context.vars)

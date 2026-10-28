@@ -4,9 +4,28 @@ import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import AstraHttpProvider from './http-provider.mjs'
 import { behavior, composition, structural } from './assertions.mjs'
+import { readStartingHabits } from './step-persistence.mjs'
+
+function prepareStartingAction(test, block) {
+  const vars = test.vars
+  vars.previousStartingStep = structuredClone(block.suggestion)
+  vars.input = block.actions.find(({ id }) => id === vars.startingStepAction).message
+  const required = vars.expectations.required[0]
+  if (vars.startingStepAction === 'saveTask') required.arguments = { title: block.suggestion.step, frequency_unit: 'OneTime' }
+  if (vars.startingStepAction !== 'saveChecklistItem') return
+  const habit = vars.startingHabitBaseline.find((habit) => habit.id === vars.checklistHabitId)
+  if (!habit?.checklistItems.length) throw new Error('Starting-step setup requires an owned habit with existing checklist items.')
+  vars.input += vars.clientContext.locale === 'pt-BR' ? ` Use o hábito ${JSON.stringify(habit.title)}.` : ` Use the habit ${JSON.stringify(habit.title)}.`
+  required.arguments = { habit_id: habit.id,
+    checklist_items: [...habit.checklistItems, { text: block.suggestion.step, isChecked: false }]
+      .map(({ text, isChecked }) => ({ text, is_checked: isChecked ? true : { optional: false } })) }
+}
 
 export async function prepareCorrection(test) {
   const setup = test.vars.setup
+  if (['saveTask', 'saveChecklistItem'].includes(test.vars.startingStepAction)) {
+    test.vars.startingHabitBaseline = await readStartingHabits(test.vars.credentialKey)
+  }
   const requestId = randomUUID()
   const configuration = parse(readFileSync(new URL('./promptfooconfig.yaml', import.meta.url), 'utf8'))
   const provider = new AstraHttpProvider({ config: {
@@ -21,6 +40,7 @@ export async function prepareCorrection(test) {
   if (failures.length) {
     throw new Error(`Correction setup failed${setup.caseId ? ` dependency ${setup.caseId}` : ''}: ${failures.map((check) => check.reason).join('; ')}`)
   }
+  if (test.vars.startingStepAction) prepareStartingAction(test, response.output.composition.parts[0].block)
   if (test.vars.refine) {
     const drafts = response.output.composition.parts.find((part) => part.kind === 'habitSuggestions').block.drafts
     test.vars.baselineDrafts = structuredClone(drafts)

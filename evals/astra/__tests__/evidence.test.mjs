@@ -32,6 +32,15 @@ function outputFor(calls = []) {
   } })
 }
 
+it('preserves independent saved-step readback in the private attempt artifact', () => {
+  const savedStep = { approved: true, unchangedBeforeApproval: true, action: 'saveTask', title: 'Open the book',
+    frequencyUnit: null, frequencyQuantity: null, checklistItems: [] }
+  const { evidence } = persist(outputFor(), { gradingResult: { componentResults: [
+    { assertion: { metric: 'savedStep' }, pass: true, metadata: { savedStep } },
+  ] } })
+  expect(evidence.savedStep).toEqual(savedStep)
+})
+
 it('preserves the graded projection, block subtypes, full verdicts and schema-confirmed timing', () => {
   const output = outputFor([toolCall('query_habits', { date: 'today' })])
   output.answer = ' Water is ready.\n\n  Keep this spacing.\n'

@@ -2,6 +2,10 @@ import { afterEach, expect, it, vi } from 'vitest'
 import * as grades from '../assertions.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
+import { readFileSync } from 'node:fs'
+import { parse } from 'yaml'
+import { prepareCorrection } from '../setup.mjs'
+import { assertions as promptfooAssertions } from 'promptfoo'
 
 // Producer: OneSmallStepCard.Build and SuggestBreakdownTool at the catalog API commit.
 export function startingResponse(locale = 'en', requestId = 'request') {
@@ -62,6 +66,12 @@ it.each([
   (response) => { response.parts[0].block.suggestion.step = 'Do everything' },
   (response) => { response.followUps = ['Save it?'] },
   (response) => { response.pendingOperations = [{ id: 'unexpected-write' }] },
+  (response) => { response.operations = {} },
+  (response) => { response.followUps = 'Malformed surface' },
+  (response) => { response.parts[0].block.suggestion.step = 'x'.repeat(201) },
+  (response) => { response.evalTrace.toolCalls[0].arguments.one_small_step = false },
+  (response) => { response.evalTrace.toolCalls[0].arguments.suggested_sub_habits.push({ title: 'A second step' }) },
+  (response) => { response.evalTrace.toolCalls.push(structuredClone(response.evalTrace.toolCalls[0])) },
 ])('rejects a malformed block, invented actions or framing prose %#', (mutate) => {
   const response = startingResponse()
   mutate(response)
@@ -81,14 +91,80 @@ it.each(['en', 'pt-BR'])('requires the exact readable step without actions for t
   expect(grades.composition(outputFor(response), { vars }).pass).toBe(false)
 })
 
-it('rejects a smaller step that changes the original activity or repeats the previous step', () => {
+it('rejects an unchanged step and leaves equivalent activity wording to the semantic grader', () => {
   const response = startingResponse()
   const vars = { ...varsFor(), previousStartingStep: structuredClone(response.parts[0].block.suggestion) }
   expect(grades.composition(outputFor(response), { vars }).pass).toBe(false)
-  vars.previousStartingStep = { goal: 'Exercise', step: 'Walk outside', language: 'en' }
-  expect(grades.composition(outputFor(response), { vars }).pass).toBe(false)
+  vars.previousStartingStep = { goal: 'Studying', step: 'Read ten pages', language: 'en' }
+  expect(grades.composition(outputFor(response), { vars }).pass).toBe(true)
 })
 
 it('provides an approval and independent saved-step grader', () => {
   expect(grades.savedStep).toBeTypeOf('function')
+})
+
+it('accepts equivalent JSON escaping in server action messages', () => {
+  const response = startingResponse('pt-BR')
+  for (const action of response.parts[0].block.actions) action.message = action.message.replaceAll('Estudar', '\\u0045studar')
+  expect(grades.composition(outputFor(response), { vars: varsFor('pt-BR') }).pass).toBe(true)
+})
+
+const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
+const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
+it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'save-task', 'save-checklist'].map((family) => [locale, family])))(
+  'uses the actual %s block action for %s with history and verified setup', async (locale, family) => {
+    const test = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-one-small-step-${family}-${locale}`))
+    test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
+    test.vars.checklistHabitId = '22222222-2222-4222-8222-222222222222'
+    vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
+    vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
+    const baseline = [{ id: test.vars.checklistHabitId, title: locale === 'en' ? 'Water' : 'Beber água',
+      checklistItems: [{ text: 'Existing item', isChecked: true }] }]
+    let starting
+    vi.stubGlobal('fetch', async (url, options) => {
+      if (new URL(url).pathname === '/api/profile/export') return Response.json({ habits: baseline })
+      expect(new URL(url).pathname).toBe('/api/chat')
+      const request = new Request(url, options)
+      const form = await request.formData()
+      expect(form.get('message')).toBe(test.vars.setup.input)
+      expect(JSON.parse(form.get('history'))).toEqual([])
+      expect(JSON.parse(form.get('clientContext')).partKinds).toContain('oneSmallStep')
+      const response = startingResponse(locale, request.headers.get('x-orbit-request-id'))
+      starting = response.parts[0].block
+      return Response.json(response, { headers: { 'x-orbit-request-id': request.headers.get('x-orbit-request-id') } })
+    })
+    await prepareCorrection(test)
+    expect(test.vars.previousStartingStep).toEqual(starting.suggestion)
+    const action = starting.actions.find(({ id }) => id === test.vars.startingStepAction)
+    const suffix = family === 'save-checklist' ? locale === 'en' ? ' Use the habit "Water".' : ' Use o hábito "Beber água".' : ''
+    expect(test.vars.input).toBe(action.message + suffix)
+    expect(JSON.parse(test.vars.historyJson)).toEqual([{ role: 'user', content: test.vars.setup.input },
+      { role: 'assistant', content: visibleAnswer({ parts: [{ type: 'block', kind: 'oneSmallStep', block: starting }] }, test.vars.clientContext) }])
+    if (family === 'save-task') expect(test.vars.expectations.required[0].arguments).toMatchObject({ title: starting.suggestion.step, frequency_unit: 'OneTime' })
+    if (family === 'save-checklist') {
+      expect(test.vars.startingHabitBaseline).toEqual(baseline)
+      expect(test.vars.expectations.required[0].arguments).toEqual({ habit_id: test.vars.checklistHabitId,
+        checklist_items: [{ text: 'Existing item', is_checked: true }, { text: starting.suggestion.step, is_checked: { optional: false } }] })
+    }
+    const grader = { id: () => 'offline-starting-step-grader', callApi: vi.fn(async () => ({
+      output: JSON.stringify({ pass: true, score: 1, reason: 'Captured previous-step context.' }),
+    })) }
+    const grade = await promptfooAssertions.runAssertion({ prompt: test.vars.input,
+      assertion: configuration.defaultTest.assert.find((assertion) => assertion.type === 'llm-rubric'),
+      test: { ...test, options: { provider: grader } }, vars: test.vars,
+      providerResponse: { output: { answer: 'Projected next answer' } },
+    })
+    expect(grade.pass).toBe(true)
+    const gradingPrompt = grader.callApi.mock.calls[0][0]
+    expect(gradingPrompt).toContain('Previous starting step:')
+    expect(gradingPrompt).toContain(JSON.stringify(starting.suggestion).replaceAll('"', '\\"'))
+  },
+)
+
+it('registers five bilingual starting-step cases and the independent persistence assertion in the gate', () => {
+  for (const family of ['one-small-step', 'one-small-step-smaller', 'one-small-step-save-task', 'one-small-step-save-checklist', 'one-small-step-legacy']) {
+    expect(corpus.filter((entry) => entry.metadata.family === family).map((entry) => entry.metadata.locale).sort()).toEqual(['en', 'pt-BR'])
+  }
+  expect(configuration.evaluateOptions).toMatchObject({ repeat: 3, maxConcurrency: 1, cache: false })
+  expect(configuration.defaultTest.assert).toContainEqual({ type: 'javascript', value: 'file://assertions.mjs:savedStep', metric: 'savedStep' })
 })
