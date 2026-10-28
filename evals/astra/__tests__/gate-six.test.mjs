@@ -52,3 +52,10 @@ it.each(['en', 'pt-BR'])('binds medical dates to the account year and the stated
   expect(test.vars.rubric).toContain('{accountDate}')
   expect(test.vars.rubric).toContain('{accountYear}-10-26')
 })
+
+it.each(['calendar-sync', 'error', 'offline'])('asks about Google Agenda in the Portuguese %s case', (family) => {
+  const test = scenario(family, 'pt-BR')
+  expect(test.vars.input).toMatch(/agenda do Google|Google Agenda/u)
+  expect(test.vars.input).not.toContain('meu calendário')
+  expect(test.vars.expectations.required[0].name).toBe('get_calendar_overview')
+})

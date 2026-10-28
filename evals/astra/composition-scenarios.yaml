@@ -474,7 +474,7 @@
     fixture: composition
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Mostre meu calendário e o estado da sincronização.
+    input: Mostre minha agenda do Google e o estado da sincronização.
     clientContext: *a5
     composition: *a20
     expectations:
@@ -1313,7 +1313,7 @@
     fixture: composition-error
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Mostre meu calendário mesmo se a conexão precisar de recuperação.
+    input: Mostre minha agenda do Google mesmo se a conexão precisar de recuperação.
     clientContext: *a5
     composition: *a52
     expectations:
@@ -1363,7 +1363,7 @@
     fixture: composition-offline
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: Mostre meu calendário enquanto o provedor está temporariamente
+    input: Mostre minha agenda do Google enquanto o provedor está temporariamente
       indisponível.
     clientContext: *a5
     composition: *a54
