@@ -313,9 +313,17 @@ function graphicOnlyContainer(node, graphicTags) {
   const opening = openingElement(node)
   const element = opening && ts.isJsxOpeningElement(opening) ? opening.parent : undefined
   if (!element || !ts.isJsxElement(element)) return false
+  const emojiWell = ancestor(element, (current) => ts.isJsxElement(current)
+    && (attributeText(current.openingElement, "data-emoji-well", current.getSourceFile()) !== undefined
+      || attributeText(current.openingElement, "testID", current.getSourceFile()) === "habit-emoji-well"))
   let hasGraphic = false
   const inspect = (child) => {
     if (ts.isJsxText(child)) return child.text.trim() === ""
+    if (emojiWell) {
+      if (ts.isJsxExpression(child) && child.expression) return inspect(child.expression)
+      if (ts.isIdentifier(child) && child.text === "selectedEmoji") { hasGraphic = true; return true }
+      if (ts.isBinaryExpression(child) && child.operatorToken.kind === ts.SyntaxKind.BarBarToken) return inspect(child.left) && inspect(child.right)
+    }
     if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) {
       const tag = jsxTag(ts.isJsxElement(child) ? child.openingElement : child)
       if (graphicTags.has(tag) || /(?:Icon|Glyph)$/.test(tag)) { hasGraphic = true; return true }

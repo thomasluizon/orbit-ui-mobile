@@ -118,7 +118,7 @@ export function HabitEmojiSelector({
             {({ pressed }) => (
               <View testID="habit-emoji-well" data-proposed={proposed || undefined} data-press-fill="" accessible={false} pointerEvents="none" style={{ width: wellSize, height: wellSize, borderRadius: 12, backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, alignItems: 'center', justifyContent: 'center', ...(proposed ? { borderWidth: 1, borderStyle: 'dashed', borderColor: tokens.hairlineStrong } : {}) }}>
                 {selectedEmoji ? (
-                  <Text style={[styles.emojiWellText, proposed ? { color: tokens.fg2 } : null, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
+                  <Text style={[styles.emojiWellText, proposed ? { color: tokens.fg3 } : null, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
                 ) : (
                   <Plus size={20} color={tokens.fg3} strokeWidth={1.8} />
                 )}
