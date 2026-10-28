@@ -7,11 +7,14 @@ import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { habitKeys } from '@orbit/shared/query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { habitScheduleItemSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { formatAPIDate, habitListQueryFilters } from '@orbit/shared/utils'
+import { AccountClock } from '@/lib/account-clock'
+import CalendarPage from '@/app/(app)/calendar/page'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
 import { RenderedAccountSeed } from '@/app/(app)/rendered-account-seed'
 import { getQueryClient } from '@/lib/query-client'
@@ -28,6 +31,11 @@ vi.mock('@/lib/actions/habits', async (importOriginal) => ({
 import { TodayProvider } from '@/app/(app)/today-provider'
 import { buildTodayFilters } from '@/app/(app)/today-model'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+
+vi.mock('@orbit/shared/utils/intl-format-cache', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/utils/intl-format-cache')>()
+  return { ...actual, getDateTimeFormat: (locale: string, options?: Intl.DateTimeFormatOptions) => actual.getDateTimeFormat(locale, { ...options, timeZone: options?.timeZone ?? process.env.TZ }) }
+})
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/',
@@ -56,8 +64,16 @@ const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
   children?: React.ReactNode
 }>
 
-function createTodayTree(client: QueryClient, items: HabitScheduleItem[] = [], accountId: string | null = null) {
-  const initialToday = formatAPIDate(new Date())
+interface HydrationSettings {
+  route: string
+  initialToday: string
+  timeZone: string | null
+  now: number
+  locale: string
+}
+
+function createTodayTree(client: QueryClient, items: HabitScheduleItem[] = [], accountId: string | null = null, settings?: HydrationSettings) {
+  const { route = 'today', initialToday = formatAPIDate(new Date()), timeZone = profileFixture.timeZone, now = Date.now(), locale = 'en' } = settings ?? {}
   const filters = buildTodayFilters({
     dateStr: initialToday,
     isTodayDate: true,
@@ -69,15 +85,17 @@ function createTodayTree(client: QueryClient, items: HabitScheduleItem[] = [], a
 
   return (
     <QueryClientProvider client={client}>
-      <TestIntlProvider locale="en" messages={en}>
+      <TestIntlProvider locale={locale} messages={locale === 'en' ? en : ptBR}>
         <RenderedAccountSeed accountId={accountId}>
+        <AccountClock now={now} timeZone={timeZone}>
         <TodayProvider>
-          <TodayPageClient
+          {route === 'calendar' ? <CalendarPage /> : <TodayPageClient
             initialToday={initialToday}
             initialHabits={{ queryKey: habitKeys.list(habitListQueryFilters(filters, true)), items, totalCount: items.length }}
-            initialProfile={profileFixture}
-          />
+            initialProfile={{ ...profileFixture, timeZone }}
+          />}
         </TodayProvider>
+        </AccountClock>
         </RenderedAccountSeed>
       </TestIntlProvider>
     </QueryClientProvider>
@@ -144,6 +162,49 @@ describe('Today server preload', () => {
       container.remove()
       browserClient.clear()
       serverClient.clear()
+    }
+  })
+
+
+  it.each([
+    ['today', 'en', 'America/Sao_Paulo', '2026-10-27', '2026-10-28T01:30:00Z', 'October 27'],
+    ['calendar', 'en', 'America/Sao_Paulo', '2026-10-27', '2026-10-28T01:30:00Z', 'October 27'],
+    ['today', 'pt-BR', 'America/Sao_Paulo', '2026-10-27', '2026-10-28T01:30:00Z', '27 de outubro'],
+    ['calendar', 'pt-BR', 'America/Sao_Paulo', '2026-10-27', '2026-10-28T01:30:00Z', '27 de outubro'],
+    ['today', 'en', 'Pacific/Kiritimati', '2026-10-28', '2026-10-27T12:30:00Z', 'October 28'],
+    ['calendar', 'en', 'Pacific/Kiritimati', '2026-10-28', '2026-10-27T12:30:00Z', 'October 28'],
+  ])('hydrates %s in %s using %s across host calendar days', async (route, locale, timeZone, initialToday, instant, label) => {
+    const originalTimeZone = process.env.TZ
+    const serverClient = createTestQueryClient()
+    const browserClient = createTestQueryClient()
+    const container = document.createElement('div')
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    const now = new Date(instant).getTime()
+    const settings = { route, locale, timeZone, initialToday, now }
+    vi.setSystemTime(now)
+    const items = [habitScheduleItemSchema.parse({ ...createMockHabit({ dueDate: '2026-10-27', scheduledDates: ['2026-10-27'] }), children: [], linkedGoals: [] })]
+    try {
+      process.env.TZ = 'UTC'
+      container.innerHTML = renderToString(createTodayTree(serverClient, items, null, settings))
+      expect(container).toHaveTextContent(label)
+      document.body.append(container)
+      process.env.TZ = timeZone
+      expect(new Date().getDate()).toBe(Number(initialToday.slice(-2)))
+      await act(async () => {
+        root = hydrateRoot(container, createTodayTree(browserClient, items, null, settings), {
+          onRecoverableError: recoverableError,
+        })
+      })
+      expect(recoverableError).not.toHaveBeenCalled()
+      expect(container).toHaveTextContent(label)
+    } finally {
+      await act(async () => root?.unmount())
+      container.remove()
+      browserClient.clear()
+      serverClient.clear()
+      if (originalTimeZone === undefined) delete process.env.TZ
+      else process.env.TZ = originalTimeZone
     }
   })
 
