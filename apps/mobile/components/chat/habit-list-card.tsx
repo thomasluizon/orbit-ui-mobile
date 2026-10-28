@@ -37,8 +37,8 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
   const rows = visibleItems.map((item) => {
     const occurrence = occurrences.data?.habitsById.get(item.id)
     const snapshotCheck = habitSnapshotCheck(item)
-    const skippedLabel = item.isSkippedOnDate ? t('habits.statusDot.skip') : undefined
     const { control, logged, unavailable } = habitListRowState(item, occurrence, Boolean(habitList.read), occurrenceDate, pendingIds.has(item.id), readScope)
+    const skippedLabel = item.isSkippedOnDate && !logged ? t('habits.statusDot.skip') : undefined
     return <HabitBlockRow key={item.id} title={item.title} emoji={item.emoji} meta={skippedLabel} error={failedIds.has(item.id) ? t('chat.liveBlock.error') : undefined}
       label={t('chat.habitList.open', { name: item.title })}
       onOpen={() => navigate({ pathname: '/habits/[id]', params: { id: item.id, ...(habitList.date ? { date: habitList.date } : {}) } })}
@@ -47,9 +47,9 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
           if (unavailable || !habitListReadControl(occurrence, item.status, occurrenceDate, readScope).writeAllowed) return
           void log({ habitId: item.id, date: occurrenceDate, intent: logged ? 'unlog' : 'log' })
         }} style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}>
-          {({ pressed }) => <HabitCheck status={item.isSkippedOnDate ? 'empty' : control.status} label={skippedLabel ?? t(control.statusKey)} feedback={pressed} />}
+          {({ pressed }) => <HabitCheck status={skippedLabel ? 'empty' : control.status} label={skippedLabel ?? t(control.statusKey)} feedback={pressed} />}
         </Pressable>
-      ) : <View style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}><HabitCheck status={item.isSkippedOnDate ? 'empty' : snapshotCheck.status} label={skippedLabel ?? t(snapshotCheck.statusKey)} /></View>} />
+      ) : <View style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}><HabitCheck status={skippedLabel ? 'empty' : snapshotCheck.status} label={skippedLabel ?? t(snapshotCheck.statusKey)} /></View>} />
   })
 
   return (
