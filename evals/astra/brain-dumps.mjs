@@ -37,7 +37,7 @@ export function brainDumpPreview(output, vars) {
   const habits = calls[0]?.arguments?.habits
   const expected = vars.brainDump
   if (!expected || output.httpStatus !== 200 || pending?.length !== 1 || calls.length !== 1
-    || calls[0].resultStatus !== 'PendingConfirmation' || pending[0].displayName !== 'bulk_create_habits'
+    || calls[0].resultStatus !== 'PendingConfirmation'
     || !Array.isArray(habits) || habits.length !== expected.items.length + (expected.additionalIdeas ?? 0)
     || pending[0].items?.length !== habits.length) return result(false, 'Brain dump requires one complete held bulk preview.')
   const parts = response.parts

@@ -32,6 +32,7 @@ export function brainDumpAttempt(source = brainDumpCases[0]) {
   const bulk = toolCall('bulk_create_habits', { habits }, 'PendingConfirmation', 'bulk', test.vars.clientContext)
   calls.push(bulk)
   const pending = preview()
+  pending.displayName = 'Bulk Habit Updates'
   pending.changeTargetCount = habits.length
   pending.items = habits.map((habit, index) => ({ itemId: String(index), entityId: habit.habit_id ?? null,
     entityName: habit.title, stateFingerprint: `state-${index}`, removesData: false,
