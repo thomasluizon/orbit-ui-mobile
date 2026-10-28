@@ -9,6 +9,7 @@ import { MenuItemsContext, useMenu } from './dropdown-menu-context'
 import { Check } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
+import { dismissTopOverlay } from '@/lib/overlay-stack'
 
 const Portal = Primitive.Portal
 
@@ -58,13 +59,23 @@ export function Content({ id, items = [], onSelect, title, shortTitle, titleMode
       target.focus()
     }
   }
+  const handleAnchoredEscape = (event: KeyboardEvent) => {
+    if (event.defaultPrevented) return
+    if (open) {
+      restoreAnchoredFocus()
+      return
+    }
+    // WHY: Radix retains its Escape listener during the closed menu's exit animation. https://github.com/thomasluizon/orbit-tickets/issues/1839
+    event.preventDefault()
+    dismissTopOverlay('escape')
+  }
   if (items.length === 0) return null
   if (presentation === 'sheet' || (presentation === 'auto' && !wide)) {
     if (!open) return null
     return <MenuSheet id={id} onSelect={activate} onClose={onClose} title={title} shortTitle={shortTitle} titleMode={titleMode} firstItemRef={firstItemRef} onSelectStart={onSelectStart} finalFocus={focusDestination} contentRef={contentRef} onContentFocus={focusInitialItem}>{children}</MenuSheet>
   }
   return <MenuItemsContext.Provider value={activate}><Portal>
-    <Primitive.Content ref={contentRef} {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} align={align} sideOffset={8} collisionPadding={8} loop className="orbit-menu-panel" data-positioned="" inert={!open} aria-hidden={!open || undefined} onFocus={focusInitialItem} onEscapeKeyDown={restoreAnchoredFocus} onPointerDownOutside={(event) => {
+    <Primitive.Content ref={contentRef} {...(id ? { id } : {})} aria-label={title} aria-labelledby={undefined} align={align} sideOffset={8} collisionPadding={8} loop className="orbit-menu-panel" data-positioned="" inert={!open} aria-hidden={!open || undefined} onFocus={focusInitialItem} onEscapeKeyDown={handleAnchoredEscape} onPointerDownOutside={(event) => {
       event.detail.originalEvent.preventDefault()
       restoreAnchoredFocus()
     }} onKeyDown={(event) => {
