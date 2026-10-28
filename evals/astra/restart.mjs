@@ -9,7 +9,8 @@ const isoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.te
 
 function completeReads(calls, ids, accountDate) {
   const todayRead = { name: 'query_habits', argumentsAnyOf: [
-    { relative_period: 'today' },
+    { relative_period: 'today', date: { optional: accountDate } },
+    { relative_period: 'today', date: 'today' },
     { date: 'today', relative_period: { optional: null } },
     { date: accountDate, relative_period: { optional: null } },
   ] }

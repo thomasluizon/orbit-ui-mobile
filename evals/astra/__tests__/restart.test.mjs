@@ -34,6 +34,8 @@ function proposal() {
 
 const todayReadForms = [
   { relative_period: 'today' },
+  { relative_period: 'today', date: today },
+  { relative_period: 'today', date: 'today' },
   { date: 'today' },
   { date: today },
 ]
@@ -53,6 +55,7 @@ it('accepts a complete held restart proposal grounded in the unfinished read', (
 
 it.each([
   ['another relative period', (output) => { output.trace.calls[0].arguments.relative_period = 'yesterday' }],
+  ['relative today beside another date', (output) => { Object.assign(output.trace.calls[0].arguments, { relative_period: 'today', date: '2026-01-01' }) }],
   ...['search', 'tag', 'frequency', 'is_general', 'is_bad_habit'].map((key) => [
     `filtered remaining work: ${key}`, (output) => { output.trace.calls[0].arguments[key] = key.startsWith('is_') ? false : 'filter' },
   ]),
