@@ -19,6 +19,17 @@ async function receive(extra, locale = 'pt-BR', supportsParts = true) {
 }
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
+it('projects a one small step block through the registry as its step and server action labels', () => {
+  const step = 'Put one plate in the sink'
+  const block = { suggestion: { goal: 'Clean the kitchen', step, language: 'en' }, actions: [
+    { id: 'smaller', label: 'Smaller', message: `Give me an even smaller starting step for "Clean the kitchen". The previous step was "${step}".` },
+    { id: 'saveTask', label: 'Save as task', message: `Save "${step}" as a task.` },
+    { id: 'saveChecklistItem', label: 'Save as checklist item', message: `Add "${step}" to a habit's checklist.` },
+  ] }
+  expect(visibleBlock({ type: 'block', kind: 'oneSmallStep', block }, { locale: 'en', t: (key) => key }))
+    .toEqual({ step, actions: ['Smaller', 'Save as task', 'Save as checklist item'] })
+})
+
 it.each(['en', 'pt-BR'])('grades the question text, choices, scale, slider bounds and localized actions in %s', async locale => {
   const { output } = await receive({ parts: [{ type: 'block', kind: 'question', block: questionBlockFixture }] }, locale)
   expect(output.answer).toContain('Morning')

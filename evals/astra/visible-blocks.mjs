@@ -1,4 +1,5 @@
 import { tsImport } from 'tsx/esm/api'
+import { startingStepAnswer } from './one-small-step.mjs'
 import { suggestionAnswer } from './suggestions.mjs'
 
 const shared = Object.assign({}, ...await Promise.all([
@@ -201,6 +202,7 @@ const renderers = shared.createChatBlockRegistry({ habitList, goalList, metrics,
   gamification, calendar, habitMonth, recordList, accountRows, habitRanking, choice: (card, options) => answerBlock(card, options, 'choice'),
   pickList: (card, options) => answerBlock(card, options, 'pickList'), question: questionBlock,
   habitSuggestions: (block, { locale }) => JSON.parse(suggestionAnswer([{ type: 'block', kind: 'habitSuggestions', block }], locale)).parts[0].block,
+  oneSmallStep: (block, { locale }) => JSON.parse(startingStepAnswer([{ type: 'block', kind: 'oneSmallStep', block }], locale)).parts[0].block,
 })
 
 function projectBlock(part, options) {
