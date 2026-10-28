@@ -15,7 +15,7 @@ import {
   PROPOSED_RADIUS,
   resolveBlockFrameRows,
 } from '@orbit/shared/contracts/blocks'
-import { useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, findNodeHandle, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import {
@@ -164,17 +164,19 @@ function FrameRows({ frameProps, tokens }: Readonly<{
   }
 
   return resolveBlockFrameRows(frameProps, labels).map((rowProps) => (
-    <FrameRow
-      editLabel={rowProps.editLabel}
-      frameState={rowProps.frameState}
-      irreversibleLabel={rowProps.irreversibleLabel}
-      item={rowProps.item}
-      key={rowProps.item.id}
-      onEditItem={rowProps.onEditItem}
-      proposedLabel={rowProps.proposedLabel}
-      statusLabel={rowProps.statusLabel}
-      tokens={tokens}
-    />
+    <Fragment key={rowProps.item.id}>
+      {rowProps.item.groupHeading ? <Text accessibilityRole="header" style={[styles.groupHeading, { color: tokens.fg2 }]}>{rowProps.item.groupHeading}</Text> : null}
+      <FrameRow
+        editLabel={rowProps.editLabel}
+        frameState={rowProps.frameState}
+        irreversibleLabel={rowProps.irreversibleLabel}
+        item={rowProps.item}
+        onEditItem={rowProps.onEditItem}
+        proposedLabel={rowProps.proposedLabel}
+        statusLabel={rowProps.statusLabel}
+        tokens={tokens}
+      />
+    </Fragment>
   ))
 }
 
@@ -316,6 +318,7 @@ const styles = StyleSheet.create({
   count: { fontFamily: 'Geist_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
   body: { flexShrink: 1, minHeight: 0 },
   rows: { gap: 8 },
+  groupHeading: { paddingHorizontal: SPACING.s12, paddingTop: SPACING.s16, fontFamily: 'Geist_500Medium', fontSize: 14 },
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, padding: SPACING.s12 },
   rowWords: { flex: 1, minWidth: 0 },
   rowLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },

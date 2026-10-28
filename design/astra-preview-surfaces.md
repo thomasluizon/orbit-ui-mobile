@@ -6,6 +6,7 @@ The granted Astra conversation canvas defines the item rows, action order and ou
 | Surface | Web and Android behavior |
 | --- | --- |
 | Pending item preview | One named row per item with a localized cadence, date or time; only items marked `removesData: true` carry an irreversible mark. |
+| Typed brain dump preview | One operation groups supplied `habitType` values under Tasks, Habits and General, in that order, using the paired localized labels. Item order inside each group and item identities remain intact. With fewer than two known types the preview stays flat without headings. Unknown, absent and null types stay unheaded, before named groups when grouping applies. Headings add no parent, placement or action. Reused items retain their field options and old/new adjustments. |
 | Placement choice | Destination-aware radio choices show the selected placement, recommendation and supplied localized reason. A switch revises every retained item ID with only the chosen item's placement patch. Approval and other revisions wait for the returned preview. Checklist items show their destination's settings note instead of independent draft schedules or nested activities; full Edit retains those settings for switching back. Offline failures retain the selected placement for retry; expired previews require refresh before approval. |
 | Compact preview actions | One filled Create or Save action, with counted accessible naming and icon-only Edit and Reject; whole controls reflow when the row cannot fit. |
 | Wide preview actions | The same filled primary action and icon-only Edit and Reject; whole controls reflow when the panel cannot fit them. |
@@ -32,6 +33,18 @@ The granted Astra conversation canvas defines the item rows, action order and ou
 
 Field diff labels, raw enums and redundant item names are removed from preview rows.
 Item names, short summaries and the single action row establish the hierarchy.
+
+`pending-operation-item-groups.ts` owns the pure grouping shared by the pending-operation
+presenter. The paired BlockFrame owners render each group heading above its first row,
+outside the proposed item surface, using the existing neutral type and spacing tokens.
+Nested rows remain with their parent. Original producer indexes keep execution outcomes
+attached to their items after display reordering. Approval, full Edit and rejection still
+belong to the single operation. Shared and paired component suites cover mixed types,
+legacy and single-type previews, retained editing and whole-operation actions.
+The paired preview geometry suites measure grouped headings and retained rows at phone
+and desktop widths in both locales, including enlarged text. Web uses isolated Chromium;
+Android uses the existing Yoga measurement path. Device font and screen-reader acceptance
+remain separate from these hermetic checks.
 
 Breakdown footer owners are `apps/web/components/chat/breakdown-suggestion.tsx` and
 `apps/mobile/components/chat/breakdown-suggestion.tsx`. Their behavior suites cover

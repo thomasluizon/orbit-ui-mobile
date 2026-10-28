@@ -1,4 +1,4 @@
-import { makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -1103,4 +1103,32 @@ it.each(['en', 'pt-BR'])('includes one enabled reminder token in create summarie
     expect(tokens.filter(token => token === expected)).toHaveLength(reminder === 'disabled' ? 0 : 1)
     expect(tokens).toHaveLength(reminder === 'disabled' ? 2 : 3)
   }
+})
+
+
+describe('typed preview rows', () => {
+  it('keeps execution results attached to their original items after grouping', () => {
+    const operation = makeTypedHabitsPreview()
+    const completed = makeBulkCreateExecutionResponse(['Success', 'Failed', 'Success', 'Success', 'Failed']).operation!
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ pendingOperation: operation, card: { ...createCard(), status: 'done', completedOperation: completed }, labels, render, onVerifyStepUp: vi.fn() })
+    expect(record.frame?.items.map(item => [item.id, item.status, item.groupHeading])).toEqual([
+      ['2', 'done', 'Tasks'], ['4', 'failed', undefined],
+      ['1', 'failed', 'Habits'], ['3', 'done', undefined], ['0', 'done', 'General'],
+    ])
+    expect(record.frame?.count).toBe(5)
+  })
+
+  it('keeps nested rows with their typed parent and untyped items outside named groups', () => {
+    const operation = makeTypedHabitsPreview([undefined, 'General', 'Habit', 'Task'])
+    const children = makeEveningRoutinePreview().items![0]!.fields.find(field => field.field === 'sub_habits')!
+    operation.items![2]!.fields.push(children)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ pendingOperation: operation, card: createCard(), labels, render, onVerifyStepUp: vi.fn() })
+    expect(record.frame?.items.map(item => [item.id, item.groupHeading, item.indented])).toEqual([
+      ['0', undefined, undefined], ['3', 'Tasks', undefined], ['2', 'Habits', undefined],
+      ['2-child-0', undefined, true], ['2-child-1', undefined, true], ['2-child-2', undefined, true],
+      ['1', 'General', undefined],
+    ])
+  })
 })
