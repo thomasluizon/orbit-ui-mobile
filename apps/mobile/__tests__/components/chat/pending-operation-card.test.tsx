@@ -1,4 +1,4 @@
-import { makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeRestartPlanPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -52,7 +52,7 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
     props.open ? React.createElement('ConfirmSheet', props) : null,
 }))
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false, timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/components/ui/otp-input', () => ({
   OtpInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) =>
     <TextInput accessibilityLabel={label} value={value} onChangeText={onChange} />,
@@ -1508,4 +1508,40 @@ it.each((['en', 'pt-BR'] as const).flatMap(locale => (['enabled', 'atTime', 'bef
   expect(meta).toContain(locale === 'en' ? 'at\u00a08:15\u00a0AM' : 'às\u00a08:15\u00a0AM')
   for (const token of meta.split(' · ')) expect(token).not.toContain(' ')
   TestRenderer.act(() => tree.unmount())
+})
+
+
+describe('restart plan preview', () => {
+  beforeEach(() => {
+    visibleLocale.actual = true
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-29T06:00:00Z'))
+  })
+  afterEach(() => { vi.useRealTimers(); visibleLocale.actual = false; visibleLocale.language = 'en' })
+
+  it.each(['en', 'pt-BR'])('renders each proposed date and preserves the batch when editing in %s', async locale => {
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const operation = makeRestartPlanPreview()
+    const items = operation.items!
+    const revised = items.map((item, index) => index === 0 ? { ...item, fields: item.fields.map(field => ({ ...field, newValue: '2026-10-30', proposedValue: '2026-10-30' })) } : item)
+    const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { cancelled: false, preview: { ...operation, items: revised, previewFingerprint: 'restart-edited' } } })
+    const { tree, handlers } = renderCard(operation, onRevise)
+    handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
+    const expected = locale === 'en' ? ['Today', 'Today', '10/26 → Today', '10/27 → 10/29/26', 'Today → 11/4/26'] : ['Hoje', 'Hoje', '26/10 → Hoje', '27/10 → 29/10/26', 'Hoje → 04/11/26']
+    const summaries = () => items.map(item => tree.root.find((node: ReactTestInstance) => typeof node.props.testID === 'string' && node.props.testID.startsWith(`block-frame-item-${item.itemId}-`))).map(row => row.findAllByType(Text).map((node: ReactTestInstance) => renderedText(node)))
+    summaries().forEach((texts, index) => expect(texts).toContain(expected[index]))
+    TestRenderer.act(() => press(tree, messages.chat.operation.edit).props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: messages.chat.operation.field.due_date }).props.onChangeText('2026-10-30'))
+    await TestRenderer.act(async () => { press(tree, messages.common.save).props.onPress(); await Promise.resolve() })
+    expect(onRevise).toHaveBeenCalledWith(operation.id, {
+      previewFingerprint: operation.previewFingerprint,
+      items: items.map((item, index) => ({ itemId: item.itemId, ...(index === 0 ? { edits: { due_date: '2026-10-30' } } : {}) })),
+    })
+    const editedExpected = [`${messages.chat.operation.edited} · ${locale === 'en' ? 'Today → 10/30/26' : 'Hoje → 30/10/26'}`, ...expected.slice(1)]
+    summaries().forEach((texts, index) => expect(texts).toContain(editedExpected[index]))
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { press(tree, translateVisible('chat.operation.approveCount.rescheduleHabits', { count: 5 })).props.onPress(); await Promise.resolve() })
+    expect(handlers.onConfirmExecute).toHaveBeenCalledExactlyOnceWith(operation.id)
+  })
 })

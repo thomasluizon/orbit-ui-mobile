@@ -119,6 +119,7 @@ export function buildPendingOperationCardLabels(
   translate: (key: string, values?: Record<string, string | number>) => string,
   formatTime: (value: string) => string,
   locale = 'en',
+  today?: string,
 ): PendingOperationCardLabels {
   const hasMixedDeletion = pendingOperation.items?.some((item) => item.removesData === true)
     && pendingOperation.items.some((item) => item.removesData !== true)
@@ -166,7 +167,7 @@ export function buildPendingOperationCardLabels(
     summarize: (fields, summaryActionKey = actionKey ?? undefined) => {
       const outcome = getToggleOutcome(actionKey, fields)
       return outcome ? translate(`chat.operation.toggleSource.${actionKey}.${outcome}`)
-        : summarizePendingOperationItem(fields, translate, formatTime, locale, summaryActionKey)
+        : summarizePendingOperationItem(fields, translate, formatTime, locale, summaryActionKey, today)
     },
     save: translate('common.save'),
     search: translate('common.search'),
