@@ -624,7 +624,7 @@ function CalendarPageContent({
   const pageLayout = calendarPageLayout(view, Boolean(profile), Boolean(profileError), Boolean(activeError), calendarHeader)
 
   return (
-    <div {...pageLayout.viewportProps} className={pageLayout.pageClass}>
+    <div {...pageLayout.viewportProps} data-calendar-page="" className={pageLayout.pageClass}>
       <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
       <div className={pageLayout.contentClass}>
         <CalendarOptions onGoogleCalendar={profile ? openGoogleCalendar : undefined} />

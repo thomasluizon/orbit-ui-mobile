@@ -2431,6 +2431,12 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   container-type: inline-size;
 }
 
+@media (width < 364px) {
+  [data-shell-page-content] [data-calendar-page] .orbit-calendar-grid-frame {
+    width: 100vw;
+  }
+}
+
 .orbit-calendar-grid-card {
   --calendar-grid-gap: 4px;
   width: 100%;

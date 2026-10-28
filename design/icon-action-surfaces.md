@@ -260,3 +260,7 @@ at its corner and belongs to the same control; it does not shift the glyph or th
 
 The paired `navigation/root-notification-header.tsx` owners retain the existing 48px content row
 and 24px bottom inset around the bell's 44px paint and transparent 48px target.
+
+The web `app/(app)/calendar/page.tsx` marker scopes the narrow grid width in `app/globals.css`
+to the calendar destination. Month and range discs keep 8px neighbour clearance while the shell
+retains its stable 4px scrollbar. Embedded compact calendars retain their containing width.
