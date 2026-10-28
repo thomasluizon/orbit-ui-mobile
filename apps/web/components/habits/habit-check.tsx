@@ -18,9 +18,9 @@ export function HabitCheck({ status, label, unavailable = false, progress }: Rea
   )
   const ratio = habitCheckProgress(progress)
   const done = status !== 'bad' && (progress ? ratio === 1 : status === 'done')
-  const color = progress ? 'var(--track-empty)' : {
+  const { graphic: color } = progress ? { graphic: 'var(--track-empty)' } : {
     empty: { graphic: 'var(--status-empty)' }, done: { graphic: 'var(--fg-1)' }, overdue: { graphic: 'var(--status-overdue)' }, bad: { graphic: 'var(--status-bad)' },
-  }[status].graphic
+  }[status]
   return (
     <span data-habit-check="" data-focus-ring-owner="" data-status={status}
       role={label ? 'img' : undefined} aria-label={label}

@@ -4,7 +4,6 @@ import {
   buildHabitQueryString,
   buildUrlWithQuery,
   fetchAllPaginatedItems,
-  formatAPIDate,
   habitListQueryFilters,
 } from '@orbit/shared/utils'
 import {
@@ -26,7 +25,7 @@ export interface TodayInitialHabits {
 
 export async function loadTodayInitialHabits(
   requestedDate: string | undefined,
-  today: string = formatAPIDate(new Date()),
+  today: string,
 ): Promise<TodayInitialHabits | null> {
   const dateStr = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
     ? requestedDate

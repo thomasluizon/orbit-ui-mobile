@@ -1,9 +1,10 @@
 import { useChatStore } from '@/stores/chat-store'
 import { chatMessageSchema } from '@orbit/shared/types/chat'
+import { motionLayerTiming } from '@orbit/shared/theme'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { createRef } from 'react'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, render, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -207,7 +208,7 @@ describe('Astra block layout in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it('starts a newly completed block-only outcome turn without entrance motion', async () => {
+  it('settles a newly completed block-only outcome turn at the participant edge', async () => {
     const scenario = chatBlockLayoutCases.find(scenario => scenario.kind === 'outcome')!
     const chat = {
       threadScroll: createChatThreadScroll(), chatContainerRef: createRef<HTMLDivElement>(), messages: [],
@@ -233,7 +234,14 @@ describe('Astra block layout in Chromium', () => {
           offset: article.querySelector('section[data-state]')!.getBoundingClientRect().top - article.getBoundingClientRect().top }
       })
       expect(starting.count).toBe(0)
-      expect(starting.offset).toBeCloseTo(32, 1)
+      expect(starting.offset).toBeGreaterThanOrEqual(32)
+      expect(starting.offset).toBeLessThanOrEqual(32 + motionLayerTiming.conversationShift)
+      await waitFor(() => {
+        for (const reveal of container.querySelectorAll<HTMLElement>('[data-conversation-reveal]')) {
+          expect(reveal.style.transform).toBe('none')
+        }
+      })
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await page.evaluate(() => document.fonts.ready)
       await turn.evaluate(settleAnimations)
       expect(await turn.evaluate(article =>

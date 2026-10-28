@@ -26,7 +26,7 @@ describe('Today initial habits', () => {
       totalPages: 1,
     })
 
-    await expect(loadTodayInitialHabits(undefined)).resolves.toEqual({
+    await expect(loadTodayInitialHabits(undefined, '2026-08-29')).resolves.toEqual({
       queryKey: [
         'habits',
         'list',
@@ -57,7 +57,7 @@ describe('Today initial habits', () => {
       totalPages: 1,
     })
 
-    await loadTodayInitialHabits('2026-08-20')
+    await loadTodayInitialHabits('2026-08-20', '2026-08-29')
 
     expect(serverAuthFetch).toHaveBeenCalledWith(
       '/api/habits?dateFrom=2026-08-20&dateTo=2026-08-20',
@@ -75,7 +75,7 @@ describe('Today initial habits', () => {
         : { items: [first], page: 1, pageSize: 50, totalCount: 2, totalPages: 2 },
     ))
 
-    const initial = await loadTodayInitialHabits(undefined)
+    const initial = await loadTodayInitialHabits(undefined, '2026-08-29')
 
     expect(initial?.queryKey[2]).toMatchObject({ completeDay: true })
     expect(initial?.items).toEqual([first, second])
@@ -86,6 +86,6 @@ describe('Today initial habits', () => {
   it('leaves the client query in charge when the preload fails', async () => {
     serverAuthFetch.mockRejectedValue(new Error('unavailable'))
 
-    await expect(loadTodayInitialHabits(undefined)).resolves.toBeNull()
+    await expect(loadTodayInitialHabits(undefined, '2026-08-29')).resolves.toBeNull()
   })
 })

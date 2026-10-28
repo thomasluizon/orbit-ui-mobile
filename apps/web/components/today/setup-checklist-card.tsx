@@ -51,8 +51,8 @@ export function SetupChecklistCard() {
         <ul className="flex min-w-0 flex-col gap-3">
           {checklist.items.map((item) => {
             return <li key={item.key} className="flex items-start gap-3 text-[14px] leading-[1.5] text-[var(--fg-2)]">
-              <span aria-hidden="true" className={`flex size-5 shrink-0 items-center justify-center ${item.done ? 'rounded-full bg-[var(--fg-1)] text-[var(--bg)]' : 'text-[var(--track-empty)]'}`}>
-                {item.done ? <Check size={16} strokeWidth={2} focusable="false" /> : <Circle size={20} strokeWidth={1.5} focusable="false" />}
+              <span aria-hidden="true" className={`flex size-5 shrink-0 items-center justify-center ${item.done ? 'rounded-full bg-[var(--fg-1)] text-[var(--bg)]' : ''}`}>
+                {item.done ? <Check size={16} strokeWidth={2} focusable="false" /> : <Circle size={20} strokeWidth={1.5} color="var(--track-empty)" focusable="false" />}
               </span>
               <span className="min-w-0">{t(`today.setupChecklist.items.${item.key}`)}{item.done ? <span className="sr-only">{`, ${t('habits.completed')}`}</span> : null}</span>
             </li>

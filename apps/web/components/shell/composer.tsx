@@ -1,5 +1,9 @@
 'use client'
 
+import { motion } from 'motion/react'
+import { useConversationMotion } from '@/hooks/use-conversation-motion'
+import { useConversationComposerId } from './conversation-composer-motion'
+
 import { useTranslations } from 'next-intl'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -309,6 +313,7 @@ const composerInputMetrics = 'px-2 py-3 text-base'
 function ComposerPrimaryControl({ props, inputRef }: Readonly<{ props: ComposerProps; inputRef: React.RefObject<HTMLTextAreaElement | null> }>) {
   const action = buildComposerPrimaryControl(props)
   const isSend = action.kind === 'send'
+  const color = action.accented ? 'var(--fg-on-primary)' : 'var(--fg-3)'
   return <button type="button" aria-label={action.label} title={isSend ? undefined : action.label}
     data-accent={isSend && action.accented ? '' : undefined}
     data-composer-microphone={action.kind === 'microphone' ? '' : undefined}
@@ -317,13 +322,15 @@ function ComposerPrimaryControl({ props, inputRef }: Readonly<{ props: ComposerP
       if (isSend && !action.disabled) inputRef.current?.focus()
       action.onSelect()
     }}
-    className={`relative flex w-[48px] min-h-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 ease-[var(--ease-standard)] duration-[var(--dur-hover-control)] disabled:cursor-not-allowed ${isSend ? 'transition-[background-color,opacity]' : 'transition-[background-color]'} ${!isSend || props.state !== 'sending' ? 'disabled:opacity-40' : ''} ${action.accented ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : isSend ? 'bg-[var(--bg-well)] text-[var(--fg-3)]' : 'bg-transparent text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
-    {isSend ? <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
-      : action.kind === 'stop' ? <Square size={16} fill="currentColor" aria-hidden="true" /> : <Mic size={20} strokeWidth={2} aria-hidden="true" />}
+    className={`relative flex w-[48px] min-h-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 ease-[var(--ease-standard)] duration-[var(--dur-hover-control)] disabled:cursor-not-allowed ${isSend ? 'transition-[background-color,opacity]' : 'transition-[background-color]'} ${!isSend || props.state !== 'sending' ? 'disabled:opacity-40' : ''} ${action.accented ? 'bg-[var(--primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : isSend ? 'bg-[var(--bg-well)]' : 'bg-transparent enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
+    {isSend ? <ArrowUp size={20} strokeWidth={2} color={color} aria-hidden="true" />
+      : action.kind === 'stop' ? <Square size={16} fill={color} color={color} aria-hidden="true" /> : <Mic size={20} strokeWidth={2} color={color} aria-hidden="true" />}
   </button>
 }
 
 function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerProps; disclosure?: React.ReactNode }>) {
+  const configuration = useConversationMotion()
+  const composerId = useConversationComposerId()
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const inputLabel = props.words.inputLabel ?? props.words.placeholder
   const textActionInMenu = useTextActionMenu(inputRef, inputLabel, props.state)
@@ -370,8 +377,13 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
   function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
 
   return (
-    <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex flex-wrap justify-end min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
-      <div data-composer-leading-controls className="flex w-max min-w-0 max-w-full grow shrink-0 items-end">
+    <motion.div layout={configuration.changeDuration > 0}
+      layoutId={configuration.changeDuration > 0 && composerId && (props.onOpenConversation || props.autoFocus) ? composerId : undefined}
+      transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
+      data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex flex-wrap justify-end min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
+      <motion.div layout={configuration.changeDuration > 0 ? "position" : false}
+        transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
+        data-composer-leading-controls className="flex w-max min-w-0 max-w-full grow shrink-0 items-end">
       {props.onOpenConversation && props.conversationLabel ? (
         <button
           type="button"
@@ -401,17 +413,19 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
           onFocus={props.onOpenConversation}
           className={`col-start-1 row-start-1 w-0 min-w-full max-h-[calc(5lh+24px)] min-h-[48px] resize-none appearance-none border-0 bg-transparent ${composerInputMetrics} text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] placeholder:whitespace-normal disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]`}
         /></div>}
-      </div>
+      </motion.div>
 
-      <div data-composer-trailing-controls style={{ gap: INTERACTION_FILL_CLEARANCE }} className="flex max-w-full flex-wrap justify-end shrink-0 items-end">
+      <motion.div layout={configuration.changeDuration > 0 ? "position" : false}
+        transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
+        data-composer-trailing-controls style={{ gap: INTERACTION_FILL_CLEARANCE }} className="flex max-w-full flex-wrap justify-end shrink-0 items-end">
         <ComposerTextControls props={props} inMenu={Boolean(disclosure) || textActionInMenu} disclosure={disclosure} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
         }} />
 
       <ComposerPrimaryControl props={props} inputRef={inputRef} />
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }
 

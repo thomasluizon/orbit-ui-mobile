@@ -347,9 +347,11 @@ describe('Menu (mobile)', () => {
     await TestRenderer.act(() => tree.update(<></>))
     expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
   })
-  it('returns native accessibility focus to the trigger after Back dismissal', async () => {
+  it('returns focus after Back dismissal and lets the next Back reach navigation before focus restoration', async () => {
     vi.useFakeTimers()
     const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus')
+    const navigateBack = vi.fn(() => true)
+    const navigation = BackHandler.addEventListener('hardwareBackPress', navigateBack)
     const triggerRef = React.createRef<import('@rn-primitives/dropdown-menu').TriggerRef>()
     let tree!: ReactTestRenderer
     try {
@@ -360,12 +362,17 @@ describe('Menu (mobile)', () => {
       expect(menuItemLabels(tree)).toEqual(['Edit', 'Delete'])
       expect(focus).toHaveBeenCalled()
       focus.mockClear()
-      await TestRenderer.act(() => { BackHandler.emitBackPress() })
+      await TestRenderer.act(() => { expect(BackHandler.emitBackPress()).toBe(true) })
+      expect(navigateBack).not.toHaveBeenCalled()
+      expect(menuItemLabels(tree)).toEqual([])
+      await TestRenderer.act(() => { expect(BackHandler.emitBackPress()).toBe(true) })
+      expect(navigateBack).toHaveBeenCalledOnce()
       await TestRenderer.act(() => vi.advanceTimersByTime(60))
       expect(menuItemLabels(tree)).toEqual([])
       expect(focus).toHaveBeenCalledWith(findNodeHandle(triggerRef.current))
     } finally {
       await TestRenderer.act(() => tree.update(<></>))
+      navigation.remove()
       vi.useRealTimers()
       focus.mockRestore()
     }

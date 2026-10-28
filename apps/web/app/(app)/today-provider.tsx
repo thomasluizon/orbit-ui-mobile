@@ -13,34 +13,23 @@ import { useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys } from '@orbit/shared/query'
 import { getAccountDay, millisecondsUntilNextDay } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
+import { useAccountClockSeed } from '@/lib/account-clock'
 import { useTodayTick } from './use-follow-today-sync'
 
-const TodayContext = createContext<string | null>(null)
+const TodayContext = createContext<{ now: number; timeZone: string | null } | null>(null)
 
-function getTodayDate(): string {
-  return getAccountDay(new Date())
-}
-
-/**
- * Holds the current local day and refreshes non-date-keyed gamification data
- * when the account day changes. Date-keyed queries re-key from `useToday`;
- * callers resolve a manually pinned `?date=` themselves.
- */
 export function TodayProvider({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient()
   const { profile } = useProfile()
-  const timeZone = profile?.timeZone
-  const [today, setToday] = useState(getTodayDate)
-  const todayRef = useRef(today)
-  const accountDayRef = useRef(getAccountDay(new Date(), timeZone))
+  const seed = useAccountClockSeed()
+  const timeZone = profile?.timeZone === undefined ? seed?.timeZone ?? null : profile.timeZone
+  const [now, setNow] = useState(() => seed?.now ?? Date.now())
+  const accountDayRef = useRef(getAccountDay(new Date(now), timeZone))
 
   const handleRollover = useCallback(() => {
-    const nextLocalDay = getTodayDate()
-    if (nextLocalDay !== todayRef.current) {
-      todayRef.current = nextLocalDay
-      setToday(nextLocalDay)
-    }
-    const nextAccountDay = getAccountDay(new Date(), timeZone)
+    const nextNow = Date.now()
+    const nextAccountDay = getAccountDay(new Date(nextNow), timeZone)
+    setNow(nextNow)
     if (nextAccountDay !== accountDayRef.current) {
       accountDayRef.current = nextAccountDay
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
@@ -50,8 +39,7 @@ export function TodayProvider({ children }: Readonly<{ children: ReactNode }>) {
   useTodayTick(handleRollover)
 
   useEffect(() => {
-    accountDayRef.current = getAccountDay(new Date(), timeZone)
-    if (timeZone === undefined) return
+    const hydrationTimer = globalThis.setTimeout(handleRollover, 0)
     let rolloverTimer: ReturnType<typeof globalThis.setTimeout>
     const scheduleRollover = () => {
       rolloverTimer = globalThis.setTimeout(() => {
@@ -60,30 +48,19 @@ export function TodayProvider({ children }: Readonly<{ children: ReactNode }>) {
       }, millisecondsUntilNextDay(new Date(), timeZone))
     }
     scheduleRollover()
-    return () => globalThis.clearTimeout(rolloverTimer)
+    return () => {
+      globalThis.clearTimeout(hydrationTimer)
+      globalThis.clearTimeout(rolloverTimer)
+    }
   }, [handleRollover, timeZone])
 
-  return <TodayContext.Provider value={today}>{children}</TodayContext.Provider>
+  return <TodayContext.Provider value={{ now, timeZone }}>{children}</TodayContext.Provider>
 }
 
-/** The current day as a `YYYY-MM-DD` string, optionally in the account timezone. */
 export function useToday(timeZone?: string | null): string {
-  const today = useContext(TodayContext)
-  const [, setAccountDateTick] = useState(0)
-  useEffect(() => {
-    if (timeZone === undefined) return
-    let rolloverTimer: ReturnType<typeof globalThis.setTimeout>
-    const scheduleRollover = () => {
-      rolloverTimer = globalThis.setTimeout(() => {
-        setAccountDateTick((tick) => tick + 1)
-        scheduleRollover()
-      }, millisecondsUntilNextDay(new Date(), timeZone))
-    }
-    scheduleRollover()
-    return () => globalThis.clearTimeout(rolloverTimer)
-  }, [timeZone])
-  if (today === null) {
+  const clock = useContext(TodayContext)
+  if (clock === null) {
     throw new Error('useToday must be used within a TodayProvider')
   }
-  return timeZone === undefined ? today : getAccountDay(new Date(), timeZone)
+  return getAccountDay(new Date(clock.now), timeZone === undefined ? clock.timeZone : timeZone)
 }

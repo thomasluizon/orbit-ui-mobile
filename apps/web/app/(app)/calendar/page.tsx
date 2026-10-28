@@ -79,6 +79,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useToday } from '../today-provider'
+import { useAccountClockSeed } from '@/lib/account-clock'
 import { CalendarOptions } from './_components/calendar-options'
 import {
   CalendarHeader,
@@ -241,7 +242,9 @@ function CalendarPageContent({
   const locale = useLocale()
   const dateFnsLocale = calendarDateFnsLocale(locale)
   const { displayTime } = useTimeFormat()
-  const { weekStartsOn, hasProAccess, timeZone, autoSyncState } = resolveCalendarProfileSettings(profile)
+  const accountClockSeed = useAccountClockSeed()
+  const { weekStartsOn, hasProAccess, autoSyncState } = resolveCalendarProfileSettings(profile)
+  const timeZone = (profile ?? accountClockSeed)?.timeZone ?? null
   const isWideDesktop = useIsWideDesktop()
   const todayKey = useToday(profile?.timeZone)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)

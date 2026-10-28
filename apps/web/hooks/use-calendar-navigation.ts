@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { formatAPIDate, parseAPIDate, MAX_RANGE_DAYS } from '@orbit/shared/utils'
 import { useAccountBoundRouteRequest, useAccountScopedState, useAccountGeneration } from '@/hooks/use-session-reset'
 
+import { useToday } from '@/app/(app)/today-provider'
 import { getAccountGeneration } from '@/lib/session-epoch'
 
 import type { CalendarView } from '@orbit/shared/utils/calendar-navigation'
@@ -22,10 +23,10 @@ function readDate(value: string | null): string | null {
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value) && isMatch(value, 'yyyy-MM-dd') ? value : null
 }
 
-function readOffset(value: string | null, daysPerPage: number, maximum = Infinity): number {
+function readOffset(value: string | null, today: string, daysPerPage: number, maximum = Infinity): number {
   if (!value || !/^-?\d+$/.test(value)) return 0
   const offset = Number(value)
-  const date = addDays(new Date(), offset * daysPerPage)
+  const date = addDays(parseAPIDate(today), offset * daysPerPage)
   return Number.isSafeInteger(offset) && offset <= maximum && isValid(date) && date.getFullYear() > 0 && date.getFullYear() < 10000 ? offset : 0
 }
 
@@ -33,14 +34,14 @@ function readView(value: string | null): CalendarView {
   return value === 'week' || value === 'range' || value === 'agenda' ? value : 'month'
 }
 
-function readDates(search: string, acceptDates: boolean): CalendarDates {
+function readDates(search: string, acceptDates: boolean, today: string): CalendarDates {
   const params = new URLSearchParams(acceptDates ? search : '')
   const week = readDate(params.get('week'))
   return {
-    selectedDay: readDate(params.get('date')) ?? formatAPIDate(new Date()),
+    selectedDay: readDate(params.get('date')) ?? today,
     weekAnchor: week ? parseAPIDate(week) : null,
-    agendaOffset: readOffset(params.get('agenda'), 7),
-    rangeOffset: readOffset(params.get('range'), MAX_RANGE_DAYS, 0),
+    agendaOffset: readOffset(params.get('agenda'), today, 7),
+    rangeOffset: readOffset(params.get('range'), today, MAX_RANGE_DAYS, 0),
   }
 }
 
@@ -67,6 +68,7 @@ function calendarImportReturnHref(search: string): string {
 
 export function useCalendarNavigation() {
   const router = useRouter()
+  const today = useToday()
   const accountGeneration = useAccountGeneration()
   const search = useSearchParams().toString()
   const params = new URLSearchParams(search)
@@ -77,12 +79,12 @@ export function useCalendarNavigation() {
   }
   const dateRequest = dateParams.toString()
   const acceptDates = useAccountBoundRouteRequest(dateRequest)
-  const [dates, setDates] = useAccountScopedState(() => readDates(search, acceptDates))
+  const [dates, setDates] = useAccountScopedState(() => readDates(search, acceptDates, today))
   const [view, setLocalView] = useState(() => readView(params.get('view')))
-  const [observedRoute, setObservedRoute] = useState({ search, acceptDates })
-  if (observedRoute.search !== search || observedRoute.acceptDates !== acceptDates) {
-    setObservedRoute({ search, acceptDates })
-    setDates(readDates(search, acceptDates))
+  const [observedRoute, setObservedRoute] = useState({ search, acceptDates, today })
+  if (observedRoute.search !== search || observedRoute.acceptDates !== acceptDates || observedRoute.today !== today) {
+    setObservedRoute({ search, acceptDates, today })
+    setDates(readDates(search, acceptDates, today))
     setLocalView(readView(params.get('view')))
   }
 

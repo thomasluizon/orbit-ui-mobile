@@ -49,37 +49,41 @@ describe('sidebar account menu geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
-  it.each([1024, 1352].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({ width, locale }))))
-    ('retains the account trigger on Search after Escape at $width pixels in $locale', async configuration => {
+  it.each([1024, 1352].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
+    ['pointer', 'Enter'].map(input => ({ width, locale, input })))))
+    ('retains the account trigger on Search after $input and Escape at $width pixels in $locale', async configuration => {
       const page = await browser.newPage({ viewport: { width: configuration.width, height: 915 }, reducedMotion: 'reduce' })
       try {
-        await page.setContent(`<html class="dark"><style>${stylesheet}</style><div id="root"></div></html>`)
+        await page.setContent(`<html class="dark"><style>${stylesheet} .orbit-menu-panel[data-state="closed"] { animation-play-state: paused !important; }</style><div id="root"></div></html>`)
         await page.evaluate(({ configuration, account, email, variables }) => {
           document.getElementById('root')!.dataset.configuration = JSON.stringify({ ...configuration, account, email, collapsed: false, search: true })
           for (const [key, value] of Object.entries(variables)) document.documentElement.style.setProperty(key, value)
         }, { configuration, account, email, variables: resolveWebThemeVariables('orange', 'dark') })
         await page.addScriptTag({ content: script })
         const trigger = page.locator('[data-shell-account]:not([data-loading])')
-        for (const input of ['pointer', 'Enter']) {
-          if (input === 'pointer') {
-            await trigger.hover()
-            await page.mouse.down()
-          } else await page.keyboard.press(input)
-          await page.getByRole('menu').waitFor({ state: 'visible' })
-          if (input === 'pointer') {
-            await page.mouse.move(0, 0)
-            await page.mouse.up()
-          }
-          await page.keyboard.press('Escape')
-          await expect.poll(() => page.getByRole('menu').count()).toBe(0)
-          expect(await page.locator('html').getAttribute('data-search-back')).toBeNull()
-          await trigger.scrollIntoViewIfNeeded({ timeout: 2000 })
-          expect(await trigger.evaluate(element => element === document.activeElement)).toBe(true)
-          await trigger.blur()
-          await page.keyboard.press('Shift')
+        const input = configuration.input
+        if (input === 'pointer') {
+          await trigger.hover()
+          await page.mouse.down()
+        } else {
           await trigger.focus()
-          expect(await trigger.evaluate(element => element.matches(':focus-visible'))).toBe(true)
+          await page.keyboard.press(input)
         }
+        await page.getByRole('menu').waitFor({ state: 'visible' })
+        if (input === 'pointer') {
+          await page.mouse.move(0, 0)
+          await page.mouse.up()
+        }
+        await page.keyboard.press('Escape')
+        await expect.poll(() => page.getByRole('menu').count()).toBe(0)
+        expect(await page.locator('[role="menu"][data-state="closed"][inert]').count()).toBe(1)
+        expect(await page.locator('html').getAttribute('data-search-back')).toBeNull()
+        await trigger.scrollIntoViewIfNeeded({ timeout: 2000 })
+        expect(await trigger.evaluate(element => element === document.activeElement)).toBe(true)
+        await trigger.blur()
+        await page.keyboard.press('Shift')
+        await trigger.focus()
+        expect(await trigger.evaluate(element => element.matches(':focus-visible'))).toBe(true)
         await page.keyboard.press('Escape')
         expect(await page.locator('html').getAttribute('data-search-back')).toBe('true')
       } finally { await page.close() }

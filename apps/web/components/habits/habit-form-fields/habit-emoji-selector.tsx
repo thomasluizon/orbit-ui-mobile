@@ -42,14 +42,18 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
   ) : null
 }
 
-function emojiWellStyle(wellSize: number | string, proposed: boolean) {
-  return {
-    width: wellSize,
-    height: wellSize,
-    color: proposed ? 'var(--fg-3)' : undefined,
-    outline: proposed ? '1px dashed var(--hairline-strong)' : undefined,
-    outlineOffset: -1,
-  }
+function EmojiWell({ wellSize, proposed, selectedEmoji }: Readonly<Pick<HabitEmojiSelectorProps, 'wellSize' | 'proposed' | 'selectedEmoji'>>) {
+  return (
+    <span data-emoji-well="" data-proposed={proposed ? '' : undefined} aria-hidden="true" className="habit-control-motion grid place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] group-hover/emoji:bg-[var(--bg-hover)] group-active/emoji:bg-[var(--bg-hover)]" style={{
+      width: wellSize,
+      height: wellSize,
+      color: proposed ? 'var(--fg-3)' : undefined,
+      outline: proposed ? '1px dashed var(--hairline-strong)' : undefined,
+      outlineOffset: -1,
+    }}>
+      {selectedEmoji || <Plus size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
+    </span>
+  )
 }
 
 export function HabitEmojiSelector({
@@ -120,9 +124,7 @@ export function HabitEmojiSelector({
             aria-label={t('habits.form.emojiOpenPicker')}
             aria-describedby={proposed ? proposalId : undefined}
           >
-            <span data-emoji-well="" data-proposed={proposed ? '' : undefined} aria-hidden="true" className="habit-control-motion grid place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] group-hover/emoji:bg-[var(--bg-hover)] group-active/emoji:bg-[var(--bg-hover)]" style={emojiWellStyle(wellSize, proposed)}>
-              {selectedEmoji || <Plus size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
-            </span>
+            <EmojiWell wellSize={wellSize} proposed={proposed} selectedEmoji={selectedEmoji} />
           </button>
           <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} hintId={hintId} errorId={suggestionErrorId} />
         </div>
