@@ -49,7 +49,15 @@ it('keeps legacy previews limited to their readable aiMessage for grading', asyn
   expect(test.vars.clientContextJson).toBe('{}')
   expect(test.vars.composition.mode).toBe('fallback')
   const response = { ...chatResponse(test.vars.evalRequestId), aiMessage: 'Confira a prévia de Meditar.', pendingOperations: [preview('Hidden operation field')] }
-  vi.stubGlobal('fetch', async () => Response.json(response, { headers: { 'x-orbit-request-id': test.vars.evalRequestId } }))
+  let language = 'en'
+  vi.stubGlobal('fetch', async (url, options) => {
+    if (new URL(url).pathname === '/api/profile/language') {
+      language = JSON.parse(options.body).language
+      return new Response(null, { status: 204 })
+    }
+    if (new URL(url).pathname === '/api/profile') return Response.json({ language })
+    return Response.json(response, { headers: { 'x-orbit-request-id': test.vars.evalRequestId } })
+  })
   const provider = new AstraHttpProvider({ config: { ...configuration.providers[0].config, url: 'https://astra.invalid/api/chat',
     transformResponse: `file://${fileURLToPath(new URL('../response.mjs', import.meta.url))}`,
   } })

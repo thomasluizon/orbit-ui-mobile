@@ -1,8 +1,11 @@
 import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { summarizeLatency } from './latency.mjs'
 import { attemptEvidence } from './evidence.mjs'
+import { groundingEvidence } from './grading-input.mjs'
 
 const unavailableAssertion = (assertion) => assertion.metadata?.unavailable === true || assertion.metadata?.graderError === true
+
+const graderUnavailable = (entry) => entry.gradingResult?.componentResults?.some((assertion) => assertion.metadata?.graderError === true)
 
 const evidencePath = (caseId, repeat) => `attempts/${encodeURIComponent(caseId)}-r${repeat}.json`
 
@@ -22,7 +25,8 @@ export function writeResults(results, directory = 'reports') {
     const caseId = entry.testCase.metadata.id
     const repeat = (repeats.get(caseId) ?? 0) + 1
     repeats.set(caseId, repeat)
-    const attempt = { caseId, repeat, pass: entry.success === true,
+    const attempt = { caseId, repeat, pass: entry.success === true && !graderUnavailable(entry),
+      ...(graderUnavailable(entry) ? { unavailable: true } : {}),
       httpStatus: entry.response?.output?.httpStatus ?? entry.response?.metadata?.astraHttpStatus ?? entry.response?.metadata?.http?.status ?? null,
       reason: entry.error ?? entry.response?.error ?? entry.response?.output?.error ?? entry.gradingResult?.reason ?? null,
       assertions: (entry.gradingResult?.componentResults ?? []).map((assertion, index) => ({
@@ -31,7 +35,9 @@ export function writeResults(results, directory = 'reports') {
         ...(unavailableAssertion(assertion) ? { unavailable: true } : {}),
       })),
     }
-    const evidence = attemptEvidence(entry, attempt)
+    const evidence = attemptEvidence(entry, { ...attempt,
+      groundingEvidence: groundingEvidence(entry.response?.output ?? {}, entry.testCase.vars ?? {}),
+    })
     writePrivateJson(`${directory}/${evidencePath(caseId, repeat)}`, evidence)
     return Object.fromEntries(Object.keys(attempt).map((key) => [key, evidence[key]]))
   })
@@ -48,7 +54,7 @@ export function summarize(results, expectedCases) {
       ?.some((assertion) => assertion.metadata?.skipped === true)).length
     const unavailable = attempts.filter((entry) => entry.response?.metadata?.astraPreconditionFailure === true || entry.gradingResult?.componentResults
       ?.some(unavailableAssertion)).length
-    const failed = attempts.some((entry) => entry.success !== true && entry.response?.metadata?.astraPreconditionFailure !== true
+    const failed = attempts.some((entry) => entry.success !== true && !graderUnavailable(entry) && entry.response?.metadata?.astraPreconditionFailure !== true
       && (!entry.gradingResult?.componentResults?.some(unavailableAssertion)
         || entry.gradingResult.componentResults.some((assertion) => assertion.pass === false && !unavailableAssertion(assertion))))
     const missingComposition = attempts.filter((entry) => !entry.gradingResult?.componentResults
@@ -59,7 +65,7 @@ export function summarize(results, expectedCases) {
         ? [entry.response.metadata.astraPreconditionReason]
         : (entry.gradingResult?.componentResults ?? []).filter(unavailableAssertion)
           .map((assertion) => assertion.reason).filter((reason) => typeof reason === 'string')))]
-    const latency = readLatency ? summarizeLatency(attempts) : undefined
+    const latency = readLatency ? summarizeLatency(attempts.filter((entry) => !graderUnavailable(entry))) : undefined
     const status = failed || latency?.status === 'fail' ? 'fail'
       : attempts.length !== 3 || skipped || unavailable || missingComposition || latency?.status === 'incomplete' ? 'incomplete' : 'pass'
     return { id, family, locale, ...(latency ? { latency } : {}), unavailableReasons, missingComposition, attempts: attempts.length, passed, skipped, unavailable, pass3: status }

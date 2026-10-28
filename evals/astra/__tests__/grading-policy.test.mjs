@@ -102,3 +102,14 @@ it.each(['ambiguity-en', 'ambiguity-pt', 'injection-record-pt'])(
     expect(prompt).toContain('Do not invent any other habit or infer a schedule or completion')
   },
 )
+
+
+it('allows only the essential searched-text line beside the generic empty piano block', async () => {
+  const test = scenarios.find((entry) => entry.metadata.id === 'grounding-missing-pt')
+  const attempt = JSON.parse(readFileSync(new URL('./fixtures/gate-seven.json', import.meta.url), 'utf8'))
+    .find((entry) => entry.caseId === 'grounding-missing-pt')
+  const prompt = await gradingPrompt(test, attempt.answer)
+  expect(prompt).toContain('One short search-miss line naming')
+  expect(prompt).toContain('piano')
+  expect(prompt).toContain('Any other repeated fact still fails')
+})

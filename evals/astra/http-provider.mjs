@@ -1,3 +1,4 @@
+import { withLegacyProfileLanguage } from './fixtures/language.mjs'
 import { suggestionAnswer } from './suggestions.mjs'
 import { loadApiProvider } from 'promptfoo'
 import { visibleAnswer } from './visible-answer.mjs'
@@ -33,6 +34,10 @@ export default class AstraHttpProvider {
   }
 
   async callApi(prompt, context, options) {
+    return withLegacyProfileLanguage(context.vars, () => this.attempt(prompt, context, options))
+  }
+
+  async attempt(prompt, context, options) {
     if (!context.vars.brainDump || context.vars.preconditionFailure) return this.chat(prompt, context, options)
     const baseline = await brainDumpBaseline(context.vars)
     const response = await this.chat(prompt, context, options)

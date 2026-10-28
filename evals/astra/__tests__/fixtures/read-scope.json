@@ -1,0 +1,162 @@
+[
+  {
+    "caseId": "composition-compound-legacy-en",
+    "prompt": "Show my habits and goals together.",
+    "toolCalls": [
+      {
+        "name": "get_habit_month",
+        "arguments": {
+          "relative_period": "today",
+          "period_count": null,
+          "date_from": null,
+          "date_to": null,
+          "language": "en"
+        },
+        "resultStatus": "Succeeded"
+      }
+    ]
+  },
+  {
+    "caseId": "composition-compound-legacy-en",
+    "prompt": "Show my habits and goals together.",
+    "toolCalls": [
+      {
+        "name": "get_habit_month",
+        "arguments": {
+          "relative_period": "today",
+          "period_count": null,
+          "date_from": null,
+          "date_to": null,
+          "language": "en"
+        },
+        "resultStatus": "Succeeded"
+      }
+    ]
+  },
+  {
+    "caseId": "composition-compound-missing-kind-pt-BR",
+    "prompt": "Mostre meus hábitos e minhas metas juntos.",
+    "toolCalls": [
+      {
+        "name": "get_habit_month",
+        "arguments": {
+          "relative_period": "this_month",
+          "period_count": null,
+          "date_from": null,
+          "date_to": null,
+          "language": "pt-BR",
+          "orbit_read_complete": false
+        },
+        "resultStatus": "Succeeded"
+      }
+    ]
+  },
+  {
+    "caseId": "composition-compound-missing-kind-pt-BR",
+    "prompt": "Mostre meus hábitos e minhas metas juntos.",
+    "toolCalls": [
+      {
+        "name": "get_daily_summary",
+        "arguments": {
+          "relative_period": null,
+          "period_count": null,
+          "generate_narrative": false,
+          "date_from": null,
+          "date_to": null,
+          "language": "pt-BR",
+          "orbit_read_complete": false
+        },
+        "resultStatus": "Succeeded"
+      }
+    ]
+  },
+  {
+    "caseId": "composition-compound-missing-kind-pt-BR",
+    "prompt": "Mostre meus hábitos e minhas metas juntos.",
+    "toolCalls": [
+      {
+        "name": "get_daily_summary",
+        "arguments": {
+          "relative_period": "today",
+          "period_count": null,
+          "generate_narrative": false,
+          "date_from": null,
+          "date_to": null,
+          "language": "pt-BR",
+          "orbit_read_complete": false
+        },
+        "resultStatus": "Succeeded"
+      }
+    ]
+  },
+  {
+    "caseId": "composition-compound-pt-BR",
+    "prompt": "Mostre meus hábitos e minhas metas juntos.",
+    "toolCalls": [
+      {
+        "name": "get_habit_month",
+        "arguments": {
+          "relative_period": "this_month",
+          "period_count": null,
+          "date_from": null,
+          "date_to": null,
+          "language": "pt-BR",
+          "orbit_read_complete": true
+        },
+        "resultStatus": "Succeeded"
+      }
+    ]
+  },
+  {
+    "caseId": "composition-existing-parents-pt-BR",
+    "prompt": "Depois do almoço: tomar vitamina D (uma vez por semana) Antes de dormir: tomar rosuvastatina (todo dia)",
+    "toolCalls": [
+      {
+        "name": "get_habit_history",
+        "arguments": {
+          "relative_period": null,
+          "period_count": null,
+          "habit_id": "[redacted]",
+          "date_from": null,
+          "date_to": null,
+          "offset": 0,
+          "limit": 100,
+          "orbit_read_complete": false
+        },
+        "resultStatus": "Failed"
+      },
+      {
+        "name": "get_habit_history",
+        "arguments": {
+          "relative_period": null,
+          "period_count": null,
+          "habit_id": "[redacted]",
+          "date_from": null,
+          "date_to": null,
+          "offset": 0,
+          "limit": 100,
+          "orbit_read_complete": false
+        },
+        "resultStatus": "Failed"
+      }
+    ]
+  },
+  {
+    "caseId": "composition-offline-en",
+    "prompt": "Show my calendar while its provider is temporarily unavailable.",
+    "toolCalls": [
+      {
+        "name": "get_habit_month",
+        "arguments": {
+          "relative_period": "this_month",
+          "period_count": null,
+          "date_from": null,
+          "date_to": null,
+          "language": "en",
+          "orbit_read_complete": true
+        },
+        "resultStatus": "Succeeded"
+      }
+    ]
+  }
+]
