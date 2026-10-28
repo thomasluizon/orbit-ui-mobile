@@ -4,7 +4,8 @@ import { IconButton } from '@/components/ui/icon-button'
 
 import { WeekdayPicker } from '@/components/ui/weekday-picker'
 
-import { toTime24 } from '@orbit/shared/utils'
+import { getAccountDay, nowDate, toTime24 } from '@orbit/shared/utils'
+import { useProfile } from '@/hooks/use-profile'
 
 import { PreviewItemTitle } from './preview-item-title'
 import { ActionRow } from '@/components/ui/action-row'
@@ -249,6 +250,8 @@ export function PendingOperationCard({
   const t = useTranslations()
   const locale = useLocale()
   const { displayTime } = useTimeFormat()
+  const { profile } = useProfile()
+  const today = getAccountDay(nowDate(), profile?.timeZone)
 
   return <SharedPendingOperationCard
     pendingOperation={pendingOperation}
@@ -262,6 +265,6 @@ export function PendingOperationCard({
     savedState={savedState}
     onStateChange={onStateChange}
     render={pendingOperationRenderers}
-    labels={(operation) => buildPendingOperationCardLabels(operation, t, displayTime, locale)}
+    labels={(operation) => buildPendingOperationCardLabels(operation, t, displayTime, locale, today)}
   />
 }

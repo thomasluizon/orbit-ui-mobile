@@ -1,4 +1,4 @@
-import { makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -1105,6 +1105,24 @@ it.each(['en', 'pt-BR'])('includes one enabled reminder token in create summarie
   }
 })
 
+
+it.each([{ locale: 'en', messages: en, expected: ['Today', 'Today', '10/26 → Today', '10/27 → 10/29/26', 'Today → 11/4/26'] },
+  { locale: 'pt-BR', messages: ptBR, expected: ['Hoje', 'Hoje', '26/10 → Hoje', '27/10 → 29/10/26', 'Hoje → 04/11/26'] }])('shows every restart plan date in $locale from item fields', ({ locale, messages, expected }) => {
+  const operation = makeRestartPlanPreview()
+  expect(operation.changes).toHaveLength(3)
+  const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale, '2026-10-28')
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card: createCard(), labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+  expect(record.frame?.items.map(item => item.meta)).toEqual(expected)
+})
+
+it.each(['en', 'pt-BR'])('shows an unchanged single reschedule as today in %s', locale => {
+  const operation = makeRestartPlanPreview()
+  const item = operation.items![0]!
+  const single = { ...operation, items: [item], changes: [], changeTargetCount: 1 }
+  const localized = buildPendingOperationCardLabels(single, (key, values) => translateMessages(locale === 'en' ? en : ptBR, key, values), value => value, locale, '2026-10-28')
+  expect(localized.summarize(item.fields)).toBe(locale === 'en' ? 'Today' : 'Hoje')
+})
 
 describe('typed preview rows', () => {
   it('keeps execution results attached to their original items after grouping', () => {

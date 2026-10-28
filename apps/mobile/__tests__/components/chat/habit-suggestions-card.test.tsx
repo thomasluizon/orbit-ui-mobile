@@ -18,6 +18,7 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: vi.fn(), useLogHabit: vi.fn(), useHabitMetrics: vi.fn() }))
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), revise: vi.fn(), relationshipsLoaded: true, scheduleLoaded: true, scheduleError: false, refetch: vi.fn(), create: vi.fn(), edit: vi.fn() }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (time: string) => time }) }))
 vi.mock('@/hooks/use-habit-suggestion-actions', () => ({ useHabitSuggestionActions: (id: string) => ({
   refine: mocks.refine, preview: mocks.preview, isCurrent: () => true,

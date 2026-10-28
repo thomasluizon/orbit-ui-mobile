@@ -10,6 +10,7 @@ import { MessageBubble } from '@/components/chat/message-bubble'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 
 describe('Markdown', () => {
