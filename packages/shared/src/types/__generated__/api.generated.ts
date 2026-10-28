@@ -205,7 +205,8 @@ export const PostApiAiPendingOperationsIdReviseBody = zod.object({
   "supportsFollowUpContext": zod.boolean().nullish(),
   "supportsMessageAllowance": zod.boolean().nullish(),
   "supportsPendingOperationPlacement": zod.boolean().nullish(),
-  "supportsCompletedHabitsMetric": zod.boolean().nullish()
+  "supportsCompletedHabitsMetric": zod.boolean().nullish(),
+  "supportsSkippedHabitRows": zod.boolean().nullish()
 })]).optional()
 })
 
@@ -298,7 +299,8 @@ export const PostApiAiPendingOperationsIdExecuteBody = zod.object({
   "supportsFollowUpContext": zod.boolean().nullish(),
   "supportsMessageAllowance": zod.boolean().nullish(),
   "supportsPendingOperationPlacement": zod.boolean().nullish(),
-  "supportsCompletedHabitsMetric": zod.boolean().nullish()
+  "supportsCompletedHabitsMetric": zod.boolean().nullish(),
+  "supportsSkippedHabitRows": zod.boolean().nullish()
 })]).optional()
 })
 
@@ -801,7 +803,8 @@ export const PostApiChatReadsRefreshBody = zod.object({
   "supportsFollowUpContext": zod.boolean().nullish(),
   "supportsMessageAllowance": zod.boolean().nullish(),
   "supportsPendingOperationPlacement": zod.boolean().nullish(),
-  "supportsCompletedHabitsMetric": zod.boolean().nullish()
+  "supportsCompletedHabitsMetric": zod.boolean().nullish(),
+  "supportsSkippedHabitRows": zod.boolean().nullish()
 })]).optional(),
   "page": zod.boolean().default(postApiChatReadsRefreshBodyPageDefault)
 })
@@ -969,7 +972,8 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "id": zod.uuid(),
   "name": zod.string(),
   "color": zod.string()
-})).nullish()
+})).nullish(),
+  "isSkippedOnDate": zod.boolean().nullish()
 })),
   "date": zod.iso.date().nullish(),
   "read": zod.union([zod.null(),zod.object({
@@ -1148,7 +1152,8 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "id": zod.uuid(),
   "name": zod.string(),
   "color": zod.string()
-})).nullish()
+})).nullish(),
+  "isSkippedOnDate": zod.boolean().nullish()
 })).nullish(),
   "totalRows": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockFiveTotalRowsRegExpTwo)]).nullish(),
   "read": zod.union([zod.null(),zod.object({
@@ -1859,7 +1864,8 @@ export const PostApiChatResponse = zod.object({
   "id": zod.uuid(),
   "name": zod.string(),
   "color": zod.string()
-})).nullish()
+})).nullish(),
+  "isSkippedOnDate": zod.boolean().nullish()
 })),
   "date": zod.iso.date().nullish(),
   "read": zod.union([zod.null(),zod.object({
@@ -2042,7 +2048,8 @@ export const PostApiChatResponse = zod.object({
   "id": zod.uuid(),
   "name": zod.string(),
   "color": zod.string()
-})).nullish()
+})).nullish(),
+  "isSkippedOnDate": zod.boolean().nullish()
 })).nullish(),
   "totalRows": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseDaySummaryTwoTotalRowsRegExpTwo)]).nullish(),
   "read": zod.union([zod.null(),zod.object({
@@ -2388,7 +2395,8 @@ export const PostApiChatGamificationRefreshBody = zod.object({
   "supportsFollowUpContext": zod.boolean().nullish(),
   "supportsMessageAllowance": zod.boolean().nullish(),
   "supportsPendingOperationPlacement": zod.boolean().nullish(),
-  "supportsCompletedHabitsMetric": zod.boolean().nullish()
+  "supportsCompletedHabitsMetric": zod.boolean().nullish(),
+  "supportsSkippedHabitRows": zod.boolean().nullish()
 })]).optional()
 })
 
@@ -2570,7 +2578,8 @@ export const PostApiChatHabitMonthRefreshBody = zod.object({
   "supportsFollowUpContext": zod.boolean().nullish(),
   "supportsMessageAllowance": zod.boolean().nullish(),
   "supportsPendingOperationPlacement": zod.boolean().nullish(),
-  "supportsCompletedHabitsMetric": zod.boolean().nullish()
+  "supportsCompletedHabitsMetric": zod.boolean().nullish(),
+  "supportsSkippedHabitRows": zod.boolean().nullish()
 })]).optional()
 })
 
@@ -5979,6 +5988,30 @@ export const GetApiReferralsDashboardResponse = zod.object({
   "discountPercent": zod.union([zod.int(),zod.stringFormat('int32', getApiReferralsDashboardResponseStatsDiscountPercentRegExpTwo)]),
   "proDaysPerReferral": zod.union([zod.int().default(getApiReferralsDashboardResponseStatsProDaysPerReferralDefaultOne),zod.stringFormat('int32', getApiReferralsDashboardResponseStatsProDaysPerReferralRegExpTwo).default(getApiReferralsDashboardResponseStatsProDaysPerReferralDefaultTwo)]).optional()
 })
+})
+
+
+export const GetApiEvalPendingOperationsHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const getApiEvalPendingOperationsResponsePendingCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const GetApiEvalPendingOperationsResponse = zod.object({
+  "pendingCount": zod.union([zod.int(),zod.stringFormat('int32', getApiEvalPendingOperationsResponsePendingCountRegExpTwo)])
+})
+
+
+export const DeleteApiEvalPendingOperationsHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const deleteApiEvalPendingOperationsResponseCancelledCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const DeleteApiEvalPendingOperationsResponse = zod.object({
+  "cancelledCount": zod.union([zod.int(),zod.stringFormat('int32', deleteApiEvalPendingOperationsResponseCancelledCountRegExpTwo)])
 })
 
 
