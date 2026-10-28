@@ -13,6 +13,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { getAccountDay } from '@orbit/shared/utils'
 import { inPlaceDayFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
 import { ChatBlock } from '@/components/chat/block-registry'
+import { HabitCheck } from '@/components/habits/habit-check'
 import { habitMonthFixture } from '@orbit/shared/test-support/habit-month-fixture'
 import { apiClient } from '@/lib/api-client'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
@@ -303,22 +304,37 @@ it('replaces the month snapshot when a new reply revision arrives without a refr
   await act(() => tree.unmount())
 })
 
-it.each((['habitList', 'daySummary'] as const).flatMap(kind => [true, false].flatMap(isError => ([
-  ['done', false, 'done'], ['done', true, 'bad'], ['overdue', false, 'overdue'],
-  ['overdue', true, 'overdue'], ['today', false, 'empty'], ['today', true, 'empty'],
-] as const).map(([status, isBadHabit, expected]) => ({ kind, isError, status, isBadHabit, expected })))))(
-  'keeps $kind snapshot $status with bad=$isBadHabit read-only and query error=$isError', async ({ kind, isError, status, isBadHabit, expected }) => {
-    state.isError = isError
+it.each((['en', 'pt-BR'] as const).flatMap(locale => (['habitList', 'daySummary'] as const).flatMap(kind =>
+  (['live', 'missing', 'failed'] as const).flatMap(queryState => ([
+    ['done', false, 'done'], ['done', true, 'bad'], ['overdue', false, 'overdue'],
+    ['overdue', true, 'overdue'], ['today', false, 'empty'], ['today', true, 'empty'],
+  ] as const).map(([status, isBadHabit, expected]) => ({ locale, kind, queryState, status, isBadHabit, expected }))))))(
+  'names $kind $status with bad=$isBadHabit through $queryState occurrences in $locale', async ({ locale, kind, queryState, status, isBadHabit, expected }) => {
+    state.isError = queryState === 'failed'
+    const messages = locale === 'en' ? en : pt
+    const statusLabel = status === 'done' ? isBadHabit ? messages.habits.statusDot.bad : messages.chat.habitList.logged
+      : status === 'overdue' ? messages.chat.habitList.overdue : messages.chat.habitList.pending
+    if (queryState === 'live') state.habits.set('habit-one', createMockHabit({
+      id: 'habit-one', frequencyUnit: 'Day', dueDate: focusedDatedHabitListFixture.date,
+      scheduledDates: [focusedDatedHabitListFixture.date], isBadHabit, isLoggedInRange: status === 'done',
+    }))
     const items = focusedDatedHabitListFixture.items.map(item => ({ ...item, status, isBadHabit }))
     const part = kind === 'habitList'
       ? { kind, block: { ...focusedDatedHabitListFixture, items } }
-      : { kind, block: { ...inPlaceDayFixture, rows: items, totalRows: 1 } }
+      : { kind, block: { ...inPlaceDayFixture, date: focusedDatedHabitListFixture.date, rows: items, totalRows: 1, read: focusedDatedHabitListFixture.read } }
+    state.locale = locale
+    state.actualCopy = true
     const tree = await mount(part)
     const row = tree.root.findAll(node => node.props.testID === 'habit-block-row')[0]!
     const check = row.findAll(node => node.props.testID === 'habit-check')[0]!
-    expect(check.props.accessibilityLabel).toBe(status === 'done' ? isBadHabit ? 'habits.statusDot.bad' : 'chat.habitList.logged' : status === 'overdue' ? 'chat.habitList.overdue' : 'chat.habitList.pending')
-    expect(row.findAll(node => node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function').every(node => node.props.accessibilityLabel === 'chat.habitList.open')).toBe(true)
-    expect(renderedText(tree.toJSON())).not.toContain('Done')
+    expect(check.props.accessibilityLabel).toBe(statusLabel)
+    expect(row.findAll(node => node.type === HabitCheck)[0]!.props.status).toBe(expected)
+    const actionLabel = (status === 'done' ? messages.chat.habitList.unlog : messages.chat.habitList.log).replace('{name}', 'Walk')
+    const actions = row.findAll(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === actionLabel && typeof node.props.onPress === 'function')
+    if (queryState === 'live' && kind === 'habitList') {
+      expect(actions.length).toBeGreaterThan(0)
+      expect(actions.every(node => node.props.disabled)).toBe(true)
+    } else expect(actions).toHaveLength(0)
     expect(state.mutate).not.toHaveBeenCalled()
     await act(() => tree.unmount())
 })

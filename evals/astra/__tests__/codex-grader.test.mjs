@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { basename, delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
+import { summarize, writeResults, writeReport } from '../report.mjs'
 import { beforeEach as prepareAttempt } from '../hooks.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 
@@ -18,6 +19,10 @@ beforeEach(async () => {
 const fs = require('node:fs')
 const args = process.argv.slice(2)
 const prompt = fs.readFileSync(0, 'utf8')
+const counter = process.env.TEST_CODEX_RECORD + '.attempts'
+const attempts = fs.existsSync(counter) ? Number(fs.readFileSync(counter, 'utf8')) + 1 : 1
+fs.writeFileSync(counter, String(attempts))
+if (process.env.TEST_CODEX_MODE === 'retry' && attempts === 1) process.exit(1)
 fs.writeFileSync(process.env.TEST_CODEX_RECORD, JSON.stringify({ args, prompt, cwd: process.cwd(), leaked: Object.keys(process.env).filter(key => key.startsWith('ORBIT_EVAL_')) }))
 if (process.env.TEST_CODEX_MODE === 'exit') { process.stderr.write('PRIVATE_SENTINEL'); process.exit(1) }
 const grade = process.env.TEST_CODEX_MODE === 'malformed' ? { pass: true } : { pass: process.env.TEST_CODEX_MODE !== 'fail', score: process.env.TEST_CODEX_MODE === 'fail' ? 0 : 1, reason: 'Offline rubric control.' }
@@ -97,4 +102,33 @@ it.each(['exit', 'exit-with-output', 'malformed', 'missing', 'bad-score', 'bad-p
   expect(response).toEqual({ error: 'Codex rubric grading failed; check the installed CLI and its authenticated session.' })
   expect(JSON.stringify(response)).not.toContain('PRIVATE_SENTINEL')
   expect(existsSync(JSON.parse(readFileSync(process.env.TEST_CODEX_RECORD, 'utf8')).cwd)).toBe(false)
+})
+
+it('retries one process failure and consumes the recovered grade through the real rubric', async () => {
+  vi.stubEnv('TEST_CODEX_MODE', 'retry')
+  const result = await assertions.runAssertions({ provider, providerResponse: { output: 'Water is ready.' }, test: {
+    vars: {}, options: { provider }, assert: [{ type: 'llm-rubric', value: 'Describe Water only.', metric: 'finalAnswer' }],
+  } })
+  expect(result.pass).toBe(true)
+  expect(readFileSync(`${process.env.TEST_CODEX_RECORD}.attempts`, 'utf8')).toBe('2')
+})
+it.each([false, true])('keeps exhausted rubric evidence unavailable with product failure=%s', async (productFailure) => {
+  vi.stubEnv('TEST_CODEX_MODE', 'exit')
+  const result = await assertions.runAssertions({ provider, providerResponse: { output: 'Water is ready.' }, test: {
+    vars: {}, options: { provider }, assert: [{ type: 'llm-rubric', value: 'Describe Water only.', metric: 'finalAnswer' }],
+  } })
+  expect(readFileSync(`${process.env.TEST_CODEX_RECORD}.attempts`, 'utf8')).toBe('2')
+  expect(result).toMatchObject({ pass: false, componentResults: [{ metadata: { graderError: true } }] })
+  const testCase = { metadata: { id: 'grader-outage' } }
+  result.componentResults.push({ assertion: { metric: 'composition' }, pass: !productFailure,
+    reason: productFailure ? 'Wrong habit.' : 'Composition matched.' })
+  const attempts = Array.from({ length: 3 }, () => ({ testCase, success: result.pass, gradingResult: result }))
+  const summary = summarize(attempts, [testCase.metadata])
+  expect(summary.cases[0]).toMatchObject({ unavailable: 3, passed: 0,
+    pass3: productFailure ? 'fail' : 'incomplete',
+    unavailableReasons: ['Codex rubric grading failed; check the installed CLI and its authenticated session.'] })
+  writeResults(attempts, directory)
+  const evidence = JSON.parse(readFileSync(join(directory, 'attempts/grader-outage-r1.json'), 'utf8'))
+  expect(evidence).toMatchObject({ pass: false, assertions: [{ metric: 'finalAnswer', pass: false, unavailable: true }, {}] })
+  expect(writeReport(summary, directory)).toContain('Codex rubric grading failed')
 })

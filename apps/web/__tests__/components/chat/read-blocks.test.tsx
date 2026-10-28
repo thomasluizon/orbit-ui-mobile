@@ -263,21 +263,33 @@ it('replaces the month snapshot when a new reply revision arrives without a refr
   expect(refreshHabitMonth).not.toHaveBeenCalled()
 })
 
-it.each((['habitList', 'daySummary'] as const).flatMap(kind => [true, false].flatMap(isError => ([
-  ['done', false, 'done'], ['done', true, 'bad'], ['overdue', false, 'overdue'],
-  ['overdue', true, 'overdue'], ['today', false, 'empty'], ['today', true, 'empty'],
-] as const).map(([status, isBadHabit, expected]) => ({ kind, isError, status, isBadHabit, expected })))))(
-  'keeps $kind snapshot $status with bad=$isBadHabit read-only and query error=$isError', ({ kind, isError, status, isBadHabit, expected }) => {
-    state.isError = isError
+it.each((['en', 'pt-BR'] as const).flatMap(locale => (['habitList', 'daySummary'] as const).flatMap(kind =>
+  (['live', 'missing', 'failed'] as const).flatMap(queryState => ([
+    ['done', false, 'done'], ['done', true, 'bad'], ['overdue', false, 'overdue'],
+    ['overdue', true, 'overdue'], ['today', false, 'empty'], ['today', true, 'empty'],
+  ] as const).map(([status, isBadHabit, expected]) => ({ locale, kind, queryState, status, isBadHabit, expected }))))))(
+  'names $kind $status with bad=$isBadHabit through $queryState occurrences in $locale', ({ locale, kind, queryState, status, isBadHabit, expected }) => {
+    state.isError = queryState === 'failed'
+    const messages = locale === 'en' ? en : pt
+    const statusLabel = status === 'done' ? isBadHabit ? messages.habits.statusDot.bad : messages.chat.habitList.logged
+      : status === 'overdue' ? messages.chat.habitList.overdue : messages.chat.habitList.pending
+    if (queryState === 'live') state.habits.set('habit-one', createMockHabit({
+      id: 'habit-one', frequencyUnit: 'Day', dueDate: focusedDatedHabitListFixture.date,
+      scheduledDates: [focusedDatedHabitListFixture.date], isBadHabit, isLoggedInRange: status === 'done',
+    }))
     const items = focusedDatedHabitListFixture.items.map(item => ({ ...item, status, isBadHabit }))
     const part = kind === 'habitList'
       ? { kind, block: { ...focusedDatedHabitListFixture, items } }
-      : { kind, block: { ...inPlaceDayFixture, rows: items, totalRows: 1 } }
-    const view = mount(part)
+      : { kind, block: { ...inPlaceDayFixture, date: focusedDatedHabitListFixture.date, rows: items, totalRows: 1, read: focusedDatedHabitListFixture.read } }
+    const view = mount(part, locale)
     const row = view.container.querySelector('[data-habit-block-row]')!
-    const check = row.querySelector('[data-habit-check]')!
+    const check = within(row as HTMLElement).getByRole('img', { name: statusLabel })
     expect(check).toHaveAttribute('data-status', expected)
-    expect(check.closest('button')).toBeNull()
+    const action = queryState === 'live' && kind === 'habitList'
+      ? within(row as HTMLElement).getByRole('button', { name: (status === 'done' ? messages.chat.habitList.unlog : messages.chat.habitList.log).replace('{name}', 'Walk') })
+      : null
+    if (action) expect(action).toBeDisabled()
+    expect(check.closest('button')).toBe(action)
     expect(row.querySelector('[data-habit-block-meta]')).toBeNull()
     expect(state.mutate).not.toHaveBeenCalled()
     view.unmount()

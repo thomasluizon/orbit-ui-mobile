@@ -9,6 +9,7 @@ import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-sess
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { goBackDuringSheetExit } from '../../test-support/sheet-exit'
 
 async function waitForCreationGuard(page: Page) {
   await page.waitForFunction(() => Reflect.get(Object(history.state), 'orbitHabitCreateSentinel') === true)
@@ -129,29 +130,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await page.evaluate(() => history.back())
           await expect(keepEditing).toBeVisible()
           await waitForCreationGuard(page)
-          const duringExit = await keepEditing.evaluate((button) => new Promise<{ mountedDuringBack: boolean; animationCount: number }>((resolve, reject) => {
-            if (!(button instanceof HTMLButtonElement)) { reject(new Error('Expected the Keep editing button')); return }
-            const panel = button.closest('[role="dialog"]')
-            if (!panel) { reject(new Error('Expected the discard dialog')); return }
-            const observer = new MutationObserver(() => {
-              if (!panel.hasAttribute('data-ending-style')) return
-              observer.disconnect()
-              const animations = panel.getAnimations()
-              if (!animations.length) { reject(new Error('Expected a real sheet exit transition')); return }
-              animations.forEach((animation) => animation.pause())
-              const onRestored = () => {
-                if (!history.state?.orbitHabitCreateSentinel) return
-                window.removeEventListener('popstate', onRestored)
-                const mountedDuringBack = panel.isConnected && panel.hasAttribute('data-ending-style')
-                animations.forEach((animation) => animation.play())
-                resolve({ mountedDuringBack, animationCount: animations.length })
-              }
-              window.addEventListener('popstate', onRestored)
-              history.back()
-            })
-            observer.observe(panel, { attributes: true })
-            button.click()
-          }))
+          const duringExit = await keepEditing.evaluate(goBackDuringSheetExit)
           expect(duringExit.mountedDuringBack).toBe(true)
           expect(duringExit.animationCount).toBeGreaterThan(0)
           await expect(keepEditing).toBeVisible()

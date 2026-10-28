@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { tsImport } from 'tsx/esm/api'
 import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
 import { dateOffset, requireStagingOrigin, resetFixture } from './fixtures/reset.mjs'
+import { fixtureHabitTitles } from './fixtures/names.mjs'
 import { requireEvalAccess } from './fixtures/api.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { describeCase } from './latency.mjs'
@@ -74,6 +75,7 @@ async function prepareAttempt(test) {
   const retrospective = await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true,
     needsFreshWindow && !freshFreeWindows.has(windowKey))
   if (needsFreshWindow) freshFreeWindows.add(windowKey)
+  test.vars.fixtureHabitTitles = fixtureHabitTitles(test.metadata.fixture, test.metadata.locale)
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
     accountDate: today,

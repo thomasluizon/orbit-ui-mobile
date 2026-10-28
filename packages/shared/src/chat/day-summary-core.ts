@@ -26,7 +26,7 @@ export function daySummaryLogControl(habit: NormalizedHabit | undefined, overdue
   const logged = habit ? isHabitDoneForRange(habit) : false
   const slipped = logged && habit?.isBadHabit === true
   let status: NonNullable<StatusRingProps['status']> = overdue ? 'overdue' : 'empty'
-  let statusKey = 'chat.habitList.pending'
+  let statusKey = overdue ? 'chat.habitList.overdue' : 'chat.habitList.pending'
   if (logged) {
     status = 'done'
     statusKey = 'chat.habitList.logged'
