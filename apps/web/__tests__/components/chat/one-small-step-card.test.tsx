@@ -42,12 +42,17 @@ describe('one small step on web', () => {
     try {
       let card!: ReturnType<typeof makeOneSmallStepCard>
       await act(async () => { card = mount('en', false, true).card })
+      expect(screen.getByRole('heading', { name: card.suggestion.goal })).toBeInTheDocument()
       for (const text of [card.suggestion.goal, card.suggestion.step]) {
-        const button = screen.getByRole('button', { name: text })
+        const button = screen.getByRole('button', { name: text === card.suggestion.goal ? en.common.showFullText.replace('{name}', text) : text })
         expect(button).toHaveAttribute('aria-expanded', 'false')
         await act(async () => { fireEvent.click(button) })
         expect(button).toHaveAttribute('aria-expanded', 'true')
-        expect(document.querySelector(`[id="${button.getAttribute('aria-controls')}"]`)).toHaveAttribute('data-personal-text-expanded')
+        if (text === card.suggestion.step) expect(document.querySelector(`[id="${button.getAttribute('aria-controls')}"]`)).toHaveAttribute('data-personal-text-expanded')
+        else {
+          expect(screen.getByRole('dialog')).toBeInTheDocument()
+          await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.common.close })) })
+        }
       }
     } finally { restore() }
   })

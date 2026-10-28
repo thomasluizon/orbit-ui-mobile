@@ -52,10 +52,11 @@ describe('one small step on Android', () => {
       await renderer.act(() => { (probe.props.onTextLayout as (event: unknown) => void)({ nativeEvent: { lines: lines.map(text => ({ text })) } }) })
     }
     for (const text of [card.suggestion.goal, card.suggestion.step]) {
-      const button = buttons(text)[0]!
+      const name = text === card.suggestion.goal ? i18n.t('common.showFullText', { name: text }) : text
+      const button = buttons(name)[0]!
       expect(button.props.accessibilityState).toMatchObject({ expanded: false })
       await renderer.act(() => { (button.props.onPress as () => void)() })
-      expect(buttons(text)[0]!.props.accessibilityState).toMatchObject({ expanded: true })
+      expect(buttons(name)[0]!.props.accessibilityState).toMatchObject({ expanded: true })
     }
   })
   it('retains replies without the block', async () => {

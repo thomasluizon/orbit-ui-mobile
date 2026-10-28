@@ -2,7 +2,7 @@
 
 # Astra one small step
 
-One BlockFrame shows the supplied goal in secondary text and the starting step as its prominent body line. Both use PersonalTextDetails: full width, at most two lines or one unbroken token, then ellipsis with the full text available through its disclosure control. The goal carries the frame heading semantics. The frame omits counts.
+One BlockFrame shows the supplied goal through its typed heading and the starting step as its prominent h2-sized body line. The heading uses PersonalText with its existing full-text sheet; the body uses PersonalTextDetails: full width, at most two lines or one unbroken token, then ellipsis with the full text available through its disclosure control. The goal carries the frame heading semantics. The frame omits counts.
 
 | Surface | Web owner | Android owner | States and coverage |
 |---|---|---|---|

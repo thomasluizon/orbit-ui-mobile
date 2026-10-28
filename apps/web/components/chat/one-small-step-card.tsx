@@ -17,7 +17,6 @@ export function OneSmallStepCard({ card, onSendMessage, interaction }: Readonly<
 }>) {
   const actions = useOneSmallStepActions(onSendMessage, interaction)
   return <BlockFrame title={card.suggestion.goal} titleMode="typed" count={null} state={actions.sending ? 'acting' : 'resting'} items={[]}
-    titleContent={<PersonalTextDetails outset textStyle={{ fontSize: 14, fontWeight: 400, color: 'var(--fg-2)' }}>{card.suggestion.goal}</PersonalTextDetails>}
-    body={<PersonalTextDetails outset textStyle={{ fontSize: 16, fontWeight: 500, color: 'var(--fg-1)' }}>{card.suggestion.step}</PersonalTextDetails>}
+    body={<PersonalTextDetails outset textStyle={{ fontSize: 22, fontWeight: 500, lineHeight: 1.2, color: 'var(--fg-1)' }}>{card.suggestion.step}</PersonalTextDetails>}
     actions={card.actions.map(action => <PillButton key={action.id} size="sm" variant="ghost" retainLeadingIcon leadingIcon={<AstraGlyph size={16} />} accessibleName={action.label} disabled={actions.disabled} onClick={() => void actions.submit(action)}>{action.label}</PillButton>)} />
 }
