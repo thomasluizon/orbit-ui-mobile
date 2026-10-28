@@ -628,11 +628,6 @@ select[aria-hidden="true"] {
   to { opacity: 0; transform: translateY(calc(-1 * var(--motion-menu-shift))) scale(var(--motion-menu-scale)); }
 }
 
-@keyframes orbit-menu-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 @keyframes orbit-menu-fade-out {
   from { opacity: 1; }
   to { opacity: 0; }
@@ -2923,10 +2918,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   .orbit-sheet-panel,
   .orbit-sheet-panel[data-starting-style],
   .orbit-sheet-panel[data-ending-style] { transform: none; }
-  .orbit-menu-panel {
-    animation: orbit-menu-fade-in var(--motion-menu-exit) linear;
-    animation-duration: var(--motion-menu-exit) !important;
-  }
+  .orbit-menu-panel { animation: none; }
   .orbit-menu-panel[data-state="closed"],
   .orbit-menu-panel[data-ending-style] {
     animation: orbit-menu-fade-out var(--motion-menu-exit) linear;

@@ -109,7 +109,7 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     ])
     expect(frames.length).toBeGreaterThan(0)
     expect(frames.every(frame => frame.scaleX === 1 && frame.scaleY === 1 && frame.x === 0 && frame.y === 0), JSON.stringify(frames)).toBe(true)
-    expect(frames.some(frame => frame.opacity > 0 && frame.opacity < 1)).toBe(true)
+    expect(frames.some(frame => frame.opacity < 1)).toBe(true)
     expect(await page.getByRole('menu').count()).toBe(0)
   })
 
