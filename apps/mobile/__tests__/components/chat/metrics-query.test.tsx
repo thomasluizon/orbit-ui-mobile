@@ -1,5 +1,4 @@
 import { act, create } from 'react-test-renderer'
-import { View } from 'react-native'
 import type { GeometryTree } from '../../support/safe-area-geometry'
 import { renderedText } from '../../support/react-test-renderer'
 import { apiClient } from '@/lib/api-client'
@@ -29,7 +28,7 @@ it.each([3, 0])('preserves the saved window when the live recap has %s scheduled
   await act(() => { view = create(<QueryClientProvider client={client}><MetricsCard metricsCard={{ period: 'week', completionRate: 50, activeDays: 3, totalCompletions: 3, totalScheduled: 6, currentStreak: 3, bestStreak: 9, hasData: true, surfaceId: 'progress' }} /></QueryClientProvider>) as GeometryTree })
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)) })
   expect(apiClient).not.toHaveBeenCalled()
-  expect(view.root.findAll(node => node.type === View && node.props.testID === 'block-frame-resting')).toHaveLength(1)
+  expect(view.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'block-frame-resting')).toHaveLength(1)
   expect(view.root.findAll(node => node.props.accessibilityRole === 'alert')).toHaveLength(0)
   expect(renderedText(view.toJSON())).toContain('50%')
   await act(() => view.unmount()); client.clear()

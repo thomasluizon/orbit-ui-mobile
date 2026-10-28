@@ -1,6 +1,6 @@
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React, { Profiler } from 'react'
-import { Animated, FlatList, StyleSheet, Text, View, type FlatListProps, type ViewStyle } from 'react-native'
+import { Animated, FlatList, StyleSheet, Text, View, type FlatListProps, type StyleProp, type ViewStyle } from 'react-native'
 import * as Reanimated from 'react-native-reanimated'
 import { act, create } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -160,6 +160,8 @@ it.each([412, 1352])('replaces the native pending line at the same reply origin 
     expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'astra-avatar')).toHaveLength(1)
     expect(measureSafeArea(tree.toJSON(), host => host.props.testID === 'astra-avatar' ? 'avatar' : undefined, { width, height: 915 }).get('avatar')).toEqual(markPosition)
     const bubble = tree.root.findAll(node => node.type === MessageBubble).at(-1)!
-    expect(bubble.props.animateEntry).toBe(false)
+    expect(bubble.props.animateEntry).toBe(true)
+    const replyOrigin = bubble.findAll(node => typeof node.type === 'string' && node.props.testID === 'conversation-reveal')[0]!
+    expect(StyleSheet.flatten<ViewStyle>(replyOrigin.props.style as StyleProp<ViewStyle>).transform).toEqual([{ translateY: 0 }])
   } finally { await act(() => tree.unmount()) }
 })

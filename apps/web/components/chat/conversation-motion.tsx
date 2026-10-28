@@ -2,12 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { motion, useAnimationControls } from 'motion/react'
-import { resolveConversationMotion } from '@orbit/shared/theme'
-import { useViewportMatch } from '@/hooks/use-viewport-match'
-
-export function useConversationMotion(index = 0) {
-  return resolveConversationMotion(useViewportMatch('(prefers-reduced-motion: reduce)'), index)
-}
+import { useConversationMotion } from '@/hooks/use-conversation-motion'
 
 export function ConversationReveal({ children, animate = false, index = 0, className }: Readonly<{
   children: ReactNode

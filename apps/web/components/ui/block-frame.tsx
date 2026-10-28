@@ -1,7 +1,8 @@
 'use client'
 
 import { motion } from 'motion/react'
-import { ConversationChange, useConversationMotion } from '@/components/chat/conversation-motion'
+import { ConversationChange } from '@/components/chat/conversation-motion'
+import { useConversationMotion } from '@/hooks/use-conversation-motion'
 import { IconButton } from '@/components/ui/icon-button'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 

@@ -2,7 +2,7 @@
 
 import { ConversationComposerMotionProvider } from './conversation-composer-motion'
 import { motion } from 'motion/react'
-import { useConversationMotion } from '@/components/chat/conversation-motion'
+import { useConversationMotion } from '@/hooks/use-conversation-motion'
 
 import { SidebarAccount } from './sidebar-account'
 import { useTranslations } from 'next-intl'

@@ -1,7 +1,8 @@
 'use client'
 
 import { motion } from 'motion/react'
-import { useConversationMotion } from '@/components/chat/conversation-motion'
+import { useConversationMotion } from '@/hooks/use-conversation-motion'
+import { useConversationComposerId } from './conversation-composer-motion'
 
 import { useTranslations } from 'next-intl'
 import { useUIStore } from '@/stores/ui-store'
@@ -328,6 +329,7 @@ function ComposerPrimaryControl({ props, inputRef }: Readonly<{ props: ComposerP
 
 function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerProps; disclosure?: React.ReactNode }>) {
   const configuration = useConversationMotion()
+  const composerId = useConversationComposerId()
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const inputLabel = props.words.inputLabel ?? props.words.placeholder
   const textActionInMenu = useTextActionMenu(inputRef, inputLabel, props.state)
@@ -375,7 +377,7 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
 
   return (
     <motion.div layout={configuration.changeDuration > 0}
-      layoutId={configuration.changeDuration > 0 && (props.onOpenConversation || props.autoFocus) ? "astra-composer" : undefined}
+      layoutId={configuration.changeDuration > 0 && composerId && (props.onOpenConversation || props.autoFocus) ? composerId : undefined}
       transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
       data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex flex-wrap justify-end min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
       <motion.div layout={configuration.changeDuration > 0 ? "position" : false}
