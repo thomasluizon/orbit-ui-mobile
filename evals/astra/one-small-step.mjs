@@ -39,7 +39,7 @@ export function startingStepComposition(parsed, vars) {
     || arguments_?.one_small_step !== true || arguments_.language !== vars.clientContext.locale
     || !singleLine(arguments_.title) || !Array.isArray(arguments_.suggested_sub_habits) || arguments_.suggested_sub_habits.length !== 1
     || !singleLine(arguments_.suggested_sub_habits[0]?.title)
-    || !isDeepStrictEqual(suggestion, { goal: arguments_.title, step: arguments_.suggested_sub_habits[0].title, language: arguments_.language })) {
+    || !isDeepStrictEqual(suggestion, { goal: arguments_.title.trim(), step: arguments_.suggested_sub_habits[0].title.trim(), language: arguments_.language })) {
     return result(false, 'One starting step requires exactly one matching successful suggest_breakdown call.')
   }
   if (['actions', 'pendingOperations', 'policyDenials', 'relatedSurfaces', 'followUps', 'followUpContext'].some((key) => response[key]?.length)

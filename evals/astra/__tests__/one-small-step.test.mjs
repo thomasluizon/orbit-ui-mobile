@@ -109,6 +109,14 @@ it('accepts equivalent JSON escaping in server action messages', () => {
   expect(grades.composition(outputFor(response), { vars: varsFor('pt-BR') }).pass).toBe(true)
 })
 
+it('matches the producer trimming surrounding whitespace from tool titles', () => {
+  const response = startingResponse()
+  const arguments_ = response.evalTrace.toolCalls[0].arguments
+  arguments_.title = ` ${arguments_.title} `
+  arguments_.suggested_sub_habits[0].title = ` ${arguments_.suggested_sub_habits[0].title} `
+  expect(grades.composition(outputFor(response), { vars: varsFor() }).pass).toBe(true)
+})
+
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'save-task', 'save-checklist'].map((family) => [locale, family])))(
