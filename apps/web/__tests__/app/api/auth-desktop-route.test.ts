@@ -36,6 +36,24 @@ function redemption(body: unknown = { code: handoffCode, state, codeVerifier: ve
     body: typeof body === 'string' ? body : JSON.stringify(body) })
 }
 
+async function pageDestination(response: Response) {
+  expect(response.status).toBe(200)
+  expect(response.headers.get('location')).toBeNull()
+  expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8')
+  expect(response.headers.get('cache-control')).toBe('no-store')
+  expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+  expect(response.headers.get('set-cookie')).toContain(`${GOOGLE_OAUTH_COOKIE}=;`)
+  const page = new DOMParser().parseFromString(await response.text(), 'text/html')
+  const links = page.querySelectorAll('a')
+  expect(links).toHaveLength(1)
+  const destination = new URL(links[0]!.href)
+  expect(page.querySelector('h1')?.textContent).toBe(destination.searchParams.has('error') ? 'Sign-in failed' : 'Signed in')
+  expect(page.body.textContent).not.toContain(handoffCode)
+  expect(page.body.textContent).not.toContain(account.token)
+  expect(page.body.textContent).not.toContain(account.refreshToken)
+  return destination
+}
+
 describe('desktop Google BFF handoff', () => {
   beforeEach(() => {
     vi.stubEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID', 'web-client')
@@ -67,8 +85,8 @@ describe('desktop Google BFF handoff', () => {
     expect(api).not.toHaveBeenCalled()
     api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(Response.json({ code: handoffCode, expiresIn: 60 }))
     const returned = await callback(new NextRequest(redirect.headers.get('location')!, { headers: browserHeaders }))
-    expect(returned.status).toBe(303)
-    const destination = new URL(returned.headers.get('location')!)
+    expect(returned.status).toBe(200)
+    const destination = await pageDestination(returned)
     expect(destination.toString()).toBe(`${redirectUri}?state=${state}&code=${handoffCode}`)
     expect(api.mock.calls[0]?.[0]).toBe('http://localhost:5000/api/auth/google/code')
     expect(JSON.parse(api.mock.calls[0]?.[1].body)).toMatchObject({ codeVerifier: googleSession.verifier,
@@ -128,7 +146,7 @@ describe('desktop Google BFF handoff', () => {
   it('returns browser cancellation to the owning native attempt', async () => {
     const pending = attempt()
     const response = await callback(pending.request(`error=access_denied&state=${pending.googleState}`))
-    expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&error=authentication_failed`)
+    expect((await pageDestination(response)).toString()).toBe(`${redirectUri}?state=${state}&error=authentication_failed`)
     expect(api).not.toHaveBeenCalled()
   })
 
@@ -141,7 +159,7 @@ describe('desktop Google BFF handoff', () => {
     if (outcome === 'revoke network failure') api.mockRejectedValueOnce(new Error('unavailable'))
     else api.mockResolvedValueOnce(new Response(null, { status: outcome === 'revoke rejection' ? 503 : 200 }))
     const response = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
-    expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&${outcome === 'handoff failure' ? 'error=authentication_failed' : `code=${handoffCode}`}`)
+    expect((await pageDestination(response)).toString()).toBe(`${redirectUri}?state=${state}&${outcome === 'handoff failure' ? 'error=authentication_failed' : `code=${handoffCode}`}`)
     const revocation = api.mock.calls.find(([url]) => url === 'http://localhost:5000/api/auth/logout')
     expect(revocation).toBeDefined()
     expect(revocation?.[1]).toMatchObject({ method: 'POST', body: JSON.stringify({ refreshToken: account.refreshToken }) })
@@ -151,7 +169,7 @@ describe('desktop Google BFF handoff', () => {
     const pending = attempt('existing-browser-session')
     api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(Response.json({ code: handoffCode, expiresIn: 60 }))
     const response = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
-    expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&code=${handoffCode}`)
+    expect((await pageDestination(response)).toString()).toBe(`${redirectUri}?state=${state}&code=${handoffCode}`)
     expect(response.cookies.get('auth_token')).toBeUndefined()
   })
 
@@ -161,7 +179,7 @@ describe('desktop Google BFF handoff', () => {
     const productionRedirect = 'org.useorbit.desktop://auth/callback'
     api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(Response.json({ code: handoffCode, expiresIn: 60 }))
     const response = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
-    expect(response.headers.get('location')).toBe(`${productionRedirect}?state=${state}&code=${handoffCode}`)
+    expect((await pageDestination(response)).toString()).toBe(`${productionRedirect}?state=${state}&code=${handoffCode}`)
     api.mockResolvedValueOnce(Response.json(account))
     const session = await exchange(redemption({ code: handoffCode, state, codeVerifier: verifier, redirectUri: productionRedirect }))
     expect(session.status).toBe(200)
@@ -176,7 +194,7 @@ describe('desktop Google BFF handoff', () => {
       failure === 'handoff' ? new Response(null, { status: 503 }) : Response.json({ code: 'bad', expiresIn: 60 }),
     )
     const response = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
-    expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&error=authentication_failed`)
+    expect((await pageDestination(response)).toString()).toBe(`${redirectUri}?state=${state}&error=authentication_failed`)
     expect(response.cookies.get('auth_token')).toBeUndefined()
   })
 
