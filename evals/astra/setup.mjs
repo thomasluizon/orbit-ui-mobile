@@ -14,11 +14,11 @@ export async function prepareCorrection(test) {
   } })
   const vars = { ...test.vars, refine: undefined, ...setup, evalRequestId: requestId, historyJson: '[]' }
   const response = await provider.callApi(setup.input, { vars })
-  if (response.error || !response.output) throw new Error('Correction setup returned no verifiable answer.')
+  if (response.error || !response.output) throw new Error(`Correction setup${setup.caseId ? ` dependency ${setup.caseId}` : ''} returned no verifiable answer.`)
   const context = { vars, test }
   const checks = await Promise.all([structural(response.output, context), behavior(response.output, context), composition(response.output, context)])
   if (checks.some((check) => check.pass !== true || check.metadata?.skipped || check.metadata?.unavailable)) {
-    throw new Error('Correction setup failed its tool or composition gate.')
+    throw new Error(`Correction setup failed${setup.caseId ? ` dependency ${setup.caseId}` : ''}: ${checks.filter((check) => !check.pass || check.metadata?.skipped || check.metadata?.unavailable).map((check) => check.reason).join('; ')}`)
   }
   if (test.vars.refine) {
     const drafts = response.output.composition.parts.find((part) => part.kind === 'habitSuggestions').block.drafts

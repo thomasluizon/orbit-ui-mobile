@@ -8,6 +8,8 @@ import AstraHttpProvider from '../http-provider.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { CHAT_BLOCK_KINDS } from '../../../packages/shared/src/chat/block-kinds.ts'
 import { summarize } from '../report.mjs'
+import { behavior } from '../assertions.mjs'
+import { toolCall } from './fixtures/producer.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((file) => parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')))
 let habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered
@@ -33,7 +35,7 @@ it.each(['en', 'pt-BR'])('seeds and independently verifies a cached retrospectiv
     { method: 'GET', path: 'habits/retrospective' }, { method: 'GET', path: 'habits/retrospective' },
   ])
   expect(test.vars.composition.blocks).toEqual([{ kind: 'periodInsight', completeness: 'stale', recovery: 'refresh' }])
-  expect(test.vars.expectations.required[0]).toMatchObject({ name: 'get_retrospective', arguments: { period: 'month', language: locale } })
+  expect(test.vars.expectations.required[0]).toMatchObject({ name: 'get_retrospective', result: { payload: retrospectiveResponse(true) } })
 })
 it.each(['uncached', 'missing-flag', 'empty-narrative', 'wrong-period', 'wrong-from', 'wrong-to', 'http-failure'])(
   'makes unverifiable stale setup incomplete and skips the case chat: %s', async (mode) => {
@@ -368,4 +370,35 @@ it('adopts roots in the other locale before registering stable IDs', async () =>
   await resetFixture(portuguese)
   expect(habits.map((habit) => habit.id)).toEqual(ids)
   expect(habits.map((habit) => habit.title)).toEqual(['Beber água', 'Caminhada'])
+})
+
+it.each(['en', 'pt-BR'])('grades only the independently verified stale retrospective result in %s', async (locale) => {
+  const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-stale-${locale}`))
+  const { test } = await prepareAttempt({ test: source })
+  const grade = (payload) => {
+    const { status, ...call } = toolCall('get_retrospective', { period: 'month', language: locale })
+    call.result.payload = payload
+    return behavior({ trace: { state: 'available', requestId: test.vars.evalRequestId,
+      responseRequestId: test.vars.evalRequestId, calls: [{ ...call, resultStatus: status }] } }, { vars: test.vars })
+  }
+  expect(grade(retrospectiveResponse(true)).pass).toBe(true)
+  for (const patch of [{ fromCache: false }, { dateFrom: '2026-01-01' }, { dateTo: '2026-01-31' },
+    { narrative: { highlights: 'Invented narrative', missed: '', trends: '', suggestion: '' } }]) {
+    expect(grade({ ...retrospectiveResponse(true), ...patch }).pass).toBe(false)
+  }
+})
+it('marks the Free capacity case incomplete before chat when its daily window is already used', async () => {
+  pro = false
+  const intercepted = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => new URL(url).pathname === '/api/profile'
+    ? Response.json({ email, hasProAccess: false, hasGoogleConnection: false, aiMessagesUsed: 1, aiMessagesLimit: 50 })
+    : intercepted(url, options))
+  const { test } = await prepareAttempt({ test: scenario('free-at-limit') })
+  expect(test.vars.preconditionFailure).toContain('fresh Free daily window')
+  const response = await new AstraHttpProvider({ config: { url: `${process.env.ORBIT_EVAL_BASE_URL}/api/chat` } })
+    .callApi(test.vars.input, { vars: test.vars })
+  expect(response.metadata.astraPreconditionFailure).toBe(true)
+  expect(summarize([{ testCase: test, response, error: response.error, success: false }], [test.metadata]).cases[0])
+    .toMatchObject({ pass3: 'incomplete', unavailable: 1 })
+  expect(requests.some(({ path }) => path === 'chat')).toBe(false)
 })

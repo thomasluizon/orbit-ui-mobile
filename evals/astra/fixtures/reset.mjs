@@ -101,6 +101,7 @@ async function seedStaleRetrospective(api, today, locale) {
     || !Object.values(narrative).some((section) => typeof section === 'string' && section.trim())) {
     throw new Error('Stale fixture could not verify a cached month retrospective narrative for the account dates.')
   }
+  return payload
 }
 async function fillCapacity(api, today) {
   let batchSize = 100
@@ -153,6 +154,9 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     throw new Error('Fixture reset requires the staging origin and a disposable eval account.')
   }
   if (typeof profile?.hasProAccess !== 'boolean' || !Number.isInteger(profile.aiMessagesUsed) || !Number.isInteger(profile.aiMessagesLimit)) throw new Error('Fixture profile lacks access or allowance evidence.')
+  if (test.vars.preconditions?.freshFreeDailyWindow && (profile.hasProAccess || profile.aiMessagesUsed !== 0)) {
+    throw new Error('Fixture needs a fresh Free daily window with zero Astra messages used.')
+  }
   await api('PUT', 'profile/timezone', { timeZone: 'UTC' })
   await api('PUT', 'profile/language', { language: test.metadata.locale ?? 'en' })
   if (fixture === 'budget-exhausted') {
@@ -190,7 +194,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   }
   if (fixture === 'free-at-limit') await fillCapacity(api, today)
   await verifyFixture(api, account, fixture, today, names)
-  if (fixture === 'composition-stale') await seedStaleRetrospective(api, today, test.metadata.locale ?? 'en')
+  if (fixture === 'composition-stale') return seedStaleRetrospective(api, today, test.metadata.locale ?? 'en')
 }
 
 export async function runReset(caseId) {
