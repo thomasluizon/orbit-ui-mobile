@@ -78,9 +78,9 @@ describe('PendingOperationCard', () => {
     visibleLocale.language = locale
     const { container } = render(<PendingOperationCard pendingOperation={makeTypedHabitsPreview()} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     const headings = screen.getAllByRole('heading', { level: 4 })
-    expect(headings.map(heading => heading.textContent)).toEqual(locale === 'en' ? ['Tasks', 'Habits', 'General'] : ['Tarefas', 'Hábitos', 'Geral'])
+    expect(headings.map(heading => heading.textContent)).toEqual(locale === 'en' ? ['Tasks', 'Habits', 'General habits'] : ['Tarefas', 'Hábitos', 'Hábitos gerais'])
     const readingOrder = Array.from(container.querySelectorAll('h4, button[aria-label^="Habit "]')).map(node => node.getAttribute('aria-label') ?? node.textContent)
-    expect(readingOrder).toEqual(['Tasks', 'Habit 3', 'Habit 5', 'Habits', 'Habit 2', 'Habit 4', 'General', 'Habit 1'].map(text => locale === 'en' ? text : ({ Tasks: 'Tarefas', Habits: 'Hábitos', General: 'Geral' }[text] ?? text)))
+    expect(readingOrder).toEqual(['Tasks', 'Habit 3', 'Habit 5', 'Habits', 'Habit 2', 'Habit 4', 'General habits', 'Habit 1'].map(text => locale === 'en' ? text : ({ Tasks: 'Tarefas', Habits: 'Hábitos', 'General habits': 'Hábitos gerais' }[text] ?? text)))
     expect(container.querySelectorAll('[data-conversation-block]')).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: translateVisible('chat.operation.approveCount.createHabits', { count: 5 }) })).toHaveLength(1)
   })
