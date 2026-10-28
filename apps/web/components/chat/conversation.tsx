@@ -353,6 +353,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             earlierMessages={messages.slice(0, index)}
             laterMessages={messages.slice(index + 1)}
             blockAnswerInteraction={blockAnswerInteraction}
+            onSendMessage={sendMessage}
             animateEntry={!initialMessageIds.has(msg.id)}
             isStreaming={msg.id === streamingMessageId}
             onBreakdownConfirmed={handleBreakdownConfirmed}

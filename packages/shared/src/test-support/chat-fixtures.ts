@@ -10,6 +10,7 @@ import type {
   HabitListCard,
   SuggestedSubHabit,
 } from '../types/chat'
+import type { OneSmallStepCard } from '../contracts/blocks/one-small-step'
 import type { BulkCreateResponse } from '../types/habit'
 
 export const failedReadOperationFixture = {
@@ -356,7 +357,7 @@ export const skippedDatedHabitListFixture = {
   ],
 } satisfies HabitListCard
 
-export function makeOneSmallStepCard(language: 'en' | 'pt-BR' = 'en') {
+export function makeOneSmallStepCard(language: 'en' | 'pt-BR' = 'en'): OneSmallStepCard {
   const portuguese = language === 'pt-BR'
   const goal = portuguese ? 'Ler' : 'Read'
   const step = portuguese ? 'Abra o livro.' : 'Open the book.'

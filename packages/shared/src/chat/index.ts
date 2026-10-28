@@ -149,3 +149,4 @@ export type { InsightPage } from './period-insight-core'
 
 export * from './habit-suggestion-controller'
 export * from './habit-suggestion-view'
+export * from './one-small-step-actions'
