@@ -900,11 +900,6 @@ ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
 
 ruleTester.run('max-button-words', rule('max-button-words'), {
   valid: [
-    ...['web', 'mobile'].flatMap(platform => ['Use reminder time', 'Usar horário do lembrete'].map(label => ({
-      code: `<PillButton size="sm" variant="ghost">${label}</PillButton>`,
-      filename: `/repo/apps/${platform}/components/habits/repeat-reminder-detail.tsx`,
-      options: platform === 'web' ? webMaxButtonWordsOptions : mobileMaxButtonWordsOptions,
-    }))),
     { code: '<PillButton>Log all</PillButton>', options: maxButtonWordsOptions },
     { code: '<PillButton>Set-up now</PillButton>', options: maxButtonWordsOptions },
     { code: '<button aria-label="Open menu" />', options: maxButtonWordsOptions },
@@ -959,10 +954,6 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
     },
   ],
   invalid: [
-    ...['web', 'mobile'].flatMap(platform => [
-      { code: '<PillButton>Use reminder time</PillButton>', filename: `/repo/apps/${platform}/components/ui/other.tsx`, options: maxButtonWordsOptions, errors: [{ messageId: 'tooManyWords' }] },
-      { code: '<PillButton>Open reminder settings</PillButton>', filename: `/repo/apps/${platform}/components/habits/repeat-reminder-detail.tsx`, options: maxButtonWordsOptions, errors: [{ messageId: 'tooManyWords' }] },
-    ]),
     {
       code: '<PillButton>Open all insights</PillButton>',
       options: maxButtonWordsOptions,

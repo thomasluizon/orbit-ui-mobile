@@ -16,7 +16,7 @@ import { TimeField } from '@/components/ui/time-field'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { IconButton } from '@/components/ui/icon-button'
-import { Pencil } from '@/components/ui/icons'
+import { Pencil, Clock } from '@/components/ui/icons'
 
 export function RepeatReminderDetail({ habit, logs }: Readonly<{ habit: NormalizedHabit; logs: HabitLog[] }>) {
   const { t } = useTranslation()
@@ -68,11 +68,11 @@ function DoseTimeEditor({ habitId, log, onClose }: Readonly<{ habitId: string; l
       {error ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.statusBadText, fontSize: 14, lineHeight: 20 }}>{error}</Text> : null}
       <DateField label={t('habits.doseDate')} value={date} onChange={(value) => { setExactInstant(null); setDate(value) }} disabled={mutation.isPending} />
       <TimeField label={t('habits.doseTime')} value={toTime24(clock)} onChange={(value) => { setExactInstant(null); setClock(value) }} disabled={mutation.isPending} />
-      {log.reminderAtUtc ? <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => {
+      {log.reminderAtUtc ? <IconButton label={t('habits.useReminderTime')} disabled={mutation.isPending} onClick={() => {
         setExactInstant(new Date(log.reminderAtUtc!).toISOString())
         setDate(getAccountDateTime(new Date(log.reminderAtUtc!), timeZone).date)
         setClock(repeatReminderClock(log.reminderAtUtc!, timeZone))
-      }}>{t('habits.useReminderTime')}</PillButton> : null}
+      }}><Clock size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
     </View>
   </Sheet>
 }

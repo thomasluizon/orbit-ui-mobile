@@ -39,21 +39,21 @@ it('keeps the dose draft open after a refused correction', async () => {
   expect(screen.getByRole('dialog')).toBeInTheDocument()
 })
 
-it('uses visible small ghost actions for Cancel and Use reminder time', () => {
+it('uses a visible small ghost Cancel before Save', () => {
   render(<RepeatReminderDetail habit={habit} logs={[log]} />)
   fireEvent.click(screen.getByRole('button', { name: en.habits.changeTakenAt }))
-  for (const label of [en.common.cancel, en.habits.useReminderTime]) {
-    const button = screen.getByRole('button', { name: label })
-    expect(button).toHaveTextContent(label)
-    expect(button).toHaveAttribute('data-variant', 'ghost')
-    expect(button).toHaveAttribute('data-size', 'sm')
-  }
+  const cancel = screen.getByRole('button', { name: en.common.cancel })
+  expect(cancel).toHaveTextContent(en.common.cancel)
+  expect(cancel).toHaveAttribute('data-variant', 'ghost')
+  expect(cancel).toHaveAttribute('data-size', 'sm')
   const actions = screen.getByRole('button', { name: en.common.save }).parentElement!
   expect(Array.from(actions.querySelectorAll('button')).map((button) => button.textContent)).toEqual([en.common.cancel, en.common.save])
 })
 
-it('labels the reminder-time choice visibly', () => {
+it('offers the reminder time as a named clock icon action', () => {
   render(<RepeatReminderDetail habit={habit} logs={[log]} />)
   fireEvent.click(screen.getByRole('button', { name: en.habits.changeTakenAt }))
-  expect(screen.getByRole('button', { name: en.habits.useReminderTime })).toHaveTextContent(en.habits.useReminderTime)
+  const useReminderTime = screen.getByRole('button', { name: en.habits.useReminderTime })
+  expect(useReminderTime).toHaveTextContent('')
+  expect(useReminderTime.querySelector('svg')).not.toBeNull()
 })

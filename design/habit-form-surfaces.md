@@ -266,7 +266,7 @@ shared request builders send the exclusive repeat contract while preserving the 
 The paired `repeat-reminder-detail.tsx` owners show the supplied next instant and each positive log's
 Done at value. Their correction sheet retains the full original instant until the person changes a
 calendar or clock control; Use reminder time preserves the reminder's seconds and fractional seconds.
-Use reminder time is a labelled small ghost pill. The footer pairs a small ghost Cancel pill with
+Use reminder time is the clock icon button with that accessible name. The footer pairs a small ghost Cancel pill with
 the filled Save action. Save corrects that log and refreshes habit reads. Failure keeps the draft and its recovery message.
 The existing Select, DateField, TimeField, ListRow, ActionRow and sheet footer own these controls.
 

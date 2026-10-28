@@ -1,8 +1,6 @@
 const { collectionCandidates, wordCount, childCandidates, attributeCandidates, isStaticallyIconOnly, roleMatches, localePathsBySourceCode, getAttribute, getAttributeValueNode, getElementName } = require('./_control-labels.cjs')
 
 const MAX_CONTROL_WORDS = 2
-const reminderTimeOwners = ['/apps/web/components/habits/repeat-reminder-detail.tsx', '/apps/mobile/components/habits/repeat-reminder-detail.tsx']
-const reminderTimeLabels = new Set(['Use reminder time', 'Usar horário do lembrete'])
 
 module.exports = {
   meta: {
@@ -49,7 +47,6 @@ module.exports = {
   create(context) {
     const controls = context.options[0]?.controls ?? []
     const sourceCode = context.sourceCode
-    const ownsReminderTime = reminderTimeOwners.some(owner => context.filename.replaceAll('\\', '/').endsWith(owner))
     if (context.options[0]?.localePaths) localePathsBySourceCode.set(sourceCode, context.options[0].localePaths)
 
     return {
@@ -74,7 +71,6 @@ module.exports = {
 
         const reported = new Set()
         for (const candidate of candidates) {
-          if (ownsReminderTime && control.name === 'PillButton' && reminderTimeLabels.has(candidate.label)) continue
           const count = wordCount(candidate.label)
           const identity = `${candidate.locale}\u0000${candidate.label}`
           if (count === null || count <= MAX_CONTROL_WORDS || reported.has(identity)) continue

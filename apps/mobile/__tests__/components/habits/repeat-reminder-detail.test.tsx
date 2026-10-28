@@ -53,25 +53,24 @@ it('retains the editor and error after a refused correction', async () => {
   TestRenderer.act(() => tree.update(<></>))
 })
 
-it('uses visible small ghost actions for Cancel and Use reminder time', () => {
+it('uses a visible small ghost Cancel before Save', () => {
   let tree!: import('react-test-renderer').ReactTestRenderer
   TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[log]} />) })
   TestRenderer.act(() => press(tree.root, en.habits.changeTakenAt))
-  for (const label of [en.common.cancel, en.habits.useReminderTime]) {
-    const button = tree.root.findAll((node) => String(node.type) === 'Pressable').find((node) => (node.props.accessibilityLabel ?? renderedText(node)) === label)!
-    expect(renderedText(button)).toBe(label)
-    expect(button.props.testID).toBe('button-ghost-sm')
-  }
+  const cancel = tree.root.findAll((node) => String(node.type) === 'Pressable').find((node) => (node.props.accessibilityLabel ?? renderedText(node)) === en.common.cancel)!
+  expect(renderedText(cancel)).toBe(en.common.cancel)
+  expect(cancel.props.testID).toBe('button-ghost-sm')
   const actions = tree.root.findAll((node) => node.type === ActionRow)[0]!
   expect(actions.findAll((node) => String(node.type) === 'Pressable').map(renderedText)).toEqual([en.common.cancel, en.common.save])
   TestRenderer.act(() => tree.update(<></>))
 })
 
-it('labels the reminder-time choice visibly', () => {
+it('offers the reminder time as a named clock icon action', () => {
   let tree!: import('react-test-renderer').ReactTestRenderer
   TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderDetail habit={habit} logs={[log]} />) })
   TestRenderer.act(() => press(tree.root, en.habits.changeTakenAt))
-  const button = tree.root.findAll((node) => String(node.type) === 'Pressable').find((node) => (node.props.accessibilityLabel ?? renderedText(node)) === en.habits.useReminderTime)!
-  expect(renderedText(button)).toBe(en.habits.useReminderTime)
+  const button = tree.root.findAll((node) => String(node.type) === 'Pressable').find((node) => node.props.accessibilityLabel === en.habits.useReminderTime)!
+  expect(button).toBeDefined()
+  expect(renderedText(button)).toBe('')
   TestRenderer.act(() => tree.update(<></>))
 })
