@@ -1,4 +1,8 @@
-import { Children } from 'react'
+'use client'
+
+import { Children, useId } from 'react'
+import { MovingDaySelection } from './month-selection'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 import type { MonthGridProps } from '@orbit/shared/contracts/dates'
 
 export function MonthGrid({
@@ -8,12 +12,15 @@ export function MonthGrid({
   label,
   loadingLabel,
   minimumDayGridHeight,
-}: Readonly<MonthGridProps>) {
+  selectionIndex,
+}: Readonly<MonthGridProps & { selectionIndex?: number }>) {
+  const selectionId = useId()
+  const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
   const columns = weekdayLabels.length
   const gridStyle = columns > 0 ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined
 
   return (
-    <div role="group" aria-label={label} data-columns={columns} style={{ display: 'grid', gap: 8 }}>
+    <MovingDaySelection.Provider value={selectionIndex === undefined || reduced ? null : selectionId}><div role="group" aria-label={label} data-columns={columns} style={{ display: 'grid', gap: 8 }}>
       {columns > 0 ? (
         <div className="grid justify-items-center" style={{ ...gridStyle, gap, opacity: loadingLabel ? 0 : undefined }} aria-hidden={loadingLabel ? true : undefined} data-testid="month-grid-header">
           {weekdayLabels.map((weekday, index) => (
@@ -46,6 +53,6 @@ export function MonthGrid({
       >
         {children}
       </div>
-    </div>
+    </div></MovingDaySelection.Provider>
   )
 }

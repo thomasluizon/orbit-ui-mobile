@@ -29,6 +29,7 @@ import {
 import { habitLogSchema } from '@orbit/shared/types/calendar'
 import { apiClient } from '@/lib/api-client'
 import { useAuthStore } from '@/stores/auth-store'
+import { prepareListLayoutMotion } from '@/lib/list-motion'
 
 export interface NormalizedHabitsData {
   habitsById: Map<string, NormalizedHabit>
@@ -75,7 +76,9 @@ export function useHabits(filters: HabitsFilter, options: { completeDay?: boolea
 
       if (!shouldFetchAllHabitPages(requestFilters, completeDay, firstPage.totalPages)) {
         queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
-        return enrichSchedule(firstPage.items)
+        const scheduled = await enrichSchedule(firstPage.items)
+        prepareListLayoutMotion('habits')
+        return scheduled
       }
 
       const items = await fetchAllPaginatedItems<HabitScheduleItem, PaginatedResponse<HabitScheduleItem>>(
@@ -87,7 +90,9 @@ export function useHabits(filters: HabitsFilter, options: { completeDay?: boolea
         },
       )
       queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
-      return enrichSchedule(deduplicateHabitList(items))
+      const scheduled = await enrichSchedule(deduplicateHabitList(items))
+      prepareListLayoutMotion('habits')
+      return scheduled
     },
     staleTime: QUERY_STALE_TIMES.habits,
     select: selectNormalizedHabits,

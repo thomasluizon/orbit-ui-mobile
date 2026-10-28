@@ -220,7 +220,7 @@ async function segmentGeometry(page: import('@playwright/test').Page) {
     const style = getComputedStyle(track)
     return { padding: style.padding, gap: style.gap, radius: style.borderRadius, shadow: style.boxShadow,
       trackWidth: track.getBoundingClientRect().width, scrollWidth: track.scrollWidth,
-      labels: [...track.querySelectorAll('button span')].map((label) => {
+      labels: [...track.querySelectorAll('button > span:not([aria-hidden="true"])')].map((label) => {
         const range = document.createRange(); range.selectNodeContents(label)
         const rect = range.getBoundingClientRect()
         const segment = label.parentElement!

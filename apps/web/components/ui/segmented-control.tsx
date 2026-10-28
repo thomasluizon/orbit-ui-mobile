@@ -2,10 +2,12 @@
 
 import type { SegmentedControlOption, SegmentedControlProps } from '@orbit/shared/contracts/navigation'
 import * as Primitive from '@radix-ui/react-radio-group'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useId, useLayoutEffect, useRef, useState } from 'react'
 import * as Menu from './dropdown-menu'
 import { ChevronDown } from './icons'
 import { getSegmentedControlLayout } from '@orbit/shared/utils'
+
+import { SelectionIndicator } from './selection-indicator'
 
 const segmentPadding = 'px-2'
 const trackSpacing = 'gap-[4px] p-1'
@@ -20,12 +22,14 @@ function SegmentOption<TValue extends string>({
   option,
   selected,
   minimumWidth,
+  indicatorId,
 }: Readonly<{
   controlDisabled: boolean
   onChange: (value: TValue) => void
   option: SegmentedControlOption<TValue>
   selected: boolean
   minimumWidth: number
+  indicatorId: string
 }>) {
   const disabled = controlDisabled || Boolean(option.disabled)
   const select = () => {
@@ -41,14 +45,16 @@ function SegmentOption<TValue extends string>({
       data-selected={selected || undefined}
       onClick={(event) => { if (event.detail === 0) select() }}
       data-disabled={disabled || undefined}
-      className={`${segmentPadding} orbit-selection-ring habit-control-motion min-h-[var(--touch-min)] min-w-[var(--touch-min)] max-w-full grow shrink basis-auto py-1 rounded-[8px] text-[0.875rem] font-medium text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] data-[selected]:bg-[var(--bg-hover)] data-[selected]:text-[var(--fg-1)] disabled:opacity-40`}
+      className={`${segmentPadding} orbit-selection-ring habit-control-motion isolate relative min-h-[var(--touch-min)] min-w-[var(--touch-min)] max-w-full grow shrink basis-auto py-1 rounded-[8px] text-[0.875rem] font-medium text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] data-[selected]:text-[var(--fg-1)] disabled:opacity-40`}
     >
-      <span className="block whitespace-normal [overflow-wrap:normal]">{option.label}</span>
+      <span className="relative block whitespace-normal [overflow-wrap:normal]">{option.label}</span>
+      {selected ? <SelectionIndicator id={indicatorId} /> : null}
     </Primitive.Item>
   )
 }
 
 export function SegmentedControl<TValue extends string>(props: Readonly<SegmentedControlProps<TValue>>) {
+  const indicatorId = useId()
   const pendingValue = useRef<string | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const [layout, setLayout] = useState<{ folded: boolean; minimumWidths: number[] }>({ folded: false, minimumWidths: [] })
@@ -131,6 +137,7 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
           option={option}
           selected={option.value === props.value}
           minimumWidth={minimumWidths[index] ?? 48}
+          indicatorId={indicatorId}
         />
       ))}
     </Primitive.Root>}

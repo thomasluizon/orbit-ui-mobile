@@ -1,11 +1,6 @@
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
-import { useEffect, useRef, useState } from 'react'
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated'
+import { useState } from 'react'
+import { triggerHaptic } from '@/lib/haptics'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import { HabitCheck } from './habit-check'
@@ -29,26 +24,13 @@ export function CheckCircle({
 }: Readonly<CheckCircleProps>) {
   const [hovered, setHovered] = useState(false)
   const prefersReducedMotion = usePrefersReducedMotion()
-  const popScale = useSharedValue(1)
-  const previousState = useRef(state)
-
-  useEffect(() => {
-    if (state === 'done' && previousState.current !== 'done' && !prefersReducedMotion) {
-      popScale.value = withSequence(
-        withTiming(1.08, { duration: 80 }),
-        withTiming(1, { duration: 80 }),
-      )
-    }
-    previousState.current = state
-  }, [popScale, prefersReducedMotion, state])
-
-  const popStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: popScale.value }],
-  }))
-
   return (
     <Pressable
-      onPress={onToggle}
+      onPress={() => {
+        if (disabled) return
+        onToggle()
+        if (state !== 'done') void triggerHaptic('selection')
+      }}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
       disabled={disabled}
@@ -73,10 +55,10 @@ export function CheckCircle({
         }
       }}
     >
-      {({ pressed }) => <Animated.View style={popStyle} accessible={false}>
+      {({ pressed }) => <>
         <HabitCheck status={state} unavailable={unavailable} label={unavailable ? undefined : accessibilityLabel}
           feedback={(pressed || hovered) && !disabled} />
-      </Animated.View>}
+      </>}
     </Pressable>
   )
 }

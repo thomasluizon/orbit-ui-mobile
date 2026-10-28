@@ -29,7 +29,7 @@ function AnswerOptions({ view, controller }: Pick<AnswerContentProps, 'view' | '
         {...(view.disabled ? { disabled: true as const, reasonScope: 'group' as const } : { disabled: false as const })} />
     : <Proposed appearance="plain" key={option.id} proposed={option.proposed} scope="row" label={view.proposedLabel} inset keepMounted>
         {option.personal ? <HabitBlockRow proposed={option.proposed} title={option.label} meta={option.description} expanded={option.expanded}
-          onOpen={() => controller.toggleExpanded(option.id)} control={<button type="button" role="checkbox" aria-label={option.label} aria-checked={option.selected} disabled={view.disabled} data-habit-row-control="check" className="grid size-[48px] shrink-0 place-items-center border-0 bg-transparent disabled:opacity-60" onClick={() => controller.check(option.id, !option.selected)}><HabitCheck status={option.selected ? 'done' : 'empty'} /></button>} />
+          onOpen={() => controller.toggleExpanded(option.id)} control={<button type="button" role="checkbox" aria-label={option.label} aria-checked={option.selected} disabled={view.disabled} data-habit-row-control="check" className="grid size-[48px] shrink-0 rounded-[12px] motion-safe:active:scale-[0.96] place-items-center border-0 bg-transparent disabled:opacity-60" onClick={() => controller.check(option.id, !option.selected)}><HabitCheck status={option.selected ? 'done' : 'empty'} /></button>} />
           : <CheckRow selection wrapLabel label={option.label} description={option.description} checked={option.selected} disabled={view.disabled} onChange={checked => controller.check(option.id, checked)} />}
       </Proposed>)
 }

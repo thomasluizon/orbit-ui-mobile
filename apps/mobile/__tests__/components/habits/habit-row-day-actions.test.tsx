@@ -16,7 +16,9 @@ vi.mock('@/hooks/use-time-format', () => ({
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
-vi.mock('@/lib/motion', () => ({
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/motion')>(),
+  getPrefersReducedMotion: () => Promise.resolve(true),
   usePrefersReducedMotion: () => true,
   useResolvedMotionPreset: () => ({ enterDuration: 0, exitDuration: 0, scaleFrom: 0.96, scaleTo: 1, shift: 8 }),
   toAnimatedEasing: (value: unknown) => value,

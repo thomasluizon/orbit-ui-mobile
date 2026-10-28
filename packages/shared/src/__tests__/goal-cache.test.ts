@@ -24,6 +24,39 @@ function setup() {
 afterEach(() => { for (const client of clients.splice(0)) client.clear() })
 
 describe('shared goal cache mutations', () => {
+  it.each(['delete', 'reorder', 'progress'] as const)('prepares %s motion after cancellation and before the cache setter', async (operation) => {
+    const { client, first, second, goals } = setup()
+    let finishCancellation!: () => void
+    const cancellation = new Promise<void>((resolve) => { finishCancellation = resolve })
+    const cancel = vi.spyOn(client, 'cancelQueries').mockReturnValue(cancellation)
+    const setLists = vi.spyOn(client, 'setQueriesData')
+    const prepare = vi.fn(() => {
+      expect(setLists).not.toHaveBeenCalled()
+      expect(goals()).toEqual([first, second])
+    })
+    try {
+      const update = operation === 'delete'
+        ? removeGoalFromCache(client, first.id, prepare)
+        : operation === 'reorder'
+          ? reorderGoalCache(client, [{ id: first.id, position: 3 }], prepare)
+          : updateGoalCache(client, first.id, { type: 'progress', currentValue: 6 }, false, prepare)
+      expect(prepare).not.toHaveBeenCalled()
+      expect(setLists).not.toHaveBeenCalled()
+      finishCancellation()
+      const snapshot = await update
+      expect(prepare).toHaveBeenCalledOnce()
+      expect(setLists).toHaveBeenCalledOnce()
+      expect(goals()).not.toEqual([first, second])
+      const prepareRollback = vi.fn(() => expect(goals()).not.toEqual([first, second]))
+      goalListRollback(client, prepareRollback)(new Error('Save failed'), first.id, snapshot)
+      expect(prepareRollback).toHaveBeenCalledOnce()
+      expect(goals()).toEqual([first, second])
+    } finally {
+      cancel.mockRestore()
+      setLists.mockRestore()
+    }
+  })
+
   it('defers detail invalidation for queued writes and invalidates completed writes', async () => {
     const { client, first } = setup()
     const settled = goalDetailSettled(client, (result) => result === 'queued')
