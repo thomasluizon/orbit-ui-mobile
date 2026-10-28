@@ -3,7 +3,7 @@ import { personalText } from '@/__tests__/support/personal-text'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
-import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, skippedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { gamificationCardCases, gamificationCardFixture } from '@orbit/shared/test-support/gamification-card-fixtures'
@@ -356,4 +356,30 @@ it.each(staleReadCases)('refreshes a stale $kind through its owning composition'
   expect(refresh).toHaveBeenCalledWith(initialRead.refreshToken, expect.anything(), ...(part.kind === 'habitMonth' ? [null] : [false, null]))
   await waitFor(() => expect(view.container.querySelector('section[data-state="stale"]')).not.toBeInTheDocument())
   expect(screen.queryByRole('button', { name: en.blockFrame.refresh })).not.toBeInTheDocument()
+})
+
+it.each((['en', 'pt-BR'] as const).flatMap(locale => (['chat', 'refresh'] as const).flatMap(source =>
+  (['missing', 'live', 'error'] as const).map(occurrences => ({ locale, source, occurrences })))))(
+  'shows only the skipped row status in $locale through $source with $occurrences occurrences', ({ locale, source, occurrences }) => {
+    state.isError = occurrences === 'error'
+    if (occurrences === 'live') for (const item of skippedDatedHabitListFixture.items) {
+      state.habits.set(item.id, createMockHabit({ id: item.id, isBadHabit: item.isBadHabit, isLoggedInRange: item.status === 'done' }))
+    }
+    const parsed = source === 'chat'
+      ? chatPartSchema.parse({ type: 'block', kind: 'habitList', block: skippedDatedHabitListFixture })
+      : readBlockResponseSchema.parse({ kind: 'habitList', block: skippedDatedHabitListFixture, read: skippedDatedHabitListFixture.read })
+    if (!parsed || !('kind' in parsed) || parsed.kind !== 'habitList') throw new Error('Skipped habit block did not parse')
+    const messages = locale === 'en' ? en : pt
+    const view = mount(parsed, locale)
+    const rows = [...view.container.querySelectorAll('[data-habit-block-row]')]
+    const names = [messages.habits.statusDot.skip, messages.chat.habitList.logged, occurrences === 'live' ? messages.chat.habitList.pending : messages.chat.habitList.overdue, messages.chat.habitList.pending, messages.habits.statusDot.bad]
+    expect(rows).toHaveLength(5)
+    rows.forEach((row, index) => {
+      expect(within(row as HTMLElement).getByRole('img', { name: names[index] })).toHaveAttribute('data-status', ['empty', 'done', 'overdue', 'empty', 'bad'][index])
+      expect(row.querySelector('[data-habit-block-meta]')?.textContent).toBe(index === 0 ? messages.habits.statusDot.skip : undefined)
+    })
+    fireEvent.click(within(rows[0]! as HTMLElement).getByRole('button', { name: locale === 'en' ? 'Open Walk' : 'Abrir Walk' }))
+    expect(state.push).toHaveBeenCalledWith(`/habits/skipped?date=${skippedDatedHabitListFixture.date}`)
+    expect(state.mutate).not.toHaveBeenCalled()
+    view.unmount()
 })

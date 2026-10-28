@@ -18,6 +18,7 @@ describe('buildChatClientContext', () => {
       platform,
       timeFormat: '24h',
       supportsHabitListCard: true,
+      supportsSkippedHabitRows: true,
       supportsPendingOperationChanges: true,
       supportsParts: true,
       supportsMessageAllowance: true,
