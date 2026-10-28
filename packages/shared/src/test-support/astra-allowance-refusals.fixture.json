@@ -4,7 +4,7 @@
     "locale": "en",
     "limit": 5,
     "body": {
-      "error": "You've reached your daily AI message limit (5). Upgrade to Pro for 250 messages per week.",
+      "error": "You've reached your daily AI message limit (5).",
       "errorCode": "PAY_GATE"
     }
   },
@@ -13,7 +13,7 @@
     "locale": "pt-BR",
     "limit": 5,
     "body": {
-      "error": "Você atingiu seu limite diário de mensagens de IA (5). Assine o Pro para ter 250 mensagens por semana.",
+      "error": "Você atingiu seu limite diário de mensagens de IA (5).",
       "errorCode": "PAY_GATE"
     }
   },
