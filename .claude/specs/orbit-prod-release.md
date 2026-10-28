@@ -195,6 +195,8 @@ The Astra block-first overhaul leads this batch (owner order): every Astra answe
 
 - `#1706` Answer a moderated Astra message without the untyped English HTTP 400 (found by `#26` `moderation-en`). Merged as `orbit-api#911` (`096f9ab2`), live on staging and production API `e6dc5362`. Next: `moderation-en` in the `#26` gate run, then close.
 
+- `#1858` Calendário day list (owner report, production): a row press opens a useless title sheet instead of the habit detail, rows lack habit icons, and the recurring-habits filter is hidden in the options menu. Fix on web and Android: press opens the habit detail for that day (title sheet deleted), rows show the emoji tile, a visible toggle on the day list bound to `calendarShowRecurring`. Owner order: launch it first (default tier), then production web and the next Open.
+
 Defects a person hits in the shipped build today. They target `main`; an Android fix is followed by `/android-release` to the open track.
 
 
