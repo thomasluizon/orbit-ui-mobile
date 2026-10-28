@@ -105,7 +105,8 @@ describe('production scenario mutation scope', () => {
         return produced
       })
       const output = { ...envelope(calls), httpStatus: vars.expectedHttpStatus ?? 200 }
-      const scenarioContext = { ...context(vars.expectations), vars: { ...vars, evalRequestId: 'local-request' } }
+      // This test isolates declared mutation scope; restart.test exercises the fixture and readback graders.
+      const scenarioContext = { ...context(vars.expectations), vars: { ...vars, restart: undefined, evalRequestId: 'local-request' } }
       expect(behavior(output, scenarioContext).pass).toBe(true)
       if (id.startsWith('composition-compound-legacy-') || id.startsWith('composition-rankings-')) {
         const structure = await structural(output, scenarioContext)

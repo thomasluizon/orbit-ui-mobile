@@ -6,6 +6,8 @@ import AstraHttpProvider from '../http-provider.mjs'
 import { completeRestart } from '../restart-lifecycle.mjs'
 import { fixtureFetch } from './fixtures/public-api.mjs'
 import { readRestartSnapshot } from '../fixtures/restart.mjs'
+import { readFileSync } from 'node:fs'
+import { parse } from 'yaml'
 
 const today = '2026-10-28'
 const ids = Array.from({ length: 6 }, (_, index) => `11111111-1111-4111-8111-11111111111${index}`)
@@ -15,11 +17,13 @@ const baseline = ids.map((id, index) => ({ habit: { id, title: `Habit ${index}`,
   checklistItems: [{ text: 'Prepare', isChecked: false }] }, logs: [{ date: '2026-10-23', value: 1, note: 'Keep', createdAtUtc: '2026-10-23T08:00:00Z' }] }))
 const vars = { evalRequestId: 'restart', accountDate: today, restart: { decision: 'approve', todayCount: 2, windowDays: 7 }, restartBaseline: baseline }
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+const cases = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
+  .filter((entry) => entry.vars.restart)
 
 function proposal() {
   const read = toolCall('query_habits', { date: 'today', is_completed: false, include_overdue: true }, 'Succeeded', 'read', { supportsParts: true })
   read.result.payload = { scope: 'today', items: ids.map((id, index) => ({ id, title: `Habit ${index}`, emoji: null, depth: 0, isBadHabit: false, status: index < 4 ? 'overdue' : 'today' })), totalCount: 6 }
-  const dates = ids.map((habit_id, index) => ({ habit_id, updates: { due_date: index < 2 ? today : '2026-10-29' } }))
+  const dates = ids.map((habit_id, index) => ({ habit_id, updates: { due_date: index >= 4 ? today : '2026-10-29' } }))
   const write = toolCall('bulk_reschedule_habits', { revised_items: dates, orbit_write_complete: true }, 'PendingConfirmation', 'write', { supportsParts: true })
   const pending = { ...preview(), actionKey: 'rescheduleHabits', displayName: 'bulk_reschedule_habits',
     items: dates.map(({ habit_id, updates }, index) => ({ itemId: habit_id, entityId: habit_id, entityName: `Habit ${index}`, stateFingerprint: 'state', removesData: null,
@@ -50,6 +54,7 @@ it.each([
   ['preference ignored', (output) => { output.trace.calls[1].arguments.revised_items[2].updates.due_date = today }],
   ['preview missing', (output) => { output.composition.pendingOperations = [] }],
   ['preview incomplete', (output) => { output.composition.pendingOperations[0].items.pop() }],
+  ['duplicate preview item identity', (output) => { output.composition.pendingOperations[0].items[1].itemId = output.composition.pendingOperations[0].items[0].itemId }],
   ['preview title changed', (output) => { output.composition.pendingOperations[0].items[0].entityName = 'Wrong habit' }],
   ['preview fingerprint missing', (output) => { delete output.composition.pendingOperations[0].previewFingerprint }],
   ['preview date differs', (output) => { output.composition.pendingOperations[0].items[0].fields[0].newValue = '2026-10-30' }],
@@ -80,7 +85,7 @@ it.each(['preview', 'approve', 'reject'])('requires independent persisted eviden
   const policy = { ...vars, restart: { ...vars.restart, decision } }
   expect(restartReadback(output, policy).pass).toBe(false)
   const after = structuredClone(baseline)
-  if (decision === 'approve') after.forEach((entry, index) => { entry.habit.dueDate = index < 2 ? today : '2026-10-29' })
+  if (decision === 'approve') after.forEach((entry, index) => { entry.habit.dueDate = index >= 4 ? today : '2026-10-29' })
   output.restartReadback = { held: structuredClone(baseline), after }
   expect(restartReadback(output, policy).pass).toBe(true)
   for (const field of ['title', 'dueDate', 'frequencyUnit', 'frequencyQuantity', 'days', 'dueTime', 'dueEndTime', 'reminderEnabled', 'reminderTimes', 'scheduledReminders', 'relativeReminders', 'checklistItems']) {
@@ -98,7 +103,7 @@ it('connects the restart graders to the production behavior assertion', async ()
   const context = { vars: { ...vars, expectations: { required: [{ name: 'query_habits' }, { name: 'bulk_reschedule_habits' }] } } }
   expect(behavior(output, context).pass).toBe(false)
   output.restartReadback = { held: structuredClone(baseline), after: structuredClone(baseline) }
-  output.restartReadback.after.forEach((entry, index) => { entry.habit.dueDate = index < 2 ? today : '2026-10-29' })
+  output.restartReadback.after.forEach((entry, index) => { entry.habit.dueDate = index >= 4 ? today : '2026-10-29' })
   expect(behavior(output, context).pass).toBe(true)
   output.trace.calls[0].arguments.include_overdue = false
   expect(behavior(output, context).pass).toBe(false)
@@ -123,7 +128,7 @@ function boundary(decision, failure) {
       return Response.json({ pendingOperationId: preview().id, confirmationToken: 'private-confirmation-token', expiresAtUtc: '2026-10-28T20:00:00Z' })
     }
     if (path.endsWith('/execute')) {
-      if (failure !== 'ignored') habits.forEach((habit, index) => { habit.dueDate = index < 2 ? today : '2026-10-29' })
+      if (failure !== 'ignored') habits.forEach((habit, index) => { habit.dueDate = index >= 4 ? today : '2026-10-29' })
       if (failure === 'lost-reminder') habits[0].reminderTimes = []
       return Response.json({ operation: {}, pendingOperation: null, policyDenial: null })
     }
@@ -187,4 +192,17 @@ it('never approves malformed tool evidence', async () => {
   output.trace.responseRequestId = 'other-request'
   await completeRestart(output, policy)
   expect(requests).toHaveLength(0)
+})
+
+it.each(cases)('grades the complete production policy for $metadata.id', async (entry) => {
+  const { behavior } = await import('../assertions.mjs')
+  const policy = { ...entry.vars, accountDate: today, evalRequestId: 'restart', restartBaseline: baseline }
+  const output = proposal()
+  const after = structuredClone(baseline)
+  if (policy.restart.decision === 'approve') after.forEach((item, index) => { item.habit.dueDate = index >= 4 ? today : '2026-10-29' })
+  output.restartReadback = { held: structuredClone(baseline), after }
+  const verdict = behavior(output, { vars: policy })
+  expect(verdict.pass, verdict.reason).toBe(true)
+  delete output.restartReadback
+  expect(behavior(output, { vars: policy }).pass).toBe(false)
 })

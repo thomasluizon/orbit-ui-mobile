@@ -53,6 +53,8 @@ export function restartProposal(output, vars) {
   if (pending?.length !== 1 || pending[0].actionKey !== 'rescheduleHabits'
     || typeof pending[0].previewFingerprint !== 'string' || !pending[0].previewFingerprint.trim()
     || !sameIds(pending[0].items?.map((item) => item.entityId), ids)
+    || new Set(pending[0].items.map((item) => item.itemId)).size !== ids.length
+    || pending[0].items.some((item) => typeof item.itemId !== 'string' || !item.itemId.trim())
     || response.parts?.length || response.aiMessage?.trim() || response.actions?.length || response.policyDenials?.length) {
     return result(false, 'Restart must return only one complete reschedule preview.')
   }
