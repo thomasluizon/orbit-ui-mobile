@@ -17,7 +17,6 @@ export type BarGeometry = Readonly<{
   width: number
   height: number
   radius: number
-  fillInsetInline: number
   slotStart: number
   slotEnd: number
 }>
@@ -46,7 +45,6 @@ export function resolveBarChartGeometry(
       width: barWidth,
       height,
       radius: Math.min(8, height / 2, barWidth / 2),
-      fillInsetInline: Math.min(gap / 4, Math.max(0, INTERACTION_FILL_CLEARANCE - gap / 2)),
       slotStart,
       slotEnd: (index + 1) * slotWidth,
     }

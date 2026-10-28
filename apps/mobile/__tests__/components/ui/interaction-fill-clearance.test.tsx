@@ -61,10 +61,10 @@ function fillBox(parts: Box[], control: Box) {
   const painted = parts.filter((part) => (part.slot === control.slot || part.ancestors.includes(control.slot)) && hasPaint(part.style))
   expect(painted.length, control.host.props.accessibilityLabel).toBeGreaterThan(0)
   return {
-    left: Math.min(control.left, ...painted.map((part) => part.left - paintedExtent(part.style))),
-    right: Math.max(control.right, ...painted.map((part) => part.right + paintedExtent(part.style))),
-    top: Math.min(control.top, ...painted.map((part) => part.top - paintedExtent(part.style))),
-    bottom: Math.max(control.bottom, ...painted.map((part) => part.bottom + paintedExtent(part.style))),
+    left: Math.min(...painted.map((part) => part.left - paintedExtent(part.style))),
+    right: Math.max(...painted.map((part) => part.right + paintedExtent(part.style))),
+    top: Math.min(...painted.map((part) => part.top - paintedExtent(part.style))),
+    bottom: Math.max(...painted.map((part) => part.bottom + paintedExtent(part.style))),
   }
 }
 

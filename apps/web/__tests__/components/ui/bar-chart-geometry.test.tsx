@@ -8,13 +8,10 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { barChartPath, resolveBarChartGeometry } from '@orbit/shared/contracts/display'
 import { mapCompletionSeries } from '@orbit/shared/utils'
-import { INTERACTION_FILL_CLEARANCE, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { BarChart } from '@/components/ui/bar-chart'
-import { settleAnimations } from '@/e2e/layout/settle-animations'
-import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -83,20 +80,22 @@ describe('BarChart measured geometry', () => {
         const paths = chart.querySelectorAll('path')
         const bar = paths[index]!.getBoundingClientRect()
         const fill = element.querySelector<HTMLElement>('[data-slot="bar-chart-fill"]')!
-        const focus = element.querySelector<HTMLElement>('[data-slot="bar-chart-focus"]')!
+        const focus = chart.querySelector<HTMLElement>('[data-slot="bar-chart-readout"]')!
         const bounds = fill.getBoundingClientRect()
         const ring = focus.getBoundingClientRect()
         const focusStyle = getComputedStyle(focus)
         return { plotWidth: element.parentElement!.getBoundingClientRect().width, barWidth: bar.width, fillWidth: bounds.width, focusWidth: ring.width,
-          background: getComputedStyle(fill).backgroundColor, outline: focusStyle.outlineStyle, outlineWidth: Number.parseFloat(focusStyle.outlineWidth), focusClip: focusStyle.clipPath,
+          fillColor: getComputedStyle(fill.querySelector('path')!).fill, selectedColor: getComputedStyle(chart.querySelector('[data-state=selected]')!).fill, background: getComputedStyle(fill).backgroundColor, outline: focusStyle.borderTopStyle, outlineWidth: Number.parseFloat(focusStyle.borderTopWidth), focusClip: focusStyle.clipPath,
           left: bar.left - bounds.left, right: bounds.right - bar.right,
           previousGap: bounds.left - paths[index - 1]!.getBoundingClientRect().right, nextGap: paths[index + 1]!.getBoundingClientRect().left - bounds.right }
       })
       const hovered = await measure()
       expect(hovered.plotWidth).toBe(width)
-      expect(hovered.fillWidth).toBeGreaterThan(hovered.barWidth)
-      expect(hovered.background).not.toBe('rgba(0, 0, 0, 0)')
-      for (const gap of [hovered.left, hovered.right, hovered.previousGap, hovered.nextGap]) expect(gap).toBeGreaterThan(0)
+      expect(hovered.fillWidth).toBeCloseTo(hovered.barWidth, 3)
+      expect(hovered.background).toBe('rgba(0, 0, 0, 0)')
+      expect(hovered.fillColor).toBe(hovered.selectedColor)
+      for (const gap of [hovered.left, hovered.right]) expect(gap).toBeCloseTo(0, 3)
+      for (const gap of [hovered.previousGap, hovered.nextGap]) expect(gap).toBeGreaterThan(0)
       await page.mouse.move(319, 639)
       await page.keyboard.press('Tab')
       await target.focus()
@@ -104,59 +103,39 @@ describe('BarChart measured geometry', () => {
       expect(focused.focusWidth).toBeGreaterThan(focused.barWidth)
       expect(focused.outline).toBe('solid')
       expect(focused.outlineWidth).toBeGreaterThanOrEqual(2)
-      expect(focused.focusClip).toBe('inset(0px)')
+      expect(focused.focusClip).toBe('none')
     } finally { await page.close() }
   })
 
-  it.each([320, 1352].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) => (['none', 'active'] as const).map((forcedColors) => ({ width, locale, forcedColors })))))('measures painted bars and rejects touching fills at $width in $locale with forced colors $forcedColors', async ({ width, locale, forcedColors }) => {
-    vi.stubGlobal('ResizeObserver', class {
-      constructor(private callback: (entries: { contentRect: { width: number } }[]) => void) {}
-      observe() { this.callback([{ contentRect: { width: width - 32 } }]) }
-      disconnect() {}
-    })
-    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}>
-      <div style={{ padding: 16 }}><BarChart points={mapCompletionSeries(series, locale)} label="Completion" /></div>
-    </NextIntlClientProvider>)
+  it.each([320, 1352].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) => (['none', 'active'] as const).map((forcedColors) => ({ width, locale, forcedColors })))))('keeps every feedback perimeter on its own mark at $width in $locale with forced colors $forcedColors', async ({ width, locale, forcedColors }) => {
     const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce', forcedColors })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
-      const markup = `<html class="dark" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`
-      const measure = async (index: number) => {
+      await page.setContent(`<!doctype html><html class="dark" style="${variables}"><style>${stylesheet}</style><body><div id="root" style="padding:16px"></div><script id="chart-fixture" type="application/json">${JSON.stringify({ series, locale })}</script></body></html>`)
+      await page.addScriptTag({ content: chartScript })
+      await expect.poll(() => page.locator('path').count()).toBe(series.points.length)
+      for (const index of [0, 1, 2, 3, 29]) {
         const target = page.getByRole('radio').nth(index)
-        await target.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
-        await target.evaluate(settleAnimations)
-        return target.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
-      }
-      const bars = resolveBarChartGeometry(series.points.map((point) => point.completionRate), width - 32)
-      for (const index of [1, 2, 3]) {
-        await page.setContent(markup)
-        const target = page.getByRole('radio').nth(index)
-        await target.hover()
-        for (const state of ['hover', 'press'] as const) {
-          if (state === 'press') await page.mouse.down()
-          const result = await measure(index)
-          expect(result.hasFill).toBe(true)
-          expect(result.violations, state).toEqual([])
-          if (state === 'press') await page.mouse.up()
+        for (const state of ['hover', 'press', 'focus'] as const) {
+          if (state === 'focus') { await page.mouse.move(0, 0); await page.keyboard.press('Tab'); await target.focus() }
+          else { await target.hover(); if (state === 'press') await page.mouse.down() }
+          await target.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
+          const geometry = await target.evaluate(element => {
+            const bar = element.querySelector('path')!.getBoundingClientRect()
+            const readout = element.closest('[data-testid="bar-chart"]')!.querySelector('[data-slot="bar-chart-readout"]')!
+            const outline = getComputedStyle(readout)
+            const paint = element.querySelector('[data-slot="bar-chart-fill"]')!
+            const bounds = paint.getBoundingClientRect()
+            return { outline: outline.borderTopStyle, outlineWidth: parseFloat(outline.borderTopWidth), background: getComputedStyle(paint).backgroundColor, deltas: [bar.left - bounds.left, bar.right - bounds.right, bar.top - bounds.top, bar.bottom - bounds.bottom] }
+          })
+          expect(geometry.background).toBe('rgba(0, 0, 0, 0)')
+          geometry.deltas.forEach(delta => expect(delta).toBeCloseTo(0, 2))
+          if (state === 'focus') { expect(geometry.outline).toBe('solid'); expect(geometry.outlineWidth, JSON.stringify(geometry)).toBe(2) }
+          await page.mouse.up()
+          await target.blur()
         }
-        await page.mouse.move(0, 0)
-        await page.keyboard.press('Tab')
-        await target.focus()
-        const focused = await measure(index)
-        expect(focused.hasFill).toBe(true)
-        expect(focused.violations, 'focus').toEqual([])
-        const touchingMarkup = markup.replace(barChartPath(bars[index]!), barChartPath({ ...bars[index]!, y: bars[index]!.y + 4 }))
-        expect(touchingMarkup).not.toBe(markup)
-        await page.setContent(touchingMarkup)
-        await target.hover()
-        expect((await measure(index)).violations.some((violation) => violation.distance < INTERACTION_FILL_CLEARANCE)).toBe(true)
-        const crowdedMarkup = markup.replace(barChartPath(bars[index + 1]!), barChartPath({ ...bars[index + 1]!, x: bars[index + 1]!.x - 1 }))
-        expect(crowdedMarkup).not.toBe(markup)
-        await page.setContent(crowdedMarkup)
-        await target.hover()
-        expect((await measure(index)).violations.some((violation) => violation.distance < INTERACTION_FILL_CLEARANCE)).toBe(true)
       }
-    } finally { await page.close(); vi.unstubAllGlobals() }
+    } finally { await page.close() }
   })
 
   it.each([320, 412].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) => [1, 2].flatMap((scale) => (['day', 'week'] as const).map((granularity) => ({ width, locale, scale, granularity }))))))('bounds $granularity targets and edge readouts at $width in $locale at scale $scale', async ({ width, locale, scale, granularity }) => {
@@ -219,7 +198,7 @@ describe('BarChart measured geometry', () => {
             scrollWidth: chart.scrollWidth, clientWidth: chart.clientWidth }
         })
         for (const clearance of geometry.barClearances) {
-          for (const gap of [clearance.top, clearance.bottom]) expect(gap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE - 0.01)
+          for (const gap of [clearance.top, clearance.bottom, clearance.left, clearance.right]) expect(gap).toBeCloseTo(0, 2)
         }
         expect(geometry.targets).toHaveLength(plotted.points.length)
         expect(geometry.targets[0]!.left).toBe(0)

@@ -226,7 +226,7 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
   )
 
   return (
-    <View style={[styles.row, props.action ? { gap: 4 } : null]}>
+    <View style={[styles.row, props.action ? { gap: INTERACTION_FILL_CLEARANCE } : null]}>
       <RowControl ref={ref} props={props} bodyStyle={bodyStyle} interaction={interaction} tokens={tokens}>{body}</RowControl>
       <RowAction action={action} hasDescription={Boolean(description)} reducedMotion={reducedMotion} tokens={tokens} />
     </View>

@@ -248,3 +248,9 @@ Add uses Plus, Edit uses Pencil, Tweak uses AdjustmentsHorizontal and Swap uses 
 The inline instruction submits through ArrowUp, and failed requests keep a named RefreshCw
 retry. Every action retains a localized accessible name, a distinct shared icon target and
 its disabled or busy state. Add all retains its explicitly requested primary text pill.
+
+The 8px clearance amendment updates the paired pill, list-row, check-row, segmented-control,
+weekday-picker, composer, calendar header, profile preference and bar-chart owners listed in
+`interaction-fill-surfaces.md`, plus web `ui/pill-action-style` and `shell/shell-wide`.
+Pill focus stays inside its paint. Collapsed sidebar search, navigation and Astra glyphs share
+the centre of their feedback. Badges belong to their own control and do not move its fill centre.

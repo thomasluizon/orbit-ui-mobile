@@ -27,7 +27,7 @@ export function WeekdayPicker({ days, daily = false, dayOptions, onToggleDay, pr
 }
 
 const styles = StyleSheet.create({
-  days: { flexDirection: 'row', flexWrap: 'nowrap', gap: 4, width: '100%', maxWidth: 7 * TOUCH_TARGET_MIN + 6 * 4 },
+  days: { flexDirection: 'row', flexWrap: 'nowrap', gap: 8, width: '100%', maxWidth: 7 * TOUCH_TARGET_MIN + 6 * 4 },
   target: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 24, minHeight: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: radius.full, overflow: 'hidden' },
   text: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   disabled: { opacity: 0.4 },

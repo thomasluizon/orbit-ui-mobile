@@ -77,9 +77,9 @@ async function assertComposerRow(page: Page, messages: typeof en | typeof ptBR, 
   expect(geometry.lineTops.length).toBeLessThanOrEqual(2)
   for (const height of geometry.heights) expect(height).toBe(48)
   for (const [index, top] of geometry.lineTops.entries()) {
-    expect(top).toBeCloseTo(geometry.top + geometry.borderTop + 4 + index * 48, 1)
+    expect(top).toBeCloseTo(geometry.top + geometry.borderTop + 8 + index * 48, 1)
   }
-  expect(geometry.height).toBeCloseTo(geometry.lineTops.length * 48 + 8 + geometry.borderTop + geometry.borderBottom, 1)
+  expect(geometry.height).toBeCloseTo(geometry.lineTops.length * 48 + 16 + geometry.borderTop + geometry.borderBottom, 1)
 }
 
 function ownerSurfaces(messages: typeof en | typeof ptBR) {

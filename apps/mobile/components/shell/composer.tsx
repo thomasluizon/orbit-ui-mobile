@@ -821,7 +821,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: SPACING.s4,
+    padding: INTERACTION_FILL_CLEARANCE,
     borderRadius: 28,
   },
   fieldOutline: {

@@ -14,7 +14,7 @@ import { ShellWide } from '@/components/shell/shell-wide'
 import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
 import { useShellStore } from '@/stores/shell-store'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
+import { inspectInteractionSurface } from '@/__tests__/support/interaction-surface-geometry'
 import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -164,7 +164,7 @@ describe('sidebar brand and account geometry in Chromium', () => {
 })
 
 async function assertBrandFills(page: Page) {
-  for (const control of await page.locator('[data-shell-brand-row] button').all()) {
+  for (const control of await page.locator('[data-shell-sidebar] button, [data-shell-sidebar] a[href]').all()) {
     for (const state of ['hover', 'press', 'focus']) {
       if (state === 'focus') {
         await page.keyboard.press('Shift')
@@ -175,15 +175,8 @@ async function assertBrandFills(page: Page) {
       }
       await control.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
       await control.evaluate(settleAnimations)
-      const offset = await control.evaluate(element => {
-        const paint = element.getBoundingClientRect()
-        const glyph = element.querySelector('svg')!.getBoundingClientRect()
-        return { inline: Math.abs(glyph.left + glyph.width / 2 - paint.left - paint.width / 2), block: Math.abs(glyph.top + glyph.height / 2 - paint.top - paint.height / 2) }
-      })
-      expect(offset.inline, `${state} inline centre`).toBeLessThanOrEqual(0.5)
-      expect(offset.block, `${state} block centre`).toBeLessThanOrEqual(0.5)
-      const fill = await control.evaluate(inspectInteractionFill, Math.max(8, INTERACTION_FILL_CLEARANCE))
-      expect(fill.hasFill, `${fill.control} ${state}`).toBe(true)
+      const fill = await control.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)
+      if (fill.centering) { expect(fill.centering.inline, `${fill.control} ${state}`).toBeLessThanOrEqual(0.5); expect(fill.centering.block, `${fill.control} ${state}`).toBeLessThanOrEqual(0.5) }
       expect(fill.violations, `${fill.control} ${state}`).toEqual([])
       await page.mouse.move(0, 0)
       await page.mouse.up()

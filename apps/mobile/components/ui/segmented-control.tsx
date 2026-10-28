@@ -77,7 +77,7 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
   const [availableWidth, setAvailableWidth] = useState(0)
   const words = props.options.map((option) => fontScale > 1.3 ? option.label.split(/\s+/) : [option.label])
   const measuredWords = measurement.signature === signature ? measurement.words : {}
-  const layout = getSegmentedControlLayout(words.map((labelWords) => labelWords.map((word) => measuredWords[word] ?? 0)), availableWidth, { label: 20, track: 8, gap: 4 })
+  const layout = getSegmentedControlLayout(words.map((labelWords) => labelWords.map((word) => measuredWords[word] ?? 0)), availableWidth, { label: 20, track: 8, gap: 8 })
   const { minimumWidths } = layout
   const ready = words.flat().every((word) => measuredWords[word] !== undefined)
   const folded = ready && layout.folded
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     flexDirection: 'row',
     flexWrap: 'nowrap',
-    gap: 4,
+    gap: 8,
     maxWidth: '100%',
     padding: SPACING.s4,
   },

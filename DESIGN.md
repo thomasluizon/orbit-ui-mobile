@@ -1716,18 +1716,22 @@ control and takes a control's shape. Primary-filled actions use `--primary-hover
 `--primary-pressed` (`primaryPressed` on Android) on press. Press fills remain visible beside scale
 feedback, including when reduced motion suppresses the scale.
 Interaction fills and focus rings stay inside the control's laid-out box. An outward extension
-may use only the gap to the nearest neighbour minus 4px, the first spacing step. Keep at least
-4px between the painted fill and neighbouring content, including the page column edge.
+may use only the gap to the nearest neighbour minus 8px. Keep at least
+8px between the painted fill and neighbouring content, including the page column edge.
 `INTERACTION_FILL_CLEARANCE` in `packages/shared` owns that clearance for both platform guards.
 Reserve the extension in layout; a negative inset never grants permission to overlap.
-Grouped list rows inset their paint and single focus indicator by 4px without reducing the target.
+Grouped list rows inset their paint and single focus indicator by 8px without reducing the target.
 Month-navigation controls reserve clearance inside their unchanged targets. Composer actions keep
-the same gap between their targets. Touching calendar day rows inset their paint by 4px. Their body opens the habit detail for the selected date and reuses Hoje's emoji tile and monogram fallback; the 46px well and 12px block insets give short rows a 70px resting floor. The completion control remains independent. The title-only sheet is removed under #1858; habit detail supplies the full title. A labelled recurring switch at the top of the selected-day list shares the Options preference and filters its completion count.
+the same gap between their targets. Touching calendar day rows inset their paint by 8px. Their body opens the habit detail for the selected date and reuses Hoje's emoji tile and monogram fallback; the 46px well and 12px block insets give short rows a 70px resting floor. The completion control remains independent. The title-only sheet is removed under #1858; habit detail supplies the full title. A labelled recurring switch at the top of the selected-day list shares the Options preference and filters its completion count.
 Measure painted fills and visible text or graphics, excluding transparent hit areas.
-A grid cell may fill its own column and adjoin another cell, provided its paint and focus
-indicator stay inside that cell; this never permits paint over neighbouring content.
-Month and range grid day cells keep every hover, press, focus and selection paint inside their
-own column, with unchanged full-column targets, circular position rings and 34px status discs.
+Every icon-only glyph stays centred within 0.5px of its own painted surface on both axes.
+A dense composite whose cells cannot reserve 8px paints feedback on its own mark instead of a
+cell box. Bar charts change their own bar to the selected-bar foreground on hover or held press;
+one keyboard indicator follows the padded moving readout. Full-height transparent radio targets,
+selection, arrows, Home/End and Android accessibility actions stay unchanged, with every column
+visible and no horizontal scrolling. Month and range feedback and position rings use the existing
+34px discs. Their centres distribute across the row to retain 8px gaps inside unchanged transparent
+full-column targets. The paired owners are listed in `design/interaction-fill-surfaces.md`.
 
 A control with an opaque resting fill layers `--bg-hover-opaque` over that fill; dark resolves
 to `--bg-hover`, and light uses the stronger opaque-control hover value.

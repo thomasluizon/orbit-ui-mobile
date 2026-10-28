@@ -94,7 +94,8 @@ function SidebarItem({
         active
           ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
           : 'text-[var(--fg-3)]',
-        'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation',
+        'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation focus-visible:-outline-offset-2',
+        collapsed ? 'justify-center' : undefined,
       ].join(' ')}
       aria-current={current ? 'page' : undefined}
       title={collapsed ? item.label : undefined}
@@ -128,7 +129,8 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
               open
                 ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
                 : 'text-[var(--fg-3)]',
-              'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation',
+              'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation focus-visible:-outline-offset-2',
+              collapsed ? 'justify-center' : undefined,
             ].join(' ')}
           >
             <AstraGlyph size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
@@ -144,7 +146,7 @@ function SidebarSearch({ onPalette, paletteLabel, paletteHint, collapsed }: Read
             onClick={onPalette}
             aria-label={paletteLabel}
             title={collapsed ? paletteLabel : undefined}
-            className="orbit-hover-text flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--border-control)] transition-[background-color,color,box-shadow,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] motion-safe:active:scale-[0.96]"
+            className={`orbit-hover-text ${collapsed ? 'justify-center' : ''} flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--border-control)] transition-[background-color,color,box-shadow,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] motion-safe:active:scale-[0.96]`}
           >
             <Search size={20} strokeWidth={1.5} aria-hidden="true" />
             <span className={collapsed ? 'sr-only' : 'min-w-0 flex-1 truncate text-left'}>{paletteLabel}</span>
@@ -212,7 +214,7 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
         <div className="flex flex-col gap-6 px-6">
           <SidebarSearch onPalette={props.onPalette} paletteLabel={props.paletteLabel} paletteHint={props.paletteHint} collapsed={collapsed} />
 
-          <nav id={navigationId} aria-label={props.navLabel} className="flex flex-col gap-1">
+          <nav id={navigationId} aria-label={props.navLabel} className="flex flex-col gap-2">
             {props.wide || !client ? <SidebarAstraRow row={props.astraRow} open={props.layerOpen} conversationId={props.conversationId} collapsed={collapsed} /> : null}
             {props.items.map((item) => (
               <SidebarItem

@@ -1,4 +1,4 @@
-import { SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
@@ -87,12 +87,12 @@ export function CheckRow({
 
 const styles = StyleSheet.create({
   columnRow: { width: '100%', minHeight: 52, position: 'relative', flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: SPACING.s12 },
-  columnFill: { position: 'absolute', top: 0, bottom: 0, left: -12, right: -12, borderRadius: 12 },
+  columnFill: { position: 'absolute', top: 0, bottom: 0, left: -SPACING.s8, right: -SPACING.s8, borderRadius: 12 },
   columnLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8 },
-  labelFill: { position: 'absolute', top: 0, bottom: 0, left: -12, right: 0, borderRadius: 12, overflow: 'hidden' },
-  calendarDayControlFill: { borderRadius: 24, top: -SPACING.s8, bottom: -SPACING.s8, left: -SPACING.s8, right: -SPACING.s8 },
+  labelFill: { position: 'absolute', top: 0, bottom: 0, left: -SPACING.s8, right: 0, borderRadius: 12, overflow: 'hidden' },
+  calendarDayControlFill: { borderRadius: 24, top: -SPACING.s4, bottom: -SPACING.s4, left: -SPACING.s4, right: -SPACING.s4 },
   calendarDayControl: { width: 24, height: 24 },
-  controlFill: { position: 'absolute', top: SPACING.s4, bottom: SPACING.s4, left: SPACING.s4, right: SPACING.s4, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: SPACING.s8 },
+  controlFill: { position: 'absolute', top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: SPACING.s8 },
   personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 0, paddingStart: SPACING.s16, paddingEnd: SPACING.s4, paddingVertical: SPACING.s0 },
   personalAction: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
   personalCopy: { minWidth: 0, flex: 1, minHeight: 48, paddingVertical: SPACING.s12, justifyContent: 'center', gap: 4, borderRadius: 12 },
@@ -128,7 +128,7 @@ function getPersonalRowStyle(calendarDay: boolean, supportingText: boolean, plac
 }
 
 function getPersonalLabelFill(calendarDay: boolean) {
-  return { ...styles.labelFill, ...(calendarDay ? { top: SPACING.s4, bottom: SPACING.s4 } : {}) }
+  return { ...styles.labelFill, ...(calendarDay ? { top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE } : {}) }
 }
 
 function getPersonalControlFill(calendarDay: boolean) {

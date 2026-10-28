@@ -1,4 +1,4 @@
-import { SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import type { CalendarHeaderNavigationProps } from '@orbit/shared/utils/calendar-navigation'
 import { useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions, type PressableProps } from 'react-native'
@@ -22,7 +22,7 @@ function CalendarTitleControl({ tokens, compact = false, insetPaint = false, ...
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const styles = createStyles(tokens)
-  return <Pressable {...props} accessibilityRole="button" focusOffset={insetPaint ? -6 : -4}
+  return <Pressable {...props} accessibilityRole="button" focusOffset={insetPaint ? -(INTERACTION_FILL_CLEARANCE + 2) : -4}
     onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
     onFocus={(event) => { if (event.target === event.currentTarget) setFocused(true) }}
     onBlur={(event) => { if (event.target === event.currentTarget) setFocused(false) }}
@@ -60,7 +60,7 @@ export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false
   const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
   return <View testID="calendar-header-group" style={styles.header}>
     <View testID={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} style={[styles.navigation, !period && styles.monthNavigation]}>
-      <Pressable focusOffset={-6} accessibilityRole="button" accessibilityLabel={period?.previousLabel ?? previousMonthLabel} onPress={period?.onPrevious ?? onPreviousMonth} style={styles.iconButton}>{({ pressed, focused }) => <><View pointerEvents="none" accessible={false} data-press-fill="" style={[styles.iconPaint, (pressed || focused) && styles.pressed]} /><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></>}</Pressable>
+      <Pressable focusOffset={-(INTERACTION_FILL_CLEARANCE + 2)} accessibilityRole="button" accessibilityLabel={period?.previousLabel ?? previousMonthLabel} onPress={period?.onPrevious ?? onPreviousMonth} style={styles.iconButton}>{({ pressed, focused }) => <><View pointerEvents="none" accessible={false} data-press-fill="" style={[styles.iconPaint, (pressed || focused) && styles.pressed]} /><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></>}</Pressable>
       <View style={styles.monthTitleGroup}>
         <CalendarTitleControl tokens={tokens} compact={!period}
           accessibilityLabel={period ? t('calendar.period.goToCurrent', { period: period.label }) : `${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('dates.goToToday')}`}
@@ -71,7 +71,7 @@ export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false
           <ChevronDown size={16} color={tokens.fg2} strokeWidth={2} />
         </CalendarTitleControl> : null}
       </View>
-      <Pressable focusOffset={-6} accessibilityRole="button" accessibilityLabel={period?.nextLabel ?? nextMonthLabel} onPress={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled} accessibilityState={{ disabled: period?.nextDisabled }} style={[styles.iconButton, period?.nextDisabled && { opacity: 0.4 }]}>{({ pressed, focused }) => <><View pointerEvents="none" accessible={false} data-press-fill="" style={[styles.iconPaint, !period?.nextDisabled && (pressed || focused) && styles.pressed]} /><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></>}</Pressable>
+      <Pressable focusOffset={-(INTERACTION_FILL_CLEARANCE + 2)} accessibilityRole="button" accessibilityLabel={period?.nextLabel ?? nextMonthLabel} onPress={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled} accessibilityState={{ disabled: period?.nextDisabled }} style={[styles.iconButton, period?.nextDisabled && { opacity: 0.4 }]}>{({ pressed, focused }) => <><View pointerEvents="none" accessible={false} data-press-fill="" style={[styles.iconPaint, !period?.nextDisabled && (pressed || focused) && styles.pressed]} /><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></>}</Pressable>
     </View>
     {viewSelector}
     {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
@@ -107,8 +107,8 @@ function createStyles(tokens: Tokens) {
     header: { gap: 16, paddingHorizontal: SPACING.s16, paddingTop: SPACING.s12, paddingBottom: SPACING.s24 },
     navigation: { minHeight: 48, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
     iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-    iconPaint: { position: 'absolute', top: SPACING.s4, bottom: SPACING.s4, left: SPACING.s4, right: SPACING.s4, borderRadius: 999, borderWidth: 1.5, borderColor: tokens.hairlineStrong },
-    pickerPaint: { position: 'absolute', top: SPACING.s4, bottom: SPACING.s4, left: SPACING.s4, right: SPACING.s4, borderRadius: 12 },
+    iconPaint: { position: 'absolute', top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE, borderRadius: 999, borderWidth: 1.5, borderColor: tokens.hairlineStrong },
+    pickerPaint: { position: 'absolute', top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE, borderRadius: 12 },
     monthNavigation: { gap: 0 },
     monthTitleGroup: { maxWidth: '100%', flexShrink: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' },
     monthTitleButton: { flexShrink: 0, paddingHorizontal: SPACING.s8 },

@@ -151,7 +151,7 @@ select[aria-hidden="true"] {
 .orbit-list-row-shell .orbit-list-row-body::before {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 8px;
   border-radius: inherit;
   pointer-events: none;
   transition: background-color var(--dur-hover) var(--ease-standard);
@@ -160,7 +160,7 @@ select[aria-hidden="true"] {
 .orbit-calendar-day-disclosure::before {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 8px;
   border-radius: inherit;
   pointer-events: none;
   transition: background-color var(--dur-hover) var(--ease-standard);
@@ -189,7 +189,7 @@ select[aria-hidden="true"] {
 .orbit-calendar-picker-control::before {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 8px;
   border-radius: inherit;
   pointer-events: none;
   transition: background-color var(--dur-hover-control) var(--ease-standard);
@@ -286,7 +286,7 @@ select[aria-hidden="true"] {
   content: '';
   position: absolute;
   inset-block: 0;
-  inset-inline: -12px;
+  inset-inline: -8px;
   border-radius: 12px;
   transition: background-color var(--dur-hover) var(--ease-standard);
 }
@@ -299,7 +299,7 @@ select[aria-hidden="true"] {
 }
 
 .orbit-list-row-shell:has(> .orbit-list-row-action) {
-  gap: 4px;
+  gap: 8px;
 }
 
 .orbit-list-row-column:has(> .orbit-list-row-action) .orbit-list-row-body::after,
@@ -317,7 +317,7 @@ select[aria-hidden="true"] {
   z-index: 0;
   position: absolute;
   inset-block: 0;
-  inset-inline: -12px;
+  inset-inline: -8px;
   border-radius: 12px;
   pointer-events: none;
   transition: background-color var(--dur-hover) var(--ease-standard);
@@ -424,7 +424,7 @@ select[aria-hidden="true"] {
 .orbit-tab::after {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 8px;
   border-radius: inherit;
   pointer-events: none;
 }
@@ -1921,7 +1921,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
   [data-habit-row-control="check"]:focus-visible [data-habit-check],
   .orbit-tab:focus-visible::after,
-  .orbit-bar-chart-column:focus-visible > [data-slot="bar-chart-focus"],
   .orbit-calendar-nav-control:focus-visible::before,
   .orbit-calendar-picker-control:focus-visible::before,
   .orbit-calendar-day-disclosure:focus-visible::before,
@@ -2495,7 +2494,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   content: '';
   position: absolute;
   inset-block: 0;
-  inset-inline-start: -12px;
+  inset-inline-start: -8px;
   inset-inline-end: 0;
   border-radius: 12px;
 }
@@ -2504,7 +2503,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .orbit-check-row-control > .orbit-check-row-fill {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 8px;
   border-radius: 12px;
 }
 
@@ -2523,7 +2522,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 .orbit-check-row-control[data-variant="calendar-day"] > .orbit-check-row-fill {
-  inset: -8px;
+  inset: -4px;
 }
 
 @media (forced-colors: active) {
@@ -2548,7 +2547,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 .orbit-check-row-label[data-variant="calendar-day"] > .orbit-check-row-fill {
-  inset-block: 4px;
+  inset-block: 8px;
 }
 
 .orbit-check-row-label > :not(.orbit-check-row-fill),

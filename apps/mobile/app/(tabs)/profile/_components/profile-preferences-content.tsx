@@ -36,7 +36,7 @@ function buildPreferenceRows(
     ? t('profile.settingsRows.timezoneValue', { timeZone })
     : t('profile.settingsRows.timezone')
   const themeChoice = (
-    <View accessibilityRole="radiogroup" accessibilityLabel={t('profile.settingsRows.theme')} style={{ flexDirection: 'row', flexWrap: 'wrap', maxWidth: '100%', gap: 4 }}>
+    <View accessibilityRole="radiogroup" accessibilityLabel={t('profile.settingsRows.theme')} style={{ flexDirection: 'row', flexWrap: 'wrap', maxWidth: '100%', gap: 8 }}>
       {(['dark', 'light'] as const).map((mode) => {
         const selected = controls.currentTheme === mode
         return (
