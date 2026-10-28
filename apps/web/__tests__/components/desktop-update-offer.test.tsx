@@ -439,6 +439,21 @@ it('a ready native prompt stays hidden from the web notice until its decision ar
   expect(actions().filter(action => action === 'install')).toHaveLength(1)
 })
 
+it('keeps restart offers usable in shells without native dialog status', async () => {
+  native.shellVersion = '0.2.0'
+  native.phase = 'available'
+  invoke.mockImplementation(async (command, payload) => {
+    const snapshot = await operateNative(command, payload)
+    Reflect.deleteProperty(snapshot, 'promptPending')
+    return snapshot
+  })
+  mount()
+  await tick()
+  await click(en.versionUpdate.restartCta)
+  expect(native.phase).toBe('installing')
+  expect(actions().filter(action => action === 'install')).toHaveLength(1)
+})
+
 it('retains the conversation and exposes Retry when checkpoint persistence fails', async () => {
   vi.stubEnv('WEB_COMMIT_SHA', nextCommit)
   mount()
