@@ -241,9 +241,9 @@ layout. Actual visual lines bottom-align their own input and controls; the last 
 web below 1024), Hoje and Calendário pass a header row with a minimum height of 48 to Shell412.
 The Avisos bell is the last control at the trailing edge, with a hit area at the touch floor and
 a neutral count pill: absent at zero, capped at 9+, no dot, no accent. Hoje holds search, options
-(`dots-vertical`) and the bell. No date navigator carries a separate Hoje jump control; its centred
-date or period label returns to today. Calendário holds options
-and the bell. Progresso and Perfil start with a minimum-height 48 row holding only the bell at the
+(`dots-vertical`), theme and the bell. No date navigator carries a separate Hoje jump control; its centred
+date or period label returns to today. Calendário holds options, theme
+and the bell. Progresso and Perfil start with a minimum-height 48 row holding theme before the bell at the
 same trailing edge; that row scrolls with the page and carries no screen title. Avisos does not
 repeat the bell. Screen options always use `dots-vertical`.
 
@@ -298,7 +298,7 @@ keeps the name and email; the position directly beneath it stays available for O
 
 Conta owns edit name, data export, usage analytics, fresh start and account deletion, in that order.
 Deletion is last and keeps its danger label, confirmation and step-up. Preferências owns timezone,
-week start, clock, language, theme and showing general habits on Hoje. Astra owns Conexões: Google Calendar opens the Calendários sheet through `/calendar?import=1`, as does the retained Sincronizar calendário row on Perfil. Notion opens its connection sheet, with the page picker in Notion and a confirmation before disconnecting and deleting stored records. Astra owns today's allowance,
+week start, clock, language and showing general habits on Hoje. Theme switching belongs to the shell. Astra owns Conexões: Google Calendar opens the Calendários sheet through `/calendar?import=1`, as does the retained Sincronizar calendário row on Perfil. Notion opens its connection sheet, with the page picker in Notion and a confirmation before disconnecting and deleting stored records. Astra owns today's allowance,
 feature switches and Pro gates, then API keys and MCP. Notificações owns the current push-device
 controls, product email consent and the note that habit reminders live on each habit.
 
