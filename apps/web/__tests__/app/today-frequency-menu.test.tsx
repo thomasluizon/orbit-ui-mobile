@@ -11,6 +11,7 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import { useUIStore } from '@/stores/ui-store'
 
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => '/' }))
 

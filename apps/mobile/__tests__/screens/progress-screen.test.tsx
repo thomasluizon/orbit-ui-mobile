@@ -2097,7 +2097,9 @@ it('places the Progresso bell in the scrolling root and opens Avisos', async () 
   const tree = await renderProgress()
   const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'root-notification-header')[0]!
   expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 72, paddingBottom: 24, justifyContent: 'flex-end' })
-  const bell = row.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!
+  const actions = row.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')
+  expect(actions.map((node) => node.props.accessibilityLabel)).toEqual(['settings.theme.switchToLight', 'notifications.bell'])
+  const bell = actions.find((node) => node.props.accessibilityLabel === 'notifications.bell')!
   TestRenderer.act(() => (bell.props.onPress as () => void)())
   expect(mocks.router.push).toHaveBeenCalledWith('/notifications')
 

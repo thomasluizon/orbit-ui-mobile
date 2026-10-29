@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { Chip } from '@/components/ui/chip'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { RadioRow } from '@/components/ui/select-check'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { buildHabitUnderstandingLabels, formatLocaleDate, HOURS_24, MINUTES, padTimePart } from '@orbit/shared/utils'
 import { TimeField } from '@/components/ui/time-field'
@@ -14,18 +13,16 @@ import { createStyles as createGoalStyles } from '@/components/habits/create-goa
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
 import { createStyles } from '@/components/habits/habit-form-fields/styles'
-import { ProfilePreferencesContent } from '@/app/(tabs)/profile/_components/profile-preferences-content'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 
 vi.unmock('@/components/ui/date-field')
 
 vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => null }))
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => null }))
-vi.mock('@/components/profile/preferences-sections', () => ({ PreferencePickerSheet: () => null }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: true, weekStartDay: 1 } }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
-vi.mock('@/app/use-preference-controls', () => ({ usePreferenceControls: () => ({ selectedLanguage: 'en', currentTheme: 'dark', currentScheme: 'orange', activePicker: null, setActivePicker: vi.fn(), handleThemeModeChange: vi.fn(), timeZoneMutation: { mutate: vi.fn() }, weekStartMutation: { mutate: vi.fn() }, clockFormatMutation: { mutate: vi.fn() } }) }))
 
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
 
@@ -140,13 +137,13 @@ it.each([false, true])('emoji options and category chips share the focus rule, c
   TestRenderer.act(() => tree!.unmount())
 })
 
-it('theme pills keep the selected tint while focus takes the perimeter', () => {
+it('theme action keeps one focus perimeter and a neutral press fill', () => {
+  verify(<ThemeToggle />, false)
   let tree: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => { tree = TestRenderer.create(<ProfilePreferencesContent profile={createMockProfile()} patchProfile={vi.fn()} />) })
-  verifyAllChoices(tree)
-  const unselected = tree!.root.findAllByType('Pressable').find((node: { props: { accessibilityRole?: string; accessibilityState?: { selected?: boolean } } }) => node.props.accessibilityRole === 'radio' && node.props.accessibilityState?.selected === false)
-  expect(StyleSheet.flatten(unselected.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover)
-  expect(ringCount(unselected)).toBe(0)
+  TestRenderer.act(() => { tree = TestRenderer.create(<ThemeToggle />) })
+  const button = tree!.root.findAllByType('Pressable')[0]
+  expect(StyleSheet.flatten(button.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover)
+  expect(ringCount(button)).toBe(0)
   TestRenderer.act(() => tree!.unmount())
 })
 

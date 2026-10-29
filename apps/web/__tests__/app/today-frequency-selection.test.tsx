@@ -11,6 +11,7 @@ import type { HabitListHandle } from '@/components/habits/habit-list'
 import { useUIStore } from '@/stores/ui-store'
 
 const mutations = vi.hoisted(() => ({ delete: vi.fn(), log: vi.fn(), skip: vi.fn() }))
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({
   useBulkDeleteHabits: () => ({ mutateAsync: mutations.delete }),
   useBulkLogHabits: () => ({ mutateAsync: mutations.log }),

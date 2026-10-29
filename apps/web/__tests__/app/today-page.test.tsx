@@ -15,6 +15,7 @@ import type { TodayView } from '@/app/(app)/use-today-page'
 import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
 import { useUIStore } from '@/stores/ui-store'
 
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => '/' }))
 
 const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{

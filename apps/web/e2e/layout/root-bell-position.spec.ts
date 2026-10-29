@@ -62,6 +62,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
     test.describe(`root bell position in ${locale} at ${width}px in ${mode}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 }, layoutProfile: { themePreference: mode } })
       const words = locale === 'pt-BR' ? ptBR : en
+      const themeActionLabel = mode === 'dark' ? words.settings.theme.switchToLight : words.settings.theme.switchToDark
 
       for (const content of width < 1024 ? ['short', 'long'] as const : ['short'] as const) {
         test(`aligns every root to Hoje with ${content} content and opens Avisos`, async ({ page }) => {
@@ -96,7 +97,8 @@ for (const locale of ['en', 'pt-BR'] as const) {
               rootOverflow.set(root, geometry.overflows)
             }).toPass({ timeout: 5000 })
             if (width < 1024 && (root === '/progress' || root === '/profile')) {
-              await expect(row.getByRole('button')).toHaveCount(1)
+              await expect(row.getByRole('button')).toHaveCount(2)
+              await expect(row.getByRole('button', { name: themeActionLabel, exact: true })).toBeVisible()
               await expect(row.getByRole('heading')).toHaveCount(0)
               expect(await row.evaluate((element) => Boolean(element.closest('[data-shell-scroller]')))).toBe(true)
             }
@@ -123,6 +125,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
     test.describe(`root bell resizing in ${locale} and ${mode}`, () => {
       test.use({ appLocale: locale, viewport: { width: 1023, height: 915 }, layoutProfile: { themePreference: mode } })
       const words = locale === 'pt-BR' ? ptBR : en
+      const themeActionLabel = mode === 'dark' ? words.settings.theme.switchToLight : words.settings.theme.switchToDark
 
       test('moves one bell across the sidebar breakpoint without duplicate frames', async ({ page }) => {
         for (const root of ['/', '/calendar', '/progress', '/profile']) {

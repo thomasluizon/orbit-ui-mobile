@@ -34,7 +34,21 @@ for (const width of [320, 360, 384, 412]) {
           words.settings.homeScreen.showGeneral,
         ]) await markRequiredLabels(surface.getByText(label, { exact: true }))
         await expect(surface.getByRole('switch', { name: words.settings.homeScreen.showGeneral, exact: true })).toBeVisible()
-        await expectLabelsFit(page, surface)
+        await expectLabelsFit(page, surface.locator('.orbit-list-row-shell').filter({ hasNot: page.getByRole('switch') }))
+        const switchRow = surface.locator('.orbit-list-row-shell').filter({ has: page.getByRole('switch') })
+        const copy = await switchRow.locator('[data-slot="list-row-title"], [data-slot="list-row-description"]').evaluateAll((elements) => elements.map((element) => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const fragments = [...range.getClientRects()].filter((rect) => rect.width > 0)
+          const bounds = element.getBoundingClientRect()
+          return { text: element.textContent, lines: new Set(fragments.map((rect) => Math.round(rect.top))).size,
+            clipped: fragments.some((rect) => rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.top < bounds.top - 1 || rect.bottom > bounds.bottom + 1) }
+        }))
+        expect(copy).toHaveLength(2)
+        expect(copy[0]).toEqual({ text: words.settings.homeScreen.showGeneral, lines: 1, clipped: false })
+        expect(copy[1]).toMatchObject({ text: words.settings.homeScreen.showGeneralDesc, clipped: false })
+        expect(copy[1]!.lines).toBeGreaterThan(0)
+        expect(copy[1]!.lines).toBeLessThanOrEqual(2)
         for (const row of await surface.locator('.orbit-list-row-body').all()) await expectInteractionFill(row)
       })
     })

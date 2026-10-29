@@ -87,6 +87,7 @@ describe('page content centring and add control clearance', () => {
       </NextIntlClientProvider>);`, {
       'next/link': "import React from 'react'; export default ({ children, ...props }) => React.createElement('a', props, children);",
       '@sentry/nextjs': 'export const captureException = () => {};',
+      '@/hooks/use-color-scheme': "export const useColorScheme = () => ({ currentTheme: 'dark', toggleTheme: () => {} });",
       '@/stores/auth-store': 'import { create } from "zustand"; export const useAuthStore = create(() => ({ isAuthenticated: true, user: { userId: "shell-account" }, logout: async () => {} }));',
       './notification-bell': 'export const NotificationBell = () => null;',
       '@/components/ui/dropdown-menu': 'export const Root = ({children}) => children; export const Trigger = ({children}) => children; export const Content = () => null;',

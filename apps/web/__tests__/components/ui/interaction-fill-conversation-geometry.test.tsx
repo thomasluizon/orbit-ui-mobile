@@ -59,6 +59,7 @@ function bundleConversation() {
       export { unstable_isUnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error';
       export const usePathname = () => ['/chat', '/r/invalid'].includes(configuration.route) ? '/' : configuration.route;
       export const useParams = () => ({}); export const useRouter = () => ({ push: route => { document.documentElement.dataset.navigation = route; } });`,
+    '@/hooks/use-color-scheme': 'export const useColorScheme = () => ({ currentTheme: document.documentElement.classList.contains("light") ? "light" : "dark", toggleTheme() {} });',
     '@/hooks/use-profile': "export const useProfile = () => ({ profile: { name: 'Person', email: 'person@example.test' } });",
     '@/hooks/use-notification-inbox': 'export const useNotificationInbox = () => ({ visibleUnreadCount: 1 });',
     '@/components/command/command-palette': 'export const CommandPalette = () => null;',
