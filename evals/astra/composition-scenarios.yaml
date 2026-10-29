@@ -2290,9 +2290,9 @@
         bulk_create_habits: 1
       forbidden:
         - create_habit
-    rubric: Answer in English. One preview with exactly two children under the
-      already existing Post Lunch and Before Bed parents. Vitamin D is weekly;
-      rosuvastatin is daily. No prose question, top-level duplicate parent or
+    rubric: Answer in English. One preview with exactly two children. Vitamin D is weekly;
+      rosuvastatin is daily. Assignment to the existing Post Lunch and Before Bed parents
+      is harness evidence, not part of the answer being graded. No prose question, top-level duplicate parent or
       saved claim. Canonical dates inside typed fields are transport values;
       visible prose must use locale dates. Rendered date formatting is checked
       separately.
@@ -2624,9 +2624,9 @@
         bulk_create_habits: 1
       forbidden:
         - create_habit
-    rubric: Answer in Brazilian Portuguese. One preview with exactly two children
-      under the already existing Depois do almoço and Antes de dormir parents. Vitamin D is
-      weekly; rosuvastatin is daily. No prose question, top-level duplicate
+    rubric: Answer in Brazilian Portuguese. One preview with exactly two children. Vitamin D is
+      weekly; rosuvastatin is daily. Assignment to the existing Depois do almoço and Antes de dormir
+      parents is harness evidence, not part of the answer being graded. No prose question, top-level duplicate
       parent or saved claim. Canonical dates inside typed fields are transport
       values; visible prose must use locale dates. Rendered date formatting is
       checked separately.
@@ -3007,8 +3007,9 @@
       counts:
         create_habit: 1
     rubric: Answer in English. The held approval preview is the entire answer. Do not claim a saved
-      change before approval. Exactly one create_habit preview proposes the previous starting step
+      change before approval. Exactly one preview proposes the previous starting step
       verbatim as the title of a one-time task, without recurrence or additional creations.
+      The create_habit tool selection is harness evidence, not part of the answer being graded.
     startingStepAction: saveTask
     setup:
       input: I can't get myself to start studying.
@@ -3054,9 +3055,10 @@
       counts:
         update_checklist: 1
     rubric: Answer in English. The held approval preview is the entire answer. Do not claim a saved
-      change before approval. Exactly one update_checklist preview targets the named existing habit
+      change before approval. Exactly one preview targets the named existing habit
       and preserves every existing checklist item and checked state in order, appending the previous
       starting step once as an unchecked item.
+      The update_checklist tool selection is harness evidence, not part of the answer being graded.
     startingStepAction: saveChecklistItem
     setup:
       input: I can't get myself to drink water.
@@ -3220,9 +3222,10 @@
       counts:
         create_habit: 1
     rubric: Answer in Brazilian Portuguese. The held approval preview is the entire answer. Do not claim
-      a saved change before approval. Exactly one create_habit preview proposes the previous
+      a saved change before approval. Exactly one preview proposes the previous
       starting step verbatim as the title of a one-time task, without recurrence or additional
       creations.
+      The create_habit tool selection is harness evidence, not part of the answer being graded.
     startingStepAction: saveTask
     setup:
       input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
@@ -3268,9 +3271,10 @@
       counts:
         update_checklist: 1
     rubric: Answer in Brazilian Portuguese. The held approval preview is the entire answer. Do not claim
-      a saved change before approval. Exactly one update_checklist preview targets the named
+      a saved change before approval. Exactly one preview targets the named
       existing habit and preserves every existing checklist item and checked state in order,
       appending the previous starting step once as an unchecked item.
+      The update_checklist tool selection is harness evidence, not part of the answer being graded.
     startingStepAction: saveChecklistItem
     setup:
       input: Tô travado até pra beber água. Me ajuda a começar?
@@ -3342,7 +3346,7 @@
     rubric: >-
       Respond in English. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Keep the existing account habits unchanged.
+      Preservation of existing account habits is harness evidence, not part of the answer being graded.
       Do not add unrequested activities or grouping habits.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
       schedules, dates, times or other facts from the preview, including spelled-out figures.
@@ -3368,7 +3372,7 @@
     rubric: >-
       Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Keep the existing account habits unchanged.
+      Preservation of existing account habits is harness evidence, not part of the answer being graded.
       Do not add unrequested activities or grouping habits.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
       schedules, dates, times or other facts from the preview, including spelled-out figures.
@@ -3395,7 +3399,8 @@
     rubric: >-
       Respond in English. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Reuse the stored Water habit by identity without creating a duplicate.
+      The stored title Water appears verbatim exactly once in the preview, with no second item with that title.
+      Identity reuse and the absence of persisted duplicates are harness evidence, not part of the answer being graded.
       Do not add unrequested activities or grouping habits.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
       schedules, dates, times or other facts from the preview, including spelled-out figures.
@@ -3422,7 +3427,8 @@
     rubric: >-
       Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Reuse the stored Beber água habit by identity without creating a duplicate.
+      The stored title Beber água appears verbatim exactly once in the preview, with no second item with that title.
+      Identity reuse and the absence of persisted duplicates are harness evidence, not part of the answer being graded.
       Do not add unrequested activities or grouping habits.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
       schedules, dates, times or other facts from the preview, including spelled-out figures.
@@ -3450,7 +3456,7 @@
     rubric: >-
       Respond in English. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Keep the existing account habits unchanged.
+      Preservation of existing account habits is harness evidence, not part of the answer being graded.
       Include one additional simple daily habit idea in that same preview, without a separate suggestion card.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
       schedules, dates, times or other facts from the preview, including spelled-out figures.
@@ -3478,7 +3484,7 @@
     rubric: >-
       Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Keep the existing account habits unchanged.
+      Preservation of existing account habits is harness evidence, not part of the answer being graded.
       Include one additional simple daily habit idea in that same preview, without a separate suggestion card.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
       schedules, dates, times or other facts from the preview, including spelled-out figures.

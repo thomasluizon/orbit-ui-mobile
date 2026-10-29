@@ -4,6 +4,17 @@ import { parse } from 'yaml'
 import { summarize } from '../report.mjs'
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
+const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
+it.each([...corpus, ...scenarios])('grades observable claims in $metadata.id', ({ vars }) => {
+  const clauses = vars.rubric.split(/[.;]/).filter((clause) => !/\bharness evidence\b/i.test(clause))
+  for (const clause of clauses) {
+    expect(clause).not.toMatch(/\b(?:habit_id|entityId|by identity|identity reference|create_habit|update_checklist)\b/i)
+    expect(clause).not.toMatch(/\bkeep the existing account habits unchanged\b/i)
+    if (!['suggestions', 'refine'].includes(vars.composition?.mode)) {
+      expect(clause).not.toMatch(/\bexistingHabitId\b/i)
+    }
+  }
+})
 it.each(corpus.filter((entry) => entry.metadata.family.startsWith('suggestions')))(
   'keeps checklists optional in $metadata.id', ({ vars }) => {
     const checklistClauses = vars.rubric.split(/[.;]/).filter((clause) => /checklist/i.test(clause))
