@@ -22,7 +22,7 @@ Finish the spec: every requested production fix, the owner's orders (`#1872`, `#
 
 ## In flight
 
-UI `main` is `f89caa2cc`, API `main` is `a1d45a0b`, landing `main` is `4cded614`. Staging web serves `acfd2d869` while run 40832142407 (staging web of `54aafbcdf`, carries `#1865` Quit installs natively and `#1876`) finishes; verify it with `tools/wait-release.mjs` (`--sha 54aafbcdfa870e3c1804d0e51ca6c70871dafa84`, same `--workflow-sha`, `--service-url https://app-staging.useorbit.org`). Production web `107bca4b3`; staging API `3277ebfe` (verified), production API `bde876fa`; landing `4cded614` both. Android Open 1.3.110 (169) is uploaded from `acfd2d869`. The staging Pro AI weekly ceilings are RAISED for the eval window (`staging-ai-limits.sh raise`); restore them when the gate ends. No eval run is in flight.
+UI `main` is `f89caa2cc`, API `main` is `a1d45a0b`, landing `main` is `4cded614`. Staging web serves `54aafbcdf` (run 40832142407, verified by `tools/wait-release.mjs`; carries `#1865` Quit installs natively and `#1876`). Production web `107bca4b3`; staging API `3277ebfe` (verified), production API `bde876fa`; landing `4cded614` both. Android Open 1.3.110 (169) is uploaded from `acfd2d869`. The staging Pro AI weekly ceilings are RAISED for the eval window (`staging-ai-limits.sh raise`); restore them when the gate ends. No eval run is in flight.
 
 | Item | Disposition |
 | --- | --- |
@@ -42,7 +42,7 @@ Inventory: open pull requests `ui#1989` (relay docs), `ui#2189`, `ui#2197`, `ui#
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
-2. Start CI waiters for `orbit-api#1000`, `#1002`, `#1003` and `ui#2201`; verify the staging web release run 40832142407.
+2. Start CI waiters for `orbit-api#1000`, `#1002`, `#1003` and `ui#2201`; staging web of `54aafbcdf` is verified.
 3. Merge each pull request at the merge bar in the order `#1000`, `#1003` (base merge), `#1002` (base merge or combined check), `ui#2201`.
 4. `#1872`: read the round 9 check result, fix any red, push once.
 5. Staging API of API `main` once the API rounds merge (never during an eval), then one filtered rerun: medical batch and correction cases, `composition-compound-missing-kind-pt-BR`, restart and brain dump cases, both streak cases, `composition-one-small-step-en`; `edge-free-limit-en` once the Free eval account's UTC daily window is fresh.
