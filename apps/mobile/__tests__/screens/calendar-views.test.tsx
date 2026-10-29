@@ -768,7 +768,7 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it('returns Semana to profile today across a device week boundary', () => {
-    const clock = vi.spyOn(timeFormatHook, 'useTimeFormat').mockReturnValue({ ...createTimeDisplay('en', false), displayTime: (time) => time ?? '' });
+    const clock = vi.spyOn(timeFormatHook, 'useTimeFormat').mockReturnValue({ ...createTimeDisplay('en', false), displayReminderClock: createTimeDisplay('en', false).displayClock, displayTime: (time) => time ?? '' });
     const previousZone = process.env.TZ;
     process.env.TZ = 'UTC';
     vi.useFakeTimers();
@@ -795,7 +795,7 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it.each([false, true])('uses profile today after loading while preserving explicit week navigation: %s', (navigated) => {
-    const clock = vi.spyOn(timeFormatHook, 'useTimeFormat').mockReturnValue({ ...createTimeDisplay('en', false), displayTime: (time) => time ?? '' });
+    const clock = vi.spyOn(timeFormatHook, 'useTimeFormat').mockReturnValue({ ...createTimeDisplay('en', false), displayReminderClock: createTimeDisplay('en', false).displayClock, displayTime: (time) => time ?? '' });
     const previousZone = process.env.TZ;
     process.env.TZ = 'UTC';
     vi.useFakeTimers();

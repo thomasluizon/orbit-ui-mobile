@@ -4,6 +4,17 @@ import { parse } from 'yaml'
 import { summarize } from '../report.mjs'
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
+const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
+it.each([...corpus, ...scenarios])('grades observable claims in $metadata.id', ({ vars }) => {
+  const clauses = vars.rubric.split(/[.;]/).filter((clause) => !/\bharness evidence\b/i.test(clause))
+  for (const clause of clauses) {
+    expect(clause).not.toMatch(/\b(?:habit_id|entityId|by identity|identity reference|create_habit|update_checklist)\b/i)
+    expect(clause).not.toMatch(/\bkeep the existing account habits unchanged\b/i)
+    if (!['suggestions', 'refine'].includes(vars.composition?.mode)) {
+      expect(clause).not.toMatch(/\bexistingHabitId\b/i)
+    }
+  }
+})
 it.each(corpus.filter((entry) => entry.metadata.family.startsWith('suggestions')))(
   'keeps checklists optional in $metadata.id', ({ vars }) => {
     const checklistClauses = vars.rubric.split(/[.;]/).filter((clause) => /checklist/i.test(clause))
@@ -45,8 +56,11 @@ it('binds the reported parent and medical cases to strict scope and genuine setu
     const commitments = medical.expectations.required[0].arguments.habits.slice(2, 4)
     for (const commitment of commitments) {
       expect(commitment.is_bad_habit).toBe(false)
-      expect(medical.rubric).toContain(commitment.title.textContains)
+      expect(commitment.frequency_unit).toBe('Day')
+      expect(commitment.end_date).toBe('{accountDate+7}')
     }
+    expect(medical.rubric).toContain("Preserve the person's own wording")
+    expect(medical.rubric).toContain('Reject a title that reverses or changes the medical instruction')
     expect(medical.rubric).toContain('is_bad_habit=false')
     expect(medical.expectations.required[0].arguments.habits.slice(0, 2).every((habit) => habit.frequency_unit === 'OneTime')).toBe(true)
     const correction = find('medical-correction')

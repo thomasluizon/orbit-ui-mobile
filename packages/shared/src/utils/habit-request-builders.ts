@@ -50,6 +50,12 @@ function applyReminderFields(
   if (data.dueTime) {
     req.dueTime = data.dueTime
     if (data.dueEndTime) req.dueEndTime = data.dueEndTime
+  }
+  if (data.repeatReminder && data.reminderEnabled) {
+    Object.assign(req, { repeatReminder: data.repeatReminder, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
+    return
+  }
+  if (data.dueTime) {
     req.reminderEnabled = data.reminderEnabled
     req.reminderTimes = []
     req.relativeReminders = data.reminderEnabled
@@ -87,6 +93,7 @@ export function buildSubHabitRequest(
     applyScheduleFields(req, data)
     applyReminderFields(req, data, reminderTimes)
   }
+  if (data.isGeneral && data.repeatReminder) applyReminderFields(req, data, reminderTimes)
   if (data.isBadHabit) {
     req.isBadHabit = true
     req.slipAlertEnabled = data.slipAlertEnabled
@@ -116,6 +123,7 @@ export function buildCreateHabitRequest(
     applyScheduleFields(req, data, true)
     applyReminderFields(req, data, reminderTimes)
   }
+  if (data.isGeneral && data.repeatReminder) applyReminderFields(req, data, reminderTimes)
   if (data.isBadHabit) req.slipAlertEnabled = data.slipAlertEnabled
   if (data.checklistItems.length) req.checklistItems = data.checklistItems
   if (tagIds.length) req.tagIds = tagIds
@@ -161,6 +169,13 @@ function applyUpdateReminderFields(
   if (data.dueTime) {
     request.dueTime = data.dueTime
     request.dueEndTime = data.dueEndTime || undefined
+  }
+  if (data.repeatReminder === null || (data.repeatReminder && !data.reminderEnabled)) request.clearRepeatReminder = true
+  if (data.repeatReminder && data.reminderEnabled) {
+    Object.assign(request, { repeatReminder: data.repeatReminder, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
+    return
+  }
+  if (data.dueTime) {
     request.reminderEnabled = data.reminderEnabled
     request.reminderTimes = []
     request.relativeReminders = data.reminderEnabled
@@ -235,6 +250,7 @@ export function buildUpdateHabitRequest(
     applyUpdateReminderFields(request, data, reminderTimes)
   }
 
+  if (data.isGeneral && data.repeatReminder !== undefined) applyUpdateReminderFields(request, data, reminderTimes)
   request.slipAlertEnabled = data.isBadHabit ? data.slipAlertEnabled : false
   request.checklistItems = data.checklistItems
   request.goalIds = selectedGoalIds

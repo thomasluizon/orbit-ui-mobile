@@ -446,15 +446,65 @@ it('marks the Free capacity case incomplete before chat when its daily window is
   expect(requests.some(({ path }) => path === 'chat')).toBe(false)
 })
 
-it.each(['en', 'pt-BR'])('keeps the stated medical date before account today in a later year in %s', async (locale) => {
-  vi.setSystemTime(new Date('2031-10-27T12:00:00Z'))
+it.each(['en', 'pt-BR'])('keeps every medical date after account today across year rollover in %s', async (locale) => {
+  vi.setSystemTime(new Date('2031-12-30T12:00:00Z'))
   const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-medical-batch-${locale}`))
   const { test } = await prepareAttempt({ test: source })
   expect(test.vars).not.toHaveProperty('preconditionFailure')
-  expect(test.vars.accountDate).toBe('2031-10-27')
-  expect(test.vars.expectations.required[0].arguments.habits[0].due_date).toBe('2031-10-26')
-  expect(test.vars.rubric).toContain('2031-10-26, even when it is before today')
-  expect(test.vars.rubric).toContain('The account date is 2031-10-27')
+  expect(test.vars.accountDate).toBe('2031-12-30')
+  const required = test.vars.expectations.required[0]
+  for (const arguments_ of [required.arguments, ...required.argumentsAnyOf]) {
+    const habits = arguments_.habits.flatMap((habit) => [habit, ...(habit.sub_habits ?? [])])
+    expect(habits.map((habit) => habit.due_date)).toEqual(['2032-01-02', '2032-01-06', '2032-01-03', '2032-01-05', '2032-01-06'])
+    expect(habits.slice(2, 4).map((habit) => habit.end_date)).toEqual(['2032-01-06', '2032-01-06'])
+    expect(habits[4].due_end_time).toBe('13:30')
+  }
+  expect(test.vars.input).toContain(locale === 'en' ? 'On 01/02' : 'dia 02/01')
+  expect(test.vars.input).toContain(locale === 'en' ? 'EXAM ON 01/06' : 'EXAME DO DIA 06/01')
+  expect(test.vars.rubric).toContain('The account date is 2031-12-30')
+  expect(test.vars.rubric).toContain('2032-01-02')
+  expect(test.vars.rubric).not.toContain('even when it is before today')
+})
+
+it.each([
+  ['2031-12-30', '+3', '2032-01-02', '01/02', '02/01'],
+  ['2032-03-01', '-1', '2032-02-29', '02/29', '29/02'],
+  ['2031-01-01', '-2', '2030-12-30', '12/30', '30/12'],
+  ['2031-04-30', '+7', '2031-05-07', '05/07', '07/05'],
+  ['2031-10-27', '+0', '2031-10-27', '10/27', '27/10'],
+])('substitutes %s offset %s in nested expectations and localized inputs', async (today, offset, iso, en, ptBR) => {
+  vi.setSystemTime(new Date(`${today}T12:00:00Z`))
+  const source = scenario('pro')
+  source.vars.input = `{accountDateEn${offset}} / {accountDatePtBR${offset}}`
+  source.vars.expectations = { required: [{ arguments: { due_date: `{accountDate${offset}}` } }] }
+  const { test } = await prepareAttempt({ test: source })
+  expect(test.vars).not.toHaveProperty('preconditionFailure')
+  expect(test.vars.input).toBe(`${en} / ${ptBR}`)
+  expect(test.vars.expectations.required[0].arguments.due_date).toBe(iso)
+})
+
+it.each(['accountDat+3', 'unknownPlaceholder', 'accountDateEn+three'])(
+  'makes an unknown substitution incomplete before chat: %s', async (placeholder) => {
+    const source = scenario('pro')
+    source.vars.input = `Show {${placeholder}}`
+    const { test } = await prepareAttempt({ test: source })
+    expect(test.vars.preconditionFailure).toBe(`Unknown fixture substitution: ${placeholder}`)
+    const response = await new AstraHttpProvider({ config: {} }).callApi(test.vars.input, { vars: test.vars })
+    expect(response.metadata.astraPreconditionFailure).toBe(true)
+    expect(requests.some(({ path }) => path === 'chat')).toBe(false)
+  },
+)
+
+it('preserves serialized JSON when resolving placeholders on repeat attempts', async () => {
+  const source = scenario('pro')
+  source.vars.history = [{ role: 'user', content: '{"title":"Water"}' }]
+  const { test } = await prepareAttempt({ test: source })
+  const firstRequest = test.vars.evalRequestId
+  const prepared = (await prepareAttempt({ test })).test
+  expect(prepared.vars).not.toHaveProperty('preconditionFailure')
+  expect(prepared.vars.history[0].content).toBe('{"title":"Water"}')
+  expect(JSON.parse(prepared.vars.clientContextJson)).toEqual(prepared.vars.clientContext)
+  expect(prepared.vars.evalRequestId).not.toBe(firstRequest)
 })
 
 it('preserves weekday positions when comparing the seeded cached metrics', async () => {
@@ -595,4 +645,19 @@ it('grounds the skipped identity independently of export order', async () => {
   await resetFixture(test)
   expect(test.vars.fixtureEvidence.loggedState.habits.filter((habit) => habit.skipped).map((habit) => habit.title))
     .toEqual(['Caminhada'])
+})
+
+it.each(['en', 'pt-BR'])('seeds the %s streak only on eligible days since each habit was created', async (locale) => {
+  const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-streaks-${locale}`))
+  await resetFixture(scenario('pro'))
+  habits[0].createdAtUtc = '2026-10-21T12:00:00Z'
+  habits[1].createdAtUtc = '2026-10-22T12:00:00Z'
+  await resetFixture(source)
+  expect(habits[0].logs.map((log) => log.date).sort()).toEqual(['2026-10-21', '2026-10-22', '2026-10-23'])
+  expect(habits[1].logs.map((log) => log.date).sort()).toEqual(['2026-10-22', '2026-10-23'])
+  expect(source.vars.rubric).toContain('creation date')
+  expect(source.vars.fixtureEvidence.habits.flatMap((habit) => habit.logs.map((log) => log.date)))
+    .not.toContain('2026-10-18')
+  await resetFixture(source)
+  expect(habits[0].logs.map((log) => log.date).sort()).toEqual(['2026-10-21', '2026-10-22', '2026-10-23'])
 })

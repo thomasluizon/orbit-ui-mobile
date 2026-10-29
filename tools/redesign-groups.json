@@ -159,18 +159,22 @@
       "route-habits-new"
     ],
     "Orbit Habit Detail": [
+      "m-overlay-habit-form-fields-repeat-reminder-section",
       "m-overlay-habits-checklist-templates",
       "m-overlay-habits-description-viewer",
       "m-overlay-habits-edit-habit-modal",
       "m-overlay-habits-goal-linking-field",
       "m-overlay-habits-habit-detail-screen",
+      "m-overlay-habits-repeat-reminder-detail",
       "m-overlay-habits-reschedule-sheet",
       "m-route-habits-id",
+      "overlay-habit-form-fields-repeat-reminder-section",
       "overlay-habits-checklist-templates",
       "overlay-habits-description-viewer",
       "overlay-habits-edit-habit-modal",
       "overlay-habits-goal-linking-field",
       "overlay-habits-habit-detail-screen",
+      "overlay-habits-repeat-reminder-detail",
       "overlay-habits-reschedule-sheet",
       "route-habits-id"
     ],

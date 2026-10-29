@@ -51,7 +51,8 @@ function loadServiceWorker(windows: FakeWindowClient[] | OpenWindows = []) {
       openWindow: vi.fn().mockResolvedValue(null),
     },
   }
-  compileFunction(source, ['self'])(scope)
+  const request = vi.fn().mockResolvedValue({ ok: true })
+  compileFunction(source, ['self', 'fetch'])(scope, request)
 
   function start(type: string, event: Record<string, unknown>): Promise<unknown> {
     const waitUntil = vi.fn()
@@ -60,13 +61,14 @@ function loadServiceWorker(windows: FakeWindowClient[] | OpenWindows = []) {
     return waitUntil.mock.calls[0]![0] as Promise<unknown>
   }
 
-  function startClick(notificationData: Record<string, unknown>) {
+  function startClick(notificationData: Record<string, unknown>, action = '') {
     const notification = { data: notificationData, close: vi.fn() }
-    return { notification, handled: start('notificationclick', { notification }) }
+    return { notification, handled: start('notificationclick', { notification, action }) }
   }
 
   return {
     scope,
+    request,
     activate: () => start('activate', {}),
     push: (text: string | null) =>
       start('push', {
@@ -217,5 +219,31 @@ describe('push service worker', () => {
     await worker.click({})
 
     expect(worker.scope.clients.openWindow).toHaveBeenCalledWith('/')
+  })
+})
+
+
+describe('repeat reminder action', () => {
+  const payload = { title: 'Water', body: 'Next at 04:00', habitId: 'habit-1', tag: 'orbit-repeat-habit-1', reminderAtUtc: '2026-10-28T03:30:00Z', doneExpiresAtUtc: '2026-10-28T04:00:00Z', doneToken: 'one-use-token', doneLabel: 'Concluir', url: '/habits/habit-1' }
+  it('presents the supplied Done label and replacement tag', async () => {
+    const worker = loadServiceWorker()
+    await worker.push(JSON.stringify(payload))
+    expect(worker.scope.registration.showNotification).toHaveBeenCalledWith('Water', expect.objectContaining({ tag: payload.tag, actions: [{ action: 'done', title: 'Concluir' }], data: expect.objectContaining({ doneToken: payload.doneToken, url: payload.url }) }))
+  })
+  it('posts Done once without opening a window and refreshes open windows', async () => {
+    const client = createWindowClient()
+    const worker = loadServiceWorker([client])
+    await worker.startClick(payload, 'done').handled
+    expect(worker.request).toHaveBeenCalledExactlyOnceWith('/api/reminders/done', expect.objectContaining({ method: 'POST', credentials: 'omit', body: JSON.stringify({ token: payload.doneToken }) }))
+    expect(client.focus).not.toHaveBeenCalled()
+    expect(client.postMessage).toHaveBeenCalledWith({ type: 'orbit:reminder-done' })
+  })
+  it.each(['refused', 'offline'])('opens detail after %s Done', async (failure) => {
+    const worker = loadServiceWorker()
+    if (failure === 'offline') worker.request.mockRejectedValue(new TypeError('Offline'))
+    else worker.request.mockResolvedValue({ ok: false })
+    await worker.startClick(payload, 'done').handled
+    expect(worker.request).toHaveBeenCalledTimes(1)
+    expect(worker.scope.clients.openWindow).toHaveBeenCalledWith('/?notificationUrl=%2Fhabits%2Fhabit-1')
   })
 })

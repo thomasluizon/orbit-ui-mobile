@@ -1,6 +1,6 @@
 ---
 name: progress
-description: Answer "what happened" in product terms from live state. Defaults to the open session chain when this session belongs to one, otherwise this session; --full adds the whole effort's spec below it. Use when he asks for a progress update, how something is going, or says /progress.
+description: Answer "what happened" in product terms from live state. Defaults to everything since the previous owner-typed /progress across sessions and repositories; --full adds the whole effort's spec below it. Use when he asks for a progress update, how something is going, or says /progress.
 argument-hint: "[--full] [optional area, for example \"calendar\" or \"perfil\"]"
 effort: medium
 ---
@@ -22,16 +22,18 @@ number, a pull request number or a commit SHA belongs in this answer only when h
 
 He is not asking which tickets closed. Numbers are how the work is tracked, not what it is.
 
-## Two scopes, and the default follows the open chain
+## Two scopes, and the default follows the previous report
 
 | invocation | what it answers |
 |---|---|
-| `/progress` | what this open chain changed, or this session when no chain is open |
+| `/progress` | what changed since the previous owner-typed `/progress` across every session and repository |
 | `/progress --full` | the default scope first, then the whole effort below it |
 | `/progress <area>` | the same, narrowed to one screen or surface |
 
-The default is deliberately narrow. Mid-run he is asking what just happened, and a whole-effort
-summary buries that under work he already knows about.
+The previous owner-typed `/progress` is the boundary, including work before the current chain
+started. With no earlier invocation, use the open chain start, then the current session start.
+State which baseline was used. Skip the current invocation and deduplicate rows of one owner
+prompt. Skill expansions, tool results and model-invoked `/progress` calls do not set the boundary.
 
 First get the exact current session id from `currentRunIdentifier()` in
 `tools/lib/identifier-ledger.mjs`, then run:
@@ -40,20 +42,28 @@ First get the exact current session id from `currentRunIdentifier()` in
 node tools/progress-window.mjs --session <current-session-id> --transcript <current-transcript-path>
 ```
 
-The transcript flag is optional when the run record names it or an open chain supplies the
-window. The helper resolves `openSessionChain` and reads live merges in every configured
-repository, release runs, Android uploads and closed tickets for the first entry's `startedAt`
-through now. Its `entries` carry the full decisions and owner questions for each relay, with
-the current session last. Work outside every shipped or readiness row still belongs in the
-report when its time falls in that window. This is evidence of work during the window, not
-proof that the orchestrator authored every change.
+The transcript flag is optional when the run record or the project transcript directory names
+it. The helper scans the project's top-level transcripts and reads live merges in every configured
+repository, web, API and landing release runs, Android uploads, and closed and newly created
+tickets from `window.startedAt` through now. `baselineSource` names `previous-progress`,
+`chain-start` or `session-start`. Its `entries` include every overlapping session, archived chains
+and the current session last. Work between sessions has a null session id and still belongs in
+the report. This is evidence of work during the window, not proof that the orchestrator authored
+every change.
 
-Read every predecessor entry's merges, releases, closed tickets and decisions with equal
-weight, then the current session. Do not compress earlier relays to a token line while giving
-the current session the whole report. Gather every entry before the ancestry checks below.
-Deduplicate repository and pull request pairs without dropping decisions or owner questions.
-Use the helper's merges alongside ledger identities for those checks. Three relays plus the
-current session are one report, expressed in the existing product answer shape below.
+Start the answer's first line with the window start in the owner's local time, using
+`window.localStartedAt` when the machine uses that timezone, otherwise converting `window.startedAt`
+to the owner's known timezone. Name the fallback when no previous report exists.
+
+Read every entry's merges, releases, closed and created tickets, decisions and owner questions
+with equal weight. For sessions without a decision log, derive decisions and owner questions from
+the fallback `conversation`. It carries only owner-typed prompts and assistant text replies within
+the window, each capped at 1,500 characters plus a visible truncation marker. Tool results, system
+notifications and skill bodies are excluded. Entries with non-empty `decisions` omit `conversation`.
+Do not compress earlier sessions to a token line while giving the current session the whole report.
+Gather every entry before the ancestry checks below. Deduplicate repository and pull request pairs
+without dropping decisions or owner questions. Use the helper's merges alongside ledger identities
+for those checks. All overlapping sessions form one report in the existing product answer shape.
 Do not close the chain here; the owner's handoff closes it after reporting.
 
 Release `time` is dispatch creation, so a run finishing after a relay stays with the entry that
@@ -133,7 +143,7 @@ repository whose work you report, using one base-chain rule:
    `origin/<integration-branch>` there. A failed fetch makes arrival unverifiable for that repository
    only; it does not affect the other repositories.
 
-For the default session or chain scope:
+For the default time window:
 
 1. Get the live session id from `currentRunIdentifier()` in
    `tools/lib/identifier-ledger.mjs`. Use `readRunState()` only when its `sessionId` exactly matches.
@@ -201,7 +211,7 @@ Three things, in this order:
 2. What is half built, and what is missing from it.
 3. What is waiting on the owner, phrased as the decision, not the ticket.
 
-With `--full`, answer those three for the default session or chain scope, then the same three for the whole effort
+With `--full`, answer those three for the default time window, then the same three for the whole effort
 underneath, clearly separated and clearly labelled. The default scope comes first and stays first,
 even when the effort part is larger.
 
@@ -223,5 +233,5 @@ merged nothing, however much it did.
 ## When he names an area
 
 `/progress calendar` answers for that screen only, in the same three parts, with room for one more
-sentence of detail. `--full` combines with an area: this session's changes to that screen, then that
+sentence of detail. `--full` combines with an area: changes to that screen since the previous report, then that
 screen's whole state.

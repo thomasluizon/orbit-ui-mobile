@@ -183,6 +183,8 @@ export function normalizeDrillDetailChild(
     parentId,
     scheduledDates: [],
     isOverdue: child.isOverdue ?? fallbackChildOverdue(child, today),
+    repeatReminder: child.repeatReminder,
+    nextReminderAtUtc: child.nextReminderAtUtc,
     reminderEnabled: child.reminderEnabled ?? false,
     reminderTimes: child.reminderTimes ?? [],
     scheduledReminders: child.scheduledReminders ?? [],

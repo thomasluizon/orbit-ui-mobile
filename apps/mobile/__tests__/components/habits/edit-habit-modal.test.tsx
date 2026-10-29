@@ -1,3 +1,5 @@
+import { buildUpdateHabitRequest as buildRealUpdateHabitRequest } from '@orbit/shared/utils'
+import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { habitSuggestionDraftFixture } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -17,7 +19,20 @@ function TestEditor(props: React.ComponentProps<typeof EditHabitModal>) {
   return <QueryClientProvider client={client}><EditHabitModal {...props} /></QueryClientProvider>
 }
 
-const useWatchMock = vi.fn()
+const mountedTrees: { unmount: () => void }[] = []
+
+function mountEditor(element: React.ReactElement) {
+  const tree = TestRenderer.create(element)
+  mountedTrees.push(tree)
+  return tree
+}
+
+afterEach(async () => {
+  await TestRenderer.act(() => { for (const tree of mountedTrees.splice(0)) tree.unmount() })
+})
+
+const watchFieldsMock = vi.fn()
+const realEditor = vi.hoisted(() => ({ enabled: false, helpers: null as HabitFormHelpers | null }))
 const mockFormReset = vi.fn()
 const mockFormResetField = vi.fn()
 const mockValidateAll = vi.fn()
@@ -47,9 +62,10 @@ vi.mock('@/components/ui/sheet', async () =>
   await import('@/__tests__/support/sheet-double'),
 )
 
-vi.mock('react-hook-form', () => ({
-  useWatch: (args: { name: string }) => useWatchMock(args),
-}))
+vi.mock('react-hook-form', async (importOriginal) => {
+  const original = await importOriginal<typeof import('react-hook-form')>()
+  return { ...original, useWatch: (args: { name: string }) => realEditor.enabled ? original.useWatch(args) : watchFieldsMock(args) }
+})
 
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: undefined, isSuccess: false, isFetching: false, isError: false }) }))
 vi.mock('@/hooks/use-config', async () => { const { DEFAULT_CONFIG } = await import('@orbit/shared/types/config'); return { useConfig: () => ({ config: DEFAULT_CONFIG }) } })
@@ -91,45 +107,52 @@ vi.mock('@/hooks/use-dismiss-guard', () => ({
   }),
 }))
 
-vi.mock('@/hooks/use-habit-form', () => ({
-  useHabitForm: () => ({
-    resetModeDrafts: vi.fn(),
-    chooseItemType: vi.fn(),
-    validationFocusRequest: 0,
-    registerDateValidation: () => () => {},
-    form: {
-      control: {},
-      reset: mockFormReset,
-      resetField: mockFormResetField,
-      getValues: (field?: string) => {
-        if (field === 'itemType') return 'habit'
-        const values = mockGetValues(field)
-        if (field && values && typeof values === 'object' && !Array.isArray(values)) return (values as Record<string, unknown>)[field]
-        return values
+vi.mock('@/hooks/use-habit-form', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/hooks/use-habit-form')>()
+  return { useHabitForm: () => {
+    if (realEditor.enabled) {
+      realEditor.helpers = original.useHabitForm()
+      return realEditor.helpers
+    }
+    return {
+      resetModeDrafts: vi.fn(),
+      chooseItemType: vi.fn(),
+      validationFocusRequest: 0,
+      registerDateValidation: () => () => {},
+      form: {
+        control: {},
+        reset: mockFormReset,
+        resetField: mockFormResetField,
+        getValues: (field?: string) => {
+          if (field === 'itemType') return 'habit'
+          const values = mockGetValues(field)
+          if (field && values && typeof values === 'object' && !Array.isArray(values)) return (values as Record<string, unknown>)[field]
+          return values
+        },
+        trigger: vi.fn().mockResolvedValue(true),
+        getFieldState: () => ({ invalid: false, isDirty: false, isTouched: false, isValidating: false, error: undefined }),
+        setValue: mockSetValue,
+        formState: { isDirty: false, dirtyFields: {} },
       },
-      trigger: vi.fn().mockResolvedValue(true),
-      getFieldState: () => ({ invalid: false, isDirty: false, isTouched: false, isValidating: false, error: undefined }),
-      setValue: mockSetValue,
-      formState: { isDirty: false, dirtyFields: {} },
-    },
-    isOneTime: false,
-    isGeneral: false,
-    isFlexible: false,
-    isRecurring: true,
-    showDayPicker: false,
-    showEndDate: false,
-    daysList: [],
-    frequencyUnits: [],
-    setOneTime: vi.fn(),
-    setRecurring: vi.fn(),
-    setFlexible: mockSetFlexible,
-    setGeneral: vi.fn(),
-    toggleDay: vi.fn(),
-    validateAll: mockValidateAll,
-    clearBackendErrors: vi.fn(),
-    reportBackendErrors: vi.fn().mockReturnValue(false),
-  }),
-}))
+      isOneTime: false,
+      isGeneral: false,
+      isFlexible: false,
+      isRecurring: true,
+      showDayPicker: false,
+      showEndDate: false,
+      daysList: [],
+      frequencyUnits: [],
+      setOneTime: vi.fn(),
+      setRecurring: vi.fn(),
+      setFlexible: mockSetFlexible,
+      setGeneral: vi.fn(),
+      toggleDay: vi.fn(),
+      validateAll: mockValidateAll,
+      clearBackendErrors: vi.fn(),
+      reportBackendErrors: vi.fn().mockReturnValue(false),
+    }
+  } }
+})
 
 vi.mock('@/hooks/use-tag-selection', () => ({
   useTagSelection: () => ({
@@ -176,7 +199,7 @@ async function renderModal(relationshipFieldsLoaded = true, onClose = vi.fn()) {
   const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
   let tree: any
   await TestRenderer.act(() => {
-    tree = TestRenderer.create(
+    tree = mountEditor(
       <TestEditor open onClose={onClose} habit={habit} relationshipFieldsLoaded={relationshipFieldsLoaded} />,
     )
   })
@@ -185,6 +208,9 @@ async function renderModal(relationshipFieldsLoaded = true, onClose = vi.fn()) {
 
 describe('EditHabitModal (mobile)', () => {
   beforeEach(() => {
+    mockBuildUpdateHabitRequest.mockImplementation((...args: unknown[]) => ({ goalIds: args[4] }))
+    realEditor.enabled = false
+    realEditor.helpers = null
     vi.clearAllMocks()
     mockHabitDetailResult = { data: null, isPending: false, error: null }
     mockValidateAll.mockReturnValue(null)
@@ -207,7 +233,7 @@ describe('EditHabitModal (mobile)', () => {
       checklistItems: [],
     }))
     mockUpdateMutateAsync.mockResolvedValue({})
-    useWatchMock.mockImplementation(({ name }: { name: string }) =>
+    watchFieldsMock.mockImplementation(({ name }: { name: string }) =>
       name === 'title' ? 'Exercise' : undefined,
     )
   })
@@ -223,7 +249,7 @@ describe('EditHabitModal (mobile)', () => {
   it('prefills an existing habit with the suggestion while retaining its identity', async () => {
     const habit = createMockHabit({ id: 'h-1', title: 'Exercise', intervalWeeks: 2 })
     let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(() => { tree = TestRenderer.create(<TestEditor open onClose={vi.fn()} habit={habit} initialSuggestion={{ ...habitSuggestionDraftFixture, days: ['Monday'], existingHabitId: habit.id }} />) })
+    await TestRenderer.act(() => { tree = mountEditor(<TestEditor open onClose={vi.fn()} habit={habit} initialSuggestion={{ ...habitSuggestionDraftFixture, days: ['Monday'], existingHabitId: habit.id }} />) })
     expect(mockFormReset).toHaveBeenCalledWith(expect.objectContaining({ intervalWeeks: 1, days: ['Monday'], title: 'Read', itemType: 'habit', dueTime: '22:00', dueEndTime: '22:15' }))
     await TestRenderer.act(() => tree.unmount())
   })
@@ -282,7 +308,7 @@ describe('EditHabitModal (mobile)', () => {
     const habit = createMockHabit({ startDate, createdAtUtc: '2026-08-29T00:30:00Z' })
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<TestEditor open onClose={vi.fn()} habit={habit} />)
+      tree = mountEditor(<TestEditor open onClose={vi.fn()} habit={habit} />)
     })
 
     expect(findFormFields(tree).props.startDate).toBe(expected)
@@ -332,7 +358,7 @@ describe('EditHabitModal (mobile)', () => {
     const initialHabit = createMockHabit({ id: 'h-1', title: 'Exercise', linkedGoals: [] })
     let tree: any
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = mountEditor(
         <TestEditor
           open
           onClose={vi.fn()}
@@ -657,7 +683,7 @@ it('ignores the result of a Save after its habit draft has been replaced', async
   const onClose = vi.fn()
   const first = createMockHabit({ id: 'first', frequencyUnit: 'Day' })
   let tree!: import('react-test-renderer').ReactTestRenderer
-  await TestRenderer.act(() => { tree = TestRenderer.create(<TestEditor open habit={first} onClose={onClose} onSaved={onSaved} />) })
+  await TestRenderer.act(() => { tree = mountEditor(<TestEditor open habit={first} onClose={onClose} onSaved={onSaved} />) })
   await TestRenderer.act(async () => { findSaveButton(tree)?.props.onClick(); await Promise.resolve() })
   expect(finish).toBeDefined()
   await TestRenderer.act(() => tree.update(<TestEditor open habit={{ ...first, id: 'second' }} onClose={onClose} onSaved={onSaved} />))
@@ -666,5 +692,31 @@ it('ignores the result of a Save after its habit draft has been replaced', async
   expect(onSaved).not.toHaveBeenCalled()
   await TestRenderer.act(() => tree.update(<></>))
 })
+
+  it.each([false, true])('saves the mounted General repeat editor with explicit removal=%s', async (removeReminder) => {
+    realEditor.enabled = true
+    mockBuildUpdateHabitRequest.mockImplementation((...args: unknown[]) => buildRealUpdateHabitRequest(...args as Parameters<typeof buildRealUpdateHabitRequest>))
+    const habit = createMockHabit({ isGeneral: true, frequencyUnit: null, frequencyQuantity: null, reminderEnabled: true, repeatReminder: { intervalMinutes: 30 } })
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = mountEditor(<TestEditor open habit={habit} onClose={vi.fn()} />) })
+    expect(realEditor.helpers!.form.getValues('reminderEnabled')).toBe(true)
+    TestRenderer.act(() => {
+      realEditor.helpers!.form.setValue('title', 'Water renamed')
+      if (removeReminder) realEditor.helpers!.form.setValue('reminderEnabled', false)
+    })
+    await TestRenderer.act(async () => { await findSaveButton(tree)?.props.onClick() })
+    expect(mockUpdateMutateAsync).toHaveBeenCalledOnce()
+    const request = mockUpdateMutateAsync.mock.calls[0]![0].data
+    expect(request.title).toBe('Water renamed')
+    if (removeReminder) {
+      expect(request.clearRepeatReminder).toBe(true)
+      expect(request.repeatReminder).toBeUndefined()
+    } else {
+      expect(request.repeatReminder).toEqual(habit.repeatReminder)
+      expect(request.reminderEnabled).toBe(true)
+      expect(request.clearRepeatReminder).toBeUndefined()
+    }
+    await TestRenderer.act(() => tree.update(<></>))
+  })
 
 })

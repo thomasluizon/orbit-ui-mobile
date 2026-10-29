@@ -16,6 +16,7 @@ extension. Sharing and notification deletion keep their drawn labelled consequen
 | API key revealed | `components/profile/profile-api-keys.tsx` | `components/profile/profile-api-keys.tsx` | Single acknowledgement |
 | Create habit | `components/habits/create-habit-modal.tsx` | `components/habits/create-habit-modal.tsx` | Habit, sub-habit, submitting |
 | Edit habit | `components/habits/edit-habit-modal.tsx` | `components/habits/edit-habit-modal.tsx` | Editing, submitting |
+| Repeat reminder log time | `components/habits/repeat-reminder-detail.tsx` | `components/habits/repeat-reminder-detail.tsx` | Editing, validation error, saving, refused correction |
 | Create goal from habit | `components/habits/create-goal-from-habit-sheet.tsx` | `components/habits/create-goal-from-habit-sheet.tsx` | Editing, submitting |
 | Create goal | `components/goals/create-goal-sheet.tsx` | `components/goals/create-goal-sheet.tsx` | Editing, submitting |
 | Edit goal | `components/goals/edit-goal-modal.tsx` | `components/goals/edit-goal-modal.tsx` | Editing, submitting |

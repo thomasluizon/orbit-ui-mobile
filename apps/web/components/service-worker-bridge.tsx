@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import * as Sentry from '@sentry/nextjs'
 import { getNotificationDestination, invalidateNotificationList } from '@orbit/shared/utils'
-import { proactiveKeys } from '@orbit/shared/query'
+import { habitKeys, proactiveKeys } from '@orbit/shared/query'
 import { NOTIFICATION_URL_PARAM, registerServiceWorker } from '@/lib/service-worker-registration'
 import { isDesktopPush } from '@/lib/desktop-runtime'
 import { useAccountId } from '@/lib/account-scope'
@@ -78,7 +78,8 @@ export function ServiceWorkerBridge(): null {
     function handleWorkerMessage(event: MessageEvent<unknown>) {
       const message = event.data
       if (typeof message !== 'object' || message === null || !('type' in message)) return
-      if (message.type === 'orbit:push-received') {
+      if (message.type === 'orbit:push-received' || message.type === 'orbit:reminder-done') {
+        if (message.type === 'orbit:reminder-done') void queryClient.invalidateQueries({ queryKey: habitKeys.all })
         void invalidateNotificationList(queryClient)
         void queryClient.invalidateQueries({ queryKey: proactiveKeys.current() })
       }

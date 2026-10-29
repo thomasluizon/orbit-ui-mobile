@@ -192,7 +192,7 @@
     category: composition
     family: streaks
     locale: en
-    fixture: composition
+    fixture: composition-streaks
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
     input: Show my current streak, no achievement catalogue.
@@ -210,7 +210,10 @@
       allowed:
         - query_habits
         - get_gamification_overview
-    rubric: Answer in English. Use only the requested scope and current fixture
+    rubric: Answer in English. Streak eligibility begins on each habit's creation date.
+      The fixture logs only eligible recent days. Timeline active days belong to the
+      current streak ending at lastActiveDate; earlier days are outside that streak.
+      Use the completion date, never the log creation timestamp. Use only the requested scope and current fixture
       facts. Preserve typed empty, partial, stale and failure states honestly.
       Canonical dates inside typed fields are transport values; visible prose
       must use locale dates. Rendered date formatting is checked separately.
@@ -220,7 +223,7 @@
     category: composition
     family: streaks
     locale: pt-BR
-    fixture: composition
+    fixture: composition-streaks
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
     input: Mostre minha sequência atual, sem catálogo de conquistas.
@@ -231,7 +234,10 @@
       allowed:
         - query_habits
         - get_gamification_overview
-    rubric: Answer in Brazilian Portuguese. Use only the requested scope and current
+    rubric: Answer in Brazilian Portuguese. Streak eligibility begins on each habit's creation date.
+      The fixture logs only eligible recent days. Timeline active days belong to the
+      current streak ending at lastActiveDate; earlier days are outside that streak.
+      Use the completion date, never the log creation timestamp. Use only the requested scope and current
       fixture facts. Preserve typed empty, partial, stale and failure states
       honestly. Canonical dates inside typed fields are transport values;
       visible prose must use locale dates. Rendered date formatting is checked
@@ -1500,10 +1506,18 @@
     clientContext: *a4
     composition: &a60
       mode: text
+      allowStartingStep: true
     expectations:
       required: &a61 []
+      permittedMutations:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: en
+          resultStatus: Succeeded
       allowed:
         - query_habits
+        - suggest_breakdown
     rubric: Answer in English. Use only the requested scope and current fixture
       facts. Preserve typed empty, partial, stale and failure states honestly.
       Canonical dates inside typed fields are transport values; visible prose
@@ -1522,8 +1536,15 @@
     composition: *a60
     expectations:
       required: *a61
+      permittedMutations:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: pt-BR
+          resultStatus: Succeeded
       allowed:
         - query_habits
+        - suggest_breakdown
     rubric: Answer in Brazilian Portuguese. Use only the requested scope and current
       fixture facts. Preserve typed empty, partial, stale and failure states
       honestly. Canonical dates inside typed fields are transport values;
@@ -1951,8 +1972,8 @@
     fixture: medical
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: "On 10/26, cholesterol exam at 15:50, at home. On 10/30, other blood
-      tests at 13:30, at home. FOR THE EXAM ON 10/30: 3 days before, stop
+    input: "On {accountDateEn+3}, cholesterol exam at 15:50, at home. On {accountDateEn+7}, other blood
+      tests at 13:30, at home. FOR THE EXAM ON {accountDateEn+7}: 3 days before, stop
       multivitamins; 24 hours before, don't go to Muay Thai; fast until the
       collection."
     clientContext: *a4
@@ -1967,87 +1988,91 @@
               - title:
                   textContains: cholesterol
                 frequency_unit: OneTime
-                due_date: '{accountYear}-10-26'
+                due_date: '{accountDate+3}'
                 due_time: 15:50
               - title:
                   textContains: blood
                 frequency_unit: OneTime
-                due_date: '{accountYear}-10-30'
+                due_date: '{accountDate+7}'
                 due_time: 13:30
               - title:
                   textContains: Don't take multivitamins
                 frequency_unit: Day
-                due_date: '{accountYear}-10-27'
-                end_date: '{accountYear}-10-30'
+                due_date: '{accountDate+4}'
+                end_date: '{accountDate+7}'
                 is_bad_habit: false
               - title:
                   textContains: Don't go to Muay Thai
                 frequency_unit: Day
-                due_date: '{accountYear}-10-29'
-                end_date: '{accountYear}-10-30'
+                due_date: '{accountDate+6}'
+                end_date: '{accountDate+7}'
                 is_bad_habit: false
               - title:
                   textContains: fast
                 frequency_unit: OneTime
-                due_date: '{accountYear}-10-30'
+                due_date: '{accountDate+7}'
                 due_end_time: 13:30
           argumentsAnyOf:
             - habits:
                 - title:
                     textContains: cholesterol
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-26"
+                  due_date: "{accountDate+3}"
                   due_time: 15:50
                 - title:
                     textContains: blood
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+7}"
                   due_time: 13:30
                 - title:
-                    textContains: Don't take multivitamins
+                    anyOf:
+                      - textContains: Don't take multivitamins
+                      - textContains: Stop multivitamins
                   frequency_unit: Day
-                  due_date: "{accountYear}-10-27"
-                  end_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+4}"
+                  end_date: "{accountDate+7}"
                   is_bad_habit: false
                 - title:
                     textContains: Don't go to Muay Thai
                   frequency_unit: Day
-                  due_date: "{accountYear}-10-29"
-                  end_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+6}"
+                  end_date: "{accountDate+7}"
                   is_bad_habit: false
                 - title:
                     textContains: fast
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+7}"
                   due_end_time: 13:30
             - habits:
                 - title:
                     textContains: cholesterol
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-26"
+                  due_date: "{accountDate+3}"
                   due_time: 15:50
                 - title:
                     textContains: blood
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+7}"
                   due_time: 13:30
                   sub_habits:
                     - title:
-                        textContains: Don't take multivitamins
+                        anyOf:
+                          - textContains: Don't take multivitamins
+                          - textContains: Stop multivitamins
                       frequency_unit: Day
-                      due_date: "{accountYear}-10-27"
-                      end_date: "{accountYear}-10-30"
+                      due_date: "{accountDate+4}"
+                      end_date: "{accountDate+7}"
                       is_bad_habit: false
                     - title:
                         textContains: Don't go to Muay Thai
                       frequency_unit: Day
-                      due_date: "{accountYear}-10-29"
-                      end_date: "{accountYear}-10-30"
+                      due_date: "{accountDate+6}"
+                      end_date: "{accountDate+7}"
                       is_bad_habit: false
                     - title:
                         textContains: fast
                       frequency_unit: OneTime
-                      due_date: "{accountYear}-10-30"
+                      due_date: "{accountDate+7}"
                       due_end_time: 13:30
       allowed:
         - query_habits
@@ -2057,11 +2082,12 @@
       forbidden:
         - create_habit
     rubric: The account date is {accountDate}. The requested cholesterol exam date is
-      {accountYear}-10-26, even when it is before today. Answer in English. One batch preview contains both one-time tasks at
+      {accountDate+3}. Answer in English. One batch preview contains both one-time tasks at
       15:50 and 13:30 and all preparation commitments bounded to their dates.
-      Temporary abstinence is a positive commitment with is_bad_habit=false, named
-      Don't take multivitamins and Don't go to Muay Thai. These negated titles name
-      the commitment, not an avoid habit. Never use is_bad_habit=true or
+      Temporary abstinence is a positive commitment with is_bad_habit=false.
+      Preserve the person's own wording, including Stop multivitamins, or an equivalent
+      title with the same meaning. Reject a title that reverses or changes the medical instruction.
+      These titles name the commitment, not an avoid habit. Never use is_bad_habit=true or
       open-ended daily habits. No question or prose may repeat the preview. Home
       visits stay attached to their exams. No saved change is claimed. Canonical
       dates inside typed fields are transport values; visible prose must use
@@ -2102,8 +2128,8 @@
       Rendered date formatting is checked separately.
     setup:
       caseId: composition-medical-batch-en
-      input: "On 10/26, cholesterol exam at 15:50, at home. On 10/30, other blood
-        tests at 13:30, at home. FOR THE EXAM ON 10/30: 3 days before, stop
+      input: "On {accountDateEn+3}, cholesterol exam at 15:50, at home. On {accountDateEn+7}, other blood
+        tests at 13:30, at home. FOR THE EXAM ON {accountDateEn+7}: 3 days before, stop
         multivitamins; 24 hours before, don't go to Muay Thai; fast until the
         collection."
       expectations: *a70
@@ -2123,15 +2149,22 @@
       mode: preview
     expectations:
       required:
-        - name: create_habit
-          arguments:
-            title: Smoking
-            is_bad_habit: true
+        - anyOf:
+            - name: create_habit
+              arguments: &avoidEnglish
+                title: Smoking
+                is_bad_habit: true
+                frequency_unit: Day
+                frequency_quantity: { optional: 1 }
+                is_general: { optional: false }
+            - name: bulk_create_habits
+              arguments:
+                habits:
+                  - *avoidEnglish
       allowed:
         - query_habits
         - create_habit
-      counts:
-        create_habit: 1
+        - bulk_create_habits
     rubric: "Answer in English. One avoid habit is named for the behavior itself:
       Fumar or Smoking. Never a negated title. Preview only, no saved claim or
       follow-up question. An ongoing avoid habit needs a recurring cadence, so
@@ -2188,7 +2221,11 @@
                     - title: Post Lunch
                       habit_id: "{habitId}"
                       sub_habits:
-                        - *a1
+                        - title:
+                            textContains: vitamin D
+                          parent_habit_id: { optional: "{habitId}" }
+                          frequency_unit: Week
+                          frequency_quantity: 1
                     - &unchangedParentEn
                       description: { optional: null }
                       emoji: { optional: null }
@@ -2219,7 +2256,32 @@
                     - title: Before Bed
                       habit_id: "{secondHabitId}"
                       sub_habits:
-                        - *a2
+                        - title:
+                            textContains: rosuvastatin
+                          parent_habit_id: { optional: "{secondHabitId}" }
+                          frequency_unit: Day
+                          frequency_quantity: 1
+                    - *unchangedParentEn
+            - habits:
+                - allOf:
+                    - title: Post Lunch
+                      habit_id: { optional: null }
+                      sub_habits:
+                        - title:
+                            textContains: vitamin D
+                          parent_habit_id: "{habitId}"
+                          frequency_unit: Week
+                          frequency_quantity: 1
+                    - *unchangedParentEn
+                - allOf:
+                    - title: Before Bed
+                      habit_id: { optional: null }
+                      sub_habits:
+                        - title:
+                            textContains: rosuvastatin
+                          parent_habit_id: "{secondHabitId}"
+                          frequency_unit: Day
+                          frequency_quantity: 1
                     - *unchangedParentEn
       allowed:
         - query_habits
@@ -2228,9 +2290,9 @@
         bulk_create_habits: 1
       forbidden:
         - create_habit
-    rubric: Answer in English. One preview with exactly two children under the
-      already existing Post Lunch and Before Bed parents. Vitamin D is weekly;
-      rosuvastatin is daily. No prose question, top-level duplicate parent or
+    rubric: Answer in English. One preview with exactly two children. Vitamin D is weekly;
+      rosuvastatin is daily. Assignment to the existing Post Lunch and Before Bed parents
+      is harness evidence, not part of the answer being graded. No prose question, top-level duplicate parent or
       saved claim. Canonical dates inside typed fields are transport values;
       visible prose must use locale dates. Rendered date formatting is checked
       separately.
@@ -2243,8 +2305,8 @@
     fixture: medical
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: "dia 26/10, exame de colesterol as 15h50, domiciliar dia 30/10, outros
-      exames de sangue as 13h30, domiciliar PRO EXAME DO DIA 30: 3 dias antes,
+    input: "dia {accountDatePtBR+3}, exame de colesterol as 15h50, domiciliar dia {accountDatePtBR+7}, outros
+      exames de sangue as 13h30, domiciliar PRO EXAME DO DIA {accountDatePtBR+7}: 3 dias antes,
       parar com multivitaminico 24 horas antes, nao ir pro muay thay ficar em
       jejum puro até a coleta"
     clientContext: *a5
@@ -2259,87 +2321,91 @@
               - title:
                   textContains: colesterol
                 frequency_unit: OneTime
-                due_date: '{accountYear}-10-26'
+                due_date: '{accountDate+3}'
                 due_time: 15:50
               - title:
                   textContains: sangue
                 frequency_unit: OneTime
-                due_date: '{accountYear}-10-30'
+                due_date: '{accountDate+7}'
                 due_time: 13:30
               - title:
                   textContains: Não tomar multivitamínico
                 frequency_unit: Day
-                due_date: '{accountYear}-10-27'
-                end_date: '{accountYear}-10-30'
+                due_date: '{accountDate+4}'
+                end_date: '{accountDate+7}'
                 is_bad_habit: false
               - title:
                   textContains: Não ir ao Muay Thai
                 frequency_unit: Day
-                due_date: '{accountYear}-10-29'
-                end_date: '{accountYear}-10-30'
+                due_date: '{accountDate+6}'
+                end_date: '{accountDate+7}'
                 is_bad_habit: false
               - title:
                   textContains: jejum
                 frequency_unit: OneTime
-                due_date: '{accountYear}-10-30'
+                due_date: '{accountDate+7}'
                 due_end_time: 13:30
           argumentsAnyOf:
             - habits:
                 - title:
                     textContains: colesterol
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-26"
+                  due_date: "{accountDate+3}"
                   due_time: 15:50
                 - title:
                     textContains: sangue
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+7}"
                   due_time: 13:30
                 - title:
-                    textContains: Não tomar multivitamínico
+                    anyOf:
+                      - textContains: Não tomar multivitamínico
+                      - textContains: Parar com multivitamínico
                   frequency_unit: Day
-                  due_date: "{accountYear}-10-27"
-                  end_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+4}"
+                  end_date: "{accountDate+7}"
                   is_bad_habit: false
                 - title:
                     textContains: Não ir ao Muay Thai
                   frequency_unit: Day
-                  due_date: "{accountYear}-10-29"
-                  end_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+6}"
+                  end_date: "{accountDate+7}"
                   is_bad_habit: false
                 - title:
                     textContains: jejum
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+7}"
                   due_end_time: 13:30
             - habits:
                 - title:
                     textContains: colesterol
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-26"
+                  due_date: "{accountDate+3}"
                   due_time: 15:50
                 - title:
                     textContains: sangue
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+7}"
                   due_time: 13:30
                   sub_habits:
                     - title:
-                        textContains: Não tomar multivitamínico
+                        anyOf:
+                          - textContains: Não tomar multivitamínico
+                          - textContains: Parar com multivitamínico
                       frequency_unit: Day
-                      due_date: "{accountYear}-10-27"
-                      end_date: "{accountYear}-10-30"
+                      due_date: "{accountDate+4}"
+                      end_date: "{accountDate+7}"
                       is_bad_habit: false
                     - title:
                         textContains: Não ir ao Muay Thai
                       frequency_unit: Day
-                      due_date: "{accountYear}-10-29"
-                      end_date: "{accountYear}-10-30"
+                      due_date: "{accountDate+6}"
+                      end_date: "{accountDate+7}"
                       is_bad_habit: false
                     - title:
                         textContains: jejum
                       frequency_unit: OneTime
-                      due_date: "{accountYear}-10-30"
+                      due_date: "{accountDate+7}"
                       due_end_time: 13:30
       allowed:
         - query_habits
@@ -2349,11 +2415,12 @@
       forbidden:
         - create_habit
     rubric: The account date is {accountDate}. The requested cholesterol exam date is
-      {accountYear}-10-26, even when it is before today. Answer in Brazilian Portuguese. One batch preview contains both one-time
+      {accountDate+3}. Answer in Brazilian Portuguese. One batch preview contains both one-time
       tasks at 15:50 and 13:30 and all preparation commitments bounded to their
-      dates. Temporary abstinence is a positive commitment with is_bad_habit=false, named
-      Não tomar multivitamínico and Não ir ao Muay Thai. These negated titles name
-      the commitment, not an avoid habit. Never use is_bad_habit=true or
+      dates. Temporary abstinence is a positive commitment with is_bad_habit=false.
+      Preserve the person's own wording, including Parar com multivitamínico, or an equivalent
+      title with the same meaning. Reject a title that reverses or changes the medical instruction.
+      These titles name the commitment, not an avoid habit. Never use is_bad_habit=true or
       open-ended daily habits. No question or prose may repeat the
       preview. Home visits stay attached to their exams. No saved change is
       claimed. Canonical dates inside typed fields are transport values; visible
@@ -2395,8 +2462,8 @@
       locale dates. Rendered date formatting is checked separately.
     setup:
       caseId: composition-medical-batch-pt-BR
-      input: "dia 26/10, exame de colesterol as 15h50, domiciliar dia 30/10, outros
-        exames de sangue as 13h30, domiciliar PRO EXAME DO DIA 30: 3 dias antes,
+      input: "dia {accountDatePtBR+3}, exame de colesterol as 15h50, domiciliar dia {accountDatePtBR+7}, outros
+        exames de sangue as 13h30, domiciliar PRO EXAME DO DIA {accountDatePtBR+7}: 3 dias antes,
         parar com multivitaminico 24 horas antes, nao ir pro muay thay ficar em
         jejum puro até a coleta"
       expectations: *a72
@@ -2416,15 +2483,22 @@
       mode: preview
     expectations:
       required:
-        - name: create_habit
-          arguments:
-            title: Fumar
-            is_bad_habit: true
+        - anyOf:
+            - name: create_habit
+              arguments: &avoidPortuguese
+                title: Fumar
+                is_bad_habit: true
+                frequency_unit: Day
+                frequency_quantity: { optional: 1 }
+                is_general: { optional: false }
+            - name: bulk_create_habits
+              arguments:
+                habits:
+                  - *avoidPortuguese
       allowed:
         - query_habits
         - create_habit
-      counts:
-        create_habit: 1
+        - bulk_create_habits
     rubric: "Answer in Brazilian Portuguese. One avoid habit is named for the
       behavior itself: Fumar or Smoking. Never a negated title. Preview only, no
       saved claim or follow-up question. An ongoing avoid habit needs a
@@ -2481,7 +2555,11 @@
                     - title: Depois do almoço
                       habit_id: "{habitId}"
                       sub_habits:
-                        - *a1
+                        - title:
+                            textContains: vitamina D
+                          parent_habit_id: { optional: "{habitId}" }
+                          frequency_unit: Week
+                          frequency_quantity: 1
                     - &unchangedParentPt
                       description: { optional: null }
                       emoji: { optional: null }
@@ -2512,7 +2590,32 @@
                     - title: Antes de dormir
                       habit_id: "{secondHabitId}"
                       sub_habits:
-                        - *a2
+                        - title:
+                            textContains: rosuvastatina
+                          parent_habit_id: { optional: "{secondHabitId}" }
+                          frequency_unit: Day
+                          frequency_quantity: 1
+                    - *unchangedParentPt
+            - habits:
+                - allOf:
+                    - title: Depois do almoço
+                      habit_id: { optional: null }
+                      sub_habits:
+                        - title:
+                            textContains: vitamina D
+                          parent_habit_id: "{habitId}"
+                          frequency_unit: Week
+                          frequency_quantity: 1
+                    - *unchangedParentPt
+                - allOf:
+                    - title: Antes de dormir
+                      habit_id: { optional: null }
+                      sub_habits:
+                        - title:
+                            textContains: rosuvastatina
+                          parent_habit_id: "{secondHabitId}"
+                          frequency_unit: Day
+                          frequency_quantity: 1
                     - *unchangedParentPt
       allowed:
         - query_habits
@@ -2521,9 +2624,9 @@
         bulk_create_habits: 1
       forbidden:
         - create_habit
-    rubric: Answer in Brazilian Portuguese. One preview with exactly two children
-      under the already existing Depois do almoço and Antes de dormir parents. Vitamin D is
-      weekly; rosuvastatin is daily. No prose question, top-level duplicate
+    rubric: Answer in Brazilian Portuguese. One preview with exactly two children. Vitamin D is
+      weekly; rosuvastatin is daily. Assignment to the existing Depois do almoço and Antes de dormir
+      parents is harness evidence, not part of the answer being graded. No prose question, top-level duplicate
       parent or saved claim. Canonical dates inside typed fields are transport
       values; visible prose must use locale dates. Rendered date formatting is
       checked separately.
@@ -2904,8 +3007,9 @@
       counts:
         create_habit: 1
     rubric: Answer in English. The held approval preview is the entire answer. Do not claim a saved
-      change before approval. Exactly one create_habit preview proposes the previous starting step
+      change before approval. Exactly one preview proposes the previous starting step
       verbatim as the title of a one-time task, without recurrence or additional creations.
+      The create_habit tool selection is harness evidence, not part of the answer being graded.
     startingStepAction: saveTask
     setup:
       input: I can't get myself to start studying.
@@ -2951,9 +3055,10 @@
       counts:
         update_checklist: 1
     rubric: Answer in English. The held approval preview is the entire answer. Do not claim a saved
-      change before approval. Exactly one update_checklist preview targets the named existing habit
+      change before approval. Exactly one preview targets the named existing habit
       and preserves every existing checklist item and checked state in order, appending the previous
       starting step once as an unchecked item.
+      The update_checklist tool selection is harness evidence, not part of the answer being graded.
     startingStepAction: saveChecklistItem
     setup:
       input: I can't get myself to drink water.
@@ -3117,9 +3222,10 @@
       counts:
         create_habit: 1
     rubric: Answer in Brazilian Portuguese. The held approval preview is the entire answer. Do not claim
-      a saved change before approval. Exactly one create_habit preview proposes the previous
+      a saved change before approval. Exactly one preview proposes the previous
       starting step verbatim as the title of a one-time task, without recurrence or additional
       creations.
+      The create_habit tool selection is harness evidence, not part of the answer being graded.
     startingStepAction: saveTask
     setup:
       input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
@@ -3165,9 +3271,10 @@
       counts:
         update_checklist: 1
     rubric: Answer in Brazilian Portuguese. The held approval preview is the entire answer. Do not claim
-      a saved change before approval. Exactly one update_checklist preview targets the named
+      a saved change before approval. Exactly one preview targets the named
       existing habit and preserves every existing checklist item and checked state in order,
       appending the previous starting step once as an unchecked item.
+      The update_checklist tool selection is harness evidence, not part of the answer being graded.
     startingStepAction: saveChecklistItem
     setup:
       input: Tô travado até pra beber água. Me ajuda a começar?
@@ -3239,7 +3346,7 @@
     rubric: >-
       Respond in English. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Keep the existing account habits unchanged.
+      Preservation of existing account habits is harness evidence, not part of the answer being graded.
       Do not add unrequested activities or grouping habits.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
       schedules, dates, times or other facts from the preview, including spelled-out figures.
@@ -3265,7 +3372,7 @@
     rubric: >-
       Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Keep the existing account habits unchanged.
+      Preservation of existing account habits is harness evidence, not part of the answer being graded.
       Do not add unrequested activities or grouping habits.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
       schedules, dates, times or other facts from the preview, including spelled-out figures.
@@ -3292,7 +3399,8 @@
     rubric: >-
       Respond in English. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Reuse the stored Water habit by identity without creating a duplicate.
+      The stored title Water appears verbatim exactly once in the preview, with no second item with that title.
+      Identity reuse and the absence of persisted duplicates are harness evidence, not part of the answer being graded.
       Do not add unrequested activities or grouping habits.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
       schedules, dates, times or other facts from the preview, including spelled-out figures.
@@ -3319,7 +3427,8 @@
     rubric: >-
       Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Reuse the stored Beber água habit by identity without creating a duplicate.
+      The stored title Beber água appears verbatim exactly once in the preview, with no second item with that title.
+      Identity reuse and the absence of persisted duplicates are harness evidence, not part of the answer being graded.
       Do not add unrequested activities or grouping habits.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
       schedules, dates, times or other facts from the preview, including spelled-out figures.
@@ -3347,7 +3456,7 @@
     rubric: >-
       Respond in English. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Keep the existing account habits unchanged.
+      Preservation of existing account habits is harness evidence, not part of the answer being graded.
       Include one additional simple daily habit idea in that same preview, without a separate suggestion card.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
       schedules, dates, times or other facts from the preview, including spelled-out figures.
@@ -3375,7 +3484,7 @@
     rubric: >-
       Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      Keep the existing account habits unchanged.
+      Preservation of existing account habits is harness evidence, not part of the answer being graded.
       Include one additional simple daily habit idea in that same preview, without a separate suggestion card.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
       schedules, dates, times or other facts from the preview, including spelled-out figures.

@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import { outcomeCalls } from './operation-matcher.mjs'
 import { validDraft } from './suggestions.mjs'
 
 const result = (pass, reason) => ({ pass, score: pass ? 1 : 0, reason })
@@ -42,7 +43,8 @@ function chosenIdea(output, habits, vars) {
 export function brainDumpPreview(output, vars) {
   const response = output.composition
   const pending = response?.pendingOperations
-  const calls = output.trace?.calls?.filter((call) => call.name === 'bulk_create_habits') ?? []
+  const calls = outcomeCalls(output.trace?.calls ?? [], vars.expectations)
+    .filter((call) => call.name === 'bulk_create_habits')
   const habits = calls[0]?.arguments?.habits
   const expected = vars.brainDump
   if (!expected || output.httpStatus !== 200 || pending?.length !== 1 || calls.length !== 1

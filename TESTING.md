@@ -256,7 +256,9 @@ Follow-ups send the returned action's complete `message` with verified setup his
 rubric receives the original activity and step to compare effort semantically, allowing equivalent
 activity wording. Save cases derive their required tool arguments from that same returned step.
 
-The `savedStep` assertion checks tool structure, behavior and composition before approving anything.
+The HTTP provider checks tool structure, behavior and composition before approving saved steps,
+then completes approval and independent readback before returning to the next fixture reset.
+The `savedStep` assertion grades only the stored verdict and fails if it is missing.
 An independent export must still match the baseline before confirmation and execution. Task readback
 requires exactly one new one-time task with the step as title and no changes to existing habits.
 Checklist readback requires every existing item and checked state in order, with the new step appended
@@ -333,8 +335,9 @@ from failed or interrupted refresh submissions. Credential validation, lock acqu
 failures before submission affect only that attempt; they allow later healthy accounts to refresh and
 earlier rotations to persist. A failed or uncertain submitted refresh blocks further refreshes from
 that file and prevents Action persistence, even if an earlier attempt rotated successfully. Recover a fresh session,
-replace the private file, and remove its markers before retrying. No token or server error body is logged. A private lock rejects concurrent token
-rotation; run one serial job per file and account. A crash leaving a `.lock` file requires checking
+replace the private file, and remove its markers before retrying. No token or server error body is logged. Concurrent callers in one process share the same in-flight account refresh; different accounts
+queue their rotations against the shared file. A private lock rejects rotation by another process;
+run one serial job per file and account. A crash leaving a `.lock` file requires checking
 that the other process has stopped before removing that lock. If rotation succeeded remotely but
 local persistence failed, obtain a fresh session through the existing authentication flow.
 
@@ -689,7 +692,11 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    Composition cases also declare `metadata.family`, `metadata.locale`, `vars.clientContext` and
    `vars.composition`. Add every family in both `en` and `pt-BR`.
    `{habitId}`, `{secondHabitId}`, `{overdueDate}`, rolling analytics date tokens and their localized variants are substituted in inputs and expected
-   arguments after the fixture reset. Never commit credentials or real account values.
+   arguments after the fixture reset. Date offsets use the same account-local `accountDate`:
+   `{accountDate+3}` is an ISO date, `{accountDateEn+3}` is `MM/DD`, and
+   `{accountDatePtBR+3}` is `DD/MM`. Signed offsets support zero, negative values and year rollover.
+   Use these placeholders in every case `input` and `setup.input` instead of fixed calendar dates.
+   Unknown placeholders fail the precondition before chat. Never commit credentials or real account values.
 2. Extend the reset executable if the case needs new state. Describe that state in this catalog.
    Compound cases require every tool and its key arguments. Bulk cases require exactly one bulk
    call and forbid its single-item counterpart. Ambiguity cases allow only appropriate reads

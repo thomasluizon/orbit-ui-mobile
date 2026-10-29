@@ -1625,3 +1625,15 @@ describe('restart plan preview', () => {
     expect(handlers.onConfirmExecute).toHaveBeenCalledExactlyOnceWith(operation.id)
   })
 })
+
+
+it.each(['en', 'pt-BR'])('shows the producer repeat reminder text in the preview in %s', (locale) => {
+  visibleLocale.actual = true
+  visibleLocale.language = locale
+  const operation = makeReminderHabitPreview('enabled')
+  const text = locale === 'en' ? 'Every 30 minutes; active 8:00 AM to 8:00 PM' : 'A cada 30 minutos; das 08:00 às 20:00'
+  operation.items![0]!.fields.push({ entityId: 'habit', entityName: 'Water', field: 'repeat_reminder', oldValue: null, newValue: text, valueType: 'string', isEditable: false })
+  const { tree } = renderCard(operation)
+  expect((tree.root.findByProps({ testID: 'preview-item-meta' }).props.children as string).replace(/\u00a0/g, ' ')).toContain(text)
+  TestRenderer.act(() => tree.unmount())
+})

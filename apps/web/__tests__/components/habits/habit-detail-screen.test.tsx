@@ -39,6 +39,8 @@ import { readFieldIndicators, readOutlineVisibility } from '@/e2e/layout/focus-i
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 
+vi.mock('@/hooks/use-correct-habit-dose', () => ({ useCorrectHabitDose: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+
 const mocks = vi.hoisted(() => ({
   pathname: '/habits/habit-1',
   realTimeField: false,
@@ -390,6 +392,14 @@ describe('HabitDetailScreen', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
+  })
+
+  it('renders repeat next time and Taken at in the owning detail screen', () => {
+    mocks.detail = { ...makeDetail(), repeatReminder: { intervalMinutes: 30 }, nextReminderAtUtc: '2026-10-29T04:00:00Z' }
+    mocks.logs = [{ id: 'dose-1', date: '2026-08-28', value: 1, createdAtUtc: '2026-08-28T02:00:00Z', takenAtUtc: '2026-08-28T02:00:00Z' }]
+    render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByText('habits.nextReminder')).toBeInTheDocument()
+    expect(screen.getByText('habits.takenAt')).toBeInTheDocument()
   })
 
   it('keeps child progress in an unlogged bad habit parent header', () => {

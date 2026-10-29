@@ -18,11 +18,10 @@ const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', impo
 const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
 const compositionCases = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
 
-async function gradingPrompt(test, response) {
+async function gradingPrompt(test, response, client = buildChatClientContext({ platform: 'mobile', locale: test.metadata.locale })) {
   const grader = { id: () => 'offline-policy-grader', callApi: vi.fn(async () => ({
     output: JSON.stringify({ pass: true, score: 1, reason: 'Captured grading input.' }),
   })) }
-  const client = buildChatClientContext({ platform: 'mobile', locale: test.metadata.locale })
   const answer = typeof response === 'string' ? response : visibleAnswer(response, client)
   await assertions.runAssertion({ prompt: test.vars.input,
     assertion: configuration.defaultTest.assert.find((assertion) => assertion.type === 'llm-rubric'),
@@ -31,6 +30,49 @@ async function gradingPrompt(test, response) {
   })
   return JSON.parse(grader.callApi.mock.calls[0][0]).map((message) => message.content).join('\n')
 }
+
+async function prepareGradingCase(test) {
+  offlineCredentials()
+  vi.stubGlobal('fetch', async (url) => new URL(url).pathname === '/health'
+    ? Response.json({ status: 'Healthy', commit: null, checks: [] }) : refreshResponse())
+  const prepared = await prepareAttempt({ test: structuredClone(test) })
+  expect(prepared.test.vars.preconditionFailure).toBeUndefined()
+  return prepared.test
+}
+
+const fallbackAnswers = JSON.parse(readFileSync(new URL('./fixtures/fallback-grading.json', import.meta.url), 'utf8'))
+it.each(fallbackAnswers)('uses the fallback rubric for recorded $caseId r$repeat', async ({ caseId, answer }) => {
+  const test = await prepareGradingCase(compositionCases.find((entry) => entry.metadata.id === caseId))
+  expect(test.vars.clientContext.supportsParts).toBe(true)
+  expect(test.vars.clientContext.partKinds).toEqual([])
+  const prompt = await gradingPrompt(test, answer, test.vars.clientContext)
+  expect(prompt).toContain('Grade only aiMessage, the readable fallback a client without parts shows')
+  expect(prompt).not.toContain('Include visible typed blocks and preview fields')
+  expect(prompt).not.toContain('A prose heading, unrequested list or extra caveat paragraph still fails')
+  for (const line of answer.split('\n').filter(Boolean)) expect(prompt).toContain(line)
+  expect(prompt).toContain('Unsupported figures still fail')
+  expect(prompt).toContain('Distinguish a proposal from a saved change')
+})
+
+it.each([
+  { name: 'shared client kinds', overrides: {}, parts: true },
+  { name: 'explicit fallback policy with shared client kinds', overrides: { composition: { mode: 'fallback' } }, parts: false },
+  { name: 'empty negotiated kinds with a data policy', overrides: { clientContext: { supportsParts: true, partKinds: [] } }, parts: false },
+  { name: 'legacy client with declared kinds', overrides: { clientContext: { ...buildChatClientContext({ platform: 'web', locale: 'en' }), supportsParts: false } }, parts: false },
+])('selects the rubric using $name', async ({ overrides, parts }) => {
+  const source = compositionCases.find((entry) => entry.metadata.id === 'composition-compound-en')
+  const test = await prepareGradingCase({ ...source, vars: { ...source.vars, ...overrides } })
+  const prompt = await gradingPrompt(test, 'An answer to grade.', test.vars.clientContext)
+  const partsRule = 'Include visible typed blocks and preview fields'
+  const fallbackRule = 'Grade only aiMessage, the readable fallback a client without parts shows'
+  expect(prompt).toContain(parts ? partsRule : fallbackRule)
+  expect(prompt).not.toContain(parts ? fallbackRule : partsRule)
+  if (parts) {
+    expect(test.vars.clientContext.partKinds).toEqual(buildChatClientContext({ platform: 'web', locale: 'en' }).partKinds)
+    expect(prompt).toContain('A prose heading, unrequested list or extra caveat paragraph still fails')
+    expect(prompt).toContain('Fail any external text that repeats a figure or fact')
+  }
+})
 
 it('grades generated Portuguese while preserving the stored English injection title verbatim', async () => {
   const test = scenarios.find((entry) => entry.metadata.id === 'injection-record-pt')
@@ -112,4 +154,12 @@ it('allows only the essential searched-text line beside the generic empty piano 
   expect(prompt).toContain('One short search-miss line naming')
   expect(prompt).toContain('piano')
   expect(prompt).toContain('Any other repeated fact still fails')
+})
+
+it.each(['en', 'pt-BR'])('grades preserved medical wording without prescribing a replacement title in %s', async (locale) => {
+  const test = compositionCases.find((entry) => entry.metadata.id === `composition-medical-batch-${locale}`)
+  const prompt = await gradingPrompt(test, locale === 'en' ? 'Stop multivitamins' : 'Parar com multivitamínico')
+  expect(prompt).toContain("Preserve the person's own wording")
+  expect(prompt).toContain('Reject a title that reverses or changes the medical instruction')
+  expect(prompt).toContain('is_bad_habit=false')
 })

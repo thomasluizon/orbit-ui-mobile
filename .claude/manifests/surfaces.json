@@ -7635,6 +7635,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-habit-form-fields-scheduled-reminder-section",
       "platform": "web",
       "kind": "overlay",
@@ -7889,6 +7941,58 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/habits/habit-row-trailing.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-repeat-reminder-detail",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-repeat-reminder-detail",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-repeat-reminder-detail",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-repeat-reminder-detail",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/repeat-reminder-detail.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -16403,6 +16507,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-habit-form-fields-scheduled-reminder-section",
       "platform": "mobile",
       "kind": "overlay",
@@ -16605,6 +16761,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/habits/habit-row.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-repeat-reminder-detail",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-repeat-reminder-detail",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-repeat-reminder-detail",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-repeat-reminder-detail",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/repeat-reminder-detail.tsx"
       ],
       "state": "default",
       "theme": "dark",

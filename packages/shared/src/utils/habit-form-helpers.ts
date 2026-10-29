@@ -75,6 +75,7 @@ export function normalizeHabitFormData(values: Partial<HabitFormData>): HabitFor
     dueTime: values.dueTime ?? '',
     dueEndTime: values.dueEndTime ?? '',
     endDate: values.endDate ?? '',
+    repeatReminder: values.repeatReminder,
     reminderEnabled: values.reminderEnabled ?? false,
     scheduledReminders: values.scheduledReminders ?? [],
     slipAlertEnabled: values.slipAlertEnabled ?? false,
@@ -872,7 +873,7 @@ export function validateHabitFormInput(
   const habitError = validateHabitForm(normalizedValues)
   if (habitError) return habitError
 
-  const reminderError = validateReminderSelection(
+  const reminderError = normalizedValues.repeatReminder ? null : validateReminderSelection(
     normalizedValues.reminderEnabled,
     normalizedValues.dueTime,
     context.reminderTimes ?? [],

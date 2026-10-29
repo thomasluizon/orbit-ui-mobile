@@ -189,6 +189,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/expo-blur.ts'),
       },
       {
+        find: 'expo-task-manager',
+        replacement: path.resolve(__dirname, './test-mocks/expo-task-manager.ts'),
+      },
+      {
         find: 'expo-notifications',
         replacement: path.resolve(__dirname, './test-mocks/expo-notifications.ts'),
       },

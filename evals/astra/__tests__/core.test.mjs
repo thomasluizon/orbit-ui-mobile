@@ -31,6 +31,7 @@ const attempt = (id, success = true, skipped = false) => ({
 function exampleArguments(expected) {
   if (Array.isArray(expected)) return expected.map(exampleArguments)
   if (expected && typeof expected === 'object') {
+    if ('anyOf' in expected) return exampleArguments(expected.anyOf[0])
     if ('textContains' in expected) return expected.textContains
     if ('optional' in expected) return expected.optional
     return Object.fromEntries(Object.entries(expected).map(([key, value]) => [key, exampleArguments(value)]))

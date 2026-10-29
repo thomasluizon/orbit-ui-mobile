@@ -8,4 +8,5 @@ import "@formatjs/intl-listformat/locale-data/en.js";
 import "@formatjs/intl-listformat/locale-data/en-GB.js";
 import "@formatjs/intl-listformat/locale-data/pt.js";
 import "./lib/sentry-init";
+import "./lib/repeat-reminder-task";
 import "expo-router/entry";

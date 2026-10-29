@@ -5,6 +5,7 @@ import { SPACING } from '@orbit/shared/theme'
 import { useId, type CSSProperties, type KeyboardEvent, type ReactNode, type RefCallback } from 'react'
 import { getHabitRowTypeLabelKey, isHabitDoneForRange, stripInlineMarkdown } from '@orbit/shared/utils'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
+import { useTimeFormat } from '@/hooks/use-time-format'
 import { useTranslations } from 'next-intl'
 import type { HabitRowBase, HabitStatus } from '@orbit/shared/contracts/lists'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -138,7 +139,18 @@ function HabitRowStructuralColumn({
   )
 }
 
-export function HabitRow({
+export function HabitRow(props: Readonly<HabitRowProps>) {
+  return props.habit.nextReminderAtUtc ? <RepeatHabitRow {...props} /> : <HabitRowView {...props} />
+}
+
+function RepeatHabitRow(props: Readonly<HabitRowProps>) {
+  const t = useTranslations()
+  const { displayReminderClock: displayClock } = useTimeFormat()
+  const next = props.habit.nextReminderAtUtc
+  return <HabitRowView {...props} meta={[...(props.meta ?? EMPTY_META), ...(next ? [t('habits.nextReminder', { time: displayClock(next) })] : [])]} />
+}
+
+function HabitRowView({
   habit,
   state = 'empty',
   meta: supplementalMeta = EMPTY_META,

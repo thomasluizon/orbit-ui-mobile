@@ -93,7 +93,16 @@ async function prepareAttempt(test) {
     substitutions[`${key}Localized`] = new Intl.DateTimeFormat(test.metadata.locale ?? 'en', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${substitutions[key]}T12:00:00Z`))
   }
   const substitute = (value) => {
-    if (typeof value === 'string') return value.replace(/\{(accountDate|tomorrowDate|accountYear|retrospectiveFrom|habitId|secondHabitId|overdueDate|historyFrom|historyTo|comparisonFrom|comparisonTo|historyFromLocalized|historyToLocalized|comparisonFromLocalized|comparisonToLocalized)\}/g, (_, key) => {
+    if (typeof value === 'string') return value.replace(/\{([A-Za-z][^{}\s]*)\}/g, (_, key) => {
+      const offset = /^accountDate(En|PtBR)?([+-]\d+)$/.exec(key)
+      if (offset) {
+        const date = dateOffset(substitutions.accountDate, Number(offset[2]))
+        const [, month, day] = date.split('-')
+        if (offset[1] === 'En') return `${month}/${day}`
+        if (offset[1] === 'PtBR') return `${day}/${month}`
+        return date
+      }
+      if (!Object.hasOwn(substitutions, key)) throw new Error(`Unknown fixture substitution: ${key}`)
       if (!substitutions[key]) throw new Error(`Missing fixture substitution: ${key}`)
       return substitutions[key]
     })

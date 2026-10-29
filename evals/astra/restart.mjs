@@ -20,7 +20,6 @@ function completeReads(calls, ids, accountDate) {
     const page = call.result?.payload
     if (!matchesOperation(call, todayRead) || call.resultStatus !== 'Succeeded' || call.result?.success !== true
       || args.is_completed !== false || args.include_overdue !== true
-      || ['search', 'tag', 'frequency', 'is_general', 'is_bad_habit'].some((key) => args[key] != null)
       || (args.offset ?? 0) !== seen.length || page?.totalCount !== ids.length || !Array.isArray(page.items)
       || !page.items.length || page.items.some((item) => !['today', 'overdue'].includes(item.status))) return false
     seen.push(...page.items.map((item) => item.id))

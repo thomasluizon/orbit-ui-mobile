@@ -8,5 +8,6 @@ export function useTimeFormat() {
   const { profile } = useProfile()
   const locale = i18n.language
   const uses24HourClock = profile?.uses24HourClock
-  return useMemo(() => createTimeDisplay(locale, uses24HourClock), [locale, uses24HourClock])
+  const timeZone = profile?.timeZone
+  return useMemo(() => ({ ...createTimeDisplay(locale, uses24HourClock), displayReminderClock: createTimeDisplay(locale, uses24HourClock, timeZone ?? null).displayClock }), [locale, uses24HourClock, timeZone])
 }

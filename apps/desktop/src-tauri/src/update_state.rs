@@ -26,6 +26,13 @@ pub struct Snapshot {
     pub prompt_pending: bool,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum QuitAction<T> {
+    Exit,
+    Wait,
+    Install(T),
+}
+
 pub struct UpdateState<T> {
     pub package: Option<T>,
     pub phase: Phase,
@@ -41,7 +48,6 @@ pub struct UpdateState<T> {
     prompt_open: bool,
     install_on_quit: bool,
     pub quit_requested: bool,
-    quit_attempt: Option<Uuid>,
     exiting: bool,
 }
 
@@ -62,7 +68,6 @@ impl<T> UpdateState<T> {
             prompt_open: false,
             install_on_quit: false,
             quit_requested: false,
-            quit_attempt: None,
             exiting: false,
         }
     }
@@ -157,20 +162,20 @@ impl<T> UpdateState<T> {
     }
 
     pub fn install_failed(&mut self, package: T) {
+        self.exiting = self.quit_requested;
         self.package = Some(package);
         self.phase = Phase::Failed;
         self.install_reservation = None;
         self.install_on_quit = false;
         self.quit_requested = false;
-        self.quit_attempt = None;
         self.restart_requested = false;
     }
 
     pub fn installed(&mut self) {
+        self.exiting = self.quit_requested;
         self.phase = Phase::Idle;
         self.install_on_quit = false;
         self.quit_requested = false;
-        self.quit_attempt = None;
         self.restart_requested = false;
     }
 
@@ -208,51 +213,26 @@ impl<T> UpdateState<T> {
         }
     }
 
-    pub fn request_quit(&mut self) -> bool {
+    pub fn request_quit(&mut self) -> QuitAction<T> {
         if self.phase == Phase::Installing {
-            return true;
-        }
-        if self.quit_requested {
-            self.exit_without_installing();
-            return false;
+            self.quit_requested = true;
+            return QuitAction::Wait;
         }
         if self.exiting {
-            return false;
+            return QuitAction::Exit;
         }
         if !self.install_on_quit || self.phase != Phase::Downloaded {
-            return false;
+            self.exiting = true;
+            return QuitAction::Exit;
         }
         self.quit_requested = true;
-        self.quit_attempt = Some(Uuid::new_v4());
-        self.restart_requested = true;
+        self.restart_requested = false;
         self.deferred = None;
         self.install_reservation = None;
-        true
-    }
-
-    pub fn quit_handoff(&self) -> Option<Uuid> {
-        if self.quit_requested && self.phase != Phase::Installing {
-            self.quit_attempt
-        } else {
-            None
-        }
-    }
-
-    pub fn expire_quit(&mut self, attempt: Uuid) -> bool {
-        if self.quit_attempt != Some(attempt) || self.phase == Phase::Installing {
-            return false;
-        }
-        self.exit_without_installing();
-        true
-    }
-
-    fn exit_without_installing(&mut self) {
-        self.exiting = true;
-        self.quit_requested = false;
-        self.quit_attempt = None;
-        self.restart_requested = false;
-        self.install_on_quit = false;
-        self.install_reservation = None;
+        QuitAction::Install(
+            self.begin_install()
+                .expect("Deferred desktop update must retain its verified package"),
+        )
     }
 
     pub fn busy(&self) -> bool {
@@ -264,7 +244,8 @@ impl<T> UpdateState<T> {
     }
 
     pub fn request_restart(&mut self) {
-        if !self.busy()
+        if !self.exiting
+            && !self.busy()
             && self.install_reservation.is_none()
             && !self.prompt_pending()
             && (self.version.is_some() || self.web_commit.is_some())
@@ -345,107 +326,31 @@ mod tests {
     }
 
     #[test]
-    fn second_quit_before_installation_exits_without_installing() {
-        for reserved in [false, true] {
-            let mut state = ready_for_quit();
-            assert!(state.request_quit());
-            if reserved {
-                let package = state.begin_download(RESERVATION).unwrap();
-                state.downloaded(package, true);
-            }
-            assert!(!state.request_quit());
-            assert!(!state.quit_requested);
-            assert!(!state.snapshot().restart_requested);
-            assert!(state.begin_install().is_err());
-            assert!(state.begin_download(RESERVATION).is_err());
-            assert!(!state.request_quit());
-        }
-    }
-
-    #[test]
-    fn missing_web_acknowledgement_does_not_latch_quit_requested() {
-        let mut state = ready_for_quit();
-        assert!(state.request_quit());
-        state.clear_restart();
-        assert!(!state.request_quit());
-        assert!(!state.quit_requested);
-        assert!(!state.request_quit());
-    }
-
-    #[test]
-    fn expired_quit_handoff_exits_without_installing_or_latching_another_attempt() {
-        let mut state = ready_for_quit();
-        assert!(state.request_quit());
-        let attempt = state.quit_handoff().unwrap();
-        state.clear_restart();
-        assert!(state.expire_quit(attempt));
-        assert!(!state.quit_requested);
-        assert!(!state.snapshot().restart_requested);
-        assert!(state.begin_install().is_err());
-        assert!(state.begin_download(RESERVATION).is_err());
-        assert!(!state.request_quit());
-        assert!(!state.expire_quit(attempt));
-
-        let mut relaunched = ready_for_quit();
-        assert!(relaunched.request_quit());
-        assert!(relaunched.snapshot().restart_requested);
-    }
-
-    #[test]
-    fn expired_quit_handoff_cannot_interrupt_installation() {
-        let mut state = ready_for_quit();
-        assert!(state.request_quit());
-        let attempt = state.quit_handoff().unwrap();
-        let package = state.begin_download(RESERVATION).unwrap();
-        state.downloaded(package, true);
-        let package = state.begin_install().unwrap();
-        assert!(!state.expire_quit(attempt));
-        assert!(state.request_quit());
-        assert_eq!(state.phase, Phase::Installing);
-        state.install_failed(package);
-        assert!(!state.expire_quit(attempt));
-        assert!(!state.request_quit());
-        state.request_restart();
-        assert!(state.snapshot().restart_requested);
-    }
-
-    #[test]
-    fn released_quit_checkpoint_still_exits_unless_another_attempt_replaces_it() {
-        for retry in [false, true] {
-            let mut state = ready_for_quit();
-            assert!(state.request_quit());
-            let attempt = state.quit_handoff().unwrap();
-            let package = state.begin_download(RESERVATION).unwrap();
-            state.downloaded(package, true);
-            state.release_install(RESERVATION);
-            assert!(!state.quit_requested);
-            if retry {
-                assert!(state.request_quit());
-                let successor = state.quit_handoff().unwrap();
-                assert_ne!(attempt, successor);
-                assert!(!state.expire_quit(attempt));
-                assert!(state.quit_requested);
-                assert!(state.expire_quit(successor));
-            } else {
-                assert!(state.expire_quit(attempt));
-            }
-            assert!(!state.request_quit());
-            assert!(state.begin_install().is_err());
-        }
-    }
-
-    #[test]
     fn quit_during_installing_waits_for_completion() {
         let mut state = ready_for_quit();
-        assert!(state.request_quit());
-        let package = state.begin_download(RESERVATION).unwrap();
-        state.downloaded(package, true);
-        state.begin_install().unwrap();
-        assert!(state.request_quit());
-        assert!(state.request_quit());
+        assert_eq!(state.request_quit(), QuitAction::Install("package"));
         assert_eq!(state.phase, Phase::Installing);
+        assert_eq!(state.package, None);
+        assert_eq!(state.request_quit(), QuitAction::Wait);
+        assert_eq!(state.request_quit(), QuitAction::Wait);
+        assert!(state.begin_install().is_err());
         state.installed();
-        assert!(!state.request_quit());
+        assert_eq!(state.request_quit(), QuitAction::Exit);
+    }
+
+    #[test]
+    fn quit_without_a_deferred_verified_package_exits_immediately() {
+        let mut idle = UpdateState::<()>::new(true);
+        assert_eq!(idle.request_quit(), QuitAction::Exit);
+        for verified in [false, true] {
+            let mut state = UpdateState::new(true);
+            state.checked(Ok(Some(("0.2.0".into(), "package"))));
+            let package = state.begin_download(RESERVATION).unwrap();
+            state.downloaded(package, verified);
+            assert_eq!(state.request_quit(), QuitAction::Exit);
+            assert!(!state.quit_requested);
+            assert!(state.begin_install().is_err());
+        }
     }
 
     #[test]
@@ -480,7 +385,6 @@ mod tests {
         assert!(state.snapshot().restart_requested);
         assert_eq!(state.phase, Phase::Downloaded);
         assert_eq!(state.package, Some("package"));
-        assert!(!state.request_quit());
         let package = state.begin_download(RESERVATION).unwrap();
         state.downloaded(package, true);
         assert_eq!(state.take_prompt(true), None);
@@ -489,58 +393,23 @@ mod tests {
 
     #[test]
     fn later_or_dismissal_installs_on_quit_and_failure_retains_explicit_retry() {
-        let mut state = UpdateState::new(true);
-        state.checked(Ok(Some(("0.2.0".into(), "verified package"))));
-        assert!(!state.request_quit());
-        let package = state.begin_download(RESERVATION).unwrap();
-        state.downloaded(package, true);
-        assert!(!state.request_quit());
-        let version = state.take_prompt(true).unwrap();
-        state.answer_prompt(&version, false);
+        let mut state = ready_for_quit();
         assert!(!state.snapshot().restart_requested);
         assert!(state.snapshot().deferred);
-        assert!(state.request_quit());
+        let QuitAction::Install(package) = state.request_quit() else {
+            panic!("Quit must take the package without a web call");
+        };
+        assert_eq!(state.phase, Phase::Installing);
         assert!(state.quit_requested);
-        assert!(state.snapshot().restart_requested);
-        assert_eq!(state.phase, Phase::Downloaded);
-        state.clear_restart();
         assert!(!state.snapshot().restart_requested);
-        let package = state.begin_download(RESERVATION).unwrap();
-        state.downloaded(package, true);
-        assert!(state.quit_requested);
-        let package = state.begin_install().unwrap();
+        assert_eq!(package, "package");
         state.install_failed(package);
         assert_eq!(state.phase, Phase::Failed);
-        assert_eq!(state.package, Some("verified package"));
+        assert_eq!(state.package, Some("package"));
+        assert_eq!(state.snapshot().shell_version.as_deref(), Some("0.2.0"));
         assert!(!state.quit_requested);
-        assert!(!state.request_quit());
         assert!(!state.snapshot().restart_requested);
-        state.request_restart();
-        assert!(state.snapshot().restart_requested);
-        let package = state.begin_download(RESERVATION).unwrap();
-        state.downloaded(package, true);
-        assert_eq!(state.take_prompt(true), None);
-        assert_eq!(state.begin_install().unwrap(), "verified package");
-        state.installed();
-        assert!(!state.request_quit());
-    }
-
-    #[test]
-    fn cancelling_a_quit_checkpoint_allows_another_explicit_quit_attempt() {
-        let mut state = UpdateState::new(true);
-        state.checked(Ok(Some(("0.2.0".into(), "package"))));
-        let package = state.begin_download(RESERVATION).unwrap();
-        state.downloaded(package, true);
-        let version = state.take_prompt(true).unwrap();
-        state.answer_prompt(&version, false);
-        assert!(state.request_quit());
-        state.clear_restart();
-        let package = state.begin_download(RESERVATION).unwrap();
-        state.downloaded(package, true);
-        state.release_install(RESERVATION);
-        assert!(!state.quit_requested);
-        assert!(state.request_quit());
-        assert!(state.snapshot().restart_requested);
+        assert_eq!(state.request_quit(), QuitAction::Exit);
     }
 
     #[test]
@@ -556,7 +425,10 @@ mod tests {
         assert_eq!(state.version.as_deref(), Some("0.2.0"));
         assert_eq!(state.package, Some("verified package"));
         assert!(!state.begin_check());
-        assert!(state.request_quit());
+        assert_eq!(
+            state.request_quit(),
+            QuitAction::Install("verified package")
+        );
     }
 
     #[test]

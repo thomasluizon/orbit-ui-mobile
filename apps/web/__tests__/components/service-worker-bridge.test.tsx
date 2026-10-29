@@ -3,7 +3,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { notificationKeys } from '@orbit/shared/query'
+import { habitKeys, notificationKeys } from '@orbit/shared/query'
 
 const mockPush = vi.fn()
 const desktop = vi.hoisted(() => ({ resume: vi.fn().mockResolvedValue(undefined) }))
@@ -202,6 +202,14 @@ describe('ServiceWorkerBridge', () => {
 
     expect(mockPush).not.toHaveBeenCalled()
     expect(invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it('refreshes habit next times after notification Done without navigating', () => {
+    const container = installServiceWorkerContainer()
+    const { invalidateQueries } = renderBridge()
+    postFromWorker(container, { type: 'orbit:reminder-done' })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all })
+    expect(mockPush).not.toHaveBeenCalled()
   })
 
   it('refreshes the notification list when a push arrives', () => {

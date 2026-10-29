@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from 'node:util'
 import { publicApi } from './fixtures/api.mjs'
 import { requireStagingOrigin } from './fixtures/reset.mjs'
+import { refreshCredential } from './credentials.mjs'
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const ordered = (habits) => [...habits].sort((left, right) => left.id.localeCompare(right.id))
@@ -48,6 +49,7 @@ export async function approveStartingStep(parsed, vars) {
   if (!Array.isArray(baseline) || !vars.previousStartingStep) return result(false, 'Missing saved-step baseline.')
   const pending = parsed.composition.pendingOperations[0]
   if (!matchingPreview(pending, vars)) return result(false, 'The held preview does not match the requested saved step.')
+  await refreshCredential(vars.credentialKey)
   const before = await readStartingHabits(vars.credentialKey)
   if (!isDeepStrictEqual(before, ordered(baseline))) return result(false, 'Habits changed before approval.')
   const api = publicApi(vars.credentialKey)

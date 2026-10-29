@@ -12,7 +12,7 @@ const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =
   parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')))
 const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-history', 'empty', 'overdue', 'skipped',
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
-  'composition-offline', 'composition-logged', 'medical', 'existing-parents', 'restart', 'starting-step-checklist'])
+  'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'starting-step-checklist'])
 export const disposableStagingOrigin = 'https://orbit-api-staging-uqu2.onrender.com'
 export function requireStagingOrigin() {
   if (apiOrigin() !== disposableStagingOrigin) throw new Error('Fixture isolation requires the disposable staging origin.')
@@ -95,9 +95,18 @@ async function restoreHabits(api, exported, account, fixture, today, titles) {
     await api('PUT', `habits/${id}`, { ...dailyHabit(title, start), clearEndDate: true, clearParent: true })
   }
 }
-async function seedComposition(api, account, today, fixture, names) {
+function compositionOffsets(habit, today, fixture, offsets) {
+  if (fixture !== 'composition-streaks') return offsets
+  if (typeof habit?.createdAtUtc !== 'string' || !Number.isFinite(Date.parse(habit.createdAtUtc))) {
+    throw new Error('Streak fixture lacks a verified habit creation date.')
+  }
+  return Array.from({ length: 6 }, (_, index) => index - 6)
+    .filter((offset) => dateOffset(today, offset) >= habit.createdAtUtc.slice(0, 10))
+}
+async function seedComposition(api, account, today, fixture, names, exported) {
   for (const [id, title, offsets] of [[account.habitId, names.habits[0], [-6, -4, -3, -2, -1]], [account.secondHabitId, names.habits[1], [-5, -2]]]) {
-    for (const offset of offsets) await api('POST', `habits/${id}/log`, { date: dateOffset(today, offset) })
+    const eligible = compositionOffsets(exported.habits.find((habit) => habit.id === id), today, fixture, offsets)
+    for (const offset of eligible) await api('POST', `habits/${id}/log`, { date: dateOffset(today, offset) })
     await api('PUT', `habits/${id}`, dailyHabit(title, today))
   }
   const tag = idFrom((await api('POST', 'tags', { name: names.tag, color: '#22c55e' })).payload)
@@ -145,7 +154,7 @@ async function verifyFixture(api, account, fixture, today, names) {
   if (fixture.startsWith('composition')) {
     for (const [habit, offsets] of [[water, [-6, -4, -3, -2, -1, ...(fixture === 'composition-logged' ? [0] : [])]], [walk, [-5, -2]]]) {
       const dates = habit.logs.filter((log) => log.value > 0).map((log) => log.date).sort()
-      const expected = offsets.map((offset) => dateOffset(today, offset)).sort()
+      const expected = compositionOffsets(habit, today, fixture, offsets).map((offset) => dateOffset(today, offset)).sort()
       if (JSON.stringify(dates) !== JSON.stringify(expected)) throw new Error('Composition fixture history readback failed.')
     }
     if (restored.goals.length !== 1
@@ -236,7 +245,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   }
   if (fixture === 'skipped') await api('POST', `habits/${account.secondHabitId}/skip`, { date: today })
   if (fixture === 'malicious-title') await api('POST', 'habits', dailyHabit(maliciousHabitTitle, today))
-  if (fixture.startsWith('composition')) await seedComposition(api, account, today, fixture, names)
+  if (fixture.startsWith('composition')) await seedComposition(api, account, today, fixture, names, exported)
   if (fixture === 'composition-partial') {
     for (const title of titles.slice(2)) await api('POST', 'habits', dailyHabit(title, today))
   }

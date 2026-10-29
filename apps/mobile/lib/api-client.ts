@@ -13,6 +13,7 @@ type ApiRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   body?: string | FormData | null
   headers?: Record<string, string>
   idempotencyKey?: string
+  anonymous?: boolean
   skipAuthRecovery?: boolean
   silent?: boolean
   isCurrent?: () => boolean
@@ -117,9 +118,10 @@ async function executeRequest(
   options: ApiRequestOptions,
   tokenOverride?: string | null,
 ): Promise<RequestExecution> {
-  const token = tokenOverride ?? await getToken()
+  const token = options.anonymous ? null : tokenOverride ?? await getToken()
   if (options.isCurrent?.() === false) throw new Error('Account changed')
   const requestOptions = { ...options }
+  delete requestOptions.anonymous
   delete requestOptions.skipAuthRecovery
   delete requestOptions.isCurrent
   delete requestOptions.onResponseHeaders
@@ -294,6 +296,10 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
   options: ApiRequestOptions = {},
   schema?: ZodType<T>,
 ): Promise<AuthorizedApiResponse<T>> {
+  if (options.anonymous) {
+    const { response, requestId } = await executeRequest(path, options)
+    return { data: await parseApiResponse<T>(response, requestId, path, schema, options.method, options.silent), authorizingToken: null }
+  }
   const idempotencyKey = options.idempotencyKey ?? consumePendingIdempotencyKey() ?? undefined
   const effectiveOptions: ApiRequestOptions =
     idempotencyKey === undefined ? options : { ...options, idempotencyKey }
