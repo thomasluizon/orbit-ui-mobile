@@ -3,9 +3,11 @@ import { suggestionAnswer } from './suggestions.mjs'
 import { loadApiProvider } from 'promptfoo'
 import { visibleAnswer } from './visible-answer.mjs'
 import { completeRestart } from './restart-lifecycle.mjs'
-import { structural, behavior } from './assertions.mjs'
+import { structural, behavior, composition } from './assertions.mjs'
 import { brainDumpPreview } from './brain-dumps.mjs'
 import { approveBrainDump, brainDumpBaseline } from './brain-dump-approval.mjs'
+import { approveStartingStep } from './step-persistence.mjs'
+import { safeFailureMessage } from './credentials.mjs'
 
 export default class AstraHttpProvider {
   constructor(options) {
@@ -35,6 +37,19 @@ export default class AstraHttpProvider {
 
   async callApi(prompt, context, options) {
     return withLegacyProfileLanguage(context.vars, () => this.attempt(prompt, context, options))
+  }
+
+  async saveStartingStep(output, context) {
+    try {
+      const gradingContext = { vars: context.vars, test: context.test ?? { vars: context.vars } }
+      for (const grade of [structural, behavior, composition]) {
+        const check = await grade(output, gradingContext)
+        if (check.pass !== true || check.metadata?.unavailable) return { pass: false, score: 0,
+          reason: `Saved-step approval blocked: ${check.reason}` }
+      }
+      return await approveStartingStep(output, context.vars)
+    } catch (error) { return { pass: false, score: 0,
+      reason: `Saved-step approval or readback failed: ${safeFailureMessage(error)}` } }
   }
 
   async attempt(prompt, context, options) {
@@ -88,6 +103,10 @@ export default class AstraHttpProvider {
       try { response.output = await completeRestart(response.output, context.vars) } catch {
         return { ...response, error: 'Restart approval or independent persisted readback failed.' }
       }
+    }
+    if (['saveTask', 'saveChecklistItem'].includes(context.vars.startingStepAction)
+      && response.output?.composition && !response.error && !response.output.error) {
+      response.output.savedStepReadback = await this.saveStartingStep(response.output, context)
     }
     return response
   }

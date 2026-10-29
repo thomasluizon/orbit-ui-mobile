@@ -3,6 +3,21 @@ import * as grades from '../assertions.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
+import AstraHttpProvider from '../http-provider.mjs'
+import { publicApi } from '../fixtures/api.mjs'
+import { clearPendingOperations } from '../fixtures/reset.mjs'
+import { parse } from 'yaml'
+
+const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
+
+async function providerAttempt(context) {
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
+  const config = structuredClone(configuration.providers[0].config)
+  config.url = `${process.env.ORBIT_EVAL_BASE_URL}/api/chat`
+  context.vars.clientContextJson = JSON.stringify(context.vars.clientContext)
+  context.vars.historyJson = '[]'
+  return new AstraHttpProvider({ config }).callApi('Save this step', context)
+}
 
 const habitId = '22222222-2222-4222-8222-222222222222'
 const savedId = '33333333-3333-4333-8333-333333333333'
@@ -33,8 +48,9 @@ function saveAttempt(action = 'saveTask') {
     calls: [{ ...call, resultStatus: status }] } }
   return { output, context: { vars, test: { vars } }, checklist }
 }
-function approvalServer(action, mutate = () => {}, beforeMutate = () => {}) {
+function approvalServer(output, action = 'saveTask', mutate = () => {}, beforeMutate = () => {}) {
   let executed = false
+  let pending = true
   const requests = []
   offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_TOKEN', '')
@@ -43,7 +59,17 @@ function approvalServer(action, mutate = () => {}, beforeMutate = () => {}) {
     if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
     if (path === '/api/auth/refresh') return Response.json({ token: 'offline-token', refreshToken: 'rotated-refresh' })
     requests.push(`${options.method} ${path}`)
-    expect(options.headers.Authorization).toBe('Bearer offline-token')
+    expect(new Headers(options.headers).get('Authorization')).toBe('Bearer offline-token')
+    if (path === '/api/chat') {
+      const calls = output.trace.calls.map(({ resultStatus, ...call }) => ({ ...call, status: resultStatus }))
+      return Response.json({ ...output.composition, evalTrace: chatResponse(output.trace.requestId, calls).evalTrace },
+        { headers: { 'x-orbit-request-id': output.trace.responseRequestId } })
+    }
+    if (path === '/api/eval/pending-operations') {
+      const count = pending ? 1 : 0
+      if (options.method === 'DELETE') pending = false
+      return Response.json(options.method === 'DELETE' ? { cancelledCount: count } : { pendingCount: count })
+    }
     if (path === '/api/profile/export') {
       const habits = [structuredClone(original)]
       if (executed) {
@@ -55,13 +81,16 @@ function approvalServer(action, mutate = () => {}, beforeMutate = () => {}) {
       return Response.json({ habits })
     }
     if (path.endsWith('/confirm')) {
+      if (!pending) return Response.json({ errorCode: 'PENDING_OPERATION_NOT_FOUND' }, { status: 404 })
       expect(JSON.parse(new URL(url).searchParams.get('clientContext')).locale).toBe('en')
       return Response.json({ pendingOperationId: preview().id, confirmationToken: 'private-confirmation', expiresAtUtc: '2026-10-28T20:00:00Z' })
     }
     expect(path).toBe(`/api/ai/pending-operations/${preview().id}/execute`)
+    if (!pending) return Response.json({ errorCode: 'PENDING_OPERATION_NOT_FOUND' }, { status: 404 })
     expect(JSON.parse(options.body)).toEqual({ confirmationToken: 'private-confirmation',
       clientContext: { supportsParts: true, partKinds: [], locale: 'en' } })
     executed = true
+    pending = false
     // Execution JSON is deliberately unusable: persisted proof comes from the export.
     return Response.json({})
   })
@@ -69,12 +98,41 @@ function approvalServer(action, mutate = () => {}, beforeMutate = () => {}) {
 }
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
+it.each(['saveTask', 'saveChecklistItem'])('finishes %s approval and readback before returning to the next fixture reset', async (action) => {
+  const { output, context } = saveAttempt(action)
+  const requests = approvalServer(output, action)
+  const received = await providerAttempt(context)
+  expect(received.error).toBeUndefined()
+  expect(received.output?.composition).toBeDefined()
+  requests.push('provider returned')
+  await clearPendingOperations(publicApi(context.vars.credentialKey))
+  const afterReset = [...requests]
+  const grade = await grades.savedStep(JSON.stringify(received.output), context)
+  expect(grade.pass, grade.reason).toBe(true)
+  expect(received.output.savedStepReadback).toEqual(grade)
+  expect(requests).toEqual(afterReset)
+  expect(requests).toEqual(['POST /api/chat', 'GET /api/profile/export',
+    `POST /api/ai/pending-operations/${preview().id}/confirm`,
+    `POST /api/ai/pending-operations/${preview().id}/execute`, 'GET /api/profile/export', 'provider returned',
+    'DELETE /api/eval/pending-operations', 'GET /api/eval/pending-operations'])
+})
+
+it.each(['saveTask', 'saveChecklistItem'])('fails closed without stored %s readback and makes no assertion-time requests', async (action) => {
+  const { output, context } = saveAttempt(action)
+  const requests = approvalServer(output, action)
+  const grade = await grades.savedStep(output, context)
+  expect(grade.pass).toBe(false)
+  expect(grade.reason).toBe('Missing saved-step approval readback.')
+  expect(requests).toEqual([])
+})
+
 it.each(['saveTask', 'saveChecklistItem'])('approves %s only after a held preview and reads persistence independently', async (action) => {
   const { output, context } = saveAttempt(action)
-  const requests = approvalServer(action)
-  const grade = await grades.savedStep(output, context)
+  const requests = approvalServer(output, action)
+  const received = await providerAttempt(context)
+  const grade = await grades.savedStep(received.output, context)
   expect(grade.pass, grade.reason).toBe(true)
-  expect(requests).toEqual(['GET /api/profile/export', `POST /api/ai/pending-operations/${preview().id}/confirm`,
+  expect(requests).toEqual(['POST /api/chat', 'GET /api/profile/export', `POST /api/ai/pending-operations/${preview().id}/confirm`,
     `POST /api/ai/pending-operations/${preview().id}/execute`, 'GET /api/profile/export'])
   expect(grade.metadata.savedStep).toMatchObject({ approved: true, unchangedBeforeApproval: true, title: action === 'saveTask' ? step : original.title })
   expect(JSON.stringify(grade)).not.toContain('private-confirmation')
@@ -91,15 +149,19 @@ it.each([
   ['saveChecklistItem', (habits) => { habits[0].checklistItems.reverse() }],
 ])('fails independent persistence readback for %s %#', async (action, mutate) => {
   const { output, context } = saveAttempt(action)
-  approvalServer(action, mutate)
-  expect((await grades.savedStep(output, context)).pass).toBe(false)
+  approvalServer(output, action, mutate)
+  const received = await providerAttempt(context)
+  expect((await grades.savedStep(received.output, context)).pass).toBe(false)
+  expect(received.output.savedStepReadback.reason).toContain('Independent saved-step readback')
 })
 
 it.each(['saveTask', 'saveChecklistItem'])('rejects %s if the proposal already changed persisted habits', async (action) => {
   const { output, context } = saveAttempt(action)
-  const requests = approvalServer(action, undefined, (habits) => { habits[0].title = 'Changed before approval' })
-  expect((await grades.savedStep(output, context)).pass).toBe(false)
-  expect(requests).toEqual(['GET /api/profile/export'])
+  const requests = approvalServer(output, action, undefined, (habits) => { habits[0].title = 'Changed before approval' })
+  const received = await providerAttempt(context)
+  expect((await grades.savedStep(received.output, context)).pass).toBe(false)
+  expect(received.output.savedStepReadback.reason).toBe('Habits changed before approval.')
+  expect(requests).toEqual(['POST /api/chat', 'GET /api/profile/export'])
 })
 
 it.each([
@@ -110,10 +172,12 @@ it.each([
 ])('never approves a failed tool or composition gate %#', async (mutate) => {
   const { output, context } = saveAttempt()
   mutate(output)
-  const fetch = vi.fn()
-  vi.stubGlobal('fetch', fetch)
-  expect((await grades.savedStep(output, context)).pass).toBe(false)
-  expect(fetch).not.toHaveBeenCalled()
+  const requests = approvalServer(output)
+  const received = await providerAttempt(context)
+  const grade = await grades.savedStep(received.output, context)
+  expect(grade.pass).toBe(false)
+  expect(grade.reason).toMatch(/Saved-step approval blocked:|Missing saved-step approval readback/)
+  expect(requests).toEqual(['POST /api/chat'])
 })
 
 it('does not claim persistence for unrelated cases', async () => {
@@ -126,19 +190,22 @@ it.each([
 ])('rejects a task preview that does not match the requested step %#', async (mutate) => {
   const { output, context } = saveAttempt()
   mutate(output.composition.pendingOperations[0])
-  const requests = approvalServer('saveTask')
-  expect((await grades.savedStep(output, context)).pass).toBe(false)
-  expect(requests).toEqual([])
+  const requests = approvalServer(output)
+  const received = await providerAttempt(context)
+  expect((await grades.savedStep(received.output, context)).pass).toBe(false)
+  expect(received.output.savedStepReadback.reason).toBe('The held preview does not match the requested saved step.')
+  expect(requests).toEqual(['POST /api/chat'])
 })
 
 it.each(['saveTask', 'saveChecklistItem'])('refreshes %s approval credentials and rotates only the live file', async (action) => {
   const { output, context } = saveAttempt(action)
-  approvalServer(action)
+  approvalServer(output, action)
   const livePath = process.env.ORBIT_EVAL_CREDENTIALS_FILE
   const backupPath = `${livePath}.backup`
   const before = readFileSync(livePath, 'utf8')
   writeFileSync(backupPath, before, { mode: 0o600 })
-  const grade = await grades.savedStep(output, context)
+  const received = await providerAttempt(context)
+  const grade = await grades.savedStep(received.output, context)
   expect(grade.pass, grade.reason).toBe(true)
   expect(JSON.parse(readFileSync(livePath, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('rotated-refresh')
   expect(readFileSync(backupPath, 'utf8')).toBe(before)
