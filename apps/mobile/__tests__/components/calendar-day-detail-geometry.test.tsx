@@ -82,7 +82,7 @@ describe('Android day card geometry', () => {
         const fills = control.findAll((node: { type: unknown; props: { 'data-press-fill'?: string; 'data-slot'?: string } }) => node.type === 'View' && (node.props['data-press-fill'] !== undefined || node.props['data-slot'] === 'list-row-fill'))
         expect(fills).toHaveLength(1)
         const paint = StyleSheet.flatten(fills[0].props.style)
-        expect(paint).toMatchObject({ borderRadius: 12, top: 4, bottom: 4 })
+        expect(paint).toMatchObject({ borderRadius: 12, top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE })
         expect(paint.backgroundColor).not.toBe('transparent')
         TestRenderer.act(() => control.props.onPressOut())
         expect(StyleSheet.flatten(fills[0].props.style).backgroundColor).toBe('transparent')

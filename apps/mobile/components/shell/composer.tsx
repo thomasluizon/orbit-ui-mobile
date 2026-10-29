@@ -280,6 +280,24 @@ function composerEmptyHeight(fontScale: number, placeholder: PlaceholderMeasurem
   )
 }
 
+function ComposerAllowanceMeasurements({ visible, inputLabel, onInputMeasure, onAllowanceMeasure }: Readonly<{
+  visible: boolean
+  inputLabel: string
+  onInputMeasure: (height: number) => void
+  onAllowanceMeasure: (height: number) => void
+}>) {
+  const { t } = useTranslation()
+  if (!visible) return null
+  return <>
+    <Text testID="composer-input-placeholder-measure" pointerEvents="none" accessible={false}
+      importantForAccessibility="no-hide-descendants" style={[styles.placeholder, { opacity: 0 }]}
+      onLayout={event => onInputMeasure(event.nativeEvent.layout.height)}>{inputLabel}</Text>
+    <Text testID="composer-allowance-placeholder-measure" pointerEvents="none" accessible={false}
+      importantForAccessibility="no-hide-descendants" style={[styles.placeholder, { opacity: 0 }]}
+      onLayout={event => onAllowanceMeasure(event.nativeEvent.layout.height)}>{t('shell.composer.limit.placeholder')}</Text>
+  </>
+}
+
 function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWidth, onPasteFit }: Readonly<{
   props: MobileComposerProps
   tokens: AppTokensV2
@@ -289,13 +307,14 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWi
   onPasteFit: (fits: boolean) => void
 }>) {
   const layout = useConversationLayout()
-  const { t } = useTranslation()
   const { fontScale } = useWindowDimensions()
   const [contentHeight, setContentHeight] = useState(48)
   const [placeholderHeight, setPlaceholderHeight] = useState<PlaceholderMeasurement | null>(null)
   const [allowancePlaceholderHeight, setAllowancePlaceholderHeight] = useState<PlaceholderMeasurement | null>(null)
   const [placeholderLayout, setPlaceholderLayout] = useState<{ text: string; fontScale: number; fits: boolean } | null>(null)
   const largeText = fontScale > 1.3
+  const reserveAllowance = largeText && Boolean(props.allowanceReason)
+  const measureAllowance = props.value.length === 0 && reserveAllowance
   const measurePlaceholder = props.state === 'offline' || props.state === 'atLimit'
   const placeholderFits = largeText || !measurePlaceholder || (!placeholderHeight && !placeholderLayout)
     || (placeholderLayout?.text === props.words.placeholder && placeholderLayout.fontScale === fontScale && placeholderLayout.fits)
@@ -343,21 +362,16 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange, availableWi
           onTextLayout={event => setPlaceholderLayout({ text: props.words.placeholder, fontScale, fits: event.nativeEvent.lines.length <= 1 })}
           style={[styles.placeholder, { opacity: 0 }]}
         >{props.words.placeholder}</Text> : null}
-        {props.value.length === 0 && largeText && props.allowanceReason ? <Text
-          testID="composer-allowance-placeholder-measure"
-          pointerEvents="none"
-          accessible={false}
-          importantForAccessibility="no-hide-descendants"
-          onLayout={event => setAllowancePlaceholderHeight({ fontScale, height: event.nativeEvent.layout.height })}
-          style={[styles.placeholder, { opacity: 0 }]}
-        >{t('shell.composer.limit.placeholder')}</Text> : null}
+        <ComposerAllowanceMeasurements visible={measureAllowance} inputLabel={props.words.inputLabel ?? props.words.placeholder}
+          onInputMeasure={height => setPlaceholderHeight({ fontScale, height })}
+          onAllowanceMeasure={height => setAllowancePlaceholderHeight({ fontScale, height })} />
         {props.value.length === 0 && placeholderFits ? <Text
           key={`${fontScale}:${props.words.placeholder}`}
           testID="composer-placeholder"
           pointerEvents="none"
           accessible={false}
           numberOfLines={largeText ? undefined : 1}
-          onLayout={event => setPlaceholderHeight({ fontScale, height: event.nativeEvent.layout.height })}
+          onLayout={event => { if (!reserveAllowance) setPlaceholderHeight({ fontScale, height: event.nativeEvent.layout.height }) }}
           style={[styles.placeholder, { color: tokens.fg3 }, inputDisabled ? styles.disabled : null]}
         >{props.words.placeholder}</Text> : null}
         </Reanimated.View>

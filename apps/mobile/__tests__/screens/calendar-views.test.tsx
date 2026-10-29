@@ -1653,7 +1653,7 @@ describe("CalendarScreen views (mobile)", () => {
     const gridShapes = tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
     );
-    for (const shape of gridShapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 44, height: 44 });
+    for (const shape of gridShapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 34, height: 34 });
   });
 
   it.each([

@@ -21,7 +21,7 @@ describe('selection motion', () => {
     for (const [index, slot] of slots.entries()) TestRenderer.act(() => slot.props.onLayout({ nativeEvent: { layout: { x: index * 48, y: 0, width: 40, height: 48 } } }))
     TestRenderer.act(() => tree!.update(render(1)))
     const indicator = tree!.root.findByProps({ testID: 'selection-motion-indicator' })
-    expect(StyleSheet.flatten(indicator.props.style)).toMatchObject({ width: 40, height: 40, transform: [{ translateX: 48 }, { translateY: 24 }] })
+    expect(StyleSheet.flatten(indicator.props.style)).toMatchObject({ width: 34, height: 34, transform: [{ translateX: 49 }, { translateY: 27 }] })
     TestRenderer.act(() => tree!.unmount())
   })
 

@@ -59,7 +59,7 @@ describe('selected controls share one focus indicator', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<SegmentedControl label="View" fullWidth={fullWidth} value="one" options={[{ value: 'one', label: 'One' }, { value: 'two', label: 'Two' }]} onChange={vi.fn()} />) })
     const group = tree!.root.findByProps({ accessibilityRole: 'radiogroup' })
-    expect(StyleSheet.flatten(group.props.style)).toMatchObject({ padding: 4, gap: 4, borderRadius: 12, backgroundColor: tokens.bgWell })
+    expect(StyleSheet.flatten(group.props.style)).toMatchObject({ padding: 4, gap: 8, borderRadius: 12, backgroundColor: tokens.bgWell })
     expect(StyleSheet.flatten(group.props.style).borderWidth ?? 0).toBe(0)
     for (const option of tree!.root.findAllByType('Pressable')) {
       const style = typeof option.props.style === 'function' ? option.props.style({ pressed: false }) : option.props.style

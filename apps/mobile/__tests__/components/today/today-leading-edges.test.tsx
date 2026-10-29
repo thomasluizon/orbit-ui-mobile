@@ -40,6 +40,7 @@ interface Host {
     numberOfLines?: number
     accessibilityLabel?: string
     accessibilityRole?: string
+    hitSlop?: number
     pointerEvents?: string
     onPress?: () => void
     onLayout?: (event: { nativeEvent: { layout: { width: number } } }) => void
@@ -146,12 +147,12 @@ function topPosition(node: YogaNode): number {
 }
 
 function assertIndentedCardBounds(rows: [Host, YogaNode][], width: number) {
-  for (const [index, [, node]] of rows.entries()) {
+  for (const [index, [element, node]] of rows.entries()) {
     const inset = Math.floor(index / 2) * SPACING.s16
     expect(leadingPosition(node)).toBe(SPACING.s16 + inset)
     expect(node.getComputedWidth()).toBe(width - 2 * SPACING.s16 - inset)
     expect(leadingPosition(node) + node.getComputedWidth()).toBe(width - SPACING.s16)
-    expect(node.getComputedHeight()).toBeGreaterThanOrEqual(48)
+    expect(node.getComputedHeight() + 2 * Number(element.props.hitSlop ?? 0)).toBeGreaterThanOrEqual(48)
     if (index > 0) {
       const previous = rows[index - 1]![1]
       expect(topPosition(node) - topPosition(previous) - previous.getComputedHeight()).toBe(index === 1 ? SPACING.s12 : SPACING.s8)
@@ -375,8 +376,8 @@ describe('Hoje leading edges on Android', () => {
           if (element.type !== 'Pressable') continue
           expect(leadingPosition(node)).toBeGreaterThanOrEqual(16)
           expect(leadingPosition(node) + node.getComputedWidth()).toBeLessThanOrEqual(width - 16)
-          expect(node.getComputedWidth()).toBeGreaterThanOrEqual(48)
-          expect(node.getComputedHeight()).toBeGreaterThanOrEqual(48)
+          expect(node.getComputedWidth() + 2 * Number(element.props.hitSlop ?? 0)).toBeGreaterThanOrEqual(48)
+          expect(node.getComputedHeight() + 2 * Number(element.props.hitSlop ?? 0)).toBeGreaterThanOrEqual(48)
         }
       } finally { layout.freeRecursive(); void act(() => renderer!.unmount()) }
     },

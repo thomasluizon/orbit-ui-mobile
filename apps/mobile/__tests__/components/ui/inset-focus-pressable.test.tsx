@@ -26,7 +26,7 @@ describe('InsetFocusPressable', () => {
       const track = tree!.root.findAll((node: { props: Record<string, unknown> }) => node.props['data-slot'] === 'switch-track')[0]!
       expect(StyleSheet.flatten(track.props.style)).toMatchObject({ width: 48, height: 28 })
       expect(ring.props).toMatchObject({ pointerEvents: 'none', accessible: false, importantForAccessibility: 'no-hide-descendants' })
-      expect(StyleSheet.flatten(ring.props.style)).toMatchObject({ position: 'absolute', top: 4, right: 4, bottom: 4, left: 4, outlineWidth: 2, outlineOffset: -2, outlineColor: createTokensV2('orange', mode).fg1, backgroundColor: createTokensV2('orange', mode).bgHover })
+      expect(StyleSheet.flatten(ring.props.style)).toMatchObject({ position: 'absolute', top: 8, right: 8, bottom: 8, left: 8, outlineWidth: 2, outlineOffset: -2, outlineColor: createTokensV2('orange', mode).fg1, backgroundColor: createTokensV2('orange', mode).bgHover })
       expect(StyleSheet.flatten(host().props.style)).toMatchObject(resting)
       TestRenderer.act(() => host().props.onPress())
       expect(onChange).toHaveBeenCalledWith(!checked)

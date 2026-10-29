@@ -273,3 +273,15 @@ radio's live keyboard focus, including a keyboard press after pointer focus.
 
 Web `app/globals.css` keeps menu item focus inside its paint, preserving 8px before account
 header text. The `shell/shell-wide.tsx` root isolates page stacking beneath portalled menus.
+
+The Android composer owner `components/shell/composer.tsx` preserves its measured field
+height when allowance feedback changes the placeholder. Its actions retain 8px paint
+clearance. Geometry checks include each icon action's transparent hit extension when
+checking the 48px target; the centred paint remains 44px. The Android day-detail owner
+`app/(tabs)/calendar/_components/calendar-day-detail.tsx` uses the same 8px disclosure
+paint inset as its web mirror, including when logging is unavailable.
+
+The web `components/ui/check-row.tsx` owner uses the existing 4px internal padding
+inside the 32px personal checkbox fill. Chromium guards compare its glyph and fill
+centres within 0.5px in hover, press and focus. Android discovery includes the paired
+`components/ui/check-row.tsx` normal and calendar-day checkbox controls.

@@ -323,7 +323,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     )
     const month = buildCalendarMonthModel(new Date(2026, 7, 1), calendarDayMap, 1, '2026-08-15')
     expect(shapes).toHaveLength(month.gridDays.length)
-    for (const shape of shapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 44, height: 44 })
+    for (const shape of shapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 34, height: 34 })
     const grid = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-grid')[0]!
     const loadingRegions = grid.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')
     expect(loadingRegions).toHaveLength(1)

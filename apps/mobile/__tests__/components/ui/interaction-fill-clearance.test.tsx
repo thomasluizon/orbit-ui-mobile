@@ -75,8 +75,8 @@ async function triggerIconState(owner: { props: Record<string, unknown> }, event
   if (typeof owner.props[event] === 'function') await act(() => (owner.props[event] as (event: unknown) => void)({ target: 1, currentTarget: 1, nativeEvent: { target: 1 } }))
 }
 
-function assertDiscoveredIconCentre(parts: Box[], label: unknown) {
-  const control = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === label)
+function assertDiscoveredIconCentre(parts: Box[], label: unknown, role: unknown) {
+  const control = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === label && 'accessibilityRole' in part.host.props && part.host.props.accessibilityRole === role)
   if (!control) return false
   const descendants = parts.filter(part => part.ancestors.includes(control.slot))
   const glyphs = descendants.filter(part => part.host.type === 'Svg')
@@ -101,6 +101,8 @@ describe('Android interaction fill clearance', () => {
     await act(() => { tree = create(<View style={{ gap: 16, padding: 16 }}>
       <NotificationBellDisplay count={1} onPress={vi.fn()} />
       <IconButton label="Refresh" onClick={vi.fn()}><RefreshCw size={20} /></IconButton>
+      <CheckRow label="Checkbox" textMode="personal" checked={false} onChange={vi.fn()} onOpenLabel={vi.fn()} />
+      <CheckRow label="Day checkbox" variant="calendar-day" textMode="personal" checked={false} onChange={vi.fn()} onOpenLabel={vi.fn()} />
       <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-12" tokens={createTokensV2('orange', 'dark')} previousMonthLabel="Previous" nextMonthLabel="Next" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />
       <ListRow title="Row" onClick={vi.fn()} action={{ icon: 'trash', label: 'Remove', onPress: vi.fn() }} />
       <Composer state="idle" value="Message" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} onAttachFile={vi.fn()} attachWords={{ ...en.shell.composer.attach, remove: name => name }} />
@@ -112,11 +114,11 @@ describe('Android interaction fill clearance', () => {
         const event = state === 'hovered' ? 'onHoverIn' : state === 'focused' ? 'onFocus' : 'onPressIn'
         await triggerIconState(owner, event)
         const parts = measureInteractionFills(tree.toJSON(), width, state === 'pressed')
-        inspected += assertDiscoveredIconCentre(parts, owner.props.accessibilityLabel) ? 1 : 0
+        inspected += assertDiscoveredIconCentre(parts, owner.props.accessibilityLabel, owner.props.accessibilityRole) ? 1 : 0
         const release = state === 'hovered' ? 'onHoverOut' : state === 'focused' ? 'onBlur' : 'onPressOut'
         await triggerIconState(owner, release)
       }
-      expect(inspected).toBeGreaterThanOrEqual(4)
+      expect(inspected).toBeGreaterThanOrEqual(6)
     } finally { await act(() => tree.unmount()) }
   })
   it.each([320, 412, 600, 1024, 1352].flatMap(width => [en, ptBR].flatMap(messages =>

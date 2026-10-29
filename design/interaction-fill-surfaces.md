@@ -172,3 +172,18 @@ owners above. These checks prove rendered web geometry and resolved native style
 
 The paired `navigation/root-notification-header.tsx` owners retain a 48px content allocation above
 the existing 24px bottom inset when the bell paint becomes 44px; its transparent reach remains 48px.
+
+## Native measurement owners
+
+`apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx` uses the shared 8px
+inset for read-only habit disclosures as well as loggable rows.
+`apps/mobile/components/shell/composer.tsx` reserves the ordinary input label and the
+allowance placeholder together at enlarged text, matching the web composer input grid.
+Its hidden measurements share the actual text column width and remain inaccessible.
+Style guards distinguish 44px icon paint from the transparent 48px hit target, retain
+34px calendar discs and selection rings, and measure 8px gaps between painted neighbours.
+
+The web `components/ui/check-row.tsx` owner uses the existing 4px internal padding
+inside the 32px personal checkbox fill. Chromium guards compare its glyph and fill
+centres within 0.5px in hover, press and focus. Android discovery includes the paired
+`components/ui/check-row.tsx` normal and calendar-day checkbox controls.

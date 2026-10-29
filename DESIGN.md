@@ -1725,6 +1725,12 @@ Month-navigation controls reserve clearance inside their unchanged targets. Comp
 the same gap between their targets. Touching calendar day rows inset their paint by 8px. Their body opens the habit detail for the selected date and reuses Hoje's emoji tile and monogram fallback; the 46px well and 12px block insets give short rows a 70px resting floor. The completion control remains independent. The title-only sheet is removed under #1858; habit detail supplies the full title. A labelled recurring switch at the top of the selected-day list shares the Options preference and filters its completion count.
 Measure painted fills and visible text or graphics, excluding transparent hit areas.
 Every icon-only glyph stays centred within 0.5px of its own painted surface on both axes.
+Geometry checks measure the 44px icon paint separately from its transparent 48px hit target.
+Personal checkbox fills centre their 24px glyph inside the 32px paint without retained
+padding that forces the glyph beyond the centre.
+Android day-detail disclosures use the shared 8px paint inset even when logging is unavailable.
+The Android composer measures both its ordinary and allowance placeholders at enlarged text,
+retaining the same field height through allowance transitions, as the web input grid does.
 A dense composite whose cells cannot reserve 8px paints feedback on its own mark instead of a
 cell box. Bar charts change their own bar to the selected-bar foreground on hover or held press;
 one keyboard indicator follows the padded moving readout and the radio's live `:focus-visible` state. Full-height transparent radio targets,

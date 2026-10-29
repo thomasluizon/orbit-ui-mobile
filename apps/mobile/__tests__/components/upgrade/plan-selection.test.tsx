@@ -162,7 +162,7 @@ describe('PlanSelection (mobile)', () => {
         node.type === 'View' && node.props.accessibilityRole === 'radiogroup',
     )[0]
     expect(StyleSheet.flatten(group.props.style)).toEqual(expect.objectContaining({
-      alignSelf: 'stretch', width: '100%', flexDirection: 'row', gap: 4, padding: 4,
+      alignSelf: 'stretch', width: '100%', flexDirection: 'row', gap: 8, padding: 4,
     }))
     const segments = tree.root.findAll(
       (node: { type: unknown; props: Record<string, unknown> }) =>
