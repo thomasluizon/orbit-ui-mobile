@@ -50,7 +50,7 @@
     },
     "homeScreen": {
       "title": "Tela inicial",
-      "showGeneral": "Mostrar hábitos sem dia",
+      "showGeneral": "Ver hábitos sem dia fixo",
       "showGeneralDesc": "Hábitos sem dia definido também aparecem no Hoje."
     },
     "clock": {
