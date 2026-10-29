@@ -28,12 +28,14 @@ describe('ThemeToggle', () => {
     mockTheme = 'dark'
     render(<ThemeToggle />)
     expect(screen.getByLabelText('settings.theme.switchToLight')).toBeInTheDocument()
+    expect(screen.getByRole('button').querySelector('.tabler-icon-sun')).not.toBeNull()
   })
 
   it('shows switch-to-dark label in light mode', () => {
     mockTheme = 'light'
     render(<ThemeToggle />)
     expect(screen.getByLabelText('settings.theme.switchToDark')).toBeInTheDocument()
+    expect(screen.getByRole('button').querySelector('.tabler-icon-moon')).not.toBeNull()
   })
 
   it('calls toggleTheme on click', () => {
@@ -44,3 +46,4 @@ describe('ThemeToggle', () => {
     expect(mockToggle).toHaveBeenCalled()
   })
 })
+

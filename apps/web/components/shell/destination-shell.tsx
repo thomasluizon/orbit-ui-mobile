@@ -21,6 +21,7 @@ import { Plus } from '@/components/ui/icons'
 import { DestinationIcon, getDestinationIcon } from '@/components/navigation/destination-icon'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
@@ -313,7 +314,7 @@ function DestinationShellContent({
         createRefusal={createRefusal}
         account={getAccountLabel(profile)}
         accountEmail={profile?.email}
-        notifications={<NotificationBell countPlacement="corner" />}
+        notifications={<><ThemeToggle /><NotificationBell countPlacement="corner" /></>}
         onPalette={() => setPaletteOpen(true)}
         paletteLabel={t('nav.search')}
         paletteHint={paletteHint}
