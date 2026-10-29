@@ -1,5 +1,11 @@
 import { apiOrigin } from '../credentials.mjs'
 
+function fixtureFailure(method, path, cause) {
+  const pathname = path.split(/[?#]/u)[0].replace(/^(habits|tags|goals|checklist-templates)\/([^/]+)/u,
+    (_, resource, id) => `${resource}/${resource === 'habits' && id === 'bulk' ? id : '{id}'}`)
+  return new Error(`Fixture API ${method} ${pathname} failed: ${cause}.`)
+}
+
 export function publicApi(credentialKey) {
   return async (method, path, body, accepted = [], acceptedStatuses = []) => {
     const token = process.env[credentialKey]
@@ -12,19 +18,14 @@ export function publicApi(credentialKey) {
       redirect: 'error',
     }
     let rateLimitWaits = 0
-    let transportRetried = false
     while (true) {
       let response
       let text
       try {
         response = await fetch(url, { ...options, signal: AbortSignal.timeout(15000) })
         text = await response.text()
-      } catch {
-        if (['GET', 'DELETE'].includes(method) && !transportRetried) {
-          transportRetried = true
-          continue
-        }
-        throw new Error('Fixture API transport or JSON response failed.')
+      } catch (error) {
+        throw fixtureFailure(method, path, error?.name === 'TimeoutError' ? 'timeout' : 'network')
       }
       if (response.status === 429 && rateLimitWaits < 3) {
         const retryAfter = response.headers.get('Retry-After')
@@ -35,7 +36,7 @@ export function publicApi(credentialKey) {
       }
       let payload
       try { payload = text ? JSON.parse(text) : null } catch {
-        throw new Error('Fixture API transport or JSON response failed.')
+        throw fixtureFailure(method, path, `non-JSON body (HTTP ${response.status})`)
       }
       if (!response.ok && !acceptedStatuses.includes(response.status) && !accepted.includes(payload?.errorCode)) throw new Error(`Fixture API ${method} failed with HTTP ${response.status}.`)
       return { status: response.status, payload }
