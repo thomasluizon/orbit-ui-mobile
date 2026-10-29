@@ -181,6 +181,12 @@ The live gate checks `/health` before its first case and before refreshing crede
 start unless the reported `commit` matches `apiCommit`, naming both commits and the regeneration command.
 Offline unit tests validate against the committed catalog without contacting the API.
 
+Fixture requests retry one transport timeout or network failure for `GET`, `DELETE`, and verified
+replacement `PUT` routes: `habits/{id}`, `habits/{id}/checklist`, `tags/{id}/assign`,
+`calendar/selected-calendars`, and `calendar/auto-sync`. Profile timezone and language setters
+increment a reminder version and remain unretried, as do other `PUT` routes, `POST`, and `PATCH`.
+Each attempt retains its 15 second deadline; the three rate-limit waits have a separate budget.
+
 Before a staging run, use `/flag` to turn on the plain `astra_eval_unmetered`
 flag for `ORBIT_EVAL_TOKEN`, the main account, keeping global enablement off. Keep it off for
 `ORBIT_EVAL_FREE_TOKEN` (`free-at-limit`) and `ORBIT_EVAL_BUDGET_TOKEN` (`budget-exhausted`)
