@@ -1,7 +1,8 @@
 {
   "sourceRuns": [
     "40881806581",
-    "40905367036"
+    "40905367036",
+    "40910377021"
   ],
   "durationMsByFile": {
     "__tests__/app/import-prompts-dismissal.test.tsx": 2196,
@@ -10,7 +11,8 @@
     "__tests__/components/calendar/calendar-any-time-label-geometry.test.tsx": 11044,
     "__tests__/components/calendar/calendar-day-detail-geometry.test.tsx": 21512,
     "__tests__/components/calendar/calendar-fill-clearance.test.tsx": 22105,
-    "__tests__/components/calendar/calendar-header-geometry.test.tsx": 237330,
+    "__tests__/components/calendar/calendar-header-controls-geometry.test.tsx": 90707,
+    "__tests__/components/calendar/calendar-header-tracks-geometry.test.tsx": 100760,
     "__tests__/components/calendar/calendar-loading-geometry.test.tsx": 17031,
     "__tests__/components/calendar/calendar-navigation-targets.test.tsx": 7321,
     "__tests__/components/calendar/calendar-stats.test.tsx": 5957,
@@ -84,7 +86,8 @@
     "__tests__/components/shell/shell-bottom-column-geometry.test.tsx": 6707,
     "__tests__/components/shell/shell-scrollbar-geometry.test.tsx": 11772,
     "__tests__/components/shell/sidebar-account-menu-geometry.test.tsx": 14698,
-    "__tests__/components/shell/sidebar-brand-account-geometry.test.tsx": 240768,
+    "__tests__/components/shell/sidebar-brand-account-collapsed-geometry.test.tsx": 119124,
+    "__tests__/components/shell/sidebar-brand-account-expanded-geometry.test.tsx": 119760,
     "__tests__/components/shell/sidebar-collapse-geometry.test.tsx": 25348,
     "__tests__/components/shell/sidebar-search-keycap-geometry.test.tsx": 12916,
     "__tests__/components/today/today-astra.test.tsx": 9489,
@@ -113,7 +116,14 @@
     "__tests__/components/ui/interaction-fill-inventory.test.ts": 3975,
     "__tests__/components/ui/interaction-fill-owners-geometry.test.tsx": 119517,
     "__tests__/components/ui/interaction-fill-text-clipping.test.tsx": 6842,
-    "__tests__/components/ui/interaction-surface-sweep.test.tsx": 248501,
+    "__tests__/components/ui/interaction-surface-sweep-calendar-en.test.tsx": 103869,
+    "__tests__/components/ui/interaction-surface-sweep-calendar-pt-br.test.tsx": 98496,
+    "__tests__/components/ui/interaction-surface-sweep-profile-en.test.tsx": 38267,
+    "__tests__/components/ui/interaction-surface-sweep-profile-pt-br.test.tsx": 37337,
+    "__tests__/components/ui/interaction-surface-sweep-progress-en.test.tsx": 20354,
+    "__tests__/components/ui/interaction-surface-sweep-progress-pt-br.test.tsx": 20508,
+    "__tests__/components/ui/interaction-surface-sweep-today-en.test.tsx": 41715,
+    "__tests__/components/ui/interaction-surface-sweep-today-pt-br.test.tsx": 41274,
     "__tests__/components/ui/label-row-centre.test.tsx": 5411,
     "__tests__/components/ui/list-row-geometry.test.tsx": 23213,
     "__tests__/components/ui/markdown-copy-geometry.test.tsx": 6362,

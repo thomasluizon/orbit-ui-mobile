@@ -17,7 +17,17 @@ test("configured Chromium shards leave room for measured durations, growth and c
   assert.deepEqual(indexes, Array.from({ length: count }, (_, index) => index + 1))
   const step = web.steps.find((candidate) => candidate.name === "Run web shard with coverage")
   assert.equal(step["timeout-minutes"], 15)
+  const budgetStep = workflow.jobs["unit-tests"].steps.find((candidate) => candidate.name === "Enforce web test file budget")
+  const budgetCommand = budgetStep.run.match(/^node \.github\/scripts\/check-web-test-budget\.mjs \S+ (\d+)$/)
+  assert.ok(budgetCommand, "the workflow must supply a per-file budget")
+  const fileBudgetMs = Number(budgetCommand[1])
   const { durationMsByFile } = JSON.parse(readFileSync(join(root, ".github/scripts/fixtures/web-chromium-timings.json"), "utf8"))
+  const growthFactor = 1.25
+  const overBudgetFiles = Object.entries(durationMsByFile).flatMap(([file, measured]) => {
+    const projected = measured * growthFactor
+    return projected < fileBudgetMs ? [] : [`${file}: ${(measured / 1000).toFixed(3)}s measured, ${(projected / 1000).toFixed(3)}s with headroom exceeds the per-file budget`]
+  })
+  assert.equal(overBudgetFiles.length, 0, overBudgetFiles.join("\n"))
   const webRoot = join(root, "apps/web")
   const files = Object.keys(durationMsByFile).map((name) => ({ moduleId: join(webRoot, name) }))
   const selected = []
@@ -28,7 +38,7 @@ test("configured Chromium shards leave room for measured durations, growth and c
     selected.push(...shard)
     const measured = shard.reduce((sum, file) => sum + durationMsByFile[file.moduleId.slice(webRoot.length + 1)], 0)
     // WHY: JSON timings omit setup and coverage work; reserve four minutes plus 25% test growth. https://github.com/thomasluizon/orbit-tickets/issues/1886
-    const projected = measured * 1.25 + 240_000
+    const projected = measured * growthFactor + 240_000
     assert.ok(projected < step["timeout-minutes"] * 60_000, `Chromium ${index}/${count}: ${(measured / 1000).toFixed(3)}s measured, ${(projected / 1000).toFixed(3)}s with headroom exceeds the step limit`)
   }
   assert.equal(selected.length, files.length)
