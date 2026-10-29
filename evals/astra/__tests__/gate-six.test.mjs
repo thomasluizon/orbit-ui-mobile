@@ -46,11 +46,11 @@ it.each(['en', 'pt-BR'])('allows profile context while keeping outcome requireme
 it.each(['en', 'pt-BR'])('declares the medical correction setup dependency in %s', (locale) => {
   expect(scenario('medical-correction', locale).vars.setup.caseId).toBe(`composition-medical-batch-${locale}`)
 })
-it.each(['en', 'pt-BR'])('binds medical dates to the account year and the stated day in %s', (locale) => {
+it.each(['en', 'pt-BR'])('binds medical dates to future account date offsets in %s', (locale) => {
   const test = scenario('medical-batch', locale)
-  expect(test.vars.expectations.required[0].arguments.habits[0].due_date).toBe('{accountYear}-10-26')
+  expect(test.vars.expectations.required[0].arguments.habits[0].due_date).toBe('{accountDate+3}')
   expect(test.vars.rubric).toContain('{accountDate}')
-  expect(test.vars.rubric).toContain('{accountYear}-10-26')
+  expect(test.vars.rubric).toContain('{accountDate+3}')
 })
 
 it.each(['calendar-sync', 'error', 'offline'])('asks about Google Agenda in the Portuguese %s case', (family) => {
