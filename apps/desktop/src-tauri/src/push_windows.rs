@@ -3,12 +3,37 @@ use tauri::{AppHandle, Manager};
 
 static INITIALIZED: OnceLock<()> = OnceLock::new();
 
-pub fn show(notice: &crate::push_state::RawNotice, id: i32) -> Result<(), String> {
+pub fn show(
+    notice: &crate::push_state::RawNotice,
+    id: i32,
+    labels: &crate::localization::Labels,
+) -> Result<(), String> {
     let title = CString::new(notice.title.as_str()).map_err(|error| error.to_string())?;
     let body =
         CString::new(notice.body.as_deref().unwrap_or("")).map_err(|error| error.to_string())?;
     let identifier = CString::new(id.to_string()).map_err(|error| error.to_string())?;
-    if unsafe { orbit_push_show(title.as_ptr(), body.as_ptr(), identifier.as_ptr()) } {
+    let done = notice
+        .reminder
+        .done_token
+        .as_ref()
+        .is_some_and(|token| !token.is_empty());
+    let label = CString::new(
+        notice
+            .reminder
+            .done_label
+            .as_deref()
+            .unwrap_or(labels.text("reminderDone")),
+    )
+    .map_err(|error| error.to_string())?;
+    if unsafe {
+        orbit_push_show(
+            title.as_ptr(),
+            body.as_ptr(),
+            identifier.as_ptr(),
+            done,
+            label.as_ptr(),
+        )
+    } {
         Ok(())
     } else {
         Err("Cannot show Windows reminder".into())
@@ -70,6 +95,8 @@ unsafe extern "C" {
         title: *const std::ffi::c_char,
         body: *const std::ffi::c_char,
         identifier: *const std::ffi::c_char,
+        done: bool,
+        label: *const std::ffi::c_char,
     ) -> bool;
     fn orbit_wns_initialize(
         bootstrap: *const u16,

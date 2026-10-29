@@ -66,7 +66,10 @@ extern "C" int orbit_wns_initialize(wchar_t const* bootstrap, char const* object
         notifications = AppNotificationManager::Default();
         invoked = notifications.NotificationInvoked([](auto const&, AppNotificationActivatedEventArgs const& arguments) {
             auto values = arguments.Arguments();
-            if (values.HasKey(L"orbitNoticeId")) emit(6, winrt::to_string(values.Lookup(L"orbitNoticeId")));
+            if (values.HasKey(L"orbitNoticeId")) {
+                bool done = values.HasKey(L"orbitAction") && values.Lookup(L"orbitAction") == L"done";
+                emit(done ? 8 : 6, winrt::to_string(values.Lookup(L"orbitNoticeId")));
+            }
         });
         notifications.Register();
         initialized = true;
@@ -104,13 +107,16 @@ extern "C" void orbit_push_request(bool prompt, bool token) {
     } catch (...) { emit(7); }
 }
 
-extern "C" bool orbit_push_show(char const* title, char const* body, char const* identifier) {
+extern "C" bool orbit_push_show(char const* title, char const* body, char const* identifier, bool done, char const* label) {
     try {
         Apartment apartment;
-        auto notice = winrt::Microsoft::Windows::AppNotifications::Builder::AppNotificationBuilder()
+        using namespace winrt::Microsoft::Windows::AppNotifications::Builder;
+        auto builder = AppNotificationBuilder()
             .AddArgument(L"orbitNoticeId", winrt::to_hstring(identifier))
-            .AddText(winrt::to_hstring(title)).AddText(winrt::to_hstring(body)).BuildNotification();
-        notifications.Show(notice);
+            .AddText(winrt::to_hstring(title)).AddText(winrt::to_hstring(body));
+        if (done) builder.AddButton(AppNotificationButton(winrt::to_hstring(label))
+            .AddArgument(L"orbitNoticeId", winrt::to_hstring(identifier)).AddArgument(L"orbitAction", L"done"));
+        notifications.Show(builder.BuildNotification());
         return true;
     } catch (...) { return false; }
 }

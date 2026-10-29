@@ -6,7 +6,7 @@ use uuid::Uuid;
 pub struct PushSession {
     pub account: Option<String>,
     restored: bool,
-    startup_response: Option<(String, Option<String>)>,
+    startup_response: Option<(String, crate::push_action::Response)>,
 }
 
 impl PushSession {
@@ -36,7 +36,7 @@ impl PushSession {
         &mut self,
         account: Option<String>,
         saved: &PushState,
-    ) -> Option<Option<String>> {
+    ) -> Option<crate::push_action::Response> {
         self.account = account;
         self.account.as_ref()?;
         self.restored = true;
@@ -46,8 +46,13 @@ impl PushSession {
     }
 
     #[cfg(any(target_os = "macos", test))]
-    pub fn response(&mut self, saved: &PushState, payload: &str) -> Option<Option<String>> {
-        let destination = apns_destination(payload);
+    pub fn response(
+        &mut self,
+        saved: &PushState,
+        payload: &str,
+        done: bool,
+    ) -> Option<crate::push_action::Response> {
+        let destination = crate::push_action::apns_response(payload, done)?;
         if self.owns(saved) {
             return Some(destination);
         }
@@ -65,18 +70,8 @@ impl PushSession {
 pub struct RawNotice {
     pub title: String,
     pub body: Option<String>,
-    pub url: Option<String>,
-}
-
-#[cfg(any(target_os = "macos", test))]
-pub fn apns_destination(payload: &str) -> Option<String> {
-    let payload = serde_json::from_str::<serde_json::Value>(payload).ok();
-    payload
-        .as_ref()
-        .and_then(|payload| payload.get("body"))
-        .and_then(|body| body.get("url"))
-        .and_then(serde_json::Value::as_str)
-        .map(str::to_owned)
+    #[serde(flatten)]
+    pub reminder: crate::push_action::Reminder,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -100,6 +95,8 @@ pub struct PendingRegistration {
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PushState {
+    #[serde(default)]
+    pub language: Option<String>,
     pub device_id: Uuid,
     pub owner: Option<String>,
     pub registration: Option<Registration>,
@@ -144,6 +141,7 @@ impl PushState {
             Ok(bytes) => Ok(serde_json::from_slice(&bytes)?),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 let state = Self {
+                    language: None,
                     device_id: Uuid::new_v4(),
                     owner: None,
                     registration: None,
@@ -227,6 +225,7 @@ mod tests {
     #[test]
     fn startup_apns_click_opens_once_only_for_the_restored_push_owner() {
         let saved = PushState {
+            language: None,
             device_id: Uuid::new_v4(),
             owner: Some("account-a".into()),
             registration: None,
@@ -235,17 +234,53 @@ mod tests {
         let payload = r#"{"body":{"url":"/habits/example"}}"#;
         let mut session = PushSession::default();
         let mut navigations = Vec::new();
-        navigations.extend(session.response(&saved, payload));
+        navigations.extend(session.response(&saved, payload, false));
         assert!(navigations.is_empty());
         navigations.extend(session.restore(None, &saved));
         navigations.extend(session.restore(Some("account-a".into()), &saved));
         navigations.extend(session.restore(Some("account-a".into()), &saved));
-        assert_eq!(navigations, vec![Some("/habits/example".into())]);
+        assert_eq!(
+            navigations,
+            vec![crate::push_action::Response::Open(Some(
+                "/habits/example".into()
+            ))]
+        );
 
         let mut replacement = PushSession::default();
-        assert_eq!(replacement.response(&saved, payload), None);
+        assert_eq!(replacement.response(&saved, payload, false), None);
         assert_eq!(replacement.restore(Some("account-b".into()), &saved), None);
         assert_eq!(replacement.restore(Some("account-a".into()), &saved), None);
+    }
+
+    #[test]
+    fn startup_done_waits_for_its_owner_and_keeps_the_action_instead_of_opening() {
+        let saved = PushState {
+            language: Some("pt-BR".into()),
+            device_id: Uuid::new_v4(),
+            owner: Some("account-a".into()),
+            registration: None,
+            pending: Vec::new(),
+        };
+        let payload = r#"{"body":{"habitId":"11111111-1111-4111-8111-111111111111","doneToken":"one-use-token","url":"/"}}"#;
+        let mut session = PushSession::default();
+        assert_eq!(session.response(&saved, payload, true), None);
+        assert_eq!(session.restore(None, &saved), None);
+        assert!(matches!(
+            session.restore(Some("account-a".into()), &saved),
+            Some(crate::push_action::Response::Done(_))
+        ));
+        assert_eq!(session.restore(Some("account-a".into()), &saved), None);
+        let mut replacement = PushSession::default();
+        assert_eq!(replacement.response(&saved, payload, true), None);
+        assert_eq!(replacement.restore(Some("account-b".into()), &saved), None);
+        assert_eq!(replacement.restore(Some("account-a".into()), &saved), None);
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("push.json");
+        saved.save(&path).unwrap();
+        assert_eq!(
+            PushState::load(&path).unwrap().language.as_deref(),
+            Some("pt-BR")
+        );
     }
 
     #[test]
@@ -313,20 +348,34 @@ mod tests {
                 RawNotice {
                     title: title.into(),
                     body: Some(body.into()),
-                    url: Some(url.into())
+                    reminder: crate::push_action::Reminder {
+                        url: Some(url.into()),
+                        ..Default::default()
+                    }
                 }
             );
             let apns = serde_json::json!({ "aps": { "alert": { "title": title, "body": body }, "sound": "default" }, "body": { "url": url } });
-            assert_eq!(apns_destination(&apns.to_string()), Some(url.to_owned()));
+            assert_eq!(
+                crate::push_action::apns_response(&apns.to_string(), false),
+                Some(crate::push_action::Response::Open(Some(url.to_owned())))
+            );
         }
         assert_eq!(
-            apns_destination(
-                r#"{"aps":{"alert":{"title":"Orbit","body":"Reminder"}},"body":{"url":null}}"#
+            crate::push_action::apns_response(
+                r#"{"aps":{"alert":{"title":"Orbit","body":"Reminder"}},"body":{"url":null}}"#,
+                false
             ),
-            None
+            Some(crate::push_action::Response::Open(None))
         );
         assert!(serde_json::from_str::<RawNotice>(r#"{"title":123}"#).is_err());
-        assert_eq!(apns_destination("invalid"), None);
+        assert_eq!(crate::push_action::apns_response("invalid", false), None);
+        let repeat = r#"{"body":{"url":"/","habitId":"11111111-1111-4111-8111-111111111111","doneToken":"one-use-token"}}"#;
+        assert_eq!(
+            crate::push_action::apns_response(repeat, false),
+            Some(crate::push_action::Response::Open(Some(
+                "/habits/11111111-1111-4111-8111-111111111111".into()
+            )))
+        );
     }
 
     #[test]
@@ -369,6 +418,7 @@ mod tests {
     #[test]
     fn native_registrations_accept_only_the_transport_contract() {
         let state = PushState {
+            language: None,
             device_id: Uuid::new_v4(),
             owner: None,
             registration: None,

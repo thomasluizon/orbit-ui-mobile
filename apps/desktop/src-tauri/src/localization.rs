@@ -27,9 +27,11 @@ mod tests {
     fn menus_follow_the_system_language_with_english_for_other_locales() {
         for locale in ["pt-BR", "pt-PT", "pt", "PT-br"] {
             assert_eq!(Labels::new(locale).text("open"), "Abrir Orbit");
+            assert_eq!(Labels::new(locale).text("reminderDone"), "Concluir");
         }
         for locale in ["en-US", "en", "fr-FR", "", "ptx"] {
             assert_eq!(Labels::new(locale).text("open"), "Open Orbit");
+            assert_eq!(Labels::new(locale).text("reminderDone"), "Done");
         }
     }
 

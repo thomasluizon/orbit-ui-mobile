@@ -51,9 +51,10 @@ API_AVAILABLE(macos(10.14))
     completionHandler(atomic_load(&active) ? presentation : UNNotificationPresentationOptionNone);
 }
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center didReceiveNotificationResponse:(UNNotificationResponse *)response withCompletionHandler:(void (^)(void))completionHandler {
-    if ([response.actionIdentifier isEqualToString:UNNotificationDefaultActionIdentifier]) {
+    BOOL done = [response.actionIdentifier isEqualToString:@"orbit-reminder-done"];
+    if (done || [response.actionIdentifier isEqualToString:UNNotificationDefaultActionIdentifier]) {
         NSData *payload = [NSJSONSerialization dataWithJSONObject:response.notification.request.content.userInfo options:0 error:nil];
-        callback(6, payload.bytes, payload.length);
+        callback(done ? 8 : 6, payload.bytes, payload.length);
     }
     completionHandler();
 }
@@ -71,6 +72,16 @@ void orbit_push_init(OrbitPushCallback handler) {
     BOOL tokenAdded = class_addMethod(delegateClass, @selector(application:didRegisterForRemoteNotificationsWithDeviceToken:), (IMP)registered, "v@:@@");
     BOOL failureAdded = class_addMethod(delegateClass, @selector(application:didFailToRegisterForRemoteNotificationsWithError:), (IMP)failed, "v@:@@");
     installed = tokenAdded && failureAdded;
+    }
+}
+
+void orbit_push_category(const char *title) {
+    if (@available(macOS 10.14, *)) {
+        UNNotificationAction *done = [UNNotificationAction actionWithIdentifier:@"orbit-reminder-done"
+            title:[NSString stringWithUTF8String:title] options:UNNotificationActionOptionNone];
+        UNNotificationCategory *category = [UNNotificationCategory categoryWithIdentifier:@"orbit-repeat-reminder"
+            actions:@[done] intentIdentifiers:@[] options:UNNotificationCategoryOptionNone];
+        [UNUserNotificationCenter.currentNotificationCenter setNotificationCategories:[NSSet setWithObject:category]];
     }
 }
 

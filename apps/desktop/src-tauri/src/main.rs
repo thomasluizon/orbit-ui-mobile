@@ -11,6 +11,7 @@ mod links;
 mod localization;
 mod menus;
 mod push;
+mod push_action;
 mod push_state;
 #[cfg(windows)]
 mod push_windows;
