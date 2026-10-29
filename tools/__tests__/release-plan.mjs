@@ -15,7 +15,7 @@ const LANDING = "srv-ffffffffffffffffffff"
 const STAGING_LANDING = "srv-dddddddddddddddddddd"
 const clone = (value) => structuredClone(value)
 
-function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest = [], noLiveApi = false, androidUploads = null } = {}) {
+function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest = [], noLiveApi = false, imageApi = false, androidUploads = null } = {}) {
   const calls = []
   const read = (path) => {
     calls.push(path)
@@ -74,17 +74,19 @@ function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest 
     if (path === "services?limit=100") return clone(renderFixture.serviceList)
     if (path.includes("/deploys?")) {
       if (noLiveApi && path === `services/${IDS.api}/deploys?status=live&limit=1`) return []
+      if (imageApi && path === `services/${IDS.api}/deploys?status=live&limit=1`) return clone(renderFixture.stagingApiDeploys)
       const records = clone(renderFixture.deploys)
       records[0].deploy.commit.id = path === `services/${STAGING_LANDING}/deploys?status=live&limit=1`
         ? renderFixture.stagingLandingCommit : FIRST
       return records
     }
+    if (path === `services/${IDS.api}`) return clone(renderFixture.stagingApiService)
     if (path === `services/${IDS.web}`) return clone(renderFixture.service)
     throw new Error(`unexpected Render read: ${path}`)
   }
   const readHealth = (url) => {
     calls.push(url)
-    return clone(renderFixture.health)
+    return clone(url.endsWith("/health") && !url.endsWith("/api/health") ? renderFixture.apiHealth : renderFixture.health)
   }
   return { read, readRender, readHealth, calls }
 }
@@ -94,6 +96,7 @@ export async function cases() {
   check("release-plan.mjs", "CLI production refuses redesign branch", ["--environment", "production", "--branch", "integration/next"], { status: 2 })
   androidRecordCases()
   await androidBaselineCases()
+  await stagingApiHealthCases()
   let missingBranch = ""
   try { await planRelease(clientFor(), "staging", IDS) } catch (error) { missingBranch = error.message }
   T("staging requires a selected branch", missingBranch === "invalid branch for environment")
@@ -127,6 +130,8 @@ export async function cases() {
   const recovered = await planRelease(failed, "production", IDS)
   T("production API uses the live Render commit", recovered.services[0].deployedSha === FIRST && recovered.services[0].needsRelease)
   T("production API reads Render live deploys", failed.calls.some((path) => path === `services/${IDS.api}/deploys?status=live&limit=1`))
+  T("production API does not read its service record or health", !failed.calls.some((path) =>
+    path === `services/${IDS.api}` || path === "https://api.example.invalid/health"))
 
   const divergentStaging = await planRelease(clientFor({ ahead: ["api"], diverged: ["api"] }),
     "staging", IDS, "internal", "feature/release")
@@ -154,8 +159,8 @@ export async function cases() {
     staging.calls.some((path) => path === `services/${STAGING_LANDING}/deploys?status=live&limit=1`))
 
 
-  const noApi = await planRelease(clientFor({ noLiveApi: true }), "staging", IDS, "internal", "feature/release")
-  T("staging without a live API deploy reports first deploy", noApi.services[0].noBaseline && noApi.services[0].deployedSha === null)
+  const noApi = await planRelease(clientFor(), "staging", { api: null, web: IDS.web }, "internal", "feature/release")
+  T("staging without an API service reports first deploy", noApi.services[0].noBaseline && noApi.services[0].deployedSha === null)
   const noWeb = clientFor()
   const noWebPlan = await planRelease(noWeb, "staging", { api: IDS.api, web: null }, "internal", "feature/release")
   T("staging without a web service reports first deploy", noWebPlan.services[1].noBaseline &&
@@ -169,6 +174,51 @@ export async function cases() {
   try { stagingServiceIds({ read: () => ({ total_count: 1, variables: [{ name: "RENDER_WEB_STAGING_SERVICE_ID", value: null }] }) }) }
   catch (error) { invalidVariable = error.message }
   T("malformed repository variable does not masquerade as a first deploy", invalidVariable.includes("unexpected shape"))
+}
+
+async function stagingApiHealthCases() {
+  const healthUrl = "https://api.example.invalid/health"
+  const image = clientFor({ imageApi: true, ahead: ["api"] })
+  let imagePlan
+  let imageError = ""
+  try { imagePlan = await planRelease(image, "staging", IDS, "internal", "main") }
+  catch (error) { imageError = error.message }
+  T("image-backed staging API plans from its healthy commit", imagePlan?.services[0].deployedSha === FIRST &&
+    imagePlan.services[0].needsRelease && imagePlan.services[0].commits[0].sha === SECOND, imageError)
+  T("staging API discovers health through its Render service record", image.calls.some((path) => path === `services/${IDS.api}`) &&
+    image.calls.some((path) => path === healthUrl))
+  T("staging API never reads a Git-backed deploy baseline", !image.calls.includes(`services/${IDS.api}/deploys?status=live&limit=1`))
+
+  const missingCommit = clone(renderFixture.apiHealth)
+  delete missingCommit.commit
+  const failures = [
+    ["unhealthy", { ...clone(renderFixture.apiHealth), status: "Unhealthy" }],
+    ["web status", { ...clone(renderFixture.apiHealth), status: "ok" }],
+    ["missing commit", missingCommit],
+    ["malformed commit", { ...clone(renderFixture.apiHealth), commit: "invalid" }],
+    ["non-string commit", { ...clone(renderFixture.apiHealth), commit: [FIRST] }],
+    ["short commit", { ...clone(renderFixture.apiHealth), commit: "a".repeat(39) }],
+    ["null body", null],
+    ["transport failure", new Error("connection refused")],
+    ["HTTP failure", new Error("Health returned HTTP 503")],
+    ["invalid JSON", new SyntaxError("Unexpected token")],
+  ]
+  for (const [name, response] of failures) {
+    const client = clientFor()
+    const readHealth = client.readHealth
+    client.readHealth = (url) => {
+      if (url !== healthUrl) return readHealth(url)
+      if (response instanceof Error) throw response
+      return response
+    }
+    let failure = ""
+    try { await planRelease(client, "staging", IDS, "internal", "main") }
+    catch (error) { failure = error.message }
+    const expected = response instanceof Error
+      ? `API health at ${healthUrl} failed: ${response.message}`
+      : `API health at ${healthUrl} has an unexpected response`
+    T(`staging API ${name} stops planning, naming the health URL and the cause`, failure === expected, failure)
+  }
 }
 
 const ANDROID_API_STUB = `
