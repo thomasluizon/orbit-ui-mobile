@@ -37,7 +37,10 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 375, 384, 412, 480].flatM
       expect(text.clipped, text.label).toBe(false)
       expect(text.left, text.label).toBeGreaterThanOrEqual(0)
       expect(text.right, text.label).toBeLessThanOrEqual(width - 32)
-      if (scale === 1) expect(text.lines, text.label).toBe(1)
+      if (scale === 1) {
+        if (text.label === i18n.t('settings.homeScreen.showGeneralDesc')) expect(text.lines, text.label).toBeLessThanOrEqual(2)
+        else expect(text.lines, text.label).toBe(1)
+      }
     }
     const switchLabel = labels.find((text: { props: { children: string } }) => text.props.children === i18n.t('settings.homeScreen.showGeneral'))!
     let row = switchLabel.parent!

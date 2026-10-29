@@ -74,13 +74,16 @@ describe('Profile preferences label geometry', () => {
           const range = document.createRange(); range.selectNodeContents(element)
           const fragments = [...range.getClientRects()].filter((rect) => rect.width > 0)
           const bounds = element.getBoundingClientRect()
-          return { label: element.textContent, lines: new Set(fragments.map((rect) => Math.round(rect.top))).size, clipped: fragments.some((rect) => rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.top < bounds.top - 1 || rect.bottom > bounds.bottom + 1), outside: bounds.left < 0 || bounds.right > window.innerWidth, ellipsis: getComputedStyle(element).textOverflow === 'ellipsis' || Number.parseInt(getComputedStyle(element).webkitLineClamp) > 0 }
+          return { description: element.dataset.slot === 'list-row-description', label: element.textContent, lines: new Set(fragments.map((rect) => Math.round(rect.top))).size, clipped: fragments.some((rect) => rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.top < bounds.top - 1 || rect.bottom > bounds.bottom + 1), outside: bounds.left < 0 || bounds.right > window.innerWidth, ellipsis: getComputedStyle(element).textOverflow === 'ellipsis' || Number.parseInt(getComputedStyle(element).webkitLineClamp) > 0 }
         })
       })
       expect(measured).toHaveLength(13)
       for (const label of measured) {
         expect.soft(label, JSON.stringify(label)).toMatchObject({ clipped: false, outside: false, ellipsis: false })
-        if (scale === 1) expect.soft(label.lines, label.label!).toBe(1)
+        if (scale === 1) {
+          if (label.description) expect.soft(label.lines, label.label!).toBeLessThanOrEqual(2)
+          else expect.soft(label.lines, label.label!).toBe(1)
+        }
       }
     } finally { await page.close() }
   })

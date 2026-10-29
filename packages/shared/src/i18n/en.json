@@ -50,8 +50,8 @@
     },
     "homeScreen": {
       "title": "Home Screen",
-      "showGeneral": "Anytime habits",
-      "showGeneralDesc": "Show in Today"
+      "showGeneral": "Show anytime habits",
+      "showGeneralDesc": "Habits without a set day also appear in your Today list."
     },
     "clock": {
       "title": "Clock",
