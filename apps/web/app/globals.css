@@ -2437,8 +2437,16 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 @media (width < 364px) {
   [data-shell-page-content] [data-calendar-page] .orbit-calendar-grid-frame {
-    width: 100vw;
+    --calendar-grid-end-inset: var(--orbit-space-12);
   }
+}
+
+.orbit-bar-chart [data-slot="bar-chart-readout"] {
+  border: 2px solid transparent;
+}
+
+.orbit-bar-chart:has([role="radio"]:focus-visible) [data-slot="bar-chart-readout"] {
+  border-color: currentColor;
 }
 
 .orbit-calendar-grid-card {

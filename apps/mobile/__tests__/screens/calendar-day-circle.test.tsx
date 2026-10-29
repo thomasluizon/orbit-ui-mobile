@@ -58,33 +58,41 @@ function monthHeader(screen: CalendarTree): CalendarTree {
   return header
 }
 
-function expectCircle(box: ReturnType<typeof measureDaySurface>[number]) {
+function expectCircle(box: ReturnType<typeof measureDaySurface>[number], centerX: number) {
   expect(box.width, box.testID).toBeLessThanOrEqual(44)
   expect(box.width, box.testID).toBeCloseTo(box.height, 4)
-  expect(box.centerX, box.testID).toBeCloseTo(box.column.centerX, 4)
+  expect(box.centerX, box.testID).toBeCloseTo(centerX, 4)
   expect(Number(box.style.borderRadius), box.testID).toBeGreaterThanOrEqual(box.width / 2)
 }
 
 function expectDays(tree: CalendarTree, width: number, view: 'month' | 'range') {
   const boxes = measureDaySurface(tree.toJSON(), width)
+  const circles = boxes.filter(box => box.testID === 'day-circle')
+  const discCenter = (box: typeof boxes[number]) => circles.find(circle => Math.abs(circle.column.centerX - box.column.centerX) < 0.5 && Math.abs(circle.centerY - box.centerY) < 0.5)!.centerX
+  const firstRow = boxes.find(box => box.testID === 'month-grid-row-0')!
+  for (const circle of circles) {
+    const gap = (firstRow.width - 7 * circle.column.width) / 6
+    const column = Math.round((circle.column.left - firstRow.left) / (circle.column.width + gap))
+    const allocation = Math.min(44, circle.column.width)
+    expectCircle(circle, circle.column.centerX + (allocation - 34) * (column / 6 - 0.5))
+  }
   const discs = boxes.filter((box) => box.testID === 'day-disc')
   expect(discs.length).toBeGreaterThanOrEqual(14)
-  for (const disc of discs) { expect(disc.width).toBe(34); expectCircle(disc) }
+  for (const disc of discs) { expect(disc.width).toBe(34); expectCircle(disc, discCenter(disc)) }
   const today = boxes.filter((box) => box.testID === 'day-today-ring')
   expect(today).toHaveLength(1)
-  for (const ring of today) { expectCircle(ring); expect(ring.style.borderWidth).toBe(2) }
+  for (const ring of today) { expectCircle(ring, discCenter(ring)); expect(ring.style.borderWidth).toBe(2) }
   const fills = boxes.filter((box) => box.style.backgroundColor && box.style.backgroundColor !== 'transparent')
-  for (const fill of fills.filter((box) => box.day)) expectCircle(fill)
+  for (const fill of fills.filter((box) => box.day)) expectCircle(fill, discCenter(fill))
   const targets = boxes.filter((box) => box.testID?.startsWith(view === 'month' ? 'calendar-day-select-' : 'day-cell-'))
   expect(targets).toHaveLength(view === 'month' ? 30 : 14)
   for (const target of targets) { expect(target.width).toBeCloseTo(target.column.width, 4); expect(target.height).toBeGreaterThanOrEqual(44) }
   const header = boxes.find((box) => box.testID === 'month-grid-header')!
-  const firstRow = boxes.find((box) => box.testID === 'month-grid-row-0')!
   expect(firstRow.top - header.top - header.height).toBe(8)
   if (view === 'month') {
     const selection = boxes.filter((box) => box.testID === 'day-today-ring' || box.testID === 'day-selection-ring')
     expect(selection).toHaveLength(boxes.some((box) => box.testID === 'day-selection-ring') ? 2 : 1)
-    for (const ring of selection) expectCircle(ring)
+    for (const ring of selection) expectCircle(ring, discCenter(ring))
   }
 }
 
@@ -94,9 +102,9 @@ function expectFullToday(tree: CalendarTree, width: number, selected?: boolean) 
   const disc = boxes.find((box) => box.testID === 'day-disc' && Math.abs(box.centerX - ring.centerX) < 0.5 && Math.abs(box.centerY - ring.centerY) < 0.5)!
   expect(disc.style.backgroundColor).not.toBe('transparent')
   expect(disc.width).toBe(34)
-  expect(ring.width).toBe(Math.min(44, ring.column.width))
+  expect(ring.width).toBe(34)
   expect(ring.style.borderWidth).toBe(2)
-  expectCircle(ring)
+  expectCircle(ring, disc.centerX)
   if (selected !== undefined) {
     const target = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'calendar-day-select-2026-09-11')[0]!
     expect(target.props.accessibilityState).toEqual({ selected })
@@ -147,9 +155,10 @@ describe('Calendar day circle', () => {
         const handler = select.props[event]
         expect(handler, event).toBeTypeOf('function')
         TestRenderer.act(() => { (handler as () => void)() })
-        const fills = measureDaySurface(header.toJSON(), width).filter((box) => box.testID === 'day-press-fill')
+        const boxes = measureDaySurface(header.toJSON(), width)
+        const fills = boxes.filter((box) => box.testID === 'day-press-fill')
         if (event === 'onPressIn') expect(fills).toHaveLength(1)
-        for (const fill of fills) expectCircle(fill)
+        for (const fill of fills) expectCircle(fill, boxes.find(box => box.testID === 'day-circle' && Math.abs(box.column.centerX - fill.column.centerX) < 0.5 && Math.abs(box.centerY - fill.centerY) < 0.5)!.centerX)
         expectDays(header, width, 'month')
       }
       const onSelect = select.props.onPress as () => void

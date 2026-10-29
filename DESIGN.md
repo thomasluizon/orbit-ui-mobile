@@ -1727,15 +1727,18 @@ Measure painted fills and visible text or graphics, excluding transparent hit ar
 Every icon-only glyph stays centred within 0.5px of its own painted surface on both axes.
 A dense composite whose cells cannot reserve 8px paints feedback on its own mark instead of a
 cell box. Bar charts change their own bar to the selected-bar foreground on hover or held press;
-one keyboard indicator follows the padded moving readout. Full-height transparent radio targets,
+one keyboard indicator follows the padded moving readout and the radio's live `:focus-visible` state. Full-height transparent radio targets,
 selection, arrows, Home/End and Android accessibility actions stay unchanged, with every column
 visible and no horizontal scrolling. Month and range feedback and position rings use the existing
 34px discs. Their centres distribute across the row to retain 8px gaps inside unchanged transparent
 full-column targets. The paired owners are listed in `design/interaction-fill-surfaces.md`.
-Below 364px on web, the calendar destination's month and range frames reclaim the shell's
-reserved scrollbar width with a viewport-wide frame. Their 16px gutters leave 288px for seven
-34px discs at 320px. The shell retains its usable 4px scrollbar and stable gutter; compact
-calendars inside Astra keep their containing block's width.
+Below 364px on web, the calendar destination's month and range grids reclaim exactly 4px
+from their trailing inset, changing it from 16px to 12px. The leading gutter stays 16px.
+The frame stays inside its containing column: a 316px shell client leaves a 288px grid
+for seven 34px discs at 320px, without horizontal overflow. The shell retains its usable
+4px scrollbar and stable gutter; compact calendars inside Astra keep their containing width.
+Habit history's past, future, unavailable and loading branches use the same distributed
+34px disc allocation on both platforms, preserving their transparent column widths.
 Web menu item focus remains inset in its existing row fill. The shell isolates page stacking
 beneath portalled menus so a floating action cannot cover an opened menu item.
 

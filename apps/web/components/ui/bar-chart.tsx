@@ -21,7 +21,6 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
   const [width, setWidth] = useState(0)
   const [readoutWidth, setReadoutWidth] = useState(0)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [keyboardFocus, setKeyboardFocus] = useState(false)
   const selectedIndex = resolveBarChartSelection(points, selectedDate)
   const bars = resolveBarChartGeometry(points.map((point) => point.rate), width)
   const hasPoints = points.length > 0
@@ -58,7 +57,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
   return (
     <div className="orbit-bar-chart flex w-full min-w-0 flex-col gap-2" data-testid="bar-chart">
       <div className="w-full">
-        <p ref={readoutRef} data-slot="bar-chart-readout" aria-live="polite" aria-atomic="true" className="relative w-max max-w-full rounded-[8px] p-2 text-sm leading-[1.4] tabular-nums text-[var(--fg-1)] [overflow-wrap:anywhere]" style={{ left: resolveBarChartReadout(width, readoutWidth, selectedIndex, points.length), border: '2px solid', borderColor: keyboardFocus ? 'var(--fg-1)' : 'transparent' }}>
+        <p ref={readoutRef} data-slot="bar-chart-readout" aria-live="polite" aria-atomic="true" className="relative w-max max-w-full rounded-[8px] p-2 text-sm leading-[1.4] tabular-nums text-[var(--fg-1)] [overflow-wrap:anywhere]" style={{ left: resolveBarChartReadout(width, readoutWidth, selectedIndex, points.length) }}>
           {describePoint(points[selectedIndex]!)}
         </p>
       </div>
@@ -73,8 +72,6 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           tabIndex={index === selectedIndex ? 0 : -1}
           onClick={() => setSelectedDate(point.startDate)}
           onKeyDown={handleKey}
-          onFocus={(event) => setKeyboardFocus(event.currentTarget.matches(':focus-visible'))}
-          onBlur={() => setKeyboardFocus(false)}
           className="orbit-bar-chart-column group relative min-w-0 flex-1 cursor-pointer touch-manipulation rounded-none bg-transparent p-0 focus-visible:outline-0"
         >
           {bars[index] ? <>

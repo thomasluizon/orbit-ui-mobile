@@ -21,6 +21,7 @@ import { buildCalendarRangeModel, formatCalendarSpanEnds } from '@orbit/shared/u
 import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { DayCell } from '@/components/dates/day-cell'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
+import { ShellWide } from '@/components/shell/shell-wide'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
@@ -155,6 +156,42 @@ describe('Calendar header geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([false, true].flatMap(isLoading => (['month', 'range'] as const).map(view => ({ isLoading, view }))))('reclaims only the reserved gutter inside the narrow shell for $view (loading=$isLoading)', async ({ isLoading, view }) => {
+    const model = buildCalendarRangeModel(new Date(2026, 1, 8), seededDayMap('2026-02'), 0, '2026-02-08')
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <ShellWide items={[]} activeId="calendar" navLabel="Navigation" paletteLabel="Search" paletteHint="Ctrl K" onPalette={vi.fn()} onCreate={vi.fn()} createLabel="Create" astraRow={{ label: 'Astra', onOpen: vi.fn() }}>
+        <div data-calendar-page="">
+          {view === 'month' ? <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" weekStartsOn={0} isLoading={isLoading} />
+            : <CalendarRangeView model={model} weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} rangeLabel="Range" isLoading={isLoading} loadingLabel="Loading" stats={[{ key: 'bestStreak', value: 1, label: 'Streak' }, { key: 'totalLogs', value: 1, label: 'Logs' }, { key: 'missed', value: 1, label: 'Missed' }]} />}
+        </div>
+      </ShellWide>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('main[data-shell-scroller]')!
+        const frame = document.querySelector('.orbit-calendar-grid-frame')!.getBoundingClientRect()
+        const card = document.querySelector('.orbit-calendar-grid-card')!.getBoundingClientRect()
+        const column = document.querySelector('[data-shell-page-content]')!.getBoundingClientRect()
+        const marks = [...document.querySelectorAll('[data-day-circle], [data-variant="grid"] span')].map(element => element.getBoundingClientRect()).filter((mark, index, all) => mark.top === all[0]!.top)
+        return { gutter: scroller.offsetWidth - scroller.clientWidth, scroll: scroller.scrollWidth, client: scroller.clientWidth,
+          leading: card.left - column.left, available: column.width - 32, grid: card.width, reclaimed: card.width - (column.width - 32),
+          frameRight: frame.right, columnRight: column.right, scrollerRight: scroller.getBoundingClientRect().right,
+          gaps: marks.slice(1).map((mark, index) => mark.left - marks[index]!.right) }
+      })
+      expect(geometry.gutter).toBe(4)
+      expect(geometry.frameRight, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.columnRight + geometry.gutter)
+      expect(geometry.frameRight).toBeLessThanOrEqual(geometry.scrollerRight)
+      expect(geometry.scroll, JSON.stringify(geometry)).toBe(geometry.client)
+      expect(geometry.leading).toBe(16)
+      expect(geometry.available).toBe(284)
+      expect(geometry.reclaimed).toBe(4)
+      expect(geometry.grid).toBeGreaterThanOrEqual(286)
+      for (const gap of geometry.gaps) expect(gap).toBeGreaterThanOrEqual(8)
+    } finally { await page.close() }
+  })
+
   it.each([320, 412, 600, 1352].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('retains the full today ring after selecting another day at $width in $locale', async ({ width, locale, messages }) => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
@@ -228,7 +265,8 @@ describe('Calendar header geometry in Chromium', () => {
           const discBox = disc.getBoundingClientRect()
           const header = document.querySelector('[data-testid="month-grid-header"]')?.getBoundingClientRect()
           const days = document.querySelector('[data-testid="month-grid-days"]')?.getBoundingClientRect()
-          return { boxes, center: bounds.left + bounds.width / 2, disc: { width: discBox.width, height: discBox.height }, headerGap: header && days ? days.top - header.bottom : undefined }
+          const circle = slot.querySelector('[data-day-circle]')!.getBoundingClientRect()
+          return { boxes, center: circle.left + circle.width / 2, disc: { width: discBox.width, height: discBox.height }, headerGap: header && days ? days.top - header.bottom : undefined }
         })
         expect(geometry.boxes.length).toBeGreaterThan(0)
         for (const box of geometry.boxes) {
@@ -587,7 +625,7 @@ describe('Calendar header geometry in Chromium', () => {
           const column = index % 7
           const precedingWidth = columnWidths.slice(0, column).reduce((total, track) => total + track, 0)
           const bounds = placeholder.getBoundingClientRect()
-          return { center: bounds.left + bounds.width / 2, columnCenter: grid.getBoundingClientRect().left + precedingWidth + column * Number.parseFloat(style.columnGap) + columnWidths[column]! / 2 }
+          return { center: bounds.left + bounds.width / 2, discCenter: grid.getBoundingClientRect().left + precedingWidth + column * Number.parseFloat(style.columnGap) + columnWidths[column]! / 2 + (Math.min(44, columnWidths[column]!) - 34) * (column / 6 - 0.5) }
         }),
         targets: [...document.querySelectorAll('button')].map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, columnWidth: button.parentElement!.getBoundingClientRect().width })),
       }))
@@ -595,7 +633,7 @@ describe('Calendar header geometry in Chromium', () => {
       expect(geometry.gridScroll).toBeLessThanOrEqual(geometry.gridWidth)
       expect(geometry.card).toBe(geometry.contentWidth)
       expect(geometry.placeholders).toHaveLength(isLoading ? 28 : 0)
-      for (const placeholder of geometry.placeholders) expect(placeholder.center).toBeCloseTo(placeholder.columnCenter, 1)
+      for (const placeholder of geometry.placeholders) expect(placeholder.center).toBeCloseTo(placeholder.discCenter, 1)
       expect(geometry.targets).toHaveLength(isLoading ? 0 : 28)
       for (const target of geometry.targets) { expect(target.width).toBeCloseTo(target.columnWidth, 1); expect(target.height).toBeGreaterThanOrEqual(44) }
     } finally { await page.close() }
@@ -627,12 +665,12 @@ describe('Calendar header geometry in Chromium', () => {
         const gap = Number.parseFloat(getComputedStyle(grid).columnGap)
         const slots = [...grid.children].map((slot) => {
           const box = slot.getBoundingClientRect()
-          const disc = (slot.matches('[data-outcome]') ? slot.querySelector(':scope > span') : slot.querySelector('[data-outcome] > span')) ?? slot.querySelector('[data-variant="grid"] span')
+          const disc = slot.querySelector('[data-day-circle], [data-variant="grid"] span')
           const visual = disc?.getBoundingClientRect()
           const future = slot.querySelector('[role="img"]:not([data-outcome])')
           const futureBox = future?.getBoundingClientRect()
-          const numeral = future?.firstElementChild?.getBoundingClientRect()
-          return { futureWidth: futureBox?.width, futureCentered: !numeral || Math.abs(numeral.left + numeral.width / 2 - box.left - box.width / 2) <= 0.5, width: box.width, height: box.height, contained: !visual || (visual.left >= box.left - 0.5 && visual.right <= box.right + 0.5), square: !visual || Math.abs(visual.width - visual.height) <= 0.5 }
+          const numeral = future?.querySelector('[data-day-future-numeral]')?.getBoundingClientRect()
+          return { futureWidth: futureBox?.width, futureCentered: !numeral || !visual || Math.abs(numeral.left + numeral.width / 2 - visual.left - visual.width / 2) <= 0.5, width: box.width, height: box.height, contained: !visual || (visual.left >= box.left - 0.5 && visual.right <= box.right + 0.5), square: !visual || Math.abs(visual.width - visual.height) <= 0.5 }
         })
         return { gap, left: bounds.left, right: bounds.right, switchLeft: selector.left, switchRight: selector.right, slots,
           scrollWidth: document.documentElement.scrollWidth, selected: grid.querySelector('[data-selected="true"]')?.getBoundingClientRect().width }
@@ -773,7 +811,7 @@ describe('Calendar header geometry in Chromium', () => {
           measured: segments.reduce((sum, segment) => sum + Math.max(48, segment.wordWidth + segment.inset), trackInset + gap * (segments.length - 1)),
         }
       })
-      expect(required).toMatchObject({ labelInsets: [32, 32, 32, 32], trackInset: 16, gap: 4 })
+      expect(required).toMatchObject({ labelInsets: [32, 32, 32, 32], trackInset: 16, gap: 16 })
       const availableWidth = Math.floor((required.fixed + required.measured) / 2)
       expect(required.fixed).toBeLessThanOrEqual(availableWidth)
       expect(required.measured).toBeGreaterThan(availableWidth)
@@ -828,13 +866,22 @@ describe('Calendar header geometry in Chromium', () => {
         }
       })
       await mountMeasuredSegmentedControls(page)
+      const defaultFoldCount = await page.locator('[data-segmented-control] [data-menu-trigger]').count()
       for (const scale of [1, 1.3, 1.6, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
         await vi.waitFor(async () => {
           expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
           const selectors = await page.locator('[data-segmented-control]').evaluateAll((frames) => frames.map((frame) => {
             const options = [...frame.querySelectorAll<HTMLElement>('[role="radio"], [data-menu-trigger]')]
-            return { folded: frame.querySelector('[data-menu-trigger]') !== null, options: options.map((option) => {
+            const labels = [...frame.querySelectorAll<HTMLElement>('[data-segment-measure]')]
+            const track = getComputedStyle(labels[0]!.parentElement!)
+            const required = labels.reduce((total, label) => {
+              const style = getComputedStyle(label)
+              const large = parseFloat(style.fontSize) > 14 * 1.3
+              const words = [...label.querySelectorAll(large ? '[data-segment-word]' : '[data-segment-full]')]
+              return total + Math.max(48, Math.max(...words.map(word => word.getBoundingClientRect().width)) + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight))
+            }, parseFloat(track.paddingLeft) + parseFloat(track.paddingRight) + parseFloat(track.columnGap) * (labels.length - 1))
+            return { required, available: frame.getBoundingClientRect().width, folded: frame.querySelector('[data-menu-trigger]') !== null, options: options.map((option) => {
               const box = option.getBoundingClientRect()
               const range = document.createRange(); range.selectNodeContents(option.querySelector('span')!)
               const bounds = range.getBoundingClientRect()
@@ -843,7 +890,7 @@ describe('Calendar header geometry in Chromium', () => {
           }))
           expect(selectors).toHaveLength(sites.length)
           for (const [index, selector] of selectors.entries()) {
-            if (scale === 1) expect(selector.folded, sites[index]!.path).toBe(false)
+            expect(selector.folded, sites[index]!.path).toBe(selector.required > selector.available)
             expect(selector.options).toHaveLength(selector.folded ? 1 : sites[index]!.optionKeys.length)
             expect(new Set(selector.options.map((option) => option.top)).size).toBe(1)
             for (const option of selector.options) {
@@ -875,7 +922,7 @@ describe('Calendar header geometry in Chromium', () => {
       await menu.waitFor({ state: 'hidden' })
       expect(await trigger.evaluate((element) => element === document.activeElement)).toBe(true)
       await page.evaluate(() => { document.documentElement.style.fontSize = '16px' })
-      await expect.poll(() => page.locator('[data-segmented-control] [data-menu-trigger]').count()).toBe(0)
+      await expect.poll(() => page.locator('[data-segmented-control] [data-menu-trigger]').count()).toBe(defaultFoldCount)
     } finally { await page.close() }
   })
 
@@ -1029,7 +1076,7 @@ describe('Calendar header geometry in Chromium', () => {
           }
           for (const segment of geometry.segments) expect(segment.textWidth).toBeLessThanOrEqual(segment.contentWidth + 1)
           if (textScale === 1) {
-            const remaining = geometry.segments.map((segment) => segment.width - segment.renderedTextWidth)
+            const remaining = geometry.segments.filter(segment => segment.width > 48.1).map((segment) => segment.width - segment.renderedTextWidth)
             expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
           }
         }, { timeout: 2000 })

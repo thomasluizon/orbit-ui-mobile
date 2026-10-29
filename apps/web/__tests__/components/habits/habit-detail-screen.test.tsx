@@ -46,6 +46,7 @@ const mocks = vi.hoisted(() => ({
   realHeaderRing: false,
   realEditorPencil: false,
   realChildRows: false,
+  realHistory: false,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
   metricsError: false,
@@ -188,7 +189,10 @@ vi.mock('@/components/ui/error-state', () => ({
   ErrorState: ({ message, action }: { message: string; action: React.ReactNode }) => <div role="alert">{message}{action}</div>,
 }))
 vi.mock('@/components/ui/proposed', () => ({ Proposed: ({ children, label }: { children: React.ReactNode; label: string }) => <div role="group" aria-label={label}>{children}</div> }))
-vi.mock('@/components/ui/skeleton', () => ({ Skeleton: ({ label }: { label: string }) => <div>{label}</div> }))
+vi.mock('@/components/ui/skeleton', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/skeleton')>()
+  return { Skeleton: (props: React.ComponentProps<typeof actual.Skeleton>) => mocks.realHistory ? <actual.Skeleton {...props} /> : <div>{props.label}</div> }
+})
 vi.mock('@/components/ui/switch', () => ({
   Switch: ({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) => (
     <button type="button" role="switch" aria-label={label} aria-checked={checked} onClick={() => onChange(!checked)} />
@@ -216,16 +220,20 @@ vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
   StatTile: ({ label, value }: { label: string; value: string }) => <output data-testid={`stat-${label}`}>{value}</output>,
 }))
-vi.mock('@/components/dates/day-cell', () => ({
-  DayCell: ({ day, done, scheduled, outsideMonth, label }: { day: number; done?: number; scheduled?: number; outsideMonth: boolean; label: string }) => {
+vi.mock('@/components/dates/day-cell', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/dates/day-cell')>()
+  return { DayCell: (props: React.ComponentProps<typeof actual.DayCell>) => {
+    if (mocks.realHistory) return <actual.DayCell {...props} />
+    const { day, done, scheduled, outsideMonth, label } = props
     const outcome = scheduled === 0 ? 'not-scheduled' : done !== undefined && scheduled !== undefined && done >= scheduled ? 'full' : 'none'
     return <span aria-label={label} data-testid={`history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`}>{outcome}</span>
-  },
-}))
+  } }
+})
 vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { size: number; days: string[] }) => <div data-testid="detail-strip" data-size={size} data-days={days.length} data-values={days.join(",")} /> }))
-vi.mock('@/components/dates/month-grid', () => ({
-  MonthGrid: ({ children, label, loadingLabel }: { children: React.ReactNode; label: string; loadingLabel?: string }) => <div aria-label={label}><div role={loadingLabel ? 'progressbar' : undefined} aria-label={loadingLabel} aria-busy={loadingLabel ? true : undefined}>{children}</div></div>,
-}))
+vi.mock('@/components/dates/month-grid', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/dates/month-grid')>()
+  return { MonthGrid: (props: React.ComponentProps<typeof actual.MonthGrid>) => mocks.realHistory ? <actual.MonthGrid {...props} /> : <div aria-label={props.label}><div role={props.loadingLabel ? 'progressbar' : undefined} aria-label={props.loadingLabel} aria-busy={props.loadingLabel ? true : undefined}>{props.children}</div></div> }
+})
 vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: () => null }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="Create habit" /> : null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({
@@ -319,6 +327,7 @@ describe('HabitDetailScreen', () => {
     mocks.realEditorPencil = false
     mocks.realHeaderRing = false
     mocks.realChildRows = false
+    mocks.realHistory = false
     mocks.pathname = '/habits/habit-1'
     mocks.realTimeField = false;
     mocks.realReminderSections = false;
@@ -1748,6 +1757,58 @@ describe('HabitDetailScreen', () => {
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([320, 412, 840])('retains every history branch and loading disc allocation at %ipx', async (width) => {
+      mocks.realHistory = true
+      vi.useRealTimers()
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date(2026, 7, 12, 12))
+      mocks.detail = { ...makeDetail(), createdAtUtc: '2025-01-01T12:00:00Z' }
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      const snapshots = []
+      try {
+        for (const loading of [true, false]) {
+          mocks.detailLoading = loading
+          const view = render(<HabitDetailScreen habitId="habit-1" />)
+          if (!loading) fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+          await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+          const measure = () => page.getByTestId('month-grid-days').evaluate(grid => {
+            const origin = grid.getBoundingClientRect()
+            const slots = [...grid.children].map((slot, index) => {
+              const bounds = slot.getBoundingClientRect()
+              const mark = slot.querySelector('[data-day-circle], [data-day-history-numeral], [data-variant="grid"] span')
+              const range = document.createRange(); range.selectNodeContents(slot)
+              const visual = (mark ?? range).getBoundingClientRect()
+              const column = index % 7
+              const allocated = Math.min(44, bounds.width)
+              const expected = bounds.left + (bounds.width - allocated) / 2 + 17 + (allocated - 34) * column / 6
+              return { x: visual.left + visual.width / 2 - origin.left, y: visual.top + visual.height / 2 - origin.top,
+                delta: Math.abs(visual.left + visual.width / 2 - expected), width: visual.width, height: visual.height }
+            })
+            return { slots, future: grid.querySelectorAll('[aria-label*="futureWord"]').length, unavailable: grid.querySelectorAll('[aria-label*="unavailableWord"]').length }
+          })
+          const geometry = await measure()
+          for (const slot of geometry.slots) {
+            expect(slot.width).toBe(34); expect(slot.height).toBe(34)
+            expect(slot.delta).toBeLessThanOrEqual(0.5)
+          }
+          snapshots.push(geometry.slots.slice(0, 7))
+          if (!loading) {
+            expect(geometry.future).toBeGreaterThan(0)
+            for (let month = 0; month < 13; month++) fireEvent.click(screen.getByRole('button', { name: 'previousMonth' }))
+            await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+            const older = await measure()
+            expect(older.unavailable).toBeGreaterThan(0)
+            for (const slot of older.slots) { expect(slot.width).toBe(34); expect(slot.height).toBe(34); expect(slot.delta).toBeLessThanOrEqual(0.5) }
+          }
+          view.unmount()
+        }
+        for (const [index, before] of snapshots[0]!.entries()) {
+          const after = snapshots[1]![index]!
+          expect(before.x).toBeCloseTo(after.x, 1); expect(before.y).toBeCloseTo(after.y, 1)
+        }
+      } finally { await page.close() }
+    })
 
     it.each([16, 32])('keeps the Portuguese habit analysis label readable at 320px with root font %ipx', async (fontSize) => {
       vi.useRealTimers()

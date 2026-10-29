@@ -51,6 +51,32 @@ describe('BarChart measured geometry', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each(['none', 'active'] as const)('shows one live focus indicator after clicking then pressing Space, forced colors %s', async (forcedColors) => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 640 }, forcedColors })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="chart-fixture" type="application/json">${JSON.stringify({ series, locale: 'en' })}</script>`)
+      await page.addScriptTag({ content: chartScript })
+      const radio = page.getByRole('radio').nth(3)
+      await radio.click()
+      expect(await radio.evaluate(element => element === document.activeElement && !element.matches(':focus-visible'))).toBe(true)
+      await page.keyboard.press('Space')
+      expect(await radio.evaluate(element => element === document.activeElement && element.matches(':focus-visible'))).toBe(true)
+      const indicator = await page.locator('[data-slot="bar-chart-readout"]').evaluate(element => {
+        const style = getComputedStyle(element)
+        return { width: style.borderTopWidth, color: style.borderTopColor, text: style.color }
+      })
+      expect(indicator.width).toBe('2px')
+      expect(indicator.color).toBe(indicator.text)
+      const radioFocus = await radio.evaluate(element => {
+        const style = getComputedStyle(element)
+        return { outline: style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0, shadow: style.boxShadow }
+      })
+      expect(radioFocus).toEqual({ outline: false, shadow: 'none' })
+      await radio.blur()
+      if (forcedColors === 'none') expect(await page.locator('[data-slot="bar-chart-readout"]').evaluate(element => getComputedStyle(element).borderTopColor)).toBe('rgba(0, 0, 0, 0)')
+    } finally { await page.close() }
+  })
+
   it.each([{ count: 53, width: 240 }, { count: 30, width: 288 }, { count: 240, width: 240 }].flatMap((plot) => (['en', 'pt-BR'] as const).flatMap((locale) => (['none', 'active'] as const).map((forcedColors) => ({ ...plot, locale, forcedColors })))))('paints visible hover and focus feedback for $count points in $width pixels, $locale, forced colors $forcedColors', async ({ count, width, locale, forcedColors }) => {
     const compactSeries = { granularity: 'week', points: Array.from({ length: count }, (_, index) => ({
       startDate: new Date(Date.UTC(2025, 0, 1 + index * 7)).toISOString().slice(0, 10),

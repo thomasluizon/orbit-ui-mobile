@@ -27,14 +27,14 @@ const cases = [1024, 1352, 1920].flatMap(width => (['en', 'pt-BR'] as const).fla
 const email = 'a.very.long.account.address@example.test'
 const longName = 'Alexandra Beatriz Carolina Daniela Emilia Fernanda Gabriela'
 
-function sidebarFixture(locale: 'en' | 'pt-BR', account?: string) {
+function sidebarFixture(locale: 'en' | 'pt-BR', account?: string, interactiveBell = true) {
   const messages = locale === 'en' ? en : ptBR
   return <NextIntlClientProvider locale={locale} messages={messages}>
     <ShellWide items={SHELL_DESTINATION_IDS.map(id => ({ id, href: '/', label: messages.nav[DESTINATION_ICONS[id].labelKey.split('.')[1] as keyof typeof messages.nav], icon: id }))}
       activeId="hoje" navLabel={messages.nav.mainNavigation} astraRow={{ label: messages.chat.title, onOpen: vi.fn() }}
       paletteLabel={messages.nav.search} paletteHint="Ctrl K" onPalette={vi.fn()}
       onCreate={vi.fn()} createLabel={messages.nav.createHabit} account={account} accountEmail={email}
-      notifications={<NotificationBellDisplay count={12} countPlacement="corner" onClick={vi.fn()} />} />
+      notifications={<NotificationBellDisplay count={12} countPlacement="corner" onClick={interactiveBell ? vi.fn() : undefined} />} />
   </NextIntlClientProvider>
 }
 
@@ -57,6 +57,29 @@ describe('sidebar brand and account geometry in Chromium', () => {
     useShellStore.setState(useShellStore.getInitialState())
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([false, true])('retains corner bell and navigation placement on the inbox, collapsed=%s', async (collapsed) => {
+    useShellStore.setState({ sidebarCollapsed: collapsed })
+    const view = render(sidebarFixture('en', 'Alex Lin'))
+    const page = await browser.newPage({ viewport: { width: 1352, height: 900 } })
+    const snapshots = []
+    try {
+      for (const interactive of [true, false]) {
+        view.rerender(sidebarFixture('en', 'Alex Lin', interactive))
+        await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+        snapshots.push(await page.locator('[data-shell-sidebar]').evaluate(sidebar => {
+          const bell = sidebar.querySelector('.tabler-icon-bell')!.closest('button, [role="img"]')!
+          const elements = [bell, bell.querySelector('svg')!, bell.querySelector('[data-notification-count]')!, sidebar.querySelector('[data-shell-sidebar-toggle]')!, sidebar.querySelector('button:has(.tabler-icon-search)')!, sidebar.querySelector('nav')!]
+          return elements.map(element => {
+            const bounds = element.getBoundingClientRect()
+            return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+          })
+        }))
+        expect(await page.locator('[data-shell-sidebar] [role="img"]:has(.tabler-icon-bell)').count()).toBe(interactive ? 0 : 1)
+      }
+      expect(snapshots[1]).toEqual(snapshots[0])
+    } finally { await page.close() }
+  })
 
   it.each(cases)('groups the brand controls and account at $width in $locale, collapsed=$collapsed, $mode with forced colors $forcedColors', async ({ width, locale, collapsed, mode, forcedColors }) => {
     useShellStore.setState({ sidebarCollapsed: collapsed })

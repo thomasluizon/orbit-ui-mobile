@@ -257,6 +257,8 @@ the centre of their feedback. Badges belong to their own control and do not move
 
 Every interactive notification bell placement uses IconButton on both platforms. The count sits
 at its corner and belongs to the same control; it does not shift the glyph or the feedback centre.
+The passive web corner bell in `navigation/notification-bell.tsx` retains the same 44px box,
+glyph centre and count placement on the inbox. Its image semantics add no focus target.
 
 The paired `navigation/root-notification-header.tsx` owners retain the existing 48px content row
 and 24px bottom inset around the bell's 44px paint and transparent 48px target.
@@ -264,6 +266,10 @@ and 24px bottom inset around the bell's 44px paint and transparent 48px target.
 The web `app/(app)/calendar/page.tsx` marker scopes the narrow grid width in `app/globals.css`
 to the calendar destination. Month and range discs keep 8px neighbour clearance while the shell
 retains its stable 4px scrollbar. Embedded compact calendars retain their containing width.
+The paired `habits/habit-detail-screen.tsx` history owners use the same distributed 34px
+allocation for loaded discs, future and unavailable numerals and loading placeholders.
+Web `ui/bar-chart.tsx` and `app/globals.css` derive the single readout indicator from the
+radio's live keyboard focus, including a keyboard press after pointer focus.
 
 Web `app/globals.css` keeps menu item focus inside its paint, preserving 8px before account
 header text. The `shell/shell-wide.tsx` root isolates page stacking beneath portalled menus.

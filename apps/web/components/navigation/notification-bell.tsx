@@ -1,6 +1,6 @@
 'use client'
 
-import { SPACING } from '@orbit/shared/theme'
+import { SMALL_PILL_VISIBLE_MIN, SPACING } from '@orbit/shared/theme'
 
 
 import { usePathname, useRouter } from 'next/navigation'
@@ -37,12 +37,12 @@ export function NotificationBellDisplay({ count, onClick, countPlacement = 'inli
   const t = useTranslations()
   const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
   const corner = countPlacement === 'corner'
-  const layout = corner ? 'grid w-[48px] place-items-center rounded-[12px] text-[var(--fg-3)]' : 'inline-flex rounded-full text-[var(--fg-2)] min-w-[48px] items-center justify-center gap-[4px] px-2 py-1'
+  const layout = corner ? 'inline-flex items-center justify-center rounded-full font-medium text-[var(--fg-3)]' : 'min-h-[48px] inline-flex rounded-full text-[var(--fg-2)] min-w-[48px] items-center justify-center gap-[4px] px-2 py-1'
   const content = <>
       <Bell size={corner ? 20 : 24} strokeWidth={corner ? 2 : 1.8} aria-hidden="true" />
       <NotificationBellCount count={count} corner={corner || Boolean(onClick)} />
   </>
   if (onClick) return <IconButton label={label} onClick={onClick}><span className="contents">{content}</span></IconButton>
   return <span role="img" aria-label={label}
-      className={`relative min-h-[48px] shrink-0 ${layout}`}>{content}</span>
+      className={`relative shrink-0 ${layout}`} style={corner ? { width: SMALL_PILL_VISIBLE_MIN, height: SMALL_PILL_VISIBLE_MIN } : undefined}>{content}</span>
 }
