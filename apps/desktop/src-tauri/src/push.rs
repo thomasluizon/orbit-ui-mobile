@@ -42,6 +42,27 @@ pub fn notification_launch() -> bool {
     return notification_activation(&std::env::args().collect::<Vec<_>>());
 }
 
+pub fn page_loaded(window: &WebviewWindow, payload: tauri::webview::PageLoadPayload<'_>) {
+    let Some(service) = SERVICE.get() else {
+        return;
+    };
+    let tauri::utils::config::WebviewUrl::External(origin) =
+        &service.app.config().app.windows[0].url
+    else {
+        return;
+    };
+    if let Err(error) = crate::lifecycle::notification_page_loaded(
+        notification_launch(),
+        origin,
+        payload.url(),
+        payload.event(),
+        &mut service.session.lock().unwrap(),
+        || crate::lifecycle::show_main(window.app_handle()),
+    ) {
+        eprintln!("Cannot show desktop sign-in window: {error}");
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PushAction {

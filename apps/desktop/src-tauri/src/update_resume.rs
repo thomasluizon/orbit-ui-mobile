@@ -17,7 +17,7 @@ pub fn save(app: &AppHandle, url: &Url) -> Result<(), String> {
 
 fn resume_url(url: &Url) -> Url {
     let mut destination = url.clone();
-    if matches!(url.path(), "/login" | "/auth-callback" | "/onboarding") {
+    if crate::auth::is_sign_in_path(url.path()) {
         destination.set_query(None);
         destination.set_fragment(None);
     }

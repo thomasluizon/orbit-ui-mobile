@@ -10,6 +10,15 @@ pub struct PushSession {
 }
 
 impl PushSession {
+    pub fn abandon_startup(&mut self) -> bool {
+        if self.restored {
+            return false;
+        }
+        self.restored = true;
+        self.startup_response = None;
+        true
+    }
+
     pub fn suspend(&mut self, saved: &mut PushState, account: &str) {
         if self.account.as_deref() == Some(account) {
             self.account = None;

@@ -93,6 +93,9 @@ fn main() {
                             }
                             true
                         })
+                        .on_page_load(|window, payload| {
+                            push::page_loaded(&window, payload);
+                        })
                         .on_new_window(|url, _features| {
                             open_new_window(url, |url| {
                                 tauri_plugin_opener::open_url(url, None::<&str>)
