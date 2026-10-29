@@ -220,7 +220,9 @@ async function customDomainCases() {
             entry.name === name || entry.needsRelease && entry.plannedSha === SECOND))
         }
         T(`${environment} ${name} disabled subdomain never reads its Render health URL`,
-          !client.calls.some((call) => call.startsWith("https://disabled.example.invalid")))
+          !client.calls.some((call) => {
+            try { return new URL(call).host === "disabled.example.invalid" } catch { return false }
+          }))
       }
       const enabled = clientFor()
       const plan = await planRelease(enabled, environment, IDS, track, "main")
@@ -244,7 +246,7 @@ async function apiHealthCases() {
     T(`image-backed ${environment} API plans from its healthy commit`, imagePlan?.services[0].deployedSha === FIRST &&
       imagePlan.services[0].needsRelease && imagePlan.services[0].commits[0].sha === SECOND, imageError)
     T(`${environment} API discovers health through its Render service record`, image.calls.includes(`services/${IDS.api}`) &&
-      image.calls.includes(healthUrl))
+      image.calls.some((call) => call === healthUrl))
     T(`${environment} API never reads a Git-backed deploy baseline`, !image.calls.includes(`services/${IDS.api}/deploys?status=live&limit=1`))
     const landing = environment === "production" ? LANDING : STAGING_LANDING
     T(`${environment} landing still plans from live deploys`, imagePlan?.services[2].deployedSha ===
