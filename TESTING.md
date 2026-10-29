@@ -651,7 +651,8 @@ line limits still apply. Help actions resolve through the same shared surface ma
 Android: schedule help uses `today`, and plan help uses `subscriptions`. A block's arbitrary
 `surfaceId` is not action evidence; calendar blocks have their own rendered calendar action.
 
-The reset executable prepares personal titles in the case locale. Portuguese cases use Beber água,
+Except for `hoje-next-step`, the reset executable prepares personal titles in the case locale.
+Portuguese cases use Beber água,
 Caminhada, Saúde, Manhã, Hidratação constante and sessões, including Portuguese checklist items,
 additional habits and parent titles. Stable habit IDs survive locale changes. English cases keep
 the English names below. The reset prepares these additional fixtures:
