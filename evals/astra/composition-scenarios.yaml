@@ -2111,21 +2111,21 @@
         value: 16:00
     expectations:
       required:
-        - name: bulk_create_habits
-          exactArguments: true
+        - name: revise_pending_changes
           resultStatus: PendingConfirmation
       allowed:
         - query_habits
-        - bulk_create_habits
+        - revise_pending_changes
       counts:
-        bulk_create_habits: 1
+        revise_pending_changes: 1
       forbidden:
+        - bulk_create_habits
         - create_habit
-    rubric: Answer in English. Only the cholesterol exam time changes to 16:00. All
-      dates, other times, one-time types, preparation bounds and names remain
-      exactly the same. No duplicate or saved change. Canonical dates inside
-      typed fields are transport values; visible prose must use locale dates.
-      Rendered date formatting is checked separately.
+    rubric: Answer in English. Compare with the setup preview. Only the
+      cholesterol exam time changes to 16:00; every other item keeps the frequency,
+      dates, times, preparation bounds and title from the setup preview. No duplicate
+      or saved change. Canonical dates inside typed fields are transport values;
+      visible prose must use locale dates. Rendered date formatting is checked separately.
     setup:
       caseId: composition-medical-batch-en
       input: "On {accountDateEn+3}, cholesterol exam at 15:50, at home. On {accountDateEn+7}, other blood
@@ -2445,21 +2445,21 @@
         value: 16:00
     expectations:
       required:
-        - name: bulk_create_habits
-          exactArguments: true
+        - name: revise_pending_changes
           resultStatus: PendingConfirmation
       allowed:
         - query_habits
-        - bulk_create_habits
+        - revise_pending_changes
       counts:
-        bulk_create_habits: 1
+        revise_pending_changes: 1
       forbidden:
+        - bulk_create_habits
         - create_habit
-    rubric: Answer in Brazilian Portuguese. Only the cholesterol exam time changes
-      to 16:00. All dates, other times, one-time types, preparation bounds and
-      names remain exactly the same. No duplicate or saved change. Canonical
-      dates inside typed fields are transport values; visible prose must use
-      locale dates. Rendered date formatting is checked separately.
+    rubric: Answer in Brazilian Portuguese. Compare with the setup preview. Only the
+      cholesterol exam time changes to 16:00; every other item keeps the frequency,
+      dates, times, preparation bounds and title from the setup preview. No duplicate
+      or saved change. Canonical dates inside typed fields are transport values;
+      visible prose must use locale dates. Rendered date formatting is checked separately.
     setup:
       caseId: composition-medical-batch-pt-BR
       input: "dia {accountDatePtBR+3}, exame de colesterol as 15h50, domiciliar dia {accountDatePtBR+7}, outros

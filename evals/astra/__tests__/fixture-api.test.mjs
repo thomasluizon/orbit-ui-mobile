@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { publicApi } from '../fixtures/api.mjs'
 
-const transportFailure = 'Fixture API transport or JSON response failed.'
 const success = () => new Response(null, { status: 204 })
 // Producer: DistributedRateLimitFilter.OnActionExecutionAsync rejects before the controller.
 const limited = (retryAfter = '15') => new Response(null, {
@@ -89,15 +88,19 @@ it('reuses multipart input after a rejected write without setting a JSON content
   }
 })
 
+const hang = (_url, { signal }) => new Promise((_resolve, reject) => {
+  signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+})
+const hangUntilAborted = () => vi.fn().mockImplementation(hang)
+const fakeTimeouts = () => vi.spyOn(AbortSignal, 'timeout').mockImplementation((milliseconds) => {
+  const controller = new AbortController()
+  setTimeout(() => controller.abort(new DOMException('Private timeout details', 'TimeoutError')), milliseconds)
+  return controller.signal
+})
+
 it.each(['GET', 'DELETE'])('retries %s once after transport failure or timeout with a fresh deadline', async (method) => {
-  const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation((milliseconds) => {
-    const controller = new AbortController()
-    setTimeout(() => controller.abort(new DOMException('Fixture timeout', 'TimeoutError')), milliseconds)
-    return controller.signal
-  })
-  const request = vi.fn().mockImplementationOnce((_url, { signal }) => new Promise((_resolve, reject) => {
-    signal.addEventListener('abort', () => reject(signal.reason), { once: true })
-  })).mockImplementation(success)
+  const timeout = fakeTimeouts()
+  const request = vi.fn().mockImplementationOnce(hang).mockImplementation(success)
   vi.stubGlobal('fetch', request)
   const pending = outcome(api(method, 'eval/pending-operations'))
   await vi.advanceTimersByTimeAsync(14999)
@@ -109,19 +112,89 @@ it.each(['GET', 'DELETE'])('retries %s once after transport failure or timeout w
   expect(request.mock.calls[1][1].signal.aborted).toBe(false)
 })
 
-it.each(['GET', 'DELETE'])('bounds %s transport retries and preserves the final error', async (method) => {
-  const request = vi.fn().mockRejectedValue(new Error('Private transport details'))
+it.each(['GET', 'DELETE'])('names the %s timeout after its one retry', async (method) => {
+  const timeout = fakeTimeouts()
+  const request = hangUntilAborted()
   vi.stubGlobal('fetch', request)
-  expect(await outcome(api(method, 'eval/pending-operations'))).toEqual({ error: transportFailure })
+  const pending = outcome(api(method, 'habits/22222222-2222-4222-8222-222222222222'))
+  await vi.runAllTimersAsync()
+  expect(await pending).toEqual({ error: `Fixture API ${method} habits/{id} failed: timeout.` })
+  expect(request).toHaveBeenCalledTimes(2)
+  expect(timeout.mock.calls).toEqual([[15000], [15000]])
+})
+
+it.each(['POST', 'PUT', 'PATCH'])('reports a single %s timeout at the existing deadline', async (method) => {
+  const timeout = fakeTimeouts()
+  const request = hangUntilAborted()
+  vi.stubGlobal('fetch', request)
+  const pending = outcome(api(method, 'habits/22222222-2222-4222-8222-222222222222/log', { title: 'Private body' }))
+  await vi.advanceTimersByTimeAsync(14999)
+  expect(request).toHaveBeenCalledTimes(1)
+  expect(request.mock.calls[0][1].signal.aborted).toBe(false)
+  await vi.advanceTimersByTimeAsync(1)
+  await vi.runAllTimersAsync()
+  expect(await pending).toEqual({ error: `Fixture API ${method} habits/{id}/log failed: timeout.` })
+  expect(request).toHaveBeenCalledTimes(1)
+  expect(timeout.mock.calls).toEqual([[15000]])
+})
+
+it.each(['GET', 'DELETE'])('bounds %s transport retries and names the final failure without private details', async (method) => {
+  const request = vi.fn().mockRejectedValue(new TypeError('Private URL, token and network details'))
+  vi.stubGlobal('fetch', request)
+  expect(await outcome(api(method, 'goals/33333333-3333-4333-8333-333333333333?token=private-query'))).toEqual({
+    error: `Fixture API ${method} goals/{id} failed: network.`,
+  })
+  expect(request).toHaveBeenCalledTimes(2)
+})
+
+it.each(['POST', 'PUT', 'PATCH'])('reports a single %s network failure without private details', async (method) => {
+  const request = vi.fn().mockRejectedValue(new TypeError('Private URL, token and network details'))
+  vi.stubGlobal('fetch', request)
+  expect(await outcome(api(method, 'goals/33333333-3333-4333-8333-333333333333?token=private-query', { title: 'Private body' }))).toEqual({
+    error: `Fixture API ${method} goals/{id} failed: network.`,
+  })
+  expect(request).toHaveBeenCalledTimes(1)
+})
+
+it.each([
+  ['ai/pending-operations/11111111-1111-4111-8111-111111111111/confirm?clientContext=private', 'ai/pending-operations/{id}/confirm'],
+  ['ai/pending-operations/11111111-1111-4111-8111-111111111111/revise', 'ai/pending-operations/{id}/revise'],
+  ['tags/22222222-2222-4222-8222-222222222222/assign', 'tags/{id}/assign'],
+  ['habits/retrospective?period=month', 'habits/retrospective'],
+  ['habits/bulk', 'habits/bulk'],
+  ['profile/export', 'profile/export'],
+])('names %s as %s, replacing only the GUID segments', async (path, route) => {
+  const request = vi.fn().mockRejectedValue(new TypeError('Private details'))
+  vi.stubGlobal('fetch', request)
+  expect(await outcome(api('POST', path, { title: 'Private body' }))).toEqual({ error: `Fixture API POST ${route} failed: network.` })
+})
+
+it('retries a safe response body transport failure', async () => {
+  const request = vi.fn().mockResolvedValueOnce(new Response(new ReadableStream({
+    start(controller) { controller.error(new TypeError('Connection closed')) },
+  }))).mockImplementation(success)
+  vi.stubGlobal('fetch', request)
+  expect(await outcome(api('GET', 'profile/export'))).toEqual({ value: { status: 204, payload: null } })
+  expect(request).toHaveBeenCalledTimes(2)
+})
+
+it.each(['TimeoutError', 'TypeError'])('classifies a response body %s failure after the safe retry', async (name) => {
+  const request = vi.fn().mockImplementation(() => new Response(new ReadableStream({
+    start(controller) { controller.error(new DOMException('Private body details', name)) },
+  })))
+  vi.stubGlobal('fetch', request)
+  expect(await outcome(api('GET', 'profile/export'))).toEqual({
+    error: `Fixture API GET profile/export failed: ${name === 'TimeoutError' ? 'timeout' : 'network'}.`,
+  })
   expect(request).toHaveBeenCalledTimes(2)
 })
 
 it.each(['POST', 'PUT', 'PATCH'])('never retries a %s transport failure, even following a 429', async (method) => {
-  const request = vi.fn().mockResolvedValueOnce(limited()).mockRejectedValue(new TypeError('Private transport details'))
+  const request = vi.fn().mockResolvedValueOnce(limited()).mockRejectedValue(new TypeError('Private details'))
   vi.stubGlobal('fetch', request)
   const pending = outcome(api(method, 'habits', { title: 'Fixture' }))
   await vi.runAllTimersAsync()
-  expect(await pending).toEqual({ error: transportFailure })
+  expect(await pending).toEqual({ error: `Fixture API ${method} habits failed: network.` })
   expect(request).toHaveBeenCalledTimes(2)
 })
 
@@ -132,17 +205,8 @@ it('keeps independent 429 and transport budgets across a single call', async () 
   vi.stubGlobal('fetch', request)
   const pending = outcome(api('GET', 'eval/pending-operations'))
   await vi.runAllTimersAsync()
-  expect(await pending).toEqual({ error: transportFailure })
+  expect(await pending).toEqual({ error: 'Fixture API GET eval/pending-operations failed: network.' })
   expect(request).toHaveBeenCalledTimes(5)
-})
-
-it('retries a safe response body transport failure', async () => {
-  const request = vi.fn().mockResolvedValueOnce(new Response(new ReadableStream({
-    start(controller) { controller.error(new TypeError('Connection closed')) },
-  }))).mockImplementation(success)
-  vi.stubGlobal('fetch', request)
-  expect(await outcome(api('GET', 'profile/export'))).toEqual({ value: { status: 204, payload: null } })
-  expect(request).toHaveBeenCalledTimes(2)
 })
 
 it.each([400, 401, 403, 409, 500, 503])('does not retry HTTP %s', async (status) => {
@@ -159,9 +223,11 @@ it('preserves accepted statuses without retrying them', async () => {
   expect(request).toHaveBeenCalledTimes(1)
 })
 
-it('does not retry malformed JSON as a transport failure', async () => {
-  const request = vi.fn().mockImplementation(() => new Response('Private malformed response'))
+it.each([200, 401, 502, 503])('reports non-JSON HTTP %s without the response body or identifiers', async (status) => {
+  const request = vi.fn().mockImplementation(() => new Response('Private malformed response', { status }))
   vi.stubGlobal('fetch', request)
-  expect(await outcome(api('GET', 'profile'))).toEqual({ error: transportFailure })
+  expect(await outcome(api('PUT', 'habits/11111111-1111-4111-8111-111111111111'))).toEqual({
+    error: `Fixture API PUT habits/{id} failed: non-JSON body (HTTP ${status}).`,
+  })
   expect(request).toHaveBeenCalledTimes(1)
 })

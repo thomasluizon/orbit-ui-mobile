@@ -1,5 +1,13 @@
 import { apiOrigin } from '../credentials.mjs'
 
+// Every orbit-api route parameter is constrained to a GUID ({id:guid}), so a GUID segment is the only identifier.
+const guidSegment = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+
+function fixtureFailure(method, path, cause) {
+  const route = path.split(/[?#]/u)[0].split('/').map((segment) => guidSegment.test(segment) ? '{id}' : segment).join('/')
+  return new Error(`Fixture API ${method} ${route} failed: ${cause}.`)
+}
+
 export function publicApi(credentialKey) {
   return async (method, path, body, accepted = [], acceptedStatuses = []) => {
     const token = process.env[credentialKey]
@@ -19,12 +27,12 @@ export function publicApi(credentialKey) {
       try {
         response = await fetch(url, { ...options, signal: AbortSignal.timeout(15000) })
         text = await response.text()
-      } catch {
+      } catch (error) {
         if (['GET', 'DELETE'].includes(method) && !transportRetried) {
           transportRetried = true
           continue
         }
-        throw new Error('Fixture API transport or JSON response failed.')
+        throw fixtureFailure(method, path, error?.name === 'TimeoutError' ? 'timeout' : 'network')
       }
       if (response.status === 429 && rateLimitWaits < 3) {
         const retryAfter = response.headers.get('Retry-After')
@@ -35,7 +43,7 @@ export function publicApi(credentialKey) {
       }
       let payload
       try { payload = text ? JSON.parse(text) : null } catch {
-        throw new Error('Fixture API transport or JSON response failed.')
+        throw fixtureFailure(method, path, `non-JSON body (HTTP ${response.status})`)
       }
       if (!response.ok && !acceptedStatuses.includes(response.status) && !accepted.includes(payload?.errorCode)) throw new Error(`Fixture API ${method} failed with HTTP ${response.status}.`)
       return { status: response.status, payload }

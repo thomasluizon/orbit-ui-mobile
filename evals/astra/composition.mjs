@@ -85,6 +85,7 @@ function validOperations(response) {
 
 function unchangedPreview(pending, baseline, correction) {
   if (!Array.isArray(baseline) || baseline.length !== 1 || pending.length !== 1) return false
+  if (pending[0].id !== baseline[0].id) return false
   const original = baseline[0].items
   const revised = pending[0].items
   if (!Array.isArray(original) || revised.length !== original.length) return false
@@ -97,7 +98,7 @@ function unchangedPreview(pending, baseline, correction) {
       if (!updated) return false
       if (item.entityName.toLocaleLowerCase().includes(correction.titleContains.toLocaleLowerCase()) && field.field === correction.field) {
         changed++
-        return updated.proposedValue === correction.value
+        return updated.proposedValue === correction.value && updated.newValue === correction.value
           && isDeepStrictEqual({ ...updated, newValue: field.newValue, proposedValue: field.proposedValue }, field)
       }
       return isDeepStrictEqual(updated, field)
