@@ -3,6 +3,17 @@ import { apiOrigin } from '../credentials.mjs'
 // Every orbit-api route parameter is constrained to a GUID ({id:guid}), so a GUID segment is the only identifier.
 const guidSegment = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
 
+function canRetryTransport(method, path) {
+  if (['GET', 'DELETE'].includes(method)) return true
+  if (method !== 'PUT') return false
+  // #1822: profile setters increment a reminder version, so only verified replacement routes may retry.
+  if (['calendar/selected-calendars', 'calendar/auto-sync'].includes(path)) return true
+  const [resource, id, action, ...remaining] = path.split('/')
+  if (!guidSegment.test(id ?? '') || remaining.length) return false
+  return (resource === 'habits' && (action === undefined || action === 'checklist'))
+    || (resource === 'tags' && action === 'assign')
+}
+
 function fixtureFailure(method, path, cause) {
   const route = path.split(/[?#]/u)[0].split('/').map((segment) => guidSegment.test(segment) ? '{id}' : segment).join('/')
   return new Error(`Fixture API ${method} ${route} failed: ${cause}.`)
@@ -28,7 +39,7 @@ export function publicApi(credentialKey) {
         response = await fetch(url, { ...options, signal: AbortSignal.timeout(15000) })
         text = await response.text()
       } catch (error) {
-        if (['GET', 'DELETE'].includes(method) && !transportRetried) {
+        if (canRetryTransport(method, path) && !transportRetried) {
           transportRetried = true
           continue
         }

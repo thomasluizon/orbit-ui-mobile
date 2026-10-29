@@ -98,11 +98,12 @@ const fakeTimeouts = () => vi.spyOn(AbortSignal, 'timeout').mockImplementation((
   return controller.signal
 })
 
-it.each(['GET', 'DELETE'])('retries %s once after transport failure or timeout with a fresh deadline', async (method) => {
+it.each(['GET', 'DELETE', 'PUT'])('retries %s once after transport failure or timeout with a fresh deadline', async (method) => {
   const timeout = fakeTimeouts()
   const request = vi.fn().mockImplementationOnce(hang).mockImplementation(success)
   vi.stubGlobal('fetch', request)
-  const pending = outcome(api(method, 'eval/pending-operations'))
+  const body = method === 'PUT' ? { title: 'Fixture', startDate: '2026-01-01' } : undefined
+  const pending = outcome(api(method, 'habits/22222222-2222-4222-8222-222222222222', body))
   await vi.advanceTimersByTimeAsync(14999)
   expect(request).toHaveBeenCalledTimes(1)
   await vi.advanceTimersByTimeAsync(1)
@@ -110,9 +111,11 @@ it.each(['GET', 'DELETE'])('retries %s once after transport failure or timeout w
   expect(request).toHaveBeenCalledTimes(2)
   expect(timeout.mock.calls).toEqual([[15000], [15000]])
   expect(request.mock.calls[1][1].signal.aborted).toBe(false)
+  expect(request.mock.calls[1][0]).toBe(request.mock.calls[0][0])
+  expect(request.mock.calls[1][1]).toEqual({ ...request.mock.calls[0][1], signal: request.mock.calls[1][1].signal })
 })
 
-it.each(['GET', 'DELETE'])('names the %s timeout after its one retry', async (method) => {
+it.each(['GET', 'DELETE', 'PUT'])('names the %s timeout after its one retry', async (method) => {
   const timeout = fakeTimeouts()
   const request = hangUntilAborted()
   vi.stubGlobal('fetch', request)
@@ -123,7 +126,39 @@ it.each(['GET', 'DELETE'])('names the %s timeout after its one retry', async (me
   expect(timeout.mock.calls).toEqual([[15000], [15000]])
 })
 
-it.each(['POST', 'PUT', 'PATCH'])('reports a single %s timeout at the existing deadline', async (method) => {
+it.each([
+  ['habits/22222222-2222-4222-8222-222222222222', { title: 'Fixture' }],
+  ['habits/22222222-2222-4222-8222-222222222222/checklist', { checklistItems: [] }],
+  ['tags/22222222-2222-4222-8222-222222222222/assign', { tagIds: [] }],
+  ['calendar/selected-calendars', { calendarIds: [] }],
+  ['calendar/auto-sync', { enabled: false }],
+])('retries the replacement PUT %s once after a network failure', async (path, body) => {
+  const request = vi.fn().mockRejectedValueOnce(new TypeError('Private details')).mockImplementation(success)
+  vi.stubGlobal('fetch', request)
+  expect(await api('PUT', path, body)).toEqual({ status: 204, payload: null })
+  expect(request).toHaveBeenCalledTimes(2)
+  expect(request.mock.calls[1][0]).toBe(request.mock.calls[0][0])
+  expect(request.mock.calls[1][1].body).toBe(JSON.stringify(body))
+})
+
+it.each([
+  'profile/timezone', 'profile/language', 'profile/name',
+  'habits/reorder', 'habits/not-a-guid',
+  'habits/22222222-2222-4222-8222-222222222222/checklist/append',
+  'tags/22222222-2222-4222-8222-222222222222/assign/extra',
+  'calendar/auto-sync/run', 'calendar/selected-calendars/extra',
+])('does not retry an unverified or incrementing PUT %s after a timeout', async (path) => {
+  const timeout = fakeTimeouts()
+  const request = vi.fn().mockImplementationOnce(hang).mockImplementation(success)
+  vi.stubGlobal('fetch', request)
+  const pending = outcome(api('PUT', path, {}))
+  await vi.runAllTimersAsync()
+  expect(await pending).toHaveProperty('error', expect.stringContaining('failed: timeout.'))
+  expect(request).toHaveBeenCalledTimes(1)
+  expect(timeout.mock.calls).toEqual([[15000]])
+})
+
+it.each(['POST', 'PATCH'])('reports a single %s timeout at the existing deadline', async (method) => {
   const timeout = fakeTimeouts()
   const request = hangUntilAborted()
   vi.stubGlobal('fetch', request)
@@ -147,7 +182,7 @@ it.each(['GET', 'DELETE'])('bounds %s transport retries and names the final fail
   expect(request).toHaveBeenCalledTimes(2)
 })
 
-it.each(['POST', 'PUT', 'PATCH'])('reports a single %s network failure without private details', async (method) => {
+it.each(['POST', 'PATCH'])('reports a single %s network failure without private details', async (method) => {
   const request = vi.fn().mockRejectedValue(new TypeError('Private URL, token and network details'))
   vi.stubGlobal('fetch', request)
   expect(await outcome(api(method, 'goals/33333333-3333-4333-8333-333333333333?token=private-query', { title: 'Private body' }))).toEqual({
@@ -189,7 +224,7 @@ it.each(['TimeoutError', 'TypeError'])('classifies a response body %s failure af
   expect(request).toHaveBeenCalledTimes(2)
 })
 
-it.each(['POST', 'PUT', 'PATCH'])('never retries a %s transport failure, even following a 429', async (method) => {
+it.each(['POST', 'PATCH'])('never retries a %s transport failure, even following a 429', async (method) => {
   const request = vi.fn().mockResolvedValueOnce(limited()).mockRejectedValue(new TypeError('Private details'))
   vi.stubGlobal('fetch', request)
   const pending = outcome(api(method, 'habits', { title: 'Fixture' }))
