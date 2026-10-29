@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { publicApi } from './fixtures/api.mjs'
 import { clearPendingOperations, requireStagingOrigin } from './fixtures/reset.mjs'
 import { safeFailureMessage } from './credentials.mjs'
+import { outcomeCalls } from './operation-matcher.mjs'
 import { sameTime } from './brain-dumps.mjs'
 
 const result = (pass, reason, evidence = {}) => ({ pass, score: pass ? 1 : 0, reason, ...evidence })
@@ -65,7 +66,8 @@ async function approveAndRead(output, vars, baseline, api) {
   }
   await api('POST', `${path}/execute`, { confirmationToken: confirmation.confirmationToken, clientContext: vars.clientContext })
   const saved = await brainDumpSnapshot(vars)
-  const habits = output.trace.calls.find((call) => call.name === 'bulk_create_habits').arguments.habits
+  const habits = outcomeCalls(output.trace.calls, vars.expectations)
+    .find((call) => call.name === 'bulk_create_habits').arguments.habits
   if (saved.length !== baseline.habits.length + habits.filter((habit) => !habit.habit_id).length
     || !baseline.habits.every((original) => isDeepStrictEqual(saved.find((row) => row.id === original.id), original))) {
     throw new Error('Brain dump approval duplicated a habit or changed an existing fixture.')

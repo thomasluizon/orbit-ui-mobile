@@ -5,7 +5,7 @@ export { composition }
 import { approveStartingStep } from './step-persistence.mjs'
 import { safeFailureMessage } from './credentials.mjs'
 import { assertions } from 'promptfoo'
-import { matchesArguments, matchesOperation } from './operation-matcher.mjs'
+import { matchesArguments, matchesOperation, outcomeCalls } from './operation-matcher.mjs'
 import { tools, legacyTools, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
 
 const toolWrites = new Map(tools.map((tool) => [tool.function.name, tool.writes]))
@@ -115,9 +115,10 @@ export function behavior(output, context) {
   if (outside.length) {
     return result(false, `A tool acted outside the allowed set: ${outside.join(', ')}.`)
   }
-  const scopeFailure = checkMutationScope(trace.calls, expectations)
+  const calls = outcomeCalls(trace.calls, expectations)
+  const scopeFailure = checkMutationScope(calls, expectations)
   if (scopeFailure) return scopeFailure
-  for (const call of trace.calls) {
+  for (const call of calls) {
     const expected = [...expectations.required ?? [], ...expectations.permittedMutations ?? []]
       .find((operation) => matchesOperation(call, operation))
     const status = expected?.anyOf?.find((alternative) => matchesOperation(call, alternative))?.resultStatus
@@ -128,7 +129,7 @@ export function behavior(output, context) {
     }
   }
   // Match distinct calls without imposing a sequence on independent operations.
-  const unmatched = [...trace.calls]
+  const unmatched = [...calls]
   for (const required of expectations.required ?? []) {
     const index = unmatched.findIndex((call) => matchesOperation(call, required)
       && (required.resultStatus === undefined || call.resultStatus === required.resultStatus)
@@ -137,7 +138,7 @@ export function behavior(output, context) {
     unmatched.splice(index, 1)
   }
   for (const [name, count] of Object.entries(expectations.counts ?? {})) {
-    if (trace.calls.filter((call) => call.name === name).length !== count) return result(false, `Wrong call count: ${name}`)
+    if (calls.filter((call) => call.name === name).length !== count) return result(false, `Wrong call count: ${name}`)
   }
   if (context.vars.restart) {
     const proposal = restartProposal(decode(output), context.vars)
