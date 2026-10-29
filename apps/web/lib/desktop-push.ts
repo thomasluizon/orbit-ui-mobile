@@ -103,10 +103,10 @@ export async function releaseDesktopPush(accountId: string | null): Promise<void
   }
 }
 
-export async function resumeDesktopPush(accountId: string | null): Promise<void> {
+export async function resumeDesktopPush(accountId: string | null, language?: string): Promise<void> {
   if (accountId !== getHeldAccountId()) return
   const generation = getAccountGeneration()
-  await invoke('session', { accountId })
+  await invoke('session', { accountId, ...(language ? { language } : {}) })
   if (!accountId) return
   const snapshot = await invoke('status')
   assertAccount(accountId, generation)

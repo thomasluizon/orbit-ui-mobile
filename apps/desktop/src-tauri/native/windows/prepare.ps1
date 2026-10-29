@@ -21,7 +21,7 @@ Expand-Nuget 'sdk' (Join-Path $Output 'sdk')
 Expand-Nuget 'cppwinrt' (Join-Path $Output 'cppwinrt')
 $projection = Join-Path $Output 'projection'
 $metadata = Join-Path $Output 'sdk/lib/uap10.0'
-& (Join-Path $Output 'cppwinrt/bin/cppwinrt.exe') -input sdk (Join-Path $metadata 'Microsoft.Windows.PushNotifications.winmd') (Join-Path $metadata 'Microsoft.Windows.AppNotifications.winmd') (Join-Path $metadata 'Microsoft.Windows.AppNotifications.Builder.winmd') -reference (Join-Path $Output 'sdk/lib') -base -output $projection
+& (Join-Path $Output 'cppwinrt/bin/cppwinrt.exe') -input sdk (Join-Path $metadata 'Microsoft.Windows.PushNotifications.winmd') (Join-Path $metadata 'Microsoft.Windows.AppNotifications.winmd') (Join-Path $metadata 'Microsoft.Windows.AppNotifications.Builder.winmd') (Join-Path $metadata 'Microsoft.Windows.AppLifecycle.winmd') -reference (Join-Path $Output 'sdk/lib') -base -output $projection
 if ($LASTEXITCODE -ne 0) { throw 'C++/WinRT projection failed' }
 foreach ($header in @('base.h', 'Windows.Foundation.h', 'Windows.Foundation.Collections.h', 'Microsoft.Windows.PushNotifications.h')) {
     if (!(Test-Path (Join-Path $projection "winrt/$header"))) { throw "Missing generated C++/WinRT header: $header" }
