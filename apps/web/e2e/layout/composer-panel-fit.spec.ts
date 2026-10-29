@@ -189,7 +189,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect(inset.paddingStart).toBe(8)
         expect(inset.paddingEnd).toBe(8)
         const entryWidth = await field.evaluate(input => input.closest('[data-composer-input-row]')!.querySelector('[data-open-conversation]')!.getBoundingClientRect().width)
-        expect(inset.pillInset).toBeCloseTo(4 + entryWidth + 8, 1)
+        expect(inset.pillInset).toBeCloseTo(8 + entryWidth + 8, 1)
         expect(empty.scrollHeight).toBe(empty.clientHeight)
         expect(empty.clientHeight).toBe(empty.singleLineHeight)
 

@@ -1730,6 +1730,10 @@ Personal checkbox fills centre their 24px glyph inside 40px paint with 8px inter
 Their existing comfortable 56px target reserves 8px around the paint. Calendar-day controls
 retain their 24px layout width, with 16px transparent hit extensions and a 16px label gap.
 Calendar chevrons use the shared 44px ghost action with a 48px transparent target.
+Geometry assertions include its transparent extensions when enforcing the 48px target floor.
+Web `today-shell` and `calendar-options` reserve the full 48px bell row height,
+matching the shared destination header.
+Web `today-shell` and Android `today-date-control` retain 8px gaps between header action fills.
 The month picker keeps 32px paint width around its 16px glyph, with 48px paint height
 and transparent inline extensions to 48px. Its group reserves 8px between paints and
 4px trailing padding so the next chevron target remains separate. Header back controls reserve an 8px title gap. Chip focus stays inset.

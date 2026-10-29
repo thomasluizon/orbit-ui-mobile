@@ -165,7 +165,10 @@ describe('selection yields to keyboard focus', () => {
             expect(geometry).toMatchObject({ padding: '4px', gap: '8px', radius: '12px', shadow: 'none' })
             expect(new Set(geometry.labels.map((label) => label.top)).size).toBe(1)
             const remaining = geometry.labels.map((label) => label.segmentWidth - label.width)
-            if (fullWidth) expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
+            if (fullWidth) for (const [index, label] of geometry.labels.entries()) {
+              const expected = Math.max(48 - label.width, Math.min(...remaining))
+              expect(Math.abs(remaining[index]! - expected)).toBeLessThan(0.1)
+            }
             for (const label of geometry.labels) {
               expect(label.fontSize).toBe('14px')
               expect(label.paddingLeft).toBe(8)

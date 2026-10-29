@@ -7,6 +7,7 @@ import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { resolveWebThemeVariables } from '../../lib/theme-dom'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { restPointerOutside } from './pointer-rest'
+import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { test } from './upgrade-fixtures'
 
 const calendarMonth = calendarMonthResponseSchema.parse({
@@ -34,8 +35,10 @@ async function expectNavigationPaint(navigation: Locator, header: Locator) {
     if (isChevron) {
       expect(paint.ring).toContain('1.5px')
       expect(paint.ring).toContain('inset')
-      await expect(control).toHaveCSS('width', '48px')
-      await expect(control).toHaveCSS('height', '48px')
+      const target = await control.evaluate(readExpandedControlGeometry)
+      expect(target.width).toBeGreaterThanOrEqual(48)
+      expect(target.height).toBeGreaterThanOrEqual(48)
+      expect(target.edgeHits).toEqual([true, true, true, true])
     } else {
       expect(paint.ring).toBe('none')
       expect(paint.radius).toBe('12px')

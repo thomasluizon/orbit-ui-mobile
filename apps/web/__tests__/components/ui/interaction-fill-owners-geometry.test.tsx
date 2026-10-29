@@ -19,6 +19,7 @@ import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
+import { readControlHitArea } from '@/test-support/control-hit-area'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const cases = [320, 412, 600, 1024, 1352].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>
@@ -165,8 +166,9 @@ describe('shared interaction fill owners in Chromium', () => {
       for (const control of await controls.all()) {
         await control.scrollIntoViewIfNeeded()
         const target = (await control.boundingBox())!
-        expect(target.width).toBeGreaterThanOrEqual(48)
-        expect(target.height).toBeGreaterThanOrEqual(48)
+        const hit = await control.evaluate(readControlHitArea)
+        expect(hit.width).toBeGreaterThanOrEqual(48)
+        expect(hit.height).toBeGreaterThanOrEqual(48)
         await reachState(page, control, state)
         await control.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
         const result = await control.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)

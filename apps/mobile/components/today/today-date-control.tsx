@@ -32,7 +32,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
     if (nextOpen) setFrequencyMenu(false)
     setMenuOpen(nextOpen)
   }
-  return <Menu.Root open={menuOpen} onOpenChange={changeMenuOpen}><DestinationHeaderRow testID="today-header-actions" gap={4} wrap>
+  return <Menu.Root open={menuOpen} onOpenChange={changeMenuOpen}><DestinationHeaderRow testID="today-header-actions" gap={8} wrap>
 
     <View style={styles.spacer} />
     <View style={styles.actions}>
@@ -100,7 +100,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
 
 const styles = StyleSheet.create({
   spacer: { flex: 1 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   row: { alignItems: 'center', flexDirection: 'row', gap: 12, minHeight: 56, paddingVertical: SPACING.s4 },
   iconButton: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', minHeight: 48, justifyContent: 'center', width: 48, flexShrink: 0 },
   dateSlot: { flex: 1, minWidth: 0, alignItems: 'center' },

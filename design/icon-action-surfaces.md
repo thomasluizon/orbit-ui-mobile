@@ -6,6 +6,12 @@ Each source reference identifies the action after migration. Labels remain local
 
 The wide sidebar bell (`components/navigation/notification-bell.tsx`, corner placement) and collapse control (`components/shell/shell-wide.tsx`) use the same primitive. Their glyphs centre within 0.5px on both axes, with at least 8px between feedback and the lockup or sibling control. The 232px expanded and 96px collapsed rails retain their widths. Android retains its tab navigation shell.
 
+The paired calendar `calendar-shell.tsx` owners retain centred 44px ghost paint and
+transparent 48px targets. Geometry assertions measure the complete target separately from paint.
+Web `app/(app)/today-shell.tsx` and calendar `calendar-options.tsx` reserve a 48px bell row around the shared icon action,
+matching the other compact destination headers without moving its 44px paint.
+Web `today-shell` and Android `components/today/today-date-control.tsx` keep 8px between header action fills.
+
 The inventory includes retries, stale refresh, signed paging, disclosure, add controls, copy and sharing, drawn sheet footer actions and per-record actions. Read-block revisions, preview drafts, clipboard feedback, pending requests and focus handoffs retain their original owners.
 
 Text remains for the primary consequence ending a form or confirmation, required sign-in wording, and contextual requests, choices or destinations drawn in the active canvas. In particular, approval and destructive confirmation name their consequence; a pending preview's edit, reject and retry controls use icons. Personal text, calendar values, menu rows and selectable records remain content-bearing controls.

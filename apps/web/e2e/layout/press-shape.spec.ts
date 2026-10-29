@@ -96,7 +96,7 @@ for (const width of [412, 1280] as const) {
       await expectFullTouchTarget(page.locator('a[href^="/upgrade"]').filter({ hasText: ptBr.profile.allowance.seePro }).first(), 'pill')
       await expectHoverOnHitArea(page.locator('.orbit-list-row-body').first(), 12)
       await page.goto('/upgrade')
-      await expectHoverOnHitArea(page.locator('.orbit-pill-action:enabled').first(), 'pill')
+      await expectHoverOnHitArea(page.locator('.orbit-pill-action:enabled').filter({ visible: true }).first(), 'pill')
       await context.route(`${LAYOUT_ORIGIN}${buildRecapRequestUrl('week')}`,
         (route) => route.fulfill({ json: recapResponseSchema.parse(createMockRecap()) }))
       await page.goto('/wrapped')

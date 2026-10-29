@@ -236,7 +236,7 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
           const body = control.closest('[data-slot="list-row-body"]')!.getBoundingClientRect()
           return body.right - box.right
         })
-        expect(Math.abs(inset - 16)).toBeLessThanOrEqual(0.5)
+        expect(Math.abs(inset - 20)).toBeLessThanOrEqual(0.5)
         await expectInteractionFill(checkbox)
         await expectInteractionFill(label)
         const importText = createTranslator({ locale, messages: words })('calendar.importButton', { count: 2 })

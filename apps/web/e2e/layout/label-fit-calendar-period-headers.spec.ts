@@ -10,6 +10,7 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { expectLabelsFit, expectLegendFits, markRequiredLabels, markUserText } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession } from './profile-session'
+import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { test } from './upgrade-fixtures'
 
 const habitTitle = 'Caminhar pelo bairro depois do trabalho e conversar com os amigos'
@@ -19,10 +20,11 @@ const calendarMonth = calendarMonthResponseSchema.parse({
 })
 
 async function bounds(control: Locator) {
-  return control.evaluate((element) => {
+  const target = await control.evaluate(readExpandedControlGeometry)
+  return control.evaluate((element, target) => {
     const box = element.getBoundingClientRect()
-    return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, center: (box.top + box.bottom) / 2, width: box.width, height: box.height }
-  })
+    return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, center: (box.top + box.bottom) / 2, width: target.width, height: target.height }
+  }, target)
 }
 
 for (const width of [320, 360, 384, 412, 600, 840]) {
