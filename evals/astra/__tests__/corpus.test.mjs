@@ -50,7 +50,7 @@ it('runs every composition family in both languages with three attempts', () => 
     'proactive', 'empty', 'error', 'partial', 'stale', 'quota', 'plan', 'offline', 'refusal', 'feature-help',
     'coaching-advice', 'small-talk', 'compound', 'compound-legacy', 'compound-missing-kind', 'medical-batch',
     'medical-correction', 'avoid-form', 'existing-parents', 'suggestions', 'suggestions-duplicate', 'suggestions-refine',
-    'restart-preview', 'restart-approve', 'restart-reject', 'restart-preference']
+    'restart-preview', 'restart-approve', 'restart-reject', 'restart-preference', 'hoje-next-step']
   expect(configuration.tests).toContain('file://composition-scenarios.yaml')
   expect(configuration.evaluateOptions.repeat).toBe(3)
   expect(new Set(corpus.map((entry) => entry.metadata.id)).size).toBe(corpus.length)

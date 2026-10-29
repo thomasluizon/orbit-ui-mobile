@@ -21,7 +21,6 @@ import type {
 import type { Goal } from '@orbit/shared/types/goal'
 import { isQueuedResult } from '@/lib/offline-mutations'
 import { syncWidgetData } from '@/lib/orbit-widget'
-import { prepareListLayoutMotion } from '@/lib/list-motion'
 
 interface CachedTag {
   id: string
@@ -39,7 +38,6 @@ export function restoreHabitLists(
   queryClient: QueryClient,
   snapshots: HabitListSnapshots,
 ): void {
-  prepareListLayoutMotion('habits')
   restoreCachedHabitLists(queryClient, snapshots)
 }
 
@@ -48,7 +46,6 @@ export function restoreHabitCompletionForIds(
   snapshots: HabitListSnapshots,
   habitIds: ReadonlySet<string>,
 ): void {
-  prepareListLayoutMotion('habits')
   for (const [key, snapshot] of snapshots) {
     if (!snapshot) continue
     queryClient.setQueryData<HabitScheduleItem[]>(key, (current) => {
@@ -71,12 +68,10 @@ export function updateHabitLists(
   queryClient: QueryClient,
   updater: (items: HabitScheduleItem[]) => HabitScheduleItem[],
 ): void {
-  prepareListLayoutMotion('habits')
   updateCachedHabitLists(queryClient, updater)
 }
 
 export function updateHabitListsForDate(...parameters: Parameters<typeof updateCachedHabitListsForDate>): void {
-  prepareListLayoutMotion('habits')
   updateCachedHabitListsForDate(...parameters)
 }
 

@@ -1,4 +1,76 @@
 # Fixture and capability requirements are documented in TESTING.md.
+- description: hoje-next-step in en
+  metadata:
+    id: composition-hoje-next-step-en
+    category: composition
+    family: hoje-next-step
+    locale: en
+    fixture: hoje-next-step
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: What should I do next today?
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      currentAppArea: today
+      supportsParts: true
+      supportsDaySummaryCard: true
+    composition:
+      mode: data
+      kinds: [daySummary]
+    expectations:
+      required:
+        - name: get_daily_summary
+          arguments:
+            generate_narrative: true
+    rubric: >-
+      Answer in English. The fixture has English stored titles in both locales.
+      Breakfast is logged today; Lunch at 12:00, Afternoon snack at 16:00, Dinner at 19:00
+      and six Water - 710ml items remain pending. Recommend Lunch or a Water item as the
+      next step, never Afternoon snack or Dinner while Lunch remains pending, and never
+      the completed Breakfast. Showing later meals as pending rows is valid and does not
+      recommend them as next. Accept a single data block with at most one short sentence,
+      including a block-only answer if it conveys the recommendation. Do not require a
+      prose recap or repetition of the displayed schedule.
+- description: hoje-next-step in pt-BR
+  metadata:
+    id: composition-hoje-next-step-pt-BR
+    category: composition
+    family: hoje-next-step
+    locale: pt-BR
+    fixture: hoje-next-step
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    input: O que eu faço agora hoje?
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      currentAppArea: today
+      supportsParts: true
+      supportsDaySummaryCard: true
+    composition:
+      mode: data
+      kinds: [daySummary]
+    expectations:
+      required:
+        - name: get_daily_summary
+          arguments:
+            generate_narrative: true
+    rubric: >-
+      Answer in Brazilian Portuguese. The profile language is pt-BR, while the fixture's
+      stored titles deliberately remain English. Breakfast is logged today; Lunch at 12:00,
+      Afternoon snack at 16:00, Dinner at 19:00 and six Water - 710ml items remain pending.
+      Recommend Lunch or a Water item as the next step, never Afternoon snack or Dinner
+      while Lunch remains pending, and never the completed Breakfast. Astra-generated prose
+      must be Portuguese and refer naturally to the activity, such as "seu almoço" or
+      "beber água", without dropping raw English titles such as "Lunch" into Portuguese
+      prose. Stored titles inside block rows remain verbatim English and are valid.
+      Showing later meals as pending rows is valid and does not recommend them as next.
+      Accept a single data block with at most one short sentence, including a block-only
+      answer if it conveys the recommendation. Do not require a prose recap or repetition
+      of the displayed schedule.
 - description: habits-schedules in en
   metadata:
     id: composition-habits-schedules-en

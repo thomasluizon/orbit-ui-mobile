@@ -108,6 +108,7 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
   else if (fixture === 'composition-partial') expect(active).toHaveLength(51)
   else if (fixture === 'free-at-limit') expect(active).toHaveLength(capacity)
   else if (fixture === 'malicious-title') expect(active).toHaveLength(3)
+  else if (fixture === 'hoje-next-step') expect(active).toHaveLength(12)
   else if (fixture === 'restart') {
     expect(active).toHaveLength(6)
     expect(test.vars.restartBaseline).toHaveLength(6)
@@ -122,6 +123,55 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
   if (fixture.startsWith('composition')) { expect(goals).toHaveLength(1); expect(tags).toHaveLength(1); expect(templates).toHaveLength(1) }
   if (fixture === 'composition-logged') expect(active[0].logs.some((log) => log.date === '2026-10-24')).toBe(true)
   expect(requests.find(({ path }) => path === 'profile/language').body.language).toBe(test.metadata.locale)
+})
+it.each(['en', 'pt-BR'])('seeds ordered English meals and water with only Breakfast logged for the %s Hoje case', async (locale) => {
+  const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-hoje-next-step-${locale}`))
+  const { test } = await prepareAttempt({ test: source })
+  expect(test.vars.preconditionFailure).toBeUndefined()
+  const active = habits.filter((habit) => !habit.deleted)
+  const meals = active.find((habit) => habit.title === 'Meals')
+  const water = active.find((habit) => habit.title === 'Water')
+  expect(active.filter((habit) => habit.parentHabitId === meals.id).map(({ title, dueTime, position }) => ({ title, dueTime, position })))
+    .toEqual([
+      { title: 'Breakfast', dueTime: null, position: 0 }, { title: 'Lunch', dueTime: '12:00:00', position: 1 },
+      { title: 'Afternoon snack', dueTime: '16:00:00', position: 2 }, { title: 'Dinner', dueTime: '19:00:00', position: 3 },
+    ])
+  expect(active.filter((habit) => habit.parentHabitId === water.id).map((habit) => habit.title)).toEqual(Array(6).fill('Water - 710ml'))
+  expect(active.flatMap((habit) => habit.logs.map((log) => ({ title: habit.title, date: log.date, value: log.value }))))
+    .toEqual([{ title: 'Breakfast', date: test.vars.accountDate, value: 1 }])
+  expect(active.filter((habit) => habit.title !== 'Breakfast').every((habit) => habit.dueDate === test.vars.accountDate)).toBe(true)
+  expect(test.vars.fixtureEvidence.habits).toHaveLength(12)
+  expect(test.vars.fixtureHabitTitles).toEqual(['Meals', 'Breakfast', 'Lunch', 'Afternoon snack', 'Dinner', 'Water', ...Array(6).fill('Water - 710ml')])
+  expect(requests.find(({ path }) => path === 'profile/timezone').body).toEqual({ timeZone: 'UTC' })
+  expect(requests.find(({ path }) => path === 'profile/language').body).toEqual({ language: locale })
+  await resetFixture(structuredClone(source))
+  expect(habits.filter((habit) => !habit.deleted)).toHaveLength(12)
+  await resetFixture(scenario('pro'))
+  expect(habits.filter((habit) => !habit.deleted).map((habit) => habit.id)).toEqual([meals.id, water.id])
+})
+
+it.each(['order', 'time', 'parent', 'missing-child', 'history'])('rejects an unverifiable Hoje fixture: %s', async (mode) => {
+  const intercepted = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    const response = await intercepted(url, options)
+    if (options.method !== 'GET') return response
+    const path = new URL(url).pathname
+    const payload = await response.json()
+    if (payload.title === 'Meals' && payload.children?.length) {
+      if (mode === 'order') payload.children.reverse()
+      if (mode === 'time') payload.children[1].dueTime = '19:00:00'
+      if (mode === 'parent') payload.children[1].parentHabitId = null
+      if (mode === 'missing-child') payload.children.pop()
+    }
+    if (mode === 'history' && path === '/api/profile/export') {
+      const breakfast = payload.habits.find((habit) => habit.title === 'Breakfast')
+      if (breakfast) breakfast.logs = []
+    }
+    return Response.json(payload)
+  })
+  const { test } = await prepareAttempt({ test: scenario('hoje-next-step') })
+  expect(test.vars.preconditionFailure).toMatch(/Hoje fixture/)
+  expect(requests.some(({ path }) => path === 'chat')).toBe(false)
 })
 it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))].flatMap((fixture) => ['en', 'pt-BR'].map((locale) => [fixture, locale])))(
   'advertises only habit titles the %s reset leaves in the %s account', async (fixture, locale) => {
@@ -270,7 +320,7 @@ it.each(['free-at-limit', 'budget-exhausted'])('keeps the metered %s fixture pat
     expect(habits.filter((habit) => !habit.deleted)).toHaveLength(capacity)
     expect(requests.some(({ path, body }) => path === 'habits/bulk' && body.habits.length > capacity)).toBe(true)
   } else {
-    expect(requests.filter(({ path }) => path === 'profile')).toHaveLength(1)
+    expect(requests.filter(({ path }) => path === 'profile')).toHaveLength(2)
     expect(requests.some(({ path }) => path === 'chat')).toBe(false)
   }
 })

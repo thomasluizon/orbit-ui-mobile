@@ -10,7 +10,6 @@ import type {
   PaginatedGoalResponse,
 } from '@orbit/shared/types/goal'
 import { apiClient } from '@/lib/api-client'
-import { prepareListLayoutMotion } from '@/lib/list-motion'
 
 export { type NormalizedGoalsData } from '@orbit/shared/utils'
 
@@ -30,7 +29,6 @@ export function useGoals(status?: GoalStatus | null) {
         const url = qs ? `${API.goals.list}?${qs}` : API.goals.list
         return apiClient<PaginatedGoalResponse>(url)
       })
-      prepareListLayoutMotion('goals')
       return goals
     },
     staleTime: QUERY_STALE_TIMES.goals,

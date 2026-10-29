@@ -130,8 +130,9 @@ const progressEntries = async ({ sessionId, repoRoot, transcriptPath, transcript
     project.sessions.find((entry) => entry.sessionId === currentSessionId)?.lastOwnerProgress
   const previous = currentCommand
     ? project.commands.findLast((command) => Date.parse(command.time) < Date.parse(currentInvocation.time)) : latest
-  const startedAt = previous?.time ?? chain?.[0].startedAt ?? project.sessions.find((entry) => entry.sessionId === currentSessionId)?.startedAt
-  if (!startedAt) return null
+  const baselineTime = previous?.time ?? chain?.[0].startedAt ?? project.sessions.find((entry) => entry.sessionId === currentSessionId)?.startedAt
+  if (!baselineTime) return null
+  const startedAt = new Date(baselineTime).toISOString()
   const baselineSource = previous ? "previous-progress" : openSessionChain(sessionId, repoRoot) ? "chain-start" : "session-start"
   const recorded = readSessionChain(repoRoot).chains.flatMap((entry) => entry.entries)
   const candidates = new Map(recorded.map((entry) => [entry.sessionId, entry]))

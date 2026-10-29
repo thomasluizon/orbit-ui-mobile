@@ -1,5 +1,6 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { ContentFade } from '@/components/motion/content-fade'
-import { createListCellMotion, prepareListLayoutMotion, useListLayoutMotion } from '@/lib/list-motion'
+import { createListCellMotion } from '@/lib/list-motion'
 import { StreakFigure } from '@/components/gamification/streak-figure'
 import { IconButton } from '@/components/ui/icon-button'
 import { PADDING, SPACING, SHELL_CONTENT_MAX_WIDTH, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
@@ -391,11 +392,9 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, fil
   const { t } = useTranslation()
 
   const reorder = useReorderGoals()
-  const [isDraggingList, setIsDraggingList] = useState(false)
-  const reducedListMotion = useListLayoutMotion('goals', isDraggingList)
+  const reducedListMotion = usePrefersReducedMotion()
   const [filterOpen, setFilterOpen] = useState(false)
   const changeFilter = (next: ProgressGoalFilter) => {
-    prepareListLayoutMotion('goals')
     setFilter(next)
   }
   const announceReorderResult = (message: string) => {
@@ -412,11 +411,10 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, fil
   }
   const handleDragEnd = ({ data, from, to }: DragEndParams<Goal>) => {
     if (filter !== 'all' || reorder.isPending || from === to) {
-      setIsDraggingList(false)
       return
     }
     const positions: GoalPositionItem[] = data.map((goal, position) => ({ id: goal.id, position }))
-    reorder.mutate(positions, { onSettled: () => setIsDraggingList(false) })
+    reorder.mutate(positions)
   }
   const move = (goalId: string, target: number) => {
     const currentIndex = goals.findIndex((item) => item.id === goalId)
@@ -443,7 +441,7 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onCreate, fil
           onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) changeFilter(option.value) }} /></Menu.Root> : null}
       {goals.length === 0 ? <GoalsEmptyState onCreate={onCreate} tokens={tokens} inSection /> : null}
       {goals.length > 0 && filtered.length === 0 ? <View style={[styles.emptyLine, { backgroundColor: tokens.bgWell }]}><Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" minimumHeight={48} onClick={() => changeFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
-      {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList {...cellMotion} data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragBegin={() => setIsDraggingList(true)} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
+      {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList {...cellMotion} data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
       {filter !== 'all' ? filtered.map((goal) => <ContentFade key={goal.id}><GoalCard goal={goal} index={goals.findIndex((item) => item.id === goal.id)} total={goals.length} canReorder={false} isDragging={false} onMove={move} onOpen={() => onOpenGoal(goal.id)} onRegister={onRegisterGoal} tokens={tokens} /></ContentFade>) : null}
       {reorder.isError ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.reorderError')}</Text> : null}
     </View>

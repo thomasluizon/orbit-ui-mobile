@@ -196,6 +196,11 @@ The startup hook waits for `/health`, refreshes each selected account and reads 
 and `false` for both refusal accounts before any case starts. A missing flag or policy mismatch
 stops the run with the account selector and the `/flag` action to turn it on or off.
 The hook passes the resolved value to every fixture attempt without rereading config.
+After those checks and before the first case, it warms each selected credential account once
+through the same fixture reset used by that account's first selected case. The existing health
+wait runs first. Warm-ups use cloned cases, so their evidence never substitutes for an attempt's
+own reset. A failed warm-up emits one credential-safe warning per account and continues; each
+case still refreshes and resets normally, and only its own evidence can satisfy its precondition.
 Restore the previous account targeting after the run.
 Do not raise or restore quotas through `staging-ai-limits.sh` for an eval window.
 
@@ -388,6 +393,7 @@ its previous state after the run. Header alone or flag alone cannot enable traci
 | `skipped` | Walk skipped today through the public skip API, with no positive completion |
 | `free-at-limit` | Free account at the actual configured root capacity, with enough message allowance |
 | `budget-exhausted` | Daily message allowance exhausted through at most five ordinary requests, independently verified from profile; an unavailable precondition stays incomplete |
+| `hoje-next-step` | UTC profile in the case language, English titles in both locales: Meals with Breakfast logged today, then pending Lunch at 12:00, Afternoon snack at 16:00 and Dinner at 19:00; Water with six pending Water - 710ml children. Registered root IDs are preserved; ordered children, times, parent links and completion history require independent readback |
 
 ### Daily windows and combined report
 
@@ -619,6 +625,18 @@ quota, plan, offline and refusal fixtures exercise their actual producer states.
 cover supported, legacy and missing-kind capability sets. These are required live cases, not
 claims that the current behavior passes them.
 
+`composition-hoje-next-step-en` and `composition-hoje-next-step-pt-BR` ask what to do next
+today using the `hoje-next-step` fixture. Tool evidence requires a successful `get_daily_summary`
+with `generate_narrative: true`, reaching the summary producer rather than its facts-only branch.
+The existing mutation scope gate rejects writes; additional read-only lookups are permitted.
+The rubric requires Lunch or a Water item as the next step while Lunch is pending, never the
+later meals or completed Breakfast. Merely listing a later meal as pending is valid.
+Portuguese prose must use a natural activity reference such as "seu almoço", while stored
+English titles remain unchanged inside block rows. One data block and at most one short sentence
+can pass; no prose recap is required, and a block-only answer must still convey the recommendation.
+Both cases retain three attempts and family/locale pass^3 reporting. Offline checks prove fixture,
+assertion and rubric routing; semantic acceptance requires the coordinator's live gate.
+
 The composition assertion requires ordered parts for parts-capable clients. It validates known
 block payload projections and advertised capabilities, required families and subtypes, and
 preserves operation surfaces ahead of read parts as the consumers render them. It never infers a
@@ -633,7 +651,8 @@ line limits still apply. Help actions resolve through the same shared surface ma
 Android: schedule help uses `today`, and plan help uses `subscriptions`. A block's arbitrary
 `surfaceId` is not action evidence; calendar blocks have their own rendered calendar action.
 
-The reset executable prepares personal titles in the case locale. Portuguese cases use Beber água,
+Except for `hoje-next-step`, the reset executable prepares personal titles in the case locale.
+Portuguese cases use Beber água,
 Caminhada, Saúde, Manhã, Hidratação constante and sessões, including Portuguese checklist items,
 additional habits and parent titles. Stable habit IDs survive locale changes. English cases keep
 the English names below. The reset prepares these additional fixtures:

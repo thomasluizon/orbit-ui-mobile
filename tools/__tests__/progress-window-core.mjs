@@ -59,7 +59,7 @@ const ownerBoundaryCases = async () => {
   ].map((row) => JSON.stringify(row)).join("\n") + "\n")
   const windowReport = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
   T("progress-window: previous owner invocation precedes a later relay chain",
-    windowReport.window.startedAt === previous)
+    windowReport.window.startedAt === new Date(previous).toISOString())
   T("progress-window: merge before chain start survives and session evidence spans the window",
     windowReport.entries.some((entry) => entry.merges.some((merge) => merge.id === 10)) &&
     windowReport.entries.some((entry) => entry.sessionId === "earlier"))
@@ -70,11 +70,29 @@ const ownerBoundaryCases = async () => {
     windowReport.baselineSource === "previous-progress" && typeof windowReport.window.localStartedAt === "string")
   T("progress-window: current session with recorded decisions has no conversation",
     !Object.hasOwn(windowReport.entries.find((entry) => entry.sessionId === "current"), "conversation"))
+  const offsetPrevious = "2026-09-30T20:00:00-03:00"
+  const earlierPath = join(transcriptsDirectory, "earlier.jsonl")
+  const earlierRows = readFileSync(earlierPath, "utf8")
+  writeFileSync(earlierPath, earlierRows.replace(previous, offsetPrevious))
+  const utcBoundary = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
+  T("progress-window: transcript offsets print as ISO UTC", utcBoundary.window.startedAt === new Date(previous).toISOString())
+  writeFileSync(earlierPath, earlierRows)
+  const quotedPath = join(transcriptsDirectory, "quoted.jsonl")
+  const quotedCommand = command("quoted", "2026-10-01T03:20:00Z", "quoted")
+  const commandText = quotedCommand.message.content
+  writeFileSync(quotedPath, [
+    { ...quotedCommand, type: "assistant", message: { role: "assistant", content: [{ type: "text", text: commandText }] } },
+    { ...quotedCommand, message: { role: "user", content: [{ type: "tool_result", tool_use_id: "tool-source", content: commandText }] } },
+    { ...quotedCommand, message: { role: "user", content: `Quoted command:\n${commandText}` } },
+  ].map((row) => JSON.stringify(row)).join("\n") + "\n")
+  const quoted = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
+  T("progress-window: assistant, tool and pasted command text never set the boundary", quoted.window.startedAt === new Date(previous).toISOString())
+  writeFileSync(quotedPath, "")
   const laterPath = join(transcriptsDirectory, "later.jsonl")
   writeFileSync(laterPath, `${JSON.stringify(command("later", "2026-10-01T03:45:00Z", "later"))}\n`)
   const simultaneous = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
   T("progress-window: another session's later report does not replace this invocation's boundary",
-    simultaneous.window.startedAt === previous)
+    simultaneous.window.startedAt === new Date(previous).toISOString())
   writeFileSync(laterPath, "")
   const nestedCommand = { ...command("current", "2026-10-01T03:40:00Z", "wrap-up"),
     message: { role: "user", content: "<command-message>wrap-up</command-message>\n<command-name>/wrap-up</command-name>" } }
@@ -82,23 +100,23 @@ const ownerBoundaryCases = async () => {
   writeFileSync(currentPath, readFileSync(currentPath, "utf8") + JSON.stringify(nestedCommand) + "\n")
   const nested = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
   T("progress-window: wrap-up and model calls use the latest owner report without skipping it",
-    nested.window.startedAt === current)
+    nested.window.startedAt === new Date(current).toISOString())
   writeFileSync(currentPath, JSON.stringify(command("current", current, "current")) + "\n" + JSON.stringify({
     ...command("current", "2026-10-01T03:41:00Z", "owner-text"),
     message: { role: "user", content: [{ type: "text", text: "Give me an update." }] },
   }) + "\n")
   const modelCall = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
   T("progress-window: owner text blocks before a model call keep the latest report as baseline",
-    modelCall.window.startedAt === current)
+    modelCall.window.startedAt === new Date(current).toISOString())
   writeFileSync(join(transcriptsDirectory, "earlier.jsonl"), "")
   writeFileSync(currentPath, `${JSON.stringify(command("current", current, "first"))}\n`)
   const first = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
   T("progress-window: first owner report identifies its chain fallback",
-    first.baselineSource === "chain-start" && first.window.startedAt === "2026-10-01T00:00:00Z")
+    first.baselineSource === "chain-start" && first.window.startedAt === "2026-10-01T00:00:00.000Z")
   writeSessionChain({ chains: [] }, boundary.repoRoot)
   const firstSession = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
   T("progress-window: first owner report without a chain identifies its session fallback",
-    firstSession.baselineSource === "session-start" && firstSession.window.startedAt === current)
+    firstSession.baselineSource === "session-start" && firstSession.window.startedAt === new Date(current).toISOString())
 }
 
 const conversationCases = async () => {
@@ -160,11 +178,11 @@ const directoryCases = async () => {
     process.env.CLAUDE_PROJECT_DIR = `${staged.repoRoot}/`
     const report = await collectProgressWindow(staged.options)
     T("progress-window: project directory discovery normalizes a trailing separator",
-      report.window.startedAt === "2026-09-30T23:00:00Z")
+      report.window.startedAt === "2026-09-30T23:00:00.000Z")
     delete process.env.CLAUDE_PROJECT_DIR
     const ordinary = await collectProgressWindow({ ...staged.options, repoRoot: `${staged.repoRoot}/` })
     T("progress-window: ordinary checkout discovery uses the repository path",
-      ordinary.window.startedAt === "2026-09-30T23:00:00Z")
+      ordinary.window.startedAt === "2026-09-30T23:00:00.000Z")
     const linkedCheckout = join(staged.repoRoot, "linked")
     const gitDirectory = join(staged.repoRoot, ".git", "worktrees", "linked")
     mkdirSync(linkedCheckout)
@@ -173,7 +191,7 @@ const directoryCases = async () => {
     writeFileSync(join(gitDirectory, "commondir"), "../..\n")
     const linked = await collectProgressWindow({ ...staged.options, repoRoot: linkedCheckout })
     T("progress-window: linked checkout discovery follows the canonical repository",
-      linked.window.startedAt === "2026-09-30T23:00:00Z")
+      linked.window.startedAt === "2026-09-30T23:00:00.000Z")
     writeFileSync(join(directory, "current.jsonl"), "")
     const previous = "2026-09-30T23:00:00Z"
     writeFileSync(join(directory, "earlier.jsonl"), [command(previous, "previous"),
@@ -189,7 +207,7 @@ const directoryCases = async () => {
     process.env.CLAUDE_PROJECT_DIR = linkedCheckout
     const explicit = await collectProgressWindow({ ...staged.options, repoRoot: linkedCheckout, transcriptPath })
     T("progress-window: explicit linked transcript retains the canonical previous-progress boundary",
-      explicit.baselineSource === "previous-progress" && explicit.window.startedAt === previous)
+      explicit.baselineSource === "previous-progress" && explicit.window.startedAt === new Date(previous).toISOString())
     T("progress-window: explicit linked transcript retains merges before the current session",
       explicit.entries.some((entry) => entry.merges.some((merge) => merge.id === 10)))
     T("progress-window: explicit linked transcript retains canonical conversation evidence",
@@ -215,7 +233,7 @@ export const cases = async () => {
   await directoryCases()
   const staged = fixture("progress-core")
   const report = await collectProgressWindow(staged.options)
-  T("progress-window: reports three relays and current session, with the full window", report.entries.map((entry) => entry.sessionId).join(",") === "relay-0,relay-1,relay-2,current" && report.window.startedAt === "2026-10-01T00:00:00Z")
+  T("progress-window: reports three relays and current session, with the full window", report.entries.map((entry) => entry.sessionId).join(",") === "relay-0,relay-1,relay-2,current" && report.window.startedAt === "2026-10-01T00:00:00.000Z")
   for (const [index, entry] of report.entries.entries()) {
     T(`progress-window: entry ${index} retains every source at its own boundary`,
       entry.merges.length === 3 && entry.releases.length === 4 && entry.closedTickets.length === 1 && entry.createdTickets.length === 1 &&
@@ -258,7 +276,7 @@ export const cases = async () => {
   const transcriptPath = join(standalone.repoRoot, "current.jsonl")
   writeFileSync(transcriptPath, `${JSON.stringify({ timestamp: "2026-10-01T02:00:00Z", type: "user" })}\n`)
   const single = await collectProgressWindow({ ...standalone.options, transcriptPath })
-  T("progress-window: no chain uses only the exact current transcript window", single.entries.length === 1 && single.entries[0].merges.length === 6 && single.window.startedAt === "2026-10-01T02:00:00Z")
+  T("progress-window: no chain uses only the exact current transcript window", single.entries.length === 1 && single.entries[0].merges.length === 6 && single.window.startedAt === "2026-10-01T02:00:00.000Z")
   let remoteRead = false
   writeRunState({ sessionId: "foreign", decisionLogPath: join(root, "missing") }, standalone.repoRoot)
   const absent = await collectProgressWindow({ ...standalone.options, readPages: async () => { remoteRead = true; throw new Error("unexpected read") } })

@@ -1782,6 +1782,30 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.streakInfo = streakInfo
   })
 
+  it('keeps goal insertions and removals out of retained mount animations', async () => {
+    const first = createMockGoal({ id: 'first', title: 'First', position: 0 })
+    const second = createMockGoal({ id: 'second', title: 'Second', position: 1 })
+    mocks.goals.data.allGoals = [first]
+    const tree = await renderProgress(undefined, 'goals')
+    const assertMountOwnership = () => {
+      const list = tree.root.findAll((node) => node.type === 'DraggableFlatList')[0]!
+      expect(list.props.itemEnteringAnimation).toBeUndefined()
+      expect(list.props.itemExitingAnimation).toBeUndefined()
+      expect(list.props.itemLayoutAnimation).toBeUndefined()
+      expect(list.props.enableLayoutAnimationExperimental).not.toBe(true)
+    }
+    assertMountOwnership()
+    mocks.goals.data.allGoals = [first, second]
+    await TestRenderer.act(() => tree.update(<GoalsPage />))
+    expect(findGoalCard(tree.root, 'Second')).toBeDefined()
+    assertMountOwnership()
+    mocks.goals.data.allGoals = [second]
+    await TestRenderer.act(() => tree.update(<GoalsPage />))
+    expect(tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).includes('First'))).toHaveLength(0)
+    expect(findGoalCard(tree.root, 'Second')).toBeDefined()
+    assertMountOwnership()
+  })
+
   it('keeps long-press drag and accessibility goal reordering', async () => {
     const goalOne = {
       id: 'goal-1', title: 'Goal one', description: null, targetValue: 10,
@@ -1807,7 +1831,7 @@ describe('mobile ProgressContent', () => {
     expect(mocks.reorder.mutate).toHaveBeenCalledWith([
       { id: 'goal-2', position: 0 },
       { id: 'goal-1', position: 1 },
-    ], { onSettled: expect.any(Function) })
+    ])
   })
 
   it('announces accessibility moves, boundaries and preserves errors and filtered state', async () => {
