@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as grades from '../assertions.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { visibleBlock } from '../visible-blocks.mjs'
@@ -7,6 +7,8 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { prepareCorrection } from '../setup.mjs'
 import { assertions as promptfooAssertions } from 'promptfoo'
+import parseResponse from '../response.mjs'
+import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 
 // Producer: OneSmallStepCard.Build and SuggestBreakdownTool at the catalog API commit.
 export function startingResponse(locale = 'en', requestId = 'request', suppliedSuggestion) {
@@ -193,4 +195,72 @@ it.each(['en', 'pt-BR'])('accepts a valid %s coaching block and retains the no-f
   response.parts.push({ type: 'text', text: 'Extra framing.' })
   response.aiMessage = 'Extra framing.'
   expect(grades.composition(outputFor(response), { vars }).pass).toBe(false)
+})
+
+describe.each(['en', 'pt-BR'])('%s coaching after permitted reads', (locale) => {
+  const scenario = corpus.find((entry) => entry.metadata.id === `composition-coaching-advice-${locale}`)
+  const vars = { ...scenario.vars, evalRequestId: 'request',
+    clientContext: { ...buildChatClientContext({ platform: 'web', locale }), ...scenario.vars.clientContext } }
+  const parsedResponse = (response) => parseResponse(response, '', {
+    response: { status: 200, headers: { 'x-orbit-request-id': 'request' } },
+  })
+  function readThenSuggestion() {
+    const response = startingResponse(locale)
+    response.evalTrace.toolCalls.unshift(toolCall('query_habits', { search: locale === 'en' ? 'Walk' : 'Caminhar' },
+      'Succeeded', 'read-1', vars.clientContext))
+    return response
+  }
+
+  it.each([1, 2])('accepts %i successful reads followed by one matching suggestion through all assertions', async (count) => {
+    const response = readThenSuggestion()
+    if (count === 2) response.evalTrace.toolCalls.unshift({ ...structuredClone(response.evalTrace.toolCalls[0]),
+      id: 'read-2', result: { ...response.evalTrace.toolCalls[0].result, id: 'read-2' } })
+    const output = parsedResponse(response)
+    for (const grade of [grades.structural, grades.behavior, grades.composition]) {
+      const verdict = await grade(output, { vars, test: { vars } })
+      expect(verdict.pass, `${grade.name}: ${verdict.reason}`).toBe(true)
+    }
+    expect(output.trace.calls.map(({ name }) => name)).toEqual([...Array(count).fill('query_habits'), 'suggest_breakdown'])
+  })
+
+  it.each([
+    ['extra suggestion', (response) => {
+      const call = structuredClone(response.evalTrace.toolCalls[1])
+      call.id = call.result.id = 'extra'
+      response.evalTrace.toolCalls.push(call)
+    }],
+    ['failed extra suggestion', (response) => { response.evalTrace.toolCalls.push(toolCall('suggest_breakdown', {}, 'Failed', 'extra')) }],
+    ['unrelated write', (response) => { response.evalTrace.toolCalls.unshift(toolCall('log_habit', { habit_id: 'walk' }, 'PendingConfirmation', 'write')) }],
+    ['unpermitted read', (response) => { response.evalTrace.toolCalls.unshift(toolCall('get_profile', {}, 'Succeeded', 'profile')) }],
+    ['failed read', (response) => { response.evalTrace.toolCalls[0].status = 'Failed' }],
+    ['unsuccessful read result', (response) => { response.evalTrace.toolCalls[0].result.success = false }],
+    ['read error', (response) => { response.evalTrace.toolCalls[0].result.error = 'Unavailable' }],
+    ['malformed actions', (response) => { response.parts[0].block.actions[1].message = 'Save something else.' }],
+    ['framing part', (response) => { response.parts.unshift({ type: 'text', text: 'Try this.' }) }],
+    ['framing message', (response) => { response.aiMessage = 'Try this.' }],
+    ['extra suggested step', (response) => { response.evalTrace.toolCalls[1].arguments.suggested_sub_habits.push({ title: 'Another step' }) }],
+  ])('rejects %s even with a permitted read', (_, mutate) => {
+    const response = readThenSuggestion()
+    mutate(response)
+    expect(grades.composition(parsedResponse(response), { vars }).pass).toBe(false)
+  })
+
+  it('rejects a write even if listed among allowed tools', () => {
+    const response = readThenSuggestion()
+    response.evalTrace.toolCalls.unshift(toolCall('log_habit', { habit_id: 'walk' }, 'Succeeded', 'write'))
+    const expectations = { ...vars.expectations, allowed: [...vars.expectations.allowed, 'log_habit'] }
+    expect(grades.composition(parsedResponse(response), { vars: { ...vars, expectations } }).pass).toBe(false)
+  })
+
+  it.each([false, true])('keeps the dedicated starting-step validator strict with legacy=%s', (legacy) => {
+    const response = readThenSuggestion()
+    if (legacy) {
+      response.aiMessage = response.parts[0].block.suggestion.step
+      response.parts = [{ type: 'text', text: response.aiMessage }]
+    }
+    const dedicated = varsFor(locale, legacy)
+    dedicated.expectations.allowed.push('query_habits')
+    expect(grades.behavior(parsedResponse(response), { vars: dedicated }).pass).toBe(true)
+    expect(grades.composition(parsedResponse(response), { vars: dedicated }).pass).toBe(false)
+  })
 })

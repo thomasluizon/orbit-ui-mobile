@@ -1,5 +1,6 @@
 import { suggestionComposition, refineResult } from './suggestions.mjs'
 import { startingStepComposition } from './one-small-step.mjs'
+import { tools } from './trace-policy.mjs'
 import { brainDumpPreview } from './brain-dumps.mjs'
 import { isDeepStrictEqual } from 'node:util'
 import { getRelatedSurfaces } from '../../packages/shared/src/chat/related-surfaces.ts'
@@ -11,6 +12,7 @@ const { questionBlockSchema } = await tsImport('../../packages/shared/src/types/
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const text = (value) => typeof value === 'string' && value.trim().length > 0
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
+const readTools = new Set(tools.filter((tool) => tool.writes === false).map((tool) => tool.function.name))
 const shapes = {
   habitMonth: { dateFrom: 'string', dateTo: 'string', today: 'string', weekStartDay: 'number', calendar: 'object', surfaceId: 'string' },
   habitList: { scope: 'string', items: 'array' }, goalList: { items: 'array' },
@@ -103,6 +105,14 @@ function unchangedPreview(pending, baseline, correction) {
   }) && changed === 1
 }
 
+function coachingStartingStep(parsed, vars) {
+  const calls = parsed.trace.calls.filter((call) => !(readTools.has(call.name)
+    && vars.expectations?.allowed?.includes(call.name) && call.resultStatus === 'Succeeded'
+    && call.result?.success === true && call.result.error === null))
+  return startingStepComposition({ ...parsed, trace: { ...parsed.trace, calls } },
+    { ...vars, composition: { mode: 'one-small-step' } })
+}
+
 export function composition(output, context) {
   const parsed = typeof output === 'string' ? JSON.parse(output) : output
   if (context.vars.refine) return refineResult(parsed, context.vars)
@@ -111,9 +121,10 @@ export function composition(output, context) {
   if (!expected || !response) return result(false, 'Missing composition evidence or scenario policy.', { unavailable: true })
   const coachingStep = expected.allowStartingStep === true
     && parsed.trace?.calls?.some((call) => call.name === 'suggest_breakdown')
-  if (coachingStep || ['one-small-step', 'one-small-step-legacy'].includes(expected.mode)) return validOperations(response)
-    ? startingStepComposition(parsed, coachingStep ? { ...context.vars, composition: { mode: 'one-small-step' } } : context.vars)
-    : result(false, 'Malformed operation or action surfaces.')
+  if (coachingStep || ['one-small-step', 'one-small-step-legacy'].includes(expected.mode)) {
+    if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
+    return coachingStep ? coachingStartingStep(parsed, context.vars) : startingStepComposition(parsed, context.vars)
+  }
   if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
   if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
   if (context.vars.brainDump) {
