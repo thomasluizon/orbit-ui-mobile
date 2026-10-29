@@ -278,7 +278,7 @@ export interface TimeDisplay {
   displayClock: (value: Date | string) => string
 }
 
-export function createTimeDisplay(locale: string, uses24HourClock: boolean | undefined): TimeDisplay {
+export function createTimeDisplay(locale: string, uses24HourClock: boolean | undefined, timeZone?: string | null): TimeDisplay {
   const hourCycle = resolveHourCycle(uses24HourClock, locale)
   const options: Intl.DateTimeFormatOptions = { hour: hourCycle === 'h23' ? '2-digit' : 'numeric', minute: '2-digit', hourCycle }
 
@@ -286,6 +286,6 @@ export function createTimeDisplay(locale: string, uses24HourClock: boolean | und
     hourCycle,
     locale,
     displayTime: (time: string | null | undefined): string => time ? formatLocaleTime(time, locale, options) : '',
-    displayClock: (value: Date | string): string => formatLocaleDateTime(value, locale, options),
+    displayClock: (value: Date | string): string => formatLocaleDateTime(value, locale, { ...options, ...(timeZone !== undefined ? { timeZone: timeZone || 'UTC' } : {}) }),
   }
 }

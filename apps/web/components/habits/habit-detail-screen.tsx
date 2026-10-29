@@ -1,5 +1,7 @@
 'use client'
 
+import { RepeatReminderDetail } from './repeat-reminder-detail'
+
 import { IconButton } from '@/components/ui/icon-button'
 
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -656,6 +658,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
         <HabitDueDate habit={habit} language={language} />
       </div>
+      {habit.repeatReminder || habit.nextReminderAtUtc ? <RepeatReminderDetail habit={habit} logs={logs} /> : null}
       <HabitChecklist items={habit.checklistItems} interactive onToggle={(index) => void toggleChecklist(index)} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} />
       {children.length > 0 ? <Surface>
         <SectionTitle>{t('habits.detail.inside')}</SectionTitle>

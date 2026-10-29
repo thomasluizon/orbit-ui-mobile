@@ -157,6 +157,7 @@ export function buildParentHabitFormState(
       dueTime: toTime24(parent.dueTime),
       dueEndTime: toTime24(parent.dueEndTime),
       endDate: parent.endDate ?? '',
+      repeatReminder: parent.repeatReminder,
       reminderEnabled: parent.reminderEnabled,
       scheduledReminders: editableReminders(parent).scheduledReminders,
       slipAlertEnabled: parent.slipAlertEnabled,
@@ -192,6 +193,7 @@ export function buildEditHabitFormState(
       dueTime: toTime24(detail?.dueTime ?? habit.dueTime),
       dueEndTime: toTime24(detail?.dueEndTime ?? habit.dueEndTime),
       endDate: detail?.endDate ?? '',
+      repeatReminder: detail?.repeatReminder ?? habit.repeatReminder,
       reminderEnabled: habit.reminderEnabled,
       scheduledReminders: editableReminders(habit, detail).scheduledReminders,
       slipAlertEnabled: habit.slipAlertEnabled,
@@ -209,7 +211,7 @@ export function selectHabitGoal(goalIds: string[], goalId: string): string[] {
   return goalIds.includes(goalId) ? goalIds : [...goalIds, goalId]
 }
 
-const MODE_FIELDS = ['frequencyUnit', 'frequencyQuantity', 'intervalWeeks', 'days', 'isGeneral', 'isFlexible', 'dueDate', 'datePhrase', 'dateIssue', 'dueTime', 'dueEndTime', 'endDate', 'reminderEnabled', 'scheduledReminders', 'isBadHabit', 'slipAlertEnabled'] as const
+const MODE_FIELDS = ['frequencyUnit', 'frequencyQuantity', 'intervalWeeks', 'days', 'isGeneral', 'isFlexible', 'dueDate', 'datePhrase', 'dateIssue', 'dueTime', 'dueEndTime', 'endDate', 'repeatReminder', 'reminderEnabled', 'scheduledReminders', 'isBadHabit', 'slipAlertEnabled'] as const
 
 export class HabitModeDrafts {
   habitMode: Exclude<HabitFormMode, 'oneTime'> = 'recurring'

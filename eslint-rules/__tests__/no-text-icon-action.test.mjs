@@ -11,7 +11,7 @@ const tester = new RuleTester({ languageOptions: { parser, parserOptions: { ecma
 const footerMessages = [require('../../packages/shared/src/i18n/en.json'), require('../../packages/shared/src/i18n/pt-BR.json')]
 
 const sheetCancelOwners = ['web', 'mobile'].flatMap(platform => [
-  ...['ui/confirm-sheet', 'habits/habit-create-actions', 'habits/edit-habit-modal', 'goals/create-goal-sheet', 'goals/edit-goal-modal', 'goals/goal-detail-drawer/goal-progress-form', 'profile/profile-api-keys', 'referral/referral-drawer', 'chat/pending-operation-card', platform === 'web' ? 'habits/habit-list/move-parent-overlay' : 'habit-list/move-parent-dialog'].map(owner => `/repo/apps/${platform}/components/${owner}.tsx`),
+  ...['ui/confirm-sheet', 'habits/habit-create-actions', 'habits/edit-habit-modal', 'habits/repeat-reminder-detail', 'goals/create-goal-sheet', 'goals/edit-goal-modal', 'goals/goal-detail-drawer/goal-progress-form', 'profile/profile-api-keys', 'referral/referral-drawer', 'chat/pending-operation-card', platform === 'web' ? 'habits/habit-list/move-parent-overlay' : 'habit-list/move-parent-dialog'].map(owner => `/repo/apps/${platform}/components/${owner}.tsx`),
   ...['edit-name-sheet', 'fresh-start-modal', 'delete-account-modal'].map(owner => `/repo/apps/${platform}/app/(${platform === 'web' ? 'app' : 'tabs'})/profile/_components/${owner}.tsx`),
 ])
 const drawnFooterActions = ['web', 'mobile'].flatMap(platform => [

@@ -52,6 +52,8 @@ export const API = {
     marketingConsent: '/api/profile/marketing-consent',
   },
 
+  reminders: { done: '/api/reminders/done' },
+
   habits: {
     list: '/api/habits',
     create: '/api/habits',
@@ -63,6 +65,7 @@ export const API = {
     widget: '/api/habits/widget',
     detail: (id: string) => `/api/habits/${id}/detail` as const,
     log: (id: string) => `/api/habits/${id}/log` as const,
+    correctDose: (id: string, logId: string) => `/api/habits/${id}/logs/${logId}/dose` as const,
     logs: (id: string) => `/api/habits/${id}/logs` as const,
     skip: (id: string) => `/api/habits/${id}/skip` as const,
     undoSkip: (id: string, skipId: string) => `/api/habits/${id}/skip/${skipId}/undo` as const,

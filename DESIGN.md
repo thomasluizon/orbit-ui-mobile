@@ -2014,3 +2014,22 @@ Everything else, and specifically: the 65ch measure, the 2x gap rhythm, concentr
 ### Not enforceable here
 
 `prefers-reduced-transparency` / `prefers-contrast` handling, the 200% zoom layout, the 320px reflow, keyboard traps, and screen-reader semantics need the **live rendered DOM**. They belong to the proposed a11y baseline-diff CI gate, keyed on the matrix above.
+
+### Repeat reminder surfaces
+
+The habit reminder section offers Repeat every only for everyday daily, daily count and General
+schedules. It replaces relative and fixed-clock reminders. Existing Select, TimeField and ListRow
+controls own interval, start time and optional active hours, including an overnight window. All day
+is the default. An incompatible cadence clears the repeat choice from that draft. The existing sheet
+footer owns Save and Cancel; no repeat-specific token or surface is introduced.
+
+Hoje rows keep the complete next-time phrase as a single metadata token in the canonical wrapping
+flow. Its existing measured footer takes over when the heading column cannot fit it. Detail repeats
+the API-supplied next instant and offers Done at correction through the existing sheet controls,
+including the original reminder instant through the clock icon button named Use reminder time. The correction sheet
+uses a trailing small ghost Cancel pill before the filled Save action. Both respect the person's clock
+preference and account zone. An absent or null next instant adds no estimated time. Corrections refresh authoritative reads.
+
+Android Done runs without opening an activity. Failure replaces that reminder with one actionless
+recovery notification whose body opens the habit. Web opens detail directly after failed Done.
+The existing notification preference controls delivery. See `design/habit-form-surfaces.md` for owners.

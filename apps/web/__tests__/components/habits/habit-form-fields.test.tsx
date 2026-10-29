@@ -1,3 +1,5 @@
+import { habitFormSchema } from '@orbit/shared/validation'
+import { buildCreateHabitRequest } from '@orbit/shared/utils'
 import { dateInterpretationSchema } from '@orbit/shared/types/habit'
 import { formLocale, mockProfileState, mockRouterPush, setupPatch, SETUP_PROPOSAL, CHECKLIST_PROPOSAL, SUB_HABIT_PROPOSAL, COMBINED_PROPOSAL, dateRequests, createFormHelpers, createTags, renderForm } from '@/__tests__/support/habit-form-fields'
 import userEvent from '@testing-library/user-event'
@@ -699,4 +701,34 @@ it('focuses the visible description failure without opening details', () => {
   helpers.backendFocusRequest = 2
   view.rerenderForm()
   expect(screen.getByLabelText('habits.form.description')).toHaveFocus()
+})
+
+
+it('offers Repeat every on daily habits inside the owning form', () => {
+  renderForm(createFormHelpers({ frequencyUnit: 'Day', frequencyQuantity: 1, itemType: 'habit' }), undefined, true)
+  expect(screen.getByRole('combobox', { name: 'habits.form.reminderKind' })).toBeInTheDocument()
+})
+
+
+it('saves the repeat contract from the actual form choice and replaces fixed reminders', async () => {
+  const helpers = createFormHelpers({ title: 'Water', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, reminderEnabled: true, dueTime: '08:00', scheduledReminders: [{ when: 'same_day', time: '09:00' }] })
+  renderForm(helpers, undefined, true)
+  const user = userEvent.setup()
+  screen.getByRole('combobox', { name: 'habits.form.reminderKind' }).focus()
+  await user.keyboard('{Enter}')
+  expect(await screen.findByRole('option', { name: 'habits.form.repeatEvery' })).toBeInTheDocument()
+  await user.keyboard('{End}{Enter}')
+  const request = buildCreateHabitRequest(habitFormSchema.parse(helpers.testValues), [15], [], [], [])
+  expect(request).toMatchObject({ repeatReminder: { intervalMinutes: 30, startAtUtc: expect.stringMatching(/Z$/) }, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
+})
+it.each([
+  [{ frequencyUnit: 'Week', frequencyQuantity: 1 }, false],
+  [{ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'] }, false],
+  [{ frequencyUnit: 'Day', frequencyQuantity: 4, isFlexible: true }, true],
+  [{ isGeneral: true }, true],
+] as const)('limits the repeat choice to everyday schedules %j', (schedule, expected) => {
+  const helpers = createFormHelpers({ title: 'Water', ...schedule })
+  helpers.isGeneral = 'isGeneral' in schedule
+  renderForm(helpers, undefined, true)
+  expect(screen.queryByRole('combobox', { name: 'habits.form.reminderKind' }) !== null).toBe(expected)
 })

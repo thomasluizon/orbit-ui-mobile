@@ -1,6 +1,7 @@
+import { REPEAT_REMINDER_INTERVALS, supportsRepeatReminder } from '../utils/repeat-reminders'
 import { z } from 'zod'
 import { utf16Length } from './utf16-length'
-import { frequencyUnitSchema, MAX_HABIT_INTERVAL_WEEKS, scheduledReminderTimeRequestSchema, checklistItemSchema } from '../types/habit'
+import { repeatReminderOptionsSchema, frequencyUnitSchema, MAX_HABIT_INTERVAL_WEEKS, scheduledReminderTimeRequestSchema, checklistItemSchema } from '../types/habit'
 import {
   MAX_CHECKLIST_ITEM_LENGTH,
   MAX_CHECKLIST_ITEMS,
@@ -43,6 +44,7 @@ export const habitFormSchema = z.object({
   dueTime: z.string().default(''),
   dueEndTime: z.string().default(''),
   endDate: z.string().default(''),
+  repeatReminder: repeatReminderOptionsSchema.nullish(),
   reminderEnabled: z.boolean().default(false),
   scheduledReminders: z.array(scheduledReminderTimeRequestSchema).default([]),
   slipAlertEnabled: z.boolean().default(false),
@@ -294,10 +296,23 @@ export function validateHabitForm(data: HabitFormData): string | null {
   const timeErr = validateTimes(data)
   if (timeErr) return timeErr
 
-  if (data.reminderEnabled) {
-    const scheduledErr = validateScheduledReminders(data.scheduledReminders)
-    if (scheduledErr) return scheduledErr
-  }
+  return validateHabitReminders(data)
+}
 
+function validateHabitReminders(data: HabitFormData): string | null {
+  if (!data.reminderEnabled) return null
+  if (data.repeatReminder) return validateRepeatReminder(data)
+  return validateScheduledReminders(data.scheduledReminders)
+}
+
+function validateRepeatReminder(data: HabitFormData): string | null {
+  const repeat = data.repeatReminder
+  if (!repeat) return null
+  if (!supportsRepeatReminder(data)) return 'habits.form.repeatDailyOnly'
+  if (!REPEAT_REMINDER_INTERVALS.includes(repeat.intervalMinutes)
+    || Boolean(repeat.activeStart) !== Boolean(repeat.activeEnd)
+    || repeat.activeStart != null && (!repeat.activeStart || repeat.activeStart.slice(0, 5) === repeat.activeEnd?.slice(0, 5) || validateTime(repeat.activeStart.slice(0, 5)) !== null)
+    || repeat.activeEnd != null && (!repeat.activeEnd || validateTime(repeat.activeEnd.slice(0, 5)) !== null)
+    || repeat.startAtUtc != null && !Number.isFinite(Date.parse(repeat.startAtUtc))) return 'habits.form.repeatInvalid'
   return null
 }

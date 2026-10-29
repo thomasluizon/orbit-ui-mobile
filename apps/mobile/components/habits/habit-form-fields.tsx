@@ -51,6 +51,8 @@ import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
 import { HabitScheduleFields } from './habit-form-fields/habit-schedule-fields'
 import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
+import { supportsRepeatReminder } from '@orbit/shared/utils/repeat-reminders'
+import { RepeatReminderSection } from './habit-form-fields/repeat-reminder-section'
 import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
@@ -253,14 +255,22 @@ function ReminderEditors({
 function HabitTimingFields({ formHelpers, controller, reminderTimes, onReminderTimesChange, showError, tokens }: Readonly<{ formHelpers: HabitFormHelpers; controller: ReturnType<typeof createHabitFormController>; reminderTimes: number[]; onReminderTimesChange: (times: number[]) => void; showError: (message: string) => void; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   const { form } = formHelpers
+  const { profile } = useProfile()
+  const repeatReminder = useWatch({ control: form.control, name: 'repeatReminder' })
+  const repeatEligible = supportsRepeatReminder({ ...form.getValues(), days: form.getValues('days') ?? [], isGeneral: formHelpers.isGeneral })
   const { disabled, guard } = useHabitFormInteraction()
   const dueTime = useWatch({ control: form.control, name: 'dueTime' }) ?? ''
   const reminderEnabled = useWatch({ control: form.control, name: 'reminderEnabled' }) ?? false
   const scheduledReminders = useWatch({ control: form.control, name: 'scheduledReminders' }) ?? []
-  if (formHelpers.isGeneral) return null
+  useEffect(() => {
+    if (repeatReminder && !repeatEligible) {
+      form.setValue('repeatReminder', null, { shouldDirty: true })
+      form.setValue('reminderEnabled', false, { shouldDirty: true })
+    }
+  }, [form, repeatEligible, repeatReminder])
   return (
     <>
-            <View style={{ gap: 16 }}>
+            {!formHelpers.isGeneral ? <View style={{ gap: 16 }}>
               <TimeField
                 disabled={disabled}
                 label={t('habits.form.exactTime')}
@@ -270,10 +280,15 @@ function HabitTimingFields({ formHelpers, controller, reminderTimes, onReminderT
                 onClear={guard(controller.clearDueTime)}
               />
               <HabitEndTimeField formHelpers={formHelpers} dueTime={dueTime} />
-            </View>
-            <View style={{ gap: 8 }}>
+            </View> : null}
+            {(!formHelpers.isGeneral || repeatEligible) ? <View style={{ gap: 8 }}>
               <FormSectionLabel>{t('habits.form.reminders')}</FormSectionLabel>
-              <ReminderEditors
+              {repeatEligible ? <RepeatReminderSection value={repeatReminder} enabled={reminderEnabled} general={formHelpers.isGeneral} timeZone={profile?.timeZone} onToggle={guard(() => controller.setReminderEnabled(!reminderEnabled))} onChange={guard((value) => {
+                form.setValue('repeatReminder', value, { shouldDirty: true })
+                if (value) { onReminderTimesChange([]); form.setValue('scheduledReminders', [], { shouldDirty: true }) }
+                else if (formHelpers.isGeneral) controller.setReminderEnabled(false)
+              })} /> : null}
+              {!repeatReminder && !formHelpers.isGeneral ? <ReminderEditors
                 dueTime={dueTime}
                 reminderEnabled={reminderEnabled}
                 reminderTimes={reminderTimes}
@@ -284,8 +299,8 @@ function HabitTimingFields({ formHelpers, controller, reminderTimes, onReminderT
                 onSetScheduledReminders={(items) => form.setValue('scheduledReminders', items, { shouldDirty: true })}
                 onValidationError={showError}
                 t={t}
-              />
-            </View>
+              /> : null}
+            </View> : null}
     </>
   )
 }

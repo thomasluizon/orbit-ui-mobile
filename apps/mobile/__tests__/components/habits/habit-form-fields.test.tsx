@@ -33,6 +33,8 @@ import { habitFormSchema } from '@orbit/shared/validation'
 
 const renderer = require('react-test-renderer')
 const mountedTrees = new Set<ReturnType<typeof renderer.create>>()
+vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: false, openSettings: vi.fn() }) }))
+
 const TestRenderer = {
   ...renderer,
   create: (...args: Parameters<typeof renderer.create>) => {
@@ -2316,4 +2318,45 @@ describe('native automatic date field', () => {
     expect(helpers.form.getValues('dueDate')).toBe('2026-10-21')
     expect(status('habits.form.dateInterpreted')).toHaveLength(0)
   })
+})
+
+
+it('offers Repeat every on daily habits inside the owning native form', async () => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  let tree: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1 })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />) })
+  expect(tree!.root.findAllByProps({ accessibilityLabel: 'habits.form.reminderKind' }).length).toBeGreaterThan(0)
+  TestRenderer.act(() => tree.unmount())
+})
+
+
+it('saves the repeat contract from the owning native form and replaces fixed reminders', () => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  const helpers = createFormHelpers({ title: 'Water', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, reminderEnabled: true, dueTime: '08:00', scheduledReminders: [{ when: 'same_day', time: '09:00' }] })
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[15]} onReminderTimesChange={vi.fn()} defaultExpanded />) })
+  const choice = tree!.root.findAll((node: { props: { label?: string; onChange?: unknown } }) => node.props.label === 'habits.form.reminderKind' && typeof node.props.onChange === 'function')[0]!
+  TestRenderer.act(() => choice.props.onChange('repeat'))
+  const request = buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [15], [], [], [])
+  expect(request).toMatchObject({ repeatReminder: { intervalMinutes: 30, startAtUtc: expect.stringMatching(/Z$/) }, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
+  TestRenderer.act(() => tree.unmount())
+})
+
+it.each([
+  [{ frequencyUnit: 'Week', frequencyQuantity: 1 }, false],
+  [{ frequencyUnit: 'Day', frequencyQuantity: 2 }, false],
+  [{ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'] }, false],
+  [{ frequencyUnit: 'Day', frequencyQuantity: 4, isFlexible: true }, true],
+  [{ isGeneral: true }, true],
+] as const)('limits the native repeat choice to everyday schedules %j', (schedule, expected) => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  const helpers = createFormHelpers({ title: 'Water', ...schedule })
+  helpers.isGeneral = 'isGeneral' in schedule
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />) })
+  expect(tree!.root.findAllByProps({ accessibilityLabel: 'habits.form.reminderKind' }).length > 0).toBe(expected)
+  TestRenderer.act(() => tree.unmount())
 })
