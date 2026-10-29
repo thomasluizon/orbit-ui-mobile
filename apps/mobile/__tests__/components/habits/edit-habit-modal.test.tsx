@@ -19,6 +19,18 @@ function TestEditor(props: React.ComponentProps<typeof EditHabitModal>) {
   return <QueryClientProvider client={client}><EditHabitModal {...props} /></QueryClientProvider>
 }
 
+const mountedTrees: import('react-test-renderer').ReactTestRenderer[] = []
+
+function mountEditor(element: React.ReactElement) {
+  const tree = TestRenderer.create(element)
+  mountedTrees.push(tree)
+  return tree
+}
+
+afterEach(async () => {
+  await TestRenderer.act(() => { for (const tree of mountedTrees.splice(0)) tree.unmount() })
+})
+
 const watchFieldsMock = vi.fn()
 const realEditor = vi.hoisted(() => ({ enabled: false, helpers: null as HabitFormHelpers | null }))
 const mockFormReset = vi.fn()
@@ -187,7 +199,7 @@ async function renderModal(relationshipFieldsLoaded = true, onClose = vi.fn()) {
   const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
   let tree: any
   await TestRenderer.act(() => {
-    tree = TestRenderer.create(
+    tree = mountEditor(
       <TestEditor open onClose={onClose} habit={habit} relationshipFieldsLoaded={relationshipFieldsLoaded} />,
     )
   })
@@ -237,7 +249,7 @@ describe('EditHabitModal (mobile)', () => {
   it('prefills an existing habit with the suggestion while retaining its identity', async () => {
     const habit = createMockHabit({ id: 'h-1', title: 'Exercise', intervalWeeks: 2 })
     let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(() => { tree = TestRenderer.create(<TestEditor open onClose={vi.fn()} habit={habit} initialSuggestion={{ ...habitSuggestionDraftFixture, days: ['Monday'], existingHabitId: habit.id }} />) })
+    await TestRenderer.act(() => { tree = mountEditor(<TestEditor open onClose={vi.fn()} habit={habit} initialSuggestion={{ ...habitSuggestionDraftFixture, days: ['Monday'], existingHabitId: habit.id }} />) })
     expect(mockFormReset).toHaveBeenCalledWith(expect.objectContaining({ intervalWeeks: 1, days: ['Monday'], title: 'Read', itemType: 'habit', dueTime: '22:00', dueEndTime: '22:15' }))
     await TestRenderer.act(() => tree.unmount())
   })
@@ -296,7 +308,7 @@ describe('EditHabitModal (mobile)', () => {
     const habit = createMockHabit({ startDate, createdAtUtc: '2026-08-29T00:30:00Z' })
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<TestEditor open onClose={vi.fn()} habit={habit} />)
+      tree = mountEditor(<TestEditor open onClose={vi.fn()} habit={habit} />)
     })
 
     expect(findFormFields(tree).props.startDate).toBe(expected)
@@ -346,7 +358,7 @@ describe('EditHabitModal (mobile)', () => {
     const initialHabit = createMockHabit({ id: 'h-1', title: 'Exercise', linkedGoals: [] })
     let tree: any
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(
+      tree = mountEditor(
         <TestEditor
           open
           onClose={vi.fn()}
@@ -671,7 +683,7 @@ it('ignores the result of a Save after its habit draft has been replaced', async
   const onClose = vi.fn()
   const first = createMockHabit({ id: 'first', frequencyUnit: 'Day' })
   let tree!: import('react-test-renderer').ReactTestRenderer
-  await TestRenderer.act(() => { tree = TestRenderer.create(<TestEditor open habit={first} onClose={onClose} onSaved={onSaved} />) })
+  await TestRenderer.act(() => { tree = mountEditor(<TestEditor open habit={first} onClose={onClose} onSaved={onSaved} />) })
   await TestRenderer.act(async () => { findSaveButton(tree)?.props.onClick(); await Promise.resolve() })
   expect(finish).toBeDefined()
   await TestRenderer.act(() => tree.update(<TestEditor open habit={{ ...first, id: 'second' }} onClose={onClose} onSaved={onSaved} />))
@@ -686,7 +698,7 @@ it('ignores the result of a Save after its habit draft has been replaced', async
     mockBuildUpdateHabitRequest.mockImplementation((...args: unknown[]) => buildRealUpdateHabitRequest(...args as Parameters<typeof buildRealUpdateHabitRequest>))
     const habit = createMockHabit({ isGeneral: true, frequencyUnit: null, frequencyQuantity: null, reminderEnabled: true, repeatReminder: { intervalMinutes: 30 } })
     let tree!: import('react-test-renderer').ReactTestRenderer
-    await TestRenderer.act(() => { tree = TestRenderer.create(<TestEditor open habit={habit} onClose={vi.fn()} />) })
+    await TestRenderer.act(() => { tree = mountEditor(<TestEditor open habit={habit} onClose={vi.fn()} />) })
     expect(realEditor.helpers!.form.getValues('reminderEnabled')).toBe(true)
     TestRenderer.act(() => {
       realEditor.helpers!.form.setValue('title', 'Water renamed')
