@@ -519,7 +519,7 @@ describe('label and interaction fill guards in Chromium', () => {
     try {
       const row = renderToStaticMarkup(createElement(CheckRow, { placement: 'column', label: en.calendar.showRecurring, checked: true, onChange: () => {} }))
       const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => `${name}:${value}`).join(';')
-      await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}${partial ? '.orbit-list-row-outset { inset-inline: -8px }' : ''}</style><main style="padding:24px">${row}</main></html>`)
+      await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}${partial ? '.orbit-list-row-outset { inset-inline: 0 }' : ''}</style><main style="padding:24px">${row}</main></html>`)
       const control = page.getByRole('checkbox')
       await control.hover()
       const assertion = expectFillShape(control, 'hover')

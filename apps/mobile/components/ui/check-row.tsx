@@ -90,15 +90,15 @@ const styles = StyleSheet.create({
   columnFill: { position: 'absolute', top: 0, bottom: 0, left: -SPACING.s8, right: -SPACING.s8, borderRadius: 12 },
   columnLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8 },
   labelFill: { position: 'absolute', top: 0, bottom: 0, left: -SPACING.s8, right: 0, borderRadius: 12, overflow: 'hidden' },
-  calendarDayControlFill: { borderRadius: 24, top: -SPACING.s4, bottom: -SPACING.s4, left: -SPACING.s4, right: -SPACING.s4 },
+  calendarDayControlFill: { borderRadius: 24, top: -SPACING.s8, bottom: -SPACING.s8, left: -SPACING.s8, right: -SPACING.s8 },
   calendarDayControl: { width: 24, height: 24 },
   controlFill: { position: 'absolute', top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: SPACING.s8 },
   personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 0, paddingStart: SPACING.s16, paddingEnd: SPACING.s4, paddingVertical: SPACING.s0 },
   personalAction: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
-  personalCopy: { minWidth: 0, flex: 1, minHeight: 48, paddingVertical: SPACING.s12, justifyContent: 'center', gap: 4, borderRadius: 12 },
-  calendarDayRow: { minHeight: 68, paddingVertical: SPACING.s0, paddingEnd: SPACING.s16, gap: SPACING.s12 },
+  personalCopy: { minWidth: 0, flex: 1, minHeight: 56, paddingVertical: SPACING.s12, justifyContent: 'center', gap: 4, borderRadius: 12 },
+  calendarDayRow: { minHeight: 68, paddingVertical: SPACING.s0, paddingEnd: SPACING.s16, gap: SPACING.s16 },
   calendarDayCopy: { minHeight: 68, paddingVertical: SPACING.s12 },
-  personalControl: { height: 48, width: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, },
+  personalControl: { height: 56, width: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 12, },
   row: { width: '100%', minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12, borderRadius: 12, overflow: 'hidden' },
   copy: { minWidth: 0, flex: 1, gap: 4 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 16 },
@@ -157,7 +157,7 @@ function PersonalCheckRowContent({ label, selection, checked, placement, variant
 function PersonalCheckRow({ leading, label, selection, placement, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const { fontScale } = useWindowDimensions()
   const calendarDay = variant === 'calendar-day'
-  const control = <PersonalControl data-slot={selection ? 'check-row-control' : undefined} tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent hitSlop={calendarDay ? 12 : undefined} focusable={!disabled && !loading} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, calendarDay ? styles.calendarDayControl : null, selection ? { minHeight: 22.4 * fontScale + SPACING.s12 * 2 } : null, disabled || loading ? styles.disabled : null]}>
+  const control = <PersonalControl data-slot={selection ? 'check-row-control' : undefined} tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent hitSlop={calendarDay ? SPACING.s16 : undefined} focusable={!disabled && !loading} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, calendarDay ? styles.calendarDayControl : null, selection ? { minHeight: 22.4 * fontScale + SPACING.s12 * 2 } : null, disabled || loading ? styles.disabled : null]}>
     {calendarDay ? <CalendarDayCircle checked={checked} color={tokens.fg1} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
   </PersonalControl>
   return (

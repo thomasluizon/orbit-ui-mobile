@@ -116,13 +116,21 @@ function position(node: YogaNode): { left: number; top: number; right: number; b
   return { left, top, right: left + node.getComputedWidth(), bottom: top + node.getComputedHeight(), width: node.getComputedWidth(), height: node.getComputedHeight() }
 }
 
+function hitExtension(props: HostRow['props']) {
+  const reach: unknown = Reflect.get(props, 'hitSlop')
+  if (typeof reach === 'number') return { hitWidth: reach * 2, hitHeight: reach * 2 }
+  if (!reach || typeof reach !== 'object') return { hitWidth: 0, hitHeight: 0 }
+  return { hitWidth: Number(Reflect.get(reach, 'left') ?? 0) + Number(Reflect.get(reach, 'right') ?? 0),
+    hitHeight: Number(Reflect.get(reach, 'top') ?? 0) + Number(Reflect.get(reach, 'bottom') ?? 0) }
+}
+
 export function measureProfileRow(host: HostRow, width: number, scale: number, scaledPixels = (size: number) => size * scale) {
   const config = Yoga.Config.create()
   config.setPointScaleFactor(0)
   const boxes: { node: YogaNode; testID: string }[] = []
   const parts: { node: YogaNode; slot: string; style: ViewStyle }[] = []
   const texts: { node: YogaNode; label: string; style: TextStyle; limit: number | undefined }[] = []
-  const controls: { node: YogaNode; labels: string[]; accessibilityLabel?: string; contentIndexes: number[] }[] = []
+  const controls: { node: YogaNode; labels: string[]; accessibilityLabel?: string; contentIndexes: number[]; hitWidth: number; hitHeight: number }[] = []
   function labelsOf(host: HostRow): string[] {
     return (host.children ?? []).flatMap((child) => typeof child === 'string' ? [child] : labelsOf(child))
   }
@@ -137,7 +145,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
     if (host.type === 'Pressable') {
       const children = (host.children ?? []).filter((child): child is HostRow => typeof child !== 'string')
       const contentIndexes = children.flatMap((child, index) => child.props['data-slot'] === 'list-row-fill' ? [] : [index])
-      controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel, contentIndexes })
+      controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel, contentIndexes, ...hitExtension(host.props) })
     }
     if (host.type === 'Text') {
       const label = labelsOf(host).join('')
@@ -159,10 +167,10 @@ export function measureProfileRow(host: HostRow, width: number, scale: number, s
   const layout = layoutHost(Array.isArray(host) ? { type: 'View', props: {}, children: host } : host)
   try {
     layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
-    return { height: layout.getComputedHeight(), boxes: boxes.map(({ node, testID }) => ({ testID, ...position(node) })), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel, contentIndexes }) => {
+    return { height: layout.getComputedHeight(), boxes: boxes.map(({ node, testID }) => ({ testID, ...position(node) })), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel, contentIndexes, hitWidth, hitHeight }) => {
       const bounds = position(node)
       const content = contentIndexes.map((index) => position(node.getChild(index)))
-      return { labels, accessibilityLabel, ...bounds, inlineClearance: Math.min(Math.min(...content.map((child) => child.left)) - bounds.left, bounds.right - Math.max(...content.map((child) => child.right))) }
+      return { labels, accessibilityLabel, ...bounds, targetWidth: bounds.width + hitWidth, targetHeight: bounds.height + hitHeight, inlineClearance: Math.min(Math.min(...content.map((child) => child.left)) - bounds.left, bounds.right - Math.max(...content.map((child) => child.right))) }
     }), texts: texts.map(({ node, label, style, limit }) => {
       const lines = wrappedLines(label, node.getComputedWidth(), style, scaledPixels(Number(style.fontSize ?? 17)) / Number(style.fontSize ?? 17))
       return { label, ...position(node), lines: Math.min(lines, limit ?? lines), clipped: limit !== undefined && lines > limit, lineHeightRatio: Number(style.lineHeight ?? Number(style.fontSize ?? 17) * 1.4) / Number(style.fontSize) }

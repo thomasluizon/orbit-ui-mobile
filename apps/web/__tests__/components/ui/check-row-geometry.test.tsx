@@ -80,7 +80,7 @@ describe('personal checkbox interaction fills in Chromium', () => {
         return { start: label.left - row.left, end: row.right - graphic.right, gap: graphic.left - label.right,
           padding: [getComputedStyle(body).paddingLeft, getComputedStyle(body).paddingRight] }
       })
-      expect(insets).toMatchObject({ start: 16, end: 16, gap: 12 })
+      expect(insets).toMatchObject({ start: 16, end: variant === 'calendar-day' ? 16 : 20, gap: 16 })
       expect(insets.padding).toEqual(['16px', variant === 'calendar-day' ? '16px' : '4px'])
       const hit = await checkbox.evaluate(readExpandedControlGeometry)
       expect(hit.width).toBeGreaterThanOrEqual(48)

@@ -17,6 +17,7 @@ import en from '@orbit/shared/i18n/en.json'
 import { buildYearRange } from '@orbit/shared/utils'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
+import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
 import { buildCalendarRangeModel, formatCalendarSpanEnds } from '@orbit/shared/utils'
 import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { DayCell } from '@/components/dates/day-cell'
@@ -325,15 +326,18 @@ describe('Calendar header geometry in Chromium', () => {
       await page.bringToFront()
       for (const label of ['Previous', 'Next']) {
         const control = page.getByRole('button', { name: label, exact: true })
+        const hit = await control.evaluate(readExpandedControlGeometry)
+        expect(hit.width).toBeGreaterThanOrEqual(48)
+        expect(hit.height).toBeGreaterThanOrEqual(48)
         const resting = await control.evaluate((button) => {
-          const style = getComputedStyle(button, '::before')
+          const style = getComputedStyle(button)
           return { background: style.backgroundColor, ring: style.boxShadow, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height }
         })
         expect(resting.background).toBe('rgba(0, 0, 0, 0)')
         expect(resting.ring).toContain('1.5px')
         expect(resting.ring).toContain('inset')
-        expect(resting.width).toBeGreaterThanOrEqual(48)
-        expect(resting.height).toBeGreaterThanOrEqual(48)
+        expect(resting.width).toBe(44)
+        expect(resting.height).toBe(44)
         await control.hover()
         await expect.poll(async () => (await control.evaluate(readControlPaint)).background).not.toBe(resting.background)
         await page.mouse.move(0, 0)
@@ -635,7 +639,8 @@ describe('Calendar header geometry in Chromium', () => {
       expect(geometry.placeholders).toHaveLength(isLoading ? 28 : 0)
       for (const placeholder of geometry.placeholders) expect(placeholder.center).toBeCloseTo(placeholder.discCenter, 1)
       expect(geometry.targets).toHaveLength(isLoading ? 0 : 28)
-      for (const target of geometry.targets) { expect(target.width).toBeCloseTo(target.columnWidth, 1); expect(target.height).toBeGreaterThanOrEqual(44) }
+      for (const control of await page.locator('[data-testid="calendar-header-group"] button').all()) { const hit = await control.evaluate(readExpandedControlGeometry); expect(hit.width).toBeGreaterThanOrEqual(48); expect(hit.height).toBeGreaterThanOrEqual(48) }
+          for (const target of geometry.targets) { expect(target.width).toBeCloseTo(target.columnWidth, 1); expect(target.height).toBeGreaterThanOrEqual(44) }
     } finally { await page.close() }
   })
 
@@ -734,17 +739,23 @@ describe('Calendar header geometry in Chromium', () => {
           })
           expectCalendarSegments(await page.evaluate(measureCalendarSegments), scale)
           expect(geometry.controls).toHaveLength(view === 'month' ? 4 : 3)
-          if (scale === 1) { expect(geometry.navigationHeight).toBe(48); expect(geometry.titleLines).toBe(1); expect(geometry.selectorTop).toBe(76) }
+          if (scale === 1) { expect(geometry.navigationHeight, JSON.stringify(geometry)).toBe(48); expect(geometry.titleLines).toBe(1); expect(geometry.selectorTop).toBe(76) }
           expect(geometry.titleRadius).toBe(12)
           expect(geometry.overflow).toBe(false)
           for (const control of geometry.controls) {
             expect(control.bottom).toBeLessThanOrEqual(geometry.selectorTop)
             expect(control.bottom).toBeLessThan(geometry.selectorBottom)
-            expect(control.width).toBeGreaterThanOrEqual(48)
-            expect(control.height).toBeGreaterThanOrEqual(48)
+            expect(control.width).toBeGreaterThanOrEqual(view === 'month' ? 32 : 44)
+            expect(control.height).toBeGreaterThanOrEqual(44)
             expect(control.left).toBeGreaterThanOrEqual(16)
             expect(control.right).toBeLessThanOrEqual(width - 16)
             expect(control.overflow).toBe(false)
+          }
+          for (const control of await page.locator('[data-testid="calendar-header-group"] [data-testid$="-navigation"] button').all()) {
+            const target = await control.evaluate(readExpandedControlGeometry)
+            expect(target.width).toBeGreaterThanOrEqual(48)
+            expect(target.height).toBeGreaterThanOrEqual(48)
+            expect(target.edgeHits).toEqual([true, true, true, true])
           }
         }, { timeout: 2000 })
       }
@@ -943,7 +954,8 @@ describe('Calendar header geometry in Chromium', () => {
         return { left: box.left, right: box.right, width: box.width, height: box.height, overflow: contentBox.left < box.left || contentBox.right > box.right }
       }) }))
       expect(geometry.scroll, JSON.stringify(geometry)).toBe(geometry.page)
-      for (const button of geometry.buttons) { expect(button.left).toBeGreaterThanOrEqual(16); expect(button.right).toBeLessThanOrEqual(304); expect(button.width).toBeGreaterThanOrEqual(48); expect(button.height).toBeGreaterThanOrEqual(48); expect(button.overflow).toBe(false) }
+      for (const control of await page.locator('button').all()) { const hit = await control.evaluate(readExpandedControlGeometry); expect(hit.width).toBeGreaterThanOrEqual(48); expect(hit.height).toBeGreaterThanOrEqual(48) }
+      for (const button of geometry.buttons) { expect(button.left).toBeGreaterThanOrEqual(16); expect(button.right).toBeLessThanOrEqual(304); expect(button.width).toBeGreaterThanOrEqual(44); expect(button.height).toBeGreaterThanOrEqual(44); expect(button.overflow).toBe(false) }
     } finally { await page.close() }
   })
 
@@ -1017,7 +1029,8 @@ describe('Calendar header geometry in Chromium', () => {
           expect(geometry.labelOverflow).toBe(false)
           expect(geometry.splitWords).toEqual([])
           if (scale === 1) for (const target of geometry.targets) expect(Math.abs(geometry.labelCenter - target.center)).toBeLessThanOrEqual(2)
-          for (const target of geometry.targets) { expect(target.width).toBeGreaterThanOrEqual(48); expect(target.height).toBeGreaterThanOrEqual(48); expect(target.left).toBeGreaterThanOrEqual(16); expect(target.right).toBeLessThanOrEqual(width - 16) }
+          for (const control of await page.locator('[data-testid="calendar-header-group"] button').all()) { const hit = await control.evaluate(readExpandedControlGeometry); expect(hit.width).toBeGreaterThanOrEqual(48); expect(hit.height).toBeGreaterThanOrEqual(48) }
+          for (const target of geometry.targets) { expect(target.width).toBeGreaterThanOrEqual(44); expect(target.height).toBeGreaterThanOrEqual(44); expect(target.left).toBeGreaterThanOrEqual(16); expect(target.right).toBeLessThanOrEqual(width - 16) }
         }, { timeout: 2000 })
       }
     } finally { await page.close() }
@@ -1067,9 +1080,10 @@ describe('Calendar header geometry in Chromium', () => {
           expect(geometry.scrollWidth, JSON.stringify(geometry)).toBe(geometry.pageWidth)
           expect(geometry.title).toBe(year === 2026 ? 'Fevereiro' : 'fev. 2027')
           expect(geometry.titleLines, JSON.stringify(geometry)).toBe(1)
+          for (const control of await page.locator('[data-testid="calendar-header-group"] button').all()) { const hit = await control.evaluate(readExpandedControlGeometry); expect(hit.width).toBeGreaterThanOrEqual(48); expect(hit.height).toBeGreaterThanOrEqual(48) }
           for (const target of geometry.targets) {
-            expect(target.width).toBeGreaterThanOrEqual(48)
-            expect(target.height).toBeGreaterThanOrEqual(48)
+            expect(target.width).toBeGreaterThanOrEqual(32)
+            expect(target.height).toBeGreaterThanOrEqual(44)
             expect(target.left).toBeGreaterThanOrEqual(16)
             expect(target.right).toBeLessThanOrEqual(304)
             expect(target.reachable).toBe(true)

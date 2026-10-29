@@ -101,7 +101,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await expect(entry.locator('[data-asset="astra-mark"]')).toHaveCount(1)
         const entryBounds = (await entry.boundingBox())!
         expect(entryBounds.width).toBeGreaterThanOrEqual(48)
-        expect((await composer.evaluate(measureFieldInset)).pillInset).toBeCloseTo(4 + entryBounds.width + 8, 1)
+        expect((await composer.evaluate(measureFieldInset)).pillInset).toBeCloseTo(8 + entryBounds.width + 8, 1)
         await expectVisibleFieldInsets(page, messages)
         await page.getByRole('button', { name: messages.habits.editHabit, exact: true }).click()
         const editor = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })

@@ -16,6 +16,7 @@ const calendarMonth = calendarMonthResponseSchema.parse({
 })
 
 for (const width of [320, 339, 340, 360, 363, 364, 365, 412, 600, 840, 1352]) {
+  const trailingReclaim = width < 364 ? 4 : 0
   for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
     test.describe(`${locale} calendar grid column at ${width}px`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
@@ -42,7 +43,7 @@ for (const width of [320, 339, 340, 360, 363, 364, 365, 412, 600, 840, 1352]) {
                 return { width: bounds.width, gap: Number.parseFloat(getComputedStyle(grid).columnGap), left: bounds.left, right: bounds.right, switchLeft: selector.left, switchRight: selector.right }
               })
               expect(Math.abs(edges.left - edges.switchLeft), view).toBeLessThanOrEqual(0.5)
-              expect(Math.abs(edges.right - edges.switchRight), view).toBeLessThanOrEqual(0.5)
+              expect(Math.abs(edges.right - edges.switchRight - trailingReclaim), view).toBeLessThanOrEqual(0.5)
               expect(edges.gap, view).toBe(edges.width < 332 ? 0 : 4)
               const slots = await grid.evaluate((grid) => [...grid.children].map((slot) => {
                 const bounds = slot.getBoundingClientRect()

@@ -1726,8 +1726,15 @@ the same gap between their targets. Touching calendar day rows inset their paint
 Measure painted fills and visible text or graphics, excluding transparent hit areas.
 Every icon-only glyph stays centred within 0.5px of its own painted surface on both axes.
 Geometry checks measure the 44px icon paint separately from its transparent 48px hit target.
-Personal checkbox fills centre their 24px glyph inside the 32px paint without retained
-padding that forces the glyph beyond the centre.
+Personal checkbox fills centre their 24px glyph inside 40px paint with 8px internal padding.
+Their existing comfortable 56px target reserves 8px around the paint. Calendar-day controls
+retain their 24px layout width, with 16px transparent hit extensions and a 16px label gap.
+Calendar chevrons use the shared 44px ghost action with a 48px transparent target.
+The month picker keeps 32px paint width around its 16px glyph, with 48px paint height
+and transparent inline extensions to 48px. Its group reserves 8px between paints and
+4px trailing padding so the next chevron target remains separate. Header back controls reserve an 8px title gap. Chip focus stays inset.
+The paired owners are `ui/check-row`, `ui/app-bar`, `ui/icon-button` and calendar `calendar-shell`; web chip
+focus geometry belongs to `app/globals.css` and mirrors the native inset focus primitive.
 Android day-detail disclosures use the shared 8px paint inset even when logging is unavailable.
 The Android composer measures both its ordinary and allowance placeholders at enlarged text,
 retaining the same field height through allowance transitions, as the web input grid does.
@@ -1745,6 +1752,8 @@ for seven 34px discs at 320px, without horizontal overflow. The shell retains it
 4px scrollbar and stable gutter; compact calendars inside Astra keep their containing width.
 Habit history's past, future, unavailable and loading branches use the same distributed
 34px disc allocation on both platforms, preserving their transparent column widths.
+Read-only label rows retain each complete label while trailing choice groups shrink and wrap.
+The paired `ui/list-row` owners keep theme choices clear at enlarged text.
 Web menu item focus remains inset in its existing row fill. The shell isolates page stacking
 beneath portalled menus so a floating action cannot cover an opened menu item.
 

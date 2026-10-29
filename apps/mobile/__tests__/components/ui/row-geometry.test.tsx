@@ -195,14 +195,14 @@ describe('canonical row geometry in Yoga', () => {
       expect(body.style).toMatchObject({ paddingStart: 16, paddingEnd: 4, paddingVertical: 0, minHeight: 52 })
       const fills = measureInteractionFills(tree.toJSON(), width, false, scale).filter((part) => 'data-press-fill' in part.host.props)
       expect(fills[1]!.left - fills[0]!.right).toBe(8)
-      expect(checkbox.left - measured.controls[0]!.right).toBe(12)
+      expect(checkbox.left - measured.controls[0]!.right).toBe(16)
       expect(measured.texts[0]!.left - body.left).toBe(16)
-      expect(body.right - checkbox.right).toBe(16)
+      expect(body.right - checkbox.right).toBe(20)
       expect(checkbox).toMatchObject({ width: 24, height: 24 })
       const controls = tree.root.findAll((node) => node.type === Pressable)
       expect(controls).toHaveLength(2)
       expect(controls[1]!.props.hitSlop).toBeUndefined()
-      expect(measured.controls.find((control) => control.width === 48)?.height).toBe(48)
+      expect(measured.controls.find((control) => control.width === 56)?.height).toBe(56)
     } finally { await act(() => tree.update(<></>)) }
     const date = await mount(<DateRow label="Starts" value="September 2" />)
     try { expect(measureProfileRow(date.toJSON(), width, scale).texts[0]!.left).toBe(0) }
@@ -219,7 +219,7 @@ describe('canonical row geometry in Yoga', () => {
       const geometry = measureProfileRow(tree.toJSON(), 412, 1)
       const body = geometry.parts.find((part) => part.slot === 'list-row-body')!
       const checkbox = geometry.parts.find((part) => part.slot === 'checkbox-box')!
-      expect(body.right - checkbox.right).toBe(16)
+      expect(body.right - checkbox.right).toBe(20)
     } finally { await act(() => tree.update(<></>)) }
   })
 

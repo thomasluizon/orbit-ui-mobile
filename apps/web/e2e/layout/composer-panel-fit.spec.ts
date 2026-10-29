@@ -34,7 +34,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const inset = await field.evaluate(measureFieldInset)
         expect(inset.paddingStart).toBe(8)
         expect(inset.paddingEnd).toBe(8)
-        expect(inset.pillInset).toBeCloseTo(12, 1)
+        expect(inset.pillInset).toBeCloseTo(16, 1)
 
         const empty = await field.evaluate((element) => {
           const input = element as HTMLTextAreaElement

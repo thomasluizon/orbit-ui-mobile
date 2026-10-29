@@ -281,7 +281,18 @@ checking the 48px target; the centred paint remains 44px. The Android day-detail
 `app/(tabs)/calendar/_components/calendar-day-detail.tsx` uses the same 8px disclosure
 paint inset as its web mirror, including when logging is unavailable.
 
-The web `components/ui/check-row.tsx` owner uses the existing 4px internal padding
-inside the 32px personal checkbox fill. Chromium guards compare its glyph and fill
-centres within 0.5px in hover, press and focus. Android discovery includes the paired
-`components/ui/check-row.tsx` normal and calendar-day checkbox controls.
+The paired `components/ui/check-row.tsx` owners centre the 24px checkbox glyph in 40px
+paint with 8px internal padding and neighbour clearance, using the existing comfortable
+56px target. Calendar-day controls retain their 24px layout width with 16px transparent
+hit extensions and a 16px label gap. The paired calendar `calendar-shell.tsx` owners use
+44px ghost chevrons with transparent 48px targets. The month picker retains 32px
+paint width around its 16px glyph, with 48px height and a transparent 48px target.
+Its group reserves 8px between paints and 4px at the trailing edge. The paired `ui/app-bar.tsx` owners keep
+8px between back feedback and titles. Web `app/globals.css` insets chip focus to match
+native `ui/inset-focus-pressable`, covering the onboarding and Wrapped choices.
+
+The paired `ui/list-row.tsx` owners retain whole read-only labels while trailing theme
+choices wrap within their available width. Existing action padding stays unchanged.
+
+The paired `ui/icon-button.tsx` owners preserve the existing ghost border for calendar
+chevrons while retaining the shared painted size and transparent target.

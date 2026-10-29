@@ -11,7 +11,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Habit detail pencil, reading heading and history | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | One 48px pencil owns its own fill; the static reading title retains 8px group gaps and has no rename fill. History's past, future, unavailable and loading branches share the main calendar's distributed 34px disc allocation inside unchanged full-column targets |
 | Grouped list rows | `components/ui/list-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx` | Paint and the single focus indicator sit 8px inside each row, retaining the full target and existing content padding |
 | Column list rows and column check rows | `components/ui/list-row.tsx`, `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx`, `components/ui/check-row.tsx` | 8px inline extension leaves 8px inside the page inset; a trailing row action gets an 8px gap and no fill extension toward it |
-| Personal check rows, including calendar selection | `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/check-row.tsx` | A 48px checkbox target, an 8px paint gap and reserved label block padding; the calendar day circle keeps its 24px layout width and 16px end inset, with transparent hit expansion into the row padding |
+| Personal check rows, including calendar selection | `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/check-row.tsx` | The existing comfortable 56px checkbox target contains 40px paint with 8px internal padding and neighbour clearance. The calendar day circle keeps its 24px layout width and 16px end inset, with 16px transparent hit extensions and a 16px label gap |
 | About account fact | `app/(app)/about/page.tsx`, shared column CSS | `app/about.tsx` | 8px inline extension leaves 8px inside the page inset |
 | Calendar import events | `components/calendar-sync/calendar-sync-event-row.tsx`, shared column CSS | `components/calendar-sync/calendar-sync-event-row.tsx` | 8px inline extension leaves 8px inside the page inset |
 | Pills and icon pills | `components/ui/pill-button.tsx`, `app/globals.css` | `components/ui/pill-button.tsx` | Existing 12px action gaps accommodate focus rings; the 2px hit extension paints nothing |
@@ -21,7 +21,8 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Chips | `components/ui/chip.tsx`, `app/globals.css` | `components/ui/chip.tsx` | Existing internal fills and inset focus indicators |
 | Month and range day grids | `app/(app)/calendar/page.tsx`, `app/globals.css`, `components/calendar/calendar-grid.tsx`, `components/calendar/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/month-selection.ts`, `components/dates/day-cell.tsx` | `app/(tabs)/calendar/_components/calendar-grid.tsx`, `app/(tabs)/calendar/_components/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/month-selection.ts`, `components/dates/day-cell.tsx` | Full-column targets stay transparent; hover, press, focus and position rings paint on the existing 34px discs. Disc centres distribute within the existing 44px allocation. Seven 34px discs require at least 286px for 8px gaps. Below 364px, the web destination grid reclaims exactly 4px from its trailing inset, leaving 12px there and preserving the leading 16px gutter. The frame remains inside the 316px client column with no horizontal overflow, providing a 288px grid at 320px without changing the shell's 4px stable scrollbar |
 | Calendar day detail | `components/calendar/calendar-day-detail.tsx` | `app/(tabs)/calendar/_components/calendar-day-detail.tsx` | Touching rows retain their drawn layout and 16px inline label insets; paint sits 8px inside the block edges and checkbox target; the card retains 24px padding |
-| Calendar month navigation | `app/(app)/calendar/_components/calendar-shell.tsx` | `app/(tabs)/calendar/_components/calendar-shell.tsx` | Month targets keep their gapless layout; chevron and picker paint sits 8px inside each target, which remains at least 48px |
+| Calendar month navigation | `app/(app)/calendar/_components/calendar-shell.tsx` | `app/(tabs)/calendar/_components/calendar-shell.tsx` | Chevrons use the shared 44px ghost action and transparent 48px target, with 8px layout gaps. The picker retains 32px paint width with 48px height and a transparent 48px target. Its month group uses an 8px gap and 4px trailing padding to keep expanded targets separate |
+| Pushed header back controls | `components/ui/app-bar.tsx` | `components/ui/app-bar.tsx` | The back fill retains its padding and reserves an 8px layout gap before its title |
 | Composer trailing actions | `components/shell/composer.tsx` | `components/shell/composer.tsx` | Paste or Clear, Add or Stop and Send share an 8px gap inside the field; the first slot shows Paste with empty text when clipboard reading is available and Clear with typed text while idle; each target remains 48px, with one inset primary focus indicator and an opaque canvas separator on accent fills |
 | Destination tab focus | `components/navigation/bottom-tab-bar.tsx`, `app/globals.css` | `components/navigation/bottom-tab-bar.tsx` | The single focus perimeter sits 8px inside the full-column target, including at the page edge and in forced colors |
 | Wide sidebar brand controls | `components/shell/shell-wide.tsx`, `components/navigation/notification-bell.tsx` | Web-only navigation chrome | The bell and collapse use IconButton: centred glyphs in 44px round paint with transparent 2px hit extensions. Their 12px paint gap and 14px lockup gap reserve at least 8px around interaction feedback inside the unchanged 232px and 96px rails. The passive inbox bell keeps the same 44px box and glyph and count placement, without an interactive target |
@@ -183,7 +184,14 @@ Its hidden measurements share the actual text column width and remain inaccessib
 Style guards distinguish 44px icon paint from the transparent 48px hit target, retain
 34px calendar discs and selection rings, and measure 8px gaps between painted neighbours.
 
-The web `components/ui/check-row.tsx` owner uses the existing 4px internal padding
-inside the 32px personal checkbox fill. Chromium guards compare its glyph and fill
-centres within 0.5px in hover, press and focus. Android discovery includes the paired
-`components/ui/check-row.tsx` normal and calendar-day checkbox controls.
+The paired `components/ui/check-row.tsx` owners centre the 24px glyph inside 40px paint
+with 8px internal padding. Chromium guards retain the standing 8px inline and 4px block
+breathing-room rule and compare glyph and fill centres within 0.5px during hover, press
+and focus. Android discovery checks both centring and padding for normal and calendar-day
+checkboxes, calendar chevrons and other icon owners. The paired `ui/list-row` owners
+reserve the complete label before wrapping trailing theme choices at enlarged text. The paired `ui/app-bar` owners reserve
+8px before their titles. Web `app/globals.css` keeps chip focus inside its existing paint,
+matching Android's `ui/inset-focus-pressable` and covering onboarding and Wrapped choices.
+
+The paired `ui/icon-button.tsx` owners preserve the existing ghost border for calendar
+chevrons while retaining the shared painted size and transparent target.

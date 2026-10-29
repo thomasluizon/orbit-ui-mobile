@@ -76,7 +76,7 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
   const Description = textMode === 'personal' ? PersonalText : PlainRowText
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   const titleLine = <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: '1.0625rem', fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle || (textMode === 'personal' && !!value), description), paddingInlineStart: personalTextInsetStart === false ? SPACING.s0 : undefined }}>{title}</Title>
-  return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, !!toggle || (readOnly === true && !!trailing && !value), !!toggle) }}>
+  return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, !!toggle || (readOnly === true && !!trailing && !value), !!toggle), minWidth: readOnly && trailing && !value ? 'min-content' : undefined }}>
     {titleLine}
     {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: '0.875rem', lineHeight: textMode === 'label' ? 1.4 : 1.25, paddingInlineStart: personalTextInsetStart === false ? SPACING.s0 : undefined }}>{description}</Description> : null}
   </span>
@@ -112,7 +112,7 @@ function RowBody(props: Readonly<WebListRowProps>) {
   const trailing = props.toggle ? <SwitchTrack checked={props.toggle.checked} pending={props.toggle.pending} /> : props.trailing
   const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
   const rowValue = <RowValue {...props} />
-  const rowTrailing = trailing ? <span data-slot="list-row-trailing" className="flex shrink-0 items-center" style={trailingLineStyle(props)}>{trailing}</span> : null
+  const rowTrailing = trailing ? <span data-slot="list-row-trailing" className="flex shrink-0 items-center" style={{ ...trailingLineStyle(props), ...(props.readOnly && textMode === 'label' ? { flexShrink: 1, minWidth: 0 } : undefined) }}>{trailing}</span> : null
   return (
     <>
       {icon ? (

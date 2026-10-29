@@ -865,15 +865,15 @@ describe("CalendarScreen views (mobile)", () => {
       expect(segments).toHaveLength(4);
       for (const control of pager) {
         expect(control.bottom).toBeLessThanOrEqual(Math.min(...segments.map((segment) => segment.top)));
-        expect(control.width).toBeGreaterThanOrEqual(48);
-        expect(control.height).toBeGreaterThanOrEqual(48);
+        expect(control.targetWidth).toBeGreaterThanOrEqual(48);
+        expect(control.targetHeight).toBeGreaterThanOrEqual(48);
         expect(control.left).toBeGreaterThanOrEqual(16);
         expect(control.right).toBeLessThanOrEqual(304);
       }
       const title = measured.texts.find((text) => text.label === pager.find((control) => control.labels.length)!.labels[0])!;
       expect.soft(title.clipped).toBe(false);
       if (scale === 1) {
-        expect.soft(new Set(pager.map((control) => control.top)).size).toBe(1);
+        expect.soft(new Set(pager.map((control) => control.top + control.height / 2)).size, JSON.stringify(pager)).toBe(1);
         expect.soft(Math.min(...segments.map((segment) => segment.top)) - VIEW_TRACK_INSET).toBe(76);
         expect.soft(title.lines).toBe(1);
       }
@@ -916,8 +916,8 @@ describe("CalendarScreen views (mobile)", () => {
       for (const control of measured.controls) {
         expect(control.left).toBeGreaterThanOrEqual(16);
         expect(control.right).toBeLessThanOrEqual(304);
-        expect(control.width).toBeGreaterThanOrEqual(48);
-        expect(control.height).toBeGreaterThanOrEqual(48);
+        expect(control.targetWidth).toBeGreaterThanOrEqual(48);
+        expect(control.targetHeight).toBeGreaterThanOrEqual(48);
       }
       for (const label of ['calendar.range.previous', 'calendar.range.next']) {
         const control = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
@@ -1708,7 +1708,7 @@ describe("CalendarScreen views (mobile)", () => {
 
     expect(hostTexts(tree)).toContain('calendar.loadError');
     const retry = tree.root.findAll(
-      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.testID === 'button-ghost-sm',
+      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'common.retry',
     );
     expect(retry).toHaveLength(1);
     TestRenderer.act(() => { retry[0]!.props.onPress(); });
@@ -2231,7 +2231,7 @@ describe("CalendarScreen views (mobile)", () => {
     const retryButtons = tree!.root.findAll(
       (node) =>
         typeof node.type === "string" &&
-        node.props.accessibilityRole === "button" && node.props.testID === "button-ghost-sm",
+        node.props.accessibilityRole === "button" && node.props.accessibilityLabel === "common.retry",
     );
     expect(retryButtons).toHaveLength(1);
     TestRenderer.act(() => {

@@ -32,7 +32,7 @@ export function AppBar({ title, titleVariant, onBack, backLabel, action, titleRe
 
 const styles = StyleSheet.create({
   surface: { minHeight: 56 },
-  row: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.s16 },
+  row: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: SPACING.s8, paddingHorizontal: SPACING.s16 },
   leading: { minWidth: TOUCH_TARGET_MIN, alignItems: 'flex-start' },
   back: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, fontFamily: 'GeistMono_500Medium', fontSize: 12, textAlign: 'left' },

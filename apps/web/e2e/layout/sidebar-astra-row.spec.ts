@@ -27,7 +27,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
         expect(astraBox.x).toBe(todayBox.x)
         expect(astraBox.width).toBe(todayBox.width)
         expect(astraBox.height).toBeGreaterThanOrEqual(48)
-        expect(astraBox.y + astraBox.height + 4).toBeCloseTo(todayBox.y, 1)
+        expect(astraBox.y + astraBox.height + 8).toBeCloseTo(todayBox.y, 1)
         await expect(row.locator('svg')).toHaveAttribute('width', '20')
         await expect(row.locator('svg')).toHaveAttribute('height', '20')
         await expect(row).toHaveText(words.nav.astra)

@@ -1,3 +1,4 @@
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import React from 'react'
 import { act, create } from 'react-test-renderer'
 import { Text, View } from 'react-native'
@@ -86,6 +87,8 @@ function assertDiscoveredIconCentre(parts: Box[], label: unknown, role: unknown)
   const glyph = glyphs[0]!
   expect(Math.abs(glyph.left + glyph.right - paint.left - paint.right) / 2, String(label)).toBeLessThanOrEqual(0.5)
   expect(Math.abs(glyph.top + glyph.bottom - paint.top - paint.bottom) / 2, String(label)).toBeLessThanOrEqual(0.5)
+  for (const inset of [glyph.left - paint.left, paint.right - glyph.right]) expect(inset, `${String(label)} inline padding`).toBeGreaterThanOrEqual(8)
+  for (const inset of [glyph.top - paint.top, paint.bottom - glyph.bottom]) expect(inset, `${String(label)} block padding`).toBeGreaterThanOrEqual(4)
   return true
 }
 
@@ -218,8 +221,9 @@ describe('Android interaction fill clearance', () => {
       const neighbour = parts.find((part) => part.host.type === 'Pressable' && Number(part.slot) > Number(control.slot) && !part.ancestors.includes(control.slot))!
       const neighbourPaints = parts.filter((part) => part.ancestors.includes(neighbour.slot) && (hasPaint(part.style) || Number(part.style.borderWidth) > 0))
       const neighbourBounds = neighbourPaints.length ? { left: Math.min(...neighbourPaints.map((part) => part.left)), top: Math.min(...neighbourPaints.map((part) => part.top)) } : neighbour
-      expect(control.right - control.left).toBeGreaterThanOrEqual(48)
-      expect(control.bottom - control.top).toBeGreaterThanOrEqual(48)
+      const target = measureProfileRow(tree.toJSON(), 320, 1).controls.find(control => control.accessibilityLabel === label)!
+      expect(target.targetWidth).toBeGreaterThanOrEqual(48)
+      expect(target.targetHeight).toBeGreaterThanOrEqual(48)
       const horizontal = neighbour.left >= control.right
       expect(horizontal ? neighbourBounds.left - fill.right : neighbourBounds.top - fill.bottom, label).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       if (surface === 'tabs') expect(fill.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
@@ -298,12 +302,12 @@ describe('Android interaction fill clearance', () => {
         expect(circle.width, JSON.stringify(circle.host)).toBe(24)
         expect(body.style).toMatchObject({ paddingStart: 16, paddingEnd: 16, paddingVertical: 0, minHeight: 68 })
         expect(body.right - circle.right).toBe(16)
-        expect(circle.left - label.right).toBe(12)
+        expect(circle.left - label.right).toBe(16)
         expect(paint.left - label.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
         expect(paint.right).toBeLessThanOrEqual(body.right - INTERACTION_FILL_CLEARANCE)
         const hitSlop = Number(control.props.hitSlop)
-        expect(Math.min(target.right + hitSlop, body.right) - Math.max(target.left - hitSlop, body.left)).toBe(48)
-        expect(Math.min(target.bottom + hitSlop, body.bottom) - Math.max(target.top - hitSlop, body.top)).toBe(48)
+        expect(Math.min(target.right + hitSlop, body.right) - Math.max(target.left - hitSlop, body.left)).toBe(56)
+        expect(Math.min(target.bottom + hitSlop, body.bottom) - Math.max(target.top - hitSlop, body.top)).toBe(56)
         expect(target.left - hitSlop).toBeGreaterThanOrEqual(label.right)
       } finally { await act(() => tree.unmount()) }
     })

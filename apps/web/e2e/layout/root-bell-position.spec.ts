@@ -6,6 +6,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { measureScrollbarGutter } from './scrollbar-geometry'
+import { readExpandedControlGeometry } from './expanded-control-geometry'
 
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
@@ -24,7 +25,8 @@ async function waitForRoot(page: Page, root: string) {
 async function measureBell(bell: Locator) {
   const gutter = await bell.locator('xpath=ancestor::*[@data-shell-column]')
     .locator('[data-shell-scroller]').evaluate(measureScrollbarGutter)
-  return bell.evaluate((element, gutter) => {
+  const target = await bell.evaluate(readExpandedControlGeometry)
+  return bell.evaluate((element, { gutter, target }) => {
     const bounds = element.getBoundingClientRect()
     const rowElement = element.parentElement!
     const row = rowElement.getBoundingClientRect()
@@ -34,15 +36,15 @@ async function measureBell(bell: Locator) {
     return {
       right: bounds.right,
       centerY: bounds.top + bounds.height / 2,
-      width: bounds.width,
-      height: bounds.height,
+      width: target.width,
+      height: target.height,
       rowHeight: row.height,
       rowCenterY: row.top + (row.height + Number.parseFloat(rowStyle.paddingTop) - Number.parseFloat(rowStyle.paddingBottom)) / 2,
       trailingInset: column.right - bounds.right - gutter,
       gutter,
       overflows: scroller.scrollHeight > scroller.clientHeight,
     }
-  }, gutter)
+  }, { gutter, target })
 }
 
 test.beforeEach(async ({ context }) => {

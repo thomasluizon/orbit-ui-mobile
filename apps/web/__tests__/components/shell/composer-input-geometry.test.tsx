@@ -194,7 +194,7 @@ describe('Composer compact geometry in Chromium', () => {
           { selector: '[data-composer-trailing-controls] > button', style: { marginInlineStart: '-8px' } },
           { selector: '[data-composer-trailing-controls]', style: { flexDirection: 'row-reverse' } },
           { selector: '[data-open-conversation]', style: { position: 'relative', top: '2px' } },
-          { selector: '[data-composer-input-row]', style: { paddingBottom: '8px' } },
+          { selector: '[data-composer-input-row]', style: { paddingBottom: '12px' } },
           { selector: '[data-composer-input]', style: { width: '20px', minWidth: '20px' } },
           { selector: '[data-composer-trailing-controls] > button', style: { position: 'relative', left: '400px' } },
         ]
@@ -408,7 +408,7 @@ describe('Composer compact geometry in Chromium', () => {
         const sameLine = entry && entry.top < input.bottom && entry.bottom > input.top
         return { entryWidth: sameLine ? entry!.width : 0, pillLeft: pill.left, pillRight: pill.right, inputLeft: input.left, inputRight: input.right }
       })
-      expect.soft(placeholder.pillInset).toBe(4 + leading.entryWidth + 8)
+      expect.soft(placeholder.pillInset).toBe(8 + leading.entryWidth + 8)
       const box = (await field.boundingBox())!
       await page.mouse.click(direction === 'rtl' ? box.x + box.width - 2 : box.x + 2, box.y + box.height / 2)
       expect(await field.evaluate(element => element === document.activeElement)).toBe(true)

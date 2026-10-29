@@ -162,7 +162,7 @@ describe('selection yields to keyboard focus', () => {
             await page.setContent(`<style>${stylesheet} body { margin:0; padding:16px; }</style>${render(<SegmentedControl label="View" options={choices} value="month" onChange={() => {}} fullWidth={fullWidth} />).container.innerHTML}`)
             await loadAppFonts(page)
             const geometry = await segmentGeometry(page)
-            expect(geometry).toMatchObject({ padding: '4px', gap: '4px', radius: '12px', shadow: 'none' })
+            expect(geometry).toMatchObject({ padding: '4px', gap: '8px', radius: '12px', shadow: 'none' })
             expect(new Set(geometry.labels.map((label) => label.top)).size).toBe(1)
             const remaining = geometry.labels.map((label) => label.segmentWidth - label.width)
             if (fullWidth) expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)

@@ -10,6 +10,8 @@ import { AppBar, APP_BAR_CONTROL_CLASS } from '@/components/ui/app-bar'
 import { PageHeader } from '@/components/ui/page-header'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { inspectFocusedRing } from '@/e2e/layout/focus-indicators'
+import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { Badge } from '@/components/ui/badge'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -51,6 +53,15 @@ describe('Closed header and badge typography in Chromium', () => {
         const boxes = await Promise.all(controls.map((control) => control.boundingBox()))
         for (const box of boxes) { expect(box!.width).toBeGreaterThanOrEqual(48); expect(box!.height).toBeGreaterThanOrEqual(48) }
         expect(boxes[0]!.x + boxes[0]!.width).toBeLessThan(boxes[1]!.x)
+        for (const state of ['hover', 'press', 'focus']) {
+          const back = page.getByRole('button', { name: messages.common.back, exact: true })
+          await back.hover()
+          if (state === 'press') await page.mouse.down()
+          if (state === 'focus') { await page.keyboard.press('Tab'); await back.focus() }
+          const paint = await back.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+          expect(paint.violations, `${title}, ${state}`).toEqual([])
+          await page.mouse.up()
+        }
         unmount()
       }
     } finally { await page.close() }

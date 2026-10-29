@@ -185,48 +185,44 @@ select[aria-hidden="true"] {
   }
 }
 
-.orbit-calendar-nav-control::before,
 .orbit-calendar-picker-control::before {
   content: '';
   position: absolute;
-  inset: 8px;
+  inset: 0;
   border-radius: inherit;
   pointer-events: none;
   transition: background-color var(--dur-hover-control) var(--ease-standard);
 }
 
-.orbit-calendar-nav-control::before {
-  box-shadow: inset 0 0 0 1.5px var(--hairline-strong);
+.orbit-calendar-picker-control::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline: -8px;
 }
 
-.orbit-calendar-nav-control:is(:active, :focus-visible),
 .orbit-calendar-picker-control:is(:active, :focus-visible) {
   background-color: transparent;
 }
 
-.orbit-calendar-nav-control:is(:active, :focus-visible)::before,
 .orbit-calendar-picker-control:is(:active, :focus-visible)::before {
   background-color: var(--bg-hover);
 }
 
-.orbit-calendar-nav-control:focus-visible,
 .orbit-calendar-picker-control:focus-visible {
   outline: none;
 }
 
-.orbit-calendar-nav-control:focus-visible::before,
 .orbit-calendar-picker-control:focus-visible::before {
   outline: 2px solid var(--fg-1);
   outline-offset: -2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .orbit-calendar-nav-control:hover,
   .orbit-calendar-picker-control:hover {
     background-color: transparent;
   }
 
-  .orbit-calendar-nav-control:hover:not(:disabled)::before,
   .orbit-calendar-picker-control:hover:not(:disabled)::before {
     background-color: var(--bg-hover);
   }
@@ -1819,6 +1815,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     transform 150ms var(--ease-out);
 }
 .chip:active { transform: scale(0.96); }
+.chip:focus-visible { outline-offset: -2px; }
 .chip:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -2536,11 +2533,11 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 .orbit-check-row-control[data-variant="calendar-day"]::before {
-  inset: -12px;
+  inset: -16px;
 }
 
 .orbit-check-row-control[data-variant="calendar-day"] > .orbit-check-row-fill {
-  inset: -4px;
+  inset: -8px;
 }
 
 @media (forced-colors: active) {
