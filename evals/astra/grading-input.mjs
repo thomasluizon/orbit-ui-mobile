@@ -2,6 +2,7 @@ import { sanitizeEvidence } from './evidence.mjs'
 import { suggestionAnswer } from './suggestions.mjs'
 import { normalizeField } from './trace-policy.mjs'
 import { redactCredentials } from './credentials.mjs'
+import { visiblePreview } from './visible-preview.mjs'
 
 const privateField = (key) => /(?:^id$|ids$|id$|token|credential|password|secret|cookie|authorization|cursor|revision|keyprefix|keyhash|^instruction$)/.test(normalizeField(key))
 const identity = /^(?:[0-9a-f]{32}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/i
@@ -61,5 +62,8 @@ export default function gradingInput(output, { vars }) {
     block: { drafts: [vars.refineDraft] } }], vars.clientContext.locale)).parts[0].block.drafts[0] : undefined
   return JSON.stringify({ answer: typeof output.answer === 'string' ? redactCredentials(replaceEmails(output.answer)) : output.answer,
     groundingEvidence: sanitizeEvidence(JSON.parse(replaceEmails(JSON.stringify(facts))), withheld),
+    ...(vars.composition?.correction && vars.baselinePreview ? {
+      setupPreview: JSON.parse(redactCredentials(replaceEmails(JSON.stringify(vars.baselinePreview.map(visiblePreview))))),
+    } : {}),
     ...(originalSelectedDraft ? { originalSelectedDraft } : {}) })
 }

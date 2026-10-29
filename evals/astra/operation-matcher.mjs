@@ -19,6 +19,10 @@ export function matchesArguments(actual, expected, orderedArrays = false) {
     if ('anyOf' in expected) return expected.anyOf.some((value) => matchesArguments(actual, value, orderedArrays))
     if ('allOf' in expected) return expected.allOf.every((value) => matchesArguments(actual, value, orderedArrays))
     if ('optional' in expected) return actual == null || matchesArguments(actual, expected.optional, orderedArrays)
+    if ('jsonEquals' in expected) {
+      if (typeof actual !== 'string') return false
+      try { return isDeepStrictEqual(JSON.parse(actual), expected.jsonEquals) } catch { return false }
+    }
     if ('textContains' in expected) {
       return typeof actual === 'string' && normalizeText(actual).includes(normalizeText(expected.textContains))
     }
@@ -32,8 +36,7 @@ export function matchesOperation(call, expected) {
   if (expected.anyOf) return expected.anyOf.some((alternative) => matchesOperation(call, alternative))
   return call.name === expected.name
     && (expected.argumentsAnyOf ?? [expected.arguments ?? {}])
-      .some((arguments_) => expected.exactArguments === true
-        ? isDeepStrictEqual(call.arguments, arguments_) : matchesArguments(call.arguments, arguments_))
+      .some((arguments_) => matchesArguments(call.arguments, arguments_))
 }
 
 export function outcomeCalls(calls, expectations) {

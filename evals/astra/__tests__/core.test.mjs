@@ -102,8 +102,6 @@ describe('production scenario mutation scope', () => {
         const outcome = required.resultStatus === undefined ? {} : { resultStatus: required.resultStatus }
         const produced = call(required.name, exampleArguments(required.argumentsAnyOf?.[0] ?? required.arguments ?? {}), outcome, vars.clientContext)
         if (required.name === 'get_retrospective') produced.result.payload = retrospective
-        // prepareCorrection binds exact arguments from the setup trace before the evaluated turn.
-        if (required.exactArguments && required.arguments === undefined) required.arguments = produced.arguments
         return produced
       })
       const output = { ...envelope(calls), httpStatus: vars.expectedHttpStatus ?? 200 }

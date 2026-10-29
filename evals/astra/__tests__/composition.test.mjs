@@ -214,6 +214,13 @@ describe('preview and outcome composition', () => {
     const produced = response([], '', { pendingOperations: [revised] })
     expect((await gate(produced, vars)).pass).toBe(true)
     expect((await gate(produced, { ...vars, baselinePreview: undefined })).pass).toBe(false)
+    revised.id = '22222222-2222-4222-8222-222222222222'
+    expect((await gate(produced, vars)).pass).toBe(false)
+    revised.id = original.id
+    revised.items[0].fields[0].newValue = '17:00'
+    expect((await gate(produced, vars)).pass).toBe(false)
+    revised.items[0].fields[0].newValue = '16:00'
+
     revised.items[0].fields[1] = Object.fromEntries(Object.entries(revised.items[0].fields[1]).reverse())
     expect((await gate(produced, vars)).pass).toBe(true)
     revised.items[0].fields[1].proposedValue = 'Day'
