@@ -6,18 +6,20 @@ import { configuredRepositorySlug } from "./lib/admission.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { REPO_ROOT } from "./lib/run-state.mjs"
 
-const USAGE = `usage: progress-window.mjs --session <id> [--transcript <path>]
+const USAGE = `usage: progress-window.mjs --session <id> [--transcript <path>] [--transcripts-dir <path>]
 
-Print one JSON report for every entry in the open reporting chain, current session last.
-Without a chain, use the current session transcript's first timestamp as the baseline.
-Read merges, release runs and closed tickets live, with one paginated REST call per source.
+Print one JSON report since the previous owner-typed /progress across project sessions.
+Skip the current invocation. With no previous report, use the open chain start, then session start.
+Read live merges, release runs, closed and created tickets across configured repositories.
 Release time is dispatch creation; branch is the source named in the title, dispatchBranch
 is the workflow ref. Missing title metadata stays null, never inferred from that ref.
-Decisions and owner questions come from the chain and the matching current run.
+Decisions and owner questions include archived chains and overlapping session conversations.
+The report identifies its baseline and includes the start in local time.
 No baseline prints baseline: unavailable and performs no remote reads.
 
   --session <id>       exact current session id (required)
   --transcript <path>  current transcript when not recorded in run state
+  --transcripts-dir <path>  override the project transcript directory
   --help, -h          print this usage and exit 0
 
 exit codes: 0 report produced; 1 source, interval or response error; 2 invalid arguments`
@@ -29,7 +31,7 @@ if (argv.includes("--help") || argv.includes("-h")) {
 }
 const options = {}
 for (let index = 0; index < argv.length; index++) {
-  const key = { "--session": "sessionId", "--transcript": "transcriptPath" }[argv[index]]
+  const key = { "--session": "sessionId", "--transcript": "transcriptPath", "--transcripts-dir": "transcriptsDirectory" }[argv[index]]
   const value = argv[++index]
   if (!key || !value || value.startsWith("-") || options[key]) {
     process.stderr.write(`${USAGE}\n`)

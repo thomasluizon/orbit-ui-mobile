@@ -16,7 +16,7 @@ export const cases = async () => {
   }
   plan.push({ match: "repos/thomasluizon/orbit-tickets/issues?", stdout: JSON.stringify([sources.recorded.ticket]) })
   plan.push({ match: "auth token", stdout: "fixture-token" })
-  const transcriptPath = stage("progress-cli/transcript.jsonl", `${JSON.stringify({ timestamp: "2026-10-01T00:00:00Z", type: "user" })}\n`)
+  const transcriptPath = stage("progress-cli/current.jsonl", `${JSON.stringify({ timestamp: "2026-10-01T00:00:00Z", type: "user" })}\n`)
   const env = { ...orcaEnv(plan), GIT_BIN: process.execPath }
   // Node receives Git's argv through the shared shim, without invoking a real repository.
   env.ORBIT_ORCA_STUB = JSON.stringify([...plan, { match: "remote get-url origin", stdout: "https://github.com/example/orbit-ui-mobile.git\n" }])

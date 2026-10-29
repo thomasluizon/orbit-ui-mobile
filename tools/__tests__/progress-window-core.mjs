@@ -24,7 +24,7 @@ export const fixture = (label) => {
       calls.push({ path, projection })
       if (path.includes("/pulls?")) return [times.map((time, index) => ({ ...recorded.pull, number: index + 1, merged_at: time })),
         [{ ...recorded.pull, number: 9, merged_at: null }, { ...recorded.pull, number: 10, merged_at: "2026-09-30T23:59:59Z" }]]
-      if (path.includes("/issues?")) return [times.map((time, index) => ({ ...recorded.ticket, number: index + 1, closed_at: time }))]
+      if (path.includes("/issues?")) return [times.map((time, index) => ({ ...recorded.ticket, number: index + 1, closed_at: time, created_at: time }))]
       const android = path.includes("android-release")
       const runs = times.map((time, index) => ({ ...(android ? recorded.android : recorded.run), id: index + 1 + (android ? 100 : 0),
         created_at: time, updated_at: time, ...(index === 3 ? { conclusion: null, status: "in_progress" } : {}) }))
@@ -38,6 +38,31 @@ const rejects = async (options, pattern) => {
 }
 
 export const cases = async () => {
+  const boundary = fixture("progress-owner-boundary")
+  const transcriptsDirectory = join(boundary.repoRoot, "transcripts")
+  mkdirSync(transcriptsDirectory)
+  const command = (sessionId, time, promptId) => ({ type: "user", sessionId, timestamp: time,
+    uuid: `${promptId}-row`, promptId, isSidechain: false, turnOrigin: "human", origin: { kind: "human" },
+    message: { role: "user", content: "<command-message>progress</command-message>\n<command-name>/progress</command-name>" } })
+  const previous = "2026-09-30T23:00:00Z"
+  const current = "2026-10-01T03:30:00Z"
+  writeFileSync(join(transcriptsDirectory, "earlier.jsonl"), [command("earlier", previous, "previous"),
+    { type: "assistant", timestamp: "2026-09-30T23:30:00Z", message: { role: "assistant", content: [
+      { type: "text", text: "Decision: keep the selected release branch. Owner question: which track?" }] } },
+  ].map((row) => JSON.stringify(row)).join("\n") + "\n")
+  writeFileSync(join(transcriptsDirectory, "current.jsonl"), [command("current", current, "current"),
+    command("current", "2026-10-01T03:30:06Z", "current"),
+    { type: "user", timestamp: "2026-10-01T03:31:00Z", sourceToolAssistantUUID: "tool-source",
+      message: { role: "user", content: [{ type: "tool_result", content: "<command-name>/progress</command-name>" }] } },
+    { type: "user", timestamp: "2026-10-01T03:32:00Z", isMeta: true,
+      message: { role: "user", content: [{ type: "text", text: "<command-name>/progress</command-name>" }] } },
+  ].map((row) => JSON.stringify(row)).join("\n") + "\n")
+  const windowReport = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
+  T("progress-window: previous owner invocation precedes a later relay chain",
+    windowReport.window.startedAt === previous)
+  T("progress-window: merge before chain start survives and session evidence spans the window",
+    windowReport.entries.some((entry) => entry.merges.some((merge) => merge.id === 10)) &&
+    windowReport.entries.some((entry) => entry.sessionId === "earlier"))
   const staged = fixture("progress-core")
   const report = await collectProgressWindow(staged.options)
   T("progress-window: reports three relays and current session, with the full window", report.entries.map((entry) => entry.sessionId).join(",") === "relay-0,relay-1,relay-2,current" && report.window.startedAt === "2026-10-01T00:00:00Z")
@@ -69,7 +94,7 @@ export const cases = async () => {
     (await staged.options.readPages(path, projection)).slice(0, 1) }, /incomplete workflow pagination/))
   const standalone = fixture("progress-standalone")
   writeSessionChain({ chains: [] }, standalone.repoRoot)
-  const transcriptPath = join(standalone.repoRoot, "session.jsonl")
+  const transcriptPath = join(standalone.repoRoot, "current.jsonl")
   writeFileSync(transcriptPath, `${JSON.stringify({ timestamp: "2026-10-01T02:00:00Z", type: "user" })}\n`)
   const single = await collectProgressWindow({ ...standalone.options, transcriptPath })
   T("progress-window: no chain uses only the exact current transcript window", single.entries.length === 1 && single.entries[0].merges.length === 6 && single.window.startedAt === "2026-10-01T02:00:00Z")
@@ -88,7 +113,9 @@ export const cases = async () => {
   ledger.chains[0].entries[1].startedAt = "2026-10-01T01:01:00Z"
   ledger.chains[0].entries[0].endedAt = "2026-10-01T00:59:00Z"
   writeSessionChain(ledger, staged.repoRoot)
-  T("progress-window: work in a gap is reported as an interval error", await rejects(staged.options, /has no chain entry/))
+  const gaps = await collectProgressWindow(staged.options)
+  T("progress-window: work between sessions stays in the window without invented session ownership",
+    gaps.entries.some((entry) => entry.sessionId === null && entry.merges.some((merge) => merge.id === 2)))
   const recovered = fixture("progress-recovered")
   const recoveringLedger = JSON.parse(readFileSync(join(recovered.repoRoot, ".git", "orbit-session-chain.json"), "utf8"))
   recoveringLedger.chains[0].currentSessionId = "relay-2"
