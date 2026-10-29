@@ -24,7 +24,6 @@ describe('API endpoints', () => {
       expect(API.profile.onboarding).toBe('/api/profile/onboarding')
       expect(API.profile.language).toBe('/api/profile/language')
       expect(API.profile.themePreference).toBe('/api/profile/theme-preference')
-      expect(API.profile.colorScheme).toBe('/api/profile/color-scheme')
       expect(API.profile.reset).toBe('/api/profile/reset')
     })
   })

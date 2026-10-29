@@ -169,12 +169,6 @@ export const setThemePreferenceRequestSchema = z.object({
 
 export type SetThemePreferenceRequest = z.infer<typeof setThemePreferenceRequestSchema>
 
-export const setColorSchemeRequestSchema = z.object({
-  colorScheme: z.string().nullable(),
-})
-
-export type SetColorSchemeRequest = z.infer<typeof setColorSchemeRequestSchema>
-
 export const themeModeSchema = z.enum(['dark', 'light'])
 
 export type ThemeMode = z.infer<typeof themeModeSchema>
