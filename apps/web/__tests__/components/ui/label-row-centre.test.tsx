@@ -42,14 +42,14 @@ describe('inline label row centres in preferences', () => {
   }, 30_000)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([412, 1352].flatMap((width) => [1, 2].flatMap((scale) => (['en', 'pt-BR'] as const).map((locale) => ({ width, scale, locale })))))('centres theme choices in $locale at $width and scale $scale', async ({ width, scale, locale }) => {
+  it.each([412, 1352].flatMap((width) => [1, 2].flatMap((scale) => (['en', 'pt-BR'] as const).map((locale) => ({ width, scale, locale })))))('centres the preference switch in $locale at $width and scale $scale', async ({ width, scale, locale }) => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}:root { font-size: ${16 * scale}px; }</style><main id="root" data-locale="${locale}" style="padding:16px;max-width:740px"></main>`)
       await page.addScriptTag({ content: componentScript })
-      await page.getByRole('group').waitFor()
+      await page.locator('[data-slot="switch-track"]').waitFor()
       await loadAppFonts(page)
-      const measured = await page.getByRole('group').evaluate((control) => {
+      const measured = await page.locator('[data-slot="switch-track"]').evaluate((control) => {
         const row = control.closest('.orbit-list-row-shell')!
         const label = row.querySelector('[data-slot="list-row-title"]')!
         const title = label.getBoundingClientRect()
@@ -58,7 +58,7 @@ describe('inline label row centres in preferences', () => {
       })
       if (scale === 1) expect(measured.labelHeight).toBeCloseTo(measured.lineHeight, 0)
       else expect(measured.labelHeight).toBeGreaterThanOrEqual(measured.lineHeight - 1)
-      await expect.poll(async () => page.getByRole('group').evaluate((control) => {
+      await expect.poll(async () => page.locator('[data-slot="switch-track"]').evaluate((control) => {
         const label = control.closest('.orbit-list-row-shell')!.querySelector('[data-slot="list-row-title"]')!
         const bounds = label.getBoundingClientRect()
         const choices = control.getBoundingClientRect()
@@ -67,14 +67,14 @@ describe('inline label row centres in preferences', () => {
       expect(measured.height).toBeGreaterThanOrEqual(72)
       const rows = await page.locator('.orbit-list-row-shell').evaluateAll((rows) => rows.map((row) => {
         const title = row.querySelector('[data-slot="list-row-title"]')!
-        const control = row.querySelector('[data-slot="switch-track"], [role="group"], [data-slot="list-row-value"]')!
+        const control = row.querySelector('[data-slot="switch-track"], [data-slot="list-row-value"]')!
         const label = title.getBoundingClientRect()
         const accessory = control.getBoundingClientRect()
         const lineHeight = parseFloat(getComputedStyle(title).lineHeight)
         return { title: title.textContent, labelHeight: label.height, lineHeight, controlTop: accessory.top, labelBottom: label.bottom, isValue: control.getAttribute('data-slot') === 'list-row-value',
           offset: label.top + Math.min(label.height, lineHeight) / 2 - accessory.top - accessory.height / 2 }
       }))
-      expect(rows).toHaveLength(6)
+      expect(rows).toHaveLength(5)
       for (const row of rows) {
         if (scale === 1 || !row.isValue || row.controlTop < row.labelBottom) expect(Math.abs(row.offset), row.title!).toBeLessThanOrEqual(1)
       }

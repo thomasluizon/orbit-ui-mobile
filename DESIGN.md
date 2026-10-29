@@ -241,9 +241,9 @@ layout. Actual visual lines bottom-align their own input and controls; the last 
 web below 1024), Hoje and Calendário pass a header row with a minimum height of 48 to Shell412.
 The Avisos bell is the last control at the trailing edge, with a hit area at the touch floor and
 a neutral count pill: absent at zero, capped at 9+, no dot, no accent. Hoje holds search, options
-(`dots-vertical`) and the bell. No date navigator carries a separate Hoje jump control; its centred
-date or period label returns to today. Calendário holds options
-and the bell. Progresso and Perfil start with a minimum-height 48 row holding only the bell at the
+(`dots-vertical`), theme and the bell. No date navigator carries a separate Hoje jump control; its centred
+date or period label returns to today. Calendário holds options, theme
+and the bell. Progresso and Perfil start with a minimum-height 48 row holding theme before the bell at the
 same trailing edge; that row scrolls with the page and carries no screen title. Avisos does not
 repeat the bell. Screen options always use `dots-vertical`.
 
@@ -298,7 +298,7 @@ keeps the name and email; the position directly beneath it stays available for O
 
 Conta owns edit name, data export, usage analytics, fresh start and account deletion, in that order.
 Deletion is last and keeps its danger label, confirmation and step-up. Preferências owns timezone,
-week start, clock, language, theme and showing general habits on Hoje. Astra owns Conexões: Google Calendar opens the Calendários sheet through `/calendar?import=1`, as does the retained Sincronizar calendário row on Perfil. Notion opens its connection sheet, with the page picker in Notion and a confirmation before disconnecting and deleting stored records. Astra owns today's allowance,
+week start, clock, language and showing general habits on Hoje. Theme switching belongs to the shell. Astra owns Conexões: Google Calendar opens the Calendários sheet through `/calendar?import=1`, as does the retained Sincronizar calendário row on Perfil. Notion opens its connection sheet, with the page picker in Notion and a confirmation before disconnecting and deleting stored records. Astra owns today's allowance,
 feature switches and Pro gates, then API keys and MCP. Notificações owns the current push-device
 controls, product email consent and the note that habit reminders live on each habit.
 
@@ -1544,14 +1544,14 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 - At the desktop breakpoint, content composes **horizontally** where the surface calls for it. Calendário keeps one centred column inside the 740px content cap.
 - **The main content column caps at about 740px and is centred.** Narrower page columns also centre within their available shell container, retaining their caps and 16px child insets (#1570). Child text and figures keep their start alignment.
 - **The right stats rail is deleted** (D69). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. The full-screen conversation replaces the destination in the centred content column on wide web.
-- **Sidebar:** on the canvas background with a hairline as its only separation. The 48px brand row holds the lockup at the start, then the notification bell and collapse control at the trailing edge. Both use IconButton's 44px round paint, centred glyph and transparent 2px hit extension, with a 12px paint gap and at least 8px from feedback to the lockup or sibling fill inside the existing 232px rail. In the 96px collapsed rail, the collapse control comes first, with the bell below it, both centred. The create button and compact account row stay grounded at the bottom. The account avatar centres on the adjacent name and email lines, with no reserved blank line or extra gap; loading reserves the same height as a one-line name and email.
+- **Sidebar:** on the canvas background with a hairline as its only separation. The lockup starts the header, followed by a trailing row of theme, notification bell and collapse actions. Each uses IconButton's 44px round paint, centred glyph and transparent 2px hit extension, with a 12px paint gap and at least 8px from feedback to the lockup or sibling fill inside the existing 232px rail. In the 96px collapsed rail, the collapse control comes first, followed by theme and the bell in a centred vertical stack. Theme shows the target mode: sun in dark mode, moon in light mode. Compact web and Android place that same action immediately before the bell in every tab's 48px header row. Perfil preferences has no theme selector (#1881). The create button and compact account row stay grounded at the bottom. The account avatar centres on the adjacent name and email lines, with no reserved blank line or extra gap; loading reserves the same height as a one-line name and email.
 - Primary app sections are one click away in the desktop sidebar.
 - **Never hide core functionality at a breakpoint**, and keep one information architecture across every context. Adapt the layout, not the feature set.
 - **Match a feature's flow shape to its neighbours**, not just its surface.
 - **In the compact shell, a sheet or menu is the first home for secondary content.** Keep one visible, labelled entry for it. A menu or sheet closes before the next sheet opens; a confirmation dialog over a sheet stays allowed, per the Overlay dismissal contract. At wide width, inline progressive disclosure comes first.
 - **Do not overload the entry point.** The first screenful is a table of contents, not the whole book.
 
-The sidebar surface inventory covers four compositions: (1) the expanded brand row with its bell and collapse control; (2) the collapsed rail header with the toggle above the bell; (3) the expanded account row while loading and with a short name, a wrapped name or an oversized token, with and without an email; (4) the collapsed account avatar and its loading reservation. Search, Astra, the four destinations and create retain their behavior and content in both sidebar states. Android uses the enumerated navigation-chrome divergence below.
+The sidebar surface inventory covers four compositions: (1) the expanded header with the lockup above its theme, bell and collapse actions; (2) the collapsed rail header with collapse, theme and bell stacked; (3) the expanded account row while loading and with a short name, a wrapped name or an oversized token, with and without an email; (4) the collapsed account avatar and its loading reservation. Search, Astra, the four destinations and create retain their behavior and content in both sidebar states. Android uses the enumerated navigation-chrome divergence below.
 
 ### The allowed shell divergences, enumerated
 
@@ -1769,7 +1769,6 @@ for seven 34px discs at 320px, without horizontal overflow. The shell retains it
 Habit history's past, future, unavailable and loading branches use the same distributed
 34px disc allocation on both platforms, preserving their transparent column widths.
 Read-only label rows retain each complete label while trailing choice groups shrink and wrap.
-The paired `ui/list-row` owners keep theme choices clear at enlarged text.
 Web menu item focus remains inset in its existing row fill. The shell isolates page stacking
 beneath portalled menus so a floating action cannot cover an opened menu item.
 

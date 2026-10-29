@@ -50,8 +50,8 @@
     },
     "homeScreen": {
       "title": "Home Screen",
-      "showGeneral": "Anytime habits",
-      "showGeneralDesc": "Show in Today"
+      "showGeneral": "Show anytime habits",
+      "showGeneralDesc": "Habits without a set day also appear in your Today list."
     },
     "clock": {
       "title": "Clock",
@@ -2551,7 +2551,6 @@
       "apiKeysMcp": "API keys and MCP",
       "wrapped": "Orbit Wrapped",
       "weekStart": "Week starts on",
-      "theme": "Theme",
       "export": "Export my data",
       "signOut": "Sign out",
       "startOver": "Fresh start",
@@ -4117,10 +4116,7 @@
   },
   "preferences": {
     "title": "Preferences",
-    "general": "General",
-    "themeMode": "Appearance",
-    "themeModeLight": "Light",
-    "themeModeDark": "Dark"
+    "general": "General"
   },
   "about": {
     "title": "About",

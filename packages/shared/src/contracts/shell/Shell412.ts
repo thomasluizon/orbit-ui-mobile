@@ -23,8 +23,8 @@ type ConversationSlot =
 interface Shell412Base {
   children?: React.ReactNode
   /** Pinned above the scroller. Hoje and Calendário pass a minimum-height 48 row with a trailing
-   * Avisos bell; Hoje also has its conditional day jump, search and options, Calendário its options.
-   * Progresso and Perfil put their bell-only minimum-height 48 row in children so it scrolls, with
+   * theme action and Avisos bell; Hoje also has its conditional day jump, search and options, Calendário its options.
+   * Progresso and Perfil put their theme-and-bell minimum-height 48 row in children so it scrolls, with
    * no screen title. A detail header keeps its title and back control visible. A screen with no
    * header passes nothing and the scroller takes the full height. */
   header?: React.ReactNode

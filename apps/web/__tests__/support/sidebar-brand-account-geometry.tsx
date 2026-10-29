@@ -10,6 +10,8 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { HeaderAppearanceActions, DestinationHeaderRow } from '@/components/navigation/root-notification-header'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
 import { useShellStore } from '@/stores/shell-store'
@@ -18,6 +20,9 @@ import { inspectInteractionSurface } from '@/__tests__/support/interaction-surfa
 import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { closeChrome, type registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => true }))
 
 const cases = [1024, 1352, 1920].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
@@ -34,11 +39,12 @@ function sidebarFixture(locale: 'en' | 'pt-BR', account?: string, interactiveBel
       activeId="hoje" navLabel={messages.nav.mainNavigation} astraRow={{ label: messages.chat.title, onOpen: vi.fn() }}
       paletteLabel={messages.nav.search} paletteHint="Ctrl K" onPalette={vi.fn()}
       onCreate={vi.fn()} createLabel={messages.nav.createHabit} account={account} accountEmail={email}
-      notifications={<NotificationBellDisplay count={12} countPlacement="corner" onClick={interactiveBell ? vi.fn() : undefined} />} />
+      header={<DestinationHeaderRow><HeaderAppearanceActions /></DestinationHeaderRow>}
+      notifications={<><ThemeToggle /><NotificationBellDisplay count={12} countPlacement="corner" onClick={interactiveBell ? vi.fn() : undefined} /></>} />
   </NextIntlClientProvider>
 }
 
-export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: typeof registerChromeLaunchHook) {
+export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: typeof registerChromeLaunchHook, compactWidths: readonly number[] = []) {
   describe('sidebar brand and account geometry in Chromium', () => {
     let browserLaunch: BrowserLaunch | undefined
     let browser: Browser
@@ -58,6 +64,33 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
       useShellStore.setState(useShellStore.getInitialState())
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each(compactWidths)('keeps the compact theme action before the bell with clear fills at %s', async (width) => {
+      const view = render(sidebarFixture('en', 'Alex Lin'))
+      const page = await browser.newPage({ viewport: { width, height: 900 } })
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<html lang="en" class="dark" style="${variables}"><head><style>${stylesheet}</style></head><body>${view.container.innerHTML}</body></html>`)
+        const actions = page.locator('[data-header-appearance-actions]')
+        const theme = actions.locator('button:has(.tabler-icon-sun)')
+        const bell = actions.locator('button:has(.tabler-icon-bell)')
+        const placement = await actions.evaluate(element => {
+          const buttons = [...element.querySelectorAll('button')].map(button => button.getBoundingClientRect())
+          return { gap: buttons[1]!.left - buttons[0]!.right, right: buttons[1]!.right, height: element.getBoundingClientRect().height }
+        })
+        expect(placement.gap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+        expect(placement.right).toBeLessThanOrEqual(width - INTERACTION_FILL_CLEARANCE)
+        expect(placement.height).toBe(48)
+        for (const control of [theme, bell]) {
+          await control.hover()
+          await control.evaluate(settleAnimations)
+          const fill = await control.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)
+          expect(fill.violations).toEqual([])
+          expect(fill.centering!.inline).toBeLessThanOrEqual(0.5)
+          expect(fill.centering!.block).toBeLessThanOrEqual(0.5)
+        }
+      } finally { await page.close() }
+    })
 
     it.each([collapsed])('retains corner bell and navigation placement on the inbox, collapsed=%s', async (collapsed) => {
       useShellStore.setState({ sidebarCollapsed: collapsed })
@@ -93,6 +126,7 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
         const header = await page.evaluate(() => {
           const sidebar = document.querySelector<HTMLElement>('[data-shell-sidebar]')!
           const toggle = sidebar.querySelector<HTMLElement>('[data-shell-sidebar-toggle]')!
+          const theme = sidebar.querySelector<HTMLElement>('button:has(.tabler-icon-sun)')!
           const brand = sidebar.querySelector<HTMLElement>('[data-asset="orbit-lockup"]')!.parentElement!.parentElement!
           const bell = sidebar.querySelector<HTMLElement>('button:has(.tabler-icon-bell)')!
           const bounds = (element: Element) => {
@@ -103,13 +137,13 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
           const navigationEnd = sidebar.querySelector('nav')!.lastElementChild as HTMLElement
           const create = sidebar.querySelector<HTMLElement>('.orbit-pill-action[data-variant="primary"]')!
           return {
-            sidebar: bounds(sidebar), brand: bounds(brand), bell: bounds(bell), toggle: bounds(toggle),
+            sidebar: bounds(sidebar), brand: bounds(brand), bell: bounds(bell), theme: bounds(theme), toggle: bounds(toggle),
             lockup: bounds(sidebar.querySelector('[data-asset="orbit-lockup"]')!),
             search: bounds(sidebar.querySelector('button:has(.tabler-icon-search)')!),
             trailingGlyph: bounds(toggle.querySelector('svg')!),
             firstControlIsToggle: controls[0] === toggle,
             afterNavigation: controls.slice(controls.indexOf(navigationEnd) + 1).map(element => element === create ? 'create' : element.hasAttribute('data-shell-account') ? 'account' : 'unexpected'),
-            icons: [bell, toggle].map(element => {
+            icons: [bell, toggle, theme].map(element => {
               const icon = element.querySelector('svg')!
               return { ...bounds(icon), strokeWidth: getComputedStyle(icon).strokeWidth }
             }),
@@ -119,7 +153,7 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
         expect(header.sidebar.width).toBe(collapsed ? 96 : 232)
         expect(header.overflow).toBe(false)
         expect(header.afterNavigation).toEqual(['create', 'account'])
-        for (const control of [header.bell, header.toggle]) {
+        for (const control of [header.bell, header.toggle, header.theme]) {
           expect.soft(control.width).toBe(44)
           expect.soft(control.height).toBe(44)
           expect.soft(Math.min(Number.parseFloat(control.radius), control.width / 2)).toBe(22)
@@ -132,21 +166,25 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
           expect([icon.width, icon.height]).toEqual([20, 20])
           expect(icon.strokeWidth).toBe('2px')
         }
-        for (const [index, control] of [header.bell, header.toggle].entries()) {
+        for (const [index, control] of [header.bell, header.toggle, header.theme].entries()) {
           expect.soft(Math.abs(header.icons[index]!.centerX - control.centerX), 'glyph inline centre').toBeLessThanOrEqual(0.5)
           expect(Math.abs(header.icons[index]!.centerY - control.centerY), 'glyph block centre').toBeLessThanOrEqual(0.5)
         }
         if (collapsed) {
           expect(header.firstControlIsToggle).toBe(true)
-          expect(header.bell.top - header.toggle.bottom).toBe(12)
+          expect(header.theme.top - header.toggle.bottom).toBe(12)
+          expect(header.bell.top - header.theme.bottom).toBe(12)
           expect(header.toggle.centerX).toBe(header.sidebar.centerX)
           expect(header.bell.centerX).toBe(header.sidebar.centerX)
         } else {
-          expect(header.brand.height).toBe(48)
+          expect(header.brand.height).toBeCloseTo(header.lockup.height + 12 + header.bell.height, 1)
+          expect(header.theme.top - header.lockup.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+          expect(header.theme.centerY).toBe(header.bell.centerY)
+          expect(header.bell.left - header.theme.right).toBe(12)
           expect(header.toggle.left - header.bell.right).toBe(12)
           expect(header.lockup.right).toBeLessThanOrEqual(header.bell.left)
           expect.soft(Math.abs(header.lockup.left - header.search.left)).toBeLessThanOrEqual(1)
-          expect.soft(header.bell.left - header.lockup.right, 'lockup to bell paint').toBeGreaterThanOrEqual(8)
+          expect(header.theme.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
         }
         await assertBrandFills(page)
         const shortAccount = await measureAccount(page)

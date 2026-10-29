@@ -86,7 +86,7 @@
     "__tests__/components/shell/shell-bottom-column-geometry.test.tsx": 6707,
     "__tests__/components/shell/shell-scrollbar-geometry.test.tsx": 11772,
     "__tests__/components/shell/sidebar-account-menu-geometry.test.tsx": 14698,
-    "__tests__/components/shell/sidebar-brand-account-collapsed-geometry.test.tsx": 119124,
+    "__tests__/components/shell/sidebar-brand-account-collapsed-geometry.test.tsx": 123665,
     "__tests__/components/shell/sidebar-brand-account-expanded-geometry.test.tsx": 119760,
     "__tests__/components/shell/sidebar-collapse-geometry.test.tsx": 25348,
     "__tests__/components/shell/sidebar-search-keycap-geometry.test.tsx": 12916,

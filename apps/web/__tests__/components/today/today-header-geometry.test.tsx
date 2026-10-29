@@ -1,3 +1,4 @@
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createRef } from 'react'
 import type { Locator, Page } from '@playwright/test'
@@ -194,7 +195,7 @@ describe('Hoje header geometry', () => {
             inspected += 1
             await expectHeaderFillClearance(page, control, content, mode)
           }
-          expect(inspected).toBe(width < 1024 ? [3, 2, 1, 1][index] : [2, 1, 0, 0][index])
+          expect(inspected).toBe(width < 1024 ? [4, 3, 2, 2][index] : [2, 1, 0, 0][index])
           if (width >= 1024) {
             const bell = page.locator('[data-shell-sidebar] button[aria-label^="' + ptBr.notifications.bell + '"]')
             const next = page.locator('[data-shell-sidebar] [data-shell-search]')

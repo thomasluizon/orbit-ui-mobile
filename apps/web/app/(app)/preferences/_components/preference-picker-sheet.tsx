@@ -6,7 +6,7 @@ import { IconButton } from '@/components/ui/icon-button'
 
 import { useMemo, useRef, useState } from 'react'
 import { buildPreferencePickerModel, getTimezoneList, type PreferencePicker } from '@orbit/shared/utils'
-import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
+import type { SupportedLocale } from '@orbit/shared/types/profile'
 
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
@@ -119,11 +119,9 @@ interface PreferencePickerSheetProps {
   activePicker: PreferencePicker | null
   mounted: boolean
   selectedLanguage: SupportedLocale
-  currentTheme: ThemeMode
   timeZone?: string | null
   weekStartDay?: number
   uses24HourClock?: boolean
-  themeModeOptions: { value: ThemeMode; label: string }[]
   weekStartOptions: { value: 0 | 1; label: string }[]
   clockFormatOptions: { value: '24h' | '12h'; label: string }[]
   pickerTitles: Record<PreferencePicker, string>
@@ -133,7 +131,6 @@ interface PreferencePickerSheetProps {
   timeZoneShowMoreLabel: string
   onClose: () => void
   onLanguageChange: (locale: SupportedLocale) => void
-  onThemeModeChange: (mode: ThemeMode) => void
   onTimeZoneChange: (timeZone: string) => void
   onWeekStartChange: (day: 0 | 1) => void
   onClockFormatChange: (uses24HourClock: boolean) => void

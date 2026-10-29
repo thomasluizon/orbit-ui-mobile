@@ -6,8 +6,7 @@ import { buildTodayHeaderMenuItems, selectTodayHeaderMenuItem, type TodayDateCon
 import { useUIStore } from '@/stores/ui-store'
 import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import * as Menu from '@/components/ui/dropdown-menu'
-import { NotificationBell } from '@/components/navigation/notification-bell'
-import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
+import { DestinationHeaderRow, HeaderAppearanceActions } from '@/components/navigation/root-notification-header'
 import { ShellHeader } from '@/components/shell/shell-header'
 
 const DATE_ICON_BUTTON_CLASS_NAME =
@@ -42,7 +41,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
         aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME}>
         <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
       </button></Menu.Trigger>
-      <div className="flex min-h-12 items-center lg:hidden"><NotificationBell /></div>
+      <HeaderAppearanceActions />
     </div>
     <Menu.Content key={frequencyMenu ? 'frequency' : 'options'} id={menuId}
       title={frequencyMenu ? t('habits.frequencyFilter') : props.moreLabel}

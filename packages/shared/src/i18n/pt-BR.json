@@ -50,8 +50,8 @@
     },
     "homeScreen": {
       "title": "Tela inicial",
-      "showGeneral": "Sem dia certo",
-      "showGeneralDesc": "Aparecem no Hoje"
+      "showGeneral": "Ver hábitos sem dia fixo",
+      "showGeneralDesc": "Hábitos sem dia definido também aparecem no Hoje."
     },
     "clock": {
       "title": "Relógio",
@@ -2551,7 +2551,6 @@
       "apiKeysMcp": "Chaves de API e MCP",
       "wrapped": "Orbit Wrapped",
       "weekStart": "Semana começa em",
-      "theme": "Tema",
       "export": "Exportar dados",
       "signOut": "Sair da conta",
       "startOver": "Começar de novo",
@@ -4117,10 +4116,7 @@
   },
   "preferences": {
     "title": "Preferências",
-    "general": "Geral",
-    "themeMode": "Aparência",
-    "themeModeLight": "Claro",
-    "themeModeDark": "Escuro"
+    "general": "Geral"
   },
   "about": {
     "title": "Sobre",

@@ -118,22 +118,9 @@ for (const width of [412, 1352]) {
           }
         })
 
-        test('theme pills and timezone radios yield selection to focus', async ({ page }) => {
+        test('timezone radios yield selection to focus', async ({ page }) => {
           await completeInstallOnboarding(page)
           await page.goto('/profile/preferences')
-          const selected = page.getByRole('button', { name: theme === 'dark' ? words.preferences.themeModeDark : words.preferences.themeModeLight, exact: true })
-          const other = page.getByRole('button', { name: theme === 'dark' ? words.preferences.themeModeLight : words.preferences.themeModeDark, exact: true })
-          await expectRings(other, 0)
-          await other.hover()
-          await expectRings(other, 0)
-          await keyboardFocus(page, other)
-          await expectRings(other, 1)
-          await selected.click()
-          await expectRings(selected, 1)
-          await selected.hover()
-          await expectRings(selected, 1)
-          await keyboardFocus(page, selected)
-          await expectRings(selected, 1)
           await page.getByRole('button', { name: words.profile.settingsRows.timezone, exact: false }).click()
           const sheet = page.getByRole('dialog')
           const radios = sheet.getByRole('radio')

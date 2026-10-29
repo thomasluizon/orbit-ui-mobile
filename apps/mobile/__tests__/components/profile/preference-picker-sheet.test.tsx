@@ -27,7 +27,6 @@ vi.mock('expo-secure-store', () => ({
 
 const pickerTitles = {
   language: 'Language',
-  theme: 'Theme',
   timeZone: 'Timezone',
   weekStart: 'Week start',
   clock: 'Clock',
@@ -43,13 +42,8 @@ function baseProps() {
     timeZoneNoResultsLabel: 'No timezones found',
     timeZoneShowMoreLabel: 'Show more timezones',
     selectedLanguage: 'en' as const,
-    currentTheme: 'dark' as const,
     timeZone: 'America/Sao_Paulo',
     weekStartDay: 1,
-    themeModeOptions: [
-      { value: 'light' as const, label: 'Light' },
-      { value: 'dark' as const, label: 'Dark' },
-    ],
     clockFormatOptions: [{ value: '24h' as const, label: '24 hour' }, { value: '12h' as const, label: '12 hour' }],
     uses24HourClock: true,
     weekStartOptions: [
@@ -60,7 +54,6 @@ function baseProps() {
     closePicker: vi.fn((exitAction?: () => void) => exitAction?.()),
     onHidden: vi.fn(),
     onLanguageChange: vi.fn(),
-    onThemeModeChange: vi.fn(),
     onTimeZoneChange: vi.fn(),
     onWeekStartChange: vi.fn(),
     onClockFormatChange: vi.fn(),

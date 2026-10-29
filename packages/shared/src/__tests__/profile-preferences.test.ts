@@ -71,7 +71,6 @@ it('builds the inline picker labels from the active locale', () => {
   const labels = buildProfilePickerLabels((key) => `translated:${key}`)
   expect(labels.pickerTitles).toEqual({
     language: 'translated:profile.language.title',
-    theme: 'translated:preferences.themeMode',
     timeZone: 'translated:profile.settingsRows.timezone',
     weekStart: 'translated:settings.weekStartDay.title',
     clock: 'translated:settings.clock.title',
@@ -83,10 +82,6 @@ it('builds the inline picker labels from the active locale', () => {
   expect(labels.weekStartOptions).toEqual([
     { value: 1, label: 'translated:settings.weekStartDay.monday' },
     { value: 0, label: 'translated:settings.weekStartDay.sunday' },
-  ])
-  expect(labels.themeModeOptions).toEqual([
-    { value: 'dark', label: 'translated:preferences.themeModeDark' },
-    { value: 'light', label: 'translated:preferences.themeModeLight' },
   ])
   expect(labels.pickerDescriptions.language).toBe('translated:profile.language.description')
   expect(labels.timeZoneShowMoreLabel).toBe('translated:profile.timezonePicker.showMore')

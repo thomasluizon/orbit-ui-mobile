@@ -651,7 +651,7 @@ describe('ProfilePage', () => {
 
   it.each([
     ['account', ['profile.settingsRows.editName', 'profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
-    ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'profile.settingsRows.theme', 'settings.homeScreen.showGeneral']],
+    ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'settings.homeScreen.showGeneral']],
     ['astra', ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
     ['notifications', ['profile.marketingEmails.question', 'profile.settingsRows.alertsOnThisDevice', 'profile.settingsRows.remindersNote']],
   ] as const)('opens %s from Perfil and keeps its settings in that screen alone', (destination, labels) => {
@@ -791,19 +791,15 @@ describe('ProfilePage', () => {
       view.unmount()
     }
     render(<ProfileSubscreen screen="preferences" />)
-    const themeChoices = screen.getByRole('group', { name: 'profile.settingsRows.theme' })
-    expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeDark' }))
-    expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeLight' }))
-    expect(themeChoices).toHaveClass('flex-wrap', 'max-w-full')
+    expect(screen.queryByRole('group', { name: 'profile.settingsRows.theme' })).not.toBeInTheDocument()
     render(<ProfilePage />)
     expect(screen.getByRole('link', { name: /profile\.support\.rowTitle/i })).toHaveAttribute('href', '/support')
   })
 
-  it('changes the inline theme and general habits preference', () => {
+  it('keeps theme selection out of preferences and changes general habits', () => {
     const write = vi.spyOn(Storage.prototype, 'setItem')
     render(<ProfileSubscreen screen="preferences" />)
-    fireEvent.click(screen.getByRole('button', { name: 'preferences.themeModeLight' }))
-    expect(mockApplyTheme).toHaveBeenCalledWith('light')
+    expect(screen.queryByRole('button', { name: 'preferences.themeModeLight' })).not.toBeInTheDocument()
 
     const showGeneral = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
     fireEvent.click(showGeneral)

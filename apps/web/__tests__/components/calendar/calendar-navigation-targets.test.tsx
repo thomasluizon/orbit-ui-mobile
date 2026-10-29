@@ -23,6 +23,7 @@ const cases = [320, 480, 840, 1100, 1440].flatMap(width => (['en', 'pt-BR'] as c
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 12 }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 
 const todayProps = {
   dayName: 'Friday', numericDate: '4 Sep', isTodaySelected: true, nextDisabled: false,

@@ -28,10 +28,12 @@ describe('mounted headless menu lifecycle in Chromium', () => {
       const options = JSON.parse(process.argv[1]);
       const result = await build({ ...options, alias: { '@sentry/nextjs': '@sentry/browser' }, plugins: [{
         name: 'notification-boundaries', setup(build) {
-          build.onResolve({ filter: /^next\\/navigation$|^@\\/hooks\\/use-notification-inbox$/ }, ({ path }) => ({ path, namespace: 'notifications' }));
+          build.onResolve({ filter: /^next\\/navigation$|^@\\/hooks\\/use-notification-inbox$|^@\\/hooks\\/use-color-scheme$/ }, ({ path }) => ({ path, namespace: 'notifications' }));
           build.onLoad({ filter: /.*/, namespace: 'notifications' }, ({ path }) => ({ contents: path === 'next/navigation'
             ? 'export const useRouter = () => ({ push() {} }); export const usePathname = () => "/today"; export const unstable_isUnrecognizedActionError = () => false;'
-            : 'export const useNotificationInbox = () => ({ visibleUnreadCount: 0 });' }));
+            : path === '@/hooks/use-color-scheme'
+              ? 'export const useColorScheme = () => ({ currentTheme: document.documentElement.classList.contains("light") ? "light" : "dark", toggleTheme() {} });'
+              : 'export const useNotificationInbox = () => ({ visibleUnreadCount: 0 });' }));
         }
       }] });
       process.stdout.write(result.outputFiles[0].text);
@@ -49,7 +51,9 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
     await page.setContent(`<html class="${mode}" style="${theme}"><style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ surface, locale })}</script></html>`)
     await loadAppFonts(page)
+    const pageError = new Promise<never>((_, reject) => page.once('pageerror', reject))
     await page.addScriptTag({ content: script })
+    await Promise.race([page.locator('#root > *').first().waitFor({ state: 'attached' }), pageError])
     return page
   }
 

@@ -137,6 +137,7 @@ const mocks = vi.hoisted(() => ({
   useEnglishCatalog: false,
 }))
 
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 vi.mock('next-intl', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next-intl')>()),
   useLocale: () => mocks.usePortugueseCatalog ? 'pt-BR' : 'en',
@@ -494,7 +495,7 @@ describe('ProgressContent', () => {
           const section = document.querySelector('section')!.getBoundingClientRect()
           const goals = document.querySelector('h2:not(.sr-only)')!.getBoundingClientRect()
           const header = document.querySelector('[data-root-notification-header]')?.getBoundingClientRect()
-          const bell = document.querySelector('[data-root-notification-header] button')?.getBoundingClientRect()
+          const bell = document.querySelector('[data-root-notification-header] button[aria-label="notifications.bell"]')?.getBoundingClientRect()
           return { left: section.left - column.left, right: contentRight - section.right, goalsLeft: goals.left - column.left,
             columnWidth: scroller.clientWidth, topInset: section.top - column.top, headerHeight: header?.height ?? 0,
             trailingInset: bell && bell.width > 0 ? contentRight - bell.right : null }

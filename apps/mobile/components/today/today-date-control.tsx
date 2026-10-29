@@ -8,8 +8,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { NotificationBell } from '@/components/navigation/notification-bell'
-import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
+import { DestinationHeaderRow, HeaderAppearanceActions } from '@/components/navigation/root-notification-header'
 import { useShellHeaderSlot } from '@/components/shell/shell-header-slot'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -47,7 +46,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
           <MoreVertical size={20} strokeWidth={1.8} color={tokens.fg2} />
         </Pressable>
       </Menu.Trigger>
-      <NotificationBell />
+      <HeaderAppearanceActions />
     </View>
     <Menu.Content key={frequencyMenu ? 'frequency' : 'options'}
       title={frequencyMenu ? t('habits.frequencyFilter') : props.moreLabel}

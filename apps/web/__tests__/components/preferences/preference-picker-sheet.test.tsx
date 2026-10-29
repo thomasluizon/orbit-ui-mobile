@@ -15,7 +15,6 @@ import { PreferencePickerSheet } from '@/app/(app)/preferences/_components/prefe
 
 const pickerTitles: Record<PreferencePicker, string> = {
   language: 'Language',
-  theme: 'Theme',
   timeZone: 'Timezone',
   weekStart: 'Week start',
   clock: 'Clock',
@@ -26,13 +25,8 @@ function baseProps() {
     activePicker: null as PreferencePicker | null,
     mounted: true,
     selectedLanguage: 'en' as const,
-    currentTheme: 'dark' as const,
     timeZone: 'America/Sao_Paulo',
     weekStartDay: 1,
-    themeModeOptions: [
-      { value: 'light' as const, label: 'Light' },
-      { value: 'dark' as const, label: 'Dark' },
-    ],
     weekStartOptions: [
       { value: 1 as const, label: 'Monday' },
       { value: 0 as const, label: 'Sunday' },
@@ -46,7 +40,6 @@ function baseProps() {
     timeZoneShowMoreLabel: 'Show more timezones',
     onClose: vi.fn(),
     onLanguageChange: vi.fn(),
-    onThemeModeChange: vi.fn(),
     onTimeZoneChange: vi.fn(),
     onWeekStartChange: vi.fn(),
     onClockFormatChange: vi.fn(),
@@ -83,13 +76,6 @@ describe('PreferencePickerSheet', () => {
     fireEvent.click(screen.getByText('Português'))
     expect(props.onLanguageChange).toHaveBeenCalledWith('pt-BR')
     expect(props.onClose).toHaveBeenCalled()
-  })
-
-  it('renders theme options and fires onThemeModeChange on select', () => {
-    const props = { ...baseProps(), activePicker: 'theme' as const }
-    render(<PreferencePickerSheet {...props} />)
-    fireEvent.click(screen.getByText('Dark'))
-    expect(props.onThemeModeChange).toHaveBeenCalledWith('dark')
   })
 
   it('renders week-start options and fires onWeekStartChange on select', () => {

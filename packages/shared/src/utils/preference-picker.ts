@@ -1,23 +1,20 @@
-import type { SupportedLocale, ThemeMode } from '../types/profile'
+import type { SupportedLocale } from '../types/profile'
 import { resolveHourCycle } from './locale-format'
 import { LANGUAGE_OPTIONS, type LabeledOption } from './preferences-options'
 
-export type PreferencePicker = 'language' | 'theme' | 'timeZone' | 'weekStart' | 'clock'
+export type PreferencePicker = 'language' | 'timeZone' | 'weekStart' | 'clock'
 
 export interface PreferencePickerValues {
   activePicker: PreferencePicker
   ready: boolean
   selectedLanguage: SupportedLocale
-  currentTheme: ThemeMode
   timeZone?: string | null
   weekStartDay?: number
   uses24HourClock?: boolean
-  themeModeOptions: LabeledOption<ThemeMode>[]
   weekStartOptions: LabeledOption<0 | 1>[]
   clockFormatOptions: LabeledOption<'24h' | '12h'>[]
   pickerTitles: Record<PreferencePicker, string>
   onLanguageChange: (locale: SupportedLocale) => void
-  onThemeModeChange: (mode: ThemeMode) => void
   onTimeZoneChange: (timeZone: string) => void
   onWeekStartChange: (day: 0 | 1) => void
   onClockFormatChange: (uses24HourClock: boolean) => void
@@ -34,8 +31,8 @@ export type PreferencePickerModel =
   }
 
 export function buildPreferencePickerModel(values: PreferencePickerValues): PreferencePickerModel {
-  const { activePicker, ready, selectedLanguage, currentTheme, timeZone, weekStartDay,
-    uses24HourClock, themeModeOptions, weekStartOptions, clockFormatOptions, pickerTitles } = values
+  const { activePicker, ready, selectedLanguage, timeZone, weekStartDay,
+    uses24HourClock, weekStartOptions, clockFormatOptions, pickerTitles } = values
 
   switch (activePicker) {
     case 'language':
@@ -44,14 +41,6 @@ export function buildPreferencePickerModel(values: PreferencePickerValues): Pref
         selected: ready ? selectedLanguage : null,
         onCommit: (value) => {
           if (value === 'en' || value === 'pt-BR') values.onLanguageChange(value)
-        },
-      }
-    case 'theme':
-      return {
-        kind: 'options', label: pickerTitles.theme, options: themeModeOptions,
-        selected: ready ? currentTheme : null,
-        onCommit: (value) => {
-          if (value === 'dark' || value === 'light') values.onThemeModeChange(value)
         },
       }
     case 'timeZone':

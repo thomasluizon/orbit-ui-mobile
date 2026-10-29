@@ -1,3 +1,4 @@
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 import { act, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { hydrateRoot, type Root } from 'react-dom/client'
