@@ -22,6 +22,8 @@ import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibilit
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { MoveParentDialog } from '@/components/habit-list/move-parent-dialog'
 import { SelectionTray } from '@/components/habits/selection-tray'
+import { buildOptimisticHabit } from '@/lib/habit-mutation-helpers'
+import { optimisticInsertHabit } from '@/lib/habit-optimistic-helpers'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { HabitRow } from '@/components/habits/habit-row'
 import { __resetTestHostConfig, __setMeasureInWindowImpl, __setWindowDimensions } from '@/test-mocks/react-native'
@@ -1335,6 +1337,46 @@ describe('HabitList', () => {
     }
   })
 
+  it.each([0, 30])('replaces an optimistic row without retained mount animations beside %i rows', (count) => {
+    const client = new QueryClient()
+    const existing = Array.from({ length: count }, (_, index) => createMockHabitScheduleItem({ id: `existing-${index}`, position: index }))
+    const optimistic = buildOptimisticHabit(client, 'offline-habit-created', { title: 'Created task', startDate: TODAY })
+    const renderList = () => <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
+    const seedSchedule = (items: HabitScheduleItem[]) => seedHabits([...normalizeHabitQueryData(items).habitsById.values()])
+    const configure = vi.spyOn(LayoutAnimation, 'configureNext')
+    seedSchedule(existing)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(renderList()) })
+    const assertMountOwnership = () => {
+      const list = tree.root.findByType('DraggableFlatList')
+      expect(list.props.itemEnteringAnimation).toBeUndefined()
+      expect(list.props.itemExitingAnimation).toBeUndefined()
+      expect(list.props.itemLayoutAnimation).toBeUndefined()
+      expect(list.props.enableLayoutAnimationExperimental).not.toBe(true)
+      const animatedViews = tree.root.findAllByType('AnimatedView')
+      for (const view of animatedViews) {
+        expect(view.props.entering).toBeUndefined()
+        expect(view.props.exiting).toBeUndefined()
+        expect(view.props.layout).toBeUndefined()
+      }
+    }
+    try {
+      TestRenderer.act(() => { seedSchedule(optimisticInsertHabit(existing, optimistic)); tree.update(renderList()) })
+      expect(tree.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)).toContain(optimistic.id)
+      assertMountOwnership()
+      TestRenderer.act(() => { seedSchedule([...existing, { ...optimistic, id: 'server-habit-created' }]); tree.update(renderList()) })
+      const ids = tree.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)
+      expect(ids).toContain('server-habit-created')
+      expect(ids).not.toContain(optimistic.id)
+      assertMountOwnership()
+      expect(configure).not.toHaveBeenCalled()
+    } finally {
+      configure.mockRestore()
+      TestRenderer.act(() => tree.unmount())
+      client.clear()
+    }
+  })
+
   it.each([false, true])('expands and collapses child rows without changing selection (select mode: %s)', (selectMode) => {
     const parent = createMockHabit({ scheduledDates: [TODAY], id: 'parent', title: 'Parent', hasSubHabits: true })
     const child = createMockHabit({ scheduledDates: [TODAY], id: 'child', title: 'Child', parentId: parent.id })
@@ -1359,16 +1401,15 @@ describe('HabitList', () => {
     )
     expect(disclosure().props.accessibilityState).toEqual({ expanded: true })
     expect(visibleIds()).toEqual([parent.id, child.id, secondParent.id, secondChild.id])
-    const configuredRows: string[][] = []
-    const configure = vi.spyOn(LayoutAnimation, 'configureNext').mockImplementation(() => { configuredRows.push(visibleIds()) })
+    const configure = vi.spyOn(LayoutAnimation, 'configureNext')
     try {
       TestRenderer.act(() => disclosure().props.onPress())
-      expect(configuredRows).toEqual([[parent.id, child.id, secondParent.id, secondChild.id]])
+      expect(configure).not.toHaveBeenCalled()
       expect(disclosure().props.accessibilityLabel).toBe('common.expand')
       expect(disclosure().props.accessibilityState).toEqual({ expanded: false })
       expect(visibleIds()).toEqual([parent.id, secondParent.id, secondChild.id])
       TestRenderer.act(() => disclosure().props.onPress())
-      expect(configuredRows.at(-1)).toEqual([parent.id, secondParent.id, secondChild.id])
+      expect(configure).not.toHaveBeenCalled()
     } finally {
       configure.mockRestore()
     }

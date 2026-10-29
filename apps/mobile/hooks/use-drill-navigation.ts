@@ -10,7 +10,6 @@ import { API } from '@orbit/shared/api'
 
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
 import { apiClient } from '@/lib/api-client'
-import { prepareListLayoutMotion } from '@/lib/list-motion'
 
 async function fetchHabitDetail(habitId: string): Promise<HabitDetail> {
   return apiClient<HabitDetail>(API.habits.get(habitId))
@@ -108,7 +107,6 @@ export function useDrillNavigation(
       const showFeedback = !silent || feedbackPendingRef.current
       feedbackPendingRef.current = showFeedback
       if (showFeedback) {
-        prepareListLayoutMotion('habits')
         setDrillLoading(true)
       }
       try {
@@ -122,7 +120,6 @@ export function useDrillNavigation(
         })
         const normalized = normalizeHabitDetailForDrill(detail, todayStr)
         if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return
-        prepareListLayoutMotion('habits')
         setDrillParentInfo(normalized.parent)
 
         setDrillChildrenMap((prev) => {
@@ -141,7 +138,6 @@ export function useDrillNavigation(
         if (requestIdRef.current === requestId) {
           feedbackPendingRef.current = false
           if (showFeedback) {
-            prepareListLayoutMotion('habits')
             setDrillLoading(false)
           }
         }
@@ -154,7 +150,6 @@ export function useDrillNavigation(
     async (habitId: string) => {
       requestIdRef.current += 1
       feedbackPendingRef.current = false
-      prepareListLayoutMotion('habits')
       setDrillError('')
       setDrillLoading(false)
       activeParentIdRef.current = habitId
@@ -170,7 +165,6 @@ export function useDrillNavigation(
     requestIdRef.current += 1
     feedbackPendingRef.current = false
     activeParentIdRef.current = null
-    prepareListLayoutMotion('habits')
     setDrillLoading(false)
     setDrillStack((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev))
   }, [])
@@ -179,7 +173,6 @@ export function useDrillNavigation(
     requestIdRef.current += 1
     feedbackPendingRef.current = false
     activeParentIdRef.current = null
-    prepareListLayoutMotion('habits')
     setDrillLoading(false)
     setDrillStack([])
     setDrillChildrenMap(new Map())
