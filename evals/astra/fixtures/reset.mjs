@@ -14,9 +14,9 @@ const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =
 const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-history', 'empty', 'overdue', 'skipped',
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
   'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'starting-step-checklist', 'hoje-next-step'])
-export const disposableStagingOrigin = 'https://orbit-api-staging-uqu2.onrender.com'
-export function requireStagingOrigin() {
-  if (apiOrigin() !== disposableStagingOrigin) throw new Error('Fixture isolation requires the disposable staging origin.')
+export const disposableEvalOrigins = ['https://orbit-api-staging-uqu2.onrender.com', 'https://api.useorbit.org']
+export function requireEvalOrigin() {
+  if (!disposableEvalOrigins.includes(apiOrigin())) throw new Error('Fixture reset requires a known eval origin and a disposable eval account.')
 }
 
 export async function clearPendingOperations(api) {
@@ -181,19 +181,19 @@ function fixtureEvidence(exported, fixture, today, account) {
 
 export async function resetFixture(test, today = new Date().toISOString().slice(0, 10), unmetered = false,
   requireFreshFreeWindow = test.vars.preconditions?.freshFreeDailyWindow === true) {
-  requireStagingOrigin()
+  requireEvalOrigin()
   const fixture = test.metadata.fixture
   const names = fixtureNames(test.metadata.locale)
   const titles = fixture === 'hoje-next-step' ? ['Meals', 'Water'] : fixtureHabitTitles(fixture, test.metadata.locale)
   if (!fixtures.has(fixture)) throw new Error('Unknown fixture.')
   const key = test.vars.credentialKey
   const api = publicApi(key)
-  try { await clearPendingOperations(api) } catch (error) {
-    throw new Error(`Pending isolation unavailable. ${safeFailureMessage(error)}`)
-  }
   const { payload: profile } = await api('GET', 'profile')
   if (typeof profile?.email !== 'string' || !/^thomaslrgregorio\+orbit-eval-[a-z0-9-]+@gmail\.com$/.test(profile.email)) {
-    throw new Error('Fixture reset requires the staging origin and a disposable eval account.')
+    throw new Error('Fixture reset requires a known eval origin and a disposable eval account.')
+  }
+  try { await clearPendingOperations(api) } catch (error) {
+    throw new Error(`Pending isolation unavailable. ${safeFailureMessage(error)}`)
   }
   if (typeof profile?.hasProAccess !== 'boolean' || !Number.isInteger(profile.aiMessagesUsed) || !Number.isInteger(profile.aiMessagesLimit)) throw new Error('Fixture profile lacks access or allowance evidence.')
   if (requireFreshFreeWindow && (profile.hasProAccess || profile.aiMessagesUsed !== 0)) {
@@ -262,7 +262,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
 export async function runReset(caseId) {
   const test = corpus.find((entry) => entry.metadata.id === caseId)
   if (!test) throw new Error('Unknown corpus case ID.')
-  requireStagingOrigin()
+  requireEvalOrigin()
   await refreshCredential(test.vars.credentialKey)
   const unmetered = await requireEvalAccess(test.vars.credentialKey)
   await resetFixture(test, undefined, unmetered)

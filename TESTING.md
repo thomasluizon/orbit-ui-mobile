@@ -317,7 +317,7 @@ checklists and logs. Attempt evidence retains sanitized proposed dates and both 
 
 | Key | Purpose |
 |---|---|
-| `ORBIT_EVAL_BASE_URL` | Exactly `https://orbit-api-staging-uqu2.onrender.com`; destructive fixture resets reject every other origin |
+| `ORBIT_EVAL_BASE_URL` | `https://orbit-api-staging-uqu2.onrender.com` (staging) or `https://api.useorbit.org` (production); destructive fixture resets reject every other origin and every non-eval account |
 | `ORBIT_EVAL_CREDENTIALS_FILE` | Private JSON file containing account refresh tokens and the stable habit registry; owned by the runner user, regular file, mode 600 |
 | `ORBIT_EVAL_GRADER` | Set `file://codex-grader.mjs` for the installed, authenticated Codex CLI grader |
 | `OPENAI_API_KEY` | Grader credential when using an OpenAI provider; Astra uses the refreshed Orbit bearer token |
@@ -359,8 +359,8 @@ corpus YAML files and uses only authenticated public API routes. Only the budget
 ordinary chat messages; no fixture calls an admin
 route, account reset or the database. Water and Walk are created once or adopted, and their `habitId` and `secondHabitId` are persisted alongside
 the account's refresh token. Empty and medical fixtures soft-delete them; later fixtures restore
-the same IDs. Before any fixture write, the executable reads the profile and requires the exact
-staging origin and an email matching `thomaslrgregorio+orbit-eval-<name>@gmail.com`. Normal resets
+the same IDs. Before any fixture write, the executable reads the profile and requires one of the two allowed
+eval origins and an email matching `thomaslrgregorio+orbit-eval-<name>@gmail.com`. Normal resets
 restore the daily schedule, toggle positive logs through the real log API and clear unrelated habits,
 goals, tags and templates. Cursor updates omit `startDate`, because the producer gives it precedence
 over `dueDate`. Historical seeding starts with an explicit cursor inside the public log window; after

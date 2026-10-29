@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from 'node:util'
 import { publicApi } from './fixtures/api.mjs'
-import { clearPendingOperations, requireStagingOrigin } from './fixtures/reset.mjs'
+import { clearPendingOperations, requireEvalOrigin } from './fixtures/reset.mjs'
 import { safeFailureMessage } from './credentials.mjs'
 import { outcomeCalls } from './operation-matcher.mjs'
 import { sameTime } from './brain-dumps.mjs'
@@ -9,7 +9,7 @@ const result = (pass, reason, evidence = {}) => ({ pass, score: pass ? 1 : 0, re
 const ordered = (habits) => [...habits].sort((left, right) => left.id.localeCompare(right.id))
 
 async function brainDumpSnapshot(vars) {
-  requireStagingOrigin()
+  requireEvalOrigin()
   const { payload } = await publicApi(vars.credentialKey)('GET', 'profile/export')
   if (!Array.isArray(payload?.habits)) throw new Error('Brain dump export lacks persisted habits.')
   return ordered(payload.habits)
@@ -86,7 +86,7 @@ async function approveAndRead(output, vars, baseline, api) {
 }
 
 export async function approveBrainDump(output, vars, baseline, previewVerdict) {
-  requireStagingOrigin()
+  requireEvalOrigin()
   const api = publicApi(vars.credentialKey)
   let evidence = previewVerdict
   try {
