@@ -68,9 +68,8 @@ const ownerBoundaryCases = async () => {
     earlier?.conversation.some((turn) => turn.text.includes("Owner question: which track?")))
   T("progress-window: baseline source and local start are explicit",
     windowReport.baselineSource === "previous-progress" && typeof windowReport.window.localStartedAt === "string")
-  T("progress-window: command expansions and tool results do not become conversation evidence",
-    windowReport.entries.find((entry) => entry.sessionId === "current").conversation.every((turn) =>
-      !turn.text.includes("tool_result")))
+  T("progress-window: current session with recorded decisions has no conversation",
+    !Object.hasOwn(windowReport.entries.find((entry) => entry.sessionId === "current"), "conversation"))
   const laterPath = join(transcriptsDirectory, "later.jsonl")
   writeFileSync(laterPath, `${JSON.stringify(command("later", "2026-10-01T03:45:00Z", "later"))}\n`)
   const simultaneous = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
@@ -100,6 +99,48 @@ const ownerBoundaryCases = async () => {
   const firstSession = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
   T("progress-window: first owner report without a chain identifies its session fallback",
     firstSession.baselineSource === "session-start" && firstSession.window.startedAt === current)
+}
+
+const conversationCases = async () => {
+  const staged = fixture("progress-conversation")
+  const transcriptsDirectory = join(staged.repoRoot, "transcripts")
+  mkdirSync(transcriptsDirectory)
+  const owner = (content, timestamp = "2026-10-01T02:30:00Z") => ({ type: "user", timestamp,
+    origin: { kind: "human" }, turnOrigin: "human", message: { role: "user", content } })
+  for (const sessionId of ["relay-1", "current"]) {
+    writeFileSync(join(transcriptsDirectory, `${sessionId}.jsonl`),
+      JSON.stringify(owner("Already recorded in the decision log.")) + "\n")
+  }
+  const prompt = "x".repeat(5000)
+  const reply = "y".repeat(5000)
+  const rows = [owner(prompt),
+    { type: "assistant", timestamp: "2026-10-01T02:31:00Z", message: { role: "assistant", content: [
+      { type: "thinking", thinking: "Private reasoning" }, { type: "text", text: reply },
+      { type: "tool_use", name: "Read", input: { file_path: "decisions.md" } }] } },
+    { type: "user", timestamp: "2026-10-01T02:32:00Z", message: { role: "user", content: [
+      { type: "tool_result", tool_use_id: "tool-source", content: "Tool output" },
+      { type: "text", text: "Tool-result context" }] } },
+    { type: "user", timestamp: "2026-10-01T02:33:00Z", message: { role: "user", content: "System notification" } },
+    { ...owner("Expanded skill body"), isMeta: true },
+    { ...owner("Sidechain prompt"), isSidechain: true },
+    owner("Outside the window", "2026-09-30T23:00:00Z"),
+    owner("Future prompt", "2026-10-01T05:00:00Z"),
+    owner([{ type: "text", text: "Which release track?" }], "2026-10-01T02:34:00Z"),
+    { type: "assistant", timestamp: "2026-10-01T02:35:00Z", message: { role: "assistant", content: "Use the internal track." } },
+  ]
+  writeFileSync(join(transcriptsDirectory, "unrecorded.jsonl"), rows.map((row) => JSON.stringify(row)).join("\n") + "\n")
+  const report = await collectProgressWindow({ ...staged.options, transcriptsDirectory })
+  for (const sessionId of ["relay-1", "current"]) {
+    T(`progress-window: ${sessionId} decision log replaces transcript conversation`,
+      !Object.hasOwn(report.entries.find((entry) => entry.sessionId === sessionId), "conversation"))
+  }
+  const turns = report.entries.find((entry) => entry.sessionId === "unrecorded").conversation
+  T("progress-window: fallback retains only owner prompts and assistant text within the window",
+    turns.length === 4 && turns.map((turn) => turn.role).join() === "user,assistant,user,assistant" &&
+    turns[2].text === "Which release track?" && turns[3].text === "Use the internal track.")
+  T("progress-window: fallback caps each long prompt and reply with a visible truncation marker",
+    turns[0].text === prompt.slice(0, 1500) + "\n[truncated]" &&
+    turns[1].text === reply.slice(0, 1500) + "\n[truncated]")
 }
 
 const directoryCases = async () => {
@@ -143,6 +184,7 @@ const directoryCases = async () => {
 
 export const cases = async () => {
   await ownerBoundaryCases()
+  await conversationCases()
   await directoryCases()
   const staged = fixture("progress-core")
   const report = await collectProgressWindow(staged.options)

@@ -71,11 +71,12 @@ const conversationInWindow = async (path, startedAt, now) => {
   if (!path) return turns
   await readTranscript(path, (row) => {
     if (Date.parse(row.timestamp) < Date.parse(startedAt) || Date.parse(row.timestamp) > Date.parse(now) ||
-      row.isMeta || row.isSidechain || !["user", "assistant"].includes(row.type)) return
+      row.isMeta || row.isSidechain || !(ownerPrompt(row) || row.type === "assistant")) return
     const content = row.message?.content
     const text = typeof content === "string" ? content : Array.isArray(content)
       ? content.filter((block) => block.type === "text" && typeof block.text === "string").map((block) => block.text).join("\n") : ""
-    if (text) turns.push({ time: row.timestamp, role: row.type, text })
+    if (text) turns.push({ time: row.timestamp, role: row.type,
+      text: text.length > 1500 ? text.slice(0, 1500) + "\n[truncated]" : text })
   })
   return turns
 }
@@ -138,7 +139,7 @@ const progressEntries = async ({ sessionId, repoRoot, transcriptPath, transcript
     entries.push({ ...entry, startedAt: Date.parse(entry.startedAt) < Date.parse(startedAt) ? startedAt : entry.startedAt,
       endedAt: Date.parse(entry.endedAt) > Date.parse(now) ? now : entry.endedAt,
       decisions: entry.decisions ?? "", openOwnerQuestions: entry.openOwnerQuestions ?? [],
-      conversation: await conversationInWindow(entry.transcriptPath, startedAt, now),
+      ...(entry.decisions ? {} : { conversation: await conversationInWindow(entry.transcriptPath, startedAt, now) }),
       merges: [], releases: [], closedTickets: [], createdTickets: [] })
   }
   entries.sort((left, right) => Date.parse(left.startedAt) - Date.parse(right.startedAt))
