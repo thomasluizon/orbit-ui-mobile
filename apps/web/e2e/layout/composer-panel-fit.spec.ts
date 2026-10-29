@@ -216,7 +216,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         if (width === 320) expect(wrapped.height).toBeGreaterThan(empty.clientHeight)
         expect(wrapped.height).toBeLessThanOrEqual(5 * wrapped.lineHeight + 24)
         expect(wrapped.scrollHeight).toBe(wrapped.height)
-        expect(wrapped.pillInset).toBeCloseTo(4 + entryWidth + 8, 1)
+        expect(wrapped.pillInset).toBeCloseTo(8 + entryWidth + 8, 1)
         expect(wrapped.pillInset).toBeCloseTo(inset.pillInset!, 1)
         expect(typed.whiteSpace).toBe('pre-wrap')
         expect(typed.wordBreak).toBe('normal')
