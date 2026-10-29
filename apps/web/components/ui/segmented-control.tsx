@@ -10,7 +10,7 @@ import { getSegmentedControlLayout } from '@orbit/shared/utils'
 import { SelectionIndicator } from './selection-indicator'
 
 const segmentPadding = 'px-2'
-const trackSpacing = 'gap-2 p-1'
+const trackSpacing = 'gap-2 px-0 py-1'
 
 function inlinePadding(style: CSSStyleDeclaration) {
   return Number(style.paddingLeft.replace('px', '')) + Number(style.paddingRight.replace('px', ''))

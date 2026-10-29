@@ -6,6 +6,8 @@ import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import { getSegmentedControlLayout } from '@orbit/shared/utils'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { measureSplitSegmentWords, mountMeasuredSegmentedControls } from '@/__tests__/support/segmented-control-geometry'
@@ -20,6 +22,43 @@ beforeAll(async () => {
   stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
 })
 afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+it('leaves at least 8px spare for the four Portuguese calendar views in a 288px frame', async () => {
+  const options = (['month', 'week', 'range', 'agenda'] as const).map((value) => ({ value, label: ptBR.calendar.view[value] }))
+  const { container } = render(<div style={{ width: 288 }}><SegmentedControl fullWidth label={ptBR.calendar.view.switchLabel}
+    options={[options[0]!, options[1]!, options[2]!, options[3]!]} value="month" onChange={vi.fn()} /></div>)
+  const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+  try {
+    await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+    await loadAppFonts(page)
+    await mountMeasuredSegmentedControls(page)
+    const inputs = await page.evaluate(() => {
+      const frame = document.querySelector('[data-segmented-control]')!
+      const labels = [...frame.querySelectorAll<HTMLElement>('[data-segment-measure]')]
+      const track = getComputedStyle(labels[0]!.parentElement!)
+      const label = getComputedStyle(labels[0]!)
+      return {
+        available: frame.getBoundingClientRect().width,
+        words: labels.map((element) => [Math.ceil(element.querySelector('[data-segment-full]')!.getBoundingClientRect().width)]),
+        insets: { label: Number.parseFloat(label.paddingLeft) + Number.parseFloat(label.paddingRight),
+          track: Number.parseFloat(track.paddingLeft) + Number.parseFloat(track.paddingRight), gap: Number.parseFloat(track.columnGap) },
+      }
+    })
+    const layout = getSegmentedControlLayout(inputs.words, inputs.available, inputs.insets)
+    const required = layout.minimumWidths.reduce((sum, width) => sum + width, inputs.insets.track + inputs.insets.gap * (options.length - 1))
+    expect(inputs.available).toBe(288)
+    expect(inputs.available - required, JSON.stringify({ ...inputs, required })).toBeGreaterThanOrEqual(8)
+    expect(layout.folded).toBe(false)
+    expect(inputs.insets.label).toBeGreaterThanOrEqual(16)
+    expect(inputs.insets.gap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+    expect(await page.getByRole('radio').count()).toBe(4)
+    for (const option of options) {
+      const radio = page.getByRole('radio', { name: option.label, exact: true })
+      await radio.click()
+      expect(await radio.getAttribute('aria-checked')).toBe('true')
+    }
+  } finally { cleanup(); await page.close() }
+})
 
 it.each(['en', 'pt-BR'])('settles at the fractional fit boundary after shrinking accessibility text in %s', async (locale) => {
   const messages = locale === 'en' ? en : ptBR

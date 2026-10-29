@@ -261,6 +261,12 @@ weekday-picker, composer, calendar header, profile preference and bar-chart owne
 Pill focus stays inside its paint. Collapsed sidebar search, navigation and Astra glyphs share
 the centre of their feedback. Badges belong to their own control and do not move its fill centre.
 
+The paired `ui/segmented-control.tsx` owners keep 8px gaps between full-segment fills and 8px
+inline label padding inside 48px targets. Their track has no inline padding and retains 4px
+block padding. Android's position ring paints as an absolute overlay, leaving label measurement
+unchanged by selection or focus. Both unit geometry cases require at least 8px spare for the
+four Portuguese calendar views inside a 288px frame before distributing remaining width.
+
 Every interactive notification bell placement uses IconButton on both platforms. The count sits
 at its corner and belongs to the same control; it does not shift the glyph or the feedback centre.
 The passive web corner bell in `navigation/notification-bell.tsx` retains the same 44px box,

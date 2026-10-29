@@ -818,11 +818,11 @@ describe('Calendar header geometry in Chromium', () => {
         })
         return {
           labelInsets: segments.map((segment) => segment.inset), trackInset, gap,
-          fixed: segments.reduce((sum, segment) => sum + Math.max(48, segment.wordWidth + 16), 8 + 4 * (segments.length - 1)),
+          fixed: segments.reduce((sum, segment) => sum + Math.max(48, segment.wordWidth + segment.inset / 2), trackInset / 2 + gap / 2 * (segments.length - 1)),
           measured: segments.reduce((sum, segment) => sum + Math.max(48, segment.wordWidth + segment.inset), trackInset + gap * (segments.length - 1)),
         }
       })
-      expect(required).toMatchObject({ labelInsets: [32, 32, 32, 32], trackInset: 16, gap: 16 })
+      expect(required).toMatchObject({ labelInsets: [32, 32, 32, 32], trackInset: 0, gap: 16 })
       const availableWidth = Math.floor((required.fixed + required.measured) / 2)
       expect(required.fixed).toBeLessThanOrEqual(availableWidth)
       expect(required.measured).toBeGreaterThan(availableWidth)

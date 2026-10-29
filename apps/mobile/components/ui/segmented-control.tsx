@@ -33,6 +33,7 @@ function SegmentOption<TValue extends string>({
   onLayout: (event: LayoutChangeEvent) => void
   tokens: ReturnType<typeof createTokensV2>
 }>) {
+  const [focused, setFocused] = useState(false)
   const disabled = controlDisabled || Boolean(option.disabled)
   const select = () => {
     if (!disabled && !selected) onChange(option.value)
@@ -43,9 +44,10 @@ function SegmentOption<TValue extends string>({
     selected,
   })
   return (
-    <Primitive.Item value={option.value} disabled={disabled} asChild><Pressable focusInset selectionRingWidth={2}
+    <Primitive.Item value={option.value} disabled={disabled} asChild><Pressable focusInset
       onLayout={onLayout}
-      onFocus={onFocus} focusable={focusable}
+      onFocus={() => { setFocused(true); onFocus() }}
+      onBlur={() => setFocused(false)} focusable={focusable}
       ref={elementRef}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected, disabled }}
@@ -54,11 +56,12 @@ function SegmentOption<TValue extends string>({
       style={({ pressed }) => [
         styles.option,
         { minWidth: minimumWidth },
-        selected && !hasIndicator ? { backgroundColor: tokens.bgHover } : styles.unselected,
+        selected && !hasIndicator ? { backgroundColor: tokens.bgHover } : null,
         disabled ? styles.disabled : null,
         pressed ? [styles.pressed, { backgroundColor: tokens.bgHover }] : null,
       ]}
     >
+      {selected && !focused ? <View pointerEvents="none" accessible={false} style={[styles.selectionRing, { borderColor: tokens.primary }]} /> : null}
       <Text numberOfLines={fontScale > 1.3 ? undefined : 1} style={[styles.label, { color: selected ? tokens.fg1 : tokens.fg2 }]}>
         {option.label}
       </Text>
@@ -77,7 +80,9 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
   const [availableWidth, setAvailableWidth] = useState(0)
   const words = props.options.map((option) => fontScale > 1.3 ? option.label.split(/\s+/) : [option.label])
   const measuredWords = measurement.signature === signature ? measurement.words : {}
-  const layout = getSegmentedControlLayout(words.map((labelWords) => labelWords.map((word) => measuredWords[word] ?? 0)), availableWidth, { label: 20, track: 8, gap: 8 })
+  const layout = getSegmentedControlLayout(words.map((labelWords) => labelWords.map((word) => measuredWords[word] ?? 0)), availableWidth, {
+    label: 2 * styles.option.paddingHorizontal, track: 2 * styles.group.paddingHorizontal, gap: styles.group.gap,
+  })
   const { minimumWidths } = layout
   const ready = words.flat().every((word) => measuredWords[word] !== undefined)
   const folded = ready && layout.folded
@@ -143,9 +148,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     flexDirection: 'row',
     flexWrap: 'nowrap',
-    gap: 8,
+    gap: SPACING.s8,
     maxWidth: '100%',
-    padding: SPACING.s4,
+    paddingHorizontal: SPACING.s0,
+    paddingVertical: SPACING.s4,
   },
   fullWidth: { alignSelf: 'stretch', width: '100%' },
   disabled: {
@@ -155,8 +161,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'transparent',
     justifyContent: 'center',
     minHeight: TOUCH_TARGET_MIN,
     minWidth: TOUCH_TARGET_MIN,
@@ -167,9 +171,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.s8,
     paddingVertical: SPACING.s4,
   },
-  unselected: {
-    borderColor: 'transparent',
-  },
+  selectionRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 2, borderRadius: 8 },
   pressed: {
     transform: [{ scale: 0.96 }],
   },

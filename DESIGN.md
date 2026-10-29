@@ -1284,6 +1284,13 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | BlockFrame | the container every generative block inherits: five states, header count from `items.length`, one pinned action row, block scoped polite live region, no entrance animation | `ui/block-frame.tsx` | `ui/block-frame.tsx` |
 | Proposed | the tenth state wrapper: `--fg-3` inside an inset dashed hairline, radius 12 field / 8 row / 20 block, never the accent | `ui/proposed.tsx` | `ui/proposed.tsx` |
 
+Segmented view tracks retain 8px between full-segment fills, 8px segment inline padding and
+48px minimum targets. Their well has no inline padding and keeps 4px block padding. The paired
+`ui/segmented-control.tsx` owners measure those same insets; Android paints its 2px position ring
+as an absolute overlay so it consumes no label width. The four Portuguese calendar labels leave
+at least 8px spare in a 288px frame before spare width is shared among segments. Unit geometry
+cases compute that budget from the real labels, padding, gap and `getSegmentedControlLayout`.
+
 ## Overlay
 
 One primitive covers the drawer, sheet, dialog and modal. It presents as a bottom sheet below the `sm` breakpoint and as a centred dialog at `sm` and above. **83 callers inherit whatever this primitive gets wrong**, which is why the rules below are mechanical.

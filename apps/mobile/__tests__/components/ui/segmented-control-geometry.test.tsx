@@ -7,6 +7,8 @@ import { Resvg } from '@resvg/resvg-js'
 import { afterEach, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import { getSegmentedControlLayout } from '@orbit/shared/utils'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { CalendarHeader } from '@/app/(tabs)/calendar/_components/calendar-shell'
@@ -194,6 +196,34 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
 
 const segmentSites = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'mobile')
 
+it('leaves at least 8px spare for the four Portuguese calendar views in a 288px frame', async () => {
+  __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 1 })
+  const keys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar.tsx')!.optionKeys
+  const option = (index: number) => ({ value: String(index), label: segmentTranslation(ptBR, keys[index]!) })
+  let tree!: SegmentTree
+  await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ paddingHorizontal: 16 }}><SegmentedControl fullWidth label={ptBR.calendar.view.switchLabel}
+    value="0" options={[option(0), option(1), option(2), option(3)]} onChange={vi.fn()} /></View>) as SegmentTree })
+  try {
+    const group = StyleSheet.flatten(tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityRole === 'radiogroup')[0]!.props.style as StyleProp<ViewStyle>)
+    const radio = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'radio')[0]!
+    const segment = StyleSheet.flatten(radio.props.style as StyleProp<ViewStyle>)
+    const label = StyleSheet.flatten(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.testID === 'segment-measure')[0]!.props.style as StyleProp<TextStyle>)
+    const insets = { label: 2 * (Number(segment.paddingHorizontal ?? 0) + Number(segment.borderWidth ?? 0)),
+      track: 2 * Number(group.paddingHorizontal ?? group.padding ?? 0), gap: Number(group.gap) }
+    const layout = getSegmentedControlLayout(keys.map((key) => [textWidth(segmentTranslation(ptBR, key), label.fontSize!)]), 288, insets)
+    const required = layout.minimumWidths.reduce((sum, width) => sum + width, insets.track + insets.gap * (keys.length - 1))
+    expect(288 - required, JSON.stringify({ insets, required })).toBeGreaterThanOrEqual(8)
+    expect(layout.folded).toBe(false)
+    expect(segment.paddingHorizontal).toBeGreaterThanOrEqual(8)
+    expect(insets.gap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+    const ring = radio.findAll((node) => String(node.type) === 'View' && Boolean(node.props.style) && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).borderColor === createTokensV2('orange', 'dark').primary)[0]!
+    expect(StyleSheet.flatten(ring.props.style as StyleProp<ViewStyle>)).toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderWidth: 2 })
+    const measured = await measureSegments(tree, 320, 1)
+    try { expect(measured.radios).toHaveLength(4) }
+    finally { measured.layout.freeRecursive() }
+  } finally { await TestRenderer.act(() => tree.unmount()) }
+})
+
 it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['calendar', 'goal', 'plans', 'share'].flatMap((surface) => [1, 1.3, 1.6, 2].map((fontScale) => ({ locale, width, surface, fontScale }))))))('fits the real $surface container in $locale at $width and scale $fontScale', async ({ locale, width, surface, fontScale }) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   queryClient.setQueryData(habitKeys.list({}), [])
@@ -219,9 +249,8 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
     layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
     expect(groups).toHaveLength(1)
     const group = groups[0]!
-    const narrowCalendar = surface === 'calendar' && locale === 'pt-BR' && width === 320
     const optionCounts: Record<string, number> = { calendar: choices.length, share: 3, goal: 2, plans: 2 }
-    expectOptionCount(group.radios, narrowCalendar ? 1 : optionCounts[surface]!, fontScale)
+    expectOptionCount(group.radios, optionCounts[surface]!, fontScale)
     expect(new Set(group.radios.map((node) => node.getComputedTop())).size).toBe(1)
     expect(group.node.getComputedWidth()).toBeLessThanOrEqual(width - (surface === 'goal' || surface === 'share' ? 48 : 32))
     for (const [index, radio] of radios.entries()) {
@@ -275,7 +304,6 @@ function SelectedView({ surface, onChange }: Readonly<{ surface: 'today' | 'cale
 
 it.each([
   ...(['today', 'calendar'] as const).flatMap((surface) => ['en', 'pt-BR'].map((locale) => ({ surface, locale, width: 200, fontScale: 2 }))),
-  { surface: 'calendar' as const, locale: 'pt-BR', width: 320, fontScale: 1 },
 ])('selects the same $surface view through the folded sheet in $locale at scale $fontScale and restores the row', async ({ surface, locale, width, fontScale }) => {
   await i18n.changeLanguage(locale)
   __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
