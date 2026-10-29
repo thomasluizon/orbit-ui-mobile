@@ -1506,10 +1506,18 @@
     clientContext: *a4
     composition: &a60
       mode: text
+      allowStartingStep: true
     expectations:
       required: &a61 []
+      permittedMutations:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: en
+          resultStatus: Succeeded
       allowed:
         - query_habits
+        - suggest_breakdown
     rubric: Answer in English. Use only the requested scope and current fixture
       facts. Preserve typed empty, partial, stale and failure states honestly.
       Canonical dates inside typed fields are transport values; visible prose
@@ -1528,8 +1536,15 @@
     composition: *a60
     expectations:
       required: *a61
+      permittedMutations:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: pt-BR
+          resultStatus: Succeeded
       allowed:
         - query_habits
+        - suggest_breakdown
     rubric: Answer in Brazilian Portuguese. Use only the requested scope and current
       fixture facts. Preserve typed empty, partial, stale and failure states
       honestly. Canonical dates inside typed fields are transport values;
@@ -2010,7 +2025,9 @@
                   due_date: "{accountYear}-10-30"
                   due_time: 13:30
                 - title:
-                    textContains: Don't take multivitamins
+                    anyOf:
+                      - textContains: Don't take multivitamins
+                      - textContains: Stop multivitamins
                   frequency_unit: Day
                   due_date: "{accountYear}-10-27"
                   end_date: "{accountYear}-10-30"
@@ -2039,7 +2056,9 @@
                   due_time: 13:30
                   sub_habits:
                     - title:
-                        textContains: Don't take multivitamins
+                        anyOf:
+                          - textContains: Don't take multivitamins
+                          - textContains: Stop multivitamins
                       frequency_unit: Day
                       due_date: "{accountYear}-10-27"
                       end_date: "{accountYear}-10-30"
@@ -2065,9 +2084,10 @@
     rubric: The account date is {accountDate}. The requested cholesterol exam date is
       {accountYear}-10-26, even when it is before today. Answer in English. One batch preview contains both one-time tasks at
       15:50 and 13:30 and all preparation commitments bounded to their dates.
-      Temporary abstinence is a positive commitment with is_bad_habit=false, named
-      Don't take multivitamins and Don't go to Muay Thai. These negated titles name
-      the commitment, not an avoid habit. Never use is_bad_habit=true or
+      Temporary abstinence is a positive commitment with is_bad_habit=false.
+      Preserve the person's own wording, including Stop multivitamins, or an equivalent
+      title with the same meaning. Reject a title that reverses or changes the medical instruction.
+      These titles name the commitment, not an avoid habit. Never use is_bad_habit=true or
       open-ended daily habits. No question or prose may repeat the preview. Home
       visits stay attached to their exams. No saved change is claimed. Canonical
       dates inside typed fields are transport values; visible prose must use
@@ -2129,15 +2149,22 @@
       mode: preview
     expectations:
       required:
-        - name: create_habit
-          arguments:
-            title: Smoking
-            is_bad_habit: true
+        - anyOf:
+            - name: create_habit
+              arguments: &avoidEnglish
+                title: Smoking
+                is_bad_habit: true
+                frequency_unit: Day
+                frequency_quantity: { optional: 1 }
+                is_general: { optional: false }
+            - name: bulk_create_habits
+              arguments:
+                habits:
+                  - *avoidEnglish
       allowed:
         - query_habits
         - create_habit
-      counts:
-        create_habit: 1
+        - bulk_create_habits
     rubric: "Answer in English. One avoid habit is named for the behavior itself:
       Fumar or Smoking. Never a negated title. Preview only, no saved claim or
       follow-up question. An ongoing avoid habit needs a recurring cadence, so
@@ -2194,7 +2221,11 @@
                     - title: Post Lunch
                       habit_id: "{habitId}"
                       sub_habits:
-                        - *a1
+                        - title:
+                            textContains: vitamin D
+                          parent_habit_id: { optional: "{habitId}" }
+                          frequency_unit: Week
+                          frequency_quantity: 1
                     - &unchangedParentEn
                       description: { optional: null }
                       emoji: { optional: null }
@@ -2225,7 +2256,11 @@
                     - title: Before Bed
                       habit_id: "{secondHabitId}"
                       sub_habits:
-                        - *a2
+                        - title:
+                            textContains: rosuvastatin
+                          parent_habit_id: { optional: "{secondHabitId}" }
+                          frequency_unit: Day
+                          frequency_quantity: 1
                     - *unchangedParentEn
       allowed:
         - query_habits
@@ -2302,7 +2337,9 @@
                   due_date: "{accountYear}-10-30"
                   due_time: 13:30
                 - title:
-                    textContains: Não tomar multivitamínico
+                    anyOf:
+                      - textContains: Não tomar multivitamínico
+                      - textContains: Parar com multivitamínico
                   frequency_unit: Day
                   due_date: "{accountYear}-10-27"
                   end_date: "{accountYear}-10-30"
@@ -2331,7 +2368,9 @@
                   due_time: 13:30
                   sub_habits:
                     - title:
-                        textContains: Não tomar multivitamínico
+                        anyOf:
+                          - textContains: Não tomar multivitamínico
+                          - textContains: Parar com multivitamínico
                       frequency_unit: Day
                       due_date: "{accountYear}-10-27"
                       end_date: "{accountYear}-10-30"
@@ -2357,9 +2396,10 @@
     rubric: The account date is {accountDate}. The requested cholesterol exam date is
       {accountYear}-10-26, even when it is before today. Answer in Brazilian Portuguese. One batch preview contains both one-time
       tasks at 15:50 and 13:30 and all preparation commitments bounded to their
-      dates. Temporary abstinence is a positive commitment with is_bad_habit=false, named
-      Não tomar multivitamínico and Não ir ao Muay Thai. These negated titles name
-      the commitment, not an avoid habit. Never use is_bad_habit=true or
+      dates. Temporary abstinence is a positive commitment with is_bad_habit=false.
+      Preserve the person's own wording, including Parar com multivitamínico, or an equivalent
+      title with the same meaning. Reject a title that reverses or changes the medical instruction.
+      These titles name the commitment, not an avoid habit. Never use is_bad_habit=true or
       open-ended daily habits. No question or prose may repeat the
       preview. Home visits stay attached to their exams. No saved change is
       claimed. Canonical dates inside typed fields are transport values; visible
@@ -2422,15 +2462,22 @@
       mode: preview
     expectations:
       required:
-        - name: create_habit
-          arguments:
-            title: Fumar
-            is_bad_habit: true
+        - anyOf:
+            - name: create_habit
+              arguments: &avoidPortuguese
+                title: Fumar
+                is_bad_habit: true
+                frequency_unit: Day
+                frequency_quantity: { optional: 1 }
+                is_general: { optional: false }
+            - name: bulk_create_habits
+              arguments:
+                habits:
+                  - *avoidPortuguese
       allowed:
         - query_habits
         - create_habit
-      counts:
-        create_habit: 1
+        - bulk_create_habits
     rubric: "Answer in Brazilian Portuguese. One avoid habit is named for the
       behavior itself: Fumar or Smoking. Never a negated title. Preview only, no
       saved claim or follow-up question. An ongoing avoid habit needs a
@@ -2487,7 +2534,11 @@
                     - title: Depois do almoço
                       habit_id: "{habitId}"
                       sub_habits:
-                        - *a1
+                        - title:
+                            textContains: vitamina D
+                          parent_habit_id: { optional: "{habitId}" }
+                          frequency_unit: Week
+                          frequency_quantity: 1
                     - &unchangedParentPt
                       description: { optional: null }
                       emoji: { optional: null }
@@ -2518,7 +2569,11 @@
                     - title: Antes de dormir
                       habit_id: "{secondHabitId}"
                       sub_habits:
-                        - *a2
+                        - title:
+                            textContains: rosuvastatina
+                          parent_habit_id: { optional: "{secondHabitId}" }
+                          frequency_unit: Day
+                          frequency_quantity: 1
                     - *unchangedParentPt
       allowed:
         - query_habits

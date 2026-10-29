@@ -9,9 +9,9 @@ import { prepareCorrection } from '../setup.mjs'
 import { assertions as promptfooAssertions } from 'promptfoo'
 
 // Producer: OneSmallStepCard.Build and SuggestBreakdownTool at the catalog API commit.
-export function startingResponse(locale = 'en', requestId = 'request') {
+export function startingResponse(locale = 'en', requestId = 'request', suppliedSuggestion) {
   const portuguese = locale === 'pt-BR'
-  const suggestion = { goal: portuguese ? 'Estudar' : 'Study', step: portuguese ? 'Abrir o livro' : 'Open the book', language: locale }
+  const suggestion = suppliedSuggestion ?? { goal: portuguese ? 'Estudar' : 'Study', step: portuguese ? 'Abrir o livro' : 'Open the book', language: locale }
   const goal = JSON.stringify(suggestion.goal)
   const step = JSON.stringify(suggestion.step)
   const actions = [
@@ -177,4 +177,20 @@ it('registers five bilingual starting-step cases and the independent persistence
   }
   expect(configuration.evaluateOptions).toMatchObject({ repeat: 3, maxConcurrency: 1, cache: false })
   expect(configuration.defaultTest.assert).toContainEqual({ type: 'javascript', value: 'file://assertions.mjs:savedStep', metric: 'savedStep' })
+})
+
+it.each(['en', 'pt-BR'])('accepts a valid %s coaching block and retains the no-framing rule', (locale) => {
+  const test = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-coaching-advice-${locale}`))
+  const attempts = JSON.parse(readFileSync(new URL('./fixtures/gate-eight.json', import.meta.url), 'utf8'))
+  const recorded = attempts.find(({ caseId }) => caseId === test.metadata.id).toolCalls[0]
+  const suggestion = recorded.resultStatus === 'Succeeded'
+    ? { goal: recorded.arguments.title, step: recorded.arguments.suggested_sub_habits[0].title, language: locale }
+    : { goal: 'Caminhar', step: 'Calçar os tênis de caminhada', language: locale }
+  const response = startingResponse(locale, 'request', suggestion)
+  const vars = { ...test.vars, evalRequestId: 'request', clientContext: { supportsParts: true, locale, partKinds: ['oneSmallStep'] } }
+  const verdict = grades.composition(outputFor(response), { vars })
+  expect(verdict.pass, verdict.reason).toBe(true)
+  response.parts.push({ type: 'text', text: 'Extra framing.' })
+  response.aiMessage = 'Extra framing.'
+  expect(grades.composition(outputFor(response), { vars }).pass).toBe(false)
 })
