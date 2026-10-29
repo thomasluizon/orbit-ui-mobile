@@ -11,6 +11,12 @@ transparent 48px targets. Geometry assertions measure the complete target separa
 Web `app/(app)/today-shell.tsx` and calendar `calendar-options.tsx` reserve a 48px bell row around the shared icon action,
 matching the other compact destination headers without moving its 44px paint.
 Web `today-shell` and Android `components/today/today-date-control.tsx` keep 8px between header action fills.
+Android `components/navigation/notification-bell.tsx` and `notification-bell.styles.ts` position
+the unread badge beside the shared icon action, outside its circular clipping surface. A local
+wrapper preserves the single named action, 44px centred paint, 48px transparent target and 8px
+neighbour clearance. The badge retains system text scaling and contributes no accessibility stop.
+Web `components/navigation/notification-bell.tsx` keeps the badge in its existing visible-overflow
+button; both platform guards check rounded badge paint against every clipping ancestor.
 
 The inventory includes retries, stale refresh, signed paging, disclosure, add controls, copy and sharing, drawn sheet footer actions and per-record actions. Read-block revisions, preview drafts, clipboard feedback, pending requests and focus handoffs retain their original owners.
 

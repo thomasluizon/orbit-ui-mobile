@@ -1740,6 +1740,11 @@ Calendar chevrons use the shared 44px ghost action with a 48px transparent targe
 Geometry assertions include its transparent extensions when enforcing the 48px target floor.
 Web `today-shell` and `calendar-options` reserve the full 48px bell row height,
 matching the shared destination header.
+Android `navigation/notification-bell` places its unread badge beside the shared icon action
+in a local unclipped wrapper. Its count stays in the single action's accessible name.
+The 44px centred paint, transparent 48px target and
+8px neighbour clearance remain unchanged; the badge text scales with the system setting.
+Web small icon actions already allow visible overflow, so their badge stays within the button.
 Web `today-shell` and Android `today-date-control` retain 8px gaps between header action fills.
 The month picker keeps 32px paint width around its 16px glyph, with 48px paint height
 and transparent inline extensions to 48px. Its group reserves 8px between paints and

@@ -41,6 +41,8 @@ export function NotificationBellDisplay({ count, onPress }: { count: number; onP
       {count > 9 ? '9+' : count}
     </Text>
   </View> : null
-  return onPress ? <IconButton label={label} onClick={onPress}><>{glyph}{marker}</></IconButton>
+  return onPress ? <View style={styles.bellAction}>
+      <IconButton label={label} onClick={onPress}>{glyph}</IconButton>{marker}
+    </View>
     : <View accessible accessibilityRole="image" accessibilityLabel={label} style={styles.bellDisplay}>{glyph}{marker}</View>
 }

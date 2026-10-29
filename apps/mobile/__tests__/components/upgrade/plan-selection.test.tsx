@@ -8,6 +8,7 @@ import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/t
 import type { StoreOffer } from '@/hooks/use-play-billing'
 import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { createTokensV2 } from '@/lib/theme'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 
 const motionMocks = vi.hoisted(() => ({
   reduced: false,
@@ -162,7 +163,7 @@ describe('PlanSelection (mobile)', () => {
         node.type === 'View' && node.props.accessibilityRole === 'radiogroup',
     )[0]
     expect(StyleSheet.flatten(group.props.style)).toEqual(expect.objectContaining({
-      alignSelf: 'stretch', width: '100%', flexDirection: 'row', gap: 8, padding: 4,
+      alignSelf: 'stretch', width: '100%', flexDirection: 'row', gap: 8,
     }))
     const segments = tree.root.findAll(
       (node: { type: unknown; props: Record<string, unknown> }) =>
@@ -173,6 +174,21 @@ describe('PlanSelection (mobile)', () => {
       expect(StyleSheet.flatten(segment.props.style)).toEqual(expect.objectContaining({
         flexGrow: 1, flexBasis: 'auto', paddingHorizontal: 8, minHeight: 48,
       }))
+    }
+    for (const width of [320, 840]) {
+      const measured = measureInteractionFills(tree.toJSON(), width, false)
+      const track = measured.find((part) => part.host.props.testID?.startsWith('segmented-control-'))!
+      const options = measured.filter((part) => part.host.type === 'Pressable' && part.ancestors.includes(track.slot))
+      const inlineInset = Number(track.style.paddingHorizontal)
+      const blockInset = Number(track.style.paddingVertical)
+      expect(options).toHaveLength(2)
+      expect(options[0]!.left - inlineInset).toBeCloseTo(track.left)
+      expect(options[1]!.right + inlineInset).toBeCloseTo(track.right)
+      expect(options.reduce((sum, option) => sum + option.width, 0) + Number(track.style.gap) + 2 * inlineInset).toBeCloseTo(track.width)
+      for (const option of options) {
+        expect(option.top - blockInset).toBeCloseTo(track.top)
+        expect(option.bottom + blockInset).toBeCloseTo(track.bottom)
+      }
     }
   })
 

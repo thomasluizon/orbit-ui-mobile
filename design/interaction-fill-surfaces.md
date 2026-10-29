@@ -8,6 +8,11 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 Web `app/(app)/today-shell.tsx` and calendar `calendar-options.tsx` reserve a 48px bell row around their 44px icon paint,
 keeping the same vertical centre and trailing edge as the shared destination headers.
 Web `today-shell` and Android `components/today/today-date-control.tsx` use 8px action gaps.
+Android `components/navigation/notification-bell.tsx` and `notification-bell.styles.ts` keep the
+count beside the shared icon action in a local unclipped wrapper, preserving the 44px centred
+paint, transparent 48px target and 8px neighbour clearance. Its accessible action names the count;
+the badge adds no action. Rounded paint checks follow every clipping ancestor at both text scales.
+Web `components/navigation/notification-bell.tsx` retains its existing visible-overflow icon action.
 
 | Surface | Web owner | Android owner | Reserved clearance |
 |---|---|---|---|
