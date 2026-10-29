@@ -8,6 +8,7 @@ const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', impor
 const scenario = (family, locale) => structuredClone(corpus.find((entry) => entry.metadata.family === family && entry.metadata.locale === locale))
 const argumentsFrom = (value) => {
   if (Array.isArray(value)) return value.map(argumentsFrom)
+  if (value && typeof value === 'object' && 'anyOf' in value) return argumentsFrom(value.anyOf[0])
   if (value && typeof value === 'object') return 'textContains' in value ? value.textContains
     : Object.fromEntries(Object.entries(value).map(([key, child]) => [key, argumentsFrom(child)]))
   return value

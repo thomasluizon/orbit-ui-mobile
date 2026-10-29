@@ -33,7 +33,7 @@ function batchPreview(arguments_) {
 
 function medicalPreviews(scenario, today) {
   const original = JSON.parse(JSON.stringify({ habits: scenario.vars.setup.expectations.required[0].arguments.habits.map((habit) => ({
-    ...habit, title: habit.title.textContains,
+    ...habit, title: (habit.title.anyOf?.[0] ?? habit.title).textContains,
   })) }).replace(/\{accountDate([+]\d+)\}/g, (_, offset) => dateOffset(today, Number(offset))))
   const setupInput = scenario.vars.setup.input
     .replaceAll('{accountDateEn+3}', '01/02').replaceAll('{accountDateEn+7}', '01/06')
