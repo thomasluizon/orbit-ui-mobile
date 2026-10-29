@@ -7,6 +7,8 @@ import { offlineCredentials } from './fixtures/credentials.mjs'
 
 const { apiCommit } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
 
+vi.mock('../fixtures/reset.mjs', async (original) => ({ ...await original(), resetFixture: vi.fn() }))
+
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 const suiteFor = (keys) => ({ suite: { tests: keys.map((credentialKey) => ({

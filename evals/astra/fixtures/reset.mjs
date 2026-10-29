@@ -7,12 +7,13 @@ import { publicApi, requireEvalAccess } from './api.mjs'
 import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle, startingChecklistItems } from './names.mjs'
 import { exhaustAllowance } from './allowance.mjs'
 import { seedRestart } from './restart.mjs'
+import { seedHojeNextStep } from './hoje-next-step.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
   parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')))
 const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-history', 'empty', 'overdue', 'skipped',
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
-  'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'starting-step-checklist'])
+  'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'starting-step-checklist', 'hoje-next-step'])
 export const disposableStagingOrigin = 'https://orbit-api-staging-uqu2.onrender.com'
 export function requireStagingOrigin() {
   if (apiOrigin() !== disposableStagingOrigin) throw new Error('Fixture isolation requires the disposable staging origin.')
@@ -183,7 +184,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   requireStagingOrigin()
   const fixture = test.metadata.fixture
   const names = fixtureNames(test.metadata.locale)
-  const titles = fixtureHabitTitles(fixture, test.metadata.locale)
+  const titles = fixture === 'hoje-next-step' ? ['Meals', 'Water'] : fixtureHabitTitles(fixture, test.metadata.locale)
   if (!fixtures.has(fixture)) throw new Error('Unknown fixture.')
   const key = test.vars.credentialKey
   const api = publicApi(key)
@@ -233,6 +234,10 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     return
   }
   await restoreHabits(api, exported, account, fixture, today, titles)
+  if (fixture === 'hoje-next-step') {
+    test.vars.fixtureEvidence = fixtureEvidence(await seedHojeNextStep(api, account, today, dailyHabit), fixture, today, account)
+    return
+  }
   if (fixture === 'restart') {
     test.vars.restartBaseline = await seedRestart(api, account, today, titles, dailyHabit, dateOffset)
     return

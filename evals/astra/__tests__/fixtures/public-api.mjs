@@ -81,6 +81,13 @@ export function fixtureFetch(getState) {
     if (resource === 'habits') {
       const habit = habits.find((entry) => entry.id === id)
       if (!habit) throw new Error('Unknown habit at the HTTP boundary.')
+      // Producer: CreateSubHabitCommand assigns the next sibling position and parent identity.
+      if (operation === 'sub-habits' && method === 'POST') {
+        const child = { ...exportedHabit(body), dueTime: body.dueTime ?? null, parentHabitId: id,
+          position: habits.filter((entry) => !entry.deleted && entry.parentHabitId === id).length }
+        habits.push(child)
+        return Response.json({ id: child.id }, { status: 201 })
+      }
       if (operation === 'restore') habit.deleted = false
       else if (operation === 'checklist' && method === 'PUT') habit.checklistItems = structuredClone(body.checklistItems)
       else if (operation === 'log') {
@@ -99,7 +106,8 @@ export function fixtureFetch(getState) {
       } else if (operation === 'skip') {
         if (habit.dueDate > body.date) return Response.json({ error: 'Habit not yet due.' }, { status: 400 })
         habit.dueDate = new Date(Date.parse(`${body.date}T12:00:00Z`) + 86400000).toISOString().slice(0, 10)
-      } else if (method === 'GET') return Response.json(habit)
+      } else if (method === 'GET') return Response.json({ ...habit,
+        children: habits.filter((child) => !child.deleted && child.parentHabitId === id).toSorted((left, right) => left.position - right.position) })
       else if (method === 'PUT') {
         habit.title = body.title
         if (body.startDate && (body.startDate !== habit.startDate || body.frequencyUnit !== habit.frequencyUnit || body.frequencyQuantity !== habit.frequencyQuantity)) {
