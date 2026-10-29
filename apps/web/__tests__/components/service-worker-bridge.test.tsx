@@ -1,4 +1,5 @@
 import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { NextIntlClientProvider } from 'next-intl'
 import { useChatStore } from '@/stores/chat-store'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render } from '@testing-library/react'
@@ -34,9 +35,9 @@ function renderBridge() {
   const queryClient = new QueryClient()
   const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
   const view = render(
-    <QueryClientProvider client={queryClient}>
+    <NextIntlClientProvider locale="en"><QueryClientProvider client={queryClient}>
       <ServiceWorkerBridge />
-    </QueryClientProvider>,
+    </QueryClientProvider></NextIntlClientProvider>,
   )
   return { ...view, invalidateQueries }
 }
@@ -101,6 +102,26 @@ describe('ServiceWorkerBridge', () => {
     expect(container.register).not.toHaveBeenCalled()
     act(() => { window.dispatchEvent(new CustomEvent('orbit-desktop-push')) })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: notificationKeys.lists() })
+  })
+
+  it('refreshes habits after native Done without navigating', () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { configurable: true, value: { invoke: vi.fn() } })
+    const { invalidateQueries } = renderBridge()
+    act(() => { window.dispatchEvent(new CustomEvent('orbit-desktop-reminder-done')) })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: notificationKeys.lists() })
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('passes the account language to the shell and updates it when the language changes', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { configurable: true, value: { invoke: vi.fn() } })
+    const { rerender } = renderBridge()
+    await act(async () => { await vi.dynamicImportSettled() })
+    expect(desktop.resume).toHaveBeenCalledWith(null, 'en')
+    desktop.resume.mockClear()
+    rerender(<NextIntlClientProvider locale="pt-BR"><QueryClientProvider client={new QueryClient()}><ServiceWorkerBridge /></QueryClientProvider></NextIntlClientProvider>)
+    await act(async () => { await vi.dynamicImportSettled() })
+    expect(desktop.resume).toHaveBeenCalledWith(null, 'pt-BR')
   })
 
   it('registers the push worker once for the whole origin', () => {

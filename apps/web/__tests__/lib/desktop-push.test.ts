@@ -74,6 +74,11 @@ describe('desktop push through the native bridge', () => {
     expect((await loadDesktopPush('account-b')).subscribed).toBe(false)
   })
 
+  it('carries the account language through the origin checked native session command', async () => {
+    await resumeDesktopPush('account-a', 'pt-BR')
+    expect(mocks.invoke).toHaveBeenCalledWith('desktop_push', { action: 'session', accountId: 'account-a', language: 'pt-BR' })
+  })
+
   it('commits ownership only after the API accepts registration', async () => {
     const conflict = Object.assign(new Error('Concurrent update'), { code: 'CONCURRENT_UPDATE_CONFLICT' })
     mocks.subscribe.mockRejectedValue(conflict)
