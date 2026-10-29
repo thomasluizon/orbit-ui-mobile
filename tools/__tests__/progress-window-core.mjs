@@ -84,6 +84,13 @@ const ownerBoundaryCases = async () => {
   const nested = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
   T("progress-window: wrap-up and model calls use the latest owner report without skipping it",
     nested.window.startedAt === current)
+  writeFileSync(currentPath, JSON.stringify(command("current", current, "current")) + "\n" + JSON.stringify({
+    ...command("current", "2026-10-01T03:41:00Z", "owner-text"),
+    message: { role: "user", content: [{ type: "text", text: "Give me an update." }] },
+  }) + "\n")
+  const modelCall = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
+  T("progress-window: owner text blocks before a model call keep the latest report as baseline",
+    modelCall.window.startedAt === current)
   writeFileSync(join(transcriptsDirectory, "earlier.jsonl"), "")
   writeFileSync(currentPath, `${JSON.stringify(command("current", current, "first"))}\n`)
   const first = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })

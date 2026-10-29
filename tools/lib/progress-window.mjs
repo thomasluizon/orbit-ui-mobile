@@ -34,10 +34,9 @@ const readTranscript = async (path, visit) => {
 }
 
 const ownerPrompt = (row) => row.type === "user" && !row.isMeta && !row.isSidechain &&
-  row.origin?.kind === "human" && row.turnOrigin === "human" &&
-  typeof row.message?.content === "string"
+  row.origin?.kind === "human" && row.turnOrigin === "human"
 
-const ownerProgress = (row) => ownerPrompt(row) &&
+const ownerProgress = (row) => ownerPrompt(row) && typeof row.message?.content === "string" &&
   /^<command-message>progress<\/command-message>\s*<command-name>\/progress<\/command-name>(?:\s|$)/.test(row.message.content)
 
 const projectSessions = async (directory, now) => {
