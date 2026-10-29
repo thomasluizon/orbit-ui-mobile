@@ -19,7 +19,6 @@ struct PushService {
     operation: Mutex<()>,
     response: Mutex<Option<mpsc::Sender<(i32, String)>>>,
     app: AppHandle,
-    completed: Mutex<std::collections::HashSet<String>>,
     #[cfg(windows)]
     shown: Mutex<ShownNotifications>,
 }
@@ -61,7 +60,6 @@ pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             operation: Mutex::new(()),
             response: Mutex::new(None),
             app: app.clone(),
-            completed: Mutex::new(std::collections::HashSet::new()),
             #[cfg(windows)]
             shown: Mutex::new(std::collections::HashMap::new()),
         })
@@ -464,13 +462,6 @@ fn dispatch_response(service: &'static PushService, response: crate::push_action
     let Some(owner) = service.saved.lock().unwrap().owner.clone() else {
         return;
     };
-    if let crate::push_action::Response::Done(reminder) = &response {
-        if let Some(token) = &reminder.done_token {
-            if !service.completed.lock().unwrap().insert(token.clone()) {
-                return;
-            }
-        }
-    }
     tauri::async_runtime::spawn(async move {
         if !owns_session(service) || service.saved.lock().unwrap().owner.as_deref() != Some(&owner)
         {
