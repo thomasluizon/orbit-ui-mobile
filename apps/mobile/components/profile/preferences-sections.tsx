@@ -3,7 +3,6 @@ import { ChevronDown } from '@/components/ui/icons'
 import { IconButton } from '@/components/ui/icon-button'
 import { useMemo, useRef, useState, type Ref } from 'react'
 import { View, Text } from 'react-native'
-import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
   getTimezoneList,
   buildPreferencePickerModel,
@@ -130,18 +129,15 @@ interface PreferencePickerSheetProps {
   timeZoneNoResultsLabel: string
   timeZoneShowMoreLabel: string
   selectedLanguage: 'en' | 'pt-BR'
-  currentTheme: ThemeMode
   timeZone?: string | null
   weekStartDay?: number
   uses24HourClock?: boolean
-  themeModeOptions: { value: ThemeMode; label: string }[]
   weekStartOptions: { value: 0 | 1; label: string }[]
   clockFormatOptions: { value: '24h' | '12h'; label: string }[]
   sheetRef: Ref<SheetHandle>
   closePicker: (exitAction?: () => void) => void
   onHidden: () => void
   onLanguageChange: (locale: 'en' | 'pt-BR') => void
-  onThemeModeChange: (mode: ThemeMode) => void
   onTimeZoneChange: (timeZone: string) => void
   onWeekStartChange: (day: 0 | 1) => void
   onClockFormatChange: (uses24HourClock: boolean) => void

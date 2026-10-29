@@ -1,3 +1,4 @@
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { readControlPaint } from '@/e2e/layout/control-paint'

@@ -116,31 +116,6 @@ describe('selection yields to keyboard focus', () => {
         expect(await inspectControlAccentRings(control)).toEqual(['span:shadow'])
       } finally { cleanup(); await page.close() }
     })
-    it(`selected theme choice keeps its foreground label under hovered keyboard focus, ${theme}`, async () => {
-      const page = await browser.newPage()
-      try {
-        await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style><button class="orbit-profile-theme-choice" data-selected>Theme</button><span style="color:var(--fg-1);background:var(--primary-dim)">Selected</span>`)
-        const control = page.locator('button')
-        await control.hover()
-        await page.keyboard.press('Tab')
-        expect(await control.evaluate((button) => button.matches(':focus-visible'))).toBe(true)
-        const selectedStyle = await page.locator('span').evaluate((element) => ({ color: getComputedStyle(element).color, background: getComputedStyle(element).backgroundColor }))
-        await expect.poll(() => control.evaluate((element) => getComputedStyle(element).color)).toBe(selectedStyle.color)
-        expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(selectedStyle.background)
-        expect(await inspectControlAccentRings(control)).toHaveLength(1)
-      } finally { await page.close() }
-    })
-    it(`unselected theme choice paints hover without an accent ring, ${theme}`, async () => {
-      const page = await browser.newPage()
-      try {
-        await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style><button class="orbit-profile-theme-choice">Theme</button><span style="background:var(--bg-hover)">Hover</span>`)
-        const control = page.locator('button')
-        await control.hover()
-        const hoverFill = await page.locator('span').evaluate((element) => getComputedStyle(element).backgroundColor)
-        await expect.poll(() => control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(hoverFill)
-        expect(await inspectControlAccentRings(control)).toHaveLength(0)
-      } finally { await page.close() }
-    })
     for (const selected of [false, true]) {
       for (const surface of ['segment', 'chip', 'period', 'radio'] as const) {
         it(`${surface}, selected ${selected}, ${theme}`, async () => {

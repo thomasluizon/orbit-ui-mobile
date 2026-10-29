@@ -1,3 +1,4 @@
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 import { personalText } from '@/__tests__/support/personal-text'
 import { ChatBlock } from '@/components/chat/block-registry'
 import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'

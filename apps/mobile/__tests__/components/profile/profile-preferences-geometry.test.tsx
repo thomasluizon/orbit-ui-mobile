@@ -29,10 +29,10 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 375, 384, 412, 480].flatM
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfilePreferencesContent profile={createMockProfile({ timeZone: 'America/Sao_Paulo', weekStartDay: 1, uses24HourClock: true })} patchProfile={vi.fn()} />) })
   try {
     const labels = tree.root.findAllByType(Text)
-    expect(labels).toHaveLength(13)
+    expect(labels).toHaveLength(10)
     for (const text of labels) expect(text.props.numberOfLines, text.props.children).toBeUndefined()
     const measured = measureProfileRow(tree.toJSON(), width - 32, scale)
-    expect(measured.texts).toHaveLength(13)
+    expect(measured.texts).toHaveLength(10)
     for (const text of measured.texts) {
       expect(text.clipped, text.label).toBe(false)
       expect(text.left, text.label).toBeGreaterThanOrEqual(0)

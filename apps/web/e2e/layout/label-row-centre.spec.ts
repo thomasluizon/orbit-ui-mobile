@@ -42,8 +42,6 @@ for (const width of [412, 1352]) {
           await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
           await page.goto('/profile/preferences')
           const surface = page.getByTestId('profile-settings-group-preferences')
-          const choices = surface.getByRole('group', { name: words.profile.settingsRows.theme, exact: true })
-          await expect(choices.getByRole('button')).toHaveCount(2)
           await page.evaluate(() => document.fonts.ready)
           await expectRowCentres(surface, 1)
           await page.evaluate(() => { document.documentElement.style.fontSize = '200%' })

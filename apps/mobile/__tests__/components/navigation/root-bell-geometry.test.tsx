@@ -111,6 +111,7 @@ function measureBell(host: Host, width: number, fontScale: number, pressed = fal
   const hitExtensions = new Map<YogaNode, number>()
   const targetBounds = (node: YogaNode) => ({ ...bounds(node), targetWidth: node.getComputedWidth() + 2 * (hitExtensions.get(node) ?? 0), targetHeight: node.getComputedHeight() + 2 * (hitExtensions.get(node) ?? 0) })
   const bells: YogaNode[] = []
+  const themes: YogaNode[] = []
   const rows: YogaNode[] = []
   const glyphs: YogaNode[] = []
   const counts: YogaNode[] = []
@@ -130,6 +131,7 @@ function measureBell(host: Host, width: number, fontScale: number, pressed = fal
     }
     if (host.props.testID === 'notification-count') counts.push(node)
     if (host.props.accessibilityRole === 'button' && host.props.accessibilityLabel?.startsWith('notifications.bell')) bells.push(node)
+    if (host.props.accessibilityRole === 'button' && host.props.accessibilityLabel?.startsWith('settings.theme.switchTo')) themes.push(node)
     const header = inHeader || ['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(host.props.testID ?? '')
     if (['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(host.props.testID ?? '')) rows.push(node)
     if (header && host.props.accessibilityRole === 'button') controls.push(node)
@@ -156,8 +158,9 @@ function measureBell(host: Host, width: number, fontScale: number, pressed = fal
   try {
     layout.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
     expect(bells).toHaveLength(1)
+    expect(themes).toHaveLength(1)
     expect(rows).toHaveLength(1)
-    return { summary: summaries[0] ? bounds(summaries[0]) : undefined, bell: targetBounds(bells[0]!), row: bounds(rows[0]!), controls: controls.map(targetBounds), glyph: glyphs[0] ? bounds(glyphs[0]) : undefined, count: counts[0] ? bounds(counts[0]) : undefined }
+    return { summary: summaries[0] ? bounds(summaries[0]) : undefined, bell: targetBounds(bells[0]!), theme: targetBounds(themes[0]!), row: bounds(rows[0]!), controls: controls.map(targetBounds), glyph: glyphs[0] ? bounds(glyphs[0]) : undefined, count: counts[0] ? bounds(counts[0]) : undefined }
   } finally { layout.freeRecursive() }
 }
 
@@ -256,6 +259,11 @@ it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => (
         checkHeaderIcons(host)
         const geometry = measureBell(host, width, fontScale)
         reference ??= geometry
+        expect(Math.abs(geometry.theme.right - reference.theme.right), `${name} theme trailing edge`).toBeLessThanOrEqual(1)
+        expect(geometry.theme.targetWidth).toBe(48)
+        expect(geometry.theme.targetHeight).toBe(48)
+        expect(geometry.bell.left - geometry.theme.right).toBeGreaterThanOrEqual(8)
+        expect(geometry.theme.centerY).toBe(geometry.bell.centerY)
         expect(Math.abs(geometry.bell.right - reference.bell.right), `${name} trailing edge`).toBeLessThanOrEqual(1)
         if (fontScale === 1) expect.soft(Math.abs(geometry.bell.centerY - reference.bell.centerY), `${name} vertical centre`).toBeLessThanOrEqual(1)
         expect(geometry.bell.targetWidth).toBeGreaterThanOrEqual(48)
@@ -266,7 +274,7 @@ it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => (
           const baseline = measureBell(host, width, 1)
           expect(geometry.bell.right).toBe(baseline.bell.right)
           expect(geometry.row.height).toBe(baseline.row.height)
-          expect(geometry.controls).toHaveLength(3)
+          expect(geometry.controls).toHaveLength(4)
           const jump = tree.root.find((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Wednesday, 08/04/2026, Today' && node.props.accessibilityRole === 'button')
           expect(jump).toBeDefined()
         }

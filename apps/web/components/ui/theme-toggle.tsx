@@ -12,6 +12,7 @@ export function ThemeToggle() {
 
   return (
     <IconButton
+      data-theme-toggle=""
       label={isDark ? t('settings.theme.switchToLight') : t('settings.theme.switchToDark')}
       onClick={toggleTheme}
     >

@@ -1,3 +1,4 @@
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { createRef, type ReactNode, type MouseEventHandler } from 'react'
 import { PeriodInsightCard } from '@/components/chat/period-insight-card'

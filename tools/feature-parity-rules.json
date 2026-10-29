@@ -871,9 +871,22 @@
     },
     "mobile:control:preferences.themeMode": {
       "targets": [
-        "mobile:display:profile.settingsRows.theme"
+        "mobile:control:settings.theme.switchToDark",
+        "mobile:control:settings.theme.switchToLight"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
+    },
+    "mobile:control:preferences.themeModeDark": {
+      "targets": [
+        "mobile:control:settings.theme.switchToDark"
+      ],
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
+    },
+    "mobile:control:preferences.themeModeLight": {
+      "targets": [
+        "mobile:control:settings.theme.switchToLight"
+      ],
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
     },
     "mobile:control:preferences.title": {
       "targets": [
@@ -1004,18 +1017,6 @@
     "mobile:control:settings.notifications.title": {
       "targets": [
         "mobile:control:profile.groups.notifications"
-      ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
-    },
-    "mobile:control:settings.theme.switchToDark": {
-      "targets": [
-        "mobile:control:preferences.themeModeDark"
-      ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
-    },
-    "mobile:control:settings.theme.switchToLight": {
-      "targets": [
-        "mobile:control:preferences.themeModeLight"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
@@ -1517,6 +1518,13 @@
         "mobile:content:profile.deleteAccount.warningPro"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:profile.settingsRows.theme": {
+      "targets": [
+        "mobile:control:settings.theme.switchToDark",
+        "mobile:control:settings.theme.switchToLight"
+      ],
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
     },
     "mobile:display:referral.drawer.couponsEarned": {
       "targets": [
@@ -2675,9 +2683,22 @@
     },
     "web:control:preferences.themeMode": {
       "targets": [
-        "web:display:profile.settingsRows.theme"
+        "web:control:settings.theme.switchToDark",
+        "web:control:settings.theme.switchToLight"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
+    },
+    "web:control:preferences.themeModeDark": {
+      "targets": [
+        "web:control:settings.theme.switchToDark"
+      ],
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
+    },
+    "web:control:preferences.themeModeLight": {
+      "targets": [
+        "web:control:settings.theme.switchToLight"
+      ],
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
     },
     "web:control:preferences.title": {
       "targets": [
@@ -2808,18 +2829,6 @@
     "web:control:settings.notifications.title": {
       "targets": [
         "web:control:profile.groups.notifications"
-      ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
-    },
-    "web:control:settings.theme.switchToDark": {
-      "targets": [
-        "web:control:preferences.themeModeDark"
-      ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
-    },
-    "web:control:settings.theme.switchToLight": {
-      "targets": [
-        "web:control:preferences.themeModeLight"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
@@ -3397,6 +3406,13 @@
         "web:content:stepUp.successBody"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:profile.settingsRows.theme": {
+      "targets": [
+        "web:control:settings.theme.switchToDark",
+        "web:control:settings.theme.switchToLight"
+      ],
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
     },
     "web:display:referral.drawer.couponsEarned": {
       "targets": [

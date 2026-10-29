@@ -56,7 +56,7 @@ describe('Profile preferences label geometry', () => {
         root.dataset.profile = JSON.stringify(profile)
       }, { locale, profile: createMockProfile({ timeZone: 'America/Sao_Paulo', weekStartDay: 1, uses24HourClock: true }) })
       await page.addScriptTag({ content: componentScript })
-      await page.getByRole('group').waitFor()
+      await page.locator('[data-slot="list-row-title"]').first().waitFor()
       await loadAppFonts(page)
       await page.evaluate((scale) => {
         if (scale === 2) {
@@ -77,7 +77,7 @@ describe('Profile preferences label geometry', () => {
           return { label: element.textContent, lines: new Set(fragments.map((rect) => Math.round(rect.top))).size, clipped: fragments.some((rect) => rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.top < bounds.top - 1 || rect.bottom > bounds.bottom + 1), outside: bounds.left < 0 || bounds.right > window.innerWidth, ellipsis: getComputedStyle(element).textOverflow === 'ellipsis' || Number.parseInt(getComputedStyle(element).webkitLineClamp) > 0 }
         })
       })
-      expect(measured).toHaveLength(13)
+      expect(measured).toHaveLength(10)
       for (const label of measured) {
         expect.soft(label, JSON.stringify(label)).toMatchObject({ clipped: false, outside: false, ellipsis: false })
         if (scale === 1) expect.soft(label.lines, label.label!).toBe(1)
@@ -95,7 +95,7 @@ describe('Profile preferences label geometry', () => {
         root.dataset.profile = JSON.stringify(profile)
       }, { locale, profile: createMockProfile({ timeZone: 'America/Sao_Paulo', weekStartDay: 1, uses24HourClock: true, themePreference: mode as 'light' | 'dark' }) })
       await page.addScriptTag({ content: componentScript })
-      await page.getByRole('group').waitFor()
+      await page.locator('[data-slot="list-row-title"]').first().waitFor()
       await loadAppFonts(page)
       for (const scale of [1, 2, 1]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)

@@ -31,22 +31,6 @@ function buildPreferenceRows(
   const timeZoneLabel = timeZone
     ? t('profile.settingsRows.timezoneValue', { timeZone })
     : t('profile.settingsRows.timezone')
-  const themeChoice = (
-    <div role="group" aria-label={t('profile.settingsRows.theme')} className="flex max-w-full flex-wrap gap-2">
-      {(['dark', 'light'] as const).map((mode) => (
-        <button
-          key={mode}
-          type="button"
-          data-selected={controls.currentTheme === mode ? '' : undefined}
-          aria-pressed={controls.currentTheme === mode}
-          onClick={() => controls.handleThemeModeChange(mode)}
-          className="orbit-profile-theme-choice min-h-[var(--touch-min)] rounded-full px-3 font-sans text-sm font-medium focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
-        >
-          {t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}
-        </button>
-      ))}
-    </div>
-  )
 
   return [
     <ListRow key="timezone" compact textMode="label" title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
@@ -54,7 +38,6 @@ function buildPreferenceRows(
     <ListRow key="week-start" compact textMode="label" title={t('profile.settingsRows.weekStart')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
     <ListRow key="clock" compact textMode="label" title={t('settings.clock.title')} value={profile ? buildClockFormatOptions(t).find((option) => option.value === (resolveHourCycle(profile.uses24HourClock, controls.selectedLanguage) === 'h23' ? '24h' : '12h'))?.label : undefined} onClick={() => controls.setActivePicker('clock')} />,
     <ListRow key="language" compact textMode="label" title={t('profile.language.title')} value={controls.selectedLanguage === 'pt-BR' ? t('profile.language.brazilianPortuguese') : languageLabel} onClick={() => controls.setActivePicker('language')} />,
-    <ListRow key="theme" readOnly chevron={false} textMode="label" title={t('profile.settingsRows.theme')} trailing={themeChoice} />,
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil showGeneral controls this label under D42. */
     <ListRow key="show-general" title={t('settings.homeScreen.showGeneral')} description={t('settings.homeScreen.showGeneralDesc')} toggle={{ checked: controls.showGeneralOnToday, onChange: controls.toggleShowGeneral }} />,
   ]
@@ -75,14 +58,12 @@ function TimeZonePicker({ controls, mounted, profile, t }: Readonly<TimeZonePick
       activePicker={controls.activePicker}
       mounted={mounted}
       selectedLanguage={controls.selectedLanguage}
-      currentTheme={controls.currentTheme}
       timeZone={profile?.timeZone}
       weekStartDay={profile?.weekStartDay}
       uses24HourClock={profile?.uses24HourClock}
       {...pickerLabels}
       onClose={() => controls.setActivePicker(null)}
       onLanguageChange={(locale) => void controls.handleLanguageChange(locale)}
-      onThemeModeChange={controls.handleThemeModeChange}
       onTimeZoneChange={(timeZone) => controls.timeZoneMutation.mutate(timeZone)}
       onWeekStartChange={(day) => controls.weekStartMutation.mutate(day)}
       onClockFormatChange={(uses24HourClock) => controls.clockFormatMutation.mutate(uses24HourClock)}

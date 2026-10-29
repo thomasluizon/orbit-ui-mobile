@@ -2551,7 +2551,6 @@
       "apiKeysMcp": "API keys and MCP",
       "wrapped": "Orbit Wrapped",
       "weekStart": "Week starts on",
-      "theme": "Theme",
       "export": "Export my data",
       "signOut": "Sign out",
       "startOver": "Fresh start",
@@ -4117,10 +4116,7 @@
   },
   "preferences": {
     "title": "Preferences",
-    "general": "General",
-    "themeMode": "Appearance",
-    "themeModeLight": "Light",
-    "themeModeDark": "Dark"
+    "general": "General"
   },
   "about": {
     "title": "About",

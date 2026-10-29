@@ -976,7 +976,7 @@ describe('ProfileScreen', () => {
 
   it.each([
     ['account', ['profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
-    ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'profile.settingsRows.theme', 'settings.homeScreen.showGeneral']],
+    ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'settings.homeScreen.showGeneral']],
     ['astra', ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
     ['notifications', ['profile.settingsRows.remindersNote']],
   ] as const)('opens %s from Perfil and keeps its settings in that screen alone', async (destination, labels) => {
@@ -2259,7 +2259,7 @@ describe('ProfileScreen', () => {
       expect(mockRouterPush).not.toHaveBeenCalled()
     }
     expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'profile.settingsRows.theme').length).toBeGreaterThan(0)
+      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'profile.settingsRows.theme')).toHaveLength(0)
     const top = await renderProfileScreen()
     await TestRenderer.act(async () => {
       findRowByLabel(top, 'profile.support.rowTitle').props.onPress?.()
@@ -2288,18 +2288,15 @@ describe('ProfileScreen', () => {
     expect(mockRemoveAppStateListener).toHaveBeenCalledOnce()
   })
 
-  it('changes theme and general habits from their inline controls', async () => {
+  it('keeps theme selection out of preferences and changes general habits', async () => {
     const write = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
     try {
       const tree = await renderProfileSubscreen('preferences')
       await TestRenderer.act(async () => {
         tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
-          node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'preferences.themeModeLight' && typeof node.props.onPress === 'function').props.onPress()
-        tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
           node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'settings.homeScreen.showGeneral' && typeof node.props.onPress === 'function').props.onPress()
         await Promise.resolve()
       })
-      expect(mockApplyTheme).toHaveBeenCalledWith('light')
       expect(write).toHaveBeenCalledWith(expect.stringContaining('orbit_show_general_on_today'), 'true')
     } finally {
       write.mockRestore()

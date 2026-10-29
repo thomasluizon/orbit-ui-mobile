@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
-import type { ThemeMode } from '@orbit/shared/types/profile'
 import { resolveSystemLocale } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
@@ -18,7 +17,7 @@ export function usePreferenceControls() {
   const { i18n } = useTranslation()
   const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
-  const { applyTheme, currentTheme, currentScheme } = useAppTheme()
+  const { currentTheme, currentScheme } = useAppTheme()
 
   const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
 
@@ -127,11 +126,6 @@ export function usePreferenceControls() {
     },
   })
 
-  function handleThemeModeChange(mode: ThemeMode) {
-    if (mode === currentTheme) return
-    applyTheme(mode)
-  }
-
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
 
   useEffect(() => {
@@ -165,7 +159,6 @@ export function usePreferenceControls() {
     selectedLanguage,
     showGeneralOnToday,
     handleLanguageChange,
-    handleThemeModeChange,
     handleShowGeneralToggle,
     timeZoneMutation,
     weekStartMutation,

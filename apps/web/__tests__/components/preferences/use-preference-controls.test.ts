@@ -292,14 +292,6 @@ describe('usePreferenceControls', () => {
     ).toBe(true)
   })
 
-  it('ignores a theme change to the already-active mode', () => {
-    const { result } = renderHook(() => usePreferenceControls(), { wrapper })
-    act(() => result.current.handleThemeModeChange('dark'))
-    expect(mockApplyTheme).not.toHaveBeenCalled()
-    act(() => result.current.handleThemeModeChange('light'))
-    expect(mockApplyTheme).toHaveBeenCalledWith('light')
-  })
-
   it('toggles and persists the show-general-on-today preference', () => {
     const { result } = renderHook(() => usePreferenceControls(), { wrapper })
     expect(result.current.showGeneralOnToday).toBe(false)

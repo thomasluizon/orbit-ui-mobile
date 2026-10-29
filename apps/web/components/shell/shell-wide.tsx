@@ -203,7 +203,7 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
         if (!props.layerOpen || !(event.target instanceof Element)) return
         const control = event.target.closest('button, a[href]')
         if (control?.hasAttribute('data-habit-create-navigation') && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) return
-        if (control && !control.hasAttribute('data-shell-astra-row') && !control.hasAttribute('data-shell-sidebar-toggle')) props.onSidebarNavigate?.()
+        if (control && !control.hasAttribute('data-shell-astra-row') && !control.hasAttribute('data-shell-sidebar-toggle') && !control.hasAttribute('data-theme-toggle')) props.onSidebarNavigate?.()
       }}
       inert={props.layerOpen && !props.wide || undefined}
       className={`z-sticky hidden h-dvh ${collapsed ? 'w-[96px]' : 'w-[232px]'} shrink-0 flex-col overflow-y-auto bg-[var(--bg)] py-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex`}
