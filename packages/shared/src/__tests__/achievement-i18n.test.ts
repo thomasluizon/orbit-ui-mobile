@@ -82,7 +82,7 @@ describe('achievement i18n coverage', () => {
   })
 
   it.each([
-    { locale: 'en', bundle: en, legend: ['day active', 'day frozen', 'day missed'] },
+    { locale: 'en', bundle: en, legend: ['day active', 'day frozen', 'day not logged'] },
     { locale: 'pt-BR', bundle: ptBR, legend: ['dia ativo', 'dia congelado', 'dia sem registro'] },
   ])('uses the drawn streak legend in $locale', ({ bundle, legend }) => {
     expect([bundle.progressScreen.streak.active, bundle.progressScreen.streak.frozen, bundle.progressScreen.streak.missed]).toEqual(legend)

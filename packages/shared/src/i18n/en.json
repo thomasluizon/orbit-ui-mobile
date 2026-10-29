@@ -3731,7 +3731,7 @@
       "longest": "Longest streak",
       "active": "day active",
       "frozen": "day frozen",
-      "missed": "day missed",
+      "missed": "day not logged",
       "today": "Today",
       "legend": "Streak day legend",
       "legendTitle": "Legend",
