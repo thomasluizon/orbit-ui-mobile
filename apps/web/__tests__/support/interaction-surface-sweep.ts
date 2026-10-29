@@ -11,14 +11,9 @@ import { inspectInteractionSurface } from '@/__tests__/support/interaction-surfa
 import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { closeChrome, type registerChromeLaunchHook as RegisterChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { closeChrome, type registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const controls = 'button:not(:disabled), a[href], input:not([type="hidden"]):not(:disabled), textarea:not(:disabled), select:not(:disabled), summary, [role="button"], [role="switch"], [role="checkbox"], [role="radio"], [role="tab"], [role="menuitem"], [role="combobox"], [contenteditable="true"], [tabindex]:not([tabindex="-1"])'
-export const destinationInteractionCases = [320, 480, 840, 1100, 1440].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
-  (width >= 1024 ? [false, true] : [false]).map(collapsed => ({ width, locale, collapsed })))).flatMap(scenario => ['/', '/calendar', '/progress', '/profile'].map(route => ({ ...scenario, route })))
-
-type SweepCase = (typeof destinationInteractionCases)[number]
-
 function bundleDestinations() {
   return bundleGeometry(`import React, { useState } from 'react';
     import { createRoot } from 'react-dom/client';
@@ -129,14 +124,16 @@ async function inspectDiscoveredControls(page: Page, scope: Locator, assert: typ
   return inspected
 }
 
-export function registerInteractionSurfaceSweep(cases: readonly SweepCase[], registerChromeLaunchHook: typeof RegisterChromeLaunchHook, guardRegressions = false) {
+export function interactionSurfaceSweep(route: '/' | '/calendar' | '/progress' | '/profile', locale: 'en' | 'pt-BR', registerLaunch: typeof registerChromeLaunchHook) {
+  const cases = [320, 480, 840, 1100, 1440].flatMap(width =>
+    (width >= 1024 ? [false, true] : [false]).map(collapsed => ({ width, locale, collapsed, route })))
   describe('destination and sheet interaction surface sweep', () => {
     let browser: Browser
     let launch: BrowserLaunch | undefined
     let stylesheet: string
     let script: string
     let fixture: Awaited<ReturnType<typeof createHermeticFixtureRequest>>
-    registerChromeLaunchHook(beforeAll, async pending => { launch = pending; browser = await pending })
+    registerLaunch(beforeAll, async pending => { launch = pending; browser = await pending })
     beforeAll(async () => {
       fixture = await createHermeticFixtureRequest()
       const source = resolve('app/globals.css')
@@ -145,83 +142,82 @@ export function registerInteractionSurfaceSweep(cases: readonly SweepCase[], reg
     })
     afterAll(async () => { await closeChrome(launch) }, 30_000)
 
-    if (guardRegressions) {
-    it('measures foreground neighbours independently from the modal backdrop', async () => {
-      const page = await browser.newPage({ viewport: { width: 320, height: 640 } })
-      try {
-        await page.setContent('<button style="position:fixed;inset:0;background:grey">Backdrop</button><div role="dialog" style="position:fixed;inset:16px;background:white"><button id="action" style="position:absolute;left:16px;top:16px;width:48px;height:48px;border:0;background:grey">Action</button><span id="neighbour" style="position:absolute;left:72px;top:32px">Neighbour</span></div>')
-        const action = page.locator('#action')
-        expect((await action.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)).violations).toEqual([])
-        await page.locator('#neighbour').evaluate(element => element.style.left = '68px')
-        expect((await action.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)).violations).toContainEqual({ neighbour: 'span#neighbour[Neighbour]', distance: 4 })
-      } finally { await page.close() }
-    })
+    if (route === '/' && locale === 'en') {
+      it('measures foreground neighbours independently from the modal backdrop', async () => {
+        const page = await browser.newPage({ viewport: { width: 320, height: 640 } })
+        try {
+          await page.setContent('<button style="position:fixed;inset:0;background:grey">Backdrop</button><div role="dialog" style="position:fixed;inset:16px;background:white"><button id="action" style="position:absolute;left:16px;top:16px;width:48px;height:48px;border:0;background:grey">Action</button><span id="neighbour" style="position:absolute;left:72px;top:32px">Neighbour</span></div>')
+          const action = page.locator('#action')
+          expect((await action.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)).violations).toEqual([])
+          await page.locator('#neighbour').evaluate(element => element.style.left = '68px')
+          expect((await action.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)).violations).toContainEqual({ neighbour: 'span#neighbour[Neighbour]', distance: 4 })
+        } finally { await page.close() }
+      })
 
-    it('measures the tab focus perimeter without changing its styles', async () => {
-      const page = await browser.newPage({ viewport: { width: 320, height: 640 } })
-      try {
-        const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
-        await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}</style><body><div data-shell-column style="padding-top:400px"><a href="/" class="orbit-tab relative block h-20 w-20">Today</a></div></body></html>`)
-        const tab = page.locator('a')
-        for (const state of ['hover', 'press'] as const) {
-          await reachInteraction(page, tab, state)
-          await tab.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)
-          await page.mouse.move(0, 0)
-          await page.mouse.up()
-          await tab.blur()
-        }
-        await page.keyboard.press('Shift')
-        await tab.focus()
-        const before = await tab.evaluate(element => { const style = getComputedStyle(element, '::after'); return { outline: style.outline, offset: style.outlineOffset } })
-        const geometry = await tab.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)
-        const after = await tab.evaluate(element => { const style = getComputedStyle(element, '::after'); return { outline: style.outline, offset: style.outlineOffset } })
-        expect(after).toEqual(before)
-        expect(geometry.violations, JSON.stringify({ before, after, geometry })).toEqual([])
-      } finally { await page.close() }
-    })
-
+      it('measures the tab focus perimeter without changing its styles', async () => {
+        const page = await browser.newPage({ viewport: { width: 320, height: 640 } })
+        try {
+          const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+          await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}</style><body><div data-shell-column style="padding-top:400px"><a href="/" class="orbit-tab relative block h-20 w-20">Today</a></div></body></html>`)
+          const tab = page.locator('a')
+          for (const state of ['hover', 'press'] as const) {
+            await reachInteraction(page, tab, state)
+            await tab.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)
+            await page.mouse.move(0, 0)
+            await page.mouse.up()
+            await tab.blur()
+          }
+          await page.keyboard.press('Shift')
+          await tab.focus()
+          const before = await tab.evaluate(element => { const style = getComputedStyle(element, '::after'); return { outline: style.outline, offset: style.outlineOffset } })
+          const geometry = await tab.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)
+          const after = await tab.evaluate(element => { const style = getComputedStyle(element, '::after'); return { outline: style.outline, offset: style.outlineOffset } })
+          expect(after).toEqual(before)
+          expect(geometry.violations, JSON.stringify({ before, after, geometry })).toEqual([])
+        } finally { await page.close() }
+      })
     }
 
     it.concurrent.for(cases)('discovers every rendered control at $width in $locale, collapsed=$collapsed on $route', { timeout: 120_000 }, async ({ width, locale, collapsed, route }, { expect }) => {
-        const page = await browser.newPage({ viewport: { width, height: 1100 }, reducedMotion: 'reduce' })
-        page.setDefaultTimeout(3000)
-        const failures: string[] = []
-        page.on('pageerror', failure => failures.push(failure.message))
-        await page.exposeFunction('surfaceFixture', (path: string) => fixture(path.replace(/^\/api\/proxy/, '')))
-        try {
-          const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
-          await page.setContent(`<!doctype html><html class="dark" lang="${locale}" style="${variables}"><head><base href="https://surface.example.test"><style>${stylesheet}</style></head><body><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ route, locale, collapsed })}</script></body></html>`)
-          await page.evaluate(() => {
-            let cookie = ''
-            Object.defineProperty(document, 'cookie', { configurable: true, get: () => cookie, set: value => { cookie = value } })
-            for (const name of ['localStorage', 'sessionStorage']) {
-              const entries = new Map<string, string>()
-              Object.defineProperty(window, name, { configurable: true, value: { getItem: (key: string) => entries.get(key) ?? null, setItem: (key: string, value: string) => entries.set(key, value), removeItem: (key: string) => entries.delete(key), clear: () => entries.clear(), key: (index: number) => [...entries.keys()][index] ?? null, get length() { return entries.size } } })
-            }
-          })
-          await page.addScriptTag({ content: script })
-          await expect.poll(() => failures).toEqual([])
-          await page.locator('[data-shell-column]').waitFor({ timeout: 3000 }).catch(async cause => {
-            throw new Error(JSON.stringify({ route, failures, rendered: await page.locator('#root').innerHTML() }), { cause })
-          })
-          await page.waitForFunction('window.surfaceClient.isFetching() === 0')
-          await loadAppFonts(page)
-          expect(failures, route).toEqual([])
-          expect(await inspectDiscoveredControls(page, page.locator('body'), expect), route).toBeGreaterThan(0)
-          const entries = await page.locator('button:has(svg), [aria-haspopup="dialog"], [aria-haspopup="menu"]').all()
-          for (const entry of entries) {
-            if (!await entry.isVisible() || !await entry.isEnabled()) continue
-            await entry.click()
-            await page.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done()))))
-            const overlay = page.locator('[role="dialog"], [role="menu"]').last()
-            if (await overlay.isVisible()) {
-              await overlay.evaluate(settleAnimations)
-              expect(await inspectDiscoveredControls(page, overlay, expect)).toBeGreaterThan(0)
-              await page.keyboard.press('Escape')
-            }
+      const page = await browser.newPage({ viewport: { width, height: 1100 }, reducedMotion: 'reduce' })
+      page.setDefaultTimeout(3000)
+      const failures: string[] = []
+      page.on('pageerror', failure => failures.push(failure.message))
+      await page.exposeFunction('surfaceFixture', (path: string) => fixture(path.replace(/^\/api\/proxy/, '')))
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<!doctype html><html class="dark" lang="${locale}" style="${variables}"><head><base href="https://surface.example.test"><style>${stylesheet}</style></head><body><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ route, locale, collapsed })}</script></body></html>`)
+        await page.evaluate(() => {
+          let cookie = ''
+          Object.defineProperty(document, 'cookie', { configurable: true, get: () => cookie, set: value => { cookie = value } })
+          for (const name of ['localStorage', 'sessionStorage']) {
+            const entries = new Map<string, string>()
+            Object.defineProperty(window, name, { configurable: true, value: { getItem: (key: string) => entries.get(key) ?? null, setItem: (key: string, value: string) => entries.set(key, value), removeItem: (key: string) => entries.delete(key), clear: () => entries.clear(), key: (index: number) => [...entries.keys()][index] ?? null, get length() { return entries.size } } })
           }
-          expect(failures, route).toEqual([])
-        } finally { await page.mouse.up(); await page.close() }
+        })
+        await page.addScriptTag({ content: script })
+        await expect.poll(() => failures).toEqual([])
+        await page.locator('[data-shell-column]').waitFor({ timeout: 3000 }).catch(async cause => {
+          throw new Error(JSON.stringify({ route, failures, rendered: await page.locator('#root').innerHTML() }), { cause })
+        })
+        await page.waitForFunction('window.surfaceClient.isFetching() === 0')
+        await loadAppFonts(page)
+        expect(failures, route).toEqual([])
+        expect(await inspectDiscoveredControls(page, page.locator('body'), expect), route).toBeGreaterThan(0)
+        const entries = await page.locator('button:has(svg), [aria-haspopup="dialog"], [aria-haspopup="menu"]').all()
+        for (const entry of entries) {
+          if (!await entry.isVisible() || !await entry.isEnabled()) continue
+          await entry.click()
+          await page.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done()))))
+          const overlay = page.locator('[role="dialog"], [role="menu"]').last()
+          if (await overlay.isVisible()) {
+            await overlay.evaluate(settleAnimations)
+            expect(await inspectDiscoveredControls(page, overlay, expect)).toBeGreaterThan(0)
+            await page.keyboard.press('Escape')
+          }
+        }
+        expect(failures, route).toEqual([])
+      } finally { await page.mouse.up(); await page.close() }
     })
   })
 }
