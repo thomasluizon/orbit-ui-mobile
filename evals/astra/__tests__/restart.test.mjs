@@ -56,7 +56,7 @@ it('accepts a complete held restart proposal grounded in the unfinished read', (
 it.each([
   ['another relative period', (output) => { output.trace.calls[0].arguments.relative_period = 'yesterday' }],
   ['relative today beside another date', (output) => { Object.assign(output.trace.calls[0].arguments, { relative_period: 'today', date: '2026-01-01' }) }],
-  
+
   ['wrong read date', (output) => { output.trace.calls[0].arguments.date = null }],
   ['completed filter', (output) => { output.trace.calls[0].arguments.is_completed = true }],
   ['overdue excluded', (output) => { output.trace.calls[0].arguments.include_overdue = false }],
