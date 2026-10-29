@@ -102,8 +102,48 @@ const ownerBoundaryCases = async () => {
     firstSession.baselineSource === "session-start" && firstSession.window.startedAt === current)
 }
 
+const directoryCases = async () => {
+  const staged = fixture("progress-directory")
+  const homeDirectory = join(staged.repoRoot, "home")
+  const directory = join(homeDirectory, ".claude", "projects", staged.repoRoot.replace(/[^A-Za-z0-9]/g, "-"))
+  mkdirSync(directory, { recursive: true })
+  const command = (time, promptId) => ({ type: "user", timestamp: time, promptId,
+    origin: { kind: "human" }, turnOrigin: "human", message: { role: "user",
+      content: "<command-message>progress</command-message>\n<command-name>/progress</command-name>" } })
+  writeFileSync(join(directory, "current.jsonl"), [command("2026-09-30T23:00:00Z", "previous"),
+    command("2026-10-01T03:30:00Z", "current")].map((row) => JSON.stringify(row)).join("\n") + "\n")
+  const originalHome = process.env.HOME
+  const originalProject = process.env.CLAUDE_PROJECT_DIR
+  try {
+    process.env.HOME = homeDirectory
+    process.env.CLAUDE_PROJECT_DIR = `${staged.repoRoot}/`
+    const report = await collectProgressWindow(staged.options)
+    T("progress-window: project directory discovery normalizes a trailing separator",
+      report.window.startedAt === "2026-09-30T23:00:00Z")
+    delete process.env.CLAUDE_PROJECT_DIR
+    const ordinary = await collectProgressWindow({ ...staged.options, repoRoot: `${staged.repoRoot}/` })
+    T("progress-window: ordinary checkout discovery uses the repository path",
+      ordinary.window.startedAt === "2026-09-30T23:00:00Z")
+    const linkedCheckout = join(staged.repoRoot, "linked")
+    const gitDirectory = join(staged.repoRoot, ".git", "worktrees", "linked")
+    mkdirSync(linkedCheckout)
+    mkdirSync(gitDirectory, { recursive: true })
+    writeFileSync(join(linkedCheckout, ".git"), `gitdir: ${gitDirectory}\n`)
+    writeFileSync(join(gitDirectory, "commondir"), "../..\n")
+    const linked = await collectProgressWindow({ ...staged.options, repoRoot: linkedCheckout })
+    T("progress-window: linked checkout discovery follows the canonical repository",
+      linked.window.startedAt === "2026-09-30T23:00:00Z")
+  } finally {
+    if (originalHome === undefined) delete process.env.HOME
+    else process.env.HOME = originalHome
+    if (originalProject === undefined) delete process.env.CLAUDE_PROJECT_DIR
+    else process.env.CLAUDE_PROJECT_DIR = originalProject
+  }
+}
+
 export const cases = async () => {
   await ownerBoundaryCases()
+  await directoryCases()
   const staged = fixture("progress-core")
   const report = await collectProgressWindow(staged.options)
   T("progress-window: reports three relays and current session, with the full window", report.entries.map((entry) => entry.sessionId).join(",") === "relay-0,relay-1,relay-2,current" && report.window.startedAt === "2026-10-01T00:00:00Z")

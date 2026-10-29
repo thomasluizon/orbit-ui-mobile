@@ -18,7 +18,7 @@ const transcriptDirectory = (repoRoot, transcriptPath) => {
   const commonMarker = join(gitDirectory, "commondir")
   const projectRoot = process.env.CLAUDE_PROJECT_DIR || (existsSync(commonMarker)
     ? dirname(resolve(gitDirectory, readFileSync(commonMarker, "utf8").trim())) : repoRoot)
-  return join(homedir(), ".claude", "projects", projectRoot.replace(/[^A-Za-z0-9]/g, "-"))
+  return join(homedir(), ".claude", "projects", resolve(projectRoot).replace(/[^A-Za-z0-9]/g, "-"))
 }
 
 const readTranscript = async (path, visit) => {
