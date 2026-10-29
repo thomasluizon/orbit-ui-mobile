@@ -16,7 +16,7 @@ is the workflow ref. Missing title metadata stays null, never inferred from that
 Decisions and owner questions include archived chains and overlapping sessions.
 conversation is the fallback for sessions without a decision log: owner prompts and assistant
 text replies, each capped at 1,500 characters plus a visible truncation marker.
-The report identifies its baseline and includes the start in local time.
+The report identifies its baseline and prints window.startedAt in ISO UTC, plus localStartedAt.
 No baseline prints baseline: unavailable and performs no remote reads.
 
   --session <id>       exact current session id (required)
