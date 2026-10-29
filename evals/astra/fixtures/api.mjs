@@ -1,9 +1,11 @@
 import { apiOrigin } from '../credentials.mjs'
 
+// Every orbit-api route parameter is constrained to a GUID ({id:guid}), so a GUID segment is the only identifier.
+const guidSegment = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+
 function fixtureFailure(method, path, cause) {
-  const pathname = path.split(/[?#]/u)[0].replace(/^(habits|tags|goals|checklist-templates)\/([^/]+)/u,
-    (_, resource, id) => `${resource}/${resource === 'habits' && id === 'bulk' ? id : '{id}'}`)
-  return new Error(`Fixture API ${method} ${pathname} failed: ${cause}.`)
+  const route = path.split(/[?#]/u)[0].split('/').map((segment) => guidSegment.test(segment) ? '{id}' : segment).join('/')
+  return new Error(`Fixture API ${method} ${route} failed: ${cause}.`)
 }
 
 export function publicApi(credentialKey) {
