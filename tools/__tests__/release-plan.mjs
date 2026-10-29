@@ -130,8 +130,8 @@ export async function cases() {
   const recovered = await planRelease(failed, "production", IDS)
   T("production API uses the live Render commit", recovered.services[0].deployedSha === FIRST && recovered.services[0].needsRelease)
   T("production API reads Render live deploys", failed.calls.some((path) => path === `services/${IDS.api}/deploys?status=live&limit=1`))
-  T("production API does not read its service record or health", !failed.calls.includes(`services/${IDS.api}`) &&
-    !failed.calls.includes("https://api.example.invalid/health"))
+  T("production API does not read its service record or health", !failed.calls.some((path) =>
+    path === `services/${IDS.api}` || path === "https://api.example.invalid/health"))
 
   const divergentStaging = await planRelease(clientFor({ ahead: ["api"], diverged: ["api"] }),
     "staging", IDS, "internal", "feature/release")
@@ -185,8 +185,8 @@ async function stagingApiHealthCases() {
   catch (error) { imageError = error.message }
   T("image-backed staging API plans from its healthy commit", imagePlan?.services[0].deployedSha === FIRST &&
     imagePlan.services[0].needsRelease && imagePlan.services[0].commits[0].sha === SECOND, imageError)
-  T("staging API discovers health through its Render service record", image.calls.includes(`services/${IDS.api}`) &&
-    image.calls.includes(healthUrl))
+  T("staging API discovers health through its Render service record", image.calls.some((path) => path === `services/${IDS.api}`) &&
+    image.calls.some((path) => path === healthUrl))
   T("staging API never reads a Git-backed deploy baseline", !image.calls.includes(`services/${IDS.api}/deploys?status=live&limit=1`))
 
   const missingCommit = clone(renderFixture.apiHealth)
@@ -214,8 +214,10 @@ async function stagingApiHealthCases() {
     let failure = ""
     try { await planRelease(client, "staging", IDS, "internal", "main") }
     catch (error) { failure = error.message }
-    T(`staging API ${name} stops planning and names the health URL`, failure.includes(healthUrl), failure)
-    if (response instanceof Error) T(`staging API ${name} preserves the cause`, failure.includes(response.message), failure)
+    const expected = response instanceof Error
+      ? `API health at ${healthUrl} failed: ${response.message}`
+      : `API health at ${healthUrl} has an unexpected response`
+    T(`staging API ${name} stops planning, naming the health URL and the cause`, failure === expected, failure)
   }
 }
 
