@@ -51,7 +51,8 @@ and the current session last. Work between sessions has a null session id and st
 the report. This is evidence of work during the window, not proof that the orchestrator authored
 every change.
 
-Start the answer's first line with the window start in the owner's local time, using
+`window.startedAt` is the ISO UTC boundary for the whole report.
+Start the answer's first line with that window start in the owner's local time, using
 `window.localStartedAt` when the machine uses that timezone, otherwise converting `window.startedAt`
 to the owner's known timezone. Name the fallback when no previous report exists.
 
