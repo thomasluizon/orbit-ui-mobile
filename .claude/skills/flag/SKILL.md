@@ -1,6 +1,6 @@
 ---
 name: flag
-description: Inspect or change Orbit feature flags in production or staging from plain requests such as turning the redesign on for an account or finding who has a feature. Uses the admin-only Orbit MCP tool manage_feature_flags.
+description: Inspect or change Orbit feature flags in production or staging from plain requests such as turning a feature on for an account or finding who has a feature. Uses the admin-only Orbit MCP tool manage_feature_flags.
 ---
 
 # Flag
@@ -48,14 +48,14 @@ and report the environment and access problem. Do not switch environments or byp
    After a timeout, inspect the list before considering a retry. Do not repeat a write whose
    intended result is already present.
 5. Report the environment, key, before and after global settings and account emails, and any
-   plan restriction. Distinguish stored targeting from effective access. For `redesign`, explain
-   that web refreshes the flag and reloads the matching build; Android applies a refreshed flag
-   at the next launch. A verified flag write does not prove a client switched builds.
+   plan restriction. Distinguish stored targeting from effective access. A verified flag write
+   does not prove that a client has refreshed its config. No flag selects a build: the
+   `redesign` flag is retired (guide.md, "Retired redesign selection").
 
 | Request | Action and parameters |
 |---|---|
 | "Who has the new calendar?", "list flags" | `list`; report the matching key, global setting, listed emails, and plan requirement. No write. |
-| "Turn the redesign on for me", "enable X for these emails" | `enable_for_accounts`, `key`, `emails`. Verify each requested email appears afterward. |
+| "Turn calendar_integration on for me", "enable X for these emails" | `enable_for_accounts`, `key`, `emails`. Verify each requested email appears afterward. |
 | "Turn X off for these emails" | `disable_for_accounts`, `key`, `emails`, when global enablement is off. Verify those emails are absent afterward. |
 | "Turn X on for everyone" | `enable_for_everyone`, `key`. Verify global enablement is on; plan requirements still apply. |
 | "Turn X off for everyone" | `disable_for_everyone`, `key`, then `disable_for_accounts` for all remaining emails in the fresh list. Verify global enablement is off and the account list is empty. |

@@ -5,8 +5,8 @@
 
 ## Operating a flag
 
-Ask the agent in plain English: "In production, turn calendarSync on for me", "In staging,
-who has the new calendar?", or "In production, turn calendarSync off for everyone".
+Ask the agent in plain English: "In production, turn calendar_integration on for me", "In staging,
+who has the new calendar?", or "In production, turn calendar_integration off for everyone".
 [The `/flag` skill](SKILL.md) maps the request to the admin-only Orbit MCP tool
 `manage_feature_flags`. The owner does not edit flags by hand.
 
@@ -59,9 +59,10 @@ the embedded bundle with updates disabled in production and staging; a design ch
 by an older build is ignored. These clients no longer write design choices or select update
 channels.
 
-The API retains the `redesign` response key and seed for older installed Android builds.
-Retiring client readers does not authorize deleting that compatibility key. Coordinate an
-append-only API compatibility plan with the supported mobile floor before changing the seed.
+The API no longer has a `redesign` flag. A migration deleted its seed and account targets
+after the production `MinSupportedVersion` rose to 1.3.91, which drops every build that
+still read the key, so `/api/config` no longer returns `redesign`. There is no flag to list, enable
+or disable for the redesign.
 Web releases select production from `main` or staging from a selected branch; both serve
 the promoted redesign without account-based build routing. Changing an account flag does
 not publish a build or change an API contract.
@@ -108,6 +109,7 @@ The flag management and API compatibility contracts are tracked separately:
 | Header versioning and v1 compatibility | [#1416](https://github.com/thomasluizon/orbit-tickets/issues/1416) |
 | Retired redesign client readers | [#1635](https://github.com/thomasluizon/orbit-tickets/issues/1635) |
 | Routing Worker retirement and API seed coordination | [#1626](https://github.com/thomasluizon/orbit-tickets/issues/1626) |
+| `redesign` seed and account target removal after the 1.3.91 floor | [#685](https://github.com/thomasluizon/orbit-tickets/issues/685) |
 
 An admin flag change can be verified independently of client deployments. Verify a flag
 through the selected environment's MCP answers and its remaining client behavior.
