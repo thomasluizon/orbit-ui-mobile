@@ -73,7 +73,10 @@ it.each([false, true])('uses shared anchored menu exit geometry with reduced mot
     </Menu.Root></>)
   })
   try {
-    const panel = tree.root.findAll(node => node.type === Primitive.Content)[0]!
+    const positioner = tree.root.findAll(node => node.type === Primitive.Content)[0]!
+    expect(positioner.props.entering).toBeUndefined()
+    expect(positioner.props.exiting).toBeUndefined()
+    const panel = positioner.findAll(node => String(node.type) === 'AnimatedView')[0]!
     const exit = panel.props.exiting as Keyframe
     const preset = resolveMotionPreset('menu', reduced)
     expect(exit.durationMs).toBe(preset.exitDuration)

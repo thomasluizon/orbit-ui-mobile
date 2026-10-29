@@ -66,8 +66,6 @@ export function Content({ items = [], onSelect, title, shortTitle, titleMode, pr
   return <AnchoredContent items={orderedItems} title={title} align={align} onSelect={(id) => { onClose(); onSelect?.(id) }} />
 }
 
-const AnimatedMenuContent = Reanimated.createAnimatedComponent(Primitive.Content)
-
 function AnchoredContent({ items, title, align, onSelect }: Readonly<{ items: readonly MenuItem[]; title?: string; align: 'start' | 'end'; onSelect: (id: string) => void }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -87,9 +85,11 @@ function AnchoredContent({ items, title, align, onSelect }: Readonly<{ items: re
   useEffect(() => { register(overlayId); return () => unregister(overlayId) }, [overlayId, register, unregister])
   return <Portal><View key={overlayId} collapsable={false} style={StyleSheet.absoluteFill} pointerEvents="box-none" accessibilityViewIsModal>
     <Primitive.Overlay accessibilityElementsHidden importantForAccessibility="no" style={[StyleSheet.absoluteFill, styles.catcher]} />
-    <AnimatedMenuContent entering={entering} exiting={exiting} accessibilityLabel={title} accessibilityRole="menu" align={align} sideOffset={8} insets={{ top: 8, bottom: 8, left: 8, right: 8 }} style={StyleSheet.flatten([styles.panel, { width: Math.min(PANEL_WIDTH, width - 16), backgroundColor: tokens.bgSheet }])}>
-      <MenuItems items={items} sheetPresentation={false} onActivate={onSelect} />
-    </AnimatedMenuContent>
+    <Primitive.Content accessibilityLabel={title} accessibilityRole="menu" align={align} sideOffset={8} insets={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ width: Math.min(PANEL_WIDTH, width - 16) }}>
+      <Reanimated.View entering={entering} exiting={exiting} style={[styles.panel, { backgroundColor: tokens.bgSheet }]}>
+        <MenuItems items={items} sheetPresentation={false} onActivate={onSelect} />
+      </Reanimated.View>
+    </Primitive.Content>
   </View></Portal>
 }
 
@@ -160,7 +160,6 @@ const styles = StyleSheet.create({
     ...shadowsV2.shadow2,
     borderRadius: 20,
     padding: SPACING.s8,
-    width: PANEL_WIDTH,
   },
   item: {
     alignItems: 'center',
