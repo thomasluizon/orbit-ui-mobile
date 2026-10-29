@@ -19,7 +19,7 @@ function TestEditor(props: React.ComponentProps<typeof EditHabitModal>) {
   return <QueryClientProvider client={client}><EditHabitModal {...props} /></QueryClientProvider>
 }
 
-const mountedTrees: import('react-test-renderer').ReactTestRenderer[] = []
+const mountedTrees: Array<{ unmount: () => void }> = []
 
 function mountEditor(element: React.ReactElement) {
   const tree = TestRenderer.create(element)
