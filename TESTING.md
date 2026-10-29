@@ -393,6 +393,7 @@ its previous state after the run. Header alone or flag alone cannot enable traci
 | `skipped` | Walk skipped today through the public skip API, with no positive completion |
 | `free-at-limit` | Free account at the actual configured root capacity, with enough message allowance |
 | `budget-exhausted` | Daily message allowance exhausted through at most five ordinary requests, independently verified from profile; an unavailable precondition stays incomplete |
+| `hoje-next-step` | UTC profile in the case language, English titles in both locales: Meals with Breakfast logged today, then pending Lunch at 12:00, Afternoon snack at 16:00 and Dinner at 19:00; Water with six pending Water - 710ml children. Registered root IDs are preserved; ordered children, times, parent links and completion history require independent readback |
 
 ### Daily windows and combined report
 
@@ -623,6 +624,18 @@ choices, pick lists, proactive entry, help, coaching and small talk. Empty, erro
 quota, plan, offline and refusal fixtures exercise their actual producer states. Compound cases
 cover supported, legacy and missing-kind capability sets. These are required live cases, not
 claims that the current behavior passes them.
+
+`composition-hoje-next-step-en` and `composition-hoje-next-step-pt-BR` ask what to do next
+today using the `hoje-next-step` fixture. Tool evidence requires a successful `get_daily_summary`
+with `generate_narrative: true`, reaching the summary producer rather than its facts-only branch.
+The existing mutation scope gate rejects writes; additional read-only lookups are permitted.
+The rubric requires Lunch or a Water item as the next step while Lunch is pending, never the
+later meals or completed Breakfast. Merely listing a later meal as pending is valid.
+Portuguese prose must use a natural activity reference such as "seu almoço", while stored
+English titles remain unchanged inside block rows. One data block and at most one short sentence
+can pass; no prose recap is required, and a block-only answer must still convey the recommendation.
+Both cases retain three attempts and family/locale pass^3 reporting. Offline checks prove fixture,
+assertion and rubric routing; semantic acceptance requires the coordinator's live gate.
 
 The composition assertion requires ordered parts for parts-capable clients. It validates known
 block payload projections and advertised capabilities, required families and subtypes, and

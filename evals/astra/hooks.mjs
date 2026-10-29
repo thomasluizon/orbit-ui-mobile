@@ -56,7 +56,7 @@ async function warmUpAccounts(tests) {
     if (warmed.has(key)) continue
     warmed.add(key)
     try {
-      await resetFixture(structuredClone(test), undefined, accountAccess.get(key) === true)
+      await resetFixture({ metadata: { ...test.metadata }, vars: structuredClone(test.vars) }, undefined, accountAccess.get(key) === true)
     } catch (error) {
       process.stderr.write(`Astra fixture warm-up unavailable for ${key}: ${safeFailureMessage(error)}\n`)
     }

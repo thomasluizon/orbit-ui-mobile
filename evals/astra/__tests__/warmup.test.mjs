@@ -39,6 +39,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 it('wakes staging then resets each selected account once before any case and still resets each attempt', async () => {
   const tests = [selected('single-read-en'), selected('edge-free-limit-en'), selected('single-create-pt')]
+  tests[0].options = { provider: { callApi: () => {} } }
   await preflight({ suite: { tests } })
   expect(requests[0].path).toBe('/health')
   const resets = () => requests.filter(({ path, method }) => path === '/api/eval/pending-operations' && method === 'DELETE')
