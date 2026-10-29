@@ -1,0 +1,69 @@
+[
+  {
+    "caseId": "composition-restart-preview-en",
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "arguments": {
+          "for_selection": null,
+          "relative_period": "today",
+          "search": null,
+          "date": "2026-10-28",
+          "include_overdue": true,
+          "is_general": false,
+          "is_completed": false,
+          "is_bad_habit": false,
+          "frequency": null,
+          "tag": null,
+          "include_sub_habits": true,
+          "include_metrics": false,
+          "offset": 0,
+          "limit": 50,
+          "orbit_read_complete": false
+        },
+        "resultStatus": "Succeeded"
+      },
+      {
+        "name": "bulk_reschedule_habits",
+        "arguments": {
+          "filter": null,
+          "due_date": null,
+          "revised_items": [
+            {
+              "habit_id": "[redacted]",
+              "updates": {
+                "due_date": "2026-10-28"
+              }
+            },
+            {
+              "habit_id": "[redacted]",
+              "updates": {
+                "due_date": "2026-10-28"
+              }
+            },
+            {
+              "habit_id": "[redacted]",
+              "updates": {
+                "due_date": "2026-10-29"
+              }
+            },
+            {
+              "habit_id": "[redacted]",
+              "updates": {
+                "due_date": "2026-10-29"
+              }
+            },
+            {
+              "habit_id": "[redacted]",
+              "updates": {
+                "due_date": "2026-10-29"
+              }
+            }
+          ],
+          "orbit_write_complete": true
+        },
+        "resultStatus": "PendingConfirmation"
+      }
+    ]
+  }
+]

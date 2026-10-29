@@ -56,9 +56,7 @@ it('accepts a complete held restart proposal grounded in the unfinished read', (
 it.each([
   ['another relative period', (output) => { output.trace.calls[0].arguments.relative_period = 'yesterday' }],
   ['relative today beside another date', (output) => { Object.assign(output.trace.calls[0].arguments, { relative_period: 'today', date: '2026-01-01' }) }],
-  ...['search', 'tag', 'frequency', 'is_general', 'is_bad_habit'].map((key) => [
-    `filtered remaining work: ${key}`, (output) => { output.trace.calls[0].arguments[key] = key.startsWith('is_') ? false : 'filter' },
-  ]),
+  
   ['wrong read date', (output) => { output.trace.calls[0].arguments.date = null }],
   ['completed filter', (output) => { output.trace.calls[0].arguments.is_completed = true }],
   ['overdue excluded', (output) => { output.trace.calls[0].arguments.include_overdue = false }],
@@ -232,4 +230,22 @@ it.each(cases)('grades the complete production policy for $metadata.id', async (
   }
   delete output.restartReadback
   expect(behavior(output, { vars: policy }).pass).toBe(false)
+})
+
+it.each(['search', 'tag', 'frequency', 'is_general', 'is_bad_habit'])('judges %s by returned completeness', (key) => {
+  const output = proposal()
+  output.trace.calls[0].arguments[key] = key.startsWith('is_') ? false : 'filter'
+  expect(restartProposal(output, vars).pass).toBe(true)
+  output.trace.calls[0].result.payload.items.pop()
+  expect(restartProposal(output, vars).pass).toBe(false)
+})
+
+it('replays the recorded restart read filters and rejects a missing unfinished habit', () => {
+  const recorded = JSON.parse(readFileSync(new URL('./fixtures/gate-eight.json', import.meta.url), 'utf8'))
+  const output = proposal()
+  output.trace.calls[0].arguments = recorded.find(({ caseId }) => caseId === 'composition-restart-preview-en').toolCalls[0].arguments
+  expect(restartProposal(output, vars).pass).toBe(true)
+  output.trace.calls[0].result.payload.items.pop()
+  output.trace.calls[0].result.payload.totalCount--
+  expect(restartProposal(output, vars).pass).toBe(false)
 })
