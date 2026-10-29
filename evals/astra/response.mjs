@@ -29,6 +29,7 @@ export default function parseResponse(response, _text, context) {
       return { error: 'Astra returned an unexpected refusal.' }
     }
     return { answer: response.error, composition: { aiMessage: response.error }, httpStatus,
+      httpError: { status: httpStatus, errorCode: response.errorCode, error: response.error },
       trace: { state: 'refused', responseRequestId, refusalCode: expectedCode } }
   }
   if (httpStatus !== 200) return { error: `Astra returned HTTP ${httpStatus}.` }

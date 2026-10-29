@@ -16,6 +16,7 @@ export function matchesArguments(actual, expected, orderedArrays = false) {
     })
   }
   if (expected && typeof expected === 'object') {
+    if ('anyOf' in expected) return expected.anyOf.some((value) => matchesArguments(actual, value, orderedArrays))
     if ('allOf' in expected) return expected.allOf.every((value) => matchesArguments(actual, value, orderedArrays))
     if ('optional' in expected) return actual == null || matchesArguments(actual, expected.optional, orderedArrays)
     if ('textContains' in expected) {

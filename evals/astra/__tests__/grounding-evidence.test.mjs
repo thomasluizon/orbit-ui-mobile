@@ -78,3 +78,76 @@ it('grounds only successful results and removes identifiers and credentials recu
     ...retrospectiveResponse(true), sourceRevision: undefined,
   } }])
 })
+
+async function gradeOutput(output, vars, supported) {
+  const grader = { id: () => 'grounding-regression', callApi: vi.fn(async (prompt) => {
+    const messages = JSON.parse(prompt)
+    const received = JSON.parse(messages.at(-1).content.split('<Output>\n')[1].split('\n</Output>')[0])
+    const pass = Boolean(supported(received))
+    return { output: JSON.stringify({ pass, score: pass ? 1 : 0, reason: pass ? 'Grounded.' : 'Unsupported.' }) }
+  }) }
+  const assertion = configuration.defaultTest.assert.find(({ type }) => type === 'llm-rubric')
+  const result = await assertions.runAssertion({ prompt: 'Show the requested facts.', assertion,
+    test: { vars, options: { provider: grader } }, vars, providerResponse: { output } })
+  return { result, prompt: grader.callApi.mock.calls[0][0] }
+}
+
+const gateEight = JSON.parse(readFileSync(new URL('./fixtures/gate-eight.json', import.meta.url), 'utf8'))
+it.each(gateEight.filter(({ caseId }) => /quota|budget-cap/.test(caseId)))(
+  'grounds the actual HTTP refusal for $caseId and rejects an invented limit', async ({ answer }) => {
+    const { default: parseResponse } = await import('../response.mjs')
+    const output = parseResponse({ error: answer, errorCode: 'PAY_GATE' }, '',
+      { response: { status: 403, headers: { 'x-orbit-request-id': 'request' } } })
+    const vars = { evalRequestId: 'request' }
+    const supported = (received) => received.groundingEvidence.httpError?.status === 403
+      && received.groundingEvidence.httpError.errorCode === 'PAY_GATE'
+      && received.answer === received.groundingEvidence.httpError.error
+    expect((await gradeOutput(output, vars, supported)).result.pass).toBe(true)
+    expect((await gradeOutput({ ...output, answer: answer.replace('(5)', '(99)') }, vars, supported)).result.pass).toBe(false)
+    expect((await gradeOutput(output, { evalRequestId: 'other-request' }, supported)).result.pass).toBe(false)
+  },
+)
+
+it.each(['en', 'pt-BR'])('grounds only the owned email with consistent private placeholders in %s', async (locale) => {
+  const { toolCall } = await import('./fixtures/producer.mjs')
+  const call = toolCall('get_profile')
+  call.result.payload = { email: 'owned@example.test', language: locale }
+  const output = { answer: 'owned@example.test', trace: { state: 'available', requestId: 'request', responseRequestId: 'request',
+    calls: [{ ...call, resultStatus: call.status }] } }
+  const supported = (received) => received.answer === received.groundingEvidence.successfulTools[0].result.email
+    && !received.answer.includes('unsupported-email')
+  const owned = await gradeOutput(output, { evalRequestId: 'request' }, supported)
+  expect(owned.result.pass).toBe(true)
+  const invented = await gradeOutput({ ...output, answer: 'invented@example.test' }, { evalRequestId: 'request' }, supported)
+  expect(invented.result.pass).toBe(false)
+  for (const { prompt } of [owned, invented]) {
+    expect(prompt).not.toContain('owned@example.test')
+    expect(prompt).not.toContain('invented@example.test')
+  }
+})
+
+it('passes the server-resolved calendar read window to the grader without trusting answer dates', async () => {
+  const { toolCall, chatResponse } = await import('./fixtures/producer.mjs')
+  const { default: parseResponse } = await import('../response.mjs')
+  const recorded = gateEight.find(({ caseId }) => caseId === 'composition-error-en')
+  const call = toolCall('get_calendar_overview', recorded.toolCalls[0].arguments)
+  call.result.payload = recorded.successfulTools[0].result
+  // Producer: ReadBlockFactory.Metadata uses the normalized arguments as scope.
+  const read = { queryId: '11111111-1111-4111-8111-111111111111', queryFamily: 'get_calendar_overview',
+    scope: { date_from: '2026-10-01', date_to: '2026-10-28', window_from_utc: '2026-10-01T00:00:00Z',
+      window_to_utc: '2026-10-29T00:00:00Z' }, revision: 'private-revision', completeness: 'partial',
+    refreshToken: 'private-refresh-token', nextCursor: null, totalCount: 0, recovery: 'reconnect' }
+  const response = chatResponse('request', [call])
+  response.parts = [{ type: 'block', kind: 'calendar', block: { events: [], surfaceId: 'calendar', read } }]
+  const output = parseResponse(response, '', { response: { status: 200, headers: { 'x-orbit-request-id': 'request' } } })
+  output.answer = recorded.answer
+  const supported = (received) => received.groundingEvidence.readScopes?.some(({ name, scope }) =>
+    name === 'get_calendar_overview' && scope.date_from === '2026-10-01' && received.answer.includes('Oct 1, 2026'))
+  const grade = await gradeOutput(output, { evalRequestId: 'request' }, supported)
+  expect(grade.result.pass).toBe(true)
+  expect(grade.prompt).not.toContain('private-')
+  expect((await gradeOutput({ ...output, answer: recorded.answer.replace('Oct 1,', 'Sep 1,') },
+    { evalRequestId: 'request' }, supported)).result.pass).toBe(false)
+  output.trace.responseRequestId = 'other-request'
+  expect((await gradeOutput(output, { evalRequestId: 'request' }, supported)).result.pass).toBe(false)
+})
