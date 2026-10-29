@@ -100,6 +100,33 @@ describe('withAndroidReleaseBuildFixes shared Android NDK', () => {
   })
 })
 
+describe('withAndroidReleaseBuildFixes OkHttp', () => {
+  it('pins every OkHttp module in every project before Expo evaluates dependencies', async () => {
+    const contents = await resolveRootGradle(ROOT_GRADLE_TEMPLATE)
+    expect(contents).toContain(`allprojects {
+    configurations.configureEach {
+        resolutionStrategy.eachDependency { dependency ->
+            if (dependency.requested.group == "com.squareup.okhttp3") {
+                dependency.useVersion("4.12.1")
+            }
+        }
+    }
+}`)
+    expect(contents.indexOf('dependency.useVersion("4.12.1")')).toBeLessThan(
+      contents.indexOf('apply plugin: "expo-root-project"'),
+    )
+  })
+
+  it('keeps one OkHttp policy across repeated prebuilds without changing other root configuration', async () => {
+    const once = await resolveRootGradle(ROOT_GRADLE_TEMPLATE)
+    const twice = await resolveRootGradle(once)
+    expect(twice).toBe(once)
+    expect(twice.match(/dependency\.useVersion\("4\.12\.1"\)/g)).toHaveLength(1)
+    expect(twice).toContain("classpath('com.facebook.react:react-native-gradle-plugin')")
+    expect(twice).toContain('apply plugin: "com.facebook.react.rootproject"')
+  })
+})
+
 async function resolveJvmArgs(startingValue: string | null): Promise<string> {
   const config = withAndroidReleaseBuildFixes({ name: 'Orbit', slug: 'orbit' }) as ExportedConfig
   const gradlePropertiesMod = config.mods?.android?.gradleProperties
