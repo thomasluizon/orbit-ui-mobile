@@ -495,6 +495,18 @@ it.each(['accountDat+3', 'unknownPlaceholder', 'accountDateEn+three'])(
   },
 )
 
+it('preserves serialized JSON when resolving placeholders on repeat attempts', async () => {
+  const source = scenario('pro')
+  source.vars.history = [{ role: 'user', content: '{"title":"Water"}' }]
+  const { test } = await prepareAttempt({ test: source })
+  const firstRequest = test.vars.evalRequestId
+  const prepared = (await prepareAttempt({ test })).test
+  expect(prepared.vars).not.toHaveProperty('preconditionFailure')
+  expect(prepared.vars.history[0].content).toBe('{"title":"Water"}')
+  expect(JSON.parse(prepared.vars.clientContextJson)).toEqual(prepared.vars.clientContext)
+  expect(prepared.vars.evalRequestId).not.toBe(firstRequest)
+})
+
 it('preserves weekday positions when comparing the seeded cached metrics', async () => {
   const intercepted = globalThis.fetch
   const saved = retrospectiveResponse(true)

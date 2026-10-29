@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { behavior } from '../assertions.mjs'
+import { dateOffset } from '../fixtures/reset.mjs'
 import { toolCall, chatResponse } from './fixtures/producer.mjs'
 import parseResponse from '../response.mjs'
 
@@ -52,7 +53,8 @@ it.each(['en', 'pt-BR'])('accepts either avoid creation tool while retaining the
 
 it.each(['en', 'pt-BR'])('preserves medical title wording without admitting wrong dates or cadence in %s', (locale) => {
   const test = scenario(`composition-medical-batch-${locale}`)
-  test.vars = JSON.parse(JSON.stringify(test.vars).replaceAll('{accountYear}', '2026'))
+  test.vars = JSON.parse(JSON.stringify(test.vars).replace(/\{accountDate([+]\d+)\}/g,
+    (_, offset) => dateOffset('2026-10-23', Number(offset))))
   const args = structuredClone(recorded.find(({ caseId }) => caseId === test.metadata.id).toolCalls[0].arguments)
   expect(grade(test, [toolCall('bulk_create_habits', args, 'PendingConfirmation')]).pass).toBe(false)
   Object.assign(args.habits[2], { title: locale === 'en' ? 'Stop multivitamins' : 'Parar com multivitamínico',
