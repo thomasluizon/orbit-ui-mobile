@@ -333,8 +333,9 @@ from failed or interrupted refresh submissions. Credential validation, lock acqu
 failures before submission affect only that attempt; they allow later healthy accounts to refresh and
 earlier rotations to persist. A failed or uncertain submitted refresh blocks further refreshes from
 that file and prevents Action persistence, even if an earlier attempt rotated successfully. Recover a fresh session,
-replace the private file, and remove its markers before retrying. No token or server error body is logged. A private lock rejects concurrent token
-rotation; run one serial job per file and account. A crash leaving a `.lock` file requires checking
+replace the private file, and remove its markers before retrying. No token or server error body is logged. Concurrent callers in one process share the same in-flight account refresh; different accounts
+queue their rotations against the shared file. A private lock rejects rotation by another process;
+run one serial job per file and account. A crash leaving a `.lock` file requires checking
 that the other process has stopped before removing that lock. If rotation succeeded remotely but
 local persistence failed, obtain a fresh session through the existing authentication flow.
 

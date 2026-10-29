@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
+import { deferredCreationCall } from './fixtures/producer.mjs'
 import { approveBrainDump } from '../brain-dump-approval.mjs'
 import { brainDumpPreview } from '../brain-dumps.mjs'
 import { brainDumpAttempt, brainDumpCases, existingId } from './fixtures/brain-dump.mjs'
@@ -48,7 +49,7 @@ function approvalApi(source, failure) {
       approved = true
       pendingCount = failure === 'still-pending' ? 1 : 0
       if (failure !== 'no-write') {
-        for (const habit of attempt.output.trace.calls.find((call) => call.name === 'bulk_create_habits').arguments.habits) {
+        for (const habit of attempt.output.trace.calls.find((call) => call.name === 'bulk_create_habits' && call.resultStatus === 'PendingConfirmation').arguments.habits) {
           if (habit.habit_id && failure !== 'duplicate') continue
           habits.push({ ...baseline[0], id: `00000000-0000-4000-8000-${String(habits.length).padStart(12, '0')}`, title: habit.title,
             frequencyUnit: habit.frequency_unit === 'OneTime' ? null : habit.frequency_unit,
@@ -61,7 +62,7 @@ function approvalApi(source, failure) {
     }
     if (path.startsWith('habits/')) {
       const row = habits.find((habit) => habit.id === path.split('/')[1])
-      const proposed = attempt.output.trace.calls.find((call) => call.name === 'bulk_create_habits').arguments.habits.find((habit) => habit.title === row.title)
+      const proposed = attempt.output.trace.calls.find((call) => call.name === 'bulk_create_habits' && call.resultStatus === 'PendingConfirmation').arguments.habits.find((habit) => habit.title === row.title)
       return Response.json({ schedule: approved && failure === 'wrong-schedule' ? 'General' : row.frequencyUnit === null ? 'OneTime' : 'Recurring',
         dueTime: (approved && failure === 'wrong-time') || (!approved && failure === 'early-time-write')
           ? '23:00:00' : proposed?.due_time ?? null, dueEndTime: proposed?.due_end_time ?? null })
@@ -136,4 +137,15 @@ it.each(brainDumpCases)('isolates each $metadata.id attempt before setup', async
     expect(isolation.map(({ method }) => method)).toEqual(['DELETE', 'GET'])
     expect(state.requests.indexOf(isolation[1])).toBeLessThan(state.requests.findIndex(({ path }) => path === 'profile'))
   }
+})
+
+it('reads back the held creation after an earlier call was deferred for reads', async () => {
+  const source = brainDumpCases.find((entry) => entry.metadata.family === 'brain-dump-ideas')
+  const { test, output, baseline } = approvalApi(source)
+  const previewVerdict = brainDumpPreview(output, test.vars)
+  const { status, ...deferred } = deferredCreationCall()
+  output.trace.calls.unshift({ ...deferred, resultStatus: status })
+  const verdict = await approveBrainDump(output, test.vars, baseline, previewVerdict)
+  expect(verdict.pass, verdict.reason).toBe(true)
+  expect(verdict.persistedItems).toHaveLength(3)
 })

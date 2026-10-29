@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest'
+import { deferredCreationCall } from './fixtures/producer.mjs'
 import { brainDumpPreview } from '../brain-dumps.mjs'
 import { behavior, structural, composition } from '../assertions.mjs'
 import { brainDumpAttempt, brainDumpCases } from './fixtures/brain-dump.mjs'
@@ -95,3 +96,14 @@ it.each([
     }
   },
 )
+
+it('validates the complete held preview after reads defer an earlier creation', async () => {
+  const source = brainDumpCases.find((entry) => entry.metadata.family === 'brain-dump-ideas')
+  const { test, output } = brainDumpAttempt(source)
+  const { status, ...deferred } = deferredCreationCall()
+  output.trace.calls.unshift({ ...deferred, resultStatus: status })
+  expect(brainDumpPreview(output, test.vars).pass).toBe(true)
+  expect(behavior(output, { vars: test.vars }).pass).toBe(true)
+  output.trace.calls.at(-1).arguments.habits[0].due_date = '2026-11-01'
+  expect(brainDumpPreview(output, test.vars).pass).toBe(false)
+})

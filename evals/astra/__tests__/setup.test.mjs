@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { parse } from 'yaml'
 import { afterEach, expect, it, vi } from 'vitest'
 import { beforeEach } from '../hooks.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
@@ -48,3 +50,30 @@ it.each([false, true])('verifies the real setup turn before a correction; wrongR
 })
 
 vi.mock('../fixtures/reset.mjs', async (importOriginal) => ({ ...await importOriginal(), resetFixture: vi.fn() }))
+
+it('reports a missing starting-step setup tool as unavailable and sends no save request', async () => {
+  offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_HABIT_ID', 'water')
+  const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
+  const test = structuredClone(corpus.find((entry) => entry.metadata.id === 'composition-one-small-step-save-checklist-en'))
+  const chats = []
+  vi.stubGlobal('fetch', async (url, options) => {
+    const path = new URL(url).pathname
+    if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    if (path === '/api/auth/refresh') return refreshResponse()
+    if (path === '/api/profile/export') return Response.json({ habits: [{ id: 'water', title: 'Water', checklistItems: [{ text: 'Fill bottle', isChecked: false }] }] })
+    expect(path).toBe('/api/chat')
+    const request = new Request(url, options)
+    const form = await request.formData()
+    chats.push(form.get('message'))
+    const requestId = request.headers.get('x-orbit-request-id')
+    return Response.json(chatResponse(requestId), { headers: { 'x-orbit-request-id': requestId } })
+  })
+  const prepared = (await beforeEach({ test })).test
+  expect(prepared.vars.preconditionFailure).toContain('Missing tool or incorrect arguments/result: suggest_breakdown')
+  const response = await new AstraHttpProvider({ config: {} }).callApi('Save the step.', { vars: prepared.vars })
+  expect(chats).toEqual([test.vars.setup.input])
+  expect(response.metadata.astraPreconditionFailure).toBe(true)
+  const summary = summarize([{ testCase: prepared, response, success: false }], [prepared.metadata])
+  expect(summary.cases[0]).toMatchObject({ unavailable: 1, pass3: 'incomplete' })
+})

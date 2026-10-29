@@ -2262,6 +2262,27 @@
                           frequency_unit: Day
                           frequency_quantity: 1
                     - *unchangedParentEn
+            - habits:
+                - allOf:
+                    - title: Post Lunch
+                      habit_id: { optional: null }
+                      sub_habits:
+                        - title:
+                            textContains: vitamin D
+                          parent_habit_id: "{habitId}"
+                          frequency_unit: Week
+                          frequency_quantity: 1
+                    - *unchangedParentEn
+                - allOf:
+                    - title: Before Bed
+                      habit_id: { optional: null }
+                      sub_habits:
+                        - title:
+                            textContains: rosuvastatin
+                          parent_habit_id: "{secondHabitId}"
+                          frequency_unit: Day
+                          frequency_quantity: 1
+                    - *unchangedParentEn
       allowed:
         - query_habits
         - bulk_create_habits
@@ -2572,6 +2593,27 @@
                         - title:
                             textContains: rosuvastatina
                           parent_habit_id: { optional: "{secondHabitId}" }
+                          frequency_unit: Day
+                          frequency_quantity: 1
+                    - *unchangedParentPt
+            - habits:
+                - allOf:
+                    - title: Depois do almoço
+                      habit_id: { optional: null }
+                      sub_habits:
+                        - title:
+                            textContains: vitamina D
+                          parent_habit_id: "{habitId}"
+                          frequency_unit: Week
+                          frequency_quantity: 1
+                    - *unchangedParentPt
+                - allOf:
+                    - title: Antes de dormir
+                      habit_id: { optional: null }
+                      sub_habits:
+                        - title:
+                            textContains: rosuvastatina
+                          parent_habit_id: "{secondHabitId}"
                           frequency_unit: Day
                           frequency_quantity: 1
                     - *unchangedParentPt

@@ -35,3 +35,21 @@ export function matchesOperation(call, expected) {
       .some((arguments_) => expected.exactArguments === true
         ? isDeepStrictEqual(call.arguments, arguments_) : matchesArguments(call.arguments, arguments_))
 }
+
+export function outcomeCalls(calls, expectations) {
+  const scope = [...expectations.required ?? [], ...expectations.permittedMutations ?? []]
+  return calls.filter((call, index) => {
+    if (call.name !== 'bulk_create_habits') return true
+    const deferred = call.resultStatus === 'Succeeded' && call.result?.success === true
+      && call.result.error === null && call.result.payload?.status === 'awaiting_reads'
+    const rejected = call.resultStatus === 'Failed' && call.result?.success === false
+      && typeof call.result.error === 'string' && call.result.error.trim().length > 0
+      && call.result.payload?.status === 'no_new_preview'
+    if (!deferred && !rejected) return true
+    // Only producer-confirmed non-dispatches recovered by a later scoped preview leave the outcome count.
+    return !calls.slice(index + 1).some((candidate) => candidate.name === call.name
+      && candidate.resultStatus === 'PendingConfirmation' && candidate.result?.success === true
+      && candidate.result.error === null && candidate.result.payload?.status === 'awaiting_confirmation'
+      && scope.some((operation) => matchesOperation(candidate, operation)))
+  })
+}
