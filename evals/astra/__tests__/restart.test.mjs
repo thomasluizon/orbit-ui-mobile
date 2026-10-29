@@ -20,10 +20,10 @@ afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const cases = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
   .filter((entry) => entry.vars.restart)
 
-function proposal() {
+function proposal(todayCount = 2) {
   const read = toolCall('query_habits', { date: 'today', is_completed: false, include_overdue: true }, 'Succeeded', 'read', { supportsParts: true })
   read.result.payload = { scope: 'today', items: ids.map((id, index) => ({ id, title: `Habit ${index}`, emoji: null, depth: 0, isBadHabit: false, status: index < 4 ? 'overdue' : 'today' })), totalCount: 6 }
-  const dates = ids.map((habit_id, index) => ({ habit_id, updates: { due_date: index >= 4 ? today : '2026-10-29' } }))
+  const dates = ids.map((habit_id, index) => ({ habit_id, updates: { due_date: index >= ids.length - todayCount ? today : '2026-10-29' } }))
   const write = toolCall('bulk_reschedule_habits', { revised_items: dates, orbit_write_complete: true }, 'PendingConfirmation', 'write', { supportsParts: true })
   const pending = { ...preview(), actionKey: 'rescheduleHabits', displayName: 'bulk_reschedule_habits',
     items: dates.map(({ habit_id, updates }, index) => ({ itemId: habit_id, entityId: habit_id, entityName: `Habit ${index}`, stateFingerprint: 'state', removesData: null,
@@ -51,6 +51,21 @@ it.each(todayReadForms)('accepts a complete restart proposal with today scope %j
 it('accepts a complete held restart proposal grounded in the unfinished read', () => {
   const verdict = restartProposal(proposal(), vars)
   expect(verdict.pass, verdict.reason).toBe(true)
+})
+
+it.each([
+  [1, undefined, true],
+  [3, undefined, true],
+  [5, undefined, true],
+  [6, undefined, false],
+  [0, undefined, false],
+  [3, 2, false],
+  [2, 2, true],
+])('grades %i of 6 habits today with requested count %s as %s', (todayCount, requestedCount, pass) => {
+  const policy = { ...vars, restart: { ...vars.restart, todayCount: requestedCount } }
+  const verdict = restartProposal(proposal(todayCount), policy)
+  expect(verdict.pass, verdict.reason).toBe(pass)
+  if (!pass) expect(verdict.reason).toBe('Restart must keep at least one habit today, strictly fewer than the complete set, and exactly the requested count when specified.')
 })
 
 it.each([
