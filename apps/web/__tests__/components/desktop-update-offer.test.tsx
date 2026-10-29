@@ -394,7 +394,7 @@ it('a native menu restart waits for streaming and acknowledges the request befor
   expect(reload).toHaveBeenCalledOnce()
 })
 
-it('a native Later decision cancels a pending restart until Quit requests the settled checkpoint', async () => {
+it('a native Later decision cancels a pending restart until an explicit restart requests the settled checkpoint', async () => {
   native.phase = 'available'
   native.shellVersion = '0.2.0'
   invoke.mockImplementation(async (command, payload) => {
