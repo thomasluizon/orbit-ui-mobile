@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as grades from '../assertions.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { visibleBlock } from '../visible-blocks.mjs'
-import { chatResponse, toolCall } from './fixtures/producer.mjs'
+import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
+import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
+import { approveStartingStep } from '../step-persistence.mjs'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { prepareCorrection } from '../setup.mjs'
@@ -123,6 +125,67 @@ it('matches the producer trimming surrounding whitespace from tool titles', () =
 
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
+
+async function checkChecklistSave(test, starting, baseline) {
+  const step = starting.suggestion.step
+  const habitId = test.vars.checklistHabitId
+  const checklist = [...baseline[0].checklistItems, { text: step, isChecked: false }]
+  const items = checklist.map(({ text, isChecked }) => ({ text, is_checked: isChecked }))
+  const append = { habit_id: habitId, item_to_add: step }
+  const fullList = { habit_id: habitId, checklist_items: items }
+  const vars = { ...test.vars, evalRequestId: 'request' }
+  const callOutput = (arguments_) => outputFor(chatResponse('request', [toolCall('update_checklist', arguments_, 'PendingConfirmation')]))
+  for (const arguments_ of [append, fullList, { ...append, checklist_items: null }, { ...fullList, item_to_add: null }]) {
+    const grade = grades.behavior(callOutput(arguments_), { vars })
+    expect(grade.pass, grade.reason).toBe(true)
+  }
+  for (const arguments_ of [{ ...append, habit_id: 'another-habit' }, { ...append, item_to_add: 'Another step' },
+    { ...append, checklist_items: items }, { ...fullList, habit_id: 'another-habit' },
+    { ...fullList, checklist_items: items.slice(1) },
+    { ...fullList, checklist_items: items.map((item, index) => index === 0 ? { ...item, is_checked: false } : item) },
+    { ...fullList, checklist_items: [...items, items.at(-1)] }]) {
+    expect(grades.behavior(callOutput(arguments_), { vars }).pass).toBe(false)
+  }
+
+  // Producer: PreviewChecklistAppendAsync and AgentArgumentPreview.Build merge into checklist_items.
+  const pending = preview(baseline[0].title)
+  pending.items[0].entityId = habitId
+  pending.items[0].fields = Object.entries({ habit_id: habitId, checklist_items: items }).map(([field, proposedValue]) => ({
+    entityId: habitId, entityName: baseline[0].title, field, oldValue: null,
+    newValue: typeof proposedValue === 'string' ? proposedValue : JSON.stringify(proposedValue),
+    valueType: 'text', proposedValue, isEditable: false,
+  }))
+  const parsed = { composition: { pendingOperations: [pending] } }
+  offlineCredentials()
+  const requests = []
+  let stored = baseline
+  vi.stubGlobal('fetch', async (url, options) => {
+    const path = new URL(url).pathname
+    if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    if (path === '/api/auth/refresh') return refreshResponse()
+    requests.push(`${options.method} ${path}`)
+    if (path === '/api/profile/export') return Response.json({ habits: stored })
+    if (path.endsWith('/confirm')) return Response.json({ pendingOperationId: pending.id, confirmationToken: 'offline-confirmation' })
+    expect(path).toBe(`/api/ai/pending-operations/${pending.id}/execute`)
+    stored = [{ ...baseline[0], checklistItems: checklist }]
+    return Response.json({})
+  })
+  const proposed = pending.items[0].fields[1]
+  for (const invalid of [items.slice(1), [...items].reverse(), [...items, items.at(-1)],
+    items.map((item, index) => index === 0 ? { ...item, is_checked: false } : item),
+    items.map((item, index) => index === items.length - 1 ? { ...item, is_checked: true } : item)]) {
+    proposed.proposedValue = invalid
+    expect((await approveStartingStep(parsed, vars)).pass).toBe(false)
+    expect(requests).toEqual([])
+  }
+  proposed.proposedValue = items
+  const approved = await approveStartingStep(parsed, vars)
+  expect(approved.pass, approved.reason).toBe(true)
+  expect(approved.metadata.savedStep.checklistItems).toEqual(checklist)
+  expect(requests).toEqual(['GET /api/profile/export', `POST /api/ai/pending-operations/${pending.id}/confirm`,
+    `POST /api/ai/pending-operations/${pending.id}/execute`, 'GET /api/profile/export'])
+}
+
 it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'save-task', 'save-checklist'].map((family) => [locale, family])))(
   'uses the actual %s block action for %s with history and verified setup', async (locale, family) => {
     const test = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-one-small-step-${family}-${locale}`))
@@ -131,7 +194,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'save-task', 'save-check
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
     vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
     const baseline = [{ id: test.vars.checklistHabitId, title: locale === 'en' ? 'Water' : 'Beber água',
-      checklistItems: [{ text: 'Existing item', isChecked: true }] }]
+      checklistItems: [{ text: 'Existing item', isChecked: true }, { text: 'Unchecked item', isChecked: false }] }]
     let starting
     vi.stubGlobal('fetch', async (url, options) => {
       if (new URL(url).pathname === '/api/profile/export') return Response.json({ habits: baseline })
@@ -155,8 +218,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'save-task', 'save-check
     if (family === 'save-task') expect(test.vars.expectations.required[0].arguments).toMatchObject({ title: starting.suggestion.step, frequency_unit: 'OneTime' })
     if (family === 'save-checklist') {
       expect(test.vars.startingHabitBaseline).toEqual(baseline)
-      expect(test.vars.expectations.required[0].arguments).toEqual({ habit_id: test.vars.checklistHabitId,
-        checklist_items: [{ text: 'Existing item', is_checked: true }, { text: starting.suggestion.step, is_checked: { optional: false } }] })
+      await checkChecklistSave(test, starting, baseline)
     }
     const grader = { id: () => 'offline-starting-step-grader', callApi: vi.fn(async () => ({
       output: JSON.stringify({ pass: true, score: 1, reason: 'Captured previous-step context.' }),

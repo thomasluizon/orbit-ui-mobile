@@ -256,7 +256,9 @@ Follow-ups send the returned action's complete `message` with verified setup his
 rubric receives the original activity and step to compare effort semantically, allowing equivalent
 activity wording. Save cases derive their required tool arguments from that same returned step.
 
-The `savedStep` assertion checks tool structure, behavior and composition before approving anything.
+The HTTP provider checks tool structure, behavior and composition before approving saved steps,
+then completes approval and independent readback before returning to the next fixture reset.
+The `savedStep` assertion grades only the stored verdict and fails if it is missing.
 An independent export must still match the baseline before confirmation and execution. Task readback
 requires exactly one new one-time task with the step as title and no changes to existing habits.
 Checklist readback requires every existing item and checked state in order, with the new step appended

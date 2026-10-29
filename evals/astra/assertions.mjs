@@ -2,8 +2,6 @@ import { refineResult } from './suggestions.mjs'
 import { restartProposal, restartReadback } from './restart.mjs'
 import { composition } from './composition.mjs'
 export { composition }
-import { approveStartingStep } from './step-persistence.mjs'
-import { safeFailureMessage } from './credentials.mjs'
 import { assertions } from 'promptfoo'
 import { matchesArguments, matchesOperation, outcomeCalls } from './operation-matcher.mjs'
 import { tools, legacyTools, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
@@ -22,15 +20,10 @@ const decode = (output) => typeof output === 'string' ? JSON.parse(output) : out
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const statuses = new Set(['Succeeded', 'Failed', 'PendingConfirmation', 'Denied', 'UnsupportedByPolicy', 'NotExecuted'])
 
-export async function savedStep(output, context) {
+export function savedStep(output, context) {
   if (!['saveTask', 'saveChecklistItem'].includes(context.vars.startingStepAction)) return result(true, 'No saved-step approval requested.')
-  try {
-    for (const grade of [structural, behavior, composition]) {
-      const check = await grade(output, context)
-      if (check.pass !== true || check.metadata?.unavailable) return result(false, `Saved-step approval blocked: ${check.reason}`)
-    }
-    return await approveStartingStep(decode(output), context.vars)
-  } catch (error) { return result(false, `Saved-step approval or readback failed: ${safeFailureMessage(error)}`) }
+  const verdict = decode(output)?.savedStepReadback
+  return verdict?.pass === true ? verdict : result(false, verdict?.reason ?? 'Missing saved-step approval readback.')
 }
 
 function traceBoundary(output, context) {
