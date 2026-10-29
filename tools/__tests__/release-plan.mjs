@@ -1,9 +1,15 @@
 import { readFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
+import { dirname, resolve } from "node:path"
+import { fileURLToPath, pathToFileURL } from "node:url"
 import { load } from "js-yaml"
-import { BASH, T, check, stage, toolPath } from "./_harness.mjs"
-import { cases as workflowCases } from "./check-release-workflow.mjs"
+import { BASH, T, check, configure, failureCount, stage, toolPath } from "./_harness.mjs"
 import { planRelease, stagingServiceIds, productionServiceIds } from "../release-plan.mjs"
+
+const isDirect = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+if (isDirect) configure({ toolsDir: resolve(dirname(fileURLToPath(import.meta.url)), ".."),
+  self: resolve(dirname(fileURLToPath(import.meta.url)), "../test-tools.mjs") })
+const { cases: workflowCases } = await import("./check-release-workflow.mjs")
 
 const fixture = JSON.parse(readFileSync(toolPath("__tests__/release-fixture.json"), "utf8"))
 const androidFixture = JSON.parse(readFileSync(toolPath("__tests__/android-deployment-fixture.json"), "utf8")).deployment
@@ -15,7 +21,7 @@ const LANDING = "srv-ffffffffffffffffffff"
 const STAGING_LANDING = "srv-dddddddddddddddddddd"
 const clone = (value) => structuredClone(value)
 
-function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest = [], noLiveApi = false, imageApi = false, androidUploads = null } = {}) {
+function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest = [], imageApi = false, androidUploads = null } = {}) {
   const calls = []
   const read = (path) => {
     calls.push(path)
@@ -73,7 +79,6 @@ function clientFor({ ahead = [], diverged = [], noDeployment = [], failedNewest 
     calls.push(path)
     if (path === "services?limit=100") return clone(renderFixture.serviceList)
     if (path.includes("/deploys?")) {
-      if (noLiveApi && path === `services/${IDS.api}/deploys?status=live&limit=1`) return []
       if (imageApi && path === `services/${IDS.api}/deploys?status=live&limit=1`) return clone(renderFixture.stagingApiDeploys)
       const records = clone(renderFixture.deploys)
       records[0].deploy.commit.id = path === `services/${STAGING_LANDING}/deploys?status=live&limit=1`
@@ -95,8 +100,10 @@ export async function cases() {
   workflowCases()
   check("release-plan.mjs", "CLI production refuses redesign branch", ["--environment", "production", "--branch", "integration/next"], { status: 2 })
   androidRecordCases()
+  await apiHealthCases()
+  await customDomainCases()
+  cliBaselineCases()
   await androidBaselineCases()
-  await stagingApiHealthCases()
   let missingBranch = ""
   try { await planRelease(clientFor(), "staging", IDS) } catch (error) { missingBranch = error.message }
   T("staging requires a selected branch", missingBranch === "invalid branch for environment")
@@ -123,15 +130,8 @@ export async function cases() {
       service.dispatchCommand === `gh workflow run release.yml --repo thomasluizon/${service.repo} --ref main -f environment=production -f branch='main' -f sha=${SECOND}`)
   }
 
-  const first = await planRelease(clientFor({ ahead: ["api"], noLiveApi: true }), "production", IDS)
+  const first = await planRelease(clientFor({ ahead: ["api"] }), "production", { ...IDS, api: null })
   T("first production deployment has no baseline", first.services[0].needsRelease && first.services[0].noBaseline && first.services[0].deployedSha === null)
-
-  const failed = clientFor({ ahead: ["api"], failedNewest: ["api"] })
-  const recovered = await planRelease(failed, "production", IDS)
-  T("production API uses the live Render commit", recovered.services[0].deployedSha === FIRST && recovered.services[0].needsRelease)
-  T("production API reads Render live deploys", failed.calls.some((path) => path === `services/${IDS.api}/deploys?status=live&limit=1`))
-  T("production API does not read its service record or health", !failed.calls.some((path) =>
-    path === `services/${IDS.api}` || path === "https://api.example.invalid/health"))
 
   const divergentStaging = await planRelease(clientFor({ ahead: ["api"], diverged: ["api"] }),
     "staging", IDS, "internal", "feature/release")
@@ -176,48 +176,168 @@ export async function cases() {
   T("malformed repository variable does not masquerade as a first deploy", invalidVariable.includes("unexpected shape"))
 }
 
-async function stagingApiHealthCases() {
-  const healthUrl = "https://api.example.invalid/health"
-  const image = clientFor({ imageApi: true, ahead: ["api"] })
-  let imagePlan
-  let imageError = ""
-  try { imagePlan = await planRelease(image, "staging", IDS, "internal", "main") }
-  catch (error) { imageError = error.message }
-  T("image-backed staging API plans from its healthy commit", imagePlan?.services[0].deployedSha === FIRST &&
-    imagePlan.services[0].needsRelease && imagePlan.services[0].commits[0].sha === SECOND, imageError)
-  T("staging API discovers health through its Render service record", image.calls.some((path) => path === `services/${IDS.api}`) &&
-    image.calls.some((path) => path === healthUrl))
-  T("staging API never reads a Git-backed deploy baseline", !image.calls.includes(`services/${IDS.api}/deploys?status=live&limit=1`))
+async function customDomainCases() {
+  for (const environment of ["production", "staging"]) {
+    for (const name of ["api", "web"]) {
+      const index = name === "api" ? 0 : 1
+      const healthPath = name === "api" ? "/health" : "/api/health"
+      const track = environment === "production" ? "open" : "internal"
+      const domain = clone(renderFixture.customDomains[0])
+      const unverified = clone(domain)
+      unverified.customDomain.verificationStatus = "unverified"
+      unverified.customDomain.name = "unverified.example.invalid"
+      const second = clone(domain)
+      second.customDomain.name = "second.example.invalid"
+      for (const [label, domains, expectedOrigin] of [
+        ["verified domain", [domain], "https://custom.example.invalid"],
+        ["first verified domain", [unverified, domain, second], "https://custom.example.invalid"],
+        ["no domains", [], null],
+        ["only unverified domains", [unverified], null],
+      ]) {
+        const client = clientFor({ ahead: ["api", "web", "landing", "android"] })
+        const readRender = client.readRender
+        client.readRender = (path) => {
+          if (path === `services/${IDS[name]}`) {
+            client.calls.push(path)
+            return clone(renderFixture.productionApiService)
+          }
+          if (path === `services/${IDS[name]}/custom-domains`) {
+            client.calls.push(path)
+            return domains
+          }
+          return readRender(path)
+        }
+        const plan = await planRelease(client, environment, IDS, track, "main")
+        const service = plan.services[index]
+        if (expectedOrigin) {
+          T(`${environment} ${name} disabled subdomain uses ${label}`, service.deployedSha === FIRST &&
+            service.needsRelease && client.calls.includes(`${expectedOrigin}${healthPath}`))
+        } else {
+          T(`${environment} ${name} disabled subdomain with ${label} is a row error`,
+            service.baselineError === `Render service ${name} at services/${IDS[name]} has no verified custom domain` &&
+            !service.plannedSha && !service.dispatchCommand && !service.noBaseline)
+          T(`${environment} ${name} domain error preserves other plans`, plan.services.every((entry) =>
+            entry.name === name || entry.needsRelease && entry.plannedSha === SECOND))
+        }
+        T(`${environment} ${name} disabled subdomain never reads its Render health URL`,
+          !client.calls.some((call) => {
+            try { return new URL(call).host === "disabled.example.invalid" } catch { return false }
+          }))
+      }
+      const enabled = clientFor()
+      const plan = await planRelease(enabled, environment, IDS, track, "main")
+      const origin = name === "api" ? "https://api.example.invalid" : "https://example.invalid"
+      T(`${environment} ${name} enabled subdomain keeps the service URL`,
+        plan.services[index].deployedSha === FIRST && enabled.calls.includes(`${origin}${healthPath}`) &&
+        !enabled.calls.some((call) => call.endsWith("/custom-domains")))
+    }
+  }
+}
 
-  const missingCommit = clone(renderFixture.apiHealth)
-  delete missingCommit.commit
-  const failures = [
-    ["unhealthy", { ...clone(renderFixture.apiHealth), status: "Unhealthy" }],
-    ["web status", { ...clone(renderFixture.apiHealth), status: "ok" }],
-    ["missing commit", missingCommit],
-    ["malformed commit", { ...clone(renderFixture.apiHealth), commit: "invalid" }],
-    ["non-string commit", { ...clone(renderFixture.apiHealth), commit: [FIRST] }],
-    ["short commit", { ...clone(renderFixture.apiHealth), commit: "a".repeat(39) }],
-    ["null body", null],
-    ["transport failure", new Error("connection refused")],
-    ["HTTP failure", new Error("Health returned HTTP 503")],
-    ["invalid JSON", new SyntaxError("Unexpected token")],
-  ]
-  for (const [name, response] of failures) {
-    const client = clientFor()
+async function apiHealthCases() {
+  const healthUrl = "https://api.example.invalid/health"
+  for (const environment of ["production", "staging"]) {
+    const track = environment === "production" ? "open" : "internal"
+    const image = clientFor({ imageApi: true, ahead: ["api"] })
+    let imagePlan
+    let imageError = ""
+    try { imagePlan = await planRelease(image, environment, IDS, track, "main") }
+    catch (error) { imageError = error.message }
+    T(`image-backed ${environment} API plans from its healthy commit`, imagePlan?.services[0].deployedSha === FIRST &&
+      imagePlan.services[0].needsRelease && imagePlan.services[0].commits[0].sha === SECOND, imageError)
+    T(`${environment} API discovers health through its Render service record`, image.calls.includes(`services/${IDS.api}`) &&
+      image.calls.some((call) => call === healthUrl))
+    T(`${environment} API never reads a Git-backed deploy baseline`, !image.calls.includes(`services/${IDS.api}/deploys?status=live&limit=1`))
+    const landing = environment === "production" ? LANDING : STAGING_LANDING
+    T(`${environment} landing still plans from live deploys`, imagePlan?.services[2].deployedSha ===
+      (environment === "production" ? FIRST : renderFixture.stagingLandingCommit) &&
+      image.calls.includes(`services/${landing}/deploys?status=live&limit=1`))
+
+    const missingCommit = clone(renderFixture.apiHealth)
+    delete missingCommit.commit
+    const failures = [
+      ["unhealthy", { ...clone(renderFixture.apiHealth), status: "Unhealthy" }],
+      ["web status", { ...clone(renderFixture.apiHealth), status: "ok" }],
+      ["missing commit", missingCommit],
+      ["malformed commit", { ...clone(renderFixture.apiHealth), commit: "invalid" }],
+      ["non-string commit", { ...clone(renderFixture.apiHealth), commit: [FIRST] }],
+      ["short commit", { ...clone(renderFixture.apiHealth), commit: "a".repeat(39) }],
+      ["null body", null],
+      ["transport failure", new Error("connection refused")],
+      ["HTTP failure", new Error("Health returned HTTP 503")],
+      ["invalid JSON", new SyntaxError("Unexpected token")],
+    ]
+    for (const [name, response] of failures) {
+      const client = clientFor({ ahead: ["web", "landing", "android"] })
+      const readHealth = client.readHealth
+      client.readHealth = (url) => {
+        if (url !== healthUrl) return readHealth(url)
+        if (response instanceof Error) throw response
+        return response
+      }
+      let plan
+      let failure = ""
+      try { plan = await planRelease(client, environment, IDS, track, "main") }
+      catch (error) { failure = error.message }
+      const expected = response instanceof Error
+        ? `API health at ${healthUrl} failed: ${response.message}`
+        : `API health at ${healthUrl} has an unexpected response`
+      const api = plan?.services[0]
+      T(`${environment} API ${name} reports an unreadable baseline with its cause`, api?.baselineError === expected, failure)
+      T(`${environment} API ${name} has no release command or first-deploy signal`, api &&
+        !api.dispatchCommand && !api.plannedSha && !api.noBaseline && !api.needsRelease)
+      T(`${environment} API ${name} preserves the other service plans`, plan?.services.slice(1).every((service) =>
+        service.needsRelease && service.plannedSha === SECOND), failure)
+    }
+  }
+}
+
+function cliBaselineCases() {
+  const preload = stage("release-plan/preload.mjs", `
+    import childProcess from "node:child_process"
+    import { syncBuiltinESMExports } from "node:module"
+    const fixture = ${JSON.stringify(fixture)}
+    const androidFixture = ${JSON.stringify(androidFixture)}
+    const renderFixture = ${JSON.stringify(renderFixture)}
+    const FIRST = ${JSON.stringify(FIRST)}, SECOND = ${JSON.stringify(SECOND)}
+    const IDS = ${JSON.stringify(IDS)}, STAGING_LANDING = ${JSON.stringify(STAGING_LANDING)}
+    const clone = (value) => structuredClone(value)
+    const clientFor = ${clientFor.toString()}
+    const client = clientFor({ imageApi: true, ahead: ["web", "landing", "android"] })
     const readHealth = client.readHealth
     client.readHealth = (url) => {
-      if (url !== healthUrl) return readHealth(url)
-      if (response instanceof Error) throw response
-      return response
+      if (url === "https://api.example.invalid/health" && process.env.BASELINE_MODE === "unhealthy") {
+        return { ...readHealth(url), status: "Unhealthy" }
+      }
+      if (url === "https://api.example.invalid/health" && process.env.BASELINE_MODE === "unreachable") {
+        throw new Error("Health returned HTTP 503")
+      }
+      return readHealth(url)
     }
-    let failure = ""
-    try { await planRelease(client, "staging", IDS, "internal", "main") }
-    catch (error) { failure = error.message }
-    const expected = response instanceof Error
-      ? `API health at ${healthUrl} failed: ${response.message}`
-      : `API health at ${healthUrl} has an unexpected response`
-    T(`staging API ${name} stops planning, naming the health URL and the cause`, failure === expected, failure)
+    childProcess.execFileSync = (command, args) => {
+      if (command !== "gh" || args[0] !== "api") throw new Error("unexpected CLI command")
+      return JSON.stringify(client.read(args[1]))
+    }
+    syncBuiltinESMExports()
+    globalThis.fetch = async (url) => ({ ok: true, json: async () =>
+      url.startsWith("https://api.render.com/v1/")
+        ? client.readRender(url.slice("https://api.render.com/v1/".length)) : client.readHealth(url) })
+  `)
+  for (const environment of ["production", "staging"]) {
+    for (const mode of ["healthy", "unhealthy", "unreachable"]) {
+      const result = spawnSync(process.execPath, ["--import", preload, toolPath("release-plan.mjs"),
+        "--environment", environment, ...(environment === "staging" ? ["--branch", "main"] : [])], {
+        encoding: "utf8", timeout: 10000, env: { ...process.env, RENDER_MCP_TOKEN: "fixture", BASELINE_MODE: mode },
+      })
+      T(`${environment} CLI ${mode} has the required exit code`, result.status === (mode === "healthy" ? 0 : 1), result.stderr)
+      let plan
+      try { plan = JSON.parse(result.stdout) } catch { /* The assertion reports missing plan output. */ }
+      T(`${environment} CLI ${mode} prints every service`, plan?.services.map((service) => service.name).join(",") === "api,web,landing,android", result.stdout + result.stderr)
+      if (mode !== "healthy") {
+        T(`${environment} CLI ${mode} names the unreadable API baseline`, result.stderr.includes("api baseline unreadable: API health at https://api.example.invalid/health"))
+        T(`${environment} CLI ${mode} retains the other planned releases`, plan?.services.slice(1).every((service) => service.needsRelease))
+      }
+    }
   }
 }
 
@@ -351,10 +471,14 @@ async function androidBaselineCases() {
   T("Android track baseline follows deployment pagination", paginatedPlan.services[3].deployedSha === FIRST &&
     paginatedAndroid.calls.some((path) => path.includes("task=android-release") && path.endsWith("page=2")))
   const invalidAndroid = clientFor({ androidUploads: [{ track: "open", sha: "invalid" }] })
-  let androidShape = ""
-  try { await planRelease(invalidAndroid, "production", IDS) } catch (error) { androidShape = error.message }
-  T("Android rejects an invalid deployment commit", androidShape.includes("unexpected SHA"))
+  const invalidAndroidPlan = await planRelease(invalidAndroid, "production", IDS)
+  T("Android rejects an invalid deployment commit", invalidAndroidPlan.services[3].baselineError?.includes("unexpected SHA"))
   T("Android baseline selects the deployment environment", uploaded.calls.some((path) =>
     path.includes("task=android-release&environment=production")))
 
+}
+
+if (isDirect) {
+  await cases()
+  process.exitCode = failureCount() === 0 ? 0 : 1
 }
