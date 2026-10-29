@@ -8,6 +8,7 @@ import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { createHermeticFixtureRequest } from '@/test-support/hermetic/fixture-request'
 import { bundleGeometry } from '@/__tests__/support/profile-settings-browser'
 import { inspectInteractionSurface } from '@/__tests__/support/interaction-surface-geometry'
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -71,10 +72,11 @@ async function reachInteraction(page: Page, control: Locator, state: Interaction
   if (state === 'focus') { await page.keyboard.press('Shift'); await control.focus() }
   else { await control.hover(); if (state === 'press') await page.mouse.down() }
   await control.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => done())))
+  await control.evaluate(settleAnimations)
   return true
 }
 
-async function assertSurface(control: Locator, state: Interaction) {
+async function assertSurface(control: Locator, state: Interaction, assert: typeof expect) {
   const geometry = await control.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)
   const ancestors = geometry.violations.length ? await control.evaluate(element => {
     const rows = []
@@ -84,24 +86,25 @@ async function assertSurface(control: Locator, state: Interaction) {
     }
     return rows
   }) : []
-  expect.soft(geometry.violations, JSON.stringify({ state, geometry, ancestors })).toEqual([])
+  assert.soft(geometry.violations, JSON.stringify({ state, geometry, ancestors })).toEqual([])
   if (geometry.centering) {
-    expect.soft(geometry.centering.inline, `${geometry.control} ${state} inline centre`).toBeLessThanOrEqual(0.5)
-    expect.soft(geometry.centering.block, `${geometry.control} ${state} block centre`).toBeLessThanOrEqual(0.5)
+    assert.soft(geometry.centering.inline, `${geometry.control} ${state} inline centre`).toBeLessThanOrEqual(0.5)
+    assert.soft(geometry.centering.block, `${geometry.control} ${state} block centre`).toBeLessThanOrEqual(0.5)
   }
 }
 
-async function inspectOpenedOverlay(page: Page, control: Locator, visited: Set<string>) {
+async function inspectOpenedOverlay(page: Page, control: Locator, visited: Set<string>, assert: typeof expect) {
   const popup = page.locator('[role="dialog"], [role="menu"]').last()
   const insidePopup = await control.evaluate(element => Boolean(element.closest('[role="dialog"], [role="menu"]')))
   if (!await popup.isVisible() || insidePopup) return
+  await popup.evaluate(settleAnimations)
   const identity = await popup.getAttribute('id') ?? await popup.innerText()
-  if (!visited.has(identity)) { visited.add(identity); await inspectDiscoveredControls(page, popup, visited) }
+  if (!visited.has(identity)) { visited.add(identity); await inspectDiscoveredControls(page, popup, assert, visited) }
   await page.keyboard.press('Escape')
   await popup.waitFor({ state: 'hidden', timeout: 3000 })
 }
 
-async function inspectDiscoveredControls(page: Page, scope: Locator, visited = new Set<string>()) {
+async function inspectDiscoveredControls(page: Page, scope: Locator, assert: typeof expect, visited = new Set<string>()) {
   const prefix = String(nextScope++)
   const discovered = scope.locator(controls)
   await discovered.evaluateAll((elements, prefix) => elements.forEach((element, index) => element.setAttribute('data-surface-control', `${prefix}-${index}`)), prefix)
@@ -113,11 +116,11 @@ async function inspectDiscoveredControls(page: Page, scope: Locator, visited = n
     if (await control.evaluate(element => element.matches('[data-base-ui-focus-guard], [data-radix-focus-guard]'))) continue
     for (const state of ['hover', 'press', 'focus'] as const) {
       if (!await reachInteraction(page, control, state)) continue
-      await assertSurface(control, state)
+      await assertSurface(control, state, assert)
       await page.mouse.move(0, 0)
       await page.mouse.up()
       await control.blur()
-      await inspectOpenedOverlay(page, control, visited)
+      await inspectOpenedOverlay(page, control, visited, assert)
     }
     inspected++
   }
@@ -139,7 +142,41 @@ describe('destination and sheet interaction surface sweep', () => {
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
-  it.each(cases)('discovers every rendered control at $width in $locale, collapsed=$collapsed on $route', async ({ width, locale, collapsed, route }) => {
+  it('measures foreground neighbours independently from the modal backdrop', async () => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 640 } })
+    try {
+      await page.setContent('<button style="position:fixed;inset:0;background:grey">Backdrop</button><div role="dialog" style="position:fixed;inset:16px;background:white"><button id="action" style="position:absolute;left:16px;top:16px;width:48px;height:48px;border:0;background:grey">Action</button><span id="neighbour" style="position:absolute;left:72px;top:32px">Neighbour</span></div>')
+      const action = page.locator('#action')
+      expect((await action.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)).violations).toEqual([])
+      await page.locator('#neighbour').evaluate(element => element.style.left = '68px')
+      expect((await action.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)).violations).toContainEqual({ neighbour: 'span#neighbour[Neighbour]', distance: 4 })
+    } finally { await page.close() }
+  })
+
+  it('measures the tab focus perimeter without changing its styles', async () => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 640 } })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="dark" style="${variables}"><style>${stylesheet}</style><body><div data-shell-column style="padding-top:400px"><a href="/" class="orbit-tab relative block h-20 w-20">Today</a></div></body></html>`)
+      const tab = page.locator('a')
+      for (const state of ['hover', 'press'] as const) {
+        await reachInteraction(page, tab, state)
+        await tab.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)
+        await page.mouse.move(0, 0)
+        await page.mouse.up()
+        await tab.blur()
+      }
+      await page.keyboard.press('Shift')
+      await tab.focus()
+      const before = await tab.evaluate(element => { const style = getComputedStyle(element, '::after'); return { outline: style.outline, offset: style.outlineOffset } })
+      const geometry = await tab.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)
+      const after = await tab.evaluate(element => { const style = getComputedStyle(element, '::after'); return { outline: style.outline, offset: style.outlineOffset } })
+      expect(after).toEqual(before)
+      expect(geometry.violations, JSON.stringify({ before, after, geometry })).toEqual([])
+    } finally { await page.close() }
+  })
+
+  it.concurrent.for(cases)('discovers every rendered control at $width in $locale, collapsed=$collapsed on $route', { timeout: 120_000 }, async ({ width, locale, collapsed, route }, { expect }) => {
       const page = await browser.newPage({ viewport: { width, height: 1100 }, reducedMotion: 'reduce' })
       page.setDefaultTimeout(3000)
       const failures: string[] = []
@@ -164,7 +201,7 @@ describe('destination and sheet interaction surface sweep', () => {
         await page.waitForFunction('window.surfaceClient.isFetching() === 0')
         await loadAppFonts(page)
         expect(failures, route).toEqual([])
-        expect(await inspectDiscoveredControls(page, page.locator('body')), route).toBeGreaterThan(0)
+        expect(await inspectDiscoveredControls(page, page.locator('body'), expect), route).toBeGreaterThan(0)
         const entries = await page.locator('button:has(svg), [aria-haspopup="dialog"], [aria-haspopup="menu"]').all()
         for (const entry of entries) {
           if (!await entry.isVisible() || !await entry.isEnabled()) continue
@@ -172,11 +209,12 @@ describe('destination and sheet interaction surface sweep', () => {
           await page.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done()))))
           const overlay = page.locator('[role="dialog"], [role="menu"]').last()
           if (await overlay.isVisible()) {
-            expect(await inspectDiscoveredControls(page, overlay)).toBeGreaterThan(0)
+            await overlay.evaluate(settleAnimations)
+            expect(await inspectDiscoveredControls(page, overlay, expect)).toBeGreaterThan(0)
             await page.keyboard.press('Escape')
           }
         }
         expect(failures, route).toEqual([])
       } finally { await page.mouse.up(); await page.close() }
-  }, 120_000)
+  })
 })

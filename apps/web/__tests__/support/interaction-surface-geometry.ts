@@ -34,6 +34,8 @@ export function inspectInteractionSurface(control: Element, clearance: number) {
   }
   const name = (node: Element) => `${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ''}[${node.getAttribute('aria-label') ?? node.getAttribute('data-testid') ?? node.textContent.trim().replace(/\s+/g, ' ').slice(0, 100)}]`
   const layer = (node: Element): Element | Document => {
+    const overlay = node.closest('[role="dialog"], [role="menu"]')
+    if (overlay) return overlay
     for (let ancestor: Element | null = node; ancestor; ancestor = ancestor.parentElement) {
       if (getComputedStyle(ancestor).position === 'fixed') return ancestor
     }

@@ -17,6 +17,7 @@ spacing step. Hover, held press and keyboard focus share the same clearance cont
 | Pills and icon pills | `components/ui/pill-button.tsx`, `app/globals.css` | `components/ui/pill-button.tsx` | Existing 12px action gaps accommodate focus rings; the 2px hit extension paints nothing |
 | Daily summary and proactive Astra line | `components/today/today-astra-line.tsx`, `app/globals.css` | `components/today/today-astra-line.tsx` | The full-line action contains its hover and pressed overlay and uses an inset focus indicator |
 | Compact focus groups | Weekday pills, segmented controls, profile theme choices and explicit control focus utilities | Existing inset focus pressables on the corresponding surfaces | Explicit outward focus offsets become inset where adjacent controls can have an 8px gap |
+| Menu item focus | `components/ui/dropdown-menu-content.tsx`, `app/globals.css` | `components/ui/dropdown-menu.tsx` | Web keeps the single focus indicator inside the existing row fill, preserving 8px before the account header and adjacent content; native row press paint remains inside its existing target |
 | Chips | `components/ui/chip.tsx`, `app/globals.css` | `components/ui/chip.tsx` | Existing internal fills and inset focus indicators |
 | Month and range day grids | `app/(app)/calendar/page.tsx`, `app/globals.css`, `components/calendar/calendar-grid.tsx`, `components/calendar/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/month-selection.ts`, `components/dates/day-cell.tsx` | `app/(tabs)/calendar/_components/calendar-grid.tsx`, `app/(tabs)/calendar/_components/calendar-range-view.tsx`, `components/dates/month-grid.tsx`, `components/dates/month-selection.ts`, `components/dates/day-cell.tsx` | Full-column targets stay transparent; hover, press, focus and position rings paint on the existing 34px discs. Disc centres distribute within the existing 44px allocation. Seven 34px discs require at least 286px for 8px gaps. Below 364px, the web destination frame reclaims the reserved scrollbar width and retains its 16px gutters, providing 288px at 320px without changing the shell's 4px stable scrollbar |
 | Calendar day detail | `components/calendar/calendar-day-detail.tsx` | `app/(tabs)/calendar/_components/calendar-day-detail.tsx` | Touching rows retain their drawn layout and 16px inline label insets; paint sits 8px inside the block edges and checkbox target; the card retains 24px padding |
@@ -63,6 +64,10 @@ Only explicitly marked library focus guards are skipped. The inventory captures 
 role, accessible name and occurrence order. A control recreated after an overlay closes is rebound
 once against that inventory; a missing identity fails. Every captured control is visited once.
 The reached control is measured and the overlay dismissed before continuing.
+The destination sweep waits for interaction and overlay animations to settle, and measures each
+dialog or menu as a foreground paint region. Its backdrop belongs behind that region. The shell
+root in `components/shell/shell-wide.tsx` isolates page stacking so floating actions cannot cover
+portalled menu items.
 A new conversation closes through its localized header control, preserving the draft and underlying
 route; other entered overlays use Escape. Focus transfers wait for the reached control, and an
 off-screen skip link is measured at that destination rather than treated as still visible.

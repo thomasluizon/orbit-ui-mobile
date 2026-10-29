@@ -1736,6 +1736,8 @@ Below 364px on web, the calendar destination's month and range frames reclaim th
 reserved scrollbar width with a viewport-wide frame. Their 16px gutters leave 288px for seven
 34px discs at 320px. The shell retains its usable 4px scrollbar and stable gutter; compact
 calendars inside Astra keep their containing block's width.
+Web menu item focus remains inset in its existing row fill. The shell isolates page stacking
+beneath portalled menus so a floating action cannot cover an opened menu item.
 
 A control with an opaque resting fill layers `--bg-hover-opaque` over that fill; dark resolves
 to `--bg-hover`, and light uses the stronger opaque-control hover value.

@@ -434,7 +434,7 @@ function ShellWideBackground({
   )
   return (
     <ConversationComposerMotionProvider><div
-      className="flex min-w-0 flex-1"
+      className="isolate flex min-w-0 flex-1"
     >
       {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} collapsed={collapsed} /> : null}
 

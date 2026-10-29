@@ -264,3 +264,6 @@ and 24px bottom inset around the bell's 44px paint and transparent 48px target.
 The web `app/(app)/calendar/page.tsx` marker scopes the narrow grid width in `app/globals.css`
 to the calendar destination. Month and range discs keep 8px neighbour clearance while the shell
 retains its stable 4px scrollbar. Embedded compact calendars retain their containing width.
+
+Web `app/globals.css` keeps menu item focus inside its paint, preserving 8px before account
+header text. The `shell/shell-wide.tsx` root isolates page stacking beneath portalled menus.
