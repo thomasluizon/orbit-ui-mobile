@@ -192,7 +192,7 @@
     category: composition
     family: streaks
     locale: en
-    fixture: composition
+    fixture: composition-streaks
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
     input: Show my current streak, no achievement catalogue.
@@ -210,7 +210,10 @@
       allowed:
         - query_habits
         - get_gamification_overview
-    rubric: Answer in English. Use only the requested scope and current fixture
+    rubric: Answer in English. Streak eligibility begins on each habit's creation date.
+      The fixture logs only eligible recent days. Timeline active days belong to the
+      current streak ending at lastActiveDate; earlier days are outside that streak.
+      Use the completion date, never the log creation timestamp. Use only the requested scope and current fixture
       facts. Preserve typed empty, partial, stale and failure states honestly.
       Canonical dates inside typed fields are transport values; visible prose
       must use locale dates. Rendered date formatting is checked separately.
@@ -220,7 +223,7 @@
     category: composition
     family: streaks
     locale: pt-BR
-    fixture: composition
+    fixture: composition-streaks
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
     input: Mostre minha sequência atual, sem catálogo de conquistas.
@@ -231,7 +234,10 @@
       allowed:
         - query_habits
         - get_gamification_overview
-    rubric: Answer in Brazilian Portuguese. Use only the requested scope and current
+    rubric: Answer in Brazilian Portuguese. Streak eligibility begins on each habit's creation date.
+      The fixture logs only eligible recent days. Timeline active days belong to the
+      current streak ending at lastActiveDate; earlier days are outside that streak.
+      Use the completion date, never the log creation timestamp. Use only the requested scope and current
       fixture facts. Preserve typed empty, partial, stale and failure states
       honestly. Canonical dates inside typed fields are transport values;
       visible prose must use locale dates. Rendered date formatting is checked

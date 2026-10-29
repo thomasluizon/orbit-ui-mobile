@@ -596,3 +596,18 @@ it('grounds the skipped identity independently of export order', async () => {
   expect(test.vars.fixtureEvidence.loggedState.habits.filter((habit) => habit.skipped).map((habit) => habit.title))
     .toEqual(['Caminhada'])
 })
+
+it.each(['en', 'pt-BR'])('seeds the %s streak only on eligible days since each habit was created', async (locale) => {
+  const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-streaks-${locale}`))
+  await resetFixture(scenario('pro'))
+  habits[0].createdAtUtc = '2026-10-21T12:00:00Z'
+  habits[1].createdAtUtc = '2026-10-22T12:00:00Z'
+  await resetFixture(source)
+  expect(habits[0].logs.map((log) => log.date).sort()).toEqual(['2026-10-21', '2026-10-22', '2026-10-23'])
+  expect(habits[1].logs.map((log) => log.date).sort()).toEqual(['2026-10-22', '2026-10-23'])
+  expect(source.vars.rubric).toContain('creation date')
+  expect(source.vars.fixtureEvidence.habits.flatMap((habit) => habit.logs.map((log) => log.date)))
+    .not.toContain('2026-10-18')
+  await resetFixture(source)
+  expect(habits[0].logs.map((log) => log.date).sort()).toEqual(['2026-10-21', '2026-10-22', '2026-10-23'])
+})
