@@ -2329,13 +2329,18 @@
                 due_date: '{accountDate+7}'
                 due_time: 13:30
               - title:
-                  textContains: Não tomar multivitamínico
+                  anyOf:
+                    - textContains: Não tomar multivitamínico
+                    - textContains: Parar com multivitamínico
                 frequency_unit: Day
                 due_date: '{accountDate+4}'
                 end_date: '{accountDate+7}'
                 is_bad_habit: false
               - title:
-                  textContains: Não ir ao Muay Thai
+                  anyOf:
+                    - textContains: Não ir pro Muay Thai
+                    - textContains: Não ir para o Muay Thai
+                    - textContains: Não ir ao Muay Thai
                 frequency_unit: Day
                 due_date: '{accountDate+6}'
                 end_date: '{accountDate+7}'
@@ -2366,7 +2371,10 @@
                   end_date: "{accountDate+7}"
                   is_bad_habit: false
                 - title:
-                    textContains: Não ir ao Muay Thai
+                    anyOf:
+                      - textContains: Não ir pro Muay Thai
+                      - textContains: Não ir para o Muay Thai
+                      - textContains: Não ir ao Muay Thai
                   frequency_unit: Day
                   due_date: "{accountDate+6}"
                   end_date: "{accountDate+7}"
@@ -2397,7 +2405,10 @@
                       end_date: "{accountDate+7}"
                       is_bad_habit: false
                     - title:
-                        textContains: Não ir ao Muay Thai
+                        anyOf:
+                          - textContains: Não ir pro Muay Thai
+                          - textContains: Não ir para o Muay Thai
+                          - textContains: Não ir ao Muay Thai
                       frequency_unit: Day
                       due_date: "{accountDate+6}"
                       end_date: "{accountDate+7}"
@@ -2418,7 +2429,7 @@
       {accountDate+3}. Answer in Brazilian Portuguese. One batch preview contains both one-time
       tasks at 15:50 and 13:30 and all preparation commitments bounded to their
       dates. Temporary abstinence is a positive commitment with is_bad_habit=false.
-      Preserve the person's own wording, including Parar com multivitamínico, or an equivalent
+      Preserve the person's own wording, including Parar com multivitamínico and Não ir pro Muay Thai, or an equivalent
       title with the same meaning. Reject a title that reverses or changes the medical instruction.
       These titles name the commitment, not an avoid habit. Never use is_bad_habit=true or
       open-ended daily habits. No question or prose may repeat the
