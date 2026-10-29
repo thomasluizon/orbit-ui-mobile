@@ -174,6 +174,33 @@ const directoryCases = async () => {
     const linked = await collectProgressWindow({ ...staged.options, repoRoot: linkedCheckout })
     T("progress-window: linked checkout discovery follows the canonical repository",
       linked.window.startedAt === "2026-09-30T23:00:00Z")
+    writeFileSync(join(directory, "current.jsonl"), "")
+    const previous = "2026-09-30T23:00:00Z"
+    writeFileSync(join(directory, "earlier.jsonl"), [command(previous, "previous"),
+      { type: "assistant", timestamp: "2026-09-30T23:30:00Z", message: { role: "assistant",
+        content: "Decision: keep the release branch. Owner question: which track?" } },
+    ].map((row) => JSON.stringify(row)).join("\n") + "\n")
+    const linkedDirectory = join(homeDirectory, ".claude", "projects", linkedCheckout.replace(/[^A-Za-z0-9]/g, "-"))
+    mkdirSync(linkedDirectory, { recursive: true })
+    const transcriptPath = join(linkedDirectory, "current.jsonl")
+    writeFileSync(transcriptPath, JSON.stringify(command("2026-10-01T03:30:00Z", "current")) + "\n")
+    writeFileSync(join(linkedDirectory, "overlapping.jsonl"), JSON.stringify({ type: "assistant",
+      timestamp: "2026-10-01T02:30:00Z", message: { role: "assistant", content: "Linked checkout decision." } }) + "\n")
+    process.env.CLAUDE_PROJECT_DIR = linkedCheckout
+    const explicit = await collectProgressWindow({ ...staged.options, repoRoot: linkedCheckout, transcriptPath })
+    T("progress-window: explicit linked transcript retains the canonical previous-progress boundary",
+      explicit.baselineSource === "previous-progress" && explicit.window.startedAt === previous)
+    T("progress-window: explicit linked transcript retains merges before the current session",
+      explicit.entries.some((entry) => entry.merges.some((merge) => merge.id === 10)))
+    T("progress-window: explicit linked transcript retains canonical conversation evidence",
+      explicit.entries.some((entry) => entry.sessionId === "earlier" &&
+        entry.conversation.some((turn) => turn.text.includes("Owner question: which track?"))))
+    T("progress-window: explicit linked transcript retains other linked sessions",
+      explicit.entries.some((entry) => entry.sessionId === "overlapping" &&
+        entry.conversation.some((turn) => turn.text === "Linked checkout decision.")))
+    T("progress-window: explicit linked transcript keeps the current session",
+      explicit.sessionId === "current" && explicit.entries.at(-1).sessionId === "current" &&
+      explicit.entries.at(-1).conversation.some((turn) => turn.time === "2026-10-01T03:30:00Z"))
   } finally {
     if (originalHome === undefined) delete process.env.HOME
     else process.env.HOME = originalHome

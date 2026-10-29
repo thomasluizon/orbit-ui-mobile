@@ -12,13 +12,16 @@ const timestamp = (value, label) => {
   return milliseconds
 }
 
-const transcriptDirectory = (repoRoot, transcriptPath) => {
-  if (transcriptPath) return dirname(transcriptPath)
+const transcriptDirectories = (repoRoot, transcriptPath) => {
   const gitDirectory = gitDirectoryOf(repoRoot)
   const commonMarker = join(gitDirectory, "commondir")
-  const projectRoot = process.env.CLAUDE_PROJECT_DIR || (existsSync(commonMarker)
-    ? dirname(resolve(gitDirectory, readFileSync(commonMarker, "utf8").trim())) : repoRoot)
-  return join(homedir(), ".claude", "projects", resolve(projectRoot).replace(/[^A-Za-z0-9]/g, "-"))
+  const projectRoot = existsSync(commonMarker)
+    ? dirname(resolve(gitDirectory, readFileSync(commonMarker, "utf8").trim())) : repoRoot
+  return [...new Set([
+    ...(transcriptPath ? [dirname(resolve(transcriptPath))] : []),
+    ...[projectRoot, repoRoot, process.env.CLAUDE_PROJECT_DIR].filter(Boolean).map((root) =>
+      join(homedir(), ".claude", "projects", resolve(root).replace(/[^A-Za-z0-9]/g, "-"))),
+  ])]
 }
 
 const readTranscript = async (path, visit) => {
@@ -39,13 +42,14 @@ const ownerPrompt = (row) => row.type === "user" && !row.isMeta && !row.isSidech
 const ownerProgress = (row) => ownerPrompt(row) && typeof row.message?.content === "string" &&
   /^<command-message>progress<\/command-message>\s*<command-name>\/progress<\/command-name>(?:\s|$)/.test(row.message.content)
 
-const projectSessions = async (directory, now) => {
-  if (!existsSync(directory)) return { sessions: [], commands: [] }
+const projectSessions = async (directories, now) => {
   const sessions = []
   const invocations = new Map()
-  for (const file of readdirSync(directory, { withFileTypes: true })) {
-    if (!file.isFile() || !file.name.endsWith(".jsonl")) continue
-    const session = { sessionId: file.name.slice(0, -6), transcriptPath: join(directory, file.name), startedAt: null, endedAt: null }
+  const transcripts = directories.flatMap((directory) => existsSync(directory)
+    ? readdirSync(directory, { withFileTypes: true }).filter((file) => file.isFile() && file.name.endsWith(".jsonl"))
+      .map((file) => ({ sessionId: file.name.slice(0, -6), transcriptPath: join(directory, file.name) })) : [])
+  for (const transcript of transcripts) {
+    const session = { ...transcript, startedAt: null, endedAt: null }
     await readTranscript(session.transcriptPath, (row) => {
       if (Date.parse(row.timestamp) > Date.parse(now)) return
       if (!session.startedAt || Date.parse(row.timestamp) < Date.parse(session.startedAt)) session.startedAt = row.timestamp
@@ -118,7 +122,7 @@ const progressEntries = async ({ sessionId, repoRoot, transcriptPath, transcript
   const state = readRunState(repoRoot)
   const currentSessionId = chain?.at(-1).sessionId ?? sessionId
   transcriptPath ??= state?.sessionId === currentSessionId ? state.transcriptPath ?? state.relay?.transcriptPath : undefined
-  const project = await projectSessions(transcriptsDirectory ?? transcriptDirectory(repoRoot, transcriptPath), now)
+  const project = await projectSessions(transcriptsDirectory ? [transcriptsDirectory] : transcriptDirectories(repoRoot, transcriptPath), now)
   const latest = project.commands.at(-1)
   const currentInvocation = project.commands.findLast((command) => command.sessionId === currentSessionId)
   // A nested skill call has no owner command of its own to skip.
