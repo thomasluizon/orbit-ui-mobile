@@ -101,6 +101,7 @@ export async function cases() {
   check("release-plan.mjs", "CLI production refuses redesign branch", ["--environment", "production", "--branch", "integration/next"], { status: 2 })
   androidRecordCases()
   await apiHealthCases()
+  await customDomainCases()
   cliBaselineCases()
   await androidBaselineCases()
   let missingBranch = ""
@@ -173,6 +174,62 @@ export async function cases() {
   try { stagingServiceIds({ read: () => ({ total_count: 1, variables: [{ name: "RENDER_WEB_STAGING_SERVICE_ID", value: null }] }) }) }
   catch (error) { invalidVariable = error.message }
   T("malformed repository variable does not masquerade as a first deploy", invalidVariable.includes("unexpected shape"))
+}
+
+async function customDomainCases() {
+  for (const environment of ["production", "staging"]) {
+    for (const name of ["api", "web"]) {
+      const index = name === "api" ? 0 : 1
+      const healthPath = name === "api" ? "/health" : "/api/health"
+      const track = environment === "production" ? "open" : "internal"
+      const domain = clone(renderFixture.customDomains[0])
+      const unverified = clone(domain)
+      unverified.customDomain.verificationStatus = "unverified"
+      unverified.customDomain.name = "unverified.example.invalid"
+      const second = clone(domain)
+      second.customDomain.name = "second.example.invalid"
+      for (const [label, domains, expectedOrigin] of [
+        ["verified domain", [domain], "https://custom.example.invalid"],
+        ["first verified domain", [unverified, domain, second], "https://custom.example.invalid"],
+        ["no domains", [], null],
+        ["only unverified domains", [unverified], null],
+      ]) {
+        const client = clientFor({ ahead: ["api", "web", "landing", "android"] })
+        const readRender = client.readRender
+        client.readRender = (path) => {
+          if (path === `services/${IDS[name]}`) {
+            client.calls.push(path)
+            return clone(renderFixture.productionApiService)
+          }
+          if (path === `services/${IDS[name]}/custom-domains`) {
+            client.calls.push(path)
+            return domains
+          }
+          return readRender(path)
+        }
+        const plan = await planRelease(client, environment, IDS, track, "main")
+        const service = plan.services[index]
+        if (expectedOrigin) {
+          T(`${environment} ${name} disabled subdomain uses ${label}`, service.deployedSha === FIRST &&
+            service.needsRelease && client.calls.includes(`${expectedOrigin}${healthPath}`))
+        } else {
+          T(`${environment} ${name} disabled subdomain with ${label} is a row error`,
+            service.baselineError === `Render service ${name} at services/${IDS[name]} has no verified custom domain` &&
+            !service.plannedSha && !service.dispatchCommand && !service.noBaseline)
+          T(`${environment} ${name} domain error preserves other plans`, plan.services.every((entry) =>
+            entry.name === name || entry.needsRelease && entry.plannedSha === SECOND))
+        }
+        T(`${environment} ${name} disabled subdomain never reads its Render health URL`,
+          !client.calls.some((call) => call.startsWith("https://disabled.example.invalid")))
+      }
+      const enabled = clientFor()
+      const plan = await planRelease(enabled, environment, IDS, track, "main")
+      const origin = name === "api" ? "https://api.example.invalid" : "https://example.invalid"
+      T(`${environment} ${name} enabled subdomain keeps the service URL`,
+        plan.services[index].deployedSha === FIRST && enabled.calls.includes(`${origin}${healthPath}`) &&
+        !enabled.calls.some((call) => call.endsWith("/custom-domains")))
+    }
+  }
 }
 
 async function apiHealthCases() {

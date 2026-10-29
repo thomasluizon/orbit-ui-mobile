@@ -122,7 +122,14 @@ async function renderBaseline(client, service, serviceIds, environment) {
   }
   const path = `services/${id}`
   const serviceRecord = await client.readRender(path)
-  const origin = serviceRecord?.serviceDetails?.url
+  let origin = serviceRecord?.serviceDetails?.url
+  if (serviceRecord?.serviceDetails?.renderSubdomainPolicy === "disabled") {
+    const domainsPath = `${path}/custom-domains`
+    const domains = expectArray(await client.readRender(domainsPath), domainsPath)
+    const verified = domains.find((entry) => entry?.customDomain?.verificationStatus === "verified")
+    if (!verified) throw new Error(`Render service ${service.name} at ${path} has no verified custom domain`)
+    origin = `https://${verified.customDomain.name}`
+  }
   if (typeof origin !== "string" || !/^https:\/\/[^/]+\/?$/.test(origin)) {
     throw new Error(`Render service at ${path} has an unexpected URL`)
   }
