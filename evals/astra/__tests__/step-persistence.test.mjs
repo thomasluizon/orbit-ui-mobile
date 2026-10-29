@@ -1,5 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import * as grades from '../assertions.mjs'
+import { offlineCredentials } from './fixtures/credentials.mjs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
 
 const habitId = '22222222-2222-4222-8222-222222222222'
@@ -34,10 +36,12 @@ function saveAttempt(action = 'saveTask') {
 function approvalServer(action, mutate = () => {}, beforeMutate = () => {}) {
   let executed = false
   const requests = []
-  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
-  vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
+  offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_TOKEN', '')
   vi.stubGlobal('fetch', async (url, options) => {
     const path = new URL(url).pathname
+    if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    if (path === '/api/auth/refresh') return Response.json({ token: 'offline-token', refreshToken: 'rotated-refresh' })
     requests.push(`${options.method} ${path}`)
     expect(options.headers.Authorization).toBe('Bearer offline-token')
     if (path === '/api/profile/export') {
@@ -125,4 +129,19 @@ it.each([
   const requests = approvalServer('saveTask')
   expect((await grades.savedStep(output, context)).pass).toBe(false)
   expect(requests).toEqual([])
+})
+
+it.each(['saveTask', 'saveChecklistItem'])('refreshes %s approval credentials and rotates only the live file', async (action) => {
+  const { output, context } = saveAttempt(action)
+  approvalServer(action)
+  const livePath = process.env.ORBIT_EVAL_CREDENTIALS_FILE
+  const backupPath = `${livePath}.backup`
+  const before = readFileSync(livePath, 'utf8')
+  writeFileSync(backupPath, before, { mode: 0o600 })
+  const grade = await grades.savedStep(output, context)
+  expect(grade.pass, grade.reason).toBe(true)
+  expect(JSON.parse(readFileSync(livePath, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('rotated-refresh')
+  expect(readFileSync(backupPath, 'utf8')).toBe(before)
+  expect(JSON.stringify(grade)).not.toContain('rotated-refresh')
+  expect(JSON.stringify(grade)).not.toContain('offline-token')
 })
