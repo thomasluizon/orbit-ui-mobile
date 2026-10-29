@@ -1,18 +1,14 @@
 import { settleAnimations } from '@/e2e/layout/settle-animations'
-import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
-import postcss from 'postcss'
-import tailwind from '@tailwindcss/postcss'
 import { collectSegmentCallSites, segmentTranslation } from '../../../../../packages/shared/src/test-support/segmented-control-inventory'
-import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { format } from 'date-fns'
 import { ptBR as dateLocale } from 'date-fns/locale'
-import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import en from '@orbit/shared/i18n/en.json'
 import { buildYearRange } from '@orbit/shared/utils'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -33,19 +29,14 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 import { measureSplitSegmentWords, mountMeasuredSegmentedControls } from '@/__tests__/support/segmented-control-geometry'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
-import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { registerChromeLaunchHook } from '@/__tests__/support/chromium'
 import { expectDayCircle, expectDayCircleHover } from '@/__tests__/support/calendar-day-circle'
 import { readControlPaint } from '@/e2e/layout/control-paint'
+import { calendarGeometryHarness, calendarKeys, seededDayMap } from '@/__tests__/support/calendar-header-geometry'
 
 vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }) }))
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
-
-function seededDayMap(prefix: string) {
-  const completed: CalendarDayEntry = { habitId: 'walk', title: 'Caminhar', status: 'completed', isBadHabit: false, dueTime: null, isOneTime: false }
-  const missed: CalendarDayEntry = { ...completed, habitId: 'read', title: 'Ler', status: 'missed' }
-  return new Map([[`${prefix}-02`, [completed]], [`${prefix}-03`, [completed, missed]], [`${prefix}-04`, [missed]]])
-}
 
 function expectFullColumnDays(days: { width: number; height: number; columnWidth: number }[], expectedCount: number) {
   expect(days).toHaveLength(expectedCount)
@@ -54,8 +45,6 @@ function expectFullColumnDays(days: { width: number; height: number; columnWidth
     expect(day.height).toBeGreaterThanOrEqual(44)
   }
 }
-
-const calendarKeys = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'web').find((site) => site.path === 'app/(app)/calendar/page.tsx')!.optionKeys
 
 const options = [
   { value: 'month', label: segmentTranslation(ptBR, calendarKeys[0]!) },
@@ -91,46 +80,10 @@ function expectOnboardingRows(geometry: { group: number; top: number; groupWidth
   for (const label of geometry) expect(label.groupWidth).toBe(contentWidth)
 }
 
-function measureCalendarSegments() {
-  const group = document.querySelector('[data-testid="calendar-header-group"] [data-segmented-control]')!
-  const bounds = group.getBoundingClientRect()
-  return [...group.querySelectorAll('[role="radio"], [data-menu-trigger]')].map((button) => {
-    const box = button.getBoundingClientRect()
-    const label = button.firstElementChild!
-    const content = label.getBoundingClientRect()
-    const range = document.createRange(); range.selectNodeContents(label)
-    const fragments = [...range.getClientRects()]
-    return { folded: button.hasAttribute('data-menu-trigger'), top: box.top, width: box.width, height: box.height, lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
-      contained: box.left >= bounds.left && box.right <= bounds.right,
-      fits: fragments.every((fragment) => fragment.left >= content.left - 1 && fragment.right <= content.right + 1),
-      overflow: label.scrollWidth > label.clientWidth, ellipsis: getComputedStyle(label).textOverflow === 'ellipsis' }
-  })
-}
-
-function expectCalendarSegments(segments: ReturnType<typeof measureCalendarSegments>, scale: number) {
-  expect(segments).toHaveLength(segments[0]?.folded ? 1 : calendarKeys.length)
-  if (scale === 1) expect(segments[0]?.folded).toBe(false)
-  expect(new Set(segments.map((segment) => segment.top)).size).toBe(1)
-  for (const segment of segments) {
-    expect(segment.width).toBeGreaterThanOrEqual(48)
-    expect(segment.height).toBeGreaterThanOrEqual(48)
-    expect(segment.contained).toBe(true)
-    expect(segment.fits).toBe(true)
-    expect(segment.overflow).toBe(false)
-    expect(segment.ellipsis).toBe(false)
-    if (scale === 1) expect(segment.lines).toBe(1)
-  }
-}
-
 describe('Calendar header geometry in Chromium', () => {
-  let browserLaunch: BrowserLaunch | undefined
-  let browser: Browser
-  let stylesheet: string
+  const harness = calendarGeometryHarness(registerChromeLaunchHook)
   let monthScript: string
-  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
-    const source = resolve(process.cwd(), 'app/globals.css')
-    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     monthScript = execFileSync(process.execPath, ['--input-type=module', '-e', `
       import { build } from 'esbuild';
       const result = await build(JSON.parse(process.argv[1]));
@@ -155,7 +108,6 @@ describe('Calendar header geometry in Chromium', () => {
       define: { 'process.env.NODE_ENV': '"production"' },
     })], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
-  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each([false, true].flatMap(isLoading => (['month', 'range'] as const).map(view => ({ isLoading, view }))))('reclaims only the reserved gutter inside the narrow shell for $view (loading=$isLoading)', async ({ isLoading, view }) => {
     const model = buildCalendarRangeModel(new Date(2026, 1, 8), seededDayMap('2026-02'), 0, '2026-02-08')
@@ -167,9 +119,9 @@ describe('Calendar header geometry in Chromium', () => {
         </div>
       </ShellWide>
     </NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
         const scroller = document.querySelector<HTMLElement>('main[data-shell-scroller]')!
         const frame = document.querySelector('.orbit-calendar-grid-frame')!.getBoundingClientRect()
@@ -194,9 +146,9 @@ describe('Calendar header geometry in Chromium', () => {
   })
 
   it.each([320, 412, 600, 1352].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('retains the full today ring after selecting another day at $width in $locale', async ({ width, locale, messages }) => {
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ locale, messages })}</script>`)
+      await page.setContent(`<style>${harness.stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ locale, messages })}</script>`)
       await page.evaluate((variables) => { for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value) }, resolveWebThemeVariables('orange', 'dark'))
       await page.addScriptTag({ content: monthScript })
       const today = page.getByTestId('calendar-day-select-2026-09-11')
@@ -248,9 +200,9 @@ describe('Calendar header geometry in Chromium', () => {
           : view === 'range' ? <CalendarRangeView model={model} weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} rangeLabel="Range" isLoading={false} loadingLabel="Loading" stats={[{ key: 'bestStreak', value: 1, label: 'Streak' }, { key: 'totalLogs', value: 1, label: 'Logs' }, { key: 'missed', value: 1, label: 'Missed' }]} />
             : <div style={{ width: 97 }}><DayCell day={8} today habitHistory done={1} scheduled={1} words={words} /></div>}
       </NextIntlClientProvider>)
-      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
       try {
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
         await page.evaluate((variables) => { for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value) }, resolveWebThemeVariables('purple', 'dark'))
         const geometry = await page.evaluate(() => {
           const cell = document.querySelector<HTMLElement>('[aria-current="date"][data-outcome], [aria-current="date"]')!
@@ -285,14 +237,14 @@ describe('Calendar header geometry in Chromium', () => {
   })
 
   it.each([320, 412, 600, 1352])('retains loading circle centres at %ipx', async (width) => {
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
     const snapshots: { x: number; y: number; width: number; height: number }[][] = []
     try {
       for (const isLoading of [true, false]) {
         const { container, unmount } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
           <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" weekStartsOn={0} isLoading={isLoading} />
         </NextIntlClientProvider>)
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
         await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
         snapshots.push(await page.evaluate((loading) => [...document.querySelectorAll(loading ? '[data-variant="grid"] span' : '[data-day-circle]')].map((element) => {
@@ -314,9 +266,9 @@ describe('Calendar header geometry in Chromium', () => {
       <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-04" previousMonthLabel="Previous" nextMonthLabel="Next"
         onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />
     </NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
       await page.evaluate(({ mode, variables }) => {
         document.documentElement.className = mode
         for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
@@ -359,9 +311,9 @@ describe('Calendar header geometry in Chromium', () => {
     fireEvent.click(screen.getByRole('button', { name: `2026, ${ptBR.common.selectYear}` }))
     const portal = document.querySelector('.orbit-sheet-portal')!
     const years = buildYearRange(2026)
-    const page = await browser.newPage({ viewport: { width: 640, height } })
+    const page = await harness.browser.newPage({ viewport: { width: 640, height } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${portal.outerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
@@ -415,9 +367,9 @@ describe('Calendar header geometry in Chromium', () => {
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`, ${messages.calendar.monthPicker}$`) }))
     expect(screen.getByRole('dialog', { name: messages.calendar.monthPicker })).toBeInTheDocument()
     const portal = document.querySelector('.orbit-sheet-portal')!
-    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${portal.outerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
@@ -453,9 +405,9 @@ describe('Calendar header geometry in Chromium', () => {
 
   it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['fixed', 'flexible', 'interval', 'oneTime'].map((mode) => ({ ...locale, width, mode })))))('fits compact onboarding $mode containers in $locale at $width', async ({ locale, messages, width, mode }) => {
     const { container } = renderOnboardingSegments(locale, messages, mode)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       for (const scale of [1, 2]) {
@@ -493,9 +445,9 @@ describe('Calendar header geometry in Chromium', () => {
     queryClient.setQueryData(habitKeys.list({}), [])
     render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><CreateGoalSheet open onClose={vi.fn()} /></NextIntlClientProvider></QueryClientProvider>)
     const portal = document.querySelector('.orbit-sheet-portal')!
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${portal.outerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
@@ -538,9 +490,9 @@ describe('Calendar header geometry in Chromium', () => {
     render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC"><Menu.Root open={true}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content presentation="sheet" title={ptBR.calendar.options} items={[{ id: 'legend', label: ptBR.calendar.legendTitle }]}  /></Menu.Root></NextIntlClientProvider>)
     await screen.findByRole('menu')
     const portal = document.querySelector('.orbit-sheet-portal')!
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${portal.outerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
@@ -559,9 +511,9 @@ describe('Calendar header geometry in Chromium', () => {
         items={[{ id: 'recurring', label: ptBR.calendar.showRecurring, checked: true }]}  /></Menu.Root>
     </NextIntlClientProvider>)
     const dialog = document.querySelector('[role="dialog"]')!
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${dialog.outerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
@@ -610,9 +562,9 @@ describe('Calendar header geometry in Chromium', () => {
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
       <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" selectedDateStr="2026-02-01" weekStartsOn={0} isLoading={isLoading} />
     </NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       const geometry = await page.evaluate(() => ({
@@ -644,129 +596,11 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([320, 339, 340, 360, 363, 363.5, 364, 365, 412, 600, 840, 1352].flatMap((width) => [false, true].flatMap((isLoading) =>
-    (['month', 'range'] as const).flatMap((view) => [{ width, isLoading, view, locale: 'en', messages: en }, { width, isLoading, view, locale: 'pt-BR', messages: ptBR }]),
-  )))('aligns $view tracks and contained rings at $width in $locale (loading=$isLoading)', async ({ width, isLoading, view, locale, messages }) => {
-    const model = buildCalendarRangeModel(new Date(2026, 1, 8), seededDayMap('2026-02'), 0, '2026-02-08')
-    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width }}>
-      <CalendarHeader currentMonth={new Date(2026, 1, 1)} todayKey="2026-02-08" previousMonthLabel="Previous" nextMonthLabel="Next"
-        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}
-        viewSelector={<SegmentedControl fullWidth options={[{ value: 'month', label: segmentTranslation(messages, calendarKeys[0]!) }, { value: 'week', label: segmentTranslation(messages, calendarKeys[1]!) }, { value: 'agenda', label: segmentTranslation(messages, calendarKeys[3]!) }, { value: 'range', label: segmentTranslation(messages, calendarKeys[2]!) }]} value={view} onChange={vi.fn()} label={messages.calendar.view.switchLabel} />} />
-      {view === 'month' ? <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()}
-        todayKey="2026-02-08" selectedDateStr="2026-02-01" weekStartsOn={0} isLoading={isLoading} />
-        : <CalendarRangeView model={model} weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} rangeLabel="Range" isLoading={isLoading} loadingLabel={messages.calendar.loading}
-          stats={[{ key: 'bestStreak', value: model.stats.bestStreak, label: messages.calendar.bestStreak }, { key: 'totalLogs', value: model.stats.totalLogs, label: messages.calendar.totalLogs }, { key: 'missed', value: model.stats.missed, label: messages.calendar.missedCount }]} />}
-    </div></NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width: Math.ceil(width), height: 915 } })
-    try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await loadAppFonts(page)
-      await mountMeasuredSegmentedControls(page)
-      const geometry = await page.evaluate(() => {
-        const frame = document.querySelector<HTMLElement>('.orbit-calendar-grid-card')!
-        const grid = frame.querySelector<HTMLElement>('[data-testid="month-grid-days"], [data-cols="7"]')!
-        const selector = document.querySelector('[data-segmented-control]')!.getBoundingClientRect()
-        const bounds = grid.getBoundingClientRect()
-        const gap = Number.parseFloat(getComputedStyle(grid).columnGap)
-        const slots = [...grid.children].map((slot) => {
-          const box = slot.getBoundingClientRect()
-          const disc = slot.querySelector('[data-day-circle], [data-variant="grid"] span')
-          const visual = disc?.getBoundingClientRect()
-          const future = slot.querySelector('[role="img"]:not([data-outcome])')
-          const futureBox = future?.getBoundingClientRect()
-          const numeral = future?.querySelector('[data-day-future-numeral]')?.getBoundingClientRect()
-          return { futureWidth: futureBox?.width, futureCentered: !numeral || !visual || Math.abs(numeral.left + numeral.width / 2 - visual.left - visual.width / 2) <= 0.5, width: box.width, height: box.height, contained: !visual || (visual.left >= box.left - 0.5 && visual.right <= box.right + 0.5), square: !visual || Math.abs(visual.width - visual.height) <= 0.5 }
-        })
-        return { gap, left: bounds.left, right: bounds.right, switchLeft: selector.left, switchRight: selector.right, slots,
-          scrollWidth: document.documentElement.scrollWidth, selected: grid.querySelector('[data-selected="true"]')?.getBoundingClientRect().width }
-      })
-      expect(Math.abs(geometry.left - geometry.switchLeft)).toBeLessThanOrEqual(0.5)
-      expect(Math.abs(geometry.right - geometry.switchRight)).toBeLessThanOrEqual(0.5)
-      expect(geometry.gap).toBe(width < 364 ? 0 : 4)
-      expect(geometry.slots.length).toBeGreaterThanOrEqual(14)
-      for (const slot of geometry.slots) {
-        expect(slot.width).toBeCloseTo((width - 32 - 6 * geometry.gap) / 7, 1)
-        expect(slot.height).toBeGreaterThanOrEqual(44)
-        expect(slot.contained).toBe(true)
-        expect(slot.futureCentered).toBe(true)
-        if (slot.futureWidth !== undefined) expect(slot.futureWidth).toBeCloseTo(slot.width, 1)
-        if (!isLoading) expect(slot.square).toBe(true)
-        expect(slot.width).toBeCloseTo(geometry.slots[0]!.width, 1)
-      }
-      if (view === 'month' && !isLoading) expect(geometry.selected).toBeCloseTo(geometry.slots[0]!.width, 1)
-      if (width === 320) expect(geometry.scrollWidth).toBeLessThanOrEqual(width)
-    } finally { await page.close() }
-  })
-
-  it.each([320, 360, 384, 412, 600, 840].flatMap((width) => (['month', 'week', 'range', 'agenda'] as const).flatMap((view) =>
-    [{ width, view, locale: 'en', messages: en }, { width, view, locale: 'pt-BR', messages: ptBR }],
-  )))('keeps the $view pager in one 48px line at $width in $locale and reflows at 200%', async ({ width, view, locale, messages }) => {
-    const viewOptions = [
-      { value: 'month', label: segmentTranslation(messages, calendarKeys[0]!) },
-      { value: 'week', label: segmentTranslation(messages, calendarKeys[1]!) },
-      { value: 'range', label: segmentTranslation(messages, calendarKeys[2]!) },
-      { value: 'agenda', label: segmentTranslation(messages, calendarKeys[3]!) },
-    ] as const
-    const ends = formatCalendarSpanEnds(new Date(2026, 7, 31), new Date(2026, 8, 6), locale)
-    const weekLabel = messages.calendar.range.label.replace('{start}', ends.start).replace('{end}', ends.end)
-    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><main style={{ height: 915, overflowY: 'auto', scrollbarGutter: 'stable' }}>
-      <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-30" previousMonthLabel="Previous month" nextMonthLabel="Next month"
-        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}
-        period={view === 'month' ? undefined : { view, label: weekLabel, previousLabel: "Previous week", nextLabel: "Next week", onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn() }}
-        viewSelector={<SegmentedControl fullWidth options={viewOptions} value={view} onChange={vi.fn()} label={messages.calendar.view.switchLabel} />} />
-    </main></NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
-    try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await loadAppFonts(page)
-      await mountMeasuredSegmentedControls(page)
-      for (const scale of [1, 2]) {
-        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
-        await vi.waitFor(async () => {
-          expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
-          const geometry = await page.evaluate(() => {
-            const selector = document.querySelector('[data-segmented-control]')!.getBoundingClientRect()
-            const controls = [...document.querySelectorAll('[data-testid="calendar-header-group"] [data-testid$="-navigation"] button')].map((button) => {
-              const box = button.getBoundingClientRect()
-              const content = document.createRange(); content.selectNodeContents(button)
-              const contentBox = content.getBoundingClientRect()
-              return { left: box.left, right: box.right, bottom: box.bottom, width: box.width, height: box.height, overflow: contentBox.left < box.left || contentBox.right > box.right }
-            })
-            const navigation = document.querySelector('[data-testid="calendar-header-group"] [data-testid$="-navigation"]')!
-            const title = navigation.querySelectorAll('button')[1]!
-            const range = document.createRange(); range.selectNodeContents(title.querySelector('span') ?? title)
-            return { navigationHeight: navigation.getBoundingClientRect().height, titleLines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size, titleRadius: Number.parseFloat(getComputedStyle(title).borderRadius), titleHeight: title.getBoundingClientRect().height, selectorTop: selector.top, selectorBottom: selector.bottom, controls, overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }
-          })
-          expectCalendarSegments(await page.evaluate(measureCalendarSegments), scale)
-          expect(geometry.controls).toHaveLength(view === 'month' ? 4 : 3)
-          if (scale === 1) { expect(geometry.navigationHeight, JSON.stringify(geometry)).toBe(48); expect(geometry.titleLines).toBe(1); expect(geometry.selectorTop).toBe(76) }
-          expect(geometry.titleRadius).toBe(12)
-          expect(geometry.overflow).toBe(false)
-          for (const control of geometry.controls) {
-            expect(control.bottom).toBeLessThanOrEqual(geometry.selectorTop)
-            expect(control.bottom).toBeLessThan(geometry.selectorBottom)
-            expect(control.width).toBeGreaterThanOrEqual(view === 'month' ? 32 : 44)
-            expect(control.height).toBeGreaterThanOrEqual(44)
-            expect(control.left).toBeGreaterThanOrEqual(16)
-            expect(control.right).toBeLessThanOrEqual(width - 16)
-            expect(control.overflow).toBe(false)
-          }
-          for (const control of await page.locator('[data-testid="calendar-header-group"] [data-testid$="-navigation"] button').all()) {
-            const target = await control.evaluate(readExpandedControlGeometry)
-            expect(target.width).toBeGreaterThanOrEqual(48)
-            expect(target.height).toBeGreaterThanOrEqual(48)
-            expect(target.edgeHits).toEqual([true, true, true, true])
-          }
-        }, { timeout: 2000 })
-      }
-    } finally { await page.close() }
-  })
-
   it('wraps multiword labels between words while retaining one segmented row', async () => {
     const { container } = render(<div className="p-4"><SegmentedControl fullWidth label="Views" value="all" onChange={vi.fn()} options={[{ value: 'all', label: 'All habits' }, { value: 'general', label: 'General habits' }]} /></div>)
-    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
@@ -785,9 +619,9 @@ describe('Calendar header geometry in Chromium', () => {
 
   it('keeps every calendar word whole at double text size', async () => {
     const { container } = render(<div className="p-4"><SegmentedControl fullWidth label="Views" value="0" onChange={vi.fn()} options={inventoryOptions(calendarKeys, en)} /></div>)
-    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
@@ -802,9 +636,9 @@ describe('Calendar header geometry in Chromium', () => {
       .find((site) => site.optionKeys.includes('onboarding.flow.when.fixedMode'))!.optionKeys
     const choices = inventoryOptions(keys, ptBR)
     const { container } = render(<div style={{ width: 740 }}><SegmentedControl fullWidth={fullWidth} label="Schedule" value="0" onChange={vi.fn()} options={choices} /></div>)
-    const page = await browser.newPage({ viewport: { width: 840, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width: 840, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet} :root { font-size:32px; --orbit-space-4:0.25rem; --orbit-space-8:0.5rem; }</style>${container.innerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet} :root { font-size:32px; --orbit-space-4:0.25rem; --orbit-space-8:0.5rem; }</style>${container.innerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       const required = await page.getByRole('radiogroup').evaluate((track) => {
@@ -859,9 +693,9 @@ describe('Calendar header geometry in Chromium', () => {
       {sites.map((site, index) => <SegmentedControl key={index} fullWidth label={messages.calendar.view.switchLabel} value="0" onChange={vi.fn()}
         options={inventoryOptions(site.optionKeys, messages)} />)}
     </div></main>)
-    const page = await browser.newPage({ viewport: { width, height: 1800 } })
+    const page = await harness.browser.newPage({ viewport: { width, height: 1800 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
       await page.evaluate((locale) => { document.documentElement.lang = locale }, locale)
       await loadAppFonts(page)
       await page.evaluate(() => {
@@ -941,9 +775,9 @@ describe('Calendar header geometry in Chromium', () => {
     const ends = formatCalendarSpanEnds(new Date(2026, 8, 30), new Date(2026, 9, 6), 'pt-BR')
     const weekLabel = ptBR.calendar.range.label.replace('{start}', ends.start).replace('{end}', ends.end)
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC"><CalendarHeader currentMonth={new Date(2026, 9, 1)} todayKey="2026-10-05" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} period={{ view: 'week', label: weekLabel, previousLabel: "Previous week", nextLabel: "Next week", onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn() }} /></NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
@@ -967,9 +801,9 @@ describe('Calendar header geometry in Chromium', () => {
       <CalendarRangeView model={model} weekdayLabels={['S', 'T', 'Q', 'Q', 'S', 'S', 'D']} rangeLabel={rangeLabel} isLoading={isLoading} loadingLabel={ptBR.calendar.loading}
         stats={[{ key: 'bestStreak', value: model.stats.bestStreak, label: ptBR.calendar.bestStreak }, { key: 'totalLogs', value: model.stats.totalLogs, label: ptBR.calendar.totalLogs }, { key: 'missed', value: model.stats.missed, label: ptBR.calendar.missedCount }]} />
     </NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       for (const scale of [1, 2]) {
@@ -1043,9 +877,9 @@ describe('Calendar header geometry in Chromium', () => {
         onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}
         viewSelector={<SegmentedControl fullWidth options={options} value="month" onChange={vi.fn()} label={ptBR.calendar.view.switchLabel} />} />
     </NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       await mountMeasuredSegmentedControls(page)
       for (const textScale of [1, 2]) {
