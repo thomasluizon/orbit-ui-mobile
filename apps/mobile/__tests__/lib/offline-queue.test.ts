@@ -755,6 +755,24 @@ describe('mobile offline queue', () => {
     expect(queued.map((mutation) => mutation.id)).toEqual(['update-older', 'update-newer'])
     expect(queued[queued.length - 1]?.payload).toEqual({ title: 'Newest' })
   })
+  it('parses and discards a persisted scheme mutation without sending a request', async () => {
+    database.prepare(`INSERT INTO mutation_queue
+      (id, timestamp, type, endpoint, method, payload, retries, max_retries, meta, account_id, owner_state)
+      VALUES (?, ?, ?, ?, ?, ?, 0, 3, ?, ?, 'account')`).run(
+      'persisted-scheme', Date.now(), 'setColorScheme', '/api/profile/color-scheme', 'PUT',
+      JSON.stringify({ colorScheme: 'rose' }), JSON.stringify({ scope: 'profile' }), 'account-a',
+    )
+
+    expect(getAll()).toMatchObject([{
+      id: 'persisted-scheme', type: 'setColorScheme', scope: 'profile', payload: { colorScheme: 'rose' },
+    }])
+
+    await expect(flushQueuedMutations()).resolves.toMatchObject({ remaining: 0 })
+
+    expect(replayMocks.apiClient).not.toHaveBeenCalled()
+    expect(database.prepare('SELECT id FROM mutation_queue').all()).toEqual([])
+  })
+
   it('replays an already persisted reminder payload once without changing casing or ownership', async () => {
     const parsed = habitDetailSchema.parse(reminderWire.HabitDetailResponse)
     const payload = { title: 'Reminder', reminderEnabled: false,

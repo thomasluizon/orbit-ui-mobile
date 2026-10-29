@@ -58,7 +58,6 @@ export const applyOnboardingRequestSchema = z.object({
   firstLog: applyOnboardingFirstLogSchema.optional(),
   goal: createGoalRequestSchema.optional(),
   weekStartDay: z.union([z.literal(0), z.literal(1)]).optional(),
-  colorScheme: z.string().optional(),
 })
 
 export type ApplyOnboardingRequest = z.infer<typeof applyOnboardingRequestSchema>

@@ -383,7 +383,7 @@ describe('offline mutations', () => {
 
   it('discards a persisted scheme mutation without sending it', async () => {
     mocks.queued.push(buildQueuedMutation({
-      type: 'setColorScheme', scope: 'profile', endpoint: API.profile.colorScheme,
+      type: 'setColorScheme', scope: 'profile', endpoint: '/api/profile/color-scheme',
       method: 'PUT', payload: { colorScheme: 'rose' },
     }))
     mocks.setOnline(true)
