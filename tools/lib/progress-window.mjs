@@ -120,14 +120,15 @@ const progressEntries = async ({ sessionId, repoRoot, transcriptPath, transcript
   transcriptPath ??= state?.sessionId === currentSessionId ? state.transcriptPath ?? state.relay?.transcriptPath : undefined
   const project = await projectSessions(transcriptsDirectory ?? transcriptDirectory(repoRoot, transcriptPath), now)
   const latest = project.commands.at(-1)
+  const currentInvocation = project.commands.findLast((command) => command.sessionId === currentSessionId)
   // A nested skill call has no owner command of its own to skip.
-  const currentCommand = latest?.sessionId === currentSessionId &&
+  const currentCommand = currentInvocation &&
     project.sessions.find((entry) => entry.sessionId === currentSessionId)?.lastOwnerProgress
   const previous = currentCommand
-    ? project.commands.findLast((command) => Date.parse(command.time) < Date.parse(latest.time)) : latest
+    ? project.commands.findLast((command) => Date.parse(command.time) < Date.parse(currentInvocation.time)) : latest
   const startedAt = previous?.time ?? chain?.[0].startedAt ?? project.sessions.find((entry) => entry.sessionId === currentSessionId)?.startedAt
   if (!startedAt) return null
-  const baselineSource = previous ? "previous-progress" : chain?.length > 1 ? "chain-start" : "session-start"
+  const baselineSource = previous ? "previous-progress" : openSessionChain(sessionId, repoRoot) ? "chain-start" : "session-start"
   const recorded = readSessionChain(repoRoot).chains.flatMap((entry) => entry.entries)
   const candidates = new Map(recorded.map((entry) => [entry.sessionId, entry]))
   for (const entry of project.sessions) candidates.set(entry.sessionId, { ...candidates.get(entry.sessionId), ...entry })
@@ -191,14 +192,15 @@ export const collectProgressWindow = async ({ sessionId, repoRoot, transcriptPat
   const sources = repositories.flatMap(({ key, slug }) => [
     { repository: key, kind: "merges", path: `repos/${slug}/pulls?state=closed&per_page=100`, projection: pullProjection },
     ...["release.yml", ...(key === "ui" ? ["android-release.yml"] : [])].map((workflow) => ({
-      repository: key, kind: "releases", workflow, projection: runProjection,
+      repository: key, slug, kind: "releases", workflow, projection: runProjection,
+      createdSince: `>=${new Date(startedAt).toISOString().slice(0, 10)}`,
       path: `repos/${slug}/actions/workflows/${workflow}/runs?per_page=100&created=${encodeURIComponent(`>=${new Date(startedAt).toISOString().slice(0, 10)}`)}`,
     })),
   ])
   sources.push({ repository: ticketRepository, kind: "closedTickets", projection: ticketProjection,
     path: `repos/${ticketRepository}/issues?state=all&per_page=100&since=${encodeURIComponent(startedAt)}` })
   const results = await Promise.allSettled(sources.map(async (source) => ({ source,
-    pages: await readPages(source.path, source.projection) })))
+    pages: await readPages(source.path, source.projection, source) })))
   for (const result of results) {
     if (result.status === "rejected") throw result.reason
     collectSource(entries, result.value.source, result.value.pages, now, startedAt)

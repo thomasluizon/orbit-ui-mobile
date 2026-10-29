@@ -37,7 +37,7 @@ const rejects = async (options, pattern) => {
   try { await collectProgressWindow(options); return false } catch (error) { return pattern.test(error.message) }
 }
 
-export const cases = async () => {
+const ownerBoundaryCases = async () => {
   const boundary = fixture("progress-owner-boundary")
   const transcriptsDirectory = join(boundary.repoRoot, "transcripts")
   mkdirSync(transcriptsDirectory)
@@ -63,12 +63,46 @@ export const cases = async () => {
   T("progress-window: merge before chain start survives and session evidence spans the window",
     windowReport.entries.some((entry) => entry.merges.some((merge) => merge.id === 10)) &&
     windowReport.entries.some((entry) => entry.sessionId === "earlier"))
+  const earlier = windowReport.entries.find((entry) => entry.sessionId === "earlier")
+  T("progress-window: overlapping session conversations retain decision and question evidence",
+    earlier?.conversation.some((turn) => turn.text.includes("Owner question: which track?")))
+  T("progress-window: baseline source and local start are explicit",
+    windowReport.baselineSource === "previous-progress" && typeof windowReport.window.localStartedAt === "string")
+  T("progress-window: command expansions and tool results do not become conversation evidence",
+    windowReport.entries.find((entry) => entry.sessionId === "current").conversation.every((turn) =>
+      !turn.text.includes("tool_result")))
+  const laterPath = join(transcriptsDirectory, "later.jsonl")
+  writeFileSync(laterPath, `${JSON.stringify(command("later", "2026-10-01T03:45:00Z", "later"))}\n`)
+  const simultaneous = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
+  T("progress-window: another session's later report does not replace this invocation's boundary",
+    simultaneous.window.startedAt === previous)
+  writeFileSync(laterPath, "")
+  const nestedCommand = { ...command("current", "2026-10-01T03:40:00Z", "wrap-up"),
+    message: { role: "user", content: "<command-message>wrap-up</command-message>\n<command-name>/wrap-up</command-name>" } }
+  const currentPath = join(transcriptsDirectory, "current.jsonl")
+  writeFileSync(currentPath, readFileSync(currentPath, "utf8") + JSON.stringify(nestedCommand) + "\n")
+  const nested = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
+  T("progress-window: wrap-up and model calls use the latest owner report without skipping it",
+    nested.window.startedAt === current)
+  writeFileSync(join(transcriptsDirectory, "earlier.jsonl"), "")
+  writeFileSync(currentPath, `${JSON.stringify(command("current", current, "first"))}\n`)
+  const first = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
+  T("progress-window: first owner report identifies its chain fallback",
+    first.baselineSource === "chain-start" && first.window.startedAt === "2026-10-01T00:00:00Z")
+  writeSessionChain({ chains: [] }, boundary.repoRoot)
+  const firstSession = await collectProgressWindow({ ...boundary.options, transcriptsDirectory })
+  T("progress-window: first owner report without a chain identifies its session fallback",
+    firstSession.baselineSource === "session-start" && firstSession.window.startedAt === current)
+}
+
+export const cases = async () => {
+  await ownerBoundaryCases()
   const staged = fixture("progress-core")
   const report = await collectProgressWindow(staged.options)
   T("progress-window: reports three relays and current session, with the full window", report.entries.map((entry) => entry.sessionId).join(",") === "relay-0,relay-1,relay-2,current" && report.window.startedAt === "2026-10-01T00:00:00Z")
   for (const [index, entry] of report.entries.entries()) {
     T(`progress-window: entry ${index} retains every source at its own boundary`,
-      entry.merges.length === 3 && entry.releases.length === 4 && entry.closedTickets.length === 1 &&
+      entry.merges.length === 3 && entry.releases.length === 4 && entry.closedTickets.length === 1 && entry.createdTickets.length === 1 &&
       [...entry.merges, ...entry.releases, ...entry.closedTickets].every((item) => item.id % 100 === index + 1))
     T(`progress-window: entry ${index} retains complete decisions and owner questions`,
       entry.decisions === (index === 3 ? "Current decision and its complete reasoning\n" : `Complete decisions ${index}\nReasoning ${index}\n`) &&
@@ -83,8 +117,19 @@ export const cases = async () => {
     release?.environment === "staging" && release.branch === "integration/next" && release.dispatchBranch === "main" &&
     android?.track === "internal" && android.version === "1.3.59" && android.versionCode === "118")
   T("progress-window: pending runs remain visible without a success claim", report.entries.at(-1).releases.every((run) => run.conclusion === null && run.status === "in_progress"))
-  T("progress-window: one paginated REST read per source, without GraphQL", staged.calls.length === 8 && new Set(staged.calls.map((call) => call.path)).size === 8 && staged.calls.every((call) => !call.path.includes("graphql")))
+  T("progress-window: one read per source, without GraphQL", staged.calls.length === 8 && new Set(staged.calls.map((call) => call.path)).size === 8 && staged.calls.every((call) => !call.path.includes("graphql")))
   T("progress-window: workflow date filter uses the verified day form", staged.calls.filter((call) => call.path.includes("/runs?")).every((call) => call.path.endsWith("created=%3E%3D2026-10-01")))
+  const ticketKinds = await collectProgressWindow({ ...staged.options, readPages: async (path, projection) => {
+    const pages = await staged.options.readPages(path, projection)
+    return path.includes("/issues?") ? [[
+      { ...staged.recorded.ticket, number: 50, created_at: "2026-10-01T01:30:00Z", closed_at: null },
+      { ...staged.recorded.ticket, number: 51, created_at: "2026-09-30T01:30:00Z", closed_at: "2026-10-01T02:30:00Z" },
+      { ...staged.recorded.ticket, number: 52, created_at: "2026-10-01T01:30:00Z", pull_request: { url: "https://example.test/pull/52" } },
+    ]] : pages
+  } })
+  T("progress-window: newly created open tickets and older closed tickets use their own event times",
+    ticketKinds.entries.flatMap((entry) => entry.createdTickets).map((ticket) => ticket.id).join() === "50" &&
+    ticketKinds.entries.flatMap((entry) => entry.closedTickets).map((ticket) => ticket.id).join() === "51")
   const missingTitle = await collectProgressWindow({ ...staged.options, readPages: async (path, projection) => {
     const pages = await staged.options.readPages(path, projection)
     return path.includes("/runs?") ? pages.map((page) => ({ ...page, workflow_runs: page.workflow_runs.map((run) => ({ ...run, display_title: "Release API" })) })) : pages

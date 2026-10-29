@@ -52,14 +52,26 @@ try {
     repositories: ["ui", "api", "landing"].map((key) => ({ key,
       slug: configuredRepositorySlug(config.repos[key], repositorySlug(config.repos.ui).split("/")[0]) })),
     ticketRepository: config.tickets.repository,
-    readPages: async (path, projection) => {
+    readPages: async (path, projection, source) => {
       const auth = await (authentication ??= githubEnvironment(config.repos.ui).then((auth) => {
         secrets = auth.secrets
         return auth
       }))
-      const result = await runBounded(process.env.GH_BIN || "gh", ["api", "--paginate", path, "--jq", projection],
+      const runLimit = 10000
+      const args = source.kind === "releases"
+        ? ["run", "list", "--repo", source.slug, "--workflow", source.workflow, "--all", "--created", source.createdSince,
+          "--limit", String(runLimit), "--json", "databaseId,displayTitle,headBranch,conclusion,status,createdAt,updatedAt,url"]
+        : ["api", "--paginate", path, "--jq", projection]
+      const result = await runBounded(process.env.GH_BIN || "gh", args,
         { env: auth.environment, timeoutMs: config.timeouts.gitRemoteSeconds * 1000 })
       if (result.error || result.status !== 0) throw new Error(`GitHub read failed at ${path}: ${result.stderr || result.error?.message || result.status}`)
+      if (source.kind === "releases") {
+        const runs = JSON.parse(result.stdout)
+        if (!Array.isArray(runs) || runs.length >= runLimit) throw new Error(`incomplete release listing at ${path}`)
+        return [{ total_count: runs.length, workflow_runs: runs.map((run) => ({ id: run.databaseId,
+          display_title: run.displayTitle, head_branch: run.headBranch, conclusion: run.conclusion === "" ? null : run.conclusion,
+          status: run.status, created_at: run.createdAt, updated_at: run.updatedAt, html_url: run.url })) }]
+      }
       return result.stdout.trim().split(/\r?\n/).map((line) => JSON.parse(line))
     },
   })
