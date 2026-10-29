@@ -1,13 +1,13 @@
 import { isDeepStrictEqual } from 'node:util'
 import { publicApi } from './fixtures/api.mjs'
-import { requireStagingOrigin } from './fixtures/reset.mjs'
+import { requireEvalOrigin } from './fixtures/reset.mjs'
 import { refreshCredential } from './credentials.mjs'
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const ordered = (habits) => [...habits].sort((left, right) => left.id.localeCompare(right.id))
 
 export async function readStartingHabits(credentialKey) {
-  requireStagingOrigin()
+  requireEvalOrigin()
   const { payload } = await publicApi(credentialKey)('GET', 'profile/export')
   if (!Array.isArray(payload?.habits) || payload.habits.some((habit) => typeof habit.id !== 'string'
     || typeof habit.title !== 'string' || !Array.isArray(habit.checklistItems))) throw new Error('Saved-step export lacks habit evidence.')
@@ -44,7 +44,7 @@ function matchingPreview(pending, vars) {
 }
 
 export async function approveStartingStep(parsed, vars) {
-  requireStagingOrigin()
+  requireEvalOrigin()
   const baseline = vars.startingHabitBaseline
   if (!Array.isArray(baseline) || !vars.previousStartingStep) return result(false, 'Missing saved-step baseline.')
   const pending = parsed.composition.pendingOperations[0]

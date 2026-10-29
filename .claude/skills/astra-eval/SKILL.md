@@ -28,7 +28,8 @@ The model comparison was superseded by server-owned model selection; do not send
 override. Keep D147's server-owned `gpt-6-luna` low and existing per-user daily ceiling. Never reset
 message counters or spend, raise a backstop, or use unapproved accounts to finish a run.
 Keep ORB-20 open through live capability verification after all carrying code is deployed
-to staging. Source adapter tests cannot replace that acceptance.
+to the API the gate runs against (staging, or production with the disposable eval accounts).
+Source adapter tests cannot replace that acceptance.
 
 When adding a case, keep exact ID and enum assertions, tolerant text matching, and unordered
 compound tool requirements. Bulk cases require one bulk call and forbid single-item calls.

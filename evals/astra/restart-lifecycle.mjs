@@ -2,10 +2,10 @@ import { structural, behavior, composition } from './assertions.mjs'
 import { restartProposal, restartReadback } from './restart.mjs'
 import { publicApi } from './fixtures/api.mjs'
 import { readRestartSnapshot } from './fixtures/restart.mjs'
-import { requireStagingOrigin } from './fixtures/reset.mjs'
+import { requireEvalOrigin } from './fixtures/reset.mjs'
 
 export async function completeRestart(output, vars) {
-  requireStagingOrigin()
+  requireEvalOrigin()
   const context = { vars: { ...vars, restart: undefined }, test: { vars } }
   const checks = [await structural(output, context), behavior(output, context), composition(output, context), restartProposal(output, vars)]
   if (checks.some((check) => check.pass !== true || check.metadata?.skipped || check.metadata?.unavailable)) return output

@@ -212,7 +212,7 @@ it('does not cycle capacity roots or reset counters on repeated free attempts', 
 })
 it('rejects budget setup beyond five ordinary requests without spending a chat message', async () => {
   await expect(resetFixture(scenario('budget-exhausted'))).rejects.toThrow('more than five')
-  expect(requests.map(({ path }) => path)).toEqual(['eval/pending-operations', 'eval/pending-operations', 'profile', 'profile/timezone', 'profile/language'])
+  expect(requests.map(({ path }) => path)).toEqual(['profile', 'eval/pending-operations', 'eval/pending-operations', 'profile/timezone', 'profile/language'])
 })
 it('keeps old positive history and IDs intact when public undo cannot restore zero history', async () => {
   await resetFixture(scenario('pro'))
@@ -344,10 +344,26 @@ it('prepares composition again across a UTC day boundary without replacing IDs',
 it.each(['origin', 'email'])('refuses fixture writes for an unsafe %s', async (unsafe) => {
   await resetFixture(scenario('pro'))
   requests.length = 0
-  if (unsafe === 'origin') vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://api.useorbit.org')
+  if (unsafe === 'origin') vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-production.example.com')
   else email = 'thomaslrgregorio@gmail.com'
-  await expect(resetFixture(scenario('empty'))).rejects.toThrow(/disposable|staging/)
+  await expect(resetFixture(scenario('empty'))).rejects.toThrow(/known eval origin|disposable eval account/)
   expect(requests.every((request) => request.method === 'GET' || request.path === 'eval/pending-operations')).toBe(true)
+})
+it('allows a production fixture reset for a disposable eval account', async () => {
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://api.useorbit.org')
+  await resetFixture(scenario('pro'))
+  expect(requests.find(({ method }) => method !== 'GET')).toMatchObject({
+    method: 'DELETE', path: 'eval/pending-operations',
+  })
+  expect(requests.some(({ method, path }) => method === 'PUT' && path === 'profile/timezone')).toBe(true)
+})
+it('refuses a production fixture reset for a non-eval account before any write', async () => {
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://api.useorbit.org')
+  email = 'thomaslrgregorio@gmail.com'
+  await expect(resetFixture(scenario('pro'))).rejects.toThrow(
+    'Fixture reset requires a known eval origin and a disposable eval account.',
+  )
+  expect(requests).toEqual([{ method: 'GET', path: 'profile', body: undefined }])
 })
 it('rejects an ignored occurrence cursor update on independent readback', async () => {
   await resetFixture(scenario('pro'))
@@ -613,7 +629,7 @@ it('isolates every repeat before fixture writes and restores completed and skipp
     expect(test.vars.preconditionFailure).toBeUndefined()
     const attemptRequests = requests.slice(start).filter(({ path }) => !['health', 'auth/refresh'].includes(path))
     expect(attemptRequests.slice(0, 3).map(({ method, path }) => `${method} ${path}`)).toEqual([
-      'DELETE eval/pending-operations', 'GET eval/pending-operations', 'GET profile',
+      'GET profile', 'DELETE eval/pending-operations', 'GET eval/pending-operations',
     ])
     expect(pending).toBe(0)
     expect(habits.every((habit) => habit.logs.length === 0 && habit.dueDate === test.vars.accountDate)).toBe(true)
@@ -649,7 +665,7 @@ it.each(['403', 'nonzero', 'malformed-delete', 'malformed-get', 'transport', 'ex
     expect(response.metadata.astraPreconditionFailure).toBe(true)
     expect(summarize([{ testCase: test, response, error: response.error, success: false }], [test.metadata]).cases[0])
       .toMatchObject({ pass3: 'incomplete', unavailable: 1, passed: 0 })
-    expect(requests.every(({ path }) => ['health', 'auth/refresh'].includes(path))).toBe(true)
+    expect(requests.every(({ path }) => ['health', 'auth/refresh', 'profile'].includes(path))).toBe(true)
   },
 )
 
@@ -667,7 +683,7 @@ it('retries cleanup conflicts within a bound then independently verifies zero pe
   expect(methods).toEqual(['DELETE', 'DELETE', 'DELETE', 'GET'])
 })
 
-it.each(['https://api.useorbit.org', 'https://orbit-api-staging-uqu2.onrender.com.evil.invalid'])(
+it.each(['https://orbit-api-production.example.com', 'https://orbit-api-staging-uqu2.onrender.com.evil.invalid'])(
   'refuses an attempt on another origin before any request: %s', async (origin) => {
     vi.stubEnv('ORBIT_EVAL_BASE_URL', origin)
     const request = vi.fn(async (url) => new URL(url).pathname === '/health'
@@ -675,9 +691,9 @@ it.each(['https://api.useorbit.org', 'https://orbit-api-staging-uqu2.onrender.co
       : Response.json({ token: 'pro-access', refreshToken: 'rotated-refresh' }))
     vi.stubGlobal('fetch', request)
     const { test } = await prepareAttempt({ test: scenario('pro') })
-    expect(test.vars.preconditionFailure).toMatch(/staging/)
+    expect(test.vars.preconditionFailure).toMatch(/known eval origin/)
     expect(request).not.toHaveBeenCalled()
-    await expect(resetFixture(scenario('pro'))).rejects.toThrow(/staging/)
+    await expect(resetFixture(scenario('pro'))).rejects.toThrow(/known eval origin/)
     expect(request).not.toHaveBeenCalled()
   },
 )
