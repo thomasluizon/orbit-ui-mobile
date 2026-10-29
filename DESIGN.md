@@ -1853,8 +1853,9 @@ Work down this list and stop at the first match: focus already moves there, so n
 in a native dialog with Restart now and Later while the main window is visible; a hidden window
 gets the dialog at its next show. Restart now waits until typing, Astra replies, edits and
 mutations settle and keeps the Astra checkpoint, then restarts. Later or dismissal keeps the
-verified package and installs it on Quit through the same checks. A failed installation keeps the
-package and shows Retry in the shell notice slot and the app menu. Native App or File and tray
+verified package and installs it natively on Quit with no web hand-off or relaunch. Only a running
+installation delays exit; repeated Quit waits for it, and an installation failure still exits.
+A failed installation keeps the package and shows Retry in the shell notice slot and the app menu. Native App or File and tray
 restart actions use the same settle and checkpoint owner. An earlier shell without the dialog
 keeps the neutral update banner in the shell notice slot. This is the desktop runtime adapter;
 browser and mobile update paths keep their existing platform actions.

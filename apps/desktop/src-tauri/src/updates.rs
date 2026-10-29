@@ -2,7 +2,7 @@ use crate::{
     lifecycle,
     localization::Labels,
     menus, update_manifest,
-    update_state::{Phase, Snapshot, UpdateState},
+    update_state::{Phase, QuitAction, Snapshot, UpdateState},
 };
 use std::{sync::Mutex, time::Duration};
 use tauri::{AppHandle, Manager, WebviewWindow};
@@ -11,8 +11,6 @@ use tauri_plugin_updater::{Update, UpdaterExt};
 use uuid::Uuid;
 
 const CHECK_INTERVAL: Duration = Duration::from_secs(60);
-// WHY: Allow the one-second web poll to settle Quit without trapping a blocked webview.
-const QUIT_HANDOFF_TIMEOUT: Duration = Duration::from_secs(3);
 struct Package {
     update: Update,
     bytes: Option<Vec<u8>>,
@@ -131,38 +129,26 @@ pub fn request_quit(app: &AppHandle) -> bool {
     let Some(state) = app.try_state::<PendingUpdate>() else {
         return false;
     };
-    let (waiting, attempt) = {
-        let mut state = state.lock().unwrap();
-        let waiting = state.request_quit();
-        (waiting, state.quit_handoff())
-    };
-    if let Some(attempt) = attempt {
+    dispatch_quit(&state, |package| {
+        show_status(app);
         let app = app.clone();
         tauri::async_runtime::spawn_blocking(move || {
-            wait_for_quit_handoff(
-                &app.state::<PendingUpdate>(),
-                attempt,
-                std::thread::sleep,
-                || app.exit(0),
-            );
+            if let Err(error) = install_package(&app, package, false) {
+                eprintln!("Cannot complete desktop update: {error}");
+            }
         });
-    }
-    if waiting {
-        show_status(app);
-    }
-    waiting
+    })
 }
 
-fn wait_for_quit_handoff<T>(
-    state: &Mutex<UpdateState<T>>,
-    attempt: Uuid,
-    wait: impl FnOnce(Duration),
-    exit: impl FnOnce(),
-) {
-    wait(QUIT_HANDOFF_TIMEOUT);
-    let exiting = state.lock().unwrap().expire_quit(attempt);
-    if exiting {
-        exit();
+fn dispatch_quit<T>(state: &Mutex<UpdateState<T>>, install: impl FnOnce(T)) -> bool {
+    let action = state.lock().unwrap().request_quit();
+    match action {
+        QuitAction::Exit => false,
+        QuitAction::Wait => true,
+        QuitAction::Install(package) => {
+            install(package);
+            true
+        }
     }
 }
 
@@ -319,7 +305,7 @@ async fn download_package(app: &AppHandle, package: Package) {
 }
 
 async fn install(app: &AppHandle, url: &tauri::Url) -> Result<(), String> {
-    let (package, quitting) = {
+    let package = {
         let state = app.state::<PendingUpdate>();
         let mut state = state.lock().unwrap();
         if state.phase != Phase::Downloaded {
@@ -329,36 +315,69 @@ async fn install(app: &AppHandle, url: &tauri::Url) -> Result<(), String> {
             return Err("Desktop update awaits native confirmation".into());
         }
         crate::update_resume::save(app, url).map_err(|error| error.to_string())?;
-        (state.begin_install()?, state.quit_requested)
+        state.begin_install()?
     };
     show_status(app);
     let app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        lifecycle::save_window(&app);
-        let update = package.update.clone().restart_after_install(!quitting);
-        if let Err(error) = update.install(package.bytes.as_ref().unwrap()) {
-            eprintln!("Cannot install desktop update: {error}");
-            let cleanup = crate::update_resume::clear(&app);
-            let state = app.state::<PendingUpdate>();
-            let mut state = state.lock().unwrap();
-            state.install_failed(package);
-            drop(state);
-            if let Err(error) = lifecycle::show_main(&app) {
-                eprintln!("Cannot show failed desktop update: {error}");
+    tauri::async_runtime::spawn_blocking(move || install_package(&app, package, true))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+fn install_package(app: &AppHandle, package: Package, resume_saved: bool) -> Result<(), String> {
+    lifecycle::save_window(app);
+    run_install(
+        &app.state::<PendingUpdate>(),
+        package,
+        |package, quitting| {
+            package
+                .update
+                .clone()
+                .restart_after_install(!quitting)
+                .install(package.bytes.as_ref().unwrap())
+        },
+        |quitting, result| {
+            let mut cleanup = Ok(());
+            if let Err(error) = &result {
+                eprintln!("Cannot install desktop update: {error}");
+                if resume_saved {
+                    cleanup = crate::update_resume::clear(app);
+                }
             }
-            return cleanup;
-        }
-        app.state::<PendingUpdate>().lock().unwrap().installed();
-        #[cfg(not(windows))]
-        if quitting {
-            app.exit(0);
+            if quitting {
+                app.exit(0);
+            } else if result.is_err() {
+                if let Err(error) = lifecycle::show_main(app) {
+                    eprintln!("Cannot show failed desktop update: {error}");
+                }
+            } else {
+                #[cfg(not(windows))]
+                app.request_restart();
+            }
+            cleanup
+        },
+    )
+}
+
+fn run_install<T, E, R>(
+    state: &Mutex<UpdateState<T>>,
+    package: T,
+    install: impl FnOnce(&T, bool) -> Result<(), E>,
+    finish: impl FnOnce(bool, Result<(), E>) -> R,
+) -> R {
+    let quitting = state.lock().unwrap().quit_requested;
+    let result = install(&package, quitting);
+    let quitting = {
+        let mut state = state.lock().unwrap();
+        let quitting = state.quit_requested;
+        if result.is_ok() {
+            state.installed();
         } else {
-            app.request_restart();
+            state.install_failed(package);
         }
-        Ok(())
-    })
-    .await
-    .map_err(|error| error.to_string())?
+        quitting
+    };
+    finish(quitting, result)
 }
 
 fn show_status(app: &AppHandle) {
@@ -420,92 +439,109 @@ mod tests {
         assert_eq!(state.lock().unwrap().phase, Phase::Failed);
     }
 
-    fn waiting_to_quit() -> Mutex<UpdateState<&'static str>> {
+    fn deferred_package() -> Mutex<UpdateState<&'static str>> {
         let mut state = UpdateState::new(true);
         state.checked(Ok(Some(("0.2.0".into(), "package"))));
         let package = state.begin_download(Uuid::new_v4()).unwrap();
         state.downloaded(package, true);
         let version = state.take_prompt(true).unwrap();
         state.answer_prompt(&version, false);
-        assert!(state.request_quit());
         Mutex::new(state)
     }
 
     #[test]
-    fn quit_timer_exits_after_the_bound_even_if_web_never_acknowledges() {
-        for acknowledged in [false, true] {
-            let state = waiting_to_quit();
-            let attempt = state.lock().unwrap().quit_handoff().unwrap();
-            let exited = std::cell::Cell::new(false);
-            wait_for_quit_handoff(
+    fn quit_installs_without_web_and_repeated_quit_waits_until_completion() {
+        let state = deferred_package();
+        let exited = std::cell::Cell::new(false);
+        assert!(dispatch_quit(&state, |package| {
+            assert_eq!(state.lock().unwrap().phase, Phase::Installing);
+            assert!(!state.lock().unwrap().snapshot().restart_requested);
+            run_install(
                 &state,
-                attempt,
-                |bound| {
-                    assert_eq!(bound, Duration::from_secs(3));
-                    let mut state = state.lock().unwrap();
-                    assert!(state.quit_requested);
-                    assert_eq!(state.phase, Phase::Downloaded);
-                    if acknowledged {
-                        state.clear_restart();
+                package,
+                |package, quitting| {
+                    assert_eq!(*package, "package");
+                    assert!(quitting);
+                    for _ in 0..2 {
+                        assert!(dispatch_quit(&state, |_| panic!("duplicate installation")));
+                        assert!(!exited.get());
+                        assert_eq!(state.lock().unwrap().phase, Phase::Installing);
                     }
-                    assert!(!exited.get());
+                    Ok::<(), &str>(())
                 },
-                || {
-                    let mut state = state.try_lock().unwrap();
-                    assert!(!state.quit_requested);
-                    assert!(!state.request_quit());
-                    assert!(state.begin_install().is_err());
+                |quitting, result| {
+                    assert!(quitting);
+                    assert!(result.is_ok());
+                    assert_eq!(state.try_lock().unwrap().phase, Phase::Idle);
+                    assert!(!dispatch_quit(&state, |_| panic!("completed installation")));
                     exited.set(true);
                 },
             );
-            assert!(exited.get());
-        }
+        }));
+        assert!(exited.get());
     }
 
     #[test]
-    fn quit_timer_exits_if_a_reservation_never_reaches_installing() {
-        let state = waiting_to_quit();
-        let attempt = state.lock().unwrap().quit_handoff().unwrap();
-        let reservation = Uuid::new_v4();
-        wait_for_quit_handoff(
-            &state,
-            attempt,
-            |_| {
-                let mut state = state.lock().unwrap();
-                let package = state.begin_download(reservation).unwrap();
-                state.downloaded(package, true);
-            },
-            || assert!(!state.lock().unwrap().request_quit()),
-        );
-        assert!(state.lock().unwrap().begin_install().is_err());
-        assert!(state.lock().unwrap().begin_download(reservation).is_err());
-    }
-
-    #[test]
-    fn quit_timer_leaves_installing_and_successor_attempts_running() {
-        for installing in [false, true] {
-            let state = waiting_to_quit();
-            let attempt = state.lock().unwrap().quit_handoff().unwrap();
-            wait_for_quit_handoff(
+    fn failed_quit_install_exits_and_keeps_the_package_for_explicit_retry() {
+        let state = deferred_package();
+        let exited = std::cell::Cell::new(false);
+        assert!(dispatch_quit(&state, |package| {
+            run_install(
                 &state,
-                attempt,
-                |_| {
-                    let mut state = state.lock().unwrap();
-                    let reservation = Uuid::new_v4();
-                    let package = state.begin_download(reservation).unwrap();
-                    state.downloaded(package, true);
-                    if installing {
-                        state.begin_install().unwrap();
-                    } else {
-                        state.release_install(reservation);
-                        assert!(state.request_quit());
-                        assert_ne!(state.quit_handoff(), Some(attempt));
-                    }
+                package,
+                |_, quitting| {
+                    assert!(quitting);
+                    assert!(dispatch_quit(&state, |_| panic!("duplicate installation")));
+                    assert!(!exited.get());
+                    Err("install failed")
                 },
-                || panic!("active installation or successor handoff must keep running"),
+                |quitting, result: Result<(), &str>| {
+                    assert!(quitting);
+                    assert_eq!(result, Err("install failed"));
+                    let snapshot = state.try_lock().unwrap().snapshot();
+                    assert_eq!(snapshot.phase, Phase::Failed);
+                    assert_eq!(snapshot.shell_version.as_deref(), Some("0.2.0"));
+                    assert_eq!(state.lock().unwrap().package, Some("package"));
+                    assert!(!dispatch_quit(&state, |_| panic!("implicit retry")));
+                    exited.set(true);
+                },
             );
-            assert!(state.lock().unwrap().quit_requested);
+        }));
+        assert!(exited.get());
+    }
+
+    #[test]
+    fn quit_without_a_deferred_package_exits_without_installing() {
+        let state = Mutex::new(UpdateState::<()>::new(true));
+        assert!(!dispatch_quit(&state, |_| panic!("no package to install")));
+    }
+
+    #[test]
+    fn restart_now_keeps_the_web_handoff_and_relaunches_after_installing() {
+        let state = deferred_package();
+        state.lock().unwrap().request_restart();
+        {
+            let mut state = state.lock().unwrap();
+            assert!(state.snapshot().restart_requested);
+            assert_eq!(state.phase, Phase::Downloaded);
+            assert_eq!(state.package, Some("package"));
+            assert!(!state.quit_requested);
+            state.clear_restart();
         }
+        let package = state.lock().unwrap().begin_install().unwrap();
+        run_install(
+            &state,
+            package,
+            |_, quitting| {
+                assert!(!quitting);
+                Ok::<(), &str>(())
+            },
+            |quitting, result| {
+                assert!(!quitting);
+                assert!(result.is_ok());
+                assert_eq!(state.lock().unwrap().phase, Phase::Idle);
+            },
+        );
     }
 
     #[test]
