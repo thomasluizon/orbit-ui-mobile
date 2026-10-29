@@ -46,6 +46,21 @@ export async function beforeAll({ suite }) {
   }
   readCredentials()
   await requireAccountPolicies(suite.tests)
+  await warmUpAccounts(suite.tests)
+}
+
+async function warmUpAccounts(tests) {
+  const warmed = new Set()
+  for (const test of tests) {
+    const key = test.vars.credentialKey
+    if (warmed.has(key)) continue
+    warmed.add(key)
+    try {
+      await resetFixture(structuredClone(test), undefined, accountAccess.get(key) === true)
+    } catch (error) {
+      process.stderr.write(`Astra fixture warm-up unavailable for ${key}: ${safeFailureMessage(error)}\n`)
+    }
+  }
 }
 
 async function requireAccountPolicies(tests) {

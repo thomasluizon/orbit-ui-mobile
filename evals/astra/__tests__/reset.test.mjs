@@ -270,7 +270,7 @@ it.each(['free-at-limit', 'budget-exhausted'])('keeps the metered %s fixture pat
     expect(habits.filter((habit) => !habit.deleted)).toHaveLength(capacity)
     expect(requests.some(({ path, body }) => path === 'habits/bulk' && body.habits.length > capacity)).toBe(true)
   } else {
-    expect(requests.filter(({ path }) => path === 'profile')).toHaveLength(1)
+    expect(requests.filter(({ path }) => path === 'profile')).toHaveLength(2)
     expect(requests.some(({ path }) => path === 'chat')).toBe(false)
   }
 })

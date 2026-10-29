@@ -196,6 +196,11 @@ The startup hook waits for `/health`, refreshes each selected account and reads 
 and `false` for both refusal accounts before any case starts. A missing flag or policy mismatch
 stops the run with the account selector and the `/flag` action to turn it on or off.
 The hook passes the resolved value to every fixture attempt without rereading config.
+After those checks and before the first case, it warms each selected credential account once
+through the same fixture reset used by that account's first selected case. The existing health
+wait runs first. Warm-ups use cloned cases, so their evidence never substitutes for an attempt's
+own reset. A failed warm-up emits one credential-safe warning per account and continues; each
+case still refreshes and resets normally, and only its own evidence can satisfy its precondition.
 Restore the previous account targeting after the run.
 Do not raise or restore quotas through `staging-ai-limits.sh` for an eval window.
 
