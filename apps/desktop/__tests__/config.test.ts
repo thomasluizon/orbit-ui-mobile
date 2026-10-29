@@ -126,7 +126,7 @@ it('gives staging and production separate persistent webview identities', () => 
 
 it('keeps updater archive parsing above the GHSA-m665-v7pm-7grj affected versions', () => {
   const lockfile = readFileSync(new URL('../src-tauri/Cargo.lock', import.meta.url), 'utf8')
-  const versions = [...lockfile.matchAll(/^name = "zip"\nversion = "(\d+)\.(\d+)\.(\d+)"$/gm)]
+  const versions = [...lockfile.matchAll(/^name = "zip"\r?\nversion = "(\d+)\.(\d+)\.(\d+)"\r?$/gm)]
   expect(versions.length).toBeGreaterThan(0)
   for (const [entry, major, minor, patch] of versions) {
     const patched = Number(major) > 9
