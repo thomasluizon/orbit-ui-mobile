@@ -16,9 +16,12 @@ function prepareStartingAction(test, block) {
   const habit = vars.startingHabitBaseline.find((habit) => habit.id === vars.checklistHabitId)
   if (!habit?.checklistItems.length) throw new Error('Starting-step setup requires an owned habit with existing checklist items.')
   vars.input += vars.clientContext.locale === 'pt-BR' ? ` Use o hábito ${JSON.stringify(habit.title)}.` : ` Use the habit ${JSON.stringify(habit.title)}.`
-  required.arguments = { habit_id: habit.id,
-    checklist_items: [...habit.checklistItems, { text: block.suggestion.step, isChecked: false }]
-      .map(({ text, isChecked }) => ({ text, is_checked: isChecked ? true : { optional: false } })) }
+  required.arguments = { anyOf: [
+    { habit_id: habit.id, item_to_add: block.suggestion.step, checklist_items: { optional: null } },
+    { habit_id: habit.id, item_to_add: { optional: null },
+      checklist_items: [...habit.checklistItems, { text: block.suggestion.step, isChecked: false }]
+        .map(({ text, isChecked }) => ({ text, is_checked: isChecked ? true : { optional: false } })) },
+  ] }
 }
 
 export async function prepareCorrection(test) {
