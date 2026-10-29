@@ -2703,8 +2703,9 @@
         - suggest_habits
       counts:
         suggest_habits: 1
-    rubric: Answer in English. Two editable drafts. The existing Water habit appears exactly once as an
-      adjustment with existingHabitId, never a new duplicate. Reading is a new habit. No saved claim
+    rubric: Answer in English. Two editable drafts. Exactly one editable draft carries the stored title
+      Water verbatim as an adjustment with existingHabitId. Its own title field belongs to the same draft;
+      no second draft has that title. Reading is a new habit. No saved claim
       or approval preview.
 - description: suggestions-refine in en
   metadata:
@@ -2835,8 +2836,9 @@
         - suggest_habits
       counts:
         suggest_habits: 1
-    rubric: Answer in Brazilian Portuguese. Two editable drafts. The existing Beber água habit appears
-      exactly once as an adjustment with existingHabitId, never a new duplicate. Reading is a new
+    rubric: Answer in Brazilian Portuguese. Two editable drafts. Exactly one editable draft carries the
+      stored title Beber água verbatim as an adjustment with existingHabitId. Its own title field belongs
+      to the same draft; no second draft has that title. Reading is a new
       habit. No saved claim or approval preview.
 - description: suggestions-refine in pt-BR
   metadata:
@@ -3399,7 +3401,8 @@
     rubric: >-
       Respond in English. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      The stored title Water appears verbatim exactly once in the preview, with no second item with that title.
+      Exactly one preview item carries the stored title Water verbatim. That item's own title field belongs
+      to the same item; no second item has that title.
       Identity reuse and the absence of persisted duplicates are harness evidence, not part of the answer being graded.
       Do not add unrequested activities or grouping habits.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,
@@ -3427,7 +3430,8 @@
     rubric: >-
       Respond in native Brazilian Portuguese. Organize the messy message into one held preview containing
       the dentist task tomorrow and daily stretching at eight in the morning starting today.
-      The stored title Beber água appears verbatim exactly once in the preview, with no second item with that title.
+      Exactly one preview item carries the stored title Beber água verbatim. That item's own title field belongs
+      to the same item; no second item has that title.
       Identity reuse and the absence of persisted duplicates are harness evidence, not part of the answer being graded.
       Do not add unrequested activities or grouping habits.
       At most one short sentence without figures may accompany the preview. Reject prose that repeats counts,

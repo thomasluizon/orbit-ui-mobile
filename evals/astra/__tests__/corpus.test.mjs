@@ -5,7 +5,26 @@ import { summarize } from '../report.mjs'
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
+const textOccurrenceCount = /\b(?:appear(?:s)?|occur(?:s)?|mention(?:ed)?|repeat(?:ed)?)\b[^.;]*\b(?:(?:exactly|only) once|once|one (?:time|occurrence)|twice)\b/i
+it.each([
+  'The stored title Water appears verbatim exactly once in the preview.',
+  'The stored title Beber água appears verbatim exactly once in the preview.',
+  'Water appears once in the preview.',
+  'The title occurs only once in the preview.',
+  'Mention the title exactly once in the preview.',
+  'The existing Water habit appears exactly once as an adjustment.',
+])('rejects text occurrence counting: %s', (rubric) => {
+  expect(rubric).toMatch(textOccurrenceCount)
+})
+it.each([
+  "Exactly one preview item carries the stored title Water verbatim; that item's own title field belongs to the same item. No second item has that title.",
+  'Exactly one preview item carries the stored title Beber água verbatim.',
+  'Exactly one editable draft carries the stored title Water verbatim as an adjustment.',
+])('allows item counting: %s', (rubric) => {
+  expect(rubric).not.toMatch(textOccurrenceCount)
+})
 it.each([...corpus, ...scenarios])('grades observable claims in $metadata.id', ({ vars }) => {
+  expect(vars.rubric).not.toMatch(textOccurrenceCount)
   const clauses = vars.rubric.split(/[.;]/).filter((clause) => !/\bharness evidence\b/i.test(clause))
   for (const clause of clauses) {
     expect(clause).not.toMatch(/\b(?:habit_id|entityId|by identity|identity reference|create_habit|update_checklist)\b/i)
