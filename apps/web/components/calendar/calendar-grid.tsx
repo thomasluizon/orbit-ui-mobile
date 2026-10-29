@@ -213,7 +213,7 @@ export function CalendarGrid({
 
   if (isLoading) {
     return (
-      <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: compact ? SPACING.s0 : `${SPACING.s0}px var(--calendar-grid-end-inset, ${PADDING.screenGutter}px) ${SPACING.s8}px ${PADDING.screenGutter}px` }}>
+      <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: compact ? SPACING.s0 : `${SPACING.s0}px ${PADDING.screenGutter}px ${SPACING.s8}px`, paddingInlineEnd: compact ? undefined : `var(--calendar-grid-end-inset, ${PADDING.screenGutter}px)` }}>
         <div data-testid="calendar-grid-card" className="orbit-calendar-grid-card">
           <MonthGrid weekdayLabels={weekdayLabels} gap="var(--calendar-grid-gap)" loadingLabel={t('calendar.loading')}>
             {gridDays.map((cell) => <div key={cell.dateStr} className="flex justify-center" style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}><DayColumnContent><span style={{ width: 34, flexShrink: 0 }}><Skeleton variant="grid" circular rows={1} cols={1} cell={34} gap={0} grouped /></span></DayColumnContent></div>)}
@@ -226,7 +226,7 @@ export function CalendarGrid({
   return (
     <div
       data-testid="calendar-grid"
-      className="orbit-calendar-grid-frame" style={{ padding: compact ? SPACING.s0 : `${SPACING.s0}px var(--calendar-grid-end-inset, ${PADDING.screenGutter}px) ${SPACING.s8}px ${PADDING.screenGutter}px` }}
+      className="orbit-calendar-grid-frame" style={{ padding: compact ? SPACING.s0 : `${SPACING.s0}px ${PADDING.screenGutter}px ${SPACING.s8}px`, paddingInlineEnd: compact ? undefined : `var(--calendar-grid-end-inset, ${PADDING.screenGutter}px)` }}
     >
       <div
         data-testid="calendar-grid-card"
