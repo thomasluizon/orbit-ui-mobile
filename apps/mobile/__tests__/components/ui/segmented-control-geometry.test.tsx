@@ -219,7 +219,9 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
     layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
     expect(groups).toHaveLength(1)
     const group = groups[0]!
-    expectOptionCount(group.radios, surface === 'calendar' ? choices.length : surface === 'share' ? 3 : 2, fontScale)
+    const narrowCalendar = surface === 'calendar' && locale === 'pt-BR' && width === 320
+    const optionCounts: Record<string, number> = { calendar: choices.length, share: 3, goal: 2, plans: 2 }
+    expectOptionCount(group.radios, narrowCalendar ? 1 : optionCounts[surface]!, fontScale)
     expect(new Set(group.radios.map((node) => node.getComputedTop())).size).toBe(1)
     expect(group.node.getComputedWidth()).toBeLessThanOrEqual(width - (surface === 'goal' || surface === 'share' ? 48 : 32))
     for (const [index, radio] of radios.entries()) {
@@ -271,15 +273,18 @@ function SelectedView({ surface, onChange }: Readonly<{ surface: 'today' | 'cale
   </View>
 }
 
-it.each((['today', 'calendar'] as const).flatMap((surface) => ['en', 'pt-BR'].map((locale) => ({ surface, locale }))))('selects the same $surface view through the folded sheet in $locale and restores the row', async ({ surface, locale }) => {
+it.each([
+  ...(['today', 'calendar'] as const).flatMap((surface) => ['en', 'pt-BR'].map((locale) => ({ surface, locale, width: 200, fontScale: 2 }))),
+  { surface: 'calendar' as const, locale: 'pt-BR', width: 320, fontScale: 1 },
+])('selects the same $surface view through the folded sheet in $locale at scale $fontScale and restores the row', async ({ surface, locale, width, fontScale }) => {
   await i18n.changeLanguage(locale)
-  __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+  __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
   useUIStore.setState({ activeView: 'today' })
   const onChange = vi.fn()
   let tree!: SegmentTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<SelectedView surface={surface} onChange={onChange} />) as SegmentTree })
   try {
-    const measured = await measureSegments(tree, 200, 2)
+    const measured = await measureSegments(tree, width, fontScale)
     measured.layout.freeRecursive()
     const trigger = () => tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.testID === 'segmented-trigger')[0]!
     expect(trigger().props.accessibilityLabel).toContain(i18n.t(surface === 'today' ? 'habits.viewToday' : 'calendar.view.month'))
@@ -298,7 +303,7 @@ it.each((['today', 'calendar'] as const).flatMap((surface) => ['en', 'pt-BR'].ma
     expect(onChange).toHaveBeenCalledExactlyOnceWith(destination)
     expect(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.testID === 'current-view')[0]!.props.children).toBe(destination)
     expect(trigger().props.accessibilityLabel).toContain(label)
-    const restored = await measureSegments(tree, 740, 2)
+    const restored = await measureSegments(tree, 740, fontScale)
     restored.layout.freeRecursive()
     expect(tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'radio')).toHaveLength(surface === 'today' ? 3 : 4)
     expect(onChange).toHaveBeenCalledTimes(1)
