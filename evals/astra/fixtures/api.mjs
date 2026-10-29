@@ -5,21 +5,41 @@ export function publicApi(credentialKey) {
     const token = process.env[credentialKey]
     if (!token) throw new Error('Fixture requires a refreshed credential.')
     const multipart = body instanceof FormData
-    let response
-    let payload
-    try {
-      response = await fetch(`${apiOrigin()}/api/${path}`, {
-        method, headers: { Authorization: `Bearer ${token}`, ...(multipart ? {} : { 'Content-Type': 'application/json' }), 'api-version': '2.0' },
-        ...(body === undefined ? {} : { body: multipart ? body : JSON.stringify(body) }),
-        redirect: 'error', signal: AbortSignal.timeout(15000),
-      })
-      const text = await response.text()
-      payload = text ? JSON.parse(text) : null
-    } catch {
-      throw new Error('Fixture API transport or JSON response failed.')
+    const url = `${apiOrigin()}/api/${path}`
+    const options = {
+      method, headers: { Authorization: `Bearer ${token}`, ...(multipart ? {} : { 'Content-Type': 'application/json' }), 'api-version': '2.0' },
+      ...(body === undefined ? {} : { body: multipart ? body : JSON.stringify(body) }),
+      redirect: 'error',
     }
-    if (!response.ok && !acceptedStatuses.includes(response.status) && !accepted.includes(payload?.errorCode)) throw new Error(`Fixture API ${method} failed with HTTP ${response.status}.`)
-    return { status: response.status, payload }
+    let rateLimitWaits = 0
+    let transportRetried = false
+    while (true) {
+      let response
+      let text
+      try {
+        response = await fetch(url, { ...options, signal: AbortSignal.timeout(15000) })
+        text = await response.text()
+      } catch {
+        if (['GET', 'DELETE'].includes(method) && !transportRetried) {
+          transportRetried = true
+          continue
+        }
+        throw new Error('Fixture API transport or JSON response failed.')
+      }
+      if (response.status === 429 && rateLimitWaits < 3) {
+        const retryAfter = response.headers.get('Retry-After')
+        const seconds = retryAfter !== null && /^\d+$/.test(retryAfter) ? Math.min(65, Number(retryAfter)) : 60
+        rateLimitWaits++
+        await new Promise((resolve) => setTimeout(resolve, seconds * 1000))
+        continue
+      }
+      let payload
+      try { payload = text ? JSON.parse(text) : null } catch {
+        throw new Error('Fixture API transport or JSON response failed.')
+      }
+      if (!response.ok && !acceptedStatuses.includes(response.status) && !accepted.includes(payload?.errorCode)) throw new Error(`Fixture API ${method} failed with HTTP ${response.status}.`)
+      return { status: response.status, payload }
+    }
   }
 }
 
