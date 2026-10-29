@@ -88,15 +88,44 @@ it('reuses multipart input after a rejected write without setting a JSON content
   }
 })
 
-it.each(['GET', 'DELETE', 'POST', 'PUT', 'PATCH'])('reports a single %s timeout at the existing deadline', async (method) => {
-  const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation((milliseconds) => {
-    const controller = new AbortController()
-    setTimeout(() => controller.abort(new DOMException('Private timeout details', 'TimeoutError')), milliseconds)
-    return controller.signal
-  })
-  const request = vi.fn().mockImplementation((_url, { signal }) => new Promise((_resolve, reject) => {
-    signal.addEventListener('abort', () => reject(signal.reason), { once: true })
-  }))
+const hang = (_url, { signal }) => new Promise((_resolve, reject) => {
+  signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+})
+const hangUntilAborted = () => vi.fn().mockImplementation(hang)
+const fakeTimeouts = () => vi.spyOn(AbortSignal, 'timeout').mockImplementation((milliseconds) => {
+  const controller = new AbortController()
+  setTimeout(() => controller.abort(new DOMException('Private timeout details', 'TimeoutError')), milliseconds)
+  return controller.signal
+})
+
+it.each(['GET', 'DELETE'])('retries %s once after transport failure or timeout with a fresh deadline', async (method) => {
+  const timeout = fakeTimeouts()
+  const request = vi.fn().mockImplementationOnce(hang).mockImplementation(success)
+  vi.stubGlobal('fetch', request)
+  const pending = outcome(api(method, 'eval/pending-operations'))
+  await vi.advanceTimersByTimeAsync(14999)
+  expect(request).toHaveBeenCalledTimes(1)
+  await vi.advanceTimersByTimeAsync(1)
+  expect(await pending).toEqual({ value: { status: 204, payload: null } })
+  expect(request).toHaveBeenCalledTimes(2)
+  expect(timeout.mock.calls).toEqual([[15000], [15000]])
+  expect(request.mock.calls[1][1].signal.aborted).toBe(false)
+})
+
+it.each(['GET', 'DELETE'])('names the %s timeout after its one retry', async (method) => {
+  const timeout = fakeTimeouts()
+  const request = hangUntilAborted()
+  vi.stubGlobal('fetch', request)
+  const pending = outcome(api(method, 'habits/private-habit-id'))
+  await vi.runAllTimersAsync()
+  expect(await pending).toEqual({ error: `Fixture API ${method} habits/{id} failed: timeout.` })
+  expect(request).toHaveBeenCalledTimes(2)
+  expect(timeout.mock.calls).toEqual([[15000], [15000]])
+})
+
+it.each(['POST', 'PUT', 'PATCH'])('reports a single %s timeout at the existing deadline', async (method) => {
+  const timeout = fakeTimeouts()
+  const request = hangUntilAborted()
   vi.stubGlobal('fetch', request)
   const pending = outcome(api(method, 'habits/private-habit-id/log', { title: 'Private body' }))
   await vi.advanceTimersByTimeAsync(14999)
@@ -109,16 +138,34 @@ it.each(['GET', 'DELETE', 'POST', 'PUT', 'PATCH'])('reports a single %s timeout 
   expect(timeout.mock.calls).toEqual([[15000]])
 })
 
-it.each(['GET', 'DELETE', 'POST', 'PUT', 'PATCH'])('reports a single %s network failure without private details', async (method) => {
+it.each(['GET', 'DELETE'])('bounds %s transport retries and names the final failure without private details', async (method) => {
   const request = vi.fn().mockRejectedValue(new TypeError('Private URL, token and network details'))
   vi.stubGlobal('fetch', request)
   expect(await outcome(api(method, 'goals/private-goal-id?token=private-query'))).toEqual({
     error: `Fixture API ${method} goals/{id} failed: network.`,
   })
+  expect(request).toHaveBeenCalledTimes(2)
+})
+
+it.each(['POST', 'PUT', 'PATCH'])('reports a single %s network failure without private details', async (method) => {
+  const request = vi.fn().mockRejectedValue(new TypeError('Private URL, token and network details'))
+  vi.stubGlobal('fetch', request)
+  expect(await outcome(api(method, 'goals/private-goal-id?token=private-query', { title: 'Private body' }))).toEqual({
+    error: `Fixture API ${method} goals/{id} failed: network.`,
+  })
   expect(request).toHaveBeenCalledTimes(1)
 })
 
-it.each(['TimeoutError', 'TypeError'])('classifies a response body %s failure without retrying', async (name) => {
+it('retries a safe response body transport failure', async () => {
+  const request = vi.fn().mockResolvedValueOnce(new Response(new ReadableStream({
+    start(controller) { controller.error(new TypeError('Connection closed')) },
+  }))).mockImplementation(success)
+  vi.stubGlobal('fetch', request)
+  expect(await outcome(api('GET', 'profile/export'))).toEqual({ value: { status: 204, payload: null } })
+  expect(request).toHaveBeenCalledTimes(2)
+})
+
+it.each(['TimeoutError', 'TypeError'])('classifies a response body %s failure after the safe retry', async (name) => {
   const request = vi.fn().mockImplementation(() => new Response(new ReadableStream({
     start(controller) { controller.error(new DOMException('Private body details', name)) },
   })))
@@ -126,16 +173,27 @@ it.each(['TimeoutError', 'TypeError'])('classifies a response body %s failure wi
   expect(await outcome(api('GET', 'profile/export'))).toEqual({
     error: `Fixture API GET profile/export failed: ${name === 'TimeoutError' ? 'timeout' : 'network'}.`,
   })
-  expect(request).toHaveBeenCalledTimes(1)
+  expect(request).toHaveBeenCalledTimes(2)
 })
 
-it('retains the 429 wait without retrying the following transport failure', async () => {
+it.each(['POST', 'PUT', 'PATCH'])('never retries a %s transport failure, even following a 429', async (method) => {
   const request = vi.fn().mockResolvedValueOnce(limited()).mockRejectedValue(new TypeError('Private details'))
   vi.stubGlobal('fetch', request)
-  const pending = outcome(api('DELETE', 'eval/pending-operations'))
+  const pending = outcome(api(method, 'habits', { title: 'Fixture' }))
   await vi.runAllTimersAsync()
-  expect(await pending).toEqual({ error: 'Fixture API DELETE eval/pending-operations failed: network.' })
+  expect(await pending).toEqual({ error: `Fixture API ${method} habits failed: network.` })
   expect(request).toHaveBeenCalledTimes(2)
+})
+
+it('keeps independent 429 and transport budgets across a single call', async () => {
+  const request = vi.fn().mockRejectedValueOnce(new TypeError('Cold start'))
+    .mockResolvedValueOnce(limited()).mockResolvedValueOnce(limited()).mockResolvedValueOnce(limited())
+    .mockRejectedValue(new TypeError('Still unavailable'))
+  vi.stubGlobal('fetch', request)
+  const pending = outcome(api('GET', 'eval/pending-operations'))
+  await vi.runAllTimersAsync()
+  expect(await pending).toEqual({ error: 'Fixture API GET eval/pending-operations failed: network.' })
+  expect(request).toHaveBeenCalledTimes(5)
 })
 
 it.each([400, 401, 403, 409, 500, 503])('does not retry HTTP %s', async (status) => {

@@ -18,6 +18,7 @@ export function publicApi(credentialKey) {
       redirect: 'error',
     }
     let rateLimitWaits = 0
+    let transportRetried = false
     while (true) {
       let response
       let text
@@ -25,6 +26,10 @@ export function publicApi(credentialKey) {
         response = await fetch(url, { ...options, signal: AbortSignal.timeout(15000) })
         text = await response.text()
       } catch (error) {
+        if (['GET', 'DELETE'].includes(method) && !transportRetried) {
+          transportRetried = true
+          continue
+        }
         throw fixtureFailure(method, path, error?.name === 'TimeoutError' ? 'timeout' : 'network')
       }
       if (response.status === 429 && rateLimitWaits < 3) {
