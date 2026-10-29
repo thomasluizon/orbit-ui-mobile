@@ -146,11 +146,22 @@ jobs:
             "$DESKTOP_VARIANT" "$DESKTOP_VERSION" apps/desktop/release-config.json
       - name: Package without operating system or updater signing
         run: |
+          bundle_args=()
+          if [ "$DESKTOP_VARIANT" = production ] && [ "$RUNNER_OS" = macOS ]; then
+            bundle_args=(--bundles 'app,dmg')
+          fi
           npm run "build:${DESKTOP_VARIANT}" -w @orbit/desktop -- \
-            --config release-config.json --target "$DESKTOP_TARGET" --no-sign --ci -- --locked
+            --config release-config.json --target "$DESKTOP_TARGET" --no-sign --ci "${bundle_args[@]}" -- --locked
       - name: Collect the updater package
         run: |
           node --experimental-strip-types apps/desktop/scripts/release.ts collect \
+            "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$DESKTOP_TARGET" \
+            "apps/desktop/src-tauri/target/${DESKTOP_TARGET}/release/bundle" "$RUNNER_TEMP/desktop-assets"
+      # WHY: Production DMGs stay unsigned; landing links wait for notarization (#1563).
+      - name: Collect the production DMG
+        if: inputs.variant == 'production' && runner.os == 'macOS'
+        run: |
+          node --experimental-strip-types apps/desktop/scripts/downloads.ts collect-dmg \
             "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$DESKTOP_TARGET" \
             "apps/desktop/src-tauri/target/${DESKTOP_TARGET}/release/bundle" "$RUNNER_TEMP/desktop-assets"
       - name: Sign and verify the updater package
@@ -226,10 +237,25 @@ jobs:
             node --experimental-strip-types apps/desktop/scripts/release.ts newer \
               "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$RUNNER_TEMP/previous.json"
           fi
+          if [ "$DESKTOP_VARIANT" = production ]; then
+            node --experimental-strip-types apps/desktop/scripts/downloads.ts prepare \
+              "$DESKTOP_VARIANT" "$DESKTOP_VERSION" desktop-assets "$RUNNER_TEMP/desktop-downloads"
+          fi
           gh release create "$tag" desktop-assets/* --repo "$GITHUB_REPOSITORY" \
             --target "$SOURCE_SHA" --title "Orbit desktop ${DESKTOP_VARIANT} ${DESKTOP_VERSION}" \
             --notes "Desktop shell ${DESKTOP_VERSION}. Updater signatures are separate from operating system signing." \
             --prerelease --latest=false
+          if [ "$DESKTOP_VARIANT" = production ]; then
+            if [ "$channel_exists" = false ]; then
+              gh release create "$channel" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" \
+                --title "Orbit desktop ${DESKTOP_VARIANT} update channel" \
+                --notes 'Stable desktop downloads and updater endpoint. macOS landing links wait for notarization (#1563).' \
+                --prerelease --latest=false
+              channel_exists=true
+            fi
+            gh release upload "$channel" "$RUNNER_TEMP"/desktop-downloads/* \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          fi
           if [ "$channel_exists" = true ]; then
             gh release upload "$channel" desktop-assets/latest.json.sig \
               --repo "$GITHUB_REPOSITORY" --clobber
