@@ -5,7 +5,9 @@ import { pathToFileURL } from "node:url"
 const USAGE = `usage: release-plan.mjs [--environment production|staging] [--branch <name>] [--track internal|open|production]
 
 List commits not yet released to production or staging, with planned SHAs and pinned dispatch commands.
-Staging reads live Render state. Android reads Play upload deployment records for the track.
+API and web baselines read live health. Landing reads live Render deploys.
+Unreadable baselines are reported alongside the other service plans.
+Android reads Play upload deployment records for the track.
 The default environment is production. The default Android track is open for production
 and internal for staging. Staging requires --branch.
 Set RENDER_MCP_TOKEN for Render reads.
@@ -110,7 +112,7 @@ async function renderBaseline(client, service, serviceIds, environment) {
     if (id == null) return null
     throw new Error(`invalid Render service ID for ${service.name}`)
   }
-  if (service.name === "api" && environment === "production" || service.name === "landing") {
+  if (service.name === "landing") {
     const path = `services/${id}/deploys?status=live&limit=1`
     const deploys = expectArray(await client.readRender(path), path)
     if (deploys.length === 0) return null
@@ -143,10 +145,15 @@ async function planService(client, service, environment, branch, serviceIds, tra
   if (!SHA.test(head?.sha) || typeof head.commit?.message !== "string") {
     throw new Error(`GitHub commit at ${headPath} has an unexpected shape`)
   }
-  const deployedSha = service.name === "android"
-    ? await androidBaseline(client, track)
-    : await renderBaseline(client, service, serviceIds, environment)
   const plannedService = service.name === "android" ? { ...service, track } : service
+  let deployedSha
+  try {
+    deployedSha = service.name === "android"
+      ? await androidBaseline(client, track)
+      : await renderBaseline(client, service, serviceIds, environment)
+  } catch (error) {
+    return { ...plannedService, branch, headSha: head.sha, baselineError: error.message }
+  }
   if (deployedSha === head.sha) return { ...plannedService, branch, headSha: head.sha, deployedSha, commits: [], needsRelease: false }
   if (deployedSha === null) {
     return { ...plannedService, branch, headSha: head.sha, deployedSha: null,
@@ -186,7 +193,7 @@ export async function planRelease(client = githubClient, environment = "producti
     throw new Error("invalid branch for environment")
   }
   const planned = await Promise.all(SERVICES.map((service) => planService(client, service, environment, branch, serviceIds, track)))
-  return { environment, branch, services: planned.map((service) => ({
+  return { environment, branch, services: planned.map((service) => service.baselineError ? service : ({
     ...service,
     plannedSha: service.headSha,
     ...(service.name !== "android" ? {
@@ -221,8 +228,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     } else {
       try {
         const serviceIds = options.environment === "staging" ? stagingServiceIds() : productionServiceIds()
-        console.log(JSON.stringify(await planRelease(githubClient, options.environment, serviceIds,
-          options.track ?? undefined, options.branch ?? undefined)))
+        const plan = await planRelease(githubClient, options.environment, serviceIds,
+          options.track ?? undefined, options.branch ?? undefined)
+        console.log(JSON.stringify(plan))
+        for (const service of plan.services) {
+          if (!service.baselineError) continue
+          console.error(`${service.name} baseline unreadable: ${service.baselineError}`)
+          process.exitCode = 1
+        }
       } catch (error) { console.error(error.message); process.exitCode = 1 }
     }
   }
