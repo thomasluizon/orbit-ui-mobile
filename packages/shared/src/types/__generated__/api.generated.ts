@@ -5935,20 +5935,6 @@ export const PutApiProfileThemePreferenceBody = zod.object({
 export const PutApiProfileThemePreferenceResponse = zod.void()
 
 
-/**
- * @deprecated
- */
-export const PutApiProfileColorSchemeHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const PutApiProfileColorSchemeBody = zod.object({
-  "colorScheme": zod.string().nullable()
-})
-
-export const PutApiProfileColorSchemeResponse = zod.void()
-
-
 export const PutApiProfileOnboardingHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -6014,8 +6000,7 @@ export const PostApiProfileOnboardingApplyBody = zod.object({
   "deadline": zod.iso.date().nullish(),
   "type": zod.int().default(postApiProfileOnboardingApplyBodyGoalTwoTypeDefault)
 })]),
-  "weekStartDay": zod.union([zod.int(),zod.stringFormat('int32', postApiProfileOnboardingApplyBodyWeekStartDayRegExpTwo)]).nullable(),
-  "colorScheme": zod.string().nullable()
+  "weekStartDay": zod.union([zod.int(),zod.stringFormat('int32', postApiProfileOnboardingApplyBodyWeekStartDayRegExpTwo)]).nullable()
 })
 
 export const PostApiProfileOnboardingApplyResponse = zod.unknown()
