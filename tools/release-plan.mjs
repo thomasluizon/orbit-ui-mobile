@@ -44,7 +44,7 @@ export const githubClient = {
   },
   async readHealth(url) {
     const response = await fetch(url, { signal: AbortSignal.timeout(30_000) })
-    if (!response.ok) throw new Error(`Web health returned HTTP ${response.status}`)
+    if (!response.ok) throw new Error(`Health at ${url} returned HTTP ${response.status}`)
     return response.json()
   },
 }
@@ -110,7 +110,7 @@ async function renderBaseline(client, service, serviceIds, environment) {
     if (id == null) return null
     throw new Error(`invalid Render service ID for ${service.name}`)
   }
-  if (service.name === "api" || service.name === "landing") {
+  if (service.name === "api" && environment === "production" || service.name === "landing") {
     const path = `services/${id}/deploys?status=live&limit=1`
     const deploys = expectArray(await client.readRender(path), path)
     if (deploys.length === 0) return null
@@ -124,9 +124,14 @@ async function renderBaseline(client, service, serviceIds, environment) {
   if (typeof origin !== "string" || !/^https:\/\/[^/]+\/?$/.test(origin)) {
     throw new Error(`Render service at ${path} has an unexpected URL`)
   }
-  const health = await client.readHealth(`${origin.replace(/\/$/, "")}/api/health`)
-  if (health?.status !== "ok" || !SHA.test(health.commit)) {
-    throw new Error(`Web health at ${origin} has an unexpected response`)
+  const isApi = service.name === "api"
+  const healthUrl = `${origin.replace(/\/$/, "")}${isApi ? "/health" : "/api/health"}`
+  const label = isApi ? "API" : "Web"
+  let health
+  try { health = await client.readHealth(healthUrl) }
+  catch (error) { throw new Error(`${label} health at ${healthUrl} failed: ${error.message}`) }
+  if (health?.status !== (isApi ? "Healthy" : "ok") || typeof health.commit !== "string" || !SHA.test(health.commit)) {
+    throw new Error(`${label} health at ${healthUrl} has an unexpected response`)
   }
   return health.commit
 }
