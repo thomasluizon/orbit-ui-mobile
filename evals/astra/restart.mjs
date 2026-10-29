@@ -50,9 +50,9 @@ export function restartProposal(output, vars) {
     dates.set(item.habit_id, date)
   }
   const todayCount = [...dates.values()].filter((date) => date === vars.accountDate).length
-  if (todayCount < 1 || todayCount >= ids.length / 2
+  if (todayCount < 1 || todayCount >= ids.length
     || (vars.restart.todayCount != null && todayCount !== vars.restart.todayCount)) {
-    return result(false, 'Restart today set must be smaller and respect the requested count.')
+    return result(false, 'Restart must keep at least one habit today, strictly fewer than the complete set, and exactly the requested count when specified.')
   }
   const response = output.composition
   const pending = response?.pendingOperations
