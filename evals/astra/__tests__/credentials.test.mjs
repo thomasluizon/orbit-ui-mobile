@@ -167,3 +167,70 @@ it('bounds unhealthy startup without ever submitting a rotating refresh', async 
     expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('rotated-refresh')
   } finally { vi.useRealTimers() }
 })
+
+
+it.each(['before submission', 'during submission'])('joins concurrent refreshes for one account %s', async (phase) => {
+  const path = credentials()
+  let release
+  const gate = new Promise((resolve) => { release = resolve })
+  let entered
+  const started = new Promise((resolve) => { entered = resolve })
+  const request = vi.fn(async (url) => {
+    if (new URL(url).pathname === '/health') {
+      if (phase === 'before submission') { entered(); await gate }
+      return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    }
+    if (phase === 'during submission') { entered(); await gate }
+    return Response.json({ token: 'fresh-access', refreshToken: 'rotated-refresh' })
+  })
+  vi.stubGlobal('fetch', request)
+  const first = refreshCredential('ORBIT_EVAL_TOKEN')
+  await started
+  expect(existsSync(`${path}.refresh-failed`)).toBe(phase === 'during submission')
+  const both = Promise.allSettled([first, refreshCredential('ORBIT_EVAL_TOKEN')])
+  release()
+  expect(await both).toEqual([{ status: 'fulfilled', value: undefined }, { status: 'fulfilled', value: undefined }])
+  expect(request.mock.calls.filter(([url]) => new URL(url).pathname === '/api/auth/refresh')).toHaveLength(1)
+  expect(process.env.ORBIT_EVAL_TOKEN).toBe('fresh-access')
+  expect(JSON.parse(readFileSync(path, 'utf8')).ORBIT_EVAL_TOKEN.refreshToken).toBe('rotated-refresh')
+  expect(existsSync(`${path}.refresh-failed`)).toBe(false)
+})
+
+it('shares a rejected refresh and blocks later callers and other accounts with its marker', async () => {
+  const path = credentials()
+  let release
+  let entered
+  const gate = new Promise((resolve) => { release = resolve })
+  const started = new Promise((resolve) => { entered = resolve })
+  const request = vi.fn(async () => {
+    entered()
+    await gate
+    return new Response(null, { status: 401 })
+  })
+  vi.stubGlobal('fetch', (url, options) => new URL(url).pathname === '/health'
+    ? Promise.resolve(Response.json({ status: 'Healthy', commit: null, checks: [] })) : request(url, options))
+  const first = refreshCredential('ORBIT_EVAL_TOKEN')
+  await started
+  const both = Promise.allSettled([first, refreshCredential('ORBIT_EVAL_TOKEN')])
+  release()
+  for (const outcome of await both) {
+    expect(outcome.status).toBe('rejected')
+    expect(outcome.reason.message).toContain('Refresh rejected with HTTP 401.')
+  }
+  expect(existsSync(`${path}.refresh-failed`)).toBe(true)
+  for (const key of ['ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN']) {
+    await expect(refreshCredential(key)).rejects.toThrow('A refresh already failed')
+    expect(process.env[key]).toBeUndefined()
+  }
+  expect(request).toHaveBeenCalledTimes(1)
+})
+
+it('blocks an interrupted submission without making another request', async () => {
+  const path = credentials()
+  writeFileSync(`${path}.refresh-failed`, '', { mode: 0o600 })
+  const request = vi.fn()
+  vi.stubGlobal('fetch', request)
+  await expect(refreshCredential('ORBIT_EVAL_TOKEN')).rejects.toThrow('A refresh already failed')
+  expect(request).not.toHaveBeenCalled()
+  expect(existsSync(`${path}.refresh-failed`)).toBe(true)
+})

@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto'
 export const credentialKeys = ['ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN']
 const readiness = new Map()
 const credentialHistory = new Set()
+const refreshes = new Map()
+const refreshQueues = new Map()
 
 async function waitForHealthyApi(origin) {
   const deadline = Date.now() + 180000
@@ -101,6 +103,23 @@ export async function updateCredentials(update) {
 
 export async function refreshCredential(key) {
   if (!credentialKeys.includes(key)) throw new Error('Unknown eval credential key.')
+  const path = process.env.ORBIT_EVAL_CREDENTIALS_FILE
+  const accountKey = `${path}:${key}`
+  let pending = refreshes.get(accountKey)
+  if (!pending) {
+    const previous = refreshQueues.get(path) ?? Promise.resolve()
+    const rotate = () => rotateCredential(key)
+    pending = previous.then(rotate, rotate)
+    refreshes.set(accountKey, pending)
+    refreshQueues.set(path, pending)
+  }
+  try { await pending } finally {
+    if (refreshes.get(accountKey) === pending) refreshes.delete(accountKey)
+    if (refreshQueues.get(path) === pending) refreshQueues.delete(path)
+  }
+}
+
+async function rotateCredential(key) {
   delete process.env[key]
   try {
     const path = process.env.ORBIT_EVAL_CREDENTIALS_FILE
