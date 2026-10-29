@@ -1972,8 +1972,8 @@
     fixture: medical
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: "On 10/26, cholesterol exam at 15:50, at home. On 10/30, other blood
-      tests at 13:30, at home. FOR THE EXAM ON 10/30: 3 days before, stop
+    input: "On {accountDateEn+3}, cholesterol exam at 15:50, at home. On {accountDateEn+7}, other blood
+      tests at 13:30, at home. FOR THE EXAM ON {accountDateEn+7}: 3 days before, stop
       multivitamins; 24 hours before, don't go to Muay Thai; fast until the
       collection."
     clientContext: *a4
@@ -1988,71 +1988,71 @@
               - title:
                   textContains: cholesterol
                 frequency_unit: OneTime
-                due_date: '{accountYear}-10-26'
+                due_date: '{accountDate+3}'
                 due_time: 15:50
               - title:
                   textContains: blood
                 frequency_unit: OneTime
-                due_date: '{accountYear}-10-30'
+                due_date: '{accountDate+7}'
                 due_time: 13:30
               - title:
                   textContains: Don't take multivitamins
                 frequency_unit: Day
-                due_date: '{accountYear}-10-27'
-                end_date: '{accountYear}-10-30'
+                due_date: '{accountDate+4}'
+                end_date: '{accountDate+7}'
                 is_bad_habit: false
               - title:
                   textContains: Don't go to Muay Thai
                 frequency_unit: Day
-                due_date: '{accountYear}-10-29'
-                end_date: '{accountYear}-10-30'
+                due_date: '{accountDate+6}'
+                end_date: '{accountDate+7}'
                 is_bad_habit: false
               - title:
                   textContains: fast
                 frequency_unit: OneTime
-                due_date: '{accountYear}-10-30'
+                due_date: '{accountDate+7}'
                 due_end_time: 13:30
           argumentsAnyOf:
             - habits:
                 - title:
                     textContains: cholesterol
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-26"
+                  due_date: "{accountDate+3}"
                   due_time: 15:50
                 - title:
                     textContains: blood
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+7}"
                   due_time: 13:30
                 - title:
                     anyOf:
                       - textContains: Don't take multivitamins
                       - textContains: Stop multivitamins
                   frequency_unit: Day
-                  due_date: "{accountYear}-10-27"
-                  end_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+4}"
+                  end_date: "{accountDate+7}"
                   is_bad_habit: false
                 - title:
                     textContains: Don't go to Muay Thai
                   frequency_unit: Day
-                  due_date: "{accountYear}-10-29"
-                  end_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+6}"
+                  end_date: "{accountDate+7}"
                   is_bad_habit: false
                 - title:
                     textContains: fast
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+7}"
                   due_end_time: 13:30
             - habits:
                 - title:
                     textContains: cholesterol
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-26"
+                  due_date: "{accountDate+3}"
                   due_time: 15:50
                 - title:
                     textContains: blood
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+7}"
                   due_time: 13:30
                   sub_habits:
                     - title:
@@ -2060,19 +2060,19 @@
                           - textContains: Don't take multivitamins
                           - textContains: Stop multivitamins
                       frequency_unit: Day
-                      due_date: "{accountYear}-10-27"
-                      end_date: "{accountYear}-10-30"
+                      due_date: "{accountDate+4}"
+                      end_date: "{accountDate+7}"
                       is_bad_habit: false
                     - title:
                         textContains: Don't go to Muay Thai
                       frequency_unit: Day
-                      due_date: "{accountYear}-10-29"
-                      end_date: "{accountYear}-10-30"
+                      due_date: "{accountDate+6}"
+                      end_date: "{accountDate+7}"
                       is_bad_habit: false
                     - title:
                         textContains: fast
                       frequency_unit: OneTime
-                      due_date: "{accountYear}-10-30"
+                      due_date: "{accountDate+7}"
                       due_end_time: 13:30
       allowed:
         - query_habits
@@ -2082,7 +2082,7 @@
       forbidden:
         - create_habit
     rubric: The account date is {accountDate}. The requested cholesterol exam date is
-      {accountYear}-10-26, even when it is before today. Answer in English. One batch preview contains both one-time tasks at
+      {accountDate+3}. Answer in English. One batch preview contains both one-time tasks at
       15:50 and 13:30 and all preparation commitments bounded to their dates.
       Temporary abstinence is a positive commitment with is_bad_habit=false.
       Preserve the person's own wording, including Stop multivitamins, or an equivalent
@@ -2128,8 +2128,8 @@
       Rendered date formatting is checked separately.
     setup:
       caseId: composition-medical-batch-en
-      input: "On 10/26, cholesterol exam at 15:50, at home. On 10/30, other blood
-        tests at 13:30, at home. FOR THE EXAM ON 10/30: 3 days before, stop
+      input: "On {accountDateEn+3}, cholesterol exam at 15:50, at home. On {accountDateEn+7}, other blood
+        tests at 13:30, at home. FOR THE EXAM ON {accountDateEn+7}: 3 days before, stop
         multivitamins; 24 hours before, don't go to Muay Thai; fast until the
         collection."
       expectations: *a70
@@ -2305,8 +2305,8 @@
     fixture: medical
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    input: "dia 26/10, exame de colesterol as 15h50, domiciliar dia 30/10, outros
-      exames de sangue as 13h30, domiciliar PRO EXAME DO DIA 30: 3 dias antes,
+    input: "dia {accountDatePtBR+3}, exame de colesterol as 15h50, domiciliar dia {accountDatePtBR+7}, outros
+      exames de sangue as 13h30, domiciliar PRO EXAME DO DIA {accountDatePtBR+7}: 3 dias antes,
       parar com multivitaminico 24 horas antes, nao ir pro muay thay ficar em
       jejum puro até a coleta"
     clientContext: *a5
@@ -2321,71 +2321,71 @@
               - title:
                   textContains: colesterol
                 frequency_unit: OneTime
-                due_date: '{accountYear}-10-26'
+                due_date: '{accountDate+3}'
                 due_time: 15:50
               - title:
                   textContains: sangue
                 frequency_unit: OneTime
-                due_date: '{accountYear}-10-30'
+                due_date: '{accountDate+7}'
                 due_time: 13:30
               - title:
                   textContains: Não tomar multivitamínico
                 frequency_unit: Day
-                due_date: '{accountYear}-10-27'
-                end_date: '{accountYear}-10-30'
+                due_date: '{accountDate+4}'
+                end_date: '{accountDate+7}'
                 is_bad_habit: false
               - title:
                   textContains: Não ir ao Muay Thai
                 frequency_unit: Day
-                due_date: '{accountYear}-10-29'
-                end_date: '{accountYear}-10-30'
+                due_date: '{accountDate+6}'
+                end_date: '{accountDate+7}'
                 is_bad_habit: false
               - title:
                   textContains: jejum
                 frequency_unit: OneTime
-                due_date: '{accountYear}-10-30'
+                due_date: '{accountDate+7}'
                 due_end_time: 13:30
           argumentsAnyOf:
             - habits:
                 - title:
                     textContains: colesterol
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-26"
+                  due_date: "{accountDate+3}"
                   due_time: 15:50
                 - title:
                     textContains: sangue
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+7}"
                   due_time: 13:30
                 - title:
                     anyOf:
                       - textContains: Não tomar multivitamínico
                       - textContains: Parar com multivitamínico
                   frequency_unit: Day
-                  due_date: "{accountYear}-10-27"
-                  end_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+4}"
+                  end_date: "{accountDate+7}"
                   is_bad_habit: false
                 - title:
                     textContains: Não ir ao Muay Thai
                   frequency_unit: Day
-                  due_date: "{accountYear}-10-29"
-                  end_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+6}"
+                  end_date: "{accountDate+7}"
                   is_bad_habit: false
                 - title:
                     textContains: jejum
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+7}"
                   due_end_time: 13:30
             - habits:
                 - title:
                     textContains: colesterol
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-26"
+                  due_date: "{accountDate+3}"
                   due_time: 15:50
                 - title:
                     textContains: sangue
                   frequency_unit: OneTime
-                  due_date: "{accountYear}-10-30"
+                  due_date: "{accountDate+7}"
                   due_time: 13:30
                   sub_habits:
                     - title:
@@ -2393,19 +2393,19 @@
                           - textContains: Não tomar multivitamínico
                           - textContains: Parar com multivitamínico
                       frequency_unit: Day
-                      due_date: "{accountYear}-10-27"
-                      end_date: "{accountYear}-10-30"
+                      due_date: "{accountDate+4}"
+                      end_date: "{accountDate+7}"
                       is_bad_habit: false
                     - title:
                         textContains: Não ir ao Muay Thai
                       frequency_unit: Day
-                      due_date: "{accountYear}-10-29"
-                      end_date: "{accountYear}-10-30"
+                      due_date: "{accountDate+6}"
+                      end_date: "{accountDate+7}"
                       is_bad_habit: false
                     - title:
                         textContains: jejum
                       frequency_unit: OneTime
-                      due_date: "{accountYear}-10-30"
+                      due_date: "{accountDate+7}"
                       due_end_time: 13:30
       allowed:
         - query_habits
@@ -2415,7 +2415,7 @@
       forbidden:
         - create_habit
     rubric: The account date is {accountDate}. The requested cholesterol exam date is
-      {accountYear}-10-26, even when it is before today. Answer in Brazilian Portuguese. One batch preview contains both one-time
+      {accountDate+3}. Answer in Brazilian Portuguese. One batch preview contains both one-time
       tasks at 15:50 and 13:30 and all preparation commitments bounded to their
       dates. Temporary abstinence is a positive commitment with is_bad_habit=false.
       Preserve the person's own wording, including Parar com multivitamínico, or an equivalent
@@ -2462,8 +2462,8 @@
       locale dates. Rendered date formatting is checked separately.
     setup:
       caseId: composition-medical-batch-pt-BR
-      input: "dia 26/10, exame de colesterol as 15h50, domiciliar dia 30/10, outros
-        exames de sangue as 13h30, domiciliar PRO EXAME DO DIA 30: 3 dias antes,
+      input: "dia {accountDatePtBR+3}, exame de colesterol as 15h50, domiciliar dia {accountDatePtBR+7}, outros
+        exames de sangue as 13h30, domiciliar PRO EXAME DO DIA {accountDatePtBR+7}: 3 dias antes,
         parar com multivitaminico 24 horas antes, nao ir pro muay thay ficar em
         jejum puro até a coleta"
       expectations: *a72

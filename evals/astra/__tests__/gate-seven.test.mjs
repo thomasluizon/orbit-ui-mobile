@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { behavior } from '../assertions.mjs'
+import { dateOffset } from '../fixtures/reset.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 import { beforeEach as prepareAttempt } from '../hooks.mjs'
@@ -24,7 +25,8 @@ function grade(test, calls) {
 }
 it('replays the valid nested medical bulk call with strict dates and cadence', () => {
   const test = scenario('composition-medical-batch-en')
-  test.vars = JSON.parse(JSON.stringify(test.vars).replaceAll('{accountYear}', '2026'))
+  test.vars = JSON.parse(JSON.stringify(test.vars).replace(/\{accountDate([+]\d+)\}/g,
+    (_, offset) => dateOffset('2026-10-23', Number(offset))))
   const args = structuredClone(recorded.at(-1).toolCalls.find(({ name }) => name === 'bulk_create_habits').arguments)
   args.habits[1].sub_habits = args.habits.splice(2)
   expect(grade(test, [toolCall('bulk_create_habits', args, 'PendingConfirmation')]).pass).toBe(true)

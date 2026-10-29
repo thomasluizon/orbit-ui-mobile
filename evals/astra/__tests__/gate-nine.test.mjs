@@ -4,6 +4,7 @@ import { parse } from 'yaml'
 import { behavior } from '../assertions.mjs'
 import parseResponse from '../response.mjs'
 import { toolCall, chatResponse, deferredCreationCall } from './fixtures/producer.mjs'
+import { dateOffset } from '../fixtures/reset.mjs'
 
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
 const recorded = JSON.parse(readFileSync(new URL('./fixtures/gate-nine.json', import.meta.url), 'utf8'))
@@ -72,7 +73,9 @@ it.each(['en', 'pt-BR'])('accepts existing heading wrappers with explicit child 
 it.each(recorded.filter(({ caseId }) => caseId.includes('medical-batch')))(
   'preserves the medical outcome for $caseId repeat $repeat', (entry) => {
     const test = scenario(entry.caseId)
-    test.vars = JSON.parse(JSON.stringify(test.vars).replaceAll('{accountYear}', '2026'))
+    // Keep the recorded calls on their original calendar while moving the case's account date.
+    test.vars = JSON.parse(JSON.stringify(test.vars).replace(/\{accountDate([+]\d+)\}/g,
+      (_, offset) => dateOffset('2026-10-23', Number(offset))))
     const calls = callsFor(entry)
     expect(grade(test, calls).pass).toBe(entry.repeat === 2 && entry.caseId.endsWith('-en'))
     calls[0].arguments.habits[0].due_date = '2026-10-27'

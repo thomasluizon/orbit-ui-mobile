@@ -690,7 +690,11 @@ rendered consumers; this harness change does not unblock broad rollout by itself
    Composition cases also declare `metadata.family`, `metadata.locale`, `vars.clientContext` and
    `vars.composition`. Add every family in both `en` and `pt-BR`.
    `{habitId}`, `{secondHabitId}`, `{overdueDate}`, rolling analytics date tokens and their localized variants are substituted in inputs and expected
-   arguments after the fixture reset. Never commit credentials or real account values.
+   arguments after the fixture reset. Date offsets use the same account-local `accountDate`:
+   `{accountDate+3}` is an ISO date, `{accountDateEn+3}` is `MM/DD`, and
+   `{accountDatePtBR+3}` is `DD/MM`. Signed offsets support zero, negative values and year rollover.
+   Use these placeholders in every case `input` and `setup.input` instead of fixed calendar dates.
+   Unknown placeholders fail the precondition before chat. Never commit credentials or real account values.
 2. Extend the reset executable if the case needs new state. Describe that state in this catalog.
    Compound cases require every tool and its key arguments. Bulk cases require exactly one bulk
    call and forbid its single-item counterpart. Ambiguity cases allow only appropriate reads

@@ -46,7 +46,7 @@ it('binds the reported parent and medical cases to strict scope and genuine setu
     for (const commitment of commitments) {
       expect(commitment.is_bad_habit).toBe(false)
       expect(commitment.frequency_unit).toBe('Day')
-      expect(commitment.end_date).toBe('{accountYear}-10-30')
+      expect(commitment.end_date).toBe('{accountDate+7}')
     }
     expect(medical.rubric).toContain("Preserve the person's own wording")
     expect(medical.rubric).toContain('Reject a title that reverses or changes the medical instruction')

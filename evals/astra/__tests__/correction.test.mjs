@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import { assertions, loadApiProvider } from 'promptfoo'
 import { beforeEach } from '../hooks.mjs'
+import { dateOffset } from '../fixtures/reset.mjs'
 import { summarize } from '../report.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
@@ -11,7 +12,7 @@ import { chatResponse, preview, toolCall } from './fixtures/producer.mjs'
 const root = fileURLToPath(new URL('..', import.meta.url))
 const config = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 // Bulk preview fields and positional IDs follow PendingOperationChangePreviewer.PreviewCreateAsync.
 function batchPreview(arguments_) {
@@ -29,13 +30,19 @@ function batchPreview(arguments_) {
 }
 
 it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^3 reporting: %s', async (locale) => {
+  const today = '2031-12-30'
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(`${today}T12:00:00Z`))
   offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
   const scenario = corpus.find((entry) => entry.metadata.family === 'medical-correction' && entry.metadata.locale === locale)
   const original = JSON.parse(JSON.stringify({ habits: scenario.vars.setup.expectations.required[0].arguments.habits.map((habit) => ({
     ...habit, title: habit.title.textContains,
-  })) }).replaceAll('{accountYear}', new Date().toISOString().slice(0, 4)))
+  })) }).replace(/\{accountDate([+]\d+)\}/g, (_, offset) => dateOffset(today, Number(offset))))
+  const setupInput = scenario.vars.setup.input
+    .replaceAll('{accountDateEn+3}', '01/02').replaceAll('{accountDateEn+7}', '01/06')
+    .replaceAll('{accountDatePtBR+3}', '02/01').replaceAll('{accountDatePtBR+7}', '06/01')
   const revised = structuredClone(original)
   revised.habits[0].due_time = '16:00'
   let correctionArguments = revised
@@ -47,7 +54,7 @@ it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^
     const request = new Request(url, options)
     const requestId = request.headers.get('x-orbit-request-id')
     const form = await request.formData()
-    const setup = form.get('message') === scenario.vars.setup.input
+    const setup = form.get('message') === setupInput
     if (!setup) expect(JSON.parse(form.get('history'))).toHaveLength(2)
     const arguments_ = setup ? original : correctionArguments
     const calls = [toolCall('bulk_create_habits', arguments_, setup ? 'PendingConfirmation' : correctionStatus)]
