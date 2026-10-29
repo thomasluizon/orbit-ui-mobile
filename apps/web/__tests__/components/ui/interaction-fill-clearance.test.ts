@@ -306,11 +306,11 @@ describe('interaction clearance inspector in Chromium', () => {
 
   it.each([
     { paint: 'background: gray', gap: 4, extension: 8, fails: true },
-    { paint: 'background: gray', gap: 12, extension: 8, fails: false },
+    { paint: 'background: gray', gap: 16, extension: 8, fails: false },
     { paint: 'background: transparent', gap: 4, extension: 8, fails: false },
     { paint: 'background: gray; opacity: 0', gap: 4, extension: 8, fails: false },
-    { paint: 'background: gray; box-shadow: 0 0 0 100px transparent', gap: 12, extension: 8, fails: false },
-    { paint: 'background: gray; outline: 2px solid black; outline-offset: 2px', gap: 12, extension: 8, fails: true },
+    { paint: 'background: gray; box-shadow: 0 0 0 100px transparent', gap: 16, extension: 8, fails: false },
+    { paint: 'background: gray; outline: 2px solid black; outline-offset: 2px', gap: 16, extension: 8, fails: true },
   ])('measures $paint with a $gap gap and $extension extension', async ({ paint, gap, extension, fails }) => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {

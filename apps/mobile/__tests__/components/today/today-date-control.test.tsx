@@ -292,10 +292,10 @@ describe('Today date control feedback (mobile)', () => {
         expect(StyleSheet.flatten(label.props.style).textAlign).toBe('center')
       }
       const header = renderer.root.find((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'today-header-actions')
-      expect(StyleSheet.flatten(header.props.style)).toMatchObject({ minHeight: 48, gap: 4, flexWrap: 'wrap' })
+      expect(StyleSheet.flatten(header.props.style)).toMatchObject({ minHeight: 72, paddingBottom: 24, gap: 8, flexWrap: 'wrap' })
       const cluster = button(renderer, 'Search')!.parent
-      expect(StyleSheet.flatten(cluster.props.style)).toMatchObject({ flexDirection: 'row', gap: 4, flexShrink: 0 })
-      expect(3 * 48 + 2 * 4).toBeLessThanOrEqual(rowWidth)
+      expect(StyleSheet.flatten(cluster.props.style)).toMatchObject({ flexDirection: 'row', gap: 8, flexShrink: 0 })
+      expect(3 * 48 + 2 * 8).toBeLessThanOrEqual(rowWidth)
     } finally {
       TestRenderer.act(() => renderer.unmount())
       __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })

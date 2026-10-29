@@ -1083,7 +1083,7 @@ describe.each(['dark', 'light'] as const)('Calendar column-header interactions i
     expect(view.paint()).toBe(view.palette.bgHover);
     expect(view.style().transform).toBeUndefined();
     expect(view.outlines()).toHaveLength(1);
-    expect(resolveStyle(view.outlines()[0]!.props.style).outlineOffset).toBe(-6);
+    expect(resolveStyle(view.outlines()[0]!.props.style).outlineOffset).toBe(-INTERACTION_FILL_CLEARANCE - 2);
     expect(headerGeometry(view.style())).toEqual(initialGeometry);
     view.focus(1);
     expect(view.paint()).toBe('transparent');

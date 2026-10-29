@@ -59,8 +59,6 @@ vi.mock('react-native', async (importOriginal) => {
 const TestRenderer = require("react-test-renderer");
 type CalendarGridComponent = typeof import("@/app/(tabs)/calendar/_components/calendar-grid")["CalendarGrid"];
 
-const VIEW_TRACK_INSET = 4;
-
 const MOCK_ACCOUNT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 function getMockAccountDateKey(): string {
@@ -750,11 +748,15 @@ describe("CalendarScreen views (mobile)", () => {
         const band = findBand(hosts)!;
         const measured = measureProfileRow({ type: 'View', props: {}, children: band }, width, 1);
         const segments = measured.controls.filter((control) => control.labels.some((label) => label.startsWith('calendar.view.')));
+        const track = (month ?? tree).root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup')[0]!;
+        const trackStyle = StyleSheet.flatten<ViewStyle>(track.props.style);
+        const inlineInset = Number(trackStyle.paddingHorizontal);
+        const blockInset = Number(trackStyle.paddingVertical);
         expect(segments).toHaveLength(4);
-        expect(Math.min(...segments.map((segment) => segment.left)) - VIEW_TRACK_INSET).toBeCloseTo(16);
-        expect(Math.max(...segments.map((segment) => segment.right)) + VIEW_TRACK_INSET).toBeCloseTo(width - 16);
-        const top = Math.min(...segments.map((segment) => segment.top)) - VIEW_TRACK_INSET;
-        const bottom = Math.max(...segments.map((segment) => segment.bottom)) + VIEW_TRACK_INSET;
+        expect(Math.min(...segments.map((segment) => segment.left)) - inlineInset).toBeCloseTo(16);
+        expect(Math.max(...segments.map((segment) => segment.right)) + inlineInset).toBeCloseTo(width - 16);
+        const top = Math.min(...segments.map((segment) => segment.top)) - blockInset;
+        const bottom = Math.max(...segments.map((segment) => segment.bottom)) + blockInset;
         if (switchTop === undefined) switchTop = top;
         expect.soft(top, view).toBe(switchTop);
         const firstBodyText = measured.texts.filter((text) => text.top >= bottom).sort((a, b) => a.top - b.top)[0]!;
@@ -865,16 +867,18 @@ describe("CalendarScreen views (mobile)", () => {
       expect(segments).toHaveLength(4);
       for (const control of pager) {
         expect(control.bottom).toBeLessThanOrEqual(Math.min(...segments.map((segment) => segment.top)));
-        expect(control.width).toBeGreaterThanOrEqual(48);
-        expect(control.height).toBeGreaterThanOrEqual(48);
+        expect(control.targetWidth).toBeGreaterThanOrEqual(48);
+        expect(control.targetHeight).toBeGreaterThanOrEqual(48);
         expect(control.left).toBeGreaterThanOrEqual(16);
         expect(control.right).toBeLessThanOrEqual(304);
       }
       const title = measured.texts.find((text) => text.label === pager.find((control) => control.labels.length)!.labels[0])!;
       expect.soft(title.clipped).toBe(false);
       if (scale === 1) {
-        expect.soft(new Set(pager.map((control) => control.top)).size).toBe(1);
-        expect.soft(Math.min(...segments.map((segment) => segment.top)) - VIEW_TRACK_INSET).toBe(76);
+        const track = tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup')[0]!;
+        const blockInset = Number(StyleSheet.flatten<ViewStyle>(track.props.style).paddingVertical);
+        expect.soft(new Set(pager.map((control) => control.top + control.height / 2)).size, JSON.stringify(pager)).toBe(1);
+        expect.soft(Math.min(...segments.map((segment) => segment.top)) - blockInset).toBe(76);
         expect.soft(title.lines).toBe(1);
       }
       const titleControl = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(ptBR.calendar.period.goToCurrent.replace('{period}', '')))[0]!;
@@ -916,8 +920,8 @@ describe("CalendarScreen views (mobile)", () => {
       for (const control of measured.controls) {
         expect(control.left).toBeGreaterThanOrEqual(16);
         expect(control.right).toBeLessThanOrEqual(304);
-        expect(control.width).toBeGreaterThanOrEqual(48);
-        expect(control.height).toBeGreaterThanOrEqual(48);
+        expect(control.targetWidth).toBeGreaterThanOrEqual(48);
+        expect(control.targetHeight).toBeGreaterThanOrEqual(48);
       }
       for (const label of ['calendar.range.previous', 'calendar.range.next']) {
         const control = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
@@ -1653,7 +1657,7 @@ describe("CalendarScreen views (mobile)", () => {
     const gridShapes = tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
     );
-    for (const shape of gridShapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 44, height: 44 });
+    for (const shape of gridShapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 34, height: 34 });
   });
 
   it.each([
@@ -1708,7 +1712,7 @@ describe("CalendarScreen views (mobile)", () => {
 
     expect(hostTexts(tree)).toContain('calendar.loadError');
     const retry = tree.root.findAll(
-      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.testID === 'button-ghost-sm',
+      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'common.retry',
     );
     expect(retry).toHaveLength(1);
     TestRenderer.act(() => { retry[0]!.props.onPress(); });
@@ -2231,7 +2235,7 @@ describe("CalendarScreen views (mobile)", () => {
     const retryButtons = tree!.root.findAll(
       (node) =>
         typeof node.type === "string" &&
-        node.props.accessibilityRole === "button" && node.props.testID === "button-ghost-sm",
+        node.props.accessibilityRole === "button" && node.props.accessibilityLabel === "common.retry",
     );
     expect(retryButtons).toHaveLength(1);
     TestRenderer.act(() => {

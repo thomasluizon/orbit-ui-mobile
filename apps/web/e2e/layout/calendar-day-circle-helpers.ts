@@ -26,9 +26,17 @@ export async function expectDayCircle(slot: Locator, status = true, todayRing = 
             ring: style.boxShadow, background: style.backgroundColor }]
         })
       })
+      const grid = slot.closest('[data-testid="month-grid-days"]')!
+      const cells = [...grid.children]
+      const cell = cells.find((cell) => cell === slot || cell.contains(slot))!
+      const cellBounds = cell.getBoundingClientRect()
+      const columns = getComputedStyle(grid).gridTemplateColumns.split(' ').length
+      const column = cells.indexOf(cell) % columns
+      const allocation = Math.min(44, cellBounds.width)
+      const centerX = cellBounds.left + (cellBounds.width - allocation) / 2 + 17 + (allocation - 34) * column / (columns - 1)
       const disc = slot.querySelector('[data-day-disc]')?.getBoundingClientRect()
       const button = slot.querySelector('button')
-      return { boxes, centerX: bounds.left + bounds.width / 2, centerY: bounds.top + bounds.height / 2,
+      return { boxes, centerX, centerY: bounds.top + bounds.height / 2,
         slotWidth: bounds.width, disc: disc && { width: disc.width, height: disc.height, centerX: disc.left + disc.width / 2, centerY: disc.top + disc.height / 2 },
         target: button && { width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height },
         hits: button && [bounds.left + 2, bounds.right - 2].map((x) => button.contains(document.elementFromPoint(x, bounds.top + bounds.height / 2))) }
@@ -36,7 +44,7 @@ export async function expectDayCircle(slot: Locator, status = true, todayRing = 
     expect(geometry.boxes.length).toBeGreaterThan(0)
     for (const box of geometry.boxes) {
       expect(Math.abs(box.width - box.height), JSON.stringify(box)).toBeLessThanOrEqual(0.5)
-      expect(box.width).toBeLessThanOrEqual(44.5)
+      expect(box.width).toBeLessThanOrEqual(34.5)
       expect(box.radius).toBeGreaterThanOrEqual(box.width / 2)
       expect(Math.abs(box.centerX - geometry.centerX)).toBeLessThanOrEqual(0.5)
       expect(Math.abs(box.centerY - geometry.centerY)).toBeLessThanOrEqual(0.5)
@@ -79,13 +87,12 @@ export async function expectDayCircleHover(button: Locator) {
   await expect(async () => {
     const geometry = await fill.evaluate((element) => {
       const bounds = element.getBoundingClientRect()
-      const slot = element.closest('[data-calendar-date]')!.getBoundingClientRect()
       const probe = document.createElement('span')
       probe.style.backgroundColor = 'var(--bg-hover)'
       element.append(probe)
       const hover = getComputedStyle(probe).backgroundColor
       probe.remove()
-      return { width: bounds.width, height: bounds.height, diameter: Math.min(44, slot.width), background: getComputedStyle(element).backgroundColor, hover }
+      return { width: bounds.width, height: bounds.height, diameter: 34, background: getComputedStyle(element).backgroundColor, hover }
     })
     expect(geometry.width).toBeCloseTo(geometry.diameter, 1)
     expect(geometry.height).toBeCloseTo(geometry.diameter, 1)

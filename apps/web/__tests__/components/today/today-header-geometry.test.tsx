@@ -12,7 +12,8 @@ import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
-import { SPACING } from '@orbit/shared/theme'
+import { SMALL_PILL_VISIBLE_MIN, SPACING } from '@orbit/shared/theme'
+import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
 import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { HabitViewSwitch } from '@/components/today/habit-view-switch'
 import { TodayAstra } from '@/components/today/today-astra'
@@ -95,12 +96,12 @@ function assertSupportingTypeStack(type: {
   if (type.metadata) expect(type.bounds.top).toBeCloseTo(type.metadata.top, 1)
 }
 
-function assertHeaderControls(controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[], width: number, scale: number) {
+function assertHeaderControls(controls: { left: number; right: number; top: number; bottom: number; width: number; height: number; targetWidth?: number; targetHeight?: number }[], width: number, scale: number) {
   for (const [index, control] of controls.entries()) {
     expect(control.left).toBeGreaterThanOrEqual(16)
     expect(control.right).toBeLessThanOrEqual(width - 16)
-    expect(control.width).toBeGreaterThanOrEqual(48)
-    expect(control.height).toBeGreaterThanOrEqual(48)
+    expect(control.targetWidth ?? control.width).toBeGreaterThanOrEqual(48)
+    expect(control.targetHeight ?? control.height).toBeGreaterThanOrEqual(48)
     if (index > 0) {
       const previous = controls[index - 1]!
       if (control.top >= previous.bottom) expect(control.top - previous.bottom).toBeGreaterThanOrEqual(4)
@@ -130,8 +131,12 @@ async function expectHeaderFillClearance(page: Page, control: Locator, content: 
       await expect.poll(() => control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(background)
       const fill = await control.boundingBox()
       const next = await content.boundingBox()
-      expect(fill!.width).toBeGreaterThanOrEqual(48)
-      expect(fill!.height).toBeGreaterThanOrEqual(48)
+      expect(fill!.width).toBeGreaterThanOrEqual(SMALL_PILL_VISIBLE_MIN)
+      expect(fill!.height).toBeGreaterThanOrEqual(SMALL_PILL_VISIBLE_MIN)
+      const target = await control.evaluate(readExpandedControlGeometry)
+      expect(target.width).toBeGreaterThanOrEqual(48)
+      expect(target.height).toBeGreaterThanOrEqual(48)
+      expect(target.edgeHits).toEqual([true, true, true, true])
       expect(next!.y - fill!.y - fill!.height).toBeGreaterThanOrEqual(24)
     } finally {
       await page.mouse.move(0, 914)
@@ -400,8 +405,12 @@ describe('Hoje header geometry', () => {
             expect(geometry.focusBottom).toBeLessThanOrEqual(geometry.viewportBottom)
           }
           if (contentHeight === 1600) expect(geometry.gutter).toBeGreaterThan(0)
-          expect(geometry.width).toBeGreaterThanOrEqual(48)
-          expect(geometry.height).toBeGreaterThanOrEqual(48)
+          expect(geometry.width).toBe(SMALL_PILL_VISIBLE_MIN)
+          expect(geometry.height).toBe(SMALL_PILL_VISIBLE_MIN)
+          const target = await page.getByRole('button', { name: new RegExp(`^${ptBr.notifications.bell}`) }).evaluate(readExpandedControlGeometry)
+          expect(target.width).toBeGreaterThanOrEqual(48)
+          expect(target.height).toBeGreaterThanOrEqual(48)
+          expect(target.edgeHits).toEqual([true, true, true, true])
           expect(geometry.documentWidth).toBe(width)
           trailingEdges.push(geometry.right)
         }
@@ -444,9 +453,13 @@ describe('Hoje header geometry', () => {
           await control.hover()
           await expect.poll(async () => (await measure()).background).toBe(fill)
           const hovered = await measure()
-          expect(hovered.width).toBeGreaterThanOrEqual(48)
-          expect(hovered.height).toBeGreaterThanOrEqual(48)
-          expect(Number.parseFloat(hovered.radius)).toBeGreaterThanOrEqual(24)
+          expect(hovered.width).toBeGreaterThanOrEqual(SMALL_PILL_VISIBLE_MIN)
+          expect(hovered.height).toBeGreaterThanOrEqual(SMALL_PILL_VISIBLE_MIN)
+          expect(Number.parseFloat(hovered.radius)).toBeGreaterThanOrEqual(hovered.height / 2)
+          const target = await control.evaluate(readExpandedControlGeometry)
+          expect(target.width).toBeGreaterThanOrEqual(48)
+          expect(target.height).toBeGreaterThanOrEqual(48)
+          expect(target.edgeHits).toEqual([true, true, true, true])
           await page.mouse.down()
           await expect.poll(async () => (await measure()).background).toBe(fill)
           await page.mouse.move(width - 1, 914)
@@ -866,7 +879,8 @@ describe('Hoje header geometry', () => {
       expect(geometry.arrows[1]!.right).toBeCloseTo(geometry.date.right - 16)
       expect(Math.abs((geometry.dateBlock.left + geometry.dateBlock.right - geometry.date.left - geometry.date.right) / 2)).toBeLessThanOrEqual(1)
       assertHeaderControls(geometry.arrows, width, scale)
-      assertHeaderControls(geometry.actions, width, scale)
+      const actionTargets = await Promise.all((await page.locator('[data-today-header-actions] button').all()).map(control => control.evaluate(readExpandedControlGeometry)))
+      assertHeaderControls(geometry.actions.map((control, index) => ({ ...control, targetWidth: actionTargets[index]!.width, targetHeight: actionTargets[index]!.height })), width, scale)
     } finally { await page.close() }
   })
   it.each([320, 412].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))(

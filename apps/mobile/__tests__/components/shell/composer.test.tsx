@@ -178,7 +178,7 @@ describe('clipboard composer control', () => {
             { type: 'Text', props: { style: StyleSheet.flatten(minimum.props.style) }, children: [messages.shell.composer.inputLabel] },
           ] }, 412, fontScale).texts[0]!
           const field = parts.find(part => part.host.props.testID === 'composer-field')!
-          expect(textSlot.width).toBeGreaterThanOrEqual(Math.min(intrinsic.width, field.width - 8))
+          expect(textSlot.width).toBeGreaterThanOrEqual(Math.min(intrinsic.width, field.width - 16))
           expect(parts.find(part => part.host.props.testID === 'composer-text-action-slot')!.width).toBe(48)
         }
         const measurement = tree.root.findByProps({ testID: 'composer-paste-measure' })
@@ -238,7 +238,7 @@ describe('clipboard composer control', () => {
           if (layoutWidth < 600) expect(menu.props.items[0]).toMatchObject({ id: 'paste', label: messages.shell.composer.paste, icon: 'clipboard' })
           const empty = measure()
           expect(empty.height).toBeGreaterThanOrEqual(56)
-          if (layoutWidth === 600) expect(empty.height).toBe(56)
+          if (layoutWidth === 600) expect(empty.height).toBe(64)
           expect(measurePlaceholder(empty.contentWidth).lines).toBe(1)
           const placeholder = tree.root.findByProps({ testID: 'composer-placeholder' })
           expect(placeholder.props.children).toBe(messages.shell.composer.placeholder)

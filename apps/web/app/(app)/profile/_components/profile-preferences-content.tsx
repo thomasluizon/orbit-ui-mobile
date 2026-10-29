@@ -32,7 +32,7 @@ function buildPreferenceRows(
     ? t('profile.settingsRows.timezoneValue', { timeZone })
     : t('profile.settingsRows.timezone')
   const themeChoice = (
-    <div role="group" aria-label={t('profile.settingsRows.theme')} className="flex max-w-full flex-wrap gap-1">
+    <div role="group" aria-label={t('profile.settingsRows.theme')} className="flex max-w-full flex-wrap gap-2">
       {(['dark', 'light'] as const).map((mode) => (
         <button
           key={mode}

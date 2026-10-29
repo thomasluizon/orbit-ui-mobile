@@ -66,11 +66,13 @@ export function expectPressFill(tree: PressTree, label: string, backgroundColor:
     const fill = control.findAll((node) => node.type === 'View' && node.props['data-press-fill'] !== undefined)[0]
     return fill ? StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>) : resolved(pressed)
   }
-  expect(host().props.hitSlop).toBeUndefined()
   const resting = resolved(false)
   const restingPaint = paint(false)
-  expect(resting.minHeight ?? resting.height).toBeGreaterThanOrEqual(48)
-  expect(resting.minWidth ?? resting.width).toBeGreaterThanOrEqual(48)
+  const reach = host().props.hitSlop
+  const horizontal = typeof reach === 'number' ? reach * 2 : reach && typeof reach === 'object' ? Number(Reflect.get(reach, 'left') ?? 0) + Number(Reflect.get(reach, 'right') ?? 0) : 0
+  const vertical = typeof reach === 'number' ? reach * 2 : reach && typeof reach === 'object' ? Number(Reflect.get(reach, 'top') ?? 0) + Number(Reflect.get(reach, 'bottom') ?? 0) : 0
+  expect(Number(resting.minHeight ?? resting.height) + vertical).toBeGreaterThanOrEqual(48)
+  expect(Number(resting.minWidth ?? resting.width) + horizontal).toBeGreaterThanOrEqual(48)
   void renderer.act(() => { (host().props.onPressIn as (() => void) | undefined)?.() })
   expect(resolved(true)).toMatchObject({ borderRadius, overflow: 'hidden' })
   expect(paint(true)).toMatchObject({ backgroundColor })

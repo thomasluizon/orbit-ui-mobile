@@ -14,7 +14,7 @@ import { ShellWide } from '@/components/shell/shell-wide'
 import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
 import { useShellStore } from '@/stores/shell-store'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
+import { inspectInteractionSurface } from '@/__tests__/support/interaction-surface-geometry'
 import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -27,14 +27,14 @@ const cases = [1024, 1352, 1920].flatMap(width => (['en', 'pt-BR'] as const).fla
 const email = 'a.very.long.account.address@example.test'
 const longName = 'Alexandra Beatriz Carolina Daniela Emilia Fernanda Gabriela'
 
-function sidebarFixture(locale: 'en' | 'pt-BR', account?: string) {
+function sidebarFixture(locale: 'en' | 'pt-BR', account?: string, interactiveBell = true) {
   const messages = locale === 'en' ? en : ptBR
   return <NextIntlClientProvider locale={locale} messages={messages}>
     <ShellWide items={SHELL_DESTINATION_IDS.map(id => ({ id, href: '/', label: messages.nav[DESTINATION_ICONS[id].labelKey.split('.')[1] as keyof typeof messages.nav], icon: id }))}
       activeId="hoje" navLabel={messages.nav.mainNavigation} astraRow={{ label: messages.chat.title, onOpen: vi.fn() }}
       paletteLabel={messages.nav.search} paletteHint="Ctrl K" onPalette={vi.fn()}
       onCreate={vi.fn()} createLabel={messages.nav.createHabit} account={account} accountEmail={email}
-      notifications={<NotificationBellDisplay count={12} countPlacement="corner" onClick={vi.fn()} />} />
+      notifications={<NotificationBellDisplay count={12} countPlacement="corner" onClick={interactiveBell ? vi.fn() : undefined} />} />
   </NextIntlClientProvider>
 }
 
@@ -58,6 +58,29 @@ describe('sidebar brand and account geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([false, true])('retains corner bell and navigation placement on the inbox, collapsed=%s', async (collapsed) => {
+    useShellStore.setState({ sidebarCollapsed: collapsed })
+    const view = render(sidebarFixture('en', 'Alex Lin'))
+    const page = await browser.newPage({ viewport: { width: 1352, height: 900 } })
+    const snapshots = []
+    try {
+      for (const interactive of [true, false]) {
+        view.rerender(sidebarFixture('en', 'Alex Lin', interactive))
+        await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+        snapshots.push(await page.locator('[data-shell-sidebar]').evaluate(sidebar => {
+          const bell = sidebar.querySelector('.tabler-icon-bell')!.closest('button, [role="img"]')!
+          const elements = [bell, bell.querySelector('svg')!, bell.querySelector('[data-notification-count]')!, sidebar.querySelector('[data-shell-sidebar-toggle]')!, sidebar.querySelector('button:has(.tabler-icon-search)')!, sidebar.querySelector('nav')!]
+          return elements.map(element => {
+            const bounds = element.getBoundingClientRect()
+            return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+          })
+        }))
+        expect(await page.locator('[data-shell-sidebar] [role="img"]:has(.tabler-icon-bell)').count()).toBe(interactive ? 0 : 1)
+      }
+      expect(snapshots[1]).toEqual(snapshots[0])
+    } finally { await page.close() }
+  })
+
   it.each(cases)('groups the brand controls and account at $width in $locale, collapsed=$collapsed, $mode with forced colors $forcedColors', async ({ width, locale, collapsed, mode, forcedColors }) => {
     useShellStore.setState({ sidebarCollapsed: collapsed })
     const view = render(sidebarFixture(locale, 'Alex Lin'))
@@ -73,11 +96,11 @@ describe('sidebar brand and account geometry in Chromium', () => {
         const bell = sidebar.querySelector<HTMLElement>('button:has(.tabler-icon-bell)')!
         const bounds = (element: Element) => {
           const rect = element.getBoundingClientRect()
-          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height, centerX: rect.left + rect.width / 2, radius: getComputedStyle(element).borderRadius }
+          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height, centerX: rect.left + rect.width / 2, centerY: rect.top + rect.height / 2, radius: getComputedStyle(element).borderRadius }
         }
         const controls = [...sidebar.querySelectorAll<HTMLElement>('button, a[href]')]
         const navigationEnd = sidebar.querySelector('nav')!.lastElementChild as HTMLElement
-        const create = sidebar.querySelector<HTMLElement>('.orbit-pill-action')!
+        const create = sidebar.querySelector<HTMLElement>('.orbit-pill-action[data-variant="primary"]')!
         return {
           sidebar: bounds(sidebar), brand: bounds(brand), bell: bounds(bell), toggle: bounds(toggle),
           lockup: bounds(sidebar.querySelector('[data-asset="orbit-lockup"]')!),
@@ -96,9 +119,9 @@ describe('sidebar brand and account geometry in Chromium', () => {
       expect(header.overflow).toBe(false)
       expect(header.afterNavigation).toEqual(['create', 'account'])
       for (const control of [header.bell, header.toggle]) {
-        expect(control.width).toBe(48)
-        expect(control.height).toBe(48)
-        expect(control.radius).toBe('12px')
+        expect.soft(control.width).toBe(44)
+        expect.soft(control.height).toBe(44)
+        expect.soft(Math.min(Number.parseFloat(control.radius), control.width / 2)).toBe(22)
         expect(control.left).toBeGreaterThanOrEqual(header.brand.left)
         expect(control.right).toBeLessThanOrEqual(header.brand.right)
         expect(control.top).toBeGreaterThanOrEqual(header.brand.top)
@@ -107,6 +130,10 @@ describe('sidebar brand and account geometry in Chromium', () => {
       for (const icon of header.icons) {
         expect([icon.width, icon.height]).toEqual([20, 20])
         expect(icon.strokeWidth).toBe('2px')
+      }
+      for (const [index, control] of [header.bell, header.toggle].entries()) {
+        expect.soft(Math.abs(header.icons[index]!.centerX - control.centerX), 'glyph inline centre').toBeLessThanOrEqual(0.5)
+        expect(Math.abs(header.icons[index]!.centerY - control.centerY), 'glyph block centre').toBeLessThanOrEqual(0.5)
       }
       if (collapsed) {
         expect(header.firstControlIsToggle).toBe(true)
@@ -118,7 +145,7 @@ describe('sidebar brand and account geometry in Chromium', () => {
         expect(header.toggle.left - header.bell.right).toBe(12)
         expect(header.lockup.right).toBeLessThanOrEqual(header.bell.left)
         expect.soft(Math.abs(header.lockup.left - header.search.left)).toBeLessThanOrEqual(1)
-        expect.soft(Math.abs(header.trailingGlyph.right - header.search.right)).toBeLessThanOrEqual(1)
+        expect.soft(header.bell.left - header.lockup.right, 'lockup to bell paint').toBeGreaterThanOrEqual(8)
       }
       await assertBrandFills(page)
       const shortAccount = await measureAccount(page)
@@ -160,7 +187,7 @@ describe('sidebar brand and account geometry in Chromium', () => {
 })
 
 async function assertBrandFills(page: Page) {
-  for (const control of await page.locator('[data-shell-brand-row] button').all()) {
+  for (const control of await page.locator('[data-shell-sidebar] button, [data-shell-sidebar] a[href]').all()) {
     for (const state of ['hover', 'press', 'focus']) {
       if (state === 'focus') {
         await page.keyboard.press('Shift')
@@ -171,8 +198,8 @@ async function assertBrandFills(page: Page) {
       }
       await control.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
       await control.evaluate(settleAnimations)
-      const fill = await control.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
-      expect(fill.hasFill, `${fill.control} ${state}`).toBe(true)
+      const fill = await control.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)
+      if (fill.centering) { expect(fill.centering.inline, `${fill.control} ${state}`).toBeLessThanOrEqual(0.5); expect(fill.centering.block, `${fill.control} ${state}`).toBeLessThanOrEqual(0.5) }
       expect(fill.violations, `${fill.control} ${state}`).toEqual([])
       await page.mouse.move(0, 0)
       await page.mouse.up()

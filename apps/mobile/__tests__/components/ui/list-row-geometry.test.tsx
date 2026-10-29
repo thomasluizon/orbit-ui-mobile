@@ -50,8 +50,8 @@ it('measures row content padding separately from its decorative fill', async () 
     const geometry = measureProfileRow(tree.toJSON(), 320, 1)
     expect(geometry.controls[0]!.inlineClearance).toBe(16)
     const fill = geometry.parts.find((part) => part.slot === 'list-row-fill')!
-    expect(fill.left).toBe(4)
-    expect(fill.right).toBe(316)
+    expect(fill.left).toBe(8)
+    expect(fill.right).toBe(312)
   } finally { await act(() => tree.update(<></>)) }
 })
 

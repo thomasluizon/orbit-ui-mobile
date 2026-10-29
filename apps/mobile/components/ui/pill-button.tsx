@@ -34,7 +34,7 @@ function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewSty
     outlineWidth: 2,
     outlineStyle: 'solid',
     outlineColor,
-    outlineOffset: 2,
+    outlineOffset: -2,
     ...(variant === 'ghost' ? { borderColor: 'transparent' } : null),
   }
 }

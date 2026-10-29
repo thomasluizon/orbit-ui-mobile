@@ -6,6 +6,8 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 
 type Host = Parameters<typeof measureProfileRow>[0]
 interface HeaderTree {
@@ -27,6 +29,10 @@ describe('Android closed header and badge geometry', () => {
       expect(style.textAlign).toBe('left')
       const geometry = measureProfileRow(tree.toJSON(), 320, scale)
       expect(geometry.height).toBeGreaterThanOrEqual(56)
+      const parts = measureInteractionFills(tree.toJSON(), 320, true, scale)
+      const back = parts.find(part => part.host.props.testID === 'nav-header-back-control')!
+      const heading = parts.find(part => part.host.type === 'Text' && 'accessibilityRole' in part.host.props && part.host.props.accessibilityRole === 'header')!
+      expect(heading.left - back.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       for (const label of geometry.texts) {
         if (scale === 1) expect(label.lines).toBe(1)
         expect(label.clipped).toBe(false)

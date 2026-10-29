@@ -1,6 +1,7 @@
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
+import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { Resvg } from '@resvg/resvg-js'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
@@ -24,6 +25,8 @@ import { useChatStore } from '@/stores/chat-store'
 import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { apiClient } from '@/lib/api-client'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
+import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 const testI18n = createInstance()
@@ -74,7 +77,7 @@ type Node = {
   parent: Node | null
   findAll: (predicate: (node: Node) => boolean) => Node[]
 }
-type Tree = { root: Node; update: (element: React.ReactNode) => void; unmount: () => void }
+type Tree = { root: Node; update: (element: React.ReactNode) => void; unmount: () => void; toJSON: () => Parameters<typeof measureInteractionFills>[0] }
 let trees: Tree[] = []
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 function render(element: React.ReactNode = <><NotificationInbox /><NotificationDeleteNotice /></>): Tree {
@@ -142,6 +145,7 @@ afterEach(() => {
   sheetTestControls.defer(false)
   TestRenderer.act(() => trees.forEach((tree) => tree.unmount()))
   trees = []
+  __resetTestHostConfig()
   queryClient.clear()
   resetPendingNotificationDeletesForTests()
   vi.useRealTimers()
@@ -190,13 +194,13 @@ describe('mobile alerts', () => {
       return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
     }
     const tokens = createTokensV2('purple', mode)
-    expect(surface()).toMatchObject({ backgroundColor: 'transparent', minWidth: 48, minHeight: 48, borderRadius: 999 })
+    expect(surface()).toMatchObject({ backgroundColor: 'transparent', minWidth: 44, minHeight: 44, borderRadius: 9999 })
     expect(surface(true).backgroundColor).toBe(tokens.bgHover)
     TestRenderer.act(() => button().props.onHoverIn?.())
     expect(surface().backgroundColor).toBe(tokens.bgHover)
     TestRenderer.act(() => button().props.onFocus?.())
     TestRenderer.act(() => button().props.onHoverOut?.())
-    expect(surface().backgroundColor).toBe(tokens.bgHover)
+    expect(surface()).toMatchObject({ backgroundColor: 'transparent', outlineWidth: 2, outlineOffset: -2, outlineColor: tokens.fg1 })
     expect(surface(true).backgroundColor).toBe(tokens.bgHover)
     TestRenderer.act(() => button().props.onBlur?.())
     expect(surface().backgroundColor).toBe('transparent')
@@ -437,12 +441,45 @@ describe('mobile alerts', () => {
     expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ backgroundColor: tokens.fg1, color: tokens.bg, minWidth: 20, minHeight: 20, borderRadius: 8 })
     const buttons = hosts(tree, 'Pressable', 'Alerts, 25 unread')
     expect(buttons).toHaveLength(1)
-    expect(buttons[0]!.findAll((node) => node.type === 'Text' && node.props.testID === 'notification-count')).toHaveLength(1)
+    let actionOwner = buttons[0]!.parent
+    while (actionOwner && actionOwner.type !== 'View') actionOwner = actionOwner.parent
+    expect(actionOwner!.findAll((node) => node.type === 'Text' && node.props.testID === 'notification-count')).toHaveLength(1)
     let markerParent = badge.parent
     while (markerParent && markerParent.type !== 'View') markerParent = markerParent.parent
     expect(markerParent?.props).toMatchObject({ pointerEvents: 'none', accessible: false, importantForAccessibility: 'no-hide-descendants' })
     expect(StyleSheet.flatten(markerParent?.props.style as StyleProp<ViewStyle>).overflow).not.toBe('hidden')
   })
+  it.each([1, 2].flatMap((scale) => [1, 25].map((count) => ({ scale, count }))))(
+    'keeps the rounded badge paint outside clipping ancestors at scale $scale with $count unread', ({ scale, count }) => {
+      __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: scale })
+      state.unreadCount = count
+      const tree = render(<NotificationBell />)
+      const button = () => hosts(tree, 'Pressable')[0]!
+      for (const interaction of ['rest', 'hover', 'press', 'focus'] as const) {
+        if (interaction === 'hover') TestRenderer.act(() => button().props.onHoverIn?.())
+        if (interaction === 'focus') TestRenderer.act(() => { button().props.onHoverOut?.(); button().props.onFocus?.() })
+        const parts = measureInteractionFills(tree.toJSON(), SMALL_PILL_VISIBLE_MIN, interaction === 'press', scale)
+        const badge = parts.find((part) => part.host.props.testID === 'notification-count')!
+        const action = parts.find((part) => part.host.type === 'Pressable')!
+        expect(badge.top).toBe(action.top)
+        expect(badge.right).toBe(action.right)
+        expect(badge.width).toBeGreaterThanOrEqual(20)
+        expect(badge.height).toBeGreaterThanOrEqual(20 * scale)
+        const inset = Math.min(Number(badge.style.borderRadius), badge.width / 2, badge.height / 2) * (1 - Math.SQRT1_2)
+        const corners = [badge.left + inset, badge.right - inset].flatMap((x) =>
+          [badge.top + inset, badge.bottom - inset].map((y) => ({ x, y })))
+        for (const ancestor of parts.filter((part) => badge.ancestors.includes(part.slot) && part.style.overflow && part.style.overflow !== 'visible')) {
+          const radius = Math.min(Number(ancestor.style.borderRadius ?? 0), ancestor.width / 2, ancestor.height / 2)
+          for (const { x, y } of corners) {
+            const nearestX = Math.max(ancestor.left + radius, Math.min(x, ancestor.right - radius))
+            const nearestY = Math.max(ancestor.top + radius, Math.min(y, ancestor.bottom - radius))
+            expect(Math.hypot(x - nearestX, y - nearestY), `${interaction}: badge paint clipped by ${ancestor.host.type}`).toBeLessThanOrEqual(radius + 0.01)
+          }
+        }
+      }
+      expect(hosts(tree, 'Pressable')).toHaveLength(1)
+    },
+  )
   it.each([1, 9])('shows the count %s below the cap', (count) => {
     state.unreadCount = count
     expect(testId(render(<NotificationBell />), 'notification-count')[0]!.props.children).toBe(count)

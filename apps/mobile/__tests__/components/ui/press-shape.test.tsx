@@ -152,7 +152,7 @@ describe('pressed hit area shapes', () => {
     const row = <ListRow title="Account" accessibilityLabel="Account" onClick={() => {}} action={{ icon: 'download', label: 'More', onPress: () => {} }} />
     withTree(row, (tree) => {
       const control = findPressable(tree, 'Account')
-      expect(rowFill(control, true)).toMatchObject({ borderRadius: 12, top: 4, bottom: 4, left: 4, right: 4, backgroundColor: tokens.bgHover })
+      expect(rowFill(control, true)).toMatchObject({ borderRadius: 12, top: 8, bottom: 8, left: 8, right: 8, backgroundColor: tokens.bgHover })
       expect(rowFill(control, false).backgroundColor).toBe('transparent')
     })
     expect(pressedStyle(row, 'More')).toMatchObject({ borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgHover })
@@ -177,7 +177,7 @@ describe('pressed hit area shapes', () => {
   it('insets the compact in-form ListRow fill at the row radius', () => {
     const row = <ListRow title="Templates" accessibilityLabel="Templates" compact onClick={() => {}} />
     withTree(row, (tree) => {
-      expect(rowFill(findPressable(tree, 'Templates'), true)).toMatchObject({ borderRadius: 12, top: 4, bottom: 4, left: 4, right: 4, backgroundColor: tokens.bgHover })
+      expect(rowFill(findPressable(tree, 'Templates'), true)).toMatchObject({ borderRadius: 12, top: 8, bottom: 8, left: 8, right: 8, backgroundColor: tokens.bgHover })
     })
   })
 
@@ -202,7 +202,7 @@ describe('pressed hit area shapes', () => {
 
     withTree(rows, (tree) => {
       const action = findPressable(tree, 'Theme')
-      expect(rowFill(action, true)).toMatchObject({ borderRadius: 12, top: 4, bottom: 4, left: 4, right: 4, backgroundColor: tokens.bgHover })
+      expect(rowFill(action, true)).toMatchObject({ borderRadius: 12, top: 8, bottom: 8, left: 8, right: 8, backgroundColor: tokens.bgHover })
       expect(rowFill(action, false).backgroundColor).toBe('transparent')
       expect(tree.root.findAllByType(Pressable).filter((node) => node.props.accessibilityLabel === 'Version')).toHaveLength(0)
     })
@@ -223,7 +223,7 @@ describe('pressed hit area shapes', () => {
       const fill = pressed.findAllByProps({ testID: 'day-press-fill' })[0]
       expect(fill).toBeDefined()
       expect(StyleSheet.flatten(fill!.props.style as StyleProp<ViewStyle>)).toMatchObject({
-        position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 22, backgroundColor: tokens.bgHover,
+        position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 17, backgroundColor: tokens.bgHover,
       })
       expect(discFill(pressed)).toBe(tokens.fg1)
 

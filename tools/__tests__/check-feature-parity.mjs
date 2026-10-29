@@ -339,7 +339,9 @@ function restoredRuleRegressions(platform, current, files, inventory, rules, obs
   const capabilities = inventory.entries.filter((entry) => restoredRuleIds.includes(entry.id) && entry.platform === platform)
   const retained = compare(capabilities, observations, rules)
   T(`${platform} closed restoration tickets resolve to their actual rendered replacements`, retained.length === restoredRuleIds.filter((id) => id.startsWith(`${platform}:`)).length && retained.every((entry) => entry.disposition === 'retained' && entry.redesign.length > 0), retained.filter((entry) => entry.disposition !== 'retained').map((entry) => entry.id).join(', '))
-  const paths = [...new Set(retained.flatMap((entry) => entry.redesign.map((item) => item.file)))]
+  const paths = [...new Set(retained.flatMap((entry) => ['web:control:shell.collapseSidebar', 'web:control:shell.expandSidebar'].includes(entry.id)
+    ? ['apps/web/components/shell/shell-wide.tsx']
+    : entry.redesign.map((item) => item.file)))]
   const originals = new Map(paths.map((path) => [path, files[path]]))
   for (const path of paths) {
     if (path.endsWith('habit-emoji-selector.tsx')) {
@@ -347,7 +349,7 @@ function restoredRuleRegressions(platform, current, files, inventory, rules, obs
       T(`${platform} the current emoji generation owner is removed exactly once`, [...files[path].matchAll(button)].length === 1)
       files[path] = files[path].replace(button, '{null}')
     }
-    else if (path.endsWith('shell-wide.tsx')) files[path] = files[path].replace('aria-label={toggleLabel}', '').replace('title={toggleLabel}', '')
+    else if (path.endsWith('shell-wide.tsx')) files[path] = files[path].replace('label={toggleLabel}', '')
     else if (path.endsWith('mcp-code-client.tsx')) files[path] = files[path].split('\n').filter((line) => !line.includes("t('orbitMcp.configInstructions')") && !line.includes("t('orbitMcp.replaceKey')")).join('\n')
     else if (path.endsWith('profile-api-keys.tsx')) files[path] = files[path].split('\n').filter((line) => !line.includes("t('orbitMcp.created')") && !line.includes("t('orbitMcp.lastUsed')") && !line.includes("apiKey.isReadOnly ? t('orbitMcp.permReadOnly')")).join('\n')
     T(`${platform} the restoration evidence source is deliberately broken`, files[path] !== originals.get(path), path)

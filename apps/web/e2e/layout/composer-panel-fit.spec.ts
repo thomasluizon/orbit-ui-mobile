@@ -34,7 +34,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const inset = await field.evaluate(measureFieldInset)
         expect(inset.paddingStart).toBe(8)
         expect(inset.paddingEnd).toBe(8)
-        expect(inset.pillInset).toBeCloseTo(12, 1)
+        expect(inset.pillInset).toBeCloseTo(16, 1)
 
         const empty = await field.evaluate((element) => {
           const input = element as HTMLTextAreaElement
@@ -189,7 +189,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect(inset.paddingStart).toBe(8)
         expect(inset.paddingEnd).toBe(8)
         const entryWidth = await field.evaluate(input => input.closest('[data-composer-input-row]')!.querySelector('[data-open-conversation]')!.getBoundingClientRect().width)
-        expect(inset.pillInset).toBeCloseTo(4 + entryWidth + 8, 1)
+        expect(inset.pillInset).toBeCloseTo(8 + entryWidth + 8, 1)
         expect(empty.scrollHeight).toBe(empty.clientHeight)
         expect(empty.clientHeight).toBe(empty.singleLineHeight)
 
@@ -216,7 +216,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         if (width === 320) expect(wrapped.height).toBeGreaterThan(empty.clientHeight)
         expect(wrapped.height).toBeLessThanOrEqual(5 * wrapped.lineHeight + 24)
         expect(wrapped.scrollHeight).toBe(wrapped.height)
-        expect(wrapped.pillInset).toBeCloseTo(4 + entryWidth + 8, 1)
+        expect(wrapped.pillInset).toBeCloseTo(8 + entryWidth + 8, 1)
         expect(wrapped.pillInset).toBeCloseTo(inset.pillInset!, 1)
         expect(typed.whiteSpace).toBe('pre-wrap')
         expect(typed.wordBreak).toBe('normal')

@@ -66,9 +66,9 @@ it.each([360, 412, 1200, 1600].flatMap(width => [false, true].map(withMessages =
         const send = geometry.get('send')!
         expect(text.bottom - text.top).toBe(Math.min(lines, 5) * 24 + 24)
         expect(text.top).toBeGreaterThanOrEqual(field.top + 4)
-        expect(text.bottom).toBe(field.bottom - 4)
+        expect(text.bottom).toBe(field.bottom - 8)
         expect(send.bottom).toBe(text.bottom)
-        expect(field.bottom - field.top).toBe(text.bottom - text.top + 8)
+        expect(field.bottom - field.top).toBe(text.bottom - text.top + 16)
       }
     } finally { await renderer.act(() => tree.unmount()) }
   },

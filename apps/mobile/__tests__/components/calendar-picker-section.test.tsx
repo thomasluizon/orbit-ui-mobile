@@ -146,7 +146,7 @@ describe('mobile CalendarPickerSection', () => {
     const row = tree.root.findAll((node) => node.type === 'View' && node.props['data-slot'] === 'list-row-body')[0]!
     expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ paddingStart: 16, paddingEnd: 4, marginHorizontal: -16 })
     const fills = measureInteractionFills(tree.toJSON(), 412, false).filter((part) => 'data-press-fill' in part.host.props)
-    expect(fills[1]!.left - fills[0]!.right).toBe(4)
+    expect(fills[1]!.left - fills[0]!.right).toBe(8)
     expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(false)
     TestRenderer.act(() => { (open.props.onPress as () => void)() })
     expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(true)

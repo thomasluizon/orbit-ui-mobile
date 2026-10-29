@@ -95,8 +95,8 @@ describe('day card compact geometry', () => {
       expect(geometry).toEqual({ width: 24, height: 24, fillWidth: 40, fillHeight: 40, radius: '50%', iconWidth: 24, iconHeight: 24, iconInsets: [8, 8, 8, 8],
         focus: '2px', offset: '-2px', buttonFocus: 'none', shadow: 'none', pseudoRadius: '50%', hit: true, focused: true })
       const target = await control.evaluate(readExpandedControlGeometry)
-      expect(target.width).toBe(48)
-      expect(target.height).toBe(48)
+      expect(target.width).toBe(56)
+      expect(target.height).toBe(56)
       expect(target.edgeHits).toEqual([true, true, true, true])
       await page.emulateMedia({ forcedColors: 'active' })
       expect(await control.evaluate((button) => ({ button: getComputedStyle(button).outlineStyle, fill: getComputedStyle(button.querySelector('[data-press-fill]')!).outlineWidth }))).toEqual({ button: 'none', fill: '2px' })
@@ -143,8 +143,8 @@ describe('day card compact geometry', () => {
             return { painted: style.backgroundColor !== 'rgba(0, 0, 0, 0)', insetTop: Number.parseFloat(style.top), insetBottom: Number.parseFloat(style.bottom), contentClearance: contentBox.top - bounds.top - Number.parseFloat(style.top) }
           })
           expect(fill.painted).toBe(true)
-          expect(fill.insetTop).toBe(4)
-          expect(fill.insetBottom).toBe(4)
+          expect(fill.insetTop).toBe(8)
+          expect(fill.insetBottom).toBe(8)
           expect(fill.contentClearance).toBeGreaterThanOrEqual(4)
         } finally { await page.mouse.up() }
       }

@@ -6,6 +6,7 @@ import { prepareAgendaCalendar } from './calendar-agenda-fixtures'
 import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
 import { restPointerOutside } from './pointer-rest'
+import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { test } from './upgrade-fixtures'
 
 
@@ -49,7 +50,9 @@ for (const width of [320, 412, 1100, 1352]) {
           }))
           expect(Math.abs((geometry[0]!.left - geometry[0]!.rowLeft) - (geometry.at(-1)!.rowRight - geometry.at(-1)!.right))).toBeLessThanOrEqual(1)
           for (const index of [0, geometry.length - 1]) {
-            expect(geometry[index]!.width).toBe(48); expect(geometry[index]!.height).toBe(48)
+            const target = await controls.nth(index).evaluate(readExpandedControlGeometry)
+            expect(target.width).toBeGreaterThanOrEqual(48); expect(target.height).toBeGreaterThanOrEqual(48)
+            expect(target.edgeHits).toEqual([true, true, true, true])
             ring ??= geometry[index]!.shadow
             expect(geometry[index]!.shadow).toBe(ring); expect(ring).toContain('1.5px')
           }

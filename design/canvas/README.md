@@ -251,7 +251,7 @@ Real Android rendering, movement feel and TalkBack remain device-verification bo
 | Progresso overview | Thirty daily columns remain visible at compact and wide widths. Existing completion figures, best weekday, top habit, navigation and loading, empty, locked and error states stay with their owners. |
 | Astra metrics block | Existing metric series and figure rows use the shared selectable chart. No-data and absent-series behavior, habit context and destination links remain. |
 | Astra period insight | Existing daily and weekly series use the same control on the overview page. Figures, habit rows, narrative pages, paging and destination links remain. |
-| Shared chart control | Full-height column targets, one selected neutral bar, localized complete radio names, today selection, moving bounded readout, first/last dates and baseline stubs. Web uses one roving tab stop with arrows and Home/End; Android uses radio roles, checked states, presses and accessibility actions. |
+| Shared chart control | Hover and held press paint only on the bar with the existing selected foreground; one keyboard indicator follows the padded moving readout. Transparent full-height column targets, one selected neutral bar, localized complete radio names, today selection, moving bounded readout, first/last dates and baseline stubs. Web uses one roving tab stop with arrows and Home/End; Android uses radio roles, checked states, presses and accessibility actions. |
 
 Vitest covers chart behavior, column geometry and edge readouts on both platforms. Web cases also
 mount the owning Progresso composition at 320, 412 and 1352. The layout workflow owns whole-page evidence;

@@ -280,7 +280,7 @@ test.describe('compact calendar track geometry', () => {
           return { top: button.getBoundingClientRect().top, radius: getComputedStyle(button).borderRadius, height: button.getBoundingClientRect().height, width: label.getBoundingClientRect().width, labelWidth: range.getBoundingClientRect().width, lines: range.getClientRects().length }
         }) }
       })
-      expect(geometry).toMatchObject({ padding: '4px', gap: '4px', radius: '12px', shadow: 'none' })
+      expect(geometry).toMatchObject({ padding: '4px 0px', gap: '8px', radius: '12px', shadow: 'none' })
       expect(geometry.fill).toBe(geometry.well)
       expect(geometry.segments).toHaveLength(4)
       expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)

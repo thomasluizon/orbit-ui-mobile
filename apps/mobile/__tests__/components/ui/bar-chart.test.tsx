@@ -81,6 +81,10 @@ function fillStyle(target: ReactTestInstance) {
   return StyleSheet.flatten(host(target, 'bar-chart-fill').props.style) as ViewStyle
 }
 
+function barColor(target: ReactTestInstance) {
+  return target.findAll((node) => String(node.type) === 'Path')[0]!.props.fill
+}
+
 function selectedSnapshot() {
   return {
     checked: radios().map((radio) => radio.props.accessibilityState),
@@ -119,14 +123,14 @@ function feedbackBounds(target: ReactTestInstance, feedback: ReactTestInstance) 
   const parent = Yoga.Node.create(config)
   const child = Yoga.Node.create(config)
   const bounds = geometryStyle(target)
-  const style = StyleSheet.flatten(feedback.props.style) as { left: number; right: number; top: number; bottom: number; borderWidth?: number }
+  const style = StyleSheet.flatten(feedback.props.style) as { left: number; top: number; width: number; height: number; borderWidth?: number }
   parent.setWidth(bounds.width)
   parent.setHeight(bounds.height)
   child.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
   child.setPosition(Yoga.EDGE_LEFT, style.left)
-  child.setPosition(Yoga.EDGE_RIGHT, style.right)
+  child.setWidth(style.width)
   child.setPosition(Yoga.EDGE_TOP, style.top)
-  child.setPosition(Yoga.EDGE_BOTTOM, style.bottom)
+  child.setHeight(style.height)
   child.setBorder(Yoga.EDGE_ALL, style.borderWidth ?? 0)
   parent.insertChild(child, 0)
   try {
@@ -145,6 +149,15 @@ beforeEach(() => {
 afterEach(() => { void act(() => tree.update(<></>)); vi.useRealTimers(); vi.restoreAllMocks(); __setTouchMode(true) })
 
 describe('BarChart on Android', () => {
+  it('paints feedback on the radio own bar without a column background', () => {
+    layout(host(tree.root, 'bar-chart-control'), 288)
+    const target = radios()[1]!
+    trigger(target, 'onPressIn')
+    const paths = target.findAll((node) => String(node.type) === 'Path')
+    expect(paths).toHaveLength(1)
+    expect(paths[0]!.props.fill).toBe(createTokensV2('orange', 'dark').fg1)
+    expect(fillStyle(target).backgroundColor).toBe('transparent')
+  })
   it('uses individually named radios, selects today and changes readout on press or accessibility action', () => {
     const options = radios()
     expect(options).toHaveLength(30)
@@ -221,40 +234,30 @@ describe('BarChart on Android', () => {
       expect(style.left + 240).toBeLessThanOrEqual(width)
     }
     const paths = tree.root.findAll((node) => String(node.type) === 'Path')
-    expect(paths[0]!.props.d).toContain('88')
-    expect(paths[1]!.props.d).toContain('88')
+    expect(paths[0]!.props.d).toContain(String(96 - INTERACTION_FILL_CLEARANCE))
+    expect(paths[1]!.props.d).toContain(String(96 - INTERACTION_FILL_CLEARANCE))
     expect(new Set(paths.map((path) => path.props.fill)).size).toBe(2)
   })
 
-  it.each([288, 380, 1320].flatMap((width) => [0, 50, 100].map((rate) => ({ width, rate }))))('keeps pressed fill clear of its $rate percent bar at $width', ({ width, rate }) => {
+  it.each([288, 380, 1320].flatMap((width) => [0, 50, 100].map((rate) => ({ width, rate }))))('contains feedback on its $rate percent bar at $width', ({ width, rate }) => {
     void act(() => tree.update(<BarChart points={points.map((point) => ({ ...point, rate }))} label="Completion" />))
     layout(host(tree.root, 'bar-chart-control'), width)
     const target = radios()[1]!
+    const bar = target.findAll((node) => String(node.type) === 'Path')[0]!
+    const before = bar.props.d
     const hover = attachedColumnHover(target)
     deliverHover(hover, State.BEGAN, State.UNDETERMINED)
-    expect(fillStyle(target).backgroundColor).toBe(createTokensV2('orange', 'dark').bgHover)
+    expect(barColor(target)).toBe(createTokensV2('orange', 'dark').fg1)
     deliverHover(hover, State.FAILED, State.BEGAN)
     trigger(target, 'onPressIn')
-    const feedback = target.findAll((node) => typeof node.type === 'string' && node.props.pointerEvents === 'none')[0]!
-    const fill = StyleSheet.flatten(feedback.props.style) as { backgroundColor: string; top: number; bottom: number; left: number; right: number }
-    expect(fill.backgroundColor).not.toBe('transparent')
-    const path = tree.root.findAll((node) => String(node.type) === 'Path')[1]!
-    const numbers = String(path.props.d).match(/-?\d+(?:\.\d+)?/g)!.map(Number)
-    const bottom = numbers[1]!
-    const top = numbers[4]!
-    expect(top - fill.top).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
-    expect(geometryStyle(target).height - fill.bottom - bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
-    const targetBounds = geometryStyle(target)
-    const paths = tree.root.findAll((node) => String(node.type) === 'Path')
-    const previous = String(paths[0]!.props.d).match(/-?\d+(?:\.\d+)?/g)!.map(Number)
-    const next = String(paths[2]!.props.d).match(/-?\d+(?:\.\d+)?/g)!.map(Number)
-    expect(targetBounds.left + fill.left - previous[8]!).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE - 0.001)
-    expect(next[0]! - targetBounds.left - targetBounds.width + fill.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE - 0.001)
+    expect(barColor(target)).toBe(createTokensV2('orange', 'dark').fg1)
+    expect(fillStyle(target).backgroundColor).toBe('transparent')
+    expect(bar.props.d).toBe(before)
+    const mark = feedbackBounds(target, host(target, 'bar-chart-fill'))
     trigger(target, 'onPressOut')
     trigger(target, 'onFocus')
-    const ring = target.findAll((node) => typeof node.type === 'string' && node.props.pointerEvents === 'none')[1]!
-    const focus = StyleSheet.flatten(ring.props.style) as { left: number; right: number; borderWidth: number }
-    expect(focus).toMatchObject({ left: fill.left, right: fill.right, borderWidth: 2 })
+    expect(mark.width).toBeGreaterThan(0)
+    expect(StyleSheet.flatten(host(tree.root, 'bar-chart-readout').props.style)).toMatchObject({ borderWidth: 2, borderColor: createTokensV2('orange', 'dark').fg1 })
   })
 
   it.each(['en', 'pt-BR'] as const)('retains complete weekly ranges and values in %s', (locale) => {
@@ -285,28 +288,16 @@ describe('BarChart on Android', () => {
     const target = radios()[Math.floor(count / 2)]!
     trigger(target, 'onPressIn')
     const feedback = host(target, 'bar-chart-fill')
-    const fill = StyleSheet.flatten(feedback.props.style) as { left: number; right: number; backgroundColor: string }
-    const targetBounds = geometryStyle(target)
-    const paths = tree.root.findAll((node) => String(node.type) === 'Path')
-    const pathBounds = paths.map((path) => String(path.props.d).match(/-?\d+(?:\.\d+)?/g)!.map(Number))
-    const index = Math.floor(count / 2)
-    const barWidth = pathBounds[index]![8]! - pathBounds[index]![0]!
-    expect(fill.backgroundColor).not.toBe('transparent')
-    expect(targetBounds.width - fill.left - fill.right).toBeGreaterThan(barWidth)
-    expect(targetBounds.left + fill.left).toBeGreaterThan(pathBounds[index - 1]![8]!)
-    expect(targetBounds.left + targetBounds.width - fill.right).toBeLessThan(pathBounds[index + 1]![0]!)
+    expect(fillStyle(target).backgroundColor).toBe('transparent')
+    expect(barColor(target)).toBe(createTokensV2('orange', 'dark').fg1)
+    const mark = feedbackBounds(target, feedback)
+    expect(mark.width).toBeGreaterThan(0)
+    expect(mark.left).toBeGreaterThanOrEqual(0)
+    expect(mark.left + mark.width).toBeLessThanOrEqual(geometryStyle(target).width + 0.0001)
     trigger(target, 'onPressOut')
     trigger(target, 'onFocus')
-    const ring = target.findAll((node) => typeof node.type === 'string' && node.props.pointerEvents === 'none')[1]!
-    const focus = StyleSheet.flatten(ring.props.style) as { left: number; right: number; borderWidth: number }
-    const measured = feedbackBounds(target, ring)
-    expect(measured.width).toBeGreaterThan(barWidth)
-    expect(measured.left).toBeGreaterThanOrEqual(0)
-    expect(measured.left + measured.width).toBeLessThanOrEqual(targetBounds.width + 0.0001)
-    expect(targetBounds.left + measured.left).toBeGreaterThan(pathBounds[index - 1]![8]!)
-    expect(targetBounds.left + measured.left + measured.width).toBeLessThan(pathBounds[index + 1]![0]!)
-    expect(focus.borderWidth).toBeGreaterThan(0)
-    expect(focus.borderWidth).toBeLessThanOrEqual(2)
+    const readout = StyleSheet.flatten(host(tree.root, 'bar-chart-readout').props.style) as ViewStyle
+    expect(readout).toMatchObject({ borderWidth: 2, padding: 8 })
   })
 
   it('keeps selection valid across a reduced or empty series', () => {
@@ -342,19 +333,19 @@ describe.each(['dark', 'light'] as const)('Native chart hover in %s', (mode) => 
     const before = selectedSnapshot()
     const bounds = geometryStyle(view.target)
     const paths = () => tree.root.findAll((node) => String(node.type) === 'Path').map((node) => node.props)
-    const initialPaths = paths()
+    const initialPaths = paths().map(path => path.d)
     for (let cycle = 0; cycle < 3; cycle++) {
       deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
-      expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
-      expect(fillStyle(view.other).backgroundColor).toBe('transparent')
+      expect(barColor(view.target)).toBe(view.palette.fg1)
+      expect(barColor(view.other)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
       expect(geometryStyle(view.target)).toEqual(bounds)
-      expect(fillStyle(view.target)).toMatchObject({ top: 0, bottom: 0, borderRadius: 8 })
+      expect(fillStyle(view.target).backgroundColor).toBe('transparent')
       expect(fillStyle(view.target).transform).toBeUndefined()
       expect(selectedSnapshot()).toEqual(before)
-      expect(paths()).toEqual(initialPaths)
+      expect(paths().map(path => path.d)).toEqual(initialPaths)
       expect(attachedColumnHover(view.target)).toBe(view.hover)
       deliverHover(view.hover, State.FAILED, State.BEGAN)
-      expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+      expect(barColor(view.target)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
     }
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')).toHaveLength(1)
   })
@@ -365,13 +356,13 @@ describe.each(['dark', 'light'] as const)('Native chart hover in %s', (mode) => 
     deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
     trigger(view.target, 'onPressIn')
     trigger(view.target, 'onPressOut')
-    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    expect(barColor(view.target)).toBe(view.palette.fg1)
     trigger(view.target, 'onPressIn')
     deliverHover(view.hover, State.FAILED, State.BEGAN)
-    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    expect(barColor(view.target)).toBe(view.palette.fg1)
     expect((StyleSheet.flatten(view.target.props.style) as ViewStyle).transform).toBeUndefined()
     trigger(view.target, 'onPressOut')
-    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    expect(barColor(view.target)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
     expect(selectedSnapshot()).toEqual(before)
   })
 
@@ -381,47 +372,44 @@ describe.each(['dark', 'light'] as const)('Native chart hover in %s', (mode) => 
     deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
     deliverHover(view.otherHover, State.BEGAN, State.UNDETERMINED)
     deliverHover(view.hover, terminal, State.BEGAN)
-    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
-    expect(fillStyle(view.other).backgroundColor).toBe(view.palette.bgHover)
+    expect(barColor(view.target)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
+    expect(barColor(view.other)).toBe(view.palette.fg1)
     trigger(view.target, 'onPressIn')
     deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
     deliverHover(view.hover, terminal, State.BEGAN)
-    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    expect(barColor(view.target)).toBe(view.palette.fg1)
     trigger(view.target, 'onPressOut')
     deliverHover(view.otherHover, terminal, State.BEGAN)
-    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
-    expect(fillStyle(view.other).backgroundColor).toBe('transparent')
+    expect(barColor(view.target)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
+    expect(barColor(view.other)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
     expect(selectedSnapshot()).toEqual(before)
   })
 
   it.each(['en', 'pt-BR'] as const)('keeps keyboard selection and one contained focus perimeter independent of hover in %s', (locale) => {
     const view = chartInteractions(mode, locale)
-    const rings = (target: ReactTestInstance) => target.findAll((node) => typeof node.type === 'string' && ((StyleSheet.flatten(node.props.style) as ViewStyle | undefined)?.borderWidth ?? 0) > 0)
+    const rings = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'bar-chart-readout' && (StyleSheet.flatten(node.props.style) as ViewStyle).borderColor !== 'transparent')
     __setTouchMode(false)
     void act(() => { __focusHost(view.target.props.__nativeTag as number) })
     const focused = selectedSnapshot()
     expect(focused.readout).toBe(view.target.props.accessibilityLabel)
     expect(radios()[1]!.props.accessibilityState).toEqual({ checked: true })
-    expect(rings(view.target)).toHaveLength(1)
-    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    expect(rings()).toHaveLength(1)
+    expect(barColor(view.target)).toBe(view.palette.fg1)
     deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
     deliverHover(view.hover, State.CANCELLED, State.BEGAN)
     expect(selectedSnapshot()).toEqual(focused)
-    expect(rings(view.target)).toHaveLength(1)
-    const measured = feedbackBounds(view.target, rings(view.target)[0]!)
-    expect(measured.left).toBeGreaterThanOrEqual(0)
-    expect(measured.left + measured.width).toBeLessThanOrEqual(geometryStyle(view.target).width + 0.0001)
+    expect(rings()).toHaveLength(1)
+    expect(rings()[0]!.props.testID).toBe('bar-chart-readout')
     deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
     trigger(view.target, 'onPressIn')
     void act(() => { __focusHost(view.other.props.__nativeTag as number) })
-    expect(rings(view.target)).toHaveLength(0)
-    expect(rings(view.other)).toHaveLength(1)
-    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    expect(rings()).toHaveLength(1)
+    expect(barColor(view.target)).toBe(view.palette.fg1)
     expect(host(tree.root, 'bar-chart-readout').props.children).toBe(view.other.props.accessibilityLabel)
     deliverHover(view.hover, State.FAILED, State.BEGAN)
-    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    expect(barColor(view.target)).toBe(view.palette.fg1)
     trigger(view.target, 'onPressOut')
-    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    expect(barColor(view.target)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
     expect(attachedColumnHover(view.target)).toBe(view.hover)
   })
 
@@ -429,16 +417,16 @@ describe.each(['dark', 'light'] as const)('Native chart hover in %s', (mode) => 
     const view = chartInteractions(mode, locale)
     const before = selectedSnapshot()
     trigger(view.target, 'onPressIn')
-    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    expect(barColor(view.target)).toBe(view.palette.fg1)
     trigger(view.target, 'onPressOut')
-    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    expect(barColor(view.target)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
     expect(selectedSnapshot()).toEqual(before)
     trigger(view.target, 'onPressIn')
     trigger(view.target, 'onPressOut')
     trigger(view.target, 'onPress')
     expect(radios().map((radio) => radio.props.accessibilityState)).toEqual(points.map((_, index) => ({ checked: index === 1 })))
     expect(host(tree.root, 'bar-chart-readout').props.children).toBe(view.target.props.accessibilityLabel)
-    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    expect(barColor(view.target)).toBe(view.palette.fg1)
     expect(attachedColumnHover(view.target)).toBe(view.hover)
   })
 })
@@ -458,7 +446,7 @@ describe('Native chart hover lifecycle and geometry', () => {
     const tag = hover.handlerTag
     const before = selectedSnapshot()
     deliverHover(hover, State.BEGAN, State.UNDETERMINED)
-    expect(fillStyle(target).backgroundColor).toBe(createTokensV2('orange', 'dark').bgHover)
+    expect(barColor(target)).toBe(createTokensV2('orange', 'dark').fg1)
     const bounds = feedbackBounds(target, host(target, 'bar-chart-fill'))
     expect(bounds.width).toBeGreaterThan(0)
     expect(bounds.left).toBeGreaterThanOrEqual(0)
@@ -470,9 +458,9 @@ describe('Native chart hover lifecycle and geometry', () => {
     expect(radios()[index]).toBe(target)
     expect(attachedColumnHover(target)).toBe(hover)
     expect(hover.handlerTag).toBe(tag)
-    expect(fillStyle(target).backgroundColor).toBe(createTokensV2('orange', 'dark').bgHover)
+    expect(barColor(target)).toBe(createTokensV2('orange', 'dark').fg1)
     deliverHover(hover, State.END, State.BEGAN)
-    expect(fillStyle(target).backgroundColor).toBe('transparent')
+    expect(barColor(target)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
   })
 
   it('unregisters removed dates, keeps surviving dates stable and ignores stale tags after remount', () => {
@@ -487,7 +475,7 @@ describe('Native chart hover lifecycle and geometry', () => {
     deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
     deliverHover(view.hover, State.FAILED, State.BEGAN)
     expect(selectedSnapshot()).toEqual(before)
-    expect(fillStyle(radios()[1]!).backgroundColor).toBe('transparent')
+    expect(barColor(radios()[1]!)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
     void act(() => tree.update(<BarChart points={view.localizedPoints} label="Completion" />))
     const replacement = radios()[1]!
     const fresh = attachedColumnHover(replacement)
@@ -495,7 +483,7 @@ describe('Native chart hover lifecycle and geometry', () => {
     expect(fresh.handlerTag).not.toBe(oldTag)
     const restored = selectedSnapshot()
     deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
-    expect(fillStyle(replacement).backgroundColor).toBe('transparent')
+    expect(barColor(replacement)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
     expect(selectedSnapshot()).toEqual(restored)
     const gestures = radios().map(attachedColumnHover)
     void act(() => tree.update(<BarChart points={[]} label="Completion" />))
@@ -503,7 +491,7 @@ describe('Native chart hover lifecycle and geometry', () => {
     for (const gesture of gestures) expect(findHandler(gesture.handlerTag)).toBeUndefined()
     deliverHover(fresh, State.BEGAN, State.UNDETERMINED)
     void act(() => tree.update(<BarChart points={view.localizedPoints} label="Completion" />))
-    expect(fillStyle(radios()[1]!).backgroundColor).toBe('transparent')
+    expect(barColor(radios()[1]!)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
     expect(attachedColumnHover(radios()[1]!).handlerTag).not.toBe(fresh.handlerTag)
   })
 
@@ -512,15 +500,15 @@ describe('Native chart hover lifecycle and geometry', () => {
     const view = chartInteractions('dark', 'en')
     deliverHover(view.hover, State.BEGAN, State.UNDETERMINED)
     trigger(view.target, 'onPressIn')
-    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    expect(barColor(view.target)).toBe(view.palette.fg1)
     for (const node of [view.target, host(view.target, 'bar-chart-fill')]) {
       const style = StyleSheet.flatten(node.props.style) as ViewStyle
       expect(style.transform).toBeUndefined()
       expect(style.opacity).toBeUndefined()
     }
     trigger(view.target, 'onPressOut')
-    expect(fillStyle(view.target).backgroundColor).toBe(view.palette.bgHover)
+    expect(barColor(view.target)).toBe(view.palette.fg1)
     deliverHover(view.hover, State.FAILED, State.BEGAN)
-    expect(fillStyle(view.target).backgroundColor).toBe('transparent')
+    expect(barColor(view.target)).toBe(createTokensV2('orange', theme.currentTheme).fg2)
   })
 })

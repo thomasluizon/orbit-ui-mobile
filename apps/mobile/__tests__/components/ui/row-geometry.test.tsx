@@ -57,12 +57,12 @@ function assertRow(host: Parameters<typeof measureProfileRow>[0], width: number,
   expect(body).toBeDefined()
   const first = part('list-row-icon') ?? part('list-row-title')!
   const last = part('list-row-chevron') ?? part('list-row-trailing') ?? part('list-row-value') ?? part('list-row-title')!
-  expect(first.left - body.left).toBeCloseTo(body.style.position === 'absolute' ? 12 : 16, 1)
-  expect(body.right - last.right, JSON.stringify({ body, first, last })).toBeCloseTo(body.style.position === 'absolute' ? 12 : 16, 1)
+  expect(first.left - body.left).toBeCloseTo(body.style.position === 'absolute' ? 8 : 16, 1)
+  expect(body.right - last.right, JSON.stringify({ body, first, last })).toBeCloseTo(body.style.position === 'absolute' ? 8 : 16, 1)
   expect(content.style.gap).toBe(12)
   expect(body.style.paddingVertical).toBe(12)
   expect(body.style.minHeight).toBe(part('list-row-description') ? 68 : 52)
-  if (column) { expect(body.left).toBe(-16); expect(body.right).toBe(width + 16) }
+  if (column) { expect(body.left).toBe(-8); expect(body.right).toBe(width + 8) }
   if (scale === 2) expect(geometry.height).toBeGreaterThan(part('list-row-description') ? 68 : 52)
   for (const item of geometry.parts) {
     expect(item.style.paddingHorizontal).not.toBe(0)
@@ -89,8 +89,8 @@ function assertComposition(host: Parameters<typeof measureProfileRow>[0], width:
     const parts = geometry.parts.slice(start + 1, end < 0 ? undefined : end)
     const first = parts.find((part) => part.slot === 'list-row-icon') ?? parts.find((part) => part.slot === 'list-row-title')!
     const last = ['list-row-chevron', 'list-row-trailing', 'list-row-value', 'list-row-title'].map((slot) => parts.find((part) => part.slot === slot)).find(Boolean)!
-    expect(first.left - body.left).toBeCloseTo(body.style.position === 'absolute' ? 12 : 16, 1)
-    expect(body.right - last.right, JSON.stringify({ body, first, last })).toBeCloseTo(body.style.position === 'absolute' ? 12 : 16, 1)
+    expect(first.left - body.left).toBeCloseTo(body.style.position === 'absolute' ? 8 : 16, 1)
+    expect(body.right - last.right, JSON.stringify({ body, first, last })).toBeCloseTo(body.style.position === 'absolute' ? 8 : 16, 1)
     expect(first.left).toBeGreaterThanOrEqual(inset)
     expect(body.right).toBeLessThanOrEqual(width)
     for (const part of parts) expect(Number(part.style.marginHorizontal ?? 0)).toBeGreaterThanOrEqual(0)
@@ -194,15 +194,15 @@ describe('canonical row geometry in Yoga', () => {
       const checkbox = measured.parts.find((part) => part.slot === 'checkbox-box')!
       expect(body.style).toMatchObject({ paddingStart: 16, paddingEnd: 4, paddingVertical: 0, minHeight: 52 })
       const fills = measureInteractionFills(tree.toJSON(), width, false, scale).filter((part) => 'data-press-fill' in part.host.props)
-      expect(fills[1]!.left - fills[0]!.right).toBe(4)
-      expect(checkbox.left - measured.controls[0]!.right).toBe(12)
+      expect(fills[1]!.left - fills[0]!.right).toBe(8)
+      expect(checkbox.left - measured.controls[0]!.right).toBe(16)
       expect(measured.texts[0]!.left - body.left).toBe(16)
-      expect(body.right - checkbox.right).toBe(16)
+      expect(body.right - checkbox.right).toBe(20)
       expect(checkbox).toMatchObject({ width: 24, height: 24 })
       const controls = tree.root.findAll((node) => node.type === Pressable)
       expect(controls).toHaveLength(2)
       expect(controls[1]!.props.hitSlop).toBeUndefined()
-      expect(measured.controls.find((control) => control.width === 48)?.height).toBe(48)
+      expect(measured.controls.find((control) => control.width === 56)?.height).toBe(56)
     } finally { await act(() => tree.update(<></>)) }
     const date = await mount(<DateRow label="Starts" value="September 2" />)
     try { expect(measureProfileRow(date.toJSON(), width, scale).texts[0]!.left).toBe(0) }
@@ -219,7 +219,7 @@ describe('canonical row geometry in Yoga', () => {
       const geometry = measureProfileRow(tree.toJSON(), 412, 1)
       const body = geometry.parts.find((part) => part.slot === 'list-row-body')!
       const checkbox = geometry.parts.find((part) => part.slot === 'checkbox-box')!
-      expect(body.right - checkbox.right).toBe(16)
+      expect(body.right - checkbox.right).toBe(20)
     } finally { await act(() => tree.update(<></>)) }
   })
 
@@ -237,7 +237,7 @@ describe('canonical row geometry in Yoga', () => {
       const geometry = assertComposition(form.toJSON(), width, scale, 16)
       const leading = geometry.parts.filter((part) => part.slot === 'list-row-title')
       expect(leading.find((part) => part.left === 56)).toBeDefined()
-      expect(geometry.parts.filter((part) => part.slot === 'list-row-body').some((body) => body.left === 20)).toBe(true)
+      expect(geometry.parts.filter((part) => part.slot === 'list-row-body').some((body) => body.left === 24)).toBe(true)
     } finally { await act(() => form.update(<></>)); queryClient.clear() }
     const habit = createMockHabit({ isBadHabit: true })
     const detail = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitDetailFields habit={habit} summary="Every day" /></View></QueryClientProvider>)

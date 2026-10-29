@@ -115,8 +115,8 @@ describe('DayCell', () => {
     const boxes = measureDaySurface(tree.toJSON() as GeometryHost, 97)
     const ring = boxes.find((box) => box.testID === 'day-today-ring')!
     const disc = boxes.find((box) => box.testID === 'day-disc')!
-    expect(ring.width).toBe(44)
-    expect(ring.height).toBe(44)
+    expect(ring.width).toBe(34)
+    expect(ring.height).toBe(34)
     expect(disc.width).toBe(34)
     expect(disc.height).toBe(34)
     expect(ring.centerX).toBe(48.5)

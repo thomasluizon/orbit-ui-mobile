@@ -82,7 +82,7 @@ describe('Android day card geometry', () => {
         const fills = control.findAll((node: { type: unknown; props: { 'data-press-fill'?: string; 'data-slot'?: string } }) => node.type === 'View' && (node.props['data-press-fill'] !== undefined || node.props['data-slot'] === 'list-row-fill'))
         expect(fills).toHaveLength(1)
         const paint = StyleSheet.flatten(fills[0].props.style)
-        expect(paint).toMatchObject({ borderRadius: 12, top: 4, bottom: 4 })
+        expect(paint).toMatchObject({ borderRadius: 12, top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE })
         expect(paint.backgroundColor).not.toBe('transparent')
         TestRenderer.act(() => control.props.onPressOut())
         expect(StyleSheet.flatten(fills[0].props.style).backgroundColor).toBe('transparent')
@@ -146,8 +146,8 @@ describe('Android day card geometry', () => {
             const hitSlop = Number(nativeControl.props.hitSlop)
             expect(control.width).toBe(24)
             expect(control.height).toBe(24)
-            expect(control.width + hitSlop * 2).toBe(48)
-            expect(control.height + hitSlop * 2).toBe(48)
+            expect(control.width + hitSlop * 2).toBe(56)
+            expect(control.height + hitSlop * 2).toBe(56)
             expect(control.left - hitSlop).toBeGreaterThanOrEqual(row.right)
             const target = paints.find((part) => part.host.type === 'Pressable' && part.left === control.left && part.top === control.top)!
             const fill = paints.find((part) => part.ancestors.at(-1) === target.slot)!
@@ -239,7 +239,7 @@ describe('Android day card geometry', () => {
       expect(StyleSheet.flatten(host.children[2].props.style).gap).toBe(0)
       if (loggable) {
         const target = host.children[2].children[0]
-        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 0, paddingStart: 16, paddingEnd: 16, gap: 12 })
+        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 0, paddingStart: 16, paddingEnd: 16, gap: 16 })
         const titleStyle = StyleSheet.flatten(target.children[0].props.style)
         expect(titleStyle).toMatchObject({ minHeight: 68, paddingVertical: 12 })
         expect(titleStyle.marginVertical ?? 0).toBe(0)

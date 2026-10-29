@@ -6,7 +6,7 @@ import { HabitRowLeading } from '@/components/habits/habit-row-leading'
 import { Fragment, useMemo } from 'react'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
-import { PADDING, SPACING, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, PADDING, SPACING, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import type { TFunction } from 'i18next'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
@@ -288,7 +288,7 @@ function createStyles(tokens: Tokens) {
     copyBlock: { gap: 4 },
     rowList: { gap: 0 },
     habitDisclosure: { minHeight: 68, justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
-    habitFill: { position: 'absolute', top: SPACING.s4, bottom: SPACING.s4, left: SPACING.s4, right: SPACING.s4, borderRadius: 12 },
+    habitFill: { position: 'absolute', top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE, borderRadius: 12 },
     dayTitle: { fontFamily: 'Geist_500Medium', fontSize: 20 },
     summaryText: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
     emptyDayText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },

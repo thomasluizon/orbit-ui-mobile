@@ -1,7 +1,9 @@
 # Calendar day surfaces
 
 The day target spans its column and stays at least 44 high. DayCell owns the visible
-circle, capped at 44 and centred in the column, with a concentric 34 status mark.
+34px circle and concentric status mark, distributed inside the column's existing 44px
+allocation so adjacent discs retain at least 8px. Future and unavailable history numerals
+and loading placeholders use the same allocation on both platforms.
 The calendar drawing governs the geometry; existing fill tokens retain their roles.
 
 | Surface | Web owner | Android owner | States |

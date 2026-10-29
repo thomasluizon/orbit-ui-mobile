@@ -171,8 +171,8 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
     for (const label of ['Previous', 'Next']) {
       const control = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
       expect(StyleSheet.flatten(control.props.style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent' });
-      expect(StyleSheet.flatten(control.findAll((node: TestNode) => node.type === 'View' && node.props['data-press-fill'] !== undefined)[0]!.props.style)).toMatchObject({ borderWidth: 1.5, borderColor: themedTokens.hairlineStrong });
-      expectPressFill(tree, label, themedTokens.bgHover, 999);
+      expect(StyleSheet.flatten(control.props.style({ pressed: false }))).toMatchObject({ borderWidth: 1.5, borderColor: themedTokens.hairlineStrong });
+      expectPressFill(tree, label, themedTokens.bgHover, 9999);
     }
     const title = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'April, calendar.monthPicker')[0]!;
     expect(StyleSheet.flatten(title.props.style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent', borderRadius: 12 });
@@ -192,7 +192,7 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
     expect(hostTextValues(tree)).not.toContain(2026);
     const title = tree.root.findAll((node) => node.type === "Text" && Array.isArray(node.props.children) && node.props.children[0] === "April")[0];
     expect(StyleSheet.flatten(title?.props.style).fontSize).toBe(22);
-    for (const label of ['Previous month', 'Next month']) expectPressFill(tree, label, tokens.bgHover, 999);
+    for (const label of ['Previous month', 'Next month']) expectPressFill(tree, label, tokens.bgHover, 9999);
     expectPressFill(tree, 'April, calendar.monthPicker', tokens.bgHover, 12);
   });
 
@@ -247,7 +247,7 @@ describe("CalendarHeader period navigation (mobile)", () => {
     });
 
     expect(hostTextValues(tree!)).toContain("Apr 6 to Apr 12");
-    for (const label of ['Previous week', 'Next week']) expectPressFill(tree!, label, tokens.bgHover, 999);
+    for (const label of ['Previous week', 'Next week']) expectPressFill(tree!, label, tokens.bgHover, 9999);
     const current = tree!.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.period.goToCurrent:{"period":"Apr 6 to Apr 12"}')[0]!;
     expect.soft(current.props.hitSlop).toBeUndefined();
     expect.soft(StyleSheet.flatten(current.props.style({ pressed: false }))).toMatchObject({
@@ -276,13 +276,15 @@ describe('CalendarHeader shared navigation', () => {
     for (const width of [320, 412, 600, 840]) {
       const geometry = measureProfileRow(tree.toJSON().children![0] as Parameters<typeof measureProfileRow>[0], width, 1);
       expect(geometry.height).toBe(48);
-      expect(geometry.controls.every((control) => control.height >= 48)).toBe(true);
+      expect(geometry.controls.every((control) => control.targetWidth >= 48 && control.targetHeight >= 48)).toBe(true);
     }
     const controls = tree.root.findAll((node) => node.type === 'Pressable');
     expect(controls).toHaveLength(view === 'month' ? 4 : 3);
     for (const index of [0, controls.length - 1]) {
-      expect(StyleSheet.flatten(controls[index]!.props.style({ pressed: false }))).toMatchObject({ minHeight: 48, minWidth: 48, borderRadius: 999 });
-      expect(StyleSheet.flatten(controls[index]!.findAll((node: TestNode) => node.type === 'View' && node.props['data-press-fill'] !== undefined)[0]!.props.style)).toMatchObject({ borderWidth: 1.5, borderColor: tokens.hairlineStrong });
+      expect(StyleSheet.flatten(controls[index]!.props.style({ pressed: false }))).toMatchObject({ height: 44, width: 44, minHeight: 44, minWidth: 44, borderRadius: 9999, borderWidth: 1.5, borderColor: tokens.hairlineStrong });
+      expect(controls[index]!.props.hitSlop).toBe(2);
+      if (controls[index]!.props.disabled) expect(StyleSheet.flatten(controls[index]!.props.style({ pressed: true })).backgroundColor).toBe('transparent');
+      else expectPressFill(tree, index === 0 ? 'Previous' : 'Next', tokens.bgHover, 9999);
     }
     const title = StyleSheet.flatten(controls[1]!.props.style({ pressed: false }));
     expect(title).toMatchObject({ borderRadius: 12, backgroundColor: 'transparent', paddingHorizontal: view === 'month' ? 8 : 16, paddingVertical: 8 });

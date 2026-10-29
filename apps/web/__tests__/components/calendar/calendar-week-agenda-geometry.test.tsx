@@ -118,7 +118,7 @@ describe('Week and agenda geometry in Chromium', () => {
       }, todayIndex)
       expect(geometry.left).toBeCloseTo(scroller.scrollLeft, 1)
       expect(geometry.firstStart).toBeCloseTo(geometry.gutterEnd, 1)
-      expect(geometry.firstPaintStart - geometry.gutterEnd).toBeCloseTo(4, 1)
+      expect(geometry.firstPaintStart - geometry.gutterEnd).toBeCloseTo(8, 1)
       expect(geometry.todayStart).toBeGreaterThanOrEqual(geometry.gutterEnd - 0.5)
       if (measured.column <= measured.width - measured.gutter) expect(geometry.todayEnd).toBeLessThanOrEqual(geometry.viewportEnd + 0.5)
       expect(geometry.todayPaintEnd).toBeLessThanOrEqual(geometry.viewportEnd + 0.5)

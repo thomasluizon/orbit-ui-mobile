@@ -248,7 +248,7 @@ describe('ExpiryWarning', () => {
     await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onHoverOut as () => void)() })
     expect(actionStyle(instance)).toMatchObject({ backgroundColor: 'transparent' })
     await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onFocus as () => void)() })
-    expect(actionStyle(instance)).toMatchObject({ backgroundColor: 'transparent', outlineWidth: 2, outlineColor: tokens.fg1, outlineOffset: 2 })
+    expect(actionStyle(instance)).toMatchObject({ backgroundColor: 'transparent', outlineWidth: 2, outlineColor: tokens.fg1, outlineOffset: -2 })
     await TestRenderer.act(() => { (action(instance, i18n.t('auth.refresh')).props.onBlur as () => void)() })
     expect(actionStyle(instance)).toMatchObject({ backgroundColor: 'transparent' })
   })

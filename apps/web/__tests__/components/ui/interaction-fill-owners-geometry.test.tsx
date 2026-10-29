@@ -19,6 +19,7 @@ import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
+import { readControlHitArea } from '@/test-support/control-hit-area'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const cases = [320, 412, 600, 1024, 1352].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>
@@ -77,9 +78,9 @@ async function assertComposerRow(page: Page, messages: typeof en | typeof ptBR, 
   expect(geometry.lineTops.length).toBeLessThanOrEqual(2)
   for (const height of geometry.heights) expect(height).toBe(48)
   for (const [index, top] of geometry.lineTops.entries()) {
-    expect(top).toBeCloseTo(geometry.top + geometry.borderTop + 4 + index * 48, 1)
+    expect(top).toBeCloseTo(geometry.top + geometry.borderTop + 8 + index * 48, 1)
   }
-  expect(geometry.height).toBeCloseTo(geometry.lineTops.length * 48 + 8 + geometry.borderTop + geometry.borderBottom, 1)
+  expect(geometry.height).toBeCloseTo(geometry.lineTops.length * 48 + 16 + geometry.borderTop + geometry.borderBottom, 1)
 }
 
 function ownerSurfaces(messages: typeof en | typeof ptBR) {
@@ -165,8 +166,9 @@ describe('shared interaction fill owners in Chromium', () => {
       for (const control of await controls.all()) {
         await control.scrollIntoViewIfNeeded()
         const target = (await control.boundingBox())!
-        expect(target.width).toBeGreaterThanOrEqual(48)
-        expect(target.height).toBeGreaterThanOrEqual(48)
+        const hit = await control.evaluate(readControlHitArea)
+        expect(hit.width).toBeGreaterThanOrEqual(48)
+        expect(hit.height).toBeGreaterThanOrEqual(48)
         await reachState(page, control, state)
         await control.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
         const result = await control.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)

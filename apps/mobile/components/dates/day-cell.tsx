@@ -1,4 +1,5 @@
 import { MovingDaySelection } from './month-selection'
+import { DayColumnContent } from './day-column-content'
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useContext, useState } from 'react'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
@@ -12,7 +13,7 @@ type Tokens = ReturnType<typeof createTokensV2>
 
 type ContentsProps = Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens; pressed: boolean }>
 
-/** The translucent hover layer covers the round hit area below the day's foreground. */
+/** Feedback stays on the day disc inside its transparent target. */
 function PressFill({ size, tokens }: Readonly<{ size: number; tokens: Tokens }>) {
   return <View pointerEvents="none" testID="day-press-fill" style={[styles.pressFill, { borderRadius: size / 2, backgroundColor: tokens.bgHover }]} />
 }
@@ -83,11 +84,11 @@ function DayCellCircle({ props, size, tokens, pressed, focused }: Readonly<{ pro
   const ring = (props.today || props.selected || focused || props.focused) && !(props.selected && moving)
     ? <View pointerEvents="none" testID={props.today ? 'day-today-ring' : 'day-selection-ring'} style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.primary, borderWidth: 2 }]} />
     : null
-  return <View style={{ width: '100%', maxWidth: size }}><View testID="day-circle" style={[styles.container, { width: '100%', aspectRatio: 1, borderRadius: size / 2, overflow: 'hidden', backgroundColor }]}>
+  return <DayColumnContent><View testID="day-circle" style={[styles.container, { width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor }]}>
     {pressed && !props.selected ? <PressFill size={size} tokens={tokens} /> : null}
     {contents}
     {ring}
-  </View></View>
+  </View></DayColumnContent>
 }
 
 export function DayCell(props: Readonly<MobileDayCellProps>) {
@@ -103,7 +104,7 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
   const state = { ...props.accessibilityState, selected: props.selected, disabled: !props.loggable }
   const testID = `day-cell-${outcome}${props.outsideMonth ? '-outside-month' : ''}`
   const interacting = pressed || hovered || Boolean(props.pressed)
-  const circle = <DayCellCircle props={props} size={size} tokens={tokens} pressed={interacting} focused={focused} />
+  const circle = <DayCellCircle props={props} size={34} tokens={tokens} pressed={interacting} focused={focused} />
 
   if (interactive) {
     return <Pressable accessibilityRole="button" accessibilityLabel={buildDayCellAccessibleName(props, outcome)} accessibilityState={state}

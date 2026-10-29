@@ -88,7 +88,7 @@ function ColumnCheckRow({ label, checked, onChange, description, error, value, d
 }
 
 function personalLabelContentStyle(calendarDay: boolean) {
-  return { gap: 4, minHeight: calendarDay ? 68 : 48, paddingBlock: SPACING.s12 }
+  return { gap: 4, minHeight: calendarDay ? 68 : 56, paddingBlock: SPACING.s12 }
 }
 
 function personalControlStyle(selection: boolean) {
@@ -98,7 +98,7 @@ function personalControlStyle(selection: boolean) {
 function personalRowStyle(calendarDay: boolean, supportingText: boolean, placement: CheckRowProps['placement'], selection: boolean) {
   return { minHeight: calendarDay || supportingText ? 68 : 52, paddingInlineStart: SPACING.s16,
     paddingInlineEnd: calendarDay ? SPACING.s16 : SPACING.s4, marginInline: placement === 'column' ? -SPACING.s16 : undefined,
-    paddingBlock: SPACING.s0, gap: calendarDay ? SPACING.s12 : SPACING.s0, alignItems: selection ? 'flex-start' as const : undefined }
+    paddingBlock: SPACING.s0, gap: calendarDay ? SPACING.s16 : SPACING.s0, alignItems: selection ? 'flex-start' as const : undefined }
 }
 
 function personalContentClassName(leading: CheckRowProps['leading']) {
@@ -118,7 +118,7 @@ function PersonalCheckRow({ leading, label, selection = false, placement, varian
         {value !== undefined ? <span className={`font-mono ${calendarDay ? 'text-xs' : 'text-sm'} tabular-nums text-[var(--fg-2)]`}>{value}</span> : null}
         </span>
       </button>} />
-      <button type="button" role="checkbox" style={personalControlStyle(selection)} data-variant={variant} aria-label={label} aria-checked={checked} aria-busy={calendarDay ? loading : undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className={`orbit-check-row-control relative grid ${calendarDay ? 'size-6' : 'size-[48px]'} shrink-0 place-items-center rounded-[12px] border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-60`}>
+      <button type="button" role="checkbox" style={personalControlStyle(selection)} data-variant={variant} aria-label={label} aria-checked={checked} aria-busy={calendarDay ? loading : undefined} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className={`orbit-check-row-control relative grid ${calendarDay ? 'size-6' : 'size-[56px]'} shrink-0 place-items-center rounded-[12px] border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-60`}>
         <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill grid place-items-center p-2">
           {calendarDay ? <CircleIcon data-slot="calendar-day-circle" size={24} stroke={1.5} aria-hidden="true" focusable="false" className="text-[var(--fg-1)]" /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
         </span>

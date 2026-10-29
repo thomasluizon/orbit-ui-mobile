@@ -1,4 +1,4 @@
-import { MovingDaySelection, useMonthSelection } from './month-selection'
+import { DayColumnPosition, MovingDaySelection, useMonthSelection } from './month-selection'
 import { SelectionIndicator } from '@/components/ui/selection-indicator'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { Children } from 'react'
@@ -47,7 +47,7 @@ export function MonthGrid({
                 <View onLayout={(event) => selection.measureRow(rowIndex, event)} key={rowIndex} testID={`month-grid-row-${rowIndex}`} style={[styles.row, { columnGap: numericGap }]}>
                   {row.map((child, columnIndex) => (
                     <View onLayout={(event) => selection.measureCell(rowIndex * columns + columnIndex, event)} key={columnIndex} style={styles.cellSlot}>
-                      {child}
+                      <DayColumnPosition.Provider value={columns > 1 ? columnIndex / (columns - 1) : 0.5}>{child}</DayColumnPosition.Provider>
                     </View>
                   ))}
                   {Array.from({ length: columns - row.length }, (_, emptyIndex) => (

@@ -1,7 +1,7 @@
 'use client'
 
 import { Children, useId } from 'react'
-import { MovingDaySelection } from './month-selection'
+import { DayColumnPosition, MovingDaySelection } from './month-selection'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import type { MonthGridProps } from '@orbit/shared/contracts/dates'
 
@@ -51,7 +51,7 @@ export function MonthGrid({
         data-cols={loadingLabel ? columns : undefined}
         data-rows={loadingLabel ? Math.ceil(Children.count(children) / columns) : undefined}
       >
-        {children}
+        {Children.map(children, (child, index) => <DayColumnPosition.Provider value={columns > 1 ? (index % columns) / (columns - 1) : 0.5}>{child}</DayColumnPosition.Provider>)}
       </div>
     </div></MovingDaySelection.Provider>
   )

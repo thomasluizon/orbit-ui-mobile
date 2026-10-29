@@ -32,17 +32,17 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
     if (nextOpen) setFrequencyMenu(false)
     setMenuOpen(nextOpen)
   }
-  return <Menu.Root open={menuOpen} onOpenChange={changeMenuOpen}><DestinationHeaderRow data-today-header-actions="" gap={4} className="flex-wrap">
+  return <Menu.Root open={menuOpen} onOpenChange={changeMenuOpen}><DestinationHeaderRow data-today-header-actions="" gap={8} className="flex-wrap">
 
     <div className="flex-1" />
-    <div className="flex shrink-0 items-center gap-[4px]">
+    <div className="flex shrink-0 items-center gap-2">
       <button type="button" aria-label={props.searchLabel} aria-expanded={props.searchOpen} aria-controls={props.searchControlsId} onClick={props.onSearch}
         className={DATE_ICON_BUTTON_CLASS_NAME}><Search size={20} aria-hidden="true" /></button>
       <Menu.Trigger asChild><button ref={menuAnchorRef} type="button" aria-label={props.moreLabel} aria-expanded={menuOpen}
         aria-controls={menuId} className={DATE_ICON_BUTTON_CLASS_NAME}>
         <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
       </button></Menu.Trigger>
-      <div className="lg:hidden"><NotificationBell /></div>
+      <div className="flex min-h-12 items-center lg:hidden"><NotificationBell /></div>
     </div>
     <Menu.Content key={frequencyMenu ? 'frequency' : 'options'} id={menuId}
       title={frequencyMenu ? t('habits.frequencyFilter') : props.moreLabel}

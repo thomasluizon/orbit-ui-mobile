@@ -99,6 +99,7 @@ export function measureGrid(host: GeometryHost | GeometryHost[], width: number, 
       placeholders: placeholders.map(({ node, column, ancestors }) => ({
         center: ancestors.reduce((offset, ancestor) => offset + ancestor.getComputedLeft(), 0) + node.getComputedWidth() / 2,
         columnCenter: column.getComputedWidth() / 2,
+        discCenter: column.getComputedWidth() / 2 + (Math.min(44, column.getComputedWidth()) - 34) * (Array.from({ length: column.getParent()!.getChildCount() }, (_, index) => column.getParent()!.getChild(index)).findIndex(cell => Math.abs(cell.getComputedLeft() - column.getComputedLeft()) < 0.01) / 6 - 0.5),
         width: node.getComputedWidth(),
         columnWidth: column.getComputedWidth(),
       })),

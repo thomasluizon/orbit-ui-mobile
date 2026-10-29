@@ -12,7 +12,7 @@ export function AppBar({ title, titleVariant, onBack, backLabel, action, titleIs
   const titleClassName = `min-w-0 text-start text-[var(--fg-1)] ${titleVariant === 'screen' ? 't-h2 font-sans' : 'font-mono text-[12px] font-medium'}`
   const titleTranslate = titleIsBrandName ? 'no' : undefined
   return (
-    <header data-back={onBack ? true : undefined} className={`grid min-h-14 shrink-0 items-center gap-1 px-4 ${onBack ? 'grid-cols-[auto_1fr_auto]' : 'grid-cols-[1fr_auto]'}`}>
+    <header data-back={onBack ? true : undefined} className={`grid min-h-14 shrink-0 items-center gap-2 px-4 ${onBack ? 'grid-cols-[auto_1fr_auto]' : 'grid-cols-[1fr_auto]'}`}>
       {onBack && <div className="flex min-w-[var(--touch-min)] justify-start">
         <button type="button" aria-label={backLabel} onClick={onBack} className={APP_BAR_CONTROL_CLASS}>
           <ChevronLeft size={24} strokeWidth={2} aria-hidden="true" />

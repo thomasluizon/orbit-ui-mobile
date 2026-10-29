@@ -52,7 +52,7 @@ async function assertReadOnlyColumnRow(row: Locator) {
   })
   expect(geometry).toMatchObject({ tag: 'DIV', role: null, tabIndex: -1, radius: '12px', pointerEvents: 'none',
     minHeight: geometry.supporting ? '68px' : '52px', paddingStart: '12px', paddingEnd: '12px', border: 0, gap: 12 })
-  for (const [key, expected] of Object.entries({ contentStart: 0, contentEnd: 0, outsetStart: 12, outsetEnd: 12 })) {
+  for (const [key, expected] of Object.entries({ contentStart: 0, contentEnd: 0, outsetStart: 8, outsetEnd: 8 })) {
     expect(Math.abs(geometry[key as 'contentStart' | 'contentEnd' | 'outsetStart' | 'outsetEnd'] - expected), geometry.title).toBeLessThanOrEqual(0.5)
   }
   if (geometry.descriptionGap !== null) expect(Math.abs(geometry.descriptionGap - 4)).toBeLessThanOrEqual(0.5)
@@ -109,8 +109,8 @@ async function assertPersonalCheckRow(body: Locator) {
       border: parseFloat(style.borderBottomWidth), supporting: labelContent.children.length + label.children.length > 2 }
   })
   expect(Math.abs(geometry.start - 16)).toBeLessThanOrEqual(0.5)
-  expect(Math.abs(geometry.end - 16)).toBeLessThanOrEqual(0.5)
-  expect(geometry).toMatchObject({ minHeight: geometry.calendarDay || geometry.supporting ? '68px' : '52px', gap: 12, textGap: 4, border: 0 })
+  expect(Math.abs(geometry.end - (geometry.calendarDay ? 16 : 20))).toBeLessThanOrEqual(0.5)
+  expect(geometry).toMatchObject({ minHeight: geometry.calendarDay || geometry.supporting ? '68px' : '52px', gap: 16, textGap: 4, border: 0 })
   if (geometry.calendarDay) {
     await expect(body.locator('[data-slot="calendar-day-circle"]')).toHaveCount(1)
     await expect(body.locator('[data-slot="checkbox-box"]')).toHaveCount(0)
@@ -236,7 +236,7 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
           const body = control.closest('[data-slot="list-row-body"]')!.getBoundingClientRect()
           return body.right - box.right
         })
-        expect(Math.abs(inset - 16)).toBeLessThanOrEqual(0.5)
+        expect(Math.abs(inset - 20)).toBeLessThanOrEqual(0.5)
         await expectInteractionFill(checkbox)
         await expectInteractionFill(label)
         const importText = createTranslator({ locale, messages: words })('calendar.importButton', { count: 2 })

@@ -10,6 +10,7 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { setLayoutFixtureSession } from './profile-session'
 import { measureScrollbarGutter } from './scrollbar-geometry'
+import { readExpandedControlGeometry } from './expanded-control-geometry'
 
 async function waitForRoot(page: Page, root: string) {
   if (root === '/calendar') {
@@ -79,11 +80,13 @@ for (const locale of ['en', 'pt-BR'] as const) {
                 const geometry = await measureCount(bell)
                 const rowBounds = await row.boundingBox()
                 const columnBounds = await bell.locator('xpath=ancestor::*[@data-shell-column]').boundingBox()
-                expect(Math.abs(geometry.count.centerY - geometry.icon.centerY)).toBeLessThanOrEqual(1)
-                expect(geometry.count.top - rowBounds!.y).toBeGreaterThanOrEqual(4)
-                expect(geometry.count.left - geometry.icon.right).toBe(4)
-                expect(geometry.control.width).toBeGreaterThanOrEqual(48)
-                expect(geometry.control.height).toBeGreaterThanOrEqual(48)
+                expect(geometry.count.top).toBe(geometry.control.top)
+                expect(geometry.count.right).toBe(geometry.control.right)
+                expect(geometry.count.top).toBeGreaterThanOrEqual(rowBounds!.y)
+                const target = await bell.evaluate(readExpandedControlGeometry)
+                expect(target.width).toBeGreaterThanOrEqual(48)
+                expect(target.height).toBeGreaterThanOrEqual(48)
+                expect(target.edgeHits).toEqual([true, true, true, true])
                 expect(columnBounds!.x + columnBounds!.width - geometry.control.right - gutter).toBe(16)
                 todayRight ??= geometry.control.right
                 expect(Math.abs(geometry.control.right - todayRight)).toBeLessThanOrEqual(0.5)

@@ -1284,6 +1284,13 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | BlockFrame | the container every generative block inherits: five states, header count from `items.length`, one pinned action row, block scoped polite live region, no entrance animation | `ui/block-frame.tsx` | `ui/block-frame.tsx` |
 | Proposed | the tenth state wrapper: `--fg-3` inside an inset dashed hairline, radius 12 field / 8 row / 20 block, never the accent | `ui/proposed.tsx` | `ui/proposed.tsx` |
 
+Segmented view tracks retain 8px between full-segment fills, 8px segment inline padding and
+48px minimum targets. Their well has no inline padding and keeps 4px block padding. The paired
+`ui/segmented-control.tsx` owners measure those same insets; Android paints its 2px position ring
+as an absolute overlay so it consumes no label width. The four Portuguese calendar labels leave
+at least 8px spare in a 288px frame before spare width is shared among segments. Unit geometry
+cases compute that budget from the real labels, padding, gap and `getSegmentedControlLayout`.
+
 ## Overlay
 
 One primitive covers the drawer, sheet, dialog and modal. It presents as a bottom sheet below the `sm` breakpoint and as a centred dialog at `sm` and above. **83 callers inherit whatever this primitive gets wrong**, which is why the rules below are mechanical.
@@ -1418,7 +1425,7 @@ The painted row owns its background and inset-outline hover transition, using th
 
 - **One quiet metadata flow:** after title and optional description, type leads once with the existing Task/Tarefa or Habit/Hábito words at Geist Mono 12/400. Existing time, status and child-progress tokens retain their order. A nonempty stored checklist appends one decorative ListChecks icon and its actual checked/total count; duplicate entries count independently. Empty checklists add nothing and checking every item never logs the habit. Use the metadata foreground, a 16px icon normally or 24px above 130% text, with stroke width 1.5. Type and checklist counts stay whole, without ellipsis; tokens wrap and the row grows. When the measured inline depth boundary is reached or whole-token width exceeds the heading's text column, reuse the supporting footer and its first-title-line control alignment, restoring ordinary row centring when both width constraints fit at normal text. Primary and selection names expose type and localized Checklist progress once, with visual duplicates hidden.
 - **Stored description preview:** the canonical web and Android row renders title, then the existing description flattened by `stripInlineMarkdown`, then existing metadata. Omit the preview and its gap when normalization is empty; preserve the stored source. This explicitly requested person-authored content uses Geist Sans 14/400, line height 1.55, fg-3 at rest and the row's fg-2 interaction promotion, with the existing 4px content-stack gap. At default text it occupies one naturally ellipsized line; above 130% text it permits two lines and grows the row, wrapping oversized prose tokens as a last resort. Titles retain 17px root and 14px child sizes, their word-boundary rules and full-name access. Links and images contribute text labels only; URLs and HTML-looking text remain inert. The body opens the existing detail disclosure with full source and copy; the preview adds no action or request.
-- **One row feedback surface:** enabled body hover or press replaces the complete radius-20 row's resting fill with `bg-hover`. Body, completion, disclosure and overflow remain independent siblings; interacting with a separate control paints only that control. Fill clears content by at least 8px inline and 4px vertically, and neighbours by at least 4px. The 28px check and its own fill share the 48px target's centre within 1px; at default text that target centres on the actual row, including described rows. Large text retains first-title-line control alignment; parent supporting metadata follows the description at its depth-specific edge.
+- **One row feedback surface:** enabled body hover or press replaces the complete radius-20 row's resting fill with `bg-hover`. Body, completion, disclosure and overflow remain independent siblings; interacting with a separate control paints only that control. Fill clears content by at least 8px inline and 4px vertically, and neighbours by at least 8px. The 28px check and its own fill share the 48px target's centre within 0.5px; at default text that target centres on the actual row, including described rows. Large text retains first-title-line control alignment; parent supporting metadata follows the description at its depth-specific edge.
 
 - **Every habit row owns its bordered body:** current `--bg-card` surface fill plus an inset 1px `--hairline` border, radius 20, including parent and inline child rows. Family grouping adds no second fill or border. Keep 8px between rows inside a family in Hoje, Todos, Geral and filtered lists and 12px between families; habit detail child rows use 12px. The owner standard is “esse e o novo padrao dos habitos” on landing Figma rows `7:72` and `7:84`, file `aLwwyaY3Dtw1NVesAWsNO7`.
 - **Panel row height matches across kinds.** A single-row panel is sized to the same row height as a family's parent row.
@@ -1537,7 +1544,7 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 - At the desktop breakpoint, content composes **horizontally** where the surface calls for it. Calendário keeps one centred column inside the 740px content cap.
 - **The main content column caps at about 740px and is centred.** Narrower page columns also centre within their available shell container, retaining their caps and 16px child insets (#1570). Child text and figures keep their start alignment.
 - **The right stats rail is deleted** (D69). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. The full-screen conversation replaces the destination in the centred content column on wide web.
-- **Sidebar:** on the canvas background with a hairline as its only separation. The 48px brand row holds the lockup at the start, then the notification bell and collapse control at the trailing edge with a 12px gap between their icon-only targets. In the collapsed rail, the collapse control comes first, with the bell below it, both centred. The create button and compact account row stay grounded at the bottom. The account avatar centres on the adjacent name and email lines, with no reserved blank line or extra gap; loading reserves the same height as a one-line name and email.
+- **Sidebar:** on the canvas background with a hairline as its only separation. The 48px brand row holds the lockup at the start, then the notification bell and collapse control at the trailing edge. Both use IconButton's 44px round paint, centred glyph and transparent 2px hit extension, with a 12px paint gap and at least 8px from feedback to the lockup or sibling fill inside the existing 232px rail. In the 96px collapsed rail, the collapse control comes first, with the bell below it, both centred. The create button and compact account row stay grounded at the bottom. The account avatar centres on the adjacent name and email lines, with no reserved blank line or extra gap; loading reserves the same height as a one-line name and email.
 - Primary app sections are one click away in the desktop sidebar.
 - **Never hide core functionality at a breakpoint**, and keep one information architecture across every context. Adapt the layout, not the feature set.
 - **Match a feature's flow shape to its neighbours**, not just its surface.
@@ -1716,18 +1723,55 @@ control and takes a control's shape. Primary-filled actions use `--primary-hover
 `--primary-pressed` (`primaryPressed` on Android) on press. Press fills remain visible beside scale
 feedback, including when reduced motion suppresses the scale.
 Interaction fills and focus rings stay inside the control's laid-out box. An outward extension
-may use only the gap to the nearest neighbour minus 4px, the first spacing step. Keep at least
-4px between the painted fill and neighbouring content, including the page column edge.
+may use only the gap to the nearest neighbour minus 8px. Keep at least
+8px between the painted fill and neighbouring content, including the page column edge.
 `INTERACTION_FILL_CLEARANCE` in `packages/shared` owns that clearance for both platform guards.
 Reserve the extension in layout; a negative inset never grants permission to overlap.
-Grouped list rows inset their paint and single focus indicator by 4px without reducing the target.
+Grouped list rows inset their paint and single focus indicator by 8px without reducing the target.
 Month-navigation controls reserve clearance inside their unchanged targets. Composer actions keep
-the same gap between their targets. Touching calendar day rows inset their paint by 4px. Their body opens the habit detail for the selected date and reuses Hoje's emoji tile and monogram fallback; the 46px well and 12px block insets give short rows a 70px resting floor. The completion control remains independent. The title-only sheet is removed under #1858; habit detail supplies the full title. A labelled recurring switch at the top of the selected-day list shares the Options preference and filters its completion count.
+the same gap between their targets. Touching calendar day rows inset their paint by 8px. Their body opens the habit detail for the selected date and reuses Hoje's emoji tile and monogram fallback; the 46px well and 12px block insets give short rows a 70px resting floor. The completion control remains independent. The title-only sheet is removed under #1858; habit detail supplies the full title. A labelled recurring switch at the top of the selected-day list shares the Options preference and filters its completion count.
 Measure painted fills and visible text or graphics, excluding transparent hit areas.
-A grid cell may fill its own column and adjoin another cell, provided its paint and focus
-indicator stay inside that cell; this never permits paint over neighbouring content.
-Month and range grid day cells keep every hover, press, focus and selection paint inside their
-own column, with unchanged full-column targets, circular position rings and 34px status discs.
+Every icon-only glyph stays centred within 0.5px of its own painted surface on both axes.
+Geometry checks measure the 44px icon paint separately from its transparent 48px hit target.
+Personal checkbox fills centre their 24px glyph inside 40px paint with 8px internal padding.
+Their existing comfortable 56px target reserves 8px around the paint. Calendar-day controls
+retain their 24px layout width, with 16px transparent hit extensions and a 16px label gap.
+Calendar chevrons use the shared 44px ghost action with a 48px transparent target.
+Geometry assertions include its transparent extensions when enforcing the 48px target floor.
+Web `today-shell` and `calendar-options` reserve the full 48px bell row height,
+matching the shared destination header.
+Android `navigation/notification-bell` places its unread badge beside the shared icon action
+in a local unclipped wrapper. Its count stays in the single action's accessible name.
+The 44px centred paint, transparent 48px target and
+8px neighbour clearance remain unchanged; the badge text scales with the system setting.
+Web small icon actions already allow visible overflow, so their badge stays within the button.
+Web `today-shell` and Android `today-date-control` retain 8px gaps between header action fills.
+The month picker keeps 32px paint width around its 16px glyph, with 48px paint height
+and transparent inline extensions to 48px. Its group reserves 8px between paints and
+4px trailing padding so the next chevron target remains separate. Header back controls reserve an 8px title gap. Chip focus stays inset.
+The paired owners are `ui/check-row`, `ui/app-bar`, `ui/icon-button` and calendar `calendar-shell`; web chip
+focus geometry belongs to `app/globals.css` and mirrors the native inset focus primitive.
+Android day-detail disclosures use the shared 8px paint inset even when logging is unavailable.
+The Android composer measures both its ordinary and allowance placeholders at enlarged text,
+retaining the same field height through allowance transitions, as the web input grid does.
+A dense composite whose cells cannot reserve 8px paints feedback on its own mark instead of a
+cell box. Bar charts change their own bar to the selected-bar foreground on hover or held press;
+one keyboard indicator follows the padded moving readout and the radio's live `:focus-visible` state. Full-height transparent radio targets,
+selection, arrows, Home/End and Android accessibility actions stay unchanged, with every column
+visible and no horizontal scrolling. Month and range feedback and position rings use the existing
+34px discs. Their centres distribute across the row to retain 8px gaps inside unchanged transparent
+full-column targets. The paired owners are listed in `design/interaction-fill-surfaces.md`.
+Below 364px on web, the calendar destination's month and range grids reclaim exactly 4px
+from their trailing inset, changing it from 16px to 12px. The leading gutter stays 16px.
+The frame stays inside its containing column: a 316px shell client leaves a 288px grid
+for seven 34px discs at 320px, without horizontal overflow. The shell retains its usable
+4px scrollbar and stable gutter; compact calendars inside Astra keep their containing width.
+Habit history's past, future, unavailable and loading branches use the same distributed
+34px disc allocation on both platforms, preserving their transparent column widths.
+Read-only label rows retain each complete label while trailing choice groups shrink and wrap.
+The paired `ui/list-row` owners keep theme choices clear at enlarged text.
+Web menu item focus remains inset in its existing row fill. The shell isolates page stacking
+beneath portalled menus so a floating action cannot cover an opened menu item.
 
 A control with an opaque resting fill layers `--bg-hover-opaque` over that fill; dark resolves
 to `--bg-hover`, and light uses the stronger opaque-control hover value.

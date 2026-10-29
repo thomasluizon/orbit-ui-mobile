@@ -99,12 +99,17 @@ describe('CalendarGrid (mobile)', () => {
       expect(geometry.cardWidth).toBe(geometry.contentWidth)
       if (isLoading && view === 'month') expect(geometry.loadingRowWidth).toBe(geometry.contentWidth)
       for (const placeholder of geometry.placeholders) {
-        expect(Math.abs(placeholder.center - placeholder.columnCenter)).toBeLessThanOrEqual(0.5)
+        expect(Math.abs(placeholder.center - placeholder.discCenter)).toBeLessThanOrEqual(0.5)
         expect(placeholder.width).toBeLessThanOrEqual(placeholder.columnWidth + 0.5)
       }
       for (const circle of geometry.circles) {
+        expect(circle.right - circle.left).toBeCloseTo(34, 1)
         expect(circle.left, 'leading column containment').toBeGreaterThanOrEqual(circle.column.left - 0.1)
         expect(circle.right, 'trailing column containment').toBeLessThanOrEqual(circle.column.right + 0.1)
+      }
+      for (const [index, circle] of geometry.circles.entries()) {
+        const previous = geometry.circles[index - 1]
+        if (previous && circle.column.left > previous.column.left) expect(circle.left - previous.right).toBeGreaterThanOrEqual(8 - 0.01)
       }
       for (const disc of geometry.discs) {
         expect(disc.width).toBeLessThanOrEqual(disc.columnWidth + 0.5)
@@ -167,7 +172,7 @@ describe('CalendarGrid (mobile)', () => {
     const geometry = measureGrid(tree.toJSON(), 412, 'month', true)
     expect(geometry.slots).toHaveLength(7)
     expect(geometry.placeholders).toHaveLength(days.length)
-    for (const placeholder of geometry.placeholders) expect(placeholder.center).toBeCloseTo(placeholder.columnCenter, 4)
+    for (const placeholder of geometry.placeholders) expect(placeholder.center).toBeCloseTo(placeholder.discCenter, 4)
     expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'month-grid-header' }).props.style).opacity).toBe(0)
     expect(tree.root.findByProps({ testID: 'month-grid-header' }).findAll((node) => node.type === 'Text').map((node) => node.props.children)).toEqual(['M', 'T', 'W', 'T', 'F', 'S', 'S'])
   })
@@ -203,7 +208,7 @@ describe('CalendarGrid (mobile)', () => {
 
     const shapes = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape')
     expect(shapes).toHaveLength(days.length)
-    for (const shape of shapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 44, height: 44, gap: 0 })
+    for (const shape of shapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 34, height: 34, gap: 0 })
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')).toHaveLength(1)
     expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'month-grid-header' }).props.style).opacity).toBe(0)
     expect(tree.root.findAll((node) => node.props.testID === 'calendar-day-skeleton')).toHaveLength(0)

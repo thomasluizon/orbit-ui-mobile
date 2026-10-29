@@ -79,7 +79,7 @@ describe('press shape hover sampling in Chromium', () => {
         const control = page.getByRole('button', { name: label, exact: true })
         await expectFullTouchTarget(control, radius, '--bg-hover')
       }
-      await page.addStyleTag({ content: '.orbit-calendar-nav-control::before { inset: 8px; }' })
+      await page.addStyleTag({ content: 'button[aria-label="Previous month"]:hover::before { content: ""; position: absolute; inset: 8px; border-radius: inherit; background: var(--bg-hover); pointer-events: none; }' })
       await expect(expectFullTouchTarget(page.getByRole('button', { name: 'Previous month', exact: true }), 'pill', '--bg-hover'))
         .rejects.toThrow('the fill reaches the left paint edge')
     } finally { await page.close() }
