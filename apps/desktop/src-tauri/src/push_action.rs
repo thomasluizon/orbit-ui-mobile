@@ -1,7 +1,7 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{future::Future, time::Duration};
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Reminder {
     pub url: Option<String>,
@@ -14,6 +14,20 @@ pub struct Reminder {
 pub enum Response {
     Open(Option<String>),
     Done(Reminder),
+}
+
+#[cfg(any(windows, test))]
+#[derive(Deserialize, Serialize)]
+pub struct WindowsNotice {
+    pub owner: String,
+    pub reminder: Reminder,
+}
+
+#[cfg(any(windows, test))]
+pub fn notification_activation(arguments: &[String]) -> bool {
+    arguments
+        .iter()
+        .any(|argument| argument == "----AppNotificationActivated:")
 }
 
 impl Reminder {
@@ -157,6 +171,23 @@ mod tests {
             assert_eq!(
                 request.body().unwrap().as_bytes().unwrap(),
                 br#"{"token":"one-use-token"}"#
+            );
+        }
+    }
+
+    #[test]
+    fn only_the_windows_sdk_toast_activation_defers_startup_visibility() {
+        for (arguments, expected) in [
+            (vec!["Orbit.exe", "----AppNotificationActivated:"], true),
+            (vec!["Orbit.exe"], false),
+            (vec!["Orbit.exe", "--autostart"], false),
+            (vec!["Orbit.exe", "org.useorbit.desktop://habits"], false),
+        ] {
+            assert_eq!(
+                notification_activation(
+                    &arguments.into_iter().map(String::from).collect::<Vec<_>>()
+                ),
+                expected
             );
         }
     }

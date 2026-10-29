@@ -47,6 +47,21 @@ fn restore(host: &impl DesktopHost) -> tauri::Result<()> {
     host.focus()
 }
 
+pub fn create_main(
+    mut config: tauri::utils::config::WindowConfig,
+    notification_launch: bool,
+    build: impl FnOnce(&tauri::utils::config::WindowConfig) -> tauri::Result<()>,
+    show: impl FnOnce() -> tauri::Result<()>,
+) -> tauri::Result<()> {
+    config.visible = false;
+    config.focus = false;
+    build(&config)?;
+    if !notification_launch {
+        show()?;
+    }
+    Ok(())
+}
+
 fn hide_to_tray(host: &impl DesktopHost) -> tauri::Result<()> {
     host.save_geometry();
     host.hide()
@@ -221,5 +236,114 @@ mod tests {
         assert!(flags.contains(StateFlags::FULLSCREEN));
         assert!(!flags.contains(StateFlags::VISIBLE));
         assert!(!flags.contains(StateFlags::DECORATIONS));
+    }
+
+    #[test]
+    fn cold_notification_launch_stays_hidden_through_creation_and_session_restoration() {
+        assert_cold_notification_launch(false);
+        assert_cold_notification_launch(true);
+    }
+
+    fn assert_cold_notification_launch(windows: bool) {
+        use crate::{
+            push_action,
+            push_state::{PushSession, PushState},
+        };
+
+        for (done, accepted, response_before_creation) in [
+            (true, true, true),
+            (true, true, false),
+            (true, false, true),
+            (true, false, false),
+            (false, true, true),
+            (false, true, false),
+            (false, false, true),
+            (false, false, false),
+        ] {
+            let directory = tempfile::tempdir().unwrap();
+            let mut saved = PushState::load(&directory.path().join("push.json")).unwrap();
+            saved.owner = Some("account-a".into());
+            let mut session = PushSession::default();
+            let payload = r#"{"body":{"habitId":"11111111-1111-4111-8111-111111111111","doneToken":"one-use-token","url":"/"}}"#;
+            let response = |session: &mut PushSession| {
+                if windows {
+                    let Some(push_action::Response::Done(reminder)) =
+                        push_action::apns_response(payload, true)
+                    else {
+                        panic!("repeat payload must carry a reminder");
+                    };
+                    let notice = push_action::WindowsNotice {
+                        owner: "account-a".into(),
+                        reminder,
+                    };
+                    session.windows_response(&saved, &serde_json::to_string(&notice).unwrap(), done)
+                } else {
+                    session.response(&saved, payload, done)
+                }
+            };
+            if response_before_creation {
+                assert_eq!(response(&mut session), None);
+            }
+            let host = Host::hidden();
+            let config = super::super::context().config().app.windows[0].clone();
+            create_main(
+                config,
+                true,
+                |config| {
+                    host.visible.set(config.visible);
+                    host.focused.set(config.focus && config.visible);
+                    Ok(())
+                },
+                || restore(&host),
+            )
+            .unwrap();
+            assert!(
+                !host.visible.get(),
+                "notification startup showed the window"
+            );
+            assert!(!host.focused.get());
+            if !response_before_creation {
+                assert_eq!(response(&mut session), None);
+            }
+            assert_eq!(session.restore(None, &saved), None);
+            assert!(!host.visible.get());
+            let response = session.restore(Some("account-a".into()), &saved).unwrap();
+            let mut posts = Vec::new();
+            let destination =
+                tauri::async_runtime::block_on(push_action::resolve(response, |token| {
+                    posts.push(token);
+                    async { accepted }
+                }));
+            if let Some(destination) = destination {
+                assert_eq!(
+                    destination.as_deref(),
+                    Some("/habits/11111111-1111-4111-8111-111111111111")
+                );
+                restore(&host).unwrap();
+            }
+            assert_eq!(posts.len(), usize::from(done));
+            assert_eq!(host.visible.get(), !done || !accepted);
+            assert_eq!(host.focused.get(), !done || !accepted);
+            assert_eq!(session.restore(Some("account-a".into()), &saved), None);
+        }
+    }
+
+    #[test]
+    fn ordinary_launch_creates_and_restores_the_main_window() {
+        let host = Host::hidden();
+        let config = super::super::context().config().app.windows[0].clone();
+        create_main(
+            config,
+            false,
+            |config| {
+                host.visible.set(config.visible);
+                Ok(())
+            },
+            || restore(&host),
+        )
+        .unwrap();
+        assert!(host.visible.get());
+        assert!(host.focused.get());
+        assert!(!host.minimized.get());
     }
 }

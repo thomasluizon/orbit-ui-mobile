@@ -5,13 +5,19 @@ static INITIALIZED: OnceLock<()> = OnceLock::new();
 
 pub fn show(
     notice: &crate::push_state::RawNotice,
-    id: i32,
+    owner: String,
     labels: &crate::localization::Labels,
 ) -> Result<(), String> {
     let title = CString::new(notice.title.as_str()).map_err(|error| error.to_string())?;
     let body =
         CString::new(notice.body.as_deref().unwrap_or("")).map_err(|error| error.to_string())?;
-    let identifier = CString::new(id.to_string()).map_err(|error| error.to_string())?;
+    let notice = crate::push_action::WindowsNotice {
+        owner,
+        reminder: notice.reminder.clone(),
+    };
+    let activation =
+        CString::new(serde_json::to_string(&notice).map_err(|error| error.to_string())?)
+            .map_err(|error| error.to_string())?;
     let done = notice
         .reminder
         .done_token
@@ -29,7 +35,7 @@ pub fn show(
         orbit_push_show(
             title.as_ptr(),
             body.as_ptr(),
-            identifier.as_ptr(),
+            activation.as_ptr(),
             done,
             label.as_ptr(),
         )
@@ -37,6 +43,14 @@ pub fn show(
         Ok(())
     } else {
         Err("Cannot show Windows reminder".into())
+    }
+}
+
+pub fn activate() -> Result<(), String> {
+    if unsafe { orbit_push_activate() } {
+        Ok(())
+    } else {
+        Err("Cannot read Windows notification activation".into())
     }
 }
 
@@ -91,10 +105,11 @@ pub fn initialize(
 }
 
 unsafe extern "C" {
+    fn orbit_push_activate() -> bool;
     fn orbit_push_show(
         title: *const std::ffi::c_char,
         body: *const std::ffi::c_char,
-        identifier: *const std::ffi::c_char,
+        activation: *const std::ffi::c_char,
         done: bool,
         label: *const std::ffi::c_char,
     ) -> bool;

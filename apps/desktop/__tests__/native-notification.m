@@ -29,8 +29,30 @@ static void capture(int kind, const unsigned char *bytes, size_t length) {
 - (id)content { return self; }
 @end
 
+@interface LaunchDelegate : NSObject
+@property BOOL expectedNotificationLaunch;
+@property BOOL launched;
+@end
+@implementation LaunchDelegate
+- (void)applicationDidFinishLaunching:(NSNotification *)notification {
+    (void)notification;
+    assert(orbit_push_notification_launch() == self.expectedNotificationLaunch);
+    self.launched = YES;
+}
+@end
+
 int main(void) {
     @autoreleasepool {
+        LaunchDelegate *launch = [LaunchDelegate new];
+        assert(prepare_launch(launch));
+        for (NSNumber *notificationLaunch in @[@YES, @NO]) {
+            launch.expectedNotificationLaunch = notificationLaunch.boolValue;
+            launch.launched = NO;
+            NSDictionary *launchOptions = notificationLaunch.boolValue
+                ? @{NSApplicationLaunchUserNotificationKey: [NSUserNotification new]} : @{};
+            [launch applicationDidFinishLaunching:[NSNotification notificationWithName:NSApplicationDidFinishLaunchingNotification object:nil userInfo:launchOptions]];
+            assert(launch.launched);
+        }
         captured = [CapturedCenter new];
         Method center = class_getClassMethod(UNUserNotificationCenter.class, @selector(currentNotificationCenter));
         method_setImplementation(center, (IMP)current_center);

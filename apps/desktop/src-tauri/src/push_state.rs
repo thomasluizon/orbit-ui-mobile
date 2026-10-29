@@ -53,6 +53,14 @@ impl PushSession {
         done: bool,
     ) -> Option<crate::push_action::Response> {
         let destination = crate::push_action::apns_response(payload, done)?;
+        self.respond(saved, destination)
+    }
+
+    pub fn respond(
+        &mut self,
+        saved: &PushState,
+        destination: crate::push_action::Response,
+    ) -> Option<crate::push_action::Response> {
         if self.owns(saved) {
             return Some(destination);
         }
@@ -62,6 +70,20 @@ impl PushSession {
             }
         }
         None
+    }
+
+    #[cfg(any(windows, test))]
+    pub fn windows_response(
+        &mut self,
+        saved: &PushState,
+        payload: &str,
+        done: bool,
+    ) -> Option<crate::push_action::Response> {
+        let notice: crate::push_action::WindowsNotice = serde_json::from_str(payload).ok()?;
+        if saved.owner.as_deref() != Some(&notice.owner) {
+            return None;
+        }
+        self.respond(saved, notice.reminder.response(done))
     }
 }
 
@@ -281,6 +303,31 @@ mod tests {
             PushState::load(&path).unwrap().language.as_deref(),
             Some("pt-BR")
         );
+    }
+
+    #[test]
+    fn windows_toast_arguments_survive_restart_and_only_restore_their_owner() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut saved = PushState::load(&directory.path().join("push.json")).unwrap();
+        saved.owner = Some("account-a".into());
+        let notice = crate::push_action::WindowsNotice {
+            owner: "account-a".into(),
+            reminder: crate::push_action::Reminder {
+                habit_id: Some("11111111-1111-4111-8111-111111111111".parse().unwrap()),
+                done_token: Some("one-use-token".into()),
+                ..Default::default()
+            },
+        };
+        let payload = serde_json::to_string(&notice).unwrap();
+        let mut session = PushSession::default();
+        assert_eq!(session.windows_response(&saved, &payload, true), None);
+        assert_eq!(session.restore(Some("account-b".into()), &saved), None);
+        assert_eq!(session.restore(Some("account-a".into()), &saved), None);
+        let mut session = PushSession::default();
+        saved.owner = Some("account-b".into());
+        assert_eq!(session.windows_response(&saved, &payload, true), None);
+        assert_eq!(session.restore(Some("account-b".into()), &saved), None);
+        assert_eq!(session.windows_response(&saved, "invalid", true), None);
     }
 
     #[test]

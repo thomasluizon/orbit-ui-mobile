@@ -25,15 +25,20 @@ mod web_release;
 fn main() {
     let context = context();
     let identifier = context.config().identifier.clone();
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "macos")]
+    let builder = builder.activate_ignoring_other_apps(false);
+    let app = builder
         .invoke_handler(tauri::generate_handler![
             desktop_login::commit_desktop_login,
             push::desktop_push,
             updates::desktop_update
         ])
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            if let Err(error) = lifecycle::show_main(app) {
-                eprintln!("Cannot restore desktop window: {error}");
+        .plugin(tauri_plugin_single_instance::init(|app, _arguments, _| {
+            if !push::notification_activation(&_arguments) {
+                if let Err(error) = lifecycle::show_main(app) {
+                    eprintln!("Cannot restore desktop window: {error}");
+                }
             }
         }))
         .plugin(tauri_plugin_deep_link::init())
@@ -72,42 +77,52 @@ fn main() {
             if let Some(destination) = update_resume::take(app.handle(), origin)? {
                 window_config.url = tauri::utils::config::WebviewUrl::External(destination);
             }
-            tauri::WebviewWindowBuilder::from_config(app, &window_config)?
-                .initialization_script(web_release::initialization_script(
-                    origin,
-                    &app.package_info().version.to_string(),
-                ))
-                .on_navigation(move |url| {
-                    if auth::intercepts(&navigation_origin, url) {
-                        desktop_login::start(handle.clone(), flow.clone());
-                        return false;
-                    }
-                    true
-                })
-                .on_new_window(|url, _features| {
-                    open_new_window(url, |url| tauri_plugin_opener::open_url(url, None::<&str>))
-                })
-                .build()?;
-            lifecycle::show_main(app.handle())?;
+            lifecycle::create_main(
+                window_config,
+                push::notification_launch(),
+                |window_config| {
+                    tauri::WebviewWindowBuilder::from_config(app, window_config)?
+                        .initialization_script(web_release::initialization_script(
+                            origin,
+                            &app.package_info().version.to_string(),
+                        ))
+                        .on_navigation(move |url| {
+                            if auth::intercepts(&navigation_origin, url) {
+                                desktop_login::start(handle.clone(), flow.clone());
+                                return false;
+                            }
+                            true
+                        })
+                        .on_new_window(|url, _features| {
+                            open_new_window(url, |url| {
+                                tauri_plugin_opener::open_url(url, None::<&str>)
+                            })
+                        })
+                        .build()?;
+                    Ok(())
+                },
+                || lifecycle::show_main(app.handle()),
+            )?;
             desktop_login::attach_callbacks(app.handle(), callbacks_flow)?;
             updates::start(app.handle())?;
             Ok(())
         })
         .build(context)
-        .expect("desktop application failed")
-        .run(|_app, _event| {
-            if let tauri::RunEvent::ExitRequested { code, api, .. } = &_event {
-                if *code != Some(tauri::RESTART_EXIT_CODE) && updates::request_quit(_app) {
-                    api.prevent_exit();
-                }
+        .expect("desktop application failed");
+    push::prepare_launch();
+    app.run(|_app, _event| {
+        if let tauri::RunEvent::ExitRequested { code, api, .. } = &_event {
+            if *code != Some(tauri::RESTART_EXIT_CODE) && updates::request_quit(_app) {
+                api.prevent_exit();
             }
-            #[cfg(target_os = "macos")]
-            if let tauri::RunEvent::Reopen { .. } = _event {
-                if let Err(error) = lifecycle::show_main(_app) {
-                    eprintln!("Cannot reopen desktop window: {error}");
-                }
+        }
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Reopen { .. } = _event {
+            if let Err(error) = lifecycle::show_main(_app) {
+                eprintln!("Cannot reopen desktop window: {error}");
             }
-        });
+        }
+    });
 }
 
 fn open_new_window(

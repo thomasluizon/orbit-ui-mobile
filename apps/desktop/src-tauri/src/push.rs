@@ -8,9 +8,6 @@ use std::{
 };
 use tauri::{AppHandle, Manager, WebviewWindow};
 
-#[cfg(windows)]
-type ShownNotifications = std::collections::HashMap<i32, (String, crate::push_action::Reminder)>;
-
 struct PushService {
     path: PathBuf,
     saved: Mutex<PushState>,
@@ -19,11 +16,31 @@ struct PushService {
     operation: Mutex<()>,
     response: Mutex<Option<mpsc::Sender<(i32, String)>>>,
     app: AppHandle,
-    #[cfg(windows)]
-    shown: Mutex<ShownNotifications>,
 }
 
 static SERVICE: OnceLock<PushService> = OnceLock::new();
+
+pub fn prepare_launch() {
+    #[cfg(target_os = "macos")]
+    assert!(
+        unsafe { orbit_push_prepare_launch() },
+        "Cannot observe desktop launch"
+    );
+}
+
+pub fn notification_activation(_arguments: &[String]) -> bool {
+    #[cfg(windows)]
+    return crate::push_action::notification_activation(_arguments);
+    #[cfg(not(windows))]
+    false
+}
+
+pub fn notification_launch() -> bool {
+    #[cfg(target_os = "macos")]
+    return unsafe { orbit_push_notification_launch() };
+    #[cfg(windows)]
+    return notification_activation(&std::env::args().collect::<Vec<_>>());
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -60,8 +77,6 @@ pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             operation: Mutex::new(()),
             response: Mutex::new(None),
             app: app.clone(),
-            #[cfg(windows)]
-            shown: Mutex::new(std::collections::HashMap::new()),
         })
         .map_err(|_| "Push service already initialized")?;
     #[cfg(target_os = "macos")]
@@ -80,6 +95,26 @@ pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 .as_deref()
                 .unwrap_or(&sys_locale::get_locale().unwrap_or_default()),
         )?;
+    }
+    #[cfg(windows)]
+    if notification_launch() {
+        tauri::async_runtime::spawn_blocking(|| {
+            let service = SERVICE.get().unwrap();
+            let _operation = service.operation.lock().unwrap();
+            if let Err(error) = crate::push_windows::initialize(&service.app, receive)
+                .and_then(|()| crate::push_windows::activate())
+            {
+                eprintln!("Cannot handle desktop notification launch: {error}");
+                let app = service.app.clone();
+                if let Err(error) = service.app.run_on_main_thread(move || {
+                    if let Err(error) = crate::lifecycle::show_main(&app) {
+                        eprintln!("Cannot restore desktop window: {error}");
+                    }
+                }) {
+                    eprintln!("Cannot schedule desktop window restoration: {error}");
+                }
+            }
+        });
     }
     Ok(())
 }
@@ -287,8 +322,6 @@ fn clear_registration(service: &PushService, account: Option<String>) -> Result<
     drop(session);
     if !enabled {
         *service.candidate.lock().unwrap() = None;
-        #[cfg(windows)]
-        service.shown.lock().unwrap().clear();
         if !unsafe { orbit_push_stop() } {
             return Err("Cannot stop native push registration".into());
         }
@@ -366,14 +399,14 @@ fn receive_value(kind: i32, payload: String) {
             }
         }
         #[cfg(windows)]
-        if let Ok(id) = payload.parse::<i32>() {
-            let notice = service.shown.lock().unwrap().remove(&id);
-            if let Some((owner, reminder)) = notice {
-                if owns_session(service)
-                    && service.saved.lock().unwrap().owner.as_deref() == Some(&owner)
-                {
-                    dispatch_response(service, reminder.response(kind == 8));
-                }
+        {
+            let destination = service.session.lock().unwrap().windows_response(
+                &service.saved.lock().unwrap(),
+                &payload,
+                kind == 8,
+            );
+            if let Some(response) = destination {
+                dispatch_response(service, response);
             }
         }
     } else if let Some(sender) = service.response.lock().unwrap().as_ref() {
@@ -390,16 +423,9 @@ fn received_payload(service: &PushService, payload: &str) {
         let Ok(payload) = serde_json::from_str::<crate::push_state::RawNotice>(payload) else {
             return;
         };
-        static NEXT_ID: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(1);
-        let id = NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let Some(owner) = service.saved.lock().unwrap().owner.clone() else {
             return;
         };
-        service
-            .shown
-            .lock()
-            .unwrap()
-            .insert(id, (owner, payload.reminder.clone()));
         let language = service
             .saved
             .lock()
@@ -408,8 +434,7 @@ fn received_payload(service: &PushService, payload: &str) {
             .clone()
             .unwrap_or_else(|| "en".into());
         let labels = crate::localization::Labels::new(&language);
-        if let Err(error) = crate::push_windows::show(&payload, id, &labels) {
-            service.shown.lock().unwrap().remove(&id);
+        if let Err(error) = crate::push_windows::show(&payload, owner, &labels) {
             eprintln!("Cannot show desktop reminder: {error}");
         }
     }
@@ -518,6 +543,10 @@ fn open(app: &AppHandle, url: Option<&str>) {
 }
 
 unsafe extern "C" {
+    #[cfg(target_os = "macos")]
+    fn orbit_push_prepare_launch() -> bool;
+    #[cfg(target_os = "macos")]
+    fn orbit_push_notification_launch() -> bool;
     #[cfg(target_os = "macos")]
     fn orbit_push_category(title: *const std::ffi::c_char);
     #[cfg(target_os = "macos")]

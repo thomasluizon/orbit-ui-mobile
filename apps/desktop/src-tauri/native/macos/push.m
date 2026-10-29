@@ -8,6 +8,33 @@ typedef void (*OrbitPushCallback)(int, const unsigned char *, size_t);
 static OrbitPushCallback callback;
 static BOOL installed;
 static atomic_bool active;
+static BOOL notificationLaunch;
+static void (*originalDidFinishLaunching)(id, SEL, NSNotification *);
+
+static void did_finish_launching(id delegate, SEL selector, NSNotification *notification) {
+    notificationLaunch = notification.userInfo[NSApplicationLaunchUserNotificationKey] != nil;
+    originalDidFinishLaunching(delegate, selector, notification);
+}
+
+static BOOL prepare_launch(id delegate) {
+    Class delegateClass = object_getClass(delegate);
+    SEL selector = @selector(applicationDidFinishLaunching:);
+    Method method = class_getInstanceMethod(delegateClass, selector);
+    if (!method) return NO;
+    originalDidFinishLaunching = (void (*)(id, SEL, NSNotification *))method_getImplementation(method);
+    if (!class_addMethod(delegateClass, selector, (IMP)did_finish_launching, method_getTypeEncoding(method))) {
+        method_setImplementation(method, (IMP)did_finish_launching);
+    }
+    return YES;
+}
+
+BOOL orbit_push_prepare_launch(void) {
+    return prepare_launch(NSApp.delegate);
+}
+
+BOOL orbit_push_notification_launch(void) {
+    return notificationLaunch;
+}
 
 static void emit(int kind, NSString *payload) {
     NSData *bytes = [payload dataUsingEncoding:NSUTF8StringEncoding];

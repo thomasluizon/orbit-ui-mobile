@@ -90,6 +90,14 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     const permissions = config.app.security.capabilities.flatMap((capability) => capability.permissions)
     expect(permissions).toEqual(['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update'])
   })
+
+  it('observes native launch intent before startup and gates window creation with it', () => {
+    const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
+    expect(entrypoint).toMatch(/\.build\(context\)[\s\S]*push::prepare_launch\(\);\s*app\.run\(/)
+    expect(entrypoint).toMatch(/lifecycle::create_main\(\s*window_config,\s*push::notification_launch\(\)/)
+    expect(entrypoint).toContain('.activate_ignoring_other_apps(false)')
+    expect(entrypoint).toContain('if !push::notification_activation(&_arguments)')
+  })
 })
 
 describe.each(environments)('$name release', ({ name, origin }) => {
