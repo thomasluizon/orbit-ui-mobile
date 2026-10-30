@@ -467,7 +467,7 @@ export const HabitRow = memo(function HabitRow({
 
   return (
     <Menu.Root open={menuVisible} onOpenChange={setMenuVisible}><View onLayout={measureRow} style={habitRowSpacing(depth, panelEnd)}>
-      <HabitRowLayout depth={depth} descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
+      <HabitRowLayout habitTitle={habit.title} depth={depth} descriptionPresent={Boolean(description)} isChild={isChild} supportingMeta={supportingMeta}
         rowStyle={[rowStyle, style]} outlineColor={bodyPressFeedback.outlineColor} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
         metaColor={bodyPressFeedback.metaColor} largeText={largeText} onTokenWidth={onTokenWidth} tokens={tokens}>
         {rowContents}
@@ -489,7 +489,8 @@ function rowMenuTitleMode(title: string | null | undefined) {
   return title ? 'typed' : 'label'
 }
 
-function HabitRowLayout({ depth, descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, largeText, onTokenWidth, tokens, children }: Readonly<{
+function HabitRowLayout({ habitTitle, depth, descriptionPresent, isChild, supportingMeta, rowStyle, outlineColor, primaryButton, primaryContent, metaParts, metaColor, largeText, onTokenWidth, tokens, children }: Readonly<{
+  habitTitle: string
   depth: number
   descriptionPresent: boolean
   isChild: boolean
@@ -506,7 +507,7 @@ function HabitRowLayout({ depth, descriptionPresent, isChild, supportingMeta, ro
   children: ReactNode
 }>) {
   return (
-    <View testID="habit-row" style={[supportingMeta ? null : [styles.row, { gap: SPACING.s0 }], rowStyle]}>
+    <View testID="habit-row" role="group" accessibilityLabel={habitTitle} style={[supportingMeta ? null : [styles.row, { gap: SPACING.s0 }], rowStyle]}>
       {supportingMeta ? primaryButton : null}
       {supportingMeta ? (
         <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? SPACING.s4 : SPACING.s8, paddingBottom: descriptionPresent ? SPACING.s4 : undefined }]}>

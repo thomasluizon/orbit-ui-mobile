@@ -1756,6 +1756,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     if (view === 'all') return <>
       <ContentFade key="all" fill><FlatList
         ref={allListRef}
+        accessibilityLabel={t('habits.sectionLabel')}
         onFocus={revealListFocus}
         testID="habit-list-all"
         onLayout={measureList}
@@ -1784,6 +1785,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <ContentFade key="habits" fill><DraggableFlatList
           {...cellMotion}
           ref={scrollContainerRef}
+          accessibilityLabel={t('habits.sectionLabel')}
           onLayout={measureList}
           onFocus={revealListFocus}
           data={activeDragItems}

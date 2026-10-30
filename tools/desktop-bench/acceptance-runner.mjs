@@ -103,7 +103,13 @@ async function updateServer(repository, output, shell, report) {
 
 async function inspectSurfaces(proxy, native, handle, output, report) {
   const dump = async (surface) => {
-    const tree = await native(handle.child.pid, 'dump')
+    let tree
+    try {
+      tree = await native(handle.child.pid, 'dump')
+    } catch (error) {
+      await record(join(output, 'trees', `${surface}.json`), { denied: false, error: error.message, nodes: [] })
+      throw error
+    }
     await record(join(output, 'trees', `${surface}.json`), tree)
     report.accessibility[surface] = assertAccessibleTree(tree, process.platform)
     return tree

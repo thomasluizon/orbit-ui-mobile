@@ -33,6 +33,14 @@ function Read-Element($element, [string]$path) {
     id = $path; role = $role; name = $current.Name
     interactive = ($current.IsKeyboardFocusable -or ($interactiveRoles -contains $role))
     focused = $current.HasKeyboardFocus; selected = ($selection -eq $true)
+    AutomationId = $current.AutomationId; ClassName = $current.ClassName; FrameworkId = $current.FrameworkId
+    IsOffscreen = $current.IsOffscreen; IsEnabled = $current.IsEnabled; IsKeyboardFocusable = $current.IsKeyboardFocusable
+    IsControlElement = $current.IsControlElement; IsContentElement = $current.IsContentElement
+    LocalizedControlType = $current.LocalizedControlType
+    BoundingRectangle = @{
+      X = $current.BoundingRectangle.X; Y = $current.BoundingRectangle.Y
+      Width = $current.BoundingRectangle.Width; Height = $current.BoundingRectangle.Height
+    }
   })
   $walker = [System.Windows.Automation.TreeWalker]::RawViewWalker
   $child = $walker.GetFirstChild($element)
@@ -43,5 +51,6 @@ function Read-Element($element, [string]$path) {
     $index++
   }
 }
-Read-Element $window '0'
-@{ denied = $false; error = $null; nodes = @($nodes.ToArray()) } | ConvertTo-Json -Depth 8
+$failure = $null
+try { Read-Element $window '0' } catch { $failure = $_.Exception.Message }
+@{ denied = $false; error = $failure; nodes = @($nodes.ToArray()) } | ConvertTo-Json -Depth 8

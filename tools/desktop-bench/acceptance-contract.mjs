@@ -3,12 +3,18 @@ export function assertAccessibleTree(tree, platform) {
     if (platform !== 'darwin' || !tree.error) throw new Error('Only an explicit macOS accessibility denial may be skipped')
     return { skipped: tree.error }
   }
+  if (tree.error) throw new Error(`Native accessibility capture failed: ${tree.error}; ${JSON.stringify(tree.failure)}`)
   const webRoles = platform === 'darwin' ? ['AXWebArea'] : ['Document']
-  if (!tree.nodes.some((node) => webRoles.includes(node.role))) throw new Error('Native tree contains no web content')
-  const controls = tree.nodes.filter((node) => node.interactive)
+  const documents = tree.nodes.filter((node) => webRoles.includes(node.role))
+  if (!documents.length) throw new Error('Native tree contains no web content')
+  // UIA raw-only nodes are absent from both assistive views: https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-treeoverview
+  const controls = tree.nodes.filter((node) => node.interactive && !(platform === 'win32' && node.IsControlElement === false && node.IsContentElement === false))
   if (!controls.length) throw new Error('Native tree contains no interactive controls')
   const invalid = controls.filter((node) => !node.name?.trim() || !node.role || ['Custom', 'AXUnknown'].includes(node.role))
   if (invalid.length) throw new Error(`Interactive controls require role and name: ${JSON.stringify(invalid)}`)
+  if (!controls.some((node) => documents.some((document) => node.id.startsWith(`${document.id}/`)))) {
+    throw new Error('Native web content contains no interactive controls')
+  }
   return { controls: controls.length }
 }
 

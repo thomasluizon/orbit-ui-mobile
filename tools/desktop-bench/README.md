@@ -133,3 +133,21 @@ a skip, with Windows still required. These are structural checks; a person's spo
 pass remains separate. Reports, native trees, capture and diagnostic logs upload even on failure.
 Keys, session fixtures and build packages are excluded from the artifact paths. Cleanup stops owned
 processes, restores hosts and trust, and removes the hermetic web build. Cleanup failure fails the job.
+
+Every capture retains the complete raw tree before validation. UIA records include automation,
+class and framework identifiers, visibility, enabled and focusable state, bounds, localized type
+and control/content-view membership. Only nodes explicitly outside both UIA assistive views
+(`IsControlElement=false` and `IsContentElement=false`) are excluded from control validation,
+as defined by the [UIA tree contract](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-treeoverview).
+An offscreen or disabled control still requires its role and name. A document with no interactive
+descendants fails even if browser chrome contains valid controls.
+
+AX records retain supported identifiers, DOM identifiers and classes, subroles, role descriptions
+and hidden state. The SDK's `AXError.h` defines `kAXErrorInvalidUIElement` (`-25202`) as an invalid
+element reference. A failed read with that code discards the traversal and creates a new application
+element for one complete retry. The discarded partial tree remains in `attempts`; a repeated invalid
+element or any other read error fails with its role, path and node record. Failed captures preserve
+their partial nodes and error in the artifact instead of passing validation.
+
+The installed acceptance regressions, including compiled AX traversal with injected API failures,
+run with `node tools/test-tools.mjs --only desktop-acceptance`. This command never launches the app.

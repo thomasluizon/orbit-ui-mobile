@@ -1335,6 +1335,18 @@ describe('HabitList', () => {
     return renderWithProviders(<HabitList view="today" filters={filters} />)
   }
 
+  it.each(['en', 'pt-BR'])('names the %s list focus target and every row without hiding their actions', (language) => {
+    renderKeyboardHabitList(language)
+    const group = screen.getByRole('group', { name: language === 'en' ? 'Habits' : ptBR.habits.sectionLabel })
+    group.focus()
+    expect(group).toHaveFocus()
+    for (const row of screen.getAllByTestId('habit-row')) {
+      expect(row).toHaveRole('group')
+      expect(row).toHaveAccessibleName(row.getAttribute('data-habit-title')!)
+      expect(within(row).getAllByRole('button').length).toBeGreaterThan(0)
+    }
+  })
+
   it('localizes the habit keyboard instructions in Portuguese on each body', () => {
     const { container } = renderKeyboardHabitList()
     const bodies = container.querySelectorAll('[data-habit-row-body]')

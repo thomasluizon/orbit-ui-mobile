@@ -211,7 +211,7 @@ export async function cases() {
   }
   rejects('a set cookie alone cannot prove an authenticated request', () => assertCookieEvidence(cookies, false))
   const fixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 10000 })
-  T('fixed email code and corrupt signature cases exercise the shared schema and real cryptographic verifier', fixture.status === 0, fixture.stderr)
+  T('acceptance regressions exercise the email schema, signature verifier and native tree reader', fixture.status === 0, fixture.stderr || fixture.stdout)
   if (process.platform === 'darwin') {
     const compilation = spawnSync('clang', ['-fsyntax-only', '-fobjc-arc', join(REPO_ROOT, 'tools/desktop-bench/acceptance-ax.m')], { encoding: 'utf8', timeout: 30000 })
     T('macOS accessibility reader compiles against the installed SDK without opening an app', compilation.status === 0, compilation.stderr)

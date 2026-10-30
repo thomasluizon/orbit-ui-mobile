@@ -175,6 +175,7 @@ export function HabitDrill({
   return (
     <FlatList
       ref={drillListRef}
+      accessibilityLabel={t('habits.sectionLabel')}
       data={drill.drillLoading || drill.drillError ? [] : drill.drillChildren}
       keyboardShouldPersistTaps="handled"
       keyExtractor={(item) => item.id}
