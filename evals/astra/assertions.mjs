@@ -104,9 +104,10 @@ export function behavior(output, context) {
   const expectations = context.vars.expectations
   const forbidden = [...new Set(trace.calls.filter((call) => expectations.forbidden?.includes(call.name)).map((call) => call.name))]
   if (forbidden.length) return result(false, `Forbidden tool: ${forbidden.join(', ')}`)
-  const outside = [...new Set(trace.calls.filter((call) => expectations.allowed && !expectations.allowed.includes(call.name)).map((call) => call.name))]
+  const outside = [...new Set(trace.calls.filter((call) => expectations.allowed && !expectations.allowed.includes(call.name))
+    .map((call) => `${call.name} (${call.resultStatus})`))]
   if (outside.length) {
-    return result(false, `A tool acted outside the allowed set: ${outside.join(', ')}.`)
+    return result(false, `A tool was called outside the allowed set: ${outside.join(', ')}.`)
   }
   const calls = outcomeCalls(trace.calls, expectations)
   const scopeFailure = checkMutationScope(calls, expectations)

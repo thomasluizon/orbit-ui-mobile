@@ -283,7 +283,10 @@
         - query_habits
         - get_gamification_overview
     rubric: Answer in English. Streak eligibility begins on each habit's creation date.
-      The fixture logs only eligible recent days. Timeline active days belong to the
+      Days before a habit existed are not eligible and must be neutral, never missed or unlogged.
+      Grade only model-written prose about the streak when judging day eligibility.
+      Do not grade the client-drawn day strip, including its pre-creation statuses, as model output.
+      The fixture logs only eligible recent days. Model-described timeline active days belong to the
       current streak ending at lastActiveDate; earlier days are outside that streak.
       Use the completion date, never the log creation timestamp. Use only the requested scope and current fixture
       facts. Preserve typed empty, partial, stale and failure states honestly.
@@ -307,7 +310,10 @@
         - query_habits
         - get_gamification_overview
     rubric: Answer in Brazilian Portuguese. Streak eligibility begins on each habit's creation date.
-      The fixture logs only eligible recent days. Timeline active days belong to the
+      Days before a habit existed are not eligible and must be neutral, never missed or unlogged.
+      Grade only model-written prose about the streak when judging day eligibility.
+      Do not grade the client-drawn day strip, including its pre-creation statuses, as model output.
+      The fixture logs only eligible recent days. Model-described timeline active days belong to the
       current streak ending at lastActiveDate; earlier days are outside that streak.
       Use the completion date, never the log creation timestamp. Use only the requested scope and current
       fixture facts. Preserve typed empty, partial, stale and failure states
@@ -1118,6 +1124,9 @@
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
     input: Show what is left for today from this reminder.
+    history:
+      - role: assistant
+        content: You have habits left for today. Want to see what is pending?
     clientContext:
       platform: web
       locale: en
@@ -1167,6 +1176,9 @@
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
     input: Mostre o que falta para hoje a partir deste lembrete.
+    history:
+      - role: assistant
+        content: Você ainda tem hábitos para hoje. Quer ver o que falta?
     clientContext:
       platform: web
       locale: pt-BR
@@ -1540,7 +1552,11 @@
         - get_profile
         - query_habits
         - describe_feature
-    rubric: Answer in English. Use only the requested scope and current fixture
+    rubric: Answer in English. One plain line stating that the documentation does not cover
+      where to set it is permitted only when app_surfaces is an empty array in the successful
+      describe_feature result. A nonempty or missing app_surfaces does not permit this exception.
+      Anything longer fails. Keep the entire answer within one to three short lines and do not
+      invent a setting location. Use only the requested scope and current fixture
       facts. Preserve typed empty, partial, stale and failure states honestly.
       Canonical dates inside typed fields are transport values; visible prose
       must use locale dates. Rendered date formatting is checked separately.
@@ -1562,7 +1578,11 @@
         - get_profile
         - query_habits
         - describe_feature
-    rubric: Answer in Brazilian Portuguese. Use only the requested scope and current
+    rubric: Answer in Brazilian Portuguese. One plain line stating that the documentation does
+      not cover where to set it is permitted only when app_surfaces is an empty array in the successful
+      describe_feature result. A nonempty or missing app_surfaces does not permit this exception.
+      Anything longer fails. Keep the entire answer within one to three short lines and do not
+      invent a setting location. Use only the requested scope and current
       fixture facts. Preserve typed empty, partial, stale and failure states
       honestly. Canonical dates inside typed fields are transport values;
       visible prose must use locale dates. Rendered date formatting is checked
