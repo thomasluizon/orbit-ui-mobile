@@ -329,6 +329,18 @@ into, not on whatever happens to be checked out. Otherwise they land on a featur
 squashed away, and a session opening anywhere else finds neither path. If the current branch is not
 that one, write and commit them in the main checkout with the integration branch checked out.
 
+The handoff commit hook fetches `origin/main` and merges it into the checked-out relay branch
+only after `git merge-tree --write-tree` succeeds. Relay adoption enforces the same refresh before
+transferring ownership. Fetch failures, conflicts and working tree obstructions block the handoff
+with their reason. Resolve the obstruction and retry; never continue on stale tools. Neither guard
+pushes, rewrites history or switches branches. Use a relay branch rather than `main` or detached HEAD.
+
+Run `node tools/relay-checkout.mjs --check` to fetch and list every harness path differing between
+`HEAD` and `origin/main`. It covers `tools/`, `.claude/skills/`, `.claude/hooks/` and `.claude/rules/`,
+excluding relay docs. Exit 1 means differences or a Git failure; inspect stdout and stderr.
+`node tools/relay-checkout.mjs` performs the guarded refresh directly. Run it before staging docs
+when the branch needs a merge, since Git refuses a merge over a changed index.
+
 **Always commit both files, by path, in their own commit**, whatever else is in the tree:
 `git commit -- .claude/specs/<slug>.md .claude/handoffs/NEXT.md`. A pathspec commit takes only
 those two, so unrelated work is untouched and nothing has to be stashed. Push if the branch has a
