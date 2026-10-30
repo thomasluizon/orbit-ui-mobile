@@ -314,7 +314,8 @@ function DestinationShellContent({
         createRefusal={createRefusal}
         account={getAccountLabel(profile)}
         accountEmail={profile?.email}
-        notifications={<><ThemeToggle /><NotificationBell countPlacement="corner" /></>}
+        themeAction={<ThemeToggle />}
+        notifications={<NotificationBell countPlacement="corner" />}
         onPalette={() => setPaletteOpen(true)}
         paletteLabel={t('nav.search')}
         paletteHint={paletteHint}
