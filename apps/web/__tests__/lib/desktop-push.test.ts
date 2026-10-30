@@ -9,7 +9,7 @@ vi.mock('@/stores/auth-store', () => ({ getHeldAccountId: () => mocks.account })
 vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => mocks.generation }))
 vi.mock('@/lib/actions/notifications', () => ({ subscribePush: mocks.subscribe, unsubscribePushForCleanup: mocks.unsubscribe }))
 
-import { ensureDesktopPush, loadDesktopPush, releaseDesktopPush, resumeDesktopPush } from '@/lib/desktop-push'
+import { desktopEndpoint, ensureDesktopPush, loadDesktopPush, releaseDesktopPush, requestDesktopPushPermission, resumeDesktopPush } from '@/lib/desktop-push'
 
 const registration: DesktopPushRegistration = {
   endpoint: 'https://dm3p.notify.windows.com/?token=renewed', p256dh: 'wns', auth: 'wns', apnsTopic: null,
@@ -52,6 +52,79 @@ beforeEach(() => {
 afterEach(() => { Reflect.deleteProperty(window, '__TAURI_INTERNALS__'); Reflect.deleteProperty(window, '__ORBIT_DESKTOP_COMMANDS__'); vi.unstubAllGlobals() })
 
 describe('desktop push through the native bridge', () => {
+  it.each([
+    ['granted', true, 'granted'], ['denied', true, 'denied'],
+    ['default', true, 'denied'], ['unsupported', false, 'unsupported'],
+  ])('maps native permission %s to the permission request result', async (permission, supported, expected) => {
+    mocks.invoke.mockResolvedValue({ ...snapshot(), permission, supported })
+    expect(await requestDesktopPushPermission()).toBe(expected)
+    expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith('desktop_push', { action: 'request', prompt: true })
+    expect(mocks.subscribe).not.toHaveBeenCalled()
+  })
+
+  it('does not prompt when the native command is unavailable', async () => {
+    Reflect.deleteProperty(window, '__TAURI_INTERNALS__')
+    expect(await requestDesktopPushPermission()).toBe('unsupported')
+    expect(mocks.invoke).not.toHaveBeenCalled()
+  })
+
+  it('exposes only the held account confirmed endpoint', async () => {
+    expect(await desktopEndpoint()).toBe(saved.endpoint)
+    owner = 'account-b'
+    expect(await desktopEndpoint()).toBeNull()
+    owner = 'account-a'; current = null
+    expect(await desktopEndpoint()).toBeNull()
+    pending = [{ owner: 'account-a', registration }]
+    expect(await desktopEndpoint()).toBeNull()
+  })
+
+  it('reports invalid native snapshots as sync failure while permission requests reject', async () => {
+    mocks.invoke.mockResolvedValue({ ...snapshot(), permission: 'invalid' })
+    expect(await loadDesktopPush('account-a')).toEqual({ supported: true, subscribed: false, permission: '', status: 'sync-failed' })
+    await expect(requestDesktopPushPermission()).rejects.toThrow()
+    await expect(desktopEndpoint()).rejects.toThrow()
+  })
+
+  it('ignores a stale resume and releases no account without native work', async () => {
+    await resumeDesktopPush('account-b')
+    await releaseDesktopPush(null)
+    expect(mocks.invoke).not.toHaveBeenCalled()
+  })
+
+  it('restores a signed-out session without registering an endpoint', async () => {
+    mocks.account = null
+    await resumeDesktopPush(null)
+    expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith('desktop_push', { action: 'session', accountId: null })
+    expect(mocks.subscribe).not.toHaveBeenCalled()
+  })
+
+  it('deduplicates uncertain and confirmed endpoints before clearing native ownership', async () => {
+    pending = [{ owner: 'account-a', registration: saved }, { owner: 'account-b', registration }]
+    await releaseDesktopPush('account-a')
+    expect(mocks.unsubscribe).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ endpoint: saved.endpoint }), 'account-a')
+    expect(mocks.invoke).toHaveBeenLastCalledWith('desktop_push', { action: 'clear', accountId: 'account-a' })
+  })
+
+  it('rejects a queued registration after its account generation changes', async () => {
+    const pendingRegistration = ensureDesktopPush()
+    mocks.generation++
+    await expect(pendingRegistration).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+    expect(mocks.invoke).not.toHaveBeenCalled()
+    expect(mocks.subscribe).not.toHaveBeenCalled()
+  })
+
+  it('rejects a changed account before staging a native candidate', async () => {
+    const native = mocks.invoke.getMockImplementation()!
+    mocks.invoke.mockImplementation(async (command, payload) => {
+      const result = await native(command, payload)
+      if (payload.action === 'request') { mocks.account = 'account-b'; mocks.generation++ }
+      return result
+    })
+    await expect(ensureDesktopPush()).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+    expect(mocks.invoke.mock.calls.map(([, payload]) => payload.action)).toEqual(['session', 'request'])
+    expect(mocks.subscribe).not.toHaveBeenCalled()
+  })
+
   it('persists the attempted endpoint before the API write so sign-out can revoke an uncertain renewal', async () => {
     const sequence: string[] = []
     const native = mocks.invoke.getMockImplementation()!

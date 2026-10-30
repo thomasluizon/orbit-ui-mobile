@@ -6,7 +6,7 @@ import {
   canReloadDesktopWeb, desktopShellVersion, desktopWebReleaseSchema,
   reloadDesktopWeb, shellSupportsWeb, watchDesktopWebRelease,
 } from '@/lib/desktop-web-release'
-import { blockDesktopWebReload } from '@/lib/web-reload-state'
+import { blockDesktopWebReload, desktopChatCheckpointKey, forgetDesktopChatCheckpoint, hasWebReloadBlockers } from '@/lib/web-reload-state'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { holdAccount } from '@/__tests__/support/account-change'
@@ -190,4 +190,49 @@ it('stops checks and reloads after unmount', async () => {
   window.dispatchEvent(new Event('focus'))
   expect(fetch).toHaveBeenCalledTimes(count)
   expect(reload).not.toHaveBeenCalled()
+})
+
+it('retains independent reload blockers until each owner releases its work', () => {
+  const finishAttachment = blockDesktopWebReload()
+  const finishVoice = blockDesktopWebReload()
+  expect(hasWebReloadBlockers()).toBe(true)
+  finishAttachment()
+  finishAttachment()
+  expect(hasWebReloadBlockers()).toBe(true)
+  expect(canReloadDesktopWeb()).toBe(false)
+  finishVoice()
+  expect(hasWebReloadBlockers()).toBe(false)
+  expect(canReloadDesktopWeb()).toBe(true)
+})
+
+it.each(['not json', '{}', '{"accountId":"desktop-account","expiresAt":"later"}'])(
+  'consumes malformed checkpoints from both storage scopes: %s', stored => {
+    sessionStorage.setItem(desktopChatCheckpointKey, stored)
+    localStorage.setItem(desktopChatCheckpointKey, stored)
+    expect(takeDesktopChatCheckpoint('desktop-account')).toBeNull()
+    expect(sessionStorage.getItem(desktopChatCheckpointKey)).toBeNull()
+    expect(localStorage.getItem(desktopChatCheckpointKey)).toBeNull()
+  },
+)
+
+it('clears the persistent checkpoint even when session storage cleanup fails', () => {
+  localStorage.setItem(desktopChatCheckpointKey, 'retained conversation')
+  const removeItem = Storage.prototype.removeItem
+  vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key: string) {
+    if (this === sessionStorage) throw new DOMException('denied', 'SecurityError')
+    removeItem.call(this, key)
+  })
+  expect(() => forgetDesktopChatCheckpoint()).toThrow('denied')
+  expect(localStorage.getItem(desktopChatCheckpointKey)).toBeNull()
+})
+
+it('does not reload or persist an incomplete conversation when image retention fails', async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 404 }))
+  useChatStore.getState().addMessage({ id: 'image', role: 'user', content: 'Look', imageUrl: 'blob:missing', timestamp: new Date() })
+  const retained = reloadDesktopWeb(reload)
+  const rejected = expect(retained).rejects.toThrow('Cannot retain conversation image across web release')
+  await vi.advanceTimersByTimeAsync(50)
+  await rejected
+  expect(reload).not.toHaveBeenCalled()
+  expect(takeDesktopChatCheckpoint('desktop-account')).toBeNull()
 })
