@@ -53,10 +53,13 @@ export function sanitizeEvidence(value, withheld = new Set()) {
 
 function resultEvidence(result) {
   if (!result || typeof result !== 'object') return null
-  const payloadFields = ['status', 'item_count', 'habit_count', 'date_count', 'proposed_titles', 'dates']
-  return { success: result.success, error: result.error,
+  const scalar = (value) => ['string', 'number', 'boolean'].includes(typeof value) || value === null
+  const payloadFields = ['status', 'item_count', 'habit_count', 'date_count', 'proposed_titles', 'dates', 'errorCode', 'error', 'arguments']
+  return { success: typeof result.success === 'boolean' ? result.success : null,
+    error: typeof result.error === 'string' ? result.error : null,
     payload: result.payload && typeof result.payload === 'object'
-      ? Object.fromEntries(payloadFields.filter((key) => Object.hasOwn(result.payload, key))
+      ? Object.fromEntries(payloadFields.filter((key) => Object.hasOwn(result.payload, key)
+        && (scalar(result.payload[key]) || (Array.isArray(result.payload[key]) && result.payload[key].every(scalar))))
         .map((key) => [key, result.payload[key]])) : null }
 }
 

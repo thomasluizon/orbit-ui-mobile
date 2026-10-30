@@ -6,7 +6,7 @@ const validMilliseconds = (value) => typeof value === 'number' && Number.isFinit
 const median = (values) => [...values].sort((left, right) => left - right)[1]
 
 export function describeCase(test) {
-  const readLatency = test.vars?.composition?.mode === 'data'
+  const readLatency = ['data', 'step-up'].includes(test.vars?.composition?.mode)
     || (test.vars?.composition?.mode === 'fallback' && test.vars?.expectations?.allowed?.length > 0)
   return { ...test.metadata, readLatency: Boolean(readLatency) }
 }

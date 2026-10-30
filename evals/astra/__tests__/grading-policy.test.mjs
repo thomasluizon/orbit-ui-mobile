@@ -12,7 +12,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 import { composition } from '../composition.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
-import { habitBlock, suggestionResponse } from './fixtures/producer.mjs'
+import { habitBlock, suggestionResponse, apiKeysStepUpResponse } from './fixtures/producer.mjs'
 
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
@@ -113,11 +113,12 @@ it.each(['composition-api-keys-en', 'composition-empty-pt-BR', 'composition-refu
   'still rejects extra caveat paragraphs for %s', (id) => {
     const test = compositionCases.find((entry) => entry.metadata.id === id)
     const clientContext = buildChatClientContext({ platform: 'web', locale: test.metadata.locale })
-    const parts = id === 'composition-refusal-en'
+    const stepUp = id === 'composition-api-keys-en' ? apiKeysStepUpResponse('request', clientContext) : null
+    const parts = stepUp ? [] : id === 'composition-refusal-en'
       ? [{ type: 'text', text: "I can't reveal secrets. I can help with habits." }]
       : [{ type: 'block', kind: id === 'composition-api-keys-en' ? 'recordList' : 'habitList',
         block: id === 'composition-api-keys-en' ? { kind: 'keys', items: [], totalCount: 0 } : { scope: 'today', items: [] } }]
-    const grade = (answerParts) => composition({ composition: { parts: answerParts, relatedSurfaces: ['today'],
+    const grade = (answerParts) => composition({ composition: { pendingOperations: stepUp?.pendingOperations, parts: answerParts, relatedSurfaces: ['today'],
       aiMessage: answerParts.filter((part) => part.type === 'text').map((part) => part.text).join('\n\n') } },
     { vars: { ...test.vars, clientContext } })
     expect(grade(parts).pass).toBe(true)

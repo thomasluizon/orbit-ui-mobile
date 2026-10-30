@@ -76,5 +76,9 @@ it('retains a minimal pending result while excluding arbitrary payload and crede
       payload: { status: 'awaiting_confirmation', item_count: 1, habit_count: null, date_count: null,
         proposed_titles: ['Stretch'], dates: null } })
     expect(contents).not.toMatch(/private-(?:confirmation|payload)-value/)
+    call.result.payload.status = { secret: 'private-nested-result' }
+    call.result.payload.arguments = [{ secret: 'private-nested-result' }]
+    writeResults([{ testCase: { metadata: { id: 'pending' } }, response: { output }, success: true }], directory)
+    expect(readFileSync(join(directory, 'attempts/pending-r1.json'), 'utf8')).not.toContain('private-nested-result')
   } finally { rmSync(directory, { recursive: true, force: true }) }
 })

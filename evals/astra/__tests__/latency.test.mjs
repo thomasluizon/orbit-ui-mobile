@@ -100,6 +100,7 @@ it('preserves the budget across windows and rejects a read pass without timing',
 it('classifies typed and legacy read prompts without applying latency to writes or refusals', () => {
   expect(describeCase({ metadata: descriptor, vars: { composition: { mode: 'data' } } }).readLatency).toBe(true)
   expect(describeCase({ metadata: descriptor, vars: { composition: { mode: 'fallback' }, expectations: { allowed: ['query_habits'] } } }).readLatency).toBe(true)
+  expect(describeCase({ metadata: descriptor, vars: { composition: { mode: 'step-up' } } }).readLatency).toBe(true)
   for (const mode of ['preview', 'text', 'clarification', 'fallback']) {
     expect(describeCase({ metadata: descriptor, vars: { composition: { mode } } }).readLatency).toBe(false)
   }

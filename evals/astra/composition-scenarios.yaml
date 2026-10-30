@@ -490,6 +490,7 @@
       allowed:
         - query_habits
         - query_goals
+        - review_goals
     rubric: Answer in English. Use only the requested scope and current fixture
       facts. Preserve typed empty, partial, stale and failure states honestly.
       Canonical dates inside typed fields are transport values; visible prose
@@ -511,6 +512,7 @@
       allowed:
         - query_habits
         - query_goals
+        - review_goals
     rubric: Answer in Brazilian Portuguese. Use only the requested scope and current
       fixture facts. Preserve typed empty, partial, stale and failure states
       honestly. Canonical dates inside typed fields are transport values;
@@ -872,21 +874,21 @@
     input: Show my API keys and revocation state without secret values.
     clientContext: *a4
     composition: &a34
-      mode: data
-      blocks:
-        - kind: recordList
-          subtype: keys
+      mode: step-up
+      capabilityId: api-keys.read
     expectations:
       required: &a35
         - name: get_api_keys
           arguments: {}
+          resultStatus: PendingConfirmation
       allowed:
         - query_habits
         - get_api_keys
-    rubric: Answer in English. Use only the requested scope and current fixture
-      facts. Preserve typed empty, partial, stale and failure states honestly.
-      Canonical dates inside typed fields are transport values; visible prose
-      must use locale dates. Rendered date formatting is checked separately.
+    rubric: Answer in English. Render the step-up verification block requiring the
+      emailed code before listing API keys. The localized identity-confirmation message
+      and action are sufficient; do not require a code to have already been sent. Never
+      expose key metadata or secrets,
+      claim verification or listing succeeded, or replace verification with a generic error.
 - description: api-keys in pt-BR
   metadata:
     id: composition-api-keys-pt-BR
@@ -904,11 +906,11 @@
       allowed:
         - query_habits
         - get_api_keys
-    rubric: Answer in Brazilian Portuguese. Use only the requested scope and current
-      fixture facts. Preserve typed empty, partial, stale and failure states
-      honestly. Canonical dates inside typed fields are transport values;
-      visible prose must use locale dates. Rendered date formatting is checked
-      separately.
+    rubric: Answer in Brazilian Portuguese. Render the step-up verification block
+      requiring the emailed code before listing API keys. The localized identity-confirmation
+      message
+      and action are sufficient; do not require a code to have already been sent. Never expose key metadata
+      or secrets, claim verification or listing succeeded, or replace verification with a generic error.
 - description: achievements-level in en
   metadata:
     id: composition-achievements-level-en

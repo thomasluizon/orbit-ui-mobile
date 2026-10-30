@@ -65,10 +65,17 @@ function shortLines(value, maximum, allowLists) {
     && (allowLists || !/^\s*(?:[-*•]|\d+[.)])\s/u.test(line)))
 }
 
+function validStepUp(pending) {
+  return object(pending) && text(pending.id) && text(pending.displayName) && text(pending.summary)
+    && pending.capabilityId === 'api-keys.read' && pending.confirmationRequirement === 'StepUp'
+    && text(pending.expiresAtUtc) && Number.isFinite(Date.parse(pending.expiresAtUtc))
+    && pending.items == null && pending.changes == null && pending.changeTargetCount == null
+}
+
 function validOperations(response) {
   return ['actions', 'operations', 'pendingOperations', 'policyDenials', 'relatedSurfaces', 'followUps', 'followUpContext']
     .every((key) => response[key] == null || Array.isArray(response[key]))
-    && (response.pendingOperations ?? []).every((pending) => object(pending) && text(pending.id)
+    && (response.pendingOperations ?? []).every((pending) => validStepUp(pending) || object(pending) && text(pending.id)
       && text(pending.displayName) && text(pending.summary) && Array.isArray(pending.items)
       && pending.items.length > 0 && pending.items.every((item) => object(item) && text(item.itemId)
         && text(item.entityName) && Array.isArray(item.fields) && item.fields.length > 0
@@ -126,7 +133,7 @@ export function composition(output, context) {
     if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
     return coachingStep ? coachingStartingStep(parsed, context.vars) : startingStepComposition(parsed, context.vars)
   }
-  if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
+  if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome', 'step-up'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
   if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
   if (context.vars.brainDump) {
     const preview = brainDumpPreview(parsed, context.vars)
@@ -159,6 +166,14 @@ export function composition(output, context) {
     return result(false, 'Final prose differs from the ordered text parts.')
   }
   const pending = response.pendingOperations ?? []
+  if (expected.noPending === true && pending.length) return result(false, 'Refusal cannot offer approval.')
+  if (expected.mode === 'step-up') {
+    return pending.length === 1 && validStepUp(pending[0]) && pending[0].capabilityId === expected.capabilityId
+      && blocks.length === 0 && !(response.actions?.length || response.policyDenials?.length)
+      && (response.operations ?? []).every((operation) => operation.status === 'PendingConfirmation')
+      && (!external || shortLines(external, 1, false))
+      ? result(true, 'Verified API-key step-up surface.') : result(false, 'Missing or invalid API-key step-up surface.')
+  }
   if (expected.correction && !unchangedPreview(pending, context.vars.baselinePreview, expected.correction)) {
     return result(false, 'Correction changed fields outside the requested time or lacks its baseline preview.')
   }
