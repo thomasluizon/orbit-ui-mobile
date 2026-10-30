@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
 import { gitDirectoryOf, REPO_ROOT, readRunState, writeRunState } from "./run-state.mjs"
+import { syncRelayCheckout } from "./relay-checkout.mjs"
 import { readSessionMetrics } from "./session-context.mjs"
 
 export const sessionChainPath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-session-chain.json")
@@ -87,10 +88,12 @@ export const adoptRelayRun = (sessionId, repoRoot = REPO_ROOT) => {
     throw new Error("owner canceled this relay nominee; do not enter sleep")
   }
   if (previous?.sessionId === sessionId && previous.relay?.from) {
+    syncRelayCheckout(repoRoot)
     reconcileAdoptedChain(repoRoot)
     return true
   }
   if (!previous?.relay?.pending || previous.relay.successorSessionId !== sessionId) return false
+  syncRelayCheckout(repoRoot)
   writeRunState({ ...previous, sessionId, sleep: true, decisionLogPath: null, openOwnerQuestions: [],
     relay: { from: previous.sessionId, pending: false, successorTerminal: previous.relay.successorTerminal } }, repoRoot)
   return true
