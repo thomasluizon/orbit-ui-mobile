@@ -3,6 +3,15 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### Empty-state composition amendment (#1896)
+
+The shared EmptyState uses the existing 48px asset size for both identity carriers on every
+consumer. Astra's empty thread centres its mark, title, browse action and disclosure as one
+24px stack inside symmetric padding, above the live chips and composer. The disclosure belongs
+inside that composition. Hoje's completed-day title and hint keep their 8px pairing, with 24px
+between that text block and See tomorrow. The paired owners and verification live in
+[the empty-state inventory](../empty-state-surfaces.md).
+
 ### Navigation and overlay motion amendment (#1829)
 
 The owner requests transitions across the app, including spring settlement for sheets.

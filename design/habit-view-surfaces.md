@@ -55,3 +55,8 @@ tests retain that guarantee at 320, 384 and 600 with normal and 200% text and se
 including exact card widths, trailing edges and 8px family versus 12px root-family gaps.
 The hermetic drill, detail and preview cases keep the same internal 8px inset after scale changes;
 depth affects the card offset and available width rather than adding internal padding.
+
+The completed Hoje day pairs its title and hint with 8px, then separates See tomorrow by 24px
+from the text block (#1896). Both platforms retain the optional action and its date-navigation
+handler. Web Chromium and Android layout cases measure both gaps; the active Hoje drawing
+carries the same grouping.

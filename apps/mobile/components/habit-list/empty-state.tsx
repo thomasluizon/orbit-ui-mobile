@@ -110,9 +110,11 @@ export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: (
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { t } = useTranslation()
   return (
-    <View style={styles.allDone}>
-      <Text style={[styles.allDoneTitle, { color: tokens.fg1 }]}>{t('habits.allDoneToday')}</Text>
-      <Text style={[styles.allDoneHint, { color: tokens.fg2 }]}>{t('habits.allDoneHint')}</Text>
+    <View testID="habit-list-all-done" style={styles.allDone}>
+      <View style={styles.allDoneText}>
+        <Text style={[styles.allDoneTitle, { color: tokens.fg1 }]}>{t('habits.allDoneToday')}</Text>
+        <Text style={[styles.allDoneHint, { color: tokens.fg2 }]}>{t('habits.allDoneHint')}</Text>
+      </View>
       {onSeeUpcoming ? (
         <PillButton variant="ghost" size="sm" onClick={onSeeUpcoming}>
           {t('habits.seeUpcoming')}
@@ -142,8 +144,11 @@ export function HabitListFrequencyEmptyState({ frequencyUnit }: Readonly<{ frequ
 const styles = StyleSheet.create({
   allDone: {
     alignItems: 'flex-start',
-    gap: 8,
+    gap: 24,
     paddingVertical: SPACING.s8,
+  },
+  allDoneText: {
+    gap: 8,
   },
   allDoneTitle: {
     fontFamily: 'SpaceGrotesk_500Medium',

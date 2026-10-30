@@ -4,6 +4,7 @@ import { __setWindowDimensions } from '@/test-mocks/react-native'
 import en from '@orbit/shared/i18n/en.json'
 import React from 'react'
 import { View, AccessibilityInfo } from 'react-native'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { afterEach, expect, it, vi } from 'vitest'
 import { Shell412 } from '@/components/shell/shell-412'
 import { ChatEmptyState } from '@/components/chat/chat-empty-state'
@@ -47,7 +48,7 @@ function App() {
     conversationOpen={open} conversation={<AstraConversation chat={chat} />} conversationLabel={en.chat.title} />
 }
 
-it.each([412, 840])('pins the full conversation over navigation at %ipx', async (width) => {
+it.each([320, 412, 480, 840, 1100])('pins the full conversation over navigation at %ipx', async (width) => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   useUIStore.getState().setAstraConversationOpen(true)
   let tree!: GeometryTree
@@ -59,6 +60,10 @@ it.each([412, 840])('pins the full conversation over navigation at %ipx', async 
       if (host.props.testID === 'shell-conversation') return 'layer'
       if (host.props.testID === 'shell-tab-bar') return 'tabs'
       if (host.props.testID === 'composer-idle') return 'composer'
+      if (host.type === 'ScrollView' && !host.props.horizontal) return 'thread'
+      if (host.props.testID === 'empty-state') return 'empty'
+      if (host.props.testID === 'empty-state-action') return 'action'
+      if (host.type === 'Text' && host.children?.includes('aiDisclosure.notMedicalAdvice')) return 'disclosure'
     }, { width, height: 915 })
     const layer = geometry.get('layer')!
     const tabs = geometry.get('tabs')!
@@ -69,6 +74,12 @@ it.each([412, 840])('pins the full conversation over navigation at %ipx', async 
     expect(tabs.top).toBeGreaterThanOrEqual(layer.top)
     expect(tabs.bottom).toBeLessThanOrEqual(layer.bottom)
     expect(geometry.get('composer')!.bottom).toBe(915 - safeArea.bottom)
+    const thread = geometry.get('thread')!
+    const disclosure = geometry.get('disclosure')!
+    const groupTop = geometry.get('empty')!.contentTop
+    expect.soft(empty.findAll(node => node.type === AstraGlyph)[0]!.props.size).toBe(48)
+    expect.soft(disclosure.top - geometry.get('action')!.bottom).toBe(24)
+    expect.soft(Math.abs((groupTop + disclosure.bottom) / 2 - (thread.top + thread.bottom) / 2)).toBeLessThanOrEqual(8)
   } finally { await renderer.act(() => tree.unmount()) }
 })
 
