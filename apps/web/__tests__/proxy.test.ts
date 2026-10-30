@@ -765,3 +765,32 @@ describe('proxy', () => {
     expect(NextResponse.redirect).not.toHaveBeenCalled()
   })
 })
+
+
+describe('malformed Server Action requests', () => {
+  it.each([
+    { 'content-type': 'multipart/form-data' },
+    { 'content-type': 'multipart/form-data; boundary=missing' },
+    { 'next-action': 'a'.repeat(40), 'content-type': 'text/plain' },
+  ])('rejects malformed action input before the framework parses it: %s', async (headers) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    vi.mocked(resolveSessionTokens).mockClear()
+    const response = await proxy(new NextRequest('https://app.useorbit.org/login', {
+      method: 'POST', headers: Object.fromEntries(Object.entries(headers).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), body: 'invalid form payload',
+    }))
+    expect(response.status).toBe(400)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(response.headers.get('Content-Security-Policy')).toContain("default-src 'self'")
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
+  it('passes a well-formed multipart action through to the framework', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    const form = new FormData()
+    form.set('0', '[]')
+    await proxy(new NextRequest('https://app.useorbit.org/login', {
+      method: 'POST', headers: { 'next-action': 'a'.repeat(42) }, body: form,
+    }))
+    expect(resolveSessionTokens).toHaveBeenCalled()
+  })
+})
