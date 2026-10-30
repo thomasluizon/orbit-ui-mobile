@@ -332,7 +332,6 @@ function createStyles(tokens: Tokens, leftInset: number, rightInset: number) {
       overflow: 'hidden',
     },
     typedTitle: {
-      textDecorationLine: 'underline',
       color: tokens.fg1,
       fontFamily: 'Geist_500Medium',
       fontSize: 22,

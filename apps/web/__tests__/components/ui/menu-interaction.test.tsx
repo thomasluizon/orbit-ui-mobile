@@ -26,7 +26,7 @@ describe('Menu interaction colours in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it('underlines every word of a typed sheet title', async () => {
+  it('renders every word of a typed sheet title without a text decoration', async () => {
     const title = 'Ler um capítulo inteiro'
     render(<Menu.Root open={true}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content presentation="sheet" title={title} titleMode="typed" items={[{ id: 'edit', label: 'Edit', icon: 'pencil' }]}  /></Menu.Root>)
     const dialog = await screen.findByRole('dialog', { name: title }, { timeout: 10_000 })
@@ -34,10 +34,12 @@ describe('Menu interaction colours in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
       await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      const heading = page.getByRole('button', { name: title })
+      expect(await heading.locator('[data-personal-text]').evaluate((element) => getComputedStyle(element).textDecorationLine)).toBe('none')
       const words = await page.locator('.orbit-sheet-typed-title > span').evaluateAll((elements) =>
         elements.map((element) => ({ text: element.textContent, decoration: getComputedStyle(element).textDecorationLine })))
       expect(words.map((word) => word.text)).toEqual(title.split(' '))
-      for (const word of words) expect(word.decoration, word.text).toBe('underline')
+      for (const word of words) expect(word.decoration, word.text).toBe('none')
     } finally { await page.close() }
   })
 
