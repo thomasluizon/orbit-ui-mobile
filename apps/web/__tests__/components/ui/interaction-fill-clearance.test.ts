@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { execFileSync } from 'node:child_process'
+import { setTimeout as delay } from 'node:timers/promises'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
@@ -14,9 +15,12 @@ describe('interaction clearance inspector in Chromium', () => {
 
   it.each(['top: -80px', 'top: 0; transform: translateY(-200%)'])('measures only reachable focus paint for an off-canvas control (%s)', async (position) => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
-    page.setDefaultTimeout(250)
     try {
-      await page.setContent(`<style>
+      await page.route('https://fixture.test/slow.css', async route => {
+        await delay(500)
+        await route.fulfill({ contentType: 'text/css', body: '' })
+      })
+      await page.setContent(`<link rel="stylesheet" href="https://fixture.test/slow.css"><style>
         a { position: fixed; left: 32px; padding: 8px; ${position} }
         a:focus-visible { top: 16px; transform: none; background: gray; outline: none }
       </style><a href="#content">Keyboard entry</a><main id="content" style="margin-top: 160px">Content</main>`)
@@ -25,6 +29,7 @@ describe('interaction clearance inspector in Chromium', () => {
           document.body.dataset[event] = String(Number(document.body.dataset[event] ?? 0) + 1)
         })
       })
+      page.setDefaultTimeout(250)
       await inspectControls(page, page.locator('a'), '/habits/habit-1, 320px, en', INTERACTION_FILL_CLEARANCE)
       expect(await page.locator('body').getAttribute('data-pointerenter')).toBeNull()
       expect(await page.locator('body').getAttribute('data-pointerdown')).toBeNull()
@@ -160,9 +165,9 @@ describe('interaction clearance inspector in Chromium', () => {
 
   it('reports a control that remains off-canvas after focus', async () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
-    page.setDefaultTimeout(250)
     try {
       await page.setContent('<a href="#content" style="position: fixed; top: -80px">Hidden entry</a>')
+      page.setDefaultTimeout(250)
       await expect(inspectControls(page, page.locator('a'), '/settings, 320px, en', INTERACTION_FILL_CLEARANCE))
         .rejects.toThrow(/\/settings, 320px, en.*a\[Hidden entry\].*focus-visible.*outside the viewport/)
     } finally { await page.close() }
