@@ -52,6 +52,7 @@ Installed size counts the packaged application payload's logical regular-file by
 duplicate symlink targets and Windows uninstaller or first-launch runtime caches. macOS artifacts
 are compressed DMGs. Signing does not change runtime cost. The measurements do not prove feature
 parity, accessibility, notarization or the other operating system's results.
+Disk medians use five scans of each immutable release artifact, not five separate rebuilds.
 
 The tool stops its servers and shells on success, failure or interruption and removes its own
 `apps/web/.next` output. It refuses to replace an existing build. Forced OS termination cannot

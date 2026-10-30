@@ -4,11 +4,22 @@ import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
 import { execute, logicalSize } from './host.mjs'
+import { median } from './measurements.mjs'
 
 const require = createRequire(import.meta.url)
 
 export function electronInstallArguments(electron, version) {
   return ['install', '--prefix', electron, '--package-lock=false', '--no-audit', '--fund=false', '--save-dev', '--save-exact', `electron@${version}`, 'electron-builder@26.18.0']
+}
+
+async function diskMeasurements(paths, installer) {
+  const installedSamplesBytes = []
+  const installerSamplesBytes = []
+  for (let index = 0; index < 5; index++) {
+    installedSamplesBytes.push((await Promise.all(paths.map(logicalSize))).reduce((sum, size) => sum + size, 0))
+    installerSamplesBytes.push(await logicalSize(installer))
+  }
+  return { installedBytes: median(installedSamplesBytes), installerBytes: median(installerSamplesBytes), installedSamplesBytes, installerSamplesBytes }
 }
 
 function npmCli() {
@@ -86,8 +97,8 @@ app.on('window-all-closed', () => app.quit());
     version, tauriExecutable, electronExecutable, profile,
     macStorage: [join(homedir(), 'Library/WebKit/org.useorbit.desktop.benchmark'), join(homedir(), 'Library/Caches/org.useorbit.desktop.benchmark'), join(homedir(), 'Library/Application Support/org.useorbit.desktop.benchmark')],
     disk: {
-      tauri: { installedBytes: (await Promise.all(windowsInstalled.map(logicalSize))).reduce((sum, size) => sum + size, 0), installerBytes: await logicalSize(tauriInstaller) },
-      electron: { installedBytes: await logicalSize(electronBundle), installerBytes: await logicalSize(join(electron, 'dist', process.platform === 'darwin' ? 'orbit-electron.dmg' : 'orbit-electron.exe')) },
+      tauri: await diskMeasurements(windowsInstalled, tauriInstaller),
+      electron: await diskMeasurements([electronBundle], join(electron, 'dist', process.platform === 'darwin' ? 'orbit-electron.dmg' : 'orbit-electron.exe')),
     },
   }
 }
