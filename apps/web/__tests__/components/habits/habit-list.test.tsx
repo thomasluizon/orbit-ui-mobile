@@ -2663,6 +2663,27 @@ describe('HabitList', () => {
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
   })
 
+  it.each(['pending', 'failed'] as const)('settles an accepted chain independently of an unrelated %s write', async (outcome) => {
+    seedPromptChain()
+    const standalone = createMockHabit({ id: 'standalone', title: 'Standalone', scheduledDates: [TODAY] })
+    mockHabitsData.habitsById.set(standalone.id, standalone)
+    mockDrillState.drillChildren.push(standalone)
+    let rejectStandalone!: (error: Error) => void
+    let resolveChild!: () => void
+    const unrelated = new Promise<void>((_resolve, reject) => { rejectStandalone = reject })
+    const child = new Promise<void>((resolve) => { resolveChild = resolve })
+    logHabitMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => habitId === standalone.id ? unrelated : child)
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    await act(async () => { fireEvent.click(screen.getByTestId('log-standalone')); fireEvent.click(screen.getByTestId('log-child')) })
+    expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'chat.pendingOp.action.applyChanges' })) })
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
+    if (outcome === 'failed') await act(async () => { rejectStandalone(new Error('rejected')); await Promise.allSettled([unrelated]) })
+    await act(async () => { resolveChild(); await child })
+    expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: TODAY }])
+    if (outcome === 'pending') await act(async () => { rejectStandalone(new Error('rejected')); await Promise.allSettled([unrelated]) })
+  })
+
   it('waits for the triggering child before settling an accepted chain and stops on failure', async () => {
     seedPromptChain()
     let rejectLog!: (error: Error) => void

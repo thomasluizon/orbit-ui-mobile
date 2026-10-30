@@ -1,4 +1,5 @@
 import type { NormalizedHabit } from '../types/habit'
+import type { ParentPromptContinuation } from '../types/sync'
 import {
   computeParentPromptProgress,
   computeParentSettlementDecision,
@@ -88,8 +89,8 @@ interface ParentPromptBulkOutcome {
 
 interface ParentPromptSettlementOptions {
   date: string
-  log: (items: { habitId: string; date: string }[]) => Promise<ParentPromptBulkOutcome>
-  skip: (items: { habitId: string; date: string }[]) => Promise<ParentPromptBulkOutcome>
+  log: (items: { habitId: string; date: string }[], continuation: ParentPromptContinuation) => Promise<ParentPromptBulkOutcome>
+  skip: (items: { habitId: string; date: string }[], continuation: ParentPromptContinuation) => Promise<ParentPromptBulkOutcome>
   isCurrent: () => boolean
   onSettled: (resolution: HabitResolution) => void
 }
@@ -103,7 +104,8 @@ export async function settleParentPromptChain(
     const mode = ancestors[index]!.mode
     const batch: ParentPromptAncestor[] = []
     while (index < ancestors.length && ancestors[index]!.mode === mode) batch.push(ancestors[index++]!)
-    const outcome = await options[mode](batch.map(({ habit }) => ({ habitId: habit.id, date: options.date })))
+    const continuation = ancestors.slice(index).map(({ habit, mode }) => ({ habitId: habit.id, date: options.date, mode }))
+    const outcome = await options[mode](batch.map(({ habit }) => ({ habitId: habit.id, date: options.date })), continuation)
     if (!options.isCurrent()) return []
     const unconfirmed = new Set([
       ...outcome.queuedIds ?? [], ...outcome.ambiguousIds ?? [], ...outcome.offlineFailureIds ?? [],

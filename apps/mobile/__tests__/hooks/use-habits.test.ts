@@ -592,6 +592,14 @@ describe('mobile habit hooks', () => {
     expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ suppressParentSettlement: true, payload: { items } }) }))
   })
 
+  it.each(['log', 'skip'] as const)('persists the remaining selected ancestors with a queued parent %s batch', async (mode) => {
+    mocks.runQueuedMutation.mockResolvedValueOnce({ results: [{ index: 0, habitId: 'parent', status: 'Success', logId: null, error: null }] })
+    const mutation = (mode === 'log' ? useBulkLogHabits : useBulkSkipHabits)({ suppressParentSettlement: true }) as unknown as MutationConfig<unknown, { items: { habitId: string; date: string }[]; parentPromptContinuation: { habitId: string; date: string; mode: string }[] }, unknown>
+    const input = { items: [{ habitId: 'parent', date: '2026-09-12' }], parentPromptContinuation: [{ habitId: 'root', date: '2026-09-12', mode: mode === 'log' ? 'skip' : 'log' }] }
+    await mutation.mutationFn(input)
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ parentPromptContinuation: input.parentPromptContinuation, payload: { items: input.items } }) }))
+  })
+
   it('gives queued toggles a durable habit and occurrence date key', async () => {
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,

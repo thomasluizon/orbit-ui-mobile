@@ -1112,7 +1112,10 @@ export function HabitList({
     record.activeSettlements += 1
     const settledIds = new Set<string>()
     try {
-      if ((await Promise.all(record.pending.values())).some((success) => !success) || !isCurrent()) return
+      const selectedIds = new Set(prompt.ancestors.slice(0, prompt.selectedCount).map(({ habit }) => habit.id))
+      const knownHabits = new Map([...record.sources].map(([id, { habit }]) => [id, habit] as const).concat([...settlementData.habitsById]))
+      const pendingChildren = [...record.pending].filter(([id]) => hasAncestorInSet(id, knownHabits, selectedIds)).map(([, write]) => write)
+      if ((await Promise.all(pendingChildren)).some((success) => !success) || !isCurrent()) return
       const ancestors = getParentPromptChain(prompt.childId, record, promptDataRef.current ?? settlementData).slice(0, prompt.selectedCount)
       if (ancestors.length !== prompt.selectedCount || ancestors.some(({ habit }, index) =>
         habit.id !== prompt.ancestors[index]?.habit.id)) return

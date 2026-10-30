@@ -1109,14 +1109,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       record.activeSettlements += 1
       const settledIds = new Set<string>()
       try {
-        if ((await Promise.all(record.pending.values())).some((success) => !success) || !isCurrent()) return
+        const selectedIds = new Set(prompt.ancestors.slice(0, prompt.selectedCount).map(({ habit }) => habit.id))
+        const knownHabits = new Map([...record.sources].map(([id, { habit }]) => [id, habit] as const).concat([...settlementData.habitsById]))
+        const pendingChildren = [...record.pending].filter(([id]) => hasAncestorInSet(id, knownHabits, selectedIds)).map(([, write]) => write)
+        if ((await Promise.all(pendingChildren)).some((success) => !success) || !isCurrent()) return
         const ancestors = getParentPromptChain(prompt.childId, record, promptDataRef.current ?? settlementData).slice(0, prompt.selectedCount)
         if (ancestors.length !== prompt.selectedCount || ancestors.some(({ habit }, index) =>
           habit.id !== prompt.ancestors[index]?.habit.id)) return
         const failedIds = await settleParentPromptChain(ancestors, {
           date: prompt.date,
-          log: (items) => bulkLog.mutateAsync(items),
-          skip: (items) => bulkSkip.mutateAsync(items),
+          log: (items, parentPromptContinuation) => bulkLog.mutateAsync(parentPromptContinuation.length > 0 ? { items, parentPromptContinuation } : items),
+          skip: (items, parentPromptContinuation) => bulkSkip.mutateAsync(parentPromptContinuation.length > 0 ? { items, parentPromptContinuation } : items),
           isCurrent,
           onSettled: ({ habitId, mode }) => {
             settledIds.add(habitId)

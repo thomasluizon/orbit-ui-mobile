@@ -4,6 +4,7 @@ import {
   mutationEntityTypeSchema,
   mutationScopeSchema,
   type MutationEntityType,
+  type ParentPromptContinuation,
   type MutationScope,
   type PersistedQueuedMutation,
   type QueuedMutation,
@@ -14,6 +15,7 @@ let db: SQLite.SQLiteDatabase | null = null
 
 interface QueueMetaRow {
   suppressParentSettlement?: boolean
+  parentPromptContinuation?: ParentPromptContinuation
   scope?: MutationScope
   entityType?: MutationEntityType
   status?: QueuedMutationStatus
@@ -113,6 +115,7 @@ function parseJson<T>(value: string | null): T | null {
 
 function buildMeta(mutation: PersistedQueuedMutation): QueueMetaRow {
   return {
+    ...(mutation.parentPromptContinuation ? { parentPromptContinuation: mutation.parentPromptContinuation } : {}),
     ...(mutation.suppressParentSettlement ? { suppressParentSettlement: true } : {}),
     scope: mutation.scope,
     entityType: mutation.entityType,
@@ -139,6 +142,7 @@ function mapRow(row: QueueRow): PersistedQueuedMutation {
     payload: parseJson(row.payload),
     retries: row.retries,
     maxRetries: row.max_retries,
+    ...(meta.parentPromptContinuation ? { parentPromptContinuation: meta.parentPromptContinuation } : {}),
     ...(meta.suppressParentSettlement === true ? { suppressParentSettlement: true } : {}),
     scope: scope.success ? scope.data : undefined,
     entityType: entityType.success ? entityType.data : undefined,

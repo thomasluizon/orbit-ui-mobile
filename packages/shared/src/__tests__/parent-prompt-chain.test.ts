@@ -69,7 +69,7 @@ describe('parent prompt chains', () => {
     const log = vi.fn(async (items: { habitId: string }[]) => bulkLogResultSchema.parse({ results: items.map(({ habitId }, index) => ({ index, habitId, status: 'Success', logId: null, error: null })) }))
     const onSettled = vi.fn()
     expect(await settleParentPromptChain(ancestors, { date, log, skip: vi.fn(), isCurrent: () => true, onSettled })).toEqual([])
-    expect(log).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date }, { habitId: 'root', date }])
+    expect(log).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date }, { habitId: 'root', date }], [])
     expect(onSettled.mock.calls).toEqual([[{ habitId: 'parent', mode: 'log' }], [{ habitId: 'root', mode: 'log' }]])
   })
 
@@ -81,6 +81,15 @@ describe('parent prompt chains', () => {
     const log = vi.fn(async () => { expect(settled).toEqual(['parent']); return logResult('root', 'Failed') })
     expect(await settleParentPromptChain(ancestors, { date, log, skip, isCurrent: () => true, onSettled: ({ habitId }) => settled.push(habitId) })).toEqual(['root'])
     expect(settled).toEqual(['parent'])
+  })
+
+  it('passes only the remaining selected ancestors to a batch for durable replay', async () => {
+    const { ancestors } = chainFixture('skip')
+    const skip = vi.fn(async () => ({ ...bulkSkipResultSchema.parse({ results: [{ index: 0, habitId: 'parent', status: 'Success', error: null }] }), queuedIds: ['parent'] }))
+    const log = vi.fn()
+    await settleParentPromptChain(ancestors, { date, log, skip, isCurrent: () => true, onSettled: vi.fn() })
+    expect(skip).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date }], [{ habitId: 'root', date, mode: 'log' }])
+    expect(log).not.toHaveBeenCalled()
   })
 
   it.each(['failure', 'queued', 'ambiguous', 'offline'] as const)('stops before the next action after %s', async (outcome) => {
