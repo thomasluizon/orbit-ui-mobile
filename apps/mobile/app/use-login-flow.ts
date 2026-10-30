@@ -172,11 +172,6 @@ export function useLoginFlow(isAuthCallback = false) {
   useEffect(() => {
     let active = true
     async function hydrate() {
-      const returnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
-      const safeReturnUrl = returnUrl && isSafeReturnUrl(returnUrl) ? returnUrl : undefined
-      if (!isAuthCallback && (safeReturnUrl || returnUrlAttemptRef.current?.returnUrl)) {
-        await getOrCreateReturnUrlAttempt(returnUrlAttemptRef, safeReturnUrl).ready
-      }
       if (typeof params.ref === 'string' && isValidReferralCode(params.ref)) await storeReferralCode(params.ref)
       const referral = await getStoredReferralCode()
       if (!active) return
@@ -184,7 +179,7 @@ export function useLoginFlow(isAuthCallback = false) {
     }
     void hydrate().catch(() => { if (active) setErrorKey('auth.errors.unknownError') })
     return () => { active = false }
-  }, [isAuthCallback, params.ref, params.returnUrl])
+  }, [params.ref])
 
   useEffect(() => {
     if (codeFailure !== 'locked') return
@@ -316,7 +311,7 @@ export function useLoginFlow(isAuthCallback = false) {
     const controller = new AbortController()
     if (!isValidEmail(attempt.email) || useAuthStore.getState().isAuthenticated || useAuthStore.getState().isLoading) return
     const returnUrlAttempt = getOrCreateReturnUrlAttempt(
-      returnUrlAttemptRef, returnUrlAttemptRef.current?.returnUrl,
+      returnUrlAttemptRef, typeof params.returnUrl === 'string' ? params.returnUrl : returnUrlAttemptRef.current?.returnUrl,
     )
     attemptScope.watch(attempt, () => controller.abort())
     busy.current = true

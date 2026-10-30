@@ -1,6 +1,7 @@
 import React from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { captureMessage } from '@sentry/react-native'
+import { createApiClientError } from '@orbit/shared/utils'
 
 import AuthCallbackScreen from '@/app/auth-callback'
 
@@ -123,8 +124,9 @@ it.each(['logout', 'replacement login'])('does not install an exchanged account 
   })
 })
 
-it('reports a fixed exchange reason once without exposing the rejected error', async () => {
-  mocks.completeGoogleAuthFromUrl.mockRejectedValue(new Error('private-code private-state private@example.test'))
+it.each([new Error('private-code private-state private@example.test'), new TypeError('Network request failed'),
+  createApiClientError(503, null, 'Unavailable')])('reports a fixed exchange reason once without exposing the rejected error: %s', async (failure) => {
+  mocks.completeGoogleAuthFromUrl.mockRejectedValue(failure)
   await mountCallback()
   expect(mocks.callbackState).toBe('failed')
   expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
