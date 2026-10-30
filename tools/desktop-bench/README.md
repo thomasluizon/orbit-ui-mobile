@@ -29,6 +29,7 @@ The API producer is `ChatController.StartEventStreamAsync`, `WriteEventAsync` an
 the shared consumer is `packages/shared/src/chat/sse-stream.ts`.
 
 Five independent cold/warm pairs per shell are required; `--runs` may increase the count.
+Both shells pass a readiness launch before timed collection; these launches are excluded from medians.
 Shell order alternates per pair. Cold clears benchmark webview storage and HTTP cache; warm
 retains it after a complete process exit. Neither purges OS filesystem caches or restarts the
 prewarmed server. These are storage-cold and storage-warm launches, not cold boots. Keep the

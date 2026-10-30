@@ -11,7 +11,7 @@ import { markdown, percentile, summarize } from './measurements.mjs'
 const require = createRequire(import.meta.url)
 const note = (message) => process.stdout.write(`[desktop-bench] ${message}\n`)
 
-async function measure({ shell, cache, iteration, executable, profile, environment, proxy, macProbe, windowsScript, work, viewport }) {
+async function measure({ shell, cache, iteration, executable, profile, environment, proxy, macProbe, windowsScript, work, viewport, readinessOnly }) {
   proxy.reset()
   const launchedAt = Date.now()
   const handle = start(process.platform === 'darwin' ? macProbe : executable, process.platform === 'darwin' ? ['launch', executable] : [], {
@@ -26,6 +26,10 @@ async function measure({ shell, cache, iteration, executable, profile, environme
     const usable = await waitFor(() => read('usable'), `${shell} usable Hoje`)
     if (usable.visibility !== 'visible') throw new Error('Shell must be visible for measurement')
     if (viewport && usable.viewport.join(',') !== viewport.join(',')) throw new Error(`Viewport mismatch: ${usable.viewport} versus ${viewport}`)
+    if (readinessOnly) {
+      note(`${shell}: readiness check passed at ${usable.viewport.join('x')}`)
+      return { viewport: usable.viewport }
+    }
     note(`${shell} ${iteration + 1} ${cache}: Hoje usable, measuring idle at ${usable.viewport.join('x')}`)
     const baseline = await treeSample(handle, macProbe, windowsScript)
     members = baseline.members
@@ -98,19 +102,22 @@ export async function benchmark({ repository, directory, output, repetitions }) 
     await fetch('http://127.0.0.1:3400/').then((response) => response.arrayBuffer())
     const runs = []
     let viewport
-    for (let iteration = 0; iteration < repetitions; iteration++) {
-      const order = iteration % 2 ? ['electron', 'tauri'] : ['tauri', 'electron']
+    for (let iteration = -1; iteration < repetitions; iteration++) {
+      const readinessOnly = iteration === -1
+      const order = iteration > 0 && iteration % 2 ? ['electron', 'tauri'] : ['tauri', 'electron']
       for (const shell of order) {
         const profile = shell === 'tauri' ? shells.profile : join(work, 'electron-profile')
         const profiles = shell === 'tauri' && process.platform === 'darwin' ? [...shells.macStorage, profile] : [profile]
         for (const path of profiles) await rm(path, { recursive: true, force: true })
         await mkdir(profile, { recursive: true })
-        for (const cache of ['cold', 'warm']) {
+        for (const cache of readinessOnly ? ['readiness'] : ['cold', 'warm']) {
           if (interrupted) throw new Error('Interrupted')
-          const result = await measure({ shell, cache, iteration, executable: shells[`${shell}Executable`], profile, environment, proxy, macProbe, windowsScript, work, viewport })
+          const result = await measure({ shell, cache, iteration, executable: shells[`${shell}Executable`], profile, environment, proxy, macProbe, windowsScript, work, viewport, readinessOnly })
           viewport = result.viewport
-          runs.push(result)
-          await writeFile(join(output, 'partial.json'), JSON.stringify(runs, null, 2))
+          if (!readinessOnly) {
+            runs.push(result)
+            await writeFile(join(output, 'partial.json'), JSON.stringify(runs, null, 2))
+          }
         }
       }
     }
