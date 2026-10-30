@@ -36,7 +36,11 @@
     }
     if (name === 'palette') {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', code: 'KeyK', metaKey: /Mac/.test(navigator.platform), ctrlKey: !/Mac/.test(navigator.platform), bubbles: true }))
+    }
+    if (name === 'palette' || name === 'palette-ready') {
       await until(() => document.querySelector('[cmdk-input]') === document.activeElement && document.querySelectorAll('[cmdk-item]').length >= 2, 'palette input and results')
+      await report('palette', paletteState())
+      return
     }
     await report(name, name === 'palette' ? paletteState() : {})
   }
@@ -73,7 +77,11 @@
       if (!response.ok) throw new Error(`Command request failed: ${response.status}`)
       const command = await response.text()
       if (command.startsWith('update-')) await update(command.slice(7))
-      else if (command === 'focus') await report('focus', paletteState())
+      else if (command.startsWith('focus-')) {
+        await until(() => paletteState().selected === Number(command.slice(6)), 'next keyboard-selected result')
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+        await report('focus', paletteState())
+      }
       else await screen(command)
     }
   }

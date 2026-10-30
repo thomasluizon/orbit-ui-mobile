@@ -61,6 +61,31 @@ export async function cases() {
     const compilation = spawnSync('clang', ['-fsyntax-only', '-fobjc-arc', join(REPO_ROOT, 'tools/desktop-bench/acceptance-ax.m')], { encoding: 'utf8', timeout: 30000 })
     T('macOS accessibility reader compiles against the installed SDK without opening an app', compilation.status === 0, compilation.stderr)
   }
+  const probeSource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-probe.js'), 'utf8')
+    .replace('run().catch', 'globalThis.completion = run().catch')
+  for (const scenario of ['success', 'send-failure', 'token-leak', 'readable-cookie']) {
+    const requests = []
+    const reports = []
+    let destination
+    const browserWindow = {}
+    browserWindow.top = browserWindow
+    const context = {
+      window: browserWindow, document: { readyState: 'complete', cookie: scenario === 'readable-cookie' ? 'auth_token=readable' : '' },
+      location: { pathname: '/login', assign: (path) => { destination = path } },
+      setTimeout, navigator: { platform: 'MacIntel' },
+      fetch: async (path, options) => {
+        if (path === '/_bench/events') { reports.push(JSON.parse(options.body)); return { ok: true } }
+        requests.push({ path, body: JSON.parse(options.body) })
+        return { ok: scenario !== 'send-failure', status: scenario === 'send-failure' ? 400 : 200,
+          json: async () => scenario === 'token-leak' ? { token: 'forbidden' } : {} }
+      },
+    }
+    runInNewContext(probeSource, context)
+    await context.completion
+    T('installed page probe completes only through successful protected BFF email requests', scenario === 'success'
+      ? destination === '/' && requests.map((entry) => entry.path).join(',') === '/api/auth/send-code,/api/auth/verify-code' && reports.some((entry) => entry.kind === 'email-completed')
+      : !destination && reports.some((entry) => entry.kind === 'error') && !reports.some((entry) => entry.kind === 'email-completed'))
+  }
   const proxySource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/server.mjs'), 'utf8')
     .replace(/^import .*$/gm, '').replace('export async function startProxy', 'async function startProxy') + '\nglobalThis.startProxy = startProxy'
   for (const authenticated of [false, true]) {

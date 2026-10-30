@@ -105,8 +105,12 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
   await dump('hoje')
   proxy.send('astra')
   await waitFor(() => proxy.read('astra'), 'Astra surface')
-  await dump('astra')
-  proxy.send('palette')
+  const astraTree = await dump('astra')
+  if (astraTree.denied) proxy.send('palette')
+  else {
+    await native(handle.child.pid, 'palette')
+    proxy.send('palette-ready')
+  }
   let previous = await waitFor(() => proxy.read('palette'), 'palette surface')
   const tree = await dump('palette')
   if (tree.denied) { report.paletteFocus = { skipped: tree.error }; return }
@@ -114,7 +118,7 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
   for (let index = 0; index < 2; index++) {
     await native(handle.child.pid, 'down')
     const before = proxy.events().filter((event) => event.kind === 'focus').length
-    proxy.send('focus')
+    proxy.send(`focus-${previous.selected + 1}`)
     const current = await waitFor(() => proxy.events().filter((event) => event.kind === 'focus')[before], 'palette result focus')
     const selectedTree = await dump(`palette-result-${index + 1}`)
     assertPaletteFocus(previous, current, selectedTree)
