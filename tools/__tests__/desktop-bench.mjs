@@ -2,10 +2,25 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { electronInstallArguments } from '../desktop-bench/build.mjs'
+import { buildHermeticWeb } from '../desktop-bench/runner.mjs'
 import { T, REPO_ROOT, check, root } from './_harness.mjs'
 import { cpuSeconds, median, metrics, parseMacProcesses, percentile, processTree, summarize, markdown } from '../desktop-bench/measurements.mjs'
 
-export const cases = () => {
+export const cases = async () => {
+  for (const options of [undefined, '', '--trace-warnings', '--trace-warnings --max-old-space-size=2048']) {
+    const environment = { API_BASE: 'http://127.0.0.1:5099', ...(options === undefined ? {} : { NODE_OPTIONS: options }) }
+    const original = { ...environment }
+    let invocation
+    await buildHermeticWeb(REPO_ROOT, root, environment, async (command, argumentsList, settings) => {
+      invocation = { command, argumentsList, ...settings }
+    })
+    T(`hermetic web build gets a 4096 MiB heap with inherited options ${JSON.stringify(options)}`,
+      invocation.env.NODE_OPTIONS === `${options ? `${options} ` : ''}--max-old-space-size=4096`)
+    T('heap override leaves the shared shell and runtime environment unchanged', JSON.stringify(environment) === JSON.stringify(original) && invocation.env !== environment)
+    T('hermetic web build retains its command, origin, working directory and log',
+      invocation.command === process.execPath && invocation.argumentsList.join(',') === ['--import', 'tsx', join(REPO_ROOT, 'apps/web/scripts/build-hermetic.mjs')].join(',') &&
+      invocation.env.API_BASE === environment.API_BASE && invocation.cwd === REPO_ROOT && invocation.log === join(root, 'web-build.log'))
+  }
   T('Electron build dependencies are installed as development-only tooling', electronInstallArguments('workspace', '45.1.0').includes('--save-dev'))
   check('desktop-bench/run.mjs', 'benchmark help is cwd safe', ['--help'], { status: 0, stdout: /Usage/ }, { cwd: root })
   check('desktop-bench/run.mjs', 'benchmark refuses unknown options before building', ['--unknown'], { status: 2 })

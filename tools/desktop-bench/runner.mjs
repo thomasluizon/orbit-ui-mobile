@@ -11,6 +11,14 @@ import { markdown, percentile, summarize } from './measurements.mjs'
 const require = createRequire(import.meta.url)
 const note = (message) => process.stdout.write(`[desktop-bench] ${message}\n`)
 
+export function buildHermeticWeb(repository, work, environment, executeBuild = execute) {
+  return executeBuild(process.execPath, ['--import', 'tsx', join(repository, 'apps/web/scripts/build-hermetic.mjs')], {
+    cwd: repository,
+    env: { ...environment, NODE_OPTIONS: `${environment.NODE_OPTIONS ? `${environment.NODE_OPTIONS} ` : ''}--max-old-space-size=4096` },
+    log: join(work, 'web-build.log'),
+  })
+}
+
 async function measure({ shell, cache, iteration, executable, profile, environment, proxy, macProbe, windowsScript, work, viewport, readinessOnly }) {
   proxy.reset()
   const launchedAt = Date.now()
@@ -88,7 +96,7 @@ export async function benchmark({ repository, directory, output, repetitions }) 
     const shells = await buildShells(repository, work, environment)
     if (interrupted) throw new Error('Interrupted')
     note('Building the hermetic web application')
-    await execute(process.execPath, ['--import', 'tsx', join(repository, 'apps/web/scripts/build-hermetic.mjs')], { cwd: repository, env: environment, log: join(work, 'web-build.log') })
+    await buildHermeticWeb(repository, work, environment)
     await execute(process.execPath, ['--import', 'tsx', join(directory, 'fixtures.ts'), join(work, 'fixtures.json')], { cwd: repository, env: environment })
     const fixtures = await readFixtures(join(work, 'fixtures.json'))
     const mock = start(process.execPath, ['--import', 'tsx', join(repository, 'apps/web/test-support/hermetic/mock-api/server.ts')], { cwd: repository, env: environment, log: join(work, 'mock.log') })
