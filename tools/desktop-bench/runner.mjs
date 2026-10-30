@@ -1,8 +1,8 @@
 import { createRequire } from 'node:module'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
-import { platform, release, arch, cpus, totalmem, homedir } from 'node:os'
+import { join, delimiter } from 'node:path'
+import { platform, release, arch, cpus, totalmem } from 'node:os'
 import { buildShells, readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
 import { assertFree, delay, execute, start, stop, stopAll, treeSample, waitFor, waitForHttp } from './host.mjs'
@@ -63,7 +63,7 @@ export async function benchmark({ repository, directory, output, repetitions }) 
   if (existsSync(nextOutput)) throw new Error('Remove apps/web/.next before starting this hermetic build')
   const work = join(output, 'work')
   await mkdir(work, { recursive: true })
-  const environment = { ...process.env, API_BASE: 'http://127.0.0.1:5099', NEXT_PUBLIC_EVENT_API_BASE: 'http://127.0.0.1:5099', NEXT_PUBLIC_SITE_URL: 'http://127.0.0.1:3400', LAYOUT_PORT: '3400', ORBIT_DESKTOP_BENCH: '1', NEXT_TELEMETRY_DISABLED: '1', PATH: `/opt/homebrew/opt/rustup/bin:${process.env.PATH}` }
+  const environment = { ...process.env, API_BASE: 'http://127.0.0.1:5099', NEXT_PUBLIC_EVENT_API_BASE: 'http://127.0.0.1:5099', NEXT_PUBLIC_SITE_URL: 'http://127.0.0.1:3400', LAYOUT_PORT: '3400', ORBIT_DESKTOP_BENCH: '1', NEXT_TELEMETRY_DISABLED: '1', PATH: ['/opt/homebrew/opt/rustup/bin', process.env.PATH].join(delimiter) }
   const macProbe = join(work, 'mac-process')
   const windowsScript = join(directory, 'windows-process.ps1')
   let proxy

@@ -7,6 +7,10 @@ import { execute, logicalSize } from './host.mjs'
 
 const require = createRequire(import.meta.url)
 
+export function electronInstallArguments(electron, version) {
+  return ['install', '--prefix', electron, '--package-lock=false', '--no-audit', '--fund=false', '--save-dev', '--save-exact', `electron@${version}`, 'electron-builder@26.18.0']
+}
+
 function npmCli() {
   const candidates = [process.env.npm_execpath, join(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js'), join(dirname(process.execPath), '../lib/node_modules/npm/bin/npm-cli.js')]
   const found = candidates.find((path) => path && existsSync(path))
@@ -21,7 +25,7 @@ export async function buildShells(repository, work, environment) {
   const npm = npmCli()
   const version = (await execute(process.execPath, [npm, 'view', 'electron', 'version'], { cwd: work })).trim()
   if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`Expected stable Electron version, received ${version}`)
-  await execute(process.execPath, [npm, 'install', '--prefix', electron, '--package-lock=false', '--no-audit', '--fund=false', '--save-exact', `electron@${version}`, 'electron-builder@26.18.0'], { cwd: work, log: join(work, 'electron-build.log') })
+  await execute(process.execPath, [npm, ...electronInstallArguments(electron, version)], { cwd: work, log: join(work, 'electron-build.log') })
   await execute(process.execPath, [join(electron, 'node_modules/electron/install.js')], { cwd: electron, log: join(work, 'electron-build.log') })
   const application = join(electron, 'application')
   await mkdir(application, { recursive: true })
@@ -40,7 +44,7 @@ app.on('window-all-closed', () => app.quit());
     electronVersion: version, electronDist: join(electron, 'node_modules/electron/dist'),
     files: ['main.cjs', 'package.json'], npmRebuild: false,
     mac: { target: ['dmg'], identity: null }, win: { target: ['nsis'], signAndEditExecutable: false },
-    artifactName: 'orbit-electron.${ext}',
+    artifactName: 'orbit-electron.${ext}', publish: [],
   }
   const configPath = join(work, 'electron-builder.json')
   await writeFile(configPath, JSON.stringify(builderConfig))
@@ -62,6 +66,9 @@ app.on('window-all-closed', () => app.quit());
   const release = join(desktop, 'src-tauri/target/release')
   const tauriBundle = process.platform === 'darwin' ? join(release, 'bundle/macos/Orbit Benchmark Tauri.app') : release
   const electronBundle = join(electron, 'dist', process.platform === 'darwin' ? `mac${process.arch === 'arm64' ? '-arm64' : ''}/Orbit Benchmark Electron.app` : 'win-unpacked')
+  const archive = join(electronBundle, process.platform === 'darwin' ? 'Contents/Resources/app.asar' : 'resources/app.asar')
+  const entries = (await execute(process.execPath, [join(electron, 'node_modules/@electron/asar/bin/asar.js'), 'list', archive])).trim().split('\n').sort()
+  if (entries.join(',') !== '/main.cjs,/package.json') throw new Error('Electron archive must contain only the generated shell and manifest')
   let tauriInstaller
   if (process.platform === 'darwin') {
     tauriInstaller = join(work, 'orbit-tauri.dmg')
@@ -74,7 +81,7 @@ app.on('window-all-closed', () => app.quit());
   }
   const tauriExecutable = process.platform === 'darwin' ? join(tauriBundle, 'Contents/MacOS/orbit-desktop') : join(release, 'orbit-desktop.exe')
   const electronExecutable = process.platform === 'darwin' ? join(electronBundle, 'Contents/MacOS/Orbit Benchmark Electron') : join(electronBundle, 'Orbit Benchmark Electron.exe')
-  const windowsInstalled = process.platform === 'win32' ? [tauriExecutable, join(release, 'Microsoft.WindowsAppRuntime.Bootstrap.dll'), join(release, 'WindowsAppRuntimeInstall.exe')] : [tauriBundle]
+  const windowsInstalled = process.platform === 'win32' ? [tauriExecutable] : [tauriBundle]
   return {
     version, tauriExecutable, electronExecutable, profile,
     macStorage: [join(homedir(), 'Library/WebKit/org.useorbit.desktop.benchmark'), join(homedir(), 'Library/Caches/org.useorbit.desktop.benchmark'), join(homedir(), 'Library/Application Support/org.useorbit.desktop.benchmark')],

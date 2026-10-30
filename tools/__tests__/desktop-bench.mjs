@@ -1,10 +1,12 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { electronInstallArguments } from '../desktop-bench/build.mjs'
 import { T, REPO_ROOT, check, root } from './_harness.mjs'
 import { cpuSeconds, median, parseMacProcesses, percentile, processTree, summarize } from '../desktop-bench/measurements.mjs'
 
 export const cases = () => {
+  T('Electron build dependencies are installed as development-only tooling', electronInstallArguments('workspace', '45.1.0').includes('--save-dev'))
   check('desktop-bench/run.mjs', 'benchmark help is cwd safe', ['--help'], { status: 0, stdout: /Usage/ }, { cwd: root })
   check('desktop-bench/run.mjs', 'benchmark refuses unknown options before building', ['--unknown'], { status: 2 })
   check('desktop-bench/run.mjs', 'benchmark refuses fewer than five repetitions', ['--runs', '4'], { status: 2 })
