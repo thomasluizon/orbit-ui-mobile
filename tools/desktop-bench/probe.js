@@ -33,6 +33,8 @@
   async function chat() {
     document.querySelector('[data-composer-input]:not([disabled])').focus()
     const textarea = await until(() => document.querySelector('[data-shell-conversation] [data-composer-input]:not([disabled])'), 'conversation composer')
+    const previousArticles = new Set(document.querySelectorAll('[role="feed"] article'))
+    const replyIncludes = (text) => [...document.querySelectorAll('[role="feed"] article')].some((article) => !previousArticles.has(article) && article.innerText.includes(text))
     const originalFetch = window.fetch
     let requestAt = null
     let terminalAt = null
@@ -61,9 +63,9 @@
     await pause(50)
     textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }))
     await until(() => requestAt !== null, 'chat request from composer')
-    await until(() => document.body.innerText.includes('A small'), 'first rendered token')
+    await until(() => replyIncludes('A small'), 'first rendered token')
     const firstTokenMs = performance.now() - started
-    await until(() => terminalAt !== null && document.body.innerText.includes('A small step counts.'), 'final rendered part')
+    await until(() => terminalAt !== null && replyIncludes('A small step counts.'), 'final rendered part')
     await frame()
     window.fetch = originalFetch
     return { firstTokenMs, finalPartMs: performance.now() - started, requestDispatchMs: requestAt - started, finalEventMs: terminalAt - started }
