@@ -95,8 +95,14 @@ interface ConnectionState {
   reportNextFailure: boolean
 }
 
+function isRetryingStreamTransport(error: unknown): boolean {
+  const status = extractBackendStatus(error)
+  return (status !== undefined && [502, 503, 504, 520, 521, 522, 523, 524].includes(status))
+    || (error instanceof TypeError && ['Failed to fetch', 'Load failed', 'Network request failed'].includes(error.message))
+}
+
 function handleStreamFailure(error: unknown, opened: boolean, options: AccountEventStreamOptions, state: ConnectionState): void {
-  if (!state.failureReported && isUnexpectedStreamFailure(error, options.signal)) {
+  if (!state.failureReported && isUnexpectedStreamFailure(error, options.signal) && !isRetryingStreamTransport(error)) {
     state.failureReported = true
     options.onError?.(error)
   }
