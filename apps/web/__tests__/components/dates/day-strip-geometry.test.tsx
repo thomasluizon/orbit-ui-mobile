@@ -9,7 +9,7 @@ import { DayStrip } from '@/components/dates/day-strip'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const days: AccountDayValue[] = Array.from({ length: 14 }, (_, index) => (['active', 'frozen', 'missed', 'today'] as const)[index % 4]!)
-const words = { active: 'active', frozen: 'protected', missed: 'missed', today: 'today' }
+const words = { notScheduled: 'nothing due', active: 'active', frozen: 'protected', missed: 'missed', today: 'today' }
 
 describe('DayStrip geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined

@@ -236,3 +236,10 @@ it('preserves suggestion projection failures with their block kind', async () =>
   expect(error).toContain('habitSuggestions')
   expect(output).toMatchObject({ answer: null, renderError: { blockKind: 'habitSuggestions', message: 'Malformed suggestion block.' } })
 })
+
+it.each(['en', 'pt-BR'])('grades pre-habit streak days as nothing due in %s', (locale) => {
+  const card = { ...focused.apiStatusCardsFinalFixture.response.streak, currentStreak: 1, lastActiveDate: '2026-09-25',
+    recentFreezeDates: [], isFrozenToday: false, firstEligibleDate: '2026-09-24' }
+  const visible = visibleBlock({ type: 'block', kind: 'streak', block: card }, { locale, accountDate: '2026-09-25', t: key => key })
+  expect(visible.days.map(day => day.status)).toEqual([...Array(12).fill('calendar.dayCell.notScheduled'), 'progressScreen.streak.missed', 'progressScreen.streak.active'])
+})

@@ -75,11 +75,14 @@ describe('DayStrip', () => {
     const tree = render(
       <DayStrip
         scope="account"
-        days={['active', 'frozen', 'missed', 'today']}
-        words={{ active: 'active', frozen: 'protected', missed: 'missed', today: 'today' }}
+        days={['not-scheduled', 'active', 'frozen', 'missed', 'today']}
+        words={{ notScheduled: 'nothing due', active: 'active', frozen: 'protected', missed: 'missed', today: 'today' }}
         label="Account streak"
       />,
     )
+    const neutral = tree.root.findByProps({ testID: 'day-strip-cell-not-scheduled' })
+    expect(neutral.props.accessibilityLabel).toBe('1, nothing due')
+    expect(StyleSheet.flatten(neutral.props.style as StyleProp<ViewStyle>)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgWell, borderWidth: 0 })
     const today = tree.root.findByProps({ testID: 'day-strip-cell-today' })
     expect(today.props.accessibilityState).toEqual({ selected: true })
     expect(tree.root.findByProps({ testID: 'day-strip-cell-active' }).props.accessibilityState).toEqual({ selected: false })

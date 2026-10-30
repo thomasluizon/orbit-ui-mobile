@@ -14,8 +14,8 @@ export function gamificationCardTitleKey(card: GamificationCard): string {
 export function gamificationStreakPresentation(streak: NonNullable<GamificationCard['state']['streak']>, read: GamificationCard['read'], locale: string, t: (key: string, values?: Record<string, string | number>) => string): { freeze: FreezeBankProps; days: ReturnType<typeof buildStreakWeekDays>; dayWords: AccountDayWords; labels: string[]; stripLabel: string } {
   const window = read ? readBlockWindow(read.scope) : null
   const asOf = window ? new Date(`${window.to}T12:00:00Z`) : new Date()
-  const days = buildStreakWeekDays(streak, streak.currentStreak, streak.isFrozenToday, asOf, 14, 'UTC')
-  const dayWords = { active: t('progressScreen.streak.active'), frozen: t('progressScreen.streak.frozen'), missed: t('progressScreen.streak.missed'), today: window ? formatReadWindow(window, locale) : t('progressScreen.streak.today') }
+  const days = buildStreakWeekDays(streak, streak.currentStreak, streak.isFrozenToday, asOf, 14, 'UTC', streak.firstEligibleDate)
+  const dayWords = { notScheduled: t('calendar.dayCell.notScheduled'), active: t('progressScreen.streak.active'), frozen: t('progressScreen.streak.frozen'), missed: t('progressScreen.streak.missed'), today: window ? formatReadWindow(window, locale) : t('progressScreen.streak.today') }
   const daysTowardNext = Math.max(0, 7 - streak.daysUntilNextFreeze)
   const freeze: FreezeBankProps = {
     inSheet: true,

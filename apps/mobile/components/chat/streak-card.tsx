@@ -25,8 +25,9 @@ export function StreakCard({ streakCard }: Readonly<{ streakCard: StreakCardData
   const frameState = liveBlockState(freeze.streakQuery, { staleMessage: t('chat.liveBlock.stale'), onRefresh: () => { void freeze.streakQuery.refetch() } })
   const window = streakCard.read ? readBlockWindow(streakCard.read.scope) : null
   const asOf = window ? new Date(`${window.to}T12:00:00Z`) : new Date()
-  const days = buildStreakWeekDays(liveStreak, liveStreak.currentStreak, liveStreak.isFrozenToday, asOf, 14, window ? 'UTC' : profile?.timeZone)
+  const days = buildStreakWeekDays(liveStreak, liveStreak.currentStreak, liveStreak.isFrozenToday, asOf, 14, window ? 'UTC' : profile?.timeZone, liveStreak.firstEligibleDate)
   const words = {
+    notScheduled: t('calendar.dayCell.notScheduled'),
     active: t('progressScreen.streak.active'), frozen: t('progressScreen.streak.frozen'),
     missed: t('progressScreen.streak.missed'), today: window ? formatReadWindow({ from: window.to, to: window.to }, i18n.language) : t('progressScreen.streak.today'),
   }
