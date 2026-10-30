@@ -34,7 +34,9 @@ describe('Menu interaction colours in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
       await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
-      const heading = page.getByRole('button', { name: title })
+      const heading = page.locator('.orbit-sheet-title-content')
+      expect(await heading.evaluate((element) => element.tagName)).toBe('SPAN')
+      expect(await page.getByRole('button', { name: title }).count()).toBe(0)
       expect(await heading.locator('[data-personal-text]').evaluate((element) => getComputedStyle(element).textDecorationLine)).toBe('none')
       const words = await page.locator('.orbit-sheet-typed-title > span').evaluateAll((elements) =>
         elements.map((element) => ({ text: element.textContent, decoration: getComputedStyle(element).textDecorationLine })))

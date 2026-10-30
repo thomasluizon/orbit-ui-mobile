@@ -204,10 +204,14 @@ describe('label and interaction fill guards in Chromium', () => {
   })
 
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
-    it.each([320, 600].flatMap((width) => [1, 2].map((textScale) => ({ width, textScale }))))(
-      `keeps typed sheet title interaction fills padded at $width px and text scale $textScale in ${locale}`,
-      async ({ width, textScale }) => {
-        const title = locale === 'pt-BR' ? 'Leitura' : 'Reading'
+    it.each([320, 600].flatMap((width) => [1, 2].flatMap((textScale) => [true, false].map((clamped) => ({ width, textScale, clamped })))))(
+      `keeps typed sheet title fills padded only when the title clamps at $width px, text scale $textScale, clamped $clamped in ${locale}`,
+      async ({ width, textScale, clamped }) => {
+        const title = clamped
+          ? (locale === 'pt-BR' ? 'Ler um capítulo antes de dormir e anotar as ideias ' : 'Read a chapter before bed and take notes ').repeat(8).trim()
+          : (locale === 'pt-BR' ? 'Leitura' : 'Reading')
+        // WHY: jsdom has no layout, so the clamp measurement is set here and the real overflow is asserted in Chromium below. https://github.com/thomasluizon/orbit-tickets/issues/1895
+        const height = clamped ? vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(1000) : undefined
         const sheet = render(cloneElement(createElement(NextIntlClientProvider),
           { locale, messages: words, timeZone: 'UTC' },
           createElement(Sheet, { title, titleMode: 'typed', onClose: () => {} }),
@@ -215,6 +219,7 @@ describe('label and interaction fill guards in Chromium', () => {
         const page = await browser.newPage({ viewport: { width, height: 915 } })
         try {
           await act(async () => {})
+          height?.mockRestore()
           const variables = Object.entries(resolveWebThemeVariables('orange', 'dark'))
             .map(([name, value]) => `${name}: ${value};`).join(' ')
           await page.setContent(`<!doctype html><style>${stylesheet}
@@ -224,15 +229,28 @@ describe('label and interaction fill guards in Chromium', () => {
           await page.evaluate(() => {
             for (const animation of document.getAnimations()) animation.finish()
           })
-          const trigger = page.getByRole('button', { name: title })
-          await expectInteractionFill(trigger)
-          const bounds = await trigger.boundingBox()
           const closeBounds = await page.getByRole('button', { name: words.common.close }).boundingBox()
-          expect(bounds!.height).toBeGreaterThanOrEqual(48)
           expect(closeBounds!.width).toBe(48)
           expect(closeBounds!.height).toBeGreaterThanOrEqual(48)
+          const content = page.locator('.orbit-sheet-title-content')
+          const text = content.locator('[data-personal-text]')
+          const overflowing = await text.evaluate((element) => element.scrollHeight > element.clientHeight + 1 || element.scrollWidth > element.clientWidth)
+          expect(overflowing).toBe(clamped)
+          if (!clamped) {
+            expect(await page.getByRole('button', { name: title, exact: true }).count()).toBe(0)
+            await content.hover()
+            expect(await content.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+            const bounds = await content.boundingBox()
+            expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(closeBounds!.x)
+            return
+          }
+          const trigger = page.getByRole('button', { name: title, exact: true })
+          await expectInteractionFill(trigger)
+          const bounds = await trigger.boundingBox()
+          expect(bounds!.height).toBeGreaterThanOrEqual(48)
           expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(closeBounds!.x)
         } finally {
+          height?.mockRestore()
           await page.close()
           sheet.unmount()
         }

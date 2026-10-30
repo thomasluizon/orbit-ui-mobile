@@ -4,6 +4,12 @@ import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
+const sheetModule = vi.hoisted(() => ({ load: vi.fn() }))
+vi.mock('@/components/ui/sheet', async (importOriginal) => {
+  sheetModule.load()
+  return importOriginal<typeof import('@/components/ui/sheet')>()
+})
+
 let clipped = false
 beforeEach(() => {
   clipped = false
@@ -13,6 +19,25 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('personal text font measurements', () => {
+  it('loads the real sheet only when an icon disclosure opens it', async () => {
+    const label = 'Read for 20 minutes'
+    const { rerender } = render(<PersonalTextDetails>{label}</PersonalTextDetails>)
+    expect(sheetModule.load).not.toHaveBeenCalled()
+    clipped = true
+    await act(async () => { document.fonts.dispatchEvent(new Event('loadingdone')) })
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-expanded', 'true')
+    expect(sheetModule.load).not.toHaveBeenCalled()
+    rerender(<PersonalTextDetails key="icon" iconOnly clamped>{label}</PersonalTextDetails>)
+    expect(sheetModule.load).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.showFullText' }))
+    const dialog = await screen.findByRole('dialog', { name: label }, { timeout: 5000 })
+    expect(dialog.querySelector('[data-personal-text-expanded]')).toHaveTextContent(label)
+    expect(sheetModule.load).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
   it('adds and removes the disclosure when font loading changes overflow without resizing the box', async () => {
     const label = 'Read for 20 minutes'
     const { container } = render(<PersonalTextDetails>{label}</PersonalTextDetails>)

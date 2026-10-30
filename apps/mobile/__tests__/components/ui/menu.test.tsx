@@ -20,6 +20,7 @@ import { BackHandler, __focusHost, __getFocusedNativeTag, __setTouchMode, __setW
 import { Checkbox } from '@/components/ui/icons'
 import { useUIStore } from '@/stores/ui-store'
 import { withFocusProvenance } from '@/__tests__/support/focus-provenance'
+import { deliverTitleLines } from '@/__tests__/support/sheet-title-layout'
 import en from '@orbit/shared/i18n/en.json'
 
 const theme = vi.hoisted<{ mode: 'dark' | 'light' }>(() => ({ mode: 'dark' }))
@@ -112,33 +113,58 @@ describe('Menu (mobile)', () => {
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
     const onDelete = vi.fn()
     let tree!: ReactTestRenderer
+    let header!: ReactTestRenderer
     await TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title })} actions={{ onDelete }} />) })
     const more = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.actions.more')[0]!
     await TestRenderer.act(() => (more.props.onPress as () => void)())
     const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]!
-    const header = sheet.props.header as React.ReactElement<{ children: React.ReactElement<{ onPress: () => void; children: React.ReactElement<{ numberOfLines?: number }> }>[] }>
-    const titleButton = header.props.children[0]!
-    expect(titleButton.props.children.type).toBe(PersonalText)
-    await TestRenderer.act(() => titleButton.props.onPress())
-    const fullTitle = sheet.findAll((node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)[0]!
-    expect(fullTitle.props.numberOfLines).toBe(1)
-    expect(fullTitle.props.selectable).toBe(true)
-    expect(menuItemLabels(tree)).toContain('habits.actions.delete')
-    expect(onDelete).not.toHaveBeenCalled()
-    await TestRenderer.act(() => tree.update(<></>))
+    try {
+      await TestRenderer.act(() => { header = TestRenderer.create(sheet.props.header) })
+      await TestRenderer.act(() => deliverTitleLines(header, ['Ler um capítulo inteiro ', 'do livro de história ', title.slice('Ler um capítulo inteiro do livro de história '.length)]))
+      await TestRenderer.act(() => header.update(sheet.props.header as React.ReactElement))
+      const titleButton = header.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === title)[0]!
+      expect((titleButton.props.children as React.ReactElement).type).toBe(PersonalText)
+      await TestRenderer.act(() => (titleButton.props.onPress as () => void)())
+      const fullTitle = sheet.findAll((node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)[0]!
+      expect(fullTitle.props.numberOfLines).toBe(1)
+      expect(fullTitle.props.selectable).toBe(true)
+      expect(menuItemLabels(tree)).toContain('habits.actions.delete')
+      expect(onDelete).not.toHaveBeenCalled()
+    } finally { await TestRenderer.act(() => { header.update(<></>); tree.update(<></>) }) }
   })
 
   it('discloses the original typed title even when a short heading is supplied', async () => {
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir'
     let tree!: ReactTestRenderer
+    let header!: ReactTestRenderer
     await TestRenderer.act(() => { tree = TestRenderer.create(<><PortalHost /><Menu.Root open={true}><Menu.Trigger accessibilityLabel="Menu trigger" /><Menu.Content presentation="sheet" title={title} shortTitle="Ler" titleMode="typed" items={[{ id: 'edit', label: 'Edit' }]}  /></Menu.Root></>) })
     const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]!
-    const header = sheet.props.header as React.ReactElement<{ children: React.ReactElement<{ onPress: () => void; accessibilityLabel: string }>[] }>
-    const trigger = header.props.children[0]!
-    expect(trigger.props.accessibilityLabel).toBe(title)
-    await TestRenderer.act(() => trigger.props.onPress())
-    expect(sheet.findAll((node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)).toHaveLength(1)
-    await TestRenderer.act(() => tree.update(<></>))
+    try {
+      await TestRenderer.act(() => { header = TestRenderer.create(sheet.props.header) })
+      await TestRenderer.act(() => deliverTitleLines(header, ['Ler um capítulo inteiro ', 'do livro de história ', 'antes de dormir']))
+      await TestRenderer.act(() => header.update(sheet.props.header as React.ReactElement))
+      const trigger = header.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === title)[0]!
+      expect(trigger.props.accessibilityLabel).toBe(title)
+      await TestRenderer.act(() => (trigger.props.onPress as () => void)())
+      expect(sheet.findAll((node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)).toHaveLength(1)
+    } finally { await TestRenderer.act(() => { header.update(<></>); tree.update(<></>) }) }
+  })
+
+  it('renders a fitting typed sheet title without an expand control', async () => {
+    const title = 'Ler um capítulo'
+    let tree!: ReactTestRenderer
+    let header!: ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<><PortalHost /><Menu.Root open><Menu.Trigger accessibilityLabel="Menu trigger" />
+      <Menu.Content presentation="sheet" title={title} shortTitle="Ler" titleMode="typed" items={items} />
+    </Menu.Root></>) })
+    const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]!
+    try {
+      await TestRenderer.act(() => { header = TestRenderer.create(sheet.props.header) })
+      await TestRenderer.act(() => deliverTitleLines(header, [title]))
+      await TestRenderer.act(() => header.update(sheet.props.header as React.ReactElement))
+      expect(header.root.findAll((node) => node.type === PersonalText)[0]!.props.children).toBe(title)
+      expect(header.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === title)).toHaveLength(0)
+    } finally { await TestRenderer.act(() => { header.update(<></>); tree.update(<></>) }) }
   })
 
   it('renders one trailing action row through the real confirmation sheet', async () => {

@@ -59,7 +59,7 @@ interface WebSheetProps extends SheetProps {
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
 export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTitle, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
-  const { titleExpanded, bodyRef, toggleTitle } = useSheetTitleDisclosure()
+  const { titleClamped, titleExpanded, onClampedChange, bodyRef, toggleTitle } = useSheetTitleDisclosure(title)
   const onBodyFocus = useSheetBodyFocusVisibility(virtualizedBody)
   const [presented, setPresented] = useState(true)
   // WHY: A pointer-down menu can mount this sheet before its opening release. https://github.com/thomasluizon/orbit-tickets/issues/577
@@ -146,6 +146,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
               <Dialog.Title aria-label={accessibleTitle} translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'} data-title-mode={titleMode}>
                 <SheetTitleContent title={title} titleMode={titleMode} accessibleTitle={accessibleTitle}
                   expanded={titleExpanded} onToggle={toggleTitle}
+                  clamped={titleClamped} onClampedChange={onClampedChange}
                   fullTitleId={`${overlayId}-full-title`} />
               </Dialog.Title>
               {headerAccessory}
@@ -169,7 +170,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
                   ...(boundedBody ? { display: 'flex', flexDirection: 'column', minHeight: 0 } as const : {}),
                   ...(virtualizedBody ? { display: 'flex', flexDirection: 'column', overflowY: 'hidden' } as const : {}),
                 }}>
-                  <ExpandedSheetTitle title={title} titleMode={titleMode} expanded={titleExpanded} id={`${overlayId}-full-title`} />
+                  <ExpandedSheetTitle title={title} titleMode={titleMode} clamped={titleClamped} expanded={titleExpanded} id={`${overlayId}-full-title`} />
                   {children}
                 </div>
               </div>
@@ -191,28 +192,34 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
   )
 }
 
-function ExpandedSheetTitle({ title, titleMode, expanded, id }: Readonly<Pick<SheetProps, 'title' | 'titleMode'> & { expanded: boolean; id: string }>) {
-  if (!title || titleMode !== 'typed') return null
+function ExpandedSheetTitle({ title, titleMode, clamped, expanded, id }: Readonly<Pick<SheetProps, 'title' | 'titleMode'> & { clamped: boolean; expanded: boolean; id: string }>) {
+  if (!title || titleMode !== 'typed' || !clamped) return null
   return <div id={id} hidden={!expanded}><PersonalText expanded className="orbit-sheet-full-title">{title}</PersonalText></div>
 }
 
-function SheetTitleContent({ title, titleMode, accessibleTitle, expanded, onToggle, fullTitleId }: Pick<SheetProps, 'title' | 'titleMode' | 'accessibleTitle'> & {
+function SheetTitleContent({ title, titleMode, accessibleTitle, expanded, onToggle, fullTitleId, clamped, onClampedChange }: Pick<SheetProps, 'title' | 'titleMode' | 'accessibleTitle'> & {
   expanded: boolean
   onToggle: () => void
   fullTitleId: string
+  clamped: boolean
+  onClampedChange: (clamped: boolean) => void
 }) {
   const t = useTranslations()
   if (!title || titleMode !== 'typed') return title ?? accessibleTitle ?? t('common.appName')
-  return (
-    <button type="button" className="orbit-sheet-title-button" aria-expanded={expanded}
-      aria-controls={fullTitleId} title={t(expanded ? 'common.collapse' : 'common.expand')} onClick={onToggle}>
-      <PersonalText className="orbit-sheet-typed-title">{title}</PersonalText>
-    </button>
-  )
+  const text = <PersonalText className="orbit-sheet-typed-title" onClampedChange={onClampedChange}>{title}</PersonalText>
+  return clamped ? <button type="button" className="orbit-sheet-title-content orbit-sheet-title-button" aria-expanded={expanded}
+    aria-controls={fullTitleId} onClick={onToggle}>{text}</button>
+    : <span className="orbit-sheet-title-content">{text}</span>
 }
 
-function useSheetTitleDisclosure() {
-  const [titleExpanded, setTitleExpanded] = useState(false)
+function useSheetTitleDisclosure(title: string | undefined) {
+  const [disclosure, setDisclosure] = useState({ title, clamped: false, expanded: false })
+  if (disclosure.title !== title) setDisclosure({ title, clamped: false, expanded: false })
+  const titleClamped = disclosure.title === title && disclosure.clamped
+  const titleExpanded = titleClamped && disclosure.expanded
+  const onClampedChange = useCallback((clamped: boolean) => {
+    setDisclosure((current) => current.clamped === clamped ? current : { ...current, clamped, expanded: clamped && current.expanded })
+  }, [])
   const bodyRef = useRef<HTMLDivElement>(null)
   const previousScroll = useRef<number | null>(null)
   useLayoutEffect(() => {
@@ -222,9 +229,9 @@ function useSheetTitleDisclosure() {
   }, [titleExpanded])
   function toggleTitle() {
     if (!titleExpanded) previousScroll.current = bodyRef.current?.scrollTop ?? 0
-    setTitleExpanded(!titleExpanded)
+    setDisclosure((current) => ({ ...current, expanded: !current.expanded }))
   }
-  return { titleExpanded, bodyRef, toggleTitle }
+  return { titleClamped, titleExpanded, onClampedChange, bodyRef, toggleTitle }
 }
 
 function revealSheetBodyFocus(body: HTMLDivElement) {

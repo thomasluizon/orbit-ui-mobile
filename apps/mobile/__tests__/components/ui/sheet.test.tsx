@@ -1,5 +1,6 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import { expectPressFill } from '../../support/press-feedback'
+import { deliverTitleLines } from '../../support/sheet-title-layout'
 import { createTokensV2 } from '@/lib/theme'
 import React from 'react'
 import { AccessibilityInfo, Pressable, StyleSheet, Text } from 'react-native'
@@ -14,6 +15,7 @@ import {
 } from '../../../test-mocks/react-native'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { Sheet, useSheetHost, type SheetHandle } from '@/components/ui/sheet'
+import { NotificationDetailModal } from '@/components/navigation/notification-detail-modal'
 import { useUIStore } from '@/stores/ui-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { Toast } from '@/components/ui/app-toast'
@@ -22,7 +24,7 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { PillButton } from '@/components/ui/pill-button'
 import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { HabitRow } from '@/components/habits/habit-row'
-import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockNotification, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { apiKeySchema } from '@orbit/shared/types/api-key'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -123,7 +125,83 @@ vi.mock('@/app/advanced-api-keys', () => ({
   },
 }))
 
+function typedTitleControl(tree: ReturnType<typeof TestRenderer.create>) {
+  return tree.root.findByType(TrueSheet).props.header.props.children[0].props.children
+}
+
 describe('Sheet (mobile)', () => {
+  it('renders a fitting notification title as a heading without a press target or expand hint', async () => {
+    const title = '1 novo evento do calendário'
+    let tree!: ReturnType<typeof TestRenderer.create>
+    let header!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<QueryClientProvider client={new QueryClient()}><NotificationDetailModal open
+        notification={createMockNotification({ title })}
+        onClose={vi.fn()} onMarkAsRead={vi.fn()} onDelete={vi.fn()} /></QueryClientProvider>)
+    })
+    try {
+      await TestRenderer.act(() => { header = TestRenderer.create(tree.root.findByType(TrueSheet).props.header) })
+      await TestRenderer.act(() => deliverTitleLines(header, [title]))
+      await TestRenderer.act(() => header.update(tree.root.findByType(TrueSheet).props.header))
+      const targets = header.root.findAllByType('Pressable').filter((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === title)
+      expect(targets).toHaveLength(0)
+      const heading = header.root.findByType(PersonalText)
+      expect(heading.props.accessibilityRole).toBe('header')
+      expect(heading.props.accessibilityHint).toBeUndefined()
+      expect(tree.root.findAllByType(PersonalText)).toHaveLength(0)
+    } finally { await TestRenderer.act(() => { header?.unmount(); tree.unmount() }) }
+  })
+
+  it.each([false, true])('measures native title lines, discloses overflow and removes it after reflow or a title change (single token: %s)', async (singleToken) => {
+    const lines = singleToken ? ['VeryLong', 'Notification', 'Title'] : ['Read a chapter ', 'before bed ', 'and take notes']
+    const title = lines.join('')
+    let tree!: ReturnType<typeof TestRenderer.create>
+    let header!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<Sheet title={title} titleMode="typed" onClose={vi.fn()} />) })
+    const refreshHeader = () => header.update(tree.root.findByType(TrueSheet).props.header)
+    try {
+      await TestRenderer.act(() => { header = TestRenderer.create(tree.root.findByType(TrueSheet).props.header) })
+      await TestRenderer.act(() => deliverTitleLines(header, singleToken ? [title] : [lines[0]!, lines.slice(1).join('')]))
+      await TestRenderer.act(refreshHeader)
+      expect(header.root.findAllByType('Pressable').filter((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === title)).toHaveLength(0)
+      await TestRenderer.act(() => deliverTitleLines(header, lines))
+      await TestRenderer.act(refreshHeader)
+      const control = typedTitleControl(tree)
+      expect(control.props.accessibilityRole).toBe('button')
+      expect(control.props.accessibilityLabel).toBe(title)
+      expect(control.props.accessibilityState).toEqual({ expanded: false })
+      for (const pressed of [false, true]) {
+        expect(StyleSheet.flatten(control.props.style({ pressed }))).toMatchObject({ maxWidth: '100%', paddingHorizontal: 8, paddingVertical: 8, borderRadius: 12 })
+        expect(StyleSheet.flatten(control.props.style({ pressed }))).not.toHaveProperty('flex')
+      }
+      await TestRenderer.act(() => control.props.onFocus())
+      expect(StyleSheet.flatten(typedTitleControl(tree).props.style({ pressed: false })).backgroundColor).toBe(
+        StyleSheet.flatten(control.props.style({ pressed: true })).backgroundColor,
+      )
+      await TestRenderer.act(() => typedTitleControl(tree).props.onBlur())
+      await TestRenderer.act(() => control.props.onPress())
+      await TestRenderer.act(refreshHeader)
+      expect(typedTitleControl(tree).props.accessibilityState).toEqual({ expanded: true })
+      expect(tree.root.findByType(PersonalText).props.expanded).toBe(true)
+      await TestRenderer.act(() => typedTitleControl(tree).props.onPress())
+      await TestRenderer.act(refreshHeader)
+      expect(typedTitleControl(tree).props.accessibilityState).toEqual({ expanded: false })
+      await TestRenderer.act(() => typedTitleControl(tree).props.onPress())
+      await TestRenderer.act(refreshHeader)
+      await TestRenderer.act(() => deliverTitleLines(header, [title]))
+      await TestRenderer.act(refreshHeader)
+      expect(typedTitleControl(tree).props.accessibilityRole).toBeUndefined()
+      expect(tree.root.findAllByType(PersonalText)).toHaveLength(0)
+      await TestRenderer.act(() => deliverTitleLines(header, lines))
+      await TestRenderer.act(refreshHeader)
+      await TestRenderer.act(() => typedTitleControl(tree).props.onPress())
+      await TestRenderer.act(() => tree.update(<Sheet title="Leitura" titleMode="typed" onClose={vi.fn()} />))
+      await TestRenderer.act(refreshHeader)
+      expect(header.root.findByType(PersonalText).props.accessibilityRole).toBe('header')
+      expect(tree.root.findAllByType(PersonalText)).toHaveLength(0)
+    } finally { await TestRenderer.act(() => { header?.unmount(); tree.unmount() }) }
+  })
+
   it('renders a typed sheet title without a text decoration', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     let header!: ReturnType<typeof TestRenderer.create>
@@ -170,7 +248,8 @@ describe('Sheet (mobile)', () => {
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<Sheet title="Leitura" titleMode="typed" onClose={vi.fn()} />)
     })
-    const heading = tree.root.findByType(TrueSheet).props.header.props.children[0]
+    await TestRenderer.act(() => typedTitleControl(tree).props.children.props.onClampedChange(true))
+    const heading = typedTitleControl(tree)
     for (const pressed of [false, true]) {
       const style = StyleSheet.flatten(heading.props.style({ pressed }))
       expect(style.paddingVertical).toBeGreaterThanOrEqual(8)
@@ -196,8 +275,9 @@ describe('Sheet (mobile)', () => {
       tree = TestRenderer.create(<Sheet title={title} titleMode={titleMode} onClose={onClose}><Draft /></Sheet>)
     })
     await TestRenderer.act(() => tree.root.findByType(Draft).findByType(Text).props.onPress())
+    if (titleMode === 'typed') await TestRenderer.act(() => typedTitleControl(tree).props.children.props.onClampedChange(true))
     const header = tree.root.findByType(TrueSheet).props.header
-    const heading = header.props.children[0]
+    const heading = titleMode === 'typed' ? typedTitleControl(tree) : header.props.children[0]
     const titleText = heading.type === Text ? heading : heading.props.children
     expect(titleText.props.numberOfLines).toBeUndefined()
     if (titleMode === 'label') {
@@ -219,8 +299,8 @@ describe('Sheet (mobile)', () => {
       expect(fullTitle.props.numberOfLines).toBe(1)
       expect(sheets[0].findAllByType(PersonalText).some((node: { props: { expanded?: boolean } }) => node.props.expanded)).toBe(true)
       expect(fullTitle.props.selectable).toBe(true)
-      expect(tree.root.findByType(TrueSheet).props.header.props.children[0].props.accessibilityState.expanded).toBe(true)
-      await TestRenderer.act(() => tree.root.findByType(TrueSheet).props.header.props.children[0].props.onPress())
+      expect(typedTitleControl(tree).props.accessibilityState.expanded).toBe(true)
+      await TestRenderer.act(() => typedTitleControl(tree).props.onPress())
       expect(tree.root.findAllByType(Text).filter((node: { props: { children?: string } }) => node.props.children === title)).toHaveLength(0)
       expect(scrollTo).toHaveBeenLastCalledWith({ y: 120, animated: false })
       expect(tree.root.findByType(Draft).findByType(Text).props.children).toBe('Edited draft')
@@ -241,10 +321,12 @@ describe('Sheet (mobile)', () => {
       await TestRenderer.act(() => revoke.props.onPress())
       const title = tree.root.findByType(ConfirmSheet).props.title
       expect(title).toContain(namedKey.name)
-      const heading = tree.root.findByType(TrueSheet).props.header.props.children[0]
-      expect(heading.props.accessibilityRole).toBe('button')
-      expect(heading.props.children.type.name).toBe('PersonalText')
-      await TestRenderer.act(() => heading.props.onPress())
+      const heading = typedTitleControl(tree)
+      await TestRenderer.act(() => heading.props.children.props.onClampedChange(true))
+      const control = typedTitleControl(tree)
+      expect(control.props.accessibilityRole).toBe('button')
+      expect(control.props.children.type.name).toBe('PersonalText')
+      await TestRenderer.act(() => control.props.onPress())
       expect(tree.root.findAllByType('Text').some(
         (node: { props: { children?: string; selectable?: boolean } }) => node.props.selectable && node.props.children === title,
       )).toBe(true)
@@ -294,7 +376,7 @@ describe('Sheet (mobile)', () => {
           (node: { props: { testID?: string } }) => node.props.testID === 'sheet-body-scroll',
         )
         expect(StyleSheet.flatten(body.props.style).maxHeight).toBeGreaterThan(0)
-        const heading = tree.root.findByType(TrueSheet).props.header.props.children[0]
+        const heading = typedTitleControl(tree)
         expect(heading.props.children.type.name).toBe('PersonalText')
         expect(heading.props.children.type.name).toBe('PersonalText')
         const items = body.findAllByType('Pressable').filter(

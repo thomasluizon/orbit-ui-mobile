@@ -487,7 +487,7 @@ describe('habit search', () => {
     disclosure.focus()
     await userEvent.keyboard('{Enter}')
     expect(mocks[page]).not.toHaveBeenCalled()
-    expect(screen.getByRole('dialog', { name: title })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: title })).toBeInTheDocument()
     expect(disclosure).toHaveAttribute('aria-expanded', 'true')
   })
 

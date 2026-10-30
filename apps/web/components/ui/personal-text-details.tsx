@@ -4,11 +4,13 @@ import { SPACING } from '@orbit/shared/theme'
 
 
 import { useCallback, useId, useState, type ComponentProps, type CSSProperties } from 'react'
+import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
-import { Sheet } from '@/components/ui/sheet'
 import { ChevronDown } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
+
+const Sheet = dynamic(() => import('@/components/ui/sheet').then((module) => module.Sheet), { loading: () => null })
 
 function outsetPresentation(outset: boolean) {
   if (outset) return { className: '-mx-[8px]', textStyle: { paddingInline: SPACING.s0 } }
