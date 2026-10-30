@@ -61,10 +61,10 @@ function requestedViewportCases() {
   try { assertViewport([900, 600], availableScreen) } catch { accepted = false }
   T('readiness accepts exactly the requested CSS viewport', accepted)
   const tauriWindow = tauriBenchmarkOverlay('profile').app.windows[0]
-  T('Tauri fixes its logical client size to fit the runner display',
-    tauriWindow.width === 900 && tauriWindow.height === 600 &&
-    tauriWindow.minWidth === 900 && tauriWindow.minHeight === 600 &&
-    tauriWindow.maxWidth === 900 && tauriWindow.maxHeight === 600)
+  T('Tauri requests a non-resizable logical content size',
+    tauriWindow.width === 900 && tauriWindow.height === 600 && tauriWindow.resizable === false)
+  T('Tauri leaves frame min/max constraints unset for macOS title bars',
+    ['minWidth', 'minHeight', 'maxWidth', 'maxHeight'].every((key) => !(key in tauriWindow)))
   const nativeSource = readFileSync(join(REPO_ROOT, 'apps/desktop/src-tauri/src/main.rs'), 'utf8')
   T('Tauri removes the benchmark menu and reapplies logical content size after building',
     /\.build\(\)\?;\s*if cfg!\(feature = "bench-loopback"\)\s*\{\s*window\.remove_menu\(\)\?;\s*window\.set_size\(tauri::LogicalSize::new\(\s*window_config\.width,\s*window_config\.height,?\s*\)\)\?;\s*\}/.test(nativeSource))

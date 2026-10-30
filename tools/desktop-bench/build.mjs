@@ -38,11 +38,12 @@ app.on('window-all-closed', () => app.quit());
 export function tauriBenchmarkOverlay(profile) {
   const origin = 'http://127.0.0.1:3400'
   const [width, height] = benchmarkViewport
+  // macOS full-size content views apply min/max constraints to the frame, shrinking the webview.
   return {
     identifier: 'org.useorbit.desktop.benchmark', productName: 'Orbit Benchmark Tauri',
     build: { frontendDist: origin },
     app: { windows: [{ label: 'main', create: false, title: 'Orbit Benchmark Tauri', url: `${origin}/`, width, height,
-      minWidth: width, minHeight: height, maxWidth: width, maxHeight: height, dataDirectory: profile }],
+      resizable: false, dataDirectory: profile }],
       security: { capabilities: [{ identifier: 'desktop-benchmark', local: true, remote: { urls: [`${origin}/*`] }, windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update'] }] } },
     bundle: { createUpdaterArtifacts: false },
     plugins: { 'deep-link': { desktop: { schemes: ['org.useorbit.desktop.benchmark'] } }, updater: { pubkey: '' } },
