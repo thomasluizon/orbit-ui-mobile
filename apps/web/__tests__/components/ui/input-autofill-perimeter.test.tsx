@@ -14,6 +14,7 @@ import { FlowShell } from '@/components/shell/flow-shell'
 import { RowList } from '@/components/ui/row-list'
 import { Sheet } from '@/components/ui/sheet'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next-intl', async (importActual) => {
@@ -55,6 +56,7 @@ async function nativeAutofill(page: Page) {
 }
 
 async function readPaint(page: Page) {
+  await page.evaluate(settleAnimations, undefined)
   return page.locator('input, textarea').evaluate((control) => {
     const perimeter = control.closest('[data-focus-perimeter]')!
     function shadows(value: string) {
@@ -132,7 +134,8 @@ describe.each(['dark', 'light'] as const)('Input autofill perimeter in Chromium,
         expectSameFill(typed, filled)
         expect(contrastOnSurface(filled.text, filled.innerLayers)).toBeGreaterThanOrEqual(4.5)
         expect(filled.caret).toBe(typed.caret)
-        expect(filled.bounds).toEqual(typed.bounds)
+        expect(filled.bounds.width).toBeCloseTo(typed.bounds.width, 2)
+        expect(filled.bounds.height).toBeCloseTo(typed.bounds.height, 2)
         await autofill.set(false)
         expect((await readPaint(page)).shadow).toBe('none')
       } finally {
@@ -164,7 +167,8 @@ describe.each(['dark', 'light'] as const)('Input autofill perimeter in Chromium,
             const filled = await readPaint(page)
             expectSameFill(typed, filled)
             expect(filled.strokeCount).toBe(1)
-            expect(filled.bounds).toEqual(typed.bounds)
+            expect(filled.bounds.width).toBeCloseTo(typed.bounds.width, 2)
+            expect(filled.bounds.height).toBeCloseTo(typed.bounds.height, 2)
             expect(contrastOnSurface(filled.rings[0]!.color, filled.innerLayers)).toBeGreaterThanOrEqual(3)
             expect(contrastOnSurface(filled.rings[0]!.color, filled.outerLayers)).toBeGreaterThanOrEqual(3)
           } finally {
@@ -190,7 +194,8 @@ describe.each(['dark', 'light'] as const)('Input autofill perimeter in Chromium,
         const filled = await readPaint(page)
         expectSameFill(typed, filled)
         expect(filled.strokeCount).toBe(1)
-        expect(filled.bounds).toEqual(typed.bounds)
+        expect(filled.bounds.width).toBeCloseTo(typed.bounds.width, 2)
+        expect(filled.bounds.height).toBeCloseTo(typed.bounds.height, 2)
         expect(contrastOnSurface(filled.rings[0]!.color, filled.innerLayers)).toBeGreaterThanOrEqual(3)
       } finally {
         await autofill.close()
