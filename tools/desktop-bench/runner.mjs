@@ -3,7 +3,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join, delimiter } from 'node:path'
 import { platform, release, arch, cpus, totalmem } from 'node:os'
-import { buildShells, readFixtures } from './build.mjs'
+import { benchmarkViewport, buildShells, readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
 import { assertFree, delay, execute, start, stop, stopAll, treeSample, waitFor, waitForHttp } from './host.mjs'
 import { markdown, percentile, summarize } from './measurements.mjs'
@@ -19,11 +19,15 @@ export function buildHermeticWeb(repository, work, environment, executeBuild = e
   })
 }
 
-async function measure({ shell, cache, iteration, executable, profile, environment, proxy, macProbe, windowsScript, work, viewport, readinessOnly }) {
+export function assertViewport(actual) {
+  if (actual.join(',') !== benchmarkViewport.join(',')) throw new Error(`Viewport mismatch: ${actual} versus ${benchmarkViewport}`)
+}
+
+async function measure({ shell, cache, iteration, executable, profile, environment, proxy, macProbe, windowsScript, work, readinessOnly }) {
   proxy.reset()
   const launchedAt = Date.now()
   const handle = start(process.platform === 'darwin' ? macProbe : executable, process.platform === 'darwin' ? ['launch', executable] : [], {
-    env: { ...environment, ORBIT_BENCH_PROFILE: profile, ORBIT_BENCH_WIDTH: String(viewport?.[0] ?? 900), ORBIT_BENCH_HEIGHT: String(viewport?.[1] ?? 800) }, log: join(work, `${shell}-${iteration}-${cache}.log`),
+    env: { ...environment, ORBIT_BENCH_PROFILE: profile, ORBIT_BENCH_WIDTH: String(benchmarkViewport[0]), ORBIT_BENCH_HEIGHT: String(benchmarkViewport[1]) }, log: join(work, `${shell}-${iteration}-${cache}.log`),
   })
   let members = []
   const read = (kind) => {
@@ -33,7 +37,7 @@ async function measure({ shell, cache, iteration, executable, profile, environme
   try {
     const usable = await waitFor(() => read('usable'), `${shell} usable Hoje`)
     if (usable.visibility !== 'visible') throw new Error('Shell must be visible for measurement')
-    if (viewport && usable.viewport.join(',') !== viewport.join(',')) throw new Error(`Viewport mismatch: ${usable.viewport} versus ${viewport}`)
+    assertViewport(usable.viewport)
     if (readinessOnly) {
       note(`${shell}: readiness check passed at ${usable.viewport.join('x')}`)
       return { viewport: usable.viewport }
@@ -109,7 +113,6 @@ export async function benchmark({ repository, directory, output, repetitions }) 
     proxy = await startProxy({ token: fixtures.token, probePath: join(directory, 'probe.js'), port: 3400, upstreamPort: 3401, closeConversationLabel: words.common.closeConversation })
     await fetch('http://127.0.0.1:3400/').then((response) => response.arrayBuffer())
     const runs = []
-    let viewport
     for (let iteration = -1; iteration < repetitions; iteration++) {
       const readinessOnly = iteration === -1
       const order = iteration > 0 && iteration % 2 ? ['electron', 'tauri'] : ['tauri', 'electron']
@@ -120,8 +123,7 @@ export async function benchmark({ repository, directory, output, repetitions }) 
         await mkdir(profile, { recursive: true })
         for (const cache of readinessOnly ? ['readiness'] : ['cold', 'warm']) {
           if (interrupted) throw new Error('Interrupted')
-          const result = await measure({ shell, cache, iteration, executable: shells[`${shell}Executable`], profile, environment, proxy, macProbe, windowsScript, work, viewport, readinessOnly })
-          viewport = result.viewport
+          const result = await measure({ shell, cache, iteration, executable: shells[`${shell}Executable`], profile, environment, proxy, macProbe, windowsScript, work, readinessOnly })
           if (!readinessOnly) {
             runs.push(result)
             await writeFile(join(output, 'partial.json'), JSON.stringify(runs, null, 2))
@@ -131,7 +133,7 @@ export async function benchmark({ repository, directory, output, repetitions }) 
     }
     const report = {
       host: `${platform()} ${release()} ${arch()}; ${cpus()[0].model}; ${cpus().length} logical CPUs; ${(totalmem() / 1073741824).toFixed(0)} GiB RAM`,
-      commit, repetitions, viewport, electronVersion: shells.version, disk: shells.disk, medians: summarize(runs), runs,
+      commit, repetitions, viewport: benchmarkViewport, electronVersion: shells.version, disk: shells.disk, medians: summarize(runs), runs,
       verdict: 'Tauri remains the incumbent while both platform reports are assessed. Compare each metric separately; a mixed result does not establish that Electron measures best overall.',
     }
     await writeFile(join(output, 'summary.json'), JSON.stringify(report, null, 2))

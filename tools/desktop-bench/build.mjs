@@ -7,6 +7,7 @@ import { execute, logicalSize } from './host.mjs'
 import { median } from './measurements.mjs'
 
 const require = createRequire(import.meta.url)
+export const benchmarkViewport = Object.freeze([900, 800])
 
 export function electronInstallArguments(electron, version) {
   return ['install', '--prefix', electron, '--package-lock=false', '--no-audit', '--fund=false', '--save-dev', '--save-exact', `electron@${version}`, 'electron-builder@26.18.0']
@@ -14,6 +15,38 @@ export function electronInstallArguments(electron, version) {
 
 export function normalizeElectronArchiveEntries(output) {
   return output.split(/\r?\n/).filter((entry) => entry !== '').map((entry) => entry.replace(/\\/g, '/')).sort()
+}
+
+export function electronMainSource() {
+  return `const { app, BrowserWindow, Menu } = require('electron');
+app.setPath('userData', process.env.ORBIT_BENCH_PROFILE);
+app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
+  const width = Number(process.env.ORBIT_BENCH_WIDTH);
+  const height = Number(process.env.ORBIT_BENCH_HEIGHT);
+  const window = new BrowserWindow({ width, height, useContentSize: true, enableLargerThanScreen: true, webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true } });
+  window.setContentSize(width, height);
+  app.focus({ steal: true });
+  window.focus();
+  window.webContents.on('console-message', (details) => process.stderr.write(details.message + '\\n'));
+  window.loadURL('http://127.0.0.1:3400/');
+});
+app.on('window-all-closed', () => app.quit());
+`
+}
+
+export function tauriBenchmarkOverlay(profile) {
+  const origin = 'http://127.0.0.1:3400'
+  const [width, height] = benchmarkViewport
+  return {
+    identifier: 'org.useorbit.desktop.benchmark', productName: 'Orbit Benchmark Tauri',
+    build: { frontendDist: origin },
+    app: { windows: [{ label: 'main', create: false, title: 'Orbit Benchmark Tauri', url: `${origin}/`, width, height,
+      minWidth: width, minHeight: height, maxWidth: width, maxHeight: height, dataDirectory: profile }],
+      security: { capabilities: [{ identifier: 'desktop-benchmark', local: true, remote: { urls: [`${origin}/*`] }, windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update'] }] } },
+    bundle: { createUpdaterArtifacts: false },
+    plugins: { 'deep-link': { desktop: { schemes: ['org.useorbit.desktop.benchmark'] } }, updater: { pubkey: '' } },
+  }
 }
 
 async function diskMeasurements(paths, installer) {
@@ -45,17 +78,7 @@ export async function buildShells(repository, work, environment) {
   const application = join(electron, 'application')
   await mkdir(application, { recursive: true })
   await writeFile(join(application, 'package.json'), JSON.stringify({ name: 'orbit-benchmark', productName: 'Orbit Benchmark Electron', version: '0.1.0', main: 'main.cjs', description: 'Hermetic desktop measurement shell', author: 'Orbit' }))
-  await writeFile(join(application, 'main.cjs'), `const { app, BrowserWindow } = require('electron');
-app.setPath('userData', process.env.ORBIT_BENCH_PROFILE);
-app.whenReady().then(() => {
-  const window = new BrowserWindow({ width: Number(process.env.ORBIT_BENCH_WIDTH), height: Number(process.env.ORBIT_BENCH_HEIGHT), useContentSize: true, webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true } });
-  app.focus({ steal: true });
-  window.focus();
-  window.webContents.on('console-message', (details) => process.stderr.write(details.message + '\\n'));
-  window.loadURL('http://127.0.0.1:3400/');
-});
-app.on('window-all-closed', () => app.quit());
-`)
+  await writeFile(join(application, 'main.cjs'), electronMainSource())
   const builderConfig = {
     appId: 'org.useorbit.desktop.benchmark.electron', productName: 'Orbit Benchmark Electron',
     directories: { app: application, output: join(electron, 'dist') },
@@ -69,16 +92,8 @@ app.on('window-all-closed', () => app.quit());
   await execute(process.execPath, [join(electron, 'node_modules/electron-builder/out/cli/cli.js'), '--config', configPath, process.platform === 'darwin' ? '--mac' : '--win', '--publish', 'never', `--${process.arch}`], {
     cwd: electron, env: { ...environment, CSC_IDENTITY_AUTO_DISCOVERY: 'false' }, log: join(work, 'electron-build.log'),
   })
-  const origin = 'http://127.0.0.1:3400'
   const profile = join(work, 'tauri-profile')
-  const overlay = {
-    identifier: 'org.useorbit.desktop.benchmark', productName: 'Orbit Benchmark Tauri',
-    build: { frontendDist: origin },
-    app: { windows: [{ label: 'main', create: false, title: 'Orbit Benchmark Tauri', url: `${origin}/`, width: 900, height: 800, dataDirectory: profile }],
-      security: { capabilities: [{ identifier: 'desktop-benchmark', local: true, remote: { urls: [`${origin}/*`] }, windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update'] }] } },
-    bundle: { createUpdaterArtifacts: false },
-    plugins: { 'deep-link': { desktop: { schemes: ['org.useorbit.desktop.benchmark'] } }, updater: { pubkey: '' } },
-  }
+  const overlay = tauriBenchmarkOverlay(profile)
   const overlayPath = join(work, 'tauri-benchmark.json')
   await writeFile(overlayPath, JSON.stringify(overlay))
   await execute(process.execPath, [require.resolve('@tauri-apps/cli/tauri.js'), 'build', '--config', overlayPath, '--features', 'bench-loopback', '--bundles', process.platform === 'darwin' ? 'app' : 'nsis', '--no-sign', '--', '--locked'], { cwd: desktop, env: environment, log: join(work, 'tauri-build.log') })

@@ -81,7 +81,7 @@ fn main() {
                 window_config,
                 push::notification_launch(),
                 |window_config| {
-                    tauri::WebviewWindowBuilder::from_config(app, window_config)?
+                    let window = tauri::WebviewWindowBuilder::from_config(app, window_config)?
                         .initialization_script(web_release::initialization_script(
                             origin,
                             &app.package_info().version.to_string(),
@@ -102,6 +102,13 @@ fn main() {
                             })
                         })
                         .build()?;
+                    if cfg!(feature = "bench-loopback") {
+                        window.remove_menu()?;
+                        window.set_size(tauri::LogicalSize::new(
+                            window_config.width,
+                            window_config.height,
+                        ))?;
+                    }
                     Ok(())
                 },
                 || lifecycle::show_main(app.handle()),

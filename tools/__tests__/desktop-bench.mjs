@@ -1,12 +1,74 @@
 import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { runInNewContext } from 'node:vm'
 import { spawnSync } from 'node:child_process'
-import { electronInstallArguments, normalizeElectronArchiveEntries } from '../desktop-bench/build.mjs'
-import { buildHermeticWeb } from '../desktop-bench/runner.mjs'
-import { T, REPO_ROOT, check, root } from './_harness.mjs'
+import { electronInstallArguments, electronMainSource, normalizeElectronArchiveEntries, tauriBenchmarkOverlay } from '../desktop-bench/build.mjs'
+import { assertViewport, buildHermeticWeb } from '../desktop-bench/runner.mjs'
+import { T, REPO_ROOT, check, configure, failureCount, root } from './_harness.mjs'
 import { cpuSeconds, median, metrics, parseMacProcesses, percentile, processTree, summarize, markdown } from '../desktop-bench/measurements.mjs'
 
+function electronViewportCases() {
+  const calls = []
+  let ready
+  runInNewContext(electronMainSource(), {
+    require: () => ({
+      app: {
+        setPath() {}, whenReady: () => ({ then: (callback) => { ready = callback } }),
+        focus() {}, on() {},
+      },
+      Menu: { setApplicationMenu: (menu) => calls.push(['menu', menu]) },
+      BrowserWindow: class {
+        constructor(options) {
+          calls.push(['window', options])
+          this.webContents = { on() {} }
+        }
+        setContentSize(...size) { calls.push(['content', ...size]) }
+        focus() {}
+        loadURL(url) { calls.push(['load', url]) }
+      },
+    }),
+    process: { env: { ORBIT_BENCH_WIDTH: '900', ORBIT_BENCH_HEIGHT: '800', ORBIT_BENCH_PROFILE: 'profile' } },
+  })
+  ready()
+  const menuIndex = calls.findIndex(([kind, menu]) => kind === 'menu' && menu === null)
+  const windowIndex = calls.findIndex(([kind]) => kind === 'window')
+  const contentIndex = calls.findIndex(([kind, width, height]) => kind === 'content' && width === 900 && height === 800)
+  const loadIndex = calls.findIndex(([kind]) => kind === 'load')
+  T('generated Electron shell suppresses the default menu before window creation', menuIndex >= 0 && menuIndex < windowIndex)
+  T('generated Electron shell reapplies the requested content size before loading the page', contentIndex > windowIndex && contentIndex < loadIndex)
+  const windowOptions = calls[windowIndex][1]
+  T('Electron requests content dimensions and permits a window larger than the runner display',
+    windowOptions.width === 900 && windowOptions.height === 800 && windowOptions.useContentSize === true && windowOptions.enableLargerThanScreen === true)
+}
+
+function requestedViewportCases() {
+  for (const [label, actual, previous] of [
+    ['first shell', [900, 729], undefined],
+    ['Electron', [900, 681], [900, 729]],
+    ['both shells agree below the request', [900, 729], [900, 729]],
+    ['width mismatch', [899, 800], [899, 800]],
+  ]) {
+    let message
+    try { assertViewport(actual, previous) } catch (error) { message = error.message }
+    T(`readiness rejects ${label} against the requested viewport`, message === `Viewport mismatch: ${actual} versus 900,800`, message)
+  }
+  let accepted = true
+  try { assertViewport([900, 800]) } catch { accepted = false }
+  T('readiness accepts exactly the requested CSS viewport', accepted)
+  const tauriWindow = tauriBenchmarkOverlay('profile').app.windows[0]
+  T('Tauri fixes its logical client size even when the runner display is smaller',
+    tauriWindow.width === 900 && tauriWindow.height === 800 &&
+    tauriWindow.minWidth === 900 && tauriWindow.minHeight === 800 &&
+    tauriWindow.maxWidth === 900 && tauriWindow.maxHeight === 800)
+  const nativeSource = readFileSync(join(REPO_ROOT, 'apps/desktop/src-tauri/src/main.rs'), 'utf8')
+  T('Tauri removes the benchmark menu and reapplies logical content size after building',
+    /\.build\(\)\?;\s*if cfg!\(feature = "bench-loopback"\)\s*\{\s*window\.remove_menu\(\)\?;\s*window\.set_size\(tauri::LogicalSize::new\(\s*window_config\.width,\s*window_config\.height,?\s*\)\)\?;\s*\}/.test(nativeSource))
+}
+
 export const cases = async () => {
+  electronViewportCases()
+  requestedViewportCases()
   for (const options of [undefined, '', '--trace-warnings', '--trace-warnings --max-old-space-size=2048']) {
     const environment = { API_BASE: 'http://127.0.0.1:5099', ...(options === undefined ? {} : { NODE_OPTIONS: options }) }
     const original = { ...environment }
@@ -58,4 +120,10 @@ export const cases = async () => {
   T('default Cargo features never enable loopback', !/^default\s*=.*bench-loopback/m.test(cargo))
   const result = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-fixture.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 10000 })
   T('hermetic stream follows the shared consumer protocol', result.status === 0, result.stderr)
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  configure({ toolsDir: resolve(dirname(fileURLToPath(import.meta.url)), '..'), self: 'desktop-bench' })
+  await cases()
+  process.exitCode = failureCount() === 0 ? 0 : 1
 }
