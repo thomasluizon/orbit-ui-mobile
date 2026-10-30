@@ -71,7 +71,7 @@
     return { firstTokenMs, finalPartMs: performance.now() - started, requestDispatchMs: requestAt - started, finalEventMs: terminalAt - started }
   }
   async function run() {
-    const textarea = await until(() => {
+    await until(() => {
       const row = document.querySelector('[data-habit-id="bench-0000"]')
       const input = document.querySelector('[data-composer-input]:not([disabled])')
       document.querySelector('[data-composer-collapse-row]')?.click()
@@ -80,8 +80,9 @@
     }, 'first interactive habit and focusable composer')
     await until(() => {
       if (document.querySelector('[data-shell-conversation]')) return true
-      textarea.blur()
-      textarea.focus({ preventScroll: true })
+      const input = document.querySelector('[data-composer-input]:not([disabled])')
+      input?.blur()
+      input?.focus({ preventScroll: true })
       return false
     }, 'hydrated composer focus response')
     const usableEpoch = performance.timeOrigin + performance.now()
