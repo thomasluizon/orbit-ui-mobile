@@ -26,6 +26,54 @@ function nodeRequestTarget(args: unknown[], protocol: string) {
   }
 }
 
+async function redirectRequest(request: Request, target: URL, method: string): Promise<Request> {
+  const dropBody = method !== request.method
+  const headers = new Headers(request.headers)
+  if (dropBody) {
+    for (const name of ['content-encoding', 'content-language', 'content-location', 'content-type', 'content-length']) headers.delete(name)
+  }
+  if (new URL(request.url).origin !== target.origin) {
+    for (const name of ['authorization', 'proxy-authorization', 'cookie', 'host']) headers.delete(name)
+  }
+  const body = !dropBody && request.body ? await request.arrayBuffer() : null
+  if (dropBody) await request.body?.cancel()
+  return new Request(target.href, {
+    method,
+    headers, body,
+    signal: request.signal,
+    credentials: request.credentials,
+    cache: request.cache,
+    mode: request.mode,
+    referrer: request.referrer,
+    referrerPolicy: request.referrerPolicy,
+    integrity: request.integrity,
+    keepalive: request.keepalive,
+  })
+}
+
+async function fetchWithCheckedRedirects(
+  originalFetch: typeof fetch,
+  request: Request,
+  check: (method: string, url: string) => void,
+): Promise<Response> {
+  try {
+    for (let hops = 0; ; hops++) {
+      const response = await originalFetch(request.clone(), { redirect: 'manual' })
+      const location = response.headers.get('location')
+      if (![301, 302, 303, 307, 308].includes(response.status) || location === null) return response
+      await response.body?.cancel()
+      const target = new URL(location, request.url)
+      const method = ([301, 302].includes(response.status) && request.method === 'POST')
+        || (response.status === 303 && !['GET', 'HEAD'].includes(request.method)) ? 'GET' : request.method
+      check(method, target.href)
+      if (hops === 20) throw new TypeError('Redirect count exceeded')
+      request = await redirectRequest(request, target, method)
+    }
+  } finally {
+    if (!request.bodyUsed) await request.body?.cancel()
+  }
+}
+
 export function installNetworkGuard(): { verify: () => void; restore: () => void } {
   const requests: string[] = []
   const restorations: (() => void)[] = []
@@ -37,12 +85,17 @@ export function installNetworkGuard(): { verify: () => void; restore: () => void
   }
 
   const originalFetch = globalThis.fetch
-  globalThis.fetch = async (input, options) => {
-    const url = typeof input === 'string' || input instanceof URL ? String(input) : input.url
-    const method = options?.method ?? (typeof input === 'object' && 'method' in input ? input.method : 'GET')
-    check(method, url)
-    return originalFetch(input, options)
-  }
+  globalThis.fetch = new Proxy(originalFetch, {
+    async apply(target, _receiver, [input, options]: [string | URL | Request, RequestInit?]) {
+      const url = typeof input === 'string' || input instanceof URL ? String(input) : input.url
+      const method = options?.method ?? (typeof input === 'object' && 'method' in input ? input.method : 'GET')
+      check(method, url)
+      const request = new Request(input instanceof URL ? input.href : input, options)
+      return request.redirect === 'follow'
+        ? fetchWithCheckedRedirects(target, request, check)
+        : target(request)
+    },
+  })
   restorations.push(() => { globalThis.fetch = originalFetch })
 
   for (const [transport, protocol] of [[http, 'http:'], [https, 'https:']] as const) {
