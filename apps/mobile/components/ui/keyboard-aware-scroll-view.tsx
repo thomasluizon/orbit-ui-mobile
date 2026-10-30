@@ -205,7 +205,7 @@ function useKeyboardAwareContextValue(
   }, [keyboardVerticalOffset, scrollableRef])
   const revealInput = useCallback((input: KeyboardAwareInputTarget) => {
     focusedInputRef.current = input
-    requestAnimationFrame(refresh)
+    if (keyboardFrameRef.current) requestAnimationFrame(refresh)
   }, [refresh])
   const clearInput = useCallback((input: KeyboardAwareInputTarget) => {
     if (focusedInputRef.current === input) focusedInputRef.current = null
