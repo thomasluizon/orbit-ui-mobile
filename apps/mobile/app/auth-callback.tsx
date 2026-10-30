@@ -32,6 +32,7 @@ function GoogleAuthCallbackScreen() {
   const rawUrl = useLinkingURL()
   const router = useRouter()
   const login = useAuthStore((s) => s.login)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { callbackUrl: sessionCallbackUrl, isPending,
     returnUrlAttemptId: sessionReturnUrlAttemptId } = usePendingGoogleAuthSession()
   const processedAttemptRef = useRef<string | null>(null)
@@ -64,22 +65,26 @@ function GoogleAuthCallbackScreen() {
   useEffect(() => {
     if (processedAttemptRef.current !== null || sessionCallbackUrl || isPending) return
     let mounted = true
+    const sessionEpoch = getSessionGeneration().epoch
     async function recoverCallback() {
       try {
-        if (candidateUrl && !await recoverPendingGoogleAuthCallbackUrl(candidateUrl) && mounted) {
+        if (candidateUrl && !await recoverPendingGoogleAuthCallbackUrl(candidateUrl) && mounted
+          && !isAuthenticated && sessionEpoch === getSessionGeneration().epoch) {
           const callback = extractGoogleAuthParams(candidateUrl)
           reportFailure(readAuthCallbackInput(Boolean(callback.error), callback.code, callback.state).reason ?? 'state_mismatch')
           setState('failed')
         }
       } catch {
-        if (mounted) { reportFailure('state_mismatch'); setState('failed') }
+        if (mounted && !isAuthenticated && sessionEpoch === getSessionGeneration().epoch) {
+          reportFailure('state_mismatch'); setState('failed')
+        }
       } finally {
         if (mounted) setCheckedLink(true)
       }
     }
     void recoverCallback()
     return () => { mounted = false }
-  }, [candidateUrl, isPending, reportFailure, sessionCallbackUrl])
+  }, [candidateUrl, isAuthenticated, isPending, reportFailure, sessionCallbackUrl])
 
   useEffect(() => {
     if (!sessionCallbackUrl || sessionReturnUrlAttemptId === null) return

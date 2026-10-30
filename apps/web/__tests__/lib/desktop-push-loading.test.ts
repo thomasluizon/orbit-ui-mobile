@@ -26,6 +26,7 @@ it('imports native push only when a push preference action discovers the shell',
     supported: true, permission: 'granted', owner: null, registration: null, candidate: null, pending: [],
   }))
   vi.stubGlobal('__TAURI_INTERNALS__', { invoke })
+  vi.stubGlobal('__ORBIT_DESKTOP_COMMANDS__', ['desktop_push'])
   expect(await preferences.requestWebPushPermission()).toBe('granted')
   expect(modules.push).toHaveBeenCalledOnce()
   expect(invoke).toHaveBeenCalledWith('desktop_push', { action: 'request', prompt: true })

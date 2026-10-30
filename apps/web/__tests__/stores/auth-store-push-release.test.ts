@@ -54,6 +54,7 @@ describe('sign-out through the real notifications action wrapper', () => {
     vi.clearAllMocks()
     localStorage.clear()
     installWebLocks()
+    vi.stubGlobal('__ORBIT_DESKTOP_COMMANDS__', ['desktop_push'])
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
     vi.stubGlobal('location', { href: '/', reload: vi.fn() })
   })
@@ -184,6 +185,7 @@ describe('sign-out through the real notifications action wrapper', () => {
     })
     actions.unsubscribePush.mockImplementation(serverActions.unsubscribePush)
     const upstream = vi.fn().mockRejectedValue(new TypeError('Release failed'))
+    vi.stubGlobal('__ORBIT_DESKTOP_COMMANDS__', ['desktop_push'])
     vi.stubGlobal('fetch', upstream)
     const { releasePushSubscription } = await import('@/hooks/use-push-notification-preferences')
 

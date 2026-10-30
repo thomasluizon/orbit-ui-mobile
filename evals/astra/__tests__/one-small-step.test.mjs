@@ -10,10 +10,10 @@ import { parse } from 'yaml'
 import { prepareCorrection } from '../setup.mjs'
 import { assertions as promptfooAssertions } from 'promptfoo'
 import parseResponse from '../response.mjs'
+import AstraHttpProvider from '../http-provider.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 
-// Producer: OneSmallStepCard.Build and SuggestBreakdownTool at the catalog API commit.
-export function startingResponse(locale = 'en', requestId = 'request', suppliedSuggestion) {
+export function startingResponse(locale = 'en', requestId = 'request', suppliedSuggestion, supportsContext = false) {
   const portuguese = locale === 'pt-BR'
   const suggestion = suppliedSuggestion ?? { goal: portuguese ? 'Estudar' : 'Study', step: portuguese ? 'Abrir o livro' : 'Open the book', language: locale }
   const goal = JSON.stringify(suggestion.goal)
@@ -27,6 +27,7 @@ export function startingResponse(locale = 'en', requestId = 'request', suppliedS
     { id: 'saveChecklistItem', label: portuguese ? 'Salvar no checklist' : 'Save as checklist item', message: portuguese
       ? `Quero adicionar ${step} ao checklist de um hábito.` : `Add ${step} to a habit's checklist.` },
   ]
+  if (supportsContext) actions[0].previousStep = structuredClone(suggestion)
   const call = toolCall('suggest_breakdown', { one_small_step: true, language: locale,
     title: suggestion.goal, suggested_sub_habits: [{ title: suggestion.step }] }, 'Succeeded', 'call-1', { supportsParts: true })
   call.result.payload = suggestion
@@ -57,6 +58,15 @@ it.each(['en', 'pt-BR'])('grades and projects the contract block in %s', async (
     actions: response.parts[0].block.actions.map(({ label }) => label) })
   expect(visibleBlock(response.parts[0], { locale })).toEqual(projected.parts[0].block)
   expect(JSON.stringify(projected)).not.toContain('Give me an even smaller')
+})
+
+it.each(['en', 'pt-BR'])('accepts the typed %s action and rejects a mismatched baseline', async locale => {
+  const response = startingResponse(locale, 'request', undefined, true)
+  const vars = varsFor(locale)
+  expect((await grades.composition(outputFor(response), { vars, test: { vars } })).pass).toBe(true)
+  expect(JSON.parse(visibleAnswer(response, vars.clientContext)).parts[0].block.step).toBe(response.parts[0].block.suggestion.step)
+  response.parts[0].block.actions[0].previousStep.step = 'A different step'
+  expect((await grades.composition(outputFor(response), { vars, test: { vars } })).pass).toBe(false)
 })
 
 it.each([
@@ -97,13 +107,17 @@ it.each(['en', 'pt-BR'])('requires the exact readable step without actions for t
   expect(grades.composition(outputFor(response), { vars }).pass).toBe(false)
 })
 
-it('rejects an unchanged step and leaves equivalent activity wording to the semantic grader', () => {
-  const response = startingResponse()
-  const vars = { ...varsFor(), previousStartingStep: structuredClone(response.parts[0].block.suggestion) }
-  expect(grades.composition(outputFor(response), { vars }).pass).toBe(false)
-  vars.previousStartingStep = { goal: 'Studying', step: 'Read ten pages', language: 'en' }
-  expect(grades.composition(outputFor(response), { vars }).pass).toBe(true)
-})
+it.each(['en', 'pt-BR'].flatMap(locale => [false, true].map(legacy => [locale, legacy])))(
+  'rejects an unchanged %s step with legacy view %s and leaves equivalent activity wording to the semantic grader', (locale, legacy) => {
+    const response = startingResponse(locale)
+    const suggestion = response.parts[0].block.suggestion
+    if (legacy) { response.aiMessage = suggestion.step; response.parts = [{ type: 'text', text: suggestion.step }] }
+    const vars = { ...varsFor(locale, legacy), previousStartingStep: structuredClone(suggestion) }
+    expect(grades.composition(outputFor(response), { vars }).pass).toBe(false)
+    vars.previousStartingStep = { ...suggestion, step: locale === 'en' ? 'Read ten pages' : 'Ler dez páginas' }
+    expect(grades.composition(outputFor(response), { vars }).pass).toBe(true)
+  },
+)
 
 it('provides an approval and independent saved-step grader', () => {
   expect(grades.savedStep).toBeTypeOf('function')
@@ -186,9 +200,10 @@ async function checkChecklistSave(test, starting, baseline) {
     `POST /api/ai/pending-operations/${pending.id}/execute`, 'GET /api/profile/export'])
 }
 
-it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'save-task', 'save-checklist'].map((family) => [locale, family])))(
-  'uses the actual %s block action for %s with history and verified setup', async (locale, family) => {
+it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'smaller-legacy', 'save-task', 'save-checklist'].flatMap((family) => [true, false].map(supportsContext => [locale, family, supportsContext]))))(
+  'uses the actual %s block action for %s with typed context %s', async (locale, family, supportsContext) => {
     const test = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-one-small-step-${family}-${locale}`))
+    test.vars.clientContext = { ...buildChatClientContext({ platform: 'web', locale }), ...test.vars.clientContext }
     test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
     test.vars.checklistHabitId = '22222222-2222-4222-8222-222222222222'
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
@@ -204,13 +219,17 @@ it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'save-task', 'save-check
       expect(form.get('message')).toBe(test.vars.setup.input)
       expect(JSON.parse(form.get('history'))).toEqual([])
       expect(JSON.parse(form.get('clientContext')).partKinds).toContain('oneSmallStep')
-      const response = startingResponse(locale, request.headers.get('x-orbit-request-id'))
+      const response = startingResponse(locale, request.headers.get('x-orbit-request-id'), undefined, supportsContext)
       starting = response.parts[0].block
       return Response.json(response, { headers: { 'x-orbit-request-id': request.headers.get('x-orbit-request-id') } })
     })
     await prepareCorrection(test)
     expect(test.vars.previousStartingStep).toEqual(starting.suggestion)
     const action = starting.actions.find(({ id }) => id === test.vars.startingStepAction)
+    const clientContext = JSON.parse(test.vars.clientContextJson)
+    expect(clientContext.supportsStartingStepContext).toBe(true)
+    if (family.startsWith('smaller') && supportsContext) expect(clientContext.previousStartingStep).toEqual(action.previousStep)
+    else expect(clientContext).not.toHaveProperty('previousStartingStep')
     const suffix = family === 'save-checklist' ? locale === 'en' ? ' Use the habit "Water".' : ' Use o hábito "Beber água".' : ''
     expect(test.vars.input).toBe(action.message + suffix)
     expect(JSON.parse(test.vars.historyJson)).toEqual([{ role: 'user', content: test.vars.setup.input },
@@ -219,6 +238,26 @@ it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'save-task', 'save-check
     if (family === 'save-checklist') {
       expect(test.vars.startingHabitBaseline).toEqual(baseline)
       await checkChecklistSave(test, starting, baseline)
+    }
+    if (family.startsWith('smaller')) {
+      vi.stubGlobal('fetch', async (url, options) => {
+        const request = new Request(url, options)
+        const form = await request.formData()
+        expect(form.get('message')).toBe(action.message)
+        expect(JSON.parse(form.get('clientContext'))).toEqual(clientContext)
+        const response = startingResponse(locale, request.headers.get('x-orbit-request-id'), undefined, supportsContext)
+        if (family === 'smaller-legacy') {
+          expect(JSON.parse(form.get('clientContext')).partKinds).toEqual([])
+          response.aiMessage = response.parts[0].block.suggestion.step
+          response.parts = [{ type: 'text', text: response.aiMessage }]
+        }
+        return Response.json(response,
+          { headers: { 'x-orbit-request-id': request.headers.get('x-orbit-request-id') } })
+      })
+      const provider = new AstraHttpProvider({ config: { ...configuration.providers[0].config,
+        transformResponse: new URL('../response.mjs', import.meta.url).href } })
+      const sent = await provider.callApi(test.vars.input, { vars: { ...test.vars, evalRequestId: 'follow-up' } })
+      expect(sent.error).toBeUndefined()
     }
     const grader = { id: () => 'offline-starting-step-grader', callApi: vi.fn(async () => ({
       output: JSON.stringify({ pass: true, score: 1, reason: 'Captured previous-step context.' }),
@@ -235,8 +274,8 @@ it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'save-task', 'save-check
   },
 )
 
-it('registers five bilingual starting-step cases and the independent persistence assertion in the gate', () => {
-  for (const family of ['one-small-step', 'one-small-step-smaller', 'one-small-step-save-task', 'one-small-step-save-checklist', 'one-small-step-legacy']) {
+it('registers bilingual starting-step cases and the independent persistence assertion in the gate', () => {
+  for (const family of ['one-small-step', 'one-small-step-smaller', 'one-small-step-smaller-legacy', 'one-small-step-save-task', 'one-small-step-save-checklist', 'one-small-step-legacy']) {
     expect(corpus.filter((entry) => entry.metadata.family === family).map((entry) => entry.metadata.locale).sort()).toEqual(['en', 'pt-BR'])
   }
   expect(configuration.evaluateOptions).toMatchObject({ repeat: 3, maxConcurrency: 1, cache: false })

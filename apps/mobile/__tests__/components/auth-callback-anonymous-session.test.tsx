@@ -1,4 +1,5 @@
 import React from 'react'
+import { captureMessage } from '@sentry/react-native'
 import { I18nextProvider } from 'react-i18next'
 import { i18n } from '@/lib/i18n'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -549,4 +550,24 @@ it.each(['unmount', 'warm replacement'])('cancels the actual email session durin
     expect.soft(mocks.replace).toHaveBeenCalledExactlyOnceWith('/profile')
     expect(requestCount(API.profile.get)).toBe(1)
   }
+})
+
+
+it.each(['network', 'gateway'])('reports one failed Google exchange when the API is unavailable: %s', async (failure) => {
+  mocks.fetch.mockImplementation((url: string) => {
+    if (new URL(url).pathname !== API.auth.googleCode) throw new Error('Unexpected request')
+    if (failure === 'network') return Promise.reject(new TypeError('Network request failed'))
+    return Promise.resolve(new Response(null, { status: 503 }))
+  })
+  const attemptId = createAuthReturnUrlAttempt()
+  await markPendingGoogleAuthSession(attemptId, 'verifier', 'state')
+  setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=one-use&state=state`, attemptId)
+  await mount(<><AuthCallbackScreen /><AuthCallbackScreen /></>)
+  await vi.waitFor(() => expect(captureMessage).toHaveBeenCalledOnce())
+  expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
+    level: 'error', tags: { provider: 'google', reason: 'exchange_failed' },
+  })
+  expect(requestCount(API.auth.googleCode)).toBe(1)
+  expect(useAuthStore.getState().isAuthenticated).toBe(false)
+  await expect(getToken()).resolves.toBeNull()
 })

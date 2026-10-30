@@ -6,15 +6,15 @@ import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { configCache } from '@/lib/config-cache'
 import { apiClient } from '@/lib/api-client'
 
-async function fetchConfig(): Promise<unknown> {
-  return apiClient<unknown>(API.config.get)
+async function fetchConfig(signal: AbortSignal): Promise<unknown> {
+  return apiClient<unknown>(API.config.get, { signal })
 }
 
 export function useConfig() {
   const scope = useSyncExternalStore(configCache.subscribe, configCache.getSnapshot, configCache.getServerSnapshot)
   const query = useQuery({
     queryKey: configKeys.detail(scope.accountId, scope.generation),
-    queryFn: ({ signal }) => configCache.fetch(scope, fetchConfig, signal),
+    queryFn: ({ signal }) => configCache.fetch(scope, () => fetchConfig(signal), signal),
     networkMode: 'offlineFirst',
     enabled: scope.accountId !== null,
     staleTime: 30 * 60 * 1000,

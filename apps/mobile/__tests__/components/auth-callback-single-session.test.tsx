@@ -1,3 +1,4 @@
+import { captureMessage } from '@sentry/react-native'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import React from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -7,7 +8,7 @@ import { LoginContent } from '@/components/auth/login-content'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { i18n } from '@/lib/i18n'
 import { apiClient } from '@/lib/api-client'
-import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSessionForLogin, clearPendingGoogleAuthSession, markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl } from '@/lib/google-auth-callback'
+import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSessionForLogin, clearPendingGoogleAuthSession, markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl, getPendingGoogleAuthVerifier } from '@/lib/google-auth-callback'
 
 vi.unmock('react-i18next')
 
@@ -15,6 +16,7 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   params: {},
+  authenticated: false,
   rawUrl: null as string | null,
   login: vi.fn(),
   getSessionGeneration: vi.fn(),
@@ -47,7 +49,7 @@ vi.mock('@/lib/google-auth', () => ({ completeGoogleAuthFromUrl: mocks.completeG
 vi.mock('@/stores/auth-store', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/stores/auth-store')>(),
   getSessionGeneration: mocks.getSessionGeneration,
-  useAuthStore: Object.assign((selector: (state: { login: typeof mocks.login; isLoading: boolean }) => unknown) => selector({ login: mocks.login, isLoading: false }), {
+  useAuthStore: Object.assign((selector: (state: { login: typeof mocks.login; isLoading: boolean; isAuthenticated: boolean }) => unknown) => selector({ login: mocks.login, isLoading: false, isAuthenticated: mocks.authenticated }), {
     getState: () => ({ isAuthenticated: false, isLoading: false }),
     subscribe: () => () => {},
   }),
@@ -98,6 +100,7 @@ beforeEach(async () => {
   useOnboardingDraftStore.getState().reset()
   vi.resetAllMocks()
   vi.mocked(apiClient).mockResolvedValue(undefined)
+  mocks.authenticated = false
   mocks.params = {}
   mocks.rawUrl = `${AUTH_CALLBACK_URL}?code=one-use&state=s`
   useAppToastStore.setState({ currentToast: null, queue: [] })
@@ -319,4 +322,42 @@ it('ignores a completion error from the previous attempt after a retry starts', 
   expect(screen.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
     node.type === 'Text' && node.props.children === i18n.t('auth.errors.googleError'),
   )).toHaveLength(0)
+})
+
+
+it('preserves an in-flight Google verifier when the login screen remounts on Android resume', async () => {
+  await clearPendingGoogleAuthSession()
+  await markPendingGoogleAuthSession('resume-attempt', 'resume-verifier', 'resume-state')
+  mocks.params = { returnUrl: '/progress' }
+  await TestRenderer.act(async () => {
+    renderers.push(TestRenderer.create(<I18nextProvider i18n={i18n}><LoginContent /></I18nextProvider>))
+    await Promise.resolve()
+  })
+  expect(getPendingGoogleAuthVerifier('resume-state')).toBe('resume-verifier')
+  expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=returned&state=resume-state`, 'resume-attempt')).toBe(true)
+})
+
+
+it('does not report a second Google failure when an email code link resumes the old callback screen', async () => {
+  await clearPendingGoogleAuthSession()
+  vi.mocked(captureMessage).mockClear()
+  await mountCallbackScreens(1)
+  expect(captureMessage).toHaveBeenCalledTimes(1)
+  mocks.rawUrl = 'https://app.useorbit.org/login?email=person%40example.test&code=123456'
+  await TestRenderer.act(async () => {
+    renderers[0].update(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>)
+    await Promise.resolve()
+  })
+  expect(captureMessage).toHaveBeenCalledTimes(1)
+  expect(mocks.completeGoogleAuthFromUrl).not.toHaveBeenCalled()
+})
+
+
+it('does not report an unowned Google callback after another sign-in established a session', async () => {
+  await clearPendingGoogleAuthSession()
+  mocks.authenticated = true
+  vi.mocked(captureMessage).mockClear()
+  await mountCallbackScreens(1)
+  expect(captureMessage).not.toHaveBeenCalled()
+  expect(mocks.completeGoogleAuthFromUrl).not.toHaveBeenCalled()
 })

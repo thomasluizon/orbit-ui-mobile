@@ -65,13 +65,15 @@ var context = CatalogConstructor.Create(contextType, new Dictionary<string, obje
 var method = handlerType.GetMethod("RequestInitialAiResponseAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
 var collectSensitiveFields = handlerType.GetNestedType("ChatEvalTraceCollector", BindingFlags.NonPublic)!
     .GetMethod("CollectSensitiveFields", BindingFlags.NonPublic | BindingFlags.Static)!;
+var partKinds = JsonSerializer.Deserialize<string[]>(args[1])!;
 File.WriteAllText(args[0], JsonSerializer.Serialize(new { tools = await ExportTools(true), legacyTools = await ExportTools(false) }));
 
 async Task<object[]> ExportTools(bool supportsParts)
 {
     captured = null;
     var state = Activator.CreateInstance(handlerType.GetNestedType("ChatTurnState", BindingFlags.NonPublic)!, nonPublic: true);
-    var request = new ProcessUserChatCommand(Guid.Empty, "", ClientContext: new AgentClientContext(SupportsParts: supportsParts));
+    var request = new ProcessUserChatCommand(Guid.Empty, "", ClientContext: new AgentClientContext(
+        SupportsParts: supportsParts, PartKinds: supportsParts ? partKinds : null));
     await (Task<Result<AiResponse>>)method.Invoke(handler, [request, context, null, new AiTurnTelemetry(), state, CancellationToken.None])!;
     if (captured is null) throw new InvalidOperationException("The API did not build a tool request.");
     // Export SDK normalization and the trace collector's sensitivity contract from the same producer.

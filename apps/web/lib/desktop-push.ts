@@ -8,7 +8,7 @@ import { getHeldAccountId } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import type { PushPreferenceSnapshot } from '@/hooks/use-push-notification-preferences'
-import { desktopRuntime } from '@/lib/desktop-runtime'
+import { desktopRuntime, desktopCommandSupported } from '@/lib/desktop-runtime'
 
 const snapshotSchema = z.object({
   supported: z.boolean(),
@@ -20,10 +20,18 @@ const snapshotSchema = z.object({
 })
 
 type DesktopSnapshot = z.infer<typeof snapshotSchema>
+const unsupportedSnapshot: DesktopSnapshot = { supported: false, permission: 'unsupported', owner: null, registration: null, candidate: null, pending: [] }
+
 async function invoke(action: 'session' | 'status' | 'request' | 'stage' | 'commit' | 'clear' | 'suspend', payload: Record<string, unknown> = {}): Promise<DesktopSnapshot> {
   const native = desktopRuntime()
-  if (!native) throw new Error('Desktop push runtime unavailable')
-  return snapshotSchema.parse(await native.invoke('desktop_push', { action, ...payload }))
+  const advertised = desktopCommandSupported('desktop_push')
+  if (!native || (!advertised && ['request', 'stage', 'commit'].includes(action))) return unsupportedSnapshot
+  try {
+    return snapshotSchema.parse(await native.invoke('desktop_push', { action, ...payload }))
+  } catch (error) {
+    if (!advertised && error === 'Command desktop_push not found') return unsupportedSnapshot
+    throw error
+  }
 }
 
 function preference(snapshot: DesktopSnapshot, accountId: string | null): PushPreferenceSnapshot {

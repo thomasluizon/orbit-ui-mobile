@@ -109,15 +109,18 @@ it.each([[faster, belowBudget, aboveBudget], [aboveBudget, aboveBudget + 1000, f
   const results = attempts(totals)
   const directory = mkdtempSync(join(tmpdir(), 'astra-latency-hook-'))
   const previous = process.cwd()
+  const previousExitCode = process.exitCode
+  process.exitCode = undefined
   const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
   const summaryPath = process.env.GITHUB_STEP_SUMMARY
   delete process.env.GITHUB_STEP_SUMMARY
   try {
     process.chdir(directory)
     const finish = () => afterAll({ results, suite: { tests: [results[0].testCase] } })
-    if (totals[1] < READ_LATENCY_BUDGET_MILLISECONDS) expect(finish).not.toThrow()
-    else expect(finish).toThrow('Astra launch gate fail')
+    expect(finish).not.toThrow()
+    expect(process.exitCode).toBe(totals[1] < READ_LATENCY_BUDGET_MILLISECONDS ? undefined : 1)
   } finally {
+    process.exitCode = previousExitCode
     process.chdir(previous)
     stdout.mockRestore()
     if (summaryPath !== undefined) process.env.GITHUB_STEP_SUMMARY = summaryPath

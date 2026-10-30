@@ -283,7 +283,10 @@
         - query_habits
         - get_gamification_overview
     rubric: Answer in English. Streak eligibility begins on each habit's creation date.
-      The fixture logs only eligible recent days. Timeline active days belong to the
+      Days before a habit existed are not eligible and must be neutral, never missed or unlogged.
+      Grade only model-written prose about the streak when judging day eligibility.
+      Do not grade the client-drawn day strip, including its pre-creation statuses, as model output.
+      The fixture logs only eligible recent days. Model-described timeline active days belong to the
       current streak ending at lastActiveDate; earlier days are outside that streak.
       Use the completion date, never the log creation timestamp. Use only the requested scope and current fixture
       facts. Preserve typed empty, partial, stale and failure states honestly.
@@ -307,7 +310,10 @@
         - query_habits
         - get_gamification_overview
     rubric: Answer in Brazilian Portuguese. Streak eligibility begins on each habit's creation date.
-      The fixture logs only eligible recent days. Timeline active days belong to the
+      Days before a habit existed are not eligible and must be neutral, never missed or unlogged.
+      Grade only model-written prose about the streak when judging day eligibility.
+      Do not grade the client-drawn day strip, including its pre-creation statuses, as model output.
+      The fixture logs only eligible recent days. Model-described timeline active days belong to the
       current streak ending at lastActiveDate; earlier days are outside that streak.
       Use the completion date, never the log creation timestamp. Use only the requested scope and current
       fixture facts. Preserve typed empty, partial, stale and failure states
@@ -1029,7 +1035,8 @@
       required: &a41
         - name: ask
           arguments:
-            form: choice
+            input:
+              form: choice
       allowed:
         - query_habits
         - ask
@@ -1078,7 +1085,8 @@
       required: &a43
         - name: ask
           arguments:
-            form: pickList
+            input:
+              form: pickList
       allowed:
         - query_habits
         - ask
@@ -1118,6 +1126,9 @@
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
     input: Show what is left for today from this reminder.
+    history:
+      - role: assistant
+        content: You have habits left for today. Want to see what is pending?
     clientContext:
       platform: web
       locale: en
@@ -1167,6 +1178,9 @@
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
     input: Mostre o que falta para hoje a partir deste lembrete.
+    history:
+      - role: assistant
+        content: Você ainda tem hábitos para hoje. Quer ver o que falta?
     clientContext:
       platform: web
       locale: pt-BR
@@ -1540,7 +1554,11 @@
         - get_profile
         - query_habits
         - describe_feature
-    rubric: Answer in English. Use only the requested scope and current fixture
+    rubric: Answer in English. One plain line stating that the documentation does not cover
+      where to set it is permitted only when app_surfaces is an empty array in the successful
+      describe_feature result. A nonempty or missing app_surfaces does not permit this exception.
+      Anything longer fails. Keep the entire answer within one to three short lines and do not
+      invent a setting location. Use only the requested scope and current fixture
       facts. Preserve typed empty, partial, stale and failure states honestly.
       Canonical dates inside typed fields are transport values; visible prose
       must use locale dates. Rendered date formatting is checked separately.
@@ -1562,7 +1580,11 @@
         - get_profile
         - query_habits
         - describe_feature
-    rubric: Answer in Brazilian Portuguese. Use only the requested scope and current
+    rubric: Answer in Brazilian Portuguese. One plain line stating that the documentation does
+      not cover where to set it is permitted only when app_surfaces is an empty array in the successful
+      describe_feature result. A nonempty or missing app_surfaces does not permit this exception.
+      Anything longer fails. Keep the entire answer within one to three short lines and do not
+      invent a setting location. Use only the requested scope and current
       fixture facts. Preserve typed empty, partial, stale and failure states
       honestly. Canonical dates inside typed fields are transport values;
       visible prose must use locale dates. Rendered date formatting is checked
@@ -3028,6 +3050,7 @@
       locale: en
       timeFormat: 24h
       supportsParts: true
+      supportsStartingStepContext: true
       partKinds:
         - oneSmallStep
     input: ""
@@ -3051,6 +3074,65 @@
       requires less effort. A paraphrase or an equally hard or harder step fails.
     startingStepAction: smaller
     setup:
+      input: I can't get myself to start studying.
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: en
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+- description: one-small-step-smaller-legacy in en
+  metadata:
+    id: composition-one-small-step-smaller-legacy-en
+    category: composition
+    family: one-small-step-smaller-legacy
+    locale: en
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      supportsStartingStepContext: true
+      partKinds: []
+    input: ""
+    composition:
+      mode: one-small-step-legacy
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: en
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in English. Return exactly one concrete, immediately doable starting action for the
+      activity. No plan, framing prose, saved claim or unsolicited question. Show only the readable step text,
+      without block actions. Compare with the previous starting step supplied as
+      baseline context. Keep the same activity and return an action that is meaningfully easier and
+      requires less effort. A paraphrase or an equally hard or harder step fails.
+    startingStepAction: smaller
+    setup:
+      clientContext:
+        platform: web
+        locale: en
+        timeFormat: 24h
+        supportsParts: true
+        supportsStartingStepContext: true
+        partKinds:
+          - oneSmallStep
       input: I can't get myself to start studying.
       composition:
         mode: one-small-step
@@ -3242,6 +3324,7 @@
       locale: pt-BR
       timeFormat: 24h
       supportsParts: true
+      supportsStartingStepContext: true
       partKinds:
         - oneSmallStep
     input: ""
@@ -3266,6 +3349,66 @@
       fails.
     startingStepAction: smaller
     setup:
+      input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: pt-BR
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+- description: one-small-step-smaller-legacy in pt-BR
+  metadata:
+    id: composition-one-small-step-smaller-legacy-pt-BR
+    category: composition
+    family: one-small-step-smaller-legacy
+    locale: pt-BR
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      supportsStartingStepContext: true
+      partKinds: []
+    input: ""
+    composition:
+      mode: one-small-step-legacy
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: pt-BR
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
+      action for the activity. No plan, framing prose, saved claim or unsolicited question. Show only
+      the readable step text, without block actions. Compare with the previous starting step
+      supplied as baseline context. Keep the same activity and return an action that is
+      meaningfully easier and requires less effort. A paraphrase or an equally hard or harder step
+      fails.
+    startingStepAction: smaller
+    setup:
+      clientContext:
+        platform: web
+        locale: pt-BR
+        timeFormat: 24h
+        supportsParts: true
+        supportsStartingStepContext: true
+        partKinds:
+          - oneSmallStep
       input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
       composition:
         mode: one-small-step

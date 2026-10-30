@@ -17,6 +17,16 @@ describe('one small step request actions', () => {
     await view().submit(action)
     expect(send).toHaveBeenCalledExactlyOnceWith(action.message)
   })
+  it('copies only the smaller action baseline, without recovering it from the block or message', async () => {
+    const { send, view } = setup()
+    const previousStep = { goal: 'Study', step: 'Open the book', language: 'en' as const }
+    for (const action of makeOneSmallStepCard().actions) {
+      send.mockClear()
+      await view().submit({ ...action, previousStep })
+      if (action.id === 'smaller') expect(send).toHaveBeenCalledExactlyOnceWith(action.message, { previousStartingStep: previousStep })
+      else expect(send).toHaveBeenCalledExactlyOnceWith(action.message)
+    }
+  })
   it('blocks repeat presses during a request and restores actions after failure', async () => {
     const { send, view } = setup()
     let reject!: (error: Error) => void

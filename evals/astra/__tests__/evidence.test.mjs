@@ -142,12 +142,12 @@ it('keeps earlier credential echoes redacted when later attempts rotate or clear
 })
 
 it('keeps declared nested and union arguments while omitting unknown credential fields', () => {
-  const call = toolCall('ask', { form: 'pickList', action: 'create_habits', items: [{ id: 'water', label: 'Water',
+  const call = toolCall('ask', { input: { form: 'pickList', action: 'create_habits', items: [{ id: 'water', label: 'Water',
     arguments: { title: 'Water', cookie: 'private-nested-cookie', checklist_items: [
       { text: 'Drink a glass', is_checked: false, token: 'private-nested-token' },
-    ] } }] }, 'Succeeded', 'call-1', { supportsParts: true })
+    ] } }] } }, 'Succeeded', 'call-1', { supportsParts: true })
   const { evidence, text } = persist(outputFor([call]))
-  expect(evidence.toolCalls[0].arguments.items[0].arguments).toEqual({ title: 'Water', checklist_items: [
+  expect(evidence.toolCalls[0].arguments.input.items[0].arguments).toEqual({ title: 'Water', checklist_items: [
     { text: 'Drink a glass', is_checked: false },
   ] })
   expect(text).not.toMatch(/private-nested-(cookie|token)/)

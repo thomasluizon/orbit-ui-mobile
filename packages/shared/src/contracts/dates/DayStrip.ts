@@ -1,5 +1,5 @@
 export type HabitDayValue = 'done' | 'missed' | 'not-scheduled'
-export type AccountDayValue = 'active' | 'frozen' | 'missed' | 'today'
+export type AccountDayValue = 'active' | 'frozen' | 'missed' | 'today' | 'not-scheduled'
 
 export interface HabitDayWords {
   done: string
@@ -8,6 +8,7 @@ export interface HabitDayWords {
 }
 
 export interface AccountDayWords {
+  notScheduled: string
   active: string
   frozen: string
   missed: string

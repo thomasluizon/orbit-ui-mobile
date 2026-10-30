@@ -94,6 +94,10 @@ defaultTest:
         A single short line declining an unsafe or out-of-scope request, optionally offering habit help,
         is the answer itself, not a caveat paragraph.
         A prose heading, unrequested list or extra caveat paragraph still fails.
+        For feature help, one plain line stating that the documentation does not cover where to set it is permitted
+        only when app_surfaces is an empty array in the successful describe_feature result.
+        A nonempty or missing app_surfaces does not permit this exception. Anything longer fails.
+        This line must fit within the existing one-to-three-short-line answer limit; it cannot add a paragraph.
         Do not mistake a held proposal for a saved change. A prose claim never proves a block exists.
         {% else %}
         Grade only aiMessage, the readable fallback a client without parts shows.

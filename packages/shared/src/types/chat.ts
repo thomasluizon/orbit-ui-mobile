@@ -1,4 +1,4 @@
-import { oneSmallStepCardSchema } from '../contracts/blocks/one-small-step'
+import { oneSmallStepCardSchema, startingStepSchema } from '../contracts/blocks/one-small-step'
 import { questionAnswerSchema, questionBlockSchema } from './question-block'
 import { z } from 'zod'
 import { habitSuggestionsCardSchema } from './habit-suggestions'
@@ -38,6 +38,8 @@ export const chatClientContextSchema = z.object({
   supportsToolSteps: z.boolean().optional(),
   supportsFollowUps: z.boolean().optional(),
   supportsFollowUpContext: z.boolean().optional(),
+  supportsStartingStepContext: z.boolean().optional(),
+  previousStartingStep: startingStepSchema.optional(),
   supportsParts: z.boolean().optional(),
   partKinds: z.array(z.string()).optional(),
   messageOrigin: z.literal('followUp').optional(),
@@ -367,6 +369,7 @@ const streakAchievementSchema = z.object({
 })
 
 export const streakCardSchema = z.object({
+  firstEligibleDate: z.iso.date().nullish(),
   read: readBlockMetadataSchema.nullish(),
   currentStreak: z.number(),
   longestStreak: z.number(),

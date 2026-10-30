@@ -624,3 +624,27 @@ it('closes the stream when an unloading page turns hidden and reopens when it sh
     vi.useRealTimers()
   }
 })
+
+
+it('aborts a pending ticket on pagehide and reconnects when the page is restored', async () => {
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  vi.mocked(Sentry.captureException).mockClear()
+  let requestSignal: AbortSignal | null | undefined
+  const fetchMock = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => {
+    requestSignal = init?.signal
+    return new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new TypeError('Failed to fetch')), { once: true })
+    })
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<AccountEventConnection />)
+  try {
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
+    act(() => { window.dispatchEvent(new Event('pagehide')) })
+    expect(requestSignal?.aborted).toBe(true)
+    await act(async () => { await Promise.resolve() })
+    expect(Sentry.captureException).not.toHaveBeenCalled()
+    act(() => { window.dispatchEvent(new Event('pageshow')) })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  } finally { view.unmount() }
+})

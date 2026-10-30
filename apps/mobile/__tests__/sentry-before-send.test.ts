@@ -97,3 +97,21 @@ it.each(['https://app-staging.useorbit.org/', 'orbit-staging://', '/'])('scrubs 
   expect(result.breadcrumbs?.[0]?.data).toEqual({ method: 'DELETE', url: 'https://app-staging.useorbit.org/api/auth/google/code', status_code: 200 })
   expect(result.breadcrumbs?.[3]?.data?.url).toBe('/api/calendar?mode=review')
 })
+
+
+it('scrubs event stream tickets from URLs and breadcrumb messages while retaining request context', () => {
+  const url = 'https://api.useorbit.org/api/events?ticket=private.jwt.signature&cursor=next'
+  const result = scrubEvent({ type: undefined, request: { url }, breadcrumbs: [
+    { category: 'fetch', data: { url, method: 'GET', status_code: 503 } },
+    { message: `Request failed: ${url}` },
+    { category: 'navigation', data: { to: '/api/events?cursor=next&ticket=private.jwt.signature' } },
+    { category: 'fetch', data: { url: '/api/events/ticket', method: 'POST' } },
+  ] })
+  expect(JSON.stringify(result)).not.toContain('private.jwt.signature')
+  expect(result.breadcrumbs?.[0]?.data).toEqual({
+    url: 'https://api.useorbit.org/api/events?ticket=[Filtered]&cursor=next', method: 'GET', status_code: 503,
+  })
+  expect(result.breadcrumbs?.[1]?.message).toContain('ticket=[Filtered]')
+  expect(result.breadcrumbs?.[2]?.data?.to).toBe('/api/events?cursor=next&ticket=[Filtered]')
+  expect(result.breadcrumbs?.[3]?.data?.url).toBe('/api/events/ticket')
+})

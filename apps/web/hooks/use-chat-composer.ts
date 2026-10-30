@@ -19,7 +19,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type { ChatResponse } from '@orbit/shared/types/chat'
+import type { ChatClientContext, ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import {
@@ -94,6 +94,7 @@ interface AttemptedSend {
   clearDraftOnSuccess: boolean
   restoredDraftRevision: number | null
   messageOrigin?: 'followUp'
+  previousStartingStep?: ChatClientContext['previousStartingStep']
   contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>
 }
 
@@ -477,6 +478,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       locale,
       uses24HourClock: profile?.uses24HourClock,
       messageOrigin: attempted.messageOrigin,
+      previousStartingStep: attempted.previousStartingStep,
       entryPointIntent,
     })
     formData.append('clientContext', JSON.stringify(clientContext))
@@ -633,7 +635,9 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   }, [performSend, setInput, setSendError, t, clearImage, removeTextFile])
 
   const sendMessage = useCallback(
-    async (content?: string, messageOrigin?: 'followUp', contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
+    async (content?: string, requestContext?: 'followUp' | Pick<ChatClientContext, 'previousStartingStep'>, contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
+      const { messageOrigin, previousStartingStep }: Pick<ChatClientContext, 'messageOrigin' | 'previousStartingStep'> =
+        typeof requestContext === 'object' ? requestContext : { messageOrigin: requestContext }
       const sendsComposerDraft = content === undefined && messageOrigin !== 'followUp'
       const typedContent = content?.trim() ?? input.trim()
       const messageContent = selectedTextFile && sendsComposerDraft
@@ -673,6 +677,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
         clearDraftOnSuccess: content === undefined,
         restoredDraftRevision: null,
         messageOrigin,
+        previousStartingStep,
         contextualRequest,
       }
 

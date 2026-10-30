@@ -2,7 +2,7 @@ import { format, isSameDay, parseISO, startOfDay, subDays } from 'date-fns'
 import type { StreakInfo } from '../types/gamification'
 import { formatAPIDateInTimeZone } from './dates'
 
-type StreakWeekDayStatus = 'active' | 'frozen' | 'missed' | 'today'
+type StreakWeekDayStatus = 'active' | 'frozen' | 'missed' | 'today' | 'not-scheduled'
 
 interface StreakWeekDay {
   date: Date
@@ -28,6 +28,7 @@ export function buildStreakWeekDays(
   now: Date = new Date(),
   length: 7 | 14 = 7,
   accountTimeZone?: string | null,
+  firstEligibleDate?: string | null,
 ): StreakWeekDay[] {
   const today = getAccountToday(now, accountTimeZone)
   const freezeDates = new Set(streakInfo?.recentFreezeDates ?? [])
@@ -41,7 +42,9 @@ export function buildStreakWeekDays(
 
     let status: StreakWeekDayStatus = 'missed'
 
-    if (isTodayDate) {
+    if (firstEligibleDate && dateStr < firstEligibleDate) {
+      status = 'not-scheduled'
+    } else if (isTodayDate) {
       if (isFrozenToday) status = 'frozen'
       else if (lastActiveDate && isSameDay(lastActiveDate, today)) status = 'active'
       else status = 'today'

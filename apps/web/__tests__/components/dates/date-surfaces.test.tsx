@@ -52,12 +52,14 @@ describe('DayStrip', () => {
     const { container } = render(
       <DayStrip
         scope="account"
-        days={['active', 'frozen', 'missed', 'today']}
-        words={{ active: 'active', frozen: 'protected', missed: 'missed', today: 'today' }}
+        days={['not-scheduled', 'active', 'frozen', 'missed', 'today']}
+        words={{ notScheduled: 'nothing due', active: 'active', frozen: 'protected', missed: 'missed', today: 'today' }}
         label="Account streak"
       />,
     )
 
+    expect(container.querySelector('[data-state="not-scheduled"]')).toHaveStyle({ background: 'var(--bg-well)' })
+    expect(screen.getByRole('img', { name: '1, nothing due' })).toHaveAttribute('data-state', 'not-scheduled')
     expect(container.querySelectorAll('[aria-current="date"]')).toHaveLength(1)
     expect(container.querySelector('[aria-current="date"]')).toHaveAttribute('data-state', 'today')
     expect(container.querySelector('[data-state="frozen"]')).toHaveStyle({

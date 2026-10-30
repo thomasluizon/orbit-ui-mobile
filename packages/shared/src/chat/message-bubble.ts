@@ -1,3 +1,4 @@
+import type { SendOneSmallStepMessage } from './one-small-step-actions'
 import type { AgentExecuteOperationResponse } from '../types/ai'
 import type { RefreshPendingOperation, RevisePendingOperation } from '../hooks/pending-operation-revision-core'
 import type { ActionResult, ChatMessage, ChatPart } from '../types/chat'
@@ -12,7 +13,7 @@ import { attachClarificationPreview, updatePendingOperationMessage, type Pending
 import { pendingOperationExecutionPatch } from './pending-operation-message-state'
 
 export interface MessageBubbleProps {
-  onSendMessage?: (message: string) => Promise<void>
+  onSendMessage?: SendOneSmallStepMessage
   blockAnswerInteraction?: BlockAnswerInteraction
   earlierMessages?: readonly ChatMessage[]
   laterMessages?: readonly ChatMessage[]

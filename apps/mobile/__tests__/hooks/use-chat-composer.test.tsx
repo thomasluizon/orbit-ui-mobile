@@ -188,7 +188,7 @@ vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
 vi.mock('@/components/message-bubble', async importOriginal => {
   const actual = await importOriginal<typeof import('@/components/message-bubble')>()
-  return { MessageBubble: (props: React.ComponentProps<typeof actual.MessageBubble>) => props.isStreaming || props.message.parts?.some(part => part?.type === 'block' && part.kind === 'choice')
+  return { MessageBubble: (props: React.ComponentProps<typeof actual.MessageBubble>) => props.isStreaming || props.message.parts?.some(part => part?.type === 'block' && ['choice', 'oneSmallStep'].includes(part.kind))
     ? <actual.MessageBubble {...props} /> : React.createElement('Text', null, props.message.content) }
 })
 vi.mock('@/components/ui/markdown', () => ({ Markdown: () => null }))
@@ -1130,6 +1130,31 @@ describe('mobile useChatComposer', () => {
     expect(context.timeFormat).toBe('24h')
   })
 
+  it.each(['en', 'pt-BR'] as const)('forwards the %s Smaller baseline only on that tap', async locale => {
+    await i18n.changeLanguage(locale)
+    const card = makeOneSmallStepCard(locale)
+    card.actions[0]!.previousStep = card.suggestion
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ content: '', pendingOperations: [],
+      parts: [{ type: 'block', kind: 'oneSmallStep', block: card }] })] })
+    useUIStore.getState().setAstraConversationOpen(true)
+    mocks.openChatStream.mockImplementation(() => Promise.resolve(sseStreamResponse(finalFrame(makeChatResponse()))))
+    const tree = await renderConversationHarness()
+    const smaller = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      typeof node.type === 'string' && node.props.accessibilityLabel === card.actions[0]!.label)[0]
+    await TestRenderer.act(async () => { await smaller.props.onPress() })
+    const form = mocks.openChatStream.mock.calls[0]?.[0] as { get(name: string): string | null }
+    expect(form.get('message')).toBe(card.actions[0]!.message)
+    expect(JSON.parse(form.get('clientContext') as string)).toMatchObject({ supportsStartingStepContext: true,
+      previousStartingStep: card.actions[0]!.previousStep })
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Another question'))
+    await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
+    const next = mocks.openChatStream.mock.calls[1]?.[0] as { get(name: string): string | null }
+    expect(next.get('message')).toBe('Another question')
+    expect(JSON.parse(next.get('clientContext') as string)).not.toHaveProperty('previousStartingStep')
+  })
+
+
   it.each(makeOneSmallStepCard().actions)('sends the complete $id request with current history and no confirmation token', async action => {
     const card = makeOneSmallStepCard()
     useChatStore.setState({ messages: [
@@ -1148,6 +1173,7 @@ describe('mobile useChatComposer', () => {
     expect(history).toContainEqual({ role: 'user', content: 'Help me start reading' })
     expect(history).toContainEqual({ role: 'assistant', content: JSON.stringify([{ kind: 'oneSmallStep', block: card }]) })
     expect(JSON.parse(formData.get('clientContext') as string).partKinds).toContain('oneSmallStep')
+    expect(JSON.parse(formData.get('clientContext') as string)).not.toHaveProperty('previousStartingStep')
   })
 
   it('keeps tool steps and follow-ups on the final answer and marks a chip send', async () => {

@@ -37,8 +37,8 @@ export function getDayStripStateWord(
   props: DayStripProps,
   state: AccountDayValue | HabitDayValue,
 ): string {
+  if (state === 'not-scheduled') return props.words.notScheduled
   if (props.scope === 'habit') {
-    if (state === 'not-scheduled') return props.words.notScheduled
     if (state === 'done') return props.words.done
     return props.words.missed
   }

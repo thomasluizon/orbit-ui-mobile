@@ -126,3 +126,13 @@ describe('Google App Link callback state', () => {
     TestRenderer.act(() => { tree.unmount() })
   })
 })
+
+
+it('does not treat a code email link delivered on resume as a Google callback', () => {
+  expect(resolveGoogleAuthCallbackUrl({
+    rawUrl: 'https://app.useorbit.org/login?email=person%40example.test&code=123456', params: {},
+  })).toBeNull()
+  expect(resolveGoogleAuthCallbackUrl({
+    rawUrl: 'https://other.example/auth-callback?code=other&state=other', params: { code: 'current', state: 'current' },
+  })).toBe(`${AUTH_CALLBACK_URL}?code=current&state=current`)
+})

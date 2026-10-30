@@ -198,7 +198,9 @@ export function resolveGoogleAuthCallbackUrl({
   sessionCallbackUrl, rawUrl, params, callbackUrl = AUTH_CALLBACK_URL,
 }: ResolveGoogleAuthCallbackUrlInput): string | null {
   for (const candidate of [sessionCallbackUrl, rawUrl, buildGoogleAuthFallbackUrl(params, callbackUrl)]) {
-    if (candidate && hasGoogleAuthCallbackPayload(extractGoogleAuthParams(candidate))) return candidate
+    if (!candidate) continue
+    const url = new URL(candidate)
+    if (`${url.origin}${url.pathname}` === callbackUrl && hasGoogleAuthCallbackPayload(extractGoogleAuthParams(candidate))) return candidate
   }
   return null
 }

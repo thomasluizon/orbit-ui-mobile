@@ -3,9 +3,11 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from '
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { tsImport } from 'tsx/esm/api'
 import { stringify } from 'yaml'
 
 if (!process.argv[2]) throw new Error('Usage: node evals/astra/generate-catalog.mjs <api-checkout>')
+const { CHAT_BLOCK_KINDS } = await tsImport('../../packages/shared/src/chat/block-kinds.ts', import.meta.url)
 const apiRoot = realpathSync(resolve(process.argv[2]))
 function cleanApiCommit() {
   const git = (arguments_) => execFileSync('git', ['-C', apiRoot, ...arguments_], { encoding: 'utf8' }).trim()
@@ -27,7 +29,7 @@ try {
 </Project>`)
   const output = join(directory, 'catalog.json')
   const run = spawnSync('dotnet', ['run', '--project', project, '--artifacts-path', join(directory, 'artifacts'),
-    '-p:OpenApiGenerateDocuments=false', '--', output], {
+    '-p:OpenApiGenerateDocuments=false', '--', output, JSON.stringify(CHAT_BLOCK_KINDS)], {
     cwd: apiRoot, stdio: 'inherit',
   })
   if (run.error) throw run.error
