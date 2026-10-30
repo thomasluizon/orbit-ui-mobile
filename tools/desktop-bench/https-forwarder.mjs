@@ -5,20 +5,22 @@ export async function forwardHttps(uid, gid) {
     throw new Error('HTTPS listener requires an unprivileged runner identity')
   }
   const sockets = new Set()
-  const server = createServer()
+  const listeners = ['127.0.0.1', '::1'].map((host) => ({ host, server: createServer() }))
   const close = () => {
-    server.close()
+    for (const { server } of listeners) server.close()
     for (const socket of sockets) socket.destroy()
   }
   try {
-    await new Promise((resolve, reject) => {
-      server.once('error', reject)
-      server.listen(443, '127.0.0.1', resolve)
-    })
+    for (const { host, server } of listeners) {
+      await new Promise((resolve, reject) => {
+        server.once('error', reject)
+        server.listen(443, host, resolve)
+      })
+    }
     process.setgroups([])
     process.setgid(gid)
     process.setuid(uid)
-    server.on('connection', (client) => {
+    const forward = (client) => {
       const upstream = createConnection({ host: '127.0.0.1', port: 3443 })
       for (const [socket, peer] of [[client, upstream], [upstream, client]]) {
         sockets.add(socket)
@@ -26,7 +28,8 @@ export async function forwardHttps(uid, gid) {
         socket.once('error', () => peer.destroy())
       }
       client.pipe(upstream).pipe(client)
-    })
+    }
+    for (const { server } of listeners) server.on('connection', forward)
     process.stdin.once('end', close)
     process.stdin.resume()
     process.once('SIGTERM', close)

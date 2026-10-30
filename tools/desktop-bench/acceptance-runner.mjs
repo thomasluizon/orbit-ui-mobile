@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, writeFile, rm } from 'node:fs/promises'
+import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { lookup } from 'node:dns/promises'
@@ -38,7 +38,13 @@ async function hermeticServices(repository, output) {
   await waitForHttp('http://127.0.0.1:5099/health', mock)
   const seed = await fetch('http://127.0.0.1:5099/_test/session-fixtures', { method: 'PUT', headers: { Authorization: `Bearer ${fixtures.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ fixtures: fixtures.fixtures }) })
   if (!seed.ok) throw new Error(`Hermetic seed failed: ${seed.status}`)
-  const web = start(process.execPath, [require.resolve('next/dist/bin/next'), 'start', '--port', '3401', '--hostname', '127.0.0.1'], { cwd: join(repository, 'apps/web'), env: environment, log: join(output, 'web.log') })
+  const webDirectory = join(repository, 'apps/web')
+  const standalone = join(webDirectory, '.next/standalone/apps/web')
+  await cp(join(webDirectory, 'public'), join(standalone, 'public'), { recursive: true })
+  await cp(join(webDirectory, '.next/static'), join(standalone, '.next/static'), { recursive: true })
+  const web = start(process.execPath, [join(standalone, 'server.js')], {
+    cwd: webDirectory, env: { ...environment, PORT: '3401', HOSTNAME: '127.0.0.1' }, log: join(output, 'web.log'),
+  })
   await waitForHttp('http://127.0.0.1:3401/api/health', web)
 }
 
@@ -164,7 +170,9 @@ export async function acceptance({ repository, output }) {
     isolation = await isolateOrigins(output)
     for (const hostname of ['app-staging.useorbit.org', 'github.com']) {
       const addresses = await lookup(hostname, { all: true })
-      if (!addresses.length || addresses.some((entry) => entry.address !== '127.0.0.1')) throw new Error(`Origin isolation failed for ${hostname}`)
+      if (!addresses.length || addresses.some((entry) => !['127.0.0.1', '::1'].includes(entry.address))) {
+        throw new Error(`Origin isolation failed for ${hostname}: ${JSON.stringify(addresses)}`)
+      }
     }
     proxy = await startProxy({ probePath: join(directory, 'acceptance-probe.js'), port: proxyPort, upstreamPort: 3401, tls: isolation, route: updates.route, acceptance: true })
     const executable = await install(shell.installer, output)

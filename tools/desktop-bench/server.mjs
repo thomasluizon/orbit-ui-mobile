@@ -34,9 +34,17 @@ export async function startProxy({ token, probePath, port, upstreamPort, closeCo
       }
       else waiting.push(response)
     } else {
+      const failUpstream = (error) => {
+        const method = incoming.method
+        const path = incoming.url.split('?')[0]
+        received.push({ kind: 'error', method, path, message: `Upstream ${method} ${path} failed: ${error.message}` })
+        if (response.headersSent) response.destroy()
+        else response.writeHead(502).end()
+      }
       const proxy = request({ host: '127.0.0.1', port: upstreamPort, path: incoming.url, method: incoming.method,
         headers: { ...incoming.headers, host: tls ? incoming.headers.host : `127.0.0.1:${port}`, 'accept-encoding': 'identity',
           ...(token ? { cookie: `auth_token=${token}; i18n_locale=en` } : {}), ...(tls ? { 'x-forwarded-proto': 'https' } : {}) } }, (upstream) => {
+        upstream.on('error', failUpstream)
         const headers = { ...upstream.headers }
         delete headers['content-length']
         delete headers['transfer-encoding']
@@ -60,12 +68,24 @@ export async function startProxy({ token, probePath, port, upstreamPort, closeCo
           upstream.pipe(response)
         }
       })
-      proxy.on('error', (error) => { received.push({ kind: 'error', message: error.message }); response.writeHead(502).end() })
+      proxy.on('error', failUpstream)
       incoming.pipe(proxy)
     }
   }
-  const server = tls ? createSecureServer(tls, handle) : createServer(handle)
-  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve) })
+  const hosts = tls ? ['127.0.0.1', '::1'] : ['127.0.0.1']
+  const servers = hosts.map(() => tls ? createSecureServer(tls, handle) : createServer(handle))
+  const stop = async () => {
+    for (const server of servers) server.closeAllConnections()
+    await Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve))))
+  }
+  try {
+    for (const [index, server] of servers.entries()) {
+      await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, hosts[index], resolve) })
+    }
+  } catch (error) {
+    await stop()
+    throw error
+  }
   return {
     reset(settings) { launch = settings; received = []; command = 'idle'; for (const response of waiting) response.destroy(); waiting = [] },
     workload() { command = 'workload'; for (const response of waiting) response.writeHead(200, { 'cache-control': 'no-store' }).end(command); waiting = [] },
@@ -80,6 +100,6 @@ export async function startProxy({ token, probePath, port, upstreamPort, closeCo
       if (failure) throw new Error(failure.message)
       return received.find((entry) => entry.kind === kind)
     },
-    async stop() { server.closeAllConnections(); await new Promise((resolve) => server.close(resolve)) },
+    stop,
   }
 }

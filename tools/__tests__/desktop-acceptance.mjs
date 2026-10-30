@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus } from '../desktop-bench/acceptance-contract.mjs'
 import { T, REPO_ROOT, check, root } from './_harness.mjs'
+import { networkCases } from './desktop-acceptance-network.mjs'
 
 function rejects(label, operation) {
   let failure
@@ -54,16 +55,21 @@ async function releaseImportCases() {
 async function httpsForwarderCases() {
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/https-forwarder.mjs'), 'utf8')
     .replace(/^import .*$/gm, '').replace('export async function', 'async function')
-  for (const failure of [undefined, 'bind', 'groups', 'gid', 'uid']) {
+  for (const failure of [undefined, 'bind', 'bind-v6', 'groups', 'gid', 'uid']) {
     const calls = []
     const original = Object.assign(new Error('listen EACCES: 127.0.0.1:443'), { code: 'EACCES' })
-    const server = new EventEmitter()
-    server.listen = (port, host, ready) => {
-      calls.push(['bind', port, host])
-      if (failure === 'bind') server.emit('error', original)
-      else ready()
+    const servers = []
+    const createListener = () => {
+      const server = new EventEmitter()
+      server.listen = (port, host, ready) => {
+        calls.push(['bind', port, host])
+        if (failure === 'bind' || failure === 'bind-v6' && host === '::1') server.emit('error', original)
+        else ready()
+      }
+      server.close = () => calls.push(['close', server])
+      servers.push(server)
+      return server
     }
-    server.close = () => calls.push(['close'])
     const identity = new EventEmitter()
     const changeIdentity = (kind, value) => { calls.push([kind, value]); if (failure === kind) throw original }
     Object.assign(identity, {
@@ -77,22 +83,26 @@ async function httpsForwarderCases() {
       destroy() { if (this.destroyed) return; this.destroyed = true; this.emit('close') },
     })
     const upstreams = []
-    const context = { process: identity, Set, Number, Error, createServer: () => server,
+    const context = { process: identity, Set, Number, Error, createServer: createListener,
       createConnection: (options) => { calls.push(['connect', options]); const upstream = socket(); upstreams.push(upstream); return upstream } }
     runInNewContext(`${source}\nglobalThis.forwardHttps = forwardHttps`, context)
     let rejected
     try { await context.forwardHttps(1001, 1002) } catch (error) { rejected = error }
     if (failure) {
       T(`listener ${failure} failure retains its cause, closes the socket and never reports readiness`,
-        rejected === original && calls.at(-1)[0] === 'close' && !calls.some(([kind]) => kind === 'ready'))
+        rejected === original && servers.every((server) => calls.some(([kind, closed]) => kind === 'close' && closed === server)) &&
+        !calls.some(([kind]) => kind === 'ready'))
       continue
     }
-    T('HTTPS listener binds loopback 443 before clearing groups and dropping its identity',
-      JSON.stringify(calls) === JSON.stringify([['bind', 443, '127.0.0.1'], ['groups', []], ['gid', 1002], ['uid', 1001], ['ready', 'listening\n']]))
+    T('HTTPS listener binds both loopbacks on 443 before clearing groups and dropping its identity',
+      JSON.stringify(calls) === JSON.stringify([['bind', 443, '127.0.0.1'], ['bind', 443, '::1'], ['groups', []], ['gid', 1002], ['uid', 1001], ['ready', 'listening\n']]))
     const first = socket()
     const second = socket()
-    server.emit('connection', first)
-    server.emit('connection', second)
+    servers[0].emit('connection', first)
+    const ipv6 = servers.find((server) => server !== servers[0])
+    T('HTTPS forwarder installs a connection handler for IPv6 after dropping privileges', Boolean(ipv6?.listenerCount('connection')))
+    const secondListener = ipv6 ?? servers[0]
+    secondListener.emit('connection', second)
     T('listener forwards the encrypted stream in both directions to unprivileged loopback 3443',
       calls.filter(([kind]) => kind === 'connect').every(([, options]) => options.host === '127.0.0.1' && options.port === 3443) &&
       calls.some(([kind, from, to]) => kind === 'pipe' && from === first && to === upstreams[0]) &&
@@ -159,6 +169,7 @@ export async function cases() {
   await releaseImportCases()
   await httpsForwarderCases()
   await listenerStartupCases()
+  await networkCases()
   const native = { denied: false, error: null, nodes: [
     { id: '0', role: 'Document', name: '', interactive: false, focused: false, selected: false },
     { id: '0/1', role: 'Edit', name: 'Search commands', interactive: true, focused: true, selected: false },
@@ -243,7 +254,7 @@ export async function cases() {
       createSecureServer: (tls, callback) => { handler = callback; return { once() {}, listen(port, host, ready) { ready() } } },
       request: (options, callback) => {
         forwarded = options
-        callback({ headers: { 'content-type': 'application/json', 'set-cookie': upstreamCookies }, statusCode: 200, pipe() {} })
+        callback(Object.assign(new EventEmitter(), { headers: { 'content-type': 'application/json', 'set-cookie': upstreamCookies }, statusCode: 200, pipe() {} }))
         return { on() {} }
       },
     }

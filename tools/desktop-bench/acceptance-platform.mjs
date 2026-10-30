@@ -111,7 +111,7 @@ export async function isolateOrigins(output) {
   const hosts = windows ? join(process.env.SystemRoot, 'System32/drivers/etc/hosts') : '/etc/hosts'
   const originalHosts = await readFile(hosts, 'utf8')
   const replacement = join(output, 'isolated-hosts')
-  await writeFile(replacement, `${originalHosts}\n127.0.0.1 app-staging.useorbit.org github.com\n`)
+  await writeFile(replacement, `${originalHosts}\n127.0.0.1 app-staging.useorbit.org github.com\n::1 app-staging.useorbit.org github.com\n`)
   const openssl = async (...argumentsList) => execute('openssl', argumentsList, { cwd: output, log: join(output, 'tls.log') })
   await openssl('req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', 'root.key', '-out', 'root.pem', '-days', '1', '-subj', '/CN=Orbit Desktop VM Root')
   await openssl('req', '-newkey', 'rsa:2048', '-nodes', '-keyout', 'server.key', '-out', 'server.csr', '-subj', '/CN=app-staging.useorbit.org')
@@ -120,11 +120,19 @@ export async function isolateOrigins(output) {
   const root = join(output, 'root.pem')
   const fingerprint = new X509Certificate(await readFile(root)).fingerprint.replaceAll(':', '')
   let trusted = false
+  const refreshResolver = async () => {
+    if (windows) await execute('ipconfig.exe', ['/flushdns'])
+    else {
+      await execute('sudo', ['dscacheutil', '-flushcache'])
+      await execute('sudo', ['killall', '-HUP', 'mDNSResponder'])
+    }
+  }
   const restore = async () => {
     const backup = join(output, 'original-hosts')
     await writeFile(backup, originalHosts)
     if (windows) await copyFile(backup, hosts)
     else await execute('sudo', ['cp', backup, hosts])
+    await refreshResolver()
     if (trusted) {
       if (windows) await execute('certutil.exe', ['-delstore', 'Root', fingerprint])
       else await execute('sudo', ['security', 'delete-certificate', '-Z', fingerprint, '/Library/Keychains/System.keychain'])
@@ -135,13 +143,12 @@ export async function isolateOrigins(output) {
       await execute('certutil.exe', ['-addstore', '-f', 'Root', root])
       trusted = true
       await copyFile(replacement, hosts)
-      await execute('ipconfig.exe', ['/flushdns'])
     } else {
       await execute('sudo', ['security', 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain', root])
       trusted = true
       await execute('sudo', ['cp', replacement, hosts])
-      await execute('sudo', ['dscacheutil', '-flushcache'])
     }
+    await refreshResolver()
     return { key: await readFile(join(output, 'server.key')), cert: await readFile(join(output, 'server.pem')), restore }
   } catch (error) {
     await restore()
