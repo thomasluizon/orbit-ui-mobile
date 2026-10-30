@@ -88,7 +88,7 @@
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }))
     await until(() => !document.querySelector('[data-shell-conversation]') && !document.querySelector('[data-shell-destination]')?.inert, 'return to Hoje')
     await frame()
-    await post({ kind: 'usable', epochMs: usableEpoch, visibility: document.visibilityState })
+    await post({ kind: 'usable', epochMs: usableEpoch, visibility: document.visibilityState, viewport: [innerWidth, innerHeight] })
     for (;;) {
       const response = await fetch('/_bench/command')
       const command = await response.text()

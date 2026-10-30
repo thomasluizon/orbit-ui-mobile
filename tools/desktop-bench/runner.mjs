@@ -11,11 +11,11 @@ import { markdown, percentile, summarize } from './measurements.mjs'
 const require = createRequire(import.meta.url)
 const note = (message) => process.stdout.write(`[desktop-bench] ${message}\n`)
 
-async function measure({ shell, cache, iteration, executable, profile, environment, proxy, macProbe, windowsScript, work }) {
+async function measure({ shell, cache, iteration, executable, profile, environment, proxy, macProbe, windowsScript, work, viewport }) {
   proxy.reset()
   const launchedAt = Date.now()
   const handle = start(process.platform === 'darwin' ? macProbe : executable, process.platform === 'darwin' ? ['launch', executable] : [], {
-    env: { ...environment, ORBIT_BENCH_PROFILE: profile }, log: join(work, `${shell}-${iteration}-${cache}.log`),
+    env: { ...environment, ORBIT_BENCH_PROFILE: profile, ORBIT_BENCH_WIDTH: String(viewport?.[0] ?? 900), ORBIT_BENCH_HEIGHT: String(viewport?.[1] ?? 800) }, log: join(work, `${shell}-${iteration}-${cache}.log`),
   })
   let members = []
   const read = (kind) => {
@@ -25,6 +25,7 @@ async function measure({ shell, cache, iteration, executable, profile, environme
   try {
     const usable = await waitFor(() => read('usable'), `${shell} usable Hoje`)
     if (usable.visibility !== 'visible') throw new Error('Shell must be visible for measurement')
+    if (viewport && usable.viewport.join(',') !== viewport.join(',')) throw new Error(`Viewport mismatch: ${usable.viewport} versus ${viewport}`)
     const baseline = await treeSample(handle, macProbe, windowsScript)
     members = baseline.members
     const idleStarted = Date.now()
@@ -43,7 +44,7 @@ async function measure({ shell, cache, iteration, executable, profile, environme
     const completed = await waitFor(() => read('complete'), `${shell} scroll and Astra workload`)
     if (completed.visibility !== 'visible') throw new Error('Shell became hidden during workload')
     const result = {
-      shell, cache, iteration, startupMs: usable.epochMs - launchedAt,
+      shell, cache, iteration, viewport: usable.viewport, startupMs: usable.epochMs - launchedAt,
       resident10Bytes: tenSeconds.residentBytes, resident60Bytes: sixtySeconds.residentBytes,
       idleCpuSeconds: finalCpu - initialCpu, idleElapsedMs: sixtySeconds.epochMs - baseline.epochMs,
       scrollP95Ms: percentile(completed.frames, 0.95), scrollSlowFrames: completed.frames.filter((value) => value > 16.7).length,
@@ -94,6 +95,7 @@ export async function benchmark({ repository, directory, output, repetitions }) 
     proxy = await startProxy({ token: fixtures.token, probePath: join(directory, 'probe.js'), port: 3400, upstreamPort: 3401 })
     await fetch('http://127.0.0.1:3400/').then((response) => response.arrayBuffer())
     const runs = []
+    let viewport
     for (let iteration = 0; iteration < repetitions; iteration++) {
       const order = iteration % 2 ? ['electron', 'tauri'] : ['tauri', 'electron']
       for (const shell of order) {
@@ -103,14 +105,16 @@ export async function benchmark({ repository, directory, output, repetitions }) 
         await mkdir(profile, { recursive: true })
         for (const cache of ['cold', 'warm']) {
           if (interrupted) throw new Error('Interrupted')
-          runs.push(await measure({ shell, cache, iteration, executable: shells[`${shell}Executable`], profile, environment, proxy, macProbe, windowsScript, work }))
+          const result = await measure({ shell, cache, iteration, executable: shells[`${shell}Executable`], profile, environment, proxy, macProbe, windowsScript, work, viewport })
+          viewport = result.viewport
+          runs.push(result)
           await writeFile(join(output, 'partial.json'), JSON.stringify(runs, null, 2))
         }
       }
     }
     const report = {
       host: `${platform()} ${release()} ${arch()}; ${cpus()[0].model}; ${cpus().length} logical CPUs; ${(totalmem() / 1073741824).toFixed(0)} GiB RAM`,
-      commit, repetitions, electronVersion: shells.version, disk: shells.disk, medians: summarize(runs), runs,
+      commit, repetitions, viewport, electronVersion: shells.version, disk: shells.disk, medians: summarize(runs), runs,
       verdict: 'Tauri remains the incumbent pending the matching Windows result. Compare each metric separately; a mixed result does not establish that Electron measures best overall.',
     }
     await writeFile(join(output, 'summary.json'), JSON.stringify(report, null, 2))

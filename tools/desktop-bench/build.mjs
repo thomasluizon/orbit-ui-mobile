@@ -44,7 +44,7 @@ export async function buildShells(repository, work, environment) {
   await writeFile(join(application, 'main.cjs'), `const { app, BrowserWindow } = require('electron');
 app.setPath('userData', process.env.ORBIT_BENCH_PROFILE);
 app.whenReady().then(() => {
-  const window = new BrowserWindow({ width: 1100, height: 800, useContentSize: true, webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true } });
+  const window = new BrowserWindow({ width: Number(process.env.ORBIT_BENCH_WIDTH), height: Number(process.env.ORBIT_BENCH_HEIGHT), useContentSize: true, webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true } });
   window.loadURL('http://127.0.0.1:3400/');
 });
 app.on('window-all-closed', () => app.quit());
@@ -67,7 +67,7 @@ app.on('window-all-closed', () => app.quit());
   const overlay = {
     identifier: 'org.useorbit.desktop.benchmark', productName: 'Orbit Benchmark Tauri',
     build: { frontendDist: origin },
-    app: { windows: [{ label: 'main', create: false, title: 'Orbit Benchmark Tauri', url: `${origin}/`, width: 1100, height: 800, dataDirectory: profile }],
+    app: { windows: [{ label: 'main', create: false, title: 'Orbit Benchmark Tauri', url: `${origin}/`, width: 900, height: 800, dataDirectory: profile }],
       security: { capabilities: [{ identifier: 'desktop-benchmark', local: true, remote: { urls: [`${origin}/*`] }, windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update'] }] } },
     bundle: { createUpdaterArtifacts: false }, plugins: { updater: { pubkey: '' } },
   }

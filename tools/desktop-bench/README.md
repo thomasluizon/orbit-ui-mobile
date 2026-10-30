@@ -14,7 +14,9 @@ The current stable Electron version is resolved from npm and recorded in the rep
 
 The Tauri release uses `bench-loopback` and a temporary config overlay. The feature is off by
 default. Only the overlay grants local capabilities, selects the separate benchmark app identifier
-and fixes the content viewport at 1100 by 800. Shipped configs and release workflows stay unchanged.
+and selects a 900-pixel window width, where Hoje provides its inline composer. Electron uses
+the first Tauri run's measured content viewport; every later run must match it exactly.
+The measured dimensions are retained in JSON. Shipped configs and release workflows stay unchanged.
 The Rust test rejects loopback without the feature; the tools harness guards release configurations.
 
 Only loopback ports 5099, 3400 and 3401 are used. Occupied ports fail before starting processes.
