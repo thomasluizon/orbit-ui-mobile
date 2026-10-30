@@ -51,6 +51,18 @@ export function sanitizeEvidence(value, withheld = new Set()) {
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, sanitizeEvidence(child, withheld)]))
 }
 
+function resultEvidence(result) {
+  if (!result || typeof result !== 'object') return null
+  const scalar = (value) => ['string', 'number', 'boolean'].includes(typeof value) || value === null
+  const payloadFields = ['status', 'item_count', 'habit_count', 'date_count', 'proposed_titles', 'dates', 'errorCode', 'error', 'arguments']
+  return { success: typeof result.success === 'boolean' ? result.success : null,
+    error: typeof result.error === 'string' ? result.error : null,
+    payload: result.payload && typeof result.payload === 'object'
+      ? Object.fromEntries(payloadFields.filter((key) => Object.hasOwn(result.payload, key)
+        && (scalar(result.payload[key]) || (Array.isArray(result.payload[key]) && result.payload[key].every(scalar))))
+        .map((key) => [key, result.payload[key]])) : null }
+}
+
 export function attemptEvidence(entry, attempt) {
   const output = entry.response?.output
   const catalog = entry.testCase.vars?.clientContext?.supportsParts === true ? tools : legacyTools
@@ -61,7 +73,7 @@ export function attemptEvidence(entry, attempt) {
     collectMarkedValues(call.result, sensitiveFields, withheld)
     return { name: call.name,
       arguments: observableArguments(call.arguments, tool?.function.parameters, sensitiveFields, withheld),
-      resultStatus: call.resultStatus }
+      resultStatus: call.resultStatus, ...(tool ? { result: resultEvidence(call.result) } : {}) }
   })
   return sanitizeEvidence({ ...attempt,
     answer: output?.answer ?? null,

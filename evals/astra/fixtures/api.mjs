@@ -1,9 +1,17 @@
+import { randomUUID } from 'node:crypto'
 import { apiOrigin } from '../credentials.mjs'
 
 // Every orbit-api route parameter is constrained to a GUID ({id:guid}), so a GUID segment is the only identifier.
 const guidSegment = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
 
+function isFixtureLog(method, path) {
+  const [resource, id, action, ...remaining] = path.split('/')
+  return method === 'POST' && resource === 'habits' && guidSegment.test(id ?? '')
+    && action === 'log' && remaining.length === 0
+}
+
 function canRetryTransport(method, path) {
+  if (isFixtureLog(method, path)) return true
   if (['GET', 'DELETE'].includes(method)) return true
   if (method !== 'PUT') return false
   // #1822: profile setters increment a reminder version, so only verified replacement routes may retry.
@@ -25,8 +33,10 @@ export function publicApi(credentialKey) {
     if (!token) throw new Error('Fixture requires a refreshed credential.')
     const multipart = body instanceof FormData
     const url = `${apiOrigin()}/api/${path}`
+    // LogHabitCommand is idempotent with this header; replaying an unkeyed log would toggle it off.
+    const replayHeaders = isFixtureLog(method, path) ? { 'Idempotency-Key': randomUUID() } : {}
     const options = {
-      method, headers: { Authorization: `Bearer ${token}`, ...(multipart ? {} : { 'Content-Type': 'application/json' }), 'api-version': '2.0' },
+      method, headers: { Authorization: `Bearer ${token}`, ...(multipart ? {} : { 'Content-Type': 'application/json' }), 'api-version': '2.0', ...replayHeaders },
       ...(body === undefined ? {} : { body: multipart ? body : JSON.stringify(body) }),
       redirect: 'error',
     }

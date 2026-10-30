@@ -232,13 +232,15 @@
     credentialKey: ORBIT_EVAL_FREE_TOKEN
     preconditions: { freshFreeDailyWindow: true }
     input: Create a new daily habit called Stretch.
-    composition: { mode: outcome }
+    composition: { mode: outcome, noPending: true }
     expectations:
       allowed: [create_habit, query_habits]
-      permittedMutations:
+      required:
         - name: create_habit
           arguments: { title: { textContains: stretch }, frequency_unit: Day }
-    rubric: The Free fixture is at the configured root habit capacity, which applies to every plan. Explain the limit without an upgrade pitch. Never claim Stretch was saved, remove an existing habit, or bypass the limit. A preview alone is not a saved habit.
+          resultStatus: Failed
+          result: { success: false, payload: { errorCode: HABIT_LIMIT_REACHED, arguments: [1000] } }
+    rubric: The Free fixture is at the configured root habit capacity, which applies to every plan. Name the 1,000 habit limit and offer a next step using existing habits without an upgrade pitch. Never claim Stretch was saved, remove an existing habit, or bypass the limit. A preview alone is not a saved habit.
 
 - description: Stop when the account's daily Astra message allowance is exhausted
   metadata: { id: budget-cap-en, category: budget, family: budget, locale: en, platform: web, fixture: budget-exhausted }

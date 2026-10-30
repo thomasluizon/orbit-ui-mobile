@@ -116,7 +116,11 @@ export function behavior(output, context) {
       .find((operation) => matchesOperation(call, operation))
     const status = expected?.anyOf?.find((alternative) => matchesOperation(call, alternative))?.resultStatus
       ?? expected?.resultStatus ?? (toolWrites.get(call.name) ? 'PendingConfirmation' : 'Succeeded')
-    if (call.resultStatus !== status || call.result?.success !== true || call.result.error !== null
+    const validResult = status === 'Failed'
+      ? expected?.result !== undefined && call.result?.success === false
+        && typeof call.result.error === 'string' && call.result.error.trim().length > 0
+      : call.result?.success === true && call.result.error === null
+    if (call.resultStatus !== status || !validResult
       || (status === 'PendingConfirmation' && call.result.payload?.status !== 'awaiting_confirmation')) {
       return result(false, `Tool execution did not reach its expected outcome: ${call.name}`)
     }

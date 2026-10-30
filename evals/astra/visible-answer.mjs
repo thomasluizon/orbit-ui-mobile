@@ -59,7 +59,14 @@ export function visibleAnswer(composition, clientContext, accountDate) {
   const operations = getMessageBubbleOperations(props, projectionCannotWrite)
   const parts = view.parts.map((part) => part.type === 'text' ? { type: 'text', text: part.text }
     : { type: 'block', kind: part.part.kind, block: visibleBlock(part.part, options) })
-  const pendingOperations = operations.pendingOperations.map(({ pendingOperation }) => visiblePreview(pendingOperation))
+  const pendingOperations = operations.pendingOperations.map(({ pendingOperation }) => ({
+    ...(pendingOperation.confirmationRequirement === 'StepUp'
+      && pendingOperation.items == null && pendingOperation.changes == null ? {} : visiblePreview(pendingOperation)),
+    ...(pendingOperation.confirmationRequirement === 'StepUp'
+      && pendingOperation.changeTargetCount !== 0
+      && !(pendingOperation.changeTargetCount == null && pendingOperation.items?.length === 0 && !pendingOperation.changes?.length)
+      ? { stepUp: { message: t('chat.operation.stepUpMessage'), actionLabel: t('chat.operation.stepUpAction') } } : {}),
+  }))
   const outcomes = view.outcomes.map((outcome) => outcomeBlock(outcome, t))
   const actions = actionChips(view.nonSuggestionActions, t)
   const safeText = (text) => t.has(text) ? t(text) : text

@@ -27,13 +27,18 @@ function publicFacts(value, withheld) {
 function evidenceFacts(output, vars, withheld) {
   const trace = output.trace
   const bound = typeof vars.evalRequestId === 'string' && trace?.responseRequestId === vars.evalRequestId
-  const successful = (bound && trace.state === 'available' && trace.requestId === vars.evalRequestId
-    && Array.isArray(trace.calls) ? trace.calls : []).filter((call) => call.resultStatus === 'Succeeded'
+  const calls = bound && trace.state === 'available' && trace.requestId === vars.evalRequestId
+    && Array.isArray(trace.calls) ? trace.calls : []
+  const successful = calls.filter((call) => call.resultStatus === 'Succeeded'
       && call.result?.success === true && call.result.error === null)
   const refusal = bound && trace.state === 'refused' && output.httpError?.status === output.httpStatus
     && output.httpError?.errorCode === trace.refusalCode
   return publicFacts({ fixture: vars.fixtureEvidence ?? null,
     successfulTools: successful.map((call) => ({ name: call.name, result: call.result.payload })),
+    toolOutcomes: calls.filter((call) =>
+      (call.resultStatus === 'Failed' && call.result?.success === false && typeof call.result.error === 'string')
+      || (call.resultStatus === 'PendingConfirmation' && call.result?.success === true && call.result.error === null))
+      .map((call) => ({ name: call.name, status: call.resultStatus, error: call.result.error, result: call.result.payload })),
     readScopes: (output.composition?.parts ?? []).flatMap((part) => {
       const read = part.type === 'block' ? part.block?.read : null
       return read && successful.some((call) => call.name === read.queryFamily)

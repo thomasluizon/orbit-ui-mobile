@@ -4,7 +4,7 @@ import { parse } from 'yaml'
 import { behavior, structural } from '../assertions.mjs'
 import parseResponse from '../response.mjs'
 import { summarize } from '../report.mjs'
-import { toolCall } from './fixtures/producer.mjs'
+import { toolCall, capacityFailureCall } from './fixtures/producer.mjs'
 import { retrospectiveResponse } from './fixtures/public-api.mjs'
 
 const { tools: catalog } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
@@ -101,6 +101,7 @@ describe('production scenario mutation scope', () => {
         const required = entry.anyOf?.[0] ?? entry
         const outcome = required.resultStatus === undefined ? {} : { resultStatus: required.resultStatus }
         const produced = call(required.name, exampleArguments(required.argumentsAnyOf?.[0] ?? required.arguments ?? {}), outcome, vars.clientContext)
+        if (id === 'edge-free-limit-en') produced.result = { ...capacityFailureCall().result, id: produced.id }
         if (required.name === 'get_retrospective') produced.result.payload = retrospective
         return produced
       })
@@ -138,11 +139,15 @@ describe('production scenario mutation scope', () => {
     expect(behavior(envelope([...calls, call('log_habit', { habit_id: 'second' })]), context(expectations)).pass).toBe(false)
   })
 
-  it('scopes an optional free-limit create without requiring the refused write', () => {
+  it('requires the typed free-limit refusal and rejects a held preview or extra target', () => {
     const { expectations } = scenarios.find((scenario) => scenario.metadata.id === 'edge-free-limit-en').vars
-    expect(behavior(envelope([]), context(expectations)).pass).toBe(true)
-    expect(behavior(envelope([call('create_habit', { title: 'Stretch', frequency_unit: 'Day' })]), context(expectations)).pass).toBe(true)
-    expect(behavior(envelope([call('create_habit', { title: 'Unrequested', frequency_unit: 'Day' })]), context(expectations)).pass).toBe(false)
+    const failure = call('create_habit', { title: 'Stretch', frequency_unit: 'Day' }, { resultStatus: 'Failed' })
+    failure.result = { ...capacityFailureCall().result, id: failure.id }
+    expect(behavior(envelope([]), context(expectations)).pass).toBe(false)
+    expect(behavior(envelope([failure]), context(expectations)).pass).toBe(true)
+    expect(behavior(envelope([call('create_habit', { title: 'Stretch', frequency_unit: 'Day' })]), context(expectations)).pass).toBe(false)
+    failure.arguments.title = 'Unrequested'
+    expect(behavior(envelope([failure]), context(expectations)).pass).toBe(false)
   })
 
   it.each(['bulk_log_habits', 'bulk_skip_habits'])(

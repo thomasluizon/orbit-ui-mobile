@@ -6,7 +6,7 @@ const validMilliseconds = (value) => typeof value === 'number' && Number.isFinit
 const median = (values) => [...values].sort((left, right) => left - right)[1]
 
 export function describeCase(test) {
-  const readLatency = test.vars?.composition?.mode === 'data'
+  const readLatency = ['data', 'step-up'].includes(test.vars?.composition?.mode)
     || (test.vars?.composition?.mode === 'fallback' && test.vars?.expectations?.allowed?.length > 0)
   return { ...test.metadata, readLatency: Boolean(readLatency) }
 }
@@ -19,7 +19,7 @@ function phaseTotals(timing) {
       || !validMilliseconds(phase.elapsedMilliseconds)) return null
     totals[phase.name] += phase.milliseconds
   }
-  if (phaseNames.some((name) => !timing.phases.some((phase) => phase.name === name))) return null
+  if (phaseNames.some((name) => name !== 'save' && !timing.phases.some((phase) => phase.name === name))) return null
   // Exclusive phase times partition the API turn, including repeated and overlapping scopes.
   if (Math.abs(Object.values(totals).reduce((sum, value) => sum + value, 0) - timing.totalMilliseconds) > 1) return null
   return totals

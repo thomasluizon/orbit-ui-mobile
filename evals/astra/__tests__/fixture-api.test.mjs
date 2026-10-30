@@ -158,17 +158,17 @@ it.each([
   expect(timeout.mock.calls).toEqual([[15000]])
 })
 
-it.each(['POST', 'PATCH'])('reports a single %s timeout at the existing deadline', async (method) => {
+it.each(['POST', 'PATCH'])('reports a single unverified %s timeout at the existing deadline', async (method) => {
   const timeout = fakeTimeouts()
   const request = hangUntilAborted()
   vi.stubGlobal('fetch', request)
-  const pending = outcome(api(method, 'habits/22222222-2222-4222-8222-222222222222/log', { title: 'Private body' }))
+  const pending = outcome(api(method, 'habits/22222222-2222-4222-8222-222222222222/unknown', { title: 'Private body' }))
   await vi.advanceTimersByTimeAsync(14999)
   expect(request).toHaveBeenCalledTimes(1)
   expect(request.mock.calls[0][1].signal.aborted).toBe(false)
   await vi.advanceTimersByTimeAsync(1)
   await vi.runAllTimersAsync()
-  expect(await pending).toEqual({ error: `Fixture API ${method} habits/{id}/log failed: timeout.` })
+  expect(await pending).toEqual({ error: `Fixture API ${method} habits/{id}/unknown failed: timeout.` })
   expect(request).toHaveBeenCalledTimes(1)
   expect(timeout.mock.calls).toEqual([[15000]])
 })
@@ -265,4 +265,54 @@ it.each([200, 401, 502, 503])('reports non-JSON HTTP %s without the response bod
     error: `Fixture API PUT habits/{id} failed: non-JSON body (HTTP ${status}).`,
   })
   expect(request).toHaveBeenCalledTimes(1)
+})
+
+it('retries a fixture log timeout with the same idempotency key and a fresh deadline', async () => {
+  const timeout = fakeTimeouts()
+  const request = vi.fn().mockImplementationOnce(hang).mockImplementation(success)
+  vi.stubGlobal('fetch', request)
+  const path = 'habits/22222222-2222-4222-8222-222222222222/log'
+  const body = { date: '2026-10-29' }
+  const pending = outcome(api('POST', path, body))
+  await vi.advanceTimersByTimeAsync(15000)
+  expect(await pending).toEqual({ value: { status: 204, payload: null } })
+  expect(timeout.mock.calls).toEqual([[15000], [15000]])
+  const [first, second] = request.mock.calls.map(([, options]) => options)
+  expect(first.headers['Idempotency-Key']).toMatch(/^[0-9a-f-]{36}$/u)
+  expect(second).toEqual({ ...first, signal: second.signal })
+  expect(second.signal).not.toBe(first.signal)
+  await api('POST', path, body)
+  expect(request.mock.calls[2][1].headers['Idempotency-Key']).not.toBe(first.headers['Idempotency-Key'])
+})
+
+it('bounds fixture log network retries without retrying unverified POST routes', async () => {
+  const request = vi.fn().mockRejectedValue(new TypeError('Private details'))
+  vi.stubGlobal('fetch', request)
+  expect(await outcome(api('POST', 'habits/22222222-2222-4222-8222-222222222222/log', { date: '2026-10-29' })))
+    .toEqual({ error: 'Fixture API POST habits/{id}/log failed: network.' })
+  expect(request).toHaveBeenCalledTimes(2)
+  for (const path of ['chat', 'habits', 'habits/not-a-guid/log', 'habits/22222222-2222-4222-8222-222222222222/log/extra']) {
+    request.mockClear()
+    expect(await outcome(api('POST', path, {}))).toHaveProperty('error')
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(request.mock.calls[0][1].headers).not.toHaveProperty('Idempotency-Key')
+  }
+})
+
+it('retains a committed fixture log when its response is lost', async () => {
+  const responses = new Map()
+  let completions = 0
+  const request = vi.fn(async (_url, options) => {
+    const key = options.headers['Idempotency-Key']
+    if (key && responses.has(key)) return success()
+    completions = completions === 0 ? 1 : 0
+    if (key) responses.set(key, true)
+    if (request.mock.calls.length === 1) throw new TypeError('Response lost after commit')
+    return success()
+  })
+  vi.stubGlobal('fetch', request)
+  expect(await api('POST', 'habits/22222222-2222-4222-8222-222222222222/log', { date: '2026-10-29' }))
+    .toEqual({ status: 204, payload: null })
+  expect(request).toHaveBeenCalledTimes(2)
+  expect(completions).toBe(1)
 })

@@ -123,3 +123,21 @@ export function deferredCreationCall(arguments_ = { habits: [] }) {
     instruction: 'Nothing was previewed or saved. Read the results from this round first, then call bulk_create_habits once with the complete set. Reuse each existing habit\'s ID and stored title verbatim. Copy selected suggestion draft fields unchanged, without inventing quantities, times or activities.' }
   return call
 }
+
+// Producer: ToolResult.FromFailure and HabitCapacityFailure, serialized by BuildToolCallResult.
+export function capacityFailureCall() {
+  const call = toolCall('create_habit', { title: 'Stretch', frequency_unit: 'Day' }, 'Failed')
+  call.result.error = "You've reached the {0} habit limit."
+  call.result.payload = { error: call.result.error, arguments: [1000], errorCode: 'HABIT_LIMIT_REACHED' }
+  return call
+}
+
+// Producer: PendingAgentOperationStore.Map for the StepUp requirement from ApiKeyManagementAuthorization.
+export function apiKeysStepUpResponse(requestId, clientContext) {
+  const pending = { id: '11111111-1111-4111-8111-111111111111', capabilityId: 'api-keys.read',
+    displayName: 'Read API Keys', summary: 'GetApiKeys requested via chat', riskClass: 'Low',
+    confirmationRequirement: 'StepUp', expiresAtUtc: '2026-10-30T20:00:00Z', changes: null,
+    changeTargetCount: null, items: null, previewFingerprint: null, actionKey: 'viewApiKeys' }
+  return { ...chatResponse(requestId, [toolCall('get_api_keys', {}, 'PendingConfirmation', 'call-1', clientContext)]),
+    aiMessage: '', parts: [], pendingOperations: [pending] }
+}
