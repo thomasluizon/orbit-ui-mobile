@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { appConfigSchema, DEFAULT_CONFIG, type AppConfig } from '../types/config'
-import { extractBackendStatus } from '../utils/error-utils'
 
 interface ConfigStorage {
   read: () => Promise<string | null>
@@ -78,20 +77,15 @@ export function createConfigCache(reportError: (error: unknown) => void, storage
       const canCommit = () => isCurrent(scope) && sequence === requestSequence && !signal?.aborted
       await restore(scope)
       if (!canCommit()) return DEFAULT_CONFIG
-      try {
-        const config = appConfigSchema.parse(await request())
-        if (!canCommit()) return DEFAULT_CONFIG
-        publish({ ...snapshot, config })
-        if (storage) {
-          void enqueue(async () => {
-            if (canCommit()) await storage.write(JSON.stringify({ accountId: scope.accountId, config }))
-          }).catch(() => {})
-        }
-        return config
-      } catch (error) {
-        if (extractBackendStatus(error) !== 401) reportError(error)
-        throw error
+      const config = appConfigSchema.parse(await request())
+      if (!canCommit()) return DEFAULT_CONFIG
+      publish({ ...snapshot, config })
+      if (storage) {
+        void enqueue(async () => {
+          if (canCommit()) await storage.write(JSON.stringify({ accountId: scope.accountId, config }))
+        }).catch(() => {})
       }
+      return config
     },
   }
 }

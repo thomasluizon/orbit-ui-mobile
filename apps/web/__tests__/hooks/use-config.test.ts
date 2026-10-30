@@ -11,6 +11,7 @@ import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { API } from '@orbit/shared/api'
 import { shouldRetryQuery } from '@orbit/shared/query'
+import { createQueryClient } from '@/lib/query-client'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), report: vi.fn(), replace: vi.fn() }))
@@ -41,7 +42,7 @@ beforeEach(() => {
   mocks.replace.mockReset()
   setAccountId(null)
   setAccountId('account-a')
-  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  queryClient = new QueryClient({ queryCache: createQueryClient().getQueryCache(), defaultOptions: { queries: { retry: false } } })
   focusManager.setFocused(true)
   onlineManager.setOnline(true)
 })
@@ -54,6 +55,36 @@ afterEach(() => {
 })
 
 describe('web config and flags', () => {
+  it('retries a background config network failure without reporting a recovered request', async () => {
+    queryClient.setDefaultOptions({ queries: { retry: shouldRetryQuery, retryDelay: 150 } })
+    respond(true)
+    const { result } = mount()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    mocks.fetch.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockImplementationOnce(async () => Response.json(createMockConfigResponse({ offline_mode: { enabled: true, planRequirement: null } })))
+    let refresh!: Promise<unknown>
+    act(() => { refresh = result.current.refetch() })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2))
+    expect(result.current.enabled).toBe(true)
+    expect(mocks.report).not.toHaveBeenCalled()
+    await act(async () => { await refresh })
+    await waitFor(() => expect(result.current.isFetching).toBe(false))
+    expect(result.current.isError).toBe(false)
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
+    expect(mocks.report).not.toHaveBeenCalled()
+  })
+
+  it('reports a config network failure once after the retry budget is exhausted', async () => {
+    queryClient.setDefaultOptions({ queries: { retry: shouldRetryQuery, retryDelay: 50 } })
+    const failure = new TypeError('Failed to fetch')
+    mocks.fetch.mockRejectedValue(failure)
+    const { result } = mount()
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(mocks.fetch).toHaveBeenCalledTimes(4)
+    expect(mocks.report).toHaveBeenCalledExactlyOnceWith(failure)
+    expect(result.current.enabled).toBe(false)
+  })
+
   it('sends concurrent config and API rejections to sign in once without an error storm', async () => {
     const actual = await vi.importActual<typeof import('@/lib/api-fetch')>('@/lib/api-fetch')
     const { useAuthStore } = await import('@/stores/auth-store')
