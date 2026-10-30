@@ -136,11 +136,20 @@ processes, restores hosts and trust, and removes the hermetic web build. Cleanup
 
 Every capture retains the complete raw tree before validation. UIA records include automation,
 class and framework identifiers, visibility, enabled and focusable state, bounds, localized type
-and control/content-view membership. Only nodes explicitly outside both UIA assistive views
-(`IsControlElement=false` and `IsContentElement=false`) are excluded from control validation,
-as defined by the [UIA tree contract](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-treeoverview).
-An offscreen or disabled control still requires its role and name. A document with no interactive
-descendants fails even if browser chrome contains valid controls.
+and control/content-view membership. Non-finite rectangle components are written as JSON `null`.
+Nodes explicitly outside both UIA assistive views (`IsControlElement=false` and
+`IsContentElement=false`) are excluded from control validation, as defined by the
+[UIA tree contract](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-treeoverview).
+Controls explicitly marked `IsOffscreen=true` are also excluded, following the
+[UIA visibility property](https://learn.microsoft.com/en-us/dotnet/api/system.windows.automation.automationelement.automationelementinformation.isoffscreen).
+Names and rectangle values never determine visibility. Visible disabled controls still require
+their role and name. A document with no visible interactive descendants fails even if browser
+chrome contains valid controls. The VM jobs exercise the PowerShell rectangle producer before
+building the installed app.
+
+Probe failures retain the error message separately from the stack because a webview stack may
+contain only frames. Email failures include the BFF path, HTTP status and response body, including
+any error code. The mock logs receipt of both email endpoints without recording request bodies.
 
 AX records retain supported identifiers, DOM identifiers and classes, subroles, role descriptions
 and hidden state. The SDK's `AXError.h` defines `kAXErrorInvalidUIElement` (`-25202`) as an invalid

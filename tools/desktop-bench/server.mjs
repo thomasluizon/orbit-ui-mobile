@@ -24,7 +24,7 @@ export async function startProxy({ token, probePath, port, upstreamPort, closeCo
         received.push(JSON.parse(Buffer.concat(chunks).toString()))
         response.writeHead(204).end()
       } catch (error) {
-        received.push({ kind: 'error', message: error.message })
+        received.push({ kind: 'error', message: error.message, stack: error.stack })
         response.writeHead(400).end()
       }
     } else if (incoming.url === '/_bench/command') {
@@ -37,7 +37,7 @@ export async function startProxy({ token, probePath, port, upstreamPort, closeCo
       const failUpstream = (error) => {
         const method = incoming.method
         const path = incoming.url.split('?')[0]
-        received.push({ kind: 'error', method, path, message: `Upstream ${method} ${path} failed: ${error.message}` })
+        received.push({ kind: 'error', method, path, message: `Upstream ${method} ${path} failed: ${error.message}`, stack: error.stack })
         if (response.headersSent) response.destroy()
         else response.writeHead(502).end()
       }
@@ -97,7 +97,7 @@ export async function startProxy({ token, probePath, port, upstreamPort, closeCo
     events() { return received.slice() },
     read(kind) {
       const failure = received.find((entry) => entry.kind === 'error')
-      if (failure) throw new Error(failure.message)
+      if (failure) throw new Error([failure.message, failure.stack].filter(Boolean).join('\n'))
       return received.find((entry) => entry.kind === kind)
     },
     stop,

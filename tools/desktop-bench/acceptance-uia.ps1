@@ -24,6 +24,10 @@ if ($Command -ne 'dump') {
 }
 $nodes = New-Object 'System.Collections.Generic.List[object]'
 $interactiveRoles = @('Button', 'CheckBox', 'RadioButton', 'Edit', 'ComboBox', 'Hyperlink', 'Slider', 'MenuItem', 'TabItem', 'ListItem', 'Spinner')
+function ConvertTo-FiniteNumber([double]$value) {
+  if ([double]::IsInfinity($value) -or [double]::IsNaN($value)) { return $null }
+  return $value
+}
 function Read-Element($element, [string]$path) {
   if ($nodes.Count -ge 20000) { throw 'UI Automation tree exceeded node limit' }
   $current = $element.Current
@@ -38,8 +42,8 @@ function Read-Element($element, [string]$path) {
     IsControlElement = $current.IsControlElement; IsContentElement = $current.IsContentElement
     LocalizedControlType = $current.LocalizedControlType
     BoundingRectangle = @{
-      X = $current.BoundingRectangle.X; Y = $current.BoundingRectangle.Y
-      Width = $current.BoundingRectangle.Width; Height = $current.BoundingRectangle.Height
+      X = ConvertTo-FiniteNumber $current.BoundingRectangle.X; Y = ConvertTo-FiniteNumber $current.BoundingRectangle.Y
+      Width = ConvertTo-FiniteNumber $current.BoundingRectangle.Width; Height = ConvertTo-FiniteNumber $current.BoundingRectangle.Height
     }
   })
   $walker = [System.Windows.Automation.TreeWalker]::RawViewWalker

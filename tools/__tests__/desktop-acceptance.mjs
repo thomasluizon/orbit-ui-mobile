@@ -231,8 +231,7 @@ export async function cases() {
       fetch: async (path, options) => {
         if (path === '/_bench/events') { reports.push(JSON.parse(options.body)); return { ok: true } }
         requests.push({ path, body: JSON.parse(options.body) })
-        return { ok: scenario !== 'send-failure', status: scenario === 'send-failure' ? 400 : 200,
-          json: async () => scenario === 'token-leak' ? { token: 'forbidden' } : {} }
+        return new Response(JSON.stringify(scenario === 'token-leak' ? { token: 'forbidden' } : {}), { status: scenario === 'send-failure' ? 400 : 200 })
       },
     }
     runInNewContext(probeSource, context)

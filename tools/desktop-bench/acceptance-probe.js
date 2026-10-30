@@ -19,7 +19,7 @@
       ['verify-code', { email: 'desktop-vm@example.invalid', language: 'en', code: '741852' }],
     ]) {
       const response = await fetch(`/api/auth/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-      if (!response.ok) throw new Error(`Email ${path} failed: ${response.status}`)
+      if (!response.ok) throw new Error(`Email /api/auth/${path} failed: HTTP ${response.status}; response ${await response.text()}`)
       const result = await response.json()
       if ('token' in result || 'refreshToken' in result) throw new Error('BFF exposed a session token')
     }
@@ -85,5 +85,5 @@
       else await screen(command)
     }
   }
-  run().catch((error) => { void report('error', { message: error.stack }) })
+  run().catch((error) => { void report('error', { message: error.message, stack: error.stack }) })
 })()

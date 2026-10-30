@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { runInNewContext } from 'node:vm'
+import { Readable } from 'node:stream'
 import { after, test } from 'node:test'
 import { emailReply, acceptanceEmail, acceptanceCode } from './acceptance-mock'
 import { verifyArtifact } from '../../apps/desktop/scripts/release'
@@ -54,7 +55,6 @@ for (const role of ['Button', 'Pane']) {
     ]) {
       assert.throws(() => assertAccessibleTree(tree([button, { ...raw, ...properties }]), 'win32'))
     }
-    assert.throws(() => assertAccessibleTree(tree([{ ...button, name: '', IsOffscreen: true }]), 'win32'))
     assert.throws(() => assertAccessibleTree(tree([{ ...button, name: '', IsEnabled: false }]), 'win32'))
     assert.throws(() => assertAccessibleTree(tree([raw]), 'win32'))
     assert.throws(() => assertAccessibleTree({ ...tree([raw]), nodes: [
@@ -62,6 +62,97 @@ for (const role of ['Button', 'Pane']) {
     ] }, 'darwin'))
   })
 }
+
+test('UIA offscreen state excludes an infinite rectangle without exempting visible unnamed controls', () => {
+  const offscreen = { ...button, id: '0/1', name: '', IsOffscreen: true,
+    BoundingRectangle: { X: Infinity, Y: Infinity, Width: -Infinity, Height: NaN } }
+  const snapshot = JSON.parse(JSON.stringify(tree([button, offscreen])))
+  assert.deepEqual(snapshot.nodes[2].BoundingRectangle, { X: null, Y: null, Width: null, Height: null })
+  assert.equal(assertAccessibleTree(snapshot, 'win32').controls, 1)
+  for (const IsOffscreen of [false, undefined]) {
+    assert.throws(() => assertAccessibleTree(tree([button, { ...offscreen, IsOffscreen }]), 'win32'), /role and name/)
+  }
+  assert.equal(assertAccessibleTree(tree([button, { ...offscreen, BoundingRectangle: button.BoundingRectangle }]), 'win32').controls, 1)
+  assert.throws(() => assertAccessibleTree(tree([offscreen]), 'win32'), /no interactive controls/)
+  assert.throws(() => assertAccessibleTree({ ...tree([offscreen]), nodes: [
+    { id: '0', role: 'AXWebArea', interactive: false }, offscreen,
+  ] }, 'darwin'), /role and name/)
+})
+
+test('PowerShell producer writes finite JSON for every rectangle component', { skip: process.platform !== 'win32' }, () => {
+  const source = readFileSync(new URL('./acceptance-uia.ps1', import.meta.url), 'utf8')
+  const functions = source.slice(source.indexOf('function ConvertTo-FiniteNumber'), source.indexOf('function Read-Element'))
+  const appendNode = source.slice(source.indexOf('  $nodes.Add(@{'), source.indexOf('  $walker ='))
+  const serialize = source.slice(source.lastIndexOf('@{ denied ='))
+  const script = `
+$ErrorActionPreference = 'Stop'
+${functions}
+$nodes = New-Object 'System.Collections.Generic.List[object]'
+$interactiveRoles = @('Button')
+$current = '${JSON.stringify(button)}' | ConvertFrom-Json
+$current | Add-Member -NotePropertyName HasKeyboardFocus -NotePropertyValue $false
+$current.IsOffscreen = $true
+$current.name = ''
+$current.BoundingRectangle.X = [double]::PositiveInfinity
+$current.BoundingRectangle.Y = [double]::NegativeInfinity
+$current.BoundingRectangle.Width = [double]::NaN
+$current.BoundingRectangle.Height = 40
+$role = 'Button'; $path = '0/1'; $selection = $false; $failure = $null
+${appendNode}
+${serialize}`
+  const capture = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 10000 })
+  assert.equal(capture.status, 0, capture.stderr)
+  const snapshot = JSON.parse(capture.stdout)
+  assert.deepEqual(snapshot.nodes[0].BoundingRectangle, { X: null, Y: null, Width: null, Height: 40 })
+  assert.equal(snapshot.nodes[0].IsOffscreen, true)
+})
+
+const probeSource = readFileSync(new URL('./acceptance-probe.js', import.meta.url), 'utf8')
+  .replace('run().catch', 'globalThis.completion = run().catch')
+const safariStack = 'emailSignIn@https://app-staging.useorbit.org/_bench/probe.js:22:40'
+
+for (const path of ['send-code', 'verify-code']) {
+  test(`probe preserves ${path} status and response body separately from a frame-only Safari stack`, async () => {
+    const reports: { kind: string; message: string; stack: string }[] = []
+    const browserWindow: { top?: unknown } = {}
+    browserWindow.top = browserWindow
+    const failureBody = JSON.stringify({ error: 'Hermetic request refused', errorCode: 'HERMETIC_FAILURE' })
+    const context = {
+      Error: class extends Error { constructor(message: string) { super(message); this.stack = safariStack } },
+      window: browserWindow, document: { readyState: 'complete', cookie: '' },
+      location: { pathname: '/login', assign() { assert.fail('Failed email sign-in must not navigate') } },
+      setTimeout,
+      fetch: async (url: string, options: { body: string }) => {
+        if (url === '/_bench/events') { reports.push(JSON.parse(options.body)); return new Response(null, { status: 204 }) }
+        return new Response(url === `/api/auth/${path}` ? failureBody : '{}', { status: url === `/api/auth/${path}` ? 403 : 200 })
+      },
+    }
+    runInNewContext(probeSource, context)
+    await (context as typeof context & { completion: Promise<void> }).completion
+    assert.equal(reports.length, 1)
+    assert.equal(reports[0].kind, 'error')
+    assert.ok(reports[0].message.includes(`/api/auth/${path}`), reports[0].message)
+    assert.ok(reports[0].message.includes('403'), reports[0].message)
+    assert.ok(reports[0].message.includes(failureBody), reports[0].message)
+    assert.equal(reports[0].stack, safariStack)
+  })
+}
+
+test('proxy retains both the probe message and Safari stack when reporting acceptance failure', async () => {
+  const source = readFileSync(new URL('./server.mjs', import.meta.url), 'utf8')
+    .replace(/^import .*$/gm, '').replace('export async function startProxy', 'async function startProxy')
+  let handle: (incoming: unknown, response: unknown) => Promise<void> = async () => { assert.fail('Proxy handler not registered') }
+  const context = { Buffer, benchmarkViewport: [900, 600], readFile: async () => '',
+    createServer: (callback: typeof handle) => { handle = callback; return { once() {}, listen(_port: number, _host: string, ready: () => void) { ready() } } },
+  }
+  runInNewContext(`${source}\nglobalThis.startProxy = startProxy`, context)
+  const startProxy = (context as typeof context & { startProxy: (options: unknown) => Promise<{ read: (kind: string) => unknown }> }).startProxy
+  const proxy = await startProxy({ probePath: 'probe', port: 3400, upstreamPort: 3401 })
+  const message = 'Email /api/auth/send-code failed: HTTP 400; response {"error":"Invalid request"}'
+  const incoming = Object.assign(Readable.from([Buffer.from(JSON.stringify({ kind: 'error', message, stack: safariStack }))]), { url: '/_bench/events' })
+  await handle(incoming, { writeHead() { return { end() {} } } })
+  assert.throws(() => proxy.read('email-completed'), (error: Error) => error.message.includes(message) && error.message.includes(safariStack))
+})
 
 test('browser chrome cannot substitute for interactive page content', () => {
   assert.throws(() => assertAccessibleTree(tree([{ ...button, id: '1' }]), 'win32'), /web content.*interactive controls/)

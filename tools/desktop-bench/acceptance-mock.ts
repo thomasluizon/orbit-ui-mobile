@@ -33,6 +33,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   validateFixturesOrExit()
   createServer((request, response) => {
     if (request.method === 'POST' && ['/api/auth/send-code', '/api/auth/verify-code'].includes(request.url ?? '')) {
+      process.stdout.write(`[mock] POST ${request.url}\n`)
       void handleEmailRequest(request, response, token).catch((error: unknown) => {
         process.stderr.write(`${String(error)}\n`)
         response.writeHead(400).end()

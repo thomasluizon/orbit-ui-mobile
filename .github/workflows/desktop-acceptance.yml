@@ -38,6 +38,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Check native acceptance producers
+        run: node --import tsx tools/desktop-bench/test-acceptance.ts
       - name: Install native prerequisites
         run: |
           rustup toolchain install stable --profile minimal

@@ -8,7 +8,9 @@ export function assertAccessibleTree(tree, platform) {
   const documents = tree.nodes.filter((node) => webRoles.includes(node.role))
   if (!documents.length) throw new Error('Native tree contains no web content')
   // UIA raw-only nodes are absent from both assistive views: https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-treeoverview
-  const controls = tree.nodes.filter((node) => node.interactive && !(platform === 'win32' && node.IsControlElement === false && node.IsContentElement === false))
+  // IsOffscreen identifies controls scrolled or collapsed out of view: https://learn.microsoft.com/en-us/dotnet/api/system.windows.automation.automationelement.automationelementinformation.isoffscreen
+  const controls = tree.nodes.filter((node) => node.interactive && !(platform === 'win32' &&
+    (node.IsOffscreen === true || node.IsControlElement === false && node.IsContentElement === false)))
   if (!controls.length) throw new Error('Native tree contains no interactive controls')
   const invalid = controls.filter((node) => !node.name?.trim() || !node.role || ['Custom', 'AXUnknown'].includes(node.role))
   if (invalid.length) throw new Error(`Interactive controls require role and name: ${JSON.stringify(invalid)}`)
