@@ -1,8 +1,6 @@
 import { makeEnrichedHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { Switch } from '@/components/ui/switch'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
-import { CelebrationPanel } from '@/components/gamification/celebration-panel'
-import { DAILY_STREAK_MOMENT_DURATION } from '@orbit/shared/stores'
 import { API } from '@orbit/shared/api'
 import { QueryClient, QueryObserver } from '@tanstack/query-core'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -3508,31 +3506,21 @@ describe('bulk streak and all-done ordering regressions', () => {
     })
     const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
     const variables = [{ habitId: 'habit-1' }]
-    let moment: ReturnType<typeof TestRenderer.create>
     try {
       const context = await mutation.onMutate?.(variables)
       mocks.runQueuedMutation.mockResolvedValueOnce({ previousStreak: streak - 1, currentStreak: streak, results: [{ index: 0, status: 'Success', habitId: 'habit-1', logId: 'confirmed-log', error: null }] })
       await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(variables), variables, context))
       if (existing) {
         expect(store.getState().activeCelebration).toEqual(previousActive)
-        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['daily-streak', 'all-done'])
+        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['all-done'])
         store.getState().completeActiveCelebration()
       }
       const active = store.getState().activeCelebration!
-      expect(active.kind).toBe(streak === 7 ? 'streak' : 'daily-streak')
-      expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(['all-done'])
-      if (active.kind === 'daily-streak') {
-        vi.useFakeTimers()
-        TestRenderer.act(() => { moment = TestRenderer.create(React.createElement(CelebrationPanel)) })
-        TestRenderer.act(() => { vi.advanceTimersByTime(DAILY_STREAK_MOMENT_DURATION - 1) })
-        expect(store.getState().activeCelebration?.kind).toBe('daily-streak')
-        TestRenderer.act(() => { vi.advanceTimersByTime(1) })
-      } else {
-        store.getState().completeActiveCelebration(active.id)
-      }
+      expect(active.kind).toBe(streak === 7 ? 'streak' : 'all-done')
+      expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(streak === 7 ? ['all-done'] : [])
+      if (active.kind === 'streak') store.getState().completeActiveCelebration(active.id)
       expect(store.getState().activeCelebration?.kind).toBe('all-done')
     } finally {
-      TestRenderer.act(() => moment?.unmount())
       mocks.queryClient.invalidateQueries.mockImplementation(async () => {})
       mocks.useRealUIStore = false
       vi.useRealTimers()
@@ -3571,8 +3559,8 @@ describe('bulk no-op streak eligibility', () => {
         await Promise.resolve(mutation.onSuccess?.(response, variables, context))
         expect(client.getQueryData(profileKeys.detail())).toEqual({ currentStreak: streak })
         expect(client.getQueryData<HabitScheduleItem[]>(todayKey)?.[0]?.isCompleted).toBe(true)
-        expect(store.getState().activeCelebration?.kind).toBe(created ? (streak === 7 ? 'streak' : 'daily-streak') : 'all-done')
-        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(created ? ['all-done'] : [])
+        expect(store.getState().activeCelebration?.kind).toBe(created && streak === 7 ? 'streak' : 'all-done')
+        expect(store.getState().queuedCelebrations.map((item) => item.kind)).toEqual(created && streak === 7 ? ['all-done'] : [])
         expect(store.getState().dailyStreakMomentDate).toBe(created ? today : '')
         expect(store.getState().allDoneCelebratedDate).toBe(today)
       } finally {
