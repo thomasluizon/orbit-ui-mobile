@@ -15,10 +15,11 @@ export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
     return (
       <View ref={ref} style={styles.emptyState}>
         <ScrollView contentContainerStyle={styles.emptyContent} keyboardShouldPersistTaps="handled">
-          <EmptyState mark="astra" title={t("chat.empty.title")} action={browseAction} />
-          <Text style={styles.aiDisclaimer}>
-            {t("aiDisclosure.notMedicalAdvice")}
-          </Text>
+          <EmptyState mark="astra" title={t("chat.empty.title")} action={browseAction} disclosure={
+            <Text style={styles.aiDisclaimer}>
+              {t("aiDisclosure.notMedicalAdvice")}
+            </Text>
+          } />
         </ScrollView>
       </View>
     );
