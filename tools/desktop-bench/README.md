@@ -48,7 +48,8 @@ Fixture pacing measures transport and rendering, not model latency.
 
 `summary.json` holds raw samples and medians; `summary.md` presents the comparison. `partial.json`
 preserves complete runs on failure. Build logs and unsigned bundles remain under the output workspace.
-Installed size counts logical regular-file bytes, excluding duplicate symlink targets. macOS artifacts
+Installed size counts the packaged application payload's logical regular-file bytes, excluding
+duplicate symlink targets and Windows uninstaller or first-launch runtime caches. macOS artifacts
 are compressed DMGs. Signing does not change runtime cost. The measurements do not prove feature
 parity, accessibility, notarization or the other operating system's results.
 

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { electronInstallArguments } from '../desktop-bench/build.mjs'
 import { T, REPO_ROOT, check, root } from './_harness.mjs'
-import { cpuSeconds, median, parseMacProcesses, percentile, processTree, summarize } from '../desktop-bench/measurements.mjs'
+import { cpuSeconds, median, metrics, parseMacProcesses, percentile, processTree, summarize, markdown } from '../desktop-bench/measurements.mjs'
 
 export const cases = () => {
   T('Electron build dependencies are installed as development-only tooling', electronInstallArguments('workspace', '45.1.0').includes('--save-dev'))
@@ -16,6 +16,13 @@ export const cases = () => {
   T('process accounting includes launchd WebKit helpers and excludes unrelated processes', processTree(processes, 10).map((entry) => entry.pid).join(',') === '10,11,12')
   T('RSS converts KiB to bytes', processes[1].residentBytes === 204800)
   T('median and p95 use measured distributions', median([5, 1, 4, 2, 3]) === 3 && median([2, 4]) === 3 && percentile([1, 2, 3, 4, 100], 0.95) === 100)
+  const runs = ['tauri', 'electron'].flatMap((shell) => ['cold', 'warm'].flatMap((cache) =>
+    [1000, 20, 30, 40, 50].map((value) => ({ shell, cache, ...Object.fromEntries(Object.keys(metrics).map((key) => [key, value])) }))))
+  const medians = summarize(runs)
+  T('the four distributions retain independent five-run medians', medians.tauri.cold.startupMs === 40 && medians.electron.warm.finalPartMs === 40)
+  const report = markdown({ host: 'measured host', commit: 'commit', repetitions: 5, electronVersion: 'version', medians,
+    disk: { tauri: { installedBytes: 1, installerBytes: 2 }, electron: { installedBytes: 3, installerBytes: 4 } }, verdict: 'Measured verdict' })
+  T('Markdown carries disk, timing, unsigned build and cache definitions', /\| tauri \| 1 \| 2 \|/.test(report) && report.includes('40.00') && report.includes('Unsigned release builds') && report.includes('OS filesystem caches are not purged'))
   for (const operation of [() => median([]), () => median([NaN]), () => summarize([]), () => parseMacProcesses('bad row'), () => cpuSeconds('unknown')]) {
     let refused = false
     try { operation() } catch { refused = true }
@@ -25,6 +32,8 @@ export const cases = () => {
   const releaseFiles = readdirSync(join(REPO_ROOT, '.github/workflows')).filter((name) => name.includes('release') || name === 'desktop-build.yml')
   for (const name of releaseFiles) configs.push(readFileSync(join(REPO_ROOT, '.github/workflows', name), 'utf8'))
   T('release configurations and workflows never enable the loopback feature', configs.every((source) => !source.includes('bench-loopback')))
+  const cargo = readFileSync(join(REPO_ROOT, 'apps/desktop/src-tauri/Cargo.toml'), 'utf8')
+  T('default Cargo features never enable loopback', !/^default\s*=.*bench-loopback/m.test(cargo))
   const result = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-fixture.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 10000 })
   T('hermetic stream follows the shared consumer protocol', result.status === 0, result.stderr)
 }

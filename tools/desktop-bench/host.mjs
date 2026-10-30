@@ -85,7 +85,7 @@ export async function processSnapshot(macProbe, windowsScript) {
     return Array.isArray(result) ? result : [result]
   }
   const processes = parseMacProcesses(await execute('ps', ['-axo', 'pid=,ppid=,rss=,time=,command=']))
-  const candidates = processes.filter((entry) => /WebKit\.(WebContent|GPU|Networking)/.test(entry.command))
+  const candidates = processes
   if (candidates.length) {
     const responsible = await execute(macProbe, candidates.map((entry) => String(entry.pid)))
     for (const line of responsible.trim().split('\n')) {
