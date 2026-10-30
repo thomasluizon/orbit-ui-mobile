@@ -3139,11 +3139,11 @@ describe('mobile habit hooks', () => {
     )
   })
 
-  it('optimistically completes dated and undated bulk skips and restores them on failure', async () => {
+  it('optimistically skips dated and undated occurrences and restores them on failure', async () => {
     seedHabitState(
       [
-        makeHabit({ id: 'habit-1', isCompleted: false }),
-        makeHabit({ id: 'habit-2', isCompleted: false }),
+        makeHabit({ id: 'habit-1', isCompleted: false, scheduledDates: [formatAPIDate(new Date())] }),
+        makeHabit({ id: 'habit-2', isCompleted: false, scheduledDates: ['2025-02-01'] }),
       ],
       2,
     )
@@ -3159,8 +3159,11 @@ describe('mobile habit hooks', () => {
     ]
 
     const context = await mutation.onMutate?.(variables)
-    expect(getHabitList().find((habit) => habit.id === 'habit-1')?.isCompleted).toBe(true)
-    expect(getHabitList().find((habit) => habit.id === 'habit-2')?.isCompleted).toBe(true)
+    expect(getHabitList().find((habit) => habit.id === 'habit-1')?.isCompleted).toBe(false)
+    expect(getHabitList().find((habit) => habit.id === 'habit-2')?.isCompleted).toBe(false)
+
+    expect(getHabitList().find((habit) => habit.id === 'habit-1')?.scheduledDates).not.toContain(formatAPIDate(new Date()))
+    expect(getHabitList().find((habit) => habit.id === 'habit-2')?.scheduledDates).not.toContain('2025-02-01')
 
     mutation.onError?.(new Error('Bulk skip failed'), variables, context)
     expect(getHabitList().find((habit) => habit.id === 'habit-1')?.isCompleted).toBe(false)
@@ -3199,7 +3202,8 @@ describe('mobile habit hooks', () => {
     mutation.onSuccess?.(result, variables, context)
 
     const children = getHabitList()[0]?.children
-    expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
+    expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(false)
+    expect(children?.find((habit) => habit.id === 'child-accepted')?.scheduledDates).not.toContain(formatAPIDate(new Date()))
     expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
   })
 
@@ -3305,6 +3309,37 @@ describe('mobile habit hooks', () => {
   client.clear()
 })
 
+
+describe('day completion after skipping', () => {
+  it.each([1, 3])('celebrates %i confirmed skips once and ignores a later added habit', async (count) => {
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const client = new QueryClient()
+    mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
+    const items = Array.from({ length: count }, (_, index) => makeHabit({ id: `skip-${index}`, dueDate: today, scheduledDates: [today] }))
+    client.setQueryData(key, items)
+    const mutation = useBulkSkipHabits() as unknown as MutationConfig<unknown, { habitId: string; date: string }[], unknown>
+    const skip = async (requests: { habitId: string; date: string }[]) => {
+      const context = await mutation.onMutate?.(requests)
+      mocks.runQueuedMutation.mockResolvedValueOnce({ results: requests.map((item, index) => ({ index, status: 'Success', habitId: item.habitId, error: null })) })
+      await Promise.resolve(mutation.onSuccess?.(await mutation.mutationFn(requests), requests, context))
+    }
+    try {
+      await skip(items.map((item) => ({ habitId: item.id, date: today })))
+      expect(store.getState().activeCelebration).toMatchObject({ kind: 'all-done', payload: { count } })
+      store.getState().completeActiveCelebration()
+      client.setQueryData(key, [makeHabit({ id: 'later', dueDate: today, scheduledDates: [today] })])
+      await skip([{ habitId: 'later', date: today }])
+      expect(store.getState().activeCelebration).toBeNull()
+    } finally {
+      mocks.useRealUIStore = false
+      client.clear()
+    }
+  })
+})
 
 describe('daily streak moment after confirmed logging', () => {
   it.each([

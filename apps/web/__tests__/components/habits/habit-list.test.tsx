@@ -278,10 +278,14 @@ vi.mock('@/hooks/use-time-format', () => ({
   }),
 }))
 
-vi.mock('@/stores/ui-store', () => ({
-  setUIAccountScope: vi.fn(),
-  useUIStore: Object.assign(() => null, { getState: () => ({ setFilters: setFrequencyFilters }) }),
-}))
+vi.mock('@/stores/ui-store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/stores/ui-store')>()
+  return {
+    setUIAccountScope: vi.fn(),
+    useUIStore: Object.assign(() => null, { getState: () => ({ setFilters: setFrequencyFilters,
+      checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration }) }),
+  }
+})
 
 vi.mock('@orbit/shared/utils', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@orbit/shared/utils')>()
@@ -2193,7 +2197,7 @@ describe('HabitList', () => {
     expect(screen.queryByText('habits.nothingOpen')).not.toBeInTheDocument()
   })
 
-  it.each([false, true])('keeps a completed row in place for 1400 ms with reduced motion=%s', (reduced) => {
+  it.each([false, true])('shows immediate completion feedback before leaving with reduced motion=%s', (reduced) => {
     vi.useFakeTimers()
     const matchMedia = globalThis.matchMedia
     vi.stubGlobal('matchMedia', (query: string) => {
@@ -2210,7 +2214,7 @@ describe('HabitList', () => {
 
     act(() => ref.current?.markRecentlyCompleted(habit.id))
 
-    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1400)
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 120)
     const completedHabit = { ...habit, isCompleted: true }
     mockHabitsData.habitsById.set(habit.id, completedHabit)
     mockHabitsData.topLevelHabits = [completedHabit]
@@ -2220,13 +2224,12 @@ describe('HabitList', () => {
     expect(screen.getByTestId('habit-card-h-1')).toBeInTheDocument()
 
     act(() => {
-      vi.advanceTimersByTime(1399)
+      vi.advanceTimersByTime(119)
     })
     expect(screen.getByTestId('habit-card-h-1').closest('[inert]')).toBeNull()
     act(() => { vi.advanceTimersByTime(1) })
 
-    if (reduced) expect(screen.queryByTestId('habit-card-h-1')).toBeNull()
-    else expect(screen.getByTestId('habit-card-h-1').closest('[inert]')).not.toBeNull()
+    expect(screen.getByTestId('habit-card-h-1').closest('[inert]')).not.toBeNull()
     result.unmount()
     vi.stubGlobal('matchMedia', matchMedia)
     setTimeoutSpy.mockRestore()
@@ -3288,8 +3291,8 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).not.toHaveBeenCalled()
     expect(skipHabitMutateAsync).not.toHaveBeenCalled()
     rerenderWithProviders(renderList(YESTERDAY))
-    expect(screen.getByTestId(`habit-card-${child.id}`)).toHaveAttribute('data-state', 'done')
-    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(true)
+    expect(screen.getByTestId(`habit-card-${child.id}`)).toHaveAttribute('data-state', mode === 'log' ? 'done' : 'empty')
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(mode === 'log')
   })
 
   it('rejects a delayed bulk result after the new date handle commits before passive effects', () => {

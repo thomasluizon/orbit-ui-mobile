@@ -1,3 +1,6 @@
+import { useRetainedHabitList } from '@/hooks/use-retained-habit-list'
+import { useListScrollReservation } from '@/hooks/use-list-scroll-reservation'
+import { HabitListMotionRow } from '@/components/motion/habit-list-row'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { ContentFade } from '@/components/motion/content-fade'
 import { createListCellMotion } from '@/lib/list-motion'
@@ -5,9 +8,9 @@ import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { getFriendlyErrorMessage, isTodayLaunchCache } from '@orbit/shared/utils'
 import { getMoveParentInventory } from '@orbit/shared/utils/move-parent'
 import { createMoveParentActions, createMoveParentState } from '@orbit/shared/hooks/move-parent-core'
-import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useAccountGeneration, useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { PADDING, SPACING } from '@orbit/shared/theme'
+import { motionDurations, PADDING, SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 import {
   forwardRef,
@@ -450,11 +453,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     ref,
   ) {
     const selectedDate = view === 'today' ? requestedDate : undefined
+    const accountGeneration = useAccountGeneration()
     const { t, i18n } = useTranslation()
     const accountHabitCount = useHabitCountLoaded()
     const { profile } = useProfile()
     const accountTimeZone = profile?.timeZone
     const todayStr = useCurrentDate(accountTimeZone)
+    const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
     const settlementDateIsReadOnly = useCallback((date: string): boolean =>
       !profile || getTodayBoundary(date, formatAPIDateInTimeZone(new Date(), profile.timeZone)) === 'read-only',
     [profile])
@@ -465,7 +470,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
     const styles = useMemo(() => createStyles(tokens), [tokens])
     const clearance = useShellScrollerClearance()
-    const bulkBarStyle = { paddingBottom: clearance + (isSelectMode ? SPACING.s24 : SPACING.s0) }
+    const { minimumHeight, onLayout: reserveViewport, onOffset: reserveOffset } = useListScrollReservation(`${accountGeneration}:${view}:${selectedDateStr}`)
+    const bulkBarStyle = { minHeight: minimumHeight, paddingBottom: clearance + (isSelectMode ? SPACING.s24 : SPACING.s0) }
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
     const stateListRef = useRef<FlatList<string>>(null)
@@ -482,16 +488,18 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const target = allListRef.current ?? drillListRef.current ?? stateListRef.current
         if (target) listScrollOffsets.current.set(target, e.nativeEvent.contentOffset.y)
+        reserveOffset(e.nativeEvent.contentOffset.y)
         onScroll?.(e.nativeEvent.contentOffset.y)
       },
-      [onScroll],
+      [onScroll, reserveOffset],
     )
     const handleMainListOffsetChange = useCallback(
       (offsetY: number) => {
         if (scrollContainerRef.current) listScrollOffsets.current.set(scrollContainerRef.current, offsetY)
+        reserveOffset(offsetY)
         onScroll?.(offsetY)
       },
-      [onScroll],
+      [onScroll, reserveOffset],
     )
 
     const { config: appConfig } = useConfig()
@@ -513,7 +521,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         habitsQuery.data?.childrenByParent ?? new Map<string, string[]>(),
       [habitsQuery.data?.childrenByParent],
     )
-    const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
 
     const logMutation = useLogHabit()
     const logMutateAsync = logMutation.mutateAsync
@@ -641,7 +648,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         setTimeout(() => {
           timers.delete(timerKey)
           setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
-        }, 1400),
+        }, motionDurations.micro),
       )
     }, [selectedDateStr])
 
@@ -765,7 +772,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [contentWidth, setContentWidth] = useState<number>()
     const measureList = useCallback((event: LayoutChangeEvent) => {
       setContentWidth(event.nativeEvent.layout.width - 2 * PADDING.screenGutter)
-    }, [])
+      reserveViewport(event)
+    }, [reserveViewport])
     const maxInlineDepth = getHabitInlineDepthLimit(windowWidth, fontScale, contentWidth)
     const flatItems = useMemo<DragItem[]>(
       () => buildFlatHabitItems(view === 'all' ? dateGroups.flatMap((bucket) => bucket.habits) : visibleHabits, collapsedIds, getVisibleChildren, maxInlineDepth),
@@ -773,6 +781,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const activeDragItems = dragOverrideItems ?? flatItems
+    const presentation = useRetainedHabitList(activeDragItems, `${accountGeneration}:${view}:${isDraggingList}:${selectedDateStr}:${searchQuery ?? ''}:${JSON.stringify(filters)}`, reducedListMotion)
     const cellMotion = useMemo(() => createListCellMotion(reducedListMotion), [reducedListMotion])
     const activeDragItemsRef = useRef(activeDragItems)
     useEffect(() => {
@@ -985,7 +994,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
         promptedParentIdsRef.current.add(parentHabit.id)
         operation.confirmedResolutions.activeSettlements += 1
-        markRecentlyCompleted(parentHabit.id, operation.date)
         void (async () => {
           try {
             try {
@@ -995,6 +1003,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                   date: operation.date,
                 })
               } else {
+                markRecentlyCompleted(parentHabit.id, operation.date)
                 await logMutateAsync({
                   habitId: parentHabit.id,
                   date: operation.date,
@@ -1044,7 +1053,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     ) => {
       const settlementData = promptDataRef.current
       if (!settlementData) return
-      for (const resolution of resolutions) {
+      for (const resolution of resolutions.filter((item) => item.mode === 'log')) {
         markRecentlyCompleted(resolution.habitId, date)
       }
       if (selectedDateStr !== date || settlementData.selectedDateStr !== date) return
@@ -1121,12 +1130,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         return
       }
       confirmedResolutions.activeSettlements += 1
-      markRecentlyCompleted(parentId, date)
       try {
         try {
           if (mode === 'skip') {
             await skipMutation.mutateAsync({ habitId: parentId, date })
           } else {
+            markRecentlyCompleted(parentId, date)
             await logMutateAsync({
               habitId: parentId,
               date,
@@ -1519,8 +1528,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const renderItem = useCallback(
       ({ item, drag, getIndex }: RenderItemParams<DragItem>) => {
         const index = getIndex() ?? 0
-        const nextItem = activeDragItems[index + 1]
-        return <TodayLaunchContent enabled={view === 'today' && index === 0} fromCache={launchFromCache} empty={false}>{renderHabitCard(
+        const nextItem = presentation.items[index + 1]
+        const motionRow = presentation.rows[index]!
+        return <HabitListMotionRow id={item.id} phase={motionRow.phase} offset={motionRow.offset} measure={presentation.measure}><TodayLaunchContent enabled={view === 'today' && index === 0} fromCache={launchFromCache} empty={false}>{renderHabitCard(
           item.habit,
           item.depth,
           item.hasChildren,
@@ -1531,10 +1541,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               : undefined,
             panelEnd: !nextItem || nextItem.depth === 0,
           },
-        )}</TodayLaunchContent>
+        )}</TodayLaunchContent></HabitListMotionRow>
       },
       [
-        activeDragItems,
+        presentation,
         isDndEnabled,
         prepareDrag,
         renderHabitCard,
@@ -1759,12 +1769,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         onFocus={revealListFocus}
         testID="habit-list-all"
         onLayout={measureList}
-        data={flatItems}
+        data={presentation.items}
         keyExtractor={keyExtractor}
-        renderItem={({ item, index }) => <>
+        renderItem={({ item, index }) => <HabitListMotionRow id={item.id} phase={presentation.rows[index]!.phase} offset={presentation.rows[index]!.offset} measure={presentation.measure}>
           {groupHeadings.has(item.id) ? <Text accessibilityRole="header" style={[styles.dateGroupHeading, index === 0 && { paddingTop: SPACING.s0 }]}>{groupHeadings.get(item.id)}</Text> : null}
           {renderHabitCard(item.habit, item.depth, item.hasChildren, item.hasSubHabits, { panelEnd: !flatItems[index + 1] || flatItems[index + 1]!.depth === 0 })}
-        </>}
+        </HabitListMotionRow>}
         extraData={listExtraData}
         keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
         contentContainerStyle={[styles.listContent, bulkBarStyle]}
@@ -1786,7 +1796,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           ref={scrollContainerRef}
           onLayout={measureList}
           onFocus={revealListFocus}
-          data={activeDragItems}
+          data={presentation.items}
           keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
           renderItem={renderItem}
           keyExtractor={keyExtractor}

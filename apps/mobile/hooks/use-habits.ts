@@ -1,3 +1,4 @@
+import { checkCompletionAfterSkip, settleBulkSkippedHabits } from '@orbit/shared/query/skip-completion'
 import { randomUUID } from 'expo-crypto'
 import type { HabitDetailSnapshots, HabitDetailUpdates, HabitListSnapshots } from '@orbit/shared/query'
 import {
@@ -596,7 +597,7 @@ export function useSkipHabit() {
       const previousLists = snapshotHabitLists(queryClient)
       const previous = previousLists.flatMap(([, items]) => items ? [findHabitInList(items, habitId)] : [])
         .find((habit) => habit !== null)
-      const skippedDate = date ?? getAccountDay(new Date())
+      const skippedDate = date ?? getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
       applyCachedHabitSkip(queryClient, habitId, skippedDate)
       return { previousLists, skippedDate, postponed: previous?.frequencyUnit === null, account }
     },
@@ -618,7 +619,12 @@ export function useSkipHabit() {
     onSettled: (result, error, input, context) => {
       const account = context?.account ?? input.account
       if (account && !account.stillCurrent()) return
-      if (!error && context) clearCachedOptimisticSkip(queryClient, input.habitId, context.skippedDate)
+      if (!error && context) {
+        clearCachedOptimisticSkip(queryClient, input.habitId, context.skippedDate)
+        if (!isQueuedResult(result?.outcome)) checkCompletionAfterSkip(queryClient,
+          [{ habitId: input.habitId, date: context.skippedDate }], queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone,
+          useUIStore.getState().checkAllDoneCelebration)
+      }
       finalizeHabitMutation(queryClient, result?.outcome, error, {
         habitId: input.habitId, includeCount: false, includeGoals: true, includeProfile: true, includeGamification: true,
       })
@@ -1545,7 +1551,7 @@ export function useBulkSkipHabits() {
     BulkSkipMutationOutcome,
     Error,
     BulkSkipItemRequest[],
-    { previousLists: HabitListSnapshots }
+    { previousLists: HabitListSnapshots; occurrenceDate: string }
   >({
     mutationFn: async (items) => {
       const results: BulkSkipResult['results'] = []
@@ -1590,16 +1596,10 @@ export function useBulkSkipHabits() {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
-      const completedIds = items.map((item) => item.habitId)
+      const occurrenceDate = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+      for (const item of items) applyCachedHabitSkip(queryClient, item.habitId, item.date ?? occurrenceDate)
 
-      updateHabitLists(queryClient, (currentItems) =>
-        completedIds.reduce(
-          (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
-          currentItems,
-        ),
-      )
-
-      return { previousLists }
+      return { previousLists, occurrenceDate }
     },
 
     onError: (_err, _vars, context) => {
@@ -1608,14 +1608,15 @@ export function useBulkSkipHabits() {
       }
     },
 
-    onSuccess: (data, _vars, context) => {
-      const failedIds = new Set(
-        data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
-      )
+    onSuccess: (data, items, context) => {
+      const acceptedIds = new Set(data.results.filter((entry) => entry.status === 'Success').map((entry) => entry.habitId))
+      const failedIds = new Set(items.filter((item) => !acceptedIds.has(item.habitId)).map((item) => item.habitId))
       for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
       for (const habitId of data.ambiguousIds) failedIds.add(habitId)
       for (const habitId of data.queuedIds) failedIds.add(habitId)
-      restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
+      const confirmed = settleBulkSkippedHabits(queryClient, items, context.previousLists, failedIds, context.occurrenceDate)
+      checkCompletionAfterSkip(queryClient, confirmed, queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone,
+        useUIStore.getState().checkAllDoneCelebration)
     },
 
     onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error, { includeProfile: true }),

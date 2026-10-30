@@ -11,6 +11,8 @@ import {
   dateInterpretationSchema,
   bulkCreateRequestSchema,
   bulkCreateResponseSchema,
+  bulkSkipItemRequestSchema,
+  bulkSkipResultSchema,
   calendarMonthResponseSchema,
   createPaginatedSchema,
   habitScheduleItemSchema,
@@ -267,6 +269,11 @@ async function handleHabitMutation(req: IncomingMessage, res: ServerResponse, me
         index, status: 'Success', habitId: `layout-imported-${index}`, title: habit.title, error: null, field: null,
       })),
     }))
+  } else if (path === '/api/habits/bulk/skip') {
+    const input = z.object({ items: z.array(bulkSkipItemRequestSchema) }).parse(body)
+    sendJson(res, 200, bulkSkipResultSchema.parse({ results: input.items.map((item, index) => ({
+      index, status: 'Success', habitId: item.habitId, error: null,
+    })) }))
   } else if (method === 'POST') {
     sendJson(res, 200, logHabitResponseSchema.parse({
       logId: 'layout-log', isFirstCompletionToday: false, currentStreak: 0,
@@ -285,6 +292,7 @@ function handleHabitTestRequest(req: IncomingMessage, res: ServerResponse, metho
     return true
   }
   if ((method === 'POST' && pathname === '/api/habits/bulk') ||
+      (method === 'POST' && pathname === '/api/habits/bulk/skip') ||
       (method === 'PUT' && pathname === '/api/habits/reorder') ||
       (method === 'POST' && /^\/api\/habits\/[^/]+\/log$/.test(pathname))) {
     void handleHabitMutation(req, res, method, pathname, session).catch(() => {

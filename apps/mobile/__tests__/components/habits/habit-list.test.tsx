@@ -102,6 +102,13 @@ function createTestTree(element: React.ReactElement): ReturnType<typeof TestRend
   mountedTrees.add(tree)
   return tree
 }
+function isInteractiveRow(node: import('react-test-renderer').ReactTestInstance): boolean {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (parent.props['data-phase'] === 'exit') return false
+  }
+  return true
+}
+
 const rowRenderCounts = vi.hoisted(() => new Map<string, number>())
 const tokenBuilds = vi.hoisted(() => ({ count: 0 }))
 
@@ -435,8 +442,10 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
   }
 })
 
-vi.mock('@/stores/ui-store', () => {
+vi.mock('@/stores/ui-store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/stores/ui-store')>()
   const getState = () => ({
+      checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration,
       setFilters: setFrequencyFilters,
       toggleSelectMode,
       toggleSelectionCascade,
@@ -552,7 +561,7 @@ function pressConfirm(tree: any, label: string) {
 
 async function confirmRowSkip(tree: any, habitId: string) {
   TestRenderer.act(() => {
-    const row = tree.root.findAllByType(HabitRow)
+    const row = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === habitId)
     row?.props.actions.onSkip()
   })
@@ -676,7 +685,7 @@ describe('HabitList', () => {
     await TestRenderer.act(async () => { tree = createTestTree(<QueryClientProvider client={client}>
       <HabitList filters={{ dateFrom: TODAY }} showCompleted onCreatePress={vi.fn()} />
     </QueryClientProvider>); await Promise.resolve() })
-    const rows = () => tree!.root.findAllByType(HabitRow)
+    const rows = () => tree!.root.findAllByType(HabitRow).filter(isInteractiveRow)
     await vi.waitFor(() => expect(rows().some((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'source')).toBe(true))
     TestRenderer.act(() => rows().find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'source')!.props.actions.onMoveParent())
     const picker = () => tree!.root.findByType(MoveParentDialog)
@@ -752,7 +761,7 @@ describe('HabitList', () => {
     await TestRenderer.act(async () => { tree = createTestTree(<QueryClientProvider client={client}>
       <HabitList filters={{ dateFrom: TODAY, dateTo: TODAY, search: 'source', isCompleted: false, frequencyUnit: 'Day', tagIds: ['tag'] }} showCompleted onCreatePress={vi.fn()} />
     </QueryClientProvider>); await Promise.resolve() })
-    const rows = () => tree!.root.findAllByType(HabitRow)
+    const rows = () => tree!.root.findAllByType(HabitRow).filter(isInteractiveRow)
     await vi.waitFor(() => expect(rows().some((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === sourceId)).toBe(true))
     TestRenderer.act(() => rows().find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === sourceId)!.props.actions.onMoveParent())
     const picker = () => tree!.root.findByType(MoveParentDialog)
@@ -808,7 +817,7 @@ describe('HabitList', () => {
       isSelectMode={entry === 'bulk'} selectedHabitIds={new Set(['source'])} onBulkMove={onBulkMove} />) })
     TestRenderer.act(() => {
       if (entry === 'bulk') ref.current!.openBulkMove()
-      else tree!.root.findAllByType(HabitRow).find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'source')!.props.actions.onMoveParent()
+      else tree!.root.findAllByType(HabitRow).filter(isInteractiveRow).find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'source')!.props.actions.onMoveParent()
     })
     const picker = () => tree!.root.findByType(MoveParentDialog)
     const options = picker().props.options as import('@orbit/shared/utils').MoveParentOption[]
@@ -866,7 +875,7 @@ describe('HabitList', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = createTestTree(<HabitList filters={{}} showCompleted onCreatePress={vi.fn()} />) })
     TestRenderer.act(() => {
-      tree!.root.findAllByType(HabitRow).find((row: { props: { habit: NormalizedHabit; actions: { onMoveParent: () => void } } }) => row.props.habit.id === 'source')!.props.actions.onMoveParent()
+      tree!.root.findAllByType(HabitRow).filter(isInteractiveRow).find((row: { props: { habit: NormalizedHabit; actions: { onMoveParent: () => void } } }) => row.props.habit.id === 'source')!.props.actions.onMoveParent()
     })
     const picker = () => tree!.root.findByType(MoveParentDialog)
     expect(picker().props.options.find((option: { id: string }) => option.id === 'source').disabled).toBe(true)
@@ -931,7 +940,7 @@ describe('HabitList', () => {
     </QueryClientProvider>
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => { tree = createTestTree(list(TODAY)); await Promise.resolve() })
-    const rows = () => tree!.root.findAllByType(HabitRow)
+    const rows = () => tree!.root.findAllByType(HabitRow).filter(isInteractiveRow)
     await vi.waitFor(() => expect(rows().some((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'source')).toBe(true))
     TestRenderer.act(() => ref.current!.openBulkMove())
     const picker = () => tree!.root.findByType(MoveParentDialog)
@@ -980,7 +989,7 @@ describe('HabitList', () => {
       let tree!: ReturnType<typeof TestRenderer.create>
       TestRenderer.act(() => { tree = createTestTree(<HabitList view="today" showCompleted={false} onCreatePress={vi.fn()} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />) })
       accountDate.push.mockClear()
-      const row = tree.root.findAllByType(HabitRow)[0]!
+      const row = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)[0]!
       TestRenderer.act(() => { row.props.actions.onAddSubHabit() })
       expect(tree.root.findAllByProps({ testID: 'create-sub-habit' }).length).toBeGreaterThan(0)
       expect(accountDate.push).not.toHaveBeenCalled()
@@ -997,7 +1006,7 @@ describe('HabitList', () => {
       tree = createTestTree(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeGeneral: true, search: query }}
         searchQuery={query} showCompleted={false} onCreatePress={vi.fn()} onClearSearch={onClearSearch} />)
     })
-    const ids = tree!.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)
+    const ids = tree!.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)
     expect(ids).toEqual(matchesDescendant ? ['general-parent', 'general-match'] : [])
     if (matchesDescendant) expect(tree!.root.findAllByType(SearchEmpty)).toHaveLength(0)
     else {
@@ -1022,7 +1031,7 @@ describe('HabitList', () => {
       tree = createTestTree(<QueryClientProvider client={queryClient}><HabitList view="all" filters={{}} showCompleted={false} onCreatePress={vi.fn()} /></QueryClientProvider>)
     })
     await TestRenderer.act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)) })
-    const rows = tree!.root.findAllByType(HabitRow)
+    const rows = tree!.root.findAllByType(HabitRow).filter(isInteractiveRow)
     const overdue = rows.find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'overdue')!
     expect(overdue.props.habit.isOverdue).toBe(true)
     const logButton = overdue.find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel?.includes('habits.logHabit') === true)
@@ -1039,7 +1048,7 @@ describe('HabitList', () => {
     Object.assign(mockHabitsData, createHabitViewFixture(TODAY, 'all'))
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = createTestTree(<HabitList view="all" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />) })
-    const row = tree!.root.findAllByType(HabitRow).find((node: { props: { habit: NormalizedHabit } }) => node.props.habit.id === id)!
+    const row = tree!.root.findAllByType(HabitRow).filter(isInteractiveRow).find((node: { props: { habit: NormalizedHabit } }) => node.props.habit.id === id)!
     TestRenderer.act(() => row.findAll((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'habits.actions.more')[0].props.onPress())
     const skipItems = tree!.root.findAll((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'menuitem' && flattenRenderedText(node).includes('habits.actions.skip'))
     expect(skipItems).toHaveLength(0)
@@ -1067,7 +1076,7 @@ describe('HabitList', () => {
     const detail = vi.fn()
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = createTestTree(<HabitList view={view} filters={{}} selectedDate={new Date('2000-01-01T12:00:00')} showCompleted onCreatePress={vi.fn()} onEditHabit={edit} onDetailHabit={detail} />) })
-    const row = () => tree!.root.findAllByType(HabitRow).find((node: { props: { habit: NormalizedHabit } }) => node.props.habit.id === id)!
+    const row = () => tree!.root.findAllByType(HabitRow).filter(isInteractiveRow).find((node: { props: { habit: NormalizedHabit } }) => node.props.habit.id === id)!
     await TestRenderer.act(async () => { row().props.actions.onLog(); await Promise.resolve() })
     expect(logMutateAsync).toHaveBeenCalledWith({ habitId: id, intent: 'log' })
     await TestRenderer.act(async () => { row().props.actions.onUnlog(); await Promise.resolve() })
@@ -1095,7 +1104,7 @@ describe('HabitList', () => {
     TestRenderer.act(() => {
       tree = createTestTree(<HabitList view={view} filters={view === 'general' ? { isGeneral: true } : {}} selectedDate={new Date(`${TODAY}T00:00:00`)} showCompleted={false} onCreatePress={vi.fn()} />)
     })
-    expect(tree!.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)).toEqual(HABIT_VIEW_ROW_ORDER[view])
+    expect(tree!.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)).toEqual(HABIT_VIEW_ROW_ORDER[view])
   })
 
   it.each([412, 840, 1352])('renders the padding contract on Android Hoje at %ipx', async (width) => {
@@ -1138,7 +1147,7 @@ describe('HabitList', () => {
       expect(flattenText(tree!.toJSON())).not.toContain('habits.loadError')
       expect(offlineMocks.apiClient).toHaveBeenCalledOnce()
       await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(2) })
-      expect(tree!.root.findAllByType(HabitRow).map((row: { props: { habit: HabitScheduleItem } }) => row.props.habit.title)).toContain('Recovered habit')
+      expect(tree!.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { habit: HabitScheduleItem } }) => row.props.habit.title)).toContain('Recovered habit')
       expect(flattenText(tree!.toJSON())).not.toContain('habits.loadError')
     } finally {
       if (tree) TestRenderer.act(() => (tree as unknown as { unmount: () => void }).unmount())
@@ -1329,7 +1338,7 @@ describe('HabitList', () => {
     try {
       skipFlow.active = true
       expect(() => TestRenderer.act(() => tree.update(renderList()))).not.toThrow()
-      expect(tree!.root.findAllByType(HabitRow).map(
+      expect(tree!.root.findAllByType(HabitRow).filter(isInteractiveRow).map(
         (row: { props: { habit: NormalizedHabit } }) => row.props.habit.id,
       )).toEqual(['habit-1'])
     } finally {
@@ -1362,10 +1371,10 @@ describe('HabitList', () => {
     }
     try {
       TestRenderer.act(() => { seedSchedule(optimisticInsertHabit(existing, optimistic)); tree.update(renderList()) })
-      expect(tree.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)).toContain(optimistic.id)
+      expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)).toContain(optimistic.id)
       assertMountOwnership()
       TestRenderer.act(() => { seedSchedule([...existing, { ...optimistic, id: 'server-habit-created' }]); tree.update(renderList()) })
-      const ids = tree.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)
+      const ids = tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)
       expect(ids).toContain('server-habit-created')
       expect(ids).not.toContain(optimistic.id)
       assertMountOwnership()
@@ -1389,14 +1398,14 @@ describe('HabitList', () => {
       tree = createTestTree(<HabitList view="today" filters={{}} showCompleted
         isSelectMode={selectMode} selectedHabitIds={selected} onCreatePress={vi.fn()} />)
     })
-    const parentRow = () => tree.root.findAllByType(HabitRow).find(
+    const parentRow = () => tree.root.findAllByType(HabitRow).filter(isInteractiveRow).find(
       (row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === parent.id,
     )!
     const disclosure = () => parentRow().findAll(
       (node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'button' &&
         (node.props.accessibilityLabel === 'common.collapse' || node.props.accessibilityLabel === 'common.expand'),
     )[0]
-    const visibleIds = () => tree.root.findAllByType(HabitRow).map(
+    const visibleIds = () => tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map(
       (row: { props: { habit: NormalizedHabit } }) => row.props.habit.id,
     )
     expect(disclosure().props.accessibilityState).toEqual({ expanded: true })
@@ -1432,13 +1441,13 @@ describe('HabitList', () => {
   }
 
   function assertNativeCascadeActions(tree: ReturnType<typeof TestRenderer.create>, expectedDepths: number[], width: number, fontScale: number) {
-    const findRow = (id: string) => tree.root.findAllByType(HabitRow).find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === id)!
+    const findRow = (id: string) => tree.root.findAllByType(HabitRow).filter(isInteractiveRow).find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === id)!
     const branchDisclosure = () => findRow('branch').findAllByType('Pressable').find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'common.collapse' || node.props.accessibilityLabel === 'common.expand')!
     if (width > 320 || fontScale !== 2) {
       TestRenderer.act(() => branchDisclosure().props.onPress())
-      expect(tree.root.findAllByType(HabitRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)).toEqual(['parent', 'leaf', 'branch'])
+      expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id)).toEqual(['parent', 'leaf', 'branch'])
       TestRenderer.act(() => branchDisclosure().props.onPress())
-      expect(tree.root.findAllByType(HabitRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual(expectedDepths)
+      expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual(expectedDepths)
     }
     if (width <= 320) {
       const boundaryId = fontScale === 2 ? 'branch' : 'nested-parent'
@@ -1481,7 +1490,7 @@ describe('HabitList', () => {
       const list = tree.root.findAllByType(view === 'all' ? 'FlatList' : 'DraggableFlatList')[0]!
       TestRenderer.act(() => list.props.onLayout({ nativeEvent: { layout: { width: listWidth, height: 915, x: 0, y: 0 } } }))
     }
-    const rows = composition.root.findAllByType(HabitRow)
+    const rows = composition.root.findAllByType(HabitRow).filter(isInteractiveRow)
     assertNativeCascadeMetadata(rows)
     const expectedDepths = drilling ? [0, 0] : width <= 320 ? fontScale === 2 ? [0, 1, 1] : [0, 1, 1, 2, 2] : [0, 1, 1, 2, 2, 3]
     const list = tree.root.findAllByType(view === 'all' || drilling ? 'FlatList' : 'DraggableFlatList')[0]!
@@ -1493,7 +1502,7 @@ describe('HabitList', () => {
     const geometry = measureInteractionFills(measuredRows.toJSON(), width, false, fontScale)
     const rowBounds = geometry.filter((part) => part.host.props.testID === 'habit-row')
     expect(rowBounds).toHaveLength(expectedDepths.length)
-    expect(composition.root.findAllByType('Text').filter((node: { props: { testID?: string; children?: string } }) => node.props.testID === 'habit-row-description').map((node: { props: { children: string } }) => node.props.children)).toEqual(rows.map(() => 'Read two pages before breakfast.'))
+    expect(composition.root.findAllByType('Text').filter(isInteractiveRow).filter((node: { props: { testID?: string; children?: string } }) => node.props.testID === 'habit-row-description').map((node: { props: { children: string } }) => node.props.children)).toEqual(rows.map(() => 'Read two pages before breakfast.'))
     rowBounds.forEach((bounds, index) => {
       expect(bounds.width).toBe(listWidth - 32 - 16 * expectedDepths[index]!)
       expect(bounds.left).toBe(16 + 16 * expectedDepths[index]!)
@@ -1549,7 +1558,7 @@ describe('HabitList', () => {
       )
     })
 
-    const row = tree!.root.findAllByType(HabitRow).find(
+    const row = tree!.root.findAllByType(HabitRow).filter(isInteractiveRow).find(
       (node: { props: { habit: NormalizedHabit } }) => node.props.habit.id === habit.id,
     )!
     expect(row.props.today).toBe('2026-09-12')
@@ -1641,7 +1650,7 @@ describe('HabitList', () => {
     let tree: any
     TestRenderer.act(() => { tree = createTestTree(renderList()) })
     const initial = totalSince(new Map())
-    expect(tree.root.findAllByType(HabitRow)).toHaveLength(60)
+    expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow)).toHaveLength(60)
     expect(tree.root.findByType(HabitList).props).toMatchObject({
       view: 'today',
       filters: todayFilters,
@@ -1703,7 +1712,7 @@ describe('HabitList', () => {
     seedHabits([habit, child])
     let tree: any
     TestRenderer.act(() => { tree = createTestTree(renderList(onEditHabit)) })
-    const firstRow = tree.root.findAllByType(HabitRow)
+    const firstRow = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === habit.id)
     expect(firstRow).toBeDefined()
     const actions = firstRow!.props.actions
@@ -1712,7 +1721,7 @@ describe('HabitList', () => {
     const onEditHabitAfterUpdate = vi.fn()
     seedHabits([updatedHabit, child])
     TestRenderer.act(() => { tree.update(renderList(onEditHabitAfterUpdate)) })
-    const updatedRow = tree.root.findAllByType(HabitRow)
+    const updatedRow = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === habit.id)
     expect(updatedRow!.props.actions).toBe(actions)
 
@@ -2054,15 +2063,15 @@ describe('HabitList', () => {
       tree = createTestTree(<QueryClientProvider client={client}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} /><SkipToastHost /></QueryClientProvider>)
       await Promise.resolve()
     })
-    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow)).toHaveLength(1))
+    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow)).toHaveLength(1))
     TestRenderer.act(() => tree.root.findAll((node: any) => node.props.accessibilityLabel === 'habits.actions.more')[0].props.onPress())
     const skipItem = tree.root.findAll((node: any) => node.props.accessibilityRole === 'menuitem' && flattenRenderedText(node).includes('habits.actions.skip'))[0]
     await TestRenderer.act(async () => { skipItem.props.onPress(); await Promise.resolve() })
-    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow)).toHaveLength(0))
+    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow)).toHaveLength(0))
     expect(tree.root.findAll((node: any) => node.type === 'Sheet' && node.props.open)).toHaveLength(0)
     expect(useAppToastStore.getState().currentToast?.toast).toMatchObject({ kind: 'neutral', message: frequencyUnit === null ? 'undo.habitPostponed' : 'undo.habitSkipped', actionLabel: 'undo.action' })
     await TestRenderer.act(async () => { tree.root.findAll((node: any) => node.props.testID === 'toast-action' && node.type === 'Pressable')[0].props.onPress(); await Promise.resolve() })
-    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow)).toHaveLength(1))
+    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow)).toHaveLength(1))
     expect(offlineMocks.apiClient.mock.calls.some(([endpoint]) => endpoint.endsWith('/undo'))).toBe(online)
     expect(getQueuedMutations()).toHaveLength(0)
     TestRenderer.act(() => tree.unmount())
@@ -2108,15 +2117,15 @@ describe('HabitList', () => {
       tree = createTestTree(<QueryClientProvider client={client}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} /><SkipToastHost /></QueryClientProvider>)
       await Promise.resolve()
     })
-    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).some((node: any) => node.props.habit.id === child.id)).toBe(true))
-    const childRow = tree.root.findAllByType(HabitRow).find((node: any) => node.props.habit.id === child.id)
+    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).some((node: any) => node.props.habit.id === child.id)).toBe(true))
+    const childRow = tree.root.findAllByType(HabitRow).filter(isInteractiveRow).find((node: any) => node.props.habit.id === child.id)
     TestRenderer.act(() => childRow.findAll((node: any) => node.props.accessibilityLabel === 'habits.actions.more')[0].props.onPress())
     const skipItem = tree.root.findAll((node: any) => node.props.accessibilityRole === 'menuitem' && flattenRenderedText(node).includes('habits.actions.skip'))[0]
     await TestRenderer.act(async () => { skipItem.props.onPress(); await Promise.resolve() })
     await vi.waitFor(() => expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(1))
-    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).some((node: any) => node.props.habit.id === child.id)).toBe(false))
+    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).some((node: any) => node.props.habit.id === child.id)).toBe(false))
     await TestRenderer.act(async () => { tree.root.findAll((node: any) => node.props.testID === 'toast-action' && node.type === 'Pressable')[0].props.onPress(); await Promise.resolve() })
-    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).some((node: any) => node.props.habit.id === child.id)).toBe(true))
+    await vi.waitFor(() => expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).some((node: any) => node.props.habit.id === child.id)).toBe(true))
     await TestRenderer.act(async () => { pressConfirm(tree, 'habits.autoLogParentConfirm'); await Promise.resolve() })
     expect(logMutateAsync).not.toHaveBeenCalled()
     TestRenderer.act(() => tree.unmount())
@@ -2204,7 +2213,7 @@ describe('HabitList', () => {
     })
 
     const habitCard = tree.root
-      .findAllByType(HabitRow)
+      .findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === 'habit-1')
 
     await TestRenderer.act(async () => {
@@ -2266,7 +2275,7 @@ describe('HabitList', () => {
           filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
-    expect(tree.root.findAllByType(HabitRow)
+    expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow)
       .some((node: any) => node.props.habit.id === 'future-delete')).toBe(false)
     expect(sheetTestControls.isDismissPending).toBe(true)
     expect(flattenRenderedText(tree.toJSON())).toContain(
@@ -2291,7 +2300,7 @@ describe('HabitList', () => {
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
-    const row = tree.root.findAllByType(HabitRow)
+    const row = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === 'read')
     await TestRenderer.act(async () => { row?.props.actions.onDelete(); await Promise.resolve() })
     const [confirmation] = confirmationSheets(tree, 'habits.deleteConfirmTitle')
@@ -2310,7 +2319,7 @@ describe('HabitList', () => {
         <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
       )
     })
-    const row = tree.root.findAllByType(HabitRow)
+    const row = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === 'read')
     await TestRenderer.act(async () => { row?.props.actions.onDelete(); await Promise.resolve() })
     TestRenderer.act(() => { pressConfirm(tree, 'habits.deleteHabit') })
@@ -2382,7 +2391,7 @@ describe('HabitList', () => {
     })
 
     const habitCard = tree.root
-      .findAllByType(HabitRow)
+      .findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === 'habit-1')
 
     await TestRenderer.act(async () => {
@@ -2414,7 +2423,7 @@ describe('HabitList', () => {
     })
 
     const habitCard = tree.root
-      .findAllByType(HabitRow)
+      .findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === 'habit-1')
 
     await TestRenderer.act(async () => {
@@ -2462,7 +2471,7 @@ describe('HabitList', () => {
       )
     })
     const habitCard = tree.root
-      .findAllByType(HabitRow)
+      .findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === habit.id)
 
     TestRenderer.act(() => {
@@ -2515,7 +2524,7 @@ describe('HabitList', () => {
     })
     const findHabitCard = (habitId: string) =>
       tree.root
-        .findAllByType(HabitRow)
+        .findAllByType(HabitRow).filter(isInteractiveRow)
         .find((node: any) => node.props.habit.id === habitId)
 
     TestRenderer.act(() => {
@@ -2564,7 +2573,7 @@ describe('HabitList', () => {
       )
     })
     const findHabitCard = (habitId: string) => tree.root
-      .findAllByType(HabitRow)
+      .findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === habitId)
 
     await TestRenderer.act(async () => {
@@ -2859,7 +2868,7 @@ describe('HabitList', () => {
     })
 
     const initialHabitCard = tree.root
-      .findAllByType(HabitRow)
+      .findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === 'habit-1')
 
     await TestRenderer.act(async () => {
@@ -2868,7 +2877,7 @@ describe('HabitList', () => {
     })
 
     const pendingHabitCard = tree.root
-      .findAllByType(HabitRow)
+      .findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === 'habit-1')
 
     expect(pendingHabitCard).toBeTruthy()
@@ -3119,7 +3128,7 @@ describe('HabitList', () => {
     const list = tree.root.findByType('DraggableFlatList')
     await TestRenderer.act(async () => { await list.props.onDragEnd({ from: 3, to: 2 }) })
     expect(reorderMutateAsync).toHaveBeenCalledWith({ positions: [{ habitId: second.id, position: 0 }, { habitId: first.id, position: 1 }] })
-    expect(tree.root.findAllByType(HabitRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual([0, 1, 2, 2])
+    expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual([0, 1, 2, 2])
   })
 
   it('submits reordered positions on drag end', async () => {
@@ -3181,7 +3190,7 @@ describe('HabitList', () => {
 
     expect(
       tree.root
-        .findAllByType(HabitRow)
+        .findAllByType(HabitRow).filter(isInteractiveRow)
         .map((node: any) => node.props.habit.id),
     ).toEqual(habits.map((habit) => habit.id))
 
@@ -3229,12 +3238,12 @@ describe('HabitList', () => {
     const findDraggableCards = () =>
       tree.root.findAll(
         (node: any) =>
-          typeof node.props?.onLongPress === 'function',
+          typeof node.props?.onLongPress === 'function' && isInteractiveRow(node),
       )
 
     expect(findDraggableCards().length).toBeGreaterThanOrEqual(2)
 
-    expect(tree.root.findAllByType(HabitRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual([0, 1, 2])
+    expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual([0, 1, 2])
     const initialCount = findDraggableCards().length
     const [parentCard] = findDraggableCards()
 
@@ -3252,7 +3261,7 @@ describe('HabitList', () => {
     })
 
     expect(findDraggableCards().length).toBeGreaterThanOrEqual(initialCount)
-    expect(tree.root.findAllByType(HabitRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual([0, 1, 2])
+    expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual([0, 1, 2])
   })
 
   it('computes parent progress recursively for deep habit trees', () => {
@@ -3295,7 +3304,7 @@ describe('HabitList', () => {
     })
 
     const grandparentCard = tree.root
-      .findAllByType(HabitRow)
+      .findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === 'grandparent')
 
     expect(grandparentCard?.props.childrenDone).toBe(1)
@@ -3329,7 +3338,7 @@ describe('HabitList', () => {
     })
 
     const parentCard = tree.root
-      .findAllByType(HabitRow)
+      .findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === 'parent')
 
     await TestRenderer.act(async () => {
@@ -3809,7 +3818,7 @@ describe('HabitList', () => {
 
     await TestRenderer.act(async () => {
       const childRow = tree.root
-        .findAllByType(HabitRow)
+        .findAllByType(HabitRow).filter(isInteractiveRow)
         .find((node: any) => node.props.habit.id === 'child')
       await childRow?.props.actions.onLog()
       await Promise.resolve()
@@ -4186,7 +4195,7 @@ describe('HabitList', () => {
 
     TestRenderer.act(() => {
       const childRow = tree.root
-        .findAllByType(HabitRow)
+        .findAllByType(HabitRow).filter(isInteractiveRow)
         .find((node: any) => node.props.habit.id === child.id)
       childRow?.props.actions.onSkip()
     })
@@ -4257,7 +4266,7 @@ describe('HabitList', () => {
     }
   })
 
-  it('keeps a completed row in place for 1400 ms', () => {
+  it('shows immediate completion feedback before the row leaves', () => {
     vi.useFakeTimers()
     useActualHabitVisibility = true
     try {
@@ -4281,7 +4290,7 @@ describe('HabitList', () => {
 
       TestRenderer.act(() => ref.current?.markRecentlyCompleted('habit-1'))
 
-      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1400)
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 120)
       const completedHabit = createMockHabit({
         id: 'habit-1',
         title: 'Exercise',
@@ -4295,7 +4304,8 @@ describe('HabitList', () => {
       })
       expect(flattenText(tree!.toJSON())).toContain('Exercise')
 
-      TestRenderer.act(() => vi.advanceTimersByTime(1400))
+      TestRenderer.act(() => vi.advanceTimersByTime(120))
+      TestRenderer.act(() => vi.advanceTimersByTime(160))
 
       expect(flattenText(tree!.toJSON())).not.toContain('Exercise')
       TestRenderer.act(() => tree!.unmount())
@@ -4324,7 +4334,7 @@ describe('HabitList', () => {
     })
 
     const overdueCard = tree.root
-      .findAllByType(HabitRow)
+      .findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === 'overdue-1')
 
     await TestRenderer.act(async () => {
@@ -4353,7 +4363,7 @@ describe('HabitList', () => {
     })
 
     const overdueCard = tree.root
-      .findAllByType(HabitRow)
+      .findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === 'overdue-1')
 
     await TestRenderer.act(async () => {
@@ -4390,7 +4400,7 @@ describe('HabitList', () => {
     })
 
     const overdueCard = tree.root
-      .findAllByType(HabitRow)
+      .findAllByType(HabitRow).filter(isInteractiveRow)
       .find((node: any) => node.props.habit.id === 'overdue-1')
 
     expect(overdueCard?.props.isSelectMode).toBe(true)
@@ -5142,8 +5152,8 @@ describe('HabitList', () => {
     expect(skipMutateAsync).not.toHaveBeenCalled()
     TestRenderer.act(() => { tree.update(renderList(YESTERDAY)) })
     expect(tree!.root.findAll((node) => String(node.type) === 'DraggableFlatList')[0]?.props.extraData)
-      .toBe('0||child')
-    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(true)
+      .toBe(mode === 'log' ? '0||child' : '0||')
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(mode === 'log')
   })
 
   it('rejects a delayed bulk result after the new date handle commits before passive effects', () => {
@@ -5598,6 +5608,29 @@ describe('HabitList', () => {
   })
 
   describe('today view scroll offset wiring', () => {
+    it('retains every bulk departing row and the scrolled viewport through removal', async () => {
+      vi.useFakeTimers()
+      seedHabits(['first', 'second', 'third'].map((id) => createMockHabit({ id, scheduledDates: [TODAY] })))
+      const content = <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
+      let tree: ReturnType<typeof TestRenderer.create>
+      await TestRenderer.act(() => { tree = createTestTree(content) })
+      const list = tree!.root.findByType('DraggableFlatList')
+      TestRenderer.act(() => {
+        list.props.onLayout({ nativeEvent: { layout: { width: 412, height: 300, x: 0, y: 0 } } })
+        list.props.onScrollOffsetChange(650)
+      })
+      seedHabits([])
+      await TestRenderer.act(() => { tree!.update(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
+      const leaving = tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) =>
+        typeof node.type === 'string' && node.props['data-phase'] === 'exit')
+      expect(leaving).toHaveLength(3)
+      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(950)
+      await TestRenderer.act(() => { vi.advanceTimersByTime(300) })
+      expect(tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) => typeof node.type === 'string' && node.props['data-phase'] === 'exit')).toHaveLength(0)
+      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(950)
+      expect(rootListScroll.scrollToOffset).not.toHaveBeenCalled()
+    })
+
     function renderTodayList(onScroll?: (offsetY: number) => void) {
       let tree: any
       TestRenderer.act(() => {

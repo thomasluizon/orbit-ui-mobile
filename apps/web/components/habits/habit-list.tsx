@@ -95,6 +95,8 @@ import { useAccountGeneration, useAccountScopedState, useResetOnAccountChange } 
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useUIStore } from '@/stores/ui-store'
+import { useHabitListScrollAnchor } from '@/hooks/use-habit-list-scroll-anchor'
+import { motionDurations } from '@orbit/shared/theme'
 
 const CreateHabitModal = dynamic(() =>
   import('./create-habit-modal').then((module) => module.CreateHabitModal),
@@ -428,7 +430,7 @@ export function HabitList({
       setTimeout(() => {
         timers.delete(timerKey)
         setRecentlyCompletedDates((prev) => removeRecentCompletion(prev, habitId, date))
-      }, 1400),
+      }, motionDurations.micro),
     )
   }, [selectedDateStr, setRecentlyCompletedDates])
 
@@ -610,11 +612,14 @@ export function HabitList({
   }, [habitsQuery.dataUpdatedAt, hasQueuedParentPrompt, selectedDateStr])
 
   const listContainerRef = useRef<HTMLDivElement>(null)
+  const anchorList = useHabitListScrollAnchor()
   const { maxInlineDepth, measureRef } = useHabitInlineDepthLimit()
   const setListContainerRef = useCallback((element: HTMLDivElement | null) => {
     listContainerRef.current = element
-    return measureRef(element)
-  }, [measureRef])
+    const releaseMeasurement = measureRef(element)
+    const releaseAnchor = anchorList(element)
+    return () => { releaseMeasurement?.(); releaseAnchor?.() }
+  }, [anchorList, measureRef])
   const dragItems = useMemo<DragItem[]>(() => {
     const ordered = view === 'all' ? buildHabitDateBuckets(habits, todayStr).flatMap((bucket) => bucket.habits) : habits
     return buildDragItemsFlat(ordered, collapsedIds, visibility.getVisibleChildren, view, maxInlineDepth)
@@ -912,7 +917,7 @@ export function HabitList({
       return
     }
     operation.confirmedResolutions.activeSettlements += 1
-    markRecentlyCompleted(parentId, operation.date)
+    if (mode === 'log') markRecentlyCompleted(parentId, operation.date)
     try {
       try {
         if (mode === 'skip') {
@@ -954,7 +959,7 @@ export function HabitList({
     const settlementData = promptDataRef.current
     if (!settlementData) return
     for (const resolution of resolutions) {
-      markRecentlyCompleted(resolution.habitId, date)
+      if (resolution.mode === 'log') markRecentlyCompleted(resolution.habitId, date)
     }
     if (selectedDateStr !== date || settlementData.selectedDateStr !== date) return
     const confirmedResolutions = confirmedResolutionsRef.current
@@ -1296,7 +1301,7 @@ export function HabitList({
     getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
 
   function renderHabitTree(item: DragItem, panel: DragItem[], sortable: boolean): React.ReactNode {
-    const childPanelId = item.hasChildren && item.depth < maxInlineDepth ? `${dndContextId}-habit-children-${item.id}` : undefined
+    const childPanelId = item.depth < maxInlineDepth ? `${dndContextId}-habit-children-${item.id}` : undefined
     const row = renderHabitCard(
       item.habit,
       item.depth,
@@ -1314,7 +1319,7 @@ export function HabitList({
         {sortable ? <SortableHabitItem id={item.id}>{row}</SortableHabitItem> : row}
         {childPanelId ? (
           <MotionDisclosure id={childPanelId} expanded={!collapsedIds.has(item.id)}>
-            {panel.filter((child) => child.parentId === item.id).map((child) => renderHabitTree(child, panel, sortable))}
+            <ListPresence>{panel.filter((child) => child.parentId === item.id).map((child) => <ListMotionItem key={child.id} className="flex min-w-0 flex-col gap-2">{renderHabitTree(child, panel, sortable)}</ListMotionItem>)}</ListPresence>
           </MotionDisclosure>
         ) : null}
       </Fragment>
@@ -1414,6 +1419,7 @@ export function HabitList({
     return <ContentFade key={JSON.stringify([view, selectedDateStr, searchQuery, filters])}><TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty={habits.length === 0}><div
       ref={setListContainerRef}
       data-habit-list=""
+      style={{ overflowAnchor: 'none' }}
       tabIndex={-1}
       className="min-w-0 px-screen-gutter"
     >
