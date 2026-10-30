@@ -1,6 +1,6 @@
 import { unmappedBackendFormError } from '@orbit/shared/hooks'
 import { extractBackendFieldErrors, extractBackendErrorDetails, extractBackendErrorCode, getBackendFieldError } from '@orbit/shared/utils'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import type { NavigationProp, ParamListBase } from 'expo-router/react-navigation'
@@ -169,9 +169,19 @@ export function useLoginFlow(isAuthCallback = false) {
     if (!isOnline) pendingAutoCode.current = null
   }, [isOnline])
 
+  const hydrateReturnUrl = useEffectEvent(async () => {
+    if (isAuthCallback || googleSession.returnUrlAttemptId !== null) return
+    const returnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
+    const safeReturnUrl = returnUrl && isSafeReturnUrl(returnUrl) ? returnUrl : undefined
+    if (safeReturnUrl || returnUrlAttemptRef.current?.returnUrl) {
+      await getOrCreateReturnUrlAttempt(returnUrlAttemptRef, safeReturnUrl).ready
+    }
+  })
+
   useEffect(() => {
     let active = true
     async function hydrate() {
+      await hydrateReturnUrl()
       if (typeof params.ref === 'string' && isValidReferralCode(params.ref)) await storeReferralCode(params.ref)
       const referral = await getStoredReferralCode()
       if (!active) return
@@ -179,7 +189,7 @@ export function useLoginFlow(isAuthCallback = false) {
     }
     void hydrate().catch(() => { if (active) setErrorKey('auth.errors.unknownError') })
     return () => { active = false }
-  }, [params.ref])
+  }, [isAuthCallback, params.ref, params.returnUrl])
 
   useEffect(() => {
     if (codeFailure !== 'locked') return

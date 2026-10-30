@@ -3,6 +3,7 @@ import { captureException } from '@sentry/nextjs'
 const RELOAD_KEY = 'orbit-stale-build-reload'
 
 export function reloadStaleBuildOnce(): boolean {
+  if (!navigator.onLine) return false
   const build = process.env.NEXT_PUBLIC_WEB_COMMIT_SHA || 'unknown'
   try {
     if (sessionStorage.getItem(RELOAD_KEY) === build) return false

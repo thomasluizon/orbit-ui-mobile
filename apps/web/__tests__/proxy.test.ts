@@ -769,8 +769,8 @@ describe('proxy', () => {
 
 describe('malformed Server Action requests', () => {
   it.each([
-    { 'content-type': 'multipart/form-data' },
-    { 'content-type': 'multipart/form-data; boundary=missing' },
+    { 'next-action': 'a'.repeat(42), 'content-type': 'multipart/form-data' },
+    { 'next-action': 'a'.repeat(42), 'content-type': 'multipart/form-data; boundary=missing' },
     { 'next-action': 'a'.repeat(40), 'content-type': 'text/plain' },
   ])('rejects malformed action input before the framework parses it: %s', async (headers) => {
     vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
@@ -792,5 +792,18 @@ describe('malformed Server Action requests', () => {
       method: 'POST', headers: { 'next-action': 'a'.repeat(42) }, body: form,
     }))
     expect(resolveSessionTokens).toHaveBeenCalled()
+  })
+
+  it.each(['/login', '/api/uploads'])('leaves a multipart POST without an action header untouched at %s', async (path) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    const request = new NextRequest(`https://app.useorbit.org${path}`, {
+      method: 'POST', headers: { 'content-type': 'multipart/form-data; boundary=upload' }, body: 'route-owned body',
+    })
+    const clone = vi.spyOn(request, 'clone')
+    const response = await proxy(request)
+    expect(response).toMatchObject({ type: 'next' })
+    expect(clone).not.toHaveBeenCalled()
+    expect(request.bodyUsed).toBe(false)
+    expect(await request.text()).toBe('route-owned body')
   })
 })

@@ -15,6 +15,7 @@ let initialization: Promise<unknown> | undefined
 let recoveryListener = vi.spyOn(window, 'addEventListener')
 
 beforeEach(() => {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
   recoveryListener = vi.spyOn(window, 'addEventListener')
   vi.resetModules()
   vi.mocked(Sentry.init).mockClear()
@@ -125,4 +126,30 @@ it('retains the reload guard across entry reloads and permits a later build to r
   vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', 'b'.repeat(40))
   dispatchRecoveryError(failure)
   expect(reload).toHaveBeenCalledTimes(2)
+})
+
+it.each(['error', 'unhandledrejection'] as const)('preserves an offline page after a chunk failure from %s and can recover once online', async (eventType) => {
+  const reload = vi.fn()
+  Object.defineProperty(window, 'location', { configurable: true, value: { pathname: '/', reload } })
+  sessionStorage.clear()
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+  initialization = import('../instrumentation-client')
+  await initialization
+  const failure = new Error('Loading chunk 17 failed')
+  failure.name = 'ChunkLoadError'
+  const dispatch = () => {
+    for (const [type, listener] of recoveryListener.mock.calls) {
+      if (type !== eventType || typeof listener !== 'function') continue
+      listener.call(window, eventType === 'error'
+        ? new ErrorEvent('error', { error: failure })
+        : Object.assign(new Event('unhandledrejection'), { reason: failure }))
+    }
+  }
+  dispatch()
+  expect(reload).not.toHaveBeenCalled()
+  expect(sessionStorage.getItem('orbit-stale-build-reload')).toBeNull()
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+  dispatch()
+  dispatch()
+  expect(reload).toHaveBeenCalledOnce()
 })

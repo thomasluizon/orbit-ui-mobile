@@ -123,7 +123,8 @@ function isStaleServerAction(request: NextRequest) {
 async function isMalformedServerAction(request: NextRequest): Promise<boolean> {
   if (request.method !== 'POST') return false
   const actionId = request.headers.get('next-action')
-  if (actionId !== null && !mightBeServerReferenceId(actionId)) return true
+  if (actionId === null) return false
+  if (!mightBeServerReferenceId(actionId)) return true
   const contentType = request.headers.get('content-type') ?? ''
   if (!contentType.startsWith('multipart/form-data')) return false
   try {

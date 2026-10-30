@@ -20,11 +20,18 @@ const snapshotSchema = z.object({
 })
 
 type DesktopSnapshot = z.infer<typeof snapshotSchema>
+const unsupportedSnapshot: DesktopSnapshot = { supported: false, permission: 'unsupported', owner: null, registration: null, candidate: null, pending: [] }
+
 async function invoke(action: 'session' | 'status' | 'request' | 'stage' | 'commit' | 'clear' | 'suspend', payload: Record<string, unknown> = {}): Promise<DesktopSnapshot> {
-  if (!desktopCommandSupported('desktop_push')) return { supported: false, permission: 'unsupported', owner: null, registration: null, candidate: null, pending: [] }
   const native = desktopRuntime()
-  if (!native) throw new Error('Desktop push runtime unavailable')
-  return snapshotSchema.parse(await native.invoke('desktop_push', { action, ...payload }))
+  const advertised = desktopCommandSupported('desktop_push')
+  if (!native || (!advertised && ['request', 'stage', 'commit'].includes(action))) return unsupportedSnapshot
+  try {
+    return snapshotSchema.parse(await native.invoke('desktop_push', { action, ...payload }))
+  } catch (error) {
+    if (!advertised && error === 'Command desktop_push not found') return unsupportedSnapshot
+    throw error
+  }
 }
 
 function preference(snapshot: DesktopSnapshot, accountId: string | null): PushPreferenceSnapshot {
