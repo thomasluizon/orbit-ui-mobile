@@ -1530,7 +1530,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         const index = getIndex() ?? 0
         const nextItem = presentation.items[index + 1]
         const motionRow = presentation.rows[index]!
-        return <HabitListMotionRow id={item.id} phase={motionRow.phase} offset={motionRow.offset} measure={presentation.measure}><TodayLaunchContent enabled={view === 'today' && index === 0} fromCache={launchFromCache} empty={false}>{renderHabitCard(
+        return <HabitListMotionRow id={item.id} phase={motionRow.phase} offset={motionRow.offset} itemIds={presentation.itemIds} measure={presentation.measure}><TodayLaunchContent enabled={view === 'today' && index === 0} fromCache={launchFromCache} empty={false}>{renderHabitCard(
           item.habit,
           item.depth,
           item.hasChildren,
@@ -1771,7 +1771,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         onLayout={measureList}
         data={presentation.items}
         keyExtractor={keyExtractor}
-        renderItem={({ item, index }) => <HabitListMotionRow id={item.id} phase={presentation.rows[index]!.phase} offset={presentation.rows[index]!.offset} measure={presentation.measure}>
+        renderItem={({ item, index }) => <HabitListMotionRow id={item.id} phase={presentation.rows[index]!.phase} offset={presentation.rows[index]!.offset} itemIds={presentation.itemIds} measure={presentation.measure}>
           {groupHeadings.has(item.id) ? <Text accessibilityRole="header" style={[styles.dateGroupHeading, index === 0 && { paddingTop: SPACING.s0 }]}>{groupHeadings.get(item.id)}</Text> : null}
           {renderHabitCard(item.habit, item.depth, item.hasChildren, item.hasSubHabits, { panelEnd: !flatItems[index + 1] || flatItems[index + 1]!.depth === 0 })}
         </HabitListMotionRow>}

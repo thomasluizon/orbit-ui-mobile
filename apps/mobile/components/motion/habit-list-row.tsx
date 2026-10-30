@@ -3,28 +3,31 @@ import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, wi
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 
-export function HabitListMotionRow({ id, phase, offset, measure, children }: Readonly<{
+export function HabitListMotionRow({ id, phase, offset, itemIds, measure, children }: Readonly<{
   id: string
   phase: 'present' | 'enter' | 'exit'
   offset: number | null
+  itemIds: readonly string[]
   measure: (id: string, height: number) => void
   children: ReactNode
 }>) {
   const reduced = usePrefersReducedMotion()
   const opacity = useSharedValue(1)
   const translation = useSharedValue(0)
-  const previousOffset = useRef(offset)
+  const previousPosition = useRef({ offset, itemIds })
   const enter = resolveMotionPreset('list-enter', reduced)
   const exit = resolveMotionPreset('list-exit', reduced)
   useLayoutEffect(() => {
-    const previous = previousOffset.current
-    previousOffset.current = offset
+    const previous = previousPosition.current
+    previousPosition.current = { offset, itemIds }
     if (reduced) { translation.value = 0; return }
-    if (previous !== null && offset !== null && previous !== offset) {
-      translation.value += previous - offset
+    const sameOrder = previous.itemIds.length === itemIds.length &&
+      previous.itemIds.every((itemId, index) => itemId === itemIds[index])
+    if (!sameOrder && previous.offset !== null && offset !== null && previous.offset !== offset) {
+      translation.value += previous.offset - offset
       translation.value = withTiming(0, { duration: enter.enterDuration, easing: Easing.bezier(...enter.enterEasing) })
     }
-  }, [enter.enterDuration, enter.enterEasing, offset, reduced, translation])
+  }, [enter.enterDuration, enter.enterEasing, itemIds, offset, reduced, translation])
   useEffect(() => {
     if (phase === 'enter') {
       opacity.value = 0

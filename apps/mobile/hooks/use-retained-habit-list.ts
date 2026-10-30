@@ -57,5 +57,6 @@ export function useRetainedHabitList<T extends { id: string }>(items: T[], scope
     return row
   })
   const presentedItems = useMemo(() => entries.map((entry) => entry.item), [entries])
-  return { rows, items: presentedItems, measure }
+  const itemIds = useMemo(() => entries.map((entry) => entry.item.id), [entries])
+  return { rows, items: presentedItems, itemIds, measure }
 }

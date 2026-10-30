@@ -96,7 +96,7 @@ export function HabitDrill({
   const reservation = useListScrollReservation(drill.currentParentId ?? '')
   const renderItem: ListRenderItem<NormalizedHabit> = ({ item: child, index }) => {
     const nestedChildren = drill.getDrillChildren(child.id)
-    return <HabitListMotionRow id={child.id} phase={presentation.rows[index]!.phase} offset={presentation.rows[index]!.offset} measure={presentation.measure}>{renderHabitCard(
+    return <HabitListMotionRow id={child.id} phase={presentation.rows[index]!.phase} offset={presentation.rows[index]!.offset} itemIds={presentation.itemIds} measure={presentation.measure}>{renderHabitCard(
       child,
       0,
       nestedChildren.length > 0,
