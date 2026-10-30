@@ -239,11 +239,27 @@ describe('headless Menu', () => {
 
   it('discloses a full typed sheet title', async () => {
     setWide(false)
+    const scrollHeight = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(60)
+    const clientHeight = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(40)
+    onTestFinished(() => { scrollHeight.mockRestore(); clientHeight.mockRestore() })
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir'
     render(<Example title={title} shortTitle="Ler" titleMode="typed" />)
     await openMenu()
     await userEvent.click(await screen.findByRole('button', { name: title }))
     expect(document.querySelector('.orbit-sheet-full-title')).toHaveTextContent(title)
+  })
+
+  it('renders a fitting typed sheet title without an expand control', async () => {
+    setWide(false)
+    const scrollHeight = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(40)
+    const clientHeight = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(40)
+    onTestFinished(() => { scrollHeight.mockRestore(); clientHeight.mockRestore() })
+    const title = 'Ler um capítulo'
+    render(<Example title={title} shortTitle="Ler" titleMode="typed" />)
+    await openMenu()
+    const header = screen.getByRole('dialog', { name: title }).querySelector('header')!
+    expect(header).toHaveTextContent(title)
+    expect(header.querySelector('button[aria-expanded]')).toBeNull()
   })
 
   it('keeps badged routes actionable and does not open an empty menu', async () => {

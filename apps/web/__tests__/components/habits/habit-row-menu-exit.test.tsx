@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -33,6 +33,9 @@ describe('HabitRow menu replacement', () => {
 
   it('discloses a full habit name from the real row menu without an edit action', async () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    const scrollHeight = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(60)
+    const clientHeight = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(40)
+    onTestFinished(() => { scrollHeight.mockRestore(); clientHeight.mockRestore() })
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
     const onDelete = vi.fn()
     render(<HabitRow habit={createMockHabit({ title })} actions={{ onDelete }} />)
@@ -43,6 +46,19 @@ describe('HabitRow menu replacement', () => {
     expect(screen.getByRole('dialog', { name: title }).querySelector('[data-slot="sheet-body"]')).toHaveTextContent(title)
     expect(screen.getByRole('menu', { name: title })).toBeVisible()
     expect(onDelete).not.toHaveBeenCalled()
+  })
+
+  it('renders a fitting habit name in the menu sheet without an expand control', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    const scrollHeight = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(40)
+    const clientHeight = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(40)
+    onTestFinished(() => { scrollHeight.mockRestore(); clientHeight.mockRestore() })
+    render(<HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onDelete: vi.fn() }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    const menu = await screen.findByRole('menu', { name: 'Read' })
+    const header = menu.closest('[role="dialog"]')!.querySelector('header')!
+    expect(header).toHaveTextContent('Read')
+    expect(header.querySelector('button[aria-expanded]')).toBeNull()
   })
 
   it.each(cases)('replaces the $phase $presentation menu via $activation', async ({ presentation, phase, activation }) => {

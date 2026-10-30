@@ -1,5 +1,6 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import { expectPressFill } from '../../support/press-feedback'
+import { deliverTitleLines } from '../../support/sheet-title-layout'
 import { createTokensV2 } from '@/lib/theme'
 import React from 'react'
 import { AccessibilityInfo, Pressable, StyleSheet, Text } from 'react-native'
@@ -126,15 +127,6 @@ vi.mock('@/app/advanced-api-keys', () => ({
 
 function typedTitleControl(tree: ReturnType<typeof TestRenderer.create>) {
   return tree.root.findByType(TrueSheet).props.header.props.children[0].props.children
-}
-
-function deliverTitleLines(header: ReturnType<typeof TestRenderer.create>, lines: string[]) {
-  const probe = header.root.findByType(PersonalText).findAllByType(Text).find(
-    (node: { props: { onTextLayout?: unknown } }) => typeof node.props.onTextLayout === 'function',
-  )
-  probe.props.onTextLayout({ nativeEvent: { lines: lines.map((text, index) => ({
-    text, x: 0, y: index * 24, width: 200, height: 24, ascender: 18, descender: 0, capHeight: 16, xHeight: 12,
-  })) } })
 }
 
 describe('Sheet (mobile)', () => {
