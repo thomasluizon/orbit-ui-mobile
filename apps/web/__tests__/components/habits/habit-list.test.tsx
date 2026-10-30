@@ -2611,6 +2611,88 @@ describe('HabitList', () => {
     else expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
   })
 
+  it('settles a skip chain after the refreshed list omits the skipped child', async () => {
+    seedPromptChain()
+    const rendered = renderWithProviders(<HabitList filters={defaultFilters} />)
+    await act(async () => { fireEvent.click(screen.getByTestId('skip-child')) })
+    await screen.findByRole('dialog', { name: 'habits.autoSkipParentTitle' })
+    act(() => {
+      mockHabitsData.habitsById = new Map(mockHabitsData.habitsById)
+      mockHabitsData.habitsById.delete('child')
+      mockHabitsData.childrenByParent.set('parent', [])
+      mockDrillState.drillChildren = []
+      mockHabitsDataUpdatedAt += 1
+      rendered.rerenderWithProviders(<HabitList filters={defaultFilters} />)
+    })
+    await confirmVisibleSheet('habits.autoSkipParentTitle', 'chat.pendingOp.action.applyChanges')
+    expect(bulkSkipMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: TODAY }])
+  })
+
+  it('prompts after three rapid optimistic logs and releases the chain if an earlier log fails', async () => {
+    const { parent } = seedPromptChain()
+    const children = ['first', 'second', 'third'].map((id) => createMockHabit({ id, title: id, parentId: parent.id, scheduledDates: [TODAY] }))
+    for (const child of children) mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, children.map((child) => child.id))
+    mockDrillState.drillChildren = children
+    let rejectFirst!: (error: Error) => void
+    let resolveOthers!: () => void
+    const first = new Promise<void>((_resolve, reject) => { rejectFirst = reject })
+    const others = new Promise<void>((resolve) => { resolveOthers = resolve })
+    logHabitMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => habitId === 'first' ? first : others)
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    act(() => { for (const child of children) fireEvent.click(screen.getByTestId(`log-${child.id}`)) })
+    expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
+    await act(async () => { rejectFirst(new Error('rejected')); await Promise.allSettled([first]) })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    await act(async () => { resolveOthers(); await others })
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('does not prompt when a bad child slips after its good sibling is complete', async () => {
+    const { parent, child } = seedPromptChain()
+    const slip = { ...child, isBadHabit: true }
+    const good = createMockHabit({ id: 'good', parentId: parent.id, isCompleted: true, scheduledDates: [TODAY] })
+    mockHabitsData.habitsById.set(child.id, slip)
+    mockHabitsData.habitsById.set(good.id, good)
+    mockHabitsData.childrenByParent.set(parent.id, [slip.id, good.id])
+    mockDrillState.drillChildren = [slip, good]
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    await act(async () => { fireEvent.click(screen.getByTestId('log-child')) })
+    await act(async () => { await import('@/components/habits/habit-list/confirm-dialogs'); await Promise.resolve() })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('waits for the triggering child before settling an accepted chain and stops on failure', async () => {
+    seedPromptChain()
+    let rejectLog!: (error: Error) => void
+    const pending = new Promise<void>((_resolve, reject) => { rejectLog = reject })
+    logHabitMutateAsync.mockReturnValueOnce(pending)
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    await act(async () => { fireEvent.click(screen.getByTestId('log-child')) })
+    expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'chat.pendingOp.action.applyChanges' })) })
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
+    await act(async () => { rejectLog(new Error('rejected')); await Promise.allSettled([pending]) })
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+  })
+
+  it('keeps the nearer ancestor settled when the later mixed request fails', async () => {
+    seedPromptChain(true)
+    bulkLogMutateAsync.mockRejectedValueOnce(new Error('rejected'))
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    await act(async () => { fireEvent.click(screen.getByTestId('skip-child')) })
+    expect(await screen.findByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeTruthy()
+    fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'chat.pendingOp.action.applyChanges' })) })
+    expect(bulkSkipMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: TODAY }])
+    expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'root', date: TODAY }])
+    expect(capturedDrillOptions?.recentlyCompletedIds.has('parent')).toBe(true)
+    expect(capturedDrillOptions?.recentlyCompletedIds.has('root')).toBe(false)
+    expect(useAppToastStore.getState().currentToast).not.toBeNull()
+  })
+
   it('opens the parent prompt before the child log resolves and closes it on failure', async () => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id })
@@ -2678,7 +2760,7 @@ describe('HabitList', () => {
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child', intent: 'log' })
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'grandparent', date: TODAY, intent: 'log' })
+    expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: 'grandparent', date: TODAY }])
   })
 
   it('asks before settling the parent when the last child is marked completed', async () => {
@@ -2710,7 +2792,7 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY, intent: 'log' })
+    expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: 'parent', date: TODAY }])
   })
 
   it('does not settle the parent before the current snapshot reflects the final child completion', async () => {
@@ -2749,7 +2831,7 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY, intent: 'log' })
+    expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: 'parent', date: TODAY }])
   })
 
   it('does not settle the parent when a refetch makes a child incomplete while confirmation is open', async () => {
@@ -2782,8 +2864,8 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, intent: 'log' })
-    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
+    expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
   })
 
   it('does not settle a recurring parent logged elsewhere after a refetch', async () => {
@@ -2820,8 +2902,8 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, intent: 'log' })
-    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
+    expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -2860,8 +2942,8 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, intent: 'log' })
-    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
+    expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -2886,9 +2968,9 @@ describe('HabitList', () => {
     mockHabitsData.habitsById.set(child.id, child)
     mockHabitsData.childrenByParent.set(parent.id, [child.id])
     mockHabitsData.topLevelHabits = [parent]
-    let resolveSkip: () => void = () => {}
-    const pendingSkip = new Promise<void>((resolve) => { resolveSkip = resolve })
-    skipHabitMutateAsync.mockReturnValue(pendingSkip)
+    let resolveSkip: (result: ReturnType<typeof parentBulkSkipResult>) => void = () => {}
+    const pendingSkip = new Promise<ReturnType<typeof parentBulkSkipResult>>((resolve) => { resolveSkip = resolve })
+    bulkSkipMutateAsync.mockReturnValue(pendingSkip)
     const ref = React.createRef<HabitListHandle>()
     function ConfirmInLayout({ confirm }: { confirm: boolean }) {
       React.useLayoutEffect(() => {
@@ -2910,8 +2992,8 @@ describe('HabitList', () => {
       sheetTestControls.defer(true)
       await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
       expect(sheetTestControls.isDismissPending).toBe(true)
-      expect(skipHabitMutateAsync).not.toHaveBeenCalled()
-      expect(logHabitMutateAsync).not.toHaveBeenCalled()
+      expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
+      expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     }
 
     await act(async () => {
@@ -2931,12 +3013,12 @@ describe('HabitList', () => {
     })
     if (timing === 'after effects') await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    if (timing === 'after delayed dismissal') act(() => sheetTestControls.completeDismissal())
+    if (timing === 'after delayed dismissal') await act(async () => { sheetTestControls.completeDismissal(); await Promise.resolve() })
 
-    expect(logHabitMutateAsync).not.toHaveBeenCalled()
-    expect(skipHabitMutateAsync).toHaveBeenCalledOnce()
-    expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
-    await act(async () => { resolveSkip(); await pendingSkip })
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
+    expect(bulkSkipMutateAsync).toHaveBeenCalledOnce()
+    expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: parent.id, date: TODAY }])
+    await act(async () => { resolveSkip(parentBulkSkipResult([{ habitId: parent.id }])); await pendingSkip })
   })
 
   it('settles the parent exactly once for a burst of sibling completions', async () => {
@@ -2983,7 +3065,7 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === 'parent')).toHaveLength(1)
+    expect(bulkLogMutateAsync.mock.calls.flatMap(([items]) => items as { habitId: string; date: string }[]).filter((input) => input.habitId === 'parent')).toHaveLength(1)
   })
 
   it('settles each bulk-resolved parent once on the viewed historical date', async () => {
@@ -3823,7 +3905,7 @@ describe('HabitList', () => {
 
     vi.setSystemTime(new Date('2026-09-20T10:01:00Z'))
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: TODAY, intent: 'log' })
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
   })
 
   it('deduplicates parent settlement through refetches until progress becomes incomplete', async () => {
@@ -3846,12 +3928,12 @@ describe('HabitList', () => {
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
     refetch()
     await act(async () => ref.current?.checkAndPromptParentLog('child'))
-    expect(logHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === 'parent')).toHaveLength(1)
+    expect(bulkLogMutateAsync.mock.calls.flatMap(([items]) => items as { habitId: string; date: string }[]).filter((input) => input.habitId === 'parent')).toHaveLength(1)
     refetch(false)
     refetch()
     await act(async () => ref.current?.checkAndPromptParentLog('child'))
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
-    expect(logHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === 'parent')).toHaveLength(2)
+    expect(bulkLogMutateAsync.mock.calls.flatMap(([items]) => items as { habitId: string; date: string }[]).filter((input) => input.habitId === 'parent')).toHaveLength(2)
   })
 
   it('settles an overdue parent when the last child is marked completed', async () => {
@@ -3885,7 +3967,7 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY, intent: 'log' })
+    expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: 'parent', date: TODAY }])
   })
 
   it('does not prompt a parent that is only due in the future', () => {
@@ -3963,15 +4045,13 @@ describe('HabitList', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).toHaveBeenCalledTimes(3)
-    expect(logHabitMutateAsync.mock.calls).toEqual([
-      [{ habitId: 'child', date: YESTERDAY, intent: 'log' }],
-      [{ habitId: 'parent', date: YESTERDAY, intent: 'log' }],
-      [{ habitId: 'grandparent', date: YESTERDAY, intent: 'log' }],
-    ])
+    expect(logHabitMutateAsync).toHaveBeenCalledTimes(1)
+    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
+    fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'chat.pendingOp.action.applyChanges')
+    expect(logHabitMutateAsync.mock.calls).toEqual([[{ habitId: 'child', date: YESTERDAY, intent: 'log' }]])
+    expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: YESTERDAY }, { habitId: 'grandparent', date: YESTERDAY }])
   })
 
   it('skips the final child and every ancestor on the viewed historical date', async () => {
@@ -4019,11 +4099,11 @@ describe('HabitList', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    expect(skipHabitMutateAsync.mock.calls).toEqual([
-      [{ habitId: 'child', date: YESTERDAY, onUndo: expect.any(Function) }],
-      [{ habitId: 'parent', date: YESTERDAY }],
-      [{ habitId: 'grandparent', date: YESTERDAY }],
-    ])
+    await screen.findByRole('dialog', { name: 'habits.autoSkipParentTitle' })
+    fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    await confirmVisibleSheet('habits.autoSkipParentTitle', 'chat.pendingOp.action.applyChanges')
+    expect(skipHabitMutateAsync.mock.calls).toEqual([[{ habitId: 'child', date: YESTERDAY, onUndo: expect.any(Function) }]])
+    expect(bulkSkipMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date: YESTERDAY }, { habitId: 'grandparent', date: YESTERDAY }])
   })
 
   it('does not prompt the parent while an overdue sub-habit is still unresolved', () => {
@@ -4066,7 +4146,7 @@ describe('HabitList', () => {
     expect(screen.queryByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeNull()
   })
 
-  it('skips the parent immediately once every sub-habit is skipped', async () => {
+  it('asks before skipping the parent once every sub-habit is skipped', async () => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -4096,14 +4176,16 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} view="today" />)
 
     await confirmRowSkip('child-a')
-    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
 
     await confirmRowSkip('child-b')
     await act(async () => { await Promise.resolve(); await Promise.resolve() })
 
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a', date: TODAY, onUndo: expect.any(Function) })
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b', date: TODAY, onUndo: expect.any(Function) })
-    expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
+    expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
+    await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
+    expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: 'parent', date: TODAY }])
     expect(screen.queryByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeNull()
   })
 
@@ -4138,9 +4220,9 @@ describe('HabitList', () => {
 
     await confirmRowSkip('child-skipped')
 
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: TODAY, intent: 'log' })
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY, intent: 'log' })
+    expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: parent.id, date: TODAY }])
   })
 
   it('queues confirmations when concurrent row skips complete two mixed parents', async () => {
@@ -4219,11 +4301,11 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parentA.id, date: TODAY, intent: 'log' })
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parentB.id, date: TODAY, intent: 'log' })
+    expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: parentA.id, date: TODAY }])
+    expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: parentB.id, date: TODAY }])
   })
 
-  it('keeps a cascaded grandparent confirmation actionable after stale settlement data', async () => {
+  it('keeps one selected chain settled after stale settlement data', async () => {
     const grandparent = createMockHabit({
       id: 'grandparent',
       title: 'Grandparent',
@@ -4255,38 +4337,21 @@ describe('HabitList', () => {
     mockHabitsData.childrenByParent.set(parent.id, [loggedChild.id, skippedChild.id])
     mockHabitsData.topLevelHabits = [grandparent]
 
-    let resolveParentMutation!: () => void
-    const pendingParentMutation = new Promise<void>((resolve) => {
-      resolveParentMutation = resolve
-    })
-    logHabitMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => (
-      habitId === parent.id ? pendingParentMutation : Promise.resolve()
-    ))
+    let resolveParents!: (result: ReturnType<typeof parentBulkLogResult>) => void
+    const pendingParents = new Promise<ReturnType<typeof parentBulkLogResult>>((resolve) => { resolveParents = resolve })
+    bulkLogMutateAsync.mockReturnValueOnce(pendingParents)
     const rendered = renderWithProviders(<HabitList filters={defaultFilters} view="today" />)
-
     await confirmRowSkip(skippedChild.id)
-    expect(await screen.findByText('habits.autoLogParentMessage({"name":"Parent"})'))
-      .toBeDefined()
-
-    fireEvent.click(within(
-      screen.getByRole('dialog', { name: 'habits.autoLogParentTitle' }),
-    ).getByRole('button', { name: 'habits.autoLogParentConfirm' }))
-    await act(async () => {
-      await Promise.resolve()
-    })
+    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
+    expect(screen.getAllByRole('checkbox')).toHaveLength(2)
+    fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'chat.pendingOp.action.applyChanges')
+    expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }, { habitId: grandparent.id, date: TODAY }])
     mockHabitsDataUpdatedAt += 1
     rendered.rerenderWithProviders(<HabitList filters={defaultFilters} view="today" />)
-
-    await act(async () => {
-      resolveParentMutation()
-      await pendingParentMutation
-      await Promise.resolve()
-    })
-
-    expect(await screen.findByText('habits.autoLogParentMessage({"name":"Grandparent"})'))
-      .toBeDefined()
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: grandparent.id, date: TODAY, intent: 'log' })
+    await act(async () => { resolveParents(parentBulkLogResult([{ habitId: parent.id }, { habitId: grandparent.id }])); await pendingParents })
+    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+    expect(bulkLogMutateAsync).toHaveBeenCalledTimes(1)
   })
 
   it('does not settle a parent when a row skip resolves after the viewed date changes', async () => {
@@ -4334,7 +4399,7 @@ describe('HabitList', () => {
     expect(skipHabitMutateAsync.mock.calls).toEqual([
       [{ habitId: child.id, date: YESTERDAY, onUndo: expect.any(Function) }],
     ])
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: YESTERDAY, intent: 'log' })
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
   })
 
@@ -4672,8 +4737,8 @@ describe('HabitList', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'undo.action' }))
     await screen.findByText(personalText('Pending child'))
     expect(skipFlow.mutate).toHaveBeenCalledTimes(2)
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
-    expect(logHabitMutateAsync).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    expect(bulkLogMutateAsync).not.toHaveBeenCalled()
   })
 
   it('skips immediately and asks before deleting a habit', async () => {

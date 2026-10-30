@@ -53,7 +53,7 @@ import {
   type ParentPromptChain,
   computeParentPromptDecision,
   computeHabitDayProgress,
-  computeParentPromptProgress,
+  computeParentResolutionProgress,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   formatAPIDate,
@@ -281,6 +281,7 @@ interface ParentSettlementOperation {
 
 interface ConfirmedResolutionRecord {
   date: string
+  sources: Map<string, { habit: NormalizedHabit; mode: HabitResolutionMode }>
   pending: Map<string, Promise<boolean>>
   modes: Map<string, HabitResolutionMode>
   skippedIds: Set<string>
@@ -294,15 +295,14 @@ function getParentPromptProgress(
   settlementData: ParentSettlementData | null,
 ) {
   if (!settlementData) return { done: 0, total: 0, loggedDone: 0 }
-  return computeParentPromptProgress({
-    parentId: habitId,
+  return computeParentResolutionProgress(habitId, settlementData.habitsById, {
     getChildren: settlementData.getChildren,
     isRelevantToday: settlementData.visibility.isRelevantToday,
     isDueOnSelectedDate: settlementData.visibility.isDueOnSelectedDate,
     skippedIds: confirmedResolutions.skippedIds,
     isListView: settlementData.isListView,
     resolvedModes: confirmedResolutions.modes,
-  })
+  }, confirmedResolutions.sources)
 }
 
 function getParentPromptChain(childId: string, record: ConfirmedResolutionRecord, settlement: ParentSettlementData) {
@@ -313,7 +313,7 @@ function getParentPromptChain(childId: string, record: ConfirmedResolutionRecord
     isListView: settlement.isListView,
     skippedIds: record.skippedIds,
     resolvedModes: record.modes,
-  })
+  }, record.sources)
 }
 
 function clearPersistedResolutions(
@@ -343,6 +343,7 @@ function refreshConfirmedResolutions(
     return
   }
   if (confirmedResolutions.activeSettlements === 0) {
+    confirmedResolutions.sources.clear()
     confirmedResolutions.modes.clear()
     confirmedResolutions.skippedIds.clear()
     confirmedResolutions.clearWhenIdle = false
@@ -354,6 +355,7 @@ function refreshConfirmedResolutions(
 function createConfirmedResolutionRecord(date: string): ConfirmedResolutionRecord {
   return {
     date,
+    sources: new Map(),
     pending: new Map(),
     modes: new Map(),
     skippedIds: new Set(),
@@ -865,7 +867,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       habitId: string,
       mode: HabitResolutionMode,
     ) => {
-      confirmedResolutions.modes.set(habitId, mode)
+      const habit = promptDataRef.current?.habitsById.get(habitId)
+        if (habit) confirmedResolutions.sources.set(habitId, { habit, mode })
+        confirmedResolutions.modes.set(habitId, mode)
       if (mode === 'skip') {
         confirmedResolutions.skippedIds.add(habitId)
       } else {
@@ -878,6 +882,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     ) => {
       confirmedResolutions.activeSettlements -= 1
       if (confirmedResolutions.activeSettlements === 0 && confirmedResolutions.clearWhenIdle) {
+        confirmedResolutions.sources.clear()
         confirmedResolutions.modes.clear()
         confirmedResolutions.skippedIds.clear()
         confirmedResolutions.clearWhenIdle = false
@@ -915,6 +920,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         )
         if (decision.type === 'open') {
           const ancestors = getParentPromptChain(childHabitId, confirmedResolutions, settlementData)
+          if (ancestors.length === 0) return
           confirmedResolutions.clearWhenIdle = false
           for (const { habit } of ancestors) promptedParentIdsRef.current.add(habit.id)
           setParentPromptQueue((current) => enqueueParentPrompt(current, {
@@ -962,6 +968,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         )
         if (decision.type === 'release') promptedParentIdsRef.current.delete(parentHabit.id)
         if (decision.type !== 'open') return
+        if (getParentPromptChain(childHabitId, operation.confirmedResolutions, operation.data).length === 0) return
         const { mode } = decision
 
         if (mode === 'log' && operation.requiresLogConfirmation) {
@@ -1026,6 +1033,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const checkAndPromptParentLog = useCallback((childHabitId: string) => {
       const confirmedResolutions = confirmedResolutionsRef.current
       recordHabitResolution(confirmedResolutions, childHabitId, 'log')
+      const habit = promptDataRef.current?.habitsById.get(childHabitId)
+      if (habit?.isCompleted || habit?.isLoggedInRange) confirmedResolutions.modes.delete(childHabitId)
       checkAndSettleParent(childHabitId, confirmedResolutions)
     }, [checkAndSettleParent, recordHabitResolution])
 
@@ -1100,8 +1109,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       try {
         if ((await Promise.all(record.pending.values())).some((success) => !success) || !isCurrent()) return
         const ancestors = getParentPromptChain(prompt.childId, record, promptDataRef.current ?? settlementData).slice(0, prompt.selectedCount)
-        if (ancestors.length !== prompt.selectedCount || ancestors.some(({ habit, mode }, index) =>
-          habit.id !== prompt.ancestors[index]?.habit.id || mode !== prompt.ancestors[index].mode)) return
+        if (ancestors.length !== prompt.selectedCount || ancestors.some(({ habit }, index) =>
+          habit.id !== prompt.ancestors[index]?.habit.id)) return
         const failedIds = await settleParentPromptChain(ancestors, {
           date: prompt.date,
           log: (items) => bulkLog.mutateAsync(items),
@@ -1131,12 +1140,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         prompt === parentPrompt ? selectParentPromptAncestor(prompt, index, checked) : prompt) }))
     }
 
-    function releaseOptimisticResolution(habitId: string, record: ConfirmedResolutionRecord) {
+    function releaseOptimisticResolution(habitId: string, record: ConfirmedResolutionRecord, sourceParentId?: string | null) {
+      const parentAtResolution = sourceParentId ?? record.sources.get(habitId)?.habit.parentId
+      record.sources.delete(habitId)
       record.modes.delete(habitId)
       record.skippedIds.delete(habitId)
       if (confirmedResolutionsRef.current !== record) return
       clearRecentlyCompleted(habitId, record.date)
-      let parentId = promptDataRef.current?.habitsById.get(habitId)?.parentId
+      let parentId = parentAtResolution ?? promptDataRef.current?.habitsById.get(habitId)?.parentId
       while (parentId) {
         promptedParentIdsRef.current.delete(parentId)
         const releasedId = parentId
@@ -1188,7 +1199,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         mutationSucceeded = true
         await refetch()
       } catch {
-        if (!mutationSucceeded && intent === 'log') releaseOptimisticResolution(habitId, confirmedResolutions)
+        if (!mutationSucceeded && intent === 'log') releaseOptimisticResolution(habitId, confirmedResolutions, habit?.parentId)
       } finally {
         confirmedResolutions.pending.delete(habitId)
         finishParentSettlement(confirmedResolutions)
@@ -1207,16 +1218,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       if (record.pending.has(habitId)) return
       record.activeSettlements += 1
       recordHabitResolution(record, habitId, 'skip')
-      markRecentlyCompleted(habitId, record.date)
       checkAndSettleParent(habitId, record)
       try {
         const mutation = skipMutation.mutateAsync({ habitId, date: record.date,
-          onUndo: () => releaseOptimisticResolution(habitId, record),
+          onUndo: () => releaseOptimisticResolution(habitId, record, habit.parentId),
         })
         record.pending.set(habitId, Promise.resolve(mutation).then(() => true, () => false))
         await mutation
       } catch {
-        releaseOptimisticResolution(habitId, record)
+        releaseOptimisticResolution(habitId, record, habit.parentId)
       } finally {
         record.pending.delete(habitId)
         finishParentSettlement(record)

@@ -5,6 +5,7 @@ import {
   type HabitResolution,
   type HabitResolutionMode,
   type ParentPromptProgressOptions,
+  type ParentPromptProgress,
 } from './habit-list-progress'
 
 export interface ParentPromptAncestor {
@@ -21,23 +22,50 @@ export interface ParentPromptChain {
   selectedCount: number
 }
 
+function parentPromptResolutionContext(
+  habitsById: ReadonlyMap<string, NormalizedHabit>,
+  options: Omit<ParentPromptProgressOptions, 'parentId'>,
+  resolutionSources: ReadonlyMap<string, ParentPromptAncestor>,
+) {
+  const retained = [...resolutionSources.values()].filter(({ habit }) => !habitsById.has(habit.id))
+  const knownHabits = new Map([...retained.map(({ habit }) => [habit.id, habit] as const), ...habitsById])
+  const resolvedModes = new Map([
+    ...retained.map(({ habit, mode }) => [habit.id, mode] as const),
+    ...options.resolvedModes ?? [],
+  ])
+  const getChildren = (id: string) => [
+    ...options.getChildren(id), ...retained.filter(({ habit }) => habit.parentId === id).map(({ habit }) => habit),
+  ]
+  return { knownHabits, progress: { ...options, resolvedModes, getChildren } }
+}
+
+export function computeParentResolutionProgress(
+  parentId: string,
+  habitsById: ReadonlyMap<string, NormalizedHabit>,
+  options: Omit<ParentPromptProgressOptions, 'parentId'>,
+  resolutionSources: ReadonlyMap<string, ParentPromptAncestor>,
+): ParentPromptProgress {
+  const { progress } = parentPromptResolutionContext(habitsById, options, resolutionSources)
+  return computeParentPromptProgress({ ...progress, parentId })
+}
+
 export function computeParentPromptChain(
   childId: string,
   habitsById: ReadonlyMap<string, NormalizedHabit>,
   date: string,
   options: Omit<ParentPromptProgressOptions, 'parentId'>,
+  resolutionSources: ReadonlyMap<string, ParentPromptAncestor> = new Map(),
 ): ParentPromptAncestor[] {
+  const { knownHabits, progress } = parentPromptResolutionContext(habitsById, options, resolutionSources)
+  if (knownHabits.get(childId)?.isBadHabit) return []
   const ancestors: ParentPromptAncestor[] = []
-  const resolvedModes = new Map(options.resolvedModes)
-  let parentId = habitsById.get(childId)?.parentId
+  let parentId = knownHabits.get(childId)?.parentId
   while (parentId) {
-    const parent = habitsById.get(parentId) ?? null
-    const mode = computeParentSettlementDecision(parent, computeParentPromptProgress({
-      ...options, parentId, resolvedModes,
-    }), date)
+    const parent = knownHabits.get(parentId) ?? null
+    const mode = computeParentSettlementDecision(parent, computeParentPromptProgress({ ...progress, parentId }), date)
     if (!parent || !mode) break
     ancestors.push({ habit: parent, mode })
-    resolvedModes.set(parent.id, mode)
+    progress.resolvedModes.set(parent.id, mode)
     parentId = parent.parentId
   }
   return ancestors

@@ -843,5 +843,5 @@ export { getPendingAuthProvider, getAuthCallbackErrorKey } from './auth-login'
 
 export { createAstraAllowanceTranslator, type AstraAllowance } from './astra-allowance'
 
-export { computeParentPromptChain, selectParentPromptAncestor, settleParentPromptChain } from './parent-prompt-chain'
+export { computeParentResolutionProgress, computeParentPromptChain, selectParentPromptAncestor, settleParentPromptChain } from './parent-prompt-chain'
 export type { ParentPromptChain } from './parent-prompt-chain'
