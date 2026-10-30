@@ -69,6 +69,28 @@ async function mountMeasuredSheet(virtualizedBody = false) {
 }
 
 describe('Sheet focused control visibility', () => {
+  it('keeps a typed field clear of the pinned footer when the visual viewport shrinks and pans', async () => {
+    const viewport = Object.assign(new EventTarget(), { height: 740, offsetTop: 0 })
+    vi.stubGlobal('visualViewport', viewport)
+    const { body, setBodyHeight } = await mountMeasuredSheet()
+    const input = screen.getByRole('textbox', { name: 'Title' })
+    vi.spyOn(input, 'getBoundingClientRect').mockImplementation(() => new DOMRect(24, 450 - body.scrollTop, 300, 54))
+    setBodyHeight(400)
+    act(() => {
+      viewport.height = 420
+      viewport.dispatchEvent(new Event('resize'))
+    })
+    expect(input.getBoundingClientRect().bottom).toBeLessThanOrEqual(viewport.height - 76 - 24)
+    const firstScroll = body.scrollTop
+    act(() => {
+      viewport.offsetTop = 20
+      viewport.height = 360
+      viewport.dispatchEvent(new Event('scroll'))
+    })
+    expect(body.scrollTop).toBeGreaterThan(firstScroll)
+    expect(input.getBoundingClientRect().bottom).toBeLessThanOrEqual(viewport.offsetTop + viewport.height - 76 - 24)
+  })
+
   it('preserves a deliberate body scroll when a later resize arrives for the focused control', async () => {
     const { control, body, setControlBounds, resize } = await mountMeasuredSheet()
     setControlBounds(body.getBoundingClientRect().top + 10, 48)

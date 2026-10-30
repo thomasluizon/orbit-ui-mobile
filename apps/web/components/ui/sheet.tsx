@@ -60,6 +60,7 @@ interface WebSheetProps extends SheetProps {
 export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTitle, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const { titleClamped, titleExpanded, onClampedChange, bodyRef, toggleTitle } = useSheetTitleDisclosure(title)
+  const viewportRef = useSheetKeyboardViewport(bodyRef, virtualizedBody)
   const onBodyFocus = useSheetBodyFocusVisibility(virtualizedBody)
   const [presented, setPresented] = useState(true)
   // WHY: A pointer-down menu can mount this sheet before its opening release. https://github.com/thomasluizon/orbit-tickets/issues/577
@@ -138,7 +139,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
         if (!pointerDismissalReady) event.preventDefault()
       }}>
         <Dialog.Backdrop className="orbit-sheet-backdrop" />
-        <Dialog.Viewport className="orbit-sheet-viewport">
+        <Dialog.Viewport ref={viewportRef} className="orbit-sheet-viewport">
           <motion.div className="orbit-sheet-drag-frame" {...drag.frameProps}>
           <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus}>
             <div className="orbit-sheet-grabber-target" aria-hidden="true" onPointerDown={drag.start}><div className="orbit-sheet-grabber" /></div>
@@ -243,12 +244,39 @@ function revealSheetBodyFocus(body: HTMLDivElement) {
   const borderTop = Number.parseFloat(style.borderTopWidth) || 0
   const borderBottom = Number.parseFloat(style.borderBottomWidth) || 0
   const scrollbarHeight = Math.max(0, body.offsetHeight - body.clientHeight - borderTop - borderBottom)
-  const top = bodyBounds.top + borderTop
-  const bottom = bodyBounds.bottom - borderBottom - scrollbarHeight
+  const viewport = window.visualViewport
+  const clearance = focused.matches('input, textarea, [contenteditable="true"]') ? 24 : 0
+  const footer = body.closest('[role="dialog"]')?.querySelector('footer')
+  const viewportBottom = viewport ? viewport.offsetTop + viewport.height - (footer?.getBoundingClientRect().height ?? 0) : Infinity
+  const top = Math.max(bodyBounds.top + borderTop, viewport?.offsetTop ?? 0) + clearance
+  const bottom = Math.min(bodyBounds.bottom - borderBottom - scrollbarHeight, viewportBottom) - clearance
   const delta = bounds.top < top || bounds.height > bottom - top
     ? bounds.top - top
     : Math.max(0, bounds.bottom - bottom)
-  body.scrollTop += delta < 0 ? Math.floor(delta) : Math.ceil(delta)
+  body.scrollTop = Math.max(0, body.scrollTop + (delta < 0 ? Math.floor(delta) : Math.ceil(delta)))
+}
+
+function useSheetKeyboardViewport(bodyRef: RefObject<HTMLDivElement | null>, virtualizedBody: boolean | undefined) {
+  return useCallback((element: HTMLDivElement | null) => {
+    const viewport = window.visualViewport
+    if (!viewport || !element) return
+    const update = () => {
+      element.style.top = `${viewport.offsetTop}px`
+      element.style.height = `${viewport.height}px`
+      element.style.bottom = 'auto'
+      const panel = element.querySelector<HTMLElement>('[role="dialog"]')
+      if (panel) panel.style.maxHeight = `${viewport.height * 0.85}px`
+      if (!virtualizedBody && bodyRef.current) revealSheetBodyFocus(bodyRef.current)
+    }
+    update()
+    viewport.addEventListener('resize', update)
+    const previousScroll = viewport.onscroll
+    viewport.onscroll = event => { previousScroll?.call(viewport, event); update() }
+    return () => {
+      viewport.removeEventListener('resize', update)
+      viewport.onscroll = previousScroll
+    }
+  }, [bodyRef, virtualizedBody])
 }
 
 function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {
