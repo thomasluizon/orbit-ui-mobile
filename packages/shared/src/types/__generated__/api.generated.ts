@@ -207,7 +207,13 @@ export const PostApiAiPendingOperationsIdReviseBody = zod.object({
   "supportsMessageAllowance": zod.boolean().nullish(),
   "supportsPendingOperationPlacement": zod.boolean().nullish(),
   "supportsCompletedHabitsMetric": zod.boolean().nullish(),
-  "supportsSkippedHabitRows": zod.boolean().nullish()
+  "supportsSkippedHabitRows": zod.boolean().nullish(),
+  "previousStartingStep": zod.union([zod.null(),zod.object({
+  "goal": zod.string(),
+  "step": zod.string(),
+  "language": zod.string()
+})]).optional(),
+  "supportsStartingStepContext": zod.boolean().nullish()
 })]).optional()
 })
 
@@ -301,7 +307,13 @@ export const PostApiAiPendingOperationsIdExecuteBody = zod.object({
   "supportsMessageAllowance": zod.boolean().nullish(),
   "supportsPendingOperationPlacement": zod.boolean().nullish(),
   "supportsCompletedHabitsMetric": zod.boolean().nullish(),
-  "supportsSkippedHabitRows": zod.boolean().nullish()
+  "supportsSkippedHabitRows": zod.boolean().nullish(),
+  "previousStartingStep": zod.union([zod.null(),zod.object({
+  "goal": zod.string(),
+  "step": zod.string(),
+  "language": zod.string()
+})]).optional(),
+  "supportsStartingStepContext": zod.boolean().nullish()
 })]).optional()
 })
 
@@ -805,7 +817,13 @@ export const PostApiChatReadsRefreshBody = zod.object({
   "supportsMessageAllowance": zod.boolean().nullish(),
   "supportsPendingOperationPlacement": zod.boolean().nullish(),
   "supportsCompletedHabitsMetric": zod.boolean().nullish(),
-  "supportsSkippedHabitRows": zod.boolean().nullish()
+  "supportsSkippedHabitRows": zod.boolean().nullish(),
+  "previousStartingStep": zod.union([zod.null(),zod.object({
+  "goal": zod.string(),
+  "step": zod.string(),
+  "language": zod.string()
+})]).optional(),
+  "supportsStartingStepContext": zod.boolean().nullish()
 })]).optional(),
   "page": zod.boolean().default(postApiChatReadsRefreshBodyPageDefault)
 })
@@ -2398,7 +2416,13 @@ export const PostApiChatGamificationRefreshBody = zod.object({
   "supportsMessageAllowance": zod.boolean().nullish(),
   "supportsPendingOperationPlacement": zod.boolean().nullish(),
   "supportsCompletedHabitsMetric": zod.boolean().nullish(),
-  "supportsSkippedHabitRows": zod.boolean().nullish()
+  "supportsSkippedHabitRows": zod.boolean().nullish(),
+  "previousStartingStep": zod.union([zod.null(),zod.object({
+  "goal": zod.string(),
+  "step": zod.string(),
+  "language": zod.string()
+})]).optional(),
+  "supportsStartingStepContext": zod.boolean().nullish()
 })]).optional()
 })
 
@@ -2581,7 +2605,13 @@ export const PostApiChatHabitMonthRefreshBody = zod.object({
   "supportsMessageAllowance": zod.boolean().nullish(),
   "supportsPendingOperationPlacement": zod.boolean().nullish(),
   "supportsCompletedHabitsMetric": zod.boolean().nullish(),
-  "supportsSkippedHabitRows": zod.boolean().nullish()
+  "supportsSkippedHabitRows": zod.boolean().nullish(),
+  "previousStartingStep": zod.union([zod.null(),zod.object({
+  "goal": zod.string(),
+  "step": zod.string(),
+  "language": zod.string()
+})]).optional(),
+  "supportsStartingStepContext": zod.boolean().nullish()
 })]).optional()
 })
 
@@ -3420,6 +3450,30 @@ export const PostApiEmailSesEventsHeader = zod.object({
 })
 
 export const PostApiEmailSesEventsResponse = zod.unknown()
+
+
+export const GetApiEvalPendingOperationsHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const getApiEvalPendingOperationsResponsePendingCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const GetApiEvalPendingOperationsResponse = zod.object({
+  "pendingCount": zod.union([zod.int(),zod.stringFormat('int32', getApiEvalPendingOperationsResponsePendingCountRegExpTwo)])
+})
+
+
+export const DeleteApiEvalPendingOperationsHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const deleteApiEvalPendingOperationsResponseCancelledCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const DeleteApiEvalPendingOperationsResponse = zod.object({
+  "cancelledCount": zod.union([zod.int(),zod.stringFormat('int32', deleteApiEvalPendingOperationsResponseCancelledCountRegExpTwo)])
+})
 
 
 export const PostApiEventsTicketHeader = zod.object({
@@ -6141,30 +6195,6 @@ export const PostApiRemindersDoneResponse = zod.object({
   "xpEarned": zod.union([zod.int(),zod.stringFormat('int32', postApiRemindersDoneResponseXpEarnedRegExpTwo)]).nullish(),
   "newAchievementIds": zod.array(zod.string()).nullish(),
   "previousStreak": zod.union([zod.int(),zod.stringFormat('int32', postApiRemindersDoneResponsePreviousStreakRegExpTwo)]).nullish()
-})
-
-
-export const GetApiEvalPendingOperationsHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const getApiEvalPendingOperationsResponsePendingCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
-
-
-export const GetApiEvalPendingOperationsResponse = zod.object({
-  "pendingCount": zod.union([zod.int(),zod.stringFormat('int32', getApiEvalPendingOperationsResponsePendingCountRegExpTwo)])
-})
-
-
-export const DeleteApiEvalPendingOperationsHeader = zod.object({
-  "api-version": zod.string().optional()
-})
-
-export const deleteApiEvalPendingOperationsResponseCancelledCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
-
-
-export const DeleteApiEvalPendingOperationsResponse = zod.object({
-  "cancelledCount": zod.union([zod.int(),zod.stringFormat('int32', deleteApiEvalPendingOperationsResponseCancelledCountRegExpTwo)])
 })
 
 
