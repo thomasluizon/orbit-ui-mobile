@@ -84,6 +84,7 @@ it.each([false, true])('reconciles a nested log from logged=%s before the reques
   let rejectRequest!: (error: Error) => void
   vi.mocked(performQueuedApiMutation).mockImplementationOnce(() => new Promise((_, reject) => { rejectRequest = reject }))
   const { client, key, view } = await mountDay(habit, snapshot.date, snapshot)
+  vi.mocked(apiClient).mockImplementation(() => new Promise(() => {}))
   const initialAction = `chat.habitList.${logged ? 'unlog' : 'log'}:{"name":"Stretch"}`
   const optimisticAction = `chat.habitList.${logged ? 'log' : 'unlog'}:{"name":"Stretch"}`
   const control = view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === initialAction)[0]!
@@ -96,8 +97,9 @@ it.each([false, true])('reconciles a nested log from logged=%s before the reques
   expect(view.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: Number(!logged) * 50 })
   expect(view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === 'chat.habitList.log:{"name":"Habit 1"}')[0]?.props.disabled).toBe(false)
   await act(async () => { rejectRequest(new Error('offline')); await new Promise(resolve => setTimeout(resolve, 10)) })
-  expect(view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === initialAction)[0]?.props.disabled).toBe(false)
+  expect(client.isFetching({ queryKey: key })).toBe(1)
   expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.children[0]?.isLoggedInRange).toBe(logged)
+  expect(view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === initialAction)[0]?.props.disabled).toBe(false)
   expect(renderedText(view.toJSON())).toContain(`chat.daySummary.doneOfDue:{"done":${Number(logged)},"due":2}`)
   expect(view.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: Number(logged) * 50 })
   await act(() => view.unmount()); client.clear()
