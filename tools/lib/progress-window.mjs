@@ -39,27 +39,35 @@ const readTranscript = async (path, visit) => {
 const ownerPrompt = (row) => row.type === "user" && !row.isMeta && !row.isSidechain &&
   row.origin?.kind === "human" && row.turnOrigin === "human"
 
-const ownerProgress = (row) => ownerPrompt(row) && typeof row.message?.content === "string" &&
-  /^<command-message>progress<\/command-message>\s*<command-name>\/progress<\/command-name>(?:\s|$)/.test(row.message.content)
+const ownerCommandPrompt = (row) => row.type === "user" && !row.isMeta && !row.isSidechain &&
+  (typeof row.message?.content === "string" || Array.isArray(row.message?.content) &&
+    row.message.content.every((block) => block.type === "text" && typeof block.text === "string"))
 
-const projectSessions = async (directories, now) => {
+const ownerProgress = (row) => ownerCommandPrompt(row) &&
+  /<command-name>\/(?:progress|wrap-up)<\/command-name>/.test(typeof row.message.content === "string"
+    ? row.message.content : row.message.content.map((block) => block.text).join("\n"))
+
+const projectSessions = async (directories, requiredTranscripts, now) => {
   const sessions = []
   const invocations = new Map()
   const transcripts = directories.flatMap((directory) => existsSync(directory)
     ? readdirSync(directory, { withFileTypes: true }).filter((file) => file.isFile() && file.name.endsWith(".jsonl"))
       .map((file) => ({ sessionId: file.name.slice(0, -6), transcriptPath: join(directory, file.name) })) : [])
-  for (const transcript of transcripts) {
+  const byPath = new Map(transcripts.map((entry) => [resolve(entry.transcriptPath), entry]))
+  for (const entry of requiredTranscripts) byPath.set(resolve(entry.transcriptPath), entry)
+  const commandPaths = new Set(requiredTranscripts.map((entry) => resolve(entry.transcriptPath)))
+  for (const transcript of byPath.values()) {
     const session = { ...transcript, startedAt: null, endedAt: null }
     await readTranscript(session.transcriptPath, (row) => {
       if (Date.parse(row.timestamp) > Date.parse(now)) return
       if (!session.startedAt || Date.parse(row.timestamp) < Date.parse(session.startedAt)) session.startedAt = row.timestamp
       if (!session.endedAt || Date.parse(row.timestamp) > Date.parse(session.endedAt)) session.endedAt = row.timestamp
-      if (ownerPrompt(row) && (!session.lastOwnerTime || Date.parse(row.timestamp) >= Date.parse(session.lastOwnerTime))) {
+      if (ownerCommandPrompt(row) && (!session.lastOwnerTime || Date.parse(row.timestamp) >= Date.parse(session.lastOwnerTime))) {
         session.lastOwnerTime = row.timestamp
         session.lastOwnerProgress = ownerProgress(row)
       }
-      if (!ownerProgress(row)) return
-      const key = `${session.sessionId}:${row.promptId ?? row.uuid}`
+      if (!commandPaths.has(resolve(session.transcriptPath)) || !ownerProgress(row)) return
+      const key = `${session.sessionId}:${row.promptId ?? row.uuid ?? row.timestamp}`
       const previous = invocations.get(key)
       if (!previous || Date.parse(row.timestamp) < Date.parse(previous.time)) {
         invocations.set(key, { sessionId: session.sessionId, time: row.timestamp })
@@ -93,14 +101,14 @@ const chainEntries = async ({ sessionId, repoRoot, transcriptPath, now }) => {
   const state = recorded?.sessionId === currentSessionId ? recorded : null
   const predecessors = chain?.entries.filter((entry) => entry.sessionId !== currentSessionId) ?? []
   const pending = chain?.entries.find((entry) => entry.sessionId === currentSessionId)
-  const transcript = transcriptPath ?? state?.transcriptPath ?? state?.relay?.transcriptPath
+  const transcript = transcriptPath ?? state?.transcriptPath ?? state?.relay?.transcriptPath ?? pending?.transcriptPath
   // Successor adoption ends the predecessor's ownership, including startup overlap.
   const startedAt = predecessors.at(-1)?.endedAt ?? pending?.startedAt ??
     (transcript ? (await readSessionMetrics(transcript)).startedAt : null)
   if (!startedAt) return null
   const decisions = state?.decisionLogPath ? readFileSync(state.decisionLogPath, "utf8") : pending?.decisions ?? ""
   const entries = [...predecessors, { sessionId: currentSessionId, startedAt, endedAt: now,
-    decisions, openOwnerQuestions: state?.openOwnerQuestions ?? pending?.openOwnerQuestions ?? [] }]
+    transcriptPath: transcript, decisions, openOwnerQuestions: state?.openOwnerQuestions ?? pending?.openOwnerQuestions ?? [] }]
   let previousStart = -Infinity
   for (const entry of entries) {
     const start = timestamp(entry.startedAt, `${entry.sessionId} startedAt`)
@@ -110,8 +118,8 @@ const chainEntries = async ({ sessionId, repoRoot, transcriptPath, now }) => {
     }
     previousStart = start
   }
-  return entries.map(({ sessionId, startedAt, endedAt, decisions, openOwnerQuestions }) => ({
-    sessionId, startedAt, endedAt, decisions: decisions ?? "", openOwnerQuestions: openOwnerQuestions ?? [],
+  return entries.map(({ sessionId, startedAt, endedAt, transcriptPath, decisions, openOwnerQuestions }) => ({
+    sessionId, startedAt, endedAt, transcriptPath, decisions: decisions ?? "", openOwnerQuestions: openOwnerQuestions ?? [],
     merges: [], releases: [], closedTickets: [],
   }))
 }
@@ -122,12 +130,19 @@ const progressEntries = async ({ sessionId, repoRoot, transcriptPath, transcript
   const state = readRunState(repoRoot)
   const currentSessionId = chain?.at(-1).sessionId ?? sessionId
   transcriptPath ??= state?.sessionId === currentSessionId ? state.transcriptPath ?? state.relay?.transcriptPath : undefined
-  const project = await projectSessions(transcriptsDirectory ? [transcriptsDirectory] : transcriptDirectories(repoRoot, transcriptPath), now)
+  const directories = transcriptsDirectory ? [transcriptsDirectory] : transcriptDirectories(repoRoot, transcriptPath)
+  transcriptPath ??= chain?.at(-1).transcriptPath ?? directories.map((directory) => join(directory, `${currentSessionId}.jsonl`)).find(existsSync)
+  const requiredTranscripts = (openSessionChain(sessionId, repoRoot)?.entries ?? chain ?? []).filter((entry) => entry.transcriptPath).map((entry) => ({
+    sessionId: entry.sessionId, transcriptPath: entry.transcriptPath,
+  }))
+  if (transcriptPath) requiredTranscripts.push({ sessionId: currentSessionId, transcriptPath })
+  const project = await projectSessions(directories, requiredTranscripts, now)
   const latest = project.commands.at(-1)
   const currentInvocation = project.commands.findLast((command) => command.sessionId === currentSessionId)
   // A nested skill call has no owner command of its own to skip.
   const currentCommand = currentInvocation &&
-    project.sessions.find((entry) => entry.sessionId === currentSessionId)?.lastOwnerProgress
+    project.sessions.find((entry) => entry.sessionId === currentSessionId &&
+      resolve(entry.transcriptPath) === resolve(transcriptPath))?.lastOwnerProgress
   const previous = currentCommand
     ? project.commands.findLast((command) => Date.parse(command.time) < Date.parse(currentInvocation.time)) : latest
   const baselineTime = previous?.time ?? chain?.[0].startedAt ?? project.sessions.find((entry) => entry.sessionId === currentSessionId)?.startedAt
@@ -213,7 +228,7 @@ export const collectProgressWindow = async ({ sessionId, repoRoot, transcriptPat
   for (const entry of entries) {
     for (const kind of ["merges", "releases", "closedTickets", "createdTickets"]) entry[kind].sort((left, right) => left.time.localeCompare(right.time) || left.id - right.id)
   }
-  return { baseline: "available", baselineSource, sessionId: currentSessionId, window: { startedAt, endedAt: now, localStartedAt: new Date(startedAt).toLocaleString(undefined, { timeZoneName: "short" }) }, entries }
+  return { baseline: "available", baselineSource, sessionId: currentSessionId, window: { startedAt, endedAt: now, baselineSource, localStartedAt: new Date(startedAt).toLocaleString(undefined, { timeZoneName: "short" }) }, entries }
 }
 
 const collectSource = (entries, source, pages, now, startedAt) => {

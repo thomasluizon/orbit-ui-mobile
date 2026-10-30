@@ -1,6 +1,6 @@
 ---
 name: progress
-description: Answer "what happened" in product terms from live state. Defaults to everything since the previous owner-typed /progress across sessions and repositories; --full adds the whole effort's spec below it. Use when he asks for a progress update, how something is going, or says /progress.
+description: Answer "what happened" in product terms from live state. Defaults to everything since the previous owner-typed /progress or /wrap-up in the open chain and current session; --full adds the whole effort's spec below it. Use when he asks for a progress update, how something is going, or says /progress.
 argument-hint: "[--full] [optional area, for example \"calendar\" or \"perfil\"]"
 effort: medium
 ---
@@ -26,14 +26,19 @@ He is not asking which tickets closed. Numbers are how the work is tracked, not 
 
 | invocation | what it answers |
 |---|---|
-| `/progress` | what changed since the previous owner-typed `/progress` across every session and repository |
+| `/progress` | what changed since the previous owner-typed `/progress` or `/wrap-up` in the proven transcripts, across repositories |
 | `/progress --full` | the default scope first, then the whole effort below it |
 | `/progress <area>` | the same, narrowed to one screen or surface |
 
-The previous owner-typed `/progress` is the boundary, including work before the current chain
-started. With no earlier invocation, use the open chain start, then the current session start.
-State which baseline was used. Skip the current invocation and deduplicate rows of one owner
-prompt. Skill expansions, tool results and model-invoked `/progress` calls do not set the boundary.
+The boundary is the most recent earlier owner-typed `/progress` or `/wrap-up` in every open chain
+entry's `transcriptPath` and the current session transcript. Both commands report progress to the
+owner. An owner command is a `type: "user"` row without `isMeta` or `isSidechain`, whose message
+contains `<command-name>/progress</command-name>` or `<command-name>/wrap-up</command-name>`.
+Tool-result blocks never count. No origin metadata is required. If the current transcript's last
+owner message is either command, exclude that invocation and deduplicate rows of the same prompt.
+Commands in unrelated project transcripts do not set the boundary. With no earlier invocation,
+use the open chain start, then the current session start. State which baseline was used. A missing
+recorded transcript is an error to report, never evidence that no previous command exists.
 
 First get the exact current session id from `currentRunIdentifier()` in
 `tools/lib/identifier-ledger.mjs`, then run:
@@ -43,10 +48,11 @@ node tools/progress-window.mjs --session <current-session-id> --transcript <curr
 ```
 
 The transcript flag is optional when the run record or the project transcript directory names
-it. The helper scans the project's top-level transcripts and reads live merges in every configured
-repository, web, API and landing release runs, Android uploads, and closed and newly created
-tickets from `window.startedAt` through now. `baselineSource` names `previous-progress`,
-`chain-start` or `session-start`. Its `entries` include every overlapping session, archived chains
+it. The helper reads all recorded chain transcript paths, discovers the current transcript in the
+project directory when needed, and reads live merges in every configured repository, web, API and landing release runs, Android uploads, and closed and newly created
+tickets from `window.startedAt` through now. `window.baselineSource` and top-level `baselineSource`
+name `previous-progress`, `chain-start` or `session-start`. The previous command timestamp is
+`window.startedAt`. Its `entries` include every overlapping session, archived chains
 and the current session last. Work between sessions has a null session id and still belongs in
 the report. This is evidence of work during the window, not proof that the orchestrator authored
 every change.
@@ -54,10 +60,12 @@ every change.
 `window.startedAt` is the ISO UTC boundary for the whole report.
 Start the answer's first line with that window start in the owner's local time, using
 `window.localStartedAt` when the machine uses that timezone, otherwise converting `window.startedAt`
-to the owner's known timezone. Name the fallback when no previous report exists.
+to the owner's known timezone. Name the previous command or fallback source alongside that timestamp. With a chain fallback,
+say that no earlier owner progress command was found in the proven transcripts.
 
-Read every entry's merges, releases, closed and created tickets, decisions and owner questions
-with equal weight. For sessions without a decision log, derive decisions and owner questions from
+Entries that ended before the window are dropped. Every overlapping chain entry retains its
+complete decisions and owner questions; merges, releases and tickets are included only from the
+window start. Read those sources with equal weight. For sessions without a decision log, derive decisions and owner questions from
 the fallback `conversation`. It carries only owner-typed prompts and assistant text replies within
 the window, each capped at 1,500 characters plus a visible truncation marker. Tool results, system
 notifications and skill bodies are excluded. Entries with non-empty `decisions` omit `conversation`.
