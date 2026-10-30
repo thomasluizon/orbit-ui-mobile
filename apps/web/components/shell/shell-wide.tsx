@@ -51,7 +51,7 @@ function getConversationReturnTarget(target: HTMLElement): HTMLElement {
 type WebShellWideItem = ShellWideItem & { href: string }
 
 type WithDestinationHrefs<Props> = Props extends { items: ShellWideItem[] }
-  ? Omit<Props, 'items'> & { items: WebShellWideItem[] }
+  ? Omit<Props, 'items'> & { items: WebShellWideItem[]; themeAction?: ReactNode }
   : Props
 
 type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; compactComposer?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; fabPending?: boolean; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
@@ -157,7 +157,7 @@ function SidebarSearch({ onPalette, paletteLabel, paletteHint, collapsed }: Read
         ) : null}</>
 }
 
-function SidebarBrandRow({ collapsed, navigationId, notifications }: Readonly<{ collapsed: boolean; navigationId: string; notifications?: ReactNode }>) {
+function SidebarBrandRow({ collapsed, navigationId, notifications, themeAction }: Readonly<{ collapsed: boolean; navigationId: string; notifications?: ReactNode; themeAction?: ReactNode }>) {
   const client = useIsClient()
   const t = useTranslations()
   const toggleSidebar = useShellStore(state => state.toggleSidebar)
@@ -179,11 +179,14 @@ function SidebarBrandRow({ collapsed, navigationId, notifications }: Readonly<{ 
 
   return (
     <div data-shell-brand-row="" data-focus-inset="" className={`flex min-h-12 flex-col gap-3 ${collapsed ? 'items-center px-6' : 'items-start ps-6 pe-3'}`}>
-      <span className={collapsed ? 'sr-only' : 'shrink-0'}><Lockup /></span>
+      <div className={collapsed ? 'sr-only' : 'flex w-full items-center justify-between gap-3'}>
+        <span className="shrink-0"><Lockup /></span>
+        {!collapsed ? themeAction : null}
+      </div>
       <div className={`flex items-center gap-3 ${collapsed ? 'flex-col' : 'self-end'}`}>
         {!collapsed && notifications ? <span key="notifications" className="flex shrink-0 items-center gap-3">{notifications}</span> : null}
         {sidebarToggle}
-        {collapsed && notifications ? <span key="notifications" className="flex shrink-0 flex-col items-center gap-3">{notifications}</span> : null}
+        {collapsed && (themeAction || notifications) ? <span key="notifications" className="flex shrink-0 flex-col items-center gap-3">{themeAction}{notifications}</span> : null}
       </div>
     </div>
   )
@@ -209,7 +212,7 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
       className={`z-sticky hidden h-dvh ${collapsed ? 'w-[96px]' : 'w-[232px]'} shrink-0 flex-col overflow-y-auto bg-[var(--bg)] py-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex`}
     >
       <div className="flex flex-col gap-6">
-        <SidebarBrandRow collapsed={collapsed} navigationId={navigationId} notifications={props.notifications} />
+        <SidebarBrandRow collapsed={collapsed} navigationId={navigationId} notifications={props.notifications} themeAction={props.themeAction} />
 
         <div className="flex flex-col gap-6 px-6">
           <SidebarSearch onPalette={props.onPalette} paletteLabel={props.paletteLabel} paletteHint={props.paletteHint} collapsed={collapsed} />
