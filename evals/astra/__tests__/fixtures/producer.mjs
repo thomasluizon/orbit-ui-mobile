@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 
-const { tools, legacyTools } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
+const { tools, legacyTools, postReadTools } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
 const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
 
 // StrictToolSchema requires nullable properties; composition reads require completion; traces omit marked fields.
@@ -28,7 +28,7 @@ function omitSensitiveFields(value, sensitiveFields) {
 
 // Contract: orbit-api 5e376417, ChatResponse, ChatEvalTrace and AiToolCallResult.
 export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1', clientContext = {}) {
-  const catalog = clientContext.supportsParts === true ? tools : legacyTools
+  const catalog = clientContext.supportsParts === true ? [...tools, ...postReadTools] : legacyTools
   const tool = catalog.find((entry) => entry.function.name === name)
   const sensitiveFields = new Set(tool?.sensitiveFields)
   return {
