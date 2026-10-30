@@ -623,7 +623,7 @@ export function useSkipHabit() {
         clearCachedOptimisticSkip(queryClient, input.habitId, context.skippedDate)
         if (!isQueuedResult(result?.outcome)) checkCompletionAfterSkip(queryClient,
           [{ habitId: input.habitId, date: context.skippedDate }], queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone,
-          useUIStore.getState().checkAllDoneCelebration)
+          useUIStore.getState().checkAllDoneCelebration, context.previousLists)
       }
       finalizeHabitMutation(queryClient, result?.outcome, error, {
         habitId: input.habitId, includeCount: false, includeGoals: true, includeProfile: true, includeGamification: true,
@@ -1620,7 +1620,7 @@ export function useBulkSkipHabits() {
       for (const habitId of data.queuedIds) failedIds.add(habitId)
       const confirmed = settleBulkSkippedHabits(queryClient, items, context.previousLists, failedIds, context.occurrenceDate)
       checkCompletionAfterSkip(queryClient, confirmed, queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone,
-        useUIStore.getState().checkAllDoneCelebration)
+        useUIStore.getState().checkAllDoneCelebration, context.previousLists)
     },
 
     onSettled: (data, error, _items, context) => {

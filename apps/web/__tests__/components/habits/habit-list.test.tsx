@@ -2197,6 +2197,25 @@ describe('HabitList', () => {
     expect(screen.queryByText('habits.nothingOpen')).not.toBeInTheDocument()
   })
 
+  it.each([false, true])('retains every bulk departure when selection closes before the exit finishes, reduced=%s', async (reduced) => {
+    vi.useFakeTimers()
+    const matchMedia = globalThis.matchMedia
+    vi.stubGlobal('matchMedia', (query: string) => ({ ...matchMedia(query), matches: query === '(prefers-reduced-motion: reduce)' && reduced }))
+    const habits = ['first', 'second', 'third'].map((id) => createMockHabit({ id, scheduledDates: [TODAY] }))
+    for (const habit of habits) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = habits
+    const view = renderWithProviders(<HabitList filters={defaultFilters} isSelectMode />)
+    mockHabitsData.topLevelHabits = []
+    mockHabitsData.habitsById = new Map()
+    view.rerenderWithProviders(<HabitList filters={defaultFilters} isSelectMode={false} />)
+    expect(view.container.querySelectorAll('[data-list-motion][inert]')).toHaveLength(3)
+    await act(() => vi.advanceTimersByTime(reduced ? 120 : 160))
+    expect(view.container.querySelectorAll('[data-list-motion]')).toHaveLength(0)
+    view.unmount()
+    vi.stubGlobal('matchMedia', matchMedia)
+    vi.useRealTimers()
+  })
+
   it.each([false, true])('shows immediate completion feedback before leaving with reduced motion=%s', (reduced) => {
     vi.useFakeTimers()
     const matchMedia = globalThis.matchMedia

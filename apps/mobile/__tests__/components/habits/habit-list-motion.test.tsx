@@ -50,3 +50,27 @@ it('restores a departing row and discards retained rows on account replacement',
   expect(tree.root.findAllByType('AnimatedView')).toHaveLength(0)
   await act(() => tree.unmount())
 })
+
+it('keeps measured rows moving when a virtualized row above them has no measurement', async () => {
+  const unmeasured = { id: 'offscreen' }
+  const first = { id: 'first' }
+  const second = { id: 'second' }
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<List items={[unmeasured, first, second]} />) })
+  const row = (id: string) => tree.root.findAllByType('AnimatedView').find((entry) => entry.props.testID === `habit-motion-${id}`)!
+  const measureRow = (id: string, height: number) => {
+    const onLayout = row(id).props.onLayout as (event: { nativeEvent: { layout: { height: number } } }) => void
+    onLayout({ nativeEvent: { layout: { height } } })
+  }
+  await act(() => {
+    measureRow(first.id, 100)
+    measureRow(second.id, 120)
+  })
+  expect(tree.root.findAllByType(HabitListMotionRow).find((entry) => entry.props.id === second.id)!.props.offset).toBe(100)
+  withTimingCalls.length = 0
+  await act(() => { tree.update(<List items={[unmeasured, second, first]} />) })
+  const offsets = tree.root.findAllByType(HabitListMotionRow).map((entry) => entry.props.offset)
+  expect(offsets.slice(1)).toEqual([0, 120])
+  expect(withTimingCalls.filter((call) => call.value === 0).length).toBeGreaterThan(3)
+  await act(() => tree.unmount())
+})

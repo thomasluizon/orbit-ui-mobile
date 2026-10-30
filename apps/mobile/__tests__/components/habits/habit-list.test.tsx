@@ -5608,6 +5608,25 @@ describe('HabitList', () => {
   })
 
   describe('today view scroll offset wiring', () => {
+    it.each(['date', 'account'] as const)('keeps the mounted viewport measurement after a %s scope change without another layout event', async (scope) => {
+      seedHabits([createMockHabit({ id: 'first', scheduledDates: [TODAY] })])
+      const content = (selectedDate = new Date(`${TODAY}T12:00:00Z`)) => <HabitList view="today" filters={{}} selectedDate={selectedDate} showCompleted onCreatePress={vi.fn()} />
+      let tree!: ReturnType<typeof TestRenderer.create>
+      await TestRenderer.act(() => { tree = createTestTree(content()) })
+      const list = tree.root.findByType('DraggableFlatList')
+      TestRenderer.act(() => {
+        list.props.onLayout({ nativeEvent: { layout: { width: 412, height: 300, x: 0, y: 0 } } })
+        list.props.onScrollOffsetChange(650)
+      })
+      if (scope === 'account') TestRenderer.act(() => { advanceAccountGeneration() })
+      const date = scope === 'date' ? new Date(`${TOMORROW}T12:00:00Z`) : undefined
+      await TestRenderer.act(() => { tree.update(content(date)) })
+      expect(StyleSheet.flatten(tree.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(300)
+      TestRenderer.act(() => { tree.root.findByType('DraggableFlatList').props.onScrollOffsetChange(100) })
+      expect(StyleSheet.flatten(tree.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(400)
+      await TestRenderer.act(() => tree.unmount())
+    })
+
     it('retains every bulk departing row and the scrolled viewport through removal', async () => {
       vi.useFakeTimers()
       seedHabits(['first', 'second', 'third'].map((id) => createMockHabit({ id, scheduledDates: [TODAY] })))

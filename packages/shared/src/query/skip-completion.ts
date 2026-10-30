@@ -13,6 +13,7 @@ export function checkCompletionAfterSkip(
   confirmed: readonly BulkSkipItemRequest[],
   timeZone: string | null | undefined,
   check: UIStoreState['checkAllDoneCelebration'],
+  snapshots: HabitListSnapshots,
 ): void {
   const today = getAccountDay(new Date(), timeZone)
   const skippedIds = new Set(confirmed.filter((item) => !item.date || item.date === today).map((item) => item.habitId))
@@ -20,6 +21,14 @@ export function checkCompletionAfterSkip(
   const items = getTodayHabitList(queryClient, today)
   if (!items) return
   const habits = normalizeHabits(items)
+  const previous = normalizeHabits(snapshots.flatMap(([, habits]) => habits ?? []))
+  for (const id of skippedIds) {
+    const skipped = previous.get(id)
+    if (skipped && !habits.has(id)) habits.set(id, skipped)
+  }
+  for (const [id, habit] of habits) {
+    if (habit.parentId && !habits.has(habit.parentId)) habits.set(id, { ...habit, parentId: null })
+  }
   check(habits, buildChildrenIndex(habits), today, timeZone, skippedIds)
 }
 

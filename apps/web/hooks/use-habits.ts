@@ -425,7 +425,7 @@ export function useSkipHabit() {
       if (context) {
         clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
         checkCompletionAfterSkip(queryClient, [{ habitId, date: context.skippedDate }],
-          queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone, useUIStore.getState().checkAllDoneCelebration)
+          queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone, useUIStore.getState().checkAllDoneCelebration, context.previousLists)
       }
       invalidateHabitDependents(queryClient, habitId)
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
@@ -974,7 +974,7 @@ export function useBulkSkipHabits() {
       const rejectedIds = new Set([...result.ambiguousIds, ...items.filter((item) => !acceptedIds.has(item.habitId)).map((item) => item.habitId)])
       const confirmed = settleBulkSkippedHabits(queryClient, items, context.previousLists, rejectedIds, context.occurrenceDate)
       checkCompletionAfterSkip(queryClient, confirmed, queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone,
-        useUIStore.getState().checkAllDoneCelebration)
+        useUIStore.getState().checkAllDoneCelebration, context.previousLists)
     },
 
     onSettled: () => {

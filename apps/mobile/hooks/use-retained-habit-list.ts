@@ -49,11 +49,11 @@ export function useRetainedHabitList<T extends { id: string }>(items: T[], scope
     if (previous.get(id) === height) return previous
     return new Map(previous).set(id, height)
   })
-  let offset: number | null = 0
+  let offset = 0
   const rows = entries.map((entry) => {
-    const row = { ...entry, offset }
     const height = measurements.get(entry.item.id)
-    offset = height === undefined || offset === null ? null : offset + height
+    const row = { ...entry, offset: height === undefined ? null : offset }
+    offset += height ?? 0
     return row
   })
   const presentedItems = useMemo(() => entries.map((entry) => entry.item), [entries])

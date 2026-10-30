@@ -1371,42 +1371,29 @@ export function HabitList({
 
     if (view === 'all') return <>{habits.length === 0 ? renderEmptyList() : null}{renderAllHabitGroups()}</>
 
-    if (isDndEnabled) {
-      return (
-        <DndContext
-          id={dndContextId}
-          accessibility={dragAccessibility}
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={activeDragItems.map((item) => item.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className={isDragging ? 'is-dragging flex flex-col' : 'flex flex-col'} style={{ gap: 12 }}>
-              {habits.length === 0 ? renderEmptyList() : null}
-              <ListPresence>{activeDragPanels.map((panel) => (
-                <ListMotionItem key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
-                  {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, true))}
-                </ListMotionItem>
-              ))}</ListPresence>
-            </div>
-          </SortableContext>
-        </DndContext>
-      )
-    }
-
     return (
-      <div className="flex flex-col" style={{ gap: 12 }}>
-        {habits.length === 0 ? renderEmptyList() : null}
-        <ListPresence>{dragPanels.map((panel) => (
-          <ListMotionItem key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
-            {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, false))}
-          </ListMotionItem>
-        ))}</ListPresence>
-      </div>
+      <DndContext
+        id={dndContextId}
+        accessibility={dragAccessibility}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={activeDragItems.map((item) => item.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className={isDragging ? 'is-dragging flex flex-col' : 'flex flex-col'} style={{ gap: 12 }}>
+            {habits.length === 0 ? renderEmptyList() : null}
+            <ListPresence>{(isDndEnabled ? activeDragPanels : dragPanels).map((panel) => (
+              <ListMotionItem key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
+                {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, isDndEnabled))}
+              </ListMotionItem>
+            ))}</ListPresence>
+          </div>
+        </SortableContext>
+      </DndContext>
     )
   }
 
