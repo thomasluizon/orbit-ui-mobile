@@ -9,6 +9,7 @@ import { buildPromptPage } from '@orbit/shared/chat/prompt-library'
 import { createUsePromptLibrary, groupPromptIdeas, type PromptIdeaGroup } from '@orbit/shared/chat/prompt-library-core'
 import type { ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { motionDurations, motionEasings, motionLayerTiming, SPACING } from '@orbit/shared/theme'
+import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { Input } from '@/components/ui/input'
 import { ActionRow } from '@/components/ui/action-row'
 import { AppBar } from '@/components/ui/app-bar'
@@ -69,13 +70,13 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
   return <Animated.View testID="prompt-library" pointerEvents={visibleLayer ? 'auto' : 'none'} accessibilityElementsHidden={!visibleLayer} importantForAccessibility={visibleLayer ? 'auto' : 'no-hide-descendants'} style={[styles.layer, { backgroundColor: tokens.bg, paddingBottom: insets.bottom, opacity: progress, transform: [{ translateX: reducedMotion ? 0 : progress.interpolate({ inputRange: [0, 1], outputRange: [motionLayerTiming.routeShift, 0] }) }] }]}>
     <AppBar title={t('chat.templates.title')} titleVariant="screen" titleRef={headingRef} onBack={props.onBack} backLabel={t('chat.templates.back')} />
     <ShellContent style={{ flex: 1 }}>
-    <View style={styles.controls}>
+    <KeyboardAwareScrollView avoidKeyboard={false} style={{ flexGrow: 0 }} containerStyle={{ flex: 0, flexShrink: 1 }} contentContainerStyle={styles.controls}>
       {props.disabledReason ? <CapacityNotice message={props.disabledReason} /> : null}
       <Input kind="search" autoComplete="off" hideLabel label={t('chat.templates.search')} placeholder={t('chat.templates.search')} value={query} onChange={value => dispatch({ type: 'query', query: value })} />
       <ScrollView horizontal persistentScrollbar showsHorizontalScrollIndicator style={{ flexGrow: 0 }} testID="prompt-categories" contentContainerStyle={styles.categories} keyboardShouldPersistTaps="handled">
         {categories.map(item => <Chip key={item} active={item === activeCategory && !query.trim()} onPress={() => { dispatch({ type: 'category', category: item }) }}>{t(`chat.templates.categories.${item}`)}</Chip>)}
       </ScrollView>
-    </View>
+    </KeyboardAwareScrollView>
     <ScrollView style={{ flex: 1 }} testID="prompt-results" contentContainerStyle={{ paddingVertical: SPACING.s16, gap: SPACING.s24 }} keyboardShouldPersistTaps="handled">
       {props.suggestions.length > 0 && !query.trim() ? <View role="group" accessibilityLabel={t('chat.templates.forYou')}>
         <Text accessibilityRole="header" style={[styles.groupTitle, { color: tokens.fg1 }]}>{t('chat.templates.forYou')}</Text>

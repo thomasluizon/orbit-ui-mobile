@@ -1,0 +1,74 @@
+'use client'
+
+import { useLayoutEffect, type RefObject } from 'react'
+
+const subscriptions = new WeakMap<VisualViewport, { listeners: Set<() => void>; cleanup: () => void }>()
+
+export function subscribeKeyboardViewport(viewport: VisualViewport, listener: () => void) {
+  let subscription = subscriptions.get(viewport)
+  if (!subscription) {
+    const listeners = new Set<() => void>()
+    const notify = () => listeners.forEach(callback => callback())
+    const previousScroll = viewport.onscroll
+    const onScroll: NonNullable<VisualViewport['onscroll']> = event => {
+      previousScroll?.call(viewport, event)
+      notify()
+    }
+    viewport.onscroll = onScroll
+    viewport.addEventListener('resize', notify)
+    subscription = { listeners, cleanup: () => {
+      viewport.removeEventListener('resize', notify)
+      if (viewport.onscroll === onScroll) viewport.onscroll = previousScroll
+    } }
+    subscriptions.set(viewport, subscription)
+  }
+  subscription.listeners.add(listener)
+  return () => {
+    subscription.listeners.delete(listener)
+    if (subscription.listeners.size) return
+    subscriptions.delete(viewport)
+    subscription.cleanup()
+  }
+}
+
+function revealField(root: HTMLElement, viewport: VisualViewport) {
+  const field = root.ownerDocument.activeElement
+  if (!(field instanceof HTMLElement) || !root.contains(field) || !field.matches('input, textarea, [contenteditable="true"]')) return
+  for (let parent = field.parentElement; parent && root.contains(parent); parent = parent.parentElement) {
+    if (!/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) continue
+    const bounds = field.getBoundingClientRect()
+    const container = parent.getBoundingClientRect()
+    const top = Math.max(container.top + parent.clientTop, viewport.offsetTop) + 24
+    const bottom = Math.min(container.top + parent.clientTop + parent.clientHeight, viewport.offsetTop + viewport.height) - 24
+    const delta = bounds.top < top || bounds.height > bottom - top ? bounds.top - top : Math.max(0, bounds.bottom - bottom)
+    parent.scrollTop = Math.max(0, parent.scrollTop + (delta < 0 ? Math.floor(delta) : Math.ceil(delta)))
+  }
+}
+
+export function useKeyboardViewport(rootRef: RefObject<HTMLDivElement | null>) {
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    const viewport = window.visualViewport
+    if (!root || !viewport) return
+    const update = () => {
+      root.style.height = `${viewport.height}px`
+      root.style.minHeight = `${viewport.height}px`
+      revealField(root, viewport)
+    }
+    const observer = new ResizeObserver(update)
+    const focus = (event: FocusEvent) => {
+      observer.disconnect()
+      observer.observe(root)
+      if (event.target instanceof HTMLElement) observer.observe(event.target)
+      update()
+    }
+    update()
+    const unsubscribe = subscribeKeyboardViewport(viewport, update)
+    root.addEventListener('focusin', focus)
+    return () => {
+      unsubscribe()
+      observer.disconnect()
+      root.removeEventListener('focusin', focus)
+    }
+  }, [rootRef])
+}

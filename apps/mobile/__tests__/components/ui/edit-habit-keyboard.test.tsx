@@ -65,7 +65,7 @@ describe('Edit habit keyboard reachability', () => {
     expect(input).toBeDefined()
     const viewportTop = 64
     const viewportHeight = height - viewportTop - footerHeight
-    const inputHeight = fontScale * 54
+    const inputHeight = Math.max(54, fontScale * 24 + 24)
     const contentHeight = viewportHeight + 300
     let scrollY = contentHeight - viewportHeight
     __setMeasureInWindowImpl((callback, _props, name) => name === 'ScrollView'
@@ -87,6 +87,7 @@ describe('Edit habit keyboard reachability', () => {
       scroller.props.onContentSizeChange?.(width, contentHeight + StyleSheet.flatten(scroller.props.contentContainerStyle).paddingBottom)
     })
     const inputBottom = contentHeight + viewportTop - scrollY
+    expect(inputBottom - inputHeight).toBeGreaterThanOrEqual(viewportTop + 24)
     expect(inputBottom).toBeLessThanOrEqual(keyboardTop - footerHeight - 24)
     TestRenderer.act(() => input.props.onChangeText('Another item'))
     expect(tree!.root.findAllByType('TextInput').find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'habits.form.checklistPlaceholder')!.props.value).toBe('Another item')

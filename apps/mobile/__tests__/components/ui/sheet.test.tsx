@@ -529,7 +529,7 @@ describe('Sheet (mobile)', () => {
     vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => setTimeout(() => callback(0), 0))
     vi.useFakeTimers()
     const scrollTo = vi.fn()
-    __setMeasureInWindowImpl((callback) => callback(0, 620, 100, 54))
+    __setMeasureInWindowImpl((callback, _props, name) => name === 'ScrollView' ? callback(0, 0, 360, 740) : callback(0, 620, 100, 54))
     __setScrollToImpl(scrollTo)
     let tree: ReturnType<typeof TestRenderer.create>
 

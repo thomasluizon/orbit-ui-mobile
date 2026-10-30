@@ -9,7 +9,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
 import { ShellHeaderSlotProvider, useShellHeaderHost } from './shell-header-slot'
-import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
+import { KeyboardAwareSheetScrollView, KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
 import { ShellScrollToTopSlotProvider, useShellScrollToTopHost } from './shell-scroll-to-top-slot'
 import { ShellFocusTargetContext, ShellListFocusContext } from './shell-focus-target'
 import { useShellContentStyle } from './shell-side-insets'
@@ -28,7 +28,7 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{
     const { height, contentHeight } = viewportSize.current
     viewportRef.current?.scrollTo({ y: floating ? Math.max(0, contentHeight - height) : 0, animated: false })
   }
-  return <ScrollView
+  return <KeyboardAwareSheetScrollView
     ref={viewportRef}
     testID="shell-bottom-viewport"
     style={[floating ? styles.bottomViewport : styles.pinnedSlot, { minHeight: minimumHeight }]}
@@ -38,7 +38,7 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{
     nestedScrollEnabled={floating}
     onLayout={event => { viewportSize.current.height = event.nativeEvent.layout.height; revealBottomControls() }}
     onContentSizeChange={(_width, height) => { viewportSize.current.contentHeight = height; revealBottomControls() }}
-  ><View style={[styles.bottomContent, !floating && styles.plainBottomContent]}>{children}</View></ScrollView>
+  ><View style={[styles.bottomContent, !floating && styles.plainBottomContent]}>{children}</View></KeyboardAwareSheetScrollView>
 }
 
 function ShellBottomChrome({
@@ -123,7 +123,7 @@ function FlowViewport({ enabled, constrained, minimumHeight, revealEnd, children
     wasRecovering.current = recovering
   }, [recovering, revealTrailingControls])
   return (
-    <ScrollView
+    <KeyboardAwareSheetScrollView
       ref={viewportRef}
       testID="shell-flow-viewport"
       scrollEnabled={enabled && constrained}
@@ -142,7 +142,7 @@ function FlowViewport({ enabled, constrained, minimumHeight, revealEnd, children
         : styles.flowViewportContent}
     >
       {children}
-    </ScrollView>
+    </KeyboardAwareSheetScrollView>
   )
 }
 
@@ -261,7 +261,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
         >
           {header !== undefined ? (
             navigationEnabled ? <View testID="shell-header" onLayout={event => viewport.setHeaderHeight(event.nativeEvent.layout.height)}><ShellContent>{header}</ShellContent></View> : (
-              <ScrollView testID="shell-header" style={[styles.pinnedSlot, styles.flowHeader]} keyboardShouldPersistTaps="handled"><ShellContent>{header}</ShellContent></ScrollView>
+              <KeyboardAwareSheetScrollView testID="shell-header" style={[styles.pinnedSlot, styles.flowHeader]} keyboardShouldPersistTaps="handled"><ShellContent>{header}</ShellContent></KeyboardAwareSheetScrollView>
             )
           ) : null}
 

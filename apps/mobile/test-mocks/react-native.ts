@@ -329,7 +329,7 @@ export const Keyboard = {
   scheduleLayoutAnimation: () => {},
 }
 
-export function __emitKeyboardEvent(event: string, payload?: unknown) {
+export function __emitKeyboardEvent(event: string, payload: unknown = { duration: 0, easing: 'keyboard', endCoordinates: { screenX: 0, screenY: windowDimensions.height - 300, width: windowDimensions.width, height: 300 } }) {
   if (event === 'keyboardDidShow' || event === 'keyboardWillShow') keyboardMetrics = (payload as { endCoordinates: { screenY: number } }).endCoordinates
   if (event === 'keyboardDidHide' || event === 'keyboardWillHide') keyboardMetrics = undefined
   for (const listener of keyboardListeners.get(event) ?? []) {

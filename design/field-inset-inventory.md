@@ -74,7 +74,6 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/habits/habit-detail-fields.tsx` | 78 | `TextInput` | inline add | 12 |
 | `apps/mobile/components/habits/habit-detail-fields.tsx` | 144 | `Input` | standard | 16 |
 | `apps/mobile/components/habits/habit-detail-screen.tsx` | 187 | `TextInput` | heading | 0; title alignment |
-| `apps/mobile/components/habits/habit-form-fields/buffered-sheet-input.tsx` | 68 | `BottomSheetAppTextInput` | forwarder | 16 default; caller style forwarded |
 | `apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx` | 108 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habits/habit-form-fields/habit-understanding.tsx` | 69 | `TypedTextInput` | sentence | 16 |
 | `apps/mobile/components/habits/habit-form-fields/reminder-section.tsx` | 198 | `BottomSheetAppTextInput` | inline add | 12 |

@@ -6,6 +6,7 @@ import {
   __resetTestHostConfig,
   __setHostRefsNull,
   __setMeasureInWindowImpl,
+  __setScrollToImpl,
 } from '../../../test-mocks/react-native'
 import {
   KeyboardAwareFlatList,
@@ -98,6 +99,21 @@ describe('KeyboardAwareScrollView (mobile)', () => {
       scrollView.props.onScroll(event)
     })
     expect(onScroll).toHaveBeenCalledWith(event)
+  })
+
+  it('reveals a field above the scroller after a person scrolls with the keyboard open', () => {
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    const tree = renderScrollView()
+    const input = createFocusableInput({ y: 64, height: 54 })
+    __setMeasureInWindowImpl((callback, _props, name) => name === 'ScrollView'
+      ? callback(0, 80, 360, 320) : callback(0, 64, 360, 54))
+    TestRenderer.act(() => {
+      tree.root.findByType('ScrollView').props.onScroll({ nativeEvent: { contentOffset: { y: 300 } } })
+      __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400 } })
+      capturedContext?.revealInput(input)
+    })
+    expect(scrollTo).toHaveBeenCalledWith({ y: 260, animated: true })
   })
 
   it('ignores revealInput while the keyboard is hidden', () => {

@@ -1,8 +1,9 @@
+import { KeyboardAwareFlatList } from '@/components/ui/keyboard-aware-scroll-view'
 import { ContentFade } from '@/components/motion/content-fade'
 import { IconButton } from '@/components/ui/icon-button'
 import { useState, type ReactElement, type ReactNode, type RefObject } from 'react'
 import {
-  FlatList,
+  type FlatList,
   Pressable,
   Text,
   View,
@@ -173,7 +174,7 @@ export function HabitDrill({
   )
 
   return (
-    <FlatList
+    <KeyboardAwareFlatList
       ref={drillListRef}
       data={drill.drillLoading || drill.drillError ? [] : drill.drillChildren}
       keyboardShouldPersistTaps="handled"

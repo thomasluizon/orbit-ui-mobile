@@ -9,6 +9,7 @@ import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { motionSprings, shouldDismissSheet, SHEET_BODY_INSETS } from '@orbit/shared/theme'
 import { Dialog } from '@base-ui/react/dialog'
 import { animate, motion, useDragControls, useMotionValue, type PanInfo, type HTMLMotionProps } from 'motion/react'
+import { subscribeKeyboardViewport } from '@/hooks/use-keyboard-viewport'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
@@ -269,13 +270,7 @@ function useSheetKeyboardViewport(bodyRef: RefObject<HTMLDivElement | null>, vir
       if (!virtualizedBody && bodyRef.current) revealSheetBodyFocus(bodyRef.current)
     }
     update()
-    viewport.addEventListener('resize', update)
-    const previousScroll = viewport.onscroll
-    viewport.onscroll = event => { previousScroll?.call(viewport, event); update() }
-    return () => {
-      viewport.removeEventListener('resize', update)
-      viewport.onscroll = previousScroll
-    }
+    return subscribeKeyboardViewport(viewport, update)
   }, [bodyRef, virtualizedBody])
 }
 

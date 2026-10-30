@@ -1,7 +1,8 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { ShellScrollerProvider } from './shell-scroller-context'
+import { useKeyboardViewport } from '@/hooks/use-keyboard-viewport'
 import { ShellWide } from './shell-wide'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 
@@ -37,20 +38,7 @@ function flowModeName(mode: FlowShellMode): string {
 }
 
 export function FlowShell({ action, children, header, mode = 'card', notice }: Readonly<FlowShellProps>) {
-  if (mode === 'full') {
-    return (
-      <ShellScrollerProvider>
-        <div
-          data-shell="flow"
-          data-flow-mode="full"
-          className="h-dvh min-h-dvh w-full overflow-hidden"
-        >
-          {children}
-          <AppToastHost placement="page" />
-        </div>
-      </ShellScrollerProvider>
-    )
-  }
+  if (mode === 'full') return <FullFlowShell>{children}</FullFlowShell>
 
   const onboarding = mode === 'onboarding'
   const content = (
@@ -90,4 +78,15 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
       {pinnedNotice ? null : <AppToastHost placement="page" />}
     </>
   )
+}
+
+function FullFlowShell({ children }: Readonly<{ children: ReactNode }>) {
+  const viewportRef = useRef<HTMLDivElement>(null)
+  useKeyboardViewport(viewportRef)
+  return <ShellScrollerProvider>
+    <div ref={viewportRef} data-shell="flow" data-flow-mode="full" className="h-dvh min-h-dvh w-full overflow-hidden">
+      {children}
+      <AppToastHost placement="page" />
+    </div>
+  </ShellScrollerProvider>
 }

@@ -2,6 +2,7 @@
 
 import { ConversationComposerMotionProvider } from './conversation-composer-motion'
 import { motion } from 'motion/react'
+import { useKeyboardViewport } from '@/hooks/use-keyboard-viewport'
 import { useConversationMotion } from '@/hooks/use-conversation-motion'
 
 import { SidebarAccount } from './sidebar-account'
@@ -209,7 +210,7 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
         if (control && !control.hasAttribute('data-shell-astra-row') && !control.hasAttribute('data-shell-sidebar-toggle') && !control.hasAttribute('data-theme-toggle')) props.onSidebarNavigate?.()
       }}
       inert={props.layerOpen && !props.wide || undefined}
-      className={`z-sticky hidden h-dvh ${collapsed ? 'w-[96px]' : 'w-[232px]'} shrink-0 flex-col overflow-y-auto bg-[var(--bg)] py-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex`}
+      className={`z-sticky hidden h-full ${collapsed ? 'w-[96px]' : 'w-[232px]'} shrink-0 flex-col overflow-y-auto bg-[var(--bg)] py-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex`}
     >
       <div className="flex flex-col gap-6">
         <SidebarBrandRow collapsed={collapsed} navigationId={navigationId} notifications={props.notifications} themeAction={props.themeAction} />
@@ -441,7 +442,7 @@ function ShellWideBackground({
     >
       {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} collapsed={collapsed} /> : null}
 
-      <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:pl-[max(var(--orbit-space-32),var(--safe-left))] lg:pr-[max(var(--orbit-space-32),var(--safe-right))]">
+      <div className="relative flex h-full min-w-0 flex-1 justify-center lg:pl-[max(var(--orbit-space-32),var(--safe-left))] lg:pr-[max(var(--orbit-space-32),var(--safe-right))]">
         <div data-shell-column="" className="orbit-centred-column lg:max-w-[740px] relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(var(--orbit-space-32),var(--safe-top))]">
           <ShellDestinationViewport floating={floating} hasHeader={registerHeaderHost !== undefined || props.header !== undefined} hasTabBar={navigationEnabled && props.tabBar !== undefined}>
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
@@ -480,6 +481,7 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
   const wide = useIsWideDesktop()
   const conversationId = useId()
   const shellRef = useRef<HTMLDivElement>(null)
+  useKeyboardViewport(shellRef)
   const returnFocusTriggerRef = useRef<HTMLElement>(null)
   const registerScroller = useShellScrollerRegistration()
   useModalFocusTrap(conversationOpen, shellRef, returnFocusTriggerRef, getShellConversationFocusTarget)

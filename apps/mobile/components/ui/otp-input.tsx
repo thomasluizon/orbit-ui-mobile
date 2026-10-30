@@ -50,7 +50,7 @@ export function OtpInput({
           ref={inputRef}
           value={value}
           onChangeText={handleChange}
-          onFocus={() => { setFocused(true);  }}
+          onFocus={() => { setFocused(true); }}
           onBlur={() => { setFocused(false); onBlur?.() }}
           editable={!disabled}
           keyboardType="number-pad"
