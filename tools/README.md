@@ -79,6 +79,10 @@ for source selection, evidence limits and Open recovery.
 
 ## Product gates
 
+| Tool | What it does | Usage |
+|---|---|---|
+| `desktop-bench/run.mjs` | Builds unsigned Tauri and temporary Electron shells, measures cold and warm Orbit workloads, and writes JSON and Markdown summaries. | `node tools/desktop-bench/run.mjs --output <absolute-directory-outside-repository> [--runs <at-least-5>]` |
+
 These back required CI checks. They fail a merge.
 
 | Tool | What it does | Usage |

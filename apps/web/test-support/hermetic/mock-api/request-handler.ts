@@ -23,6 +23,7 @@ import { referralDashboardSchema } from '@orbit/shared/types/referral'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { agentExecuteOperationResponseSchema } from '@orbit/shared/types/ai'
 import { clarificationResolveFixture } from './fixtures/chat'
+import { sendBenchmarkChatStream } from './fixtures/chat-stream'
 import { profileFixture } from './fixtures/profile'
 import { accountEventTicketFixture } from './fixtures/account-events'
 import { configFixture } from './fixtures/config'
@@ -338,6 +339,11 @@ export function handleRequest(req: IncomingMessage, res: ServerResponse): void {
 
   if (handleHabitTestRequest(req, res, method, pathname, session)) return
   req.resume()
+
+  if (process.env.ORBIT_DESKTOP_BENCH === '1' && session === 'desktop-bench' && method === 'POST' && pathname === '/api/chat/stream') {
+    void sendBenchmarkChatStream(res).catch((error: unknown) => res.destroy(error instanceof Error ? error : new Error(String(error))))
+    return
+  }
 
   if (pathname === '/health') {
     sendJson(res, 200, { status: 'ok' })
