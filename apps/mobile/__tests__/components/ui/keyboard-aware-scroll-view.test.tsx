@@ -160,7 +160,7 @@ describe('KeyboardAwareScrollView (mobile)', () => {
   it('reveals immediately through requestAnimationFrame when the keyboard is already open', () => {
     renderScrollView()
     TestRenderer.act(() => {
-      __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { height: 300 } })
+      __emitKeyboardEvent('keyboardDidShow', { duration: 0, easing: 'keyboard', endCoordinates: { screenY: 592, screenX: 0, width: 412, height: 300 } })
     })
     const input = createFocusableInput({ y: 700, height: 40 })
     const measureSpy = vi.spyOn(input, 'measureInWindow')
