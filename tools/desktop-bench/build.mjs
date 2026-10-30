@@ -12,6 +12,10 @@ export function electronInstallArguments(electron, version) {
   return ['install', '--prefix', electron, '--package-lock=false', '--no-audit', '--fund=false', '--save-dev', '--save-exact', `electron@${version}`, 'electron-builder@26.18.0']
 }
 
+export function normalizeElectronArchiveEntries(output) {
+  return output.split(/\r?\n/).filter((entry) => entry !== '').map((entry) => entry.replace(/\\/g, '/')).sort()
+}
+
 async function diskMeasurements(paths, installer) {
   const installedSamplesBytes = []
   const installerSamplesBytes = []
@@ -82,7 +86,7 @@ app.on('window-all-closed', () => app.quit());
   const tauriBundle = process.platform === 'darwin' ? join(release, 'bundle/macos/Orbit Benchmark Tauri.app') : release
   const electronBundle = join(electron, 'dist', process.platform === 'darwin' ? `mac${process.arch === 'arm64' ? '-arm64' : ''}/Orbit Benchmark Electron.app` : 'win-unpacked')
   const archive = join(electronBundle, process.platform === 'darwin' ? 'Contents/Resources/app.asar' : 'resources/app.asar')
-  const entries = (await execute(process.execPath, [join(electron, 'node_modules/@electron/asar/bin/asar.js'), 'list', archive])).trim().split('\n').sort()
+  const entries = normalizeElectronArchiveEntries(await execute(process.execPath, [join(electron, 'node_modules/@electron/asar/bin/asar.js'), 'list', archive]))
   if (entries.join(',') !== '/main.cjs,/package.json') throw new Error('Electron archive must contain only the generated shell and manifest')
   let tauriInstaller
   if (process.platform === 'darwin') {

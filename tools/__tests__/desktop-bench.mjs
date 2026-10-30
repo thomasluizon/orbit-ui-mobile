@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { electronInstallArguments } from '../desktop-bench/build.mjs'
+import { electronInstallArguments, normalizeElectronArchiveEntries } from '../desktop-bench/build.mjs'
 import { buildHermeticWeb } from '../desktop-bench/runner.mjs'
 import { T, REPO_ROOT, check, root } from './_harness.mjs'
 import { cpuSeconds, median, metrics, parseMacProcesses, percentile, processTree, summarize, markdown } from '../desktop-bench/measurements.mjs'
@@ -22,6 +22,13 @@ export const cases = async () => {
       invocation.env.API_BASE === environment.API_BASE && invocation.cwd === REPO_ROOT && invocation.log === join(root, 'web-build.log'))
   }
   T('Electron build dependencies are installed as development-only tooling', electronInstallArguments('workspace', '45.1.0').includes('--save-dev'))
+  T('Electron archive accepts only the shell and manifest from POSIX output',
+    normalizeElectronArchiveEntries('/package.json\n/main.cjs\n').join(',') === '/main.cjs,/package.json')
+  T('Electron archive accepts Windows backslashes and CRLF with empty lines',
+    normalizeElectronArchiveEntries('\\package.json\r\n\r\n\\main.cjs\r\n').join(',') === '/main.cjs,/package.json')
+  const extraEntries = normalizeElectronArchiveEntries('\\package.json\r\n\\nested\\extra.cjs\r\n\\main.cjs\r\n').join(',')
+  T('Electron archive retains every entry and refuses an extra file',
+    extraEntries === '/main.cjs,/nested/extra.cjs,/package.json' && extraEntries !== '/main.cjs,/package.json')
   check('desktop-bench/run.mjs', 'benchmark help is cwd safe', ['--help'], { status: 0, stdout: /Usage/ }, { cwd: root })
   check('desktop-bench/run.mjs', 'benchmark refuses unknown options before building', ['--unknown'], { status: 2 })
   check('desktop-bench/run.mjs', 'benchmark refuses fewer than five repetitions', ['--runs', '4'], { status: 2 })
