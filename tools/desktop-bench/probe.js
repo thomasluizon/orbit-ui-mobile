@@ -32,6 +32,7 @@
   }
   async function chat() {
     document.querySelector('[data-composer-input]:not([disabled])').focus()
+    document.querySelector('[data-open-conversation]')?.click()
     const textarea = await until(() => document.querySelector('[data-shell-conversation] [data-composer-input]:not([disabled])'), 'conversation composer')
     const previousArticles = new Set(document.querySelectorAll('[role="feed"] article'))
     const replyIncludes = (text) => [...document.querySelectorAll('[role="feed"] article')].some((article) => !previousArticles.has(article) && article.innerText.includes(text))
@@ -83,6 +84,7 @@
       const input = document.querySelector('[data-composer-input]:not([disabled])')
       input?.blur()
       input?.focus({ preventScroll: true })
+      if (input && document.activeElement === input) document.querySelector('[data-open-conversation]')?.click()
       return false
     }, 'hydrated composer focus response')
     const usableEpoch = performance.timeOrigin + performance.now()

@@ -47,6 +47,7 @@ app.whenReady().then(() => {
   const window = new BrowserWindow({ width: Number(process.env.ORBIT_BENCH_WIDTH), height: Number(process.env.ORBIT_BENCH_HEIGHT), useContentSize: true, webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true } });
   app.focus({ steal: true });
   window.focus();
+  window.webContents.on('console-message', (details) => process.stderr.write(details.message + '\\n'));
   window.loadURL('http://127.0.0.1:3400/');
 });
 app.on('window-all-closed', () => app.quit());
