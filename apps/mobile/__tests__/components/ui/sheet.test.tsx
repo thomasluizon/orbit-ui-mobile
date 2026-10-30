@@ -124,6 +124,26 @@ vi.mock('@/app/advanced-api-keys', () => ({
 }))
 
 describe('Sheet (mobile)', () => {
+  it('renders a typed sheet title without a text decoration', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    let header!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Sheet title="Ler um capítulo inteiro" titleMode="typed" onClose={vi.fn()} />)
+    })
+    try {
+      await TestRenderer.act(() => {
+        header = TestRenderer.create(tree.root.findByType(TrueSheet).props.header)
+      })
+      const titleTexts = header.root.findByType(PersonalText).findAllByType(Text)
+      expect(titleTexts.length).toBeGreaterThan(0)
+      for (const titleText of titleTexts) {
+        expect(StyleSheet.flatten(titleText.props.style)).not.toHaveProperty('textDecorationLine')
+      }
+    } finally {
+      await TestRenderer.act(() => { header?.unmount(); tree.unmount() })
+    }
+  })
+
   it('routes hardware Back while a controlled sheet is closing without completing its exit', async () => {
     const onClose = vi.fn()
     const onBackPress = vi.fn()

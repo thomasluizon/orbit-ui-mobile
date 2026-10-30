@@ -470,16 +470,6 @@ select[aria-hidden="true"] {
   transition: background-color var(--dur-hover-control) var(--ease-standard);
 }
 
-.orbit-sheet-typed-title {
-  text-decoration: underline;
-  text-underline-position: from-font;
-  text-decoration-thickness: from-font;
-}
-
-.orbit-sheet-typed-title > span {
-  text-decoration: inherit;
-}
-
 .orbit-sheet-title-button:active {
   background: var(--bg-hover);
 }
