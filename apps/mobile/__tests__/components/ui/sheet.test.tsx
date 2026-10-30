@@ -128,6 +128,15 @@ function typedTitleControl(tree: ReturnType<typeof TestRenderer.create>) {
   return tree.root.findByType(TrueSheet).props.header.props.children[0].props.children
 }
 
+function deliverTitleLines(header: ReturnType<typeof TestRenderer.create>, lines: string[]) {
+  const probe = header.root.findByType(PersonalText).findAllByType(Text).find(
+    (node: { props: { onTextLayout?: unknown } }) => typeof node.props.onTextLayout === 'function',
+  )
+  probe.props.onTextLayout({ nativeEvent: { lines: lines.map((text, index) => ({
+    text, x: 0, y: index * 24, width: 200, height: 24, ascender: 18, descender: 0, capHeight: 16, xHeight: 12,
+  })) } })
+}
+
 describe('Sheet (mobile)', () => {
   it('renders a fitting notification title as a heading without a press target or expand hint', async () => {
     const title = '1 novo evento do calendário'
@@ -140,11 +149,63 @@ describe('Sheet (mobile)', () => {
     })
     try {
       await TestRenderer.act(() => { header = TestRenderer.create(tree.root.findByType(TrueSheet).props.header) })
+      await TestRenderer.act(() => deliverTitleLines(header, [title]))
+      await TestRenderer.act(() => header.update(tree.root.findByType(TrueSheet).props.header))
       const targets = header.root.findAllByType('Pressable').filter((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === title)
       expect(targets).toHaveLength(0)
       const heading = header.root.findByType(PersonalText)
       expect(heading.props.accessibilityRole).toBe('header')
       expect(heading.props.accessibilityHint).toBeUndefined()
+      expect(tree.root.findAllByType(PersonalText)).toHaveLength(0)
+    } finally { await TestRenderer.act(() => { header?.unmount(); tree.unmount() }) }
+  })
+
+  it.each([false, true])('measures native title lines, discloses overflow and removes it after reflow or a title change (single token: %s)', async (singleToken) => {
+    const lines = singleToken ? ['VeryLong', 'Notification', 'Title'] : ['Read a chapter ', 'before bed ', 'and take notes']
+    const title = lines.join('')
+    let tree!: ReturnType<typeof TestRenderer.create>
+    let header!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<Sheet title={title} titleMode="typed" onClose={vi.fn()} />) })
+    const refreshHeader = () => header.update(tree.root.findByType(TrueSheet).props.header)
+    try {
+      await TestRenderer.act(() => { header = TestRenderer.create(tree.root.findByType(TrueSheet).props.header) })
+      await TestRenderer.act(() => deliverTitleLines(header, singleToken ? [title] : [lines[0]!, lines.slice(1).join('')]))
+      await TestRenderer.act(refreshHeader)
+      expect(header.root.findAllByType('Pressable').filter((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === title)).toHaveLength(0)
+      await TestRenderer.act(() => deliverTitleLines(header, lines))
+      await TestRenderer.act(refreshHeader)
+      const control = typedTitleControl(tree)
+      expect(control.props.accessibilityRole).toBe('button')
+      expect(control.props.accessibilityLabel).toBe(title)
+      expect(control.props.accessibilityState).toEqual({ expanded: false })
+      for (const pressed of [false, true]) {
+        expect(StyleSheet.flatten(control.props.style({ pressed }))).toMatchObject({ maxWidth: '100%', paddingHorizontal: 8, paddingVertical: 8, borderRadius: 12 })
+        expect(StyleSheet.flatten(control.props.style({ pressed }))).not.toHaveProperty('flex')
+      }
+      await TestRenderer.act(() => control.props.onFocus())
+      expect(StyleSheet.flatten(typedTitleControl(tree).props.style({ pressed: false })).backgroundColor).toBe(
+        StyleSheet.flatten(control.props.style({ pressed: true })).backgroundColor,
+      )
+      await TestRenderer.act(() => typedTitleControl(tree).props.onBlur())
+      await TestRenderer.act(() => control.props.onPress())
+      await TestRenderer.act(refreshHeader)
+      expect(typedTitleControl(tree).props.accessibilityState).toEqual({ expanded: true })
+      expect(tree.root.findByType(PersonalText).props.expanded).toBe(true)
+      await TestRenderer.act(() => typedTitleControl(tree).props.onPress())
+      await TestRenderer.act(refreshHeader)
+      expect(typedTitleControl(tree).props.accessibilityState).toEqual({ expanded: false })
+      await TestRenderer.act(() => typedTitleControl(tree).props.onPress())
+      await TestRenderer.act(refreshHeader)
+      await TestRenderer.act(() => deliverTitleLines(header, [title]))
+      await TestRenderer.act(refreshHeader)
+      expect(typedTitleControl(tree).props.accessibilityRole).toBeUndefined()
+      expect(tree.root.findAllByType(PersonalText)).toHaveLength(0)
+      await TestRenderer.act(() => deliverTitleLines(header, lines))
+      await TestRenderer.act(refreshHeader)
+      await TestRenderer.act(() => typedTitleControl(tree).props.onPress())
+      await TestRenderer.act(() => tree.update(<Sheet title="Leitura" titleMode="typed" onClose={vi.fn()} />))
+      await TestRenderer.act(refreshHeader)
+      expect(header.root.findByType(PersonalText).props.accessibilityRole).toBe('header')
       expect(tree.root.findAllByType(PersonalText)).toHaveLength(0)
     } finally { await TestRenderer.act(() => { header?.unmount(); tree.unmount() }) }
   })

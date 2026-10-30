@@ -93,7 +93,7 @@ export function Sheet({
     ), SHEET_BODY_INSETS[0])
   const bodyStyle = [styles.body, { paddingHorizontal: bodyPaddingHorizontal, paddingLeft: bodyPaddingHorizontal + insets.left, paddingRight: bodyPaddingHorizontal + insets.right }]
   const bottomInset = insets.bottom
-  const { titleClamped, titleExpanded, onClampedChange, bodyRef, handleBodyScroll, toggleTitle } = useSheetTitleDisclosure(title)
+  const { titleClamped, titleExpanded, titleFocused, onTitleFocusChange, onClampedChange, bodyRef, handleBodyScroll, toggleTitle } = useSheetTitleDisclosure(title)
   const [headerHeight, setHeaderHeight] = useState(0)
   const [footerHeight, setFooterHeight] = useState(0)
   const { t } = useTranslation()
@@ -171,7 +171,7 @@ export function Sheet({
     </Pressable>
   ) : null
   const header = renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
-    styles, titleClamped, titleExpanded, onClampedChange, t, closeButton, onToggleTitle: toggleTitle,
+    styles, titleClamped, titleExpanded, titleFocused, onTitleFocusChange, onClampedChange, t, closeButton, onToggleTitle: toggleTitle,
     onLayout: (event) => setHeaderHeight(event.nativeEvent.layout.height) })
   const expandedTitle = title && titleExpanded && titleMode === 'typed' ? <PersonalText expanded selectable style={styles.fullTitle}>{title}</PersonalText> : null
 
@@ -246,11 +246,13 @@ export function Sheet({
 type Tokens = ReturnType<typeof createTokensV2>
 
 function renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
-  styles, titleClamped, titleExpanded, onClampedChange, t, closeButton, onToggleTitle, onLayout,
+  styles, titleClamped, titleExpanded, titleFocused, onTitleFocusChange, onClampedChange, t, closeButton, onToggleTitle, onLayout,
 }: Pick<SheetProps, 'title' | 'titleMode' | 'accessibleTitle' | 'headerAccessory' | 'onClose' | 'onAttemptDismiss'> & {
   styles: ReturnType<typeof createStyles>
   titleExpanded: boolean
   titleClamped: boolean
+  titleFocused: boolean
+  onTitleFocusChange: (focused: boolean) => void
   onClampedChange: (clamped: boolean) => void
   t: ReturnType<typeof useTranslation>['t']
   closeButton: ReactNode
@@ -264,7 +266,8 @@ function renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory,
           accessibilityHint={t(titleExpanded ? 'common.collapse' : 'common.expand')}
           accessibilityState={{ expanded: titleExpanded }}
           onPress={onToggleTitle}
-          style={({ pressed }) => [styles.titleButton, pressed ? styles.titlePressed : null]}>
+          onFocus={() => onTitleFocusChange(true)} onBlur={() => onTitleFocusChange(false)}
+          style={({ pressed }) => [styles.titleButton, pressed || titleFocused ? styles.titlePressed : null]}>
           <PersonalText onClampedChange={onClampedChange} style={styles.typedTitle}>{title}</PersonalText>
         </Pressable> : <View style={styles.titleText}>
           <PersonalText accessibilityRole="header" onClampedChange={onClampedChange} style={styles.typedTitle}>{title}</PersonalText>
@@ -396,13 +399,14 @@ function createStyles(tokens: Tokens, leftInset: number, rightInset: number) {
 }
 
 function useSheetTitleDisclosure(title: string | undefined) {
-  const [disclosure, setDisclosure] = useState({ title, clamped: false, expanded: false })
-  if (disclosure.title !== title) setDisclosure({ title, clamped: false, expanded: false })
+  const [disclosure, setDisclosure] = useState({ title, clamped: false, expanded: false, focused: false })
+  if (disclosure.title !== title) setDisclosure({ title, clamped: false, expanded: false, focused: false })
   const titleClamped = disclosure.title === title && disclosure.clamped
   const titleExpanded = titleClamped && disclosure.expanded
   const onClampedChange = useCallback((clamped: boolean) => {
-    setDisclosure((current) => current.clamped === clamped ? current : { ...current, clamped, expanded: clamped && current.expanded })
+    setDisclosure((current) => current.clamped === clamped ? current : { ...current, clamped, expanded: clamped && current.expanded, focused: clamped && current.focused })
   }, [])
+  const onTitleFocusChange = useCallback((focused: boolean) => setDisclosure((current) => ({ ...current, focused })), [])
   const bodyRef = useRef<ScrollView>(null)
   const currentScroll = useRef(0)
   const previousScroll = useRef<number | null>(null)
@@ -418,5 +422,5 @@ function useSheetTitleDisclosure(title: string | undefined) {
   function handleBodyScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
     currentScroll.current = event.nativeEvent.contentOffset.y
   }
-  return { titleClamped, titleExpanded, onClampedChange, bodyRef, handleBodyScroll, toggleTitle }
+  return { titleClamped, titleExpanded, titleFocused: titleClamped && disclosure.focused, onTitleFocusChange, onClampedChange, bodyRef, handleBodyScroll, toggleTitle }
 }

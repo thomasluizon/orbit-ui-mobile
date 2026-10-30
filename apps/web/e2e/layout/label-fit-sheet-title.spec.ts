@@ -8,7 +8,6 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { expectLabelsFit, markRequiredLabels, markUserText } from './label-fit-contract'
-import { expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
@@ -101,7 +100,9 @@ for (const width of [320, 360, 384, 412, 600]) {
           await shortRow.getByRole('button', { name: words.habits.actions.more, exact: true }).click()
           const shortSheet = page.getByRole('dialog', { name: shortTitle, exact: true })
           expect((await measureTitle(shortSheet)).lines).toBeCloseTo(1, 1)
-          await expectInteractionFill(shortSheet.getByRole('button', { name: shortTitle, exact: true }))
+          await expect(shortSheet.getByRole('button', { name: shortTitle, exact: true })).toHaveCount(0)
+          await expect(shortSheet.getByRole('heading', { name: shortTitle, exact: true })).toBeVisible()
+          await expect(shortSheet.locator('.orbit-sheet-title [title]')).toHaveCount(0)
         })
       }
 

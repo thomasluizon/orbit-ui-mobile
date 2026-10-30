@@ -1727,6 +1727,12 @@ may use only the gap to the nearest neighbour minus 8px. Keep at least
 8px between the painted fill and neighbouring content, including the page column edge.
 `INTERACTION_FILL_CLEARANCE` in `packages/shared` owns that clearance for both platform guards.
 Reserve the extension in layout; a negative inset never grants permission to overlap.
+Typed sheet titles remain plain headings while their full text fits the two-line clamp.
+Only measured truncation adds an expand and collapse control, with the full accessible name,
+expanded state and separate full text in the sheet body. The collapsed heading remains measured
+on resize and title change, including while expanded. Its fill hugs the text box with the existing
+8px padding and radius 12, one inset focus indicator and clearance from Close. Web adds no native
+title tooltip. Both platforms use the shared PersonalText measurement.
 Grouped list rows inset their paint and single focus indicator by 8px without reducing the target.
 Month-navigation controls reserve clearance inside their unchanged targets. Composer actions keep
 the same gap between their targets. Touching calendar day rows inset their paint by 8px. Their body opens the habit detail for the selected date and reuses Hoje's emoji tile and monogram fallback; the 46px well and 12px block insets give short rows a 70px resting floor. The completion control remains independent. The title-only sheet is removed under #1858; habit detail supplies the full title. A labelled recurring switch at the top of the selected-day list shares the Options preference and filters its completion count.
