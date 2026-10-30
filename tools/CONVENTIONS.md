@@ -52,4 +52,11 @@ A new tool therefore lands with its coverage in the same PR: an `INVALID_INPUT` 
 
 ## Adding one
 
+The desktop measurement tool lives under `desktop-bench/` with one CLI, `run.mjs`.
+Its parsing, aggregation, origin isolation and fixture cases are registered under the tools harness.
+Benchmark workloads run only in native shells against loopback hermetic services, never a deployed
+environment. Keep Electron dependencies and generated shell source in the temporary output workspace.
+Every successful summary requires five or more cold and warm observations per shell. Missing
+measurements fail the run. Stop owned processes in `finally` and remove the hermetic web build.
+
 Scaffold the script to this contract by hand and add its catalog row to `README.md` in the same change. Do not abstract across tools on the first shared line (rule 6, extract on the third real use); two twenty-line wrappers do not need a shared library.

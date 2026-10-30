@@ -1,0 +1,143 @@
+import { createRequire } from 'node:module'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { join, delimiter } from 'node:path'
+import { platform, release, arch, cpus, totalmem } from 'node:os'
+import { benchmarkViewport, buildShells, readFixtures } from './build.mjs'
+import { startProxy } from './server.mjs'
+import { assertFree, delay, execute, launchShell, start, stop, stopAll, treeSample, waitFor, waitForHttp } from './host.mjs'
+import { markdown, percentile, summarize } from './measurements.mjs'
+
+const require = createRequire(import.meta.url)
+const note = (message) => process.stdout.write(`[desktop-bench] ${message}\n`)
+
+export function buildHermeticWeb(repository, work, environment, executeBuild = execute) {
+  return executeBuild(process.execPath, ['--import', 'tsx', join(repository, 'apps/web/scripts/build-hermetic.mjs')], {
+    cwd: repository,
+    env: { ...environment, NODE_OPTIONS: `${environment.NODE_OPTIONS ? `${environment.NODE_OPTIONS} ` : ''}--max-old-space-size=4096` },
+    log: join(work, 'web-build.log'),
+  })
+}
+
+export function assertViewport(actual, availableScreen) {
+  if (actual.join(',') !== benchmarkViewport.join(',')) throw new Error(`Viewport mismatch: ${actual} versus ${benchmarkViewport}; available screen: ${availableScreen.join('x')}`)
+}
+
+async function measure({ shell, cache, iteration, executable, profile, environment, proxy, macProbe, windowsScript, work, readinessOnly, nativeWindow = benchmarkViewport }) {
+  proxy.reset({ readinessOnly, nativeWindow })
+  const handle = await launchShell({ executable, macProbe, windowsScript,
+    env: { ...environment, ORBIT_BENCH_PROFILE: profile, ORBIT_BENCH_WIDTH: String(nativeWindow[0]), ORBIT_BENCH_HEIGHT: String(nativeWindow[1]), ORBIT_BENCH_READINESS_ONLY: readinessOnly ? '1' : '0' }, log: join(work, `${shell}-${iteration}-${cache}.log`),
+  })
+  const read = (kind) => {
+    if (handle.child.exitCode !== null) throw new Error(`Shell exited before ${kind}; see ${handle.log}`)
+    return proxy.read(kind)
+  }
+  try {
+    const usable = await waitFor(() => read('usable'), `${shell} usable Hoje`)
+    if (usable.visibility !== 'visible') throw new Error('Shell must be visible for measurement')
+    assertViewport(usable.viewport, usable.availableScreen)
+    if (!Array.isArray(usable.nativeWindow) || usable.nativeWindow.length !== 2 ||
+        usable.nativeWindow.some((value) => !Number.isFinite(value) || value <= 0)) throw new Error('Missing calibrated native window size')
+    if (readinessOnly) {
+      note(`${shell}: readiness check passed at ${usable.viewport.join('x')}`)
+      return { viewport: usable.viewport, nativeWindow: usable.nativeWindow }
+    }
+    note(`${shell} ${iteration + 1} ${cache}: Hoje usable, measuring idle at ${usable.viewport.join('x')}`)
+    const baseline = await treeSample(handle)
+    const idleStarted = baseline.epochMs
+    await delay(Math.max(0, 10000 - (Date.now() - idleStarted)))
+    const tenSeconds = await treeSample(handle)
+    await delay(Math.max(0, 60000 - (Date.now() - idleStarted)))
+    const sixtySeconds = await treeSample(handle)
+    if (sixtySeconds.cpuSeconds < baseline.cpuSeconds) throw new Error('Cumulative native CPU counter went backwards')
+    proxy.workload()
+    const completed = await waitFor(() => read('complete'), `${shell} scroll and Astra workload`)
+    if (completed.visibility !== 'visible') throw new Error('Shell became hidden during workload')
+    const result = {
+      shell, cache, iteration, viewport: usable.viewport, nativeWindow: usable.nativeWindow, startupMs: usable.epochMs - handle.launchedAt,
+      resident10Bytes: tenSeconds.residentBytes, resident60Bytes: sixtySeconds.residentBytes,
+      idleCpuSeconds: sixtySeconds.cpuSeconds - baseline.cpuSeconds, idleElapsedMs: sixtySeconds.epochMs - baseline.epochMs,
+      scrollP95Ms: percentile(completed.frames, 0.95), scrollSlowFrames: completed.frames.filter((value) => value > 16.7).length,
+      firstTokenMs: completed.firstTokenMs, finalPartMs: completed.finalPartMs,
+      requestDispatchMs: completed.requestDispatchMs, finalEventMs: completed.finalEventMs,
+      frames: completed.frames, processes: { baseline, tenSeconds, sixtySeconds },
+    }
+    note(`${shell} ${iteration + 1} ${cache}: usable ${result.startupMs.toFixed(1)} ms, RSS ${(result.resident60Bytes / 1048576).toFixed(1)} MiB, idle CPU ${result.idleCpuSeconds.toFixed(2)} s`)
+    return result
+  } finally {
+    await stop(handle)
+    await delay(1000)
+  }
+}
+
+export async function benchmark({ repository, directory, output, repetitions }) {
+  if (!['darwin', 'win32'].includes(process.platform)) throw new Error('This benchmark requires macOS or Windows')
+  for (const port of [5099, 3400, 3401]) await assertFree(port)
+  const nextOutput = join(repository, 'apps/web/.next')
+  if (existsSync(nextOutput)) throw new Error('Remove apps/web/.next before starting this hermetic build')
+  const work = join(output, 'work')
+  await mkdir(work, { recursive: true })
+  const environment = { ...process.env, API_BASE: 'http://127.0.0.1:5099', NEXT_PUBLIC_EVENT_API_BASE: 'http://127.0.0.1:5099', NEXT_PUBLIC_SITE_URL: 'http://127.0.0.1:3400', LAYOUT_PORT: '3400', ORBIT_DESKTOP_BENCH: '1', NEXT_TELEMETRY_DISABLED: '1', PATH: ['/opt/homebrew/opt/rustup/bin', process.env.PATH].join(delimiter) }
+  const macProbe = join(work, 'mac-process')
+  const windowsScript = join(directory, 'windows-process.ps1')
+  let proxy
+  let interrupted = false
+  const interrupt = () => { interrupted = true; void stopAll() }
+  process.once('SIGINT', interrupt)
+  process.once('SIGTERM', interrupt)
+  try {
+    const commit = (await execute('git', ['rev-parse', 'HEAD'], { cwd: repository })).trim()
+    if (process.platform === 'darwin') await execute('clang', ['-x', 'objective-c', '-fobjc-arc', '-framework', 'AppKit', join(directory, 'mac-process.c'), '-o', macProbe])
+    note('Building release shells; build output is in the output directory under work')
+    const shells = await buildShells(repository, work, environment)
+    if (interrupted) throw new Error('Interrupted')
+    note('Building the hermetic web application')
+    await buildHermeticWeb(repository, work, environment)
+    await execute(process.execPath, ['--import', 'tsx', join(directory, 'fixtures.ts'), join(work, 'fixtures.json')], { cwd: repository, env: environment })
+    const fixtures = await readFixtures(join(work, 'fixtures.json'))
+    const mock = start(process.execPath, ['--import', 'tsx', join(repository, 'apps/web/test-support/hermetic/mock-api/server.ts')], { cwd: repository, env: environment, log: join(work, 'mock.log') })
+    await waitForHttp('http://127.0.0.1:5099/health', mock)
+    const seed = await fetch('http://127.0.0.1:5099/_test/session-fixtures', { method: 'PUT', headers: { Authorization: `Bearer ${fixtures.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ fixtures: fixtures.fixtures }) })
+    if (!seed.ok) throw new Error(`Fixture seed failed: ${seed.status} ${await seed.text()}`)
+    const web = start(process.execPath, [require.resolve('next/dist/bin/next'), 'start', '--port', '3401', '--hostname', '127.0.0.1'], { cwd: join(repository, 'apps/web'), env: environment, log: join(work, 'web.log') })
+    await waitForHttp('http://127.0.0.1:3401/api/health', web)
+    const words = require(join(repository, 'packages/shared/src/i18n/en.json'))
+    proxy = await startProxy({ token: fixtures.token, probePath: join(directory, 'probe.js'), port: 3400, upstreamPort: 3401, closeConversationLabel: words.common.closeConversation })
+    await fetch('http://127.0.0.1:3400/').then((response) => response.arrayBuffer())
+    const runs = []
+    const readiness = {}
+    for (let iteration = -1; iteration < repetitions; iteration++) {
+      const readinessOnly = iteration === -1
+      const order = iteration > 0 && iteration % 2 ? ['electron', 'tauri'] : ['tauri', 'electron']
+      for (const shell of order) {
+        const profile = shell === 'tauri' ? shells.profile : join(work, 'electron-profile')
+        const profiles = shell === 'tauri' && process.platform === 'darwin' ? [...shells.macStorage, profile] : [profile]
+        for (const path of profiles) await rm(path, { recursive: true, force: true })
+        await mkdir(profile, { recursive: true })
+        for (const cache of readinessOnly ? ['readiness'] : ['cold', 'warm']) {
+          if (interrupted) throw new Error('Interrupted')
+          const result = await measure({ shell, cache, iteration, executable: shells[`${shell}Executable`], profile, environment, proxy, macProbe, windowsScript, work, readinessOnly, nativeWindow: readiness[shell]?.nativeWindow })
+          if (readinessOnly) readiness[shell] = result
+          if (!readinessOnly) {
+            runs.push(result)
+            await writeFile(join(output, 'partial.json'), JSON.stringify(runs, null, 2))
+          }
+        }
+      }
+    }
+    const report = {
+      host: `${platform()} ${release()} ${arch()}; ${cpus()[0].model}; ${cpus().length} logical CPUs; ${(totalmem() / 1073741824).toFixed(0)} GiB RAM`,
+      commit, repetitions, viewport: benchmarkViewport, readiness, electronVersion: shells.version, disk: shells.disk, medians: summarize(runs), runs,
+      verdict: 'Tauri remains the incumbent while both platform reports are assessed. Compare each metric separately; a mixed result does not establish that Electron measures best overall.',
+    }
+    await writeFile(join(output, 'summary.json'), JSON.stringify(report, null, 2))
+    await writeFile(join(output, 'summary.md'), markdown(report))
+    note(`Wrote ${join(output, 'summary.json')} and summary.md`)
+  } finally {
+    process.removeListener('SIGINT', interrupt)
+    process.removeListener('SIGTERM', interrupt)
+    try { await proxy?.stop() } finally {
+      try { await stopAll() } finally { await rm(nextOutput, { recursive: true, force: true }) }
+    }
+  }
+}

@@ -22,6 +22,8 @@ fn main() {
             "commit_desktop_login",
             "desktop_push",
             "desktop_update",
+            #[cfg(feature = "bench-loopback")]
+            "fit_bench_viewport",
         ]),
     ))
     .expect("cannot build desktop context")
@@ -35,6 +37,8 @@ fn build_windows() {
         _ => panic!("Unsupported Windows architecture"),
     };
     let status = std::process::Command::new("powershell.exe")
+        // Let Windows PowerShell rebuild its module path instead of inheriting PowerShell 7's.
+        .env_remove("PSModulePath")
         .args([
             "-NoProfile",
             "-ExecutionPolicy",

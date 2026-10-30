@@ -23,6 +23,7 @@ import { referralDashboardSchema } from '@orbit/shared/types/referral'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { agentExecuteOperationResponseSchema } from '@orbit/shared/types/ai'
 import { clarificationResolveFixture } from './fixtures/chat'
+import { sendBenchmarkChatStream } from './fixtures/chat-stream'
 import { profileFixture } from './fixtures/profile'
 import { accountEventTicketFixture } from './fixtures/account-events'
 import { configFixture } from './fixtures/config'
@@ -322,6 +323,16 @@ export function handleRequest(req: IncomingMessage, res: ServerResponse): void {
   const method = req.method ?? 'GET'
   const url = new URL(req.url ?? '/', `http://${HOST}:${PORT}`)
   const pathname = url.pathname
+  if (method === 'OPTIONS' && pathname === '/api/events') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET',
+      'Access-Control-Allow-Headers': 'api-version, Last-Event-ID',
+      'Access-Control-Max-Age': '600',
+    })
+    res.end()
+    return
+  }
   if (method === 'PUT' && pathname === '/_test/session-fixtures') {
     void seedSessionFixtures(req, res)
     return
@@ -338,6 +349,11 @@ export function handleRequest(req: IncomingMessage, res: ServerResponse): void {
 
   if (handleHabitTestRequest(req, res, method, pathname, session)) return
   req.resume()
+
+  if (process.env.ORBIT_DESKTOP_BENCH === '1' && session === 'desktop-bench' && method === 'POST' && pathname === '/api/chat/stream') {
+    void sendBenchmarkChatStream(res).catch((error: unknown) => res.destroy(error instanceof Error ? error : new Error(String(error))))
+    return
+  }
 
   if (pathname === '/health') {
     sendJson(res, 200, { status: 'ok' })
