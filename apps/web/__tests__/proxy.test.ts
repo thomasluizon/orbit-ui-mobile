@@ -765,3 +765,45 @@ describe('proxy', () => {
     expect(NextResponse.redirect).not.toHaveBeenCalled()
   })
 })
+
+
+describe('malformed Server Action requests', () => {
+  it.each([
+    { 'next-action': 'a'.repeat(42), 'content-type': 'multipart/form-data' },
+    { 'next-action': 'a'.repeat(42), 'content-type': 'multipart/form-data; boundary=missing' },
+    { 'next-action': 'a'.repeat(40), 'content-type': 'text/plain' },
+  ])('rejects malformed action input before the framework parses it: %s', async (headers) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    vi.mocked(resolveSessionTokens).mockClear()
+    const response = await proxy(new NextRequest('https://app.useorbit.org/login', {
+      method: 'POST', headers: Object.fromEntries(Object.entries(headers).filter((entry): entry is [string, string] => typeof entry[1] === 'string')), body: 'invalid form payload',
+    }))
+    expect(response.status).toBe(400)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(response.headers.get('Content-Security-Policy')).toContain("default-src 'self'")
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
+  it('passes a well-formed multipart action through to the framework', async () => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    const form = new FormData()
+    form.set('0', '[]')
+    await proxy(new NextRequest('https://app.useorbit.org/login', {
+      method: 'POST', headers: { 'next-action': 'a'.repeat(42) }, body: form,
+    }))
+    expect(resolveSessionTokens).toHaveBeenCalled()
+  })
+
+  it.each(['/login', '/api/uploads'])('leaves a multipart POST without an action header untouched at %s', async (path) => {
+    vi.mocked(resolveSessionTokens).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: false })
+    const request = new NextRequest(`https://app.useorbit.org${path}`, {
+      method: 'POST', headers: { 'content-type': 'multipart/form-data; boundary=upload' }, body: 'route-owned body',
+    })
+    const clone = vi.spyOn(request, 'clone')
+    const response = await proxy(request)
+    expect(response).toMatchObject({ type: 'next' })
+    expect(clone).not.toHaveBeenCalled()
+    expect(request.bodyUsed).toBe(false)
+    expect(await request.text()).toBe('route-owned body')
+  })
+})

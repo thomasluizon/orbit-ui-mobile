@@ -14,6 +14,7 @@ import { isPublicPath } from '@/lib/public-paths'
 import { z } from 'zod'
 import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 import { desktopAttemptSchema } from '@/lib/desktop-auth'
+import { mightBeServerReferenceId } from 'next/dist/shared/lib/server-reference-info'
 
 const CONTENT_SECURITY_POLICY = 'Content-Security-Policy'
 const STATIC_IMAGE_PATH = /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/
@@ -119,6 +120,44 @@ function isStaleServerAction(request: NextRequest) {
     deploymentId && clientDeploymentId && clientDeploymentId !== deploymentId
 }
 
+async function isMalformedServerAction(request: NextRequest): Promise<boolean> {
+  if (request.method !== 'POST') return false
+  const actionId = request.headers.get('next-action')
+  if (actionId === null) return false
+  if (!mightBeServerReferenceId(actionId)) return true
+  const contentType = request.headers.get('content-type') ?? ''
+  if (!contentType.startsWith('multipart/form-data')) return false
+  try {
+    await request.clone().formData()
+    return false
+  } catch {
+    return true
+  }
+}
+
+async function rejectServerAction(request: NextRequest, contentSecurityPolicy: string): Promise<Response | null> {
+  if (await isMalformedServerAction(request)) {
+    return new Response(null, {
+      status: 400,
+      headers: { 'Cache-Control': 'no-store', [CONTENT_SECURITY_POLICY]: contentSecurityPolicy },
+    })
+  }
+
+  if (isStaleServerAction(request)) {
+    return new Response(null, {
+      status: 409,
+      headers: {
+        'x-nextjs-action-not-found': '1',
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'no-store',
+        [CONTENT_SECURITY_POLICY]: contentSecurityPolicy,
+      },
+    })
+  }
+
+  return null
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
@@ -161,17 +200,8 @@ export async function proxy(request: NextRequest) {
     )
   }
 
-  if (isStaleServerAction(request)) {
-    return new Response(null, {
-      status: 409,
-      headers: {
-        'x-nextjs-action-not-found': '1',
-        'Content-Type': 'text/plain',
-        'Cache-Control': 'no-store',
-        [CONTENT_SECURITY_POLICY]: contentSecurityPolicy,
-      },
-    })
-  }
+  const actionRejection = await rejectServerAction(request, contentSecurityPolicy)
+  if (actionRejection) return actionRejection
 
   const isPublic = isPublicPath(pathname)
   const shouldResolveSession = pathname === '/login' || !isPublic

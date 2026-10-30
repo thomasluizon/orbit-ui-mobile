@@ -475,3 +475,45 @@ it('reports a malformed account event and retries without accepting its cursor',
     vi.useRealTimers()
   }
 })
+
+
+it.each([502, 503, 504])('reconnects after a %s stream outage without reporting a handled retry', async (status) => {
+  vi.useFakeTimers()
+  const controller = new AbortController()
+  const onError = vi.fn()
+  const onFirstFailure = vi.fn()
+  const open = vi.fn().mockResolvedValueOnce(new Response(null, { status }))
+    .mockResolvedValueOnce(closedStream('event: ready\ndata: {"connectionId":"recovered"}\n\n'))
+  const onEvent = vi.fn(() => controller.abort())
+  const running = consumeAccountEventStream({ open, signal: controller.signal, resumed: true,
+    onError, onFirstFailure, onEvent, onOpen: vi.fn(), onReconnect: vi.fn() })
+  try {
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(onEvent).toHaveBeenCalledOnce()
+    expect(onFirstFailure).toHaveBeenCalledOnce()
+    expect(onError).not.toHaveBeenCalled()
+  } finally {
+    controller.abort()
+    await running
+    vi.useRealTimers()
+  }
+})
+
+it.each(['Failed to fetch', 'Load failed', 'Network request failed'])('reconnects after the transport rejects with %s', async (message) => {
+  vi.useFakeTimers()
+  const controller = new AbortController()
+  const open = vi.fn().mockRejectedValueOnce(new TypeError(message)).mockResolvedValueOnce(closedStream())
+  const onError = vi.fn()
+  const running = consumeAccountEventStream({ open, signal: controller.signal,
+    onError, onEvent: vi.fn(), onOpen: vi.fn(), onReconnect: vi.fn() })
+  try {
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(onError).not.toHaveBeenCalled()
+  } finally {
+    controller.abort()
+    await running
+    vi.useRealTimers()
+  }
+})

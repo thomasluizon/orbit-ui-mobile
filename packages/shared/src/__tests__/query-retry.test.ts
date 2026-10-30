@@ -90,3 +90,10 @@ describe('rate limited reads', () => {
     expect(parseRetryAfter(header)).toBeNull()
   })
 })
+
+
+it('never retries an action that requires a different web build', () => {
+  const failure = createApiClientError(409, { errorCode: 'STALE_WEB_BUILD' }, 'App updated')
+  expect(shouldRetryQuery(0, failure)).toBe(false)
+  expect(shouldRetryQuery(0, createApiClientError(409, { errorCode: 'CONCURRENT_UPDATE_CONFLICT' }, 'Conflict'))).toBe(true)
+})

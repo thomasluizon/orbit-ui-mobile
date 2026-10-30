@@ -10,8 +10,8 @@ import { getQueryGcTime } from '@/lib/query-gc-time'
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { createApiClientError } from '@orbit/shared/utils'
 
-async function fetchConfig(): Promise<unknown> {
-  const response = await fetchWithThrottle(API.config.get)
+async function fetchConfig(signal: AbortSignal): Promise<unknown> {
+  const response = await fetchWithThrottle(API.config.get, { signal })
   if (!response.ok) throw createApiClientError(response.status, null, `Config request failed: ${response.status}`)
   return response.json()
 }
@@ -20,7 +20,7 @@ export function useConfig() {
   const scope = useSyncExternalStore(configCache.subscribe, configCache.getSnapshot, configCache.getServerSnapshot)
   const query = useQuery({
     queryKey: configKeys.detail(scope.accountId, scope.generation),
-    queryFn: ({ signal }) => configCache.fetch(scope, fetchConfig, signal),
+    queryFn: ({ signal }) => configCache.fetch(scope, () => fetchConfig(signal), signal),
     networkMode: 'offlineFirst',
     enabled: scope.accountId !== null,
     staleTime: 30 * 60 * 1000,
