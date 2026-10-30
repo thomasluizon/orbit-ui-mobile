@@ -2,6 +2,7 @@
 // asked for is refused. The requested mode comes from the owner's prompt or the machine-origin
 // context relay request, so the model cannot talk its way past it.
 
+import { resolve } from "node:path"
 import { HANDOFF_PROMPT_PATH, handoffCrank, validateHandoffPrompt } from "../../../tools/lib/handoff-prompt.mjs"
 
 const GIT_COMMIT = /\bgit\b((?:\s+-C\s+(?:"[^"]+"|'[^']+'|\S+))*)[^;&|\n]*?\scommit\b/
@@ -10,8 +11,8 @@ const GIT_COMMIT = /\bgit\b((?:\s+-C\s+(?:"[^"]+"|'[^']+'|\S+))*)[^;&|\n]*?\scom
 export const gitCommitDirectory = (command, cwd) => {
   const match = GIT_COMMIT.exec(String(command ?? ""))
   if (!match) return null
-  const dashC = [...match[1].matchAll(/-C\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g)].at(-1)
-  return dashC ? (dashC[1] ?? dashC[2] ?? dashC[3]) : cwd
+  const directories = [...match[1].matchAll(/-C\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g)]
+  return directories.reduce((directory, item) => resolve(directory, item[1] ?? item[2] ?? item[3]), cwd)
 }
 
 const describe = (missing, mode) =>
