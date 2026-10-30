@@ -5,6 +5,8 @@ import { brainDumpPreview } from './brain-dumps.mjs'
 import { isDeepStrictEqual } from 'node:util'
 import { getRelatedSurfaces } from '../../packages/shared/src/chat/related-surfaces.ts'
 import { tsImport } from 'tsx/esm/api'
+import { visibleBlock } from './visible-blocks.mjs'
+import { catalogTranslator } from './catalog-translator.mjs'
 
 const { habitMonthCardSchema } = await tsImport('../../packages/shared/src/types/chat.ts', import.meta.url)
 const { questionBlockSchema } = await tsImport('../../packages/shared/src/types/question-block.ts', import.meta.url)
@@ -121,6 +123,28 @@ function coachingStartingStep(parsed, vars) {
     { ...vars, composition: { mode: 'one-small-step' } })
 }
 
+function achievementNamesMatch(parsed, blocks, client) {
+  const locale = client?.locale ?? 'en'
+  const cards = blocks.filter((part) => part.kind === 'gamification' && part.block.state.achievements != null)
+  if (!cards.length) return true
+  const names = new Set((parsed.trace?.calls ?? [])
+    .filter((call) => call.name === 'get_gamification_overview' && call.resultStatus === 'Succeeded'
+      && call.result?.success === true && call.result.error === null)
+    .flatMap((call) => {
+      const achievements = call.result.payload?.achievements?.achievements
+      return Array.isArray(achievements) ? achievements.map((achievement) => achievement.name) : []
+    }))
+  return cards.every((part) => {
+    const achievements = part.block.state.achievements.achievements
+    if (!Array.isArray(achievements)) return false
+    let rendered
+    try { rendered = locale === 'en' ? visibleBlock(part, { t: catalogTranslator(locale), locale }).achievements : null }
+    catch { return false }
+    return achievements.every((achievement, index) => text(achievement.name) && names.has(achievement.name)
+      && (locale !== 'en' || rendered?.[index]?.name === achievement.name))
+  })
+}
+
 export function composition(output, context) {
   const parsed = typeof output === 'string' ? JSON.parse(output) : output
   if (context.vars.refine) return refineResult(parsed, context.vars)
@@ -161,6 +185,10 @@ export function composition(output, context) {
     return result(false, 'Malformed or unsupported response part.')
   }
   const blocks = (parts ?? []).filter((part) => part.type === 'block')
+  const expectedKinds = expected.blocks?.map((block) => block.kind) ?? expected.kinds
+  const unexpected = [...new Set(blocks.filter((part) => expectedKinds && !expectedKinds.includes(part.kind)).map((part) => part.kind))]
+  if (unexpected.length) return result(false, `Block kind outside the expected set: ${unexpected.join(', ')}.`)
+  if (!achievementNamesMatch(parsed, blocks, client)) return result(false, 'Achievement name differs from the successful tool result.')
   const external = (parts ?? []).filter((part) => part.type === 'text').map((part) => part.text).join('\n\n')
   if (client?.supportsParts === true && (response.aiMessage ?? '').trim() !== external.trim()) {
     return result(false, 'Final prose differs from the ordered text parts.')
