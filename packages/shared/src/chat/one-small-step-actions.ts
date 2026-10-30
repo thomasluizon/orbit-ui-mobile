@@ -1,8 +1,9 @@
+import type { ChatClientContext } from '../types/chat'
 import type { BlockAnswerInteraction } from './block-answer'
 import type { StateHook } from '../hooks/state-adapter'
 import type { OneSmallStepAction } from '../contracts/blocks/one-small-step'
 
-export type SendOneSmallStepMessage = (message: string) => Promise<void>
+export type SendOneSmallStepMessage = (message: string, context?: Pick<ChatClientContext, 'previousStartingStep'>) => Promise<void>
 
 type ConversationAvailability = Pick<BlockAnswerInteraction, 'isOnline' | 'isSending' | 'atMessageLimit' | 'dailyBudgetReached'>
 interface OneSmallStepActions {
@@ -24,7 +25,11 @@ export function createUseOneSmallStepActions({ useState }: { useState: StateHook
         lock.pending = true
         setSending(true)
         try {
-          await onSend(action.message)
+          if (action.id === 'smaller' && action.previousStep) {
+            await onSend(action.message, { previousStartingStep: action.previousStep })
+          } else {
+            await onSend(action.message)
+          }
         } finally {
           lock.pending = false
           setSending(false)

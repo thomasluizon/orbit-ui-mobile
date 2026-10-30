@@ -1,6 +1,6 @@
 import { classifySendFailure } from '../hooks/chat-composer-core'
 import type { ChatStoreState } from '../stores/chat-store'
-import type { BlockAnswer } from '../types/chat'
+import type { BlockAnswer, ChatClientContext } from '../types/chat'
 import { formatBlockAnswer, isSameBlockAnswer, recordBlockAnswer, type BlockAnswerRequest, type BlockAnswerResult } from './block-answer'
 
 export interface ChatStreamRequest<Image> {
@@ -9,6 +9,7 @@ export interface ChatStreamRequest<Image> {
   image: Image | null
   blockAnswer?: BlockAnswer
   messageOrigin?: 'followUp'
+  previousStartingStep?: ChatClientContext['previousStartingStep']
   intendedAccountId?: string | null
 }
 

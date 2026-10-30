@@ -49,6 +49,7 @@ import {
 import { habitKeys, profileKeys } from "@orbit/shared/query";
 import type {
   AgentExecuteOperationResponse,
+  ChatClientContext,
   ChatMessage,
   ChatResponse,
 } from "@orbit/shared/types";
@@ -91,6 +92,7 @@ interface AttemptedSend {
   clearDraftOnSuccess: boolean;
   restoredDraftRevision: number | null;
   messageOrigin?: 'followUp';
+  previousStartingStep?: ChatClientContext['previousStartingStep'];
   contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>;
 }
 
@@ -576,6 +578,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         locale: i18n.language,
         uses24HourClock: profile?.uses24HourClock,
         messageOrigin: attempted.messageOrigin,
+        previousStartingStep: attempted.previousStartingStep,
         entryPointIntent,
       });
       formData.append("clientContext", JSON.stringify(clientContext));
@@ -737,7 +740,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   }, [performSend, setInput, setSendError, t, setSelectedImage, setImagePreview, setSelectedTextFile])
 
   const sendMessage = useCallback(
-    async (content?: string, messageOrigin?: 'followUp', contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
+    async (content?: string, requestContext?: 'followUp' | Pick<ChatClientContext, 'previousStartingStep'>, contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
+      const { messageOrigin, previousStartingStep }: Pick<ChatClientContext, 'messageOrigin' | 'previousStartingStep'> =
+        typeof requestContext === 'object' ? requestContext : { messageOrigin: requestContext };
       const sendsComposerDraft = content === undefined && messageOrigin !== 'followUp';
       const typedContent = content?.trim() ?? input.trim();
       const messageContent = selectedTextFile && sendsComposerDraft
@@ -776,6 +781,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         clearDraftOnSuccess: content === undefined,
         restoredDraftRevision: null,
         messageOrigin,
+        previousStartingStep,
         contextualRequest,
       };
 
