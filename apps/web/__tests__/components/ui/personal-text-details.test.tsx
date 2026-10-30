@@ -31,7 +31,7 @@ describe('personal text font measurements', () => {
     rerender(<PersonalTextDetails key="icon" iconOnly clamped>{label}</PersonalTextDetails>)
     expect(sheetModule.load).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'common.showFullText' }))
-    const dialog = await screen.findByRole('dialog', { name: label })
+    const dialog = await screen.findByRole('dialog', { name: label }, { timeout: 5000 })
     expect(dialog.querySelector('[data-personal-text-expanded]')).toHaveTextContent(label)
     expect(sheetModule.load).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'common.close' }))

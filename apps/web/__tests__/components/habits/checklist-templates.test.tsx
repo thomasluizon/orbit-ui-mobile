@@ -272,7 +272,7 @@ describe('ChecklistTemplates across an account change', () => {
   })
   afterEach(() => vi.restoreAllMocks())
 
-  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full template name %s without loading it', (name) => {
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full template name %s without loading it', async (name) => {
     measureClampedPersonalText()
     mockTemplates.mockReturnValue({ data: [{ id: 'template-1', name, items: ['Run'] }] })
     const onLoad = vi.fn()
@@ -282,6 +282,7 @@ describe('ChecklistTemplates across an account change', () => {
     const title = [...picker.querySelectorAll('[data-personal-text]')].find((element) => element.getAttribute('aria-label') === name)!
     expect(title).toHaveAttribute('aria-label', name)
     fireEvent.click(screen.getByRole('button', { name: `Show full text: ${name}`, expanded: false }))
+    await screen.findByRole('dialog', { name })
     expect(onLoad).not.toHaveBeenCalled()
     fireEvent.click(screen.getAllByRole('button', { name: 'common.close' }).at(-1)!)
     fireEvent.click([...picker.querySelectorAll('button')].find((button) => button.getAttribute('aria-label') === name && !button.hasAttribute('aria-expanded'))!)

@@ -50,7 +50,7 @@ describe('one small step on web', () => {
         expect(button).toHaveAttribute('aria-expanded', 'true')
         if (text === card.suggestion.step) expect(document.querySelector(`[id="${button.getAttribute('aria-controls')}"]`)).toHaveAttribute('data-personal-text-expanded')
         else {
-          expect(screen.getByRole('dialog')).toBeInTheDocument()
+          expect(await screen.findByRole('dialog', { name: text })).toBeInTheDocument()
           await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.common.close })) })
         }
       }
