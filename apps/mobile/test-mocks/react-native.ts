@@ -15,7 +15,7 @@ type MeasureInWindowCallback = (
   width: number,
   height: number,
 ) => void
-type MeasureInWindowImpl = (callback: MeasureInWindowCallback) => void
+type MeasureInWindowImpl = (callback: MeasureInWindowCallback, props: HostProps, name: string) => void
 type ScrollToImpl = (options: {
   x?: number
   y?: number
@@ -104,6 +104,7 @@ export function __setWindowDimensions(
   windowDimensions = nextDimensions
 }
 
+let keyboardMetrics: { screenY: number } | undefined
 const keyboardListeners = new Map<string, Set<(payload: unknown) => void>>()
 
 export function __resetTestHostConfig() {
@@ -117,6 +118,7 @@ export function __resetTestHostConfig() {
   touchMode = true
   windowDimensions = DEFAULT_WINDOW_DIMENSIONS
   keyboardListeners.clear()
+  keyboardMetrics = undefined
 }
 
 function createHostComponent(name: string) {
@@ -143,7 +145,7 @@ function createHostComponent(name: string) {
       __nativeTag: nativeTag,
       measure: (callback?: (...args: number[]) => void) => callback?.(0, 0, 32, 32, 0, 0),
       measureInWindow: (callback?: MeasureInWindowCallback) => {
-        if (callback) measureInWindowImpl(callback)
+        if (callback) measureInWindowImpl(callback, props, name)
       },
       setNativeProps: (updates: HostProps) => {
         const host = nativeHosts.get(nativeTag)
@@ -167,7 +169,7 @@ function createHostComponent(name: string) {
       scrollTo: scrollToImpl,
       scrollToOffset: ({ offset, animated }: { offset: number; animated?: boolean }) => scrollToImpl({ y: offset, animated }),
       scrollToEnd: () => {},
-    }), [nativeTag])
+    }), [nativeTag, props])
 
     return React.createElement(HostAncestors.Provider, { value: [...ancestors, nativeTag] },
       React.createElement(name, {
@@ -322,11 +324,14 @@ export const Keyboard = {
       },
     }
   },
+  metrics: (): { screenY: number } | undefined => keyboardMetrics,
   dismiss: () => {},
   scheduleLayoutAnimation: () => {},
 }
 
 export function __emitKeyboardEvent(event: string, payload?: unknown) {
+  if (event === 'keyboardDidShow' || event === 'keyboardWillShow') keyboardMetrics = (payload as { endCoordinates: { screenY: number } }).endCoordinates
+  if (event === 'keyboardDidHide' || event === 'keyboardWillHide') keyboardMetrics = undefined
   for (const listener of keyboardListeners.get(event) ?? []) {
     listener(payload)
   }

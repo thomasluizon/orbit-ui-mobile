@@ -6,6 +6,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type ComponentProps,
   type ReactElement,
   type ReactNode,
@@ -13,7 +14,6 @@ import {
   type RefObject,
 } from 'react'
 import {
-  Dimensions,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -22,6 +22,8 @@ import {
   StyleSheet,
   View,
   findNodeHandle,
+  useWindowDimensions,
+  type KeyboardEvent,
   type FlatListProps,
   type KeyboardAvoidingViewProps,
   type NativeScrollEvent,
@@ -57,6 +59,8 @@ interface KeyboardAwareFlatListProps<ItemT> extends FlatListProps<ItemT> {
 }
 
 type KeyboardAwareScrollable = {
+  measureInWindow?: MeasurableInWindow['measureInWindow']
+  getNativeScrollRef?: () => MeasurableInWindow | null
   getScrollResponder?: () => {
     scrollResponderScrollNativeHandleToKeyboard?: (
       nodeHandle: number,
@@ -92,6 +96,9 @@ interface KeyboardAwareKeyboardFrame {
 interface KeyboardAwareContextValue {
   revealInput: (input: KeyboardAwareInputTarget) => void
   handleScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
+  refresh: () => void
+  clearInput: (input: KeyboardAwareInputTarget) => void
+  keyboardSpace: number
 }
 
 const KeyboardAwareContext = createContext<KeyboardAwareContextValue | null>(null)
@@ -182,98 +189,65 @@ function useKeyboardAwareContextValue(
   keyboardVerticalOffset: number,
 ) {
   const focusedInputRef = useRef<KeyboardAwareInputTarget>(null)
-  const keyboardVisibleRef = useRef(false)
   const keyboardFrameRef = useRef<KeyboardAwareKeyboardFrame | null>(null)
   const scrollOffsetYRef = useRef(0)
+  const [keyboardSpace, setKeyboardSpace] = useState(0)
+  const { width, height } = useWindowDimensions()
 
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollOffsetYRef.current = event.nativeEvent.contentOffset.y
-    },
-    [],
-  )
-
-  const revealInput = useCallback(
-    (input: KeyboardAwareInputTarget) => {
-      focusedInputRef.current = input
-
-      if (!keyboardVisibleRef.current) {
-        return
-      }
-
-      requestAnimationFrame(() => {
-        scrollFocusedInputIntoView(
-          scrollableRef.current,
-          input,
-          keyboardFrameRef.current,
-          scrollOffsetYRef.current,
-          keyboardVerticalOffset + 24,
-        )
-      })
-    },
-    [keyboardVerticalOffset, scrollableRef],
-  )
+  const refresh = useCallback(() => {
+    const scrollable = scrollableRef.current
+    const frame = keyboardFrameRef.current
+    if (!scrollable || !frame) return
+    const viewport = scrollable.getNativeScrollRef?.() ?? scrollable
+    viewport.measureInWindow?.((_x, y, _width, viewportHeight) => {
+      const visibleBottom = Math.min(y + viewportHeight, frame.top - keyboardVerticalOffset)
+      setKeyboardSpace(Math.max(0, y + viewportHeight - visibleBottom) + 24)
+      scrollFocusedInputIntoView(scrollable, focusedInputRef.current,
+        { top: visibleBottom }, scrollOffsetYRef.current, 24)
+    })
+  }, [keyboardVerticalOffset, scrollableRef])
+  const revealInput = useCallback((input: KeyboardAwareInputTarget) => {
+    focusedInputRef.current = input
+    requestAnimationFrame(refresh)
+  }, [refresh])
+  const clearInput = useCallback((input: KeyboardAwareInputTarget) => {
+    if (focusedInputRef.current === input) focusedInputRef.current = null
+  }, [])
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollOffsetYRef.current = event.nativeEvent.contentOffset.y
+  }, [])
 
   useEffect(() => {
-    const showEvent =
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
-    const hideEvent =
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide'
-
-    const handleKeyboardShow = (
-      event?: {
-        endCoordinates?: {
-          screenY?: number
-          height?: number
-        }
-      },
-    ) => {
-      keyboardVisibleRef.current = true
-      // react-doctor-disable-next-line rn-no-dimensions-get -- one-shot window-height read inside the keyboard-show handler to compute the keyboard top as a fallback when the event omits screenY; not a persisted layout dimension https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-      const screenHeight = Dimensions.get('window').height
-      const keyboardTop =
-        event?.endCoordinates?.screenY ??
-        screenHeight - (event?.endCoordinates?.height ?? 0)
-
-      keyboardFrameRef.current = { top: keyboardTop }
-      const focusedInput = focusedInputRef.current
-
-      if (!focusedInput) {
-        return
-      }
-
-      setTimeout(() => {
-        scrollFocusedInputIntoView(
-          scrollableRef.current,
-          focusedInput,
-          keyboardFrameRef.current,
-          scrollOffsetYRef.current,
-          keyboardVerticalOffset + 24,
-        )
-      }, 40)
+    let active = true
+    const update = (event: KeyboardEvent) => {
+      keyboardFrameRef.current = { top: event.endCoordinates.screenY }
+      requestAnimationFrame(() => { if (active) refresh() })
     }
-
-    const handleKeyboardHide = () => {
-      keyboardVisibleRef.current = false
+    const hide = () => {
       keyboardFrameRef.current = null
+      setKeyboardSpace(0)
     }
-
-    const showSubscription = Keyboard.addListener(showEvent, handleKeyboardShow)
-    const hideSubscription = Keyboard.addListener(hideEvent, handleKeyboardHide)
-
-    return () => {
-      showSubscription.remove()
-      hideSubscription.remove()
+    const metrics = Keyboard.metrics()
+    if (metrics) {
+      keyboardFrameRef.current = { top: metrics.screenY }
+      requestAnimationFrame(() => { if (active) refresh() })
     }
-  }, [keyboardVerticalOffset, scrollableRef])
+    const subscriptions = [
+      Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', update),
+      Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', hide),
+      Keyboard.addListener('keyboardDidChangeFrame', update),
+    ]
+    return () => { active = false; subscriptions.forEach(subscription => subscription.remove()) }
+  }, [refresh, width, height])
 
-  return useMemo(
-    () => ({
-      revealInput,
-      handleScroll,
-    }),
-    [handleScroll, revealInput],
-  )
+  return useMemo(() => ({ revealInput, clearInput, handleScroll, refresh, keyboardSpace }),
+    [revealInput, clearInput, handleScroll, refresh, keyboardSpace])
+}
+
+function keyboardContentStyle(style: StyleProp<ViewStyle>, keyboardSpace: number) {
+  if (!keyboardSpace) return style
+  const padding = StyleSheet.flatten([style])
+  return [style, { paddingBottom: (padding.paddingBottom ?? padding.paddingVertical ?? padding.padding ?? 0) as number + keyboardSpace }]
 }
 
 export function useKeyboardAwareInputReveal() {
@@ -327,8 +301,10 @@ export function KeyboardAwareScrollView({
       ref={scrollRef}
       keyboardShouldPersistTaps={keyboardShouldPersistTaps}
       contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
-      automaticallyAdjustKeyboardInsets
       onScroll={handleScroll}
+      contentContainerStyle={keyboardContentStyle(props.contentContainerStyle, keyboardAwareContext.keyboardSpace)}
+      onLayout={(event) => { keyboardAwareContext.refresh(); props.onLayout?.(event) }}
+      onContentSizeChange={(width, height) => { keyboardAwareContext.refresh(); props.onContentSizeChange?.(width, height) }}
     >
       {children}
     </ScrollView>
@@ -382,9 +358,11 @@ export function KeyboardAwareSheetScrollView({
         ref={assignRef}
         style={props.style}
         keyboardShouldPersistTaps={keyboardShouldPersistTaps}
-        automaticallyAdjustKeyboardInsets
         nestedScrollEnabled
         onScroll={handleScroll}
+        contentContainerStyle={keyboardContentStyle(props.contentContainerStyle, keyboardAwareContext.keyboardSpace)}
+        onLayout={(event) => { keyboardAwareContext.refresh(); props.onLayout?.(event) }}
+        onContentSizeChange={(width, height) => { keyboardAwareContext.refresh(); props.onContentSizeChange?.(width, height) }}
       >
         {children}
       </ScrollView>
@@ -430,7 +408,10 @@ function KeyboardAwareFlatListInner<ItemT>(
 
   return (
     <KeyboardAwareContext.Provider value={keyboardAwareContext}>
-      <FlatList {...props} ref={assignRef} onScroll={handleScroll} />
+      <FlatList {...props} ref={assignRef} onScroll={handleScroll}
+        contentContainerStyle={keyboardContentStyle(props.contentContainerStyle, keyboardAwareContext.keyboardSpace)}
+        onLayout={(event) => { keyboardAwareContext.refresh(); props.onLayout?.(event) }}
+        onContentSizeChange={(width, height) => { keyboardAwareContext.refresh(); props.onContentSizeChange?.(width, height) }} />
     </KeyboardAwareContext.Provider>
   )
 }

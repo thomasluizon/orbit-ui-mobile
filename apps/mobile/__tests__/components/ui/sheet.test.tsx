@@ -490,6 +490,7 @@ describe('Sheet (mobile)', () => {
   afterEach(() => {
     __resetTestHostConfig()
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it('presents on mount and gives the body exactly one scroll container', async () => {
@@ -525,6 +526,7 @@ describe('Sheet (mobile)', () => {
   })
 
   it.each([0, 76])('reveals a focused lower input above a %i-high footer through the sheet body scroller', async (footerHeight) => {
+    vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => setTimeout(() => callback(0), 0))
     vi.useFakeTimers()
     const scrollTo = vi.fn()
     __setMeasureInWindowImpl((callback) => callback(0, 620, 100, 54))
@@ -547,11 +549,7 @@ describe('Sheet (mobile)', () => {
     }
 
     TestRenderer.act(() => {
-      const lowerInput = tree!.root
-        .findAllByProps({ testID: 'lower-input' })
-        .find((node: { props: { onFocus?: (event: unknown) => void } }) =>
-          typeof node.props.onFocus === 'function',
-        )
+      const lowerInput = tree!.root.findAllByType('TextInput').find((node: { props: { testID?: string } }) => node.props.testID === 'lower-input')
       lowerInput!.props.onFocus({})
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400 } })
       vi.advanceTimersByTime(60)

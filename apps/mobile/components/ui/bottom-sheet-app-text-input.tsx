@@ -12,7 +12,6 @@ import {
 import { findNodeHandle, StyleSheet, type TextInput } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -29,7 +28,6 @@ export const BottomSheetAppTextInput = forwardRef<
   ref,
 ) {
   const localRef = useRef<Parameters<typeof findNodeHandle>[0]>(null)
-  const keyboardAware = useKeyboardAwareInputReveal()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -68,10 +66,9 @@ export const BottomSheetAppTextInput = forwardRef<
   >(
     (event) => {
       setFocused(true)
-      keyboardAware?.revealInput(localRef.current)
       onFocus?.(event)
     },
-    [keyboardAware, onFocus],
+    [onFocus],
   )
 
   const handleBlur = useCallback<

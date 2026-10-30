@@ -11,7 +11,6 @@ import {
 import { StyleSheet, Text, type TextInput } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -26,7 +25,6 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
     ref,
   ) {
     const localRef = useRef<TextInput>(null)
-    const keyboardAware = useKeyboardAwareInputReveal()
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = useMemo(
       () => createTokensV2(currentScheme, currentTheme),
@@ -55,10 +53,9 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
     const handleFocus = useCallback<NonNullable<AppTextInputProps['onFocus']>>(
       (event) => {
         setFocused(true)
-        keyboardAware?.revealInput(localRef.current)
         onFocus?.(event)
       },
-      [keyboardAware, onFocus],
+      [onFocus],
     )
 
     const handleBlur = useCallback<NonNullable<AppTextInputProps['onBlur']>>(
