@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process"
 import { redactSecrets } from "./github-auth.mjs"
 
 const HARNESS_PATHS = ["tools/", ".claude/skills/", ".claude/hooks/", ".claude/rules/"]
-const DOCS_PATHS = [".claude/specs/", ".claude/handoffs/"]
+const DOCS_PATHS = [":(top).claude/specs/", ":(top).claude/handoffs/"]
 
 const git = (repoRoot, args) => {
   const result = spawnSync("git", args, { cwd: repoRoot, encoding: "utf8", timeout: 60_000,
