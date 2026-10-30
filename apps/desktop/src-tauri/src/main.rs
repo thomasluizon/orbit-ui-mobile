@@ -5,6 +5,8 @@ use tauri::webview::NewWindowResponse;
 use tauri::Manager;
 
 mod auth;
+#[cfg(feature = "bench-loopback")]
+mod bench_viewport;
 mod desktop_login;
 mod lifecycle;
 mod links;
@@ -81,7 +83,7 @@ fn main() {
                 window_config,
                 push::notification_launch(),
                 |window_config| {
-                    let window = tauri::WebviewWindowBuilder::from_config(app, window_config)?
+                    let _window = tauri::WebviewWindowBuilder::from_config(app, window_config)?
                         .initialization_script(web_release::initialization_script(
                             origin,
                             &app.package_info().version.to_string(),
@@ -102,12 +104,13 @@ fn main() {
                             })
                         })
                         .build()?;
-                    if cfg!(feature = "bench-loopback") {
-                        window.remove_menu()?;
-                        window.set_size(tauri::LogicalSize::new(
-                            window_config.width,
-                            window_config.height,
-                        ))?;
+                    #[cfg(feature = "bench-loopback")]
+                    {
+                        _window.remove_menu()?;
+                        bench_viewport::set_size(
+                            &_window,
+                            tauri::LogicalSize::new(window_config.width, window_config.height),
+                        )?;
                     }
                     Ok(())
                 },

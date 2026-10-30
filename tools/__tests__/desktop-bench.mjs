@@ -66,8 +66,14 @@ function requestedViewportCases() {
   T('Tauri leaves frame min/max constraints unset for macOS title bars',
     ['minWidth', 'minHeight', 'maxWidth', 'maxHeight'].every((key) => !(key in tauriWindow)))
   const nativeSource = readFileSync(join(REPO_ROOT, 'apps/desktop/src-tauri/src/main.rs'), 'utf8')
-  T('Tauri removes the benchmark menu and reapplies logical content size after building',
-    /\.build\(\)\?;\s*if cfg!\(feature = "bench-loopback"\)\s*\{\s*window\.remove_menu\(\)\?;\s*window\.set_size\(tauri::LogicalSize::new\(\s*window_config\.width,\s*window_config\.height,?\s*\)\)\?;\s*\}/.test(nativeSource))
+  T('Tauri removes the benchmark menu and fits the webview after building only with bench-loopback',
+    /\.build\(\)\?;\s*#\[cfg\(feature = "bench-loopback"\)\]\s*\{\s*_window\.remove_menu\(\)\?;\s*bench_viewport::set_size\(\s*&_window,\s*tauri::LogicalSize::new\(\s*window_config\.width,\s*window_config\.height,?\s*\),?\s*\)\?;\s*\}/.test(nativeSource))
+  T('Tauri excludes viewport adjustment from production builds',
+    /#\[cfg\(feature = "bench-loopback"\)\]\s*mod bench_viewport;/.test(nativeSource))
+  const viewportSource = readFileSync(join(REPO_ROOT, 'apps/desktop/src-tauri/src/bench_viewport.rs'), 'utf8')
+  T('Tauri measures macOS frame and webview bounds in logical units before requesting one resize',
+    /#\[cfg\(target_os = "macos"\)\]\s*let requested = \{\s*let scale_factor = window\.scale_factor\(\)\?;\s*let frame = window\.outer_size\(\)\?\.to_logical::<f64>\(scale_factor\);\s*let viewport = window\.as_ref\(\)\.bounds\(\)\?\.size\.to_logical::<f64>\(scale_factor\);\s*window_size_for_viewport\(requested, frame, viewport\)\s*\};\s*window\.set_size\(requested\)/.test(viewportSource) &&
+    viewportSource.match(/window\.set_size\(/g)?.length === 1)
 }
 
 async function probeReadinessCases() {
