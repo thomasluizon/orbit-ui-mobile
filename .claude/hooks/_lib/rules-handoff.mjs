@@ -29,12 +29,17 @@ const modeOf = (request, state) => {
  * Every NEXT.md version a commit could record must comply with the recorded request.
  * `promptsForCommit` returns those versions for the commit's directory, empty when NEXT.md is unchanged.
  */
-export const checkHandoffCommit = ({ command, cwd, request, state, promptsForCommit }) => {
+export const checkHandoffCommit = ({ command, cwd, request, state, promptsForCommit, refreshCheckout }) => {
   const directory = gitCommitDirectory(command, cwd)
   if (!directory) return null
   for (const text of promptsForCommit(directory)) {
     const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined, crank: handoffCrank(request, state) })
     if (missing.length > 0) return { block: true, message: describe(missing, modeOf(request, state)) }
+  }
+  try {
+    refreshCheckout?.(directory)
+  } catch (error) {
+    return { block: true, message: `Handoff checkout refresh failed: ${error.message}\n` }
   }
   return null
 }
