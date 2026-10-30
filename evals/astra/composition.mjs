@@ -192,8 +192,12 @@ export function composition(output, context) {
     if (expected.mode === 'preview' && external) return result(false, 'Preview must be the entire answer.')
     if (expected.mode === 'preview' && pending.length !== (expected.previews ?? 1)) return result(false, 'Missing batch preview.')
     if (expected.mode === 'outcome' && !outcome) return result(false, 'Missing typed operation outcome.')
+    const leadingText = expected.mode === 'data' && parts?.[0]?.type === 'text'
+    if (leadingText && (!shortLines(external, 1, false) || /\d/u.test(external) || parts[1]?.type !== 'block')) {
+      return result(false, 'Data answer leads with prose.')
+    }
     if (expected.mode === 'data' && !blocks.length) return result(false, 'Missing typed data block.')
-    if (!pending.length && !outcome && parts?.[0]?.type !== 'block') return result(false, 'Data answer leads with prose.')
+    if (!pending.length && !outcome && !leadingText && parts?.[0]?.type !== 'block') return result(false, 'Data answer leads with prose.')
     if (external && !shortLines(external, 1, false)) return result(false, 'Data answer has excessive external text.')
     for (const required of expected.blocks ?? (expected.kinds ?? []).map((kind) => ({ kind }))) {
       if (!blocks.some((part) => part.kind === required.kind && (!required.subtype || part.block.kind === required.subtype)

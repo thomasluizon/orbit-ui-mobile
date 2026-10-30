@@ -16,7 +16,8 @@ export default class MockAstra {
     if (context.vars.composition.mode === 'data') response.evalTrace.timing = turnTiming()
     if (context.vars.responseMode) {
       response.aiMessage = ['block-only', 'slow-latency', 'missing-timing'].includes(context.vars.responseMode) ? ''
-        : context.vars.responseMode === 'repeated-figure' ? 'One out of one is pending.' : 'Water is ready.'
+        : context.vars.responseMode === 'repeated-figure' ? 'One out of one is pending.'
+          : context.vars.responseMode === 'prose-first' ? 'Water has 1 pending item.' : 'Water is ready.'
       const prose = { type: 'text', text: response.aiMessage }
       response.parts = ['block-only', 'slow-latency', 'missing-timing'].includes(context.vars.responseMode) ? [habitBlock]
         : context.vars.responseMode === 'prose-first' ? [prose, habitBlock] : [habitBlock, prose]
