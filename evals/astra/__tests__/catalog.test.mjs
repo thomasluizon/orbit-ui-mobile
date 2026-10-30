@@ -39,7 +39,7 @@ async function validateTrace(name, arguments_, clientContext) {
 
 // Producer: QueryHabitsTool.GetParameterSchema, QueryGoalsTool.GetParameterSchema and StrictToolSchema.Create.
 const legacyReads = [
-  ['query_habits', { relative_period: 'today', search: null, date: null, include_overdue: null,
+  ['query_habits', { for_selection: null, relative_period: 'today', search: null, date: null, include_overdue: null,
     is_general: null, is_completed: null, is_bad_habit: null, frequency: null, tag: null,
     include_sub_habits: null, include_metrics: null, offset: null, limit: null }],
   ['query_goals', { search: null, status: null, include_completed: null, include_descriptions: null,

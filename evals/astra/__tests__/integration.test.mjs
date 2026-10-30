@@ -118,7 +118,8 @@ describe('real promptfoo CLI with an offline provider', () => {
     expect(readFileSync(resultsPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
     if (broken) expect(attempts.every(({ assertions }) => assertions.some(({ metric, pass, reason }) =>
       metric === 'toolBehavior' && !pass && reason.includes('log_habit')))).toBe(true)
-    if (status !== 'pass') expect(existsSync(resolve(directory, 'promptfoo.json'))).toBe(false)
+    expect(run.stdout + run.stderr).not.toContain('Extension hook "afterAll" failed')
+    expect(existsSync(resolve(directory, 'promptfoo.json'))).toBe(true)
   })
 })
 

@@ -1035,7 +1035,8 @@
       required: &a41
         - name: ask
           arguments:
-            form: choice
+            input:
+              form: choice
       allowed:
         - query_habits
         - ask
@@ -1084,7 +1085,8 @@
       required: &a43
         - name: ask
           arguments:
-            form: pickList
+            input:
+              form: pickList
       allowed:
         - query_habits
         - ask

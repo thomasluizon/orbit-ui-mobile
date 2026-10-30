@@ -150,5 +150,5 @@ export function afterAll({ results, suite }) {
   const { summary, markdown } = persistResults(results, suite.tests.map(describeCase))
   process.stdout.write(`${markdown}\n`)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`)
-  if (summary.status !== 'pass') throw new Error(`Astra launch gate ${summary.status}; see reports/summary.md and reports/results.json.`)
+  if (summary.status !== 'pass') process.exitCode = 1
 }
