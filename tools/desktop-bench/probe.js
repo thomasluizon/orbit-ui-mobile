@@ -31,7 +31,8 @@
     return intervals
   }
   async function chat() {
-    const textarea = await until(() => document.querySelector('[data-composer-input]:not([disabled])'), 'composer')
+    document.querySelector('[data-composer-input]:not([disabled])').focus()
+    const textarea = await until(() => document.querySelector('[data-shell-conversation] [data-composer-input]:not([disabled])'), 'conversation composer')
     const originalFetch = window.fetch
     let requestAt = null
     let terminalAt = null
@@ -72,12 +73,19 @@
       const row = document.querySelector('[data-habit-id="bench-0000"]')
       const input = document.querySelector('[data-composer-input]:not([disabled])')
       if (!row || !input || !row.getBoundingClientRect().height || !input.getBoundingClientRect().height) return null
-      input.focus({ preventScroll: true })
-      return document.activeElement === input ? input : null
+      return input
     }, 'first interactive habit and focusable composer')
-    textarea.blur()
+    await until(() => {
+      if (document.querySelector('[data-shell-conversation]')) return true
+      textarea.blur()
+      textarea.focus({ preventScroll: true })
+      return false
+    }, 'hydrated composer focus response')
+    const usableEpoch = performance.timeOrigin + performance.now()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }))
+    await until(() => !document.querySelector('[data-shell-conversation]') && !document.querySelector('[data-shell-destination]')?.inert, 'return to Hoje')
     await frame()
-    await post({ kind: 'usable', epochMs: performance.timeOrigin + performance.now(), visibility: document.visibilityState })
+    await post({ kind: 'usable', epochMs: usableEpoch, visibility: document.visibilityState })
     for (;;) {
       const response = await fetch('/_bench/command')
       const command = await response.text()
