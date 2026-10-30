@@ -2163,8 +2163,7 @@ describe('HabitList', () => {
       const browser = await launch
       const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
       await page.setContent(`<style>${stylesheet.css}</style>${container.innerHTML}`)
-      const gap = await page.getByText('habits.allDoneToday', { exact: true }).evaluate((element) => {
-        const banner = element.parentElement!
+      const gap = await page.getByTestId('habit-list-all-done').evaluate((banner) => {
         const row = document.querySelector('[data-testid="habit-card-anytime"]')!
         return row.getBoundingClientRect().top - banner.getBoundingClientRect().bottom
       })

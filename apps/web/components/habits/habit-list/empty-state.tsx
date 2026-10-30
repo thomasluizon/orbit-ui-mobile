@@ -140,13 +140,15 @@ export function HabitListEmptyState({
 export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: () => void }>) {
   const t = useTranslations()
   return (
-    <div className="flex flex-col items-start" style={{ gap: 8, paddingBlock: SPACING.s8 }}>
-      <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--fg-1)' }}>
-        {t('habits.allDoneToday')}
-      </p>
-      <p style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--fg-2)', textWrap: 'pretty' }}>
-        {t('habits.allDoneHint')}
-      </p>
+    <div data-testid="habit-list-all-done" className="flex flex-col items-start" style={{ gap: 24, paddingBlock: SPACING.s8 }}>
+      <div className="flex flex-col" style={{ gap: 8 }}>
+        <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--fg-1)' }}>
+          {t('habits.allDoneToday')}
+        </p>
+        <p style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--fg-2)', textWrap: 'pretty' }}>
+          {t('habits.allDoneHint')}
+        </p>
+      </div>
       {onSeeUpcoming ? (
         <PillButton variant="ghost" size="sm" onClick={onSeeUpcoming}>
           {t('habits.seeUpcoming')}

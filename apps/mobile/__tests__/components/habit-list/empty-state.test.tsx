@@ -1,5 +1,6 @@
 import React from 'react'
 import { StyleSheet, type StyleProp, type TextStyle } from 'react-native'
+import { measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
 import { describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -8,6 +9,7 @@ import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
 import {
   HabitListEmptyState,
+  HabitListAllDone,
 } from '@/components/habit-list/empty-state'
 
 vi.mock('react-i18next', () => ({
@@ -60,6 +62,19 @@ function pressableWithLabel(tree: TestTree, label: string): TestNode | undefined
 }
 
 describe('HabitListEmptyState', () => {
+  it('keeps completion text paired and separates the upcoming action', () => {
+    const onSeeUpcoming = vi.fn()
+    const tree = render(<HabitListAllDone onSeeUpcoming={onSeeUpcoming} />)
+    const geometry = measureSafeArea(tree.toJSON() as GeometryHost, host => {
+      if (host.type === 'Text' && host.children?.includes('habits.allDoneToday')) return 'title'
+      if (host.type === 'Text' && host.children?.includes('habits.allDoneHint')) return 'hint'
+      if (host.props.accessibilityRole === 'button') return 'action'
+    })
+    expect(geometry.get('hint')!.top - geometry.get('title')!.bottom).toBe(8)
+    expect(geometry.get('action')!.top - geometry.get('hint')!.bottom).toBeGreaterThanOrEqual(24)
+    TestRenderer.act(() => { (pressableWithLabel(tree, 'habits.seeUpcoming')!.props.onPress as () => void)() })
+    expect(onSeeUpcoming).toHaveBeenCalledOnce()
+  })
   it.each([en, ptBR])('uses the shared empty-state mark and title sizes without clipping large text', (words) => {
     const title = words.habits.emptyState
     const tree = render(<HabitListEmptyState title={title} description="" />)

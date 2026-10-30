@@ -9,11 +9,12 @@ export function EmptyState({
   title,
   mark = 'orbit',
   action,
+  disclosure,
 }: Readonly<EmptyStateProps>) {
   return (
     <div className="flex flex-col items-center gap-6 px-6 py-12 text-center" data-mark={mark}>
       <span className="text-[var(--fg-1)]" data-empty-state-mark>
-        {mark === 'astra' ? <AstraGlyph size={96} /> : <OrbitMark size={96} />}
+        {mark === 'astra' ? <AstraGlyph size={48} /> : <OrbitMark size={48} />}
       </span>
       <p
         className="text-xl font-medium text-balance text-[var(--fg-1)]"
@@ -22,6 +23,7 @@ export function EmptyState({
         {title}
       </p>
       {action ? <div data-empty-state-action>{action}</div> : null}
+      {disclosure}
     </div>
   )
 }

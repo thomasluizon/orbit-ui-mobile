@@ -11,6 +11,7 @@ export function EmptyState({
   title,
   mark = 'orbit',
   action,
+  disclosure,
 }: Readonly<EmptyStateProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -18,10 +19,11 @@ export function EmptyState({
   return (
     <View style={styles.container} testID="empty-state">
       <View testID={`empty-state-mark-${mark}`}>
-        {mark === 'astra' ? <AstraGlyph size={96} /> : <OrbitMark size={96} />}
+        {mark === 'astra' ? <AstraGlyph size={48} /> : <OrbitMark size={48} />}
       </View>
       <Text style={[styles.title, { color: tokens.fg1 }]} textBreakStrategy="balanced">{title}</Text>
       {action ? <View testID="empty-state-action">{action}</View> : null}
+      {disclosure}
     </View>
   )
 }

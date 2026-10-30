@@ -37,7 +37,7 @@ const VIEWPORTS = [
   { width: 1352, height: 915, panelWidth: 380 },
   { width: 600, height: 677, panelWidth: 600 },
   ...[320, 360, 384, 412].map(width => ({ width, height: 600, panelWidth: width })),
-  ...[1100, 1440].map(width => ({ width, height: 915, panelWidth: 380 })),
+  ...[480, 840, 1100, 1440].map(width => ({ width, height: 915, panelWidth: Math.min(width, 740) })),
 ]
 
 const CASES = VIEWPORTS.flatMap((viewport) => (['en', 'pt-BR'] as const)
@@ -82,17 +82,20 @@ describe('Empty conversation geometry in Chromium', () => {
         scroller.scrollTop = 0
         const bounds = scroller.getBoundingClientRect()
         const glyphTop = glyph.getBoundingClientRect().top
+        const glyphSize = glyph.getBoundingClientRect().width
+        const actionBottom = scroller.querySelector('button')!.getBoundingClientRect().bottom
         const contentTop = empty.getBoundingClientRect().top
         const contentBottom = empty.getBoundingClientRect().bottom
-        const firstBlockTop = scroller.querySelector('[data-mark="astra"]')!.getBoundingClientRect().top
         const lastBottomAtTop = disclaimer.getBoundingClientRect().bottom
         scroller.scrollTop = scroller.scrollHeight
         return {
-          glyphTop, scrollerTop: bounds.top, scrollerBottom: bounds.bottom,
+          glyphTop, glyphSize, actionGap: lastBottomAtTop - disclaimer.getBoundingClientRect().height - actionBottom,
+          groupCentre: (glyphTop + lastBottomAtTop) / 2,
+          scrollerTop: bounds.top, scrollerBottom: bounds.bottom,
           disclaimerBottom: disclaimer.getBoundingClientRect().bottom,
           paddingBottom: parseFloat(getComputedStyle(scroller).paddingBottom),
           scrollHeight: scroller.scrollHeight, clientHeight: scroller.clientHeight,
-          contentTop, contentBottom, firstBlockTop, lastBottomAtTop,
+          contentTop, contentBottom,
           composerTop: document.querySelector('[data-testid="pinned-composer"]')!.getBoundingClientRect().top,
         }
       }, messages.aiDisclosure.notMedicalAdvice)
@@ -100,10 +103,11 @@ describe('Empty conversation geometry in Chromium', () => {
       expect(geometry.paddingBottom).toBe(16)
       expect(geometry.scrollerBottom - geometry.disclaimerBottom).toBeGreaterThanOrEqual(15.5)
       expect(geometry.scrollerBottom).toBe(geometry.composerTop)
+      expect.soft(geometry.glyphSize).toBe(48)
+      expect.soft(geometry.actionGap).toBeCloseTo(24, 0)
+      expect.soft(Math.abs(geometry.groupCentre - (geometry.scrollerTop + geometry.scrollerBottom) / 2)).toBeLessThanOrEqual(8)
       if (height === 915) {
         expect(geometry.scrollHeight).toBe(geometry.clientHeight)
-        expect(Math.abs((geometry.firstBlockTop - geometry.scrollerTop)
-          - (geometry.scrollerBottom - geometry.lastBottomAtTop))).toBeLessThanOrEqual(1)
         expect(geometry.contentTop - geometry.scrollerTop).toBeCloseTo(16, 0)
         expect(geometry.scrollerBottom - geometry.contentBottom).toBeCloseTo(16, 0)
       }

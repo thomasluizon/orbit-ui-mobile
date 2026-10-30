@@ -330,7 +330,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         aria-busy={replyWorking || isPendingOperationBusy}
         aria-label={t('chat.title')}
       >
-        {showSuggestions && <div className="mx-auto w-full max-w-[708px]"><ChatEmptyState browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} /></div>}
+        {showSuggestions && <ChatEmptyState browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} />}
 
         <div ref={threadContentRef} className="mx-auto flex w-full max-w-[708px] flex-col gap-4">
         {messages.map((msg, index) => (
