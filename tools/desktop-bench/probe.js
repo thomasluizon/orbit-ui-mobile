@@ -58,10 +58,10 @@
       })().catch((error) => { void post({ kind: 'error', message: error.message }) })
       return response
     }
-    const started = performance.now()
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(textarea, 'Give me one small step.')
     textarea.dispatchEvent(new Event('input', { bubbles: true }))
     await pause(50)
+    const started = performance.now()
     textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }))
     await until(() => requestAt !== null, 'chat request from composer')
     await until(() => replyIncludes('A small'), 'first rendered token')
