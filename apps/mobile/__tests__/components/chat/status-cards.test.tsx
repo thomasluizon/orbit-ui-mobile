@@ -1,6 +1,6 @@
 import { RecordListCard } from '@/components/chat/record-list-card'
 import { buildChatFinalMessageFields } from '@orbit/shared/chat/final-message'
-import { chatStreamEventSchema } from '@orbit/shared/types/chat'
+import { streakCardSchema, chatStreamEventSchema } from '@orbit/shared/types/chat'
 import { apiStatusCardsFinalFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { MessageBubble } from '@/components/message-bubble'
 import React from 'react'
@@ -65,6 +65,20 @@ describe('Astra status cards on mobile', () => {
     expect(tree.root.findByProps({ accessibilityRole: 'progressbar', accessibilityLabel: 'progressScreen.achievements.xpProgress' }).props.accessibilityValue).toEqual({ min: 0, max: 2300, now: 100 })
     expect(tree.root.findAll((node: any) => node.type === View && String(node.props?.testID).startsWith('achievement-mark-'))).toHaveLength(6)
     expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('keeps pre-habit days neutral after the chat boundary on the account date', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-09-26T06:00:00Z'))
+      const card = streakCardSchema.parse({ currentStreak: 1, longestStreak: 1, level: 1, totalXp: 10, xpForNextLevel: 100, lastActiveDate: '2026-09-25', isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress', firstEligibleDate: '2026-09-24' })
+      const tree = render(<StreakCard streakCard={card} />)
+      const cells = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => node.type === View && node.props.accessibilityRole === 'image')
+      expect(cells.map((cell: { props: { testID: string } }) => cell.props.testID)).toEqual([...Array(12).fill('day-strip-cell-not-scheduled'), 'day-strip-cell-missed', 'day-strip-cell-active'])
+      expect(cells[0].props.accessibilityLabel).toContain('calendar.dayCell.notScheduled')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('ends the streak strip on the account date across device midnight', () => {

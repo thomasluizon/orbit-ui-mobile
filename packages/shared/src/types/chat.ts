@@ -369,6 +369,7 @@ const streakAchievementSchema = z.object({
 })
 
 export const streakCardSchema = z.object({
+  firstEligibleDate: z.iso.date().nullish(),
   read: readBlockMetadataSchema.nullish(),
   currentStreak: z.number(),
   longestStreak: z.number(),

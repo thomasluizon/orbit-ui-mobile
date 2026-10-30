@@ -60,8 +60,9 @@ describe('day strip state words', () => {
   const accountStrip: AccountDayStripProps = {
     scope: 'account',
     label: 'Account week',
-    days: ['active', 'frozen', 'missed', 'today'],
+    days: ['not-scheduled', 'active', 'frozen', 'missed', 'today'],
     words: {
+      notScheduled: 'nothing due',
       active: 'active',
       frozen: 'frozen',
       missed: 'missed',
@@ -78,6 +79,7 @@ describe('day strip state words', () => {
   })
 
   it.each([
+    ['not-scheduled', 'nothing due'],
     ['active', 'active'],
     ['frozen', 'frozen'],
     ['missed', 'missed'],

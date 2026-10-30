@@ -1,5 +1,5 @@
 import { buildChatFinalMessageFields } from '@orbit/shared/chat/final-message'
-import { chatStreamEventSchema } from '@orbit/shared/types/chat'
+import { streakCardSchema, chatStreamEventSchema } from '@orbit/shared/types/chat'
 import { apiStatusCardsFinalFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -44,6 +44,20 @@ describe('Astra status cards on web', () => {
     expect(document.querySelectorAll('[data-state="earned"]')).toHaveLength(3)
     expect(document.querySelectorAll('[data-state="unearned"]')).toHaveLength(3)
     expect(screen.queryByRole('button', { name: 'chat.streakCard.open' })).not.toBeInTheDocument()
+  })
+
+  it('keeps pre-habit days neutral after the chat boundary on the account date', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-09-26T06:00:00Z'))
+      const card = streakCardSchema.parse({ currentStreak: 1, longestStreak: 1, level: 1, totalXp: 10, xpForNextLevel: 100, lastActiveDate: '2026-09-25', isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress', firstEligibleDate: '2026-09-24' })
+      render(<StreakCard streakCard={card} />)
+      const cells = screen.getAllByRole('img')
+      expect(cells.map(cell => cell.getAttribute('data-state'))).toEqual([...Array(12).fill('not-scheduled'), 'missed', 'active'])
+      expect(cells[0]).toHaveAccessibleName(/calendar.dayCell.notScheduled/)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('ends the streak strip on the account date across device midnight', () => {

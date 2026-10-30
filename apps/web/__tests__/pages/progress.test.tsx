@@ -106,6 +106,7 @@ const mocks = vi.hoisted(() => ({
       currentStreak: 4,
       longestStreak: 9,
       lastActiveDate: null as string | null,
+      firstEligibleDate: undefined as string | null | undefined,
       freezesUsedThisMonth: 1,
       freezesAvailable: 2,
       maxFreezesPerMonth: 3,
@@ -846,6 +847,7 @@ describe('ProgressContent', () => {
     Object.assign(mocks.freeze.streakInfo, {
       currentStreak: 4,
       recentFreezeDates: [],
+      firstEligibleDate: undefined,
       lastActiveDate: null,
       isRepairAvailable: false,
       repairDate: null,
@@ -1845,6 +1847,16 @@ describe('ProgressContent', () => {
     expect(mocks.freeze.streakQuery.refetch).toHaveBeenCalledTimes(1)
 
     mocks.freeze.streakInfo = streakInfo
+  })
+
+  it('keeps pre-habit days neutral in the owning streak page on the account date', () => {
+    vi.setSystemTime(new Date('2026-09-26T06:00:00Z'))
+    mocks.account.profile.timeZone = 'Pacific/Honolulu'
+    Object.assign(mocks.freeze.streakInfo, { currentStreak: 1, lastActiveDate: '2026-09-25', firstEligibleDate: '2026-09-24' })
+    const { container } = render(<StreakPage />)
+    const cells = [...container.querySelectorAll('[data-scope="account"] [data-state]')]
+    expect(cells.map(cell => cell.getAttribute('data-state'))).toEqual([...Array(12).fill('not-scheduled'), 'missed', 'active'])
+    expect(cells[0]).toHaveAccessibleName(/calendar.dayCell.notScheduled/)
   })
 
   it('renders fourteen account days and exposes the bank on the owning page', () => {

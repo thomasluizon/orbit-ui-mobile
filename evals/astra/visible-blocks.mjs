@@ -85,12 +85,12 @@ function streak(card, { t, locale, accountDate }) {
   const window = card.read ? shared.readBlockWindow(card.read.scope) : null
   const asOf = window?.to ?? accountDate
   const days = shared.buildStreakWeekDays(card, card.currentStreak, card.isFrozenToday,
-    asOf ? new Date(`${asOf}T12:00:00Z`) : new Date(), 14, 'UTC')
+    asOf ? new Date(`${asOf}T12:00:00Z`) : new Date(), 14, 'UTC', card.firstEligibleDate)
   return { title: t('chat.streakCard.title'), current: { label: t('chat.streakCard.current'), value: new Intl.NumberFormat(locale).format(card.currentStreak) },
     level: t('progressScreen.achievements.level', { level: card.level, title: t(shared.getGamificationLevelTitleKey(card.level)) }),
     xp: t('chat.streakCard.xp', { current: new Intl.NumberFormat(locale).format(card.totalXp), next: new Intl.NumberFormat(locale).format(card.xpForNextLevel) }),
     days: days.map((day) => ({ date: new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(day.date),
-      status: t(`progressScreen.streak.${day.status}`) })),
+      status: t(day.status === 'not-scheduled' ? 'calendar.dayCell.notScheduled' : `progressScreen.streak.${day.status}`) })),
     achievements: (card.achievementDiscs ?? card.recentAchievements).slice(0, 6)
       .map((disc) => ({ name: t(`gamification.achievements.${disc.id}.name`), earned: disc.earnedAt != null })),
   }
@@ -102,7 +102,8 @@ function gamification(card, { t, locale }) {
     streak: presentation ? { title: t('progressScreen.sections.streak'), current: new Intl.NumberFormat(locale).format(streak.currentStreak), unit: t('progressScreen.streak.currentLabel', { count: streak.currentStreak }),
       longest: { label: presentation.freeze.longestLabel, value: presentation.freeze.longestValue },
       tier: { label: presentation.freeze.tierLabel, value: presentation.freeze.tierValue },
-      days: presentation.days.map((day, index) => ({ date: presentation.labels[index], status: presentation.dayWords[day.status] })),
+      days: presentation.days.map((day, index) => ({ date: presentation.labels[index],
+        status: day.status === 'not-scheduled' ? presentation.dayWords.notScheduled : presentation.dayWords[day.status] })),
       banked: { label: presentation.freeze.words.bankedLabel, value: streak.streakFreezesAccumulated, ceiling: streak.maxStreakFreezesAccumulated },
       used: { label: presentation.freeze.words.usedLabel, value: streak.freezesUsedThisMonth },
       next: streak.streakFreezesAccumulated < streak.maxStreakFreezesAccumulated ? presentation.freeze.words.nextFreezeProgress : undefined,

@@ -148,6 +148,7 @@ const mocks = vi.hoisted(() => ({
       currentStreak: 4,
       longestStreak: 9,
       lastActiveDate: null as string | null,
+      firstEligibleDate: undefined as string | null | undefined,
       freezesUsedThisMonth: 1,
       freezesAvailable: 2,
       maxFreezesPerMonth: 3,
@@ -762,6 +763,7 @@ describe('mobile ProgressContent', () => {
     Object.assign(mocks.freeze.streakInfo, {
       currentStreak: 4,
       recentFreezeDates: [],
+      firstEligibleDate: undefined,
       lastActiveDate: null,
       isRepairAvailable: false,
       repairDate: null,
@@ -1201,6 +1203,16 @@ describe('mobile ProgressContent', () => {
     const compactTile = compactTree.root.findAll((node) => node.props.testID === 'achievement-tile-first_orbit')[0]!
     expect(StyleSheet.flatten(compactTile.props.style as ViewStyle).width).toBe(380)
     dimensions.mockRestore()
+  })
+
+  it('keeps pre-habit days neutral in the owning streak page on the account date', async () => {
+    vi.setSystemTime(new Date('2026-09-26T06:00:00Z'))
+    mocks.account.profile.timeZone = 'Pacific/Honolulu'
+    Object.assign(mocks.freeze.streakInfo, { currentStreak: 1, lastActiveDate: '2026-09-25', firstEligibleDate: '2026-09-24' })
+    const tree = await renderProgress(undefined, 'streak', false)
+    const cells = tree.root.findAll(node => node.type === 'View' && String(node.props.testID).startsWith('day-strip-cell-'))
+    expect(cells.map(cell => cell.props.testID)).toEqual([...Array(12).fill('day-strip-cell-not-scheduled'), 'day-strip-cell-missed', 'day-strip-cell-active'])
+    expect(cells[0]!.props.accessibilityLabel).toContain('calendar.dayCell.notScheduled')
   })
 
   it('renders a weekly two-occurrence gap without an action after the streak restarts today', async () => {

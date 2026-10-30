@@ -28,7 +28,7 @@ type IsExactWidth<T, U> =
 type Assert<T extends true> = T
 type Fields<T> = { [TKey in keyof T]: T[TKey] }
 type ExpectedHabitDayValue = 'done' | 'missed' | 'not-scheduled'
-type ExpectedAccountDayValue = 'active' | 'frozen' | 'missed' | 'today'
+type ExpectedAccountDayValue = 'active' | 'frozen' | 'missed' | 'today' | 'not-scheduled'
 
 type ExpectedHabitStrip = {
   scope: 'habit'
@@ -93,6 +93,7 @@ type HabitWords = {
   notScheduled: 'not scheduled'
 }
 type AccountWords = {
+  notScheduled: 'nothing due'
   active: 'active'
   frozen: 'frozen'
   missed: 'missed'
@@ -118,7 +119,6 @@ type AccountStrip = Accepts<
 >
 // @ts-expect-error frozen belongs to the account strip
 type HabitFrozen = Accepts<{ scope: 'habit'; days: ['frozen']; words: HabitWords; label: 'history' }, DayStripProps>
-// @ts-expect-error not-scheduled belongs to the habit strip
 type AccountNotScheduled = Accepts<{ scope: 'account'; days: ['not-scheduled']; words: AccountWords; label: 'streak' }, DayStripProps>
 // @ts-expect-error habit scope requires habit words
 type HabitWithAccountWords = Accepts<{ scope: 'habit'; days: ['done']; words: AccountDayWords; label: 'history' }, DayStripProps>
