@@ -16,16 +16,16 @@ New this relay, in the scratchpad: `gated-launch.sh` is the load-gated launcher 
 
 ## Goal
 
-Finish the spec: an empty board and verified releases, driven to launch, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 24 open, 24 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board and verified releases, driven to launch, in `## The order`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff: 23 open, 23 placed, 0 unplaced, 0 placed twice.
 
 ## In flight
 
-UI `main` is `34c275eb7`, API `main` is `728b1ea5`, landing `main` is `06ee66c`. Production web serves `1bacb1fb2` until release run 40989249403 (`b616cdf81`) verifies; production API `728b1ea5`; desktop production 0.1.12. The owner's phone runs Android Open 1.3.115 (174); Android Open 1.3.116 (175) of `b616cdf81` is run 40989282726. Staging API and web stay suspended until the free-hours reset; nothing waits for them.
+UI `main` is `34c275eb7`, API `main` is `728b1ea5`, landing `main` is `06ee66c`. Production web serves `b616cdf81` (verified); production API `728b1ea5`; desktop production 0.1.12. The owner's phone runs Android Open 1.3.115 (174); Android Open 1.3.116 (175) of `b616cdf81` is run 40989282726. Staging API and web stay suspended until the free-hours reset; nothing waits for them.
 
 | Item | Disposition |
 | --- | --- |
 | Production `#26` gate | RUNNING detached in the `e93b9121` scratchpad (`run-26-gate-prod/` in the `e93b9121-5e3b-4a80-b0c5-7ac8c0a0f0c1` session scratchpad, a sibling of this session's scratchpad; promptfoo pid 55380, 65 of 399 at 01:49Z; progress lines `Eval #N complete (M of 399)` in the newest `~/.promptfoo/logs/promptfoo-debug-*.log`). Start a background poller on that `run-26-gate-prod/DONE` at once. Never release or restart production API while it runs. When it ends: read `eval.log` and the reports; if the 10 named cases (spec `#26` line) pass, close `#1617`, `#1674`, `#1857`, `#1883`, `#26`; then the three eval flags off for the eval emails (list, change, list), `/orbit/production/api/StagingEval__AccountIds` back to `00000000-0000-0000-0000-000000000000`, `tf-envgroup-keydiff.sh render_env_group.production_api`, `tf-apply-targeted.sh` and a same-commit production API release with `force_unstaged`; `astra_block_first` for everyone on production (list, change, list), check the owner account, close `#1756` and `#1740`. Failures go to their tickets as worker rounds (deep after a failed round). |
-| Releases of `#1892` | Production web run 40989249403 and Android Open run 40989282726 were dispatched; their watchers end with this session. Re-verify: `tools/wait-release.mjs --repo ui --run 40989249403 --sha b616cdf811757569f773e028f014440d128720ce --workflow-sha b616cdf811757569f773e028f014440d128720ce --service-url https://orbit-web-3qmv.onrender.com` and `--run 40989282726 --sha b616cdf811757569f773e028f014440d128720ce --workflow android`. Then close `#1892` and tear down `ticket-1892-typed-title-underline` after `#1895` merges (it is the stacked base). |
+| `#1892` | Closed: production web serves `b616cdf81` (run 40989249403, verified) and Android Open 1.3.116 (175) uploaded (run 40989282726). Tear down `ticket-1892-typed-title-underline` after `#1895` merges (it is the stacked base). |
 | `#1895` / `ui#2229` | Owner report (typed title hover slab and "Expandir" tooltip). Worktree `ticket-1895-typed-title-affordance` holds the local `main` merge `f55121f4c`, NOT pushed. Next: the review round in the spec's `#1895` line (label guard at `apps/web/__tests__/support/label-guards.test.ts:208`, focus-visible check), run the web files `label-guards.test.ts`, `menu-interaction.test.tsx`, `sheet.test.tsx`, `sheet-title-geometry.test.tsx` and the mobile `sheet.test.tsx` by exit code, edit the body from a file, push once, `tools/wait-ci.mjs --repo ui --pr 2229`, review, merge. |
 | `#1896` / `ui#2228` | Owner reports (Astra start screen, Hoje all-done pill). Head `8a177c58c`, diff read and accepted; a CI waiter was running at the relay. Next: `tools/wait-ci.mjs --repo ui --pr 2228`, review, merge (base merge only if it shares files with newer `main`). |
 | Web and Android after both | Production web with `force_unstaged` for the merge commits of `ui#2228` and `ui#2229`, then one Android Open carrying both, then close `#1895` and `#1896`. |
@@ -38,7 +38,7 @@ Inventory: open pull requests `ui#1989` (relay docs), `ui#2228` (`#1896`, CI), `
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
-2. The gate poller, the `#1892` release re-verifications, the `ui#2229` review round and the `ui#2228` waiter; drive both to merge and release.
+2. The gate poller, the `ui#2229` review round and the `ui#2228` waiter; drive both to merge and release.
 3. The gate result and its closes or rounds (In flight row), then `#1880` and the landing release.
 4. The rest of `## The order`. Before naming any remaining ticket as blocked on the owner, try every installed tool once more and write what each returned.
 
@@ -57,7 +57,7 @@ Unattended run: never ask the owner anything (standing owner order: keep working
 - Reading list, entry point, newest-prompt check, Crank and Sleep rules, refused routes, helpers and scratchpad carry: carried (ids updated).
 - Answer any owner message first and give each order a ticket: done (his three screenshot reports became `#1895` and `#1896`; the underline is `#1892`).
 - The gate poller: carried (the gate still runs).
-- `ui#2226` and landing `#122`: both merged; `#1892` released to production web and Android Open (verification carried); the landing release is blocked by Render build minutes (carried).
+- `ui#2226` and landing `#122`: both merged; `#1892` released to production web and Android Open 1.3.116 and closed; the landing release is blocked by Render build minutes (carried).
 - `#1894`: done (merged as `ui#2227`, closed).
 - The `#1880` check: carried (24 hours of 1.3.115 use).
 - The rest of `## The order`: carried.
