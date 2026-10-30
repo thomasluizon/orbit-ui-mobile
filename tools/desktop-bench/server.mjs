@@ -1,11 +1,11 @@
 import { createServer, request } from 'node:http'
 import { readFile } from 'node:fs/promises'
 
-export async function startProxy({ token, probePath, port, upstreamPort }) {
+export async function startProxy({ token, probePath, port, upstreamPort, closeConversationLabel }) {
   let received = []
   let command = 'idle'
   let waiting = []
-  const probe = await readFile(probePath)
+  const probe = (await readFile(probePath, 'utf8')).replaceAll('__BENCH_CLOSE_LABEL__', JSON.stringify(closeConversationLabel))
   const server = createServer(async (incoming, response) => {
     if (incoming.url === '/_bench/probe.js') {
       response.writeHead(200, { 'content-type': 'application/javascript', 'cache-control': 'no-store' })

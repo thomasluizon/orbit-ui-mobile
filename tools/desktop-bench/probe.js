@@ -85,8 +85,13 @@
       return false
     }, 'hydrated composer focus response')
     const usableEpoch = performance.timeOrigin + performance.now()
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }))
-    await until(() => !document.querySelector('[data-shell-conversation]') && !document.querySelector('[data-shell-destination]')?.inert, 'return to Hoje')
+    await until(() => {
+      const conversation = document.querySelector('[data-shell-conversation]')
+      if (!conversation && !document.querySelector('[data-shell-destination]')?.inert) return true
+      const close = [...(conversation?.querySelectorAll('button') ?? [])].find((button) => button.getAttribute('aria-label') === __BENCH_CLOSE_LABEL__)
+      close?.click()
+      return false
+    }, 'return to Hoje')
     await frame()
     await post({ kind: 'usable', epochMs: usableEpoch, visibility: document.visibilityState, viewport: [innerWidth, innerHeight] })
     for (;;) {

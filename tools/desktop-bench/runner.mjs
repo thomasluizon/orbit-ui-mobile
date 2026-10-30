@@ -26,6 +26,7 @@ async function measure({ shell, cache, iteration, executable, profile, environme
     const usable = await waitFor(() => read('usable'), `${shell} usable Hoje`)
     if (usable.visibility !== 'visible') throw new Error('Shell must be visible for measurement')
     if (viewport && usable.viewport.join(',') !== viewport.join(',')) throw new Error(`Viewport mismatch: ${usable.viewport} versus ${viewport}`)
+    note(`${shell} ${iteration + 1} ${cache}: Hoje usable, measuring idle at ${usable.viewport.join('x')}`)
     const baseline = await treeSample(handle, macProbe, windowsScript)
     members = baseline.members
     const idleStarted = Date.now()
@@ -92,7 +93,8 @@ export async function benchmark({ repository, directory, output, repetitions }) 
     if (!seed.ok) throw new Error(`Fixture seed failed: ${seed.status} ${await seed.text()}`)
     const web = start(process.execPath, [require.resolve('next/dist/bin/next'), 'start', '--port', '3401', '--hostname', '127.0.0.1'], { cwd: join(repository, 'apps/web'), env: environment, log: join(work, 'web.log') })
     await waitForHttp('http://127.0.0.1:3401/api/health', web)
-    proxy = await startProxy({ token: fixtures.token, probePath: join(directory, 'probe.js'), port: 3400, upstreamPort: 3401 })
+    const words = require(join(repository, 'packages/shared/src/i18n/en.json'))
+    proxy = await startProxy({ token: fixtures.token, probePath: join(directory, 'probe.js'), port: 3400, upstreamPort: 3401, closeConversationLabel: words.common.closeConversation })
     await fetch('http://127.0.0.1:3400/').then((response) => response.arrayBuffer())
     const runs = []
     let viewport
