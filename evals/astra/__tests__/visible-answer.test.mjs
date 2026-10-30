@@ -243,3 +243,13 @@ it.each(['en', 'pt-BR'])('grades pre-habit streak days as nothing due in %s', (l
   const visible = visibleBlock({ type: 'block', kind: 'streak', block: card }, { locale, accountDate: '2026-09-25', t: key => key })
   expect(visible.days.map(day => day.status)).toEqual([...Array(12).fill('calendar.dayCell.notScheduled'), 'progressScreen.streak.missed', 'progressScreen.streak.active'])
 })
+
+it.each(['en', 'pt-BR'])('grades pre-habit gamification streak days as nothing due in %s', (locale) => {
+  const { block } = gamificationCardCases.find(testCase => testCase.name === 'streak only')
+  const card = { ...block, state: { ...block.state, streak: { ...block.state.streak, firstEligibleDate: '2026-08-31' } } }
+  const visible = visibleBlock({ type: 'block', kind: 'gamification', block: card }, { locale, t: key => key })
+  const statuses = visible.streak.days.map(day => day.status)
+  expect(statuses.slice(0, 12)).toEqual(Array(12).fill('calendar.dayCell.notScheduled'))
+  expect(statuses.slice(12)).toHaveLength(2)
+  expect(statuses.slice(12).every(status => typeof status === 'string' && status !== 'calendar.dayCell.notScheduled')).toBe(true)
+})
