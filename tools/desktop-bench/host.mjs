@@ -3,6 +3,7 @@ import { createServer } from 'node:net'
 import { createWriteStream } from 'node:fs'
 import { lstat, readdir } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
+import { createInterface } from 'node:readline'
 import { parseMacProcesses, processTree } from './measurements.mjs'
 
 export { delay }
@@ -49,15 +50,23 @@ export async function execute(command, argumentsList, options) {
   return start(command, argumentsList, options).done
 }
 
-export async function stop(handle, extraPids = []) {
+export async function stop(handle) {
   if (!handle) return
+  if (handle.nativeRequest && handle.child.exitCode === null) {
+    try {
+      await handle.nativeRequest('stop')
+      await handle.done
+      return
+    } catch (error) {
+      delete handle.nativeRequest
+      await stop(handle)
+      throw error
+    }
+  }
   if (process.platform === 'win32') {
     if (handle.child.exitCode === null) await execute('taskkill.exe', ['/PID', String(handle.child.pid), '/T', '/F'])
   } else {
     try { process.kill(-handle.child.pid, 'SIGKILL') } catch (error) { if (error.code !== 'ESRCH') throw error }
-    for (const pid of extraPids) {
-      try { process.kill(pid, 'SIGKILL') } catch (error) { if (error.code !== 'ESRCH') throw error }
-    }
   }
   await handle.done.catch(() => {})
 }
@@ -79,30 +88,57 @@ export async function waitForHttp(url, handle) {
   }, url)
 }
 
-export async function processSnapshot(macProbe, windowsScript) {
-  if (process.platform === 'win32') {
-    const stdout = await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', windowsScript])
-    const result = JSON.parse(stdout)
-    return Array.isArray(result) ? result : [result]
+export async function launchShell({ executable, macProbe, windowsScript, ...options }) {
+  const windows = process.platform === 'win32'
+  const handle = start(windows ? 'powershell.exe' : macProbe,
+    windows ? ['-NoProfile', '-NonInteractive', '-File', windowsScript, '-Executable', executable, '-ShellLog', `${options.log}.shell.log`] : [executable],
+    { ...options, stdio: ['pipe', 'pipe', 'pipe'] })
+  const lines = createInterface({ input: handle.child.stdout })
+  const replies = lines[Symbol.asyncIterator]()
+  handle.nativeRequest = async (command) => {
+    handle.child.stdin.write(`${command}\n`)
+    const next = await Promise.race([
+      replies.next(), handle.done.then(() => { throw new Error('Native accounting process exited before replying') }),
+      delay(120000, undefined, { ref: false }).then(() => { throw new Error(`Native accounting timed out: ${command}`) }),
+    ])
+    if (next.done) throw new Error('Native accounting closed its output')
+    const reply = JSON.parse(next.value)
+    if (reply.kind !== command) throw new Error(`Unexpected native accounting reply: ${reply.kind}`)
+    return reply
   }
-  const processes = parseMacProcesses(await execute('ps', ['-axo', 'pid=,ppid=,rss=,time=,command=']))
-  const candidates = processes
-  if (candidates.length) {
-    const responsible = await execute(macProbe, candidates.map((entry) => String(entry.pid)))
-    for (const line of responsible.trim().split('\n')) {
-      const [pid, owner] = line.split(' ').map(Number)
-      const entry = processes.find((process) => process.pid === pid)
-      if (entry) entry.responsible = owner
+  try {
+    const launched = await handle.nativeRequest('launch')
+    handle.launchedAt = launched.epochMs
+    if (!windows) {
+      handle.rootPid = launched.pid
+      handle.macProbe = macProbe
     }
+    return handle
+  } catch (error) {
+    delete handle.nativeRequest
+    await stop(handle)
+    throw error
   }
-  return processes
 }
 
-export async function treeSample(handle, macProbe, windowsScript) {
-  const members = processTree(await processSnapshot(macProbe, windowsScript), handle.child.pid)
-    .filter((entry) => process.platform !== 'darwin' || entry.pid !== handle.child.pid)
-  if (!members.length) throw new Error('Shell process tree disappeared')
-  return { epochMs: Date.now(), residentBytes: members.reduce((sum, entry) => sum + entry.residentBytes, 0), members }
+export async function treeSample(handle) {
+  let sample = await handle.nativeRequest('sample')
+  if (process.platform === 'darwin') {
+    const processes = parseMacProcesses(await execute('ps', ['-axo', 'pid=,ppid=,rss=,time=,command=']))
+    const ownership = await execute(handle.macProbe, ['owners', ...processes.map((entry) => String(entry.pid))])
+    const byPid = new Map(processes.map((entry) => [entry.pid, entry]))
+    for (const line of ownership.trim().split('\n')) {
+      const [pid, responsible, coalitionId] = line.split(' ')
+      Object.assign(byPid.get(Number(pid)), { responsible: Number(responsible), coalitionId })
+    }
+    const tree = processTree(processes, handle.rootPid)
+    if (tree.some((entry) => entry.coalitionId !== '0' && entry.coalitionId !== sample.coalitionId)) throw new Error('Shell tree spans resource coalitions; CPU accounting would be incomplete')
+    const members = processes.filter((entry) => entry.coalitionId === sample.coalitionId)
+    sample = { ...sample, residentBytes: members.reduce((sum, entry) => sum + entry.residentBytes, 0), members }
+  }
+  if (!sample.members.length) throw new Error('Shell process tree disappeared')
+  if (!Number.isFinite(sample.cpuSeconds) || sample.cpuSeconds < 0) throw new Error('Missing cumulative native CPU accounting')
+  return sample
 }
 
 export async function logicalSize(path) {

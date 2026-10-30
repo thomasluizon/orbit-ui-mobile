@@ -1,15 +1,15 @@
+param([Parameter(Mandatory = $true)][string]$Executable, [Parameter(Mandatory = $true)][string]$ShellLog)
 $ErrorActionPreference = 'Stop'
-$processSchema = Get-CimClass -ClassName Win32_Process
-foreach ($field in @('ProcessId', 'ParentProcessId', 'WorkingSetSize', 'KernelModeTime', 'UserModeTime', 'Name')) {
-    if (-not $processSchema.CimClassProperties[$field]) { throw "Missing Win32_Process field: $field" }
-}
-$rows = @(Get-CimInstance -ClassName Win32_Process | ForEach-Object {
-    [ordered]@{
-        pid = [int]$_.ProcessId
-        parent = [int]$_.ParentProcessId
-        residentBytes = [double]$_.WorkingSetSize
-        cpuSeconds = ([double]$_.KernelModeTime + [double]$_.UserModeTime) / 10000000
-        command = [string]$_.Name
+Add-Type -Path (Join-Path $PSScriptRoot 'windows-job.cs')
+$job = [BenchmarkJob]::new()
+try {
+    while ($null -ne ($command = [Console]::ReadLine())) {
+        switch ($command) {
+            'launch' { $reply = @{ kind = 'launch'; epochMs = $job.Launch($Executable, $ShellLog) } }
+            'sample' { $reply = $job.Read() }
+            'stop' { $job.Stop(); [Console]::WriteLine('{"kind":"stop"}'); exit 0 }
+            default { throw "Unknown accounting command: $command" }
+        }
+        [Console]::WriteLine(($reply | ConvertTo-Json -Depth 6 -Compress))
     }
-})
-ConvertTo-Json -InputObject $rows -Compress
+} finally { $job.Dispose() }

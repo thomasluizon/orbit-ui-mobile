@@ -4,16 +4,20 @@
   const frame = () => new Promise(requestAnimationFrame)
   async function fitViewport() {
     const [width, height] = __BENCH_VIEWPORT__
-    if (!window.__TAURI_INTERNALS__ || (innerWidth === width && innerHeight === height)) return
-    await window.__TAURI_INTERNALS__.invoke('fit_bench_viewport', { viewport: [innerWidth, innerHeight] })
+    const mismatch = () => new Error(`Viewport mismatch: ${[innerWidth, innerHeight]} versus ${[width, height]}; available screen: ${screen.availWidth}x${screen.availHeight}`)
+    if (!__BENCH_READINESS_ONLY__ || !window.__TAURI_INTERNALS__) {
+      if (innerWidth !== width || innerHeight !== height) throw mismatch()
+      return __BENCH_NATIVE_WINDOW__
+    }
+    const nativeWindow = await window.__TAURI_INTERNALS__.invoke('fit_bench_viewport', { viewport: [innerWidth, innerHeight] })
       .catch((reason) => { throw new Error(`Cannot fit benchmark viewport: ${String(reason)}`) })
     const deadline = performance.now() + 60000
     do {
       await frame()
-      if (innerWidth === width && innerHeight === height) return
+      if (innerWidth === width && innerHeight === height) return nativeWindow
       await pause(20)
     } while (performance.now() < deadline)
-    throw new Error(`Viewport mismatch: ${[innerWidth, innerHeight]} versus ${[width, height]}; available screen: ${screen.availWidth}x${screen.availHeight}`)
+    throw mismatch()
   }
   async function until(read, label) {
     const deadline = performance.now() + 60000
@@ -92,7 +96,7 @@
       if (!row || !input || !row.getBoundingClientRect().height || !input.getBoundingClientRect().height) return null
       return input
     }, 'first interactive habit and focusable composer')
-    await fitViewport()
+    const nativeWindow = await fitViewport()
     await until(() => {
       if (document.querySelector('[data-shell-conversation]')) return true
       const input = document.querySelector('[data-composer-input]:not([disabled])')
@@ -110,7 +114,7 @@
       return false
     }, 'return to Hoje')
     await frame()
-    await post({ kind: 'usable', epochMs: usableEpoch, visibility: document.visibilityState, viewport: [innerWidth, innerHeight], availableScreen: [screen.availWidth, screen.availHeight] })
+    await post({ kind: 'usable', epochMs: usableEpoch, visibility: document.visibilityState, viewport: [innerWidth, innerHeight], nativeWindow, availableScreen: [screen.availWidth, screen.availHeight] })
     for (;;) {
       const response = await fetch('/_bench/command')
       const command = await response.text()

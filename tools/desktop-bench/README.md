@@ -15,10 +15,13 @@ The current stable Electron version is resolved from npm and recorded in the rep
 The Tauri release uses `bench-loopback` and a temporary config overlay. The feature is off by
 default. Only the overlay grants local capabilities, selects the separate benchmark app identifier
 and requests a 900×600 CSS viewport, where Hoje provides its inline composer. Both shells must
-report exactly that viewport. The Tauri probe measures the page after its first interactive row,
-requests a native resize by any CSS shortfall, and waits for the layout to match before testing
-composer focus or reporting usable. This includes insets inside the native webview frame.
-The measured dimensions are retained in JSON. Shipped configs and release workflows stay unchanged.
+report exactly that viewport. Only the readiness launch may fit Tauri's window by the page's
+measured CSS shortfall, including insets inside the native webview frame. It returns the calibrated
+logical native size through the benchmark command. Every measured launch receives that size through
+`ORBIT_BENCH_WIDTH` and `ORBIT_BENCH_HEIGHT` before window creation, skips restored geometry and rejects
+any viewport mismatch without resizing or native IPC. Electron retains its content-size launch path.
+JSON retains `nativeWindow` (the logical native size request) beside `viewport`, including readiness.
+Shipped configs and release workflows stay unchanged.
 The Rust test rejects loopback without the feature; the tools harness guards release configurations.
 
 Only loopback ports 5099, 3400 and 3401 are used. Occupied ports fail before starting processes.
@@ -40,10 +43,27 @@ visible windows unobstructed during measurement.
 First usable means the first habit has painted and the hydrated composer accepts focus.
 The page then waits on a long-lived command request while the host collects process-tree RSS
 at 10 seconds and 60 seconds, plus CPU-time change over the idle interval. CPU is an energy proxy,
-not watts. Raw process membership and timestamps accompany every sample. On macOS the system
-responsibility API attributes launchd-hosted WebKit content, GPU and network processes to their app,
-alongside normal descendants. A native launcher disclaims inherited responsibility. No root access
-is used. Windows introspects the `Win32_Process` CIM schema before reading descendant counters.
+not watts. Raw process membership, native accounting counters and timestamps accompany every sample.
+CPU totals include exited members, including children born and terminated between samples. Live
+member CPU counters are diagnostic only; they never supply the idle total.
+
+Windows creates the shell suspended, assigns it to a Job Object before resuming it, and disallows
+breakaway. `JOBOBJECT_BASIC_ACCOUNTING_INFORMATION.TotalUserTime` and `TotalKernelTime` retain CPU from
+both live and terminated members, including nested jobs. The same job supplies live PIDs for RSS,
+and closing its last handle kills its processes. PowerShell compilation and job creation precede
+the native launch timestamp and do not enter startup timing. See the
+[job accounting contract](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_accounting_information)
+and [job inheritance contract](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects).
+
+macOS launches each packaged app through `NSWorkspace` with a fresh application instance and the
+benchmark environment. It requires a resource coalition separate from the runner. The kernel's
+coalition CPU counter sums live-task ledgers and the retained ledgers of dead tasks. Its Mach ticks
+are converted using `mach_timebase_info`. Live RSS comes from `ps`, with coalition membership and
+responsibility attribution for launchd-hosted WebKit content, GPU and network processes. A live
+descendant in a different coalition fails accounting. No root access is used. The native helper
+terminates its isolated coalition on stop or input closure. The ABI prefix and dead-task rollup
+are defined in [XNU's coalition interface](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/mach/coalition.h)
+and [coalition accounting](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/kern/coalition.c).
 
 Scrolling advances the real shell scroller 120 pixels per animation frame to the end of the
 200-habit list and verifies the last row. JSON retains every frame interval; summaries report

@@ -5,7 +5,7 @@ import { join, delimiter } from 'node:path'
 import { platform, release, arch, cpus, totalmem } from 'node:os'
 import { benchmarkViewport, buildShells, readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
-import { assertFree, delay, execute, start, stop, stopAll, treeSample, waitFor, waitForHttp } from './host.mjs'
+import { assertFree, delay, execute, launchShell, start, stop, stopAll, treeSample, waitFor, waitForHttp } from './host.mjs'
 import { markdown, percentile, summarize } from './measurements.mjs'
 
 const require = createRequire(import.meta.url)
@@ -23,13 +23,11 @@ export function assertViewport(actual, availableScreen) {
   if (actual.join(',') !== benchmarkViewport.join(',')) throw new Error(`Viewport mismatch: ${actual} versus ${benchmarkViewport}; available screen: ${availableScreen.join('x')}`)
 }
 
-async function measure({ shell, cache, iteration, executable, profile, environment, proxy, macProbe, windowsScript, work, readinessOnly }) {
-  proxy.reset()
-  const launchedAt = Date.now()
-  const handle = start(process.platform === 'darwin' ? macProbe : executable, process.platform === 'darwin' ? ['launch', executable] : [], {
-    env: { ...environment, ORBIT_BENCH_PROFILE: profile, ORBIT_BENCH_WIDTH: String(benchmarkViewport[0]), ORBIT_BENCH_HEIGHT: String(benchmarkViewport[1]) }, log: join(work, `${shell}-${iteration}-${cache}.log`),
+async function measure({ shell, cache, iteration, executable, profile, environment, proxy, macProbe, windowsScript, work, readinessOnly, nativeWindow = benchmarkViewport }) {
+  proxy.reset({ readinessOnly, nativeWindow })
+  const handle = await launchShell({ executable, macProbe, windowsScript,
+    env: { ...environment, ORBIT_BENCH_PROFILE: profile, ORBIT_BENCH_WIDTH: String(nativeWindow[0]), ORBIT_BENCH_HEIGHT: String(nativeWindow[1]), ORBIT_BENCH_READINESS_ONLY: readinessOnly ? '1' : '0' }, log: join(work, `${shell}-${iteration}-${cache}.log`),
   })
-  let members = []
   const read = (kind) => {
     if (handle.child.exitCode !== null) throw new Error(`Shell exited before ${kind}; see ${handle.log}`)
     return proxy.read(kind)
@@ -38,32 +36,27 @@ async function measure({ shell, cache, iteration, executable, profile, environme
     const usable = await waitFor(() => read('usable'), `${shell} usable Hoje`)
     if (usable.visibility !== 'visible') throw new Error('Shell must be visible for measurement')
     assertViewport(usable.viewport, usable.availableScreen)
+    if (!Array.isArray(usable.nativeWindow) || usable.nativeWindow.length !== 2 ||
+        usable.nativeWindow.some((value) => !Number.isFinite(value) || value <= 0)) throw new Error('Missing calibrated native window size')
     if (readinessOnly) {
       note(`${shell}: readiness check passed at ${usable.viewport.join('x')}`)
-      return { viewport: usable.viewport }
+      return { viewport: usable.viewport, nativeWindow: usable.nativeWindow }
     }
     note(`${shell} ${iteration + 1} ${cache}: Hoje usable, measuring idle at ${usable.viewport.join('x')}`)
-    const baseline = await treeSample(handle, macProbe, windowsScript)
-    members = baseline.members
-    const idleStarted = Date.now()
-    await delay(10000)
-    const tenSeconds = await treeSample(handle, macProbe, windowsScript)
+    const baseline = await treeSample(handle)
+    const idleStarted = baseline.epochMs
+    await delay(Math.max(0, 10000 - (Date.now() - idleStarted)))
+    const tenSeconds = await treeSample(handle)
     await delay(Math.max(0, 60000 - (Date.now() - idleStarted)))
-    const sixtySeconds = await treeSample(handle, macProbe, windowsScript)
-    members = sixtySeconds.members
-    const finalByPid = new Map(members.map((entry) => [entry.pid, entry]))
-    for (const entry of baseline.members) {
-      if (!finalByPid.has(entry.pid)) throw new Error(`Idle process ${entry.pid} exited; CPU accounting would be incomplete`)
-    }
-    const initialCpu = baseline.members.reduce((sum, entry) => sum + entry.cpuSeconds, 0)
-    const finalCpu = members.reduce((sum, entry) => sum + entry.cpuSeconds, 0)
+    const sixtySeconds = await treeSample(handle)
+    if (sixtySeconds.cpuSeconds < baseline.cpuSeconds) throw new Error('Cumulative native CPU counter went backwards')
     proxy.workload()
     const completed = await waitFor(() => read('complete'), `${shell} scroll and Astra workload`)
     if (completed.visibility !== 'visible') throw new Error('Shell became hidden during workload')
     const result = {
-      shell, cache, iteration, viewport: usable.viewport, startupMs: usable.epochMs - launchedAt,
+      shell, cache, iteration, viewport: usable.viewport, nativeWindow: usable.nativeWindow, startupMs: usable.epochMs - handle.launchedAt,
       resident10Bytes: tenSeconds.residentBytes, resident60Bytes: sixtySeconds.residentBytes,
-      idleCpuSeconds: finalCpu - initialCpu, idleElapsedMs: sixtySeconds.epochMs - baseline.epochMs,
+      idleCpuSeconds: sixtySeconds.cpuSeconds - baseline.cpuSeconds, idleElapsedMs: sixtySeconds.epochMs - baseline.epochMs,
       scrollP95Ms: percentile(completed.frames, 0.95), scrollSlowFrames: completed.frames.filter((value) => value > 16.7).length,
       firstTokenMs: completed.firstTokenMs, finalPartMs: completed.finalPartMs,
       requestDispatchMs: completed.requestDispatchMs, finalEventMs: completed.finalEventMs,
@@ -72,8 +65,7 @@ async function measure({ shell, cache, iteration, executable, profile, environme
     note(`${shell} ${iteration + 1} ${cache}: usable ${result.startupMs.toFixed(1)} ms, RSS ${(result.resident60Bytes / 1048576).toFixed(1)} MiB, idle CPU ${result.idleCpuSeconds.toFixed(2)} s`)
     return result
   } finally {
-    if (!members.length && handle.child.exitCode === null) members = (await treeSample(handle, macProbe, windowsScript)).members
-    await stop(handle, members.filter((entry) => entry.responsible).map((entry) => entry.pid))
+    await stop(handle)
     await delay(1000)
   }
 }
@@ -95,7 +87,7 @@ export async function benchmark({ repository, directory, output, repetitions }) 
   process.once('SIGTERM', interrupt)
   try {
     const commit = (await execute('git', ['rev-parse', 'HEAD'], { cwd: repository })).trim()
-    if (process.platform === 'darwin') await execute('clang', [join(directory, 'mac-process.c'), '-o', macProbe])
+    if (process.platform === 'darwin') await execute('clang', ['-x', 'objective-c', '-fobjc-arc', '-framework', 'AppKit', join(directory, 'mac-process.c'), '-o', macProbe])
     note('Building release shells; build output is in the output directory under work')
     const shells = await buildShells(repository, work, environment)
     if (interrupted) throw new Error('Interrupted')
@@ -113,6 +105,7 @@ export async function benchmark({ repository, directory, output, repetitions }) 
     proxy = await startProxy({ token: fixtures.token, probePath: join(directory, 'probe.js'), port: 3400, upstreamPort: 3401, closeConversationLabel: words.common.closeConversation })
     await fetch('http://127.0.0.1:3400/').then((response) => response.arrayBuffer())
     const runs = []
+    const readiness = {}
     for (let iteration = -1; iteration < repetitions; iteration++) {
       const readinessOnly = iteration === -1
       const order = iteration > 0 && iteration % 2 ? ['electron', 'tauri'] : ['tauri', 'electron']
@@ -123,7 +116,8 @@ export async function benchmark({ repository, directory, output, repetitions }) 
         await mkdir(profile, { recursive: true })
         for (const cache of readinessOnly ? ['readiness'] : ['cold', 'warm']) {
           if (interrupted) throw new Error('Interrupted')
-          const result = await measure({ shell, cache, iteration, executable: shells[`${shell}Executable`], profile, environment, proxy, macProbe, windowsScript, work, readinessOnly })
+          const result = await measure({ shell, cache, iteration, executable: shells[`${shell}Executable`], profile, environment, proxy, macProbe, windowsScript, work, readinessOnly, nativeWindow: readiness[shell]?.nativeWindow })
+          if (readinessOnly) readiness[shell] = result
           if (!readinessOnly) {
             runs.push(result)
             await writeFile(join(output, 'partial.json'), JSON.stringify(runs, null, 2))
@@ -133,7 +127,7 @@ export async function benchmark({ repository, directory, output, repetitions }) 
     }
     const report = {
       host: `${platform()} ${release()} ${arch()}; ${cpus()[0].model}; ${cpus().length} logical CPUs; ${(totalmem() / 1073741824).toFixed(0)} GiB RAM`,
-      commit, repetitions, viewport: benchmarkViewport, electronVersion: shells.version, disk: shells.disk, medians: summarize(runs), runs,
+      commit, repetitions, viewport: benchmarkViewport, readiness, electronVersion: shells.version, disk: shells.disk, medians: summarize(runs), runs,
       verdict: 'Tauri remains the incumbent while both platform reports are assessed. Compare each metric separately; a mixed result does not establish that Electron measures best overall.',
     }
     await writeFile(join(output, 'summary.json'), JSON.stringify(report, null, 2))

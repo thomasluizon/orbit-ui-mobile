@@ -28,6 +28,10 @@ fn main() {
     let context = context();
     let identifier = context.config().identifier.clone();
     let builder = tauri::Builder::default();
+    let window_state = tauri_plugin_window_state::Builder::new()
+        .with_state_flags(lifecycle::window_state_flags());
+    #[cfg(feature = "bench-loopback")]
+    let window_state = window_state.skip_initial_state("main");
     #[cfg(target_os = "macos")]
     let builder = builder.activate_ignoring_other_apps(false);
     let app = builder
@@ -54,11 +58,7 @@ fn main() {
                 .app_name(identifier)
                 .build(),
         )
-        .plugin(
-            tauri_plugin_window_state::Builder::new()
-                .with_state_flags(lifecycle::window_state_flags())
-                .build(),
-        )
+        .plugin(window_state.build())
         .on_menu_event(menus::handle)
         .on_window_event(lifecycle::on_window_event)
         .setup(|app| {
@@ -78,6 +78,8 @@ fn main() {
             menus::install(app.handle())?;
             push::start(app.handle())?;
             let mut window_config = app.config().app.windows[0].clone();
+            #[cfg(feature = "bench-loopback")]
+            bench_viewport::configure(&mut window_config)?;
             if let Some(destination) = update_resume::take(app.handle(), origin)? {
                 window_config.url = tauri::utils::config::WebviewUrl::External(destination);
             }
@@ -109,10 +111,6 @@ fn main() {
                     #[cfg(feature = "bench-loopback")]
                     {
                         _window.remove_menu()?;
-                        bench_viewport::set_size(
-                            &_window,
-                            tauri::LogicalSize::new(window_config.width, window_config.height),
-                        )?;
                     }
                     Ok(())
                 },

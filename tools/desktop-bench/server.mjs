@@ -6,13 +6,15 @@ export async function startProxy({ token, probePath, port, upstreamPort, closeCo
   let received = []
   let command = 'idle'
   let waiting = []
+  let launch
   const probe = (await readFile(probePath, 'utf8'))
     .replaceAll('__BENCH_CLOSE_LABEL__', JSON.stringify(closeConversationLabel))
     .replaceAll('__BENCH_VIEWPORT__', JSON.stringify(benchmarkViewport))
   const server = createServer(async (incoming, response) => {
     if (incoming.url === '/_bench/probe.js') {
       response.writeHead(200, { 'content-type': 'application/javascript', 'cache-control': 'no-store' })
-      response.end(probe)
+      response.end(probe.replaceAll('__BENCH_READINESS_ONLY__', JSON.stringify(launch.readinessOnly))
+        .replaceAll('__BENCH_NATIVE_WINDOW__', JSON.stringify(launch.nativeWindow)))
     } else if (incoming.url === '/_bench/events') {
       try {
         const chunks = []
@@ -57,7 +59,7 @@ export async function startProxy({ token, probePath, port, upstreamPort, closeCo
   })
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve) })
   return {
-    reset() { received = []; command = 'idle'; for (const response of waiting) response.destroy(); waiting = [] },
+    reset(settings) { launch = settings; received = []; command = 'idle'; for (const response of waiting) response.destroy(); waiting = [] },
     workload() { command = 'workload'; for (const response of waiting) response.writeHead(200, { 'cache-control': 'no-store' }).end(command); waiting = [] },
     read(kind) {
       const failure = received.find((entry) => entry.kind === 'error')

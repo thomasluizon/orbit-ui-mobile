@@ -1,34 +1,50 @@
 use tauri::{LogicalSize, Manager, WebviewWindow};
 
-pub fn set_size(window: &WebviewWindow, requested: LogicalSize<f64>) -> tauri::Result<()> {
-    #[cfg(target_os = "macos")]
-    let requested = {
-        let scale_factor = window.scale_factor()?;
-        let frame = window.outer_size()?.to_logical::<f64>(scale_factor);
-        let viewport = window.as_ref().bounds()?.size.to_logical::<f64>(scale_factor);
-        window_size_for_viewport(requested, frame, viewport)
+pub fn configure(config: &mut tauri::utils::config::WindowConfig) -> Result<(), String> {
+    let size = parse_size(
+        std::env::var("ORBIT_BENCH_WIDTH").ok(),
+        std::env::var("ORBIT_BENCH_HEIGHT").ok(),
+    )?;
+    config.width = size.width;
+    config.height = size.height;
+    Ok(())
+}
+
+fn parse_size(width: Option<String>, height: Option<String>) -> Result<LogicalSize<f64>, String> {
+    let parse = |value: Option<String>| {
+        value
+            .and_then(|value| value.parse::<f64>().ok())
+            .filter(|value| value.is_finite() && *value > 0.0)
+            .ok_or_else(|| "Invalid benchmark native window size".to_string())
     };
-    window.set_size(requested)
+    Ok(LogicalSize::new(parse(width)?, parse(height)?))
 }
 
 #[tauri::command]
-pub fn fit_bench_viewport(window: WebviewWindow, viewport: [f64; 2]) -> Result<(), String> {
+pub fn fit_bench_viewport(window: WebviewWindow, viewport: [f64; 2]) -> Result<[f64; 2], String> {
+    if std::env::var("ORBIT_BENCH_READINESS_ONLY").as_deref() != Ok("1") {
+        return Err("Viewport fitting is restricted to the readiness launch".into());
+    }
     if viewport.iter().any(|value| !value.is_finite() || *value <= 0.0) {
         return Err("Invalid benchmark page viewport".into());
     }
     fit_page(&window, LogicalSize::new(viewport[0], viewport[1])).map_err(|error| error.to_string())
 }
 
-fn fit_page(window: &WebviewWindow, viewport: LogicalSize<f64>) -> tauri::Result<()> {
+fn fit_page(window: &WebviewWindow, viewport: LogicalSize<f64>) -> tauri::Result<[f64; 2]> {
     let config = &window.config().app.windows[0];
     let requested = LogicalSize::new(config.width, config.height);
-    let scale_factor = window.scale_factor()?;
-    #[cfg(target_os = "macos")]
-    let frame = window.outer_size()?.to_logical::<f64>(scale_factor);
-    #[cfg(not(target_os = "macos"))]
-    let frame = window.inner_size()?.to_logical::<f64>(scale_factor);
+    let initial = parse_size(
+        std::env::var("ORBIT_BENCH_WIDTH").ok(),
+        std::env::var("ORBIT_BENCH_HEIGHT").ok(),
+    )
+    .map_err(std::io::Error::other)?;
     // WKWebView bounds include its automatic title-bar inset; use the page's CSS viewport (#1560).
-    window.set_size(window_size_for_viewport(requested, frame, viewport))
+    let native = window_size_for_viewport(requested, initial, viewport);
+    if requested != viewport {
+        window.set_size(native)?;
+    }
+    Ok([native.width, native.height])
 }
 
 fn window_size_for_viewport(
@@ -46,6 +62,18 @@ fn window_size_for_viewport(
 mod tests {
     use super::*;
     use tauri::Size;
+
+    #[test]
+    fn native_launch_dimensions_use_the_calibrated_request() {
+        assert_eq!(
+            parse_size(Some("904".into()), Some("632".into())),
+            Ok(LogicalSize::new(904.0, 632.0)),
+        );
+        for value in [None, Some("0"), Some("-1"), Some("NaN"), Some("inf"), Some("bad")] {
+            assert!(parse_size(value.map(str::to_string), Some("600".into())).is_err());
+            assert!(parse_size(Some("900".into()), value.map(str::to_string)).is_err());
+        }
+    }
 
     #[test]
     fn full_native_bounds_still_require_the_pages_measured_shortfall() {
