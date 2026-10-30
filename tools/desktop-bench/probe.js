@@ -1,0 +1,129 @@
+(() => {
+  const post = (payload) => fetch('/_bench/events', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+  const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+  const frame = () => new Promise(requestAnimationFrame)
+  async function fitViewport() {
+    const [width, height] = __BENCH_VIEWPORT__
+    const mismatch = () => new Error(`Viewport mismatch: ${[innerWidth, innerHeight]} versus ${[width, height]}; available screen: ${screen.availWidth}x${screen.availHeight}`)
+    if (!__BENCH_READINESS_ONLY__ || !window.__TAURI_INTERNALS__) {
+      if (innerWidth !== width || innerHeight !== height) throw mismatch()
+      return __BENCH_NATIVE_WINDOW__
+    }
+    const nativeWindow = await window.__TAURI_INTERNALS__.invoke('fit_bench_viewport', { viewport: [innerWidth, innerHeight] })
+      .catch((reason) => { throw new Error(`Cannot fit benchmark viewport: ${String(reason)}`) })
+    const deadline = performance.now() + 60000
+    do {
+      await frame()
+      if (innerWidth === width && innerHeight === height) return nativeWindow
+      await pause(20)
+    } while (performance.now() < deadline)
+    throw mismatch()
+  }
+  async function until(read, label) {
+    const deadline = performance.now() + 60000
+    while (performance.now() < deadline) {
+      const result = read()
+      if (result) return result
+      await pause(20)
+    }
+    throw new Error(`Timed out: ${label}; ${JSON.stringify({ route: location.pathname, rows: document.querySelectorAll('[data-habit-id]').length, firstHabit: document.querySelector('[data-habit-id]')?.getAttribute('data-habit-id'), inputs: [...document.querySelectorAll('[data-composer-input]')].map((input) => ({ disabled: input.disabled, height: input.getBoundingClientRect().height })), composers: [...document.querySelectorAll('[data-composer-root]')].map((root) => ({ state: root.getAttribute('data-state'), collapsed: root.getAttribute('data-collapsed') })), viewport: [innerWidth, innerHeight], text: document.body.innerText.slice(0, 700) })}`)
+  }
+  async function scrollList() {
+    const scroller = document.querySelector('[data-shell-scroller]')
+    if (!scroller || scroller.scrollHeight <= scroller.clientHeight) throw new Error('Hoje must have a scrollable 200-habit list')
+    scroller.scrollTop = 0
+    const intervals = []
+    let previous = await frame()
+    const deadline = previous + 60000
+    while (scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 1) {
+      scroller.scrollTop += 120
+      const now = await frame()
+      intervals.push(now - previous)
+      previous = now
+      if (now > deadline) throw new Error('Scroll traversal timed out')
+    }
+    await frame()
+    if (!document.querySelector('[data-habit-id="bench-0199"]')) throw new Error('Last habit did not render')
+    scroller.scrollTop = 0
+    return intervals
+  }
+  async function chat() {
+    document.querySelector('[data-composer-input]:not([disabled])').focus()
+    document.querySelector('[data-open-conversation]')?.click()
+    const textarea = await until(() => document.querySelector('[data-shell-conversation] [data-composer-input]:not([disabled])'), 'conversation composer')
+    const previousArticles = new Set(document.querySelectorAll('[role="feed"] article'))
+    const replyIncludes = (text) => [...document.querySelectorAll('[role="feed"] article')].some((article) => !previousArticles.has(article) && article.innerText.includes(text))
+    const originalFetch = window.fetch
+    let requestAt = null
+    let terminalAt = null
+    window.fetch = async (...argumentsList) => {
+      const url = String(argumentsList[0] instanceof Request ? argumentsList[0].url : argumentsList[0])
+      if (!url.includes('/api/chat/stream')) return originalFetch(...argumentsList)
+      requestAt = performance.now()
+      const response = await originalFetch(...argumentsList)
+      if (!response.ok) throw new Error(`Chat HTTP ${response.status}`)
+      void (async () => {
+        const reader = response.clone().body.getReader()
+        const decoder = new TextDecoder()
+        let text = ''
+        for (;;) {
+          const chunk = await reader.read()
+          if (chunk.done) break
+          text += decoder.decode(chunk.value, { stream: true })
+          if (text.includes('"type":"final"')) terminalAt = performance.now()
+        }
+      })().catch((error) => { void post({ kind: 'error', message: error.message }) })
+      return response
+    }
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(textarea, 'Give me one small step.')
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    await pause(50)
+    const started = performance.now()
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }))
+    await until(() => requestAt !== null, 'chat request from composer')
+    await until(() => replyIncludes('A small'), 'first rendered token')
+    const firstTokenMs = performance.now() - started
+    await until(() => terminalAt !== null && replyIncludes('A small step counts.'), 'final rendered part')
+    await frame()
+    window.fetch = originalFetch
+    return { firstTokenMs, finalPartMs: performance.now() - started, requestDispatchMs: requestAt - started, finalEventMs: terminalAt - started }
+  }
+  async function run() {
+    await until(() => {
+      const row = document.querySelector('[data-habit-id="bench-0000"]')
+      const input = document.querySelector('[data-composer-input]:not([disabled])')
+      document.querySelector('[data-composer-collapse-row]')?.click()
+      if (!row || !input || !row.getBoundingClientRect().height || !input.getBoundingClientRect().height) return null
+      return input
+    }, 'first interactive habit and focusable composer')
+    const nativeWindow = await fitViewport()
+    await until(() => {
+      if (document.querySelector('[data-shell-conversation]')) return true
+      const input = document.querySelector('[data-composer-input]:not([disabled])')
+      input?.blur()
+      input?.focus({ preventScroll: true })
+      if (input && document.activeElement === input) document.querySelector('[data-open-conversation]')?.click()
+      return false
+    }, 'hydrated composer focus response')
+    const usableEpoch = performance.timeOrigin + performance.now()
+    await until(() => {
+      const conversation = document.querySelector('[data-shell-conversation]')
+      if (!conversation && !document.querySelector('[data-shell-destination]')?.inert) return true
+      const close = [...(conversation?.querySelectorAll('button') ?? [])].find((button) => button.getAttribute('aria-label') === __BENCH_CLOSE_LABEL__)
+      close?.click()
+      return false
+    }, 'return to Hoje')
+    await frame()
+    await post({ kind: 'usable', epochMs: usableEpoch, visibility: document.visibilityState, viewport: [innerWidth, innerHeight], nativeWindow, availableScreen: [screen.availWidth, screen.availHeight] })
+    for (;;) {
+      const response = await fetch('/_bench/command')
+      const command = await response.text()
+      if (command === 'workload') break
+      await pause(100)
+    }
+    const frames = await scrollList()
+    const streaming = await chat()
+    await post({ kind: 'complete', frames, ...streaming, visibility: document.visibilityState })
+  }
+  void run().catch((error) => { void post({ kind: 'error', message: error.message }) })
+})()

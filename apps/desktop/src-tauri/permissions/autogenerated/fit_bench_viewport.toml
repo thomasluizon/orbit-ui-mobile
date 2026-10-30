@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fit-bench-viewport"
+description = "Enables the fit_bench_viewport command without any pre-configured scope."
+commands.allow = ["fit_bench_viewport"]
+
+[[permission]]
+identifier = "deny-fit-bench-viewport"
+description = "Denies the fit_bench_viewport command without any pre-configured scope."
+commands.deny = ["fit_bench_viewport"]

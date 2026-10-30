@@ -30,9 +30,10 @@ impl AuthFlow {
         let allowed = match identifier {
             "org.useorbit.desktop" => "https://app.useorbit.org/",
             "org.useorbit.desktop.staging" => "https://app-staging.useorbit.org/",
+            "org.useorbit.desktop.benchmark" if cfg!(feature = "bench-loopback") => "",
             _ => return Err("Unknown desktop identifier"),
         };
-        if origin.as_str() != allowed {
+        if origin.as_str() != allowed && !benchmark_origin(&origin) {
             return Err("Desktop origin does not match its identifier");
         }
         Ok(Self {
@@ -117,6 +118,35 @@ impl AuthFlow {
     pub fn exchange_body(&self, attempt: &Attempt, code: &str) -> serde_json::Value {
         serde_json::json!({ "code": code, "state": attempt.state,
             "codeVerifier": attempt.verifier, "redirectUri": self.callback.as_str() })
+    }
+}
+
+fn benchmark_origin(origin: &Url) -> bool {
+    cfg!(feature = "bench-loopback")
+        && origin.scheme() == "http"
+        && origin.host_str() == Some("127.0.0.1")
+        && origin.port().is_some()
+        && origin.username().is_empty()
+        && origin.password().is_none()
+        && origin.path() == "/"
+        && origin.query().is_none()
+        && origin.fragment().is_none()
+}
+
+#[cfg(test)]
+mod benchmark_origin_tests {
+    use super::AuthFlow;
+
+    #[test]
+    fn loopback_requires_the_explicit_benchmark_feature() {
+        assert_eq!(
+            AuthFlow::new("http://127.0.0.1:3400/".parse().unwrap(), "org.useorbit.desktop.staging").is_ok(),
+            cfg!(feature = "bench-loopback")
+        );
+        for origin in ["http://localhost:3400/", "http://127.0.0.2:3400/", "https://127.0.0.1:3400/",
+            "http://127.0.0.1:3400/login", "http://user@127.0.0.1:3400/", "http://127.0.0.1:3400/?x=1"] {
+            assert!(AuthFlow::new(origin.parse().unwrap(), "org.useorbit.desktop.staging").is_err());
+        }
     }
 }
 

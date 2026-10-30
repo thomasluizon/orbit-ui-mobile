@@ -66,9 +66,11 @@ var method = handlerType.GetMethod("RequestInitialAiResponseAsync", BindingFlags
 var collectSensitiveFields = handlerType.GetNestedType("ChatEvalTraceCollector", BindingFlags.NonPublic)!
     .GetMethod("CollectSensitiveFields", BindingFlags.NonPublic | BindingFlags.Static)!;
 var partKinds = JsonSerializer.Deserialize<string[]>(args[1])!;
-File.WriteAllText(args[0], JsonSerializer.Serialize(new { tools = await ExportTools(true), legacyTools = await ExportTools(false) }));
+File.WriteAllText(args[0], JsonSerializer.Serialize(new {
+    tools = await ExportTools(true), legacyTools = await ExportTools(false),
+    postReadTools = await ExportTools(true, afterAccountRead: true) }));
 
-async Task<object[]> ExportTools(bool supportsParts)
+async Task<object[]> ExportTools(bool supportsParts, bool afterAccountRead = false)
 {
     captured = null;
     var state = Activator.CreateInstance(handlerType.GetNestedType("ChatTurnState", BindingFlags.NonPublic)!, nonPublic: true);
@@ -76,9 +78,22 @@ async Task<object[]> ExportTools(bool supportsParts)
         SupportsParts: supportsParts, PartKinds: supportsParts ? partKinds : null));
     await (Task<Result<AiResponse>>)method.Invoke(handler, [request, context, null, new AiTurnTelemetry(), state, CancellationToken.None])!;
     if (captured is null) throw new InvalidOperationException("The API did not build a tool request.");
+    var declarations = captured.ToolDeclarations;
+    if (afterAccountRead)
+    {
+        // Mirror ProcessUserChatCommand.Ask.cs:117-140 through the actual continuation declaration builder.
+        var resultsType = handlerType.GetNestedType("ToolExecutionAccumulator", BindingFlags.NonPublic)!;
+        var results = Activator.CreateInstance(resultsType, nonPublic: true)!;
+        resultsType.GetProperty("HasSuccessfulAccountRead")!.SetValue(results, true);
+        var conversation = new AiConversationContext();
+        handlerType.GetMethod("RefreshAskSchema", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(handler, [conversation, request, context, results]);
+        declarations = conversation.ToolDeclarationUpdates;
+        if (declarations.Count == 0) throw new InvalidOperationException("The API did not refresh its tool declarations.");
+    }
     // Export SDK normalization and the trace collector's sensitivity contract from the same producer.
     var sdkCatalog = (System.Collections.IDictionary)typeof(AiIntentService)
-        .GetMethod("BuildToolCatalog", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, [captured.ToolDeclarations])!;
+        .GetMethod("BuildToolCatalog", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, [declarations])!;
     return sdkCatalog.Keys.Cast<string>().Select(key =>
     {
         var sdk = sdkCatalog[key]!;

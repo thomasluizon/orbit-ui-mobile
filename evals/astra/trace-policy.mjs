@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 
-export const { tools, legacyTools } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
+export const { tools, legacyTools, postReadTools } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
 export const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
 export const toolSensitiveFields = new Map(tools.map((tool) => [tool.function.name, new Set(tool.sensitiveFields)]))
 

@@ -78,6 +78,12 @@ Upload stays unverified. It emits only fixed classifications and recognized comp
 `android-sentry-diagnostic.yml`; see the Android release procedure
 for source selection, evidence limits and Open recovery.
 
+## Desktop performance acceptance
+
+| Tool | What it does | Usage |
+|---|---|---|
+| `desktop-bench/run.mjs` | Builds unsigned Tauri and temporary Electron shells, measures cold and warm Orbit workloads, and writes JSON and Markdown summaries. | `node tools/desktop-bench/run.mjs --output <absolute-directory-outside-repository> [--runs <at-least-5>]` |
+
 ## Product gates
 
 These back required CI checks. They fail a merge.
