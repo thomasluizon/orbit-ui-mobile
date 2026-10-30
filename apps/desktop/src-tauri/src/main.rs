@@ -34,7 +34,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             desktop_login::commit_desktop_login,
             push::desktop_push,
-            updates::desktop_update
+            updates::desktop_update,
+            #[cfg(feature = "bench-loopback")]
+            bench_viewport::fit_bench_viewport
         ])
         .plugin(tauri_plugin_single_instance::init(|app, _arguments, _| {
             if !push::notification_activation(&_arguments) {

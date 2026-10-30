@@ -44,7 +44,7 @@ export function tauriBenchmarkOverlay(profile) {
     build: { frontendDist: origin },
     app: { windows: [{ label: 'main', create: false, title: 'Orbit Benchmark Tauri', url: `${origin}/`, width, height,
       resizable: false, dataDirectory: profile }],
-      security: { capabilities: [{ identifier: 'desktop-benchmark', local: true, remote: { urls: [`${origin}/*`] }, windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update'] }] } },
+      security: { capabilities: [{ identifier: 'desktop-benchmark', local: true, remote: { urls: [`${origin}/*`] }, windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update', 'allow-fit-bench-viewport'] }] } },
     bundle: { createUpdaterArtifacts: false },
     plugins: { 'deep-link': { desktop: { schemes: ['org.useorbit.desktop.benchmark'] } }, updater: { pubkey: '' } },
   }

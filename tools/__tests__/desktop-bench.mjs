@@ -3,7 +3,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { spawnSync } from 'node:child_process'
-import { electronInstallArguments, electronMainSource, normalizeElectronArchiveEntries, tauriBenchmarkOverlay } from '../desktop-bench/build.mjs'
+import { benchmarkViewport, electronInstallArguments, electronMainSource, normalizeElectronArchiveEntries, tauriBenchmarkOverlay } from '../desktop-bench/build.mjs'
 import { assertViewport, buildHermeticWeb } from '../desktop-bench/runner.mjs'
 import { T, REPO_ROOT, check, configure, failureCount, root } from './_harness.mjs'
 import { cpuSeconds, median, metrics, parseMacProcesses, percentile, processTree, summarize, markdown } from '../desktop-bench/measurements.mjs'
@@ -71,19 +71,29 @@ function requestedViewportCases() {
   T('Tauri excludes viewport adjustment from production builds',
     /#\[cfg\(feature = "bench-loopback"\)\]\s*mod bench_viewport;/.test(nativeSource))
   const viewportSource = readFileSync(join(REPO_ROOT, 'apps/desktop/src-tauri/src/bench_viewport.rs'), 'utf8')
-  T('Tauri measures macOS frame and webview bounds in logical units before requesting one resize',
-    /#\[cfg\(target_os = "macos"\)\]\s*let requested = \{\s*let scale_factor = window\.scale_factor\(\)\?;\s*let frame = window\.outer_size\(\)\?\.to_logical::<f64>\(scale_factor\);\s*let viewport = window\.as_ref\(\)\.bounds\(\)\?\.size\.to_logical::<f64>\(scale_factor\);\s*window_size_for_viewport\(requested, frame, viewport\)\s*\};\s*window\.set_size\(requested\)/.test(viewportSource) &&
-    viewportSource.match(/window\.set_size\(/g)?.length === 1)
+  T('Tauri retains the initial macOS frame and webview fit in logical units',
+    /#\[cfg\(target_os = "macos"\)\]\s*let requested = \{\s*let scale_factor = window\.scale_factor\(\)\?;\s*let frame = window\.outer_size\(\)\?\.to_logical::<f64>\(scale_factor\);\s*let viewport = window\.as_ref\(\)\.bounds\(\)\?\.size\.to_logical::<f64>\(scale_factor\);\s*window_size_for_viewport\(requested, frame, viewport\)\s*\};\s*window\.set_size\(requested\)/.test(viewportSource))
+  const buildSource = readFileSync(join(REPO_ROOT, 'apps/desktop/src-tauri/build.rs'), 'utf8')
+  T('the page resize command and its manifest registration require bench-loopback',
+    /#\[cfg\(feature = "bench-loopback"\)\]\s*bench_viewport::fit_bench_viewport/.test(nativeSource) &&
+    /#\[cfg\(feature = "bench-loopback"\)\]\s*"fit_bench_viewport"/.test(buildSource))
+  const capability = tauriBenchmarkOverlay('profile').app.security.capabilities[0]
+  T('only the main loopback benchmark capability grants page resizing',
+    capability.permissions.includes('allow-fit-bench-viewport') && capability.windows.join(',') === 'main' &&
+    capability.remote.urls.join(',') === 'http://127.0.0.1:3400/*')
 }
 
-async function probeReadinessCases() {
+async function probeReadiness({ viewport = [900, 600], tauri = false, resizedViewport = [900, 600], resizeError } = {}) {
   let report
   const reported = new Promise((resolve) => { report = resolve })
+  const calls = []
+  let pendingResize = false
+  let elapsed = 100
   let conversation
   const close = { getAttribute: () => 'Close', click: () => { conversation = null } }
-  const composer = { getBoundingClientRect: () => ({ height: 40 }), blur() {}, focus() { document.activeElement = composer } }
+  const composer = { getBoundingClientRect: () => ({ height: 40 }), blur() {}, focus() { calls.push(['focus', ...viewport]); document.activeElement = composer } }
   const document = {
-    visibilityState: 'visible',
+    visibilityState: 'visible', body: { innerText: '' }, querySelectorAll: () => [],
     querySelector(selector) {
       if (selector === '[data-habit-id="bench-0000"]') return { getBoundingClientRect: () => ({ height: 40 }) }
       if (selector === '[data-composer-input]:not([disabled])') return composer
@@ -92,19 +102,55 @@ async function probeReadinessCases() {
       return null
     },
   }
-  runInNewContext(readFileSync(join(REPO_ROOT, 'tools/desktop-bench/probe.js'), 'utf8'), {
-    document, __BENCH_CLOSE_LABEL__: 'Close', innerWidth: 900, innerHeight: 600,
-    screen: { availWidth: 1024, availHeight: 768 },
-    performance: { timeOrigin: 1000, now: () => 100 },
-    setTimeout: (callback) => callback(), requestAnimationFrame: (callback) => callback(100),
+  const context = {
+    document, __BENCH_CLOSE_LABEL__: 'Close', __BENCH_VIEWPORT__: benchmarkViewport,
+    get innerWidth() { return viewport[0] }, get innerHeight() { return viewport[1] },
+    screen: { availWidth: 1024, availHeight: 677 }, location: { pathname: '/' },
+    performance: { timeOrigin: 1000, now: () => elapsed },
+    setTimeout: (callback, milliseconds) => { elapsed += milliseconds; callback() },
+    requestAnimationFrame: (callback) => {
+      elapsed += 16
+      if (pendingResize) { viewport = resizedViewport; pendingResize = false; calls.push(['layout', ...viewport]) }
+      callback(elapsed)
+    },
     fetch: (url, options) => {
-      if (url === '/_bench/events') { report(JSON.parse(options.body)); return Promise.resolve() }
+      if (url === '/_bench/events') { const payload = JSON.parse(options.body); calls.push(['report', payload.kind]); report(payload); return Promise.resolve() }
       return new Promise(() => {})
     },
-  })
-  const usable = await reported
+  }
+  if (tauri) context.__TAURI_INTERNALS__ = { invoke: async (command, payload) => {
+    calls.push(['invoke', command, payload])
+    if (resizeError) throw resizeError
+    pendingResize = true
+  } }
+  context.window = context
+  runInNewContext(readFileSync(join(REPO_ROOT, 'tools/desktop-bench/probe.js'), 'utf8'), context)
+  return { event: await reported, calls }
+}
+
+async function probeReadinessCases() {
+  const { event: usable } = await probeReadiness()
   T('page readiness payload carries the actual viewport and available screen dimensions',
-    usable.kind === 'usable' && usable.viewport.join(',') === '900,600' && usable.availableScreen?.join(',') === '1024,768', JSON.stringify(usable))
+    usable.kind === 'usable' && usable.viewport.join(',') === '900,600' && usable.availableScreen?.join(',') === '1024,677', JSON.stringify(usable))
+  for (const viewport of [[900, 568], [897, 561]]) {
+    const { event, calls } = await probeReadiness({ viewport, tauri: true })
+    const invocations = calls.filter(([kind]) => kind === 'invoke')
+    T(`Tauri corrects the page viewport ${viewport} even when native frame and bounds already match`,
+      invocations.length === 1 && invocations[0][1] === 'fit_bench_viewport' && invocations[0][2].viewport.join(',') === viewport.join(','), JSON.stringify(calls))
+    const layoutIndex = calls.findIndex(([kind]) => kind === 'layout')
+    T('Tauri waits for the resized CSS layout before focus and usable reporting',
+      event.kind === 'usable' && event.viewport.join(',') === '900,600' && layoutIndex >= 0 &&
+      calls.findIndex(([kind]) => kind === 'focus') > layoutIndex && calls.findIndex(([kind]) => kind === 'report') > layoutIndex, JSON.stringify({ event, calls }))
+  }
+  const matching = await probeReadiness({ tauri: true })
+  T('matching Tauri and Electron viewports need no native correction',
+    matching.event.kind === 'usable' && !matching.calls.some(([kind]) => kind === 'invoke'))
+  const unchanged = await probeReadiness({ viewport: [900, 568], tauri: true, resizedViewport: [900, 568] })
+  T('a native resize without the requested CSS layout cannot signal usable and retains the available screen in its error',
+    unchanged.event.kind === 'error' && /900,568.*900,600.*1024x677/.test(unchanged.event.message), JSON.stringify(unchanged.event))
+  const rejected = await probeReadiness({ viewport: [900, 568], tauri: true, resizeError: 'Native resize failed' })
+  T('the Rust string rejection retains the native failure message before usable',
+    rejected.event.kind === 'error' && rejected.event.message?.includes('Native resize failed'), JSON.stringify(rejected.event))
 }
 
 export const cases = async () => {

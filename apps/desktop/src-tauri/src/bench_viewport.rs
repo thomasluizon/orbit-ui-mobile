@@ -1,4 +1,4 @@
-use tauri::{LogicalSize, WebviewWindow};
+use tauri::{LogicalSize, Manager, WebviewWindow};
 
 pub fn set_size(window: &WebviewWindow, requested: LogicalSize<f64>) -> tauri::Result<()> {
     #[cfg(target_os = "macos")]
@@ -11,13 +11,31 @@ pub fn set_size(window: &WebviewWindow, requested: LogicalSize<f64>) -> tauri::R
     window.set_size(requested)
 }
 
-#[cfg(any(target_os = "macos", test))]
+#[tauri::command]
+pub fn fit_bench_viewport(window: WebviewWindow, viewport: [f64; 2]) -> Result<(), String> {
+    if viewport.iter().any(|value| !value.is_finite() || *value <= 0.0) {
+        return Err("Invalid benchmark page viewport".into());
+    }
+    fit_page(&window, LogicalSize::new(viewport[0], viewport[1])).map_err(|error| error.to_string())
+}
+
+fn fit_page(window: &WebviewWindow, viewport: LogicalSize<f64>) -> tauri::Result<()> {
+    let config = &window.config().app.windows[0];
+    let requested = LogicalSize::new(config.width, config.height);
+    let scale_factor = window.scale_factor()?;
+    #[cfg(target_os = "macos")]
+    let frame = window.outer_size()?.to_logical::<f64>(scale_factor);
+    #[cfg(not(target_os = "macos"))]
+    let frame = window.inner_size()?.to_logical::<f64>(scale_factor);
+    // WKWebView bounds include its automatic title-bar inset; use the page's CSS viewport (#1560).
+    window.set_size(window_size_for_viewport(requested, frame, viewport))
+}
+
 fn window_size_for_viewport(
     requested: LogicalSize<f64>,
     frame: LogicalSize<f64>,
     viewport: LogicalSize<f64>,
 ) -> LogicalSize<f64> {
-    // The visible title bar's full-size content includes chrome outside WKWebView (#1560).
     LogicalSize::new(
         frame.width + requested.width - viewport.width,
         frame.height + requested.height - viewport.height,
@@ -28,6 +46,22 @@ fn window_size_for_viewport(
 mod tests {
     use super::*;
     use tauri::Size;
+
+    #[test]
+    fn full_native_bounds_still_require_the_pages_measured_shortfall() {
+        let requested = LogicalSize::new(900.0, 600.0);
+        let frame = LogicalSize::new(900.0, 600.0);
+        let bounds = LogicalSize::new(900.0, 600.0);
+        let page = LogicalSize::new(900.0, 568.0);
+        let native_request = window_size_for_viewport(requested, frame, bounds);
+        assert_eq!(native_request, requested);
+        let page_request = window_size_for_viewport(requested, native_request, page);
+        assert_eq!(page_request, LogicalSize::new(900.0, 632.0));
+        assert_eq!(
+            window_size_for_viewport(requested, page_request, requested),
+            page_request,
+        );
+    }
 
     #[test]
     fn window_grows_by_the_measured_webview_shortfall() {

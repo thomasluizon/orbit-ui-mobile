@@ -22,6 +22,8 @@ fn main() {
             "commit_desktop_login",
             "desktop_push",
             "desktop_update",
+            #[cfg(feature = "bench-loopback")]
+            "fit_bench_viewport",
         ]),
     ))
     .expect("cannot build desktop context")
