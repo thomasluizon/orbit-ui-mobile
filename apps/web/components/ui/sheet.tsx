@@ -4,7 +4,7 @@ import { PersonalText } from '@/components/ui/personal-text'
 
 import { ActionRow } from './action-row'
 
-import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type Ref, type RefObject } from 'react'
+import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type PointerEvent, type Ref, type RefObject } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { motionSprings, shouldDismissSheet, SHEET_BODY_INSETS } from '@orbit/shared/theme'
 import { Dialog } from '@base-ui/react/dialog'
@@ -107,6 +107,11 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
     }
   }, [modalFocusOwnerActive, modalId, registerOpenOverlay, requestClose, unregisterOpenOverlay])
 
+  const pointerDismissalHandlers = {
+    onPointerDownCapture: () => setPointerDismissalReady(true),
+    onPointerUpCapture: (event: PointerEvent<HTMLElement>) => { if (!pointerDismissalReady) event.preventDefault() },
+  }
+
   function runExit() {
     const exitAction = exitActionRef.current
     exitActionRef.current = null
@@ -134,11 +139,9 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
         }
       }}
     >
-      <Dialog.Portal className="orbit-sheet-portal" onPointerDownCapture={() => setPointerDismissalReady(true)} onPointerUpCapture={(event) => {
-        if (!pointerDismissalReady) event.preventDefault()
-      }}>
-        <Dialog.Backdrop className="orbit-sheet-backdrop" />
-        <Dialog.Viewport className="orbit-sheet-viewport">
+      <Dialog.Portal className="orbit-sheet-portal">
+        <Dialog.Backdrop className="orbit-sheet-backdrop" {...pointerDismissalHandlers} />
+        <Dialog.Viewport className="orbit-sheet-viewport" {...pointerDismissalHandlers}>
           <motion.div className="orbit-sheet-drag-frame" {...drag.frameProps}>
           <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus}>
             <div className="orbit-sheet-grabber-target" aria-hidden="true" onPointerDown={drag.start}><div className="orbit-sheet-grabber" /></div>

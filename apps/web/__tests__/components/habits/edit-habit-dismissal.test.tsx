@@ -22,7 +22,7 @@ vi.mock('@/hooks/use-config', async () => {
 })
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-tags', () => ({
-  useTags: () => ({ data: [], isPending: false }),
+  useTags: () => ({ tags: [], isPending: false }),
   useCreateTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -55,7 +55,7 @@ const paths = ['escape', 'backdrop', 'close icon', 'cancel'] as const
 async function attempt(path: typeof paths[number]) {
   if (path === 'escape') await userEvent.keyboard('{Escape}')
   else if (path === 'backdrop') {
-    const backdrop = document.querySelector('.orbit-sheet-backdrop')!
+    const backdrop = screen.getAllByRole('dialog').at(-1)!.closest('.orbit-sheet-viewport')!
     await userEvent.click(backdrop)
   } else await userEvent.click(screen.getByRole('button', { name: path === 'cancel' ? 'common.cancel' : 'common.close' }))
 }
@@ -82,4 +82,43 @@ describe('Edit habit dismissal through the web sheet', () => {
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
     expect(screen.queryByRole('dialog', { name: 'common.discardChangesTitle' })).not.toBeInTheDocument()
   })
+})
+
+describe('Nested tag editor dismissal', () => {
+  it.each(paths)('confirms the tag name draft through %s', async path => {
+    const onOpenChange = renderEditor()
+    await userEvent.click(screen.getByText('habits.form.tags'))
+    await userEvent.click(screen.getByRole('button', { name: 'habits.form.newTag' }))
+    await userEvent.type(screen.getByRole('textbox', { name: 'habits.form.tagName' }), 'Health')
+    await attempt(path)
+    const discard = await screen.findByRole('dialog', { name: 'common.discardChangesTitle' })
+    await userEvent.click(within(discard).getByRole('button', { name: 'common.keepEditing' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'common.discardChangesTitle' })).not.toBeInTheDocument())
+    expect(screen.getByDisplayValue('Health')).toBeInTheDocument()
+    await attempt(path)
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'common.discardChangesTitle' })).getByRole('button', { name: 'common.discardChangesAction' }))
+    await waitFor(() => expect(screen.queryByDisplayValue('Health')).not.toBeInTheDocument())
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+})
+
+describe('Pending checklist input', () => {
+  it.each(paths)('guards a checklist item before Add through %s', async path => {
+    const onOpenChange = renderEditor()
+    const input = screen.getByPlaceholderText('habits.form.checklistPlaceholder')
+    fireEvent.change(input, { target: { value: 'Shoes' } })
+    await attempt(path)
+    expect(await screen.findByRole('dialog', { name: 'common.discardChangesTitle' })).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+})
+
+it('closes directly after the pending checklist item is cleared', async () => {
+  const onOpenChange = renderEditor()
+  const input = screen.getByPlaceholderText('habits.form.checklistPlaceholder')
+  fireEvent.change(input, { target: { value: 'Shoes' } })
+  fireEvent.change(input, { target: { value: '' } })
+  await attempt('escape')
+  await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
+  expect(screen.queryByRole('dialog', { name: 'common.discardChangesTitle' })).not.toBeInTheDocument()
 })

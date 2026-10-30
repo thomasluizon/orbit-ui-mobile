@@ -9,6 +9,7 @@ import { TrueSheet } from '@/__tests__/support/native-sheet-double'
 import { PillButton } from '@/components/ui/pill-button'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { Input } from '@/components/ui/input'
+import { ListRow } from '@/components/ui/list-row'
 import { Sheet } from '@/components/ui/sheet'
 
 vi.unmock('@/components/ui/sheet')
@@ -28,7 +29,7 @@ vi.mock('@/hooks/use-config', async () => {
 })
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-tags', () => ({
-  useTags: () => ({ data: [], isPending: false }),
+  useTags: () => ({ tags: [], isPending: false }),
   useCreateTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteTag: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -104,5 +105,70 @@ describe('Edit habit dismissal through the native sheet', () => {
     else await attempt(path)
     expect(onClose).toHaveBeenCalledOnce()
     expect(allByType(TrueSheet)).toHaveLength(1)
+  })
+})
+
+async function openTagEditor() {
+  await act(() => allByType(ListRow).find(node => node.props.title === 'habits.form.tags')!.props.onClick!())
+  await act(() => (tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'habits.form.newTag')[0]!.props.onPress as () => void)())
+  await act(() => allByType(BottomSheetAppTextInput).find(node => node.props.accessibilityLabel === 'habits.form.tagName')!.props.onChangeText!('Health'))
+}
+
+async function attemptTag(path: typeof paths[number]) {
+  await act(() => {
+    if (path === 'close icon' || path === 'cancel') {
+      const controls = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === (path === 'cancel' ? 'common.cancel' : 'common.close'))
+      ;(controls[path === 'cancel' ? 0 : controls.length - 1]!.props.onPress as () => void)()
+    } else allByType(TrueSheet).at(-1)!.instance.attempt(path)
+  })
+}
+
+describe('Nested tag editor dismissal', () => {
+  it.each(paths)('confirms the tag name draft through %s', async path => {
+    const onClose = await renderEditor()
+    await openTagEditor()
+    await attemptTag(path)
+    expect(allByType(Sheet).map(node => node.props.title)).toContain('common.discardChangesTitle')
+    await act(() => allByType(PillButton).find(node => node.props.children === 'common.keepEditing')!.props.onClick!())
+    expect(allByType(BottomSheetAppTextInput).some(node => node.props.value === 'Health')).toBe(true)
+    await attemptTag(path)
+    await act(() => allByType(PillButton).find(node => node.props.children === 'common.discardChangesAction')!.props.onClick!())
+    expect(allByType(BottomSheetAppTextInput).some(node => node.props.value === 'Health')).toBe(false)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+})
+
+describe('Pending checklist input', () => {
+  it.each(paths)('guards a checklist item before Add through %s', async path => {
+    const onClose = await renderEditor()
+    await act(() => allByType(Input).find(node => node.props.name === 'checklistItem')!.props.onChange('Shoes'))
+    await attempt(path)
+    expect(allByType(Sheet).map(node => node.props.title)).toContain('common.discardChangesTitle')
+    expect(onClose).not.toHaveBeenCalled()
+  })
+})
+
+describe('Checklist input ownership', () => {
+  it('closes directly after the pending item is cleared', async () => {
+    const onClose = await renderEditor()
+    const input = allByType(Input).find(node => node.props.name === 'checklistItem')!
+    await act(() => input.props.onChange('Shoes'))
+    await act(() => input.props.onChange(''))
+    await attempt('hardware back')
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(allByType(Sheet)).toHaveLength(1)
+  })
+
+  it('retains the pending item when details are collapsed and expanded', async () => {
+    const onClose = await renderEditor()
+    await act(() => allByType(Input).find(node => node.props.name === 'checklistItem')!.props.onChange('Shoes'))
+    const details = () => allByType(ListRow).find(node => node.props.title === 'habits.form.moreDetails')!
+    await act(() => details().props.onClick!())
+    expect(allByType(Input).some(node => node.props.name === 'checklistItem')).toBe(false)
+    await act(() => details().props.onClick!())
+    expect(allByType(Input).find(node => node.props.name === 'checklistItem')!.props.value).toBe('Shoes')
+    await attempt('hardware back')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(allByType(Sheet).map(node => node.props.title)).toContain('common.discardChangesTitle')
   })
 })

@@ -449,7 +449,7 @@ describe('controlled full editor checklist', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.clearChecklist' }))
     expect(mutation).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
-    expect(screen.getByText('habits.form.unsavedHabit')).toBeInTheDocument()
+    expect(screen.getByText('common.discardChangesDescription')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
     await waitFor(() => expect(onClose).toHaveBeenCalledWith(false))
     expect(mutation).not.toHaveBeenCalled()
