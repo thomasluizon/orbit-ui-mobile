@@ -141,6 +141,7 @@ export const recapResponseSchema = z.object({
 export type Recap = z.infer<typeof recapResponseSchema>
 
 export const streakInfoSchema = z.object({
+  firstEligibleDate: z.iso.date().nullish(),
   currentStreak: z.number(),
   longestStreak: z.number(),
   lastActiveDate: z.string().nullable(),

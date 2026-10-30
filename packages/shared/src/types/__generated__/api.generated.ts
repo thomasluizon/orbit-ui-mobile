@@ -1285,8 +1285,10 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "lastFreezeCoveredDate": zod.iso.date().nullish(),
   "freezeBankRemaining": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockSixStateTwoStreakTwoFreezeBankRemainingRegExpTwo)]).nullish(),
   "lastFreezeCoveredOrigin": zod.string().nullish(),
-  "repairableGapDates": zod.array(zod.iso.date()).nullish()
-})])
+  "repairableGapDates": zod.array(zod.iso.date()).nullish(),
+  "firstEligibleDate": zod.iso.date().nullish()
+})]),
+  "firstEligibleDate": zod.iso.date().nullish()
 })]).optional(),
   "read": zod.union([zod.null(),zod.object({
   "queryId": zod.uuid(),
@@ -1298,7 +1300,8 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockSixReadTwoTotalCountRegExpTwo)]).nullish(),
   "recovery": zod.string().nullish()
-})]).optional()
+})]).optional(),
+  "firstEligibleDate": zod.iso.date().nullish()
 }),zod.object({
   "events": zod.array(zod.object({
   "title": zod.string(),
@@ -2183,8 +2186,10 @@ export const PostApiChatResponse = zod.object({
   "lastFreezeCoveredDate": zod.iso.date().nullish(),
   "freezeBankRemaining": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseStreakTwoStateTwoStreakTwoFreezeBankRemainingRegExpTwo)]).nullish(),
   "lastFreezeCoveredOrigin": zod.string().nullish(),
-  "repairableGapDates": zod.array(zod.iso.date()).nullish()
-})])
+  "repairableGapDates": zod.array(zod.iso.date()).nullish(),
+  "firstEligibleDate": zod.iso.date().nullish()
+})]),
+  "firstEligibleDate": zod.iso.date().nullish()
 })]).optional(),
   "read": zod.union([zod.null(),zod.object({
   "queryId": zod.uuid(),
@@ -2196,7 +2201,8 @@ export const PostApiChatResponse = zod.object({
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseStreakTwoReadTwoTotalCountRegExpTwo)]).nullish(),
   "recovery": zod.string().nullish()
-})]).optional()
+})]).optional(),
+  "firstEligibleDate": zod.iso.date().nullish()
 })]).optional(),
   "calendar": zod.union([zod.null(),zod.object({
   "events": zod.array(zod.object({
@@ -2540,8 +2546,10 @@ export const PostApiChatGamificationRefreshResponse = zod.object({
   "lastFreezeCoveredDate": zod.iso.date().nullish(),
   "freezeBankRemaining": zod.union([zod.int(),zod.stringFormat('int32', postApiChatGamificationRefreshResponseBlockStateStreakTwoFreezeBankRemainingRegExpTwo)]).nullish(),
   "lastFreezeCoveredOrigin": zod.string().nullish(),
-  "repairableGapDates": zod.array(zod.iso.date()).nullish()
-})])
+  "repairableGapDates": zod.array(zod.iso.date()).nullish(),
+  "firstEligibleDate": zod.iso.date().nullish()
+})]),
+  "firstEligibleDate": zod.iso.date().nullish()
 }),
   "surfaceId": zod.string().default(postApiChatGamificationRefreshResponseBlockSurfaceIdDefault),
   "read": zod.union([zod.null(),zod.object({
@@ -3555,7 +3563,8 @@ export const PostApiGamificationStreakRepairResponse = zod.object({
   "lastFreezeCoveredDate": zod.iso.date().nullish(),
   "freezeBankRemaining": zod.union([zod.int(),zod.stringFormat('int32', postApiGamificationStreakRepairResponseFreezeBankRemainingRegExpTwo)]).nullish(),
   "lastFreezeCoveredOrigin": zod.string().nullish(),
-  "repairableGapDates": zod.array(zod.iso.date()).nullish()
+  "repairableGapDates": zod.array(zod.iso.date()).nullish(),
+  "firstEligibleDate": zod.iso.date().nullish()
 })
 
 
@@ -6239,7 +6248,8 @@ export const PostApiGamificationStreakRepairGapResponse = zod.object({
   "lastFreezeCoveredDate": zod.iso.date().nullish(),
   "freezeBankRemaining": zod.union([zod.int(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseFreezeBankRemainingRegExpTwo)]).nullish(),
   "lastFreezeCoveredOrigin": zod.string().nullish(),
-  "repairableGapDates": zod.array(zod.iso.date()).nullish()
+  "repairableGapDates": zod.array(zod.iso.date()).nullish(),
+  "firstEligibleDate": zod.iso.date().nullish()
 })
 
 
