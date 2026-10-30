@@ -10,11 +10,13 @@ import { inPlaceDayFixture, nestedDaySummaryFixture } from '@orbit/shared/__test
 import type { DaySummaryCard as DaySummaryCardData } from '@orbit/shared/types/chat'
 import { DaySummaryCard } from '@/components/chat/day-summary-card'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { apiClient } from '@/lib/api-client'
 import { API } from '@orbit/shared/api'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import { renderedText } from '../../support/react-test-renderer'
 
 vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: vi.fn() }))
+vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn(), showPersistentError: vi.fn() }) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -27,6 +29,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs() })
 
 async function mountDay(habit: HabitScheduleItem, date = inPlaceDayFixture.date, summary?: DaySummaryCardData) {
+  vi.mocked(apiClient).mockResolvedValue({ items: [habit], page: 1, pageSize: 1, totalCount: 1, totalPages: 1 })
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
   const key = habitKeys.list(habitListQueryFilters({ dateFrom: date, dateTo: date, includeGeneral: true, includeOverdue: true }, true))
   client.setQueryData(key, [habit])
@@ -81,6 +84,7 @@ it.each([false, true])('reconciles a nested log from logged=%s before the reques
   let rejectRequest!: (error: Error) => void
   vi.mocked(performQueuedApiMutation).mockImplementationOnce(() => new Promise((_, reject) => { rejectRequest = reject }))
   const { client, key, view } = await mountDay(habit, snapshot.date, snapshot)
+  vi.mocked(apiClient).mockImplementation(() => new Promise(() => {}))
   const initialAction = `chat.habitList.${logged ? 'unlog' : 'log'}:{"name":"Stretch"}`
   const optimisticAction = `chat.habitList.${logged ? 'log' : 'unlog'}:{"name":"Stretch"}`
   const control = view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === initialAction)[0]!
@@ -93,8 +97,9 @@ it.each([false, true])('reconciles a nested log from logged=%s before the reques
   expect(view.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: Number(!logged) * 50 })
   expect(view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === 'chat.habitList.log:{"name":"Habit 1"}')[0]?.props.disabled).toBe(false)
   await act(async () => { rejectRequest(new Error('offline')); await new Promise(resolve => setTimeout(resolve, 10)) })
-  expect(view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === initialAction)[0]?.props.disabled).toBe(false)
+  expect(client.isFetching({ queryKey: key })).toBe(1)
   expect(client.getQueryData<HabitScheduleItem[]>(key)?.[0]?.children[0]?.isLoggedInRange).toBe(logged)
+  expect(view.root.findAll(node => node.type === Pressable && node.props.accessibilityLabel === initialAction)[0]?.props.disabled).toBe(false)
   expect(renderedText(view.toJSON())).toContain(`chat.daySummary.doneOfDue:{"done":${Number(logged)},"due":2}`)
   expect(view.root.findAll(node => node.props.accessibilityRole === 'progressbar')[0]?.props.accessibilityValue).toMatchObject({ now: Number(logged) * 50 })
   await act(() => view.unmount()); client.clear()

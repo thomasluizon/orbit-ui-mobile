@@ -1,3 +1,4 @@
+import { API_BASE } from '@/lib/api-base'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 
@@ -23,7 +24,6 @@ vi.mock('@/stores/auth-store', () => ({
   refreshSessionToken: mocks.refreshSessionToken,
 }))
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 const STREAM_URL = `${API_BASE}${API.chat.stream}`
 
 function makeResponse(status: number): { status: number } {
