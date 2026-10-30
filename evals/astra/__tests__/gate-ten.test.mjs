@@ -59,6 +59,8 @@ it.each(['en', 'pt-BR'])('requires and projects the emailed-code step-up surface
   expect(behavior(output, context).pass).toBe(true)
   expect(composition(output, context).pass).toBe(true)
   const visible = JSON.parse(output.answer).pendingOperations[0]
+  expect(visible).not.toHaveProperty('count')
+  expect(visible).not.toHaveProperty('items')
   expect(visible.stepUp).toEqual(locale === 'en'
     ? { message: 'Confirm your identity on the device before this can continue.', actionLabel: 'Confirm identity' }
     : { message: 'Confirme a identidade no aparelho antes de continuar.', actionLabel: 'Confirmar identidade' })

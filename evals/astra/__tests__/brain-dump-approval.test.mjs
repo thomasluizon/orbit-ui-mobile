@@ -135,7 +135,8 @@ it.each(brainDumpCases)('isolates each $metadata.id attempt before setup', async
     expect(test.vars.brainDump.items[0].due_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     const isolation = state.requests.filter(({ path }) => path === 'eval/pending-operations')
     expect(isolation.map(({ method }) => method)).toEqual(['DELETE', 'GET'])
-    expect(state.requests.indexOf(isolation[1])).toBeLessThan(state.requests.findIndex(({ path }) => path === 'profile'))
+    expect(state.requests.findIndex(({ path }) => path === 'profile')).toBeLessThan(state.requests.indexOf(isolation[0]))
+    expect(state.requests.indexOf(isolation[1])).toBeLessThan(state.requests.findIndex(({ path }) => path === 'profile/timezone'))
   }
 })
 

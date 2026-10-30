@@ -116,8 +116,7 @@ it.each(['composition-api-keys-en', 'composition-empty-pt-BR', 'composition-refu
     const stepUp = id === 'composition-api-keys-en' ? apiKeysStepUpResponse('request', clientContext) : null
     const parts = stepUp ? [] : id === 'composition-refusal-en'
       ? [{ type: 'text', text: "I can't reveal secrets. I can help with habits." }]
-      : [{ type: 'block', kind: id === 'composition-api-keys-en' ? 'recordList' : 'habitList',
-        block: id === 'composition-api-keys-en' ? { kind: 'keys', items: [], totalCount: 0 } : { scope: 'today', items: [] } }]
+      : [{ type: 'block', kind: 'habitList', block: { scope: 'today', items: [] } }]
     const grade = (answerParts) => composition({ composition: { pendingOperations: stepUp?.pendingOperations, parts: answerParts, relatedSurfaces: ['today'],
       aiMessage: answerParts.filter((part) => part.type === 'text').map((part) => part.text).join('\n\n') } },
     { vars: { ...test.vars, clientContext } })
