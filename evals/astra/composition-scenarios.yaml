@@ -3372,9 +3372,9 @@
       counts:
         suggest_breakdown: 1
     rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
-      action for the activity. No plan, framing prose, saved claim or unsolicited question. Show one
-      oneSmallStep block with the three server action labels. Compare with the previous starting
-      step supplied as baseline context. Keep the same activity and return an action that is
+      action for the activity. No plan, framing prose, saved claim or unsolicited question. Show only
+      the readable step text, without block actions. Compare with the previous starting step
+      supplied as baseline context. Keep the same activity and return an action that is
       meaningfully easier and requires less effort. A paraphrase or an equally hard or harder step
       fails.
     startingStepAction: smaller
