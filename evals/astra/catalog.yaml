@@ -1,6 +1,6 @@
-# Generated through the API request builder, StrictToolSchema and eval trace sensitivity collector.
+# Generated through the API request and continuation builders, StrictToolSchema and eval trace sensitivity collector.
 # Regenerate with node evals/astra/generate-catalog.mjs <api-checkout>.
-apiCommit: 0b43b05522857869346c53fcbebd6de160e2cb40
+apiCommit: a4b02d77404be58bc229bce9c9f406d1cc82d431
 tools:
   - type: function
     writes: false
@@ -27,7 +27,10 @@ tools:
         person to choose again between already identified targets. A single pick uses choice even when it has a heading;
         use question for two or more fields. A request for a restart plan after missed habits is already actionable:
         propose the plan yourself. Never call ask or request a choice, pick list, count or scheduling preference before
-        the restart preview. The person can approve, edit or reject that preview."
+        the restart preview. The person can approve, edit or reject that preview. Before a successful account read in
+        this turn, ask accepts only habit_setup for missing input to create new habit drafts. Never use habit_setup for
+        a reminder, an existing record, a preference or a check-in. Other reasons become available after a successful
+        account read. When that read answers the request, return it with orbit_read_complete=true and do not ask."
       strict: true
       parameters:
         type: object
@@ -45,6 +48,14 @@ tools:
                       and set allowFreeText=false. question requires 1 to 10 questions; omit top-level options, items
                       and action and set multiSelect=false. A single record selection uses choice; reserve question for
                       multiple fields. Use only a supported form.
+                  missing_input:
+                    type: string
+                    enum:
+                      - habit_setup
+                    description: Before a successful account read in this turn, ask accepts only habit_setup for missing input to create new
+                      habit drafts. Never use habit_setup for a reminder, an existing record, a preference or a
+                      check-in. Other reasons become available after a successful account read. When that read answers
+                      the request, return it with orbit_read_complete=true and do not ask.
                   question:
                     type: string
                     description: Required nonempty question for choice, at most 120 characters. Use null for other forms.
@@ -86,6 +97,7 @@ tools:
                       controls its own allowFreeText; this top-level value is ignored.
                 required:
                   - form
+                  - missing_input
                   - question
                   - options
                   - multiSelect
@@ -102,6 +114,14 @@ tools:
                       and set allowFreeText=false. question requires 1 to 10 questions; omit top-level options, items
                       and action and set multiSelect=false. A single record selection uses choice; reserve question for
                       multiple fields. Use only a supported form.
+                  missing_input:
+                    type: string
+                    enum:
+                      - habit_setup
+                    description: Before a successful account read in this turn, ask accepts only habit_setup for missing input to create new
+                      habit drafts. Never use habit_setup for a reminder, an existing record, a preference or a
+                      check-in. Other reasons become available after a successful account read. When that read answers
+                      the request, return it with orbit_read_complete=true and do not ask.
                   title:
                     type: string
                     description: Required nonempty heading for pickList; optional heading of at most 120 characters for question. Null means
@@ -114,7 +134,6 @@ tools:
                       - log_habits
                       - skip_habits
                     description: Required bulk action for pickList. Null means absent for other forms.
-                    pattern: \S
                   items:
                     type: array
                     description: Required for pickList. Null means absent for other forms.
@@ -1810,6 +1829,7 @@ tools:
                       additionalProperties: false
                 required:
                   - form
+                  - missing_input
                   - title
                   - action
                   - items
@@ -1825,6 +1845,14 @@ tools:
                       and set allowFreeText=false. question requires 1 to 10 questions; omit top-level options, items
                       and action and set multiSelect=false. A single record selection uses choice; reserve question for
                       multiple fields. Use only a supported form.
+                  missing_input:
+                    type: string
+                    enum:
+                      - habit_setup
+                    description: Before a successful account read in this turn, ask accepts only habit_setup for missing input to create new
+                      habit drafts. Never use habit_setup for a reminder, an existing record, a preference or a
+                      check-in. Other reasons become available after a successful account read. When that read answers
+                      the request, return it with orbit_read_complete=true and do not ask.
                   questions:
                     type: array
                     description: Required for question only. Use unique nonempty question ids. singleChoice and multipleChoice require 2 to
@@ -2064,6 +2092,7 @@ tools:
                     additionalProperties: false
                 required:
                   - form
+                  - missing_input
                   - questions
                   - title
                   - intro
@@ -4040,19 +4069,24 @@ tools:
         set. When the person gives a count for today, keep exactly that count; otherwise choose a smaller manageable set
         from the returned habits. Assign every other habit a concrete due_date after today and within the next seven
         days, using the person's local today. Keeping the whole set today is not a restart plan. Call
-        bulk_reschedule_habits once with revised_items containing every habit in the complete set and its proposed
-        due_date, including today's choices. Check the today count and every deferred date before calling the tool;
-        never use one shared due_date for a restart plan. Preserve titles, cadence, times, reminders, checklists and
-        past records. Never mark missed habits done or skipped. Use the existing preview for approval, editing or
-        rejection; nothing changes before approval. If the person rejects a plan and wants another, propose different
-        per-habit dates in a held preview, never a plain habit list. After cancellation call bulk_reschedule_habits with
-        the complete revised_items; for edits to a still-pending preview use revise_pending_changes and retain
-        unmentioned items. Set orbit_write_complete to true when the complete plan is ready. Return the preview alone,
-        with no extra read blocks or repeated facts. Advice without a request to change the plan remains coaching."
+        bulk_reschedule_habits once with restart_plan=true and revised_items containing every habit in the complete set
+        and its proposed due_date, including today's choices. Check the today count and every deferred date before
+        calling the tool; never use one shared due_date for a restart plan. Preserve titles, cadence, times, reminders,
+        checklists and past records. Never mark missed habits done or skipped. Use the existing preview for approval,
+        editing or rejection; nothing changes before approval. If the person rejects a plan and wants another, propose
+        different per-habit dates in a held preview, never a plain habit list. After cancellation call
+        bulk_reschedule_habits with the complete revised_items; for edits to a still-pending preview use
+        revise_pending_changes and retain unmentioned items. Set orbit_write_complete to true when the complete plan is
+        ready. Return the preview alone, with no extra read blocks or repeated facts. Advice without a request to change
+        the plan remains coaching."
       strict: true
       parameters:
         type: object
         properties:
+          restart_plan:
+            type: boolean
+            description: True for a restart plan covering every remaining due and overdue habit after a fresh query_habits in this
+              turn. False for ordinary rescheduling.
           filter:
             type:
               - object
@@ -4154,6 +4188,7 @@ tools:
             description: True only when every requested mutation has its matching write call in this round; a read status never
               fulfills a write. False when a lookup or dependent action is still needed.
         required:
+          - restart_plan
           - filter
           - due_date
           - revised_items
@@ -8097,7 +8132,9 @@ tools:
         app_surfaces. related_surfaces lists destinations, not editing instructions. app_surfaces comes from the same
         catalog as list_app_surfaces_v2; use only its documented destinations and steps. Never infer a habit edit screen
         or creation workflow from a related destination. When the requested detail is absent, say that the explanation
-        does not cover it; do not invent navigation or settings. Answer in the person's language.
+        does not cover it; do not invent navigation or settings. Answer in the person's language. Use at most three
+        short steps, one complete sentence per line, at most 180 characters per line. Do not join steps into a
+        paragraph.
       strict: true
       parameters:
         type: object
@@ -8470,7 +8507,9 @@ tools:
     sensitiveFields: []
     function:
       name: get_habit_metrics
-      description: "Read habit metrics: streaks, completion rate and total completions."
+      description: "Read habit metrics: streaks, completion rate and total completions. This tool reads habit logs and does
+        not report goal progress; use query_goals for goal progress. habit_id is a habit ID from the habit index; a goal
+        ID is never a habit_id."
       strict: true
       parameters:
         type: object
@@ -8891,7 +8930,8 @@ tools:
     sensitiveFields: []
     function:
       name: get_profile
-      description: Read profile, plan, AI preferences and calendar sync. Orbit uses one accent.
+      description: Read profile, plan, AI preferences and calendar sync. Orbit uses one accent. Use only for profile, plan or
+        settings requests; this tool reports no goal or habit progress.
       strict: true
       parameters:
         type: object
@@ -9407,7 +9447,8 @@ tools:
       name: query_goals
       description: Read goals and their progress, deadlines and linked habits. Call before answering goal questions; indexes
         do not ground replies. This result completely answers a goal-progress request; no habit analytics or habit
-        calendar read is needed.
+        calendar read is needed. Goal progress is the goal's current value against its target in this result. For a
+        goal-progress request, call query_goals alone with orbit_read_complete=true.
       strict: true
       parameters:
         type: object
@@ -12829,19 +12870,24 @@ legacyTools:
         set. When the person gives a count for today, keep exactly that count; otherwise choose a smaller manageable set
         from the returned habits. Assign every other habit a concrete due_date after today and within the next seven
         days, using the person's local today. Keeping the whole set today is not a restart plan. Call
-        bulk_reschedule_habits once with revised_items containing every habit in the complete set and its proposed
-        due_date, including today's choices. Check the today count and every deferred date before calling the tool;
-        never use one shared due_date for a restart plan. Preserve titles, cadence, times, reminders, checklists and
-        past records. Never mark missed habits done or skipped. Use the existing preview for approval, editing or
-        rejection; nothing changes before approval. If the person rejects a plan and wants another, propose different
-        per-habit dates in a held preview, never a plain habit list. After cancellation call bulk_reschedule_habits with
-        the complete revised_items; for edits to a still-pending preview use revise_pending_changes and retain
-        unmentioned items. Set orbit_write_complete to true when the complete plan is ready. Return the preview alone,
-        with no extra read blocks or repeated facts. Advice without a request to change the plan remains coaching."
+        bulk_reschedule_habits once with restart_plan=true and revised_items containing every habit in the complete set
+        and its proposed due_date, including today's choices. Check the today count and every deferred date before
+        calling the tool; never use one shared due_date for a restart plan. Preserve titles, cadence, times, reminders,
+        checklists and past records. Never mark missed habits done or skipped. Use the existing preview for approval,
+        editing or rejection; nothing changes before approval. If the person rejects a plan and wants another, propose
+        different per-habit dates in a held preview, never a plain habit list. After cancellation call
+        bulk_reschedule_habits with the complete revised_items; for edits to a still-pending preview use
+        revise_pending_changes and retain unmentioned items. Set orbit_write_complete to true when the complete plan is
+        ready. Return the preview alone, with no extra read blocks or repeated facts. Advice without a request to change
+        the plan remains coaching."
       strict: true
       parameters:
         type: object
         properties:
+          restart_plan:
+            type: boolean
+            description: True for a restart plan covering every remaining due and overdue habit after a fresh query_habits in this
+              turn. False for ordinary rescheduling.
           filter:
             type:
               - object
@@ -12943,6 +12989,7 @@ legacyTools:
             description: True only when every requested mutation has its matching write call in this round; a read status never
               fulfills a write. False when a lookup or dependent action is still needed.
         required:
+          - restart_plan
           - filter
           - due_date
           - revised_items
@@ -16886,7 +16933,9 @@ legacyTools:
         app_surfaces. related_surfaces lists destinations, not editing instructions. app_surfaces comes from the same
         catalog as list_app_surfaces_v2; use only its documented destinations and steps. Never infer a habit edit screen
         or creation workflow from a related destination. When the requested detail is absent, say that the explanation
-        does not cover it; do not invent navigation or settings. Answer in the person's language.
+        does not cover it; do not invent navigation or settings. Answer in the person's language. Use at most three
+        short steps, one complete sentence per line, at most 180 characters per line. Do not join steps into a
+        paragraph.
       strict: true
       parameters:
         type: object
@@ -17224,7 +17273,9 @@ legacyTools:
     sensitiveFields: []
     function:
       name: get_habit_metrics
-      description: "Read habit metrics: streaks, completion rate and total completions."
+      description: "Read habit metrics: streaks, completion rate and total completions. This tool reads habit logs and does
+        not report goal progress; use query_goals for goal progress. habit_id is a habit ID from the habit index; a goal
+        ID is never a habit_id."
       strict: true
       parameters:
         type: object
@@ -17615,7 +17666,8 @@ legacyTools:
     sensitiveFields: []
     function:
       name: get_profile
-      description: Read profile, plan, AI preferences and calendar sync. Orbit uses one accent.
+      description: Read profile, plan, AI preferences and calendar sync. Orbit uses one accent. Use only for profile, plan or
+        settings requests; this tool reports no goal or habit progress.
       strict: true
       parameters:
         type: object
@@ -18106,7 +18158,8 @@ legacyTools:
       name: query_goals
       description: Read goals and their progress, deadlines and linked habits. Call before answering goal questions; indexes
         do not ground replies. This result completely answers a goal-progress request; no habit analytics or habit
-        calendar read is needed.
+        calendar read is needed. Goal progress is the goal's current value against its target in this result. For a
+        goal-progress request, call query_goals alone with orbit_read_complete=true.
       strict: true
       parameters:
         type: object
@@ -19537,4 +19590,2121 @@ legacyTools:
           - name
           - color
           - orbit_write_complete
+        additionalProperties: false
+postReadTools:
+  - type: function
+    writes: false
+    sensitiveFields: []
+    function:
+      name: ask
+      description: "Ask for missing input with a choice, a pick list for a bulk preview, or a multi-field question form. Read
+        account data first. Only a valid, accepted ask ends the reply. Never request approval or repeat a preview
+        question. Do not call ask for a clear request you can act on, including a batch of dated items or a request to
+        show habits and goals. Null fields are absent; form question requires nonempty questions. An explicit request
+        for the person to choose habits requires ask, even with one candidate. Use pickList for selecting habits to log
+        or skip, with action and items; it prepares no write. For a single choice among existing records, use form
+        choice with top-level question and options, even when form question is supported. Reserve form question for
+        multiple fields. If the change is also missing, ask for both target and change in the choice question with
+        allowFreeText=true. Use only a form the client supports. Put the selected form and its fields inside input. A
+        single discrete selection always uses ask form choice with top-level question and options, including when the
+        question also requests a free-text change. Reserve form question for multiple separate input fields. Duplicate
+        targets: A singular name matching duplicate titles remains unresolved even when the account index contains every
+        matching ID. Call query_habits with search and for_selection=true, then ask with form choice; never pass all
+        matching IDs to bulk_log_habits or any other bulk write. A habit identified by id or by an exact unique title is
+        resolved. Different actions on different identified habits are not ambiguous. Ask only for input that is still
+        missing after reading account data. In a compound request, call the independent write tools before ask so their
+        approval preview appears beside the question; withhold only changes that depend on the answer. Never ask the
+        person to choose again between already identified targets. A single pick uses choice even when it has a heading;
+        use question for two or more fields. A request for a restart plan after missed habits is already actionable:
+        propose the plan yourself. Never call ask or request a choice, pick list, count or scheduling preference before
+        the restart preview. The person can approve, edit or reject that preview. Before a successful account read in
+        this turn, ask accepts only habit_setup for missing input to create new habit drafts. Never use habit_setup for
+        a reminder, an existing record, a preference or a check-in. Other reasons become available after a successful
+        account read. When that read answers the request, return it with orbit_read_complete=true and do not ask."
+      strict: true
+      parameters:
+        type: object
+        properties:
+          input:
+            anyOf:
+              - type: object
+                properties:
+                  form:
+                    type: string
+                    enum:
+                      - choice
+                    description: choice requires a nonempty question and 2 to 4 options; omit items, action, questions and progress.
+                      pickList requires nonempty title, action and 1 to 10 items; omit options, questions and progress,
+                      and set allowFreeText=false. question requires 1 to 10 questions; omit top-level options, items
+                      and action and set multiSelect=false. A single record selection uses choice; reserve question for
+                      multiple fields. Use only a supported form.
+                  missing_input:
+                    type: string
+                    enum:
+                      - habit_setup
+                      - preference
+                      - check_in
+                      - record_selection
+                      - bulk_selection
+                    description: "Identify input only the person can supply: habit_setup, preference, check_in, record_selection for one
+                      existing record, or bulk_selection for several existing records. Record and bulk selection require
+                      query_habits with for_selection=true earlier in this turn. Resolve an earlier Astra message from
+                      history; never ask which message it was."
+                  question:
+                    type: string
+                    description: Required nonempty question for choice, at most 120 characters. Use null for other forms.
+                    pattern: \S
+                  options:
+                    type: array
+                    description: Required for choice. Null means absent for other forms.
+                    minItems: 2
+                    maxItems: 4
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: Nonempty unique option id.
+                        label:
+                          type: string
+                          description: Nonempty option label, at most 20 characters.
+                        description:
+                          type:
+                            - string
+                            - "null"
+                          description: Supporting text, at most 24 characters. Null means absent.
+                      required:
+                        - id
+                        - label
+                        - description
+                      additionalProperties: false
+                  multiSelect:
+                    type:
+                      - boolean
+                      - "null"
+                    description: For choice only; null means false. pickList always selects multiple items; question requires false or null.
+                  allowFreeText:
+                    type:
+                      - boolean
+                      - "null"
+                    description: For choice only; null means false. Must be false for pickList. In form question, each questions entry
+                      controls its own allowFreeText; this top-level value is ignored.
+                required:
+                  - form
+                  - missing_input
+                  - question
+                  - options
+                  - multiSelect
+                  - allowFreeText
+                additionalProperties: false
+              - type: object
+                properties:
+                  form:
+                    type: string
+                    enum:
+                      - pickList
+                    description: choice requires a nonempty question and 2 to 4 options; omit items, action, questions and progress.
+                      pickList requires nonempty title, action and 1 to 10 items; omit options, questions and progress,
+                      and set allowFreeText=false. question requires 1 to 10 questions; omit top-level options, items
+                      and action and set multiSelect=false. A single record selection uses choice; reserve question for
+                      multiple fields. Use only a supported form.
+                  missing_input:
+                    type: string
+                    enum:
+                      - habit_setup
+                      - preference
+                      - check_in
+                      - record_selection
+                      - bulk_selection
+                    description: "Identify input only the person can supply: habit_setup, preference, check_in, record_selection for one
+                      existing record, or bulk_selection for several existing records. Record and bulk selection require
+                      query_habits with for_selection=true earlier in this turn. Resolve an earlier Astra message from
+                      history; never ask which message it was."
+                  title:
+                    type: string
+                    description: Required nonempty heading for pickList; optional heading of at most 120 characters for question. Null means
+                      absent.
+                    pattern: \S
+                  action:
+                    type: string
+                    enum:
+                      - create_habits
+                      - log_habits
+                      - skip_habits
+                    description: Required bulk action for pickList. Null means absent for other forms.
+                  items:
+                    type: array
+                    description: Required for pickList. Null means absent for other forms.
+                    minItems: 1
+                    maxItems: 10
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: Nonempty unique item id.
+                        label:
+                          type: string
+                          description: Nonempty item label.
+                        detail:
+                          type:
+                            - string
+                            - "null"
+                          description: Supporting text, at most 24 characters. Null means absent.
+                        arguments:
+                          description: "One bulk item: a habit definition for create_habits, or {habit_id, date} for log_habits/skip_habits. Dates
+                            use YYYY-MM-DD."
+                          anyOf:
+                            - type: object
+                              properties:
+                                title:
+                                  type: string
+                                  description: Keep the person's medical instruction wording; normalize only spelling and casing, without substituting the
+                                    action or negation.
+                                description:
+                                  type:
+                                    - string
+                                    - "null"
+                                emoji:
+                                  type:
+                                    - string
+                                    - "null"
+                                  description: Emoji icon. Pick a relevant one when clear.
+                                frequency_unit:
+                                  type:
+                                    - string
+                                    - "null"
+                                  description: OneTime for a single dated action or deadline-only item. Ongoing avoid habits default to Day/1 unless
+                                    another cadence was requested. A restriction starting before an event, including a
+                                    24-hour restriction, uses Day with frequency_quantity=1, due_date at its start and
+                                    inclusive end_date on the event; never OneTime on its first day.
+                                  enum:
+                                    - Day
+                                    - Week
+                                    - Month
+                                    - Year
+                                    - OneTime
+                                    - null
+                                frequency_quantity:
+                                  type:
+                                    - integer
+                                    - "null"
+                                  description: How often. Defaults to 1.
+                                interval_weeks:
+                                  type:
+                                    - integer
+                                    - "null"
+                                  description: Repeat interval in weeks. Omit for every week. Minimum 1.
+                                days:
+                                  type:
+                                    - array
+                                    - "null"
+                                  description: Specific weekdays. Only when frequency_quantity is 1.
+                                  items:
+                                    type: string
+                                    enum:
+                                      - Sunday
+                                      - Monday
+                                      - Tuesday
+                                      - Wednesday
+                                      - Thursday
+                                      - Friday
+                                      - Saturday
+                                due_date:
+                                  type:
+                                    - string
+                                    - "null"
+                                  description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
+                                    time. A deadline-only item uses the event date with due_end_time at the event, never
+                                    another preparation's start date. Otherwise defaults to today.
+                                end_date:
+                                  type:
+                                    - string
+                                    - "null"
+                                  description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
+                                    that event's date with Day/1, never null. Omit or null for OneTime events and
+                                    deadline-only items.
+                                due_time:
+                                  type:
+                                    - string
+                                    - "null"
+                                  description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
+                                due_end_time:
+                                  type:
+                                    - string
+                                    - "null"
+                                  description: HH:mm end time or deadline. Suggestion times with zero seconds are accepted as HH:mm:ss. A deadline-only
+                                    item that ends at an event uses that event's clock time, with due_date on the event
+                                    date. A restriction starting before the event keeps its own start due_date and its
+                                    inclusive end_date on the event. Leave due_time absent or null when no start time
+                                    was supplied; do not drop a supplied collection deadline.
+                                is_bad_habit:
+                                  type:
+                                    - boolean
+                                    - "null"
+                                  description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
+                                    temporary medical commitment.
+                                is_general:
+                                  type:
+                                    - boolean
+                                    - "null"
+                                  description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
+                                is_flexible:
+                                  type:
+                                    - boolean
+                                    - "null"
+                                  description: Window-based tracking. Requires frequency_unit.
+                                checklist_items:
+                                  type:
+                                    - array
+                                    - "null"
+                                  description: Atomic sub-steps done together in one execution.
+                                  items:
+                                    type: object
+                                    properties:
+                                      text:
+                                        type: string
+                                      is_checked:
+                                        type:
+                                          - boolean
+                                          - "null"
+                                        description: "Default: false."
+                                    required:
+                                      - text
+                                      - is_checked
+                                    additionalProperties: false
+                                start_date:
+                                  type:
+                                    - string
+                                    - "null"
+                                  description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
+                                    approval preview.
+                                placement:
+                                  type:
+                                    - string
+                                    - "null"
+                                  enum:
+                                    - sub_habit
+                                    - checklist_item
+                                    - new_parent
+                                    - null
+                                  description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
+                                    recommendation. Preserve every other proposal field when switching.
+                                reminder_enabled:
+                                  type:
+                                    - boolean
+                                    - "null"
+                                reminder_times:
+                                  type:
+                                    - array
+                                    - "null"
+                                  items:
+                                    type: integer
+                                scheduled_reminders:
+                                  type:
+                                    - array
+                                    - "null"
+                                  description: Absolute-time reminders for habits WITHOUT a due_time
+                                  items:
+                                    type: object
+                                    properties:
+                                      when:
+                                        type: string
+                                        enum:
+                                          - day_before
+                                          - same_day
+                                      time:
+                                        type: string
+                                        description: HH:mm 24h format
+                                    required:
+                                      - when
+                                      - time
+                                    additionalProperties: false
+                                relative_reminders:
+                                  type:
+                                    - array
+                                    - "null"
+                                  description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
+                                    array clears them."
+                                  items:
+                                    type: object
+                                    properties:
+                                      minutes_before:
+                                        type:
+                                          - integer
+                                          - "null"
+                                      when:
+                                        type:
+                                          - string
+                                          - "null"
+                                        enum:
+                                          - day_before
+                                          - same_day
+                                          - null
+                                      time:
+                                        type:
+                                          - string
+                                          - "null"
+                                    required:
+                                      - minutes_before
+                                      - when
+                                      - time
+                                    additionalProperties: false
+                                repeat_reminder:
+                                  type:
+                                    - object
+                                    - "null"
+                                  description: Repeat from the latest dose across midnight. Replaces other reminders. Use only everyday Recurring,
+                                    Flexible per day, or General habits. Recurring once a day stops after that day is
+                                    done. The daily target does not stop Flexible or General reminders. When no daily
+                                    target was requested, use General with no frequency, and do not derive a target from
+                                    the reminder interval. Keep doctor-prescribed fixed clock times in
+                                    scheduled_reminders.
+                                  properties:
+                                    interval_minutes:
+                                      type: integer
+                                      enum:
+                                        - 15
+                                        - 20
+                                        - 30
+                                        - 45
+                                        - 60
+                                        - 120
+                                        - 180
+                                        - 240
+                                        - 300
+                                        - 360
+                                        - 420
+                                        - 480
+                                        - 540
+                                        - 600
+                                        - 660
+                                        - 720
+                                        - 780
+                                        - 840
+                                        - 900
+                                        - 960
+                                        - 1020
+                                        - 1080
+                                        - 1140
+                                        - 1200
+                                        - 1260
+                                        - 1320
+                                        - 1380
+                                    active_start:
+                                      type:
+                                        - string
+                                        - "null"
+                                      description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
+                                    active_end:
+                                      type:
+                                        - string
+                                        - "null"
+                                      description: Optional local HH:mm, paired with active_start.
+                                    start_at_utc:
+                                      type:
+                                        - string
+                                        - "null"
+                                      description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+                                  required:
+                                    - interval_minutes
+                                    - active_start
+                                    - active_end
+                                    - start_at_utc
+                                  additionalProperties: false
+                                slip_alert_enabled:
+                                  type:
+                                    - boolean
+                                    - "null"
+                                tag_names:
+                                  type:
+                                    - array
+                                    - "null"
+                                  items:
+                                    type: string
+                                habit_id:
+                                  type:
+                                    - string
+                                    - "null"
+                                  description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
+                                    stored title verbatim; supply only requested changes and leave other fields null.
+                                    Null means a new activity.
+                                tag_ids:
+                                  type:
+                                    - array
+                                    - "null"
+                                  items:
+                                    type: string
+                                goal_ids:
+                                  type:
+                                    - array
+                                    - "null"
+                                  items:
+                                    type: string
+                                parent_habit_id:
+                                  type:
+                                    - string
+                                    - "null"
+                                  description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
+                                    turn them into description text.
+                                sub_habits:
+                                  type:
+                                    - array
+                                    - "null"
+                                  description: Independently trackable activities under this parent. Follow the destination structure and account pattern.
+                                    An empty account's new routine defaults to this form. Preserve each requested time.
+                                  items:
+                                    type: object
+                                    properties:
+                                      title:
+                                        type: string
+                                        description: Keep the person's medical instruction wording; normalize only spelling and casing, without substituting the
+                                          action or negation.
+                                      description:
+                                        type:
+                                          - string
+                                          - "null"
+                                      emoji:
+                                        type:
+                                          - string
+                                          - "null"
+                                        description: Emoji icon. Pick a relevant one when clear.
+                                      frequency_unit:
+                                        type:
+                                          - string
+                                          - "null"
+                                        description: OneTime for a single dated action or deadline-only item. Ongoing avoid habits default to Day/1 unless
+                                          another cadence was requested. A restriction starting before an event,
+                                          including a 24-hour restriction, uses Day with frequency_quantity=1, due_date
+                                          at its start and inclusive end_date on the event; never OneTime on its first
+                                          day.
+                                        enum:
+                                          - Day
+                                          - Week
+                                          - Month
+                                          - Year
+                                          - OneTime
+                                          - null
+                                      frequency_quantity:
+                                        type:
+                                          - integer
+                                          - "null"
+                                        description: How often. Defaults to 1.
+                                      interval_weeks:
+                                        type:
+                                          - integer
+                                          - "null"
+                                        description: Repeat interval in weeks. Omit for every week. Minimum 1.
+                                      days:
+                                        type:
+                                          - array
+                                          - "null"
+                                        description: Specific weekdays. Only when frequency_quantity is 1.
+                                        items:
+                                          type: string
+                                          enum:
+                                            - Sunday
+                                            - Monday
+                                            - Tuesday
+                                            - Wednesday
+                                            - Thursday
+                                            - Friday
+                                            - Saturday
+                                      due_date:
+                                        type:
+                                          - string
+                                          - "null"
+                                        description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
+                                          time. A deadline-only item uses the event date with due_end_time at the event,
+                                          never another preparation's start date. Otherwise defaults to today.
+                                      end_date:
+                                        type:
+                                          - string
+                                          - "null"
+                                        description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
+                                          that event's date with Day/1, never null. Omit or null for OneTime events and
+                                          deadline-only items.
+                                      due_time:
+                                        type:
+                                          - string
+                                          - "null"
+                                        description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
+                                      due_end_time:
+                                        type:
+                                          - string
+                                          - "null"
+                                        description: HH:mm end time or deadline. Suggestion times with zero seconds are accepted as HH:mm:ss. A deadline-only
+                                          item that ends at an event uses that event's clock time, with due_date on the
+                                          event date. A restriction starting before the event keeps its own start
+                                          due_date and its inclusive end_date on the event. Leave due_time absent or
+                                          null when no start time was supplied; do not drop a supplied collection
+                                          deadline.
+                                      is_bad_habit:
+                                        type:
+                                          - boolean
+                                          - "null"
+                                        description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
+                                          temporary medical commitment.
+                                      is_general:
+                                        type:
+                                          - boolean
+                                          - "null"
+                                        description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
+                                      is_flexible:
+                                        type:
+                                          - boolean
+                                          - "null"
+                                        description: Window-based tracking. Requires frequency_unit.
+                                      checklist_items:
+                                        type:
+                                          - array
+                                          - "null"
+                                        description: Atomic sub-steps done together in one execution.
+                                        items:
+                                          type: object
+                                          properties:
+                                            text:
+                                              type: string
+                                            is_checked:
+                                              type:
+                                                - boolean
+                                                - "null"
+                                              description: "Default: false."
+                                          required:
+                                            - text
+                                            - is_checked
+                                          additionalProperties: false
+                                      start_date:
+                                        type:
+                                          - string
+                                          - "null"
+                                        description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
+                                          approval preview.
+                                      placement:
+                                        type:
+                                          - string
+                                          - "null"
+                                        enum:
+                                          - sub_habit
+                                          - checklist_item
+                                          - new_parent
+                                          - null
+                                        description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
+                                          recommendation. Preserve every other proposal field when switching.
+                                      reminder_enabled:
+                                        type:
+                                          - boolean
+                                          - "null"
+                                      reminder_times:
+                                        type:
+                                          - array
+                                          - "null"
+                                        items:
+                                          type: integer
+                                      scheduled_reminders:
+                                        type:
+                                          - array
+                                          - "null"
+                                        description: Absolute-time reminders for habits WITHOUT a due_time
+                                        items:
+                                          type: object
+                                          properties:
+                                            when:
+                                              type: string
+                                              enum:
+                                                - day_before
+                                                - same_day
+                                            time:
+                                              type: string
+                                              description: HH:mm 24h format
+                                          required:
+                                            - when
+                                            - time
+                                          additionalProperties: false
+                                      relative_reminders:
+                                        type:
+                                          - array
+                                          - "null"
+                                        description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
+                                          array clears them."
+                                        items:
+                                          type: object
+                                          properties:
+                                            minutes_before:
+                                              type:
+                                                - integer
+                                                - "null"
+                                            when:
+                                              type:
+                                                - string
+                                                - "null"
+                                              enum:
+                                                - day_before
+                                                - same_day
+                                                - null
+                                            time:
+                                              type:
+                                                - string
+                                                - "null"
+                                          required:
+                                            - minutes_before
+                                            - when
+                                            - time
+                                          additionalProperties: false
+                                      repeat_reminder:
+                                        type:
+                                          - object
+                                          - "null"
+                                        description: Repeat from the latest dose across midnight. Replaces other reminders. Use only everyday Recurring,
+                                          Flexible per day, or General habits. Recurring once a day stops after that day
+                                          is done. The daily target does not stop Flexible or General reminders. When no
+                                          daily target was requested, use General with no frequency, and do not derive a
+                                          target from the reminder interval. Keep doctor-prescribed fixed clock times in
+                                          scheduled_reminders.
+                                        properties:
+                                          interval_minutes:
+                                            type: integer
+                                            enum:
+                                              - 15
+                                              - 20
+                                              - 30
+                                              - 45
+                                              - 60
+                                              - 120
+                                              - 180
+                                              - 240
+                                              - 300
+                                              - 360
+                                              - 420
+                                              - 480
+                                              - 540
+                                              - 600
+                                              - 660
+                                              - 720
+                                              - 780
+                                              - 840
+                                              - 900
+                                              - 960
+                                              - 1020
+                                              - 1080
+                                              - 1140
+                                              - 1200
+                                              - 1260
+                                              - 1320
+                                              - 1380
+                                          active_start:
+                                            type:
+                                              - string
+                                              - "null"
+                                            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
+                                          active_end:
+                                            type:
+                                              - string
+                                              - "null"
+                                            description: Optional local HH:mm, paired with active_start.
+                                          start_at_utc:
+                                            type:
+                                              - string
+                                              - "null"
+                                            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+                                        required:
+                                          - interval_minutes
+                                          - active_start
+                                          - active_end
+                                          - start_at_utc
+                                        additionalProperties: false
+                                      slip_alert_enabled:
+                                        type:
+                                          - boolean
+                                          - "null"
+                                      tag_names:
+                                        type:
+                                          - array
+                                          - "null"
+                                        items:
+                                          type: string
+                                      habit_id:
+                                        type:
+                                          - string
+                                          - "null"
+                                        description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
+                                          stored title verbatim; supply only requested changes and leave other fields
+                                          null. Null means a new activity.
+                                      tag_ids:
+                                        type:
+                                          - array
+                                          - "null"
+                                        items:
+                                          type: string
+                                      goal_ids:
+                                        type:
+                                          - array
+                                          - "null"
+                                        items:
+                                          type: string
+                                      parent_habit_id:
+                                        type:
+                                          - string
+                                          - "null"
+                                        description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
+                                          turn them into description text.
+                                      sub_habits:
+                                        type:
+                                          - array
+                                          - "null"
+                                        description: Independently trackable activities under this parent. Follow the destination structure and account pattern.
+                                          An empty account's new routine defaults to this form. Preserve each requested
+                                          time.
+                                        items:
+                                          type: object
+                                          properties:
+                                            title:
+                                              type: string
+                                              description: Keep the person's medical instruction wording; normalize only spelling and casing, without substituting the
+                                                action or negation.
+                                            description:
+                                              type:
+                                                - string
+                                                - "null"
+                                            emoji:
+                                              type:
+                                                - string
+                                                - "null"
+                                              description: Emoji icon. Pick a relevant one when clear.
+                                            frequency_unit:
+                                              type:
+                                                - string
+                                                - "null"
+                                              description: OneTime for a single dated action or deadline-only item. Ongoing avoid habits default to Day/1 unless
+                                                another cadence was requested. A restriction starting before an event,
+                                                including a 24-hour restriction, uses Day with frequency_quantity=1,
+                                                due_date at its start and inclusive end_date on the event; never OneTime
+                                                on its first day.
+                                              enum:
+                                                - Day
+                                                - Week
+                                                - Month
+                                                - Year
+                                                - OneTime
+                                                - null
+                                            frequency_quantity:
+                                              type:
+                                                - integer
+                                                - "null"
+                                              description: How often. Defaults to 1.
+                                            interval_weeks:
+                                              type:
+                                                - integer
+                                                - "null"
+                                              description: Repeat interval in weeks. Omit for every week. Minimum 1.
+                                            days:
+                                              type:
+                                                - array
+                                                - "null"
+                                              description: Specific weekdays. Only when frequency_quantity is 1.
+                                              items:
+                                                type: string
+                                                enum:
+                                                  - Sunday
+                                                  - Monday
+                                                  - Tuesday
+                                                  - Wednesday
+                                                  - Thursday
+                                                  - Friday
+                                                  - Saturday
+                                            due_date:
+                                              type:
+                                                - string
+                                                - "null"
+                                              description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
+                                                time. A deadline-only item uses the event date with due_end_time at the
+                                                event, never another preparation's start date. Otherwise defaults to
+                                                today.
+                                            end_date:
+                                              type:
+                                                - string
+                                                - "null"
+                                              description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
+                                                that event's date with Day/1, never null. Omit or null for OneTime
+                                                events and deadline-only items.
+                                            due_time:
+                                              type:
+                                                - string
+                                                - "null"
+                                              description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
+                                            due_end_time:
+                                              type:
+                                                - string
+                                                - "null"
+                                              description: HH:mm end time or deadline. Suggestion times with zero seconds are accepted as HH:mm:ss. A deadline-only
+                                                item that ends at an event uses that event's clock time, with due_date
+                                                on the event date. A restriction starting before the event keeps its own
+                                                start due_date and its inclusive end_date on the event. Leave due_time
+                                                absent or null when no start time was supplied; do not drop a supplied
+                                                collection deadline.
+                                            is_bad_habit:
+                                              type:
+                                                - boolean
+                                                - "null"
+                                              description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
+                                                temporary medical commitment.
+                                            is_general:
+                                              type:
+                                                - boolean
+                                                - "null"
+                                              description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
+                                            is_flexible:
+                                              type:
+                                                - boolean
+                                                - "null"
+                                              description: Window-based tracking. Requires frequency_unit.
+                                            checklist_items:
+                                              type:
+                                                - array
+                                                - "null"
+                                              description: Atomic sub-steps done together in one execution.
+                                              items:
+                                                type: object
+                                                properties:
+                                                  text:
+                                                    type: string
+                                                  is_checked:
+                                                    type:
+                                                      - boolean
+                                                      - "null"
+                                                    description: "Default: false."
+                                                required:
+                                                  - text
+                                                  - is_checked
+                                                additionalProperties: false
+                                            start_date:
+                                              type:
+                                                - string
+                                                - "null"
+                                              description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
+                                                approval preview.
+                                            placement:
+                                              type:
+                                                - string
+                                                - "null"
+                                              enum:
+                                                - sub_habit
+                                                - checklist_item
+                                                - new_parent
+                                                - null
+                                              description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
+                                                recommendation. Preserve every other proposal field when switching.
+                                            reminder_enabled:
+                                              type:
+                                                - boolean
+                                                - "null"
+                                            reminder_times:
+                                              type:
+                                                - array
+                                                - "null"
+                                              items:
+                                                type: integer
+                                            scheduled_reminders:
+                                              type:
+                                                - array
+                                                - "null"
+                                              description: Absolute-time reminders for habits WITHOUT a due_time
+                                              items:
+                                                type: object
+                                                properties:
+                                                  when:
+                                                    type: string
+                                                    enum:
+                                                      - day_before
+                                                      - same_day
+                                                  time:
+                                                    type: string
+                                                    description: HH:mm 24h format
+                                                required:
+                                                  - when
+                                                  - time
+                                                additionalProperties: false
+                                            relative_reminders:
+                                              type:
+                                                - array
+                                                - "null"
+                                              description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
+                                                array clears them."
+                                              items:
+                                                type: object
+                                                properties:
+                                                  minutes_before:
+                                                    type:
+                                                      - integer
+                                                      - "null"
+                                                  when:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                    enum:
+                                                      - day_before
+                                                      - same_day
+                                                      - null
+                                                  time:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                required:
+                                                  - minutes_before
+                                                  - when
+                                                  - time
+                                                additionalProperties: false
+                                            repeat_reminder:
+                                              type:
+                                                - object
+                                                - "null"
+                                              description: Repeat from the latest dose across midnight. Replaces other reminders. Use only everyday Recurring,
+                                                Flexible per day, or General habits. Recurring once a day stops after
+                                                that day is done. The daily target does not stop Flexible or General
+                                                reminders. When no daily target was requested, use General with no
+                                                frequency, and do not derive a target from the reminder interval. Keep
+                                                doctor-prescribed fixed clock times in scheduled_reminders.
+                                              properties:
+                                                interval_minutes:
+                                                  type: integer
+                                                  enum:
+                                                    - 15
+                                                    - 20
+                                                    - 30
+                                                    - 45
+                                                    - 60
+                                                    - 120
+                                                    - 180
+                                                    - 240
+                                                    - 300
+                                                    - 360
+                                                    - 420
+                                                    - 480
+                                                    - 540
+                                                    - 600
+                                                    - 660
+                                                    - 720
+                                                    - 780
+                                                    - 840
+                                                    - 900
+                                                    - 960
+                                                    - 1020
+                                                    - 1080
+                                                    - 1140
+                                                    - 1200
+                                                    - 1260
+                                                    - 1320
+                                                    - 1380
+                                                active_start:
+                                                  type:
+                                                    - string
+                                                    - "null"
+                                                  description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
+                                                active_end:
+                                                  type:
+                                                    - string
+                                                    - "null"
+                                                  description: Optional local HH:mm, paired with active_start.
+                                                start_at_utc:
+                                                  type:
+                                                    - string
+                                                    - "null"
+                                                  description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+                                              required:
+                                                - interval_minutes
+                                                - active_start
+                                                - active_end
+                                                - start_at_utc
+                                              additionalProperties: false
+                                            slip_alert_enabled:
+                                              type:
+                                                - boolean
+                                                - "null"
+                                            tag_names:
+                                              type:
+                                                - array
+                                                - "null"
+                                              items:
+                                                type: string
+                                            habit_id:
+                                              type:
+                                                - string
+                                                - "null"
+                                              description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
+                                                stored title verbatim; supply only requested changes and leave other
+                                                fields null. Null means a new activity.
+                                            tag_ids:
+                                              type:
+                                                - array
+                                                - "null"
+                                              items:
+                                                type: string
+                                            goal_ids:
+                                              type:
+                                                - array
+                                                - "null"
+                                              items:
+                                                type: string
+                                            parent_habit_id:
+                                              type:
+                                                - string
+                                                - "null"
+                                              description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
+                                                turn them into description text.
+                                            sub_habits:
+                                              type:
+                                                - array
+                                                - "null"
+                                              description: Independently trackable activities under this parent. Follow the destination structure and account pattern.
+                                                An empty account's new routine defaults to this form. Preserve each
+                                                requested time.
+                                              items:
+                                                type: object
+                                                properties:
+                                                  title:
+                                                    type: string
+                                                    description: Keep the person's medical instruction wording; normalize only spelling and casing, without substituting the
+                                                      action or negation.
+                                                  description:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                  emoji:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                    description: Emoji icon. Pick a relevant one when clear.
+                                                  frequency_unit:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                    description: OneTime for a single dated action or deadline-only item. Ongoing avoid habits default to Day/1 unless
+                                                      another cadence was requested. A restriction starting before an
+                                                      event, including a 24-hour restriction, uses Day with
+                                                      frequency_quantity=1, due_date at its start and inclusive end_date
+                                                      on the event; never OneTime on its first day.
+                                                    enum:
+                                                      - Day
+                                                      - Week
+                                                      - Month
+                                                      - Year
+                                                      - OneTime
+                                                      - null
+                                                  frequency_quantity:
+                                                    type:
+                                                      - integer
+                                                      - "null"
+                                                    description: How often. Defaults to 1.
+                                                  interval_weeks:
+                                                    type:
+                                                      - integer
+                                                      - "null"
+                                                    description: Repeat interval in weeks. Omit for every week. Minimum 1.
+                                                  days:
+                                                    type:
+                                                      - array
+                                                      - "null"
+                                                    description: Specific weekdays. Only when frequency_quantity is 1.
+                                                    items:
+                                                      type: string
+                                                      enum:
+                                                        - Sunday
+                                                        - Monday
+                                                        - Tuesday
+                                                        - Wednesday
+                                                        - Thursday
+                                                        - Friday
+                                                        - Saturday
+                                                  due_date:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                    description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
+                                                      time. A deadline-only item uses the event date with due_end_time
+                                                      at the event, never another preparation's start date. Otherwise
+                                                      defaults to today.
+                                                  end_date:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                    description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
+                                                      that event's date with Day/1, never null. Omit or null for OneTime
+                                                      events and deadline-only items.
+                                                  due_time:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                    description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
+                                                  due_end_time:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                    description: HH:mm end time or deadline. Suggestion times with zero seconds are accepted as HH:mm:ss. A deadline-only
+                                                      item that ends at an event uses that event's clock time, with
+                                                      due_date on the event date. A restriction starting before the
+                                                      event keeps its own start due_date and its inclusive end_date on
+                                                      the event. Leave due_time absent or null when no start time was
+                                                      supplied; do not drop a supplied collection deadline.
+                                                  is_bad_habit:
+                                                    type:
+                                                      - boolean
+                                                      - "null"
+                                                    description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
+                                                      temporary medical commitment.
+                                                  is_general:
+                                                    type:
+                                                      - boolean
+                                                      - "null"
+                                                    description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
+                                                  is_flexible:
+                                                    type:
+                                                      - boolean
+                                                      - "null"
+                                                    description: Window-based tracking. Requires frequency_unit.
+                                                  checklist_items:
+                                                    type:
+                                                      - array
+                                                      - "null"
+                                                    description: Atomic sub-steps done together in one execution.
+                                                    items:
+                                                      type: object
+                                                      properties:
+                                                        text:
+                                                          type: string
+                                                        is_checked:
+                                                          type:
+                                                            - boolean
+                                                            - "null"
+                                                          description: "Default: false."
+                                                      required:
+                                                        - text
+                                                        - is_checked
+                                                      additionalProperties: false
+                                                  start_date:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                    description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
+                                                      approval preview.
+                                                  placement:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                    enum:
+                                                      - sub_habit
+                                                      - checklist_item
+                                                      - new_parent
+                                                      - null
+                                                    description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
+                                                      recommendation. Preserve every other proposal field when
+                                                      switching.
+                                                  reminder_enabled:
+                                                    type:
+                                                      - boolean
+                                                      - "null"
+                                                  reminder_times:
+                                                    type:
+                                                      - array
+                                                      - "null"
+                                                    items:
+                                                      type: integer
+                                                  scheduled_reminders:
+                                                    type:
+                                                      - array
+                                                      - "null"
+                                                    description: Absolute-time reminders for habits WITHOUT a due_time
+                                                    items:
+                                                      type: object
+                                                      properties:
+                                                        when:
+                                                          type: string
+                                                          enum:
+                                                            - day_before
+                                                            - same_day
+                                                        time:
+                                                          type: string
+                                                          description: HH:mm 24h format
+                                                      required:
+                                                        - when
+                                                        - time
+                                                      additionalProperties: false
+                                                  relative_reminders:
+                                                    type:
+                                                      - array
+                                                      - "null"
+                                                    description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
+                                                      array clears them."
+                                                    items:
+                                                      type: object
+                                                      properties:
+                                                        minutes_before:
+                                                          type:
+                                                            - integer
+                                                            - "null"
+                                                        when:
+                                                          type:
+                                                            - string
+                                                            - "null"
+                                                          enum:
+                                                            - day_before
+                                                            - same_day
+                                                            - null
+                                                        time:
+                                                          type:
+                                                            - string
+                                                            - "null"
+                                                      required:
+                                                        - minutes_before
+                                                        - when
+                                                        - time
+                                                      additionalProperties: false
+                                                  repeat_reminder:
+                                                    type:
+                                                      - object
+                                                      - "null"
+                                                    description: Repeat from the latest dose across midnight. Replaces other reminders. Use only everyday Recurring,
+                                                      Flexible per day, or General habits. Recurring once a day stops
+                                                      after that day is done. The daily target does not stop Flexible or
+                                                      General reminders. When no daily target was requested, use General
+                                                      with no frequency, and do not derive a target from the reminder
+                                                      interval. Keep doctor-prescribed fixed clock times in
+                                                      scheduled_reminders.
+                                                    properties:
+                                                      interval_minutes:
+                                                        type: integer
+                                                        enum:
+                                                          - 15
+                                                          - 20
+                                                          - 30
+                                                          - 45
+                                                          - 60
+                                                          - 120
+                                                          - 180
+                                                          - 240
+                                                          - 300
+                                                          - 360
+                                                          - 420
+                                                          - 480
+                                                          - 540
+                                                          - 600
+                                                          - 660
+                                                          - 720
+                                                          - 780
+                                                          - 840
+                                                          - 900
+                                                          - 960
+                                                          - 1020
+                                                          - 1080
+                                                          - 1140
+                                                          - 1200
+                                                          - 1260
+                                                          - 1320
+                                                          - 1380
+                                                      active_start:
+                                                        type:
+                                                          - string
+                                                          - "null"
+                                                        description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
+                                                      active_end:
+                                                        type:
+                                                          - string
+                                                          - "null"
+                                                        description: Optional local HH:mm, paired with active_start.
+                                                      start_at_utc:
+                                                        type:
+                                                          - string
+                                                          - "null"
+                                                        description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+                                                    required:
+                                                      - interval_minutes
+                                                      - active_start
+                                                      - active_end
+                                                      - start_at_utc
+                                                    additionalProperties: false
+                                                  slip_alert_enabled:
+                                                    type:
+                                                      - boolean
+                                                      - "null"
+                                                  tag_names:
+                                                    type:
+                                                      - array
+                                                      - "null"
+                                                    items:
+                                                      type: string
+                                                  habit_id:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                    description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
+                                                      stored title verbatim; supply only requested changes and leave
+                                                      other fields null. Null means a new activity.
+                                                  tag_ids:
+                                                    type:
+                                                      - array
+                                                      - "null"
+                                                    items:
+                                                      type: string
+                                                  goal_ids:
+                                                    type:
+                                                      - array
+                                                      - "null"
+                                                    items:
+                                                      type: string
+                                                  parent_habit_id:
+                                                    type:
+                                                      - string
+                                                      - "null"
+                                                    description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
+                                                      turn them into description text.
+                                                  sub_habits:
+                                                    type:
+                                                      - array
+                                                      - "null"
+                                                    description: Independently trackable activities under this parent. Follow the destination structure and account pattern.
+                                                      An empty account's new routine defaults to this form. Preserve
+                                                      each requested time.
+                                                    items:
+                                                      type: object
+                                                      properties:
+                                                        title:
+                                                          type: string
+                                                          description: Keep the person's medical instruction wording; normalize only spelling and casing, without substituting the
+                                                            action or negation.
+                                                        description:
+                                                          type:
+                                                            - string
+                                                            - "null"
+                                                        emoji:
+                                                          type:
+                                                            - string
+                                                            - "null"
+                                                          description: Emoji icon. Pick a relevant one when clear.
+                                                        frequency_unit:
+                                                          type:
+                                                            - string
+                                                            - "null"
+                                                          description: OneTime for a single dated action or deadline-only item. Ongoing avoid habits default to Day/1 unless
+                                                            another cadence was requested. A restriction starting before
+                                                            an event, including a 24-hour restriction, uses Day with
+                                                            frequency_quantity=1, due_date at its start and inclusive
+                                                            end_date on the event; never OneTime on its first day.
+                                                          enum:
+                                                            - Day
+                                                            - Week
+                                                            - Month
+                                                            - Year
+                                                            - OneTime
+                                                            - null
+                                                        frequency_quantity:
+                                                          type:
+                                                            - integer
+                                                            - "null"
+                                                          description: How often. Defaults to 1.
+                                                        interval_weeks:
+                                                          type:
+                                                            - integer
+                                                            - "null"
+                                                          description: Repeat interval in weeks. Omit for every week. Minimum 1.
+                                                        days:
+                                                          type:
+                                                            - array
+                                                            - "null"
+                                                          description: Specific weekdays. Only when frequency_quantity is 1.
+                                                          items:
+                                                            type: string
+                                                            enum:
+                                                              - Sunday
+                                                              - Monday
+                                                              - Tuesday
+                                                              - Wednesday
+                                                              - Thursday
+                                                              - Friday
+                                                              - Saturday
+                                                        due_date:
+                                                          type:
+                                                            - string
+                                                            - "null"
+                                                          description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
+                                                            time. A deadline-only item uses the event date with
+                                                            due_end_time at the event, never another preparation's start
+                                                            date. Otherwise defaults to today.
+                                                        end_date:
+                                                          type:
+                                                            - string
+                                                            - "null"
+                                                          description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
+                                                            that event's date with Day/1, never null. Omit or null for
+                                                            OneTime events and deadline-only items.
+                                                        due_time:
+                                                          type:
+                                                            - string
+                                                            - "null"
+                                                          description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
+                                                        due_end_time:
+                                                          type:
+                                                            - string
+                                                            - "null"
+                                                          description: HH:mm end time or deadline. Suggestion times with zero seconds are accepted as HH:mm:ss. A deadline-only
+                                                            item that ends at an event uses that event's clock time,
+                                                            with due_date on the event date. A restriction starting
+                                                            before the event keeps its own start due_date and its
+                                                            inclusive end_date on the event. Leave due_time absent or
+                                                            null when no start time was supplied; do not drop a supplied
+                                                            collection deadline.
+                                                        is_bad_habit:
+                                                          type:
+                                                            - boolean
+                                                            - "null"
+                                                          description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
+                                                            temporary medical commitment.
+                                                        is_general:
+                                                          type:
+                                                            - boolean
+                                                            - "null"
+                                                          description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
+                                                        is_flexible:
+                                                          type:
+                                                            - boolean
+                                                            - "null"
+                                                          description: Window-based tracking. Requires frequency_unit.
+                                                        checklist_items:
+                                                          type:
+                                                            - array
+                                                            - "null"
+                                                          description: Atomic sub-steps done together in one execution.
+                                                          items:
+                                                            type: object
+                                                            properties:
+                                                              text:
+                                                                type: string
+                                                              is_checked:
+                                                                type:
+                                                                  - boolean
+                                                                  - "null"
+                                                                description: "Default: false."
+                                                            required:
+                                                              - text
+                                                              - is_checked
+                                                            additionalProperties: false
+                                                        start_date:
+                                                          type:
+                                                            - string
+                                                            - "null"
+                                                          description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
+                                                            approval preview.
+                                                        placement:
+                                                          type:
+                                                            - string
+                                                            - "null"
+                                                          enum:
+                                                            - sub_habit
+                                                            - checklist_item
+                                                            - new_parent
+                                                            - null
+                                                          description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
+                                                            recommendation. Preserve every other proposal field when
+                                                            switching.
+                                                        reminder_enabled:
+                                                          type:
+                                                            - boolean
+                                                            - "null"
+                                                        reminder_times:
+                                                          type:
+                                                            - array
+                                                            - "null"
+                                                          items:
+                                                            type: integer
+                                                        scheduled_reminders:
+                                                          type:
+                                                            - array
+                                                            - "null"
+                                                          description: Absolute-time reminders for habits WITHOUT a due_time
+                                                          items:
+                                                            type: object
+                                                            properties:
+                                                              when:
+                                                                type: string
+                                                                enum:
+                                                                  - day_before
+                                                                  - same_day
+                                                              time:
+                                                                type: string
+                                                                description: HH:mm 24h format
+                                                            required:
+                                                              - when
+                                                              - time
+                                                            additionalProperties: false
+                                                        relative_reminders:
+                                                          type:
+                                                            - array
+                                                            - "null"
+                                                          description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
+                                                            array clears them."
+                                                          items:
+                                                            type: object
+                                                            properties:
+                                                              minutes_before:
+                                                                type:
+                                                                  - integer
+                                                                  - "null"
+                                                              when:
+                                                                type:
+                                                                  - string
+                                                                  - "null"
+                                                                enum:
+                                                                  - day_before
+                                                                  - same_day
+                                                                  - null
+                                                              time:
+                                                                type:
+                                                                  - string
+                                                                  - "null"
+                                                            required:
+                                                              - minutes_before
+                                                              - when
+                                                              - time
+                                                            additionalProperties: false
+                                                        repeat_reminder:
+                                                          type:
+                                                            - object
+                                                            - "null"
+                                                          description: Repeat from the latest dose across midnight. Replaces other reminders. Use only everyday Recurring,
+                                                            Flexible per day, or General habits. Recurring once a day
+                                                            stops after that day is done. The daily target does not stop
+                                                            Flexible or General reminders. When no daily target was
+                                                            requested, use General with no frequency, and do not derive
+                                                            a target from the reminder interval. Keep doctor-prescribed
+                                                            fixed clock times in scheduled_reminders.
+                                                          properties:
+                                                            interval_minutes:
+                                                              type: integer
+                                                              enum:
+                                                                - 15
+                                                                - 20
+                                                                - 30
+                                                                - 45
+                                                                - 60
+                                                                - 120
+                                                                - 180
+                                                                - 240
+                                                                - 300
+                                                                - 360
+                                                                - 420
+                                                                - 480
+                                                                - 540
+                                                                - 600
+                                                                - 660
+                                                                - 720
+                                                                - 780
+                                                                - 840
+                                                                - 900
+                                                                - 960
+                                                                - 1020
+                                                                - 1080
+                                                                - 1140
+                                                                - 1200
+                                                                - 1260
+                                                                - 1320
+                                                                - 1380
+                                                            active_start:
+                                                              type:
+                                                                - string
+                                                                - "null"
+                                                              description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
+                                                            active_end:
+                                                              type:
+                                                                - string
+                                                                - "null"
+                                                              description: Optional local HH:mm, paired with active_start.
+                                                            start_at_utc:
+                                                              type:
+                                                                - string
+                                                                - "null"
+                                                              description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+                                                          required:
+                                                            - interval_minutes
+                                                            - active_start
+                                                            - active_end
+                                                            - start_at_utc
+                                                          additionalProperties: false
+                                                        slip_alert_enabled:
+                                                          type:
+                                                            - boolean
+                                                            - "null"
+                                                        tag_names:
+                                                          type:
+                                                            - array
+                                                            - "null"
+                                                          items:
+                                                            type: string
+                                                        habit_id:
+                                                          type:
+                                                            - string
+                                                            - "null"
+                                                          description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
+                                                            stored title verbatim; supply only requested changes and
+                                                            leave other fields null. Null means a new activity.
+                                                        tag_ids:
+                                                          type:
+                                                            - array
+                                                            - "null"
+                                                          items:
+                                                            type: string
+                                                        goal_ids:
+                                                          type:
+                                                            - array
+                                                            - "null"
+                                                          items:
+                                                            type: string
+                                                      required:
+                                                        - title
+                                                        - description
+                                                        - emoji
+                                                        - frequency_unit
+                                                        - frequency_quantity
+                                                        - interval_weeks
+                                                        - days
+                                                        - due_date
+                                                        - end_date
+                                                        - due_time
+                                                        - due_end_time
+                                                        - is_bad_habit
+                                                        - is_general
+                                                        - is_flexible
+                                                        - checklist_items
+                                                        - start_date
+                                                        - placement
+                                                        - reminder_enabled
+                                                        - reminder_times
+                                                        - scheduled_reminders
+                                                        - relative_reminders
+                                                        - repeat_reminder
+                                                        - slip_alert_enabled
+                                                        - tag_names
+                                                        - habit_id
+                                                        - tag_ids
+                                                        - goal_ids
+                                                      additionalProperties: false
+                                                required:
+                                                  - title
+                                                  - description
+                                                  - emoji
+                                                  - frequency_unit
+                                                  - frequency_quantity
+                                                  - interval_weeks
+                                                  - days
+                                                  - due_date
+                                                  - end_date
+                                                  - due_time
+                                                  - due_end_time
+                                                  - is_bad_habit
+                                                  - is_general
+                                                  - is_flexible
+                                                  - checklist_items
+                                                  - start_date
+                                                  - placement
+                                                  - reminder_enabled
+                                                  - reminder_times
+                                                  - scheduled_reminders
+                                                  - relative_reminders
+                                                  - repeat_reminder
+                                                  - slip_alert_enabled
+                                                  - tag_names
+                                                  - habit_id
+                                                  - tag_ids
+                                                  - goal_ids
+                                                  - parent_habit_id
+                                                  - sub_habits
+                                                additionalProperties: false
+                                          required:
+                                            - title
+                                            - description
+                                            - emoji
+                                            - frequency_unit
+                                            - frequency_quantity
+                                            - interval_weeks
+                                            - days
+                                            - due_date
+                                            - end_date
+                                            - due_time
+                                            - due_end_time
+                                            - is_bad_habit
+                                            - is_general
+                                            - is_flexible
+                                            - checklist_items
+                                            - start_date
+                                            - placement
+                                            - reminder_enabled
+                                            - reminder_times
+                                            - scheduled_reminders
+                                            - relative_reminders
+                                            - repeat_reminder
+                                            - slip_alert_enabled
+                                            - tag_names
+                                            - habit_id
+                                            - tag_ids
+                                            - goal_ids
+                                            - parent_habit_id
+                                            - sub_habits
+                                          additionalProperties: false
+                                    required:
+                                      - title
+                                      - description
+                                      - emoji
+                                      - frequency_unit
+                                      - frequency_quantity
+                                      - interval_weeks
+                                      - days
+                                      - due_date
+                                      - end_date
+                                      - due_time
+                                      - due_end_time
+                                      - is_bad_habit
+                                      - is_general
+                                      - is_flexible
+                                      - checklist_items
+                                      - start_date
+                                      - placement
+                                      - reminder_enabled
+                                      - reminder_times
+                                      - scheduled_reminders
+                                      - relative_reminders
+                                      - repeat_reminder
+                                      - slip_alert_enabled
+                                      - tag_names
+                                      - habit_id
+                                      - tag_ids
+                                      - goal_ids
+                                      - parent_habit_id
+                                      - sub_habits
+                                    additionalProperties: false
+                              required:
+                                - title
+                                - description
+                                - emoji
+                                - frequency_unit
+                                - frequency_quantity
+                                - interval_weeks
+                                - days
+                                - due_date
+                                - end_date
+                                - due_time
+                                - due_end_time
+                                - is_bad_habit
+                                - is_general
+                                - is_flexible
+                                - checklist_items
+                                - start_date
+                                - placement
+                                - reminder_enabled
+                                - reminder_times
+                                - scheduled_reminders
+                                - relative_reminders
+                                - repeat_reminder
+                                - slip_alert_enabled
+                                - tag_names
+                                - habit_id
+                                - tag_ids
+                                - goal_ids
+                                - parent_habit_id
+                                - sub_habits
+                              additionalProperties: false
+                            - type: object
+                              properties:
+                                habit_id:
+                                  type: string
+                                date:
+                                  type: string
+                              required:
+                                - habit_id
+                                - date
+                              additionalProperties: false
+                      required:
+                        - id
+                        - label
+                        - detail
+                        - arguments
+                      additionalProperties: false
+                required:
+                  - form
+                  - missing_input
+                  - title
+                  - action
+                  - items
+                additionalProperties: false
+              - type: object
+                properties:
+                  form:
+                    type: string
+                    enum:
+                      - question
+                    description: choice requires a nonempty question and 2 to 4 options; omit items, action, questions and progress.
+                      pickList requires nonempty title, action and 1 to 10 items; omit options, questions and progress,
+                      and set allowFreeText=false. question requires 1 to 10 questions; omit top-level options, items
+                      and action and set multiSelect=false. A single record selection uses choice; reserve question for
+                      multiple fields. Use only a supported form.
+                  missing_input:
+                    type: string
+                    enum:
+                      - habit_setup
+                      - preference
+                      - check_in
+                      - record_selection
+                      - bulk_selection
+                    description: "Identify input only the person can supply: habit_setup, preference, check_in, record_selection for one
+                      existing record, or bulk_selection for several existing records. Record and bulk selection require
+                      query_habits with for_selection=true earlier in this turn. Resolve an earlier Astra message from
+                      history; never ask which message it was."
+                  questions:
+                    type: array
+                    description: Required for question only. Use unique nonempty question ids. singleChoice and multipleChoice require 2 to
+                      10 options even with allowFreeText=true. scale requires lowLabel and highLabel. slider requires
+                      min, max, step and unit. yesNo has no options. Null means absent and is allowed only for other
+                      forms. Use null for fields belonging to another question type.
+                    minItems: 1
+                    maxItems: 10
+                    items:
+                      anyOf:
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - singleChoice
+                            id:
+                              type: string
+                              description: Nonempty unique question id, at most 80 characters.
+                              pattern: \S
+                            prompt:
+                              type: string
+                              description: Nonempty prompt, at most 500 characters.
+                              pattern: \S
+                            options:
+                              type: array
+                              description: Required for singleChoice and multipleChoice. Null means absent for scale, slider and yesNo. Option ids
+                                must be unique within the question.
+                              minItems: 2
+                              maxItems: 10
+                              items:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                    description: Nonempty option id, at most 80 characters.
+                                  label:
+                                    type: string
+                                    description: Nonempty label, at most 120 characters.
+                                  recommended:
+                                    type:
+                                      - boolean
+                                      - "null"
+                                    description: At most one recommended option, only for singleChoice. Null means false.
+                                required:
+                                  - id
+                                  - label
+                                  - recommended
+                                additionalProperties: false
+                            allowFreeText:
+                              type:
+                                - boolean
+                                - "null"
+                              description: Allow a custom answer for singleChoice, multipleChoice, or yesNo. Null means false; must be false or null
+                                for scale and slider.
+                          required:
+                            - type
+                            - id
+                            - prompt
+                            - options
+                            - allowFreeText
+                          additionalProperties: false
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - multipleChoice
+                            id:
+                              type: string
+                              description: Nonempty unique question id, at most 80 characters.
+                              pattern: \S
+                            prompt:
+                              type: string
+                              description: Nonempty prompt, at most 500 characters.
+                              pattern: \S
+                            options:
+                              type: array
+                              description: Required for singleChoice and multipleChoice. Null means absent for scale, slider and yesNo. Option ids
+                                must be unique within the question.
+                              minItems: 2
+                              maxItems: 10
+                              items:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                    description: Nonempty option id, at most 80 characters.
+                                  label:
+                                    type: string
+                                    description: Nonempty label, at most 120 characters.
+                                  recommended:
+                                    type:
+                                      - boolean
+                                      - "null"
+                                    description: At most one recommended option, only for singleChoice. Null means false.
+                                required:
+                                  - id
+                                  - label
+                                  - recommended
+                                additionalProperties: false
+                            allowFreeText:
+                              type:
+                                - boolean
+                                - "null"
+                              description: Allow a custom answer for singleChoice, multipleChoice, or yesNo. Null means false; must be false or null
+                                for scale and slider.
+                          required:
+                            - type
+                            - id
+                            - prompt
+                            - options
+                            - allowFreeText
+                          additionalProperties: false
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - scale
+                            id:
+                              type: string
+                              description: Nonempty unique question id, at most 80 characters.
+                              pattern: \S
+                            prompt:
+                              type: string
+                              description: Nonempty prompt, at most 500 characters.
+                              pattern: \S
+                            lowLabel:
+                              type: string
+                              description: Required nonempty label for 1 on a scale, at most 120 characters. Use null for other types.
+                              pattern: \S
+                            highLabel:
+                              type: string
+                              description: Required nonempty label for 5 on a scale, at most 120 characters. Use null for other types.
+                              pattern: \S
+                          required:
+                            - type
+                            - id
+                            - prompt
+                            - lowLabel
+                            - highLabel
+                          additionalProperties: false
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - slider
+                            id:
+                              type: string
+                              description: Nonempty unique question id, at most 80 characters.
+                              pattern: \S
+                            prompt:
+                              type: string
+                              description: Nonempty prompt, at most 500 characters.
+                              pattern: \S
+                            min:
+                              type: number
+                              minimum: -1000000000
+                              maximum: 1000000000
+                              description: Required slider lower bound. Use null for other types.
+                            max:
+                              type: number
+                              minimum: -1000000000
+                              maximum: 1000000000
+                              description: Required slider upper bound, greater than min. Use null for other types.
+                            step:
+                              type: number
+                              description: Required positive slider step dividing max minus min exactly. Use null for other types.
+                            unit:
+                              type: string
+                              description: Required nonempty slider unit in the person's language, at most 24 characters. Use null for other types.
+                              pattern: \S
+                          required:
+                            - type
+                            - id
+                            - prompt
+                            - min
+                            - max
+                            - step
+                            - unit
+                          additionalProperties: false
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              enum:
+                                - yesNo
+                            id:
+                              type: string
+                              description: Nonempty unique question id, at most 80 characters.
+                              pattern: \S
+                            prompt:
+                              type: string
+                              description: Nonempty prompt, at most 500 characters.
+                              pattern: \S
+                            allowFreeText:
+                              type:
+                                - boolean
+                                - "null"
+                              description: Allow a custom answer for singleChoice, multipleChoice, or yesNo. Null means false; must be false or null
+                                for scale and slider.
+                          required:
+                            - type
+                            - id
+                            - prompt
+                            - allowFreeText
+                          additionalProperties: false
+                  title:
+                    type:
+                      - string
+                      - "null"
+                    description: Required nonempty heading for pickList; optional heading of at most 120 characters for question. Null means
+                      absent.
+                  intro:
+                    type:
+                      - string
+                      - "null"
+                    description: Optional nonempty introduction of at most 500 characters for question only. Use null for choice and
+                      pickList.
+                  progress:
+                    type:
+                      - object
+                      - "null"
+                    description: For question only. Requires 0 <= current <= total and total >= 1. Null means absent.
+                    properties:
+                      current:
+                        type: integer
+                        minimum: 0
+                      total:
+                        type: integer
+                        minimum: 1
+                    required:
+                      - current
+                      - total
+                    additionalProperties: false
+                required:
+                  - form
+                  - missing_input
+                  - questions
+                  - title
+                  - intro
+                  - progress
+                additionalProperties: false
+          orbit_read_complete:
+            type: boolean
+            description: True when all reads in this round fully answer the request, including compound reads and readable fallback
+              text; false for prerequisite lookups or any remaining read or write.
+        required:
+          - input
+          - orbit_read_complete
         additionalProperties: false

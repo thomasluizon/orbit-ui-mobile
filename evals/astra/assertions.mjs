@@ -4,7 +4,7 @@ import { composition } from './composition.mjs'
 export { composition }
 import { assertions } from 'promptfoo'
 import { matchesArguments, matchesOperation, outcomeCalls } from './operation-matcher.mjs'
-import { tools, legacyTools, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
+import { tools, legacyTools, postReadTools, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
 
 const toolWrites = new Map(tools.map((tool) => [tool.function.name, tool.writes]))
 
@@ -13,6 +13,8 @@ const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { 
 } }))
 const compositionCatalog = traceCatalog(tools)
 const legacyCatalog = traceCatalog(legacyTools)
+const postReadUpdates = new Map(traceCatalog(postReadTools).map((tool) => [tool.function.name, tool]))
+const postReadCatalog = compositionCatalog.map((tool) => postReadUpdates.get(tool.function.name) ?? tool)
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const decode = (output) => typeof output === 'string' ? JSON.parse(output) : output
@@ -71,15 +73,27 @@ export async function structural(output, context) {
   if (context.vars.refine) return refineResult(decode(output), context.vars)
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
-  if (trace.calls.length === 0) return result(true, 'No tool calls to validate.')
-  return assertions.runAssertion({
-    assertion: { type: 'is-valid-openai-tools-call' },
-    provider: { config: { tools: context.vars.clientContext?.supportsParts === true ? compositionCatalog : legacyCatalog } },
-    test: context.test,
-    providerResponse: { output: trace.calls.map((call) => ({
-      type: 'function', function: { name: call.name, arguments: JSON.stringify(call.arguments) },
-    })) },
-  })
+  const supportsParts = context.vars.clientContext?.supportsParts === true
+  let catalog = supportsParts ? compositionCatalog : legacyCatalog
+  let verdict = result(true, 'No tool calls to validate.')
+  for (const call of trace.calls) {
+    verdict = await assertions.runAssertion({
+      assertion: { type: 'is-valid-openai-tools-call' },
+      provider: { config: { tools: catalog } },
+      test: context.test,
+      providerResponse: { output: [{
+        type: 'function', function: { name: call.name, arguments: JSON.stringify(call.arguments) },
+      }] },
+    })
+    if (!verdict.pass) return verdict
+    // Mirror ProcessUserChatCommand.Ask.cs:117-140 via ToolResults.cs:60-84's typed-read evidence.
+    const successfulAccountRead = toolWrites.get(call.name) === false
+      && call.resultStatus === 'Succeeded' && call.result.success === true
+      && (call.result.readDirective === `[[orbit:read:${call.id}]]`
+        || (call.name === 'query_habits' && call.result.payload?.selection_required === true))
+    if (supportsParts && successfulAccountRead) catalog = postReadCatalog
+  }
+  return verdict
 }
 
 function checkMutationScope(calls, expectations) {

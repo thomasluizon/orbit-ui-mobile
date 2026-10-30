@@ -399,6 +399,13 @@ its previous state after the run. Header alone or flag alone cannot enable traci
 
 ### Daily windows and combined report
 
+The API resets the Free message allowance at midnight in the account's time zone, using its
+local date (`UserDateService.GetUserTodayAsync`, `User.GetAiMessagesUsedForQuota` and
+`AiAllowanceReset.GetResetsAtUtc` in orbit-api). Fixtures configure UTC, so their Free window
+starts at 00:00 UTC. The fresh-window check reads the profile before timezone setup and still
+requires zero messages used; if the account's time zone has changed, use its current profile
+`aiMessagesResetsAt` before scheduling `edge-free-limit-en`.
+
 The main account does not wait for a new daily window: `astra_eval_unmetered` bypasses its daily
 message, model-call and spend ceilings while preserving usage records. Ordinary cases record three
 messages; refine, medical correction and starting-step follow-up cases record six, including their setup turns. The Free
@@ -551,9 +558,16 @@ database. Sharing and database writes are disabled in the configuration. For loc
 `PROMPTFOO_CONFIG_DIR` at a private temporary directory; delete it afterward. Do not enable
 promptfoo debug logging or publish raw output, arguments, results, traces or its local state.
 
-The structural wrapper delegates nonempty calls to promptfoo's
-`is-valid-openai-tools-call`. A genuine zero-call trace passes structural validation. The next
-JavaScript assertion matches all necessary calls and key arguments without imposing their
+The structural wrapper delegates each nonempty call to promptfoo's
+`is-valid-openai-tools-call` against its active declaration. The generated `tools` catalog carries
+the initial `ask` schema, restricted to `habit_setup`; `postReadTools` carries the API's declaration
+update with all missing-input reasons. A successful typed account read earlier in the same turn
+unlocks that update. Evidence is the result's call-bound `readDirective`, or `query_habits` returning
+`selection_required: true`, as produced by `ProcessUserChatCommand.ToolResults.cs`. Failed reads,
+untyped successes and reads in another turn do not unlock it. This mirrors
+`ProcessUserChatCommand.Ask.cs` `RecordSuccessfulAskRead` and `RefreshAskSchema`, with strict
+normalization through `AiIntentService.BuildToolCatalog`. A genuine zero-call trace passes structural
+validation. The next JavaScript assertion matches all necessary calls and key arguments without imposing their
 sequence. IDs and enums are exact, arrays match without order, and `{ textContains: ... }`
 normalizes case, accents, and whitespace for free text. `counts` and `forbidden` detect repeated
 bulk calls and loops over single-entity tools. Each catalog entry declares `writes`. Every
@@ -778,11 +792,12 @@ provider `context.vars`, then calls the response transform with only
 suite drives these installed interfaces with fetch interception and source-derived response
 fixtures; no server or live model is used.
 
-The generated tool catalog is derived from orbit-api revision
-`e19ecc99915752866db211786f8005cb88528020`: `IAiTool.cs`, `AiToolRegistry.cs`, every
-application chat tool's `GetParameterSchema`, `BulkHabitToolArguments.cs` and
-`src/Orbit.Infrastructure/AI/StrictToolSchema.cs`. The export command above recompiles those
-sources without writing into the API checkout. `http-provider.mjs` follows the pinned
+The generated tool catalog records its API revision in `catalog.yaml` and is derived from
+`IAiTool.cs`, `AiToolRegistry.cs`, every application chat tool's `GetParameterSchema`, `BulkHabitToolArguments.cs` and
+`src/Orbit.Infrastructure/AI/StrictToolSchema.cs`. The exporter also invokes
+`ProcessUserChatCommandHandler.RefreshAskSchema` with successful-account-read state to capture
+`ToolDeclarationUpdates` through the same strict normalization. The export command above recompiles
+those sources without writing into the API checkout. `http-provider.mjs` follows the pinned
 `providers-Bn5yoNPJ.js` HTTP response construction, `fetch-C5riNk7b.js` rate-limit error
 construction and `shared-B6JP5nof.js` scheduler's `rateLimitRetryable` handling. The installed
 `index.js` and `evaluatorHelpers-Cge53Cnd.js` supply the `afterEach` result contract.

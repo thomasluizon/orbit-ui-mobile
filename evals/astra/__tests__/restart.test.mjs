@@ -24,7 +24,8 @@ function proposal(todayCount = 2) {
   const read = toolCall('query_habits', { date: 'today', is_completed: false, include_overdue: true }, 'Succeeded', 'read', { supportsParts: true })
   read.result.payload = { scope: 'today', items: ids.map((id, index) => ({ id, title: `Habit ${index}`, emoji: null, depth: 0, isBadHabit: false, status: index < 4 ? 'overdue' : 'today' })), totalCount: 6 }
   const dates = ids.map((habit_id, index) => ({ habit_id, updates: { due_date: index >= ids.length - todayCount ? today : '2026-10-29' } }))
-  const write = toolCall('bulk_reschedule_habits', { revised_items: dates, orbit_write_complete: true }, 'PendingConfirmation', 'write', { supportsParts: true })
+  // Producer: BulkRescheduleHabitsTool.cs:24-28,53 requires the explicit restart marker.
+  const write = toolCall('bulk_reschedule_habits', { restart_plan: true, revised_items: dates, orbit_write_complete: true }, 'PendingConfirmation', 'write', { supportsParts: true })
   const pending = { ...preview(), actionKey: 'rescheduleHabits', displayName: 'bulk_reschedule_habits',
     items: dates.map(({ habit_id, updates }, index) => ({ itemId: habit_id, entityId: habit_id, entityName: `Habit ${index}`, stateFingerprint: 'state', removesData: null,
       fields: [{ entityId: habit_id, entityName: `Habit ${index}`, field: 'due_date', oldValue: baseline[index].habit.dueDate, newValue: updates.due_date, valueType: 'date', proposedValue: updates.due_date, isEditable: true }] })) }

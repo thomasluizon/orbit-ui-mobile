@@ -37,7 +37,7 @@ try {
   const catalogs = JSON.parse(readFileSync(output, 'utf8'))
   if (cleanApiCommit() !== apiCommit) throw new Error('API commit changed during catalog generation.')
   writeFileSync(new URL('./catalog.yaml', import.meta.url),
-    '# Generated through the API request builder, StrictToolSchema and eval trace sensitivity collector.\n'
+    '# Generated through the API request and continuation builders, StrictToolSchema and eval trace sensitivity collector.\n'
     + '# Regenerate with node evals/astra/generate-catalog.mjs <api-checkout>.\n'
     + stringify({ apiCommit, ...catalogs }, { lineWidth: 120 }))
 } finally {

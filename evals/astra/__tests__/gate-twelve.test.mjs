@@ -8,7 +8,7 @@ import gradingInput from '../grading-input.mjs'
 import parseResponse from '../response.mjs'
 import { behavior, structural } from '../assertions.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
-import { chatResponse, toolCall } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, habitAccountRead } from './fixtures/producer.mjs'
 
 it('offers ask in the shipped parts catalog and excludes it from the legacy catalog', () => {
   const { tools, legacyTools } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
@@ -21,12 +21,13 @@ it.each(['en', 'pt-BR'])('validates the declared choice input and rejects flat a
   const clientContext = buildChatClientContext({ platform: 'web', locale })
   const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
   const test = corpus.find((entry) => entry.metadata.id === `composition-choice-${locale}`)
-  const input = { form: 'choice', question: locale === 'en' ? 'Which habit?' : 'Qual hábito?',
+  const input = { form: 'choice', missing_input: 'record_selection', question: locale === 'en' ? 'Which habit?' : 'Qual hábito?',
     options: [{ id: 'water', label: 'Water', description: null }, { id: 'walk', label: 'Walk', description: null }],
     multiSelect: false, allowFreeText: true }
   const context = { vars: { ...test.vars, clientContext, evalRequestId: 'request' }, test: { vars: {} } }
   for (const arguments_ of [{ input }, input]) {
-    const output = parseResponse(chatResponse('request', [toolCall('ask', arguments_, 'Succeeded', 'call-1', clientContext)]), '',
+    const output = parseResponse(chatResponse('request', [habitAccountRead(true, 'read', clientContext),
+      toolCall('ask', arguments_, 'Succeeded', 'call-1', clientContext)]), '',
       { response: { status: 200, headers: { 'x-orbit-request-id': 'request' } } })
     const valid = Object.hasOwn(arguments_, 'input')
     const structure = await structural(output, context)
