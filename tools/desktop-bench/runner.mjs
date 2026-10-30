@@ -124,7 +124,7 @@ export async function benchmark({ repository, directory, output, repetitions }) 
     const report = {
       host: `${platform()} ${release()} ${arch()}; ${cpus()[0].model}; ${cpus().length} logical CPUs; ${(totalmem() / 1073741824).toFixed(0)} GiB RAM`,
       commit, repetitions, viewport, electronVersion: shells.version, disk: shells.disk, medians: summarize(runs), runs,
-      verdict: 'Tauri remains the incumbent pending the matching Windows result. Compare each metric separately; a mixed result does not establish that Electron measures best overall.',
+      verdict: 'Tauri remains the incumbent while both platform reports are assessed. Compare each metric separately; a mixed result does not establish that Electron measures best overall.',
     }
     await writeFile(join(output, 'summary.json'), JSON.stringify(report, null, 2))
     await writeFile(join(output, 'summary.md'), markdown(report))
