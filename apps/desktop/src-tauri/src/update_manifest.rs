@@ -12,6 +12,8 @@ pub fn channel(identifier: &str) -> Result<&'static str, &'static str> {
     match identifier {
         "org.useorbit.desktop" => Ok("production"),
         "org.useorbit.desktop.staging" => Ok("staging"),
+        #[cfg(feature = "bench-loopback")]
+        "org.useorbit.desktop.benchmark" => Ok("staging"),
         _ => Err("Unknown desktop update channel"),
     }
 }
@@ -58,6 +60,11 @@ pub fn validate_manifest(channel: &str, manifest: serde_json::Value) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn benchmark_identifier_requires_the_loopback_feature() {
+        assert_eq!(channel("org.useorbit.desktop.benchmark").is_ok(), cfg!(feature = "bench-loopback"));
+    }
 
     fn config(production: bool) -> Config {
         let source = if production {

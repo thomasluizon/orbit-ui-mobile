@@ -72,8 +72,9 @@ export async function waitFor(read, label, timeout = 120000) {
   throw new Error(`Timed out waiting for ${label}`)
 }
 
-export async function waitForHttp(url) {
+export async function waitForHttp(url, handle) {
   return waitFor(async () => {
+    if (handle && handle.child.exitCode !== null) throw new Error(`Server exited before readiness; see ${handle.log}`)
     try { return (await fetch(url, { signal: AbortSignal.timeout(1000) })).ok } catch { return false }
   }, url)
 }

@@ -69,7 +69,7 @@ app.on('window-all-closed', () => app.quit());
     build: { frontendDist: origin },
     app: { windows: [{ label: 'main', create: false, title: 'Orbit Benchmark Tauri', url: `${origin}/`, width: 1100, height: 800, dataDirectory: profile }],
       security: { capabilities: [{ identifier: 'desktop-benchmark', local: true, remote: { urls: [`${origin}/*`] }, windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update'] }] } },
-    bundle: { createUpdaterArtifacts: false }, plugins: { updater: { endpoints: [], pubkey: '' } },
+    bundle: { createUpdaterArtifacts: false }, plugins: { updater: { pubkey: '' } },
   }
   const overlayPath = join(work, 'tauri-benchmark.json')
   await writeFile(overlayPath, JSON.stringify(overlay))

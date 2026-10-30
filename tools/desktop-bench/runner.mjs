@@ -18,8 +18,12 @@ async function measure({ shell, cache, iteration, executable, profile, environme
     env: { ...environment, ORBIT_BENCH_PROFILE: profile }, log: join(work, `${shell}-${iteration}-${cache}.log`),
   })
   let members = []
+  const read = (kind) => {
+    if (handle.child.exitCode !== null) throw new Error(`Shell exited before ${kind}; see ${handle.log}`)
+    return proxy.read(kind)
+  }
   try {
-    const usable = await waitFor(() => proxy.read('usable'), `${shell} usable Hoje`)
+    const usable = await waitFor(() => read('usable'), `${shell} usable Hoje`)
     if (usable.visibility !== 'visible') throw new Error('Shell must be visible for measurement')
     const baseline = await treeSample(handle, macProbe, windowsScript)
     members = baseline.members
@@ -36,7 +40,7 @@ async function measure({ shell, cache, iteration, executable, profile, environme
     const initialCpu = baseline.members.reduce((sum, entry) => sum + entry.cpuSeconds, 0)
     const finalCpu = members.reduce((sum, entry) => sum + entry.cpuSeconds, 0)
     proxy.workload()
-    const completed = await waitFor(() => proxy.read('complete'), `${shell} scroll and Astra workload`)
+    const completed = await waitFor(() => read('complete'), `${shell} scroll and Astra workload`)
     if (completed.visibility !== 'visible') throw new Error('Shell became hidden during workload')
     const result = {
       shell, cache, iteration, startupMs: usable.epochMs - launchedAt,
@@ -81,12 +85,12 @@ export async function benchmark({ repository, directory, output, repetitions }) 
     await execute(process.execPath, ['--import', 'tsx', join(repository, 'apps/web/scripts/build-hermetic.mjs')], { cwd: repository, env: environment, log: join(work, 'web-build.log') })
     await execute(process.execPath, ['--import', 'tsx', join(directory, 'fixtures.ts'), join(work, 'fixtures.json')], { cwd: repository, env: environment })
     const fixtures = await readFixtures(join(work, 'fixtures.json'))
-    start(process.execPath, ['--import', 'tsx', join(repository, 'apps/web/test-support/hermetic/mock-api/server.ts')], { cwd: repository, env: environment, log: join(work, 'mock.log') })
-    await waitForHttp('http://127.0.0.1:5099/health')
+    const mock = start(process.execPath, ['--import', 'tsx', join(repository, 'apps/web/test-support/hermetic/mock-api/server.ts')], { cwd: repository, env: environment, log: join(work, 'mock.log') })
+    await waitForHttp('http://127.0.0.1:5099/health', mock)
     const seed = await fetch('http://127.0.0.1:5099/_test/session-fixtures', { method: 'PUT', headers: { Authorization: `Bearer ${fixtures.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ fixtures: fixtures.fixtures }) })
     if (!seed.ok) throw new Error(`Fixture seed failed: ${seed.status} ${await seed.text()}`)
-    start(process.execPath, [require.resolve('next/dist/bin/next'), 'start', '--port', '3401', '--hostname', '127.0.0.1'], { cwd: join(repository, 'apps/web'), env: environment, log: join(work, 'web.log') })
-    await waitForHttp('http://127.0.0.1:3401/api/health')
+    const web = start(process.execPath, [require.resolve('next/dist/bin/next'), 'start', '--port', '3401', '--hostname', '127.0.0.1'], { cwd: join(repository, 'apps/web'), env: environment, log: join(work, 'web.log') })
+    await waitForHttp('http://127.0.0.1:3401/api/health', web)
     proxy = await startProxy({ token: fixtures.token, probePath: join(directory, 'probe.js'), port: 3400, upstreamPort: 3401 })
     await fetch('http://127.0.0.1:3400/').then((response) => response.arrayBuffer())
     const runs = []
