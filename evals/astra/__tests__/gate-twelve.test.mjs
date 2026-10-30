@@ -10,9 +10,10 @@ import { behavior, structural } from '../assertions.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 import { chatResponse, toolCall, habitAccountRead } from './fixtures/producer.mjs'
 
-it('offers ask in the shipped parts catalog and excludes it from the legacy catalog', () => {
-  const { tools, legacyTools } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
-  expect(tools.some((tool) => tool.function.name === 'ask')).toBe(true)
+it('offers ask only after a typed prerequisite and excludes it from the legacy catalog', () => {
+  const { tools, legacyTools, postReadTools } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
+  expect(tools.some((tool) => tool.function.name === 'ask')).toBe(false)
+  expect(postReadTools.find((tool) => tool.function.name === 'ask')).toMatchObject({ writes: false })
   expect(legacyTools.some((tool) => tool.function.name === 'ask')).toBe(false)
 })
 

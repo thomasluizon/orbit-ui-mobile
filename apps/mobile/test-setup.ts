@@ -1,5 +1,8 @@
 import { vi } from 'vitest'
 import React from 'react'
+import { guardTestNetwork } from '@orbit/shared/test-support/network-guard'
+
+guardTestNetwork()
 
 vi.mock('@/components/ui/icons', async (importOriginal) => {
   const icons = await importOriginal<typeof import('@/components/ui/icons')>()

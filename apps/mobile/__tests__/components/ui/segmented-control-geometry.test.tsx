@@ -155,6 +155,7 @@ vi.mock('@/hooks/use-subscription-plans', async () => ({ ...(await import('@orbi
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark', surfaces: createSurfaces('orange', 'dark') }) }))
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
+vi.mock('@/hooks/use-referral', () => ({ useReferral: () => ({ stats: null, isError: false }) }))
 vi.mock('@/hooks/use-wrapped', () => ({ useWrapped: () => ({ recap: null, isLoading: true, isError: false }) }))
 vi.mock('@/hooks/use-share-card', () => ({ useShareCard: () => ({ shareRef: { current: null }, isSharing: false, hasError: false, canShareFiles: true }) }))
 

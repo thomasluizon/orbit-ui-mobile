@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 
-export const { tools, legacyTools, postReadTools } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
+export const { tools, legacyTools, postReadTools, habitSetupTools, habitSetupBinding } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
+const allTools = [...tools, ...legacyTools, ...postReadTools, ...habitSetupTools]
+export const toolWrites = new Map(allTools.map((tool) => [tool.function.name, tool.writes]))
 export const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
-export const toolSensitiveFields = new Map(tools.map((tool) => [tool.function.name, new Set(tool.sensitiveFields)]))
+export const toolSensitiveFields = new Map(allTools.map((tool) => [tool.function.name, new Set(tool.sensitiveFields)]))
 
 export function observableSchema(schema, sensitiveFields) {
   if (Array.isArray(schema)) return schema.map((entry) => observableSchema(entry, sensitiveFields))

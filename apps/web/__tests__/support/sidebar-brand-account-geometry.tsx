@@ -25,7 +25,7 @@ vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => (
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => true }))
 
-const cases = [1024, 1352, 1920].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
+const cases = [1024, 1280, 1352, 1920].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
   [false, true].flatMap(collapsed => (['dark', 'light'] as const).map(mode => ({ width, locale, collapsed, mode, forcedColors: 'none' as const }))),
 ))
   .flatMap(scenario => scenario.width === 1024 && scenario.locale === 'en' ? [scenario, { ...scenario, forcedColors: 'active' as const }] : [scenario])
@@ -40,7 +40,8 @@ function sidebarFixture(locale: 'en' | 'pt-BR', account?: string, interactiveBel
       paletteLabel={messages.nav.search} paletteHint="Ctrl K" onPalette={vi.fn()}
       onCreate={vi.fn()} createLabel={messages.nav.createHabit} account={account} accountEmail={email}
       header={<DestinationHeaderRow><HeaderAppearanceActions /></DestinationHeaderRow>}
-      notifications={<><ThemeToggle /><NotificationBellDisplay count={12} countPlacement="corner" onClick={interactiveBell ? vi.fn() : undefined} /></>} />
+      themeAction={<ThemeToggle />}
+      notifications={<NotificationBellDisplay count={12} countPlacement="corner" onClick={interactiveBell ? vi.fn() : undefined} />} />
   </NextIntlClientProvider>
 }
 
@@ -127,7 +128,7 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
           const sidebar = document.querySelector<HTMLElement>('[data-shell-sidebar]')!
           const toggle = sidebar.querySelector<HTMLElement>('[data-shell-sidebar-toggle]')!
           const theme = sidebar.querySelector<HTMLElement>('button:has(.tabler-icon-sun)')!
-          const brand = sidebar.querySelector<HTMLElement>('[data-asset="orbit-lockup"]')!.parentElement!.parentElement!
+          const brand = sidebar.querySelector<HTMLElement>('[data-shell-brand-row]')!
           const bell = sidebar.querySelector<HTMLElement>('button:has(.tabler-icon-bell)')!
           const bounds = (element: Element) => {
             const rect = element.getBoundingClientRect()
@@ -177,12 +178,13 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
           expect(header.toggle.centerX).toBe(header.sidebar.centerX)
           expect(header.bell.centerX).toBe(header.sidebar.centerX)
         } else {
-          expect(header.brand.height).toBeCloseTo(header.lockup.height + 12 + header.bell.height, 1)
-          expect(header.theme.top - header.lockup.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
-          expect(header.theme.centerY).toBe(header.bell.centerY)
-          expect(header.bell.left - header.theme.right).toBe(12)
+          expect.soft(Math.abs(header.theme.centerY - header.lockup.centerY), 'theme and lockup block centres').toBeLessThanOrEqual(1)
+          expect.soft(Math.abs(header.theme.right - header.toggle.right), 'theme and collapse trailing edges').toBeLessThanOrEqual(1)
+          expect(header.brand.height).toBeCloseTo(header.theme.height + 12 + header.bell.height, 1)
+          expect(header.bell.top - header.theme.bottom).toBe(12)
+          expect(header.bell.centerY).toBe(header.toggle.centerY)
           expect(header.toggle.left - header.bell.right).toBe(12)
-          expect(header.lockup.right).toBeLessThanOrEqual(header.bell.left)
+          expect(header.theme.left - header.lockup.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
           expect.soft(Math.abs(header.lockup.left - header.search.left)).toBeLessThanOrEqual(1)
           expect(header.theme.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
         }
