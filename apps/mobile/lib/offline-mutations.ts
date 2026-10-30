@@ -158,6 +158,7 @@ function notifyFlushResult(result: OfflineFlushResult): void {
 }
 
 export interface QueuedMutationBuildOptions {
+  suppressParentSettlement?: boolean
   type: MutationType
   scope: MutationScope
   endpoint: string
@@ -273,6 +274,7 @@ export function createTempEntityId(entityType: MutationEntityType): string {
 }
 
 export function buildQueuedMutation({
+  suppressParentSettlement,
   type,
   scope,
   endpoint,
@@ -286,6 +288,7 @@ export function buildQueuedMutation({
   maxRetries = 3,
 }: QueuedMutationBuildOptions): QueuedMutation {
   return {
+    ...(suppressParentSettlement ? { suppressParentSettlement: true } : {}),
     id: nextQueuedIdentifier('offline-mutation'),
     timestamp: Date.now(),
     type,
@@ -786,7 +789,9 @@ async function reportBulkReplaySuccess(
     return result.status === 'Success' && item?.habitId === result.habitId ? [item] : []
   })
   if (items.length > 0) {
-    await notifyBulkReplaySuccess({ mutationId: mutation.id, type: mutation.type, items }, accountId)
+    await notifyBulkReplaySuccess({ mutationId: mutation.id, type: mutation.type, items,
+      ...(mutation.suppressParentSettlement ? { suppressParentSettlement: true } : {}),
+    }, accountId)
   }
 }
 

@@ -584,6 +584,14 @@ describe('mobile habit hooks', () => {
     }
   })
 
+  it.each(['log', 'skip'] as const)('keeps the selected parent boundary in queued bulk %s metadata', async (mode) => {
+    mocks.runQueuedMutation.mockResolvedValueOnce({ results: [{ index: 0, habitId: 'parent', status: 'Success', logId: null, error: null }] })
+    const mutation = (mode === 'log' ? useBulkLogHabits : useBulkSkipHabits)({ suppressParentSettlement: true }) as unknown as MutationConfig<unknown, { habitId: string; date: string }[], unknown>
+    const items = [{ habitId: 'parent', date: '2026-09-12' }]
+    await mutation.mutationFn(items)
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ suppressParentSettlement: true, payload: { items } }) }))
+  })
+
   it('gives queued toggles a durable habit and occurrence date key', async () => {
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,

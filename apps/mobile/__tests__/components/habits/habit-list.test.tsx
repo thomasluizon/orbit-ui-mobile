@@ -174,7 +174,7 @@ const replaySelection = vi.hoisted(() => ({
   clearSelection: vi.fn(),
 }))
 const replayDelivery = vi.hoisted(() => ({ listener: null as null | ((event: {
-  mutationId: string
+  suppressParentSettlement?: boolean; mutationId: string
   type: 'bulkLogHabits' | 'bulkSkipHabits'
   items: { habitId: string; date?: string }[]
 }) => unknown) }))
@@ -3250,6 +3250,31 @@ describe('HabitList', () => {
     const tree = mountPromptChain()
     await TestRenderer.act(async () => { promptChildAction(tree, 'log'); await Promise.resolve() })
     expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(badParent ? 0 : 1)
+  })
+
+  it.each(['log', 'skip'] as const)('keeps higher ancestors unselected when a queued %s confirmation replays', async (mode) => {
+    const { root, parent, child } = seedPromptChain()
+    const mutation = mode === 'log' ? bulkLogMutateAsync : bulkSkipMutateAsync
+    const outcome = mode === 'log' ? parentBulkLogResult([{ habitId: parent.id }]) : parentBulkSkipResult([{ habitId: parent.id }])
+    mutation.mockResolvedValueOnce({ ...outcome,
+      streakResponses: [], hasConfirmedSuccess: false, ambiguousIds: [], offlineFailureIds: [], queuedIds: [parent.id],
+    })
+    const tree = mountPromptChain()
+    await TestRenderer.act(async () => { promptChildAction(tree, mode); await Promise.resolve() })
+    await TestRenderer.act(async () => { pressConfirm(tree, 'chat.pendingOp.action.applyChanges'); await Promise.resolve() })
+    expect(mutation).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }])
+    TestRenderer.act(() => {
+      seedHabits([root, { ...parent, isCompleted: true }, { ...child, isCompleted: true }])
+      mockHabitsDataUpdatedAt += 1
+      tree.update(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
+    })
+    await TestRenderer.act(async () => {
+      replayDelivery.listener?.({ mutationId: 'queued-parent', suppressParentSettlement: true, type: mode === 'log' ? 'bulkLogHabits' : 'bulkSkipHabits', items: [{ habitId: parent.id, date: TODAY }] })
+      await Promise.resolve()
+    })
+    expect(logMutateAsync).not.toHaveBeenCalledWith({ habitId: root.id, date: TODAY, intent: 'log' })
+    expect(skipMutateAsync).not.toHaveBeenCalledWith({ habitId: root.id, date: TODAY })
+    expect(mutation).toHaveBeenCalledTimes(1)
   })
 
   it('settles a skip chain after the refreshed list omits the skipped child', async () => {

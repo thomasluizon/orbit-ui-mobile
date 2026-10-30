@@ -1406,7 +1406,7 @@ export function useBulkDeleteHabits() {
   })
 }
 
-export function useBulkLogHabits() {
+export function useBulkLogHabits(options: { suppressParentSettlement?: boolean } = {}) {
   const queryClient = useQueryClient()
   const { checkAllDoneCelebration, showStreakMoment } = useUIStore.getState()
 
@@ -1429,6 +1429,7 @@ export function useBulkLogHabits() {
           const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
             type: 'bulkLogHabits',
             scope: 'habits',
+            suppressParentSettlement: options.suppressParentSettlement,
             endpoint: API.habits.bulkLog,
             method: 'POST',
             payload: { items: chunk },
@@ -1538,7 +1539,7 @@ export function useBulkLogHabits() {
   })
 }
 
-export function useBulkSkipHabits() {
+export function useBulkSkipHabits(options: { suppressParentSettlement?: boolean } = {}) {
   const queryClient = useQueryClient()
 
   return useMutation<
@@ -1558,6 +1559,7 @@ export function useBulkSkipHabits() {
           const response = await performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
             type: 'bulkSkipHabits',
             scope: 'habits',
+            suppressParentSettlement: options.suppressParentSettlement,
             endpoint: API.habits.bulkSkip,
             method: 'POST',
             payload: { items: chunk },

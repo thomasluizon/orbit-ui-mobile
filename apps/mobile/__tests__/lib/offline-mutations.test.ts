@@ -682,6 +682,7 @@ describe('offline mutations', () => {
       const request = {
         type,
         scope: 'habits' as const,
+        suppressParentSettlement: true,
         endpoint: `/api/habits/bulk/${type === 'bulkLogHabits' ? 'log' : 'skip'}`,
         method: 'POST' as const,
         payload: { items: [
@@ -712,6 +713,7 @@ describe('offline mutations', () => {
         expect.anything(),
       )
       expect(listener).toHaveBeenCalledWith({
+        suppressParentSettlement: true,
         mutationId: mutation.id,
         type,
         items: [{ habitId: 'accepted', date: '2026-09-25' }],

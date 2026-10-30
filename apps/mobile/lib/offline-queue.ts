@@ -13,6 +13,7 @@ import {
 let db: SQLite.SQLiteDatabase | null = null
 
 interface QueueMetaRow {
+  suppressParentSettlement?: boolean
   scope?: MutationScope
   entityType?: MutationEntityType
   status?: QueuedMutationStatus
@@ -112,6 +113,7 @@ function parseJson<T>(value: string | null): T | null {
 
 function buildMeta(mutation: PersistedQueuedMutation): QueueMetaRow {
   return {
+    ...(mutation.suppressParentSettlement ? { suppressParentSettlement: true } : {}),
     scope: mutation.scope,
     entityType: mutation.entityType,
     status: mutation.status ?? 'pending',
@@ -137,6 +139,7 @@ function mapRow(row: QueueRow): PersistedQueuedMutation {
     payload: parseJson(row.payload),
     retries: row.retries,
     maxRetries: row.max_retries,
+    ...(meta.suppressParentSettlement === true ? { suppressParentSettlement: true } : {}),
     scope: scope.success ? scope.data : undefined,
     entityType: entityType.success ? entityType.data : undefined,
     status: meta.status ?? 'pending',

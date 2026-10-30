@@ -55,6 +55,7 @@ export const queuedMutationSchema = z.object({
   targetEntityId: z.string().nullable().optional(),
   clientEntityId: z.string().nullable().optional(),
   dependsOn: z.array(z.string()).optional(),
+  suppressParentSettlement: z.boolean().optional(),
   lastError: z.string().nullable().optional(),
 })
 export type QueuedMutation = z.infer<typeof queuedMutationSchema>

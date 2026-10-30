@@ -501,8 +501,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
     const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
 
-    const bulkLog = useBulkLogHabits()
-    const bulkSkip = useBulkSkipHabits()
+    const bulkLog = useBulkLogHabits({ suppressParentSettlement: true })
+    const bulkSkip = useBulkSkipHabits({ suppressParentSettlement: true })
     const { showError } = useAppToast()
     const logMutation = useLogHabit()
     const logMutateAsync = logMutation.mutateAsync
@@ -1041,6 +1041,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const settleBulkHabitResolutions = useCallback((
       resolutions: readonly HabitResolution[],
       date: string,
+      settleParents = true,
     ) => {
       const settlementData = promptDataRef.current
       if (!settlementData) return
@@ -1054,6 +1055,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         recordHabitResolution(confirmedResolutions, resolution.habitId, resolution.mode)
       }
 
+      if (!settleParents) return
       const childIdByAffectedParent = new Map<string, string>()
       for (const resolution of resolutions) {
         if (hasAncestorInSet(resolution.habitId, habitsById, resolvedIds)) continue
@@ -1082,7 +1084,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         item.date !== selectedDateStr || !available?.has(item.habitId))
       if (matched.length > 0) {
         const mode = success.type === 'bulkLogHabits' ? 'log' : 'skip'
-        settleBulkHabitResolutions(matched.map((item) => ({ habitId: item.habitId, mode })), selectedDateStr)
+        settleBulkHabitResolutions(matched.map((item) => ({ habitId: item.habitId, mode })), selectedDateStr, !success.suppressParentSettlement)
         const selection = useUIStore.getState()
         if (selection.isSelectMode) {
           const resolvedIds = new Set(matched.map((item) => item.habitId))

@@ -43,6 +43,7 @@ describe('bulk replay success delivery', () => {
   it('delivers a confirmed replay after restart and clears its account record', async () => {
     const firstSession = await import('@/lib/bulk-replay-events')
     const success = {
+      suppressParentSettlement: true,
       mutationId: 'mutation-1',
       type: 'bulkLogHabits' as const,
       items: [{ habitId: 'child', date: '2026-09-25' }],
