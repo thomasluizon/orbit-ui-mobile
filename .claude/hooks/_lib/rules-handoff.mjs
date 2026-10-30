@@ -2,6 +2,7 @@
 // asked for is refused. The requested mode comes from the owner's prompt or the machine-origin
 // context relay request, so the model cannot talk its way past it.
 
+import { resolve } from "node:path"
 import { HANDOFF_PROMPT_PATH, handoffCrank, validateHandoffPrompt } from "../../../tools/lib/handoff-prompt.mjs"
 
 const GIT_COMMIT = /\bgit\b((?:\s+-C\s+(?:"[^"]+"|'[^']+'|\S+))*)[^;&|\n]*?\scommit\b/
@@ -10,8 +11,8 @@ const GIT_COMMIT = /\bgit\b((?:\s+-C\s+(?:"[^"]+"|'[^']+'|\S+))*)[^;&|\n]*?\scom
 export const gitCommitDirectory = (command, cwd) => {
   const match = GIT_COMMIT.exec(String(command ?? ""))
   if (!match) return null
-  const dashC = [...match[1].matchAll(/-C\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g)].at(-1)
-  return dashC ? (dashC[1] ?? dashC[2] ?? dashC[3]) : cwd
+  const directories = [...match[1].matchAll(/-C\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g)]
+  return directories.reduce((directory, item) => resolve(directory, item[1] ?? item[2] ?? item[3]), cwd)
 }
 
 const describe = (missing, mode) =>
@@ -28,12 +29,17 @@ const modeOf = (request, state) => {
  * Every NEXT.md version a commit could record must comply with the recorded request.
  * `promptsForCommit` returns those versions for the commit's directory, empty when NEXT.md is unchanged.
  */
-export const checkHandoffCommit = ({ command, cwd, request, state, promptsForCommit }) => {
+export const checkHandoffCommit = ({ command, cwd, request, state, promptsForCommit, refreshCheckout }) => {
   const directory = gitCommitDirectory(command, cwd)
   if (!directory) return null
   for (const text of promptsForCommit(directory)) {
     const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined, crank: handoffCrank(request, state) })
     if (missing.length > 0) return { block: true, message: describe(missing, modeOf(request, state)) }
+  }
+  try {
+    refreshCheckout?.(directory)
+  } catch (error) {
+    return { block: true, message: `Handoff checkout refresh failed: ${error.message}\n` }
   }
   return null
 }

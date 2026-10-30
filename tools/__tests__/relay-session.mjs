@@ -16,6 +16,7 @@ const prompt = "/sleep\nRead .claude/specs/relay.md. Every identifier is a lead 
 const fixture = (label, { tokens = 400000, calls = 20, crank = false, crankPrompt = crank } = {}) => {
   const repo = stageRepo(`relay-${label}`)
   const checkout = repo.path
+  repo.git(["checkout", "-qb", "relay-docs"])
   mkdirSync(join(checkout, ".claude", "handoffs"), { recursive: true })
   mkdirSync(join(checkout, ".claude", "specs"), { recursive: true })
   writeFileSync(join(checkout, ".claude", "orchestrator.json"), JSON.stringify(realOrchestratorConfig()))
@@ -23,7 +24,7 @@ const fixture = (label, { tokens = 400000, calls = 20, crank = false, crankPromp
   writeFileSync(join(checkout, ".claude", "specs", "relay.md"), "# Relay\n## Open questions\nAn owner question.\n")
   repo.git(["add", ".claude/handoffs/NEXT.md", ".claude/specs/relay.md", ".claude/orchestrator.json"])
   repo.git(["commit", "-qm", "handoff"])
-  repo.git(["push", "-q"])
+  repo.git(["push", "-q", "-u", "origin", "relay-docs"])
   const transcriptPath = join(checkout, ".git", "transcript.jsonl")
   const decisionLogPath = join(checkout, ".git", "sleep-decisions.md")
   writeFileSync(decisionLogPath, "Decision and reasoning copied in full.\n")
