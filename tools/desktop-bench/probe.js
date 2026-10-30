@@ -9,7 +9,7 @@
       if (result) return result
       await pause(20)
     }
-    throw new Error(`Timed out: ${label}; route=${location.pathname}; rows=${document.querySelectorAll('[data-habit-id]').length}; text=${document.body.innerText.slice(-1500)}`)
+    throw new Error(`Timed out: ${label}; ${JSON.stringify({ route: location.pathname, rows: document.querySelectorAll('[data-habit-id]').length, firstHabit: document.querySelector('[data-habit-id]')?.getAttribute('data-habit-id'), inputs: [...document.querySelectorAll('[data-composer-input]')].map((input) => ({ disabled: input.disabled, height: input.getBoundingClientRect().height })), composers: [...document.querySelectorAll('[data-composer-root]')].map((root) => ({ state: root.getAttribute('data-state'), collapsed: root.getAttribute('data-collapsed') })), viewport: [innerWidth, innerHeight], text: document.body.innerText.slice(0, 700) })}`)
   }
   async function scrollList() {
     const scroller = document.querySelector('[data-shell-scroller]')
@@ -74,6 +74,7 @@
     const textarea = await until(() => {
       const row = document.querySelector('[data-habit-id="bench-0000"]')
       const input = document.querySelector('[data-composer-input]:not([disabled])')
+      document.querySelector('[data-composer-collapse-row]')?.click()
       if (!row || !input || !row.getBoundingClientRect().height || !input.getBoundingClientRect().height) return null
       return input
     }, 'first interactive habit and focusable composer')
