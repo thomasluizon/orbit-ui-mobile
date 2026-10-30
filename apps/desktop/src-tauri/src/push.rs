@@ -146,9 +146,8 @@ fn check_origin(window: &WebviewWindow) -> Result<(), String> {
     else {
         return Err("Desktop requires a deployed origin".into());
     };
-    if window.label() != "main"
-        || window.url().map_err(|error| error.to_string())?.origin() != origin.origin()
-    {
+    let url = window.url().map_err(|error| error.to_string())?;
+    if !crate::command_origin::allows(window.label(), &url, origin) {
         return Err("Invalid desktop push origin".into());
     }
     Ok(())

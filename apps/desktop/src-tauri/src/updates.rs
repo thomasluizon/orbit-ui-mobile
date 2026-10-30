@@ -228,7 +228,7 @@ pub async fn desktop_update(
         return Err("Desktop requires a deployed origin".into());
     };
     let url = window.url().map_err(|error| error.to_string())?;
-    if window.label() != "main" || url.origin() != origin.origin() {
+    if !crate::command_origin::allows(window.label(), &url, origin) {
         return Err("Invalid desktop update origin".into());
     }
     match action {

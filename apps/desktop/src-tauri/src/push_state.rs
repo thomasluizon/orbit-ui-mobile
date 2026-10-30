@@ -254,6 +254,74 @@ mod tests {
     use super::*;
 
     #[test]
+    fn unstaged_commits_preserve_the_owner_and_other_accounts_pending_work() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut state = PushState::load(&directory.path().join("push.json")).unwrap();
+        let registration = state
+            .registration("abcdef".into(), "org.useorbit.desktop", false)
+            .unwrap();
+        state.stage("account-a".into(), registration.clone());
+        let before = serde_json::to_value(&state).unwrap();
+        assert_eq!(
+            state.commit("account-b".into(), registration.clone()),
+            Err("Native registration was not staged")
+        );
+        assert_eq!(serde_json::to_value(&state).unwrap(), before);
+        state.stage("account-b".into(), registration.clone());
+        state
+            .commit("account-a".into(), registration.clone())
+            .unwrap();
+        assert_eq!(state.owner.as_deref(), Some("account-a"));
+        assert_eq!(state.registration, Some(registration));
+        assert_eq!(state.pending.len(), 1);
+        assert_eq!(state.pending[0].owner, "account-b");
+    }
+
+    #[test]
+    fn saved_language_and_uncertain_revocations_survive_repeated_atomic_writes() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("nested/push.json");
+        let mut state = PushState::load(&path).unwrap();
+        let identity = state.device_id;
+        let registration = state
+            .registration("abcdef".into(), "org.useorbit.desktop", false)
+            .unwrap();
+        state.stage("account-a".into(), registration.clone());
+        state
+            .commit("account-a".into(), registration.clone())
+            .unwrap();
+        state.language = Some("pt-BR".into());
+        let mut session = PushSession::default();
+        session.restore(Some("account-a".into()), &state);
+        session.suspend(&mut state, "account-a");
+        state.save(&path).unwrap();
+        let restored = PushState::load(&path).unwrap();
+        assert_eq!(restored.device_id, identity);
+        assert_eq!(restored.language.as_deref(), Some("pt-BR"));
+        assert!(restored.owner.is_none());
+        assert!(restored.registration.is_none());
+        assert_eq!(restored.pending.len(), 1);
+        assert!(restored.pending[0].revoke);
+        assert_eq!(restored.pending[0].owner, "account-a");
+        assert_eq!(restored.pending[0].registration, registration);
+        assert_eq!(
+            std::fs::read_dir(path.parent().unwrap()).unwrap().count(),
+            1
+        );
+    }
+
+    #[test]
+    fn unreadable_or_corrupt_settings_fail_without_replacing_the_device_identity() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("push.json");
+        let corrupt = b"{invalid registration";
+        std::fs::write(&path, corrupt).unwrap();
+        assert!(PushState::load(&path).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), corrupt);
+        assert!(PushState::load(directory.path()).is_err());
+    }
+
+    #[test]
     fn startup_apns_click_opens_once_only_for_the_restored_push_owner() {
         let saved = PushState {
             language: None,
