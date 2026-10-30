@@ -323,6 +323,16 @@ export function handleRequest(req: IncomingMessage, res: ServerResponse): void {
   const method = req.method ?? 'GET'
   const url = new URL(req.url ?? '/', `http://${HOST}:${PORT}`)
   const pathname = url.pathname
+  if (method === 'OPTIONS' && pathname === '/api/events') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET',
+      'Access-Control-Allow-Headers': 'api-version, Last-Event-ID',
+      'Access-Control-Max-Age': '600',
+    })
+    res.end()
+    return
+  }
   if (method === 'PUT' && pathname === '/_test/session-fixtures') {
     void seedSessionFixtures(req, res)
     return

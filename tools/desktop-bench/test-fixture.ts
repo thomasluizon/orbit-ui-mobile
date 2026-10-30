@@ -14,6 +14,10 @@ async function main() {
     const address = server.address()
     assert.ok(address && typeof address !== 'string')
     const url = `http://127.0.0.1:${address.port}/api/chat/stream`
+    const preflight = await fetch(`http://127.0.0.1:${address.port}/api/events`, { method: 'OPTIONS', headers: { Origin: 'http://127.0.0.1:3400', 'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'api-version' } })
+    assert.equal(preflight.status, 204)
+    assert.equal(preflight.headers.get('access-control-allow-origin'), '*')
+    assert.ok(preflight.headers.get('access-control-allow-headers')?.toLowerCase().includes('api-version'))
     delete process.env.ORBIT_DESKTOP_BENCH
     const headers = { Authorization: `Bearer ${mintHermeticJwt(undefined, [], [], 'desktop-bench')}` }
     const disabled = await fetch(url, { method: 'POST', headers })
