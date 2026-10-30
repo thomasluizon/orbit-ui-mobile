@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import parseResponse from '../response.mjs'
@@ -135,4 +135,16 @@ it('preserves failed budgets and rejects stale or contradictory merged latency e
     mutation(altered.cases[0])
     expect(() => mergeReports([altered], [descriptor])).toThrow()
   }
+})
+
+// Recorded production get_api_keys timing; ChatTurnTimer.Complete emits only scopes entered.
+it('measures a read without a save scope through parsing, reporting and window merging', () => {
+  const recorded = JSON.parse(readFileSync(new URL('./fixtures/read-without-save.json', import.meta.url), 'utf8'))
+  const results = attempts([faster, faster, faster])
+  for (const entry of results) entry.response.output.trace.timing = structuredClone(recorded)
+  const summary = summarize(results, [descriptor])
+  expect(summary.cases[0].latency).toMatchObject({ totalMedianMilliseconds: recorded.totalMilliseconds,
+    phaseMediansMilliseconds: { save: 0 } })
+  expect(summary.cases[0].latency.status).toBe(recorded.totalMilliseconds < READ_LATENCY_BUDGET_MILLISECONDS ? 'pass' : 'fail')
+  expect(mergeReports([summary], [descriptor]).cases[0].latency).toEqual(summary.cases[0].latency)
 })

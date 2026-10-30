@@ -1,0 +1,80 @@
+{
+  "totalMilliseconds": 7281.302167,
+  "phases": [
+    {
+      "name": "moderation",
+      "milliseconds": 131.5374975,
+      "elapsedMilliseconds": 140.452984
+    },
+    {
+      "name": "context_load",
+      "milliseconds": 8.9154865,
+      "elapsedMilliseconds": 17.830973
+    },
+    {
+      "name": "context_load",
+      "milliseconds": 0.02963,
+      "elapsedMilliseconds": 0.02963
+    },
+    {
+      "name": "prompt_build",
+      "milliseconds": 8.148346,
+      "elapsedMilliseconds": 8.148346
+    },
+    {
+      "name": "budget",
+      "milliseconds": 3.277437,
+      "elapsedMilliseconds": 3.277437
+    },
+    {
+      "name": "budget",
+      "milliseconds": 15.535587,
+      "elapsedMilliseconds": 15.535587
+    },
+    {
+      "name": "model_call",
+      "milliseconds": 3540.571368,
+      "elapsedMilliseconds": 3540.571368
+    },
+    {
+      "name": "budget",
+      "milliseconds": 5.113274,
+      "elapsedMilliseconds": 5.113274
+    },
+    {
+      "name": "tool_call",
+      "milliseconds": 40.338373,
+      "elapsedMilliseconds": 40.338373
+    },
+    {
+      "name": "budget",
+      "milliseconds": 13.71695,
+      "elapsedMilliseconds": 13.71695
+    },
+    {
+      "name": "budget",
+      "milliseconds": 37.240969,
+      "elapsedMilliseconds": 37.240969
+    },
+    {
+      "name": "model_call",
+      "milliseconds": 3405.179407,
+      "elapsedMilliseconds": 3405.179407
+    },
+    {
+      "name": "budget",
+      "milliseconds": 6.241317,
+      "elapsedMilliseconds": 6.241317
+    },
+    {
+      "name": "composition",
+      "milliseconds": 0.424229,
+      "elapsedMilliseconds": 0.424229
+    },
+    {
+      "name": "other",
+      "milliseconds": 65.03229599999999,
+      "elapsedMilliseconds": 65.03229599999999
+    }
+  ]
+}

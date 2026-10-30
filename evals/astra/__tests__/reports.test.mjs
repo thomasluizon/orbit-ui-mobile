@@ -60,3 +60,21 @@ it('preserves exact incomplete preconditions in merged windows and the written r
     expect(readFileSync(join(directory, 'summary.md'), 'utf8')).toContain(reason)
   } finally { rmSync(directory, { recursive: true, force: true }) }
 })
+
+it('retains a minimal pending result while excluding arbitrary payload and credential fields', () => {
+  const call = toolCall('create_habit', { title: 'Stretch', frequency_unit: 'Day' }, 'PendingConfirmation')
+  Object.assign(call.result.payload, { item_count: 1, proposed_titles: ['Stretch'],
+    confirmationToken: 'private-confirmation-value', arbitrary: 'private-payload-value' })
+  const output = parseResponse(chatResponse('request', [call]), '', { response: {
+    status: 200, headers: { 'x-orbit-request-id': 'request' },
+  } })
+  const directory = mkdtempSync(join(tmpdir(), 'astra-pending-evidence-'))
+  try {
+    writeResults([{ testCase: { metadata: { id: 'pending' } }, response: { output }, success: true }], directory)
+    const contents = readFileSync(join(directory, 'attempts/pending-r1.json'), 'utf8')
+    expect(JSON.parse(contents).toolCalls[0].result).toEqual({ success: true, error: null,
+      payload: { status: 'awaiting_confirmation', item_count: 1, habit_count: null, date_count: null,
+        proposed_titles: ['Stretch'], dates: null } })
+    expect(contents).not.toMatch(/private-(?:confirmation|payload)-value/)
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})
