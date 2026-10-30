@@ -2480,6 +2480,29 @@ describe('HabitList', () => {
     })
   })
 
+  it('opens the parent prompt before the child log resolves and closes it on failure', async () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id })
+    for (const habit of [parent, child]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+    mockDrillState.currentParentId = parent.id
+    mockDrillState.currentParent = parent
+    mockDrillState.drillStack = [parent.id]
+    mockDrillState.drillChildren = [child]
+    let rejectLog!: (error: Error) => void
+    const pending = new Promise<void>((_resolve, reject) => { rejectLog = reject })
+    logHabitMutateAsync.mockReturnValueOnce(pending)
+    const ref = React.createRef<HabitListHandle>()
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
+    act(() => ref.current?.expandAll())
+    fireEvent.click(screen.getByTestId('log-child'))
+    expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
+    await act(async () => { rejectLog(new Error('rejected')); await Promise.allSettled([pending]) })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    expect(screen.getByTestId('recent-child').textContent).toBe('no')
+  })
+
   it('logs an incomplete parent immediately', async () => {
     const parent = createMockHabit({
       id: 'parent',

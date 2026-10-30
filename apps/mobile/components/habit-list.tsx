@@ -1164,6 +1164,20 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       setParentPromptQueue,
     ])
 
+    function releaseOptimisticResolution(habitId: string, record: ConfirmedResolutionRecord) {
+      record.modes.delete(habitId)
+      record.skippedIds.delete(habitId)
+      if (confirmedResolutionsRef.current !== record) return
+      clearRecentlyCompleted(habitId, record.date)
+      let parentId = promptDataRef.current?.habitsById.get(habitId)?.parentId
+      while (parentId) {
+        promptedParentIdsRef.current.delete(parentId)
+        const releasedId = parentId
+        setParentPromptQueue((current) => removeParentPrompt(current, releasedId, record.date))
+        parentId = promptDataRef.current?.habitsById.get(parentId)?.parentId
+      }
+    }
+
     const handleLogged = useCallback(
       (habitId: string, markAsRecentlyCompleted: boolean) => {
         if (markAsRecentlyCompleted) {
@@ -1175,51 +1189,43 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [checkAndPromptParentLog, markRecentlyCompleted],
     )
 
-    const handleDirectToggle = useCallback(
-      async (habitId: string, intent: 'log' | 'unlog') => {
-        if (!profile) return
-        const currentDate = new Date()
-        const accountToday = formatAPIDateInTimeZone(currentDate, accountTimeZone)
-        const boundary = getTodayBoundary(selectedDateStr, accountToday)
-        const habit = habitsById.get(habitId)
-        if (boundary === 'read-only' || (!selectedDate && selectedDateStr !== accountToday) ||
-          (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, selectedDateStr, accountToday)))) return
-        const toggleKey = `${habitId}:${selectedDateStr}`
-        const pendingToggleKeys = pendingToggleKeysRef.current
-        if (pendingToggleKeys.has(toggleKey)) return
+    async function handleDirectToggle(habitId: string, intent: 'log' | 'unlog') {
+      if (!profile) return
+      const currentDate = new Date()
+      const accountToday = formatAPIDateInTimeZone(currentDate, accountTimeZone)
+      const boundary = getTodayBoundary(selectedDateStr, accountToday)
+      const habit = habitsById.get(habitId)
+      if (boundary === 'read-only' || (!selectedDate && selectedDateStr !== accountToday) ||
+        (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, selectedDateStr, accountToday)))) return
+      const toggleKey = `${habitId}:${selectedDateStr}`
+      const pendingToggleKeys = pendingToggleKeysRef.current
+      if (pendingToggleKeys.has(toggleKey)) return
 
-        pendingToggleKeys.add(toggleKey)
-        if (intent === 'log') markRecentlyCompleted(habitId)
-        let mutationSucceeded = false
+      pendingToggleKeys.add(toggleKey)
+      const confirmedResolutions = confirmedResolutionsRef.current
+      confirmedResolutions.activeSettlements += 1
+      if (intent === 'log') {
+        markRecentlyCompleted(habitId)
+        handleLogged(habitId, false)
+      }
+      let mutationSucceeded = false
 
-        try {
-          await logMutateAsync(
-            selectedDate
-              ? { habitId, date: selectedDateStr, intent }
-              : { habitId, intent },
-          )
-          mutationSucceeded = true
-          if (intent === 'log') handleLogged(habitId, false)
-          await refetch()
-        } catch {
-          if (!mutationSucceeded && intent === 'log') clearRecentlyCompleted(habitId)
-        } finally {
-          pendingToggleKeys.delete(toggleKey)
-        }
-      },
-      [
-        clearRecentlyCompleted,
-        handleLogged,
-        habitsById,
-        logMutateAsync,
-        markRecentlyCompleted,
-        accountTimeZone,
-        profile,
-        refetch,
-        selectedDate,
-        selectedDateStr,
-      ],
-    )
+      try {
+        await logMutateAsync(
+          selectedDate
+            ? { habitId, date: selectedDateStr, intent }
+            : { habitId, intent },
+        )
+        mutationSucceeded = true
+        await refetch()
+      } catch {
+        if (!mutationSucceeded && intent === 'log') releaseOptimisticResolution(habitId, confirmedResolutions)
+      } finally {
+        finishParentSettlement(confirmedResolutions)
+        pendingToggleKeys.delete(toggleKey)
+      }
+    }
+
 
     const skipHabit = useCallback(async (habit: NormalizedHabit) => {
       if (!profile) return

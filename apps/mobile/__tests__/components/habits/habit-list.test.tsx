@@ -3122,6 +3122,24 @@ describe('HabitList', () => {
     expect(tree.root.findAllByType(HabitRow).map((row: { props: { depth: number } }) => row.props.depth)).toEqual([0, 1, 2, 2])
   })
 
+  it('opens the parent prompt before the child log resolves and closes it on failure', async () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id })
+    seedHabits([parent, child])
+    let rejectLog!: (error: Error) => void
+    const pending = new Promise<void>((_resolve, reject) => { rejectLog = reject })
+    logMutateAsync.mockReturnValueOnce(pending)
+    const ref = React.createRef<HabitListHandle>()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList ref={ref} view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
+    TestRenderer.act(() => ref.current?.expandAll())
+    TestRenderer.act(() => { tree.root.findAll((row: { props: { habit?: NormalizedHabit; actions?: { onLog?: () => void } } }) => row.props.habit?.id === child.id && typeof row.props.actions?.onLog === 'function')[0]!.props.actions.onLog() })
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(1)
+    await TestRenderer.act(async () => { rejectLog(new Error('rejected')); await Promise.allSettled([pending]) })
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(0)
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(false)
+  })
+
   it('submits reordered positions on drag end', async () => {
     const first = createMockHabit({ id: 'first', title: 'First', position: 0 })
     const second = createMockHabit({ id: 'second', title: 'Second', position: 1 })
