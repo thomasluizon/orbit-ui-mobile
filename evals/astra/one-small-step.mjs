@@ -5,14 +5,15 @@ const singleLine = (value) => typeof value === 'string' && value.trim().length >
 const canonicalMessage = (message) => typeof message === 'string'
   ? message.replace(/"(?:[^"\\]|\\.)*"/g, (quoted) => JSON.stringify(JSON.parse(quoted))) : null
 
-function expectedActions({ goal, step, language }) {
+function expectedActions({ goal, step, language }, supportsContext) {
   const portuguese = language === 'pt-BR'
   const quotedGoal = JSON.stringify(goal)
   const quotedStep = JSON.stringify(step)
   return [
     { id: 'smaller', label: portuguese ? 'Menor ainda' : 'Smaller', message: portuguese
       ? `Quero um passo ainda menor para ${quotedGoal}. O passo anterior foi ${quotedStep}.`
-      : `Give me an even smaller starting step for ${quotedGoal}. The previous step was ${quotedStep}.` },
+      : `Give me an even smaller starting step for ${quotedGoal}. The previous step was ${quotedStep}.`,
+    ...(supportsContext ? { previousStep: { goal, step, language } } : {}) },
     { id: 'saveTask', label: portuguese ? 'Salvar como tarefa' : 'Save as task', message: portuguese
       ? `Quero salvar ${quotedStep} como tarefa.` : `Save ${quotedStep} as a task.` },
     { id: 'saveChecklistItem', label: portuguese ? 'Salvar no checklist' : 'Save as checklist item', message: portuguese
@@ -25,7 +26,7 @@ export function validStartingBlock(block, locale) {
   if (!singleLine(suggestion?.goal) || !singleLine(suggestion?.step) || suggestion.language !== locale
     || !['en', 'pt-BR'].includes(locale) || !Array.isArray(block.actions) || block.actions.length !== 3) return false
   try {
-    return isDeepStrictEqual(block.actions.map((action) => ({ ...action, message: canonicalMessage(action.message) })), expectedActions(suggestion))
+    return isDeepStrictEqual(block.actions.map((action) => ({ ...action, message: canonicalMessage(action.message) })), expectedActions(suggestion, block.actions[0]?.previousStep !== undefined))
   } catch { return false }
 }
 
@@ -44,6 +45,10 @@ export function startingStepComposition(parsed, vars) {
   }
   if (['actions', 'pendingOperations', 'policyDenials', 'relatedSurfaces', 'followUps', 'followUpContext'].some((key) => response[key]?.length)
     || (response.operations ?? []).some((operation) => operation.status !== 'Succeeded')) return result(false, 'A starting step cannot include unrelated surfaces or writes.')
+  const previous = vars.previousStartingStep
+  if (previous && suggestion.step === previous.step) {
+    return result(false, 'A smaller step must change the previous action; the rubric checks effort and activity.')
+  }
   if (vars.composition.mode === 'one-small-step-legacy') {
     return result(!vars.clientContext.partKinds?.includes('oneSmallStep') && response.aiMessage === suggestion.step
       && (response.parts == null || Array.isArray(response.parts) && response.parts.length === 1
@@ -55,10 +60,6 @@ export function startingStepComposition(parsed, vars) {
     || !Array.isArray(parts) || parts.length !== 1 || parts[0]?.type !== 'block' || parts[0].kind !== 'oneSmallStep'
     || response.aiMessage != null && response.aiMessage !== '' || !validStartingBlock(parts[0].block, vars.clientContext.locale)
     || !isDeepStrictEqual(parts[0].block.suggestion, suggestion)) return result(false, 'Missing one starting-step block with server actions and no prose.')
-  const previous = vars.previousStartingStep
-  if (previous && suggestion.step === previous.step) {
-    return result(false, 'A smaller step must change the previous action; the rubric checks effort and activity.')
-  }
   return result(true, 'One starting step and its server actions match the tool evidence.')
 }
 

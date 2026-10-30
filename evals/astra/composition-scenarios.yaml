@@ -3028,6 +3028,7 @@
       locale: en
       timeFormat: 24h
       supportsParts: true
+      supportsStartingStepContext: true
       partKinds:
         - oneSmallStep
     input: ""
@@ -3051,6 +3052,65 @@
       requires less effort. A paraphrase or an equally hard or harder step fails.
     startingStepAction: smaller
     setup:
+      input: I can't get myself to start studying.
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: en
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+- description: one-small-step-smaller-legacy in en
+  metadata:
+    id: composition-one-small-step-smaller-legacy-en
+    category: composition
+    family: one-small-step-smaller-legacy
+    locale: en
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: en
+      timeFormat: 24h
+      supportsParts: true
+      supportsStartingStepContext: true
+      partKinds: []
+    input: ""
+    composition:
+      mode: one-small-step-legacy
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: en
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in English. Return exactly one concrete, immediately doable starting action for the
+      activity. No plan, framing prose, saved claim or unsolicited question. Show only the readable step text,
+      without block actions. Compare with the previous starting step supplied as
+      baseline context. Keep the same activity and return an action that is meaningfully easier and
+      requires less effort. A paraphrase or an equally hard or harder step fails.
+    startingStepAction: smaller
+    setup:
+      clientContext:
+        platform: web
+        locale: en
+        timeFormat: 24h
+        supportsParts: true
+        supportsStartingStepContext: true
+        partKinds:
+          - oneSmallStep
       input: I can't get myself to start studying.
       composition:
         mode: one-small-step
@@ -3242,6 +3302,7 @@
       locale: pt-BR
       timeFormat: 24h
       supportsParts: true
+      supportsStartingStepContext: true
       partKinds:
         - oneSmallStep
     input: ""
@@ -3266,6 +3327,66 @@
       fails.
     startingStepAction: smaller
     setup:
+      input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
+      composition:
+        mode: one-small-step
+      expectations:
+        required:
+          - name: suggest_breakdown
+            arguments:
+              one_small_step: true
+              language: pt-BR
+            resultStatus: Succeeded
+        allowed:
+          - suggest_breakdown
+        counts:
+          suggest_breakdown: 1
+- description: one-small-step-smaller-legacy in pt-BR
+  metadata:
+    id: composition-one-small-step-smaller-legacy-pt-BR
+    category: composition
+    family: one-small-step-smaller-legacy
+    locale: pt-BR
+    fixture: empty
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext:
+      platform: web
+      locale: pt-BR
+      timeFormat: 24h
+      supportsParts: true
+      supportsStartingStepContext: true
+      partKinds: []
+    input: ""
+    composition:
+      mode: one-small-step-legacy
+    expectations:
+      required:
+        - name: suggest_breakdown
+          arguments:
+            one_small_step: true
+            language: pt-BR
+          resultStatus: Succeeded
+      allowed:
+        - suggest_breakdown
+      counts:
+        suggest_breakdown: 1
+    rubric: Answer in Brazilian Portuguese. Return exactly one concrete, immediately doable starting
+      action for the activity. No plan, framing prose, saved claim or unsolicited question. Show one
+      oneSmallStep block with the three server action labels. Compare with the previous starting
+      step supplied as baseline context. Keep the same activity and return an action that is
+      meaningfully easier and requires less effort. A paraphrase or an equally hard or harder step
+      fails.
+    startingStepAction: smaller
+    setup:
+      clientContext:
+        platform: web
+        locale: pt-BR
+        timeFormat: 24h
+        supportsParts: true
+        supportsStartingStepContext: true
+        partKinds:
+          - oneSmallStep
       input: Não consigo começar a estudar. Me ajuda a dar o primeiro passo?
       composition:
         mode: one-small-step
