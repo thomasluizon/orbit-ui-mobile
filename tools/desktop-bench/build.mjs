@@ -7,7 +7,7 @@ import { execute, logicalSize } from './host.mjs'
 import { median } from './measurements.mjs'
 
 const require = createRequire(import.meta.url)
-export const benchmarkViewport = Object.freeze([900, 800])
+export const benchmarkViewport = Object.freeze([900, 600])
 
 export function electronInstallArguments(electron, version) {
   return ['install', '--prefix', electron, '--package-lock=false', '--no-audit', '--fund=false', '--save-dev', '--save-exact', `electron@${version}`, 'electron-builder@26.18.0']

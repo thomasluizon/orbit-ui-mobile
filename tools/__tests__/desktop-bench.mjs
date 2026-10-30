@@ -28,47 +28,83 @@ function electronViewportCases() {
         loadURL(url) { calls.push(['load', url]) }
       },
     }),
-    process: { env: { ORBIT_BENCH_WIDTH: '900', ORBIT_BENCH_HEIGHT: '800', ORBIT_BENCH_PROFILE: 'profile' } },
+    process: { env: { ORBIT_BENCH_WIDTH: '900', ORBIT_BENCH_HEIGHT: '600', ORBIT_BENCH_PROFILE: 'profile' } },
   })
   ready()
   const menuIndex = calls.findIndex(([kind, menu]) => kind === 'menu' && menu === null)
   const windowIndex = calls.findIndex(([kind]) => kind === 'window')
-  const contentIndex = calls.findIndex(([kind, width, height]) => kind === 'content' && width === 900 && height === 800)
+  const contentIndex = calls.findIndex(([kind, width, height]) => kind === 'content' && width === 900 && height === 600)
   const loadIndex = calls.findIndex(([kind]) => kind === 'load')
   T('generated Electron shell suppresses the default menu before window creation', menuIndex >= 0 && menuIndex < windowIndex)
   T('generated Electron shell reapplies the requested content size before loading the page', contentIndex > windowIndex && contentIndex < loadIndex)
   const windowOptions = calls[windowIndex][1]
   T('Electron requests content dimensions and permits a window larger than the runner display',
-    windowOptions.width === 900 && windowOptions.height === 800 && windowOptions.useContentSize === true && windowOptions.enableLargerThanScreen === true)
+    windowOptions.width === 900 && windowOptions.height === 600 && windowOptions.useContentSize === true && windowOptions.enableLargerThanScreen === true)
 }
 
 function requestedViewportCases() {
-  for (const [label, actual, previous] of [
-    ['first shell', [900, 729], undefined],
-    ['Electron', [900, 681], [900, 729]],
-    ['both shells agree below the request', [900, 729], [900, 729]],
-    ['width mismatch', [899, 800], [899, 800]],
+  const availableScreen = [1024, 768]
+  for (const [label, viewports] of [
+    ['first shell', [[900, 568]]],
+    ['Electron', [[900, 600], [900, 552]]],
+    ['both shells agree below the request', [[900, 568], [900, 568]]],
+    ['width mismatch', [[899, 600]]],
   ]) {
-    let message
-    try { assertViewport(actual, previous) } catch (error) { message = error.message }
-    T(`readiness rejects ${label} against the requested viewport`, message === `Viewport mismatch: ${actual} versus 900,800`, message)
+    for (const actual of viewports) {
+      let message
+      try { assertViewport(actual, availableScreen) } catch (error) { message = error.message }
+      const expected = actual.join(',') === '900,600' ? undefined : `Viewport mismatch: ${actual} versus 900,600; available screen: 1024x768`
+      T(`readiness checks ${label} against the requested viewport with screen dimensions`, message === expected, message)
+    }
   }
   let accepted = true
-  try { assertViewport([900, 800]) } catch { accepted = false }
+  try { assertViewport([900, 600], availableScreen) } catch { accepted = false }
   T('readiness accepts exactly the requested CSS viewport', accepted)
   const tauriWindow = tauriBenchmarkOverlay('profile').app.windows[0]
-  T('Tauri fixes its logical client size even when the runner display is smaller',
-    tauriWindow.width === 900 && tauriWindow.height === 800 &&
-    tauriWindow.minWidth === 900 && tauriWindow.minHeight === 800 &&
-    tauriWindow.maxWidth === 900 && tauriWindow.maxHeight === 800)
+  T('Tauri fixes its logical client size to fit the runner display',
+    tauriWindow.width === 900 && tauriWindow.height === 600 &&
+    tauriWindow.minWidth === 900 && tauriWindow.minHeight === 600 &&
+    tauriWindow.maxWidth === 900 && tauriWindow.maxHeight === 600)
   const nativeSource = readFileSync(join(REPO_ROOT, 'apps/desktop/src-tauri/src/main.rs'), 'utf8')
   T('Tauri removes the benchmark menu and reapplies logical content size after building',
     /\.build\(\)\?;\s*if cfg!\(feature = "bench-loopback"\)\s*\{\s*window\.remove_menu\(\)\?;\s*window\.set_size\(tauri::LogicalSize::new\(\s*window_config\.width,\s*window_config\.height,?\s*\)\)\?;\s*\}/.test(nativeSource))
 }
 
+async function probeReadinessCases() {
+  let report
+  const reported = new Promise((resolve) => { report = resolve })
+  let conversation
+  const close = { getAttribute: () => 'Close', click: () => { conversation = null } }
+  const composer = { getBoundingClientRect: () => ({ height: 40 }), blur() {}, focus() { document.activeElement = composer } }
+  const document = {
+    visibilityState: 'visible',
+    querySelector(selector) {
+      if (selector === '[data-habit-id="bench-0000"]') return { getBoundingClientRect: () => ({ height: 40 }) }
+      if (selector === '[data-composer-input]:not([disabled])') return composer
+      if (selector === '[data-shell-conversation]') return conversation
+      if (selector === '[data-open-conversation]') return { click: () => { conversation = { querySelectorAll: () => [close] } } }
+      return null
+    },
+  }
+  runInNewContext(readFileSync(join(REPO_ROOT, 'tools/desktop-bench/probe.js'), 'utf8'), {
+    document, __BENCH_CLOSE_LABEL__: 'Close', innerWidth: 900, innerHeight: 600,
+    screen: { availWidth: 1024, availHeight: 768 },
+    performance: { timeOrigin: 1000, now: () => 100 },
+    setTimeout: (callback) => callback(), requestAnimationFrame: (callback) => callback(100),
+    fetch: (url, options) => {
+      if (url === '/_bench/events') { report(JSON.parse(options.body)); return Promise.resolve() }
+      return new Promise(() => {})
+    },
+  })
+  const usable = await reported
+  T('page readiness payload carries the actual viewport and available screen dimensions',
+    usable.kind === 'usable' && usable.viewport.join(',') === '900,600' && usable.availableScreen?.join(',') === '1024,768', JSON.stringify(usable))
+}
+
 export const cases = async () => {
   electronViewportCases()
   requestedViewportCases()
+  await probeReadinessCases()
   for (const options of [undefined, '', '--trace-warnings', '--trace-warnings --max-old-space-size=2048']) {
     const environment = { API_BASE: 'http://127.0.0.1:5099', ...(options === undefined ? {} : { NODE_OPTIONS: options }) }
     const original = { ...environment }

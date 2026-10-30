@@ -96,7 +96,7 @@
       return false
     }, 'return to Hoje')
     await frame()
-    await post({ kind: 'usable', epochMs: usableEpoch, visibility: document.visibilityState, viewport: [innerWidth, innerHeight] })
+    await post({ kind: 'usable', epochMs: usableEpoch, visibility: document.visibilityState, viewport: [innerWidth, innerHeight], availableScreen: [screen.availWidth, screen.availHeight] })
     for (;;) {
       const response = await fetch('/_bench/command')
       const command = await response.text()

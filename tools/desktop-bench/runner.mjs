@@ -19,8 +19,8 @@ export function buildHermeticWeb(repository, work, environment, executeBuild = e
   })
 }
 
-export function assertViewport(actual) {
-  if (actual.join(',') !== benchmarkViewport.join(',')) throw new Error(`Viewport mismatch: ${actual} versus ${benchmarkViewport}`)
+export function assertViewport(actual, availableScreen) {
+  if (actual.join(',') !== benchmarkViewport.join(',')) throw new Error(`Viewport mismatch: ${actual} versus ${benchmarkViewport}; available screen: ${availableScreen.join('x')}`)
 }
 
 async function measure({ shell, cache, iteration, executable, profile, environment, proxy, macProbe, windowsScript, work, readinessOnly }) {
@@ -37,7 +37,7 @@ async function measure({ shell, cache, iteration, executable, profile, environme
   try {
     const usable = await waitFor(() => read('usable'), `${shell} usable Hoje`)
     if (usable.visibility !== 'visible') throw new Error('Shell must be visible for measurement')
-    assertViewport(usable.viewport)
+    assertViewport(usable.viewport, usable.availableScreen)
     if (readinessOnly) {
       note(`${shell}: readiness check passed at ${usable.viewport.join('x')}`)
       return { viewport: usable.viewport }
