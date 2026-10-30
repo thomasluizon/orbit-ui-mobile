@@ -60,7 +60,7 @@ async function diskMeasurements(paths, installer) {
   return { installedBytes: median(installedSamplesBytes), installerBytes: median(installerSamplesBytes), installedSamplesBytes, installerSamplesBytes }
 }
 
-function npmCli() {
+export function npmCli() {
   const candidates = [process.env.npm_execpath, join(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js'), join(dirname(process.execPath), '../lib/node_modules/npm/bin/npm-cli.js')]
   const found = candidates.find((path) => path && existsSync(path))
   if (!found) throw new Error('Cannot locate the installed npm CLI next to Node')

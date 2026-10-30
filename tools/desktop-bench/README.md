@@ -85,3 +85,45 @@ run cleanup; inspect owned processes and ports before retrying. CI runs the same
 both operating systems and uploads summaries and logs without publishing desktop releases.
 
 Focused parsing, summary, origin and stream checks run under `node tools/test-tools.mjs --only desktop-bench`.
+
+## Installed VM acceptance
+
+`desktop-acceptance.yml` owns installed-shell acceptance on disposable GitHub macOS and Windows
+VMs. Its CLI is `node tools/desktop-bench/acceptance.mjs --output <absolute-directory-outside-repository>`.
+The CLI requires the GitHub Actions environment and never runs as part of local verification.
+It reuses the benchmark build entry, process host, hermetic fixture producer, mock request handler
+and proxy. The release build uses the same staging prepare and package commands as
+`desktop-release.yml`, with no optional Cargo features and no deployed credentials.
+
+The job generates an ephemeral root certificate and Tauri key. It maps the shell's exact web and
+update hosts to loopback, trusts the root in the VM's system store, and checks DNS before launching.
+The hermetic builder accepts `HERMETIC_DESKTOP_ORIGIN` for its compiled site and event origins;
+ordinary layout and benchmark builds retain their loopback defaults. TLS, channel validation,
+origin capabilities and signature verification remain active. The proxy forwards cookies without
+seeding an authenticated session. Email code requests run inside the installed webview through
+the real BFF, against the mock's fixed email and code. The report requires both protected cookies
+and an authenticated request. No deployed API or account is used.
+
+macOS installs from the mounted DMG into the Applications directory. Windows runs the built NSIS
+installer with its silent flag and explicit install directory. Only that installed executable is
+launched. The first launch checks Hoje, Astra, palette structure and native clean quit. Separate
+launches reject a cryptographically corrupted signature and download a correctly signed newer
+version. The update package is the built acceptance installer, signed with the newer advertised
+version to exercise the verifier. The job tests discovery and download verification; it does not
+install that update. The channel manifest also receives a detached signature. Tauri validates the
+manifest's platform signature against the downloaded bytes and signed version; its protocol does
+not consume a detached manifest signature. The final native restart prompt is left unanswered and
+that process is stopped during cleanup.
+
+Recording starts before native and web builds and continues through installed checks. macOS discovers
+its actual AVFoundation screen index from ffmpeg; Windows captures the desktop with gdigrab. The job
+requires capture output, a nonempty MP4 and successful full decoding. Device enumeration and capture
+logs accompany the video. Setup before the recording tool is available is outside the recording.
+
+Platform readers dump the real AX or UI Automation tree and require web content, interactive
+controls, semantic roles and nonempty names. Palette arrows must retain input focus and expose the
+next selected result in both the DOM and platform tree. An exact macOS access denial is recorded as
+a skip, with Windows still required. These are structural checks; a person's spoken screen reader
+pass remains separate. Reports, native trees, capture and diagnostic logs upload even on failure.
+Keys, session fixtures and build packages are excluded from the artifact paths. Cleanup stops owned
+processes, restores hosts and trust, and removes the hermetic web build. Cleanup failure fails the job.
