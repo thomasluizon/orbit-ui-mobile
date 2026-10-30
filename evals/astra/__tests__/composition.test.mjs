@@ -7,7 +7,7 @@ import { buildChatClientContext } from '../../../packages/shared/src/chat/client
 import * as assertions from '../assertions.mjs'
 import parseResponse from '../response.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
-import { chatResponse, toolCall, preview } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, preview, habitAccountRead } from './fixtures/producer.mjs'
 import { habitMonthFixture } from '../../../packages/shared/src/test-support/habit-month-fixture.ts'
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
@@ -149,10 +149,11 @@ describe.each(['ambiguity-pt', 'ambiguity-en'])('%s clarification alternatives',
   } }
   function clarification(parts = [choice], aiMessage = '') {
     const produced = response(parts, aiMessage)
-    const call = toolCall('ask', { input: { form: 'choice', question, options: choice.block.options, multiSelect: false, allowFreeText: true } },
+    const call = toolCall('ask', { input: { form: 'choice', missing_input: 'record_selection',
+      question, options: choice.block.options, multiSelect: false, allowFreeText: true } },
       'Succeeded', 'call-1', vars.clientContext)
     call.result.entityId = choice.block.blockId
-    produced.evalTrace.toolCalls = [call]
+    produced.evalTrace.toolCalls = [habitAccountRead(true, 'read', vars.clientContext), call]
     return produced
   }
   it('accepts one source-shaped choice block through the provider and configured assertions', async () => {

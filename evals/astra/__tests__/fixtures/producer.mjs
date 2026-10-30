@@ -48,6 +48,17 @@ export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1', 
   }
 }
 
+// Producer: ProcessUserChatCommand.ToolResults.cs:60-84 and HabitListCard.cs:9-16.
+export function habitAccountRead(selection = false, id = 'read', clientContext = { supportsParts: true }) {
+  const call = toolCall('query_habits', { for_selection: selection }, 'Succeeded', id, clientContext)
+  call.result.payload = selection
+    ? { selection_required: true, reference: null, candidates: [],
+      instruction: 'Ask the person to select from these candidates using a supported ask form. Do not choose an ID or prepare any write before the answer.' }
+    : { scope: 'all', items: [] }
+  if (!selection) call.result.readDirective = `[[orbit:read:${id}]]`
+  return call
+}
+
 export const traceTiming = { totalMilliseconds: 125.5, phases: [
   { name: 'model', milliseconds: 100, elapsedMilliseconds: 100 },
   { name: 'tools', milliseconds: '25.5', elapsedMilliseconds: 125.5 },
