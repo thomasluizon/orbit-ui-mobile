@@ -36,7 +36,8 @@ function evidenceFacts(output, vars, withheld) {
   return publicFacts({ fixture: vars.fixtureEvidence ?? null,
     successfulTools: successful.map((call) => ({ name: call.name, result: call.result.payload })),
     toolOutcomes: calls.filter((call) =>
-      (call.resultStatus === 'Failed' && call.result?.success === false && typeof call.result.error === 'string')
+      (['Failed', 'Denied', 'UnsupportedByPolicy'].includes(call.resultStatus)
+        && call.result?.success === false && typeof call.result.error === 'string')
       || (call.resultStatus === 'PendingConfirmation' && call.result?.success === true && call.result.error === null))
       .map((call) => ({ name: call.name, status: call.resultStatus, error: call.result.error, result: call.result.payload })),
     readScopes: (output.composition?.parts ?? []).flatMap((part) => {

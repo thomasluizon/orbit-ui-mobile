@@ -173,6 +173,8 @@ commit with `node evals/astra/generate-catalog.mjs <api-checkout>` from the repo
 The exporter uses the API's tool registrations, request builder and strict schema normalizer for both
 composition and legacy clients, with `AstraBlockFirst` enabled for the gate;
 `catalog.yaml` records the full source SHA as `apiCommit`. Generation refuses a dirty API tree.
+The parts export advertises `CHAT_BLOCK_KINDS` from the shared client registry; the legacy export
+omits part kinds. The catalog regression requires `ask` for the parts client and excludes it for legacy.
 The exporter supplies chat context values by constructor parameter name and refuses unknown parameters,
 listing their names before invoking the constructor. Its offline regression test requires the .NET SDK.
 Structural validation selects the schema matching the case's `clientContext.supportsParts` and removes
