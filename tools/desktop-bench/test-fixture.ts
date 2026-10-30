@@ -1,17 +1,30 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
-import { benchmarkChatEvents, benchmarkTokens, sendBenchmarkChatStream } from '../../apps/web/test-support/hermetic/mock-api/fixtures/chat-stream'
+import { benchmarkChatEvents, benchmarkTokens } from '../../apps/web/test-support/hermetic/mock-api/fixtures/chat-stream'
+import { handleRequest } from '../../apps/web/test-support/hermetic/mock-api/request-handler'
+import { mintHermeticJwt } from '../../apps/web/test-support/hermetic/hermetic-session'
 import { consumeChatSseStream } from '../../packages/shared/src/chat/sse-stream'
 
 async function main() {
-  const server = createServer((_request, response) => { void sendBenchmarkChatStream(response) })
+  const server = createServer(handleRequest)
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   try {
     const address = server.address()
     assert.ok(address && typeof address !== 'string')
-    const response = await fetch(`http://127.0.0.1:${address.port}`)
+    const url = `http://127.0.0.1:${address.port}/api/chat/stream`
+    delete process.env.ORBIT_DESKTOP_BENCH
+    const headers = { Authorization: `Bearer ${mintHermeticJwt(undefined, [], [], 'desktop-bench')}` }
+    const disabled = await fetch(url, { method: 'POST', headers })
+    assert.equal(disabled.headers.get('content-type'), 'application/json')
+    await disabled.arrayBuffer()
+    process.env.ORBIT_DESKTOP_BENCH = '1'
+    const unrelated = await fetch(url, { method: 'POST' })
+    assert.equal(unrelated.headers.get('content-type'), 'application/json')
+    await unrelated.arrayBuffer()
+    const response = await fetch(url, { method: 'POST', headers })
+    assert.equal(response.headers.get('content-type'), 'text/event-stream')
     assert.ok(response.body)
     const reader = response.body.getReader()
     async function* chunks() {
