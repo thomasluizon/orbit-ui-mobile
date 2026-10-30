@@ -1,3 +1,4 @@
+import { API_BASE } from '@/lib/api-base'
 import { syncChangesV2ResponseSchema } from '@orbit/shared/types/sync'
 import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
 import { habitDetailSchema } from '@orbit/shared/types/habit'
@@ -201,7 +202,7 @@ describe('mobile apiClient', () => {
     await expect(apiClient('/api/test', { method: 'POST', body: '{"a":1}' })).resolves.toEqual({ ok: true })
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.useorbit.org/api/test',
+      `${API_BASE}/api/test`,
       expect.objectContaining({
         method: 'POST',
         body: '{"a":1}',
@@ -281,7 +282,7 @@ describe('mobile apiClient', () => {
     await apiClient('/upload', { method: 'POST', body })
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.useorbit.org/upload',
+      `${API_BASE}/upload`,
       expect.objectContaining({
         headers: expect.objectContaining({
           'X-Orbit-Time-Zone': expect.any(String),
@@ -376,7 +377,7 @@ describe('mobile apiClient', () => {
     expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'https://api.useorbit.org/secure',
+      `${API_BASE}/secure`,
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: 'Bearer token-456',
@@ -403,7 +404,7 @@ describe('mobile apiClient', () => {
     expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'https://api.useorbit.org/secure',
+      `${API_BASE}/secure`,
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: 'Bearer fresh-token',
@@ -627,7 +628,7 @@ describe('mobile apiClient', () => {
     await apiClient('/api/habits', { method: 'POST', body: '{}', idempotencyKey: 'mutation-1' })
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.useorbit.org/api/habits',
+      `${API_BASE}/api/habits`,
       expect.objectContaining({
         headers: expect.objectContaining({ 'Idempotency-Key': 'mutation-1' }),
       }),
@@ -648,14 +649,14 @@ describe('mobile apiClient', () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      'https://api.useorbit.org/api/habits',
+      `${API_BASE}/api/habits`,
       expect.objectContaining({
         headers: expect.objectContaining({ 'Idempotency-Key': 'mutation-2' }),
       }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'https://api.useorbit.org/api/habits',
+      `${API_BASE}/api/habits`,
       expect.objectContaining({
         headers: expect.not.objectContaining({ 'Idempotency-Key': expect.anything() }),
       }),

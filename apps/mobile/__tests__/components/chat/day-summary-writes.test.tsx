@@ -10,11 +10,13 @@ import { inPlaceDayFixture, nestedDaySummaryFixture } from '@orbit/shared/__test
 import type { DaySummaryCard as DaySummaryCardData } from '@orbit/shared/types/chat'
 import { DaySummaryCard } from '@/components/chat/day-summary-card'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { apiClient } from '@/lib/api-client'
 import { API } from '@orbit/shared/api'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import { renderedText } from '../../support/react-test-renderer'
 
 vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: vi.fn() }))
+vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn(), showPersistentError: vi.fn() }) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -27,6 +29,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs() })
 
 async function mountDay(habit: HabitScheduleItem, date = inPlaceDayFixture.date, summary?: DaySummaryCardData) {
+  vi.mocked(apiClient).mockResolvedValue({ items: [habit], page: 1, pageSize: 1, totalCount: 1, totalPages: 1 })
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
   const key = habitKeys.list(habitListQueryFilters({ dateFrom: date, dateTo: date, includeGeneral: true, includeOverdue: true }, true))
   client.setQueryData(key, [habit])

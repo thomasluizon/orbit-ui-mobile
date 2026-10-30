@@ -1,3 +1,4 @@
+import { API_BASE } from '@/lib/api-base'
 import React from 'react'
 import { captureError } from '@/lib/sentry'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -139,7 +140,7 @@ it('uses the bearer stream while active and closes it in background', async () =
     await Promise.resolve()
   })
   expect(mocks.expoFetch).toHaveBeenCalledWith(
-    'https://api.useorbit.org/api/events',
+    `${API_BASE}/api/events`,
     expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer token' }) }),
   )
   expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['habits'] })
@@ -524,7 +525,7 @@ it.each(['interrupted read', 'malformed event'])('reconnects after a native acco
     await act(async () => { tree = TestRenderer.create(<AccountEventConnection />); await vi.advanceTimersByTimeAsync(0) })
     await act(async () => { interrupt(); await vi.advanceTimersByTimeAsync(2000) })
     expect(mocks.expoFetch).toHaveBeenCalledTimes(2)
-    expect(mocks.expoFetch).toHaveBeenLastCalledWith('https://api.useorbit.org/api/events',
+    expect(mocks.expoFetch).toHaveBeenLastCalledWith(`${API_BASE}/api/events`,
       expect.objectContaining({ headers: { Authorization: 'Bearer token', 'Last-Event-ID': 'epoch.1' } }))
     expect(captureError).toHaveBeenCalledTimes(failure === 'interrupted read' ? 0 : 1)
     if (failure === 'malformed event') expect(captureError).toHaveBeenCalledWith(expect.any(SyntaxError))
