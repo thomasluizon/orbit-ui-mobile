@@ -9,7 +9,7 @@ import {
   useState,
   type ComponentProps,
 } from 'react'
-import { findNodeHandle, StyleSheet, type TextInput } from 'react-native'
+import { StyleSheet, type TextInput } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -27,7 +27,6 @@ export const BottomSheetAppTextInput = forwardRef<
   { focusBorder = true, isChangeDisabled, onBlur, onChangeText, onFocus, placeholderTextColor, style, value, ...props },
   ref,
 ) {
-  const localRef = useRef<Parameters<typeof findNodeHandle>[0]>(null)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -44,22 +43,6 @@ export const BottomSheetAppTextInput = forwardRef<
       lastSyncedValueRef.current = value
     }
   }, [value])
-
-  const assignRef = useCallback(
-    (node: TextInput | null) => {
-      localRef.current = node
-
-      if (typeof ref === 'function') {
-        ref(node)
-        return
-      }
-
-      if (ref) {
-        ref.current = node
-      }
-    },
-    [ref],
-  )
 
   const handleFocus = useCallback<
     NonNullable<BottomSheetAppTextInputProps['onFocus']>
@@ -98,7 +81,7 @@ export const BottomSheetAppTextInput = forwardRef<
 
   return (
     <TypedTextInput
-      ref={assignRef}
+      ref={ref}
       placeholderTextColor={placeholderTextColor ?? tokens.fg3}
       {...props}
       style={[styles.input, style, focused && focusBorder ? styles.inputFocused : null]}

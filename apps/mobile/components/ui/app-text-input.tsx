@@ -4,7 +4,6 @@ import {
   forwardRef,
   useCallback,
   useMemo,
-  useRef,
   useState,
   type ComponentProps,
 } from 'react'
@@ -24,7 +23,6 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
     { onBlur, onFocus, placeholderTextColor, style, error, ...props },
     ref,
   ) {
-    const localRef = useRef<TextInput>(null)
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = useMemo(
       () => createTokensV2(currentScheme, currentTheme),
@@ -33,22 +31,6 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
     const [focused, setFocused] = useState(false)
     const styles = useMemo(() => createStyles(tokens), [tokens])
     const dimmed = props.editable === false
-
-    const assignRef = useCallback(
-      (node: TextInput | null) => {
-        localRef.current = node
-
-        if (typeof ref === 'function') {
-          ref(node)
-          return
-        }
-
-        if (ref) {
-          ref.current = node
-        }
-      },
-      [ref],
-    )
 
     const handleFocus = useCallback<NonNullable<AppTextInputProps['onFocus']>>(
       (event) => {
@@ -69,7 +51,7 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
     return (
       <>
         <TypedTextInput
-          ref={assignRef}
+          ref={ref}
           placeholderTextColor={placeholderTextColor ?? tokens.fg3}
           {...props}
           style={[
