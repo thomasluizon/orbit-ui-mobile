@@ -9,7 +9,12 @@ import { readStartingHabits } from './step-persistence.mjs'
 function prepareStartingAction(test, block) {
   const vars = test.vars
   vars.previousStartingStep = structuredClone(block.suggestion)
-  vars.input = block.actions.find(({ id }) => id === vars.startingStepAction).message
+  const action = block.actions.find(({ id }) => id === vars.startingStepAction)
+  vars.input = action.message
+  vars.clientContext = { ...vars.clientContext }
+  delete vars.clientContext.previousStartingStep
+  if (action.id === 'smaller' && action.previousStep) vars.clientContext.previousStartingStep = structuredClone(action.previousStep)
+  vars.clientContextJson = JSON.stringify(vars.clientContext)
   const required = vars.expectations.required[0]
   if (vars.startingStepAction === 'saveTask') required.arguments = { title: block.suggestion.step, frequency_unit: 'OneTime' }
   if (vars.startingStepAction !== 'saveChecklistItem') return
@@ -35,6 +40,7 @@ export async function prepareCorrection(test) {
     ...configuration.providers[0].config, transformResponse: `file://${fileURLToPath(new URL('./response.mjs', import.meta.url))}`,
   } })
   const vars = { ...test.vars, refine: undefined, ...setup, evalRequestId: requestId, historyJson: '[]' }
+  vars.clientContextJson = JSON.stringify(vars.clientContext)
   const response = await provider.callApi(setup.input, { vars })
   if (response.error || !response.output) throw new Error(`Correction setup${setup.caseId ? ` dependency ${setup.caseId}` : ''} returned no verifiable answer.`)
   const context = { vars, test }

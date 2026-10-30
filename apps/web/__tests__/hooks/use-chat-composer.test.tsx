@@ -612,7 +612,7 @@ describe('web useChatComposer streaming send', () => {
       if (initial === 'message') await composer.current.sendMessage('Plan my morning')
       else await composer.current.blockAnswerInteraction.send(request)
     })
-    mocks.fetch.mockImplementation(async () => sseResponse(finalFrame(makeChatResponse())))
+    mocks.fetch.mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse()))))
     const submit = async () => {
       if (next === 'message') await composer.current.sendMessage('A fresh message')
       else await composer.current.blockAnswerInteraction.send({ ...request, answer: { ...request.answer, selectedIds: ['morning'] }, labels: ['Morning'] })
@@ -937,6 +937,28 @@ describe('web useChatComposer streaming send', () => {
     expect(context.timeFormat).toBe('24h')
   })
 
+  it.each(['en', 'pt-BR'] as const)('forwards the %s Smaller baseline only on that tap', async locale => {
+    mocks.locale = locale
+    const card = makeOneSmallStepCard(locale)
+    card.actions[0]!.previousStep = card.suggestion
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ content: '', pendingOperations: [],
+      parts: [{ type: 'block', kind: 'oneSmallStep', block: card }] })] })
+    useUIStore.getState().setAstraConversationOpen(true)
+    mocks.fetch.mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse()))))
+    render(<ComposerConversationHarness />)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: card.actions[0]!.label })) })
+    const form = mocks.fetch.mock.calls[0]?.[1]?.body as FormData
+    expect(form.get('message')).toBe(card.actions[0]!.message)
+    expect(JSON.parse(form.get('clientContext') as string)).toMatchObject({ supportsStartingStepContext: true,
+      previousStartingStep: card.actions[0]!.previousStep })
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Another question' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' })) })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    const next = mocks.fetch.mock.calls[1]?.[1]?.body as FormData
+    expect(next.get('message')).toBe('Another question')
+    expect(JSON.parse(next.get('clientContext') as string)).not.toHaveProperty('previousStartingStep')
+  })
+
   it.each(makeOneSmallStepCard().actions)('sends the complete $id request with current history and no confirmation token', async action => {
     const card = makeOneSmallStepCard()
     useChatStore.setState({ messages: [
@@ -955,6 +977,7 @@ describe('web useChatComposer streaming send', () => {
     expect(history).toContainEqual({ role: 'user', content: 'Help me start reading' })
     expect(history).toContainEqual({ role: 'assistant', content: JSON.stringify([{ kind: 'oneSmallStep', block: card }]) })
     expect(JSON.parse(formData.get('clientContext') as string).partKinds).toContain('oneSmallStep')
+    expect(JSON.parse(formData.get('clientContext') as string)).not.toHaveProperty('previousStartingStep')
   })
 
   it('keeps tool steps and follow-ups on the final answer and marks a chip send', async () => {
@@ -984,7 +1007,7 @@ describe('web useChatComposer streaming send', () => {
 
   it('keeps three waiting prompts in order, refuses a fourth, removes one and drains after success', async () => {
     const stream = controlledSseResponse()
-    mocks.fetch.mockResolvedValueOnce(stream.response).mockImplementation(async () => sseResponse(finalFrame(makeChatResponse())))
+    mocks.fetch.mockResolvedValueOnce(stream.response).mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse()))))
     const { result, rerender } = renderHook(() => useChatComposer({ pathname: mocks.pathname }))
     let firstSend!: Promise<void>
     act(() => { firstSend = result.current.sendMessage('running') })
@@ -1012,7 +1035,7 @@ describe('web useChatComposer streaming send', () => {
 
   it('pauses after failure, retains the newer draft and sends retained rows only when requested', async () => {
     const stream = controlledSseResponse()
-    mocks.fetch.mockResolvedValueOnce(stream.response).mockImplementation(async () => sseResponse(finalFrame(makeChatResponse())))
+    mocks.fetch.mockResolvedValueOnce(stream.response).mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse()))))
     const { result, rerender } = renderHook(() => useChatComposer({ pathname: mocks.pathname }))
     let firstSend!: Promise<void>
     act(() => { result.current.setInput('running') })
