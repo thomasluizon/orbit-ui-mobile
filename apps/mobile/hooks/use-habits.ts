@@ -1551,7 +1551,7 @@ export function useBulkSkipHabits() {
     BulkSkipMutationOutcome,
     Error,
     BulkSkipItemRequest[],
-    { previousLists: HabitListSnapshots; occurrenceDate: string }
+    { previousLists: HabitListSnapshots; occurrenceDate: string; account: ReturnType<typeof captureHabitAccount> }
   >({
     mutationFn: async (items) => {
       const results: BulkSkipResult['results'] = []
@@ -1593,22 +1593,26 @@ export function useBulkSkipHabits() {
     },
 
     onMutate: async (items) => {
+      const account = captureHabitAccount()
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
+      if (!account.stillCurrent()) throw new Error('Account changed')
       const previousLists = snapshotHabitLists(queryClient)
       const occurrenceDate = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
       for (const item of items) applyCachedHabitSkip(queryClient, item.habitId, item.date ?? occurrenceDate)
 
-      return { previousLists, occurrenceDate }
+      return { previousLists, occurrenceDate, account }
     },
 
     onError: (_err, _vars, context) => {
+      if (context && !context.account.stillCurrent()) return
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
     },
 
     onSuccess: (data, items, context) => {
+      if (!context.account.stillCurrent()) return
       const acceptedIds = new Set(data.results.filter((entry) => entry.status === 'Success').map((entry) => entry.habitId))
       const failedIds = new Set(items.filter((item) => !acceptedIds.has(item.habitId)).map((item) => item.habitId))
       for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
@@ -1619,7 +1623,10 @@ export function useBulkSkipHabits() {
         useUIStore.getState().checkAllDoneCelebration)
     },
 
-    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error, { includeProfile: true }),
+    onSettled: (data, error, _items, context) => {
+      if (context && !context.account.stillCurrent()) return
+      finalizeHabitMutation(queryClient, data, error, { includeProfile: true })
+    },
   })
 }
 

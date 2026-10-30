@@ -3311,6 +3311,32 @@ describe('mobile habit hooks', () => {
 
 
 describe('day completion after skipping', () => {
+  it('does not celebrate another account when a bulk skip callback arrives late', async () => {
+    const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
+    store.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebratedDate: '' })
+    mocks.useRealUIStore = true
+    const client = new QueryClient()
+    mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
+    const today = formatAPIDate(new Date())
+    const key = habitKeys.list({ dateFrom: today, dateTo: today, includeOverdue: true, completeDay: true })
+    client.setQueryData(key, [makeHabit({ id: 'old-account-habit', dueDate: today, scheduledDates: [today] })])
+    const mutation = useBulkSkipHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+    const requests = [{ habitId: 'old-account-habit' }]
+    const context = await mutation.onMutate?.(requests)
+    mocks.runQueuedMutation.mockResolvedValueOnce({ results: [{ index: 0, status: 'Success', habitId: requests[0]!.habitId, error: null }] })
+    const response = await mutation.mutationFn(requests)
+    advanceAccountGeneration()
+    client.setQueryData(key, [makeHabit({ id: 'new-account-habit', dueDate: today, scheduledDates: [today], isCompleted: true, isLoggedInRange: true })])
+    try {
+      await Promise.resolve(mutation.onSuccess?.(response, requests, context))
+      expect(store.getState().activeCelebration).toBeNull()
+      expect(store.getState().allDoneCelebratedDate).toBe('')
+    } finally {
+      mocks.useRealUIStore = false
+      client.clear()
+    }
+  })
+
   it.each([1, 3])('celebrates %i confirmed skips once and ignores a later added habit', async (count) => {
     const { useUIStore: store } = await vi.importActual<typeof import('@/stores/ui-store')>('@/stores/ui-store')
     store.setState({ activeCelebration: null, queuedCelebrations: [], allDoneCelebratedDate: '' })
