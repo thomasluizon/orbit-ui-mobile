@@ -1,5 +1,7 @@
 'use client'
 
+import { RepeatReminderDetail } from './repeat-reminder-detail'
+
 import { IconButton } from '@/components/ui/icon-button'
 
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -65,6 +67,7 @@ import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DayCell } from '@/components/dates/day-cell'
+import { DayColumnContent } from '@/components/dates/day-column-content'
 import { DayStrip } from '@/components/dates/day-strip'
 import { ErrorState } from '@/components/ui/error-state'
 import { ListRow } from '@/components/ui/list-row'
@@ -222,7 +225,7 @@ function HistoryLoading() {
   const t = useTranslations()
   const locale = useLocale()
   return <MonthGrid weekdayLabels={formatWeekdayLabels(locale, 1)} gap={4} loadingLabel={t('habits.detail.loading')}>
-    {Array.from({ length: 42 }, (_, index) => <div key={index} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}><Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></div>)}
+    {Array.from({ length: 42 }, (_, index) => <div key={index} className="flex justify-center" style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}><DayColumnContent><span style={{ width: 34, flexShrink: 0 }}><Skeleton variant="grid" circular rows={1} cols={1} cell={34} gap={0} grouped /></span></DayColumnContent></div>)}
   </MonthGrid>
 }
 
@@ -274,7 +277,7 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
                 className="inline-flex min-h-[var(--month-grid-touch-min)] w-full items-center justify-center font-[var(--font-mono)] text-sm tabular-nums text-[var(--fg-3)]"
                 style={{ opacity: day.outsideMonth ? 0 : 1 }}
               >
-                {day.day}
+                <DayColumnContent><span data-day-history-numeral="" className="inline-flex size-[34px] shrink-0 items-center justify-center">{day.day}</span></DayColumnContent>
               </span>
             )
           }
@@ -656,6 +659,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
         <HabitDueDate habit={habit} language={language} />
       </div>
+      {habit.repeatReminder || habit.nextReminderAtUtc ? <RepeatReminderDetail habit={habit} logs={logs} /> : null}
       <HabitChecklist items={habit.checklistItems} interactive onToggle={(index) => void toggleChecklist(index)} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} />
       {children.length > 0 ? <Surface>
         <SectionTitle>{t('habits.detail.inside')}</SectionTitle>

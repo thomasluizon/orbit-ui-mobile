@@ -8,6 +8,7 @@ interface ChatClientContextOptions {
   uses24HourClock?: boolean
   messageOrigin?: ChatClientContext['messageOrigin']
   entryPointIntent?: ChatClientContext['entryPointIntent']
+  previousStartingStep?: ChatClientContext['previousStartingStep']
 }
 
 export function buildChatClientContext({
@@ -16,6 +17,7 @@ export function buildChatClientContext({
   uses24HourClock,
   messageOrigin,
   entryPointIntent,
+  previousStartingStep,
 }: ChatClientContextOptions): ChatClientContext {
   return {
     platform,
@@ -25,6 +27,7 @@ export function buildChatClientContext({
     supportsHabitListCard: true,
     supportsHabitListDoneStatus: true,
     supportsDatedHabitListCard: true,
+    supportsSkippedHabitRows: true,
     supportsHabitHistoryCard: true,
     supportsGoalListCard: true,
     supportsMetricsCard: true,
@@ -35,12 +38,16 @@ export function buildChatClientContext({
     supportsRecordListCard: true,
     supportsAccountRowsCard: true,
     supportsPendingOperationChanges: true,
+    supportsPendingOperationPlacement: true,
     supportsToolSteps: true,
     supportsFollowUps: true,
     supportsFollowUpContext: true,
+    supportsStartingStepContext: true,
     supportsMessageAllowance: true,
+    supportsCompletedHabitsMetric: true,
     supportsParts: true,
     partKinds: [...CHAT_BLOCK_KINDS],
+    ...(previousStartingStep ? { previousStartingStep } : {}),
     ...(messageOrigin ? { messageOrigin } : {}),
     ...(entryPointIntent ? { entryPointIntent } : {}),
   }

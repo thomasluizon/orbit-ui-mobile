@@ -3,6 +3,11 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SegmentedControlProps } from '@orbit/shared/contracts/navigation'
+import { NextIntlClientProvider } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { HabitViewSwitch } from '@/components/today/habit-view-switch'
+import { useUIStore } from '@/stores/ui-store'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 
 const options = [
@@ -267,4 +272,30 @@ describe('synchronous keyboard navigation', () => {
     expect(last).toHaveAttribute('aria-checked', 'true')
     expect(onChange.mock.calls).toEqual([['active'], ['completed']])
   })
+})
+
+function StoredView() {
+  const value = useUIStore((state) => state.activeView)
+  const onChange = useUIStore((state) => state.setActiveView)
+  return <HabitViewSwitch value={value} onChange={onChange} />
+}
+
+it('keeps activeView when selecting in a folded menu and changing locale back to segments', async () => {
+  let width = 100
+  const geometry = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    return new DOMRect(0, 0, this.hasAttribute('data-segmented-control') ? width : 0, 20)
+  })
+  useUIStore.setState({ activeView: 'today' })
+  const user = userEvent.setup()
+  const { rerender } = render(<NextIntlClientProvider locale="en" messages={en}><StoredView /></NextIntlClientProvider>)
+  try {
+    await user.click(screen.getByRole('button', { name: `${en.habits.viewsLabel}: ${en.habits.viewToday}` }))
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: en.habits.viewGeneral, checked: false }))
+    await waitFor(() => expect(useUIStore.getState().activeView).toBe('general'))
+    expect(screen.getByRole('button', { name: `${en.habits.viewsLabel}: ${en.habits.viewGeneral}` })).toBeInTheDocument()
+    width = 400
+    rerender(<NextIntlClientProvider locale="pt-BR" messages={ptBR}><StoredView /></NextIntlClientProvider>)
+    expect(screen.getByRole('radio', { name: ptBR.habits.viewGeneral, checked: true })).toBeInTheDocument()
+    expect(useUIStore.getState().activeView).toBe('general')
+  } finally { geometry.mockRestore(); useUIStore.setState({ activeView: 'today' }) }
 })

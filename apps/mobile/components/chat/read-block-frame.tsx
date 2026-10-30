@@ -1,9 +1,10 @@
+import { ConversationCrossfade } from './conversation-motion'
 import { IconButton } from '@/components/ui/icon-button'
 import { ChevronDown, RefreshCw } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { Text } from 'react-native'
 import { API } from '@orbit/shared/api'
-import { readBlockResponseSchema } from '@orbit/shared/types/chat'
+import { gamificationReadBlockResponseSchema, habitMonthReadBlockResponseSchema, readBlockResponseSchema } from '@orbit/shared/types/chat'
 import { apiClient } from '@/lib/api-client'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -17,8 +18,10 @@ import { BlockFrame as Frame } from '@/components/ui/block-frame'
 
 const useReadBlockSession = createUseReadBlockSession({
   useState, useRef, useEffect, getAccountGeneration, platform: 'mobile',
-  refresh: async (token, clientContext, page, isCurrent) => {
+  refresh: async (token, clientContext, page, isCurrent, kind) => {
     try {
+      if (kind === 'gamification') return await apiClient(API.chat.refreshGamification, { method: 'POST', body: JSON.stringify({ token, clientContext }), isCurrent, silent: true }, gamificationReadBlockResponseSchema)
+      if (kind === 'habitMonth') return await apiClient(API.chat.refreshHabitMonth, { method: 'POST', body: JSON.stringify({ token, clientContext }), isCurrent, silent: true }, habitMonthReadBlockResponseSchema)
       return await apiClient(API.chat.refreshRead, { method: 'POST', body: JSON.stringify({ token, clientContext, page }), isCurrent, silent: true }, readBlockResponseSchema)
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') throw new Error(error.code)
@@ -40,12 +43,13 @@ function ReadBlockSession({ snapshot: initial, children }: ReadBlockBoundaryProp
   const { profile } = useProfile()
   const actionScope = { ready: profile != null, timeZone: profile?.timeZone ?? null }
   const context = useReadBlockSession(initial, locale, actionScope)
-  return <ReadContext.Provider value={context}>{children(context.snapshot)}</ReadContext.Provider>
+  return <ReadContext.Provider value={context}><ConversationCrossfade changeKey={String(context.snapshot.read.revision)}>{children(context.snapshot)}</ConversationCrossfade></ReadContext.Provider>
 }
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
+  const { t } = useTranslation()
   const context = useContext(ReadContext)
-  return context ? <QueryBlockFrame props={props} context={context} /> : <Frame {...props} />
+  return context ? <QueryBlockFrame props={props} context={context} /> : <Frame {...(props.state === 'stale' ? { ...props, staleMessage: t('chat.liveBlock.unavailable') } : props)} onRefresh={undefined} />
 }
 
 function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; context: ReadBlockState }>) {
@@ -53,11 +57,11 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
   const locale = i18n.language
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { snapshot, pending, failure, run } = context
-  const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure)
+  const { snapshot, pending, failure, stale, run } = context
+  const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure, stale)
   const actions = <>
-    {canPage ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
-    <IconButton label={t('blockFrame.refresh')} disabled={pending} onClick={() => { void run(false) }}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+    {snapshot.kind === 'gamification' ? <IconButton label={t('blockFrame.refresh')} disabled={pending} onClick={() => { void run(false) }}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
+    {canPage && snapshot.kind !== 'gamification' ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
     {props.actions}
   </>
   const body = <>{window ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{formatReadWindow(window, locale)}</Text> : null}{message && state !== 'stale' ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: 14 }}>{t(message)}</Text> : null}{props.body}</>

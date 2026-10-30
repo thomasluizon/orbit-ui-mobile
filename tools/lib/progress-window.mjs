@@ -1,7 +1,10 @@
-import { readFileSync } from "node:fs"
-import { openSessionChain } from "./session-chain.mjs"
+import { createReadStream, existsSync, readFileSync, readdirSync } from "node:fs"
+import { dirname, join, resolve } from "node:path"
+import { homedir } from "node:os"
+import { createInterface } from "node:readline"
+import { openSessionChain, readSessionChain } from "./session-chain.mjs"
 import { readSessionMetrics } from "./session-context.mjs"
-import { readRunState } from "./run-state.mjs"
+import { gitDirectoryOf, readRunState } from "./run-state.mjs"
 
 const timestamp = (value, label) => {
   const milliseconds = typeof value === "string" ? Date.parse(value) : NaN
@@ -9,7 +12,80 @@ const timestamp = (value, label) => {
   return milliseconds
 }
 
-const progressEntries = async ({ sessionId, repoRoot, transcriptPath, now }) => {
+const transcriptDirectories = (repoRoot, transcriptPath) => {
+  const gitDirectory = gitDirectoryOf(repoRoot)
+  const commonMarker = join(gitDirectory, "commondir")
+  const projectRoot = existsSync(commonMarker)
+    ? dirname(resolve(gitDirectory, readFileSync(commonMarker, "utf8").trim())) : repoRoot
+  return [...new Set([
+    ...(transcriptPath ? [dirname(resolve(transcriptPath))] : []),
+    ...[projectRoot, repoRoot, process.env.CLAUDE_PROJECT_DIR].filter(Boolean).map((root) =>
+      join(homedir(), ".claude", "projects", resolve(root).replace(/[^A-Za-z0-9]/g, "-"))),
+  ])]
+}
+
+const readTranscript = async (path, visit) => {
+  const stream = createReadStream(path, { encoding: "utf8" })
+  const lines = createInterface({ input: stream, crlfDelay: Infinity })
+  stream.on("error", () => lines.close())
+  for await (const line of lines) {
+    let row
+    try { row = JSON.parse(line) } catch { continue }
+    if (typeof row.timestamp === "string" && Number.isFinite(Date.parse(row.timestamp))) visit(row)
+  }
+  if (stream.errored) throw stream.errored
+}
+
+const ownerPrompt = (row) => row.type === "user" && !row.isMeta && !row.isSidechain &&
+  row.origin?.kind === "human" && row.turnOrigin === "human"
+
+const ownerProgress = (row) => ownerPrompt(row) && typeof row.message?.content === "string" &&
+  /^<command-message>progress<\/command-message>\s*<command-name>\/progress<\/command-name>(?:\s|$)/.test(row.message.content)
+
+const projectSessions = async (directories, now) => {
+  const sessions = []
+  const invocations = new Map()
+  const transcripts = directories.flatMap((directory) => existsSync(directory)
+    ? readdirSync(directory, { withFileTypes: true }).filter((file) => file.isFile() && file.name.endsWith(".jsonl"))
+      .map((file) => ({ sessionId: file.name.slice(0, -6), transcriptPath: join(directory, file.name) })) : [])
+  for (const transcript of transcripts) {
+    const session = { ...transcript, startedAt: null, endedAt: null }
+    await readTranscript(session.transcriptPath, (row) => {
+      if (Date.parse(row.timestamp) > Date.parse(now)) return
+      if (!session.startedAt || Date.parse(row.timestamp) < Date.parse(session.startedAt)) session.startedAt = row.timestamp
+      if (!session.endedAt || Date.parse(row.timestamp) > Date.parse(session.endedAt)) session.endedAt = row.timestamp
+      if (ownerPrompt(row) && (!session.lastOwnerTime || Date.parse(row.timestamp) >= Date.parse(session.lastOwnerTime))) {
+        session.lastOwnerTime = row.timestamp
+        session.lastOwnerProgress = ownerProgress(row)
+      }
+      if (!ownerProgress(row)) return
+      const key = `${session.sessionId}:${row.promptId ?? row.uuid}`
+      const previous = invocations.get(key)
+      if (!previous || Date.parse(row.timestamp) < Date.parse(previous.time)) {
+        invocations.set(key, { sessionId: session.sessionId, time: row.timestamp })
+      }
+    })
+    if (session.startedAt) sessions.push(session)
+  }
+  return { sessions, commands: [...invocations.values()].sort((left, right) => Date.parse(left.time) - Date.parse(right.time)) }
+}
+
+const conversationInWindow = async (path, startedAt, now) => {
+  const turns = []
+  if (!path) return turns
+  await readTranscript(path, (row) => {
+    if (Date.parse(row.timestamp) < Date.parse(startedAt) || Date.parse(row.timestamp) > Date.parse(now) ||
+      row.isMeta || row.isSidechain || !(ownerPrompt(row) || row.type === "assistant")) return
+    const content = row.message?.content
+    const text = typeof content === "string" ? content : Array.isArray(content)
+      ? content.filter((block) => block.type === "text" && typeof block.text === "string").map((block) => block.text).join("\n") : ""
+    if (text) turns.push({ time: row.timestamp, role: row.type,
+      text: text.length > 1500 ? text.slice(0, 1500) + "\n[truncated]" : text })
+  })
+  return turns
+}
+
+const chainEntries = async ({ sessionId, repoRoot, transcriptPath, now }) => {
   const chain = openSessionChain(sessionId, repoRoot)
   now ??= new Date().toISOString()
   const currentSessionId = chain?.currentSessionId ?? sessionId
@@ -40,6 +116,46 @@ const progressEntries = async ({ sessionId, repoRoot, transcriptPath, now }) => 
   }))
 }
 
+const progressEntries = async ({ sessionId, repoRoot, transcriptPath, transcriptsDirectory, now }) => {
+  const chain = await chainEntries({ sessionId, repoRoot, transcriptPath, now })
+  now = chain?.at(-1).endedAt ?? now ?? new Date().toISOString()
+  const state = readRunState(repoRoot)
+  const currentSessionId = chain?.at(-1).sessionId ?? sessionId
+  transcriptPath ??= state?.sessionId === currentSessionId ? state.transcriptPath ?? state.relay?.transcriptPath : undefined
+  const project = await projectSessions(transcriptsDirectory ? [transcriptsDirectory] : transcriptDirectories(repoRoot, transcriptPath), now)
+  const latest = project.commands.at(-1)
+  const currentInvocation = project.commands.findLast((command) => command.sessionId === currentSessionId)
+  // A nested skill call has no owner command of its own to skip.
+  const currentCommand = currentInvocation &&
+    project.sessions.find((entry) => entry.sessionId === currentSessionId)?.lastOwnerProgress
+  const previous = currentCommand
+    ? project.commands.findLast((command) => Date.parse(command.time) < Date.parse(currentInvocation.time)) : latest
+  const baselineTime = previous?.time ?? chain?.[0].startedAt ?? project.sessions.find((entry) => entry.sessionId === currentSessionId)?.startedAt
+  if (!baselineTime) return null
+  const startedAt = new Date(baselineTime).toISOString()
+  const baselineSource = previous ? "previous-progress" : openSessionChain(sessionId, repoRoot) ? "chain-start" : "session-start"
+  const recorded = readSessionChain(repoRoot).chains.flatMap((entry) => entry.entries)
+  const candidates = new Map(recorded.map((entry) => [entry.sessionId, entry]))
+  for (const entry of project.sessions) candidates.set(entry.sessionId, { ...candidates.get(entry.sessionId), ...entry })
+  for (const entry of chain ?? []) candidates.set(entry.sessionId, { ...candidates.get(entry.sessionId), ...entry })
+  const entries = []
+  for (const entry of candidates.values()) {
+    if (Date.parse(entry.startedAt) > Date.parse(now) || Date.parse(entry.endedAt) < Date.parse(startedAt)) continue
+    entries.push({ ...entry, startedAt: Date.parse(entry.startedAt) < Date.parse(startedAt) ? startedAt : entry.startedAt,
+      endedAt: Date.parse(entry.endedAt) > Date.parse(now) ? now : entry.endedAt,
+      decisions: entry.decisions ?? "", openOwnerQuestions: entry.openOwnerQuestions ?? [],
+      ...(entry.decisions ? {} : { conversation: await conversationInWindow(entry.transcriptPath, startedAt, now) }),
+      merges: [], releases: [], closedTickets: [], createdTickets: [] })
+  }
+  entries.sort((left, right) => Date.parse(left.startedAt) - Date.parse(right.startedAt))
+  const current = entries.findIndex((entry) => entry.sessionId === currentSessionId)
+  if (current >= 0) {
+    entries[current].endedAt = now
+    entries.push(...entries.splice(current, 1))
+  }
+  return { entries, startedAt, now, baselineSource, currentSessionId }
+}
+
 const releaseSelection = (run, workflow) => {
   const android = /^Android Release (\S+) \((\d+)\) to (internal|open|production) on (.+)$/.exec(run.display_title)
   const release = /^Release (?:web|API|landing) (production|staging) from (.+)$/.exec(run.display_title)
@@ -50,13 +166,20 @@ const releaseSelection = (run, workflow) => {
     version: null, versionCode: null }
 }
 
-const assign = (entries, kind, item, time, now) => {
+const assign = (entries, kind, item, time, now, startedAt) => {
   const instant = timestamp(time, `${kind} time`)
-  if (instant < timestamp(entries[0].startedAt, "window start") || instant > timestamp(now, "now")) return
+  if (instant < timestamp(startedAt, "window start") || instant > timestamp(now, "now")) return
   // The successor owns the shared boundary; a relay can overlap while it starts up.
-  const owner = entries.findLast((entry) => instant >= timestamp(entry.startedAt, "entry start") &&
+  let owner = entries.findLast((entry) => instant >= timestamp(entry.startedAt, "entry start") &&
     instant <= timestamp(entry.endedAt, "entry end"))
-  if (!owner) throw new Error(`${kind} at ${time} has no chain entry`)
+  if (!owner) {
+    owner = entries.find((entry) => entry.sessionId === null)
+    if (!owner) {
+      owner = { sessionId: null, startedAt, endedAt: now, decisions: "", openOwnerQuestions: [], conversation: [],
+        merges: [], releases: [], closedTickets: [], createdTickets: [] }
+      entries.unshift(owner)
+    }
+  }
   if (!owner[kind].some((existing) => existing.repository === item.repository && existing.id === item.id)) {
     owner[kind].push(item)
   }
@@ -64,35 +187,36 @@ const assign = (entries, kind, item, time, now) => {
 
 const pullProjection = "[.[]|{number,title,body,base:{ref:.base.ref},merge_commit_sha,merged_at,html_url}]"
 const runProjection = "{total_count,workflow_runs:[.workflow_runs[]|{id,display_title,head_branch,conclusion,status,created_at,updated_at,html_url}]}"
-const ticketProjection = "[.[]|{number,title,body,closed_at,state_reason,html_url}]"
+const ticketProjection = "[.[]|{number,title,body,created_at,closed_at,state_reason,html_url,pull_request}]"
 
-export const collectProgressWindow = async ({ sessionId, repoRoot, transcriptPath, now, repositories, ticketRepository, readPages }) => {
-  const entries = await progressEntries({ sessionId, repoRoot, transcriptPath, now })
-  if (!entries) return { baseline: "unavailable", sessionId, window: null, entries: [] }
-  now = entries.at(-1).endedAt
-  const startedAt = entries[0].startedAt
+export const collectProgressWindow = async ({ sessionId, repoRoot, transcriptPath, now, repositories, ticketRepository, readPages, transcriptsDirectory }) => {
+  const progress = await progressEntries({ sessionId, repoRoot, transcriptPath, transcriptsDirectory, now })
+  if (!progress) return { baseline: "unavailable", sessionId, window: null, entries: [] }
+  const { entries, startedAt, baselineSource, currentSessionId } = progress
+  now = progress.now
   const sources = repositories.flatMap(({ key, slug }) => [
     { repository: key, kind: "merges", path: `repos/${slug}/pulls?state=closed&per_page=100`, projection: pullProjection },
     ...["release.yml", ...(key === "ui" ? ["android-release.yml"] : [])].map((workflow) => ({
-      repository: key, kind: "releases", workflow, projection: runProjection,
+      repository: key, slug, kind: "releases", workflow, projection: runProjection,
+      createdSince: `>=${new Date(startedAt).toISOString().slice(0, 10)}`,
       path: `repos/${slug}/actions/workflows/${workflow}/runs?per_page=100&created=${encodeURIComponent(`>=${new Date(startedAt).toISOString().slice(0, 10)}`)}`,
     })),
   ])
   sources.push({ repository: ticketRepository, kind: "closedTickets", projection: ticketProjection,
-    path: `repos/${ticketRepository}/issues?state=closed&per_page=100&since=${encodeURIComponent(startedAt)}` })
+    path: `repos/${ticketRepository}/issues?state=all&per_page=100&since=${encodeURIComponent(startedAt)}` })
   const results = await Promise.allSettled(sources.map(async (source) => ({ source,
-    pages: await readPages(source.path, source.projection) })))
+    pages: await readPages(source.path, source.projection, source) })))
   for (const result of results) {
     if (result.status === "rejected") throw result.reason
-    collectSource(entries, result.value.source, result.value.pages, now)
+    collectSource(entries, result.value.source, result.value.pages, now, startedAt)
   }
   for (const entry of entries) {
-    for (const kind of ["merges", "releases", "closedTickets"]) entry[kind].sort((left, right) => left.time.localeCompare(right.time) || left.id - right.id)
+    for (const kind of ["merges", "releases", "closedTickets", "createdTickets"]) entry[kind].sort((left, right) => left.time.localeCompare(right.time) || left.id - right.id)
   }
-  return { baseline: "available", sessionId: entries.at(-1).sessionId, window: { startedAt, endedAt: now }, entries }
+  return { baseline: "available", baselineSource, sessionId: currentSessionId, window: { startedAt, endedAt: now, localStartedAt: new Date(startedAt).toLocaleString(undefined, { timeZoneName: "short" }) }, entries }
 }
 
-const collectSource = (entries, source, pages, now) => {
+const collectSource = (entries, source, pages, now, startedAt) => {
   if (!Array.isArray(pages) || pages.length === 0) throw new Error(`missing pages from ${source.path}`)
   if (source.kind === "releases") {
     if (pages.some((page) => !Number.isInteger(page?.total_count) || !Array.isArray(page.workflow_runs)) ||
@@ -111,16 +235,20 @@ const collectSource = (entries, source, pages, now) => {
       if (row.merged_at === null) continue
       if (typeof row.base?.ref !== "string" || typeof row.merge_commit_sha !== "string") throw new Error(`invalid merged pull request at ${source.path}`)
       assign(entries, source.kind, { repository: source.repository, id: row.number, title: row.title, body: row.body,
-        baseBranch: row.base.ref, mergeSha: row.merge_commit_sha, time: row.merged_at, url: row.html_url }, row.merged_at, now)
+        baseBranch: row.base.ref, mergeSha: row.merge_commit_sha, time: row.merged_at, url: row.html_url }, row.merged_at, now, startedAt)
     } else if (source.kind === "releases") {
       if (typeof row.display_title !== "string" || typeof row.head_branch !== "string" ||
         typeof row.status !== "string" || !(row.conclusion === null || typeof row.conclusion === "string")) throw new Error(`invalid workflow run at ${source.path}`)
       assign(entries, source.kind, { repository: source.repository, id: row.id, workflow: source.workflow,
         title: row.display_title, ...releaseSelection(row, source.workflow), dispatchBranch: row.head_branch,
-        conclusion: row.conclusion, status: row.status, time: row.created_at, updatedAt: row.updated_at, url: row.html_url }, row.created_at, now)
+        conclusion: row.conclusion, status: row.status, time: row.created_at, updatedAt: row.updated_at, url: row.html_url }, row.created_at, now, startedAt)
     } else {
+      if (row.pull_request) continue
+      assign(entries, "createdTickets", { repository: source.repository, id: row.number, title: row.title, body: row.body,
+        time: row.created_at, url: row.html_url }, row.created_at, now, startedAt)
+      if (row.closed_at === null) continue
       assign(entries, source.kind, { repository: source.repository, id: row.number, title: row.title, body: row.body,
-        reason: row.state_reason, time: row.closed_at, url: row.html_url }, row.closed_at, now)
+        reason: row.state_reason, time: row.closed_at, url: row.html_url }, row.closed_at, now, startedAt)
     }
   }
 }

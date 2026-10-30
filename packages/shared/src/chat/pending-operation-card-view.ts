@@ -1,5 +1,6 @@
 import { pendingOperationSubHabits } from './pending-operation-sub-habits'
-import type { AgentOperationResult, PendingAgentOperation, PendingOperationChange, PendingOperationItem, PendingOperationFieldOptions } from '../types/ai'
+import { groupPendingOperationItems } from './pending-operation-item-groups'
+import type { AgentOperationResult, HabitPlacement, PendingAgentOperation, PendingOperationChange, PendingOperationItem, PendingOperationFieldOptions, PendingOperationPlacement } from '../types/ai'
 import type {
   PendingOperationCardStatus,
   PreparedPendingOperationStepUp,
@@ -11,6 +12,7 @@ import type { PendingOperationCardLabels } from './pending-operation-card'
 import { getActionChipNavigation } from './action-chips'
 
 export interface PreviewItemTitleProps {
+  meta?: string
   title: string
   icon?: string
   proposed?: boolean
@@ -78,6 +80,7 @@ interface PendingOperationFrameBase<Node> {
   count?: number
   items: readonly {
     id: string
+    groupHeading?: string
     label: string | Node
     meta: string
     status: PendingOperationCardStatus
@@ -111,6 +114,7 @@ export interface PendingOperationCardRenderers<Node> {
   verification: (props: PendingOperationVerificationProps) => Node
   editSheet: (props: PendingOperationEditSheetProps) => Node
   parentChoice: (props: { itemId: string; focusRequest?: number; shouldFocus?: () => boolean; itemName: string; field: PendingOperationFieldOptions; labels: PendingOperationCardLabels; disabled: boolean; onSelect: (value: unknown, ownsFocus?: () => boolean) => void }) => Node
+  placementChoice: (props: { itemId: string; itemName: string; placement: PendingOperationPlacement; labels: PendingOperationCardLabels; disabled: boolean; busy: boolean; onSelect: (value: HabitPlacement) => void }) => Node
   removeItem: (label: string, disabled: boolean, onClick: () => void) => Node
   notice: (message: string) => Node
   fragment: (...children: (Node | null | undefined)[]) => Node
@@ -158,6 +162,7 @@ export interface PendingOperationCardActions {
     saveEdit: () => Promise<boolean>
     hasRequiredChoices?: boolean
     chooseParent?: (itemId: string, value: unknown, ownsFocus?: () => boolean) => Promise<boolean>
+    switchPlacement?: (itemId: string, value: HabitPlacement) => Promise<boolean>
     hasTitleDrafts?: boolean
     setTitleDraft?: (itemId: string, title: string | undefined) => void
     renameItem?: (itemId: string, title: string) => Promise<boolean>
@@ -168,7 +173,7 @@ export interface PendingOperationCardActions {
 }
 
 type CardRevision = NonNullable<PendingOperationCardActions['revision']>
-type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'fields' | 'removesData' | 'fieldOptions'>
+type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'entityEmoji' | 'habitType' | 'fields' | 'removesData' | 'fieldOptions' | 'placement'>
 
 const NAVIGABLE_OPERATION_ACTIONS: Readonly<Record<string, string | null>> = {
   create_habit: 'CreateHabit', update_habit: 'UpdateHabit', create_sub_habit: 'CreateSubHabit',
@@ -259,6 +264,7 @@ function pendingActions<Node>(
   })
   const approve = render.button({
     label: labels.approve(count),
+    accessibleName: labels.approveName?.(count),
     focusRequest: card.hasRequiredChoices ? undefined : card.parentChoiceFocus?.request,
     shouldFocus: card.parentChoiceFocus?.shouldFocus,
     hint: card.hasRequiredChoices ? labels.parentChoiceRequired : undefined,
@@ -301,6 +307,22 @@ function parentChoiceBody<Node>(
   })
 }
 
+function previewItemBody<Node>(
+  item: PreviewItem, parentChoice: PendingOperationFieldOptions | undefined, firstParentChoiceId: string | undefined,
+  card: PendingOperationCardActions, labels: PendingOperationCardLabels, render: PendingOperationCardRenderers<Node>,
+): Node | undefined {
+  const parent = parentChoiceBody(item, parentChoice, firstParentChoiceId, card, labels, render)
+  if (!item.placement || card.status != null) return parent
+  const revision = card.revision
+  return render.fragment(parent, render.placementChoice({
+    itemId: item.itemId, itemName: item.entityName, placement: item.placement, labels,
+    busy: card.busy || revision?.busy === true,
+    disabled: card.busy || !revision?.canRevise || revision.busy || revision.stale
+      || revision.hasTitleDrafts === true || Boolean(revision.editingItem),
+    onSelect: (value) => { void revision?.switchPlacement?.(item.itemId, value) },
+  }))
+}
+
 function previewRows<Node>(
   pendingOperation: PendingAgentOperation,
   card: PendingOperationCardActions,
@@ -313,23 +335,26 @@ function previewRows<Node>(
   const firstParentChoiceId = items.find((item) => item.fieldOptions?.some((field) => field.field === 'parent_habit_id'))?.itemId
   const results = getPendingOperationItemResults(card.completedOperation)
   const resultsByIndex = new Map(results?.map((result) => [result.index, result]))
-  const rows: PendingOperationFrame<Node>['items'][number][] = items.flatMap((item, index) => {
+  const groups = groupPendingOperationItems(items.map((item, index) => ({ item, index, habitType: item.habitType })))
+    .map(group => ({ ...group, heading: group.habitType ? labels.itemGroup(group.habitType) : undefined }))
+  const rows: PendingOperationFrame<Node>['items'][number][] = groups.flatMap(group => group.items.flatMap(({ item, index }, groupIndex) => {
     const result = resultsByIndex.get(index)
     const status: PendingOperationCardStatus = result ? result.status === 'Success' ? 'done' : 'failed'
       : results || card.status === 'failed' ? undefined : card.status
     const edited = revision?.editedItemIds.includes(item.itemId) === true
     const parentChoice = item.fieldOptions?.find((field) => field.field === 'parent_habit_id')
-    const summary = labels.summarize(item.fields.filter((field) => !parentChoice || field.field !== 'parent_habit_id')) || labels.pending
+    const summary = placementSummary(item, pendingOperation, labels, Boolean(parentChoice))
     const parent: PendingOperationFrame<Node>['items'][number] = {
       id: item.itemId,
+      groupHeading: groupIndex === 0 ? group.heading : undefined,
       label: item.fields.find((field) => ['title', 'name'].includes(field.field))?.newValue || item.entityName || labels.name,
-      icon: item.fields.find((field) => field.field === 'emoji')?.newValue ?? undefined,
+      icon: item.fields.find((field) => field.field === 'emoji')?.newValue || item.entityEmoji || undefined,
       rename: revision?.canRevise && revision.renameItem && card.status == null && !revision.stale
         && item.fields.some((field) => field.field === 'title' && isPendingOperationEditableField(field))
         ? { label: labels.fieldLabels.title!, disabled: card.busy || revision.busy,
             onSave: (title: string) => revision.renameItem!(item.itemId, title),
             onDraftChange: (title: string | undefined) => revision.setTitleDraft?.(item.itemId, title) } : undefined,
-      body: parentChoiceBody(item, parentChoice, firstParentChoiceId, card, labels, render),
+      body: previewItemBody(item, parentChoice, firstParentChoiceId, card, labels, render),
       meta: edited ? `${labels.edited} · ${summary}` : summary,
       status,
       irreversible: item.removesData === true && card.status == null,
@@ -341,7 +366,7 @@ function previewRows<Node>(
         ? itemControl(item, items.length, revision, card, labels, render, status, result?.habitId)
         : completedTargetControl(result?.habitId ?? (items.length === 1 ? card.completedOperation?.targetId ?? item.entityId : item.entityId), item.entityName, card, labels, render, status),
     }
-    return [parent, ...pendingOperationSubHabits(item.fields).map((child, childIndex) => ({
+    return [parent, ...(item.placement?.selected === 'checklist_item' ? [] : pendingOperationSubHabits(item.fields)).map((child, childIndex) => ({
       id: `${item.itemId}-child-${childIndex}`, label: child.title,
       icon: child.fields.find((field) => field.field === 'emoji')?.newValue ?? undefined,
       meta: labels.summarize(child.fields, 'createHabit'), indented: true,
@@ -351,7 +376,7 @@ function previewRows<Node>(
         ? render.removeItem(`${labels.remove} ${child.title}`, card.busy || revision.busy,
           () => { void revision.rejectSubHabit!(item.itemId, childIndex) }) : undefined,
     }))]
-  })
+  }))
   const remaining = Math.max(0, (pendingOperation.changeTargetCount ?? items.length) - items.length)
   if (remaining > 0) rows.push({
     id: 'remaining', label: labels.more(remaining), meta: '', status: undefined,
@@ -360,13 +385,32 @@ function previewRows<Node>(
   return rows
 }
 
+const HABIT_ONLY_PREVIEW_FIELDS = new Set([
+  'frequency_unit', 'frequency_quantity', 'is_bad_habit', 'is_general', 'is_flexible', 'parent_habit_id', 'checklist_items', 'sub_habits',
+  'days', 'due_date', 'due_time', 'due_end_time', 'end_date', 'reminder_enabled', 'reminder_times', 'scheduled_reminders', 'slip_alert_enabled',
+])
+
+function placementSummary(item: PreviewItem, operation: PendingAgentOperation, labels: PendingOperationCardLabels, parentChoice: boolean): string {
+  const placement = item.placement
+  const creating = operation.actionKey === 'applyAccountChanges' && operation.capabilityId === 'chat.changes'
+    && item.fields.some((field) => HABIT_ONLY_PREVIEW_FIELDS.has(field.field))
+    && !item.fields.some((field) => field.field === 'habit_id' || field.oldValue != null)
+  const summary = labels.summarize(item.fields.filter((field) => !(parentChoice || placement) || field.field !== 'parent_habit_id'), creating ? 'createHabit' : undefined)
+  if (!placement) return summary || labels.pending
+  const selected = labels.placementOption(placement.selected, placement.destinationName)
+  return placement.selected === 'checklist_item' || !summary ? selected : `${selected} · ${summary}`
+}
+
 function groupedChanges(changes: readonly PendingOperationChange[]): PreviewItem[] {
   const groups = new Map<string, PreviewItem>()
   for (const change of changes) {
     const item = groups.get(change.entityId)
-    if (item) item.fields.push(change)
+    if (item) {
+      item.fields.push(change)
+      item.entityEmoji ||= change.entityEmoji
+    }
     else groups.set(change.entityId, {
-      itemId: change.entityId, entityId: change.entityId, entityName: change.entityName,
+      itemId: change.entityId, entityId: change.entityId, entityName: change.entityName, entityEmoji: change.entityEmoji,
       fields: [change],
     })
   }

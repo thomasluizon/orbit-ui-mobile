@@ -54,6 +54,19 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Report Windows PowerShell version
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: $PSVersionTable
+      - name: Point the Windows App SDK download cache
+        if: runner.os == 'Windows'
+        run: echo "ORBIT_WINDOWS_DOWNLOAD_CACHE=$RUNNER_TEMP/windows-app-sdk-downloads" >> "$GITHUB_ENV"
+      - name: Cache Windows App SDK downloads
+        if: runner.os == 'Windows'
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.ORBIT_WINDOWS_DOWNLOAD_CACHE }}
+          key: ${{ runner.os }}-windows-app-sdk-${{ matrix.target }}-${{ hashFiles('apps/desktop/src-tauri/native/windows/downloads.json') }}
       - name: Install Rust and compilation target
         env:
           DESKTOP_TARGET: ${{ matrix.target }}
@@ -64,7 +77,7 @@ jobs:
         run: |
           npm run type-check -w @orbit/desktop
           npm run test -w @orbit/desktop
-          npm run test -w @orbit/web -- --project jsdom __tests__/lib/desktop-web-release.test.ts __tests__/components/desktop-release-boundary.test.tsx
+          npm run test -w @orbit/web -- --project jsdom __tests__/lib/desktop-web-release.test.ts __tests__/components/desktop-release-boundary.test.tsx __tests__/components/desktop-update-offer.test.tsx
       - name: Check target and test native context on the runner host
         env:
           DESKTOP_TARGET: ${{ matrix.target }}

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { PressableProps } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Svg, { Path } from 'react-native-svg'
-import type { BarChartPoint } from '@orbit/shared/contracts/display'
+import type { BarChartPoint, BarGeometry } from '@orbit/shared/contracts/display'
 import {
   BAR_CHART_HEIGHT,
   barChartPath,
@@ -16,11 +16,11 @@ import { useTranslation } from 'react-i18next'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-function BarChartColumn({ left, width, fillInsetInline, focused, tokens, ...targetProps }: Readonly<{
+function BarChartColumn({ left, width, bar, selected, tokens, ...targetProps }: Readonly<{
   left: number
   width: number
-  fillInsetInline: number
-  focused: boolean
+  bar?: BarGeometry
+  selected: boolean
   tokens: AppTokensV2
 } & Pick<PressableProps, 'accessibilityLabel' | 'accessibilityState' | 'onAccessibilityAction' | 'onPress' | 'onFocus' | 'onBlur'>>) {
   const [hovered, setHovered] = useState(false)
@@ -40,10 +40,13 @@ function BarChartColumn({ left, width, fillInsetInline, focused, tokens, ...targ
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         style={[styles.target, { left, width }]}
       >
-        {({ pressed }) => <>
-          <View testID="bar-chart-fill" pointerEvents="none" accessible={false} style={[styles.feedback, { left: fillInsetInline, right: fillInsetInline, backgroundColor: pressed || hovered ? tokens.bgHover : 'transparent' }]} />
-          {focused ? <View pointerEvents="none" accessible={false} style={[styles.focusRing, { left: fillInsetInline, right: fillInsetInline, borderWidth: Math.min(2, width / 2 - fillInsetInline), borderColor: tokens.fg1 }]} /> : null}
-        </>}
+        {({ pressed }) => bar ? <>
+          <View testID="bar-chart-fill" pointerEvents="none" accessible={false} style={[styles.feedback, { left: bar.x - left, top: bar.y, width: bar.width, height: bar.height, backgroundColor: 'transparent' }]}>
+            <Svg accessible={false} width="100%" height="100%" viewBox={`${bar.x} ${bar.y} ${bar.width} ${bar.height}`}>
+              <Path d={barChartPath(bar)} fill={selected || pressed || hovered ? tokens.fg1 : tokens.fg2} />
+            </Svg>
+          </View>
+        </> : null}
       </Pressable>
     </GestureDetector>
   )
@@ -69,7 +72,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
   if (points.length === 0) return null
   return (
     <View style={styles.container} testID="bar-chart">
-      <Text testID="bar-chart-readout" accessibilityLiveRegion="polite" onLayout={(event) => setReadoutWidth(event.nativeEvent.layout.width)} style={[styles.readout, { color: tokens.fg1, left: resolveBarChartReadout(width, readoutWidth, selectedIndex, points.length) }]}>
+      <Text testID="bar-chart-readout" accessibilityLiveRegion="polite" onLayout={(event) => setReadoutWidth(event.nativeEvent.layout.width)} style={[styles.readout, { color: tokens.fg1, left: resolveBarChartReadout(width, readoutWidth, selectedIndex, points.length) }, focused === null ? null : { borderColor: tokens.fg1 }]}>
         {describePoint(points[selectedIndex]!)}
       </Text>
       <View accessibilityRole="radiogroup" accessibilityLabel={label} onLayout={(event) => setWidth(event.nativeEvent.layout.width)} style={styles.plot} testID="bar-chart-control">
@@ -77,8 +80,8 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           key={point.startDate}
           left={index * width / points.length}
           width={width / points.length}
-          fillInsetInline={bars[index]?.fillInsetInline ?? 0}
-          focused={focused === index}
+          bar={bars[index]}
+          selected={index === selectedIndex}
           tokens={tokens}
           accessibilityLabel={describePoint(point)}
           accessibilityState={{ checked: index === selectedIndex }}
@@ -90,9 +93,6 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           onFocus={() => { setFocused(index); setSelectedDate(point.startDate) }}
           onBlur={() => setFocused(null)}
         />)}
-        <Svg style={styles.paint} accessible={false} pointerEvents="none" width="100%" height={BAR_CHART_HEIGHT} viewBox={`0 0 ${width || 1} ${BAR_CHART_HEIGHT}`}>
-          {bars.map((bar, index) => <Path key={points[index]!.startDate} d={barChartPath(bar)} fill={index === selectedIndex ? tokens.fg1 : tokens.fg2} />)}
-        </Svg>
       </View>
       <View style={styles.axis} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <Text style={[styles.axisLabel, { color: tokens.fg3 }]}>{points[0]!.dateLabel}</Text>
@@ -104,12 +104,10 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
 
 const styles = StyleSheet.create({
   container: { width: '100%', gap: 8 },
-  readout: { alignSelf: 'flex-start', maxWidth: '100%', fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, fontVariant: ['tabular-nums'] },
+  readout: { alignSelf: 'flex-start', maxWidth: '100%', padding: 8, borderRadius: 8, borderWidth: 2, borderColor: 'transparent', fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, fontVariant: ['tabular-nums'] },
   plot: { height: BAR_CHART_HEIGHT, width: '100%' },
-  feedback: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 8, overflow: 'hidden' },
-  paint: { position: 'absolute', top: 0, left: 0 },
+  feedback: { position: 'absolute' },
   target: { position: 'absolute', top: 0, height: BAR_CHART_HEIGHT },
-  focusRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   axis: { flexDirection: 'row', justifyContent: 'space-between' },
   axisLabel: { flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
 })

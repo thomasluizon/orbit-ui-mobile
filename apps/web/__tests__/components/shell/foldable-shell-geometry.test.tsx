@@ -9,9 +9,13 @@ import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
+import { AppToastHost } from '@/components/ui/app-toast-host'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { Composer } from '@/components/shell/composer'
 import { AppBar } from '@/components/ui/app-bar'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
+import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
+import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { ShellWide } from '@/components/shell/shell-wide'
@@ -41,9 +45,62 @@ describe('Foldable shell geometry', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([800, 840, 915, 1023, 1024, 1100])('caps the destination column and preserves its 16px gutters at %ipx', async (width) => {
+    const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+      header={<DestinationHeaderRow><NotificationBellDisplay count={12} onClick={vi.fn()} /></DestinationHeaderRow>}
+      composer={<Composer state="idle" value="" words={en.shell.composer} suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} />}
+      tabBar={<BottomTabBar label="Navigation" activeId="hoje" onSelect={vi.fn()} items={[]} />}>
+      <div data-content-probe="" className="px-4"><p>Habits</p></div>
+    </ShellWide>)
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const column = document.querySelector('[data-shell-column]')!.getBoundingClientRect()
+        const content = document.querySelector('[data-content-probe] p')!.getBoundingClientRect()
+        const bell = document.querySelector('[data-shell-header] button')!.getBoundingClientRect()
+        const composer = document.querySelector('[data-composer-content]')!.getBoundingClientRect()
+        const pinned = document.querySelector<HTMLElement>('[data-shell-pinned-slot]')!
+        const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+        return { width: column.width, left: column.left, right: column.right, contentLeft: content.left,
+          bellRight: bell.right, composerLeft: composer.left, composerWidth: composer.width,
+          pinnedLeft: pinned.getBoundingClientRect().left, pinnedWidth: pinned.clientWidth,
+          gutter: scroller.offsetWidth - scroller.clientWidth }
+      })
+      expect(geometry.width).toBeLessThanOrEqual(740)
+      expect(geometry.contentLeft - geometry.left).toBe(16)
+      expect(geometry.right - geometry.bellRight - geometry.gutter).toBe(16)
+      expect(geometry.composerWidth).toBe(Math.min(geometry.pinnedWidth, width < 1024 ? 740 - geometry.gutter : 740))
+      expect(geometry.composerLeft).toBe(geometry.pinnedLeft + (geometry.pinnedWidth - geometry.composerWidth) / 2)
+      if (width < 1024) expect(geometry.left).toBe((width - 740) / 2)
+    } finally { await page.close() }
+  })
+
+  it.each([412, 844])('keeps the page toast gutter inside asymmetric side insets at %ipx', async (width) => {
+    useAppToastStore.getState().showInfo('Saved')
+    const { container } = render(<AppToastHost placement="page" />)
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
+    try {
+      const session = await page.context().newCDPSession(page)
+      await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 24, bottom: 16, left: 28, right: 64 } })
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const host = document.querySelector('[data-toast-page-host]')!
+        const box = host.getBoundingClientRect()
+        const style = getComputedStyle(host)
+        return { left: box.left, width: box.width, paddingLeft: parseFloat(style.paddingLeft), paddingRight: parseFloat(style.paddingRight) }
+      })
+      const available = width - 28 - 64
+      expect(geometry.left).toBe(28 + (available - Math.min(available, 440)) / 2)
+      expect(geometry.width).toBe(Math.min(available, 440))
+      expect(geometry.paddingLeft).toBe(16)
+      expect(geometry.paddingRight).toBe(16)
+    } finally { await page.close(); useAppToastStore.setState({ currentToast: null, queue: [] }) }
+  })
+
   it.each([412, 1200, 1600])('centres the global failure block at %ipx', async (width) => {
     const markup = renderToStaticMarkup(<GlobalError error={new Error('failed')} reset={vi.fn()} />)
-    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${markup}`)
       const geometry = await page.evaluate(() => {
@@ -62,7 +119,7 @@ describe('Foldable shell geometry', () => {
 
   it.each([412, 480, 840, 1100, 1200, 1352, 1600])('centres the shared destination frame with its drawn cap at %ipx', async (width) => {
     const { container } = render(<ShellWide nav={false}><ProfileSettingsFrame isLoading={false} loadingLabel="Loading" labels={{}} rows={{}} /></ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -72,7 +129,7 @@ describe('Foldable shell geometry', () => {
         return { available: scroller.clientWidth, left: scroller.getBoundingClientRect().left,
           frameLeft: frame.left, frameWidth: frame.width, sectionWidth: section.width }
       })
-      expect(geometry.frameWidth).toBe(width < 1024 ? geometry.available : 592)
+      expect(geometry.frameWidth).toBe(width < 1024 ? Math.min(geometry.available, 740) : 592)
       expect(geometry.frameLeft).toBe(geometry.left + (geometry.available - geometry.frameWidth) / 2)
       expect(geometry.sectionWidth).toBe(geometry.frameWidth - 32)
     } finally { await page.close() }
@@ -82,6 +139,7 @@ describe('Foldable shell geometry', () => {
     ...[320, 412, 600].flatMap((width) => [0, 24].map((top) => ({ width, top, bottom: top ? 34 : 0, left: 0, right: 0 }))),
     { width: 412, top: 0, bottom: 21, left: 44, right: 44 },
     { width: 844, top: 0, bottom: 21, left: 44, right: 44 },
+    { width: 844, top: 24, bottom: 21, left: 28, right: 64 },
     { width: 844, top: 0, bottom: 0, left: 0, right: 0 },
   ])(
     'keeps compact shell chrome inside insets at $width with top $top', async ({ width, top, bottom, left, right }) => {
@@ -95,7 +153,7 @@ describe('Foldable shell geometry', () => {
         <div style={{ height: 1600 }}>Habits</div>
       </ShellWide>)
       await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
-      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
       try {
         const session = await page.context().newCDPSession(page)
         await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom, left, right } })
@@ -108,6 +166,18 @@ describe('Foldable shell geometry', () => {
         })
         expect(geometry.top).toBe(0)
         expect(geometry.bottom).toBe(915)
+        const surfaces = await page.evaluate(() => ['[data-shell="wide"]', '[data-shell-background]', '[data-shell-bottom]', '[data-shell-tab-bar]'].map(selector => {
+          const element = document.querySelector(selector)!
+          const box = element.getBoundingClientRect()
+          const style = getComputedStyle(element)
+          return { selector, left: box.left, width: box.width, paddingLeft: style.paddingLeft, paddingRight: style.paddingRight }
+        }))
+        for (const surface of surfaces) {
+          expect(surface.left, surface.selector).toBe(0)
+          expect(surface.width, surface.selector).toBe(width)
+          expect(surface.paddingLeft, surface.selector).toBe('0px')
+          expect(surface.paddingRight, surface.selector).toBe('0px')
+        }
         expect(geometry.controls).toHaveLength(6)
         expect(geometry.controls[0]!.top).toBe(top)
         for (const control of geometry.controls) {
@@ -120,28 +190,47 @@ describe('Foldable shell geometry', () => {
     },
   )
 
-  it.each([320, 412, 600, 1100].flatMap((width) => [24, 48].map((top) => ({ width, top }))))(
-    'applies one safe top inset to the full-screen conversation at $width with top $top', async ({ width, top }) => {
+  it.each([320, 412, 600, 844, 1024, 1100].flatMap((width) => [24, 48].map((top) => ({ width, top, left: 28, right: 64 }))))(
+    'applies one safe top inset to the full-screen conversation at $width with top $top', async ({ width, top, left, right }) => {
       const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
         astraRow={{ label: en.chat.title, onOpen: vi.fn() }} conversationOpen
         conversation={<div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <header style={{ minHeight: 56 }}>Astra</header>
+          <div data-conversation-header=""><AppBar title="Astra" action={<button type="button">Close</button>} /></div>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>Thread</div>
-          <div data-conversation-composer="" style={{ minHeight: 88 }}>Composer</div>
+          <Composer state="idle" value="" words={en.shell.composer} suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} />
         </div>} conversationLabel="Astra" tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
         <h1>Today</h1>
       </ShellWide>)
-      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
       try {
         const session = await page.context().newCDPSession(page)
-        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom: 34, left: 0, right: 0 } })
+        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom: 34, left, right } })
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.evaluate(() => {
           const layer = document.querySelector('[data-shell-conversation]')!.getBoundingClientRect()
           const header = document.querySelector('[data-shell-conversation] header')!.getBoundingClientRect()
-          const composer = document.querySelector('[data-conversation-composer]')!.getBoundingClientRect()
-          return { layerTop: layer.top, headerTop: header.top, bottom: layer.bottom, composerBottom: composer.bottom }
+          const composer = document.querySelector('[data-shell-conversation] [data-composer-root]')!.getBoundingClientRect()
+          const title = document.querySelector('[data-shell-conversation] h1')!.getBoundingClientRect()
+          const field = document.querySelector('[data-shell-conversation] textarea')!.getBoundingClientRect()
+          const controls = [...document.querySelectorAll('[data-shell-conversation] button, [data-shell-conversation] textarea')]
+            .map(element => ({ left: element.getBoundingClientRect().left, right: element.getBoundingClientRect().right }))
+          return { titleLeft: title.left, fieldLeft: field.left, fieldRight: field.right, layerTop: layer.top, headerTop: header.top, bottom: layer.bottom, composerBottom: composer.bottom,
+            layerLeft: layer.left, layerRight: layer.right, headerLeft: header.left, headerRight: header.right, composerLeft: composer.left, composerRight: composer.right, controls }
         })
+        for (const edge of [geometry.titleLeft, geometry.fieldLeft]) expect(edge).toBeGreaterThanOrEqual(left + 16)
+        expect(geometry.headerLeft).toBeGreaterThanOrEqual(left)
+        expect(geometry.headerRight).toBeLessThanOrEqual(width - right)
+        expect(geometry.fieldRight).toBeLessThanOrEqual(width - right - 16)
+        for (const control of geometry.controls) {
+          expect(control.left).toBeGreaterThanOrEqual(left)
+          expect(control.right).toBeLessThanOrEqual(width - right)
+        }
+        if (width < 1024) {
+          expect(geometry.layerLeft).toBe(0)
+          expect(geometry.layerRight).toBe(width)
+          expect(geometry.composerLeft).toBe(0)
+          expect(geometry.composerRight).toBe(width)
+        }
         expect(geometry.layerTop).toBe(width < 1024 ? 0 : Math.max(32, top))
         expect(geometry.headerTop).toBe(width < 1024 ? top : Math.max(32, top))
         expect(geometry.bottom).toBe(915)
@@ -157,7 +246,7 @@ describe('Foldable shell geometry', () => {
         header={destination === 'calendar' ? <div style={{ height: 48 }}>Calendar header</div> : undefined}>
         <div data-first-content="" style={{ paddingTop: destination === 'progress' ? 16 : 0 }}>Content</div>
       </ShellWide>)
-      const page = await browser.newPage({ viewport: { width: 1352, height: 915 } })
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 1352, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.evaluate(() => {
@@ -180,7 +269,7 @@ describe('Foldable shell geometry', () => {
       const name = 'W'.repeat(60)
       const email = `${'W'.repeat(48)}@example.com`
       const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[{ id: 'perfil', href: '/profile', icon: 'perfil', label: words.nav.profile }]} activeId="hoje" navLabel={words.nav.mainNavigation} account={name} accountEmail={email} />)
-      const page = await browser.newPage({ viewport: { width, height: 900 } })
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
       try {
         const largeText = textScale === 2 ? '[data-shell-account-name] { font-size: 28px; } [data-shell-account-email] { font-size: 24px; }' : ''
         await page.setContent(`<style>${stylesheet}\n${largeText}</style>${container.innerHTML}`)
@@ -228,7 +317,7 @@ describe('Foldable shell geometry', () => {
     >
       <div style={{ height: 1600 }}>Habit form</div>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 120 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 120 } })
     try {
       await page.setContent(`<style>${stylesheet}\n[data-shell-column] { padding-top: 24px; } :root { --safe-bottom: 0px; }</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -256,7 +345,7 @@ describe('Foldable shell geometry', () => {
     const { container } = render(<FlowShell mode={mode} action={<button type="button" className="h-[50px]">Continue</button>}>
       <div style={{ height: 100 }}>Flow content</div>
     </FlowShell>)
-    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -284,7 +373,7 @@ describe('Foldable shell geometry', () => {
       action={<button type="button" className="h-[50px]">Continue</button>}>
       <div data-onboarding-content="" style={{ height: contentHeight }}>Onboarding content</div>
     </FlowShell>)
-    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 900 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -312,7 +401,7 @@ describe('Foldable shell geometry', () => {
       tabBar={<nav style={{ height: 64 }}>Tabs</nav>}>
       <NotFoundContent inShell />
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const bounds = await page.evaluate(() => {
@@ -362,7 +451,7 @@ describe('Foldable shell geometry', () => {
         items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }[id], label: en.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} /> }))} />}>
       <div style={{ height: 1600 }}>Long habit detail</div>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width: 740, height } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 740, height } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -394,7 +483,7 @@ describe('Foldable shell geometry', () => {
       tabBar={<nav>Tabs</nav>} fab={<button type="button">Create</button>}>
       <div style={{ height: 1600 }}>Long screen</div>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const bounds = await page.evaluate(() => {
@@ -416,13 +505,18 @@ describe('Foldable shell geometry', () => {
           pinnedWidth: pinned.width, bottom: bottom.bottom,
         }
       })
-      expect(bounds.width).toBeLessThanOrEqual(740)
       if (width < 1024) expect(bounds.width).toBe(Math.min(width, 740))
+      else expect(bounds.width).toBeLessThanOrEqual(740)
       expect(Math.abs(bounds.leftGap - bounds.rightGap)).toBeLessThanOrEqual(1)
       expect(bounds.documentWidth).toBe(width)
       expect(bounds.scrollerWidth).toBe(bounds.clientWidth)
-      expect(bounds.pinnedLeft).toBe(bounds.columnLeft)
-      expect(bounds.pinnedWidth).toBe(bounds.width)
+      if (width < 1024) {
+        expect(bounds.pinnedLeft).toBe(0)
+        expect(bounds.pinnedWidth).toBe(width)
+      } else {
+        expect(bounds.pinnedLeft).toBe(bounds.columnLeft)
+        expect(bounds.pinnedWidth).toBe(bounds.width)
+      }
       expect(bounds.clearance).toBeGreaterThanOrEqual(width < 1024 ? 95 : 31)
       expect(bounds.bottom).toBeLessThanOrEqual(height)
     } finally { await page.close() }
@@ -433,7 +527,7 @@ describe('Foldable shell geometry', () => {
       tabBar={<nav style={{ height: 64 }}>Tabs</nav>}>
       <div style={{ height: 1600 }}>Long destination</div>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -459,7 +553,7 @@ describe('Foldable shell geometry', () => {
 
   it.each([
     { width: 1352, height: 706, left: 422 }, { width: 1440, height: 900, left: 466 },
-    { width: 1100, height: 706, left: 296 }, { width: 840, height: 915, left: 50 },
+    { width: 1100, height: 706, left: 296 }, { width: 840, height: 915, left: 0 },
     { width: 412, height: 915, left: 0 },
   ])('fills the conversation column at $width by $height', async ({ width, height, left }) => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: width >= 1024, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
@@ -472,7 +566,7 @@ describe('Foldable shell geometry', () => {
       </div>} conversationLabel="Conversation" tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
       <h1>Today</h1>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
@@ -489,8 +583,8 @@ describe('Foldable shell geometry', () => {
       })
       expect(geometry.panelCount).toBe(0)
       expect(geometry.left).toBeCloseTo(left, 1)
-      expect(geometry.left).toBeCloseTo(geometry.columnLeft, 1)
-      expect(geometry.right).toBeCloseTo(geometry.columnRight, 1)
+      expect(geometry.left).toBeCloseTo(width < 1024 ? 0 : geometry.columnLeft, 1)
+      expect(geometry.right).toBeCloseTo(width < 1024 ? width : geometry.columnRight, 1)
       expect(geometry.top).toBe(width >= 1024 ? geometry.columnTop : 0)
       expect(geometry.bottom).toBe(height)
       expect(geometry.composerBottom).toBe(height)

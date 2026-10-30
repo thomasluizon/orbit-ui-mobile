@@ -32,6 +32,7 @@ type MarkedVariant = Extract<InputProps, { marks: readonly { start: number; end:
 type ExpectedSingleLineVariant = {
   proposed?: boolean
   label: string
+  labelIcon?: React.ReactNode
   hideLabel?: boolean
   value: string
   onChange: (value: string) => void
@@ -41,7 +42,7 @@ type ExpectedSingleLineVariant = {
   error?: string
   hint?: string
   maxLength?: number
-  kind?: 'text' | 'email' | 'number'
+  kind?: 'text' | 'email' | 'number' | 'search'
   inputMode?: 'text' | 'email' | 'numeric' | 'decimal' | 'tel' | 'url'
   autoComplete?: 'email' | 'name' | 'off'
   mono?: boolean
@@ -171,7 +172,7 @@ export type FormContractAssertionsWidthAssertions = [
   Assert<IsExactWidth<InputProps['error'], string | undefined>>,
   Assert<IsExactWidth<InputProps['hint'], string | undefined>>,
   Assert<IsExactWidth<InputProps['maxLength'], number | undefined>>,
-  Assert<IsExactWidth<InputProps['kind'], 'text' | 'email' | 'number' | undefined>>,
+  Assert<IsExactWidth<InputProps['kind'], 'text' | 'email' | 'number' | 'search' | undefined>>,
   Assert<IsExactWidth<InputProps['inputMode'], 'text' | 'email' | 'numeric' | 'decimal' | 'tel' | 'url' | undefined>>,
   Assert<IsExactWidth<InputProps['autoComplete'], 'email' | 'name' | 'off' | undefined>>,
   Assert<IsExactWidth<InputProps['mono'], boolean | undefined>>,

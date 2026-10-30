@@ -71,9 +71,7 @@ describe('Astra record list on mobile', () => {
     const clear = tree.root.findAll((node: any) => node.type === Pressable && controlName(node).includes('chat.recordList.clearFilter'))[0]
     TestRenderer.act(() => clear.props.onPress())
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(20)
-    const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && controlName(node).includes('chat.recordList.open.keys'))[0]
-    TestRenderer.act(() => open.props.onPress())
-    expect(mocks.push).toHaveBeenCalledWith('/profile')
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it('shows no tag destination chip', () => {

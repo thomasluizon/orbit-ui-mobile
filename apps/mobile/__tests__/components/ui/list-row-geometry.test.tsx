@@ -50,8 +50,8 @@ it('measures row content padding separately from its decorative fill', async () 
     const geometry = measureProfileRow(tree.toJSON(), 320, 1)
     expect(geometry.controls[0]!.inlineClearance).toBe(16)
     const fill = geometry.parts.find((part) => part.slot === 'list-row-fill')!
-    expect(fill.left).toBe(4)
-    expect(fill.right).toBe(316)
+    expect(fill.left).toBe(8)
+    expect(fill.right).toBe(312)
   } finally { await act(() => tree.update(<></>)) }
 })
 
@@ -150,7 +150,7 @@ describe('label switch row geometry', () => {
 
 
 describe('inline preference control geometry', () => {
-  it.each([412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => (['en', 'pt-BR'] as const).map((locale) => ({ width, fontScale, locale })))))('centres the composed theme row at $width and font scale $fontScale in $locale', async ({ width, fontScale, locale }) => {
+  it.each([412, 1352].flatMap((width) => [1, 2].flatMap((fontScale) => (['en', 'pt-BR'] as const).map((locale) => ({ width, fontScale, locale })))))('centres the composed general preference at $width and font scale $fontScale in $locale', async ({ width, fontScale, locale }) => {
     preferenceLocale.value = locale
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     let tree!: Tree
@@ -158,11 +158,6 @@ describe('inline preference control geometry', () => {
     try {
       await replayLabelLayout(tree, Math.min(width - 32, 740), fontScale)
       const geometry = measureProfileRow(tree.toJSON(), Math.min(width - 32, 740), fontScale)
-      const rows = geometry.parts.filter((part) => part.slot === 'list-row-trailing')
-      const theme = rows[0]!
-      const label = geometry.texts.find((text) => text.label === (locale === 'en' ? en : ptBR).profile.settingsRows.theme)!
-      expect(label.clipped).toBe(false)
-      expect(Math.abs(label.top + label.height / label.lines / 2 - theme.top - theme.height / 2)).toBeLessThanOrEqual(1)
       const general = geometry.texts.find((text) => text.label === (locale === 'en' ? en : ptBR).settings.homeScreen.showGeneral)!
       const track = geometry.parts.find((part) => part.slot === 'switch-track')!
       expect(Math.abs(general.top + general.height / general.lines / 2 - track.top - track.height / 2)).toBeLessThanOrEqual(1)
@@ -188,7 +183,7 @@ describe('label control first-line alignment', () => {
       expect(label.bottom).toBeLessThanOrEqual(geometry.height - 12 + 1)
       if (fontScale === 1) expect(label.lines).toBe(1)
       else expect(label.lines).toBeGreaterThan(1)
-      await act(() => tree.update(<ListRow title={words.profile.settingsRows.theme} toggle={{ checked: true, onChange: vi.fn() }} />))
+      await act(() => tree.update(<ListRow title={words.profile.language.title} toggle={{ checked: true, onChange: vi.fn() }} />))
       await replayLabelLayout(tree, 288, fontScale)
       const resized = measureProfileRow(tree.toJSON(), 288, fontScale)
       const short = resized.texts[0]!
@@ -231,9 +226,9 @@ describe('label mode transitions', () => {
 describe('single-line label accessories', () => {
   it.each([en, ptBR].flatMap((words) => ['value', 'description'].map((kind) => ({ words, kind }))))('centres enlarged icons and chevrons beside a $kind', async ({ words, kind }) => {
     __setWindowDimensions({ width: 1352, height: 915, scale: 1, fontScale: 2 })
-    const title = words.profile.settingsRows.theme
+    const title = words.profile.language.title
     let tree!: Tree
-    await act(() => { tree = create(<ListRow textMode="label" title={title} icon="home" value={kind === 'value' ? words.profile.settingsRows.theme : undefined} description={kind === 'description' ? words.settings.homeScreen.showGeneral : undefined} onClick={vi.fn()} />) as Tree })
+    await act(() => { tree = create(<ListRow textMode="label" title={title} icon="home" value={kind === 'value' ? words.profile.language.title : undefined} description={kind === 'description' ? words.settings.homeScreen.showGeneral : undefined} onClick={vi.fn()} />) as Tree })
     try {
       await replayLabelLayout(tree, 740, 2)
       const geometry = measureProfileRow(tree.toJSON(), 740, 2)
@@ -257,7 +252,7 @@ function androidDoubleTextPixels(size: number) {
 describe('native nonlinear first-line geometry', () => {
   it.each([en, ptBR].flatMap((words) => ['description', 'value', 'switch', 'badge'].map((kind) => ({ words, kind }))))('uses measured native lines beside a $kind', async ({ words, kind }) => {
     __setWindowDimensions({ width: 1352, height: 915, scale: 1, fontScale: 2 })
-    const title = kind === 'switch' ? words.profile.analytics.title : words.profile.settingsRows.theme
+    const title = kind === 'switch' ? words.profile.analytics.title : words.profile.language.title
     const width = kind === 'switch' ? 200 : 740
     let tree!: Tree
     await act(() => { tree = create(<ListRow textMode="label" title={title} icon="home" description={kind === 'description' || kind === 'badge' ? words.settings.homeScreen.showGeneral : undefined} trailing={kind === 'badge' ? <Badge>{words.common.proBadge}</Badge> : undefined} value={kind === 'value' ? title : undefined} toggle={kind === 'switch' ? { checked: true, onChange: vi.fn() } : undefined} onClick={vi.fn()} />) as Tree })

@@ -1,3 +1,5 @@
+import { useProfile } from '@/hooks/use-profile'
+import { ShellContent } from '@/components/shell/shell-content'
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
@@ -119,11 +121,14 @@ export default function UpgradeScreen() {
   const { showSuccess } = useAppToast()
   const locale = i18n.language
   const {
-    status,
+    status: subscriptionStatus,
     isLoading: isStatusLoading,
     isError: isStatusError,
     refetch: refetchStatus,
   } = useSubscriptionStatus()
+
+  const { profile: accountProfile } = useProfile({ enabled: subscriptionStatus?.aiMessagesPeriod === 'week' })
+  const status = useMemo(() => subscriptionStatus ? { ...subscriptionStatus, timeZone: accountProfile?.timeZone } : null, [subscriptionStatus, accountProfile?.timeZone])
   const trialDaysLeft = getTrialDaysLeft(status)
   const {
     plans,
@@ -165,11 +170,6 @@ export default function UpgradeScreen() {
   }, [status])
 
   const usageProfile = status
-    ? {
-        aiMessagesUsed: status.aiMessagesUsed,
-        aiMessagesLimit: status.aiMessagesLimit,
-      }
-    : null
 
   const model = resolveSubscriptionScreen({
     status,
@@ -329,7 +329,7 @@ export default function UpgradeScreen() {
         backLabel={backLabel}
       />
 
-      <ScrollView
+      <ShellContent style={{ flex: 1 }}><ScrollView
         style={styles.container}
         contentContainerStyle={[styles.scrollContent, clearance > 0 ? { paddingBottom: clearance } : undefined]}
         showsVerticalScrollIndicator={false}
@@ -344,7 +344,7 @@ export default function UpgradeScreen() {
             t={t}
           />
         </View>
-      </ScrollView>
+      </ScrollView></ShellContent>
     </SafeAreaView>
   )
 }

@@ -1,13 +1,17 @@
 'use client'
 
+import { motion } from 'motion/react'
+import { ConversationChange } from '@/components/chat/conversation-motion'
+import { useConversationMotion } from '@/hooks/use-conversation-motion'
 import { IconButton } from '@/components/ui/icon-button'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 
 import { SPACING } from '@orbit/shared/theme'
 
 
 import { ActionRow } from './action-row'
 
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import type {
   BlockFrameItemStatus,
   BlockFrameProps,
@@ -99,7 +103,7 @@ function FrameRowContent(props: ResolvedBlockFrameRow) {
 }
 
 function FrameRow(props: ResolvedBlockFrameRow) {
-  return <Proposed proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
+  return <Proposed appearance="plain" proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
     <FrameRowContent {...props} />
     {props.item.body ? <div className="px-3 pb-3">{props.item.body}</div> : null}
   </Proposed>
@@ -130,7 +134,10 @@ function FrameRows({ frameProps }: Readonly<{ frameProps: Readonly<BlockFramePro
   }
 
   return resolveBlockFrameRows(frameProps, labels).map((rowProps) => (
-    <FrameRow key={rowProps.item.id} {...rowProps} />
+    <Fragment key={rowProps.item.id}>
+      {rowProps.item.groupHeading ? <h4 className="px-3 pt-4 text-sm font-medium text-[var(--fg-2)]">{rowProps.item.groupHeading}</h4> : null}
+      <FrameRow {...rowProps} />
+    </Fragment>
   ))
 }
 
@@ -142,6 +149,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
   const t = useTranslations('blockFrame')
 
   if (frameProps.state === 'stale') {
+    if (!frameProps.onRefresh && !frameProps.staleActions) return null
     return (
       <ActionRow>
         {frameProps.onRefresh ? <IconButton label={frameProps.refreshLabel ?? t('refresh')} onClick={frameProps.onRefresh}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
@@ -167,6 +175,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
 }
 
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
+  const configuration = useConversationMotion()
   const [clamped, setClamped] = useState(false)
   const titleRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
@@ -179,18 +188,20 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
 
 
   return (
-    <section
-      className="flex max-h-full min-h-0 flex-col gap-6 bg-[var(--bg-card)] text-[var(--fg-1)]"
+    <motion.section data-conversation-block="" layout={configuration.changeDuration > 0 ? "size" : false}
+      transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
+      className="flex max-h-full min-h-0 flex-col gap-3 bg-[var(--bg-card)] text-[var(--fg-1)]"
       data-state={props.state}
       aria-busy={props.state === 'acting' || undefined}
       style={{
         borderRadius: PROPOSED_RADIUS.block,
-        padding: SPACING.s24,
+        padding: SPACING.s16,
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
     >
       <header className={`flex shrink-0 gap-3 ${props.titleMode === 'typed' ? 'min-w-0 flex-col' : 'items-center'}`}>
-        <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.titleMode === 'typed' ? 'min-w-0 text-base font-medium' : props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.titleMode === 'typed' ? <PersonalText onClampedChange={setClamped}>{props.title}</PersonalText> : props.title}</h3>
+        <OrbitMark size={20} />
+        <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.titleMode === 'typed' ? 'min-w-0 text-base font-medium' : props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.titleContent ?? (props.titleMode === 'typed' ? <PersonalText onClampedChange={setClamped}>{props.title}</PersonalText> : props.title)}</h3>
         <div className="flex shrink-0 items-center justify-end gap-3">
           {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
             <span className="font-sans text-xs tabular-nums text-[var(--fg-3)]">{props.count ?? props.items.length}</span>
@@ -198,7 +209,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
           {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly clamped={clamped}>{props.title}</PersonalTextDetails> : null}
         </div>
       </header>
-      <FrameStaleMessage frameProps={props} />
+      <ConversationChange changeKey={`${props.state}:${props.title}`} className="flex min-h-0 flex-col gap-3"><FrameStaleMessage frameProps={props} />
       {props.state === 'loading' ? (
         <LoadingBody rows={props.items.length} hasActions={canRenderActions && props.actions != null} />
       ) : (
@@ -212,7 +223,8 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
           />
         </>
       )}
-    </section>
+      </ConversationChange>
+    </motion.section>
   )
 }
 

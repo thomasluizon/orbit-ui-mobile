@@ -132,7 +132,7 @@ export function classifySendFailure(input: SendFailureInput): SendFailureClassif
 
   if (input.code === 'AI_DAILY_BUDGET_EXCEEDED') return { kind: 'dailyBudget', reason, upgrade }
 
-  if (input.status === 403 && input.code === 'PAY_GATE' && reason.toLowerCase().includes('daily ai message limit')) {
+  if (input.status === 403 && input.code === 'PAY_GATE' && /(?:daily|weekly) ai message limit|limite (?:diário|semanal) de mensagens de ia/i.test(reason)) {
     return { kind: 'limit', reason, upgrade }
   }
   if (upgrade.shouldUpgrade) {

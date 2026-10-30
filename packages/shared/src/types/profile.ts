@@ -36,6 +36,8 @@ export const subscriptionStatusSchema = z.object({
   planExpiresAt: z.string().nullable(),
   aiMessagesUsed: z.number(),
   aiMessagesLimit: z.number(),
+  aiMessagesPeriod: z.enum(['day', 'week']).nullable().optional(),
+  aiMessagesResetsAt: z.iso.datetime().nullable().optional(),
   isLifetimePro: z.boolean(),
   subscriptionInterval: subscriptionIntervalSchema.nullable(),
   source: subscriptionSourceSchema.nullable(),
@@ -66,6 +68,8 @@ export const profileSchema = z.object({
   planExpiresAt: z.string().nullable(),
   aiMessagesUsed: z.number(),
   aiMessagesLimit: z.number(),
+  aiMessagesPeriod: z.enum(['day', 'week']).nullable().optional(),
+  aiMessagesResetsAt: z.iso.datetime().nullable().optional(),
   hasImportedCalendar: z.boolean(),
   hasSeenImportPrompt: z.boolean(),
   hasGoogleConnection: z.boolean(),
@@ -164,12 +168,6 @@ export const setThemePreferenceRequestSchema = z.object({
 })
 
 export type SetThemePreferenceRequest = z.infer<typeof setThemePreferenceRequestSchema>
-
-export const setColorSchemeRequestSchema = z.object({
-  colorScheme: z.string().nullable(),
-})
-
-export type SetColorSchemeRequest = z.infer<typeof setColorSchemeRequestSchema>
 
 export const themeModeSchema = z.enum(['dark', 'light'])
 

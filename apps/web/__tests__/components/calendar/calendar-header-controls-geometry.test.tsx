@@ -1,0 +1,934 @@
+import { settleAnimations } from '@/e2e/layout/settle-animations'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { habitKeys } from '@orbit/shared/query'
+import { collectSegmentCallSites, segmentTranslation } from '../../../../../packages/shared/src/test-support/segmented-control-inventory'
+import { execFileSync } from 'node:child_process'
+import { resolve } from 'node:path'
+import { format } from 'date-fns'
+import { ptBR as dateLocale } from 'date-fns/locale'
+import en from '@orbit/shared/i18n/en.json'
+import { buildYearRange } from '@orbit/shared/utils'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
+import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
+import { buildCalendarRangeModel, formatCalendarSpanEnds } from '@orbit/shared/utils'
+import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import { DayCell } from '@/components/dates/day-cell'
+import { CalendarGrid } from '@/components/calendar/calendar-grid'
+import { ShellWide } from '@/components/shell/shell-wide'
+import * as Menu from '@/components/ui/dropdown-menu'
+import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
+import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
+import { FlowShell } from '@/components/shell/flow-shell'
+import type { SegmentedControlProps } from '@orbit/shared/contracts/navigation'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { revealFocusedControl } from '@/lib/focus-scroll'
+import { measureSplitSegmentWords, mountMeasuredSegmentedControls } from '@/__tests__/support/segmented-control-geometry'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { registerChromeLaunchHook } from '@/__tests__/support/chromium'
+import { expectDayCircle, expectDayCircleHover } from '@/__tests__/support/calendar-day-circle'
+import { readControlPaint } from '@/e2e/layout/control-paint'
+import { calendarGeometryHarness, calendarKeys, seededDayMap } from '@/__tests__/support/calendar-header-geometry'
+
+vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }) }))
+
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
+
+function expectFullColumnDays(days: { width: number; height: number; columnWidth: number }[], expectedCount: number) {
+  expect(days).toHaveLength(expectedCount)
+  for (const day of days) {
+    expect(day.width).toBeCloseTo(day.columnWidth, 1)
+    expect(day.height).toBeGreaterThanOrEqual(44)
+  }
+}
+
+const options = [
+  { value: 'month', label: segmentTranslation(ptBR, calendarKeys[0]!) },
+  { value: 'week', label: segmentTranslation(ptBR, calendarKeys[1]!) },
+  { value: 'range', label: segmentTranslation(ptBR, calendarKeys[2]!) },
+  { value: 'agenda', label: segmentTranslation(ptBR, calendarKeys[3]!) },
+] as const
+
+function inventoryOptions(keys: string[], messages: typeof en | typeof ptBR): SegmentedControlProps<string>['options'] {
+  const option = (index: number) => ({ value: String(index), label: segmentTranslation(messages, keys[index]!) })
+  if (keys.length === 2) return [option(0), option(1)]
+  if (keys.length === 3) return [option(0), option(1), option(2)]
+  return [option(0), option(1), option(2), option(3)]
+}
+
+function renderOnboardingSegments(locale: string, messages: typeof en | typeof ptBR, mode: string) {
+  return render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><FlowShell nav={false} mode="onboarding"><OnboardingCreateHabit
+      title="Walk" emoji="" proposed={false} correcting canSaveRepeatWeeks atLimit={false} allowance={5}
+      schedule={{ frequencyUnit: mode === 'oneTime' ? null : mode === 'fixed' ? 'Day' : 'Week', frequencyQuantity: 1, intervalWeeks: 1, days: mode === 'fixed' ? ['Monday'] : [], isGeneral: false, isFlexible: mode === 'flexible', dueTime: '' }}
+      onCorrect={vi.fn()} onToggleDay={vi.fn()} onTimeChange={vi.fn()} onModeChange={vi.fn()} onFrequencyUnitChange={vi.fn()} onQuantityChange={vi.fn()} onIntervalWeeksChange={vi.fn()}
+    /></FlowShell></NextIntlClientProvider>)
+}
+
+function expectOnboardingRows(geometry: { group: number; top: number; groupWidth: number; width: number; textWidth: number }[], mode: string, contentWidth: number) {
+  const groups = new Set(geometry.map((label) => label.group))
+  expect(groups.size).toBe(mode === 'flexible' || mode === 'interval' ? 2 : 1)
+  for (const group of groups) {
+    const row = geometry.filter((label) => label.group === group)
+    expect(new Set(row.map((label) => label.top)).size).toBe(1)
+    const remaining = row.map((label) => label.width - label.textWidth)
+    expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
+  }
+  for (const label of geometry) expect(label.groupWidth).toBe(contentWidth)
+}
+
+describe('Calendar header geometry in Chromium', () => {
+  const harness = calendarGeometryHarness(registerChromeLaunchHook)
+  let monthScript: string
+  beforeAll(async () => {
+    monthScript = execFileSync(process.execPath, ['--input-type=module', '-e', `
+      import { build } from 'esbuild';
+      const result = await build(JSON.parse(process.argv[1]));
+      process.stdout.write(result.outputFiles[0].text);
+    `, JSON.stringify({
+      stdin: { contents: `import React, { useState } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { NextIntlClientProvider } from 'next-intl';
+        import { CalendarGrid } from './components/calendar/calendar-grid';
+        const configuration = JSON.parse(document.getElementById('configuration').textContent);
+        const completed = { habitId: 'walk', title: 'Walking', status: 'completed', isBadHabit: false, dueTime: null, isOneTime: false };
+        const missed = { ...completed, habitId: 'read', title: 'Reading', status: 'missed' };
+        const dayMap = new Map([['2026-09-10', [completed, missed]], ['2026-09-11', [completed, { ...completed, habitId: 'read' }]]]);
+        function Month() {
+          const [selected, select] = useState('2026-09-11');
+          return <NextIntlClientProvider locale={configuration.locale} messages={configuration.messages} timeZone="UTC">
+            <CalendarGrid currentMonth={new Date(2026, 8, 1)} dayMap={dayMap} onSelectDay={select} todayKey="2026-09-11" selectedDateStr={selected} weekStartsOn={1} />
+          </NextIntlClientProvider>;
+        }
+        createRoot(document.getElementById('root')).render(<Month />);`, resolveDir: process.cwd(), loader: 'tsx' },
+      bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+      define: { 'process.env.NODE_ENV': '"production"' },
+    })], { maxBuffer: 10 * 1024 * 1024 }).toString()
+  })
+
+  it.each([false, true].flatMap(isLoading => (['month', 'range'] as const).map(view => ({ isLoading, view }))))('reclaims only the reserved gutter inside the narrow shell for $view (loading=$isLoading)', async ({ isLoading, view }) => {
+    const model = buildCalendarRangeModel(new Date(2026, 1, 8), seededDayMap('2026-02'), 0, '2026-02-08')
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <ShellWide items={[]} activeId="calendar" navLabel="Navigation" paletteLabel="Search" paletteHint="Ctrl K" onPalette={vi.fn()} onCreate={vi.fn()} createLabel="Create" astraRow={{ label: 'Astra', onOpen: vi.fn() }}>
+        <div data-calendar-page="">
+          {view === 'month' ? <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" weekStartsOn={0} isLoading={isLoading} />
+            : <CalendarRangeView model={model} weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} rangeLabel="Range" isLoading={isLoading} loadingLabel="Loading" stats={[{ key: 'bestStreak', value: 1, label: 'Streak' }, { key: 'totalLogs', value: 1, label: 'Logs' }, { key: 'missed', value: 1, label: 'Missed' }]} />}
+        </div>
+      </ShellWide>
+    </NextIntlClientProvider>)
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('main[data-shell-scroller]')!
+        const frame = document.querySelector('.orbit-calendar-grid-frame')!.getBoundingClientRect()
+        const card = document.querySelector('.orbit-calendar-grid-card')!.getBoundingClientRect()
+        const column = document.querySelector('[data-shell-page-content]')!.getBoundingClientRect()
+        const marks = [...document.querySelectorAll('[data-day-circle], [data-variant="grid"] span')].map(element => element.getBoundingClientRect()).filter((mark, index, all) => mark.top === all[0]!.top)
+        return { gutter: scroller.offsetWidth - scroller.clientWidth, scroll: scroller.scrollWidth, client: scroller.clientWidth,
+          leading: card.left - column.left, available: column.width - 32, grid: card.width, reclaimed: card.width - (column.width - 32),
+          frameRight: frame.right, columnRight: column.right, scrollerRight: scroller.getBoundingClientRect().right,
+          gaps: marks.slice(1).map((mark, index) => mark.left - marks[index]!.right) }
+      })
+      expect(geometry.gutter).toBe(4)
+      expect(geometry.frameRight, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.columnRight + geometry.gutter)
+      expect(geometry.frameRight).toBeLessThanOrEqual(geometry.scrollerRight)
+      expect(geometry.scroll, JSON.stringify(geometry)).toBe(geometry.client)
+      expect(geometry.leading).toBe(16)
+      expect(geometry.available).toBe(284)
+      expect(geometry.reclaimed).toBe(4)
+      expect(geometry.grid).toBeGreaterThanOrEqual(286)
+      for (const gap of geometry.gaps) expect(gap).toBeGreaterThanOrEqual(8)
+    } finally { await page.close() }
+  })
+
+  it.each([320, 412, 600, 1352].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('retains the full today ring after selecting another day at $width in $locale', async ({ width, locale, messages }) => {
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ locale, messages })}</script>`)
+      await page.evaluate((variables) => { for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value) }, resolveWebThemeVariables('orange', 'dark'))
+      await page.addScriptTag({ content: monthScript })
+      const today = page.getByTestId('calendar-day-select-2026-09-11')
+      const partial = page.getByTestId('calendar-day-select-2026-09-10')
+      await today.waitFor()
+      await page.keyboard.press('Tab')
+      await today.focus()
+      expect(await today.getAttribute('aria-pressed')).toBe('true')
+      for (const selected of [true, false]) {
+        if (!selected) await partial.click()
+        expect(await today.getAttribute('aria-pressed')).toBe(String(selected))
+        const geometry = await today.evaluate((button) => {
+          const circle = button.querySelector('[data-day-circle]')!
+          const ring = circle.querySelector('[data-day-position-ring]')!
+          const bounds = ring.getBoundingClientRect()
+          const disc = button.querySelector('[data-day-disc]')!.getBoundingClientRect()
+          const probe = document.createElement('span')
+          probe.style.color = 'var(--primary)'
+          button.append(probe)
+          const primary = getComputedStyle(probe).color
+          probe.remove()
+          return { ring: getComputedStyle(ring).boxShadow, primary, width: bounds.width, height: bounds.height, discWidth: disc.width }
+        })
+        expect(geometry.ring).toBe(`${geometry.primary} 0px 0px 0px 2px inset`)
+        expect(geometry.width).toBeLessThanOrEqual(44)
+        expect(geometry.width).toBeCloseTo(geometry.height, 1)
+        expect(geometry.discWidth).toBeCloseTo(34, 1)
+      }
+      await expectDayCircleHover(partial)
+      for (const date of ['2026-09-09', '2026-09-10', '2026-09-11']) {
+        const button = page.getByTestId(`calendar-day-select-${date}`)
+        await page.keyboard.press('Tab')
+        await button.focus()
+        expect(await button.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+        await expectDayCircle(button.locator('..'), true, true, true)
+      }
+      await page.emulateMedia({ forcedColors: 'active' })
+      const forcedRing = await today.locator('[data-day-position-ring]').evaluate((ring) => ({ shadow: getComputedStyle(ring).boxShadow, outline: getComputedStyle(ring).outlineWidth }))
+      expect(forcedRing).toEqual({ shadow: 'none', outline: '2px' })
+    } finally { await page.close() }
+  })
+
+  it.each([320, 412, 600, 1352].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('paints circles inside full-column targets at $width in $locale', async ({ width, locale, messages }) => {
+    const model = buildCalendarRangeModel(new Date(2026, 1, 8), seededDayMap('2026-02'), 0, '2026-02-08')
+    const words = { none: 'none', partial: 'partial', full: 'full', notScheduled: 'not scheduled', of: 'of', today: 'today', readOnly: 'read only' }
+    for (const view of ['month', 'range', 'history'] as const) {
+      const { container, unmount } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
+        {view === 'month' ? <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" selectedDateStr="2026-02-08" weekStartsOn={0} />
+          : view === 'range' ? <CalendarRangeView model={model} weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} rangeLabel="Range" isLoading={false} loadingLabel="Loading" stats={[{ key: 'bestStreak', value: 1, label: 'Streak' }, { key: 'totalLogs', value: 1, label: 'Logs' }, { key: 'missed', value: 1, label: 'Missed' }]} />
+            : <div style={{ width: 97 }}><DayCell day={8} today habitHistory done={1} scheduled={1} words={words} /></div>}
+      </NextIntlClientProvider>)
+      const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate((variables) => { for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value) }, resolveWebThemeVariables('purple', 'dark'))
+        const geometry = await page.evaluate(() => {
+          const cell = document.querySelector<HTMLElement>('[aria-current="date"][data-outcome], [aria-current="date"]')!
+          const slot = cell.closest('[data-calendar-date]') ?? cell
+          const bounds = slot.getBoundingClientRect()
+          const boxes = [slot, ...slot.querySelectorAll<HTMLElement>('*')].flatMap((element) => {
+            const style = getComputedStyle(element)
+            if (style.backgroundColor === 'rgba(0, 0, 0, 0)' && style.boxShadow === 'none' && style.outlineStyle === 'none' && Number.parseFloat(style.borderWidth) === 0) return []
+            const box = element.getBoundingClientRect()
+            return [{ width: box.width, height: box.height, radius: Number.parseFloat(style.borderRadius), center: box.left + box.width / 2, ring: style.boxShadow }]
+          })
+          const disc = slot.querySelector<HTMLElement>('[data-day-disc]') ?? slot.querySelector<HTMLElement>('[data-outcome] > span') ?? slot.querySelector('span')!
+          const discBox = disc.getBoundingClientRect()
+          const header = document.querySelector('[data-testid="month-grid-header"]')?.getBoundingClientRect()
+          const days = document.querySelector('[data-testid="month-grid-days"]')?.getBoundingClientRect()
+          const circle = slot.querySelector('[data-day-circle]')!.getBoundingClientRect()
+          return { boxes, center: circle.left + circle.width / 2, disc: { width: discBox.width, height: discBox.height }, headerGap: header && days ? days.top - header.bottom : undefined }
+        })
+        expect(geometry.boxes.length).toBeGreaterThan(0)
+        for (const box of geometry.boxes) {
+          expect(box.width, view).toBeLessThanOrEqual(44.5)
+          expect(Math.abs(box.width - box.height), view).toBeLessThanOrEqual(0.5)
+          expect(box.radius, view).toBeGreaterThanOrEqual(box.width / 2)
+          expect(Math.abs(box.center - geometry.center), view).toBeLessThanOrEqual(0.5)
+        }
+        expect(geometry.disc.width, view).toBeCloseTo(34, 1)
+        expect(geometry.disc.height, view).toBeCloseTo(34, 1)
+        expect(geometry.boxes.filter((box) => box.ring.includes('2px'))).toHaveLength(1)
+        if (view !== 'history') expect(geometry.headerGap).toBeCloseTo(8, 1)
+      } finally { await page.close(); unmount() }
+    }
+  })
+
+  it.each([320, 412, 600, 1352])('retains loading circle centres at %ipx', async (width) => {
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
+    const snapshots: { x: number; y: number; width: number; height: number }[][] = []
+    try {
+      for (const isLoading of [true, false]) {
+        const { container, unmount } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+          <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" weekStartsOn={0} isLoading={isLoading} />
+        </NextIntlClientProvider>)
+        await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+        snapshots.push(await page.evaluate((loading) => [...document.querySelectorAll(loading ? '[data-variant="grid"] span' : '[data-day-circle]')].map((element) => {
+          const box = element.getBoundingClientRect()
+          return { x: box.left + box.width / 2, y: box.top + box.height / 2, width: box.width, height: box.height }
+        }), isLoading))
+        unmount()
+      }
+      expect(snapshots[0]).toHaveLength(snapshots[1]!.length)
+      for (const [index, before] of snapshots[0]!.entries()) {
+        const after = snapshots[1]![index]!
+        for (const dimension of ['x', 'y', 'width', 'height'] as const) expect(before[dimension], dimension).toBeCloseTo(after[dimension], 1)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each(['light', 'dark'] as const)('paints ghost chevrons and a transparent month title in %s mode', async (mode) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-04" previousMonthLabel="Previous" nextMonthLabel="Next"
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />
+    </NextIntlClientProvider>)
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
+      await page.evaluate(({ mode, variables }) => {
+        document.documentElement.className = mode
+        for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+      }, { mode, variables: resolveWebThemeVariables('orange', mode) })
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      await page.bringToFront()
+      for (const label of ['Previous', 'Next']) {
+        const control = page.getByRole('button', { name: label, exact: true })
+        const hit = await control.evaluate(readExpandedControlGeometry)
+        expect(hit.width).toBeGreaterThanOrEqual(48)
+        expect(hit.height).toBeGreaterThanOrEqual(48)
+        const resting = await control.evaluate((button) => {
+          const style = getComputedStyle(button)
+          return { background: style.backgroundColor, ring: style.boxShadow, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height }
+        })
+        expect(resting.background).toBe('rgba(0, 0, 0, 0)')
+        expect(resting.ring).toContain('1.5px')
+        expect(resting.ring).toContain('inset')
+        expect(resting.width).toBe(44)
+        expect(resting.height).toBe(44)
+        await control.hover()
+        await expect.poll(async () => (await control.evaluate(readControlPaint)).background).not.toBe(resting.background)
+        await page.mouse.move(0, 0)
+      }
+      const title = page.getByRole('button', { name: `September, ${en.calendar.monthPicker}` })
+      expect(await title.evaluate((button) => ({ background: getComputedStyle(button).backgroundColor, radius: getComputedStyle(button).borderRadius }))).toEqual({ background: 'rgba(0, 0, 0, 0)', radius: '12px' })
+      await title.focus()
+      await expect.poll(async () => (await title.evaluate(readControlPaint)).background).not.toBe('rgba(0, 0, 0, 0)')
+    } finally { await page.close() }
+  })
+
+  it.each([320, 412])('contains the year viewport and reaches both ends at 640x%i', async (height) => {
+    render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+      <CalendarHeader currentMonth={new Date(2026, 1, 1)} todayKey="2026-02-08"
+        previousMonthLabel={ptBR.common.previousMonth} nextMonthLabel={ptBR.common.nextMonth}
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />
+    </NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: `Fevereiro, ${ptBR.calendar.monthPicker}` }))
+    fireEvent.click(screen.getByRole('button', { name: `2026, ${ptBR.common.selectYear}` }))
+    const portal = document.querySelector('.orbit-sheet-portal')!
+    const years = buildYearRange(2026)
+    const page = await harness.browser.newPage({ viewport: { width: 640, height } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${portal.outerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
+      await page.evaluate(`document.querySelector('[data-focus-inset]').addEventListener('focusin', (${revealFocusedControl.toString()}))`)
+      const containment = await page.evaluate(() => {
+        const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
+        const scroller = body.querySelector<HTMLElement>('[data-focus-inset]')!
+        const bodyBox = body.getBoundingClientRect()
+        const scrollBox = scroller.getBoundingClientRect()
+        return { bodyBottom: bodyBox.bottom - Number.parseFloat(getComputedStyle(body).paddingBottom), scrollBottom: scrollBox.bottom,
+          height: scrollBox.height, outerScroll: body.scrollHeight > body.clientHeight, hasActions: document.querySelector('[data-slot="sheet-actions"]') !== null }
+      })
+      expect(containment.scrollBottom, JSON.stringify(containment)).toBeLessThanOrEqual(containment.bodyBottom + 1)
+      expect(containment.height).toBeGreaterThanOrEqual(48)
+      expect(containment.outerScroll).toBe(false)
+      expect(containment.hasActions).toBe(false)
+      for (const year of [years[0]!, years.at(-1)!]) {
+        await page.evaluate((year) => {
+          const target = [...document.querySelectorAll<HTMLButtonElement>('[data-focus-inset] button')].find((button) => button.textContent === String(year))!
+          target.parentElement!.parentElement!.scrollTop = year < 2026 ? 0 : target.parentElement!.parentElement!.scrollHeight
+        }, year)
+        const target = page.getByRole('button', { name: String(year), exact: true })
+        expect(await target.evaluate((button) => {
+          const bounds = button.getBoundingClientRect()
+          return button.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2))
+        })).toBe(true)
+        await target.click()
+        await page.evaluate(() => { (document.activeElement as HTMLElement).blur(); document.querySelector<HTMLElement>('[data-focus-inset]')!.scrollTop = 0 })
+        await page.getByRole('button', { name: String(years[0]!), exact: true }).focus()
+        if (year === years.at(-1)) {
+          for (let index = 1; index < years.length; index++) await page.keyboard.press('Tab')
+        }
+        await page.keyboard.press('Enter')
+        const keyboardGeometry = await target.evaluate((button) => {
+          const viewport = button.parentElement!.parentElement!.getBoundingClientRect()
+          const bounds = button.getBoundingClientRect()
+          return { focused: document.activeElement === button, top: bounds.top, bottom: bounds.bottom, viewportTop: viewport.top, viewportBottom: viewport.bottom }
+        })
+        expect(keyboardGeometry.focused).toBe(true)
+        expect(keyboardGeometry.top, JSON.stringify(keyboardGeometry)).toBeGreaterThanOrEqual(keyboardGeometry.viewportTop - 1)
+        expect(keyboardGeometry.bottom, JSON.stringify(keyboardGeometry)).toBeLessThanOrEqual(keyboardGeometry.viewportBottom + 1)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('fits the picker header in $locale at 320 and enlarged text', async ({ locale, messages }) => {
+    render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
+      <CalendarHeader currentMonth={new Date(2026, 1, 1)} todayKey="2026-02-08" previousMonthLabel="Previous" nextMonthLabel="Next"
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />
+    </NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`, ${messages.calendar.monthPicker}$`) }))
+    expect(screen.getByRole('dialog', { name: messages.calendar.monthPicker })).toBeInTheDocument()
+    const portal = document.querySelector('.orbit-sheet-portal')!
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${portal.outerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
+      for (const scale of [1, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await vi.waitFor(async () => {
+          expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+          const header = await page.evaluate(() => {
+            const buttons = [...document.querySelectorAll<HTMLButtonElement>('.orbit-sheet-header button')]
+            return buttons.map((button) => {
+              const box = button.getBoundingClientRect()
+              const range = document.createRange()
+              range.selectNodeContents(button)
+              return { label: button.getAttribute('aria-label'), text: button.textContent, width: box.width, height: box.height,
+                left: box.left, right: box.right, textWidth: range.getBoundingClientRect().width, overflow: button.scrollWidth > button.clientWidth }
+            })
+          })
+          expect(header[0]!.label).toBe(`2026, ${messages.common.selectYear}`)
+          expect(header[0]!.text).toBe('2026')
+          expect(header[0]!.width).toBeGreaterThanOrEqual(48)
+          expect(header[0]!.height).toBeGreaterThanOrEqual(48)
+          expect(header[0]!.right).toBeLessThanOrEqual(header[1]!.left)
+          for (const control of header) {
+            expect(control.overflow).toBe(false)
+            expect(control.textWidth).toBeLessThanOrEqual(control.width)
+            expect(control.left).toBeGreaterThanOrEqual(0)
+            expect(control.right).toBeLessThanOrEqual(320)
+          }
+        }, { timeout: 2000 })
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['fixed', 'flexible', 'interval', 'oneTime'].map((mode) => ({ ...locale, width, mode })))))('fits compact onboarding $mode containers in $locale at $width', async ({ locale, messages, width, mode }) => {
+    const { container } = renderOnboardingSegments(locale, messages, mode)
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      for (const scale of [1, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await vi.waitFor(async () => {
+          expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+          const geometry = await page.evaluate(() => [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].map((button) => {
+            const label = button.querySelector('span')!
+            const range = document.createRange()
+            range.selectNodeContents(label)
+            const bounds = range.getBoundingClientRect()
+            const box = label.getBoundingClientRect()
+            return { text: label.textContent, fits: bounds.width <= box.width + 1, right: bounds.right, lines: range.getClientRects().length, overflow: label.scrollWidth > label.clientWidth,
+              ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', width: button.getBoundingClientRect().width, textWidth: bounds.width, textHeight: bounds.height, height: button.getBoundingClientRect().height, top: button.getBoundingClientRect().top, group: button.closest('[role="radiogroup"]')!.getBoundingClientRect().top, groupWidth: button.closest('[role="radiogroup"]')!.getBoundingClientRect().width }
+          }))
+          for (const label of geometry) {
+            expect(label.fits, JSON.stringify(geometry)).toBe(true)
+            expect(label.overflow).toBe(false)
+            expect(label.ellipsis).toBe(false)
+            if (scale === 1) expect(label.lines).toBe(1)
+            expect(label.textHeight).toBeLessThanOrEqual(label.height)
+            expect(label.right).toBeLessThanOrEqual(width - 16)
+          }
+          if (scale === 1) {
+            const contentWidth = await page.locator('[data-flow-mode="onboarding"]').evaluate((column) => column.clientWidth - parseFloat(getComputedStyle(column).paddingLeft) - parseFloat(getComputedStyle(column).paddingRight))
+            expectOnboardingRows(geometry, mode, contentWidth)
+          }
+        }, { timeout: 2000 })
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([320, 360, 384, 412].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('fits the goal type sheet container in $locale at $width', async ({ width, locale, messages }) => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    queryClient.setQueryData(habitKeys.list({}), [])
+    render(<QueryClientProvider client={queryClient}><NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><CreateGoalSheet open onClose={vi.fn()} /></NextIntlClientProvider></QueryClientProvider>)
+    const portal = document.querySelector('.orbit-sheet-portal')!
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${portal.outerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
+      for (const scale of [1, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await vi.waitFor(async () => {
+          expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+          const geometry = await page.locator('[data-segmented-control]').evaluate((group) => {
+            const bounds = group.getBoundingClientRect()
+            const body = group.closest('[data-slot="sheet-body"]')!
+            return { folded: group.querySelector('[data-menu-trigger]') !== null, width: bounds.width, bodyWidth: body.clientWidth - parseFloat(getComputedStyle(body).paddingLeft) - parseFloat(getComputedStyle(body).paddingRight),
+              segments: [...group.querySelectorAll('[role="radio"], [data-menu-trigger]')].map((button) => {
+                const box = button.getBoundingClientRect()
+                const label = button.firstElementChild!
+                const text = document.createRange(); text.selectNodeContents(label)
+                const fragments = [...text.getClientRects()]
+                const content = label.getBoundingClientRect()
+                return { folded: button.hasAttribute('data-menu-trigger'), top: box.top, height: box.height, contained: box.left >= bounds.left && box.right <= bounds.right, lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
+                  fits: fragments.every((fragment) => fragment.left >= content.left - 1 && fragment.right <= content.right + 1), ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', overflow: label.scrollWidth > label.clientWidth }
+              }) }
+          })
+          expect(geometry.segments).toHaveLength(geometry.folded ? 1 : 2)
+        if (scale === 1) expect(geometry.folded).toBe(false)
+          expect(geometry.width).toBeLessThanOrEqual(geometry.bodyWidth)
+          expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
+          for (const segment of geometry.segments) {
+            expect(segment.contained).toBe(true)
+            expect(segment.height).toBeGreaterThanOrEqual(48)
+            expect(segment.fits).toBe(true)
+            expect(segment.overflow).toBe(false)
+            expect(segment.ellipsis).toBe(false)
+            if (scale === 1) expect(segment.lines).toBe(1)
+          }
+        }, { timeout: 2000 })
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([{ width: 412, height: 56 }, { width: 1280, height: 48 }])('retains shared menu row height at $width', async ({ width, height }) => {
+    render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC"><Menu.Root open={true}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content presentation="sheet" title={ptBR.calendar.options} items={[{ id: 'legend', label: ptBR.calendar.legendTitle }]}  /></Menu.Root></NextIntlClientProvider>)
+    await screen.findByRole('menu')
+    const portal = document.querySelector('.orbit-sheet-portal')!
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${portal.outerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
+      if (width === 1280) await page.evaluate(() => { const rows = document.querySelector('.orbit-menu-items')!; document.body.append(rows); document.querySelector('.orbit-sheet-portal')!.remove() })
+      const row = page.getByRole('menuitem')
+      expect(await row.evaluate((element) => element.getBoundingClientRect().height)).toBe(height)
+      await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
+      expect(await row.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(height)
+      expect(await row.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true)
+    } finally { await page.close() }
+  })
+
+  it.each([320, 360, 412])('keeps the full recurring menu label readable at %ipx and 200% text', async (width) => {
+    render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+      <Menu.Root open={true}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content presentation="sheet" title={ptBR.calendar.options}
+        items={[{ id: 'recurring', label: ptBR.calendar.showRecurring, checked: true }]}  /></Menu.Root>
+    </NextIntlClientProvider>)
+    const dialog = document.querySelector('[role="dialog"]')!
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${dialog.outerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      await page.locator('.orbit-sheet-panel').evaluate(settleAnimations)
+      for (const textScale of [1, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
+        await vi.waitFor(async () => {
+          const geometry = await page.evaluate(() => {
+            const row = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]')!
+            const label = row.querySelector<HTMLElement>('.orbit-menu-label')!
+            const check = row.querySelector('svg')!
+            const range = document.createRange()
+            range.selectNodeContents(label)
+            const lines = [...range.getClientRects()]
+            const style = getComputedStyle(label)
+            const context = document.createElement('canvas').getContext('2d')!
+            context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+            return {
+              label: label.textContent,
+              lines: new Set(lines.map((bounds) => Math.round(bounds.top))).size,
+              textWidth: context.measureText(label.textContent!).width,
+              availableWidth: label.getBoundingClientRect().width,
+              height: row.getBoundingClientRect().height,
+              checkTop: check.getBoundingClientRect().top,
+              firstLineTop: lines[0]!.top,
+              lineHeight: Number.parseFloat(style.lineHeight),
+              fontSize: Number.parseFloat(style.fontSize),
+              overflow: label.scrollWidth > label.clientWidth,
+            }
+          })
+          expect(geometry.label).toBe('Mostrar hábitos que se repetem')
+          expect(geometry.overflow, JSON.stringify(geometry)).toBe(false)
+          expect(geometry.fontSize).toBe(14 * textScale)
+          expect(geometry.height).toBeGreaterThanOrEqual(48)
+          if (textScale === 1) expect(geometry.lines, JSON.stringify(geometry)).toBe(1)
+          else {
+            expect(geometry.lines, JSON.stringify(geometry)).toBeGreaterThan(1)
+            expect(Math.abs(geometry.checkTop - geometry.firstLineTop), JSON.stringify(geometry)).toBeLessThan(geometry.lineHeight / 2)
+          }
+          process.stdout.write(`Calendar menu geometry ${JSON.stringify({ width, textScale, ...geometry })}\n`)
+        }, { timeout: 2000 })
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([320, 600, 840, 1100, 1352].flatMap((width) => [false, true].map((isLoading) => ({ width, isLoading }))))('fills a seven-column month grid at $width (loading=$isLoading)', async ({ width, isLoading }) => {
+    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+      <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" selectedDateStr="2026-02-01" weekStartsOn={0} isLoading={isLoading} />
+    </NextIntlClientProvider>)
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      const geometry = await page.evaluate(() => ({
+        page: document.documentElement.clientWidth,
+        scroll: document.documentElement.scrollWidth,
+        card: document.querySelector('[data-testid="calendar-grid-card"]')!.getBoundingClientRect().width,
+        gridScroll: document.querySelector('[data-testid="calendar-grid"]')!.scrollWidth,
+        gridWidth: document.querySelector('[data-testid="calendar-grid"]')!.clientWidth,
+        contentWidth: document.querySelector('[data-testid="calendar-grid"]')!.clientWidth - 32,
+        placeholders: [...document.querySelectorAll<HTMLElement>('[data-variant="grid"] span')].map((placeholder, index) => {
+          const grid = document.querySelector<HTMLElement>('[data-cols="7"]')!
+          const style = getComputedStyle(grid)
+          const columnWidths = style.gridTemplateColumns.split(' ').map((track) => Number.parseFloat(track))
+          const column = index % 7
+          const precedingWidth = columnWidths.slice(0, column).reduce((total, track) => total + track, 0)
+          const bounds = placeholder.getBoundingClientRect()
+          return { center: bounds.left + bounds.width / 2, discCenter: grid.getBoundingClientRect().left + precedingWidth + column * Number.parseFloat(style.columnGap) + columnWidths[column]! / 2 + (Math.min(44, columnWidths[column]!) - 34) * (column / 6 - 0.5) }
+        }),
+        targets: [...document.querySelectorAll('button')].map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, columnWidth: button.parentElement!.getBoundingClientRect().width })),
+      }))
+      expect(geometry.scroll).toBe(geometry.page)
+      expect(geometry.gridScroll).toBeLessThanOrEqual(geometry.gridWidth)
+      expect(geometry.card).toBe(geometry.contentWidth)
+      expect(geometry.placeholders).toHaveLength(isLoading ? 28 : 0)
+      for (const placeholder of geometry.placeholders) expect(placeholder.center).toBeCloseTo(placeholder.discCenter, 1)
+      expect(geometry.targets).toHaveLength(isLoading ? 0 : 28)
+      for (const control of await page.locator('[data-testid="calendar-header-group"] button').all()) { const hit = await control.evaluate(readExpandedControlGeometry); expect(hit.width).toBeGreaterThanOrEqual(48); expect(hit.height).toBeGreaterThanOrEqual(48) }
+          for (const target of geometry.targets) { expect(target.width).toBeCloseTo(target.columnWidth, 1); expect(target.height).toBeGreaterThanOrEqual(44) }
+    } finally { await page.close() }
+  })
+
+  it('wraps multiword labels between words while retaining one segmented row', async () => {
+    const { container } = render(<div className="p-4"><SegmentedControl fullWidth label="Views" value="all" onChange={vi.fn()} options={[{ value: 'all', label: 'All habits' }, { value: 'general', label: 'General habits' }]} /></div>)
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
+      await vi.waitFor(async () => {
+        expect(await page.locator('[data-menu-trigger]').count()).toBe(0)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+        const geometry = await page.getByRole('radio').evaluateAll((options) => options.map((option) => {
+          const range = document.createRange(); range.selectNodeContents(option.querySelector('span')!)
+          return { top: option.getBoundingClientRect().top, lines: new Set([...range.getClientRects()].map((fragment) => fragment.top)).size }
+        }))
+        expect(new Set(geometry.map((option) => option.top)).size).toBe(1)
+        expect(geometry.some((option) => option.lines > 1)).toBe(true)
+      }, { timeout: 2000 })
+    } finally { await page.close() }
+  })
+
+  it('keeps every calendar word whole at double text size', async () => {
+    const { container } = render(<div className="p-4"><SegmentedControl fullWidth label="Views" value="0" onChange={vi.fn()} options={inventoryOptions(calendarKeys, en)} /></div>)
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
+      await vi.waitFor(async () => {
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+      }, { timeout: 2000 })
+    } finally { await page.close() }
+  })
+
+  it.each([false, true])('folds rem-scaled segments before whole words overflow, fullWidth %s', async (fullWidth) => {
+    const keys = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'web')
+      .find((site) => site.optionKeys.includes('onboarding.flow.when.fixedMode'))!.optionKeys
+    const choices = inventoryOptions(keys, ptBR)
+    const { container } = render(<div style={{ width: 740 }}><SegmentedControl fullWidth={fullWidth} label="Schedule" value="0" onChange={vi.fn()} options={choices} /></div>)
+    const page = await harness.browser.newPage({ viewport: { width: 840, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet} :root { font-size:32px; --orbit-space-4:0.25rem; --orbit-space-8:0.5rem; }</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      const required = await page.getByRole('radiogroup').evaluate((track) => {
+        const trackStyle = getComputedStyle(track)
+        const trackInset = Number.parseFloat(trackStyle.paddingLeft) + Number.parseFloat(trackStyle.paddingRight)
+        const gap = Number.parseFloat(trackStyle.columnGap)
+        const segments = [...track.querySelectorAll('[role="radio"]')].map((segment) => {
+          const style = getComputedStyle(segment)
+          const range = document.createRange(); range.selectNodeContents(segment.querySelector('span')!)
+          return { wordWidth: range.getBoundingClientRect().width, inset: Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight) }
+        })
+        return {
+          labelInsets: segments.map((segment) => segment.inset), trackInset, gap,
+          fixed: segments.reduce((sum, segment) => sum + Math.max(48, segment.wordWidth + segment.inset / 2), trackInset / 2 + gap / 2 * (segments.length - 1)),
+          measured: segments.reduce((sum, segment) => sum + Math.max(48, segment.wordWidth + segment.inset), trackInset + gap * (segments.length - 1)),
+        }
+      })
+      expect(required).toMatchObject({ labelInsets: [32, 32, 32, 32], trackInset: 0, gap: 16 })
+      const availableWidth = Math.floor((required.fixed + required.measured) / 2)
+      expect(required.fixed).toBeLessThanOrEqual(availableWidth)
+      expect(required.measured).toBeGreaterThan(availableWidth)
+      await page.locator('[data-segmented-control]').evaluate((frame, width) => { frame.parentElement!.style.width = `${width}px` }, availableWidth)
+      await vi.waitFor(async () => {
+        const overflowingWords = await page.getByRole('radio').evaluateAll((segments) => segments.flatMap((segment) => {
+          const label = segment.querySelector('span')!
+          const range = document.createRange(); range.selectNodeContents(label)
+          return range.getBoundingClientRect().width > label.getBoundingClientRect().width ? [label.textContent] : []
+        }))
+        expect(overflowingWords, JSON.stringify({ ...required, availableWidth })).toEqual([])
+        expect(await page.locator('[data-segmented-control] [data-menu-trigger]').count(), JSON.stringify({ ...required, availableWidth })).toBe(1)
+        expect(await page.getByRole('radio').count()).toBe(0)
+        expect(await page.locator('[data-menu-trigger]').textContent()).toBe(choices[0].label)
+        expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+      }, { timeout: 2000 })
+      await page.locator('[data-segmented-control]').evaluate((frame, width) => { frame.parentElement!.style.width = `${width}px` }, Math.ceil(required.measured))
+      await vi.waitFor(async () => {
+        expect(await page.getByRole('radio').count()).toBe(choices.length)
+        const labelsFit = await page.getByRole('radio').evaluateAll((segments) => segments.every((segment) => {
+          const label = segment.querySelector('span')!
+          const range = document.createRange(); range.selectNodeContents(label)
+          return range.getBoundingClientRect().width <= label.getBoundingClientRect().width
+        }))
+        expect(labelsFit).toBe(true)
+      }, { timeout: 2000 })
+    } finally { await page.close() }
+  })
+
+  it.each([320, 360, 384, 412].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('measures every selector at $width in $locale through 200% text', async ({ width, locale }) => {
+    const messages = locale === 'en' ? en : ptBR
+    const sites = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'web')
+    const { container } = render(<main className="p-6"><div className="flex flex-col gap-4">
+      {sites.map((site, index) => <SegmentedControl key={index} fullWidth label={messages.calendar.view.switchLabel} value="0" onChange={vi.fn()}
+        options={inventoryOptions(site.optionKeys, messages)} />)}
+    </div></main>)
+    const page = await harness.browser.newPage({ viewport: { width, height: 1800 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
+      await page.evaluate((locale) => { document.documentElement.lang = locale }, locale)
+      await loadAppFonts(page)
+      await page.evaluate(() => {
+        const ImmediateResizeObserver = window.ResizeObserver
+        window.ResizeObserver = class extends ImmediateResizeObserver {
+          constructor(callback: ResizeObserverCallback) {
+            super((entries, observer) => {
+              if (document.documentElement.style.fontSize === '16px') {
+                window.setTimeout(() => callback(entries, observer), 250)
+              } else callback(entries, observer)
+            })
+          }
+        }
+      })
+      await mountMeasuredSegmentedControls(page)
+      const defaultFoldCount = await page.locator('[data-segmented-control] [data-menu-trigger]').count()
+      for (const scale of [1, 1.3, 1.6, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await vi.waitFor(async () => {
+          expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+          const selectors = await page.locator('[data-segmented-control]').evaluateAll((frames) => frames.map((frame) => {
+            const options = [...frame.querySelectorAll<HTMLElement>('[role="radio"], [data-menu-trigger]')]
+            const labels = [...frame.querySelectorAll<HTMLElement>('[data-segment-measure]')]
+            const track = getComputedStyle(labels[0]!.parentElement!)
+            const required = labels.reduce((total, label) => {
+              const style = getComputedStyle(label)
+              const large = parseFloat(style.fontSize) > 14 * 1.3
+              const words = [...label.querySelectorAll(large ? '[data-segment-word]' : '[data-segment-full]')]
+              return total + Math.max(48, Math.max(...words.map(word => word.getBoundingClientRect().width)) + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight))
+            }, parseFloat(track.paddingLeft) + parseFloat(track.paddingRight) + parseFloat(track.columnGap) * (labels.length - 1))
+            return { required, available: frame.getBoundingClientRect().width, folded: frame.querySelector('[data-menu-trigger]') !== null, options: options.map((option) => {
+              const box = option.getBoundingClientRect()
+              const range = document.createRange(); range.selectNodeContents(option.querySelector('span')!)
+              const bounds = range.getBoundingClientRect()
+              return { top: box.top, left: box.left, right: box.right, fits: bounds.left >= box.left && bounds.right <= box.right, ellipsis: getComputedStyle(option).textOverflow === 'ellipsis', height: box.height }
+            }) }
+          }))
+          expect(selectors).toHaveLength(sites.length)
+          for (const [index, selector] of selectors.entries()) {
+            expect(selector.folded, sites[index]!.path).toBe(selector.required > selector.available)
+            expect(selector.options).toHaveLength(selector.folded ? 1 : sites[index]!.optionKeys.length)
+            expect(new Set(selector.options.map((option) => option.top)).size).toBe(1)
+            for (const option of selector.options) {
+              expect(option.fits).toBe(true); expect(option.ellipsis).toBe(false)
+              expect(option.left).toBeGreaterThanOrEqual(24); expect(option.right).toBeLessThanOrEqual(width - 24)
+              expect(option.height).toBeGreaterThanOrEqual(48)
+            }
+          }
+        }, { timeout: 2000 })
+      }
+      const trigger = page.locator('[data-segmented-control] [data-menu-trigger]').first()
+      await trigger.click()
+      const menu = page.getByRole('menu')
+      await menu.waitFor({ state: 'visible' })
+      for (const panel of await page.locator('.orbit-menu-panel, .orbit-sheet-panel').all()) await panel.evaluate(settleAnimations)
+      expect(await menu.getByRole('menuitemcheckbox', { checked: true }).count()).toBe(1)
+      expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+      const last = menu.getByRole('menuitemcheckbox').last()
+      const destination = await last.textContent()
+      await last.focus()
+      await page.keyboard.press('Enter')
+      await menu.waitFor({ state: 'hidden' })
+      expect(await trigger.textContent()).toBe(destination)
+      await trigger.focus()
+      await page.keyboard.press('ArrowDown')
+      await menu.waitFor({ state: 'visible' })
+      expect(await menu.getByRole('menuitemcheckbox', { checked: true }).textContent()).toBe(destination)
+      await page.keyboard.press('Escape')
+      await menu.waitFor({ state: 'hidden' })
+      expect(await trigger.evaluate((element) => element === document.activeElement)).toBe(true)
+      await page.evaluate(() => { document.documentElement.style.fontSize = '16px' })
+      await expect.poll(() => page.locator('[data-segmented-control] [data-menu-trigger]').count()).toBe(defaultFoldCount)
+    } finally { await page.close() }
+  })
+
+  it('reflows a cross-month Portuguese week label at 200% without clipping', async () => {
+    const ends = formatCalendarSpanEnds(new Date(2026, 8, 30), new Date(2026, 9, 6), 'pt-BR')
+    const weekLabel = ptBR.calendar.range.label.replace('{start}', ends.start).replace('{end}', ends.end)
+    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC"><CalendarHeader currentMonth={new Date(2026, 9, 1)} todayKey="2026-10-05" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} period={{ view: 'week', label: weekLabel, previousLabel: "Previous week", nextLabel: "Next week", onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn() }} /></NextIntlClientProvider>)
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
+      const geometry = await page.evaluate(() => ({ page: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, buttons: [...document.querySelectorAll('button')].map((button) => {
+        const box = button.getBoundingClientRect()
+        const content = document.createRange(); content.selectNodeContents(button)
+        const contentBox = content.getBoundingClientRect()
+        return { left: box.left, right: box.right, width: box.width, height: box.height, overflow: contentBox.left < box.left || contentBox.right > box.right }
+      }) }))
+      expect(geometry.scroll, JSON.stringify(geometry)).toBe(geometry.page)
+      for (const control of await page.locator('button').all()) { const hit = await control.evaluate(readExpandedControlGeometry); expect(hit.width).toBeGreaterThanOrEqual(48); expect(hit.height).toBeGreaterThanOrEqual(48) }
+      for (const button of geometry.buttons) { expect(button.left).toBeGreaterThanOrEqual(16); expect(button.right).toBeLessThanOrEqual(304); expect(button.width).toBeGreaterThanOrEqual(44); expect(button.height).toBeGreaterThanOrEqual(44); expect(button.overflow).toBe(false) }
+    } finally { await page.close() }
+  })
+
+  it.each([320, 360, 412, 600, 840].flatMap((width) => [false, true].map((isLoading) => ({ width, isLoading }))))('contains the production range statistics, header and grid at $width and 200% (loading=$isLoading)', async ({ width, isLoading }) => {
+    const model = buildCalendarRangeModel(new Date(2026, 9, 6), seededDayMap('2026-10'), 1, '2026-10-06')
+    const rangeLabel = ptBR.calendar.range.label.replace('{start}', format(model.start, 'd MMM', { locale: dateLocale })).replace('{end}', format(model.end, 'd MMM', { locale: dateLocale }))
+    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+      <CalendarHeader currentMonth={new Date(2026, 9, 1)} todayKey="2026-10-05" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} period={{ view: 'range', label: rangeLabel, previousLabel: "Previous range", nextLabel: "Next range", onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn(), nextDisabled: false }} />
+      <CalendarRangeView model={model} weekdayLabels={['S', 'T', 'Q', 'Q', 'S', 'S', 'D']} rangeLabel={rangeLabel} isLoading={isLoading} loadingLabel={ptBR.calendar.loading}
+        stats={[{ key: 'bestStreak', value: model.stats.bestStreak, label: ptBR.calendar.bestStreak }, { key: 'totalLogs', value: model.stats.totalLogs, label: ptBR.calendar.totalLogs }, { key: 'missed', value: model.stats.missed, label: ptBR.calendar.missedCount }]} />
+    </NextIntlClientProvider>)
+    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      for (const scale of [1, 2]) {
+        await page.evaluate((scale) => {
+          document.documentElement.style.fontSize = `${16 * scale}px`
+          if (scale === 2) {
+            const fixedMetrics = [...document.querySelectorAll<HTMLElement>('section, div, p, span')].map((element) => ({
+              element, fontSize: element.style.fontSize, lineHeight: element.style.lineHeight,
+            }))
+            for (const { element, fontSize, lineHeight } of fixedMetrics) {
+              if (fontSize.endsWith('px')) element.style.fontSize = `${parseFloat(fontSize) * scale}px`
+              if (lineHeight.endsWith('px')) element.style.lineHeight = `${parseFloat(lineHeight) * scale}px`
+            }
+          }
+        }, scale)
+        await vi.waitFor(async () => {
+          expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+          const geometry = await page.evaluate(() => {
+            const frame = document.querySelector<HTMLElement>('.orbit-calendar-grid-frame')!
+            const stats = document.querySelector<HTMLElement>('[data-testid="calendar-stats"]')!
+            const labelText = document.querySelector('[data-calendar-period-title] span')!.firstChild!
+            const splitWords = [...labelText.textContent!.matchAll(/\S+/g)].filter((word) => {
+              const range = document.createRange()
+              range.setStart(labelText, word.index)
+              range.setEnd(labelText, word.index + word[0].length)
+              return new Set([...range.getClientRects()].map((box) => box.top)).size > 1
+            }).map((word) => word[0])
+            return { pageWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth,
+              cardWidth: frame.firstElementChild!.getBoundingClientRect().width, frameContentWidth: frame.clientWidth - 32,
+              frameWidth: frame.getBoundingClientRect().width, sectionContentWidth: frame.parentElement!.clientWidth,
+              days: [...frame.querySelectorAll<HTMLElement>('[data-outcome]')].map((day) => ({ width: day.getBoundingClientRect().width, height: day.getBoundingClientRect().height, columnWidth: Number.parseFloat(getComputedStyle(day.parentElement!).gridTemplateColumns.split(' ')[0]!) })),
+              splitWords,
+              statsLeft: stats.getBoundingClientRect().left, statsRight: stats.getBoundingClientRect().right,
+              placeholders: [...stats.querySelectorAll<HTMLElement>('[role="status"]')].map((value) => {
+                const bounds = value.lastElementChild!.getBoundingClientRect()
+                const figure = value.parentElement!.getBoundingClientRect()
+                return { left: bounds.left, right: bounds.right, width: bounds.width, figureLeft: figure.left, figureRight: figure.right, fontSize: parseFloat(getComputedStyle(value).fontSize) }
+              }), gridWidth: frame.clientWidth, gridScroll: frame.scrollWidth, label: document.querySelector('[data-calendar-period-title] span')!.getBoundingClientRect().left, labelCenter: (document.querySelector('[data-calendar-period-title] span')!.getBoundingClientRect().top + document.querySelector('[data-calendar-period-title] span')!.getBoundingClientRect().bottom) / 2, labelOverflow: document.querySelector('[data-calendar-period-title] span')!.scrollWidth > document.querySelector('[data-calendar-period-title] span')!.clientWidth, targets: [...document.querySelectorAll('button')].map((button) => ({ center: (button.getBoundingClientRect().top + button.getBoundingClientRect().bottom) / 2, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, left: button.getBoundingClientRect().left, right: button.getBoundingClientRect().right })) }
+          })
+          expect(geometry.scrollWidth, JSON.stringify(geometry)).toBe(geometry.pageWidth)
+          expect(geometry.statsLeft).toBeGreaterThanOrEqual(0)
+          expect(geometry.statsRight).toBeLessThanOrEqual(width)
+          expect(geometry.placeholders).toHaveLength(isLoading ? 3 : 0)
+          for (const placeholder of geometry.placeholders) {
+            expect(placeholder.left).toBeGreaterThanOrEqual(placeholder.figureLeft)
+            expect(placeholder.right).toBeLessThanOrEqual(placeholder.figureRight)
+            expect(placeholder.width).toBeGreaterThan(0)
+            expect(placeholder.width).toBeLessThanOrEqual(64)
+            expect(placeholder.fontSize).toBe(22 * scale)
+          }
+          expect(geometry.cardWidth).toBe(geometry.frameContentWidth)
+          expect(geometry.frameWidth).toBe(geometry.sectionContentWidth)
+          expect(geometry.frameWidth).toBe(width)
+          expectFullColumnDays(geometry.days, isLoading ? 0 : model.days.length)
+          expect(geometry.gridScroll, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.gridWidth)
+          expect(geometry.label).toBeGreaterThanOrEqual(16)
+          expect(geometry.labelOverflow).toBe(false)
+          expect(geometry.splitWords).toEqual([])
+          if (scale === 1) for (const target of geometry.targets) expect(Math.abs(geometry.labelCenter - target.center)).toBeLessThanOrEqual(2)
+          for (const control of await page.locator('[data-testid="calendar-header-group"] button').all()) { const hit = await control.evaluate(readExpandedControlGeometry); expect(hit.width).toBeGreaterThanOrEqual(48); expect(hit.height).toBeGreaterThanOrEqual(48) }
+          for (const target of geometry.targets) { expect(target.width).toBeGreaterThanOrEqual(44); expect(target.height).toBeGreaterThanOrEqual(44); expect(target.left).toBeGreaterThanOrEqual(16); expect(target.right).toBeLessThanOrEqual(width - 16) }
+        }, { timeout: 2000 })
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([2026, 2027])('contains the Portuguese %i February header at 320 and double text size', async (year) => {
+    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+      <CalendarHeader currentMonth={new Date(year, 1, 1)} todayKey="2026-02-08"
+        previousMonthLabel={ptBR.common.previousMonth} nextMonthLabel={ptBR.common.nextMonth}
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}
+        viewSelector={<SegmentedControl fullWidth options={options} value="month" onChange={vi.fn()} label={ptBR.calendar.view.switchLabel} />} />
+    </NextIntlClientProvider>)
+    const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+      for (const textScale of [1, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
+        await vi.waitFor(async () => {
+          const geometry = await page.evaluate(() => {
+            const title = document.querySelector<HTMLButtonElement>('[data-calendar-month-title]')!
+            const titleText = title.querySelector('span')!
+            const range = document.createRange()
+            range.selectNodeContents(titleText)
+            const segments = [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')]
+            const targets = [...document.querySelectorAll<HTMLButtonElement>('button')].map((button) => {
+              const bounds = button.getBoundingClientRect()
+              const hit = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
+              return { width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right, reachable: button.contains(hit) }
+            })
+            return {
+              pageWidth: document.documentElement.clientWidth,
+              scrollWidth: document.documentElement.scrollWidth,
+              title: titleText.textContent,
+              titleWidth: title.getBoundingClientRect().width,
+              titleFontSize: getComputedStyle(title).fontSize,
+              titleLines: new Set([...range.getClientRects()].map((bounds) => Math.round(bounds.top))).size,
+              targets,
+              segments: segments.map((button) => {
+                const text = document.createRange()
+                text.selectNodeContents(button.firstElementChild!)
+                return { width: button.getBoundingClientRect().width, renderedTextWidth: text.getBoundingClientRect().width, labelWidth: button.firstElementChild!.getBoundingClientRect().width, contentWidth: button.clientWidth - Number.parseFloat(getComputedStyle(button).paddingLeft) - Number.parseFloat(getComputedStyle(button).paddingRight), textWidth: button.firstElementChild!.scrollWidth }
+              }),
+            }
+          })
+          expect(geometry.scrollWidth, JSON.stringify(geometry)).toBe(geometry.pageWidth)
+          expect(geometry.title).toBe(year === 2026 ? 'Fevereiro' : 'fev. 2027')
+          expect(geometry.titleLines, JSON.stringify(geometry)).toBe(1)
+          for (const control of await page.locator('[data-testid="calendar-header-group"] button').all()) { const hit = await control.evaluate(readExpandedControlGeometry); expect(hit.width).toBeGreaterThanOrEqual(48); expect(hit.height).toBeGreaterThanOrEqual(48) }
+          for (const target of geometry.targets) {
+            expect(target.width).toBeGreaterThanOrEqual(32)
+            expect(target.height).toBeGreaterThanOrEqual(44)
+            expect(target.left).toBeGreaterThanOrEqual(16)
+            expect(target.right).toBeLessThanOrEqual(304)
+            expect(target.reachable).toBe(true)
+          }
+          for (const segment of geometry.segments) expect(segment.textWidth).toBeLessThanOrEqual(segment.contentWidth + 1)
+          if (textScale === 1) {
+            const remaining = geometry.segments.filter(segment => segment.width > 48.1).map((segment) => segment.width - segment.renderedTextWidth)
+            expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
+          }
+        }, { timeout: 2000 })
+      }
+    } finally { await page.close() }
+  })
+})

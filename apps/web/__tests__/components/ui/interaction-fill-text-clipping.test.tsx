@@ -74,7 +74,7 @@ describe('visible neighbouring text in the interaction clearance inspector', () 
           targetWidth: element.getBoundingClientRect().width, fillWidth: fill.right - fill.left }
       }, paint.bounds)
       expect(geometry.clipped).toBe(true)
-      expect(geometry.targetWidth).toBe(48)
+      expect(geometry.targetWidth).toBe(56)
       expect(geometry.fillWidth).toBe(40)
       expect(geometry.visibleGap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       expect(geometry.hiddenTextEnd).toBeGreaterThan(geometry.checkboxStart)

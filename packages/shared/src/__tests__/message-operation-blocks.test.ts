@@ -1,6 +1,54 @@
 import { describe, expect, it } from 'vitest'
 import { selectMessageOperationBlocks } from '../chat/message-operation-blocks'
-import { agentPolicyDenialFixture, makeActionResult, makeAgentOperationResult, makeHeldHabitMessage } from '../test-support/chat-fixtures'
+import { agentPolicyDenialFixture, failedReadOperationFixture, makeActionResult, makeAgentOperationResult, makeHeldHabitMessage } from '../test-support/chat-fixtures'
+import { agentOperationResultSchema } from '../types/ai'
+import en from '../i18n/en.json'
+import pt from '../i18n/pt-BR.json'
+
+describe('read operation failures', () => {
+  it.each(['read', 'write'])('preserves access=%s at the response boundary', access => {
+    expect(agentOperationResultSchema.parse({ ...failedReadOperationFixture, access })).toMatchObject({ access })
+  })
+
+  it.each(['Failed', 'Denied', 'UnsupportedByPolicy'] as const)('omits a parsed %s read and its matching policy denial', status => {
+    const operation = agentOperationResultSchema.parse({ ...failedReadOperationFixture, status })
+    const message = makeHeldHabitMessage({ pendingOperations: [], operations: [operation], policyDenials: status === 'Failed' ? [] : [{
+      operationId: operation.operationId, sourceName: operation.sourceName, riskClass: operation.riskClass,
+      confirmationRequirement: operation.confirmationRequirement, reason: 'unsupported_by_policy',
+    }] })
+    expect(selectMessageOperationBlocks(message)).toEqual({ actions: [], outcomes: [] })
+  })
+
+  it.each([en, pt])('retains the localized answer with only the independent write outcome', messages => {
+    const message = makeHeldHabitMessage({ pendingOperations: [], content: messages.chat.toolResult.toolFailure, operations: [
+      agentOperationResultSchema.parse(failedReadOperationFixture),
+      agentOperationResultSchema.parse({ ...failedReadOperationFixture, access: 'write', operationId: 'create_habit', sourceName: 'create_habit', targetName: 'Water' }),
+    ] })
+    expect(selectMessageOperationBlocks(message).outcomes).toMatchObject([{ source: 'create_habit', target: 'Water', status: 'Failed' }])
+    expect(selectMessageOperationBlocks(message).outcomes).toHaveLength(1)
+    expect(message.content).toBe(messages.chat.toolResult.toolFailure)
+  })
+
+  it.each(['write', undefined])('retains failure behavior for access=%s', access => {
+    const operation = agentOperationResultSchema.parse({ ...failedReadOperationFixture, access, sourceName: 'CreateHabit' })
+    expect(selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [operation] })).outcomes).toMatchObject([{ status: 'Failed' }])
+  })
+
+  it('does not classify by the source name or low risk alone', () => {
+    const operation = agentOperationResultSchema.parse({ ...failedReadOperationFixture, access: undefined, targetName: 'Week' })
+    expect(selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [operation] })).outcomes).toHaveLength(1)
+  })
+
+  it('omits a read even when its source has a write label and target', () => {
+    const operation = agentOperationResultSchema.parse({ ...failedReadOperationFixture, sourceName: 'CreateHabit', targetName: 'Week' })
+    expect(selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [operation] })).outcomes).toHaveLength(0)
+  })
+
+  it('omits an unlabelled write row instead of showing a generic operation', () => {
+    const operation = agentOperationResultSchema.parse({ ...failedReadOperationFixture, access: 'write', sourceName: 'assign_tags' })
+    expect(selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [operation] })).outcomes).toHaveLength(0)
+  })
+})
 
 describe('one block per write', () => {
   it('shows the latest outcome once for repeated operation identities', () => {

@@ -10,8 +10,8 @@ import type {
   PendingOperationRevisionResult,
   RevisePendingOperationRequest,
 } from '@orbit/shared'
-import { readBlockResponseSchema, type ChatClientContext } from '@orbit/shared/types/chat'
-import { proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
+import { gamificationReadBlockResponseSchema, habitMonthReadBlockResponseSchema, readBlockResponseSchema, type ChatClientContext } from '@orbit/shared/types/chat'
+import { pendingOperationRevisionResultSchema, proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
 import { serverAuthFetch, serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
@@ -23,11 +23,12 @@ export async function revisePendingOperation(
   request: RevisePendingOperationRequest,
   intendedAccountId: string | null,
 ): Promise<PendingOperationActionResult<PendingOperationRevisionResult>> {
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
   return wrapServerAction(() =>
     serverAuthMutate<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
       method: 'POST',
-      body: JSON.stringify(request),
-    }, intendedAccountId),
+      body: JSON.stringify({ ...request, clientContext }),
+    }, intendedAccountId, pendingOperationRevisionResultSchema),
   )
 }
 
@@ -36,10 +37,12 @@ export async function refreshPendingOperation(
   id: string,
   intendedAccountId: string | null,
 ): Promise<PendingOperationActionResult<PendingOperationRevisionResult>> {
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
+  const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) })
   return wrapServerAction(() =>
-    serverAuthMutate<PendingOperationRevisionResult>(API.ai.pendingOperationRefresh(id), {
+    serverAuthMutate<PendingOperationRevisionResult>(`${API.ai.pendingOperationRefresh(id)}?${query.toString()}`, {
       method: 'POST',
-    }, intendedAccountId),
+    }, intendedAccountId, pendingOperationRevisionResultSchema),
   )
 }
 
@@ -48,8 +51,10 @@ export async function confirmPendingOperation(
   id: string,
   intendedAccountId: string | null,
 ): Promise<PendingOperationActionResult<PendingAgentOperationConfirmation>> {
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
+  const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) })
   return wrapServerAction(() =>
-    serverAuthMutate<PendingAgentOperationConfirmation>(API.ai.pendingOperationConfirm(id), {
+    serverAuthMutate<PendingAgentOperationConfirmation>(`${API.ai.pendingOperationConfirm(id)}?${query.toString()}`, {
       method: 'POST',
     }, intendedAccountId),
   )
@@ -90,10 +95,11 @@ export async function executePendingOperation(
   confirmationToken: string,
   intendedAccountId: string | null,
 ): Promise<PendingOperationActionResult<AgentExecuteOperationResponse>> {
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
   return wrapServerAction(() =>
     serverAuthMutate<AgentExecuteOperationResponse>(API.ai.pendingOperationExecute(id), {
       method: 'POST',
-      body: JSON.stringify({ confirmationToken }),
+      body: JSON.stringify({ confirmationToken, clientContext }),
     }, intendedAccountId),
   )
 }
@@ -154,4 +160,18 @@ export async function refreshReadBlock(token: string, clientContext: ChatClientC
     method: 'POST',
     body: JSON.stringify({ token, clientContext, page }),
   }, intendedAccountId, readBlockResponseSchema))
+}
+
+export async function refreshHabitMonth(token: string, clientContext: ChatClientContext, intendedAccountId: string | null) {
+  return wrapServerAction(() => serverAuthMutate(API.chat.refreshHabitMonth, {
+    method: 'POST',
+    body: JSON.stringify({ token, clientContext }),
+  }, intendedAccountId, habitMonthReadBlockResponseSchema))
+}
+
+export async function refreshGamification(token: string, clientContext: ChatClientContext, intendedAccountId: string | null) {
+  return wrapServerAction(() => serverAuthMutate(API.chat.refreshGamification, {
+    method: 'POST',
+    body: JSON.stringify({ token, clientContext }),
+  }, intendedAccountId, gamificationReadBlockResponseSchema))
 }

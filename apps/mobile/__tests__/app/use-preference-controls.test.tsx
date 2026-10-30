@@ -258,20 +258,6 @@ describe('usePreferenceControls', () => {
     })
   })
 
-  it('applies a theme change only when the mode actually differs', async () => {
-    const hook = await renderControls()
-
-    TestRenderer.act(() => {
-      hook.current.handleThemeModeChange('dark')
-    })
-    expect(mocks.applyTheme).not.toHaveBeenCalled()
-
-    TestRenderer.act(() => {
-      hook.current.handleThemeModeChange('light')
-    })
-    expect(mocks.applyTheme).toHaveBeenCalledWith('light')
-  })
-
   it('persists the show-general toggle and reverts if storage fails', async () => {
     const hook = await renderControls()
 

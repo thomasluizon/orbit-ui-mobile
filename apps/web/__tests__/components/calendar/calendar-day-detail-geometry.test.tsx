@@ -1,3 +1,4 @@
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
@@ -7,6 +8,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { calendarDayCardDate, makeCalendarDayCardEntries } from '@orbit/shared/test-support/calendar-day-card-fixtures'
+import { Switch } from '@/components/ui/switch'
 import { CheckRow } from '@/components/ui/check-row'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import type { CalendarSyncEvent } from '@orbit/shared'
@@ -47,6 +49,21 @@ describe('day card compact geometry', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([320, 360, 384, 412].flatMap(width => locales.map(locale => ({ width, ...locale }))))('fits the recurring switch label at $width in $locale', async ({ width, locale, messages }) => {
+    const { container } = render(<div style={{ width: width - 80 }}><Switch label={messages.calendar.showRecurringShort} checked onChange={vi.fn()} /></div>)
+    const page = await browser.newPage({ viewport: { width, height: 800 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.locator('[data-slot="list-row-title"]').evaluate(label => {
+        const range = document.createRange()
+        range.selectNodeContents(label)
+        return { text: label.textContent, width: label.getBoundingClientRect().width, lines: new Set([...range.getClientRects()].map(box => Math.round(box.top))).size }
+      })
+      expect(measured.lines, JSON.stringify(measured)).toBe(1)
+    } finally { await page.close() }
+  })
+
   it.each(['light', 'dark'] as const)('keeps the day circle target and one circular focus indicator in %s mode', async (mode) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
       <CalendarDayDetail dateStr={calendarDayCardDate} today={calendarDayCardDate}
@@ -78,11 +95,59 @@ describe('day card compact geometry', () => {
       expect(geometry).toEqual({ width: 24, height: 24, fillWidth: 40, fillHeight: 40, radius: '50%', iconWidth: 24, iconHeight: 24, iconInsets: [8, 8, 8, 8],
         focus: '2px', offset: '-2px', buttonFocus: 'none', shadow: 'none', pseudoRadius: '50%', hit: true, focused: true })
       const target = await control.evaluate(readExpandedControlGeometry)
-      expect(target.width).toBe(48)
-      expect(target.height).toBe(48)
+      expect(target.width).toBe(56)
+      expect(target.height).toBe(56)
       expect(target.edgeHits).toEqual([true, true, true, true])
       await page.emulateMedia({ forcedColors: 'active' })
       expect(await control.evaluate((button) => ({ button: getComputedStyle(button).outlineStyle, fill: getComputedStyle(button.querySelector('[data-press-fill]')!).outlineWidth }))).toEqual({ button: 'none', fill: '2px' })
+    } finally { await page.close() }
+  })
+
+  it.each([false, true].flatMap(loggable => ['light', 'dark'].map(mode => ({ loggable, mode }))))('keeps one focus indicator and inset row and switch feedback with loggable=$loggable in $mode', async ({ loggable, mode }) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <div style={{ padding: 16 }}><CalendarDayDetail dateStr={calendarDayCardDate} today={calendarDayCardDate}
+        entries={makeCalendarDayCardEntries()} calendarEvents={[]} calendarEventsState="ready" loggable={loggable} showRecurring
+        pendingEntryStates={new Map()} onEntryChange={() => null} onRetryCalendarEvents={vi.fn()}
+        onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} /></div>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 412, height: 1800 } })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode === 'light' ? 'light' : 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
+      await loadAppFonts(page)
+      const title = page.locator('section [data-personal-text]').first()
+      const row = loggable ? title.locator('xpath=ancestor::*[@data-personal-text-action]').locator('button') : title.locator('xpath=ancestor::button')
+      for (const control of [row, page.getByRole('switch')]) {
+        await control.focus()
+        const focus = await control.evaluate(button => {
+          const fill = button.querySelector('[data-press-fill]')
+          const style = getComputedStyle(fill ?? button, fill ? null : '::before')
+          return { own: getComputedStyle(button).outlineStyle, width: style.outlineWidth, radius: style.borderRadius, offset: style.outlineOffset, shadow: style.boxShadow }
+        })
+        expect(focus).toEqual({ own: 'none', width: '2px', radius: '12px', offset: '-2px', shadow: 'none' })
+        const box = await control.boundingBox()
+        await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+        await page.mouse.down()
+        try {
+          await expect.poll(() => control.evaluate(button => {
+            const element = button.querySelector('[data-press-fill]')
+            return getComputedStyle(element ?? button, element ? null : '::before').backgroundColor
+          })).not.toBe('rgba(0, 0, 0, 0)')
+          const fill = await control.evaluate(button => {
+            const element = button.querySelector<HTMLElement>('[data-press-fill]')
+            const style = getComputedStyle(element ?? button, element ? null : '::before')
+            const content = button.parentElement!.querySelector('[data-personal-text-content]') ?? button
+            const graphic = content.querySelector('[aria-hidden="true"]')
+            const contentBox = (graphic ?? content.querySelector('[data-slot="list-row-title"]')!).getBoundingClientRect()
+            const bounds = button.getBoundingClientRect()
+            return { painted: style.backgroundColor !== 'rgba(0, 0, 0, 0)', insetTop: Number.parseFloat(style.top), insetBottom: Number.parseFloat(style.bottom), contentClearance: contentBox.top - bounds.top - Number.parseFloat(style.top) }
+          })
+          expect(fill.painted).toBe(true)
+          expect(fill.insetTop).toBe(8)
+          expect(fill.insetBottom).toBe(8)
+          expect(fill.contentClearance).toBeGreaterThanOrEqual(4)
+        } finally { await page.mouse.up() }
+      }
     } finally { await page.close() }
   })
 
@@ -92,7 +157,7 @@ describe('day card compact geometry', () => {
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       <div style={{ padding: 16, maxWidth: 740 }}><CalendarDayDetail dateStr={calendarDayCardDate} today={calendarDayCardDate}
         entries={entries} calendarEvents={[]} calendarEventsState="ready" loggable={loggable} showRecurring pendingEntryStates={new Map()}
-        onOpenHabitTitle={vi.fn()} onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} />
+        onOpenHabit={vi.fn()} onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} />
       </div>
       <CheckRow label="Family calendar" textMode="personal" onOpenLabel={vi.fn()} checked={false} onChange={vi.fn()} />
     </NextIntlClientProvider>)
@@ -139,7 +204,7 @@ describe('day card compact geometry', () => {
         heights.push(rows.map((row) => row.height))
       }
       for (const index of [0, 1, 3, 4]) {
-        expect(heights[0]![index]).toBeCloseTo(68)
+        expect(heights[0]![index]).toBeCloseTo(70)
         expect(heights[1]![index]).toBeGreaterThan(heights[0]![index]!)
       }
       const calendarRow = page.getByRole('button', { name: 'Family calendar', exact: true })
@@ -153,7 +218,7 @@ describe('day card compact geometry', () => {
       <div style={{ padding: 16 }}><CalendarDayDetail dateStr="2026-09-12" today="2026-09-12"
         entries={[{ habitId: 'habit-1', title: 'Caminhar pelo bairro depois do trabalho', status: 'completed', isBadHabit: false, dueTime: '08:00', isOneTime: false }, { habitId: 'habit-2', title: 'Ler', status: 'upcoming', isBadHabit: false, dueTime: null, isOneTime: false }]}
         calendarEvents={events} showEventSource calendarEventsState="ready" loggable={loggable} showRecurring pendingEntryStates={new Map()}
-        onOpenHabitTitle={openTitle} onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} />
+        onOpenHabit={openTitle} onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} />
       </div>
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 1800 } })
@@ -174,7 +239,7 @@ describe('day card compact geometry', () => {
           const summary = title.nextElementSibling!
           const summaryStyle = getComputedStyle(summary)
           const label = card.querySelector<HTMLButtonElement>('button[aria-label="Caminhar pelo bairro depois do trabalho"]')
-          const dayRows = [...groups[1]!.children] as HTMLElement[]
+          const dayRows = [...groups[2]!.children] as HTMLElement[]
           const labels = [...document.querySelectorAll<HTMLElement>('[data-slot="list-row-title"]')].map((label) => {
             const range = document.createRange()
             range.selectNodeContents(label)
@@ -251,7 +316,7 @@ describe('day card compact geometry', () => {
         }
       }
       fireEvent.click(container.querySelector('button[aria-label^="Caminhar pelo bairro"]')!)
-      expect(openTitle).toHaveBeenCalledExactlyOnceWith('Caminhar pelo bairro depois do trabalho')
+      expect(openTitle).toHaveBeenCalledExactlyOnceWith('habit-1')
     } finally { await page.close() }
   })
 })

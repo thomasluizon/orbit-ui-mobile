@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { execFileSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -41,13 +41,20 @@ it('the documented clean install loads the harness and runs promptfoo past befor
     expect(installCommands.length).toBeGreaterThan(0)
     for (const command of installCommands) run('npm', command.split(' ').slice(1), directory)
     const evaluation = join(directory, 'evals/astra')
-    run(process.execPath, ['--input-type=module', '-e', "await import('./hooks.mjs'); await import('./assertions.mjs')"], evaluation)
+    const modules = ['', 'fixtures'].flatMap((folder) => readdirSync(join(evaluation, folder))
+      .filter((name) => name.endsWith('.mjs'))
+      // Catalog generation requires the API repository; Vitest configuration belongs to the test runner.
+      .filter((name) => !['generate-catalog.mjs', 'vitest.config.mjs'].includes(name))
+      .map((name) => `./${folder ? `${folder}/` : ''}${name}`))
+    expect(modules).toContain('./catalog-translator.mjs')
+    run(process.execPath, ['--input-type=module', '-e',
+      `for (const path of ${JSON.stringify(modules)}) await import(path)`], evaluation)
 
     const configuration = parse(readFileSync(join(evaluation, 'promptfooconfig.yaml'), 'utf8'))
     writeFileSync(join(evaluation, 'install-smoke.yaml'), stringify({
       ...configuration,
       providers: [{ id: 'file://__tests__/fixtures/target.mjs', config: {
-        tools: parse(readFileSync(join(evaluation, 'catalog.yaml'), 'utf8')),
+        tools: parse(readFileSync(join(evaluation, 'catalog.yaml'), 'utf8')).tools,
       } }],
       defaultTest: { ...configuration.defaultTest, options: { provider: 'file://__tests__/fixtures/grader.mjs' } },
       tests: [{ metadata: { id: 'install-smoke', fixture: 'pro', locale: 'en' }, vars: {

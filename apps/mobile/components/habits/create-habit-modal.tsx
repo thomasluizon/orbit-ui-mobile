@@ -1,3 +1,4 @@
+import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { type ComponentType, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
@@ -47,6 +48,8 @@ import {
 } from '@orbit/shared/utils'
 import type { HabitFormProposal, HabitPhraseFormOwnership } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
+import { habitSuggestionCreateValues } from '@orbit/shared/chat'
+import type { HabitSuggestionDraft } from '@orbit/shared/types'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   buildSubHabitRequest,
@@ -112,6 +115,7 @@ interface CreateHabitModalProps {
   presentation?: 'sheet' | 'screen'
   leaveGuard?: ComponentType<{ leaving: boolean; requestLeave: () => void }>
   fromConversation?: boolean
+  initialSuggestion?: HabitSuggestionDraft
   initialTitle?: string
   onCreated?: () => void
   initialDate?: string | null
@@ -133,6 +137,7 @@ export function CreateHabitModal({
   onCreated,
   initialDate,
   initialTitle = '',
+  initialSuggestion,
   presentation = 'sheet',
   leaveGuard,
   fromConversation = false,
@@ -140,12 +145,10 @@ export function CreateHabitModal({
   recoveryMessage,
 }: Readonly<CreateHabitModalProps>) {
   const { t, i18n } = useTranslation()
+  const allowanceText = useAstraAllowanceCopy()
   const router = useRouter()
   const isFocused = useIsFocused()
-  const translate = useCallback(
-    (key: string, values?: Record<string, unknown>) => t(key, values),
-    [t],
-  )
+  const translate = allowanceText
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -279,16 +282,16 @@ export function CreateHabitModal({
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
 
-  const resetOnOpenRef = useRef({ initialDate, initialTitle, parentHabit, activeView, formHelpers, tags })
+  const resetOnOpenRef = useRef({ initialDate, initialTitle, initialSuggestion, parentHabit, activeView, formHelpers, tags })
   useEffect(() => {
-    resetOnOpenRef.current = { initialDate, initialTitle, parentHabit, activeView, formHelpers, tags }
+    resetOnOpenRef.current = { initialDate, initialTitle, initialSuggestion, parentHabit, activeView, formHelpers, tags }
   })
 
   useEffect(() => {
     if (!open) return
 
     void Promise.resolve().then(() => {
-      const { initialDate, initialTitle, parentHabit, activeView, formHelpers, tags } = resetOnOpenRef.current
+      const { initialDate, initialTitle, initialSuggestion, parentHabit, activeView, formHelpers, tags } = resetOnOpenRef.current
       const fallbackDate = initialDate ?? ''
 
       setEmojiFailure(null)
@@ -303,6 +306,7 @@ export function CreateHabitModal({
       replaceSubHabits([])
       setReminderTimes([0, 15])
 
+      let initialReminderTimes = [0, 15]
       let prefill: ReturnType<typeof buildParentHabitFormState> | null = null
 
       if (parentHabit) {
@@ -311,7 +315,14 @@ export function CreateHabitModal({
         applyHabitFormMode(prefill.mode, formHelpers)
         tags.resetTags(prefill.selectedTagIds)
         setSelectedGoalIds(prefill.selectedGoalIds)
-        setReminderTimes(prefill.reminderTimes)
+        initialReminderTimes = prefill.reminderTimes
+        setReminderTimes(initialReminderTimes)
+      } else if (initialSuggestion) {
+        formHelpers.form.reset(habitSuggestionCreateValues(initialSuggestion))
+        applyHabitFormMode(initialSuggestion.type === 'Task' ? 'oneTime' : 'recurring', formHelpers)
+        initialReminderTimes = initialSuggestion.reminderMinutesBefore === null ? [] : [initialSuggestion.reminderMinutesBefore]
+        setReminderTimes(initialReminderTimes)
+        setReminderWasManuallyToggled(true)
       } else if (activeView === 'general') {
         formHelpers.setGeneral()
         formHelpers.form.setValue('itemType', 'habit')
@@ -333,7 +344,7 @@ export function CreateHabitModal({
       )
       setInitialSubHabitsSnapshot(JSON.stringify([]))
       setInitialReminderTimesSnapshot(
-        JSON.stringify(prefill?.reminderTimes ?? [0, 15]),
+        JSON.stringify(initialReminderTimes),
       )
     })
     // react-doctor-disable-next-line exhaustive-deps -- reset-on-open must run once per open transition only, never re-fire on formHelpers/tags/parentHabit reference churn while already open; latest values are read from resetOnOpenRef, updated every render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -489,7 +500,7 @@ export function CreateHabitModal({
     } catch (error: unknown) {
       if (!isCurrent()) return null
       const atLimit = extractBackendErrorCode(error) === 'PAY_GATE'
-      const message = atLimit ? t('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
+      const message = atLimit ? allowanceText('habits.form.aiSuggestLimitReached') : t('habits.form.aiSuggestError')
       setEmojiFailure({ title: currentTitle, message, atLimit })
       showError(message)
       return EMPTY_HABIT_FORM_PROPOSAL
@@ -497,7 +508,7 @@ export function CreateHabitModal({
       suggestionRequests.finish()
       setIsEmojiSuggesting(false)
     }
-  }, [formHelpers, i18n.language, suggestionSessionId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
+  }, [allowanceText, formHelpers, i18n.language, suggestionSessionId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
 
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
@@ -562,14 +573,14 @@ export function CreateHabitModal({
       )) return null
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
-          ? t('habits.form.aiSuggestLimitReached')
+          ? allowanceText('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
       return EMPTY_HABIT_FORM_PROPOSAL
     } finally {
       suggestionRequests.finish()
     }
-  }, [formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
+  }, [allowanceText, formHelpers, i18n.language, replaceSubHabits, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, suggestionSessionId, t])
 
 
   const isPending = createHabit.isPending || createSubHabit.isPending

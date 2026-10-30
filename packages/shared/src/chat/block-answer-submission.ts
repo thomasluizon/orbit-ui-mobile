@@ -1,5 +1,6 @@
+import { classifySendFailure } from '../hooks/chat-composer-core'
 import type { ChatStoreState } from '../stores/chat-store'
-import type { BlockAnswer } from '../types/chat'
+import type { BlockAnswer, ChatClientContext } from '../types/chat'
 import { formatBlockAnswer, isSameBlockAnswer, recordBlockAnswer, type BlockAnswerRequest, type BlockAnswerResult } from './block-answer'
 
 export interface ChatStreamRequest<Image> {
@@ -8,6 +9,7 @@ export interface ChatStreamRequest<Image> {
   image: Image | null
   blockAnswer?: BlockAnswer
   messageOrigin?: 'followUp'
+  previousStartingStep?: ChatClientContext['previousStartingStep']
   intendedAccountId?: string | null
 }
 
@@ -19,6 +21,7 @@ export type ChatStreamResult =
 interface BlockSubmissionContext {
   isOnline: boolean
   dailyBudgetReached?: boolean
+  onAllowanceExceeded: (draftMessageId: string | null) => void
   onDailyBudgetExceeded: (draftMessageId: string | null) => void
   atMessageLimit: boolean
   locale: string
@@ -42,11 +45,25 @@ export class BlockAnswerSubmission {
     this.uncertainRequest = null
   }
 
+  private async handleRefusal(outcome: Extract<ChatStreamResult, { kind: 'failed' }>, context: BlockSubmissionContext): Promise<BlockAnswerResult | null> {
+    const failure = classifySendFailure({ ...outcome.failure, reason: outcome.failure.error })
+    if (failure.kind !== 'dailyBudget' && failure.kind !== 'limit') return null
+    this.uncertainAnswer = null
+    this.uncertainRequest = null
+    if (failure.kind === 'dailyBudget') {
+      context.onDailyBudgetExceeded(outcome.draftMessageId)
+      return { ok: false, status: outcome.failure.status, dailyBudgetReached: true }
+    }
+    context.onAllowanceExceeded(outcome.draftMessageId)
+    await context.refreshProfile()
+    return { ok: false, status: outcome.failure.status, allowanceReached: true }
+  }
+
   async send(request: BlockAnswerRequest, context: BlockSubmissionContext): Promise<BlockAnswerResult> {
     const chat = context.getChat()
     const recovery = isSameBlockAnswer(request.answer, this.uncertainAnswer)
     if (context.dailyBudgetReached || this.inFlight || chat.isTyping || chat.streamingMessageId !== null || !context.isOnline ||
-      (request.kind === 'choice' && context.atMessageLimit && !recovery)) return { ok: false, status: null }
+      (request.kind !== 'pickList' && context.atMessageLimit && !recovery)) return { ok: false, status: null }
     this.inFlight = true
     this.uncertainAnswer = { ...request.answer, selectedIds: [...request.answer.selectedIds] }
     const content = formatBlockAnswer(request.labels, request.answer.freeText, context.locale)
@@ -66,11 +83,9 @@ export class BlockAnswerSubmission {
         })
       })
       if (outcome.kind === 'cancelled') return { ok: false, status: null }
-      if (outcome.kind === 'failed' && outcome.failure.code === 'AI_DAILY_BUDGET_EXCEEDED') {
-        this.uncertainAnswer = null
-        this.uncertainRequest = null
-        context.onDailyBudgetExceeded(outcome.draftMessageId)
-        return { ok: false, status: outcome.failure.status, dailyBudgetReached: true }
+      if (outcome.kind === 'failed') {
+        const refusal = await this.handleRefusal(outcome, context)
+        if (refusal) return refusal
       }
       const result: BlockAnswerResult = outcome.kind === 'final'
         ? { ok: true }

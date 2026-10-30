@@ -25,6 +25,19 @@ const APP_STAGING_SNIPPET = `android {
 `
 
 const ROOT_STAGING_MARKER = 'orbit-android-library-cmake-staging-dir'
+const ROOT_OKHTTP_MARKER = 'orbit-android-okhttp-version'
+const ROOT_OKHTTP_SNIPPET = `// ${ROOT_OKHTTP_MARKER}
+allprojects {
+    configurations.configureEach {
+        resolutionStrategy.eachDependency { dependency ->
+            if (dependency.requested.group == "com.squareup.okhttp3") {
+                dependency.useVersion("4.12.1")
+            }
+        }
+    }
+}
+
+`
 const ROOT_NDK_MARKER = 'orbit-android-shared-ndk-version'
 const ROOT_NDK_SNIPPET = `// ${ROOT_NDK_MARKER}
 subprojects { subproject ->
@@ -91,6 +104,7 @@ function withAndroidReleaseBuildFixes(config) {
     return mod
   })
 
+  nextConfig = withAndroidOkHttpVersion(nextConfig)
   nextConfig = withSharedAndroidNdkVersion(nextConfig)
   nextConfig = withRaisedReleaseBuildJvmMemory(nextConfig)
   nextConfig = withAndroidStyles(nextConfig, (mod) => {
@@ -120,6 +134,25 @@ function withAndroidReleaseBuildFixes(config) {
   })
 
   return nextConfig
+}
+
+function withAndroidOkHttpVersion(config) {
+  return withProjectBuildGradle(config, (mod) => {
+    if (mod.modResults.language !== 'groovy') {
+      throw new Error('The Android OkHttp policy requires a Groovy root build.gradle.')
+    }
+    if (mod.modResults.contents.includes(ROOT_OKHTTP_MARKER)) return mod
+
+    const injectionPattern = /(^|\n)(apply plugin:\s*["']expo-root-project["'])/
+    if (!injectionPattern.test(mod.modResults.contents)) {
+      throw new Error('Cannot register the Android OkHttp policy before expo-root-project.')
+    }
+    mod.modResults.contents = mod.modResults.contents.replace(
+      injectionPattern,
+      `$1${ROOT_OKHTTP_SNIPPET}$2`,
+    )
+    return mod
+  })
 }
 
 function withSharedAndroidNdkVersion(config) {

@@ -85,7 +85,7 @@ describe('PillButton (mobile)', () => {
       expect(button.props.hitSlop).toBeUndefined()
       TestRenderer.act(() => button.props.onFocus())
       const focused = paint()
-      expect(focused).toEqual({ ...resting, borderColor: 'transparent', outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.fg1, outlineOffset: 2 })
+      expect(focused).toEqual({ ...resting, borderColor: 'transparent', outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.fg1, outlineOffset: -2 })
       expect(onFocus).toHaveBeenCalledOnce()
       TestRenderer.act(() => button.props.onHoverIn())
       expect(paint()).toEqual({ ...focused, backgroundColor: tokens.bgHover })

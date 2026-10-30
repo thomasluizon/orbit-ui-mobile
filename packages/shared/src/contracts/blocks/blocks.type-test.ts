@@ -14,6 +14,7 @@ type Assert<T extends true> = T
 type Fields<T> = { [TKey in keyof T]: T[TKey] }
 type ExpectedBlockFrameItem = {
   readonly id: string
+  readonly groupHeading?: string
   readonly label: React.ReactNode
   readonly wrapLabel?: boolean
   readonly indented?: boolean
@@ -37,6 +38,7 @@ type SettledVariant = Exclude<BlockFrameProps, { state: 'stale' }>
 type SettledEditedVariant = Extract<SettledVariant, { onEditItem: (itemId: string) => void }>
 type SettledPlainVariant = Extract<SettledVariant, { onEditItem?: never }>
 type ExpectedCommon = {
+  readonly titleContent?: React.ReactNode
   readonly title: string
   readonly wrapTitle?: boolean
   readonly titleMode?: 'label' | 'typed'

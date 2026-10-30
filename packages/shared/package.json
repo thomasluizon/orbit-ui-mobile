@@ -20,6 +20,7 @@
     "./utils": "./src/utils/index.ts",
     "./utils/today-launch": "./src/utils/today-launch.ts",
     "./utils/move-parent": "./src/utils/move-parent.ts",
+    "./utils/repeat-reminders": "./src/utils/repeat-reminders.ts",
     "./stores": "./src/stores/index.ts",
     "./i18n": "./src/i18n/index.ts",
     "./i18n/*": "./src/i18n/*",
@@ -56,13 +57,13 @@
     "@stryker-mutator/vitest-runner": "9.6.1",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.12",
     "eslint": "^10.6.0",
     "eslint-plugin-sonarjs": "^4.1.0",
     "orval": "^8.37.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.63.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.12"
   },
   "peerDependencies": {
     "react": "^19.2.0"

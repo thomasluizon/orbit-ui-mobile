@@ -5,3 +5,10 @@ export function desktopRuntime(): DesktopRuntime | undefined {
 }
 
 export function isDesktopPush(): boolean { return desktopRuntime() !== undefined }
+
+
+export function desktopCommandSupported(command: string): boolean {
+  if (!desktopRuntime()) return false
+  const commands = (window as Window & { __ORBIT_DESKTOP_COMMANDS__?: unknown }).__ORBIT_DESKTOP_COMMANDS__
+  return Array.isArray(commands) && commands.includes(command)
+}

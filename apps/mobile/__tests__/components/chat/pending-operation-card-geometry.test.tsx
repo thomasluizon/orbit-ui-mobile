@@ -1,10 +1,11 @@
-import { makeParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeRestartPlanPreview, makeTypedHabitsPreview, makeExistingHabitPreview, makeParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle, type TextStyle } from 'react-native'
 import Yoga from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { makeHeldHabitMessage, habitListCardFixture } from '@orbit/shared/test-support/chat-fixtures'
+import { formatPreviewMeta } from '@orbit/shared/chat'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { HabitListCard } from '@/components/chat/habit-list-card'
 import { Button } from '@/components/ui/pill-button'
@@ -18,6 +19,7 @@ vi.unmock('react-i18next')
 const TestRenderer = require('react-test-renderer')
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.unmock('@/components/ui/sheet')
 vi.mock('@lodev09/react-native-true-sheet', () => ({ TrueSheet: class extends React.Component<{ children?: React.ReactNode; header?: React.ReactNode; footer?: React.ReactNode }> {
@@ -76,9 +78,51 @@ function expectTrailingLines(bounds: ReturnType<ReturnType<typeof Yoga.Node.crea
   }
 }
 
-afterEach(async () => { __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }); await i18n.changeLanguage('en'); vi.clearAllMocks() })
+afterEach(async () => { vi.useRealTimers(); __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }); await i18n.changeLanguage('en'); vi.clearAllMocks() })
 
 describe('Pending preview geometry on Android', () => {
+  it.each([320, 1352].flatMap(width => locales.flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits typed preview groups at $width in $locale with text scale $scale', async ({ width, locale, scale }) => {
+    __setWindowDimensions({ width, height: 1800, scale: 1, fontScale: scale })
+    await i18n.changeLanguage(locale)
+    const tree = render(<PendingOperationCard pendingOperation={makeTypedHabitsPreview()} {...handlers} />)
+    try {
+      const measured = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale)
+      const labels = ['Task', 'Habit', 'General'].map(habitType => i18n.t(`chat.preview.itemGroup.${habitType}`))
+      const headings = measured.texts.filter(text => labels.includes(text.label))
+      expect(headings).toHaveLength(3)
+      for (const heading of headings) {
+        expect(heading.clipped).toBe(false)
+        expect(heading.left).toBeGreaterThanOrEqual(16)
+        expect(heading.right).toBeLessThanOrEqual(Math.min(width, 740) - 32 - 16)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([320, 390, 412, 480, 840, 1280].flatMap(width => locales.flatMap(locale => [1, 2].flatMap(scale => [false, true].map(restart => ({ width, locale, scale, restart }))))))('fits date changes at $width in $locale with text scale $scale and restart=$restart', async ({ width, locale, scale, restart }) => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-29T06:00:00Z'))
+    __setWindowDimensions({ width, height: 1800, scale: 1, fontScale: scale })
+    await i18n.changeLanguage(locale)
+    const tree = render(<PendingOperationCard pendingOperation={restart ? makeRestartPlanPreview() : makeExistingHabitPreview()} {...handlers} />)
+    try {
+      const summaries = tree.root.findAllByProps({ testID: 'preview-item-meta' }).filter((node: { type: unknown }) => typeof node.type === 'string')
+      expect(summaries).toHaveLength(restart ? 5 : 1)
+      if (restart) expect(renderedText(summaries[0]!.props.children)).toBe(i18n.t('dates.today'))
+      for (const meta of summaries) {
+        expect(meta.props.numberOfLines).toBeUndefined()
+        expect(meta.props.adjustsFontSizeToFit).not.toBe(true)
+        expect(StyleSheet.flatten(meta.props.style).fontSize).toBe(12)
+      }
+      const measured = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale)
+      const dates = measured.texts.filter(text => text.label.includes('→'))
+      expect(dates).toHaveLength(restart ? 3 : 1)
+      for (const date of dates) {
+        expect(date.clipped).toBe(false)
+        if (scale === 1) expect(date.height).toBeLessThanOrEqual(12 * 1.4 + 1)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([320, 412, 1352].flatMap(width => locales.flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits parent choices at $width in $locale with text scale $scale', async ({ width, locale, scale }) => {
     __setWindowDimensions({ width, height: 1800, scale: 1, fontScale: scale })
     await i18n.changeLanguage(locale)
@@ -105,9 +149,9 @@ describe('Pending preview geometry on Android', () => {
     const row = tree.root.find((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'action-row')
     const buttons = row.findAllByType(Button)
     const labels = buttons.map((button: { props: { label?: string; children: string } }) => button.props.label ?? button.props.children)
-    expect(labels).toEqual([i18n.t('chat.operation.reject'), i18n.t('chat.operation.edit'), counted ? i18n.t(['createHabits', 'rescheduleHabits', 'updateHabitEmojis'].includes(counted) ? `chat.operation.approveCount.${counted}` : `chat.operation.approveAction.${counted}`, { count: 12 }) : i18n.t('chat.operation.approve')])
-    expect(buttons[2].props.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
-    if (!counted) expect(renderedText(tree.toJSON())).toContain(i18n.t('habits.frequency.everyDay'))
+    expect(labels).toEqual([i18n.t('chat.operation.reject'), i18n.t('chat.operation.edit'), counted === 'createHabits' ? i18n.t('chat.operation.create') : counted ? i18n.t(['createHabits', 'rescheduleHabits', 'updateHabitEmojis'].includes(counted) ? `chat.operation.approveCount.${counted}` : `chat.operation.approveAction.${counted}`, { count: 12 }) : i18n.t('chat.operation.approve')])
+    expect(buttons[2].props.variant).toBe('primary')
+    if (!counted) expect(renderedText(tree.toJSON())).toContain(formatPreviewMeta(i18n.t('habits.frequency.everyDay')))
     expect(renderedText(tree.toJSON())).not.toContain('frequency_unit')
     expect(tree.root.findAllByType(Text).filter((node: { props: { label?: string; children?: unknown; importantForAccessibility?: string } }) => node.props.children === (counted ? 'Habit 1' : 'Beber água') && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
     const rowStyle = StyleSheet.flatten(row.props.style)
@@ -181,15 +225,9 @@ describe('Pending preview geometry on Android', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each(locales)('keeps load more intrinsic and pages in place in %s', async (locale) => {
+  it.each(locales)('shows a fitting habit list without a more footer in %s', async locale => {
     await i18n.changeLanguage(locale)
     const tree = render(<HabitListCard habitList={habitListCardFixture} />)
-    const more = tree.root.findByType(Button)
-    expect(more.props.label).toBe(i18n.t('chat.habitList.more'))
-    const actionRow = tree.root.find((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'action-row')
-    expect(actionRow.findAllByType(Button)).toHaveLength(1)
-    expect(renderedText(tree.toJSON())).not.toContain(habitListCardFixture.items[3]!.title)
-    TestRenderer.act(() => more.props.onClick())
     expect(renderedText(tree.toJSON())).toContain(habitListCardFixture.items[3]!.title)
     expect(tree.root.findAllByType(Button)).toHaveLength(0)
     TestRenderer.act(() => tree.unmount())

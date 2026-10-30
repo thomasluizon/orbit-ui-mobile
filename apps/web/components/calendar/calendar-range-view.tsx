@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import type { CalendarRangeModel } from '@orbit/shared/utils'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
+import { DayColumnContent } from '@/components/dates/day-column-content'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
@@ -50,22 +51,22 @@ export function CalendarRangeView({
     >
       {isLoading ? (
         <>
-          <div className="orbit-calendar-grid-frame" style={{ paddingInline: SPACING.s16 }}><div className="orbit-calendar-grid-card"><MonthGrid weekdayLabels={[...weekdayLabels]} gap="var(--calendar-grid-gap)" label={rangeLabel}>
+          <div className="orbit-calendar-grid-frame" style={{ paddingInlineStart: SPACING.s16, paddingInlineEnd: 'var(--calendar-grid-end-inset, 16px)' }}><div className="orbit-calendar-grid-card"><MonthGrid weekdayLabels={[...weekdayLabels]} gap="var(--calendar-grid-gap)" label={rangeLabel}>
             {Array.from({ length: gridCellCount }, (_, index) => (
-              <span key={index} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}>
+              <span key={index} className="flex justify-center" style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}><DayColumnContent><span style={{ width: 34, flexShrink: 0 }}>
                 {index === 0 ? (
-                  <Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} label={loadingLabel} />
+                  <Skeleton variant="grid" circular rows={1} cols={1} cell={34} gap={0} label={loadingLabel} />
                 ) : (
-                  <Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped />
+                  <Skeleton variant="grid" circular rows={1} cols={1} cell={34} gap={0} grouped />
                 )}
-              </span>
+              </span></DayColumnContent></span>
             ))}
           </MonthGrid></div></div>
           <CalendarStats stats={stats} state="loading" loadingLabel={loadingLabel} />
         </>
       ) : (
         <>
-          <div className="orbit-calendar-grid-frame" style={{ paddingInline: SPACING.s16 }}><div className="orbit-calendar-grid-card"><MonthGrid weekdayLabels={[...weekdayLabels]} gap="var(--calendar-grid-gap)" label={rangeLabel}>
+          <div className="orbit-calendar-grid-frame" style={{ paddingInlineStart: SPACING.s16, paddingInlineEnd: 'var(--calendar-grid-end-inset, 16px)' }}><div className="orbit-calendar-grid-card"><MonthGrid weekdayLabels={[...weekdayLabels]} gap="var(--calendar-grid-gap)" label={rangeLabel}>
             {Array.from({ length: model.leadingEmptyDays }, (_, index) => (
               <span key={`leading-${index}`} aria-hidden="true" style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }} />
             ))}

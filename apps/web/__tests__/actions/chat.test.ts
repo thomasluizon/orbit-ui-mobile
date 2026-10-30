@@ -1,4 +1,10 @@
+import { buildChatClientContext } from '@orbit/shared/chat'
+import { gamificationReadBlockResponseSchema, habitMonthReadBlockResponseSchema } from '@orbit/shared/types/chat'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { pendingOperationRevisionResultSchema } from '@orbit/shared/types'
+
+const clientContext = buildChatClientContext({ platform: 'web', locale: 'pt-BR' })
+const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) }).toString()
 
 const mockServerAuthMutate = vi.fn()
 const mockServerAuthFetch = vi.fn()
@@ -10,7 +16,11 @@ vi.mock('@/lib/server-fetch', () => ({
 
 const {
   getCurrentProactiveItem,
+  refreshHabitMonth,
+  refreshGamification,
   confirmPendingOperation,
+  revisePendingOperation,
+  refreshPendingOperation,
   issuePendingOperationStepUp,
   verifyPendingOperationStepUp,
   executePendingOperation,
@@ -52,10 +62,20 @@ describe('chat server actions', () => {
         },
       })
       expect(mockServerAuthMutate).toHaveBeenCalledWith(
-        '/api/ai/pending-operations/pending-1/confirm',
+        `/api/ai/pending-operations/pending-1/confirm?${query}`,
         { method: 'POST' },
         null,
       )
+    })
+
+    it('carries placement support when revising and refreshing a held preview', async () => {
+      const request = { previewFingerprint: 'current', items: [{ itemId: '0', placement: 'checklist_item' as const }, { itemId: '1' }] }
+      await revisePendingOperation('pending-1', request, null)
+      expect(mockServerAuthMutate).toHaveBeenLastCalledWith('/api/ai/pending-operations/pending-1/revise',
+        { method: 'POST', body: JSON.stringify({ ...request, clientContext }) }, null, pendingOperationRevisionResultSchema)
+      await refreshPendingOperation('pending-1', null)
+      expect(mockServerAuthMutate).toHaveBeenLastCalledWith(`/api/ai/pending-operations/pending-1/preview/refresh?${query}`,
+        { method: 'POST' }, null, pendingOperationRevisionResultSchema)
     })
 
     it('requests a step-up challenge', async () => {
@@ -136,9 +156,29 @@ describe('chat server actions', () => {
       expect(result.ok).toBe(true)
       expect(mockServerAuthMutate).toHaveBeenCalledWith(
         '/api/ai/pending-operations/pending-1/execute',
-        { method: 'POST', body: JSON.stringify({ confirmationToken: 'confirm-token' }) },
+        { method: 'POST', body: JSON.stringify({ confirmationToken: 'confirm-token', clientContext }) },
         null,
       )
     })
   })
+})
+
+
+it('uses the authenticated habit-month refresh endpoint with its dedicated schema', async () => {
+  const clientContext = buildChatClientContext({ platform: 'web', locale: 'en' })
+  mockServerAuthMutate.mockResolvedValue({})
+  const response = await refreshHabitMonth('signed-month', clientContext, 'account-one')
+  expect(response.ok).toBe(true)
+  expect(mockServerAuthMutate).toHaveBeenLastCalledWith('/api/chat/habit-month/refresh', {
+    method: 'POST', body: JSON.stringify({ token: 'signed-month', clientContext }),
+  }, 'account-one', habitMonthReadBlockResponseSchema)
+})
+
+it('uses the authenticated gamification refresh endpoint without paging or a replacement query', async () => {
+  mockServerAuthMutate.mockResolvedValue({})
+  const response = await refreshGamification('signed-query', clientContext, 'account-one')
+  expect(response.ok).toBe(true)
+  expect(mockServerAuthMutate).toHaveBeenLastCalledWith('/api/chat/gamification/refresh', {
+    method: 'POST', body: JSON.stringify({ token: 'signed-query', clientContext }),
+  }, 'account-one', gamificationReadBlockResponseSchema)
 })

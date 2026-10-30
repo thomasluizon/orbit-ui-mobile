@@ -1,16 +1,20 @@
 import React from 'react'
 import { act, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NextIntlClientProvider } from 'next-intl'
 import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { habitKeys } from '@orbit/shared/query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { habitScheduleItemSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { formatAPIDate, habitListQueryFilters } from '@orbit/shared/utils'
+import { AccountClock } from '@/lib/account-clock'
+import CalendarPage from '@/app/(app)/calendar/page'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
 import { RenderedAccountSeed } from '@/app/(app)/rendered-account-seed'
 import { getQueryClient } from '@/lib/query-client'
@@ -19,6 +23,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 const logHabitAction = vi.hoisted(() => vi.fn())
 const routerPush = vi.hoisted(() => vi.fn())
+const calendarSearch = vi.hoisted(() => ({ value: '' }))
 
 vi.mock('@/lib/actions/habits', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/actions/habits')>(),
@@ -28,10 +33,15 @@ import { TodayProvider } from '@/app/(app)/today-provider'
 import { buildTodayFilters } from '@/app/(app)/today-model'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 
+vi.mock('@orbit/shared/utils/intl-format-cache', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/utils/intl-format-cache')>()
+  return { ...actual, getDateTimeFormat: (locale: string, options?: Intl.DateTimeFormatOptions) => actual.getDateTimeFormat(locale, { ...options, timeZone: options?.timeZone ?? process.env.TZ }) }
+})
+
 vi.mock('next/navigation', () => ({
   usePathname: () => '/',
   useRouter: () => ({ push: routerPush, replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(calendarSearch.value),
 }))
 vi.mock('@/hooks/use-color-scheme', () => ({
   useColorScheme: () => ({
@@ -55,8 +65,16 @@ const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
   children?: React.ReactNode
 }>
 
-function createTodayTree(client: QueryClient, items: HabitScheduleItem[] = [], accountId: string | null = null) {
-  const initialToday = formatAPIDate(new Date())
+interface HydrationSettings {
+  route: string
+  initialToday: string
+  timeZone: string | null
+  now: number
+  locale: string
+}
+
+function createTodayTree(client: QueryClient, items: HabitScheduleItem[] = [], accountId: string | null = null, settings?: HydrationSettings) {
+  const { route = 'today', initialToday = formatAPIDate(new Date()), timeZone = profileFixture.timeZone, now = Date.now(), locale = 'en' } = settings ?? {}
   const filters = buildTodayFilters({
     dateStr: initialToday,
     isTodayDate: true,
@@ -68,15 +86,17 @@ function createTodayTree(client: QueryClient, items: HabitScheduleItem[] = [], a
 
   return (
     <QueryClientProvider client={client}>
-      <TestIntlProvider locale="en" messages={en}>
+      <TestIntlProvider locale={locale} messages={locale === 'en' ? en : ptBR}>
         <RenderedAccountSeed accountId={accountId}>
+        <AccountClock now={now} timeZone={timeZone}>
         <TodayProvider>
-          <TodayPageClient
+          {route === 'calendar' ? <CalendarPage /> : <TodayPageClient
             initialToday={initialToday}
             initialHabits={{ queryKey: habitKeys.list(habitListQueryFilters(filters, true)), items, totalCount: items.length }}
-            initialProfile={profileFixture}
-          />
+            initialProfile={{ ...profileFixture, timeZone }}
+          />}
         </TodayProvider>
+        </AccountClock>
         </RenderedAccountSeed>
       </TestIntlProvider>
     </QueryClientProvider>
@@ -96,6 +116,7 @@ describe('Today server preload', () => {
   beforeEach(() => {
     vi.setSystemTime(new Date('2026-08-29T12:00:00.000Z'))
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)))
+    calendarSearch.value = ''
     logHabitAction.mockReset()
     routerPush.mockReset()
   })
@@ -138,6 +159,123 @@ describe('Today server preload', () => {
 
       expect(recoverableError).not.toHaveBeenCalled()
       expect(container.innerHTML).toContain(`>${en.habits.nothingOpen}<`)
+    } finally {
+      await act(async () => root?.unmount())
+      container.remove()
+      browserClient.clear()
+      serverClient.clear()
+    }
+  })
+
+
+  it.each([
+    ['today', 'en', 'America/Sao_Paulo', '2026-10-27', '2026-10-28T01:30:00Z', 'October 27'],
+    ['calendar', 'en', 'America/Sao_Paulo', '2026-10-27', '2026-10-28T01:30:00Z', 'October 27'],
+    ['today', 'pt-BR', 'America/Sao_Paulo', '2026-10-27', '2026-10-28T01:30:00Z', '27 de outubro'],
+    ['calendar', 'pt-BR', 'America/Sao_Paulo', '2026-10-27', '2026-10-28T01:30:00Z', '27 de outubro'],
+    ['today', 'en', 'Pacific/Kiritimati', '2026-10-28', '2026-10-27T12:30:00Z', 'October 28'],
+    ['calendar', 'en', 'Pacific/Kiritimati', '2026-10-28', '2026-10-27T12:30:00Z', 'October 28'],
+    ['today', 'en', null, '2026-10-28', '2026-10-28T01:30:00Z', 'October 28'],
+    ['calendar', 'en', null, '2026-10-28', '2026-10-28T01:30:00Z', 'October 28'],
+    ['calendar', 'en', 'America/Sao_Paulo', '2026-10-31', '2026-11-01T01:30:00Z', 'October 31'],
+  ] as const)('hydrates %s in %s using %s across host calendar days', async (route, locale, timeZone, initialToday, instant, label) => {
+    const originalTimeZone = process.env.TZ
+    const serverClient = createTestQueryClient()
+    const browserClient = createTestQueryClient()
+    const container = document.createElement('div')
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    const now = new Date(instant).getTime()
+    const settings = { route, locale, timeZone, initialToday, now }
+    vi.setSystemTime(now)
+    const items = [habitScheduleItemSchema.parse({ ...createMockHabit({ dueDate: '2026-10-27', scheduledDates: ['2026-10-27'] }), children: [], linkedGoals: [] })]
+    try {
+      process.env.TZ = 'UTC'
+      const serverDay = new Date().getDate()
+      container.innerHTML = renderToString(createTodayTree(serverClient, items, null, settings))
+      expect(container).toHaveTextContent(label)
+      document.body.append(container)
+      process.env.TZ = timeZone ?? 'America/Sao_Paulo'
+      expect(new Date().getDate()).not.toBe(serverDay)
+      await act(async () => {
+        root = hydrateRoot(container, createTodayTree(browserClient, items, null, settings), {
+          onRecoverableError: recoverableError,
+        })
+      })
+      expect(recoverableError).not.toHaveBeenCalled()
+      expect(container).toHaveTextContent(label)
+    } finally {
+      await act(async () => root?.unmount())
+      container.remove()
+      browserClient.clear()
+      serverClient.clear()
+      if (originalTimeZone === undefined) delete process.env.TZ
+      else process.env.TZ = originalTimeZone
+    }
+  })
+
+  it('hydrates the week marker from the seeded account instant while the profile is loading', async () => {
+    calendarSearch.value = 'view=week'
+    const originalTimeZone = process.env.TZ
+    const serverClient = createTestQueryClient()
+    const browserClient = createTestQueryClient()
+    const container = document.createElement('div')
+    const recoverableError = vi.fn()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    const settings = { route: 'calendar', locale: 'en', timeZone: 'America/Sao_Paulo', initialToday: '2026-10-27', now: new Date('2026-10-28T01:29:59Z').getTime() }
+    try {
+      process.env.TZ = 'UTC'
+      vi.setSystemTime(settings.now)
+      container.innerHTML = renderToString(createTodayTree(serverClient, [], null, settings))
+      expect(container.querySelector('[role="img"][aria-label="Now"]')).toHaveStyle({ top: '67.45rem' })
+      document.body.append(container)
+      process.env.TZ = 'America/Sao_Paulo'
+      vi.setSystemTime(new Date('2026-10-28T01:30:01Z'))
+      await act(async () => {
+        root = hydrateRoot(container, createTodayTree(browserClient, [], null, settings), { onRecoverableError: recoverableError })
+      })
+      expect(recoverableError).not.toHaveBeenCalled()
+      expect(consoleError).not.toHaveBeenCalled()
+      expect(container.querySelector('[role="img"][aria-label="Now"]')).toHaveStyle({ top: '67.45rem' })
+    } finally {
+      await act(async () => root?.unmount())
+      consoleError.mockRestore()
+      container.remove()
+      browserClient.clear()
+      serverClient.clear()
+      if (originalTimeZone === undefined) delete process.env.TZ
+      else process.env.TZ = originalTimeZone
+    }
+  })
+
+  it('catches up the week marker immediately when opened after document hydration', async () => {
+    vi.useFakeTimers()
+    const serverClient = createTestQueryClient()
+    const browserClient = createTestQueryClient()
+    const container = document.createElement('div')
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    const settings = { route: 'today', locale: 'en', timeZone: 'America/Sao_Paulo', initialToday: '2026-10-27', now: new Date('2026-10-28T01:25:00Z').getTime() }
+    vi.setSystemTime(settings.now)
+    container.innerHTML = renderToString(createTodayTree(serverClient, [], null, settings))
+    document.body.append(container)
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, createTodayTree(browserClient, [], null, settings), { onRecoverableError: recoverableError })
+      })
+      expect(recoverableError).not.toHaveBeenCalled()
+      expect(container.querySelector('[aria-label="Now"]')).toBeNull()
+      await act(async () => { await vi.advanceTimersByTimeAsync(5 * 60_000) })
+      calendarSearch.value = 'view=week'
+      await act(async () => {
+        root?.render(createTodayTree(browserClient, [], null, { ...settings, route: 'calendar' }))
+      })
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(container.querySelector('[role="img"][aria-label="Now"]')).toHaveStyle({ top: '67.5rem' })
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+      expect(container.querySelector('[role="img"][aria-label="Now"]')).toHaveStyle({ top: '67.55rem' })
+      expect(recoverableError).not.toHaveBeenCalled()
     } finally {
       await act(async () => root?.unmount())
       container.remove()
@@ -248,6 +386,8 @@ describe('Today server preload', () => {
   })
 
   it('keeps the first habit row tap after the rendered account is confirmed', async () => {
+    const documentFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+    const user = userEvent.setup()
     await retireHeldAccount()
     const queryClient = getQueryClient()
     queryClient.clear()
@@ -268,10 +408,10 @@ describe('Today server preload', () => {
       })
       const row = container.querySelector<HTMLButtonElement>('[data-habit-row-body]')
       expect(row).not.toBeNull()
-      fireEvent.pointerDown(row!)
+      await user.pointer({ target: row!, keys: '[MouseLeft>]' })
       respondWithAccount('user-1')
       await act(async () => { await useAuthStore.getState().checkSession() })
-      fireEvent.click(row!)
+      await user.pointer({ target: row!, keys: '[/MouseLeft]' })
 
       expect(routerPush).toHaveBeenCalledWith(`/habits/habit-a?date=${date}&from=today`)
     } finally {
@@ -279,6 +419,7 @@ describe('Today server preload', () => {
       container.remove()
       queryClient.clear()
       serverClient.clear()
+      documentFocus.mockRestore()
     }
   })
 })

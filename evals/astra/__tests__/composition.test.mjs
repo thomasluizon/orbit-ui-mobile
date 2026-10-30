@@ -6,7 +6,9 @@ import { loadApiProvider } from 'promptfoo'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 import * as assertions from '../assertions.mjs'
 import parseResponse from '../response.mjs'
+import { visibleAnswer } from '../visible-answer.mjs'
 import { chatResponse, toolCall, preview } from './fixtures/producer.mjs'
+import { habitMonthFixture } from '../../../packages/shared/src/test-support/habit-month-fixture.ts'
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -19,13 +21,13 @@ const context = { vars: { evalRequestId: 'request', expectations: { allowed: ['q
   clientContext: { supportsParts: true, partKinds: ['habitList'], supportsHabitListCard: true },
   composition: { mode: 'data', kinds: ['habitList'] },
 }, test: { vars: {} } }
-function response(parts, aiMessage = 'Ready.', extra = {}) {
-  return { ...chatResponse('request', [toolCall('query_habits', {})]), parts, aiMessage, ...extra }
+function response(parts, aiMessage = 'Ready.', extra = {}, clientContext = context.vars.clientContext) {
+  return { ...chatResponse('request', [toolCall('query_habits', {}, 'Succeeded', 'call-1', clientContext)]), parts, aiMessage, ...extra }
 }
 async function gate(produced, vars = {}) {
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
   vi.stubGlobal('fetch', async () => Response.json(produced, { headers: { 'x-orbit-request-id': 'request' } }))
-  const provider = await loadApiProvider('http', { options: { config: { ...config.providers[0].config,
+  const provider = await loadApiProvider(`file://${root}/http-provider.mjs`, { options: { config: { ...config.providers[0].config,
     url: 'https://astra.invalid/api/chat', transformResponse: `file://${root}/response.mjs`,
   } } })
   const received = await provider.callApi('Read habits', { vars: { ...context.vars, ...vars, credentialKey: 'ORBIT_EVAL_TOKEN', historyJson: '[]',
@@ -38,8 +40,43 @@ async function gate(produced, vars = {}) {
 }
 
 describe('production composition gate', () => {
-  it('rejects prose-first ordering through the configured assertions', async () => {
-    expect((await gate(response([{ type: 'text', text: 'Ready.' }, block]))).pass).toBe(false)
+  it('accepts the registered month block through the complete configured gate', async () => {
+    const clientContext = buildChatClientContext({ platform: 'web', locale: 'en' })
+    const vars = { clientContext, composition: { mode: 'data', kinds: ['habitMonth'] } }
+    const part = { type: 'block', kind: 'habitMonth', block: habitMonthFixture }
+    expect((await gate(response([part], ''), vars)).pass).toBe(true)
+    expect((await gate(response([{ ...part, block: { ...part.block, calendar: {} } }], ''), vars)).pass).toBe(false)
+    expect((await gate(response([part], ''), { ...vars, clientContext: { ...clientContext, partKinds: [] } })).pass).toBe(false)
+  })
+  it.each([
+    ['periodInsight', 'stale', 'refresh', { period: 'month', narrative: {}, totalCompletions: 7, topHabits: [], needsAttention: [] }],
+    ['calendar', 'partial', 'reconnect', { events: [], surfaceId: 'calendar' }],
+  ])('requires the declared %s state and recovery together', (kind, completeness, recovery, fields) => {
+    const clientContext = buildChatClientContext({ platform: 'web', locale: 'en' })
+    const vars = { clientContext, composition: { mode: 'data', blocks: [{ kind, completeness, recovery }] } }
+    for (const read of [{ completeness, recovery }, { completeness }, { completeness, recovery: 'retry' },
+      { completeness: 'complete', recovery }]) {
+      const produced = { composition: { parts: [{ type: 'block', kind, block: { ...fields, read } }] } }
+      expect(assertions.composition(produced, { vars }).pass).toBe(read.completeness === completeness && read.recovery === recovery)
+    }
+  })
+  it.each(['Ready.', 'Comece pela caminhada.', 'x'.repeat(180)])('accepts one short digit-free leading line: %s', async (text) => {
+    expect((await gate(response([{ type: 'text', text }, block], text))).pass).toBe(true)
+  })
+  it.each([
+    ['two leading text parts', [{ type: 'text', text: 'Ready.' }, { type: 'text', text: 'Start here.' }, block]],
+    ['leading digit', [{ type: 'text', text: 'You have 1 pending habit.' }, block]],
+    ['two leading lines', [{ type: 'text', text: 'Ready.\nStart here.' }, block]],
+    ['leading paragraph', [{ type: 'text', text: 'Ready.\n\nStart here.' }, block]],
+    ['long leading line', [{ type: 'text', text: 'x'.repeat(181) }, block]],
+    ['leading heading', [{ type: 'text', text: '# Ready' }, block]],
+    ['leading bold heading', [{ type: 'text', text: '**Ready**' }, block]],
+    ['leading list', [{ type: 'text', text: '- Ready' }, block]],
+    ['text only', [{ type: 'text', text: 'Ready.' }]],
+    ['extra trailing text part', [{ type: 'text', text: 'Ready.' }, block, { type: 'text', text: 'Start here.' }]],
+  ])('rejects %s with the data ordering failure', async (_, parts) => {
+    const prose = parts.filter((part) => part.type === 'text').map((part) => part.text).join('\n\n')
+    expect(await gate(response(parts, prose))).toMatchObject({ pass: false, reason: 'Data answer leads with prose.' })
   })
   it('accepts a block-first answer and retains its ordered payload', async () => {
     const produced = response([block, { type: 'text', text: 'Ready.' }])
@@ -50,7 +87,7 @@ describe('production composition gate', () => {
     const produced = response([block], text)
     if (text === undefined) delete produced.aiMessage
     expect((await gate(produced)).pass).toBe(true)
-    expect(parseResponse(produced).answer).toContain('Water')
+    expect(visibleAnswer(parseResponse(produced).composition, { supportsParts: true, locale: 'en' })).toContain('Water')
   })
   it.each([
     ['extra text', [block, { type: 'text', text: 'Ready.\nAnother line.' }]],
@@ -94,8 +131,9 @@ describe('production composition gate', () => {
   it('requires readable fallback and rejects blocks for legacy or missing-kind clients', async () => {
     for (const clientContext of [{ supportsParts: false }, { supportsParts: true, partKinds: [] }]) {
       const vars = { clientContext, composition: { mode: 'fallback' } }
-      expect((await gate(response(clientContext.supportsParts ? [{ type: 'text', text: 'Water is pending.' }] : undefined, 'Water is pending.'), vars)).pass).toBe(true)
-      expect((await gate(response([block]), vars)).pass).toBe(false)
+      expect((await gate(response(clientContext.supportsParts ? [{ type: 'text', text: 'Water is pending.' }] : undefined,
+        'Water is pending.', {}, clientContext), vars)).pass).toBe(true)
+      expect((await gate(response([block], 'Ready.', {}, clientContext), vars)).pass).toBe(false)
     }
   })
 })
@@ -111,7 +149,8 @@ describe.each(['ambiguity-pt', 'ambiguity-en'])('%s clarification alternatives',
   } }
   function clarification(parts = [choice], aiMessage = '') {
     const produced = response(parts, aiMessage)
-    const call = toolCall('ask', { form: 'choice', question, options: choice.block.options, multiSelect: false, allowFreeText: true })
+    const call = toolCall('ask', { input: { form: 'choice', question, options: choice.block.options, multiSelect: false, allowFreeText: true } },
+      'Succeeded', 'call-1', vars.clientContext)
     call.result.entityId = choice.block.blockId
     produced.evalTrace.toolCalls = [call]
     return produced
@@ -150,6 +189,7 @@ describe('preview and outcome composition', () => {
     pending.summary = 'INTERNAL_AUDIT_SENTINEL'
     pending.items[0].fields.push({ ...pending.items[0].fields[0], field: 'habit_id', newValue: 'INTERNAL_ID_SENTINEL' })
     const output = parseResponse(response([], '', { pendingOperations: [pending] }))
+    output.answer = visibleAnswer(output.composition, { supportsParts: true, locale: 'en' })
     expect(output.composition.pendingOperations).toEqual([pending])
     expect(output.answer).toContain('Exame de colesterol')
     expect(output.answer).toContain('15:50')
@@ -165,6 +205,7 @@ describe('preview and outcome composition', () => {
       { value: null, label: 'INTERNAL_ROOT_LABEL' }, { value: 'existing', label: 'Existing parent' },
     ] }]
     const output = parseResponse(response([], '', { pendingOperations: [pending] }))
+    output.answer = visibleAnswer(output.composition, { supportsParts: true, locale: 'en' })
     expect(output.answer).toContain('Existing parent')
     expect(output.answer).not.toContain('INTERNAL_ROOT_LABEL')
   })
@@ -188,6 +229,13 @@ describe('preview and outcome composition', () => {
     const produced = response([], '', { pendingOperations: [revised] })
     expect((await gate(produced, vars)).pass).toBe(true)
     expect((await gate(produced, { ...vars, baselinePreview: undefined })).pass).toBe(false)
+    revised.id = '22222222-2222-4222-8222-222222222222'
+    expect((await gate(produced, vars)).pass).toBe(false)
+    revised.id = original.id
+    revised.items[0].fields[0].newValue = '17:00'
+    expect((await gate(produced, vars)).pass).toBe(false)
+    revised.items[0].fields[0].newValue = '16:00'
+
     revised.items[0].fields[1] = Object.fromEntries(Object.entries(revised.items[0].fields[1]).reverse())
     expect((await gate(produced, vars)).pass).toBe(true)
     revised.items[0].fields[1].proposedValue = 'Day'

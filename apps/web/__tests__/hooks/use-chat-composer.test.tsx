@@ -1,8 +1,10 @@
+import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
-import { choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { makeOneSmallStepCard, questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { describe, expect, it, vi, beforeEach, afterEach, onTestFinished } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
+import userEvent from '@testing-library/user-event'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockHabit, createMockProfile, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { buildComposerChips } from '@orbit/shared/chat'
@@ -277,6 +279,28 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
 }
 
 describe('web useChatComposer streaming send', () => {
+
+  it.each(allowanceRefusals.flatMap(refusal => ['http', 'sse'].flatMap(transport => ['message', 'choice', 'question'].map(submission => ({ ...refusal, transport, submission })))))('shows the $period allowance refusal in $locale over $transport for $submission without retry', async ({ period, locale, limit, body, transport, submission }) => {
+    mocks.locale = locale
+    mocks.translate = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+    mocks.state.profile = createMockProfile({ hasProAccess: period === 'week', isTrialActive: false, aiMessagesUsed: 0, aiMessagesLimit: limit, aiMessagesPeriod: period === 'week' ? 'week' : 'day' })
+    mocks.fetch.mockResolvedValue(transport === 'http' ? Response.json(body, { status: 403 }) : sseResponse(
+      frame('{"type":"started"}'), frame('{"type":"delta","text":"Checking"}'),
+      frame(JSON.stringify({ type: 'error', status: 403, error: body.error, code: body.errorCode })),
+    ))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => {
+      if (submission === 'message') await result.current.sendMessage('Plan my morning')
+      else await result.current.blockAnswerInteraction.send({ kind: submission === 'choice' ? 'choice' : 'question', answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['morning'] }, labels: ['Morning'] })
+    })
+    expect(useChatStore.getState().messages.at(-1)).toMatchObject({ role: 'ai', content: mocks.translate(`chat.limitReachedError${period === 'week' ? 'Weekly' : ''}`) })
+    expect(result.current.sendError).toBeNull()
+    expect(result.current.canRetryLastSend).toBe(false)
+    await act(async () => { await result.current.retryLastSend() })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
   it('keeps desktop reloads blocked through a real streamed send and voice input', async () => {
     useUIStore.setState({ showCreateModal: false, openOverlayIds: [], selectedHabitIds: new Set() })
     const stream = controlledSseResponse()
@@ -588,7 +612,7 @@ describe('web useChatComposer streaming send', () => {
       if (initial === 'message') await composer.current.sendMessage('Plan my morning')
       else await composer.current.blockAnswerInteraction.send(request)
     })
-    mocks.fetch.mockImplementation(async () => sseResponse(finalFrame(makeChatResponse())))
+    mocks.fetch.mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse()))))
     const submit = async () => {
       if (next === 'message') await composer.current.sendMessage('A fresh message')
       else await composer.current.blockAnswerInteraction.send({ ...request, answer: { ...request.answer, selectedIds: ['morning'] }, labels: ['Morning'] })
@@ -689,6 +713,58 @@ describe('web useChatComposer streaming send', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.closeConversation' }))
     expect(screen.getByRole('button', { name: 'Open Astra' })).toHaveFocus()
     expect(screen.getAllByRole('textbox')).toHaveLength(1)
+  })
+
+  it.each([false, true])('retains composer focus after a keyboard submission with queued=%s', async (queued) => {
+    const user = userEvent.setup()
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    useUIStore.getState().setAstraConversationOpen(true)
+    render(<ComposerConversationHarness />)
+    onTestFinished(() => stream.close())
+    const input = screen.getByRole('textbox')
+    if (queued) {
+      fireEvent.change(input, { target: { value: 'Running message' } })
+      fireEvent.keyDown(input, { key: 'Enter' })
+    }
+    fireEvent.change(input, { target: { value: 'Next message' } })
+    const send = screen.getByRole('button', { name: queued ? 'shell.composer.queue.add' : 'shell.composer.send' })
+    act(() => send.focus())
+    expect(send).toHaveFocus()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(input).toHaveValue(''))
+    const primary = screen.getByRole('button', { name: 'shell.composer.voice.start' })
+    expect(input).toHaveFocus()
+    expect(primary).toBe(send)
+    expect(mocks.fetch).toHaveBeenCalledOnce()
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(queued ? ['Next message'] : [])
+  })
+
+  it.each(['', 'Existing draft'])('keeps voice reachable at the limit through transcription with draft=%j', async (draft) => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
+    useChatStore.setState({ draft, draftHydrated: true })
+    useUIStore.getState().setAstraConversationOpen(true)
+    const view = render(<ComposerConversationHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.voice.start' }))
+    expect(mocks.toggleRecording).toHaveBeenCalledOnce()
+    mocks.state.isRecording = true
+    view.rerender(<ComposerConversationHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.voice.stop' }))
+    mocks.state.isRecording = false
+    mocks.state.isTranscribing = true
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.getByRole('button', { name: 'shell.composer.voice.stop' })).toBeDisabled()
+    mocks.state.isTranscribing = false
+    mocks.state.transcript = 'Recorded message'
+    view.rerender(<ComposerConversationHarness />)
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue(draft ? `${draft} Recorded message` : 'Recorded message'))
+    expect(screen.getByRole('textbox')).toBeDisabled()
+    const microphone = screen.getByRole('button', { name: 'shell.composer.voice.start' })
+    expect(microphone).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'shell.composer.send' })).not.toBeInTheDocument()
+    fireEvent.click(microphone)
+    expect(mocks.toggleRecording).toHaveBeenCalledTimes(3)
+    expect(mocks.fetch).not.toHaveBeenCalled()
   })
 
   it.each([412, 1440])('preserves close button focus when a streamed send finishes at %s', async (width) => {
@@ -861,6 +937,49 @@ describe('web useChatComposer streaming send', () => {
     expect(context.timeFormat).toBe('24h')
   })
 
+  it.each(['en', 'pt-BR'] as const)('forwards the %s Smaller baseline only on that tap', async locale => {
+    mocks.locale = locale
+    const card = makeOneSmallStepCard(locale)
+    card.actions[0]!.previousStep = card.suggestion
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ content: '', pendingOperations: [],
+      parts: [{ type: 'block', kind: 'oneSmallStep', block: card }] })] })
+    useUIStore.getState().setAstraConversationOpen(true)
+    mocks.fetch.mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse()))))
+    render(<ComposerConversationHarness />)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: card.actions[0]!.label })) })
+    const form = mocks.fetch.mock.calls[0]?.[1]?.body as FormData
+    expect(form.get('message')).toBe(card.actions[0]!.message)
+    expect(JSON.parse(form.get('clientContext') as string)).toMatchObject({ supportsStartingStepContext: true,
+      previousStartingStep: card.actions[0]!.previousStep })
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Another question' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' })) })
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    const next = mocks.fetch.mock.calls[1]?.[1]?.body as FormData
+    expect(next.get('message')).toBe('Another question')
+    expect(JSON.parse(next.get('clientContext') as string)).not.toHaveProperty('previousStartingStep')
+  })
+
+  it.each(makeOneSmallStepCard().actions)('sends the complete $id request with current history and no confirmation token', async action => {
+    const card = makeOneSmallStepCard()
+    useChatStore.setState({ messages: [
+      makeHeldHabitMessage({ id: 'request', role: 'user', content: 'Help me start reading', pendingOperations: [] }),
+      makeHeldHabitMessage({ id: 'step', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'oneSmallStep', block: card }] }),
+    ] })
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage(action.message) })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    const formData = mocks.fetch.mock.calls[0]?.[1]?.body as FormData
+    expect(formData.get('message')).toBe(action.message)
+    expect(formData.get('confirmationToken')).toBeNull()
+    expect(formData.get('blockAnswer')).toBeNull()
+    const history = JSON.parse(formData.get('history') as string)
+    expect(history).toContainEqual({ role: 'user', content: 'Help me start reading' })
+    expect(history).toContainEqual({ role: 'assistant', content: JSON.stringify([{ kind: 'oneSmallStep', block: card }]) })
+    expect(JSON.parse(formData.get('clientContext') as string).partKinds).toContain('oneSmallStep')
+    expect(JSON.parse(formData.get('clientContext') as string)).not.toHaveProperty('previousStartingStep')
+  })
+
   it('keeps tool steps and follow-ups on the final answer and marks a chip send', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(
       frame('{"type":"step","domain":"habits","access":"read"}'),
@@ -888,7 +1007,7 @@ describe('web useChatComposer streaming send', () => {
 
   it('keeps three waiting prompts in order, refuses a fourth, removes one and drains after success', async () => {
     const stream = controlledSseResponse()
-    mocks.fetch.mockResolvedValueOnce(stream.response).mockImplementation(async () => sseResponse(finalFrame(makeChatResponse())))
+    mocks.fetch.mockResolvedValueOnce(stream.response).mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse()))))
     const { result, rerender } = renderHook(() => useChatComposer({ pathname: mocks.pathname }))
     let firstSend!: Promise<void>
     act(() => { firstSend = result.current.sendMessage('running') })
@@ -916,7 +1035,7 @@ describe('web useChatComposer streaming send', () => {
 
   it('pauses after failure, retains the newer draft and sends retained rows only when requested', async () => {
     const stream = controlledSseResponse()
-    mocks.fetch.mockResolvedValueOnce(stream.response).mockImplementation(async () => sseResponse(finalFrame(makeChatResponse())))
+    mocks.fetch.mockResolvedValueOnce(stream.response).mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse()))))
     const { result, rerender } = renderHook(() => useChatComposer({ pathname: mocks.pathname }))
     let firstSend!: Promise<void>
     act(() => { result.current.setInput('running') })
@@ -1129,6 +1248,19 @@ describe('web useChatComposer streaming send', () => {
     expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(5)
   })
 
+
+  it('sends typed question answers through multipart and persists the terminal summary', async () => {
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ id: 'questions', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'question', block: questionBlockFixture }] })] })
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    const answer = { blockId: questionBlockFixture.blockId, selectedIds: [], answers: questionAnswersFixture }
+    await act(async () => { expect(await result.current.blockAnswerInteraction.send({ kind: 'question', answer, labels: ['Energy: 3', 'Reminder: No'] })).toEqual({ ok: true }) })
+    const body = mocks.fetch.mock.calls[0]![1].body as FormData
+    expect(JSON.parse(body.get('blockAnswer') as string)).toEqual(answer)
+    expect(JSON.parse(body.get('clientContext') as string).partKinds).toContain('question')
+    expect(useChatStore.getState().messages[0]?.blockAnswers?.[answer.blockId]).toMatchObject({ answered: true })
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+  })
   it('sends a localized block answer once and retains the preview in the existing message path', async () => {
     mocks.locale = 'pt-BR'
     mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
@@ -3119,4 +3251,12 @@ describe('web useChatComposer streaming send', () => {
       queryKey: habitKeys.lists(),
     })
   })
+  it('uses the weekly allowance and the server reset in the account timezone', () => {
+    mocks.state.profile = createMockProfile({ hasProAccess: true, aiMessagesUsed: 250, aiMessagesLimit: 250,
+      aiMessagesPeriod: 'week', aiMessagesResetsAt: '2026-11-09T02:00:00Z', timeZone: 'America/Sao_Paulo' })
+    const { result } = renderHook(() => useChatComposer())
+    expect(result.current.composerProps.limitReason).toBe('shell.composer.limit.reasonWeekly:{"allowance":250}')
+    expect(result.current.composerProps.renewalHint).toBe('shell.composer.limit.renewalWeekly:{"day":"Sunday"}')
+  })
+
 })

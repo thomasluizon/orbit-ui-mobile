@@ -137,7 +137,7 @@ export function useUpdateGoal() {
   return useMutation({
     mutationFn: ({ goalId, data }: { goalId: string; data: UpdateGoalRequest }) => writeQueuedGoalChange('updateGoal', goalId, data),
 
-    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'update', request: data }),
+    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'update', request: data }, false),
 
     onError: goalDetailRollback(queryClient),
 
@@ -257,7 +257,7 @@ export function useUpdateGoalProgress() {
       if (celebration) setGoalCompletedCelebration(celebration)
     },
 
-    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'progress', currentValue: data.currentValue }),
+    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'progress', currentValue: data.currentValue }, false),
 
     onError: goalDetailRollback(queryClient),
 
@@ -278,7 +278,7 @@ export function useUpdateGoalStatus() {
       if (celebration) setGoalCompletedCelebration(celebration)
     },
 
-    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'status', status: data.status }),
+    onMutate: ({ goalId, data }) => updateGoalCache(queryClient, goalId, { type: 'status', status: data.status }, false),
 
     onError: goalDetailRollback(queryClient),
 

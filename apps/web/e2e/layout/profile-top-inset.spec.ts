@@ -60,7 +60,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
         const firstCard = page.getByTestId('profile-settings-group-you').locator('.orbit-row-list')
         await expect(firstCard).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
-        await assertBellRow(page.locator('[data-root-notification-header]'), todayBellBounds?.x, width)
+        await assertBellRow(page.locator('[data-root-notification-header]'), todayBellBounds?.x, width, words.notifications.bell)
         const profileInset = await measureTopInset(firstCard)
         expect(profileInset.column).toBeGreaterThanOrEqual(16)
         expect(profileInset).toEqual({ column: width < 1024 ? 100 : 32, scroller: width < 1024 ? 100 : 0 })
@@ -69,14 +69,14 @@ for (const locale of ['en', 'pt-BR'] as const) {
         const overview = page.getByRole('region', { name: words.progressScreen.sections.window, exact: true })
         await expect(overview).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
-        await assertBellRow(page.locator('[data-root-notification-header]'), todayBellBounds?.x, width)
+        await assertBellRow(page.locator('[data-root-notification-header]'), todayBellBounds?.x, width, words.notifications.bell)
         expect(await measureTopInset(overview)).toEqual({ column: width < 1024 ? 88 : 48, scroller: width < 1024 ? 88 : 16 })
       })
     })
   }
 }
 
-async function assertBellRow(row: Locator, todayBellX: number | undefined, width: number) {
+async function assertBellRow(row: Locator, todayBellX: number | undefined, width: number, bellLabel: string) {
   if (width >= 1024) {
     await expect(row).toHaveCount(0)
     return
@@ -84,7 +84,7 @@ async function assertBellRow(row: Locator, todayBellX: number | undefined, width
   await expect(row).toBeVisible()
   const bounds = await row.boundingBox()
   expect(bounds!.height).toBe(72)
-  const bell = await row.getByRole('button').boundingBox()
+  const bell = await row.getByRole('button', { name: new RegExp(`^${bellLabel}`) }).boundingBox()
   expect(bell!.x).toBe(todayBellX)
   expect(await row.evaluate((element) => Boolean(element.closest('[data-shell-scroller]')))).toBe(true)
 }

@@ -19,7 +19,7 @@ interface HabitEmojiSelectorProps {
   selectedEmoji: string
   onSelect: (emoji: string) => void
   isDisabled?: boolean
-  wellSize?: number
+  wellSize?: number | string
 }
 
 function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled, suggestionHint, suggestionError, hintId, errorId }: Readonly<Pick<HabitEmojiSelectorProps, 'onSuggest' | 'canSuggest' | 'isSuggesting' | 'isDisabled' | 'suggestionHint' | 'suggestionError'> & { hintId: string; errorId?: string }>) {
@@ -42,14 +42,18 @@ function EmojiSuggestionButton({ onSuggest, canSuggest, isSuggesting, isDisabled
   ) : null
 }
 
-function emojiWellStyle(wellSize: number, proposed: boolean) {
-  return {
-    width: wellSize,
-    height: wellSize,
-    color: proposed ? 'var(--fg-3)' : undefined,
-    outline: proposed ? '1px dashed var(--hairline-strong)' : undefined,
-    outlineOffset: -1,
-  }
+function EmojiWell({ wellSize, proposed, selectedEmoji }: Readonly<Pick<HabitEmojiSelectorProps, 'wellSize' | 'proposed' | 'selectedEmoji'>>) {
+  return (
+    <span data-emoji-well="" data-proposed={proposed ? '' : undefined} aria-hidden="true" className="habit-control-motion grid place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] group-hover/emoji:bg-[var(--bg-hover)] group-active/emoji:bg-[var(--bg-hover)]" style={{
+      width: wellSize,
+      height: wellSize,
+      color: proposed ? 'var(--fg-3)' : undefined,
+      outline: proposed ? '1px dashed var(--hairline-strong)' : undefined,
+      outlineOffset: -1,
+    }}>
+      {selectedEmoji || <Plus size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
+    </span>
+  )
 }
 
 export function HabitEmojiSelector({
@@ -100,14 +104,14 @@ export function HabitEmojiSelector({
 
   return (
     <>
-      <div className="flex max-w-full min-w-0 flex-col gap-2" style={{ width: Math.max(wellSize, TOUCH_TARGET_MIN) + (onSuggest ? TOUCH_TARGET_MIN + 12 : 0) }}>
+      <div className="flex max-w-full min-w-0 shrink-0 flex-col gap-2">
         <div className="flex items-center gap-3">
           <button
             type="button"
             className="habit-control-motion group/emoji grid shrink-0 cursor-pointer place-items-center border-0 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
             style={{
-              width: Math.max(wellSize, TOUCH_TARGET_MIN),
-              height: Math.max(wellSize, TOUCH_TARGET_MIN),
+              width: typeof wellSize === 'number' ? Math.max(wellSize, TOUCH_TARGET_MIN) : wellSize,
+              height: typeof wellSize === 'number' ? Math.max(wellSize, TOUCH_TARGET_MIN) : wellSize,
               borderRadius: 'var(--r-well)',
               fontSize: wellSize === 76 ? 34 : 22,
             }}
@@ -120,9 +124,7 @@ export function HabitEmojiSelector({
             aria-label={t('habits.form.emojiOpenPicker')}
             aria-describedby={proposed ? proposalId : undefined}
           >
-            <span data-emoji-well="" data-proposed={proposed ? '' : undefined} aria-hidden="true" className="habit-control-motion grid place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] group-hover/emoji:bg-[var(--bg-hover)] group-active/emoji:bg-[var(--bg-hover)]" style={emojiWellStyle(wellSize, proposed)}>
-              {selectedEmoji || <Plus size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
-            </span>
+            <EmojiWell wellSize={wellSize} proposed={proposed} selectedEmoji={selectedEmoji} />
           </button>
           <EmojiSuggestionButton onSuggest={onSuggest} canSuggest={canSuggest} isSuggesting={isSuggesting} isDisabled={isDisabled} suggestionHint={suggestionHint} suggestionError={suggestionError} hintId={hintId} errorId={suggestionErrorId} />
         </div>

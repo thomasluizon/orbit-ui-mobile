@@ -1,10 +1,12 @@
+import { ShellSideInsetsContext } from '@/components/shell/shell-side-insets'
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, type ReactNode } from 'react'
-import { AccessibilityInfo, StyleSheet, findNodeHandle, View } from 'react-native'
+import { AccessibilityInfo, Animated, StyleSheet, findNodeHandle, View } from 'react-native'
 import * as Dialog from '@rn-primitives/dialog'
 import { useUIStore } from '@/stores/ui-store'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useOverlayFocus } from './focus-provenance-view'
+import { useOverlayMotion } from '@/lib/overlay-motion'
 import { useNativeWindow } from './native-window-host'
 
 interface NativeDialogProps {
@@ -20,8 +22,12 @@ export function NativeDialog({ open, onOpenChange, title, children }: Readonly<N
   </Dialog.Root>
 }
 
+const AnimatedDialogOverlay = Animated.createAnimatedComponent(Dialog.Overlay)
+const AnimatedDialogContent = Animated.createAnimatedComponent(Dialog.Content)
+
 function WindowPortal({ title, children }: Readonly<Pick<NativeDialogProps, 'title' | 'children'>>) {
   const { open, onOpenChange } = Dialog.useRootContext()
+  const motion = useOverlayMotion(open, 'dialog')
   useOverlayFocus(open)
   const { hostName, topDialogId, register } = useNativeWindow()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -44,16 +50,17 @@ function WindowPortal({ title, children }: Readonly<Pick<NativeDialogProps, 'tit
     return () => { unregister(); unregisterOverlay(overlayId) }
   }, [open, overlayId, register, close, focus, registerOverlay, unregisterOverlay])
   const topmost = topDialogId === overlayId
-  return <Dialog.Portal hostName={hostName}>
-    <Dialog.Overlay closeOnPress={false} style={[StyleSheet.absoluteFill, { backgroundColor: tokens.bg }]}
-      pointerEvents={topmost ? 'auto' : 'none'} accessibilityElementsHidden={!topmost}
-      importantForAccessibility={topmost ? 'auto' : 'no-hide-descendants'}>
-      <Dialog.Content ref={contentRef} style={styles.content} accessibilityLabel={title} accessibilityViewIsModal
+  if (!motion.present) return null
+  return <Dialog.Portal forceMount hostName={hostName}>
+    <AnimatedDialogOverlay forceMount closeOnPress={false} style={[StyleSheet.absoluteFill, { backgroundColor: tokens.bg, opacity: motion.style.opacity }]}
+      pointerEvents={topmost && open ? 'auto' : 'none'} accessibilityElementsHidden={!topmost || !open}
+      importantForAccessibility={topmost && open ? 'auto' : 'no-hide-descendants'}>
+      <AnimatedDialogContent forceMount ref={contentRef} style={[styles.content, { transform: motion.style.transform }]} accessibilityLabel={title} accessibilityViewIsModal
         onAccessibilityEscape={() => { if (topmost) close() }}>
         <Dialog.Title style={styles.hiddenTitle} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{title}</Dialog.Title>
-        {children}
-      </Dialog.Content>
-    </Dialog.Overlay>
+        <ShellSideInsetsContext.Provider value={false}>{children}</ShellSideInsetsContext.Provider>
+      </AnimatedDialogContent>
+    </AnimatedDialogOverlay>
   </Dialog.Portal>
 }
 

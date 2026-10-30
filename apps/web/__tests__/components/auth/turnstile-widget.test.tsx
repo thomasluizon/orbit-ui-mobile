@@ -82,3 +82,18 @@ it('keeps the active challenge when callbacks change and delivers to the latest 
   expect(firstToken).not.toHaveBeenCalled()
   expect(firstState).not.toHaveBeenCalled()
 })
+
+it('keeps onboarding verification managed and reports failure without extra copy', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'onboarding-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  const onStateChange = vi.fn()
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} quiet onToken={vi.fn()} onStateChange={onStateChange} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  expect(renderWidget.mock.calls[0]![1]).toMatchObject({ appearance: 'interaction-only' })
+  expect(screen.queryByRole('status')).toBeNull()
+  const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': () => boolean }
+  act(() => { callbacks['error-callback']() })
+  expect(onStateChange).toHaveBeenCalledWith('failed')
+  expect(screen.queryByRole('alert')).toBeNull()
+  expect(screen.queryByText('auth.turnstileFailed')).toBeNull()
+})

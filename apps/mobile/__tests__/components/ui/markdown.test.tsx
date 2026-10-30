@@ -101,6 +101,7 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 
 it.each(['ai', 'user'] as const)('keeps %s message text selectable through the native renderer', role => {

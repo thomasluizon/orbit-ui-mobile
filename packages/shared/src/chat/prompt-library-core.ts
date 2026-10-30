@@ -1,12 +1,10 @@
 import type { StateHook } from '../hooks/state-adapter'
-import { findPromptSlot } from './composer-controls'
 import { INITIAL_PROMPT_FILTERS, PROMPT_CATEGORIES, PROMPT_PRESENTATION, reducePromptFilters, type PromptCategory, type PromptFilterAction, type PromptFilters, type PromptTemplate } from './prompt-library'
 
 export interface PromptIdeaProps<Icon> {
   label: string
   icon?: Icon
   example?: string
-  invokesAstra?: boolean
   catalogId?: string
   disabled: boolean
   onSelect: () => void
@@ -38,7 +36,7 @@ export function buildCatalogIdea(template: PromptTemplate, translate: (key: stri
   return {
     catalogId: template.id, label, intentIcon: presentation.icon,
     example: presentation.example ? prompt : undefined,
-    invokesAstra: !findPromptSlot(prompt), onSelect: () => onSelect(template.id, label, prompt),
+    onSelect: () => onSelect(template.id, label, prompt),
   }
 }
 

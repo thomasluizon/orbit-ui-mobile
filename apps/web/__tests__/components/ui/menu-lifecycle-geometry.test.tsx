@@ -1,3 +1,4 @@
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -27,10 +28,12 @@ describe('mounted headless menu lifecycle in Chromium', () => {
       const options = JSON.parse(process.argv[1]);
       const result = await build({ ...options, alias: { '@sentry/nextjs': '@sentry/browser' }, plugins: [{
         name: 'notification-boundaries', setup(build) {
-          build.onResolve({ filter: /^next\\/navigation$|^@\\/hooks\\/use-notification-inbox$/ }, ({ path }) => ({ path, namespace: 'notifications' }));
+          build.onResolve({ filter: /^next\\/navigation$|^@\\/hooks\\/use-notification-inbox$|^@\\/hooks\\/use-color-scheme$/ }, ({ path }) => ({ path, namespace: 'notifications' }));
           build.onLoad({ filter: /.*/, namespace: 'notifications' }, ({ path }) => ({ contents: path === 'next/navigation'
             ? 'export const useRouter = () => ({ push() {} }); export const usePathname = () => "/today"; export const unstable_isUnrecognizedActionError = () => false;'
-            : 'export const useNotificationInbox = () => ({ visibleUnreadCount: 0 });' }));
+            : path === '@/hooks/use-color-scheme'
+              ? 'export const useColorScheme = () => ({ currentTheme: document.documentElement.classList.contains("light") ? "light" : "dark", toggleTheme() {} });'
+              : 'export const useNotificationInbox = () => ({ visibleUnreadCount: 0 });' }));
         }
       }] });
       process.stdout.write(result.outputFiles[0].text);
@@ -48,9 +51,72 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
     await page.setContent(`<html class="${mode}" style="${theme}"><style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ surface, locale })}</script></html>`)
     await loadAppFonts(page)
+    const pageError = new Promise<never>((_, reject) => page.once('pageerror', reject))
     await page.addScriptTag({ content: script })
+    await Promise.race([page.locator('#root > *').first().waitFor({ state: 'attached' }), pageError])
     return page
   }
+
+  it.each(['no-preference', 'reduce'] as const)('samples compact entrance transition frames with %s motion', async (reducedMotion) => {
+    const page = await mount('habit', 'en', 390, 844, 'dark', reducedMotion)
+    const trigger = page.locator('[data-habit-row-control="menu"]')
+    await trigger.waitFor({ state: 'visible' })
+    const [frames] = await Promise.all([
+      page.evaluate(() => new Promise<{ y: number; top: number; opacity: number; backdrop: number }[]>((resolve) => {
+        const frames: { y: number; top: number; opacity: number; backdrop: number }[] = []
+        const start = performance.now()
+        function sample() {
+          const panel = document.querySelector('.orbit-sheet-panel')
+          const backdrop = document.querySelector('.orbit-sheet-backdrop')
+          if (panel && backdrop) {
+            const style = getComputedStyle(panel)
+            frames.push({ y: new DOMMatrixReadOnly(style.transform).m42, top: panel.getBoundingClientRect().top,
+              opacity: Number(style.opacity), backdrop: Number(getComputedStyle(backdrop).opacity) })
+          }
+          if (performance.now() - start < 700) requestAnimationFrame(sample)
+          else resolve(frames)
+        }
+        requestAnimationFrame(sample)
+      })),
+      trigger.click(),
+    ])
+    expect(frames.length).toBeGreaterThan(2)
+    if (reducedMotion === 'no-preference') {
+      expect(Math.max(...frames.map(frame => frame.y))).toBeGreaterThan(1)
+      expect(frames.some(frame => frame.opacity > 0 && frame.opacity < 1)).toBe(true)
+      expect(frames.some(frame => frame.backdrop > 0 && frame.backdrop < 1)).toBe(true)
+      expect(Math.max(...frames.map(frame => frame.top)) - frames.at(-1)!.top).toBeGreaterThan(1)
+    } else expect(frames.every(frame => frame.y === 0)).toBe(true)
+    expect(frames.at(-1)).toMatchObject({ y: 0, opacity: 1, backdrop: 1 })
+  })
+
+  it('samples reduced anchored exit transition frames without scale or travel', async () => {
+    const page = await mount('habit', 'en', 1280, 900)
+    await page.locator('[data-habit-row-control="menu"]').click()
+    await page.getByRole('menu').waitFor({ state: 'visible' })
+    const [frames] = await Promise.all([
+      page.evaluate(() => new Promise<{ scaleX: number; scaleY: number; x: number; y: number; opacity: number }[]>((resolve) => {
+        const frames: { scaleX: number; scaleY: number; x: number; y: number; opacity: number }[] = []
+        const start = performance.now()
+        function sample() {
+          const panel = document.querySelector('.orbit-menu-panel[data-state="closed"]')
+          if (panel) {
+            const style = getComputedStyle(panel)
+            const matrix = new DOMMatrixReadOnly(style.transform)
+            frames.push({ scaleX: matrix.m11, scaleY: matrix.m22, x: matrix.m41, y: matrix.m42, opacity: Number(style.opacity) })
+          }
+          if (performance.now() - start < 500) requestAnimationFrame(sample)
+          else resolve(frames)
+        }
+        requestAnimationFrame(sample)
+      })),
+      page.keyboard.press('Escape'),
+    ])
+    expect(frames.length).toBeGreaterThan(0)
+    expect(frames.every(frame => frame.scaleX === 1 && frame.scaleY === 1 && frame.x === 0 && frame.y === 0), JSON.stringify(frames)).toBe(true)
+    expect(frames.some(frame => frame.opacity < 1)).toBe(true)
+    expect(await page.getByRole('menu').count()).toBe(0)
+  })
 
   it.each([320, 360, 384, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
     (['dark', 'light'] as const).map(mode => ({ width, locale, mode })))))
@@ -133,6 +199,7 @@ describe('mounted headless menu lifecycle in Chromium', () => {
       await page.mouse.down()
       await expect.poll(() => overlays.count()).toBeGreaterThan(0)
       await page.mouse.move(0, 0)
+      await trigger.evaluate(settleAnimations)
       expect(await trigger.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgba(250, 250, 250, 0.13)')
       await page.mouse.up()
       await expect.poll(() => overlays.count()).toBeGreaterThan(0)
@@ -169,6 +236,19 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it('keeps keyboard submission focus in the composer while send becomes a disabled microphone', async () => {
+    const page = await mount('composer', 'en', 412, 915)
+    const input = page.getByRole('textbox')
+    await input.fill('Next message')
+    const send = page.getByRole('button', { name: en.shell.composer.send, exact: true })
+    await send.focus()
+    await page.keyboard.press('Enter')
+    await expect.poll(() => input.inputValue()).toBe('')
+    await expect.poll(() => page.locator('[data-composer-root]').evaluate(root => root.contains(document.activeElement))).toBe(true)
+    await expect.poll(() => input.evaluate(element => element === document.activeElement)).toBe(true)
+    expect(await page.getByRole('button', { name: en.shell.composer.voice.start, exact: true }).isDisabled()).toBe(true)
+  })
+
   it('keeps the opening release from selecting a sheet item beneath its trigger', async () => {
     const page = await mount('composer', 'en', 412, 915)
     const trigger = page.getByRole('button', { name: en.shell.composer.actions, exact: true, includeHidden: true })
@@ -178,6 +258,7 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     await page.mouse.down()
     const menu = page.getByRole('menu', { name: en.shell.composer.actions, exact: true })
     await menu.waitFor({ state: 'visible' })
+    await page.getByRole('dialog').evaluate(settleAnimations)
     await expect.poll(() => page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[role="menuitem"]') != null, point)).toBe(true)
     await page.mouse.up()
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
@@ -225,11 +306,14 @@ describe('mounted headless menu lifecycle in Chromium', () => {
       }, { inline: inlineInset, bottom: bottomInset })
       await page.getByRole('button', { name: en.habits.listOptions }).click()
       const options = page.getByRole('dialog', { name: en.habits.listOptions, exact: true }).getByRole('menuitem')
+      await page.getByRole('dialog', { name: en.habits.listOptions, exact: true }).evaluate(settleAnimations)
       expect(await options.count()).toBe(5)
       for (const option of await options.all()) await option.scrollIntoViewIfNeeded()
       await page.getByRole('menuitem', { name: en.habits.frequencyFilter }).click()
       const frequency = page.getByRole('dialog', { name: en.habits.frequencyFilter })
       await frequency.waitFor({ state: 'visible' })
+      await frequency.evaluate(settleAnimations)
+      expect(await frequency.evaluate((element) => new DOMMatrixReadOnly(getComputedStyle(element).transform).m42)).toBe(0)
       const panel = (await frequency.boundingBox())!
       expect(panel.height).toBeLessThanOrEqual(390 * 0.85)
       expect(panel.y).toBeGreaterThanOrEqual(24)
@@ -252,6 +336,7 @@ describe('mounted headless menu lifecycle in Chromium', () => {
     await page.getByRole('menuitem', { name: en.habits.frequencyFilter }).click()
     const choices = page.getByRole('menuitemcheckbox')
     await expect.poll(() => choices.count()).toBe(6)
+    await page.getByRole('dialog', { name: en.habits.frequencyFilter }).evaluate(settleAnimations)
     await choices.first().focus()
     await expect.poll(() => choices.first().evaluate((element) => element === document.activeElement)).toBe(true)
     const last = choices.last()

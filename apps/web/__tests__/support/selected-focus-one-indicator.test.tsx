@@ -15,7 +15,9 @@ import { RadioRow } from '@/components/ui/select-check'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { inspectControlAccentRings, inspectFocusedControlRings } from '@/e2e/layout/focus-indicators'
 import { loadAppFonts } from './app-fonts'
+import { measureSplitSegmentWords, mountMeasuredSegmentedControls } from './segmented-control-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
+import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { weekStartDay: 1 } }) }))
@@ -33,6 +35,46 @@ describe('selection yields to keyboard focus', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+  it.each([1, 2].flatMap((scale) => (['inline', 'corner'] as const).map((countPlacement) => ({ scale, countPlacement }))))(
+    'keeps the $countPlacement bell badge paint outside clipping ancestors at scale $scale', async ({ scale, countPlacement }) => {
+      const page = await browser.newPage({ reducedMotion: 'reduce' })
+      try {
+        await page.setContent(`<style>${stylesheet} :root { font-size:${16 * scale}px; }</style>${render(<NotificationBellDisplay count={25} countPlacement={countPlacement} onClick={vi.fn()} />).container.innerHTML}`)
+        const button = page.getByRole('button')
+        expect(await button.count()).toBe(1)
+        expect(await button.getAttribute('aria-label')).toBe('notifications.bellWithCount')
+        for (const interaction of ['rest', 'hover', 'press', 'focus'] as const) {
+          if (interaction === 'hover') await button.hover()
+          if (interaction === 'press') await page.mouse.down()
+          if (interaction === 'focus') {
+            await page.mouse.up(); await page.mouse.move(200, 200); await page.keyboard.press('Tab'); await button.focus()
+            expect(await button.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+          }
+          const clipped = await page.locator('[data-notification-count]').evaluate((badge) => {
+            const bounds = badge.getBoundingClientRect()
+            const inset = Math.min(Number.parseFloat(getComputedStyle(badge).borderRadius), bounds.width / 2, bounds.height / 2) * (1 - Math.SQRT1_2)
+            const corners = [bounds.left + inset, bounds.right - inset].flatMap((x) =>
+              [bounds.top + inset, bounds.bottom - inset].map((y) => ({ x, y })))
+            const clipped: string[] = []
+            for (let ancestor = badge.parentElement; ancestor; ancestor = ancestor.parentElement) {
+              const style = getComputedStyle(ancestor)
+              if (style.overflowX === 'visible' && style.overflowY === 'visible') continue
+              const box = ancestor.getBoundingClientRect()
+              const radius = Math.min(Number.parseFloat(style.borderRadius) || 0, box.width / 2, box.height / 2)
+              if (corners.some(({ x, y }) => {
+                const nearestX = Math.max(box.left + radius, Math.min(x, box.right - radius))
+                const nearestY = Math.max(box.top + radius, Math.min(y, box.bottom - radius))
+                return Math.hypot(x - nearestX, y - nearestY) > radius + 0.01
+              })) clipped.push(ancestor.tagName)
+            }
+            return clipped
+          })
+          expect(clipped, `${interaction}: badge paint must stay visible`).toEqual([])
+        }
+      } finally { cleanup(); await page.close() }
+    },
+  )
 
   for (const theme of ['dark', 'light'] as const) {
     it.each([false, true].flatMap((checked) => (['none', 'active'] as const).map((forcedColors) => ({ checked, forcedColors }))))(`personal CheckRow keeps exactly one fill outline, ${theme}, checked $checked, forced colors $forcedColors`, async ({ checked, forcedColors }) => {
@@ -73,31 +115,6 @@ describe('selection yields to keyboard focus', () => {
         await page.keyboard.press('Tab')
         expect(await inspectControlAccentRings(control)).toEqual(['span:shadow'])
       } finally { cleanup(); await page.close() }
-    })
-    it(`selected theme choice keeps its foreground label under hovered keyboard focus, ${theme}`, async () => {
-      const page = await browser.newPage()
-      try {
-        await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style><button class="orbit-profile-theme-choice" data-selected>Theme</button><span style="color:var(--fg-1);background:var(--primary-dim)">Selected</span>`)
-        const control = page.locator('button')
-        await control.hover()
-        await page.keyboard.press('Tab')
-        expect(await control.evaluate((button) => button.matches(':focus-visible'))).toBe(true)
-        const selectedStyle = await page.locator('span').evaluate((element) => ({ color: getComputedStyle(element).color, background: getComputedStyle(element).backgroundColor }))
-        await expect.poll(() => control.evaluate((element) => getComputedStyle(element).color)).toBe(selectedStyle.color)
-        expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(selectedStyle.background)
-        expect(await inspectControlAccentRings(control)).toHaveLength(1)
-      } finally { await page.close() }
-    })
-    it(`unselected theme choice paints hover without an accent ring, ${theme}`, async () => {
-      const page = await browser.newPage()
-      try {
-        await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style><button class="orbit-profile-theme-choice">Theme</button><span style="background:var(--bg-hover)">Hover</span>`)
-        const control = page.locator('button')
-        await control.hover()
-        const hoverFill = await page.locator('span').evaluate((element) => getComputedStyle(element).backgroundColor)
-        await expect.poll(() => control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(hoverFill)
-        expect(await inspectControlAccentRings(control)).toHaveLength(0)
-      } finally { await page.close() }
     })
     for (const selected of [false, true]) {
       for (const surface of ['segment', 'chip', 'period', 'radio'] as const) {
@@ -161,10 +178,20 @@ describe('selection yields to keyboard focus', () => {
             await page.setContent(`<style>${stylesheet} body { margin:0; padding:16px; }</style>${render(<SegmentedControl label="View" options={choices} value="month" onChange={() => {}} fullWidth={fullWidth} />).container.innerHTML}`)
             await loadAppFonts(page)
             const geometry = await segmentGeometry(page)
-            expect(geometry).toMatchObject({ padding: '4px', gap: '4px', radius: '12px', shadow: 'none' })
+            expect(geometry).toMatchObject({ gap: '8px', radius: '12px', shadow: 'none' })
+            expect(geometry.labels[0]!.left - geometry.inlineStart).toBeCloseTo(geometry.trackLeft)
+            expect(geometry.labels.at(-1)!.right + geometry.inlineEnd).toBeCloseTo(geometry.trackRight)
+            expect(geometry.labels.reduce((sum, label) => sum + label.segmentWidth, 0) + Number.parseFloat(geometry.gap) * (geometry.labels.length - 1) + geometry.inlineStart + geometry.inlineEnd).toBeCloseTo(geometry.trackWidth, 1)
+            for (const label of geometry.labels) {
+              expect(label.top - geometry.blockStart).toBeCloseTo(geometry.trackTop)
+              expect(label.bottom + geometry.blockEnd).toBeCloseTo(geometry.trackBottom)
+            }
             expect(new Set(geometry.labels.map((label) => label.top)).size).toBe(1)
             const remaining = geometry.labels.map((label) => label.segmentWidth - label.width)
-            if (fullWidth) expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
+            if (fullWidth) for (const [index, label] of geometry.labels.entries()) {
+              const expected = Math.max(48 - label.width, Math.min(...remaining))
+              expect(Math.abs(remaining[index]! - expected)).toBeLessThan(0.1)
+            }
             for (const label of geometry.labels) {
               expect(label.fontSize).toBe('14px')
               expect(label.paddingLeft).toBe(8)
@@ -187,17 +214,29 @@ describe('selection yields to keyboard focus', () => {
     try {
       await page.setContent(`<style>${stylesheet} html { font-size:32px; } body { margin:0; padding:16px; }</style>${render(<SegmentedControl label="Schedule" options={choices} value="fixed" onChange={() => {}} fullWidth={fullWidth} />).container.innerHTML}`)
       await loadAppFonts(page)
-      const geometry = await segmentGeometry(page)
-      expect(geometry.trackWidth).toBeLessThanOrEqual(288)
+      await mountMeasuredSegmentedControls(page)
+      // WHY: DESIGN.md:1213 requires a Menu when whole words do not fit. https://github.com/thomasluizon/orbit-tickets/issues/1792
+      expect(await page.getByRole('radiogroup').count()).toBe(0)
+      const trigger = page.getByRole('button', { name: `Schedule: ${words.fixedMode}` })
+      expect(await trigger.textContent()).toBe(words.fixedMode)
+      const geometry = await trigger.evaluate((button) => {
+        const label = button.querySelector('span')!
+        const range = document.createRange(); range.selectNodeContents(label)
+        const bounds = range.getBoundingClientRect()
+        const style = getComputedStyle(label)
+        return { width: button.getBoundingClientRect().width, scrollWidth: button.scrollWidth, fontSize: style.fontSize,
+          labelWidth: label.getBoundingClientRect().width, textWidth: bounds.width, textHeight: bounds.height, labelHeight: label.getBoundingClientRect().height,
+          lines: new Set([...range.getClientRects()].map((fragment) => fragment.top)).size, overflow: style.overflow, textOverflow: style.textOverflow }
+      })
+      expect(geometry.width).toBeLessThanOrEqual(288)
       expect(geometry.scrollWidth).toBeLessThanOrEqual(288)
-      for (const label of geometry.labels) {
-        expect(label.fontSize).toBe('28px')
-        expect(label.width).toBeLessThanOrEqual(label.available)
-        expect(label.textHeight).toBeLessThanOrEqual(label.height)
-        expect(label.whiteSpace).toBe('normal')
-        expect(label.overflow).toBe('visible')
-        expect(label.textOverflow).not.toBe('ellipsis')
-      }
+      expect(geometry.fontSize).toBe('28px')
+      expect(geometry.textWidth).toBeLessThanOrEqual(geometry.labelWidth)
+      expect(geometry.textHeight).toBeLessThanOrEqual(geometry.labelHeight)
+      expect(geometry.lines).toBe(1)
+      expect(geometry.overflow).toBe('visible')
+      expect(geometry.textOverflow).not.toBe('ellipsis')
+      expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
     } finally { cleanup(); await page.close() }
   })
 })
@@ -205,15 +244,21 @@ describe('selection yields to keyboard focus', () => {
 async function segmentGeometry(page: import('@playwright/test').Page) {
   return page.locator('[role="radiogroup"]').evaluate((track) => {
     const style = getComputedStyle(track)
-    return { padding: style.padding, gap: style.gap, radius: style.borderRadius, shadow: style.boxShadow,
+    const bounds = track.getBoundingClientRect()
+    return { inlineStart: Number.parseFloat(style.paddingInlineStart), inlineEnd: Number.parseFloat(style.paddingInlineEnd),
+      blockStart: Number.parseFloat(style.paddingBlockStart), blockEnd: Number.parseFloat(style.paddingBlockEnd),
+      gap: style.gap, radius: style.borderRadius, shadow: style.boxShadow,
+      trackLeft: bounds.left, trackRight: bounds.right, trackTop: bounds.top, trackBottom: bounds.bottom,
       trackWidth: track.getBoundingClientRect().width, scrollWidth: track.scrollWidth,
-      labels: [...track.querySelectorAll('button span')].map((label) => {
+      labels: [...track.querySelectorAll('button > span:not([aria-hidden="true"])')].map((label) => {
         const range = document.createRange(); range.selectNodeContents(label)
         const rect = range.getBoundingClientRect()
         const segment = label.parentElement!
         const segmentStyle = getComputedStyle(segment)
         const labelStyle = getComputedStyle(label)
-        return { width: rect.width, available: label.getBoundingClientRect().width, top: segment.getBoundingClientRect().top,
+        const segmentBounds = segment.getBoundingClientRect()
+        return { width: rect.width, available: label.getBoundingClientRect().width, top: segmentBounds.top,
+          left: segmentBounds.left, right: segmentBounds.right, bottom: segmentBounds.bottom,
           segmentWidth: segment.getBoundingClientRect().width, height: segment.getBoundingClientRect().height,
           textHeight: rect.height, lines: range.getClientRects().length, fontSize: segmentStyle.fontSize,
           whiteSpace: labelStyle.whiteSpace, overflow: labelStyle.overflow, textOverflow: labelStyle.textOverflow,

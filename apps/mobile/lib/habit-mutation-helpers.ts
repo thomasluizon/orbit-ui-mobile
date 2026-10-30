@@ -8,6 +8,7 @@ import {
   restoreCachedHabitLists,
   tagKeys,
   updateCachedHabitLists,
+  updateHabitListsForDate as updateCachedHabitListsForDate,
 } from '@orbit/shared/query'
 import { findHabitInList, formatAPIDate, optimisticPatchHabit } from '@orbit/shared/utils'
 import type {
@@ -70,7 +71,9 @@ export function updateHabitLists(
   updateCachedHabitLists(queryClient, updater)
 }
 
-export { updateHabitListsForDate } from '@orbit/shared/query'
+export function updateHabitListsForDate(...parameters: Parameters<typeof updateCachedHabitListsForDate>): void {
+  updateCachedHabitListsForDate(...parameters)
+}
 
 export function adjustHabitCount(queryClient: QueryClient, delta: number): void {
   queryClient.setQueryData<number>(habitKeys.count(), (old) => {

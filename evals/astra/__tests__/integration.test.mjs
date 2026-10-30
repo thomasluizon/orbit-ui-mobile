@@ -9,12 +9,13 @@ import { loadApiProvider } from 'promptfoo'
 import { beforeAll, beforeEach } from '../hooks.mjs'
 import { resetFixture } from '../fixtures/reset.mjs'
 import { behavior } from '../assertions.mjs'
+import { READ_LATENCY_BUDGET_MILLISECONDS } from '../latency.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
-import { chatResponse, toolCall } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, traceTiming, turnTiming } from './fixtures/producer.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const configuration = parse(readFileSync(resolve(root, 'promptfooconfig.yaml'), 'utf8'))
-const catalog = parse(readFileSync(resolve(root, 'catalog.yaml'), 'utf8'))
+const { apiCommit, tools: catalog } = parse(readFileSync(resolve(root, 'catalog.yaml'), 'utf8'))
 const scenarios = parse(readFileSync(resolve(root, 'scenarios.yaml'), 'utf8'))
 const cli = resolve(root, 'node_modules/promptfoo/dist/src/entrypoint.js')
 const scratch = []
@@ -24,14 +25,17 @@ describe('real promptfoo CLI with an offline provider', () => {
   it.each([
     [false, false, 'pass', undefined], [true, false, 'fail', undefined], [false, true, 'incomplete', undefined],
     [false, false, 'fail', 'prose-first'], [false, false, 'pass', 'block-only'], [false, false, 'fail', 'repeated-figure'],
+    [false, false, 'fail', 'slow-latency'], [false, false, 'fail', 'missing-timing'],
     [false, false, 'incomplete', 'missing-composition'], [false, false, 'incomplete', 'skipped-composition'],
+    [false, false, 'fail', 'unrenderable'],
   ])('runs the production assertions and pass^3 reporter; broken=%s, noTrace=%s, status=%s, mode=%s', (broken, noTrace, status, responseMode) => {
     offlineCredentials()
     const directory = mkdtempSync(resolve(tmpdir(), 'astra-eval-'))
     scratch.push(directory)
     const configPath = resolve(directory, 'config.yaml')
     const assertions = configuration.defaultTest.assert.filter((assertion) => responseMode !== 'missing-composition' || assertion.metric !== 'composition').map((assertion) => ({
-      ...assertion, ...(responseMode === 'skipped-composition' && assertion.metric === 'composition'
+      ...assertion, ...(assertion.transform?.startsWith('file://')
+        ? { transform: assertion.transform.replace('file://', `file://${root}/`) } : {}), ...(responseMode === 'skipped-composition' && assertion.metric === 'composition'
         ? { value: "({ pass: true, score: 1, reason: 'Calibration skip.', metadata: { skipped: true } })" } : assertion.type === 'javascript'
         ? { value: assertion.value.replace('file://', `file://${root}/`) } : {}),
     }))
@@ -42,7 +46,7 @@ describe('real promptfoo CLI with an offline provider', () => {
       tests: [{ description: 'Offline Water case', metadata: { id: 'offline-water', fixture: 'pro', locale: 'en' }, vars: {
         input: 'Mark Water done', credentialKey: 'ORBIT_EVAL_TOKEN', broken, noTrace, responseMode,
         clientContext: {}, composition: { mode: 'fallback' },
-        ...(responseMode && ['prose-first', 'block-only', 'repeated-figure'].includes(responseMode) ? {
+        ...(responseMode && ['prose-first', 'block-only', 'repeated-figure', 'slow-latency', 'missing-timing', 'unrenderable'].includes(responseMode) ? {
           clientContext: { supportsParts: true, partKinds: ['habitList'], supportsHabitListCard: true }, composition: { mode: 'data', kinds: ['habitList'] },
         } : {}), rubric: 'Describe Water only.',
         expectations: { required: [{ name: 'log_habit', arguments: { habit_id: 'water' } }] },
@@ -61,8 +65,11 @@ describe('real promptfoo CLI with an offline provider', () => {
     if (status !== 'pass') expect(run.status, run.stdout + run.stderr).not.toBe(0)
     else expect(run.status, run.stdout + run.stderr).toBe(0)
     expect(summary.status).toBe(status)
+    if (['slow-latency', 'missing-timing'].includes(responseMode)) {
+      expect(summary.cases[0]).toMatchObject({ passed: 3, latency: { status: 'fail' } })
+    }
     if (status === 'pass') expect(summary.gateStatus).toBe('incomplete')
-    expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken || noTrace || ['prose-first', 'repeated-figure'].includes(responseMode) ? 0 : 3, skipped: responseMode === 'skipped-composition' ? 3 : 0, unavailable: noTrace ? 3 : 0 })
+    expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken || noTrace || ['prose-first', 'repeated-figure', 'unrenderable'].includes(responseMode) ? 0 : 3, skipped: responseMode === 'skipped-composition' ? 3 : 0, unavailable: noTrace ? 3 : 0 })
     expect(readFileSync(summaryPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
     const resultsPath = resolve(directory, 'reports/results.json')
     expect(existsSync(resultsPath)).toBe(true)
@@ -70,10 +77,35 @@ describe('real promptfoo CLI with an offline provider', () => {
     const attempts = JSON.parse(readFileSync(resultsPath, 'utf8'))
     expect(attempts.map(({ caseId, repeat, pass, httpStatus }) => ({ caseId, repeat, pass, httpStatus }))).toEqual(
       [1, 2, 3].map((repeat) => ({ caseId: 'offline-water', repeat,
-        pass: !broken && !noTrace && !['prose-first', 'repeated-figure'].includes(responseMode), httpStatus: 200 })),
+        pass: !broken && !noTrace && !['prose-first', 'repeated-figure', 'unrenderable'].includes(responseMode), httpStatus: 200 })),
     )
     for (const attempt of attempts) {
-      expect(attempt.assertions.length).toBe(responseMode === 'missing-composition' ? 3 : 4)
+      const evidencePath = resolve(directory, `reports/attempts/offline-water-r${attempt.repeat}.json`)
+      expect(statSync(evidencePath).mode & 0o777).toBe(0o600)
+      const contents = readFileSync(evidencePath, 'utf8')
+      expect(contents).not.toMatch(/TOOL_TRACE_SECRET|PRIVATE_(?:TOKEN|COOKIE|REFRESH|ACCOUNT)_VALUE|private@example\.invalid|offline-token|offline-refresh|independently-owned-request/)
+      const evidence = JSON.parse(contents)
+      expect(evidence).toMatchObject(attempt)
+      if (!noTrace) {
+        expect(evidence.toolCalls).toMatchObject([{ name: 'log_habit', resultStatus: 'PendingConfirmation' }])
+        if (responseMode === 'missing-timing') expect(evidence.timing).toBeNull()
+        else if (responseMode === 'slow-latency') {
+          expect(evidence.timing.totalMilliseconds).toBe(READ_LATENCY_BUDGET_MILLISECONDS + 2000)
+          expect(evidence.timing.phases.reduce((total, phase) => total + phase.milliseconds, 0)).toBe(READ_LATENCY_BUDGET_MILLISECONDS + 2000)
+        } else expect(evidence.timing).toEqual(responseMode && ['prose-first', 'block-only', 'repeated-figure', 'unrenderable'].includes(responseMode)
+          ? turnTiming() : traceTiming)
+      }
+      if (status === 'fail') expect(readFileSync(resolve(directory, 'reports/summary.md'), 'utf8'))
+        .toContain(`(attempts/offline-water-r${attempt.repeat}.json)`)
+      if (responseMode === 'unrenderable') {
+        expect(evidence.answer).toBeNull()
+        expect(evidence.renderError.blockKind).toBe('habitList')
+        expect(evidence.reason).toContain(evidence.renderError.message)
+        expect(evidence.reason).toContain('habitList')
+        continue
+      }
+      expect(evidence.answer).toBeTruthy()
+      expect(evidence.graderRationale).toBe('Offline final-answer boundary check.')
       expect(attempt.assertions.map(({ metric }) => metric)).toEqual(assertions.map(({ metric }) => metric))
       for (const assertion of attempt.assertions) {
         expect(typeof assertion.metric).toBe('string')
@@ -81,10 +113,13 @@ describe('real promptfoo CLI with an offline provider', () => {
         expect(typeof assertion.reason).toBe('string')
       }
     }
+    expect(statSync(resolve(directory, 'reports')).mode & 0o777).toBe(0o700)
+    expect(statSync(resolve(directory, 'reports/attempts')).mode & 0o777).toBe(0o700)
     expect(readFileSync(resultsPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
     if (broken) expect(attempts.every(({ assertions }) => assertions.some(({ metric, pass, reason }) =>
       metric === 'toolBehavior' && !pass && reason.includes('log_habit')))).toBe(true)
-    if (status !== 'pass') expect(existsSync(resolve(directory, 'promptfoo.json'))).toBe(false)
+    expect(run.stdout + run.stderr).not.toContain('Extension hook "afterAll" failed')
+    expect(existsSync(resolve(directory, 'promptfoo.json'))).toBe(true)
   })
 })
 
@@ -102,8 +137,11 @@ describe('HTTP provider wiring without a server', () => {
         } }],
         defaultTest: { ...configuration.defaultTest,
           options: { provider: `file://${root}/__tests__/fixtures/grader.mjs` },
-          assert: configuration.defaultTest.assert.map((assertion) => assertion.type === 'javascript'
-            ? { ...assertion, value: assertion.value.replace('file://', `file://${root}/`) } : assertion),
+          assert: configuration.defaultTest.assert.map((assertion) => ({ ...assertion,
+            ...(assertion.type === 'javascript' ? { value: assertion.value.replace('file://', `file://${root}/`) } : {}),
+            ...(assertion.transform?.startsWith('file://')
+              ? { transform: assertion.transform.replace('file://', `file://${root}/`) } : {}),
+          })),
         },
         tests: (mode === 'reset-stop' ? ['healthy', mode, 'healthy-next'] : [mode, 'healthy']).map((input) => ({ metadata: {
           id: input, fixture: input === 'reset-stop' ? 'unknown' : 'pro', locale: 'en',
@@ -215,18 +253,25 @@ describe('corpus and execution constraints', () => {
     expect(new Set(scenarios.map((scenario) => scenario.metadata.id)).size).toBe(scenarios.length)
     for (const scenario of scenarios) expect(scenario.vars.rubric.trim()).not.toBe('')
   })
-  it('requires credentials and an HTTPS origin before requests', () => {
+  it('requires credentials and an HTTPS origin before requests', async () => {
     offlineCredentials()
     for (const key of ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_HABIT_ID',
       'ORBIT_EVAL_SECOND_HABIT_ID', 'ORBIT_EVAL_OVERDUE_DATE', 'ORBIT_EVAL_TOKEN', 'ORBIT_EVAL_FREE_TOKEN', 'ORBIT_EVAL_BUDGET_TOKEN']) {
-      vi.stubEnv(key, key === 'ORBIT_EVAL_BASE_URL' ? 'https://astra.invalid' : key === 'ORBIT_EVAL_OVERDUE_DATE' ? '2026-01-01' : 'offline')
+      vi.stubEnv(key, key === 'ORBIT_EVAL_BASE_URL' ? 'https://orbit-api-staging-uqu2.onrender.com' : key === 'ORBIT_EVAL_OVERDUE_DATE' ? '2026-01-01' : 'offline')
     }
-    expect(() => beforeAll({ suite: { tests: scenarios } })).not.toThrow()
+    let configReads = 0
+    vi.stubGlobal('fetch', async (url) => {
+      if (new URL(url).pathname === '/health') return Response.json({ status: 'Healthy', commit: apiCommit, checks: [] })
+      if (new URL(url).pathname === '/api/auth/refresh') return refreshResponse()
+      expect(new URL(url).pathname).toBe('/api/config')
+      return Response.json({ features: { astra_eval_unmetered: { enabled: configReads++ === 0, planRequirement: null } } })
+    })
+    await expect(beforeAll({ suite: { tests: scenarios } })).resolves.toBeUndefined()
     vi.stubEnv('ORBIT_EVAL_BASE_URL', 'http://astra.invalid')
-    expect(() => beforeAll({ suite: { tests: scenarios } })).toThrow('HTTPS')
-    vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://astra.invalid')
+    await expect(beforeAll({ suite: { tests: scenarios } })).rejects.toThrow('HTTPS')
+    vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')
     writeFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, '{}')
-    expect(() => beforeAll({ suite: { tests: scenarios } })).not.toThrow()
+    await expect(beforeAll({ suite: { tests: scenarios } })).rejects.toThrow('Missing refresh token.')
   })
   it('resets before each attempt and resolves IDs in prompts and expectations', async () => {
     offlineCredentials()

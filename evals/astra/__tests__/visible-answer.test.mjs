@@ -1,0 +1,255 @@
+import { afterEach, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { parse } from 'yaml'
+import AstraHttpProvider from '../http-provider.mjs'
+import { visibleBlock } from '../visible-blocks.mjs'
+import { chatResponse, habitBlock } from './fixtures/producer.mjs'
+import { questionBlockFixture } from '../../../packages/shared/src/test-support/question-fixtures.ts'
+
+const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8')).providers[0].config
+async function receive(extra, locale = 'pt-BR', supportsParts = true) {
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline-token')
+  vi.stubGlobal('fetch', async () => Response.json({ ...chatResponse('request'), aiMessage: '', parts: [habitBlock], ...extra },
+    { headers: { 'x-orbit-request-id': 'request' } }))
+  const provider = new AstraHttpProvider({ config: { ...configuration, url: 'https://astra.invalid/api/chat',
+    transformResponse: `file://${fileURLToPath(new URL('../response.mjs', import.meta.url))}` } })
+  return provider.callApi('Show my habits.', { vars: { credentialKey: 'ORBIT_EVAL_TOKEN', evalRequestId: 'request',
+    clientContext: { supportsParts, locale }, clientContextJson: JSON.stringify({ supportsParts, locale }), historyJson: '[]' } })
+}
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
+
+it('projects a one small step block through the registry as its step and server action labels', () => {
+  const step = 'Put one plate in the sink'
+  const block = { suggestion: { goal: 'Clean the kitchen', step, language: 'en' }, actions: [
+    { id: 'smaller', label: 'Smaller', message: `Give me an even smaller starting step for "Clean the kitchen". The previous step was "${step}".` },
+    { id: 'saveTask', label: 'Save as task', message: `Save "${step}" as a task.` },
+    { id: 'saveChecklistItem', label: 'Save as checklist item', message: `Add "${step}" to a habit's checklist.` },
+  ] }
+  expect(visibleBlock({ type: 'block', kind: 'oneSmallStep', block }, { locale: 'en', t: (key) => key }))
+    .toEqual({ step, actions: ['Smaller', 'Save as task', 'Save as checklist item'] })
+})
+
+it.each(['en', 'pt-BR'])('grades the question text, choices, scale, slider bounds and localized actions in %s', async locale => {
+  const { output } = await receive({ parts: [{ type: 'block', kind: 'question', block: questionBlockFixture }] }, locale)
+  expect(output.answer).toContain('Morning')
+  expect(output.answer).toContain('How much energy?')
+  expect(output.answer).toContain('Low')
+  expect(output.answer).toContain('High')
+  expect(output.answer).toContain('hours')
+  expect(output.answer).toContain(locale === 'en' ? 'Recommended' : 'Recomendado')
+  expect(output.answer).toContain(locale === 'en' ? '0 of 5 questions answered' : '0 de 5 perguntas respondidas')
+  expect(output.answer).not.toContain(questionBlockFixture.blockId)
+  expect(output.answer).not.toContain('expiresAtUtc')
+})
+const operation = (status) => ({ operationId: 'query_habits', sourceName: 'query_habits', riskClass: 'Low',
+  confirmationRequirement: 'None', status, summary: 'INVISIBLE_AUDIT_SUMMARY', targetId: null, targetName: null,
+  policyReason: 'INVISIBLE_POLICY_REASON', pendingOperationId: null, payload: { text: 'INVISIBLE_TOOL_PAYLOAD' } })
+
+it('excludes a succeeded read summary and hidden habit fields from the actual graded HTTP answer', async () => {
+  const part = structuredClone(habitBlock)
+  Object.assign(part.block.items[0], { description: 'INVISIBLE_DESCRIPTION', tags: ['INVISIBLE_TAG'], dueDate: 'INVISIBLE_SCHEDULE' })
+  const { output } = await receive({ operations: [operation('Succeeded')], parts: [part] })
+  expect(output.composition.operations[0].summary).toBe('INVISIBLE_AUDIT_SUMMARY')
+  expect(output.answer).toContain('Water')
+  expect(output.answer).not.toContain('INVISIBLE_')
+  expect(JSON.parse(output.answer)).not.toHaveProperty('operations')
+})
+it('omits an unlabelled failed read outcome as both clients do', async () => {
+  const { output } = await receive({ operations: [operation('Failed')], parts: [] })
+  const visible = JSON.parse(output.answer)
+  expect(visible).not.toHaveProperty('outcomes')
+  expect(output.answer).not.toContain('INVISIBLE_')
+})
+it('projects a failed write as the localized outcome both clients show', async () => {
+  const failed = { ...operation('Failed'), operationId: 'create_habit', sourceName: 'create_habit', targetName: 'Water' }
+  const { output } = await receive({ operations: [failed], parts: [] })
+  const visible = JSON.parse(output.answer)
+  expect(visible.outcomes).toEqual([{ title: 'Alguns itens não foram salvos', label: 'Water', meta: 'Não foi salvo' }])
+  expect(output.answer).not.toContain('INVISIBLE_')
+})
+it.each([
+  ['en', 'Created Water'], ['pt-BR', 'Criou Water'],
+])('resolves an action chip in %s through the configured HTTP provider', async (locale, label) => {
+  const { output } = await receive({ parts: [], actions: [{ type: 'CreateHabit', status: 'Success', entityId: 'water',
+    entityName: 'Water', error: 'INVISIBLE_ERROR', field: null, suggestedSubHabits: null, clarificationRequest: null }] }, locale)
+  expect(JSON.parse(output.answer).actions).toMatchObject({ rows: [{ label }] })
+  expect(output.answer).not.toContain('INVISIBLE_')
+  expect(output.answer).not.toContain('CreateHabit')
+})
+it('uses achievement ids for local copy and never grades payload achievement descriptions', async () => {
+  const { output } = await receive({ parts: [{ type: 'block', kind: 'streak', block: {
+    currentStreak: 1, longestStreak: 2, level: 1, totalXp: 10, xpForNextLevel: 100, isFrozenToday: false, lastActiveDate: null, recentFreezeDates: [], surfaceId: 'gamification',
+    recentAchievements: [{ id: 'first_orbit', name: 'INVISIBLE_NAME', description: 'INVISIBLE_DESCRIPTION', iconKey: 'seedling', earnedAt: null }],
+  } }] })
+  expect(output.answer).not.toContain('INVISIBLE_')
+  expect(output.answer).toContain('Primeira órbita')
+})
+it('keeps visible notification content and excludes unrendered record properties', async () => {
+  const { output } = await receive({ parts: [{ type: 'block', kind: 'recordList', block: { kind: 'notifications',
+    totalCount: 1, items: [{ id: 'n', title: 'Notificação pessoal', detail: 'Detalhe visível', isRead: false,
+      description: 'INVISIBLE_DESCRIPTION', payload: { text: 'INVISIBLE_PAYLOAD' } }] } }] })
+  expect(output.answer).toContain('Notificação pessoal')
+  expect(output.answer).toContain('Detalhe visível')
+  expect(output.answer).not.toContain('INVISIBLE_')
+})
+it('uses only aiMessage for a legacy client even when operations and parts are present', async () => {
+  const { output } = await receive({ aiMessage: 'Readable fallback.', operations: [operation('Failed')] }, 'en', false)
+  expect(output.answer).toBe('Readable fallback.')
+})
+
+const fixtures = JSON.parse(readFileSync(new URL('../../../packages/shared/src/test-support/chat-parts.fixture.json', import.meta.url), 'utf8'))
+const focused = await import('../../../packages/shared/src/test-support/chat-fixtures.ts')
+const { gamificationCardCases } = await import('../../../packages/shared/src/test-support/gamification-card-fixtures.ts')
+it.each(gamificationCardCases.flatMap(testCase => ['en', 'pt-BR'].map(locale => ({ ...testCase, locale }))))(
+  'grades the visible gamification $name answer in $locale', async ({ block, locale }) => {
+    const { output, error } = await receive({ parts: [{ type: 'block', kind: 'gamification', block }] }, locale)
+    expect(error).toBeUndefined()
+    expect(output?.error).toBeUndefined()
+    const answer = JSON.parse(output.answer)
+    const visible = answer.parts[0].block
+    expect(visible.level !== undefined).toBe(block.state.profile !== null)
+    expect(visible.achievements !== undefined).toBe(block.state.achievements !== null)
+    if (block.state.achievements?.achievements.length) expect(output.answer).toContain(locale === 'en' ? 'First Orbit' : 'Primeira órbita')
+    if (block.state.achievements?.achievements.length === 0) expect(visible.empty).toBeTruthy()
+    expect(answer.relatedActions).toEqual([locale === 'en' ? 'Achievements' : 'Conquistas'])
+    expect(output.answer).not.toContain('signed-query')
+    expect(visible.streak !== undefined).toBe(block.state.streak !== null)
+    if (block.state.streak) {
+      expect(visible.streak).toMatchObject({ title: locale === 'en' ? 'Streak' : 'Sequência', current: '5', longest: { value: 9 } })
+      if (!block.state.achievements) expect(visible.title).toBe(visible.streak.title)
+    }
+  })
+const { habitMonthFixture } = await import('../../../packages/shared/src/test-support/habit-month-fixture.ts')
+it.each(['en', 'pt-BR'])('projects the client month grid counts and localized dates in %s', async (locale) => {
+  const { output, error } = await receive({ parts: [{ type: 'block', kind: 'habitMonth', block: habitMonthFixture }] }, locale)
+  expect(error).toBeUndefined()
+  const visible = JSON.parse(output.answer).parts[0].block
+  expect(visible.months[0].title).toBe(locale === 'en' ? 'September 2026' : 'setembro de 2026')
+  expect(visible.months[0].days).toHaveLength(30)
+  expect(visible.months[0].days[0]).toEqual({
+    date: locale === 'en' ? 'September 1, 2026' : '1 de setembro de 2026', completed: 1, scheduled: 1,
+  })
+  expect(visible.months[0].days[2]).toMatchObject({ completed: 0, scheduled: 1 })
+  expect(output.answer).not.toContain('signed-month')
+  expect(output.answer).not.toContain('habit-one')
+})
+it.each(['en', 'pt-BR'])('projects past, today and future month days as the clients show them in %s', async (locale) => {
+  const project = async (today) => {
+    const { output, error } = await receive({ parts: [{ type: 'block', kind: 'habitMonth',
+      block: { ...habitMonthFixture, today } }] }, locale)
+    expect(error).toBeUndefined()
+    return { answer: output.answer, days: JSON.parse(output.answer).parts[0].block.months[0].days }
+  }
+  const later = await project('2026-09-11')
+  const earlier = await project('2026-09-01')
+  expect(later.answer).not.toBe(earlier.answer)
+  expect(later.days[1]).toEqual({
+    date: locale === 'en' ? 'September 2, 2026' : '2 de setembro de 2026', completed: 0, scheduled: 1,
+  })
+  expect(later.days[10]).toEqual({
+    date: locale === 'en' ? 'September 11, 2026' : '11 de setembro de 2026',
+    today: locale === 'en' ? 'today' : 'hoje', completed: 0, scheduled: 1,
+  })
+  expect(later.days[11]).toEqual({
+    date: locale === 'en' ? 'September 12, 2026' : '12 de setembro de 2026',
+    future: locale === 'en' ? 'not yet' : 'ainda não chegou',
+  })
+  expect(earlier.days[0]).toEqual({
+    date: locale === 'en' ? 'September 1, 2026' : '1 de setembro de 2026',
+    today: locale === 'en' ? 'today' : 'hoje', completed: 1, scheduled: 1,
+  })
+  expect(earlier.days[1]).toEqual({
+    date: locale === 'en' ? 'September 2, 2026' : '2 de setembro de 2026',
+    future: locale === 'en' ? 'not yet' : 'ainda não chegou',
+  })
+})
+const typedBlocks = [...fixtures.blocks, ...[
+  ['periodTotal', focused.focusedPeriodTotalFixture], ['periodComparison', focused.focusedPeriodComparisonFixture],
+  ['habitRanking', focused.habitRankingCardFixture], ['habitMonth', habitMonthFixture],
+].map(([kind, block]) => ({ type: 'block', kind, block }))]
+
+it.each(typedBlocks.map((part) => [part.kind, part]))('projects %s from the existing client contract fixture', async (_, part) => {
+  const block = structuredClone(part)
+  block.block.unrenderedAuditText = 'INVISIBLE_BLOCK_AUDIT'
+  const { output, error } = await receive({ parts: [block] })
+  expect(error).toBeUndefined()
+  expect(output?.error).toBeUndefined()
+  const visible = JSON.parse(output.answer)
+  expect(visible.parts[0].kind).toBe(block.kind)
+  expect(visible.parts[0].block).toHaveProperty('title')
+  expect(output.answer).not.toContain('INVISIBLE_BLOCK_AUDIT')
+  expect(output.answer).not.toContain('signed-query')
+  expect(output.answer).not.toContain('signed-page')
+})
+it('localizes account enum values and excludes unknown rows and hidden referral links', async () => {
+  const { output } = await receive({ parts: [{ type: 'block', kind: 'accountRows', block: { kind: 'profile', surfaceId: 'profile',
+    rows: [{ key: 'language', value: 'en', valueType: 'enum' }, { key: 'INVISIBLE_UNKNOWN_ROW', value: 'INVISIBLE_VALUE', valueType: 'text' }],
+    referralLink: 'INVISIBLE_LINK' } }] })
+  expect(output.answer).toContain('Inglês')
+  expect(output.answer).not.toContain('INVISIBLE_')
+})
+it('uses resolved follow-up labels and surface actions while preserving text part order without its aiMessage mirror', async () => {
+  const { output } = await receive({ aiMessage: 'INVISIBLE_MIRROR',
+    parts: [habitBlock, { type: 'text', text: 'Pronto.' }],
+    relatedSurfaces: ['today', 'unknown', 'today'], followUps: ['INVISIBLE_FALLBACK'],
+    followUpContext: [{ label: 'Ver amanhã', question: 'INVISIBLE_QUESTION', grounding: 'INVISIBLE_GROUNDING' }],
+  })
+  const answer = JSON.parse(output.answer)
+  expect(answer.parts.map(({ type }) => type)).toEqual(['block', 'text'])
+  expect(answer.relatedActions).toEqual(['Hoje'])
+  expect(answer.followUps).toEqual(['Ver amanhã'])
+  expect(output.answer).not.toContain('INVISIBLE_')
+})
+it('coalesces duplicate failures and hides actions owned by a pending preview', async () => {
+  const { preview } = await import('./fixtures/producer.mjs')
+  const pending = preview('Beber água')
+  const { output } = await receive({ parts: [], pendingOperations: [pending], operations: [
+    { ...operation('PendingConfirmation'), sourceName: 'create_habit', pendingOperationId: pending.id },
+    { ...operation('Failed'), sourceName: 'log_habit' },
+  ], actions: [
+    { type: 'CreateHabit', status: 'Success', entityName: 'Beber água' },
+    { type: 'LogHabit', status: 'Failed', entityName: 'INVISIBLE_DUPLICATED_ACTION', error: 'INVISIBLE_ERROR' },
+  ] })
+  const answer = JSON.parse(output.answer)
+  expect(answer.pendingOperations).toHaveLength(1)
+  expect(answer.outcomes).toHaveLength(1)
+  expect(answer.actions).toBeUndefined()
+  expect(output.answer).not.toContain('INVISIBLE_')
+})
+it.each(['unsupported-kind', 'malformed-block'])('fails closed on an unrenderable %s without sending raw text to a grader', async (mode) => {
+  const part = { type: 'block', kind: mode === 'unsupported-kind' ? 'invented' : 'habitList',
+    block: { toolPayload: 'INVISIBLE_PAYLOAD' } }
+  let message
+  try { visibleBlock(part, {}) } catch (error) { message = error.message }
+  expect(message).toBeTruthy()
+  const { error, output } = await receive({ parts: [habitBlock, part] })
+  expect(error).toContain(message)
+  expect(error).toContain(part.kind)
+  expect(output).toMatchObject({ answer: null, httpStatus: 200, renderError: { message, blockKind: part.kind },
+    trace: { state: 'available' } })
+})
+
+it('preserves suggestion projection failures with their block kind', async () => {
+  const { error, output } = await receive({ parts: [{ type: 'block', kind: 'habitSuggestions', block: { drafts: [{}] } }] })
+  expect(error).toContain('Malformed suggestion block.')
+  expect(error).toContain('habitSuggestions')
+  expect(output).toMatchObject({ answer: null, renderError: { blockKind: 'habitSuggestions', message: 'Malformed suggestion block.' } })
+})
+
+it.each(['en', 'pt-BR'])('grades pre-habit streak days as nothing due in %s', (locale) => {
+  const card = { ...focused.apiStatusCardsFinalFixture.response.streak, currentStreak: 1, lastActiveDate: '2026-09-25',
+    recentFreezeDates: [], isFrozenToday: false, firstEligibleDate: '2026-09-24' }
+  const visible = visibleBlock({ type: 'block', kind: 'streak', block: card }, { locale, accountDate: '2026-09-25', t: key => key })
+  expect(visible.days.map(day => day.status)).toEqual([...Array(12).fill('calendar.dayCell.notScheduled'), 'progressScreen.streak.missed', 'progressScreen.streak.active'])
+})
+
+it.each(['en', 'pt-BR'])('grades pre-habit gamification streak days as nothing due in %s', (locale) => {
+  const { block } = gamificationCardCases.find(testCase => testCase.name === 'streak only')
+  const card = { ...block, state: { ...block.state, streak: { ...block.state.streak, firstEligibleDate: '2026-08-31' } } }
+  const visible = visibleBlock({ type: 'block', kind: 'gamification', block: card }, { locale, t: key => key })
+  const statuses = visible.streak.days.map(day => day.status)
+  expect(statuses.slice(0, 12)).toEqual(Array(12).fill('calendar.dayCell.notScheduled'))
+  expect(statuses.slice(12)).toHaveLength(2)
+  expect(statuses.slice(12).every(status => typeof status === 'string' && status !== 'calendar.dayCell.notScheduled')).toBe(true)
+})

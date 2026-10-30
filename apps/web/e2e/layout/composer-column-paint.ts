@@ -77,20 +77,20 @@ export function composerPlaceholderFits(element: Element, scale: number) {
       && line.items.every((item, position) => item.left >= pill.left && item.right <= pill.right
         && item.top >= pill.top && item.bottom <= pill.bottom
         && (position === 0 || item.left >= line.items[position - 1]!.right))
-  }) && Math.abs(Math.max(...lines.at(-1)!.items.map(item => item.bottom)) - pill.bottom + 4) <= 1
+  }) && Math.abs(Math.max(...lines.at(-1)!.items.map(item => item.bottom)) - pill.bottom + 8) <= 1
   const inputBounds = input.getBoundingClientRect()
   const inputLine = lines.find(line => Math.max(line.top, inputBounds.top) < Math.min(line.bottom, inputBounds.bottom))
   const inputFits = inputLine && Math.abs(inputBounds.bottom - inputLine.bottom) <= 1
-    && inputBounds.left >= pill.left + 4 && inputBounds.right <= pill.right - 4
-    && inputBounds.top >= pill.top + 4 && inputBounds.bottom <= pill.bottom - 4
+    && inputBounds.left >= pill.left + 8 && inputBounds.right <= pill.right - 8
+    && inputBounds.top >= pill.top + 8 && inputBounds.bottom <= pill.bottom - 8
   const controls = [...row.querySelectorAll('button')].map(button => button.getBoundingClientRect())
   const controlsFit = controls.every((control, index) => control.width >= 48 && control.height >= 48
     && control.left >= pill.left && control.right <= pill.right && control.top >= pill.top && control.bottom <= pill.bottom
     && lines.some(line => Math.max(line.top, control.top) < Math.min(line.bottom, control.bottom) && Math.abs(control.bottom - line.bottom) <= 1)
     && (control.right <= inputBounds.left || control.left >= inputBounds.right || control.bottom <= inputBounds.top || control.top >= inputBounds.bottom)
-    && (index === 0 || control.left >= controls[index - 1]!.right || control.top >= controls[index - 1]!.bottom))
+    && (index === 0 || control.left >= controls[index - 1]!.right + 8 || control.top >= controls[index - 1]!.bottom + 8))
   return Math.abs(parseFloat(style.fontSize) - 16 * scale) < 0.5 && placeholderFits
     && input.scrollWidth <= input.clientWidth && input.scrollHeight <= input.clientHeight
     && (scale !== 1 || Math.abs(input.clientHeight - singleLineHeight) <= 1)
-    && pill.height >= 56 && pill.height >= input.clientHeight + 8 && linesFit && controlsFit && Boolean(inputFits)
+    && pill.height >= 56 && pill.height >= input.clientHeight + 16 && linesFit && controlsFit && Boolean(inputFits)
 }

@@ -129,7 +129,7 @@ it.each([320, 412].flatMap(width => [false, true].flatMap(withGlyph =>
     const start = direction === 'rtl' ? pill.right - inputBox.right + input.getComputedPadding(Yoga.EDGE_RIGHT)
       : inputBox.left - pill.left + input.getComputedPadding(Yoga.EDGE_LEFT)
     const placeholderStart = direction === 'rtl' ? pill.right - placeholder.right : placeholder.left - pill.left
-    expect.soft(start).toBe(4 + (withGlyph ? nodes.get('open-conversation')!.getComputedWidth() : 0) + 8)
+    expect.soft(start).toBe(8 + (withGlyph ? nodes.get('open-conversation')!.getComputedWidth() : 0) + 8)
     expect.soft(placeholderStart).toBe(start)
     expect(input.getComputedPadding(Yoga.EDGE_LEFT)).toBe(8)
     expect(input.getComputedPadding(Yoga.EDGE_RIGHT)).toBe(8)
@@ -219,7 +219,7 @@ it.each(allowanceCases)('keeps Hoje stable near $limit messages at $width with c
       layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
       measured.push({ height: layout.getComputedHeight(), inputTop: nodes.get('composer-field')!.getComputedTop() })
       assertAllowanceNodes(nodes, nearLimit, used === limit)
-      if (!nearLimit && !withSuggestions) expect(nodes.get('composer-field')!.getComputedTop()).toBe(SPACING.s16 + StyleSheet.hairlineWidth)
+      if (!nearLimit && !withSuggestions) expect(nodes.get('composer-field')!.getComputedTop() + nodes.get('composer-field')!.getParent()!.getComputedTop()).toBe(SPACING.s16 + StyleSheet.hairlineWidth)
     } finally { layout.freeRecursive(); await renderer.act(() => tree.unmount()) }
   }
   expect(measured[0]!.height).toBeLessThan(measured[1]!.height)
@@ -275,7 +275,7 @@ function assertMountedActions(tree: Tree, messages: typeof en, state: 'idle' | '
 }
 
 async function replayTextMeasurements(tree: Tree, width: number, fontScale: number) {
-  for (const id of ['composer-paste-measure', 'composer-placeholder-measure', 'composer-allowance-placeholder-measure', 'composer-placeholder']) {
+  for (const id of ['composer-input-placeholder-measure', 'composer-paste-measure', 'composer-placeholder-measure', 'composer-allowance-placeholder-measure', 'composer-placeholder']) {
     const element = tree.root.findAll(node => node.props.testID === id)[0]
     if (!element) continue
     const nodes = new Map<string, YogaNode>()
@@ -286,7 +286,7 @@ async function replayTextMeasurements(tree: Tree, width: number, fontScale: numb
       const fontStyle: TextStyle = { fontFamily, fontSize, lineHeight, letterSpacing }
       const measured = measureProfileRow({ type: 'Text', props: { style: fontStyle },
         children: [element.props.children as string] }, nodes.get(id)!.getComputedWidth(), fontScale).texts[0]!
-      if (id === 'composer-placeholder' || id === 'composer-allowance-placeholder-measure') {
+      if (id === 'composer-input-placeholder-measure' || id === 'composer-placeholder' || id === 'composer-allowance-placeholder-measure') {
         const onLayout = element.props.onLayout as (event: { nativeEvent: Pick<LayoutChangeEvent['nativeEvent'], 'layout'> }) => void
         await renderer.act(() => onLayout({ nativeEvent: { layout: {
           x: 0, y: 12, width: measured.width, height: measured.height,

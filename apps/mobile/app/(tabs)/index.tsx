@@ -14,6 +14,7 @@ import { plural } from '@/lib/plural'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'
 import { useUIStore } from '@/stores/ui-store'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
+import { useOpenHabit } from '@/hooks/use-open-habit'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import type { ActiveView } from '@orbit/shared/stores'
@@ -117,6 +118,7 @@ export default function TodayScreen() {
 function TodayScreenContent() {
   const { t } = useTranslation()
   const router = useRouter()
+  const openHabit = useOpenHabit()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -343,10 +345,7 @@ function TodayScreenContent() {
             listHeader={listHeader}
             onCreatePress={() => setShowCreateModal(true)}
             onSeeUpcoming={getSeeUpcomingAction(activeView, date.nextDisabled, date.goToNextDay)}
-            onDetailHabit={(habit) => router.push({
-              pathname: '/habits/[id]',
-              params: { id: habit.id, date: actionDate, from: 'today' },
-            })}
+            onDetailHabit={(habit) => openHabit(habit.id, actionDate, true)}
             onEditHabit={(habit, onSaved) => {
               setEditHabit(habit)
               setEditHabitOnSaved(() => onSaved ?? null)

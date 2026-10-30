@@ -46,6 +46,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
   removeItem: (key: string) => { mocks.storage.delete(key); return Promise.resolve() },
 } }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => mocks.queue }))
+vi.mock('@/hooks/use-habits', () => ({ useDeleteHabit: vi.fn() }))
 vi.mock('@/lib/offline-queue', () => ({
   enqueue: mocks.enqueue,
   enqueueWithCompaction: (mutation: PersistedQueuedMutation) => ({ id: mutation.id, compactedCreate: null }),
@@ -209,10 +210,18 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     const controls = tree.root.findAllByType(Pressable)
     const retry = controls.find((node) => node.props.accessibilityLabel === language.t('common.syncRetryAction'))
     expect(retry).toBeDefined()
-    expect(controls.filter((node) => node.props.accessibilityLabel === language.t('common.close'))).toHaveLength(0)
+    const close = controls.find((node) => node.props.accessibilityLabel === language.t('common.close'))
+    expect(close).toBeDefined()
+    if (transition === 'dismiss control') {
+      TestRenderer.act(() => { (close!.props.onPress as () => void)() })
+      expect(useOfflineSyncStore.getState().drops).toHaveLength(1)
+      expect(tree.root.findAllByProps({ testID: 'toast-lost' })).toHaveLength(0)
+      TestRenderer.act(() => tree.update(<RecoveryRoot key="reopened" pathname="/calendar" />))
+    }
     await TestRenderer.act(async () => { await flushQueuedMutations() })
     expect(mocks.apiClient).not.toHaveBeenCalled()
-    TestRenderer.act(() => { (retry!.props.onPress as () => void)() })
+    const recovery = tree.root.findAllByType(Pressable).find((node) => node.props.accessibilityLabel === language.t('common.syncRetryAction'))
+    TestRenderer.act(() => { (recovery!.props.onPress as () => void)() })
     expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ type: 'setTimeZone', id: timezoneMutation.id }))
     await TestRenderer.act(async () => { await flushQueuedMutations() })
     expect(mocks.apiClient.mock.calls.map((call) => call[0])).toEqual(['/api/profile/timezone', '/api/habits'])

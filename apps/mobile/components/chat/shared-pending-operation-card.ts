@@ -1,5 +1,7 @@
 'use client'
 
+import { ConversationChange } from './conversation-motion'
+
 import { createElement, Fragment, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { usePendingOperationCardState } from '@/hooks/use-pending-operation-card-state'
 import { pendingOperationExecutionPatch, renderPendingOperationCard, type PendingOperationCardLabels, type PendingOperationCardRenderers as CoreRenderers, type PendingOperationVerificationProps, type PendingOperationMessageState } from '@orbit/shared/chat'
@@ -74,7 +76,7 @@ export function SharedPendingOperationCard({
   const approvalBlockedRef = useRef(approvalBlocked)
   useLayoutEffect(() => { approvalBlockedRef.current = approvalBlocked }, [approvalBlocked])
 
-  return renderPendingOperationCard({
+  return createElement(ConversationChange, { changeKey: `${revision.operation.previewFingerprint}:${card.status}:${savedState?.dismissed}` }, renderPendingOperationCard({
     card: {
       ...card, revision: { ...revision, chooseParent }, onOpenTarget, focusTitleOnMount, parentChoiceFocus: parentChoiceFocus?.sourceId === pendingOperation.id && parentChoiceFocus.sourceFingerprint === pendingOperation.previewFingerprint && parentChoiceFocus.authorizationVersion === revision.authorizationVersion ? parentChoiceFocus : undefined,
       completeStepUp: (result) => { card.completeStepUp(result); onStateChange?.(pendingOperationExecutionPatch(result)) },
@@ -102,5 +104,5 @@ export function SharedPendingOperationCard({
       ...render,
       fragment: (...children: ReactNode[]) => createElement(Fragment, null, ...children),
     },
-  })
+  }))
 }

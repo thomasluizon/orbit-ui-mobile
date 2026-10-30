@@ -8,8 +8,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
-import { NotificationBell } from '@/components/navigation/notification-bell'
-import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
+import { DestinationHeaderRow, HeaderAppearanceActions } from '@/components/navigation/root-notification-header'
 import { useShellHeaderSlot } from '@/components/shell/shell-header-slot'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -32,7 +31,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
     if (nextOpen) setFrequencyMenu(false)
     setMenuOpen(nextOpen)
   }
-  return <Menu.Root open={menuOpen} onOpenChange={changeMenuOpen}><DestinationHeaderRow testID="today-header-actions" gap={4} wrap>
+  return <Menu.Root open={menuOpen} onOpenChange={changeMenuOpen}><DestinationHeaderRow testID="today-header-actions" gap={8} wrap>
 
     <View style={styles.spacer} />
     <View style={styles.actions}>
@@ -47,7 +46,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
           <MoreVertical size={20} strokeWidth={1.8} color={tokens.fg2} />
         </Pressable>
       </Menu.Trigger>
-      <NotificationBell />
+      <HeaderAppearanceActions />
     </View>
     <Menu.Content key={frequencyMenu ? 'frequency' : 'options'}
       title={frequencyMenu ? t('habits.frequencyFilter') : props.moreLabel}
@@ -100,7 +99,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
 
 const styles = StyleSheet.create({
   spacer: { flex: 1 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   row: { alignItems: 'center', flexDirection: 'row', gap: 12, minHeight: 56, paddingVertical: SPACING.s4 },
   iconButton: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', minHeight: 48, justifyContent: 'center', width: 48, flexShrink: 0 },
   dateSlot: { flex: 1, minWidth: 0, alignItems: 'center' },

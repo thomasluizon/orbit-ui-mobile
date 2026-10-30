@@ -200,13 +200,13 @@ describe('BreakdownSuggestion', () => {
     await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(2))
     expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Laundry' }] })
   })
-  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full parent heading %s', (name) => {
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full parent heading %s', async (name) => {
     const title = `chat.breakdown.title(${JSON.stringify({ name })})`
     render(<BreakdownSuggestion {...defaultProps} parentName={name} />)
     const heading = screen.getByRole('heading', { name: title, level: 3 })
     expect(heading.querySelector('[data-personal-text]')).toHaveAttribute('aria-label', title)
     fireEvent.click(screen.getByRole('button', { name: `common.showFullText(${JSON.stringify({ name: title })})`, expanded: false }))
-    expect(screen.getByRole('dialog', { name: title })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: title })).toBeInTheDocument()
     expect(bulkCreate).not.toHaveBeenCalled()
   })
 })

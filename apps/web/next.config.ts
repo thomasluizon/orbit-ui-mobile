@@ -68,5 +68,6 @@ export default process.env.NODE_ENV === 'development'
       project: process.env.SENTRY_PROJECT,
       silent: !process.env.CI,
       widenClientFileUpload: true,
+      release: { name: process.env.NEXT_PUBLIC_WEB_COMMIT_SHA || undefined },
       tunnelRoute: '/monitoring',
     })

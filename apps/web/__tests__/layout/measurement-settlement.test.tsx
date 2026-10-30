@@ -1,3 +1,4 @@
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { execFileSync } from 'node:child_process'
@@ -222,6 +223,29 @@ it('rejects a correct root font with persistently stale supporting phases', asyn
     expect(await page.locator('[data-habit-row-heading]').count()).toBe(0)
     expect(await page.locator('#habit-root').getAttribute('data-scale-notifications')).toBe('1')
     expect(await page.locator('#habit-root').getAttribute('data-scale-writes')).toBe('1')
+  } finally { await page.close() }
+})
+
+it('includes the last animation phase and owner in text scale failures', async () => {
+  const page = await habitPage(habitScript)
+  try {
+    await setHabitTextScale(page, 1, supportingHabitTitles)
+    await page.getByTestId('habit-row').first().evaluate(async (row) => {
+      const target = row.querySelector<HTMLElement>('[data-habit-row-controls]')!
+      target.style.transition = 'padding-top 60s linear'
+      target.style.paddingTop = '0px'
+      void getComputedStyle(target).paddingTop
+      target.style.paddingTop = '8px'
+      const transition = target.getAnimations().find((animation) => animation instanceof CSSTransition)
+      if (!transition) throw new Error('The receipt scenario requires a CSS transition')
+      transition.pause()
+      await transition.ready
+    })
+    const scaling = setHabitTextScale(page, 1, supportingHabitTitles)
+    await expect(scaling).rejects.toThrow('"computedFont":"16px"')
+    await expect(scaling).rejects.toThrow('"property":"padding-top"')
+    await expect(scaling).rejects.toThrow('"target":"div[data-habit-row-controls=\\"\\"]"')
+    await expect(scaling).rejects.toThrow('"playState":"paused","pending":false')
   } finally { await page.close() }
 })
 

@@ -7,6 +7,7 @@ import { ActionRow } from '@/components/ui/action-row'
 import { type KeyboardEvent, useEffect, useState } from 'react'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { useRouter } from 'next/navigation'
+import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { useTranslations } from 'next-intl'
 import { Command, CommandEmpty, CommandGroup, CommandList } from 'cmdk'
 import { buildSearchEntries, searchCommands, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
@@ -73,7 +74,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
   const [selection, setSelection] = useState({ first: firstValue, selected: firstValue })
   if (selection.first !== firstValue) setSelection({ first: firstValue, selected: firstValue })
   const selectedValue = selection.first === firstValue ? selection.selected : firstValue
-  function run(action: () => void) { action(); onClose() }
+  function run(action: () => void) { setRouteTransitionIntent('instant'); action(); onClose() }
   function back() { setPage(null); search.changeText('') }
   function chooseCommand(id: SearchCommandId) {
     if (id === 'create') createHabit()

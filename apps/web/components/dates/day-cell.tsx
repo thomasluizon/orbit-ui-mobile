@@ -2,7 +2,10 @@
 
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 
-import type { CSSProperties } from 'react'
+import { useContext, type CSSProperties } from 'react'
+import { MovingDaySelection } from './month-selection'
+import { DayColumnContent } from './day-column-content'
+import { SelectionIndicator } from '@/components/ui/selection-indicator'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
 
@@ -13,7 +16,7 @@ function ringStyle(outcome: DayOutcome): CSSProperties {
   return {}
 }
 
-/** The translucent hover layer covers the round hit area below the day's foreground. */
+/** Feedback stays on the day disc inside its transparent target. */
 function PressFill({ selected = false }: Readonly<{ selected?: boolean }>) {
   if (selected) return null
   return (
@@ -49,6 +52,8 @@ function PartialArc({ fraction, size }: Readonly<{ fraction: number; size: numbe
 }
 
 function DayCellContents({ props, outcome, size }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number }>) {
+  if (props.future) return <span data-day-future-numeral="" style={{ color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{props.day}</span>
+  if (props.habitHistory) return <HabitHistoryContents props={props} outcome={outcome} size={size} />
   const fraction = props.scheduled && props.done !== undefined ? props.done / props.scheduled : 0.5
   const numeralClass = outcome === 'full' ? 'text-[var(--bg)]' : 'text-[var(--fg-2)]'
   return (
@@ -96,6 +101,7 @@ function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCel
 }
 
 export function DayCell(props: Readonly<DayCellProps>) {
+  const selectionId = useContext(MovingDaySelection)
   const outcome = resolveDayCellOutcome(props)
   const size = props.size ?? MONTH_GRID_TARGET_MIN
   const statusSize = 34
@@ -108,29 +114,28 @@ export function DayCell(props: Readonly<DayCellProps>) {
     'data-state': outcome,
     style: { width: '100%', minHeight: Math.max(size, MONTH_GRID_TARGET_MIN), opacity: props.outsideMonth ? 0 : 1 },
   }
-  const contents = props.future
-    ? <span data-day-future-numeral="" style={{ color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{props.day}</span>
-    : props.habitHistory
-      ? <HabitHistoryContents props={props} outcome={outcome} size={statusSize} />
-      : <DayCellContents props={props} outcome={outcome} size={statusSize} />
+  const contents = <DayCellContents props={props} outcome={outcome} size={statusSize} />
+  const showPositionRing = (props.today || props.selected) && !(props.selected && selectionId)
   const circle = <span
     data-day-circle=""
-    className={'orbit-day-circle relative inline-flex items-center justify-center ' + (props.selected ? 'orbit-day-selected' : props.loggable || props.raised ? 'orbit-day-well' : '')}
-    style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2 }}
+    className={'orbit-day-circle isolate relative inline-flex items-center justify-center ' + (props.selected ? 'orbit-day-selected' : props.loggable || props.raised ? 'orbit-day-well' : '')}
+    style={{ width: statusSize, height: statusSize, flexShrink: 0, borderRadius: statusSize / 2 }}
   >
+    {props.selected && selectionId ? <SelectionIndicator id={selectionId} calendar /> : null}
     <PressFill selected={props.selected} />
     {contents}
     <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0"
-      style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${props.today || props.selected ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />
+      style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${showPositionRing ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />
   </span>
+  const alignedCircle = <DayColumnContent>{circle}</DayColumnContent>
 
   if (interactive) {
     return <button {...commonProps} type="button" onClick={props.onPress}
       aria-pressed={props.selected}
       className="orbit-day-target group relative inline-flex shrink-0 items-center justify-center border-0 bg-transparent p-0 cursor-pointer">
-      {circle}
+      {alignedCircle}
     </button>
   }
   return <span {...commonProps} role="img" aria-hidden={props.outsideMonth ? true : undefined}
-    className="inline-flex shrink-0 items-center justify-center">{circle}</span>
+    className="inline-flex shrink-0 items-center justify-center">{alignedCircle}</span>
 }

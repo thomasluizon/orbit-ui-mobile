@@ -24,8 +24,8 @@ export function resolveOnboardingPlan(profile: Profile | null | undefined, refre
 
 export const ONBOARDING_STARTERS = ['water', 'walk', 'read', 'tidy'] as const
 export const ONBOARDING_REMINDER_MINUTES = 15
-export function shouldRequestOnboardingSuggestion(input: { isLive: boolean; atLimit: boolean }): boolean {
-  return input.isLive && !input.atLimit
+export function shouldRequestOnboardingSuggestion(input: { isLive: boolean; atLimit: boolean; available?: boolean }): boolean {
+  return (input.available ?? input.isLive) && (!input.isLive || !input.atLimit)
 }
 
 export function getOnboardingDisplayTotal(): number {

@@ -1,17 +1,35 @@
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { parse } from 'yaml'
+
+const { apiCommit } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
 
 const exportedHabit = (body) => ({ id: randomUUID(), title: body.title, description: body.description, emoji: null,
   isBadHabit: false, isGeneral: false, dueDate: body.startDate ? new Date().toISOString().slice(0, 10) : body.dueDate, startDate: body.startDate ?? body.dueDate, endDate: null, frequencyUnit: 'Day', frequencyQuantity: 1,
-  days: [], checklistItems: [], createdAtUtc: '2026-10-01T00:00:00Z', logs: [], intervalWeeks: null })
+  days: [], checklistItems: [], createdAtUtc: '2026-10-01T00:00:00Z', logs: [], intervalWeeks: null,
+  dueTime: null, dueEndTime: null, reminderEnabled: false, reminderTimes: [], scheduledReminders: [],
+  relativeReminders: [], slipAlertEnabled: false, isFlexible: false })
+
+// Producer: GetRetrospectiveQueryHandler and RetrospectivePeriodRange.Resolve.
+export function retrospectiveResponse(fromCache) {
+  const today = new Date().toISOString().slice(0, 10)
+  return { period: 'month', metrics: { completionRate: 50, totalCompletions: 7, totalScheduled: 14,
+    activeDays: 6, periodDays: 30, currentStreak: 0, bestStreak: 2, badHabitSlips: 0,
+    weeklyConsistency: [0, 0, 0, 0, 0, 0, 0], topHabits: [], needsAttention: [], completionSeries: null },
+  narrative: { highlights: 'Saved retrospective narrative.', missed: '', trends: '', suggestion: '' },
+  fromCache, dateFrom: new Date(Date.parse(`${today}T12:00:00Z`) - 29 * 86400000).toISOString().slice(0, 10),
+  dateTo: today, sourceRevision: 'fixture-revision' }
+}
 
 // Daily recurrence behavior follows Habit, LogHabitCommand and SkipHabitArgumentChecks.
 export function fixtureFetch(getState) {
   const undone = new Set()
+  let retrospectiveCached = false
   return async (url, options) => {
-    const { habits, goals, tags, templates, requests, pro, exhausted, capacity, email } = getState()
+    const { habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered = true } = getState()
     if (new URL(url).pathname === '/health') {
       requests.push({ path: 'health', method: options.method })
-      return Response.json({ status: 'Healthy', commit: null, checks: [] })
+      return Response.json({ status: 'Healthy', commit: apiCommit, checks: [] })
     }
     const path = new URL(url).pathname.slice(5)
     const body = options.body ? JSON.parse(options.body) : undefined
@@ -20,11 +38,29 @@ export function fixtureFetch(getState) {
     if (options.headers['api-version'] !== '2.0') throw new Error('Expected API version.')
     if (path === 'auth/refresh') return Response.json({ token: 'pro-access', refreshToken: 'rotated-refresh' })
     if (!/^Bearer (pro|free|budget)-access$/.test(options.headers.Authorization)) throw new Error('Expected refreshed fixture access.')
+    if (path === 'eval/pending-operations') {
+      if (method === 'DELETE') return Response.json({ cancelledCount: 0 })
+      if (method === 'GET') return Response.json({ pendingCount: 0 })
+    }
+    if (path === 'config' && method === 'GET') return Response.json({
+      limits: { MaxHabitDepth: '5', MaxTagsPerHabit: '5', MaxReferrals: '10', ReferralRewardDays: '10' },
+      features: { astra_eval_unmetered: { enabled: unmetered, planRequirement: null } },
+      settings: { syncIntervalSeconds: 300, syncMaxBatchSize: 100 }, minVersion: '0.0.0',
+    })
     if (path === 'profile' && method === 'GET') return Response.json({ email, hasProAccess: pro, hasGoogleConnection: false, aiMessagesUsed: exhausted ? 50 : 0, aiMessagesLimit: 50 })
     if (path === 'profile/export') return Response.json({ exportedAtUtc: '2026-10-24T12:00:00Z', account: {}, settings: {}, subscription: {},
       habits: habits.filter((habit) => !habit.deleted).map(({ deleted, startDate, ...habit }) => habit), goals, tags, checklistTemplates: templates,
       notifications: [], achievements: [], streakFreezes: [], referrals: [], apiKeys: [], friendships: [], cheers: [], blockedUsers: [], reports: [], friendFeedEvents: [], proactiveItems: [], notionConnection: null, notionTasks: [], conversations: [] })
+    if (path === 'habits/retrospective' && method === 'GET') {
+      const query = new URL(url).searchParams
+      if (query.get('period') !== 'month' || !['en', 'pt-BR'].includes(query.get('language'))) throw new Error('Expected localized rolling month retrospective.')
+      const response = retrospectiveResponse(retrospectiveCached)
+      retrospectiveCached = true
+      return Response.json(response)
+    }
     if (['profile/timezone', 'profile/language', 'calendar/selected-calendars', 'calendar/auto-sync'].includes(path)) return new Response(null, { status: 204 })
+    if (path === 'notifications' && method === 'GET') return Response.json({ items: [], unreadCount: 0, totalCount: 0, sourceRevision: 'empty' })
+    if (path === 'notifications/all' && method === 'DELETE') return new Response(null, { status: 204 })
     if (path === 'habits' && method === 'POST') {
       const habit = exportedHabit(body)
       habits.push(habit)
@@ -36,7 +72,8 @@ export function fixtureFetch(getState) {
       return Response.json({ results, applied_count: results.length, total_matched: results.length, skipped_count: 0, partial: false }, { status: 201 })
     }
     if (['goals', 'tags', 'checklist-templates'].includes(path) && method === 'POST') {
-      const item = { id: randomUUID(), ...body }
+      const item = { id: randomUUID(), ...body, ...(path === 'goals' ? { currentValue: 0, status: 'Active',
+        deadline: null, createdAtUtc: new Date().toISOString(), completedAtUtc: null, progressLogs: [] } : {}) }
       ;({ goals, tags, 'checklist-templates': templates })[path].push(item)
       return Response.json({ id: item.id }, { status: 201 })
     }
@@ -44,7 +81,15 @@ export function fixtureFetch(getState) {
     if (resource === 'habits') {
       const habit = habits.find((entry) => entry.id === id)
       if (!habit) throw new Error('Unknown habit at the HTTP boundary.')
+      // Producer: CreateSubHabitCommand assigns the next sibling position and parent identity.
+      if (operation === 'sub-habits' && method === 'POST') {
+        const child = { ...exportedHabit(body), dueTime: body.dueTime ?? null, parentHabitId: id,
+          position: habits.filter((entry) => !entry.deleted && entry.parentHabitId === id).length }
+        habits.push(child)
+        return Response.json({ id: child.id }, { status: 201 })
+      }
       if (operation === 'restore') habit.deleted = false
+      else if (operation === 'checklist' && method === 'PUT') habit.checklistItems = structuredClone(body.checklistItems)
       else if (operation === 'log') {
         const existing = habit.logs.findIndex((log) => log.date === body.date && log.value > 0)
         const today = new Date().toISOString().slice(0, 10)
@@ -61,7 +106,9 @@ export function fixtureFetch(getState) {
       } else if (operation === 'skip') {
         if (habit.dueDate > body.date) return Response.json({ error: 'Habit not yet due.' }, { status: 400 })
         habit.dueDate = new Date(Date.parse(`${body.date}T12:00:00Z`) + 86400000).toISOString().slice(0, 10)
-      } else if (method === 'PUT') {
+      } else if (method === 'GET') return Response.json({ ...habit,
+        children: habits.filter((child) => !child.deleted && child.parentHabitId === id).toSorted((left, right) => left.position - right.position) })
+      else if (method === 'PUT') {
         habit.title = body.title
         if (body.startDate && (body.startDate !== habit.startDate || body.frequencyUnit !== habit.frequencyUnit || body.frequencyQuantity !== habit.frequencyQuantity)) {
           habit.startDate = body.startDate
@@ -69,6 +116,10 @@ export function fixtureFetch(getState) {
         } else if (!body.startDate) habit.dueDate = body.dueDate ?? habit.dueDate
         habit.frequencyUnit = body.frequencyUnit
         habit.frequencyQuantity = body.frequencyQuantity
+        for (const field of ['dueTime', 'dueEndTime', 'reminderEnabled', 'reminderTimes', 'scheduledReminders',
+          'relativeReminders', 'slipAlertEnabled', 'checklistItems', 'isFlexible']) {
+          if (Object.hasOwn(body, field)) habit[field] = structuredClone(body[field])
+        }
       }
       else if (method === 'DELETE') habit.deleted = true
       else throw new Error('Unexpected habit request.')

@@ -31,9 +31,21 @@ async function request(response, status = 200, headerId = requestId) {
 }
 
 describe('source-derived trace through the installed HTTP provider', () => {
+  it.each(['allowed', 'forbidden'])('names every offending tool for %s expectations', async (mode) => {
+    const output = await request(chatResponse(requestId, [
+      toolCall('query_habits', {}, 'Succeeded', 'read-1'),
+      toolCall('get_daily_summary', {}, 'Succeeded', 'read-2'),
+    ]))
+    const expectations = mode === 'allowed' ? { allowed: [] } : { forbidden: ['query_habits', 'get_daily_summary'] }
+    const verdict = behavior(output, { vars: { evalRequestId: requestId, expectations } })
+    expect(verdict.pass).toBe(false)
+    expect(verdict.reason).toContain('query_habits')
+    expect(verdict.reason).toContain('get_daily_summary')
+  })
   it('uses the real trace for structure and behavior', async () => {
     const output = await request(chatResponse(requestId, [toolCall('query_habits', { date: 'today' })]))
     expect(output.trace.state).toBe('available')
+    expect(output.trace.timing).toEqual(chatResponse(requestId).evalTrace.timing)
     expect(await structural(output, assertionContext)).toMatchObject({ pass: true })
     expect(behavior(output, assertionContext)).toMatchObject({ pass: true })
   })

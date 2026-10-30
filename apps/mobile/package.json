@@ -29,6 +29,7 @@
     "@expo-google-fonts/geist": "^0.4.2",
     "@expo-google-fonts/geist-mono": "^0.4.3",
     "@expo-google-fonts/space-grotesk": "^0.4.1",
+    "@expo/app-integrity": "~57.0.2",
     "@formatjs/intl-getcanonicallocales": "^3.2.12",
     "@formatjs/intl-listformat": "^8.3.15",
     "@formatjs/intl-locale": "^5.3.12",
@@ -45,6 +46,7 @@
     "@rn-primitives/portal": "1.5.3",
     "@rn-primitives/radio-group": "1.5.2",
     "@rn-primitives/select": "1.5.2",
+    "@rn-primitives/slider": "1.5.2",
     "@rn-primitives/slot": "1.5.2",
     "@rn-primitives/switch": "1.5.2",
     "@rn-primitives/toast": "1.5.2",
@@ -81,6 +83,7 @@
     "expo-sqlite": "~57.0.4",
     "expo-status-bar": "~57.0.1",
     "expo-store-review": "~57.0.3",
+    "expo-task-manager": "~57.0.21",
     "expo-updates": "~57.0.26",
     "expo-web-browser": "~57.0.3",
     "hermes-compiler": "250829098.0.14",
@@ -120,7 +123,7 @@
     "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^24.5.2",
     "@types/react": "~19.2.14",
-    "@vitest/coverage-v8": "^4.1.9",
+    "@vitest/coverage-v8": "^4.1.12",
     "babel-preset-expo": "~57.0.2",
     "eslint-config-expo": "~57.0.2",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -131,7 +134,7 @@
     "tsx": "^4.20.6",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.62.1",
-    "vitest": "^4.1.9",
+    "vitest": "^4.1.12",
     "yoga-layout": "^3.2.1"
   }
 }

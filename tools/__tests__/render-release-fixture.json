@@ -6,7 +6,12 @@
     "variable": "gh api repos/thomasluizon/orbit-api/actions/variables/RENDER_PRODUCTION_SERVICE_ID",
     "serviceList": "GET https://api.render.com/v1/services?limit=100 with Authorization: Bearer <RENDER_MCP_TOKEN>",
     "stagingLandingDeploy": "GET https://api.render.com/v1/services/{staging-landing-service-id}/deploys?status=live&limit=1",
-    "shutdownService": "GET https://api.render.com/v1/services/{production-api-service-id} with Authorization: Bearer <RENDER_MCP_TOKEN>; service ID from GET /v1/services?limit=100 filtered by name orbit-api"
+    "shutdownService": "GET https://api.render.com/v1/services/{production-api-service-id} with Authorization: Bearer <RENDER_MCP_TOKEN>; service ID from GET /v1/services?limit=100 filtered by name orbit-api",
+    "stagingApiService": "GET https://api.render.com/v1/services/{staging-api-service-id} with Authorization: Bearer <RENDER_MCP_TOKEN>; service ID from gh api repos/thomasluizon/orbit-ui-mobile/actions/variables/RENDER_API_STAGING_SERVICE_ID",
+    "stagingApiDeploys": "GET https://api.render.com/v1/services/{staging-api-service-id}/deploys?status=live&limit=1 with Authorization: Bearer <RENDER_MCP_TOKEN>",
+    "apiHealth": "GET {staging-api-service.serviceDetails.url}/health",
+    "productionApiService": "GET https://api.render.com/v1/services/{production-api-service-id} with Authorization: Bearer <RENDER_MCP_TOKEN>; service ID from gh api repos/thomasluizon/orbit-api/actions/variables/RENDER_PRODUCTION_SERVICE_ID",
+    "customDomains": "GET https://api.render.com/v1/services/{production-api-service-id}/custom-domains with Authorization: Bearer <RENDER_MCP_TOKEN>"
   },
   "variable": {
     "created_at": "<ISO-8601 timestamp>",
@@ -76,7 +81,7 @@
       },
       "pullRequestPreviewsEnabled": "<value>",
       "region": "<value>",
-      "renderSubdomainPolicy": "<value>",
+      "renderSubdomainPolicy": "enabled",
       "runtime": "<value>",
       "sshAddress": "<value>",
       "url": "https://example.invalid"
@@ -408,5 +413,167 @@
     "suspenders": [],
     "type": "<string>",
     "updatedAt": "<ISO-8601 timestamp>"
-  }
+  },
+  "stagingApiService": {
+    "autoDeploy": "<string>",
+    "autoDeployTrigger": "<string>",
+    "createdAt": "<ISO-8601 timestamp>",
+    "dashboardUrl": "<string>",
+    "environmentId": "<string>",
+    "id": "<string>",
+    "imagePath": "<string>",
+    "name": "<string>",
+    "notifyOnFail": "<string>",
+    "ownerId": "<string>",
+    "rootDir": "<string>",
+    "serviceDetails": {
+      "buildPlan": "<string>",
+      "cache": {
+        "profile": "<string>"
+      },
+      "env": "<string>",
+      "envSpecificDetails": {
+        "dockerCommand": "<string>",
+        "dockerContext": "<string>",
+        "dockerfilePath": "<string>"
+      },
+      "healthCheckPath": "<string>",
+      "ipAllowList": [
+        {
+          "cidrBlock": "<string>",
+          "description": "<string>"
+        }
+      ],
+      "maintenanceMode": {
+        "enabled": false,
+        "uri": "<string>"
+      },
+      "numInstances": 1,
+      "openPorts": [],
+      "plan": "<string>",
+      "previews": {
+        "generation": "<string>"
+      },
+      "pullRequestPreviewsEnabled": "<string>",
+      "region": "<string>",
+      "renderSubdomainPolicy": "enabled",
+      "runtime": "<string>",
+      "sshAddress": "<string>",
+      "url": "https://api.example.invalid"
+    },
+    "slug": "<string>",
+    "suspended": "<string>",
+    "suspenders": [],
+    "type": "<string>",
+    "updatedAt": "<ISO-8601 timestamp>"
+  },
+  "stagingApiDeploys": [
+    {
+      "deploy": {
+        "id": "<string>",
+        "commit": null,
+        "image": {
+          "ref": "<string>",
+          "sha": "<string>"
+        },
+        "status": "<string>",
+        "trigger": "<string>",
+        "createdAt": "<ISO-8601 timestamp>",
+        "updatedAt": "<ISO-8601 timestamp>",
+        "startedAt": "<ISO-8601 timestamp>",
+        "finishedAt": "<ISO-8601 timestamp>"
+      },
+      "cursor": "<string>"
+    }
+  ],
+  "apiHealth": {
+    "status": "Healthy",
+    "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "checks": [
+      {
+        "name": "<string>",
+        "status": "Healthy",
+        "description": "<string>"
+      },
+      {
+        "name": "<string>",
+        "status": "Healthy",
+        "description": "<string>"
+      }
+    ]
+  },
+  "productionApiService": {
+    "autoDeploy": "<string>",
+    "autoDeployTrigger": "<string>",
+    "createdAt": "<ISO-8601 timestamp>",
+    "dashboardUrl": "<string>",
+    "environmentId": "<string>",
+    "id": "<string>",
+    "imagePath": "<string>",
+    "name": "<string>",
+    "notifyOnFail": "<string>",
+    "ownerId": "<string>",
+    "rootDir": "<string>",
+    "serviceDetails": {
+      "buildPlan": "<string>",
+      "cache": {
+        "profile": "<string>"
+      },
+      "env": "<string>",
+      "envSpecificDetails": {
+        "dockerCommand": "<string>",
+        "dockerContext": "<string>",
+        "dockerfilePath": "<string>",
+        "preDeployCommand": "<string>"
+      },
+      "healthCheckPath": "<string>",
+      "ipAllowList": [
+        {
+          "cidrBlock": "<string>",
+          "description": "<string>"
+        }
+      ],
+      "maintenanceMode": {
+        "enabled": false,
+        "uri": "<string>"
+      },
+      "maxShutdownDelaySeconds": 300,
+      "numInstances": 1,
+      "openPorts": [
+        {
+          "port": 8080,
+          "protocol": "<string>"
+        }
+      ],
+      "plan": "<string>",
+      "previews": {
+        "generation": "<string>"
+      },
+      "pullRequestPreviewsEnabled": "<string>",
+      "region": "<string>",
+      "renderSubdomainPolicy": "disabled",
+      "runtime": "<string>",
+      "sshAddress": "<string>",
+      "url": "https://disabled.example.invalid"
+    },
+    "slug": "<string>",
+    "suspended": "<string>",
+    "suspenders": [],
+    "type": "<string>",
+    "updatedAt": "<ISO-8601 timestamp>"
+  },
+  "customDomains": [
+    {
+      "cursor": "<string>",
+      "customDomain": {
+        "createdAt": "<ISO-8601 timestamp>",
+        "domainType": "<string>",
+        "id": "<string>",
+        "name": "custom.example.invalid",
+        "publicSuffix": "<string>",
+        "redirectForName": "<string>",
+        "verificationStatus": "verified"
+      }
+    }
+  ]
 }

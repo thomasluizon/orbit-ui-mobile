@@ -60,17 +60,29 @@ it.each(cases)('keeps every template label whole and categories on one row at $w
       for (const appearance of ['dark', 'light'] as const) {
       await page.setContent(libraryMarkup(container, appearance))
       await loadAppFonts(page)
+      const heading = await page.locator('h1').evaluate(element => ({ font: getComputedStyle(element).fontFamily, size: getComputedStyle(element).fontSize }))
+      expect(heading.font).toContain('Geist')
+      expect(heading.font).not.toContain('Mono')
+      expect(heading.size).toBe('22px')
+      const search = await page.locator('input').evaluate(element => {
+        const field = element.closest('[data-focus-perimeter]')!
+        return { height: element.getBoundingClientRect().height, radius: getComputedStyle(field).borderRadius, placeholder: element.getAttribute('placeholder') }
+      })
+      expect(search).toEqual({ height: 54, radius: '12px', placeholder: messages.chat.templates.search })
       const titles = page.locator('[data-slot="prompt-idea-title"]')
       expect(await titles.count()).toBe(PROMPT_TEMPLATES.filter(template => template.category === category).length)
       await markRequiredLabels(titles)
       await expectLabelsFit(page, page.locator('[data-prompt-library]'))
       const filter = await page.locator('[data-prompt-categories]').evaluate(element => {
         const children = Array.from(element.children).map(child => child.getBoundingClientRect())
-        return { wrap: getComputedStyle(element).flexWrap, tops: children.map(child => child.top), height: element.clientHeight }
+        const style = getComputedStyle(element)
+        return { wrap: style.flexWrap, tops: children.map(child => child.top), height: element.clientHeight, overflow: style.overflowX, scrollbar: style.scrollbarWidth }
       })
       expect(filter.wrap).toBe('nowrap')
       expect(new Set(filter.tops).size).toBe(1)
       expect(filter.height).toBeGreaterThanOrEqual(48)
+      expect(filter.overflow).toBe('scroll')
+      expect(filter.scrollbar).toBe('thin')
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
       }
     }
@@ -208,16 +220,15 @@ it.each(['dark', 'light'] as const)('paints one complete action shape with one f
     await page.setContent(libraryMarkup(container, appearance))
     await loadAppFonts(page)
     const action = page.locator('[data-prompt-idea="catalog"]').first()
-    const rest = await action.evaluate(element => ({ fill: getComputedStyle(element).backgroundColor, color: getComputedStyle(element).color, secondary: getComputedStyle(element.querySelector('[data-prompt-attribution]')!).color }))
+    const rest = await action.evaluate(element => ({ fill: getComputedStyle(element).backgroundColor, color: getComputedStyle(element).color }))
     expect(rest.fill).not.toBe('rgba(0, 0, 0, 0)')
     await action.hover()
-    const hover = await action.evaluate(element => ({ fill: getComputedStyle(element).backgroundColor, radius: getComputedStyle(element).borderRadius, color: getComputedStyle(element).color, secondary: getComputedStyle(element.querySelector('[data-prompt-attribution]')!).color }))
+    const hover = await action.evaluate(element => ({ fill: getComputedStyle(element).backgroundColor, radius: getComputedStyle(element).borderRadius, color: getComputedStyle(element).color }))
     expect(hover.fill).not.toBe(rest.fill)
     expect(hover.radius).toBe('20px')
     const tokens = resolveWebThemeVariables('orange', appearance)
     for (const paint of [rest, hover]) {
       expect(contrastOnSurface(paint.color, [tokens['--bg']!, paint.fill])).toBeGreaterThanOrEqual(4.5)
-      expect(contrastOnSurface(paint.secondary, [tokens['--bg']!, paint.fill])).toBeGreaterThanOrEqual(4.5)
     }
     const restStep = controlContrast(rest.color, rest.fill, [tokens['--bg']!]).step
     const hoverStep = controlContrast(hover.color, hover.fill, [tokens['--bg']!]).step
@@ -271,6 +282,11 @@ it.each(([320, 740] as const).flatMap(width => (['en', 'pt-BR'] as const).map(lo
         expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(420)
         expect(await page.locator('[data-prompt-idea="live"]').count()).toBe(state.live ? suggestions.length : 0)
         const actions = page.locator('[data-prompt-idea]')
+        const rowStyles = await actions.evaluateAll(elements => elements.map(element => {
+          const style = getComputedStyle(element)
+          return { fill: style.backgroundColor, radius: style.borderRadius, padding: style.padding }
+        }))
+        if (rowStyles.length > 0) expect(rowStyles.every(style => JSON.stringify(style) === JSON.stringify(rowStyles[0])), state.name).toBe(true)
         const disabled = await actions.evaluateAll(elements => elements.every(element => (element as HTMLButtonElement).disabled))
         expect(disabled, state.name).toBe(state.disabled)
         expect(await page.locator('[data-prompt-idea="catalog"]').count(), state.name).toBe(state.catalog)

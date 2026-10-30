@@ -1,15 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useId, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { AnswerBlockController, getAnswerBlockView, type AnswerBlockProps, type AnswerBlockView, type AnswerBlockState } from '@orbit/shared/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { CheckRow } from '@/components/ui/check-row'
+import { HabitCheck } from '@/components/habits/habit-check'
+import { HabitBlockRow } from './habit-block-row'
+import { IconButton } from '@/components/ui/icon-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/pill-button'
 import { Check, Lock, ArrowUp } from '@/components/ui/icons'
 import { blockDesktopWebReload } from '@/lib/web-reload-state'
 
@@ -21,15 +23,14 @@ type AnswerContentProps = Readonly<{
 }>
 
 function AnswerOptions({ view, controller }: Pick<AnswerContentProps, 'view' | 'controller'>) {
-  const contentId = useId()
-  return view.options.map((option, index) => view.single
+  return view.options.map(option => view.single
     ? <RadioRow selection hideMeta wrapLabel key={option.id} label={option.label} description={option.description}
         meta={option.position} selected={option.selected} onSelect={() => controller.select(option.id)}
         {...(view.disabled ? { disabled: true as const, reasonScope: 'group' as const } : { disabled: false as const })} />
-    : <Proposed key={option.id} proposed={option.proposed} scope="row" label={view.proposedLabel} inset keepMounted>
-        <CheckRow selection wrapLabel textMode={option.personal ? 'personal' : undefined} label={option.label} description={option.description}
-          onOpenLabel={option.personal ? () => controller.toggleExpanded(option.id) : undefined} labelExpanded={option.personal ? option.expanded : undefined} labelControls={`${contentId}-${index}`}
-          proposed={option.proposed} checked={option.selected} disabled={view.disabled} onChange={checked => controller.check(option.id, checked)} />
+    : <Proposed appearance="plain" key={option.id} proposed={option.proposed} scope="row" label={view.proposedLabel} inset keepMounted>
+        {option.personal ? <HabitBlockRow proposed={option.proposed} title={option.label} meta={option.description} expanded={option.expanded}
+          onOpen={() => controller.toggleExpanded(option.id)} control={<button type="button" role="checkbox" aria-label={option.label} aria-checked={option.selected} disabled={view.disabled} data-habit-row-control="check" className="grid size-[48px] shrink-0 rounded-[12px] motion-safe:active:scale-[0.96] place-items-center border-0 bg-transparent disabled:opacity-60" onClick={() => controller.check(option.id, !option.selected)}><HabitCheck status={option.selected ? 'done' : 'empty'} /></button>} />
+          : <CheckRow selection wrapLabel label={option.label} description={option.description} checked={option.selected} disabled={view.disabled} onChange={checked => controller.check(option.id, checked)} />}
       </Proposed>)
 }
 
@@ -44,8 +45,7 @@ function AnswerBody({ view, state, controller, submit }: AnswerContentProps) {
 
 function AnswerSubmit({ view, submit }: Pick<AnswerContentProps, 'view' | 'submit'>) {
   return <div className="flex w-full min-w-0 flex-col items-end gap-2">
-    <Button variant="ghost" size="sm" loading={view.acting} disabled={view.submitDisabled}
-      leadingIcon={<ArrowUp size={20} aria-hidden="true" />} onClick={() => void submit()}>{view.submitLabel}</Button>
+    <IconButton label={view.submitLabel} loading={view.acting} disabled={view.submitDisabled} onClick={() => void submit()}><ArrowUp size={20} aria-hidden="true" /></IconButton>
     <p aria-live="polite" aria-atomic="true" role={view.statusError ? 'alert' : 'status'} className={view.statusError ? "text-sm text-[var(--status-bad-text)]" : "text-sm text-[var(--fg-3)]"}>{view.status}</p>
   </div>
 }

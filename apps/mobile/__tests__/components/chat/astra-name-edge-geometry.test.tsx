@@ -22,6 +22,7 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 const bulkCreate = vi.fn()
 vi.mock('@/hooks/use-habits', () => ({
   useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }), useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 afterEach(__resetTestHostConfig)
 
@@ -51,20 +52,21 @@ function stateContent(state: string) {
   return <PendingOperationCard pendingOperation={makeCreateHabitsPreview(2)} onConfirmExecute={vi.fn().mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(state === 'failed' ? ['Failed', 'Failed'] : ['Success', 'Success']) })} onRevise={vi.fn()} onOpenTarget={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
 }
 
-function expectEdges(tree: Tree, width: number) {
+function expectEdges(tree: Tree, width: number, hasWell: boolean) {
   const rows = itemRows(tree.toJSON())
   expect(rows.length).toBeGreaterThan(0)
   for (const row of rows) {
     const geometry = measureProfileRow(row, Math.min(width - 32, 740) - 50, 1)
     const control = geometry.controls.find(control => control.accessibilityLabel && geometry.texts.some(text => text.label && control.accessibilityLabel!.startsWith(text.label)))!
     expect(control).toBeDefined()
-    const name = geometry.texts.find(text => text.label && control.accessibilityLabel!.startsWith(text.label))!
+    const name = geometry.texts.filter(text => text.label && control.accessibilityLabel!.startsWith(text.label)).sort((left, right) => right.label.length - left.label.length)[0]!
     const words = row.children![0] as Host
     const meta = words.children?.find(child => typeof child !== 'string' && child.type === 'Text') as Host | undefined
     const metadata = meta ? geometry.texts.find(text => text.label === meta.children?.filter(child => typeof child === 'string').join('')) : undefined
     const rowPadding = Number(StyleSheet.flatten(typeof row.props.style === 'function' ? row.props.style({ pressed: false }) : row.props.style).padding)
-    expect(name.left).toBeCloseTo(metadata?.left ?? rowPadding, 1)
-    expect(name.left - control.left).toBe(8)
+    if (metadata) expect(name.left).toBeCloseTo(metadata.left, 1)
+    else expect(name.left).toBeGreaterThanOrEqual(rowPadding)
+    expect(name.left - control.left).toBe(hasWell ? 64 : 8)
     expect(control.height).toBeGreaterThanOrEqual(48)
     expect(control.left).toBeGreaterThanOrEqual(0)
     const neighbor = geometry.controls.find(candidate => candidate !== control)
@@ -87,12 +89,12 @@ describe('Astra name and metadata start edges on Android', () => {
       }
       const names = tree.root.findAll(node => node.type === PersonalTextDetails).map(node => node.props.children as string)
       for (const name of names) await measureClampedPersonalText(tree.root, name)
-      expectEdges(tree, width)
+      expectEdges(tree, width, ['preview', 'done', 'failed'].includes(state))
       const control = tree.root.findAll(node => String(node.type) === 'Pressable' && (state === 'goal' ? node.props.accessibilityLabel === goalListCardFixture.items[0]!.title : state === 'preview' ? node.props.accessibilityLabel === 'Habit 1' : typeof node.props.accessibilityState === 'object' && node.props.accessibilityState !== null && 'expanded' in node.props.accessibilityState))[0]!
       const style = () => StyleSheet.flatten((control.props.style as (state: { pressed: boolean }) => ViewStyle)({ pressed: false }))
       for (const handler of ['onHoverIn', 'onPressIn'] as const) {
         await act(() => { (control.props[handler] as () => void)() })
-        expectEdges(tree, width)
+        expectEdges(tree, width, ['preview', 'done', 'failed'].includes(state))
         expect(StyleSheet.flatten((control.props.style as (state: { pressed: boolean }) => ViewStyle)({ pressed: handler === 'onPressIn' })).backgroundColor).not.toBe('transparent')
         await act(() => { (control.props[handler === 'onHoverIn' ? 'onHoverOut' : 'onPressOut'] as () => void)() })
       }
@@ -100,7 +102,7 @@ describe('Astra name and metadata start edges on Android', () => {
       await act(() => { __focusHost(control.props.__nativeTag as number) })
       expect(__getFocusedNativeTag()).toBe(control.props.__nativeTag)
       expect(style().backgroundColor).not.toBe('transparent')
-      expectEdges(tree, width)
+      expectEdges(tree, width, ['preview', 'done', 'failed'].includes(state))
     } finally { await act(() => tree.update(<></>)) }
   })
 })

@@ -1,5 +1,9 @@
 'use client'
 
+import { motion } from 'motion/react'
+import { useConversationMotion } from '@/hooks/use-conversation-motion'
+import { useConversationComposerId } from './conversation-composer-motion'
+
 import { useTranslations } from 'next-intl'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -16,8 +20,8 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
-import { isComposerEditable, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
-import { ArrowUp, ChevronDown, Clipboard, FileText, Image as ImageIcon, Plus, Square, X } from '@/components/ui/icons'
+import { isComposerEditable, buildComposerPrimaryControl, buildComposerControls, selectComposerAction, COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
+import { ArrowUp, ChevronDown, Clipboard, FileText, Image as ImageIcon, Mic, Plus, Square, X } from '@/components/ui/icons'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -124,10 +128,10 @@ function SuggestionStrip({ suggestions, label, disclosure }: Readonly<Pick<Compo
                 if (root instanceof HTMLElement) root.focus()
                 suggestion.onSelect()
               }}
-              className="flex min-h-[48px] shrink-0 items-start gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-3 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
+              className="flex min-h-[48px] shrink-0 items-center gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-3 py-3 text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
             >
               <span data-suggestion-content className="flex min-w-0 items-start gap-[8px]">
-                <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-start"><AstraGlyph size={16} /></span>
+                <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center"><AstraGlyph size={16} /></span>
                 <span className="min-w-0"><span data-suggestion-label className={disclosure ? 'whitespace-nowrap' : undefined}>{suggestion.label}</span></span>
               </span>
             </button>
@@ -197,12 +201,6 @@ function AllowanceStatus({ props, disclosure }: Readonly<{ props: ComposerProps;
   </div>
 }
 
-function ComposerControlIcon({ voiceActive, recording }: Readonly<{ voiceActive: boolean; recording: boolean }>) {
-  return voiceActive
-    ? <Square size={16} fill="currentColor" aria-hidden="true" className={recording ? undefined : 'text-[var(--fg-3)]'} />
-    : <Plus size={20} strokeWidth={2} aria-hidden="true" className="text-[var(--fg-3)]" />
-}
-
 function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComposerProps; onPaste?: () => void; onClear?: () => void }>) {
   const compactMenu = useContext(CompactComposerMenuContext)
   const [open, setOpen] = useState(false)
@@ -211,19 +209,18 @@ function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComp
   }, [compactMenu, open])
   const menuId = useId()
   const anchorRef = useRef<HTMLButtonElement>(null)
-  const { voiceActive, disabled, label, items: defaultItems } = buildComposerControls(props)
+  const { disabled, label, items: defaultItems } = buildComposerControls(props)
   const textAction = onClear ? { id: 'clear', label: props.words.clear, icon: 'x' }
     : onPaste ? { id: 'paste', label: props.words.paste, icon: 'clipboard' } : null
   const items = textAction ? [textAction, ...defaultItems] : defaultItems
-  if (!voiceActive && items.length === 0) return null
-  const isRecording = props.state === 'recording'
-  return <Menu.Root open={open && !disabled && !voiceActive} onOpenChange={setOpen}><div data-composer-controls className="flex shrink-0 items-center">
-    <Menu.Trigger asChild disabled={disabled || voiceActive}><button ref={anchorRef} type="button" aria-label={label}
-      aria-haspopup={voiceActive ? undefined : 'menu'} aria-controls={open && !disabled && !voiceActive ? menuId : undefined}
-      aria-expanded={voiceActive ? undefined : open && !disabled} data-focus-on-primary={isRecording ? '' : undefined}
-      disabled={disabled} onClick={voiceActive ? props.onVoice : undefined}
-      className={`flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-40 ${isRecording ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-transparent enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
-      <ComposerControlIcon voiceActive={voiceActive} recording={isRecording} />
+  if (items.length === 0) return null
+  return <Menu.Root open={open && !disabled} onOpenChange={setOpen}><div data-composer-controls className="flex shrink-0 items-center">
+    <Menu.Trigger asChild disabled={disabled}><button ref={anchorRef} type="button" aria-label={label}
+      aria-haspopup="menu" aria-controls={open && !disabled ? menuId : undefined}
+      aria-expanded={open && !disabled}
+      disabled={disabled}
+      className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40">
+      <Plus size={20} strokeWidth={2} aria-hidden="true" className="text-[var(--fg-3)]" />
     </button></Menu.Trigger>
     <Menu.Content id={menuId} presentation={compactMenu ? 'sheet' : 'auto'} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
   </div></Menu.Root>
@@ -313,7 +310,27 @@ function useTextActionMenu(inputRef: React.RefObject<HTMLTextAreaElement | null>
 
 const composerInputMetrics = 'px-2 py-3 text-base'
 
+function ComposerPrimaryControl({ props, inputRef }: Readonly<{ props: ComposerProps; inputRef: React.RefObject<HTMLTextAreaElement | null> }>) {
+  const action = buildComposerPrimaryControl(props)
+  const isSend = action.kind === 'send'
+  const color = action.accented ? 'var(--fg-on-primary)' : 'var(--fg-3)'
+  return <button type="button" aria-label={action.label} title={isSend ? undefined : action.label}
+    data-accent={isSend && action.accented ? '' : undefined}
+    data-composer-microphone={action.kind === 'microphone' ? '' : undefined}
+    data-focus-on-primary={action.accented ? '' : undefined}
+    disabled={action.disabled} onClick={() => {
+      if (isSend && !action.disabled) inputRef.current?.focus()
+      action.onSelect()
+    }}
+    className={`relative flex w-[48px] min-h-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 ease-[var(--ease-standard)] duration-[var(--dur-hover-control)] disabled:cursor-not-allowed ${isSend ? 'transition-[background-color,opacity]' : 'transition-[background-color]'} ${!isSend || props.state !== 'sending' ? 'disabled:opacity-40' : ''} ${action.accented ? 'bg-[var(--primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : isSend ? 'bg-[var(--bg-well)]' : 'bg-transparent enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)]'}`}>
+    {isSend ? <ArrowUp size={20} strokeWidth={2} color={color} aria-hidden="true" />
+      : action.kind === 'stop' ? <Square size={16} fill={color} color={color} aria-hidden="true" /> : <Mic size={20} strokeWidth={2} color={color} aria-hidden="true" />}
+  </button>
+}
+
 function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerProps; disclosure?: React.ReactNode }>) {
+  const configuration = useConversationMotion()
+  const composerId = useConversationComposerId()
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const inputLabel = props.words.inputLabel ?? props.words.placeholder
   const textActionInMenu = useTextActionMenu(inputRef, inputLabel, props.state)
@@ -357,12 +374,16 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
   const canSend = (props.state === 'idle' || props.state === 'sending') && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
-  const sendIsAccent = canSend || props.state === 'sending'
   function clearMessage() { props.onChangeValue(''); inputRef.current?.focus() }
 
   return (
-    <div data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex flex-wrap justify-end min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
-      <div data-composer-leading-controls className="flex w-max min-w-0 max-w-full grow shrink-0 items-end">
+    <motion.div layout={configuration.changeDuration > 0}
+      layoutId={configuration.changeDuration > 0 && composerId && (props.onOpenConversation || props.autoFocus) ? composerId : undefined}
+      transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
+      data-composer-input-row data-focus-perimeter="" className="orbit-field-hover flex flex-wrap justify-end min-h-[56px] min-w-0 items-end rounded-[28px] bg-[var(--bg-field)] p-2 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] [&_button:focus-visible]:outline-2 [&_button:focus-visible]:-outline-offset-2 [&_button:focus-visible]:outline-[var(--primary)] [&_button[data-focus-on-primary]:focus-visible]:shadow-[inset_0_0_0_4px_var(--bg)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
+      <motion.div layout={configuration.changeDuration > 0 ? "position" : false}
+        transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
+        data-composer-leading-controls className="flex w-max min-w-0 max-w-full grow shrink-0 items-end">
       {props.onOpenConversation && props.conversationLabel ? (
         <button
           type="button"
@@ -392,29 +413,19 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
           onFocus={props.onOpenConversation}
           className={`col-start-1 row-start-1 w-0 min-w-full max-h-[calc(5lh+24px)] min-h-[48px] resize-none appearance-none border-0 bg-transparent ${composerInputMetrics} text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] placeholder:whitespace-normal disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]`}
         /></div>}
-      </div>
+      </motion.div>
 
-      <div data-composer-trailing-controls style={{ gap: INTERACTION_FILL_CLEARANCE }} className="flex max-w-full flex-wrap justify-end shrink-0 items-end">
+      <motion.div layout={configuration.changeDuration > 0 ? "position" : false}
+        transition={{ duration: configuration.changeDuration / 1000, ease: configuration.easing }}
+        data-composer-trailing-controls style={{ gap: INTERACTION_FILL_CLEARANCE }} className="flex max-w-full flex-wrap justify-end shrink-0 items-end">
         <ComposerTextControls props={props} inMenu={Boolean(disclosure) || textActionInMenu} disclosure={disclosure} onClear={clearMessage} onPasteText={text => {
           pasteFocus.current = text
           props.onChangeValue(text)
         }} />
 
-      <button
-        type="button"
-        aria-label={props.words.send}
-        data-accent={sendIsAccent ? '' : undefined}
-        data-focus-on-primary={sendIsAccent ? '' : undefined}
-        disabled={!canSend}
-        onClick={() => {
-          if (canSend) props.onSend()
-        }}
-        className={`relative flex w-[48px] min-h-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-0 transition-[background-color,opacity] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed ${props.state === 'sending' ? '' : 'disabled:opacity-40'} ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
-      >
-        <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
-      </button>
-      </div>
-    </div>
+      <ComposerPrimaryControl props={props} inputRef={inputRef} />
+      </motion.div>
+    </motion.div>
   )
 }
 
@@ -495,14 +506,16 @@ function ComposerContent({ props, disclosure }: Readonly<{ props: WebComposerPro
 }
 
 export function Composer(props: Readonly<WebComposerProps>) {
-  const savedCollapsed = useUIStore(state => state.habitComposerCollapsed)
+  const savedCollapsed = useUIStore(state => props.collapseScope === 'today' ? state.todayComposerCollapsed : state.habitComposerCollapsed)
   const collapsed = Boolean(props.collapsible && savedCollapsed)
   const contentId = useId()
   const composerRef = useRef<HTMLDivElement>(null)
   const disclosureFocusPending = useRef(false)
   function toggleCollapsed() {
     disclosureFocusPending.current = true
-    useUIStore.getState().setHabitComposerCollapsed(!collapsed)
+    const preferences = useUIStore.getState()
+    if (props.collapseScope === 'today') preferences.setTodayComposerCollapsed(!collapsed)
+    else preferences.setHabitComposerCollapsed(!collapsed)
   }
   useEffect(() => {
     if (!disclosureFocusPending.current) return
@@ -542,10 +555,12 @@ export function Composer(props: Readonly<WebComposerProps>) {
       data-has-attachments={hasAttachments ? '' : undefined}
       data-can-retry={canRetry ? '' : undefined}
       data-collapsed={props.collapsible ? collapsed : undefined}
-      className={`@container flex shrink-0 flex-col border-t border-[var(--hairline)] bg-[var(--bg)] ${collapsed ? 'gap-0 px-4 py-1' : 'gap-3 p-4'}`}
+      className={`@container flex shrink-0 flex-col border-t border-[var(--hairline)] bg-[var(--bg)] ${collapsed ? 'py-1' : 'py-4'}`}
     >
+      <div data-composer-content="" className={`mx-auto w-full max-w-[740px] px-4 ${collapsed ? 'gap-0' : 'flex flex-col gap-3'}`}>
       {collapsed ? <ComposerDisclosure collapsed contentId={contentId} onToggle={toggleCollapsed} /> : null}
       {props.collapsible ? <div id={contentId} hidden={collapsed} className={collapsed ? 'hidden' : 'flex min-w-0 flex-col gap-3'}>{content}</div> : content}
+      </div>
     </div>
   )
 }

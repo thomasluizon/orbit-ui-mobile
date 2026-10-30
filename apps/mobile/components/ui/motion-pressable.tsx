@@ -2,6 +2,7 @@ import { forwardRef, useMemo, useState } from 'react'
 import { selectedBorderStyle } from './selected-focus-indicator'
 import { Pressable, type ColorValue, type PressableProps, type View } from 'react-native'
 import Animated from 'react-native-reanimated'
+import { motionDurations, motionEasings, orbitalMotion } from '@orbit/shared/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
@@ -38,8 +39,10 @@ export const MotionPressable = forwardRef<View, Readonly<MotionPressableProps>>(
         selectedBorderStyle(Boolean(props.accessibilityState?.selected || props.accessibilityState?.checked), focused, selectionRingWidth, selectionRingColor ?? tokens.primary),
         focused && focusInset && !props.disabled ? { outlineWidth: 2, outlineOffset: -4, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null,
         {
-          transform: [{ scale: !prefersReducedMotion && (pressed || active) ? 0.96 : 1 }],
-          transition: prefersReducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 240ms cubic-bezier(0.2, 0, 0, 1)',
+          transform: [{ scale: !props.disabled && !prefersReducedMotion && (pressed || active) ? orbitalMotion.press.scale : 1 }],
+          transitionProperty: ['transform', 'backgroundColor'],
+          transitionDuration: prefersReducedMotion ? motionDurations.instant : motionDurations.press,
+          transition: prefersReducedMotion ? 'none' : `transform ${motionDurations.press}ms cubic-bezier(${motionEasings.standard.join(',')})`,
         },
       ]}
     >

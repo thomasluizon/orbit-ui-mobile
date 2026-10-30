@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { habitKeys, shouldRetryQuery } from '@orbit/shared/query'
+import { CancelledError, useQuery, useQueryClient } from '@tanstack/react-query'
+import { habitKeys, isCachedHabitDeleted, shouldRetryQuery } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { extractBackendStatus } from '@orbit/shared/utils'
 import type {
@@ -23,16 +23,19 @@ export function useRescheduleSuggestion({
   locale,
   enabled,
 }: UseRescheduleSuggestionOptions) {
+  const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: habitKeys.rescheduleSuggestion(habitId),
-    queryFn: async (): Promise<RescheduleSuggestion> => {
+    queryFn: async ({ signal }): Promise<RescheduleSuggestion> => {
+      if (isCachedHabitDeleted(queryClient, habitId)) throw new CancelledError({ silent: true })
       const params = new URLSearchParams({ language: locale })
       const data = await apiClient<RescheduleSuggestionResponse>(
         `${API.habits.rescheduleSuggestion(habitId)}?${params.toString()}`,
+        { signal },
       )
       return data.suggestion
     },
-    enabled: enabled && !!habitId,
+    enabled: enabled && !!habitId && !isCachedHabitDeleted(queryClient, habitId),
     retry: (failureCount, error) => {
       const status = extractBackendStatus(error)
       return status === 429 ? shouldRetryQuery(failureCount, error) : failureCount < 3 && (status === undefined || status < 400 || status >= 500)

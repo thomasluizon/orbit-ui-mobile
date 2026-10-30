@@ -59,6 +59,13 @@ describe('onboarding helpers', () => {
     expect(shouldRequestOnboardingSuggestion({ isLive: true, atLimit: false })).toBe(true)
   })
 
+  it('uses available anonymous attestation and keeps unavailable or signed-in capped reads local', () => {
+    expect(shouldRequestOnboardingSuggestion({ isLive: false, atLimit: false, available: true })).toBe(true)
+    expect(shouldRequestOnboardingSuggestion({ isLive: false, atLimit: false, available: false })).toBe(false)
+    expect(shouldRequestOnboardingSuggestion({ isLive: true, atLimit: false, available: false })).toBe(false)
+    expect(shouldRequestOnboardingSuggestion({ isLive: true, atLimit: true, available: true })).toBe(false)
+  })
+
   it('keeps three decisions while the done screen rests at 03 of 03', () => {
     expect(getOnboardingDisplayTotal()).toBe(3)
     expect(getOnboardingDisplayStep(0)).toBe(1)

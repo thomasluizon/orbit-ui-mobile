@@ -20,7 +20,7 @@ vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => (
   isLoading: inbox.state === 'loading', isError: inbox.state === 'error', pendingDeleteIds: [], refetch: vi.fn(),
 }) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => '/notifications' }))
-vi.mock('react-native-safe-area-context', async () => ({ SafeAreaView: (await import('react-native')).View }))
+vi.mock('react-native-safe-area-context', async (original) => ({ ...await original<typeof import('react-native-safe-area-context')>(), SafeAreaView: (await import('react-native')).View }))
 
 interface Host {
   type: string

@@ -5,7 +5,9 @@ interface AuthNavigationEvent {
 }
 
 function scrubAuthLink(value: string): string {
-  return value.replace(/((?:https?:\/\/[^/?#\s]+\/|orbit(?:-staging)?:\/\/|\/)(?:login|auth-callback|api\/auth\/google\/code)\/?)[?#][^\s"'<>]*/gi, '$1')
+  return value
+    .replace(/((?:https?:\/\/[^/?#\s]+\/|orbit(?:-staging)?:\/\/|\/)(?:login|auth-callback|api\/auth\/google\/code)\/?)[?#][^\s"'<>]*/gi, '$1')
+    .replace(/(\/api\/events\?[^\s"'<>#]*?\bticket=)[^&#\s"'<>]*/gi, '$1[Filtered]')
 }
 
 function scrubLinkValues(values: Record<string, unknown>): void {

@@ -6,6 +6,8 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
+import { OrbitMark } from '@/components/ui/orbit-mark'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -81,10 +83,12 @@ describe('mobile feedback primitives', () => {
   it('defaults an empty state to Orbit and switches to Astra', () => {
     const orbit = render(<EmptyState title="Nothing here" />)
     expect(orbit.root.findByProps({ testID: 'empty-state-mark-orbit' })).toBeTruthy()
+    expect(orbit.root.findByType(OrbitMark).props.size).toBe(48)
     expect(textValues(orbit)).toContain('Nothing here')
 
     const astra = render(<EmptyState title="Ask Astra" mark="astra" />)
     expect(astra.root.findByProps({ testID: 'empty-state-mark-astra' })).toBeTruthy()
+    expect(astra.root.findByType(AstraGlyph).props.size).toBe(48)
   })
 
   it('renders exactly one empty-state action', () => {

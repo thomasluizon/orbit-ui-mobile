@@ -16,7 +16,7 @@ export function ThrottleScreen() {
   if (!visible) return null
   return (
     <NativeDialog open title={t(getErrorSurface(error).retryAt === null ? 'errorScreen.title' : 'errorScreen.throttleTitle')} onOpenChange={() => {}}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: createTokensV2().bg }}>
+      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: createTokensV2().bg }}>
         <AppErrorScreen error={error} retry={async () => {
           clear()
           await queryClient.refetchQueries({ type: 'active' })

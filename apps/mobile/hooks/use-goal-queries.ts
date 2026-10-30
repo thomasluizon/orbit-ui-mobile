@@ -23,12 +23,13 @@ export function useGoals(status?: GoalStatus | null) {
       const params: Record<string, string> = { pageSize: '100' }
       if (status) params.status = status
 
-      return fetchAllPaginatedItems<Goal, PaginatedGoalResponse>(async (page) => {
+      const goals = await fetchAllPaginatedItems<Goal, PaginatedGoalResponse>(async (page) => {
         const pageParams = page === 1 ? params : { ...params, page: String(page) }
         const qs = new URLSearchParams(pageParams).toString()
         const url = qs ? `${API.goals.list}?${qs}` : API.goals.list
         return apiClient<PaginatedGoalResponse>(url)
       })
+      return goals
     },
     staleTime: QUERY_STALE_TIMES.goals,
     select: normalizeGoalQueryData,

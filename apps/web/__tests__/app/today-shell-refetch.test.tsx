@@ -1,3 +1,4 @@
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 import { beforeEach, expect, it, vi } from 'vitest'
 import { useLayoutEffect } from 'react'
 import { render, screen } from '@testing-library/react'

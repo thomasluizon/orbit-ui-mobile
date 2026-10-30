@@ -6,7 +6,7 @@ import type { HabitUnderstandingProps } from '@orbit/shared/utils'
 type WeekdayPickerProps = Pick<HabitUnderstandingProps, 'days' | 'daily' | 'dayOptions' | 'onToggleDay' | 'proposed' | 'scheduleLocked'> & { label: string }
 
 export function WeekdayPicker({ days, daily = false, dayOptions, onToggleDay, proposed = false, scheduleLocked = false, label }: Readonly<WeekdayPickerProps>) {
-  return <fieldset aria-label={label} className="flex w-full flex-nowrap" style={{ gap: 4, maxWidth: 'calc(7 * var(--touch-min) + 6 * 4px)' }}>
+  return <fieldset aria-label={label} className="flex w-full flex-nowrap" style={{ gap: 8, maxWidth: 'calc(7 * var(--touch-min) + 6 * 4px)' }}>
     {dayOptions.map((day) => {
       const selected = daily || days.includes(day.value)
       return <button key={day.value} type="button" aria-pressed={selected} aria-label={day.accessibleLabel} disabled={scheduleLocked}

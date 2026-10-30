@@ -1,6 +1,26 @@
 import { z } from 'zod'
-import { createHabitRequestSchema } from './habit'
+import { createHabitRequestSchema, habitSetupSuggestionSchema } from './habit'
 import { createGoalRequestSchema } from './goal'
+
+export const onboardingPlatformSchema = z.enum(['web', 'desktop', 'android', 'ios'])
+export const onboardingAttestationSchema = z.object({
+  platform: onboardingPlatformSchema,
+  token: z.string().min(1).max(32768),
+  keyId: z.string().nullish(),
+})
+export const onboardingChallengeRequestSchema = z.object({ platform: onboardingPlatformSchema })
+export const onboardingChallengeSchema = z.object({ challenge: z.string().min(1), expiresAtUtc: z.iso.datetime({ offset: true }) })
+export const onboardingEnrollmentRequestSchema = z.object({ challenge: z.string().min(1), attestation: onboardingAttestationSchema })
+export const onboardingInstallSchema = z.object({ installId: z.string().min(1), expiresAtUtc: z.iso.datetime({ offset: true }) })
+export const onboardingSetupRequestSchema = z.object({
+  title: z.string().trim().min(1).max(100),
+  language: z.enum(['en', 'pt-BR']),
+  attestation: onboardingAttestationSchema,
+})
+export const onboardingSetupSuggestionSchema = habitSetupSuggestionSchema
+export type OnboardingPlatform = z.infer<typeof onboardingPlatformSchema>
+export type OnboardingAttestation = z.infer<typeof onboardingAttestationSchema>
+export type OnboardingSetupRequest = z.infer<typeof onboardingSetupRequestSchema>
 
 export const applyOnboardingFirstLogSchema = z.object({
   habitIndex: z.number().int().nonnegative(),
@@ -38,7 +58,6 @@ export const applyOnboardingRequestSchema = z.object({
   firstLog: applyOnboardingFirstLogSchema.optional(),
   goal: createGoalRequestSchema.optional(),
   weekStartDay: z.union([z.literal(0), z.literal(1)]).optional(),
-  colorScheme: z.string().optional(),
 })
 
 export type ApplyOnboardingRequest = z.infer<typeof applyOnboardingRequestSchema>

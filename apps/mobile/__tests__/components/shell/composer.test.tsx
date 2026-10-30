@@ -140,7 +140,7 @@ it.each([en, ptBR])('shows each suggestion action with only the decorative mark'
       expect(control.props.accessibilityLabel).toBe(chips[index]!.label)
       expect(textValues(control)).toEqual([chips[index]!.label])
       const marks = control.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-        typeof node.type === 'string' && node.props.testID === 'astra-mark-16')
+        typeof node.type === 'string' && node.props.testID === 'astra-mark')
       expect(marks).toHaveLength(1)
       expect(marks[0]!.props.accessible).toBe(false)
     }
@@ -178,7 +178,7 @@ describe('clipboard composer control', () => {
             { type: 'Text', props: { style: StyleSheet.flatten(minimum.props.style) }, children: [messages.shell.composer.inputLabel] },
           ] }, 412, fontScale).texts[0]!
           const field = parts.find(part => part.host.props.testID === 'composer-field')!
-          expect(textSlot.width).toBeGreaterThanOrEqual(Math.min(intrinsic.width, field.width - 8))
+          expect(textSlot.width).toBeGreaterThanOrEqual(Math.min(intrinsic.width, field.width - 16))
           expect(parts.find(part => part.host.props.testID === 'composer-text-action-slot')!.width).toBe(48)
         }
         const measurement = tree.root.findByProps({ testID: 'composer-paste-measure' })
@@ -238,7 +238,7 @@ describe('clipboard composer control', () => {
           if (layoutWidth < 600) expect(menu.props.items[0]).toMatchObject({ id: 'paste', label: messages.shell.composer.paste, icon: 'clipboard' })
           const empty = measure()
           expect(empty.height).toBeGreaterThanOrEqual(56)
-          if (layoutWidth === 600) expect(empty.height).toBe(56)
+          if (layoutWidth === 600) expect(empty.height).toBe(64)
           expect(measurePlaceholder(empty.contentWidth).lines).toBe(1)
           const placeholder = tree.root.findByProps({ testID: 'composer-placeholder' })
           expect(placeholder.props.children).toBe(messages.shell.composer.placeholder)
@@ -790,7 +790,8 @@ describe('Composer (mobile)', () => {
           expect(style.maxWidth).toBe(256)
           expect(style.minHeight).toBe(48)
           expect(style.height).toBeUndefined()
-          expect(style.alignItems).toBe('flex-start')
+          expect(style.alignItems).toBe('center')
+          expect(StyleSheet.flatten(chip.findByProps({ testID: 'composer-suggestion-content' }).props.style).alignItems).toBe('flex-start')
           expect(text.props.children).toBe(suggestion.label)
           expect(suggestion.label).not.toContain(title)
           expect(text.props.numberOfLines).toBeUndefined()
@@ -895,7 +896,7 @@ describe('Composer (mobile)', () => {
             target.calculateLayout(undefined, undefined)
             expect(Math.abs(target.getComputedWidth() - content.getComputedWidth() - 24 - 2 * StyleSheet.hairlineWidth)).toBeLessThanOrEqual(1)
           } finally { target.freeRecursive(); config.free() }
-          expect(style.alignItems).toBe('flex-start')
+          expect(style.alignItems).toBe('center')
           expect(StyleSheet.flatten(chip.findAllByType('Text')[0]!.props.style).flexShrink).toBe(1)
           expect(chip.findAllByType('Text')[0]!.props.numberOfLines).toBeUndefined()
           TestRenderer.act(() => chip.findByProps({ testID: 'composer-suggestion-content' }).props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: chipWidth - 24 - 2 * StyleSheet.hairlineWidth, height: 24 } } }))
@@ -1027,11 +1028,9 @@ describe('Composer (mobile)', () => {
   it('lays out the composer root with native styles', async () => {
     const tree = await renderComposer(props())
     const root = tree.root.findByProps({ testID: 'composer-idle' })
-    expect(StyleSheet.flatten(root.props.style)).toMatchObject({
-      flexDirection: 'column',
-      gap: 12,
-      padding: 16,
-    })
+    expect(StyleSheet.flatten(root.props.style)).toMatchObject({ flexDirection: 'column', borderTopWidth: StyleSheet.hairlineWidth })
+    const content = tree.root.findByProps({ testID: 'composer-content' })
+    expect(StyleSheet.flatten(content.props.style)).toMatchObject({ gap: 12, padding: 16 })
   })
 
   it('animates the Astra conversation control on press', async () => {
@@ -1159,8 +1158,6 @@ describe('Composer (mobile)', () => {
     ['sending', { state: 'sending', value: 'oi' }, true, false],
     ['atLimit', { state: 'atLimit', value: 'oi', limitReason: 'limit sentinel' }, false, true],
     ['offline', { state: 'offline', value: 'oi', limitReason: 'offline sentinel' }, false, true],
-    ['recording', { state: 'recording', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
-    ['transcribing', { state: 'transcribing', value: 'oi', onVoice: vi.fn(), voiceWords }, false, true],
   ] as const)('styles the send control for %s', async (_case, overrides, accented, disabled) => {
     const tree = await renderComposer(props(overrides))
     const send = byLabel(tree.root, words.send)[0]
@@ -1236,14 +1233,64 @@ describe('Composer (mobile)', () => {
     expect(textValues(tree.root)).toContain('recovery sentinel')
   })
 
-  it('renders and invokes voice only when the capability is present', async () => {
+  it.each([en, ptBR])('places supported voice in the primary slot and swaps it for send as text changes', messages => {
     const onVoice = vi.fn()
-    const tree = await renderComposer(props({ onVoice, voiceWords }))
-    pressControl(byLabel(tree.root, words.actions)[0])
-    pressControl(menuItem(tree, voiceWords.start))
+    const onSend = vi.fn()
+    function ControlledComposer() {
+      const [value, setValue] = React.useState('')
+      return <Composer {...props({ value, onChangeValue: setValue, words: messages.shell.composer,
+        onVoice, voiceWords: messages.shell.composer.voice, onSend })} />
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ControlledComposer />) })
+    const microphone = byLabel(tree.root, messages.shell.composer.voice.start)[0]
+    expect(microphone).toBeDefined()
+    expect(tree.root.findByProps({ testID: 'composer-trailing-controls' }).findAllByType('Pressable').at(-1)).toBe(microphone)
+    expect(StyleSheet.flatten(microphone.props.style)).toMatchObject({ width: 48, minHeight: 48, borderRadius: 999 })
+    expect(byLabel(tree.root, messages.shell.composer.send)).toHaveLength(0)
+    pressControl(microphone)
     expect(onVoice).toHaveBeenCalledOnce()
-    TestRenderer.act(() => tree.update(<Composer {...props()} />))
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onChangeText('A new message'))
+    expect(byLabel(tree.root, messages.shell.composer.voice.start)).toHaveLength(0)
+    pressControl(byLabel(tree.root, messages.shell.composer.send)[0])
+    expect(onSend).toHaveBeenCalledOnce()
+    TestRenderer.act(() => tree.root.findByType('TextInput').props.onChangeText(''))
+    expect(byLabel(tree.root, messages.shell.composer.voice.start)[0].props.disabled).toBe(false)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('keeps photo and document in the attachment sheet without a voice row', () => {
+    const tree = renderComposer(props({ onVoice: vi.fn(), voiceWords, onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords }))
+    pressControl(byLabel(tree.root, words.actions)[0])
+    expect(menuItem(tree, attachWords.image)).toBeDefined()
+    expect(menuItem(tree, attachWords.file)).toBeDefined()
+    expect(menuItem(tree, voiceWords.start)).toBeUndefined()
+  })
+
+  it('keeps send when recording is unsupported or a text file is ready to send', () => {
+    const tree = renderComposer(props())
     expect(byLabel(tree.root, voiceWords.start)).toHaveLength(0)
+    expect(byLabel(tree.root, words.send)[0].props.disabled).toBe(true)
+    const onSend = vi.fn()
+    TestRenderer.act(() => tree.update(<Composer {...props({ onVoice: vi.fn(), voiceWords, onSend, onAttachFile: vi.fn(), attachWords,
+      attachments: [{ id: 'file', kind: 'file', name: 'notes.txt' }], onAttachRemove: vi.fn() })} />))
+    expect(byLabel(tree.root, voiceWords.start)).toHaveLength(0)
+    pressControl(byLabel(tree.root, words.send)[0])
+    expect(onSend).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    ['idle', true], ['atLimit', true], ['offline', false], ['sending', false],
+  ] as const)('preserves voice availability while %s', (state, enabled) => {
+    const onVoice = vi.fn()
+    const tree = renderComposer(props({ state, limitReason: 'reason', value: '  ', onVoice, voiceWords,
+      errorMessage: 'Recording failed', onAttachImage: vi.fn(), attachWords,
+      attachments: [{ id: 'image', kind: 'image', name: 'walk.png' }], onAttachRemove: vi.fn() }))
+    const microphone = byLabel(tree.root, voiceWords.start)[0]
+    expect(microphone.props.disabled).toBe(!enabled)
+    expect(textValues(tree.root)).toContain('Recording failed')
+    pressControl(microphone)
+    expect(onVoice).toHaveBeenCalledTimes(enabled ? 1 : 0)
   })
 
   it('replaces suggestions with recording status and a stop control', async () => {

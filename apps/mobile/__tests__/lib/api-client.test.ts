@@ -181,6 +181,15 @@ describe('mobile apiClient', () => {
     expect(parsed.habits.updated[0]?.relativeReminders?.map((reminder) => reminder.when)).toEqual(scheduledOnly ? [] : ['same_day', 'day_before'])
   })
 
+  it('exposes onboarding response headers without passing its callback to fetch', async () => {
+    fetchMock.mockResolvedValue(Response.json({ challenge: 'challenge', expiresAtUtc: '2099-01-01T00:00:00Z' }, { headers: { 'X-Orbit-Install-Id': 'rotated-install' } }))
+    const observe = vi.fn()
+    await apiClient('/api/onboarding/challenge', { method: 'POST', silent: true, onResponseHeaders: observe })
+    expect(observe).toHaveBeenCalledOnce()
+    expect((observe.mock.calls[0]![0] as Headers).get('X-Orbit-Install-Id')).toBe('rotated-install')
+    expect(fetchMock.mock.calls[0]![1]).not.toHaveProperty('onResponseHeaders')
+  })
+
   it('adds auth and JSON headers for standard requests', async () => {
     getTokenMock.mockResolvedValue('token-123')
     fetchMock.mockResolvedValue({
@@ -765,4 +774,16 @@ describe('selected request language', () => {
     expect(new Headers(fetchMock.mock.calls.at(-1)?.[1].headers).get('Accept-Language')).toBe(language)
     await i18n.changeLanguage('en')
   })
+  it('sends a token-only notification action once without reading or recovering account credentials', async () => {
+    vi.clearAllMocks()
+    getTokenMock.mockResolvedValue('account-token')
+    fetchMock.mockResolvedValue(Response.json({ error: 'Expired' }, { status: 401 }))
+    await expect(apiClient('/api/reminders/done', { method: 'POST', anonymous: true, silent: true, body: JSON.stringify({ token: 'one-use' }) })).rejects.toMatchObject({ status: 401 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0]![1].headers).not.toHaveProperty('Authorization')
+    expect(getTokenMock).not.toHaveBeenCalled()
+    expect(refreshSessionMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
+  })
+
 })

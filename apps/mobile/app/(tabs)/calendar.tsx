@@ -1,3 +1,4 @@
+import { useOpenHabit } from '@/hooks/use-open-habit'
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { PADDING, SPACING } from '@orbit/shared/theme'
@@ -44,6 +45,7 @@ import {
   formatAPIDate,
   isCalendarDayLoggable,
   parseAPIDate,
+  resolveHabitDetailRouteDate,
   MAX_RANGE_DAYS,
   buildCalendarMonthModel,
   formatWeekdayLabels,
@@ -72,7 +74,6 @@ import { createTokensV2 } from "@/lib/theme";
 import { useRootScrollToTop } from '@/components/shell/root-scroll-context'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from "@/lib/use-app-theme";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { PillButton } from "@/components/ui/pill-button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -164,10 +165,25 @@ function resolveMonthEntering(monthSlide: MonthSlide) {
 }
 
 export default function CalendarScreen() {
+  const { setParams } = useRouter();
   const { profile, error: profileError, refetch: refetchProfile } = useProfile();
-  const [selectedDay, setSelectedDay] = useAccountScopedState(() => formatAPIDate(new Date()));
-  const currentMonth = useMemo(() => calendarMonthForDay(selectedDay), [selectedDay]);
+  const params = useLocalSearchParams<{ date?: string }>();
+  const routeDate = resolveHabitDetailRouteDate(params.date);
+  const acceptRouteDate = useAccountBoundRouteRequest(routeDate ?? '');
+  const [selectedDay, setSelectedDay] = useAccountScopedState(() => acceptRouteDate && routeDate ? routeDate : formatAPIDate(new Date()));
   const [view, setView] = useState<CalendarView>('month');
+  const [observedRouteDate, setObservedRouteDate] = useState(routeDate);
+  if (observedRouteDate !== routeDate) {
+    setObservedRouteDate(routeDate);
+    if (acceptRouteDate && routeDate) {
+      setSelectedDay(routeDate);
+      setView('month');
+    }
+  }
+  useEffect(() => {
+    if (params.date !== undefined) setParams({ date: undefined });
+  }, [params.date, setParams]);
+  const currentMonth = useMemo(() => calendarMonthForDay(selectedDay), [selectedDay]);
   const monthQuery = useCalendarData(currentMonth);
 
   return (
@@ -269,7 +285,7 @@ function CalendarScreenContent({
   const [rangeOffset, setRangeOffset] = useAccountScopedState(0);
   const [isDayDetailOpen, setIsDayDetailOpen] = useAccountScopedState(false);
   const [isEventsOpen, setIsEventsOpen] = useAccountScopedState(false)
-  const [expandedHabitTitle, setExpandedHabitTitle] = useAccountScopedState<string | null>(null)
+  const openHabit = useOpenHabit()
   const disclosedWeekDay = view === 'week' ? selectedDay : null
   const openDayDisclosure = (open: () => void) => closeSheet(() => { setIsDayDetailOpen(false); open() })
   const [isImportOpen, setIsImportOpen] = useAccountScopedState(false);
@@ -756,7 +772,7 @@ function CalendarScreenContent({
   }[view];
 
   return (
-    <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+    <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
       <CalendarOptions tokens={tokens} onGoogleCalendar={profile ? openGoogleCalendar : undefined} />
 
@@ -800,7 +816,7 @@ function CalendarScreenContent({
             onReconnectCalendarEvents={() => openImport(null)}
             onOpenCalendarImport={openImport}
             onOpenEvents={() => openDayDisclosure(() => setIsEventsOpen(true))}
-            onOpenHabitTitle={(title) => openDayDisclosure(() => setExpandedHabitTitle(title))}
+            onOpenHabit={(id) => openDayDisclosure(() => openHabit(id, selectedDay))}
             onViewPro={openOrbitPro}
             completedCount={completedCount}
             loggable={selectedDayLoggable}
@@ -814,7 +830,6 @@ function CalendarScreenContent({
         </View>
       </Sheet>) : null}
       {disclosedWeekDay ? <CalendarDayEvents key={disclosedWeekDay} sheetOnly open={isEventsOpen} onClose={() => setIsEventsOpen(false)} calendarEvents={selectedCalendarEvents} showEventSource={showEventSource} onOpenImport={openImport} t={t} displayTime={displayTime} /> : null}
-      <ExpandedHabitTitleSheet title={expandedHabitTitle} onClose={() => setExpandedHabitTitle(null)} tokens={tokens} />
       {showImportSheet ? (<Sheet
         ref={importSheetRef}
         onClose={closeImport}
@@ -833,7 +848,7 @@ function CalendarScreenContent({
           })}
         />
       </Sheet>) : null}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -884,10 +899,3 @@ function createStyles() {
   });
 }
 
-function ExpandedHabitTitleSheet({ title, onClose, tokens }: Readonly<{ title: string | null; onClose: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
-  const { t } = useTranslation()
-  if (!title) return null
-  return <Sheet open title={t('habits.form.title')} onClose={onClose}>
-    <Text style={{ fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8, color: tokens.fg1 }}>{title}</Text>
-  </Sheet>
-}

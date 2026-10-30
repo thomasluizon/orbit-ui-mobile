@@ -105,7 +105,7 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
           const chip = strip.getByRole('button', { name: label, exact: true })
           await expect(chip).toHaveCount(1)
           await expect(chip).toHaveText(label)
-          await expect(chip.locator('[data-asset="astra-mark-16"]')).toHaveCount(1)
+          await expect(chip.locator('[data-asset="astra-mark"]')).toHaveCount(1)
           await markRequiredLabels(chip)
         }
         await expectLabelsFit(page, strip)

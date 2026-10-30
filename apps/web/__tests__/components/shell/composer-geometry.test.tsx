@@ -4,7 +4,7 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
-import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, motionDurations } from '@orbit/shared/theme'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -12,6 +12,7 @@ import { Composer } from '@/components/shell/composer'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { inspectFocusedRing, readFieldIndicators } from '@/e2e/layout/focus-indicators'
+import { composerPlaceholderFits } from '@/e2e/layout/composer-column-paint'
 
 const cases = [320, 360, 384, 412].flatMap((width) =>
   [en, ptBR].flatMap((messages) => [1, 2].map((fontScale) => ({ width, messages, fontScale }))),
@@ -31,13 +32,15 @@ function assertPillActions(measured: PillGeometry, { withOpener, scenario, messa
   const voiceActive = scenario === 'recording' || scenario === 'transcribing'
   const expected = [
     ...(withOpener ? [messages.todayAstra.openConversation] : []),
-    voiceActive ? messages.shell.composer.voice.stop : messages.shell.composer.actions,
-    messages.shell.composer.send,
+    messages.shell.composer.actions,
+    voiceActive ? messages.shell.composer.voice.stop : ['oneLine', 'typing', 'longText', 'tray2', 'tray3'].includes(scenario)
+      ? messages.shell.composer.send : messages.shell.composer.voice.start,
   ]
   const textAction = ['oneLine', 'typing', 'longText'].includes(scenario) ? messages.shell.composer.clear : messages.shell.composer.paste
   const possibleNames = [...expected, ...names.includes(textAction) ? [textAction] : []]
   expect([...names].sort((left, right) => left.localeCompare(right)), evidence).toEqual(possibleNames.sort((left, right) => left.localeCompare(right)))
   if (['sending', 'atLimit', 'offline', 'recording', 'transcribing'].includes(scenario)) expect(names, evidence).not.toContain(textAction)
+  expect(measured.menuItems.map(item => item.id), evidence).not.toContain('voice')
   const actionId = ['oneLine', 'typing', 'longText'].includes(scenario) ? 'clear' : 'paste'
   const textActionName = actionId === 'clear' ? messages.shell.composer.clear : messages.shell.composer.paste
   const available = !['sending', 'atLimit', 'offline', 'recording', 'transcribing'].includes(scenario)
@@ -100,6 +103,29 @@ describe('Composer compact geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([320, 360, 384, 412, 600].flatMap(width => [en, ptBR].map(messages => ({ width, messages }))))(
+    'contains the Hoje and habit disclosure in the pill at $width with a whole placeholder', async ({ width, messages }) => {
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        for (const collapseScope of ['today', 'habit'] as const) {
+          const view = render(<Composer {...geometryProps('idle', messages, true)} collapsible collapseScope={collapseScope} />)
+          try {
+            await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+            await loadAppFonts(page)
+            const pill = page.locator('[data-composer-input-row]')
+            const disclosure = pill.locator('[data-composer-disclosure]')
+            expect(await disclosure.count()).toBe(1)
+            expect(await disclosure.getAttribute('aria-expanded')).toBe('true')
+            expect(await pill.locator('button').count()).toBe(4)
+            expect(await page.locator('[data-composer-input]').evaluate(composerPlaceholderFits, 1)).toBe(true)
+            const tops = await pill.locator('[data-composer-trailing-controls] button').evaluateAll(buttons => buttons.map(button => button.getBoundingClientRect().top))
+            expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(1)
+          } finally { view.unmount() }
+        }
+      } finally { await page.close() }
+    },
+  )
+
   it.each([412, 1280].flatMap((width) => (['light', 'dark'] as const).flatMap((mode) => [false, true].map((forcedColors) => ({ width, mode, forcedColors })))))(
     'draws one field and action focus ring at $width in $mode with forced colors $forcedColors', async ({ width, mode, forcedColors }) => {
       const view = render(<Composer {...geometryProps('typing', en, false)} />)
@@ -107,7 +133,7 @@ describe('Composer compact geometry in Chromium', () => {
       try {
         await page.emulateMedia({ forcedColors: forcedColors ? 'active' : 'none' })
         await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate((variables) => { for (const [key, value] of Object.entries(variables)) document.documentElement.style.setProperty(key, value) }, resolveWebThemeVariables('orange', mode))
         await page.keyboard.press('Tab')
         const field = page.getByRole('textbox')
@@ -144,9 +170,9 @@ describe('Composer compact geometry in Chromium', () => {
         const menu = await screen.findByRole('menu')
         const markup = width < 900 ? menu.closest('[role="dialog"]')!.outerHTML : menu.outerHTML
         await page.setContent(`<style>${stylesheet}</style>${markup}`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.keyboard.press('Tab')
-        for (const name of [en.shell.composer.attach.image, en.shell.composer.attach.file, en.shell.composer.voice.start]) {
+        for (const name of [en.shell.composer.attach.image, en.shell.composer.attach.file]) {
           const control = page.getByRole('menuitem', { name, exact: true })
           await control.focus()
           expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
@@ -166,7 +192,7 @@ describe('Composer compact geometry in Chromium', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}:root{${theme}}.orbit-menu-item{--test-hover:0}.orbit-menu-item:hover{--test-hover:1}</style>${markup}`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         for (const name of [en.shell.composer.attach.file, en.shell.composer.attach.image]) {
           const control = page.getByRole('menuitem', { name, exact: true })
           expect(await control.isDisabled()).toBe(true)
@@ -196,7 +222,7 @@ describe('Composer compact geometry in Chromium', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style>${markup}`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         for (const item of await page.getByRole('menuitem').all()) {
           const measured = await item.evaluate((element) => {
             const style = getComputedStyle(element)
@@ -218,7 +244,7 @@ describe('Composer compact geometry in Chromium', () => {
     try {
       await page.emulateMedia({ reducedMotion })
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       const target = page.locator('[data-open-conversation]')
       const bounds = (await target.boundingBox())!
       expect(bounds.width).toBeGreaterThanOrEqual(48)
@@ -260,7 +286,7 @@ describe('Composer compact geometry in Chromium', () => {
         const markup = dialog.outerHTML
         view.unmount()
         await page.setContent(`<style>${stylesheet}html{font-size:32px}</style>${markup}`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await loadAppFonts(page)
         const header = await page.locator('.orbit-sheet-title').evaluate((title) => {
           const font = getComputedStyle(title).font
@@ -294,18 +320,19 @@ describe('Composer compact geometry in Chromium', () => {
     try {
       const initial = geometryProps('idle', messages, true)
       await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(initial)}</script>`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await loadAppFonts(page)
       await page.addScriptTag({ content: composerScript })
       await page.locator('[data-composer-test-ready]').waitFor()
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       for (const withOpener of [true, false]) for (const scenario of ['idle', 'oneLine', 'typing', 'longText', 'sending', 'recording', 'transcribing', 'tray1', 'tray2', 'tray3', 'atLimit', 'offline', 'retry'] as const) {
         const props = geometryProps(scenario, messages, withOpener)
         await page.evaluate(configuration => {
           document.dispatchEvent(new CustomEvent('composer-test-remount', { detail: configuration }))
         }, JSON.parse(JSON.stringify({ ...props, attachmentRemoveTemplate: messages.shell.composer.attach.remove })))
         await page.locator('[data-composer-test-ready]').waitFor()
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.waitForTimeout(motionDurations.micro)
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
         const measured = await page.evaluate(() => {
           const pill = document.querySelector<HTMLElement>('[data-composer-input-row]')!
@@ -345,23 +372,25 @@ describe('Composer compact geometry in Chromium', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-        await page.setContent(`<style>${stylesheet}:root{${theme}}[data-composer-controls] button{--test-hover:0}[data-composer-controls] button:hover{--test-hover:1}</style>${container.innerHTML}`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
-        const control = page.locator('[data-composer-controls] button')
-        expect(await control.count()).toBe(1)
-        const restingFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
-        const bounds = (await control.boundingBox())!
-        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 4)
-        await page.waitForTimeout(300)
-        expect(await control.evaluate((element) => getComputedStyle(element).getPropertyValue('--test-hover').trim())).toBe('1')
-        const hoveredFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
-        if (await control.isDisabled()) expect(hoveredFill).toBe(restingFill)
-        else expect(hoveredFill).not.toBe(restingFill)
-        if (state === 'recording') {
-          await page.keyboard.press('Shift')
-          await control.focus()
-          expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
-          expect(await control.evaluate((element) => getComputedStyle(element).outlineColor)).toBe('rgb(196, 83, 15)')
+        await page.setContent(`<style>${stylesheet}:root{${theme}}[data-composer-input-row] button{--test-hover:0}[data-composer-input-row] button:hover{--test-hover:1}</style>${container.innerHTML}`)
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        for (const selector of ['[data-composer-controls] button', '[data-composer-trailing-controls] > button']) {
+          const control = page.locator(selector)
+          expect(await control.count()).toBe(1)
+          const restingFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+          const bounds = (await control.boundingBox())!
+          await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 4)
+          await page.waitForTimeout(300)
+          expect(await control.evaluate((element) => getComputedStyle(element).getPropertyValue('--test-hover').trim())).toBe('1')
+          const hoveredFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+          if (await control.isDisabled()) expect(hoveredFill).toBe(restingFill)
+          else expect(hoveredFill).not.toBe(restingFill)
+          if (state === 'recording' && selector.includes('trailing')) {
+            await page.keyboard.press('Shift')
+            await control.focus()
+            expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
+            expect(await control.evaluate((element) => getComputedStyle(element).outlineColor)).toBe('rgb(196, 83, 15)')
+          }
         }
       } finally { await page.close() }
     },

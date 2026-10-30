@@ -132,7 +132,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -163,7 +163,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -194,7 +194,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -225,7 +225,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -256,7 +256,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -287,7 +287,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -318,7 +318,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -349,7 +349,7 @@
         "apps/web/components/calendar-sync/connect-google.ts",
         "apps/web/components/calendar-sync/select-all-toggle.tsx",
         "apps/web/components/calendar/calendar-agenda-view.tsx",
-        "apps/web/components/calendar/calendar-grid.tsx",
+        "apps/web/components/calendar/calendar-day-detail.tsx",
         "apps/web/components/calendar/calendar-load-error.tsx",
         "apps/web/components/calendar/calendar-range-view.tsx",
         "apps/web/components/calendar/calendar-stats.tsx",
@@ -1896,7 +1896,6 @@
         "apps/web/app/(auth)/auth-callback/auth-callback-content.tsx",
         "apps/web/app/(auth)/auth-callback/page.tsx",
         "apps/web/lib/apple-oauth-cookie.ts",
-        "apps/web/lib/desktop-auth.ts",
         "apps/web/lib/google-auth-app-intent.ts",
         "apps/web/lib/google-oauth-cookie.ts"
       ],
@@ -1914,7 +1913,6 @@
         "apps/web/app/(auth)/auth-callback/auth-callback-content.tsx",
         "apps/web/app/(auth)/auth-callback/page.tsx",
         "apps/web/lib/apple-oauth-cookie.ts",
-        "apps/web/lib/desktop-auth.ts",
         "apps/web/lib/google-auth-app-intent.ts",
         "apps/web/lib/google-oauth-cookie.ts"
       ],
@@ -1932,7 +1930,6 @@
         "apps/web/app/(auth)/auth-callback/auth-callback-content.tsx",
         "apps/web/app/(auth)/auth-callback/page.tsx",
         "apps/web/lib/apple-oauth-cookie.ts",
-        "apps/web/lib/desktop-auth.ts",
         "apps/web/lib/google-auth-app-intent.ts",
         "apps/web/lib/google-oauth-cookie.ts"
       ],
@@ -1950,7 +1947,6 @@
         "apps/web/app/(auth)/auth-callback/auth-callback-content.tsx",
         "apps/web/app/(auth)/auth-callback/page.tsx",
         "apps/web/lib/apple-oauth-cookie.ts",
-        "apps/web/lib/desktop-auth.ts",
         "apps/web/lib/google-auth-app-intent.ts",
         "apps/web/lib/google-oauth-cookie.ts"
       ],
@@ -2931,6 +2927,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-block-registry",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/block-registry.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-block-registry",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/block-registry.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-block-registry",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/block-registry.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-block-registry",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/block-registry.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-breakdown-suggestion",
       "platform": "web",
       "kind": "block",
@@ -3155,62 +3207,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "block-chat-chat-link",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-link.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-link.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-chat-link",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-link.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-link.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-chat-link",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-link.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-link.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-chat-link",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-link.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-link.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "block-chat-choice-block",
       "platform": "web",
       "kind": "block",
@@ -3323,6 +3319,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-compact-figure",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-compact-figure",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-compact-figure",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-compact-figure",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-conflict-warning",
       "platform": "web",
       "kind": "block",
@@ -3373,6 +3425,62 @@
       "parentSurfaceId": "route-chat",
       "ownedFiles": [
         "apps/web/components/chat/conflict-warning.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-conversation-motion",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation-motion.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation-motion.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-conversation-motion",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation-motion.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation-motion.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-conversation-motion",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation-motion.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation-motion.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-conversation-motion",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation-motion.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation-motion.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -3603,6 +3711,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-gamification-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-gamification-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-gamification-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-gamification-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-goal-list-card",
       "platform": "web",
       "kind": "block",
@@ -3653,6 +3817,62 @@
       "parentSurfaceId": "route-chat",
       "ownedFiles": [
         "apps/web/components/chat/goal-list-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-block-row",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-block-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-block-row",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-block-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-block-row",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-block-row.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-block-row",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-block-row.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -3715,6 +3935,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-habit-month-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-month-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-month-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-month-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-habit-ranking-card",
       "platform": "web",
       "kind": "block",
@@ -3767,6 +4043,230 @@
         "apps/web/components/chat/habit-ranking-card.tsx"
       ],
       "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestion-editor",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestion-editor",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestion-editor",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestion-editor",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestion-editor",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestion-editor",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestion-editor",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestion-editor",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestions-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestions-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestions-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestions-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestions-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestions-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestions-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-suggestions-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -3827,6 +4327,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-message-bubble",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/message-bubble.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/message-bubble.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-message-bubble",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/message-bubble.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/message-bubble.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-message-bubble",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/message-bubble.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/message-bubble.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-message-bubble",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/message-bubble.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/message-bubble.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-metrics-card",
       "platform": "web",
       "kind": "block",
@@ -3877,6 +4433,62 @@
       "parentSurfaceId": "route-chat",
       "ownedFiles": [
         "apps/web/components/chat/metrics-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-one-small-step-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-one-small-step-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-one-small-step-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-one-small-step-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/one-small-step-card.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -4443,6 +5055,118 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-question-block",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/question-block.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/question-block.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-question-block",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/question-block.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/question-block.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-question-block",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/question-block.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/question-block.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-question-block",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/question-block.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/question-block.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-question-controls",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/question-controls.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/question-controls.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-question-controls",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/question-controls.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/question-controls.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-question-controls",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/question-controls.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/question-controls.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-question-controls",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/question-controls.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/question-controls.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-read-block-frame",
       "platform": "web",
       "kind": "block",
@@ -4779,7 +5503,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4807,7 +5530,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4835,7 +5557,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4863,7 +5584,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4891,7 +5611,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4919,7 +5638,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4947,7 +5665,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -4975,7 +5692,6 @@
       "ownedFiles": [
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
         "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/gamification/daily-streak-moment.tsx",
         "apps/web/components/gamification/use-celebration-presentation.ts",
@@ -5509,58 +6225,6 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/advanced/advanced-sections.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-calendar-calendar-day-detail",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/calendar/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/calendar/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-calendar-calendar-day-detail",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/calendar/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/calendar/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-calendar-calendar-day-detail",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/calendar/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/calendar/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-calendar-calendar-day-detail",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/calendar/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/calendar/calendar-day-detail.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -6971,6 +7635,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-habit-form-fields-scheduled-reminder-section",
       "platform": "web",
       "kind": "overlay",
@@ -7231,6 +7947,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-habits-repeat-reminder-detail",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-repeat-reminder-detail",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-repeat-reminder-detail",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-repeat-reminder-detail",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-habits-reschedule-sheet",
       "platform": "web",
       "kind": "overlay",
@@ -7381,6 +8149,58 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/milestone-share/milestone-share-prompt.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-navigation-bottom-tab-bar",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/navigation/bottom-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/navigation/bottom-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-navigation-bottom-tab-bar",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/navigation/bottom-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/navigation/bottom-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-navigation-bottom-tab-bar",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/navigation/bottom-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/navigation/bottom-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-navigation-bottom-tab-bar",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/navigation/bottom-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/navigation/bottom-tab-bar.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -8323,6 +9143,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-ui-segmented-control",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-segmented-control",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-segmented-control",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-segmented-control",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-sheet",
       "platform": "web",
       "kind": "overlay",
@@ -8591,7 +9463,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8620,7 +9492,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8649,7 +9521,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8678,7 +9550,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8707,7 +9579,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8736,7 +9608,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8765,7 +9637,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -8794,7 +9666,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
@@ -9669,8 +10541,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -9683,8 +10554,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -9697,8 +10567,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -9711,8 +10580,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -9725,8 +10593,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "empty",
       "theme": "light",
@@ -9739,8 +10606,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "empty",
       "theme": "light",
@@ -9753,8 +10619,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "empty",
       "theme": "dark",
@@ -9767,8 +10632,7 @@
       "sourceFile": "apps/mobile/app/habits/new.tsx",
       "href": "/habits/new",
       "ownedFiles": [
-        "apps/mobile/app/habits/new.tsx",
-        "apps/mobile/lib/offline-recovery.ts"
+        "apps/mobile/app/habits/new.tsx"
       ],
       "state": "empty",
       "theme": "dark",
@@ -11211,6 +12075,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-block-registry",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/block-registry.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-block-registry",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/block-registry.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-block-registry",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/block-registry.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-block-registry",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/block-registry.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/block-registry.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-breakdown-suggestion",
       "platform": "mobile",
       "kind": "block",
@@ -11547,6 +12467,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-compact-figure",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-compact-figure",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-compact-figure",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-compact-figure",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/compact-figure.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/compact-figure.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-conflict-warning",
       "platform": "mobile",
       "kind": "block",
@@ -11597,6 +12573,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conflict-warning.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-conversation-motion",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/conversation-motion.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation-motion.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-conversation-motion",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/conversation-motion.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation-motion.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-conversation-motion",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/conversation-motion.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation-motion.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-conversation-motion",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/conversation-motion.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation-motion.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -11867,6 +12899,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-gamification-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-gamification-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-gamification-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-gamification-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/gamification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/gamification-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-goal-list-card",
       "platform": "mobile",
       "kind": "block",
@@ -11917,6 +13005,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/goal-list-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-block-row",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-block-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-block-row",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-block-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-block-row",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-block-row.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-block-row",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-block-row.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-block-row.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -11979,6 +13123,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-habit-month-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-month-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-month-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-month-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-month-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-month-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-habit-ranking-card",
       "platform": "mobile",
       "kind": "block",
@@ -12035,6 +13235,230 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-habit-suggestion-editor",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestion-editor",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestion-editor",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestion-editor",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestion-editor",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestion-editor",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestion-editor",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestion-editor",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestion-editor.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestion-editor.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestions-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestions-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestions-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestions-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestions-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestions-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestions-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-habit-suggestions-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/habit-suggestions-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/habit-suggestions-card.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-metrics-card",
       "platform": "mobile",
       "kind": "block",
@@ -12085,6 +13509,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/metrics-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-one-small-step-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-one-small-step-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-one-small-step-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/one-small-step-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-one-small-step-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/one-small-step-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/one-small-step-card.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -12707,6 +14187,118 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-question-block",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/question-block.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/question-block.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-question-block",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/question-block.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/question-block.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-question-block",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/question-block.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/question-block.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-question-block",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/question-block.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/question-block.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-question-controls",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/question-controls.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/question-controls.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-question-controls",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/question-controls.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/question-controls.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-question-controls",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/question-controls.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/question-controls.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-question-controls",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/question-controls.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/question-controls.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-read-block-frame",
       "platform": "mobile",
       "kind": "block",
@@ -12931,6 +14523,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-message-bubble",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/message-bubble.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/message-bubble.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-message-bubble",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/message-bubble.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/message-bubble.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-message-bubble",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/message-bubble.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/message-bubble.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-message-bubble",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/message-bubble.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/message-bubble.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-composer",
       "platform": "mobile",
       "kind": "block",
@@ -12981,58 +14629,6 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/shell/composer.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-components-calendar-day-detail",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-components-calendar-day-detail",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-components-calendar-day-detail",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-components-calendar-day-detail",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -14911,6 +16507,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-repeat-reminder-section",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-habit-form-fields-scheduled-reminder-section",
       "platform": "mobile",
       "kind": "overlay",
@@ -15113,6 +16761,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/habits/habit-row.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-repeat-reminder-detail",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-repeat-reminder-detail",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-repeat-reminder-detail",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/repeat-reminder-detail.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-repeat-reminder-detail",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/repeat-reminder-detail.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/repeat-reminder-detail.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -15377,6 +17077,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/navigation/notification-inbox.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-components-offline-notice",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/offline-notice.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/offline-notice.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-components-offline-notice",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/offline-notice.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/offline-notice.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-components-offline-notice",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/offline-notice.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/offline-notice.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-components-offline-notice",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/offline-notice.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/offline-notice.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -16837,6 +18589,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/ui/personal-text-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-segmented-control",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-segmented-control",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-segmented-control",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/segmented-control.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-segmented-control",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/segmented-control.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/segmented-control.tsx"
       ],
       "state": "default",
       "theme": "dark",

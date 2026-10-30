@@ -1,4 +1,4 @@
-import { makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -45,8 +45,22 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
     const { record, render } = createRenderers()
     renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
-    expect(record.frame?.title).toBe(locale === 'en' ? count === 1 ? 'New habit' : 'New habits' : count === 1 ? 'Novo hábito' : 'Novos hábitos')
+    expect(record.frame?.title).toBe(locale === 'en' ? count === 1 ? 'New habit' : `${count} new habits` : count === 1 ? 'Novo hábito' : `${count} novos hábitos`)
     expect(record.frame?.count).toBe(count)
+    expect(record.frame?.items).toHaveLength(count)
+  })
+
+  it('keeps the full count and a localized remainder when the create preview is truncated', () => {
+    const complete = makeCreateHabitsPreview(5)
+    const operation = pendingAgentOperationSchema.parse({ ...complete, items: complete.items!.slice(0, 2) })
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    const remainder = locale === 'en' ? 'and 3 more' : 'e mais 3'
+    expect(record.frame).toMatchObject({ title: locale === 'en' ? '5 new habits' : '5 novos hábitos', count: 5 })
+    expect(record.frame?.items).toHaveLength(3)
+    expect(record.frame?.items[2]).toMatchObject({ id: 'remaining', label: remainder, meta: '', control: undefined })
+    expect(record.buttons.some(button => button.label === remainder)).toBe(false)
   })
 
   it.each([1, 2, 3])('keeps a neutral heading for reuse at depth %s', (depth) => {
@@ -69,7 +83,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     const { record, render } = createRenderers()
     renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
     expect(record.frame?.items[1]).toMatchObject({ label: scenario.child.title, indented: true,
-      meta: locale === 'en' ? scenario.english : scenario.portuguese })
+      meta: locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1') })
   })
 
   it('lists each nested create with its schedule under the parent', () => {
@@ -79,19 +93,99 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     renderPendingOperationCard({ card: createCard(), labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
     expect(record.frame?.items).toHaveLength(4)
     expect(record.frame?.items.slice(1).map((row) => [row.indented, row.meta])).toEqual([
-      [true, `${messages.habits.frequency.everyDay} · 21:30`],
-      [true, `${messages.habits.frequency.everyDay} · 21:30`],
-      [true, `${messages.habits.frequency.everyDay} · 23:00`],
+      [true, `${messages.habits.frequency.everyDay} · ${messages.chat.preview.atTime.replace('{time}', '21:30')}`],
+      [true, `${messages.habits.frequency.everyDay} · ${messages.chat.preview.atTime.replace('{time}', '21:30')}`],
+      [true, `${messages.habits.frequency.everyDay} · ${messages.chat.preview.atTime.replace('{time}', '23:00')}`],
     ])
     expect(record.frame?.count).toBe(1)
   })
 
-  it('keeps a neutral heading for a mixed preview', () => {
+  it('counts the habits being changed in a mixed preview', () => {
     const operation = makeMixedHabitsPreview()
     const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
     const { record, render } = createRenderers()
     renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
-    expect(record.frame?.title).toBe(messages.chat.pendingOp.capability['habits-bulk-write'])
+    expect(record.frame?.title).toBe(locale === 'en' ? 'Change 5 habits' : 'Alterar 5 hábitos')
+  })
+})
+
+describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('suggestion batch summaries in $locale', ({ locale, messages }) => {
+  it.each([
+    ['createGoal', 'goals.write'], ['createTag', 'tags.write'], ['updateGoal', 'goals.write'],
+  ])('preserves the %s action for a title-only row', (actionKey, capabilityId) => {
+    const operation = { ...makeCreateHabitsPreview(1), actionKey, capabilityId }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.meta).toBe(translateMessages(messages, `chat.operation.source.${actionKey}`))
+  })
+
+  it('keeps explicit habit create actions', () => {
+    const operation = { ...makeSuggestionBatchPreview(), actionKey: 'createHabits' }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items.map((row) => row.meta)).toEqual(Array(2).fill(locale === 'en'
+      ? 'Every day · Oct 27, 2026 · at 08:15 · Until 08:30' : 'Todo dia · 27 de out. de 2026 · às 08:15 · Até 08:30'))
+  })
+
+  it('does not infer a habit from a title-only account change', () => {
+    const operation = { ...makeCreateHabitsPreview(1), actionKey: 'applyAccountChanges', capabilityId: 'chat.changes' }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.meta).toBe(labels.pending)
+  })
+
+  it('recognizes a one-time task create without a schedule in an account-change batch', () => {
+    const batch = makeSuggestionBatchPreview()
+    const operation = { ...batch, items: batch.items!.map((item) => ({ ...item, fields: item.fields.filter((field) =>
+      ['title', 'due_date', 'reminder_enabled', 'reminder_times'].includes(field.field)) })) }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.meta).not.toContain(messages.chat.preview.summary.stopReminders)
+    expect(record.frame?.items[0]?.meta).toContain(locale === 'en' ? 'Oct 27, 2026' : '27 de out. de 2026')
+  })
+
+  it.each([
+    { actionKey: 'updateHabits', capabilityId: 'chat.changes' },
+    { actionKey: 'applyAccountChanges', capabilityId: 'goals.write' },
+  ])('retains update outcomes outside an account-change batch: $actionKey, $capabilityId', (scope) => {
+    const operation = { ...makeSuggestionBatchPreview(), ...scope }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.meta).toContain(messages.chat.preview.summary.stopReminders)
+  })
+
+  it('retains checklist content and a nondefault week interval on creates', () => {
+    const batch = makeSuggestionBatchPreview()
+    const operation = { ...batch, items: batch.items!.map((item) => ({ ...item, fields: item.fields.map((field) =>
+      field.field === 'checklist_items' ? { ...field, newValue: '["Prepare tea"]', proposedValue: ['Prepare tea'] }
+        : field.field === 'interval_weeks' ? { ...field, newValue: '2', proposedValue: 2 } : field) })) }
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    for (const row of record.frame!.items) {
+      expect(row.meta).toContain('Prepare tea')
+      expect(row.meta).toContain(locale === 'en' ? 'Every 2 weeks' : 'A cada 2 semanas')
+    }
+  })
+
+  it.each(['none', 'habit_id', 'oldValue'] as const)('describes creates and preserves updates identified by %s', (update) => {
+    const operation = makeSuggestionBatchPreview(update)
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    const expected = locale === 'en' ? 'Every day · Oct 27, 2026 · at 08:15 · Until 08:30' : 'Todo dia · 27 de out. de 2026 · às 08:15 · Até 08:30'
+    expect(record.frame?.items[0]?.meta).toBe(expected)
+    if (update === 'none') expect(record.frame?.items[1]?.meta).toBe(expected)
+    else {
+      expect(record.frame?.items[1]?.meta).toContain(messages.chat.preview.summary.clearChecklist)
+      expect(record.frame?.items[1]?.meta).toContain(messages.chat.preview.summary.stopReminders)
+      expect(record.frame?.items[1]?.meta).toContain(messages.chat.preview.summary.clearReminders)
+    }
   })
 })
 
@@ -101,29 +195,29 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
   const summarize = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (value) => `clock:${value}`, locale).summarize
 
   it('shows the resulting cadence and time for a create with children and a null parent', () => {
-    expect(summarize(fields)).toBe(`${messages.habits.frequency.everyDay} · clock:21:30`)
+    expect(summarize(fields)).toBe(`${messages.habits.frequency.everyDay} · ${messages.chat.preview.atTime.replace('{time}', 'clock:21:30')}`)
   })
 
   it('keeps the cadence when an explicit null parent is the only optional field', () => {
-    expect(summarize(fields.filter((field) => field.field !== 'sub_habits'))).toBe(`${messages.habits.frequency.everyDay} · clock:21:30`)
+    expect(summarize(fields.filter((field) => field.field !== 'sub_habits'))).toBe(`${messages.habits.frequency.everyDay} · ${messages.chat.preview.atTime.replace('{time}', 'clock:21:30')}`)
   })
 
   it('describes a bad habit without an edit verb', () => {
     expect(summarize(fields.map((field) => field.field === 'is_bad_habit' ? { ...field, newValue: 'True', proposedValue: true } : field)))
-      .toBe(`${messages.habits.frequency.everyDay} · clock:21:30 · ${locale === 'en' ? 'Habit to avoid' : 'Hábito a evitar'}`)
+      .toBe(`${messages.habits.frequency.everyDay} · ${messages.chat.preview.atTime.replace('{time}', 'clock:21:30')} · ${locale === 'en' ? 'Habit to avoid' : 'Hábito a evitar'}`)
   })
 
   it('shows a dated task without a cadence or default changes', () => {
     const taskFields = fields.filter((field) => !['frequency_quantity', 'frequency_unit', 'sub_habits'].includes(field.field))
     taskFields.push({ ...fields[0]!, field: 'due_date', valueType: 'date', newValue: '2026-10-25', proposedValue: '2026-10-25' })
-    expect(summarize(taskFields)).toBe(`${locale === 'en' ? 'Oct 25, 2026' : '25 de out. de 2026'} · clock:21:30`)
+    expect(summarize(taskFields)).toBe(`${locale === 'en' ? 'Oct 25, 2026' : '25 de out. de 2026'} · ${messages.chat.preview.atTime.replace('{time}', 'clock:21:30')}`)
   })
 
   it('keeps a complete update cadence and its explicit boolean change', () => {
     const updateFields = fields.filter((field) => !['sub_habits', 'parent_habit_id'].includes(field.field)).map((field) => ({ ...field, oldValue: field.field === 'frequency_quantity' ? '2' : field.newValue }))
     updateFields.push({ ...fields[0]!, field: 'days', newValue: '[]', proposedValue: [] })
     const update = buildPendingOperationCardLabels({ ...operation, actionKey: 'updateHabit' }, (key, values) => translateMessages(messages, key, values), (value) => `clock:${value}`, locale)
-    expect(update.summarize(updateFields)).toBe(`${messages.habits.frequency.everyDay} · ${messages.chat.preview.atTime.replace('{time}', 'clock:21:30')} · ${messages.chat.preview.summary.buildHabit}`)
+    expect(update.summarize(updateFields)).toBe(`${locale === 'en' ? 'Every 2 days' : 'A cada 2 dias'} · ${messages.chat.preview.atTime.replace('{time}', 'clock:21:30')} → ${messages.habits.frequency.everyDay} · ${messages.chat.preview.atTime.replace('{time}', 'clock:21:30')}`)
   })
 })
 
@@ -249,7 +343,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
 
   it.each(partialScheduleSummaryCases)('does not assume unchanged schedule attributes: $name', (scenario) => {
     const operation = makePartialScheduleSummaryOperation(scenario)
-    expect(summarize(operation.items![0]!.fields)).toBe(locale === 'en' ? scenario.english : scenario.portuguese)
+    expect(summarize(operation.items![0]!.fields, 'updateHabit')).toBe(locale === 'en' ? scenario.english.replace(/ · (\d{2}:\d{2})/g, ' · at $1') : scenario.portuguese.replace(/ · (\d{2}:\d{2})/g, ' · às $1'))
   })
 
   it('shows changed days without inventing the retained cadence', () => {
@@ -257,7 +351,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
       change('habit_id', 'habit-1', 'habit-1'),
       change('days', '["Thursday"]', ['Thursday'], 'Monday, Wednesday'),
       change('frequency_quantity', '1', 1, '1'),
-    ])).toBe(locale === 'en' ? 'Thu · Frequency: 1' : 'Qui · Frequência: 1')
+    ])).toBe(locale === 'en' ? 'Thu' : 'Qui')
   })
 
   it('uses the complete supplied schedule when flexibility is explicit', () => {
@@ -366,6 +460,7 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
 })
 
 const labels: PendingOperationCardLabels = {
+  ...buildPendingOperationCardLabels(makePendingAgentOperation(), translateEnglish, (value) => value),
   parentChoiceRequired: 'Choose a parent or No parent', noParent: 'No parent',
   formatTime: (value) => value,
   empty: 'No changes to approve.', approve: () => 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
@@ -490,6 +585,7 @@ function createRenderers() {
     confirmSheet: (props) => { record.confirm = props; return 'confirm' },
     stepUp: (props) => { record.stepUp = props; return 'step-up' },
     verification: (props) => { record.verification = props; return 'verification' },
+    placementChoice: () => 'placement-choice',
     parentChoice: () => 'parent-choice',
     editSheet: () => 'edit-sheet',
     removeItem: (label, _disabled, onClick) => { record.buttons.push({ label, onClick }); return label },
@@ -501,6 +597,22 @@ function createRenderers() {
 }
 
 describe('pending operation card view', () => {
+  it('shows the proposed icon while an emoji edit is pending and the stored icon otherwise', () => {
+    const operation = makeExistingHabitPreview('🦷')
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.icon).toBe('🦷')
+    operation.items![0]!.fields.push({ ...operation.items![0]!.fields[0]!, field: 'emoji', oldValue: '🦷', newValue: '🪥', proposedValue: '🪥' })
+    renderPendingOperationCard({ card: createCard(), labels, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items[0]?.icon).toBe('🪥')
+  })
+
+  it.each([{ locale: 'en', messages: en, expected: '10/28 → 11/4/26' }, { locale: 'pt-BR', messages: ptBR, expected: '28/10 → 04/11/26' }])('retains both dates in the compact $locale change', ({ locale, messages, expected }) => {
+    const operation = makeExistingHabitPreview()
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale)
+    expect(localized.summarize(operation.items![0]!.fields)).toBe(expected)
+  })
+
   it.each(['done', 'failed'] as const)('retains a settled empty operation with status %s', status => {
     const card = { ...createCard(), status, canRetry: status === 'failed' }
     const { record, render } = createRenderers()
@@ -969,5 +1081,72 @@ describe('parent choice presentation and focus intent', () => {
     const complete = createRenderers()
     renderPendingOperationCard({ card: { ...card, revision: { ...card.revision, busy: false, operation: resolved, items: resolved.items! } }, labels, onVerifyStepUp: vi.fn(), pendingOperation: resolved, render: complete.render })
     expect(complete.record.buttons.find(button => button.label === 'Approve')).toMatchObject({ disabled: false, focusRequest: 3 })
+  })
+})
+
+it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('counts multiple habit edits in $locale', ({ locale, messages }) => {
+  const operation = { ...makeCreateHabitsPreview(3), actionKey: 'updateHabits' }
+  const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale)
+  expect(labels.name).toBe(locale === 'en' ? 'Change 3 habits' : 'Alterar 3 hábitos')
+})
+
+
+it.each(['en', 'pt-BR'])('includes one enabled reminder token in create summaries in %s', locale => {
+  const messages = locale === 'en' ? en : ptBR
+  for (const reminder of ['enabled', 'atTime', 'before', 'scheduled', 'disabled'] as const) {
+    const operation = makeReminderHabitPreview(reminder)
+    const labels = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale)
+    const tokens = labels.summarize(operation.items![0]!.fields).split(' · ')
+    const expected = reminder === 'enabled' ? messages.chat.preview.summary.sendReminders
+      : reminder === 'scheduled' ? translateMessages(messages, 'chat.preview.summary.remindDayBefore', { time: '20:00' })
+      : translateMessages(messages, 'chat.preview.summary.remindWhen', { when: reminder === 'before' ? messages.habits.form.reminder15min : messages.habits.form.reminderAtTime })
+    expect(tokens.filter(token => token === expected)).toHaveLength(reminder === 'disabled' ? 0 : 1)
+    expect(tokens).toHaveLength(reminder === 'disabled' ? 2 : 3)
+  }
+})
+
+
+it.each([{ locale: 'en', messages: en, expected: ['Today', 'Today', '10/26 → Today', '10/27 → 10/29/26', 'Today → 11/4/26'] },
+  { locale: 'pt-BR', messages: ptBR, expected: ['Hoje', 'Hoje', '26/10 → Hoje', '27/10 → 29/10/26', 'Hoje → 04/11/26'] }])('shows every restart plan date in $locale from item fields', ({ locale, messages, expected }) => {
+  const operation = makeRestartPlanPreview()
+  expect(operation.changes).toHaveLength(3)
+  const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale, '2026-10-28')
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card: createCard(), labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+  expect(record.frame?.items.map(item => item.meta)).toEqual(expected)
+})
+
+it.each(['en', 'pt-BR'])('shows an unchanged single reschedule as today in %s', locale => {
+  const operation = makeRestartPlanPreview()
+  const item = operation.items![0]!
+  const single = { ...operation, items: [item], changes: [], changeTargetCount: 1 }
+  const localized = buildPendingOperationCardLabels(single, (key, values) => translateMessages(locale === 'en' ? en : ptBR, key, values), value => value, locale, '2026-10-28')
+  expect(localized.summarize(item.fields)).toBe(locale === 'en' ? 'Today' : 'Hoje')
+})
+
+describe('typed preview rows', () => {
+  it('keeps execution results attached to their original items after grouping', () => {
+    const operation = makeTypedHabitsPreview()
+    const completed = makeBulkCreateExecutionResponse(['Success', 'Failed', 'Success', 'Success', 'Failed']).operation!
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ pendingOperation: operation, card: { ...createCard(), status: 'done', completedOperation: completed }, labels, render, onVerifyStepUp: vi.fn() })
+    expect(record.frame?.items.map(item => [item.id, item.status, item.groupHeading])).toEqual([
+      ['2', 'done', 'Tasks'], ['4', 'failed', undefined],
+      ['1', 'failed', 'Habits'], ['3', 'done', undefined], ['0', 'done', 'General habits'],
+    ])
+    expect(record.frame?.count).toBe(5)
+  })
+
+  it('keeps nested rows with their typed parent and untyped items outside named groups', () => {
+    const operation = makeTypedHabitsPreview([undefined, 'General', 'Habit', 'Task'])
+    const children = makeEveningRoutinePreview().items![0]!.fields.find(field => field.field === 'sub_habits')!
+    operation.items![2]!.fields.push(children)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ pendingOperation: operation, card: createCard(), labels, render, onVerifyStepUp: vi.fn() })
+    expect(record.frame?.items.map(item => [item.id, item.groupHeading, item.indented])).toEqual([
+      ['0', undefined, undefined], ['3', 'Tasks', undefined], ['2', 'Habits', undefined],
+      ['2-child-0', undefined, true], ['2-child-1', undefined, true], ['2-child-2', undefined, true],
+      ['1', 'General habits', undefined],
+    ])
   })
 })

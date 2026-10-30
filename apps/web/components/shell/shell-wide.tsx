@@ -1,5 +1,9 @@
 'use client'
 
+import { ConversationComposerMotionProvider } from './conversation-composer-motion'
+import { motion } from 'motion/react'
+import { useConversationMotion } from '@/hooks/use-conversation-motion'
+
 import { SidebarAccount } from './sidebar-account'
 import { useTranslations } from 'next-intl'
 import {
@@ -10,7 +14,7 @@ import {
   type RefCallback,
   type CSSProperties,
 } from 'react'
-import { BUTTON_SIZES, SHELL_CONTENT_MAX_WIDTH, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { BUTTON_SIZES, SPACING, TAB_BAR_MIN_HEIGHT, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -23,6 +27,7 @@ import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { Lockup } from '@/components/ui/lockup'
 import { Keycap } from '@/components/ui/keycap'
 import { Button } from '@/components/ui/pill-button'
+import { IconButton } from '@/components/ui/icon-button'
 import { useShellScrollerRegistration } from './shell-scroller-context'
 import { useModalFocusTrap } from './use-modal-focus-trap'
 import { getShellHeading } from './shell-header'
@@ -89,7 +94,8 @@ function SidebarItem({
         active
           ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
           : 'text-[var(--fg-3)]',
-        'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation',
+        'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation focus-visible:-outline-offset-2',
+        collapsed ? 'justify-center' : undefined,
       ].join(' ')}
       aria-current={current ? 'page' : undefined}
       title={collapsed ? item.label : undefined}
@@ -123,7 +129,8 @@ function SidebarAstraRow({ row, open, conversationId, collapsed }: Readonly<{
               open
                 ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
                 : 'text-[var(--fg-3)]',
-              'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation',
+              'orbit-hover-text hover:bg-[var(--bg-hover)] touch-manipulation focus-visible:-outline-offset-2',
+              collapsed ? 'justify-center' : undefined,
             ].join(' ')}
           >
             <AstraGlyph size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
@@ -139,7 +146,7 @@ function SidebarSearch({ onPalette, paletteLabel, paletteHint, collapsed }: Read
             onClick={onPalette}
             aria-label={paletteLabel}
             title={collapsed ? paletteLabel : undefined}
-            className="orbit-hover-text flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--border-control)] transition-[background-color,color,box-shadow,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] motion-safe:active:scale-[0.96]"
+            className={`orbit-hover-text ${collapsed ? 'justify-center' : ''} flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--border-control)] transition-[background-color,color,box-shadow,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] motion-safe:active:scale-[0.96]`}
           >
             <Search size={20} strokeWidth={1.5} aria-hidden="true" />
             <span className={collapsed ? 'sr-only' : 'min-w-0 flex-1 truncate text-left'}>{paletteLabel}</span>
@@ -156,29 +163,27 @@ function SidebarBrandRow({ collapsed, navigationId, notifications }: Readonly<{ 
   const toggleSidebar = useShellStore(state => state.toggleSidebar)
   const toggleLabel = collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')
   const sidebarToggle = (
-    <button
+    <IconButton
       key="toggle"
       type="button"
       data-shell-sidebar-toggle=""
-      aria-label={toggleLabel}
-      title={toggleLabel}
+      label={toggleLabel}
       aria-expanded={!collapsed}
       aria-controls={navigationId}
       disabled={!client}
       onClick={toggleSidebar}
-      className={`orbit-hover-text flex min-h-[var(--touch-min)] w-12 shrink-0 touch-manipulation items-center rounded-[12px] text-[var(--fg-3)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40 ${collapsed ? 'justify-center' : 'justify-start ps-2'}`}
     >
       {collapsed ? <PanelLeft size={20} aria-hidden="true" /> : <PanelLeftClose size={20} aria-hidden="true" />}
-    </button>
+    </IconButton>
   )
 
   return (
-    <div data-shell-brand-row="" data-focus-inset="" className={`flex min-h-12 items-center justify-between ${collapsed ? 'flex-col px-6' : 'ps-6 pe-1'}`}>
+    <div data-shell-brand-row="" data-focus-inset="" className={`flex min-h-12 flex-col gap-3 ${collapsed ? 'items-center px-6' : 'items-start ps-6 pe-3'}`}>
       <span className={collapsed ? 'sr-only' : 'shrink-0'}><Lockup /></span>
-      <div className={`flex items-center gap-3 ${collapsed ? 'flex-col' : ''}`}>
-        {!collapsed && notifications ? <span key="notifications" className="shrink-0">{notifications}</span> : null}
+      <div className={`flex items-center gap-3 ${collapsed ? 'flex-col' : 'self-end'}`}>
+        {!collapsed && notifications ? <span key="notifications" className="flex shrink-0 items-center gap-3">{notifications}</span> : null}
         {sidebarToggle}
-        {collapsed && notifications ? <span key="notifications" className="shrink-0">{notifications}</span> : null}
+        {collapsed && notifications ? <span key="notifications" className="flex shrink-0 flex-col items-center gap-3">{notifications}</span> : null}
       </div>
     </div>
   )
@@ -198,7 +203,7 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
         if (!props.layerOpen || !(event.target instanceof Element)) return
         const control = event.target.closest('button, a[href]')
         if (control?.hasAttribute('data-habit-create-navigation') && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) return
-        if (control && !control.hasAttribute('data-shell-astra-row') && !control.hasAttribute('data-shell-sidebar-toggle')) props.onSidebarNavigate?.()
+        if (control && !control.hasAttribute('data-shell-astra-row') && !control.hasAttribute('data-shell-sidebar-toggle') && !control.hasAttribute('data-theme-toggle')) props.onSidebarNavigate?.()
       }}
       inert={props.layerOpen && !props.wide || undefined}
       className={`z-sticky hidden h-dvh ${collapsed ? 'w-[96px]' : 'w-[232px]'} shrink-0 flex-col overflow-y-auto bg-[var(--bg)] py-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex`}
@@ -209,7 +214,7 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
         <div className="flex flex-col gap-6 px-6">
           <SidebarSearch onPalette={props.onPalette} paletteLabel={props.paletteLabel} paletteHint={props.paletteHint} collapsed={collapsed} />
 
-          <nav id={navigationId} aria-label={props.navLabel} className="flex flex-col gap-1">
+          <nav id={navigationId} aria-label={props.navLabel} className="flex flex-col gap-2">
             {props.wide || !client ? <SidebarAstraRow row={props.astraRow} open={props.layerOpen} conversationId={props.conversationId} collapsed={collapsed} /> : null}
             {props.items.map((item) => (
               <SidebarItem
@@ -260,7 +265,7 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ f
     return () => observer.disconnect()
   }, [floating])
   return <div ref={viewportRef} data-shell-bottom-viewport="" data-floating={floating}
-    className={floating ? 'min-h-[max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32)))] overflow-y-auto overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible' : 'contents'}
+    className={floating ? 'min-h-[max(var(--orbit-space-64),calc(1.5rem+var(--orbit-space-32)))] overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] lg:contents lg:overflow-visible' : 'contents'}
     style={{ minHeight: minimumHeight }}>
     <div className={floating ? 'lg:contents' : 'contents'}><div className="relative flex min-h-0 flex-col">{children}</div></div>
   </div>
@@ -268,8 +273,8 @@ function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ f
 
 function getBottomViewportClasses(floating: boolean) {
   return floating
-    ? { scrollOwner: 'lg:overflow-y-auto lg:[scrollbar-gutter:stable]', columnMinimum: 'min-h-16 lg:min-h-0', safeAreaPadding: 'pb-0', safeBottom: '0px' }
-    : { scrollOwner: 'overflow-y-auto [scrollbar-gutter:stable]', columnMinimum: 'min-h-0', safeAreaPadding: 'pb-[var(--safe-bottom)] lg:pb-0', safeBottom: 'var(--safe-bottom)' }
+    ? { scrollOwner: 'lg:overflow-y-auto lg:overflow-x-hidden lg:[scrollbar-gutter:stable]', columnMinimum: 'min-h-16 lg:min-h-0', safeAreaPadding: 'pb-0', safeBottom: '0px' }
+    : { scrollOwner: 'overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]', columnMinimum: 'min-h-0', safeAreaPadding: 'pb-[var(--safe-bottom)] lg:pb-0', safeBottom: 'var(--safe-bottom)' }
 }
 
 function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<{
@@ -296,23 +301,23 @@ function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<
       className={`z-sticky relative flex min-h-0 flex-col bg-[var(--bg)] ${safeAreaPadding}`}
       style={actionMinimum === undefined ? undefined : { minHeight: `calc(${actionMinimum}px + ${safeBottom})` }}
     >
-      <div className={`relative mx-auto flex w-full flex-col ${columnMinimum}`} style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH, minHeight: actionMinimum }}>
+      <div className={`relative mx-auto flex w-full flex-col ${columnMinimum}`} style={{ minHeight: actionMinimum }}>
         <ShellBottomViewport floating={floating} minimumHeight={actionMinimum}>
           {props.notice !== undefined ? (
             <div data-shell-notice="" className={`pointer-events-none ${scrollOwner} px-4 has-[>div>:not(:empty)]:pt-[calc(var(--sh-2-blur)-var(--sh-2-offset-y))] has-[>div>:not(:empty)]:pb-[calc(var(--sh-2-blur)+var(--sh-2-offset-y))]`}>
-              <div className="pointer-events-auto">{props.notice}</div>
+              <div data-shell-notice-content="" className="pointer-events-auto mx-auto w-full max-w-[740px]">{props.notice}</div>
             </div>
           ) : null}
           {pinnedSlot !== undefined ? (
             <div data-shell-pinned-slot="" hidden={conversationOpen} className={`pointer-events-none min-h-0 overscroll-contain ${scrollOwner} ${actionMinimum === undefined ? '' : 'py-1'} ${compactOnly ? 'lg:hidden' : 'lg:pb-4'}`} style={{ minHeight: actionMinimum }}>
               <CompactComposerMenuContext.Provider value={menuContext}>
-                <div className="pointer-events-auto">{pinnedSlot}</div>
+                <div data-shell-pinned-content="" className="pointer-events-auto">{pinnedSlot}</div>
               </CompactComposerMenuContext.Provider>
             </div>
           ) : null}
         </ShellBottomViewport>
         {navigationEnabled && props.tabBar !== undefined ? (
-          <div data-shell-tab-bar="" className="shrink-0 lg:hidden">{props.tabBar}</div>
+          <div data-shell-tab-bar="" className="shrink-0 lg:hidden"><div data-shell-tab-content="">{props.tabBar}</div></div>
         ) : null}
       </div>
     </div>
@@ -359,13 +364,33 @@ function ShellDestinationViewport({ floating, hasHeader, hasTabBar, children }: 
     if (bottom) observer.observe(bottom)
     return () => observer.disconnect()
   }, [floating, hasHeader, hasTabBar, minimumPageHeight])
-  return <div className={floating ? 'min-h-0 flex-1 pb-[var(--safe-bottom)] lg:contents' : 'contents'}>
+  return <div className={floating ? 'min-h-0 w-screen flex-1 self-center pb-[var(--safe-bottom)] lg:contents' : 'contents'}>
     <div ref={viewportRef} data-shell-destination-viewport="" data-floating={floating}
       className={floating ? 'flex h-full flex-col-reverse overflow-y-auto overflow-x-hidden overscroll-contain [&>[data-shell-background]]:min-h-[var(--shell-destination-min-height)] lg:contents lg:overflow-visible lg:[&>[data-shell-background]]:min-h-0' : 'contents'}
       style={{ '--shell-destination-min-height': `${minimumHeight}px` } as CSSProperties}>
       {children}
     </div>
   </div>
+}
+
+function ShellConversation({ conversationId, label, wide, children }: Readonly<{
+  conversationId: string
+  label?: string
+  wide: boolean
+  children: ReactNode
+}>) {
+  const configuration = useConversationMotion()
+  return <motion.div
+            initial={configuration.duration > 0 ? { opacity: 0.6 } : false} animate={{ opacity: 1 }} transition={{ duration: configuration.duration / 1000, ease: configuration.easing }}
+            id={conversationId}
+            role="dialog"
+            aria-modal={!wide || undefined}
+            aria-label={label}
+            tabIndex={-1}
+            data-shell-conversation="overlay"
+            className="z-modal fixed inset-y-0 inset-x-0 lg:max-w-[740px] mx-auto overflow-hidden bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] lg:absolute lg:inset-x-0 lg:bottom-0 lg:top-[max(32px,var(--safe-top))] lg:pt-0 lg:pb-0"
+
+          ><main className="h-full">{children}</main></motion.div>
 }
 
 function ShellWideBackground({
@@ -404,26 +429,30 @@ function ShellWideBackground({
         data-shell-scroll-origin=""
         className="pointer-events-none absolute left-0 top-0 h-px w-px"
       />
-      {props.children}
+      <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-page-viewport]]:h-full">{props.children}</div>
     </main>
   )
   return (
-    <div
-      className="flex min-w-0 flex-1"
+    <ConversationComposerMotionProvider><div
+      className="isolate flex min-w-0 flex-1"
     >
       {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} collapsed={collapsed} /> : null}
 
-      <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:px-8">
-        <div data-shell-column="" className="orbit-centred-column relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(var(--orbit-space-32),var(--safe-top))]" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
+      <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:pl-[max(var(--orbit-space-32),var(--safe-left))] lg:pr-[max(var(--orbit-space-32),var(--safe-right))]">
+        <div data-shell-column="" className="orbit-centred-column lg:max-w-[740px] relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(var(--orbit-space-32),var(--safe-top))]">
           <ShellDestinationViewport floating={floating} hasHeader={registerHeaderHost !== undefined || props.header !== undefined} hasTabBar={navigationEnabled && props.tabBar !== undefined}>
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
-            className="flex h-full min-h-0 flex-col" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
-          {registerHeaderHost !== undefined || props.header !== undefined ? <div ref={registerHeaderHost} data-shell-header="" data-focus-inset="" className={`empty:hidden overflow-y-auto [scrollbar-gutter:stable] ${hasFlowAction ? 'min-h-[var(--touch-min)] overscroll-contain' : 'shrink-0'}`}>{props.header}</div> : null}
-          <div data-shell-page="" className={`relative flex flex-1 flex-col ${scrollerSpacing.minimum}`}>
+            className="flex h-full w-screen min-h-0 self-center flex-col lg:w-full" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
+          {registerHeaderHost !== undefined || props.header !== undefined ? <div data-shell-header-surface="" data-focus-inset="" className={`flex min-h-0 flex-col has-[[data-shell-header-content]:empty]:hidden ${hasFlowAction ? 'min-h-[var(--touch-min)]' : 'shrink-0'}`}>
+            <div data-shell-header="" data-shell-header-viewport="" className="mx-auto min-h-0 w-full overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+              <div ref={registerHeaderHost} data-shell-header-content="" className="w-full">{props.header}</div>
+            </div>
+          </div> : null}
+          <div data-shell-page="" className={`relative mx-auto flex w-full flex-1 flex-col ${scrollerSpacing.minimum}`}>
             {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
             {props.fab !== undefined ? (
-              <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
-                <div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{props.fab}</div>
+              <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 bottom-2 z-sticky flex justify-end overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] px-4 py-2 lg:hidden">
+                <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] justify-end"><div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{props.fab}</div></div>
               </div>
             ) : null}
             {props.scrollToTop !== undefined && !conversationOpen ? (
@@ -436,19 +465,10 @@ function ShellWideBackground({
           <div data-shell-create-refusal="" aria-live="polite" aria-atomic="true" className="min-h-0 overflow-y-auto px-4">{sidebarRefusal}</div>
           </div>
           </ShellDestinationViewport>
-          {conversationOpen ? <div
-            id={conversationId}
-            role="dialog"
-            aria-modal={!wide || undefined}
-            aria-label={props.conversationLabel}
-            tabIndex={-1}
-            data-shell-conversation="overlay"
-            className="z-modal fixed inset-y-0 left-[var(--safe-left)] right-[var(--safe-right)] mx-auto overflow-hidden bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] lg:absolute lg:inset-x-0 lg:bottom-0 lg:top-[max(32px,var(--safe-top))] lg:pt-0 lg:pb-0"
-            style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}
-          ><main className="h-full">{props.conversation}</main></div> : null}
+          {conversationOpen ? <ShellConversation conversationId={conversationId} label={props.conversationLabel} wide={wide}>{props.conversation}</ShellConversation> : null}
         </div>
       </div>
-    </div>
+    </div></ConversationComposerMotionProvider>
   )
 }
 
@@ -477,7 +497,7 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
     <div
       ref={shellRef}
       data-shell="wide"
-      className="flex h-dvh min-h-dvh overflow-hidden bg-[var(--bg)] pl-[var(--safe-left)] pr-[var(--safe-right)] text-[var(--fg-1)]"
+      className="flex h-dvh min-h-dvh overflow-hidden bg-[var(--bg)] text-[var(--fg-1)]"
       onFocusCapture={(event) => {
         if (!conversationOpen && event.target instanceof HTMLElement) {
           returnFocusTriggerRef.current = getConversationReturnTarget(event.target)

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect } from 'react'
 import dynamic from 'next/dynamic'
+import { AnimatePresence } from 'motion/react'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -22,17 +23,16 @@ export function AppToastHost({ placement = 'slot', modalId }: Readonly<{ placeme
   if (placement === 'modal') {
     if (!modalId || activeModalId !== modalId) return null
   } else if (activeModalId) return null
-  if (!currentToast) return null
-
-  const toast = currentToast.toast
-  const hostedToast = (toast.kind === 'neutral' || toast.kind === 'lost') && toast.actionLabel
+  const toast = currentToast?.toast
+  const hostedToast = toast && (toast.kind === 'neutral' || toast.kind === 'lost') && toast.actionLabel
     ? { ...toast, onAction: triggerAction }
     : toast
 
-  if (placement !== 'page') return <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} outlined={placement === 'modal'} />
+  const content = currentToast && hostedToast ? <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} outlined={placement === 'modal'} /> : null
+  if (placement !== 'page') return <AnimatePresence>{content}</AnimatePresence>
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-toast mx-auto w-full max-w-[440px] pl-[max(var(--orbit-space-16),var(--safe-left))] pr-[max(var(--orbit-space-16),var(--safe-right))] pb-[var(--safe-bottom)] [&>*]:pointer-events-auto" data-toast-page-host="">
-      <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} />
+    <div className="pointer-events-none fixed left-[var(--safe-left)] right-[var(--safe-right)] bottom-0 z-toast mx-auto max-w-[440px] px-4 pb-[var(--safe-bottom)] [&>*]:pointer-events-auto" data-toast-page-host="">
+      <AnimatePresence>{content}</AnimatePresence>
     </div>
   )
 }

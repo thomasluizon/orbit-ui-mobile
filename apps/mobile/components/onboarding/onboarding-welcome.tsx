@@ -5,6 +5,7 @@ import type { HabitPhraseToken } from '@orbit/shared/utils'
 import { ONBOARDING_STARTERS } from '@orbit/shared/utils'
 import { Chip } from '@/components/ui/chip'
 import { Input } from '@/components/ui/input'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -18,7 +19,7 @@ export function OnboardingWelcome({ sentence, marks, onChange }: Readonly<Props>
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   return <View style={styles.root}>
     <View style={styles.intro}><OrbitMark size={40} /><Text accessibilityRole="header" style={[styles.title, width >= 1024 && styles.titleWide, { color: tokens.fg1 }]}>{t('onboarding.flow.what.title')}</Text></View>
-    <Input label={t('onboarding.flow.what.label')} value={sentence} onChange={onChange} placeholder={t('onboarding.flow.what.placeholder')} maxLength={100} multiline rows={3} marks={marks} marksLabel={t('onboarding.flow.what.marksLabel')} autoFocus />
+    <Input labelIcon={<AstraGlyph size={16} />} label={t('onboarding.flow.what.label')} value={sentence} onChange={onChange} placeholder={t('onboarding.flow.what.placeholder')} maxLength={100} multiline rows={3} marks={marks} marksLabel={t('onboarding.flow.what.marksLabel')} autoFocus />
     <Text style={[styles.caption, { color: tokens.fg3 }]}>{t('onboarding.flow.what.startersTitle')}</Text>
     <View style={styles.chips}>{ONBOARDING_STARTERS.map((key) => <Chip key={key} active={sentence === t(`onboarding.flow.what.starters.${key}`)} onPress={() => onChange(t(`onboarding.flow.what.starters.${key}`))}>{t(`onboarding.flow.what.starters.${key}`)}</Chip>)}</View>
   </View>

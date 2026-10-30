@@ -34,7 +34,7 @@ function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewSty
     outlineWidth: 2,
     outlineStyle: 'solid',
     outlineColor,
-    outlineOffset: 2,
+    outlineOffset: -2,
     ...(variant === 'ghost' ? { borderColor: 'transparent' } : null),
   }
 }
@@ -138,6 +138,7 @@ export function ThemedButton({
       testID={`button-${variant}-${size}`}
       style={({ pressed }) => [
         styles.base,
+        retainLeadingIcon ? { maxWidth: '100%' } : null,
         iconOnly
           ? { height: Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), width: Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), paddingHorizontal: SPACING.s0, gap: 0 }
           : { height: minimumHeight === undefined ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingVertical: SPACING.s4, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },

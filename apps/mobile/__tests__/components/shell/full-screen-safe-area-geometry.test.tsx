@@ -1,5 +1,5 @@
 import React, { type ComponentProps, type ReactElement } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProfile, createMockRecap } from '@orbit/shared/__tests__/factories'
@@ -46,12 +46,14 @@ vi.mock('expo-clipboard', () => ({ }))
 vi.mock('@/hooks/use-habits', () => ({}))
 vi.mock('@/hooks/use-push-subscriptions', () => ({}))
 
-const state = vi.hoisted(() => ({ top: 24, bottom: 16, isLive: false }))
+const state = vi.hoisted(() => ({ top: 24, bottom: 16, left: 0, right: 0, isLive: false }))
 vi.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: state.top, bottom: state.bottom, left: 0, right: 0 }),
+  useSafeAreaInsets: () => ({ top: state.top, bottom: state.bottom, left: state.left, right: state.right }),
   SafeAreaView: ({ edges = ['top', 'right', 'bottom', 'left'], style, ...props }: ComponentProps<typeof View> & { edges?: readonly string[] }) => {
     const declared = StyleSheet.flatten(style ?? {})
     return <View {...props} testID="safe-area-owner" style={[declared, {
+      paddingLeft: Number(declared.paddingLeft ?? declared.paddingHorizontal ?? declared.padding ?? 0) + (edges.includes('left') ? state.left : 0),
+      paddingRight: Number(declared.paddingRight ?? declared.paddingHorizontal ?? declared.padding ?? 0) + (edges.includes('right') ? state.right : 0),
       paddingTop: Number(declared.paddingTop ?? declared.paddingVertical ?? declared.padding ?? 0) + (edges.includes('top') ? state.top : 0),
       paddingBottom: Number(declared.paddingBottom ?? declared.paddingVertical ?? declared.padding ?? 0) + (edges.includes('bottom') ? state.bottom : 0),
     }]} />
@@ -112,6 +114,8 @@ const surfaces: { name: string; content: () => ReactElement; modal?: boolean; al
 
 let queryClient: QueryClient
 beforeEach(() => {
+  state.left = 0
+  state.right = 0
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   queryClient.setQueryData(referralKeys.all, referralDashboardSchema.parse({
     code: 'PREVIEW',
@@ -160,4 +164,69 @@ it.each(surfaces)('keeps $name below the top inset; new full-screen owners must 
       if (surface.modal) expect(tree.root.findAll((node) => String(node.type) === 'Modal' && node.props.visible === true)).toHaveLength(1)
     } finally { await renderer.act(() => tree.unmount()) }
   }
+})
+
+it.each(surfaces)('keeps $name inside asymmetric side insets', async (surface) => {
+  state.left = 28
+  state.right = 64
+  state.top = 24
+  const content = surface.content()
+  let tree!: GeometryTree
+  await renderer.act(() => { tree = renderer.create(<QueryClientProvider client={queryClient}>{surface.modal ? <OverlayHost><Shell412 nav={false} safeAreaTop={false}>{content}</Shell412></OverlayHost> : surface.standalone ? content : <Shell412 nav={false} safeAreaTop={false}>{content}</Shell412>}</QueryClientProvider>) as GeometryTree })
+  try {
+    const roots = tree.toJSON() as GeometryHost | GeometryHost[]
+    const host = Array.isArray(roots) ? roots.find((root) => root.type === 'Modal')! : roots
+    let headerCount = 0
+    let surfaceFound = false
+    const geometry = measureSafeArea(host, (node) => {
+      if (!surfaceFound && (node === host && surface.modal || node.props.testID === 'shell-background' || surface.standalone && node.props.testID === 'safe-area-owner')) { surfaceFound = true; return 'surface' }
+      if (node.props.testID === 'page-header') return 'divider'
+      return node.props.accessibilityRole === 'header' ? `header-${headerCount++}` : undefined
+    })
+    const background = geometry.get('surface')!
+    expect(background.left, surface.name).toBe(0)
+    expect(background.width, surface.name).toBe(412)
+    expect(headerCount).toBeGreaterThan(0)
+    if (surface.name === 'throttle modal') expect(geometry.get('header-0')!.left).toBe(state.left + 16)
+    const divider = geometry.get('divider')
+    if (divider) { expect(divider.left).toBe(0); expect(divider.width).toBe(412) }
+    for (const [key, box] of geometry) {
+      if (key === 'surface' || key === 'divider') continue
+      expect(box.left, surface.name).toBeGreaterThanOrEqual(state.left)
+      expect(box.left + box.width, surface.name).toBeLessThanOrEqual(412 - state.right)
+    }
+  } finally { await renderer.act(() => tree.unmount()) }
+})
+
+it('adds side padding to a standalone flow without changing its gutters', async () => {
+  state.left = 28
+  state.right = 64
+  let tree!: GeometryTree
+  await renderer.act(() => { tree = renderer.create(<FlowShell nav={false} action={<Text>Continue</Text>}><Text>Flow</Text></FlowShell>) as GeometryTree })
+  try {
+    const owner = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'safe-area-owner')[0]!
+    expect(StyleSheet.flatten(owner.props.style as ViewStyle).paddingLeft ?? 0).toBe(0)
+    expect(StyleSheet.flatten(owner.props.style as ViewStyle).paddingRight ?? 0).toBe(0)
+    const scroll = tree.root.findAll(node => String(node.type) === 'ScrollView')[0]!
+    expect(StyleSheet.flatten(scroll.props.contentContainerStyle as ViewStyle)).toMatchObject({ paddingLeft: 16 + state.left, paddingRight: 16 + state.right })
+  } finally { await renderer.act(() => tree.unmount()) }
+})
+
+it('shares one side inset between nested shell owners', async () => {
+  state.left = 28
+  state.right = 64
+  let tree!: GeometryTree
+  await renderer.act(() => { tree = renderer.create(<Shell412 nav={false} safeAreaTop={false}>
+    <FlowShell nav={false}><Shell412 nav={false}><Text testID="nested-flow-content">Flow</Text></Shell412></FlowShell>
+  </Shell412>) as GeometryTree })
+  try {
+    const owners = tree.root.findAll(node => typeof node.type === 'string' && (node.props.testID === 'shell-412' || node.props.testID === 'safe-area-owner'))
+    expect(owners).toHaveLength(3)
+    const styles = owners.map(owner => StyleSheet.flatten(owner.props.style as ViewStyle))
+    expect(styles.map(style => style.paddingLeft ?? 0)).toEqual([0, 0, 0])
+    expect(styles.map(style => style.paddingRight ?? 0)).toEqual([0, 0, 0])
+    const geometry = measureSafeArea(tree.toJSON(), host => host.props.testID)
+    expect(geometry.get('nested-flow-content')!.left).toBe(16 + state.left)
+    expect(geometry.get('nested-flow-content')!.left + geometry.get('nested-flow-content')!.width).toBe(412 - state.right - 16)
+  } finally { await renderer.act(() => tree.unmount()) }
 })

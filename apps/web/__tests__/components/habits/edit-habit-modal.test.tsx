@@ -1,3 +1,6 @@
+import { buildUpdateHabitRequest as buildRealUpdateHabitRequest } from '@orbit/shared/utils'
+import type { HabitFormHelpers } from '@/hooks/use-habit-form'
+import { habitSuggestionDraftFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -10,6 +13,7 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 
 const mockUpdateMutateAsync = vi.fn()
 const mockSuggestMutateAsync = vi.fn()
+const realEditor = vi.hoisted(() => ({ enabled: false, helpers: null as HabitFormHelpers | null }))
 const mockFormReset = vi.fn()
 const mockFormResetField = vi.fn()
 const mockFormSetValue = vi.fn()
@@ -67,48 +71,55 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabitDetail: () => ({ ...mockHabitDetailResult, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
 
-vi.mock('@/hooks/use-habit-form', () => ({
-  useHabitForm: () => ({
-    resetModeDrafts: vi.fn(),
-    chooseItemType: vi.fn(),
-    validationFocusRequest: 0,
-    registerDateValidation: () => () => {},
-    form: {
-      reset: mockFormReset,
-      resetField: mockFormResetField,
-      setValue: mockFormSetValue,
-      getValues: (field?: string) => {
-        if (field === 'itemType') return 'habit'
-        const values = mockFormGetValues(field)
-        if (field && values && typeof values === 'object' && !Array.isArray(values)) return (values as Record<string, unknown>)[field]
-        return values
+vi.mock('@/hooks/use-habit-form', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/hooks/use-habit-form')>()
+  return { useHabitForm: () => {
+    if (realEditor.enabled) {
+      realEditor.helpers = original.useHabitForm()
+      return realEditor.helpers
+    }
+    return {
+      resetModeDrafts: vi.fn(),
+      chooseItemType: vi.fn(),
+      validationFocusRequest: 0,
+      registerDateValidation: () => () => {},
+      form: {
+        reset: mockFormReset,
+        resetField: mockFormResetField,
+        setValue: mockFormSetValue,
+        getValues: (field?: string) => {
+          if (field === 'itemType') return 'habit'
+          const values = mockFormGetValues(field)
+          if (field && values && typeof values === 'object' && !Array.isArray(values)) return (values as Record<string, unknown>)[field]
+          return values
+        },
+        trigger: vi.fn().mockResolvedValue(true),
+        getFieldState: () => ({ invalid: false, isDirty: false, isTouched: false, isValidating: false, error: undefined }),
+        watch: mockFormWatch,
+        register: mockFormRegister,
+        formState: { isValid: true, isDirty: false, dirtyFields: {} },
       },
-      trigger: vi.fn().mockResolvedValue(true),
-      getFieldState: () => ({ invalid: false, isDirty: false, isTouched: false, isValidating: false, error: undefined }),
-      watch: mockFormWatch,
-      register: mockFormRegister,
-      formState: { isValid: true, isDirty: false, dirtyFields: {} },
-    },
-    isOneTime: false,
-    isGeneral: false,
-    isFlexible: false,
-    isRecurring: true,
-    showDayPicker: false,
-    showEndDate: false,
-    daysList: [],
-    frequencyUnits: [],
-    setOneTime: vi.fn(),
-    setRecurring: vi.fn(),
-    setFlexible: mockSetFlexible,
-    setGeneral: vi.fn(),
-    toggleDay: vi.fn(),
-    formatTimeInput: vi.fn((v: string) => v),
-    formatEndTimeInput: vi.fn((v: string) => v),
-    validateAll: mockValidateAll,
-    clearBackendErrors: vi.fn(),
-    reportBackendErrors: vi.fn().mockReturnValue(false),
-  }),
-}))
+      isOneTime: false,
+      isGeneral: false,
+      isFlexible: false,
+      isRecurring: true,
+      showDayPicker: false,
+      showEndDate: false,
+      daysList: [],
+      frequencyUnits: [],
+      setOneTime: vi.fn(),
+      setRecurring: vi.fn(),
+      setFlexible: mockSetFlexible,
+      setGeneral: vi.fn(),
+      toggleDay: vi.fn(),
+      formatTimeInput: vi.fn((v: string) => v),
+      formatEndTimeInput: vi.fn((v: string) => v),
+      validateAll: mockValidateAll,
+      clearBackendErrors: vi.fn(),
+      reportBackendErrors: vi.fn().mockReturnValue(false),
+    }
+  } }
+})
 
 vi.mock('@/hooks/use-tag-selection', () => ({
   useTagSelection: () => ({
@@ -219,6 +230,9 @@ describe('EditHabitModal', () => {
   const defaultHabit = createMockHabit({ id: 'h-1', title: 'Exercise', frequencyUnit: 'Day' })
 
   beforeEach(() => {
+    mockBuildUpdateHabitRequest.mockImplementation((...args: unknown[]) => ({ goalIds: args[4] }))
+    realEditor.enabled = false
+    realEditor.helpers = null
     vi.stubGlobal('Notification', { permission: 'default' })
     vi.clearAllMocks()
     mockHabitDetailResult = { data: null, isPending: false, error: null }
@@ -245,6 +259,11 @@ describe('EditHabitModal', () => {
       slipAlertEnabled: false,
       checklistItems: [],
     })
+  })
+
+  it('prefills an existing habit with the suggestion while retaining its identity', async () => {
+    renderWithProviders(<EditHabitModal open habit={{ ...defaultHabit, intervalWeeks: 2 }} initialSuggestion={{ ...habitSuggestionDraftFixture, days: ['Monday'], existingHabitId: defaultHabit.id }} onOpenChange={vi.fn()} />)
+    await waitFor(() => expect(mockFormReset).toHaveBeenCalledWith(expect.objectContaining({ intervalWeeks: 1, days: ['Monday'], title: 'Read', itemType: 'habit', dueTime: '22:00', dueEndTime: '22:15' })))
   })
 
   it('renders nothing when closed', () => {
@@ -839,5 +858,31 @@ it('ignores the result of a Save after its habit draft has been replaced', async
   expect(onOpenChange).not.toHaveBeenCalled()
   expect(onSaved).not.toHaveBeenCalled()
 })
+
+  it.each([false, true])('saves the mounted General repeat editor with explicit removal=%s', async (removeReminder) => {
+    realEditor.enabled = true
+    mockBuildUpdateHabitRequest.mockImplementation((...args: unknown[]) => buildRealUpdateHabitRequest(...args as Parameters<typeof buildRealUpdateHabitRequest>))
+    const habit = createMockHabit({ isGeneral: true, frequencyUnit: null, frequencyQuantity: null, reminderEnabled: true, repeatReminder: { intervalMinutes: 30 } })
+    const view = renderWithProviders(<EditHabitModal open habit={habit} onOpenChange={vi.fn()} />)
+    await waitFor(() => expect(realEditor.helpers!.form.getValues('isGeneral')).toBe(true))
+    expect(realEditor.helpers!.form.getValues('reminderEnabled')).toBe(true)
+    act(() => {
+      realEditor.helpers!.form.setValue('title', 'Water renamed')
+      if (removeReminder) realEditor.helpers!.form.setValue('reminderEnabled', false)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await waitFor(() => expect(mockUpdateMutateAsync).toHaveBeenCalledOnce())
+    const request = mockUpdateMutateAsync.mock.calls[0]![0].data
+    expect(request.title).toBe('Water renamed')
+    if (removeReminder) {
+      expect(request.clearRepeatReminder).toBe(true)
+      expect(request.repeatReminder).toBeUndefined()
+    } else {
+      expect(request.repeatReminder).toEqual(habit.repeatReminder)
+      expect(request.reminderEnabled).toBe(true)
+      expect(request.clearRepeatReminder).toBeUndefined()
+    }
+    view.unmount()
+  })
 
 })

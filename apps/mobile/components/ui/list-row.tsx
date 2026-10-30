@@ -79,12 +79,12 @@ function RowTextContent({ title, textMode, wrapTitle, description, value, wrapVa
   const Description = textMode === 'personal' ? PersonalText : PlainRowText
   const keepsControlInline = !!toggle || hasInlineControl(textMode, trailing, value, readOnly === true || labelWrapped)
   const titleLine = <Title onTextLayout={onTitleLayout} data-slot="list-row-title" {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, textMode === 'label' || !description ? wrappedTitleStyle(textMode, wrapTitle || (textMode === 'personal' && !!value)) : null, { color: titleColor }]}>{title}</Title>
-  const text = <View style={[getTextBlockStyle(textMode, wrapValue), keepsControlInline ? styles.labelControlText : null, toggle ? { minHeight: 28, justifyContent: firstLineHeight ? 'flex-start' : 'center', paddingTop: Math.max(0, (28 - (firstLineHeight || 28)) / 2) } : null]}>
+  const text = <View style={[getTextBlockStyle(textMode, wrapValue), keepsControlInline ? styles.labelControlText : null, readOnly && trailing && !value ? { flexBasis: 'auto', flexGrow: 0, flexShrink: 0 } : null, toggle ? { minHeight: 28, justifyContent: firstLineHeight ? 'flex-start' : 'center', paddingTop: Math.max(0, (28 - (firstLineHeight || 28)) / 2) } : null]}>
     {titleLine}
     {description ? <Description data-slot="list-row-description" {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, textMode === 'label' ? styles.wrappedDescription : null, { color: valueColor }]}>{description}</Description> : null}
   </View>
   const rowValue = <RowValue hidden={valueHidden} label={textMode === 'label'} personal={valueTextMode === 'personal'} expanded={personalExpanded} value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} />
-  return arrangedRowText({ textMode, wrapValue, trailing, value, description }, text, rowValue, keepsControlInline, labelWrapped || alignsFirstLine({ textMode, description, value, toggle, trailing, readOnly }), firstLineHeight)
+  return arrangedRowText({ textMode, wrapValue, trailing, value, description, readOnly }, text, rowValue, keepsControlInline, labelWrapped || alignsFirstLine({ textMode, description, value, toggle, trailing, readOnly }), firstLineHeight)
 }
 
 function trailingLineStyle(textMode: ListRowProps['textMode'], keepsControlInline: boolean, description: ListRowProps['description'], firstLineHeight: number) {
@@ -93,11 +93,11 @@ function trailingLineStyle(textMode: ListRowProps['textMode'], keepsControlInlin
   return { minHeight, height: description && !keepsControlInline ? minHeight : undefined, justifyContent: 'center' as const }
 }
 
-function arrangedRowText({ textMode, wrapValue, trailing, value, description }: Readonly<Pick<ListRowProps, 'textMode' | 'wrapValue' | 'trailing' | 'value' | 'description'>>, text: ReactNode, rowValue: ReactNode, keepsControlInline: boolean, labelWrapped: boolean, firstLineHeight: number) {
+function arrangedRowText({ textMode, wrapValue, trailing, value, description, readOnly }: Readonly<Pick<ListRowProps, 'textMode' | 'wrapValue' | 'trailing' | 'value' | 'description' | 'readOnly'>>, text: ReactNode, rowValue: ReactNode, keepsControlInline: boolean, labelWrapped: boolean, firstLineHeight: number) {
   if (textMode === 'personal') return <View style={{ flex: 1, minWidth: 0, gap: 4 }}>{text}{rowValue}</View>
   if (!wrapValue && textMode !== 'label') return <>{text}{rowValue}</>
   const trailingStyle = trailingLineStyle(textMode, keepsControlInline, description, firstLineHeight)
-  return <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null, labelWrapped ? styles.firstLineContent : null]}>{text}{textMode === 'label' && value ? <View style={{ minHeight: firstLineHeight, justifyContent: 'center' }}>{rowValue}</View> : rowValue}{textMode === 'label' && trailing ? <View data-slot="list-row-trailing" style={[styles.trailing, trailingStyle]}>{trailing}</View> : null}</View>
+  return <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null, labelWrapped ? styles.firstLineContent : null]}>{text}{textMode === 'label' && value ? <View style={{ minHeight: firstLineHeight, justifyContent: 'center' }}>{rowValue}</View> : rowValue}{textMode === 'label' && trailing ? <View data-slot="list-row-trailing" style={[styles.trailing, trailingStyle, readOnly ? { flexShrink: 1, minWidth: 0 } : null]}>{trailing}</View> : null}</View>
 }
 
 function renderLeadingIcon(icon: ListRowProps['icon'], color: string) {
@@ -226,7 +226,7 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
   )
 
   return (
-    <View style={[styles.row, props.action ? { gap: 4 } : null]}>
+    <View style={[styles.row, props.action ? { gap: INTERACTION_FILL_CLEARANCE } : null]}>
       <RowControl ref={ref} props={props} bodyStyle={bodyStyle} interaction={interaction} tokens={tokens}>{body}</RowControl>
       <RowAction action={action} hasDescription={Boolean(description)} reducedMotion={reducedMotion} tokens={tokens} />
     </View>

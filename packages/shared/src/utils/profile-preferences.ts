@@ -1,4 +1,4 @@
-import type { Profile, ThemeMode } from '../types/profile'
+import type { Profile } from '../types/profile'
 import { buildClockFormatOptions, buildWeekStartOptions, LANGUAGE_OPTIONS } from './preferences-options'
 
 interface ProfilePreferenceInputs {
@@ -61,8 +61,7 @@ export function deriveProfileAstraFeatures(hasProAccess: boolean, settings: Prof
 interface ProfilePickerLabels {
   weekStartOptions: { value: 0 | 1; label: string }[]
   clockFormatOptions: { value: '24h' | '12h'; label: string }[]
-  themeModeOptions: { value: ThemeMode; label: string }[]
-  pickerTitles: Record<'language' | 'theme' | 'timeZone' | 'weekStart' | 'clock', string>
+  pickerTitles: Record<'language' | 'timeZone' | 'weekStart' | 'clock', string>
   pickerDescriptions: Partial<Record<'language' | 'weekStart', string>>
   timeZoneSearchLabel: string
   timeZoneNoResultsLabel: string
@@ -73,13 +72,8 @@ export function buildProfilePickerLabels(translate: (key: string) => string): Pr
   return {
     weekStartOptions: buildWeekStartOptions(translate),
     clockFormatOptions: buildClockFormatOptions(translate),
-    themeModeOptions: [
-      { value: 'dark', label: translate('preferences.themeModeDark') },
-      { value: 'light', label: translate('preferences.themeModeLight') },
-    ],
     pickerTitles: {
       language: translate('profile.language.title'),
-      theme: translate('preferences.themeMode'),
       timeZone: translate('profile.settingsRows.timezone'),
       weekStart: translate('settings.weekStartDay.title'),
       clock: translate('settings.clock.title'),

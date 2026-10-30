@@ -4,14 +4,10 @@ import type { createTokensV2 } from '@/lib/theme'
 
 export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
+    bellAction: { position: 'relative', alignSelf: 'center' },
     bellDisplay: {
       minWidth: 48, minHeight: 48, paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4,
       flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'center',
-    },
-    bellButton: {
-      backgroundColor: 'transparent', minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden',
-      paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s4, flexDirection: 'row', gap: 4,
-      alignItems: 'center', justifyContent: 'center',
     },
     countMarker: { flexShrink: 0 },
     bellCount: {

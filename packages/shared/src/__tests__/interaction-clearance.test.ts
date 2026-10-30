@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { INTERACTION_FILL_CLEARANCE } from '../theme'
 
 describe('shared interaction fill clearance', () => {
-  it('uses the first spacing step on both platform guards', () => {
-    expect(INTERACTION_FILL_CLEARANCE).toBe(4)
+  it('requires eight pixels on both platform guards', () => {
+    expect(INTERACTION_FILL_CLEARANCE).toBe(8)
     for (const file of [
       'apps/web/e2e/layout/interaction-fill-clearance.spec.ts',
       'apps/mobile/__tests__/components/ui/interaction-fill-clearance.test.tsx',

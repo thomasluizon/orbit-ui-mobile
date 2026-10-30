@@ -63,6 +63,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/habit-row-surfaces.md` | Habit row owners, rounded-square check states, per-row surfaces, retained behaviours and web and Android verification boundaries. |
 | `design/personal-text-focus-inventory.md` | Expanded typed-text owners, native action separation, overflow-only keyboard stops, unclamped rename headings and the mobile adapter. |
 | `design/calendar-day-surfaces.md` | Calendar day paint owners, full-column targets, loading geometry and platform mirrors. |
+| `design/empty-state-surfaces.md` | Shared empty-state consumers, mark size, Astra thread composition, completed-day action spacing and paired verification. |
 | `design/habit-view-surfaces.md` | Hoje, Todos and Geral surface owners, scoped header search at every width, retained actions, state coverage, long-list rendering and platform mirrors. |
 | `design/label-row-control-inventory.md` | Label-row inline control consumers, shared centring and first-line alignment, platform mirrors and geometry coverage. |
 | `design/field-inset-inventory.md` | Text control owners, typed foreground ownership, drawn inline padding, shared checklist add Input insets, platform mirrors and field geometry verification. |
@@ -74,6 +75,7 @@ Grep a doc's `At a glance` header before loading it. Registry rows and glance he
 | `design/goal-forecast-surfaces.md` | Reachable goal forecast owners, supplied metrics, mirrored states and verification boundaries. |
 | `design/create-goal-sheet-inventory.md` | Direct goal creation entries, shared form states, linked-habit picker and platform coverage. |
 | `design/astra-conversation-participants.md` | Astra participant avatar owners, continuation spacing, text, block and running tool trace alignment, and pending reply replacement. |
+| `design/astra-one-small-step-surfaces.md` | Astra starting-step block owners, complete request actions, text disclosure and platform verification boundaries. |
 | `design/astra-block-copy-surfaces.md` | Astra reply code-block copy owners, independent confirmations, user and description exclusions, and platform verification boundaries. |
 | `design/astra-pending-reply-surfaces.md` | Astra pending reply owners, terminal replacements, polite announcement ownership and hermetic verification boundaries. |
 | `design/astra-mark-only-surfaces.md` | Assistant action labels, inline form-fill icons, localized prompts and habit-detail composer disclosure owners. |

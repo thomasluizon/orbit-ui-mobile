@@ -1,3 +1,4 @@
+import { ShellContent } from '@/components/shell/shell-content'
 import type { ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -18,7 +19,7 @@ export function ProgressSubscreen({ screen, children, hideHeader = false }: Read
   return <SafeAreaView edges={pageEnd.safeAreaEdges} style={[styles.root, { backgroundColor: tokens.bg }]}>
     <View style={styles.column} testID={`progress-screen-${screen}`}>
       {!hideHeader ? <PageHeader title={t(`progressScreen.sections.${screen}`)} backLabel={t('progressScreen.back')} onBack={() => router.dismissTo('/progress')} /> : null}
-      {children}
+      <ShellContent style={{ flex: 1 }}>{children}</ShellContent>
     </View>
   </SafeAreaView>
 }

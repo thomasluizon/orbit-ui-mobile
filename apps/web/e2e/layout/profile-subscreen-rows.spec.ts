@@ -105,19 +105,15 @@ for (const width of [320, 412, 1280]) {
       if (width !== 320) test('ends the four preference pickers with chevrons and retains inline values', async ({ page }) => {
         await page.goto('/profile/preferences')
         const rows = page.getByTestId('profile-settings-group-preferences').locator('.orbit-list-row-shell')
-        await expect(rows).toHaveCount(6)
+        await expect(rows).toHaveCount(5)
         await expect(rows.locator('[data-slot="list-row-title"]')).toHaveText([
           words.profile.settingsRows.timezone, words.profile.settingsRows.weekStart,
           words.settings.clock.title, words.profile.language.title,
-          words.profile.settingsRows.theme, words.settings.homeScreen.showGeneral,
+          words.settings.homeScreen.showGeneral,
         ])
         const pickers = rows.filter({ has: page.locator('[data-slot="list-row-value"]') })
         await expect(pickers).toHaveCount(4)
-        const theme = rows.nth(4)
-        await expect(theme.locator('svg, [data-slot="list-row-value"]')).toHaveCount(0)
-        const choices = theme.getByRole('group', { name: words.profile.settingsRows.theme, exact: true })
-        await expect(choices.getByRole('button')).toHaveText([words.preferences.themeModeDark, words.preferences.themeModeLight])
-        const general = rows.nth(5)
+        const general = rows.nth(4)
         await expect(general.locator('svg, [data-slot="list-row-value"]')).toHaveCount(0)
         await expect(general.getByRole('switch', { name: words.settings.homeScreen.showGeneral, exact: true })).toBeVisible()
         await expect(general.locator('[data-slot="list-row-description"]')).toHaveText(words.settings.homeScreen.showGeneralDesc)

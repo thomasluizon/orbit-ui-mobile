@@ -1,11 +1,14 @@
+import { oneSmallStepCardSchema, startingStepSchema } from '../contracts/blocks/one-small-step'
+import { questionAnswerSchema, questionBlockSchema } from './question-block'
 import { z } from 'zod'
+import { habitSuggestionsCardSchema } from './habit-suggestions'
 import { utf16Length } from '../validation/utf16-length'
 import { habitRankingCardSchema } from './habit-ranking'
 export { habitRankingCardSchema, habitRankingResponseSchema, type HabitRankingCard, type HabitRankingResponse } from './habit-ranking'
 import { proactiveItemSchema } from './proactive'
 import type { ChatBlockKind } from '../chat/block-kinds'
-import { frequencyUnitSchema } from './habit'
-import { completionSeriesSchema, retrospectiveHabitStatSchema } from './gamification'
+import { calendarMonthResponseSchema, frequencyUnitSchema } from './habit'
+import { completionSeriesSchema, retrospectiveHabitStatSchema, gamificationProfileSchema, achievementSchema, streakInfoSchema } from './gamification'
 import {
   agentOperationResultSchema,
   pendingAgentOperationSchema,
@@ -20,6 +23,7 @@ export const chatClientContextSchema = z.object({
   supportsHabitListCard: z.boolean(),
   supportsHabitListDoneStatus: z.boolean().optional(),
   supportsDatedHabitListCard: z.boolean().optional(),
+  supportsSkippedHabitRows: z.boolean().optional(),
   supportsHabitHistoryCard: z.boolean().optional(),
   supportsGoalListCard: z.boolean(),
   supportsMetricsCard: z.boolean().optional(),
@@ -30,14 +34,18 @@ export const chatClientContextSchema = z.object({
   supportsRecordListCard: z.boolean().optional(),
   supportsAccountRowsCard: z.boolean().optional(),
   supportsPendingOperationChanges: z.boolean().optional(),
+  supportsPendingOperationPlacement: z.boolean().optional(),
   supportsToolSteps: z.boolean().optional(),
   supportsFollowUps: z.boolean().optional(),
   supportsFollowUpContext: z.boolean().optional(),
+  supportsStartingStepContext: z.boolean().optional(),
+  previousStartingStep: startingStepSchema.optional(),
   supportsParts: z.boolean().optional(),
   partKinds: z.array(z.string()).optional(),
   messageOrigin: z.literal('followUp').optional(),
   entryPointIntent: z.literal('support').optional(),
   supportsMessageAllowance: z.boolean().optional(),
+  supportsCompletedHabitsMetric: z.boolean().optional(),
 })
 
 export type ChatClientContext = z.infer<typeof chatClientContextSchema>
@@ -205,13 +213,14 @@ export const periodHabitMetricsSchema = z.object({
   currentStreak: z.number(),
   bestStreak: z.number(),
   streakScope: z.literal('period'),
+  completedHabits: z.number().nullish(),
 })
 
-const periodMetricSchema = z.enum(['positiveLogRecords', 'distinctLoggedDates', 'metScheduledDates', 'scheduledDates'])
+const periodMetricSchema = z.enum(['positiveLogRecords', 'distinctLoggedDates', 'metScheduledDates', 'scheduledDates', 'completedHabits'])
 
 export const periodTotalCardSchema = z.object({
   metric: periodMetricSchema,
-  unit: z.enum(['records', 'days']),
+  unit: z.enum(['records', 'days', 'habits']),
   value: z.number(),
   metrics: periodHabitMetricsSchema,
   series: completionSeriesSchema,
@@ -221,7 +230,7 @@ export const periodTotalCardSchema = z.object({
 
 export const periodComparisonCardSchema = z.object({
   metric: periodMetricSchema,
-  unit: z.enum(['records', 'days']),
+  unit: z.enum(['records', 'days', 'habits']),
   current: periodHabitMetricsSchema,
   baseline: periodHabitMetricsSchema,
   currentValue: z.number(),
@@ -246,6 +255,7 @@ export const habitListCardItemSchema = z.object({
   depth: z.number(),
   isBadHabit: z.boolean(),
   status: habitListCardStatusSchema,
+  isSkippedOnDate: z.boolean().nullish(),
 })
 
 export type HabitListCardItem = z.infer<typeof habitListCardItemSchema>
@@ -359,6 +369,7 @@ const streakAchievementSchema = z.object({
 })
 
 export const streakCardSchema = z.object({
+  firstEligibleDate: z.iso.date().nullish(),
   read: readBlockMetadataSchema.nullish(),
   currentStreak: z.number(),
   longestStreak: z.number(),
@@ -374,6 +385,26 @@ export const streakCardSchema = z.object({
 })
 
 export type StreakCard = z.infer<typeof streakCardSchema>
+
+export const gamificationCardSchema = z.object({
+  state: z.object({
+    profile: gamificationProfileSchema.extend({ levelTitleKey: z.string() }).nullable(),
+    achievements: z.object({ achievements: z.array(achievementSchema) }).nullable(),
+    streak: streakInfoSchema.extend({ repairsRemainingThisMonth: z.number() }).nullable(),
+  }),
+  surfaceId: z.string().default('progress'),
+  read: readBlockMetadataSchema.nullish(),
+})
+
+export type GamificationCard = z.infer<typeof gamificationCardSchema>
+
+export const gamificationReadBlockResponseSchema = z.object({
+  kind: z.literal('gamification'),
+  block: gamificationCardSchema,
+  read: readBlockMetadataSchema,
+})
+
+export type GamificationReadBlockResponse = z.infer<typeof gamificationReadBlockResponseSchema>
 
 export const calendarCardSchema = z.object({
   read: readBlockMetadataSchema.nullish(),
@@ -395,6 +426,28 @@ export const calendarCardSchema = z.object({
 })
 
 export type CalendarCard = z.infer<typeof calendarCardSchema>
+
+export const habitMonthCardSchema = z.object({
+  dateFrom: z.iso.date(),
+  dateTo: z.iso.date(),
+  today: z.iso.date(),
+  weekStartDay: z.union([z.literal(0), z.literal(1)]),
+  calendar: calendarMonthResponseSchema,
+  language: z.string().optional(),
+  surfaceId: z.string().optional(),
+  read: readBlockMetadataSchema.nullish(),
+})
+
+export type HabitMonthCard = z.infer<typeof habitMonthCardSchema>
+
+export const habitMonthReadBlockResponseSchema = z.object({
+  kind: z.literal('habitMonth'),
+  block: habitMonthCardSchema,
+  read: readBlockMetadataSchema,
+})
+
+export type HabitMonthReadBlockResponse = z.infer<typeof habitMonthReadBlockResponseSchema>
+
 
 export const recordListCardSchema = z.object({
   read: readBlockMetadataSchema.nullish(),
@@ -463,6 +516,7 @@ export const blockAnswerSchema = z.object({
   blockId: z.uuid(),
   selectedIds: z.array(z.string().check(utf16Length('min', 1))),
   freeText: z.string().check(utf16Length('max', 500)).optional(),
+  answers: z.array(questionAnswerSchema).min(1).max(10).refine(values => new Set(values.map(value => value.questionId)).size === values.length).optional(),
 })
 
 export type ChoiceBlock = z.infer<typeof choiceBlockSchema>
@@ -470,6 +524,8 @@ export type PickListBlock = z.infer<typeof pickListBlockSchema>
 export type BlockAnswer = z.infer<typeof blockAnswerSchema>
 
 const chatBlockSchemas = {
+  oneSmallStep: oneSmallStepCardSchema,
+  habitSuggestions: habitSuggestionsCardSchema,
   habitRanking: habitRankingCardSchema,
   habitList: habitListCardSchema,
   goalList: goalListCardSchema,
@@ -479,11 +535,14 @@ const chatBlockSchemas = {
   periodInsight: periodInsightCardSchema,
   daySummary: daySummaryCardSchema,
   streak: streakCardSchema,
+  gamification: gamificationCardSchema,
   calendar: calendarCardSchema,
+  habitMonth: habitMonthCardSchema,
   recordList: recordListCardSchema,
   accountRows: accountRowsCardSchema,
   choice: choiceBlockSchema,
   pickList: pickListBlockSchema,
+  question: questionBlockSchema,
 } satisfies Record<ChatBlockKind, z.ZodType>
 
 function blockPartSchema<Kind extends ChatBlockKind>(kind: Kind) {
@@ -493,6 +552,8 @@ function blockPartSchema<Kind extends ChatBlockKind>(kind: Kind) {
 export const chatPartSchema = z.union([
   z.object({ type: z.literal('text'), text: z.string() }),
   z.discriminatedUnion('kind', [
+    blockPartSchema('oneSmallStep'),
+    blockPartSchema('habitSuggestions'),
     blockPartSchema('habitRanking'),
     blockPartSchema('habitList'),
     blockPartSchema('goalList'),
@@ -502,11 +563,14 @@ export const chatPartSchema = z.union([
     blockPartSchema('periodInsight'),
     blockPartSchema('daySummary'),
     blockPartSchema('streak'),
+    blockPartSchema('gamification'),
     blockPartSchema('calendar'),
+    blockPartSchema('habitMonth'),
     blockPartSchema('recordList'),
     blockPartSchema('accountRows'),
     blockPartSchema('choice'),
     blockPartSchema('pickList'),
+    blockPartSchema('question'),
   ]),
 ]).nullable().catch(null)
 
@@ -528,7 +592,8 @@ export const readBlockResponseSchema = z.discriminatedUnion('kind', [
 ])
 
 export type ReadBlockResponse = z.infer<typeof readBlockResponseSchema>
-export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' }>
+export type ReadBlockSnapshot = ReadBlockResponse | HabitMonthReadBlockResponse | GamificationReadBlockResponse
+export type ReadBlockPart = Exclude<ChatBlockPart, { kind: 'choice' | 'pickList' | 'question' | 'habitSuggestions' | 'oneSmallStep' }>
 
 export const chatFollowUpSchema = z.object({
   label: z.string().trim().check(utf16Length('min', 1)).check(utf16Length('max', 40)).regex(/^[^\r\n]+$/),
@@ -576,10 +641,14 @@ export const chatMessageSchema = z.object({
     stale: z.boolean().optional(),
     refreshUnavailable: z.boolean().optional(),
     editedItemIds: z.array(z.string()).optional(),
+    originalItemIds: z.array(z.string()).optional(),
     operation: pendingAgentOperationSchema.optional(),
   })).optional(),
   answerToBlockId: z.string().optional(),
   blockAnswers: z.record(z.string(), z.object({ text: z.string(), answered: z.boolean() })).optional(),
+  habitSuggestionOperations: z.record(z.string(), z.string()).optional(),
+  habitSuggestionItems: z.record(z.string(), z.string()).optional(),
+  appliedHabitSuggestions: z.array(z.string()).optional(),
   clarificationPreviews: z.record(z.string(), pendingAgentOperationSchema).optional(),
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   imageUrl: z.string().nullable().optional(),

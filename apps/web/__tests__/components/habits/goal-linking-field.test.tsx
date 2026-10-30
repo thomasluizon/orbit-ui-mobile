@@ -216,6 +216,7 @@ describe('GoalLinkingField', () => {
     const rowDisclosure = screen.getByRole('button', { name: fullTextLabel, expanded: false })
     expect(rowDisclosure).toHaveAccessibleName(fullTextLabel)
     fireEvent.click(rowDisclosure)
+    await screen.findByRole('dialog', { name })
     expect(onToggle).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
     fireEvent.click(row)

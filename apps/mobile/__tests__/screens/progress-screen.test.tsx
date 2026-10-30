@@ -148,6 +148,7 @@ const mocks = vi.hoisted(() => ({
       currentStreak: 4,
       longestStreak: 9,
       lastActiveDate: null as string | null,
+      firstEligibleDate: undefined as string | null | undefined,
       freezesUsedThisMonth: 1,
       freezesAvailable: 2,
       maxFreezesPerMonth: 3,
@@ -541,9 +542,9 @@ describe('mobile ProgressContent', () => {
     const tokens = createTokensV2('purple', theme.mode)
 
     let card = findCard()
-    const resting = StyleSheet.flatten(card.props.style as ViewStyle) as ViewStyle & { transition?: string }
+    const resting = StyleSheet.flatten(card.props.style as ViewStyle) as ViewStyle & { transition?: string; transitionDuration?: number }
     expect(resting).toMatchObject({ backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, transform: [{ scale: 1 }] })
-    expect(resting.transition).toContain('transform 150ms cubic-bezier(0.16, 1, 0.3, 1)')
+    expect(resting.transitionDuration).toBe(150)
     await TestRenderer.act(() => (card.props.onPressIn as (event: unknown) => void)({}))
     card = findCard()
     expect(StyleSheet.flatten(card.props.style as ViewStyle)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] })
@@ -762,6 +763,7 @@ describe('mobile ProgressContent', () => {
     Object.assign(mocks.freeze.streakInfo, {
       currentStreak: 4,
       recentFreezeDates: [],
+      firstEligibleDate: undefined,
       lastActiveDate: null,
       isRepairAvailable: false,
       repairDate: null,
@@ -1201,6 +1203,16 @@ describe('mobile ProgressContent', () => {
     const compactTile = compactTree.root.findAll((node) => node.props.testID === 'achievement-tile-first_orbit')[0]!
     expect(StyleSheet.flatten(compactTile.props.style as ViewStyle).width).toBe(380)
     dimensions.mockRestore()
+  })
+
+  it('keeps pre-habit days neutral in the owning streak page on the account date', async () => {
+    vi.setSystemTime(new Date('2026-09-26T06:00:00Z'))
+    mocks.account.profile.timeZone = 'Pacific/Honolulu'
+    Object.assign(mocks.freeze.streakInfo, { currentStreak: 1, lastActiveDate: '2026-09-25', firstEligibleDate: '2026-09-24' })
+    const tree = await renderProgress(undefined, 'streak', false)
+    const cells = tree.root.findAll(node => node.type === 'View' && String(node.props.testID).startsWith('day-strip-cell-'))
+    expect(cells.map(cell => cell.props.testID)).toEqual([...Array(12).fill('day-strip-cell-not-scheduled'), 'day-strip-cell-missed', 'day-strip-cell-active'])
+    expect(cells[0]!.props.accessibilityLabel).toContain('calendar.dayCell.notScheduled')
   })
 
   it('renders a weekly two-occurrence gap without an action after the streak restarts today', async () => {
@@ -1782,6 +1794,30 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.streakInfo = streakInfo
   })
 
+  it('keeps goal insertions and removals out of retained mount animations', async () => {
+    const first = createMockGoal({ id: 'first', title: 'First', position: 0 })
+    const second = createMockGoal({ id: 'second', title: 'Second', position: 1 })
+    mocks.goals.data.allGoals = [first]
+    const tree = await renderProgress(undefined, 'goals')
+    const assertMountOwnership = () => {
+      const list = tree.root.findAll((node) => node.type === 'DraggableFlatList')[0]!
+      expect(list.props.itemEnteringAnimation).toBeUndefined()
+      expect(list.props.itemExitingAnimation).toBeUndefined()
+      expect(list.props.itemLayoutAnimation).toBeUndefined()
+      expect(list.props.enableLayoutAnimationExperimental).not.toBe(true)
+    }
+    assertMountOwnership()
+    mocks.goals.data.allGoals = [first, second]
+    await TestRenderer.act(() => tree.update(<GoalsPage />))
+    expect(findGoalCard(tree.root, 'Second')).toBeDefined()
+    assertMountOwnership()
+    mocks.goals.data.allGoals = [second]
+    await TestRenderer.act(() => tree.update(<GoalsPage />))
+    expect(tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).includes('First'))).toHaveLength(0)
+    expect(findGoalCard(tree.root, 'Second')).toBeDefined()
+    assertMountOwnership()
+  })
+
   it('keeps long-press drag and accessibility goal reordering', async () => {
     const goalOne = {
       id: 'goal-1', title: 'Goal one', description: null, targetValue: 10,
@@ -2096,8 +2132,10 @@ describe('mobile ProgressContent', () => {
 it('places the Progresso bell in the scrolling root and opens Avisos', async () => {
   const tree = await renderProgress()
   const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'root-notification-header')[0]!
-  expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48, justifyContent: 'flex-end' })
-  const bell = row.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!
+  expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 72, paddingBottom: 24, justifyContent: 'flex-end' })
+  const actions = row.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')
+  expect(actions.map((node) => node.props.accessibilityLabel)).toEqual(['settings.theme.switchToLight', 'notifications.bell'])
+  const bell = actions.find((node) => node.props.accessibilityLabel === 'notifications.bell')!
   TestRenderer.act(() => (bell.props.onPress as () => void)())
   expect(mocks.router.push).toHaveBeenCalledWith('/notifications')
 

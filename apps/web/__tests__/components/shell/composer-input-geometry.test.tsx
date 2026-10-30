@@ -150,7 +150,7 @@ describe('Composer compact geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style><div id="root">${markup}</div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await loadAppFonts(page)
       const row = page.locator('[data-composer-input-row]')
       const measure = () => row.evaluate(element => ({
@@ -177,7 +177,7 @@ describe('Composer compact geometry in Chromium', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}html{font-size:${16 * scale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.addScriptTag({ content: composerScript })
         await loadAppFonts(page)
         const input = page.locator('[data-composer-input]')
@@ -194,7 +194,7 @@ describe('Composer compact geometry in Chromium', () => {
           { selector: '[data-composer-trailing-controls] > button', style: { marginInlineStart: '-8px' } },
           { selector: '[data-composer-trailing-controls]', style: { flexDirection: 'row-reverse' } },
           { selector: '[data-open-conversation]', style: { position: 'relative', top: '2px' } },
-          { selector: '[data-composer-input-row]', style: { paddingBottom: '8px' } },
+          { selector: '[data-composer-input-row]', style: { paddingBottom: '12px' } },
           { selector: '[data-composer-input]', style: { width: '20px', minWidth: '20px' } },
           { selector: '[data-composer-trailing-controls] > button', style: { position: 'relative', left: '400px' } },
         ]
@@ -229,7 +229,7 @@ describe('Composer compact geometry in Chromium', () => {
         for (const width of [320, 360, 384, 412, 480]) {
           await page.setViewportSize({ width, height: 915 })
           await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
-          await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+          await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
           await page.addScriptTag({ content: composerScript })
           await loadAppFonts(page)
           for (const fontScale of [1, 1.5, 2, 1]) {
@@ -255,7 +255,7 @@ describe('Composer compact geometry in Chromium', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.addScriptTag({ content: composerScript })
         await loadAppFonts(page)
         const input = page.locator('[data-composer-input]')
@@ -322,7 +322,7 @@ describe('Composer compact geometry in Chromium', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style><div id="root" style="height:915px;max-width:740px;margin:auto"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.addScriptTag({ content: composerScript })
         await loadAppFonts(page)
         const input = page.locator('[data-composer-input]')
@@ -393,7 +393,7 @@ describe('Composer compact geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style><div id="root" dir="${direction}"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.addScriptTag({ content: composerScript })
       await loadAppFonts(page)
       const field = page.locator('[data-composer-input]')
@@ -408,7 +408,7 @@ describe('Composer compact geometry in Chromium', () => {
         const sameLine = entry && entry.top < input.bottom && entry.bottom > input.top
         return { entryWidth: sameLine ? entry!.width : 0, pillLeft: pill.left, pillRight: pill.right, inputLeft: input.left, inputRight: input.right }
       })
-      expect.soft(placeholder.pillInset).toBe(4 + leading.entryWidth + 8)
+      expect.soft(placeholder.pillInset).toBe(8 + leading.entryWidth + 8)
       const box = (await field.boundingBox())!
       await page.mouse.click(direction === 'rtl' ? box.x + box.width - 2 : box.x + 2, box.y + box.height / 2)
       expect(await field.evaluate(element => element === document.activeElement)).toBe(true)
@@ -448,7 +448,7 @@ describe('Composer compact geometry in Chromium', () => {
     let restoreContext: (() => void) | undefined
     try {
       await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style>${view.container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await loadAppFonts(page)
       const measured = await page.locator('[data-composer-input]').evaluate((element, placeholder) => {
         const style = getComputedStyle(element)
@@ -493,7 +493,7 @@ describe('Composer compact geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
     try {
       await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.addScriptTag({ content: composerScript })
       await loadAppFonts(page)
       const field = page.locator('[data-composer-input]')
@@ -551,7 +551,7 @@ describe('Composer compact geometry in Chromium', () => {
       const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
       try {
         await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.addScriptTag({ content: composerScript })
         await loadAppFonts(page)
         const field = page.locator('[data-composer-input]')

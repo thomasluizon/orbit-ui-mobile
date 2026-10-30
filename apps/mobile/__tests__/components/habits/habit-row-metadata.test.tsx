@@ -12,16 +12,21 @@ const TestRenderer = require('react-test-renderer')
 const locale = vi.hoisted(() => ({ value: 'en' }))
 const theme = vi.hoisted(() => ({ value: 'dark' }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: theme.value }) }))
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: { done: number; total: number }) => {
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: Record<string, string | number>) => {
   const messages = locale.value === 'en' ? en : ptBR
+  if (key === 'habits.nextReminder') return messages.habits.nextReminder.replace('{time}', String(values?.time))
   if (key === 'habits.form.typeHabit') return messages.habits.form.typeHabit
   if (key === 'habits.rowTypeTask') return messages.habits.rowTypeTask
   if (key === 'habits.form.checklist') return messages.habits.form.checklist
   if (key === 'habits.rowProgress' && values) return messages.habits.rowProgress.replace('{done}', String(values.done)).replace('{total}', String(values.total))
   return key
 }, i18n: { language: locale.value } }) }))
-vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
+vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value, displayReminderClock: () => '04:00' }) }))
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/motion')>(),
+  getPrefersReducedMotion: () => Promise.resolve(true),
+  usePrefersReducedMotion: () => true,
+}))
 afterEach(() => { __resetTestHostConfig(); locale.value = 'en'; theme.value = 'dark' })
 
 describe('integrated native row metadata', () => {
@@ -148,3 +153,14 @@ describe('integrated native row metadata', () => {
     },
   )
 })
+
+  it.each(['en', 'pt-BR'])('shows only the supplied next reminder instant in %s', (language) => {
+    locale.value = language
+    const habit = createMockHabit({ repeatReminder: { intervalMinutes: 30 }, nextReminderAtUtc: '2026-10-29T04:00:00Z' })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} />) })
+    expect(JSON.stringify(tree!.toJSON())).toContain(language === 'en' ? 'Next at 04:00' : 'Próximo às 04:00')
+    TestRenderer.act(() => tree.update(<HabitRow habit={{ ...habit, nextReminderAtUtc: null }} />))
+    expect(JSON.stringify(tree!.toJSON())).not.toContain('04:00')
+    TestRenderer.act(() => tree.unmount())
+  })

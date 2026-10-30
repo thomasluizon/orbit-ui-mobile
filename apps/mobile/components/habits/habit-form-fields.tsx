@@ -1,3 +1,4 @@
+import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { captureError } from '@/lib/sentry'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
@@ -50,6 +51,8 @@ import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
 import { HabitScheduleFields } from './habit-form-fields/habit-schedule-fields'
 import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
+import { supportsRepeatReminder } from '@orbit/shared/utils/repeat-reminders'
+import { RepeatReminderSection } from './habit-form-fields/repeat-reminder-section'
 import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
@@ -252,14 +255,22 @@ function ReminderEditors({
 function HabitTimingFields({ formHelpers, controller, reminderTimes, onReminderTimesChange, showError, tokens }: Readonly<{ formHelpers: HabitFormHelpers; controller: ReturnType<typeof createHabitFormController>; reminderTimes: number[]; onReminderTimesChange: (times: number[]) => void; showError: (message: string) => void; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   const { form } = formHelpers
+  const { profile } = useProfile()
+  const repeatReminder = useWatch({ control: form.control, name: 'repeatReminder' })
+  const repeatEligible = supportsRepeatReminder({ ...form.getValues(), days: form.getValues('days') ?? [], isGeneral: formHelpers.isGeneral })
   const { disabled, guard } = useHabitFormInteraction()
   const dueTime = useWatch({ control: form.control, name: 'dueTime' }) ?? ''
   const reminderEnabled = useWatch({ control: form.control, name: 'reminderEnabled' }) ?? false
   const scheduledReminders = useWatch({ control: form.control, name: 'scheduledReminders' }) ?? []
-  if (formHelpers.isGeneral) return null
+  useEffect(() => {
+    if (repeatReminder && !repeatEligible) {
+      form.setValue('repeatReminder', null, { shouldDirty: true })
+      form.setValue('reminderEnabled', false, { shouldDirty: true })
+    }
+  }, [form, repeatEligible, repeatReminder])
   return (
     <>
-            <View style={{ gap: 16 }}>
+            {!formHelpers.isGeneral ? <View style={{ gap: 16 }}>
               <TimeField
                 disabled={disabled}
                 label={t('habits.form.exactTime')}
@@ -269,10 +280,15 @@ function HabitTimingFields({ formHelpers, controller, reminderTimes, onReminderT
                 onClear={guard(controller.clearDueTime)}
               />
               <HabitEndTimeField formHelpers={formHelpers} dueTime={dueTime} />
-            </View>
-            <View style={{ gap: 8 }}>
+            </View> : null}
+            {(!formHelpers.isGeneral || repeatEligible) ? <View style={{ gap: 8 }}>
               <FormSectionLabel>{t('habits.form.reminders')}</FormSectionLabel>
-              <ReminderEditors
+              {repeatEligible ? <RepeatReminderSection value={repeatReminder} enabled={reminderEnabled} general={formHelpers.isGeneral} timeZone={profile?.timeZone} onToggle={guard(() => controller.setReminderEnabled(!reminderEnabled))} onChange={guard((value) => {
+                form.setValue('repeatReminder', value, { shouldDirty: true })
+                if (value) { onReminderTimesChange([]); form.setValue('scheduledReminders', [], { shouldDirty: true }) }
+                else if (formHelpers.isGeneral) controller.setReminderEnabled(false)
+              })} /> : null}
+              {!repeatReminder && !formHelpers.isGeneral ? <ReminderEditors
                 dueTime={dueTime}
                 reminderEnabled={reminderEnabled}
                 reminderTimes={reminderTimes}
@@ -283,8 +299,8 @@ function HabitTimingFields({ formHelpers, controller, reminderTimes, onReminderT
                 onSetScheduledReminders={(items) => form.setValue('scheduledReminders', items, { shouldDirty: true })}
                 onValidationError={showError}
                 t={t}
-              />
-            </View>
+              /> : null}
+            </View> : null}
     </>
   )
 }
@@ -338,6 +354,7 @@ export function HabitFormFields({
 }: Readonly<HabitFormFieldsProps>) {
   const { disabled, guard, isDisabled } = useHabitFormInteraction()
   const { t, i18n } = useTranslation()
+  const allowanceText = useAstraAllowanceCopy()
   const locale = resolveSupportedLocale(i18n.language)
   const translate = useCallback((key: string, values?: Record<string, unknown>) => t(key, values), [t])
   const { currentScheme, currentTheme } = useAppTheme()
@@ -417,8 +434,8 @@ export function HabitFormFields({
   const allowance = profile?.aiMessagesLimit ?? 5
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
   const astraFallbackCopy = useMemo(
-    () => buildHabitAstraFallbackCopy(translate, allowance),
-    [allowance, translate],
+    () => buildHabitAstraFallbackCopy(allowanceText, allowance),
+    [allowance, allowanceText],
   )
   const understandingLabels = useMemo(() => buildHabitUnderstandingLabels(translate), [translate])
 
@@ -583,7 +600,7 @@ export function HabitFormFields({
             </SubHabitSection>
             <HabitAvoidanceFields formHelpers={formHelpers} controller={controller} hasProAccess={hasProAccess} tokens={tokens} onUpgrade={onUpgrade} />
             {parentField}
-            <View><TagPickerField suggestions={<TagSuggestions suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} onToggle={guard(tags.toggleTag)} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void deleteExistingTag(id)} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={disabled || createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={guard(tags.setNewTagName)} onCommit={() => void createNewTag()} onCancel={() => { newTagErrors.clearBackendErrors(); tags.setShowNewTag(false) }} styles={formStyles} tokens={tokens} /> : tags.editingTagId ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} value={tags.editTagName} disabled={disabled || updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={guard(tags.setEditTagName)} onCommit={() => void saveEditedTag()} onCancel={() => { editTagErrors.clearBackendErrors(); tags.cancelEditTag() }} styles={formStyles} tokens={tokens} /> : undefined} />{tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}</View>
+            <View><TagPickerField suggestions={<TagSuggestions translateError={allowanceText} suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} onToggle={guard(tags.toggleTag)} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void deleteExistingTag(id)} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={disabled || createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={guard(tags.setNewTagName)} onCommit={() => void createNewTag()} onCancel={() => { newTagErrors.clearBackendErrors(); tags.setShowNewTag(false) }} styles={formStyles} tokens={tokens} /> : tags.editingTagId ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} value={tags.editTagName} disabled={disabled || updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={guard(tags.setEditTagName)} onCommit={() => void saveEditedTag()} onCancel={() => { editTagErrors.clearBackendErrors(); tags.cancelEditTag() }} styles={formStyles} tokens={tokens} /> : undefined} />{tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}</View>
             <View><GoalLinkingField habitId={habitId} onGoalCreated={guard(onGoalCreated ?? onToggleGoal)} selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={guard(onToggleGoal)} /></View>
             <EndDateEditor visible={showEndDate} value={endDate} onChange={guard((value) => setValue('endDate', value, { shouldDirty: true }))} t={t} />
           </Animated.View>

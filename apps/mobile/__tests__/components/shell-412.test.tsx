@@ -31,7 +31,6 @@ vi.mock('@/lib/use-app-theme', () => ({
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 type ReactTestRenderer = import('react-test-renderer').ReactTestRenderer
-type ParentedTestInstance = import('react-test-renderer').ReactTestInstance & { parent: ParentedTestInstance | null }
 
 function findByTestId(tree: ReactTestRenderer, testID: string) {
   return tree.root.findAll(
@@ -90,7 +89,7 @@ describe('Shell412 mobile', () => {
             expect(fab.top, 'target remains inside list viewport').toBeGreaterThanOrEqual(list.top)
             expect(fab.bottom, 'target clears pinned controls').toBe(list.bottom - 16)
             expect(fab.width).toBe(60)
-            expect(fab.left + fab.width).toBe(boxes.get('shell-background')!.left + Math.min(width, 740) - 16)
+            expect(fab.left + fab.width).toBe((width - Math.min(width, 740)) / 2 + Math.min(width, 740) - 16)
             expect(tree.root.findAll(node => String(node.type) === 'TextInput')[0]).toBe(input)
             const bottomInset = StyleSheet.flatten(findByTestId(tree, 'shell-bottom')[0]!.props.style as ViewStyle).paddingBottom as number
             const outerInset = StyleSheet.flatten(findByTestId(tree, 'shell-412')[0]!.props.style as ViewStyle).paddingBottom as number | undefined
@@ -204,15 +203,15 @@ describe('Shell412 mobile', () => {
     await TestRenderer.act(() => tree.update(<></>))
   })
 
-  it.each([412, 840, 1200, 1600])('centres every shell surface in a capped column at %ipx', async (width) => {
+  it.each([412, 840, 1200, 1600])('fills every shell surface while centring its content at %ipx', async (width) => {
     __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<Shell412 header={<ScrollSurface />} tabBar={<ScrollSurface />} composer={<ScrollSurface />} fab={<ScrollSurface />} conversation={<ScrollSurface />} conversationLabel="Conversation"><ScrollSurface /></Shell412>)
     })
     const background = findByTestId(tree, 'shell-background')[0]!
-    expect(StyleSheet.flatten(background.props.style)).toMatchObject({ alignSelf: 'center', width: Math.min(width, 740), maxWidth: 740 })
-    expect(StyleSheet.flatten(findByTestId(tree, 'shell-conversation')[0]!.props.style)).toMatchObject({ alignSelf: 'center', width: Math.min(width, 740), maxWidth: 740 })
+    expect(StyleSheet.flatten(background.props.style)).toMatchObject({ alignSelf: 'center', width: '100%' })
+    expect(StyleSheet.flatten(findByTestId(tree, 'shell-conversation')[0]!.props.style)).toMatchObject({ alignSelf: 'center', width: '100%' })
     for (const testID of ['shell-header', 'shell-scroller', 'shell-tab-bar', 'shell-fab']) {
       expect(background.findAll((node) => typeof node.type === 'string' && node.props.testID === testID)).toHaveLength(1)
     }
@@ -236,7 +235,7 @@ describe('Shell412 mobile', () => {
     for (const [width, height] of [[840, 900], [900, 480], [412, 915]] as const) {
       __setWindowDimensions({ width, height, scale: 1, fontScale: 1 })
       await TestRenderer.act(() => tree.update(renderShell()))
-      expect((StyleSheet.flatten(findByTestId(tree, 'shell-background')[0]!.props.style) as ViewStyle).width).toBe(Math.min(width, 740))
+      expect((StyleSheet.flatten(findByTestId(tree, 'shell-background')[0]!.props.style) as ViewStyle).width).toBe('100%')
       expect(tree.root.findAll((node) => String(node.type) === 'Screen')[0]!.props.count).toBe(1)
       expect(mounted).toHaveBeenCalledTimes(1)
     }
@@ -251,18 +250,10 @@ describe('Shell412 mobile', () => {
       )
     })
     const bottom = findByTestId(tree, 'shell-bottom')[0]!
-    const pinnedSlot = findByTestId(tree, 'shell-pinned-slot')[0]! as ParentedTestInstance
-    let ancestor = pinnedSlot.parent
-    while (ancestor && ancestor !== bottom) {
-      const style = StyleSheet.flatten(ancestor.props.style) as ViewStyle | undefined
-      if (typeof ancestor.type === 'string' && style?.maxWidth === 740) break
-      ancestor = ancestor.parent
-    }
-    expect(ancestor).not.toBe(bottom)
-    expect(StyleSheet.flatten(ancestor?.props.style)).toMatchObject({ alignSelf: 'center', maxWidth: 740, width: '100%' })
-    for (const testID of ['shell-notice']) {
-      expect(ancestor?.findAll((node) => typeof node.type === 'string' && node.props.testID === testID)).toHaveLength(1)
-    }
+    const pinnedSlot = findByTestId(tree, 'shell-pinned-slot')[0]!
+    expect(pinnedSlot).toBeDefined()
+    const notice = findByTestId(tree, 'shell-notice')[0]!
+    expect(StyleSheet.flatten(notice.props.style)).toMatchObject({ alignSelf: 'center', maxWidth: 740, width: '100%' })
     expect(StyleSheet.flatten(bottom.props.style)).not.toHaveProperty('maxWidth')
     expect(StyleSheet.flatten(bottom.props.style)).toMatchObject({ paddingBottom: 24 })
   })

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
 import { inspectControls } from '@/e2e/layout/interaction-fill-states'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -52,6 +53,57 @@ describe('interaction clearance inspector in Chromium', () => {
       }))
       await inspectControls(page, page.getByRole('button'), '/, 320px, en', INTERACTION_FILL_CLEARANCE)
       expect(await page.locator('body').getAttribute('data-input-focused')).toBeNull()
+    } finally { await page.close() }
+  })
+
+  it.each(['pending', 'keyboard'] as const)('dismisses the account menu before measuring keyboard focus when loading is %s', async loading => {
+    const page = await browser.newPage({ viewport: { width: 1024, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const script = execFileSync(process.execPath, ['--input-type=module', '-e', `
+        import { build } from 'esbuild';
+        import { readFileSync } from 'node:fs';
+        import { readFile } from 'node:fs/promises';
+        const result = await build({
+          stdin: { contents: readFileSync(0, 'utf8'), resolveDir: process.cwd(), loader: 'tsx' },
+          bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+          alias: { '@sentry/nextjs': '@sentry/browser' },
+          define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
+          plugins: [{ name: 'account-menu-loading-boundary', setup(builder) {
+            builder.onLoad({ filter: /[/\\\\]dropdown-menu\\.tsx$/ }, async args => {
+              const source = await readFile(args.path, 'utf8');
+              const contents = source.replace("loadingContent ??= import('./dropdown-menu-content')", "loadingContent ??= window.accountMenuReady.then(() => import('./dropdown-menu-content'))");
+              if (contents === source) throw new Error('Account menu loading boundary was not found');
+              return { contents, loader: 'tsx' };
+            });
+            builder.onResolve({ filter: /^@\\/stores\\/auth-store$/ }, args => ({ path: args.path, namespace: 'account-session' }));
+            builder.onLoad({ filter: /.*/, namespace: 'account-session' }, () => ({ contents: 'export const useAuthStore = selector => selector({ logout: () => {} });', loader: 'js' }));
+          } }],
+        });
+        process.stdout.write(result.outputFiles[0].text);
+      `], {
+        input: `import React from 'react'; import { createRoot } from 'react-dom/client';
+        import { NextIntlClientProvider } from 'next-intl'; import { SidebarAccount } from './components/shell/sidebar-account';
+        window.accountMenuReady = new Promise(resolve => { window.releaseAccountMenu = resolve });
+        document.addEventListener('keydown', event => { if (event.key === 'Shift' && ${JSON.stringify(loading)} === 'keyboard') window.releaseAccountMenu() });
+        createRoot(document.getElementById('root')).render(<NextIntlClientProvider locale="pt-BR" messages={${JSON.stringify(ptBR)}}>
+          <SidebarAccount account="Orbit Preview" accountEmail="preview@example.test" collapsed={false} />
+        </NextIntlClientProvider>);`,
+        encoding: 'utf8', maxBuffer: 10 * 1024 * 1024,
+      })
+      await page.setContent(`<style>
+        #root { margin:32px;width:184px }
+        button { padding:16px;border:0;background:gray;outline:none }
+        button:focus-visible { outline:2px solid black;outline-offset:2px }
+      </style><div id="root"></div>`)
+      await page.addScriptTag({ content: script })
+      const account = page.getByRole('button', { name: 'Orbit Preview, preview@example.test', exact: true })
+      await account.waitFor()
+      expect(await inspectControls(page, account, '/r/invalid, 1024px, pt-BR', INTERACTION_FILL_CLEARANCE))
+        .toEqual({ inspectedControls: 1, skippedSentinels: 0 })
+      expect(await account.getAttribute('aria-expanded')).toBe('false')
+      await page.evaluate('window.releaseAccountMenu()')
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+      expect(await page.locator('[role="menu"]').count()).toBe(0)
     } finally { await page.close() }
   })
 
@@ -254,11 +306,11 @@ describe('interaction clearance inspector in Chromium', () => {
 
   it.each([
     { paint: 'background: gray', gap: 4, extension: 8, fails: true },
-    { paint: 'background: gray', gap: 12, extension: 8, fails: false },
+    { paint: 'background: gray', gap: 16, extension: 8, fails: false },
     { paint: 'background: transparent', gap: 4, extension: 8, fails: false },
     { paint: 'background: gray; opacity: 0', gap: 4, extension: 8, fails: false },
-    { paint: 'background: gray; box-shadow: 0 0 0 100px transparent', gap: 12, extension: 8, fails: false },
-    { paint: 'background: gray; outline: 2px solid black; outline-offset: 2px', gap: 12, extension: 8, fails: true },
+    { paint: 'background: gray; box-shadow: 0 0 0 100px transparent', gap: 16, extension: 8, fails: false },
+    { paint: 'background: gray; outline: 2px solid black; outline-offset: 2px', gap: 16, extension: 8, fails: true },
   ])('measures $paint with a $gap gap and $extension extension', async ({ paint, gap, extension, fails }) => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {

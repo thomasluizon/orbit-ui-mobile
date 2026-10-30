@@ -6,8 +6,10 @@ import { ActionRow } from './action-row'
 
 import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type Ref, type RefObject } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
-import { SHEET_BODY_INSETS } from '@orbit/shared/theme'
+import { motionSprings, shouldDismissSheet, SHEET_BODY_INSETS } from '@orbit/shared/theme'
 import { Dialog } from '@base-ui/react/dialog'
+import { animate, motion, useDragControls, useMotionValue, type PanInfo, type HTMLMotionProps } from 'motion/react'
+import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
@@ -57,7 +59,7 @@ interface WebSheetProps extends SheetProps {
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
 export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTitle, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
-  const { titleExpanded, bodyRef, toggleTitle } = useSheetTitleDisclosure()
+  const { titleClamped, titleExpanded, onClampedChange, bodyRef, toggleTitle } = useSheetTitleDisclosure(title)
   const onBodyFocus = useSheetBodyFocusVisibility(virtualizedBody)
   const [presented, setPresented] = useState(true)
   // WHY: A pointer-down menu can mount this sheet before its opening release. https://github.com/thomasluizon/orbit-tickets/issues/577
@@ -75,6 +77,8 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
     exitActionRef.current = exitAction ?? null
     setPresented(false)
   }, [])
+
+  const drag = useSheetDrag({ onClose, requestClose, onAttemptDismiss })
 
   const handle = useMemo<SheetHandle>(() => ({ requestClose }), [requestClose])
 
@@ -135,12 +139,14 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
       }}>
         <Dialog.Backdrop className="orbit-sheet-backdrop" />
         <Dialog.Viewport className="orbit-sheet-viewport">
-          <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus} style={minimumBodyWidth == null ? undefined : { containerType: 'inline-size', containerName: 'sheet-panel' }}>
-            <div className="orbit-sheet-grabber" aria-hidden="true" />
+          <motion.div className="orbit-sheet-drag-frame" {...drag.frameProps}>
+          <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus}>
+            <div className="orbit-sheet-grabber-target" aria-hidden="true" onPointerDown={drag.start}><div className="orbit-sheet-grabber" /></div>
             <header className="orbit-sheet-header">
               <Dialog.Title aria-label={accessibleTitle} translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'} data-title-mode={titleMode}>
                 <SheetTitleContent title={title} titleMode={titleMode} accessibleTitle={accessibleTitle}
                   expanded={titleExpanded} onToggle={toggleTitle}
+                  clamped={titleClamped} onClampedChange={onClampedChange}
                   fullTitleId={`${overlayId}-full-title`} />
               </Dialog.Title>
               {headerAccessory}
@@ -151,12 +157,12 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
               ) : null}
             </header>
             {children == null && !(title && titleMode === 'typed') ? null : (
-              <>
+              <div className="orbit-sheet-body-viewport" style={minimumBodyWidth == null ? undefined : { containerType: 'inline-size', containerName: 'sheet-panel' }}>
                 {minimumBodyWidth == null ? null : <style>{`
-                  [data-sheet-body-id="${overlayId}"] { padding-inline: ${SHEET_BODY_INSETS[0]}px; }
+                  [data-sheet-body-id="${overlayId}"] { --sheet-body-inline: ${SHEET_BODY_INSETS[0]}px; }
                   ${SHEET_BODY_INSETS.map((inset) => `
                     @container sheet-panel (min-width: ${minimumBodyWidth + inset * 2}px) {
-                      [data-sheet-body-id="${overlayId}"] { padding-inline: ${inset}px; }
+                      [data-sheet-body-id="${overlayId}"] { --sheet-body-inline: ${inset}px; }
                     }
                   `).join('')}
                 `}</style>}
@@ -164,10 +170,10 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
                   ...(boundedBody ? { display: 'flex', flexDirection: 'column', minHeight: 0 } as const : {}),
                   ...(virtualizedBody ? { display: 'flex', flexDirection: 'column', overflowY: 'hidden' } as const : {}),
                 }}>
-                  <ExpandedSheetTitle title={title} titleMode={titleMode} expanded={titleExpanded} id={`${overlayId}-full-title`} />
+                  <ExpandedSheetTitle title={title} titleMode={titleMode} clamped={titleClamped} expanded={titleExpanded} id={`${overlayId}-full-title`} />
                   {children}
                 </div>
-              </>
+              </div>
             )}
             <UpdateAvailableBanner modalId={modalId} />
             <div className="empty:hidden shrink-0 px-6 pb-4" data-sheet-notice="">
@@ -179,34 +185,41 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
               </footer>
             )}
           </Dialog.Popup>
+          </motion.div>
         </Dialog.Viewport>
       </Dialog.Portal>
     </Dialog.Root>
   )
 }
 
-function ExpandedSheetTitle({ title, titleMode, expanded, id }: Readonly<Pick<SheetProps, 'title' | 'titleMode'> & { expanded: boolean; id: string }>) {
-  if (!title || titleMode !== 'typed') return null
+function ExpandedSheetTitle({ title, titleMode, clamped, expanded, id }: Readonly<Pick<SheetProps, 'title' | 'titleMode'> & { clamped: boolean; expanded: boolean; id: string }>) {
+  if (!title || titleMode !== 'typed' || !clamped) return null
   return <div id={id} hidden={!expanded}><PersonalText expanded className="orbit-sheet-full-title">{title}</PersonalText></div>
 }
 
-function SheetTitleContent({ title, titleMode, accessibleTitle, expanded, onToggle, fullTitleId }: Pick<SheetProps, 'title' | 'titleMode' | 'accessibleTitle'> & {
+function SheetTitleContent({ title, titleMode, accessibleTitle, expanded, onToggle, fullTitleId, clamped, onClampedChange }: Pick<SheetProps, 'title' | 'titleMode' | 'accessibleTitle'> & {
   expanded: boolean
   onToggle: () => void
   fullTitleId: string
+  clamped: boolean
+  onClampedChange: (clamped: boolean) => void
 }) {
   const t = useTranslations()
   if (!title || titleMode !== 'typed') return title ?? accessibleTitle ?? t('common.appName')
-  return (
-    <button type="button" className="orbit-sheet-title-button" aria-expanded={expanded}
-      aria-controls={fullTitleId} title={t(expanded ? 'common.collapse' : 'common.expand')} onClick={onToggle}>
-      <PersonalText className="orbit-sheet-typed-title">{title}</PersonalText>
-    </button>
-  )
+  const text = <PersonalText className="orbit-sheet-typed-title" onClampedChange={onClampedChange}>{title}</PersonalText>
+  return clamped ? <button type="button" className="orbit-sheet-title-content orbit-sheet-title-button" aria-expanded={expanded}
+    aria-controls={fullTitleId} onClick={onToggle}>{text}</button>
+    : <span className="orbit-sheet-title-content">{text}</span>
 }
 
-function useSheetTitleDisclosure() {
-  const [titleExpanded, setTitleExpanded] = useState(false)
+function useSheetTitleDisclosure(title: string | undefined) {
+  const [disclosure, setDisclosure] = useState({ title, clamped: false, expanded: false })
+  if (disclosure.title !== title) setDisclosure({ title, clamped: false, expanded: false })
+  const titleClamped = disclosure.title === title && disclosure.clamped
+  const titleExpanded = titleClamped && disclosure.expanded
+  const onClampedChange = useCallback((clamped: boolean) => {
+    setDisclosure((current) => current.clamped === clamped ? current : { ...current, clamped, expanded: clamped && current.expanded })
+  }, [])
   const bodyRef = useRef<HTMLDivElement>(null)
   const previousScroll = useRef<number | null>(null)
   useLayoutEffect(() => {
@@ -216,9 +229,9 @@ function useSheetTitleDisclosure() {
   }, [titleExpanded])
   function toggleTitle() {
     if (!titleExpanded) previousScroll.current = bodyRef.current?.scrollTop ?? 0
-    setTitleExpanded(!titleExpanded)
+    setDisclosure((current) => ({ ...current, expanded: !current.expanded }))
   }
-  return { titleExpanded, bodyRef, toggleTitle }
+  return { titleClamped, titleExpanded, onClampedChange, bodyRef, toggleTitle }
 }
 
 function revealSheetBodyFocus(body: HTMLDivElement) {
@@ -256,5 +269,31 @@ function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {
     observerRef.current = observer
     observer.observe(body)
     observer.observe(event.target)
+  }
+}
+
+function useSheetDrag({ onClose, requestClose, onAttemptDismiss }: Pick<WebSheetProps, 'onClose' | 'onAttemptDismiss'> & { requestClose: () => void }) {
+  const dismiss = onClose ? requestClose : onAttemptDismiss
+  const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
+  const y = useMotionValue(0)
+  const controls = useDragControls()
+  useEffect(() => {
+    if (reducedMotion) { controls.cancel(); y.stop(); y.set(0) }
+    return () => y.stop()
+  }, [reducedMotion, controls, y])
+  const onEnd = (event: MouseEvent | TouchEvent | PointerEvent, gesture: PanInfo) => {
+    if (event.type !== 'pointercancel' && dismiss && shouldDismissSheet(gesture.offset.y, gesture.velocity.y)) {
+      dismiss()
+      if (onClose) return
+    }
+    void animate(y, 0, { type: 'spring', stiffness: motionSprings.sheet.stiffness, damping: motionSprings.sheet.damping, mass: motionSprings.sheet.mass, velocity: event.type === 'pointercancel' ? 0 : Math.max(0, gesture.velocity.y) })
+  }
+  const enabled = Boolean(dismiss) && !reducedMotion
+  return {
+    start: (event: React.PointerEvent<HTMLDivElement>) => { if (enabled) controls.start(event) },
+    frameProps: {
+      style: { y }, drag: enabled ? 'y' : false, dragListener: false, dragControls: controls,
+      dragMomentum: false, dragConstraints: { top: 0 }, dragElastic: 0, onDragEnd: onEnd,
+    } satisfies HTMLMotionProps<'div'>,
   }
 }

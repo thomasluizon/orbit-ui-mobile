@@ -24,19 +24,65 @@ export function summarizePendingOperationItem(
   formatTime: (value: string) => string,
   locale: string,
   actionKey?: string | null,
+  today?: string,
 ): string {
+  const reschedule = actionKey === 'rescheduleHabits' ? summarizeReschedule(fields, translate, locale, today) : undefined
+  if (reschedule) return reschedule
+  const changed = fields.filter(field => field.oldValue !== field.newValue && !['habit_id', 'title', 'emoji'].includes(field.field))
+  if (['updateHabit', 'updateHabits'].includes(actionKey ?? '') && changed.length) {
+    return summarizeHabitUpdate(fields, changed, translate, formatTime, locale)
+  }
   const value = (name: string) => fields.find((field) => field.field === name)?.newValue
   const action = fields.find((field) => field.valueType === 'action')
   if (action && ['delete', 'dismiss_import', 'run_sync'].includes(action.field)) return translate(`chat.operation.field.${action.field}`)
   const creating = isHabitCreate(fields, actionKey)
   const cadence = cadenceSummary(fields, translate, actionKey)
-  const interval = Number(value('interval_weeks'))
-  const intervalLabel = value('interval_weeks') != null && interval >= 1 ? computeHabitFrequencyLabel({ isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: interval, days: [], isFlexible: false }, (key, values) => translate(key, values as Record<string, string | number>)) : null
+  const intervalLabel = weekIntervalSummary(value('interval_weeks'), translate, creating && cadence.label != null)
   const date = value('due_date') ?? value('date')
   const dateLabel = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? formatLocaleDate(parseAPIDate(date), locale, { dateStyle: 'medium' }) : null
   const time = value('due_time')
-  const summary = [cadence.label, intervalLabel, dateLabel, time ? creating ? formatTime(time) : translate('chat.preview.atTime', { time: formatTime(time) }) : null, ...additionalChanges(fields, translate, formatTime, locale, cadence.complete, creating)].filter(Boolean).join(' · ')
+  const summary = [cadence.label, intervalLabel, dateLabel, time ? translate('chat.preview.atTime', { time: formatTime(time) }) : null, ...additionalChanges(fields, translate, formatTime, locale, cadence.complete, creating), creating ? createReminderSummary(fields, translate, formatTime) : null].filter(Boolean).join(' · ')
   return summary || (actionKey && PREVIEW_ACTION_KEYS.includes(actionKey) ? translate(`chat.operation.source.${actionKey}`) : '')
+}
+
+function summarizeReschedule(fields: readonly PendingOperationChange[], translate: PreviewTranslation, locale: string, today?: string): string | undefined {
+  const date = fields.find(field => field.field === 'due_date')
+  if (!date?.newValue) return undefined
+  if (date.oldValue !== date.newValue) {
+    const change = compactDateChange([date], translate, locale, today)
+    if (change) return change
+  }
+  return date.newValue === today ? translate('dates.today') : formatLocaleDate(parseAPIDate(date.newValue), locale, { dateStyle: 'medium' })
+}
+
+function summarizeHabitUpdate(
+  fields: readonly PendingOperationChange[], changed: readonly PendingOperationChange[],
+  translate: PreviewTranslation, formatTime: (value: string) => string, locale: string,
+): string {
+  const dateChange = compactDateChange(changed, translate, locale)
+  if (dateChange) return dateChange
+  const changedSchedule = changed.some(field => ['frequency_unit', 'frequency_quantity', 'days', 'due_date', 'due_time', 'is_general', 'is_flexible'].includes(field.field))
+  const summarizedFields = changedSchedule ? fields.filter(field => !['habit_id', 'title', 'emoji'].includes(field.field) && (field.field !== 'is_bad_habit' || changed.includes(field))) : changed
+  const before = summarizePendingOperationItem(summarizedFields.map(field => ({ ...field, oldValue: field.oldValue, newValue: field.oldValue ?? field.newValue, proposedValue: field.oldValue ?? field.proposedValue })), translate, formatTime, locale, 'scheduleDiff')
+  const after = summarizePendingOperationItem(summarizedFields, translate, formatTime, locale, 'scheduleDiff')
+  return before === after ? after : translate('chat.preview.beforeAfter', { before, after })
+}
+
+function compactDateChange(fields: readonly PendingOperationChange[], translate: PreviewTranslation, locale: string, today?: string): string | undefined {
+  const field = fields[0]
+  if (fields.length !== 1 || !field || !['due_date', 'date'].includes(field.field)
+    || !field.oldValue || !field.newValue || !/^\d{4}-\d{2}-\d{2}$/.test(field.oldValue) || !/^\d{4}-\d{2}-\d{2}$/.test(field.newValue)) return undefined
+  const sameYear = field.oldValue.slice(0, 4) === field.newValue.slice(0, 4)
+  return translate('chat.preview.beforeAfter', {
+    before: field.oldValue === today ? translate('dates.today') : formatLocaleDate(parseAPIDate(field.oldValue), locale, { day: 'numeric', month: 'numeric', ...(!sameYear ? { year: '2-digit' } as const : {}) }),
+    after: field.newValue === today ? translate('dates.today') : formatLocaleDate(parseAPIDate(field.newValue), locale, { day: 'numeric', month: 'numeric', year: '2-digit' }),
+  })
+}
+
+function weekIntervalSummary(value: string | null | undefined, translate: PreviewTranslation, omitDefault: boolean): string | null {
+  const interval = Number(value)
+  return value != null && interval >= (omitDefault ? 2 : 1)
+    ? computeHabitFrequencyLabel({ isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: interval, days: [], isFlexible: false }, (key, values) => translate(key, values as Record<string, string | number>)) : null
 }
 
 function isHabitCreate(fields: readonly PendingOperationChange[], actionKey?: string | null): boolean {
@@ -47,7 +93,8 @@ function isHabitCreate(fields: readonly PendingOperationChange[], actionKey?: st
 function cadenceSummary(fields: readonly PendingOperationChange[], translate: PreviewTranslation, actionKey?: string | null): { label: string | null; complete: boolean } {
   const value = (name: string) => fields.find((field) => field.field === name)?.newValue
   const unit = frequencyUnitSchema.safeParse(value('frequency_unit'))
-  if (!unit.success || value('is_general')?.toLowerCase() === 'true') return { label: null, complete: false }
+  if (value('is_general')?.toLowerCase() === 'true') return { label: translate('chat.preview.summary.anytime'), complete: true }
+  if (!unit.success) return { label: null, complete: false }
   const updating = fields.some((field) => field.oldValue != null || field.field === 'habit_id')
     || ['updateHabit', 'updateHabits'].includes(actionKey ?? '')
   const daysField = fields.find((field) => field.field === 'days')
@@ -55,7 +102,7 @@ function cadenceSummary(fields: readonly PendingOperationChange[], translate: Pr
   const complete = !updating || (value('frequency_quantity') != null
     && (flexible === 'true' || (flexible === 'false' && daysField != null)))
   if (!complete) return {
-    label: translate(`chat.preview.summary.${({ Day: 'repeatInDays', Week: 'repeatInWeeks', Month: 'repeatInMonths', Year: 'repeatInYears' } as const)[unit.data]}`),
+    label: value('frequency_quantity') != null ? translate(`chat.preview.interval.${unit.data}`, { count: Number(value('frequency_quantity')) }) : translate(`chat.preview.summary.${({ Day: 'repeatInDays', Week: 'repeatInWeeks', Month: 'repeatInMonths', Year: 'repeatInYears' } as const)[unit.data]}`),
     complete: false,
   }
   const days = Array.isArray(daysField?.proposedValue)
@@ -69,8 +116,10 @@ function cadenceSummary(fields: readonly PendingOperationChange[], translate: Pr
 }
 
 function createChange(field: PendingOperationChange, translate: PreviewTranslation): string[] | undefined {
-  if (field.field === 'sub_habits' || field.proposedValue === null || field.newValue === '' || field.newValue?.toLowerCase() === 'false') return []
-  if (field.field === 'is_bad_habit') return [translate('chat.preview.summary.habitToAvoid')]
+  if (field.field === 'is_bad_habit' && field.newValue?.toLowerCase() === 'true') return [translate('chat.preview.summary.habitToAvoid')]
+  if (['is_bad_habit', 'is_general', 'is_flexible', 'reminder_enabled', 'parent_id', 'new_parent_id', 'frequency_quantity'].includes(field.field)) return []
+  if (field.field === 'parent_habit_id' && !field.newValue) return []
+  if (field.field === 'sub_habits' || field.proposedValue === null || field.newValue == null || field.newValue === '' || field.newValue.toLowerCase() === 'false' || (Array.isArray(field.proposedValue) && field.proposedValue.length === 0)) return []
   if (field.field === 'tag_names' && Array.isArray(field.proposedValue)) return [field.proposedValue.filter((tag): tag is string => typeof tag === 'string').join(', ')]
   return undefined
 }
@@ -88,13 +137,14 @@ function additionalChanges(
   formatTime: (value: string) => string, locale: string, scheduleSummarized: boolean, creating: boolean,
 ): string[] {
   return fields.flatMap((field) => {
+    if (creating && ['reminder_enabled', 'reminder_times', 'scheduled_reminders'].includes(field.field)) return []
     const createOutcome = creating ? createChange(field, translate) : undefined
     if (createOutcome) return createOutcome
     const booleanOutcome = booleanChange(field, translate, scheduleSummarized)
     if (booleanOutcome) return booleanOutcome
     if (field.field === 'description') return [field.newValue || translate('chat.preview.summary.removeDescription')]
     if (field.field === 'emoji') return field.newValue ? [] : [translate('chat.preview.summary.removeIcon')]
-    if (field.field === 'frequency_quantity' && !scheduleSummarized && field.newValue) return [translate('chat.preview.summary.repeatInterval', { count: field.newValue })]
+    if (field.field === 'frequency_quantity') return []
     if (field.field === 'frequency_unit' && !field.newValue) return [translate('habits.filter.oneTime')]
     return [...scheduleAndListChanges(field, translate, formatTime, locale, scheduleSummarized), ...writeOutcome(field, translate, formatTime, locale)]
   })
@@ -106,6 +156,14 @@ function scheduleAndListChanges(field: PendingOperationChange, translate: Previe
   if (field.field === 'end_date') return [field.newValue ? translate('chat.preview.summary.endsOn', { date: formatLocaleDate(parseAPIDate(field.newValue), locale, { dateStyle: 'medium' }) }) : translate('chat.preview.summary.removeEndDate')]
   if (['checklist_items', 'sub_habits', 'reminder_times', 'scheduled_reminders'].includes(field.field)) return [listSummary(field, translate, formatTime)]
   return []
+}
+
+function createReminderSummary(fields: readonly PendingOperationChange[], translate: PreviewTranslation, formatTime: (value: string) => string): string | null {
+  if (fields.find(field => field.field === 'reminder_enabled')?.newValue?.toLowerCase() !== 'true') return null
+  const reminders = fields.filter(field => ['reminder_times', 'scheduled_reminders'].includes(field.field)
+    && Array.isArray(field.proposedValue) && field.proposedValue.length > 0)
+    .map(field => listSummary(field, translate, formatTime)).filter(Boolean)
+  return reminders.join(', ') || translate('chat.preview.summary.sendReminders')
 }
 
 function weekdaySummary(field: PendingOperationChange, translate: PreviewTranslation): string {
@@ -142,6 +200,7 @@ export const PREVIEW_ACTION_KEYS: readonly string[] = [
 
 function writeOutcome(field: PendingOperationChange, translate: PreviewTranslation, formatTime: (value: string) => string, locale: string): string[] {
   const text = field.newValue
+  if (field.field === 'repeat_reminder') return [text || translate('chat.preview.summary.stopReminders')]
   if (['note', 'subject', 'message', 'email', 'text', 'summary'].includes(field.field) && text) return [text]
   if (['parent_id', 'new_parent_id'].includes(field.field)) return [translate(`chat.preview.summary.${text ? 'moveUnderHabit' : 'moveToTop'}`)]
   if (field.field === 'parent_habit_id') return [field.proposedValue === null ? translate('habits.moveParent.toRoot') : text ?? '']

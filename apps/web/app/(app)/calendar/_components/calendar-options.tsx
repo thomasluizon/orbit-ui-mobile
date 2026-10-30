@@ -7,8 +7,7 @@ import * as Menu from '@/components/ui/dropdown-menu'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { NotificationBell } from '@/components/navigation/notification-bell'
-import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
+import { DestinationHeaderRow, HeaderAppearanceActions } from '@/components/navigation/root-notification-header'
 import { ShellHeader } from '@/components/shell/shell-header'
 import { useUIStore } from '@/stores/ui-store'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -36,7 +35,7 @@ function CalendarOptionsContent({ onGoogleCalendar }: Readonly<{ onGoogleCalenda
   return <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}>
     <DestinationHeaderRow data-testid="calendar-shell-header">
       <Menu.Trigger asChild><button ref={anchorRef} type="button" className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]" aria-label={t('calendar.options')} aria-haspopup={wide ? 'menu' : 'dialog'} aria-expanded={menuOpen} aria-controls={menuId}><MoreVertical size={24} strokeWidth={2} aria-hidden="true" /></button></Menu.Trigger>
-      <div className="lg:hidden"><NotificationBell /></div>
+      <HeaderAppearanceActions />
     </DestinationHeaderRow>
     {wide ? <Menu.Content id={menuId} presentation="anchored" title={t('calendar.options')}
       items={[{ id: 'recurring', label: t('calendar.showRecurring'), checked }, { id: 'google', label: t('calendar.googleCalendar'), disabled: !onGoogleCalendar }, { id: 'legend', label: t('calendar.legendTitle') }]}

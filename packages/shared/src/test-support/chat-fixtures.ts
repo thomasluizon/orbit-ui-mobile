@@ -10,7 +10,24 @@ import type {
   HabitListCard,
   SuggestedSubHabit,
 } from '../types/chat'
+import type { OneSmallStepCard } from '../contracts/blocks/one-small-step'
 import type { BulkCreateResponse } from '../types/habit'
+
+export const failedReadOperationFixture = {
+  operationId: 'get_retrospective',
+  sourceName: 'get_retrospective',
+  riskClass: 'Low',
+  confirmationRequirement: 'None',
+  status: 'Failed',
+  summary: null,
+  targetId: null,
+  targetName: null,
+  policyReason: null,
+  pendingOperationId: null,
+  payload: null,
+  errorCode: 'NO_HABITS_FOR_PERIOD',
+  access: 'read',
+} as const
 
 export const breakdownSubHabits: SuggestedSubHabit[] = [
   { title: 'Dishes', description: '', frequencyUnit: 'Day' },
@@ -42,7 +59,7 @@ export const goalListCardFixture: GoalListCard = {
 
 export const agentPolicyDenialFixture: AgentPolicyDenial = {
   operationId: 'policy-1',
-  sourceName: 'DeleteAccount',
+  sourceName: 'account.manage',
   riskClass: 'High',
   confirmationRequirement: 'StepUp',
   reason: 'Profile only',
@@ -190,14 +207,28 @@ export function makePendingWriteSummaryOperation(scenario: typeof pendingWriteSu
 }
 
 export const partialScheduleSummaryCases = [
+  { name: 'change habit polarity', fields: [
+    { field: 'is_bad_habit', oldValue: 'false', newValue: 'True', proposedValue: true },
+  ], english: 'Build this habit → Reduce this habit', portuguese: 'Fortalecer este hábito → Reduzir este hábito' },
+  { name: 'change flexible tracking without a schedule', fields: [
+    { field: 'is_flexible', oldValue: 'true', newValue: 'False', proposedValue: false },
+  ], english: 'Choose any day → Keep fixed days', portuguese: 'Escolher qualquer dia → Manter dias fixos' },
+  { name: 'change general tracking without a schedule', fields: [
+    { field: 'is_general', oldValue: 'true', newValue: 'False', proposedValue: false },
+  ], english: 'Do it anytime → Follow a schedule', portuguese: 'Fazer a qualquer hora → Seguir um horário' },
+  { name: 'change cadence and habit polarity together', fields: [
+    { field: 'frequency_unit', oldValue: 'Week', newValue: 'Day', proposedValue: 'Day' },
+    { field: 'frequency_quantity', oldValue: '1', newValue: '1', proposedValue: 1 },
+    { field: 'is_bad_habit', oldValue: 'true', newValue: 'False', proposedValue: false },
+  ], english: '1 week · Reduce this habit → 1 day · Build this habit', portuguese: '1 semana · Reduzir este hábito → 1 dia · Fortalecer este hábito' },
   { name: 'retain flexible tracking', fields: [
     { field: 'frequency_unit', oldValue: 'Week', newValue: 'Week', proposedValue: 'Week' },
     { field: 'frequency_quantity', oldValue: '2', newValue: '3', proposedValue: 3 },
-  ], english: 'Repetition in weeks · Frequency: 3', portuguese: 'Repetição em semanas · Frequência: 3' },
+  ], english: '2 weeks → 3 weeks', portuguese: '2 semanas → 3 semanas' },
   { name: 'retain selected weekdays', fields: [
     { field: 'frequency_unit', oldValue: 'Week', newValue: 'Day', proposedValue: 'Day' },
     { field: 'frequency_quantity', oldValue: '1', newValue: '1', proposedValue: 1 },
-  ], english: 'Repetition in days · Frequency: 1', portuguese: 'Repetição em dias · Frequência: 1' },
+  ], english: '1 week → 1 day', portuguese: '1 semana → 1 dia' },
 ] as const
 
 export function makePartialScheduleSummaryOperation(scenario: typeof partialScheduleSummaryCases[number]): PendingAgentOperation {
@@ -261,6 +292,22 @@ export const focusedPeriodComparisonFixture = {
   habitId: null, read: focusedReadMetadataFixture,
 }
 
+export const completedHabitTotalFixture = {
+  ...focusedPeriodTotalFixture,
+  metric: 'completedHabits' as const, unit: 'habits' as const, value: 3,
+  metrics: { ...focusedPeriodMetricsFixture, positiveLogRecords: 5, completedHabits: 3 },
+  read: { ...focusedReadMetadataFixture, scope: { ...focusedReadMetadataFixture.scope, metric: 'completedHabits' } },
+}
+
+export const completedHabitComparisonFixture = {
+  ...focusedPeriodComparisonFixture,
+  metric: 'completedHabits' as const, unit: 'habits' as const,
+  current: completedHabitTotalFixture.metrics,
+  baseline: { ...focusedPeriodComparisonFixture.baseline, positiveLogRecords: 2, completedHabits: 1 },
+  currentValue: 3, baselineValue: 1, absoluteDelta: 2, relativeDelta: 2,
+  read: completedHabitTotalFixture.read,
+}
+
 export const focusedHistoryFixture = {
   kind: 'habitHistory' as const, totalCount: 2,
   items: [{ id: 'log-one', title: '2026-09-01', logDate: '2026-09-01', value: 0 }],
@@ -292,4 +339,34 @@ export const focusedStaleRecapFixture = {
     scope: { period: 'week', date_from: '2026-09-01', date_to: '2026-09-07' },
     completeness: 'stale' as const, recovery: 'refresh',
   },
+}
+
+export { habitSuggestionDraftFixture, habitSuggestionsFixture, makeHabitSuggestionMessage, makeHabitSuggestionPreview, makeHabitSuggestionBatchPreview } from './habit-suggestion-fixtures'
+export { questionBlockFixture, questionAnswersFixture } from './question-fixtures'
+
+export const skippedDatedHabitListFixture = {
+  ...focusedDatedHabitListFixture,
+  totalCount: 5,
+  read: { ...focusedDatedHabitListFixture.read, totalCount: 5 },
+  items: [
+    { id: 'skipped', title: 'Walk', emoji: null, depth: 0, isBadHabit: false, status: 'today', isSkippedOnDate: true },
+    { id: 'done', title: 'Read', emoji: null, depth: 0, isBadHabit: false, status: 'done', isSkippedOnDate: false },
+    { id: 'overdue', title: 'Stretch', emoji: null, depth: 0, isBadHabit: false, status: 'overdue' },
+    { id: 'pending', title: 'Water', emoji: null, depth: 0, isBadHabit: false, status: 'today', isSkippedOnDate: null },
+    { id: 'bad', title: 'Smoke', emoji: null, depth: 0, isBadHabit: true, status: 'done', isSkippedOnDate: false },
+  ],
+} satisfies HabitListCard
+
+export function makeOneSmallStepCard(language: 'en' | 'pt-BR' = 'en'): OneSmallStepCard {
+  const portuguese = language === 'pt-BR'
+  const goal = portuguese ? 'Ler' : 'Read'
+  const step = portuguese ? 'Abra o livro.' : 'Open the book.'
+  return {
+    suggestion: { goal, step, language },
+    actions: [
+      { id: 'smaller' as const, label: portuguese ? 'Menor ainda' : 'Smaller', message: portuguese ? `Quero um passo ainda menor para "${goal}". O passo anterior foi "${step}".` : `Give me an even smaller starting step for "${goal}". The previous step was "${step}".` },
+      { id: 'saveTask' as const, label: portuguese ? 'Salvar como tarefa' : 'Save as task', message: portuguese ? `Quero salvar "${step}" como tarefa.` : `Save "${step}" as a task.` },
+      { id: 'saveChecklistItem' as const, label: portuguese ? 'Salvar no checklist' : 'Save as checklist item', message: portuguese ? `Quero adicionar "${step}" ao checklist de um hábito.` : `Add "${step}" to a habit's checklist.` },
+    ],
+  }
 }

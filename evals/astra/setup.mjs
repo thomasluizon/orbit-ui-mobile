@@ -2,37 +2,76 @@ import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
-import { loadApiProvider } from 'promptfoo'
+import AstraHttpProvider from './http-provider.mjs'
 import { behavior, composition, structural } from './assertions.mjs'
+import { readStartingHabits } from './step-persistence.mjs'
+
+function prepareStartingAction(test, block) {
+  const vars = test.vars
+  vars.previousStartingStep = structuredClone(block.suggestion)
+  const action = block.actions.find(({ id }) => id === vars.startingStepAction)
+  vars.input = action.message
+  vars.clientContext = { ...vars.clientContext }
+  delete vars.clientContext.previousStartingStep
+  if (action.id === 'smaller' && action.previousStep) vars.clientContext.previousStartingStep = structuredClone(action.previousStep)
+  vars.clientContextJson = JSON.stringify(vars.clientContext)
+  const required = vars.expectations.required[0]
+  if (vars.startingStepAction === 'saveTask') required.arguments = { title: block.suggestion.step, frequency_unit: 'OneTime' }
+  if (vars.startingStepAction !== 'saveChecklistItem') return
+  const habit = vars.startingHabitBaseline.find((habit) => habit.id === vars.checklistHabitId)
+  if (!habit?.checklistItems.length) throw new Error('Starting-step setup requires an owned habit with existing checklist items.')
+  vars.input += vars.clientContext.locale === 'pt-BR' ? ` Use o hábito ${JSON.stringify(habit.title)}.` : ` Use the habit ${JSON.stringify(habit.title)}.`
+  required.arguments = { anyOf: [
+    { habit_id: habit.id, item_to_add: block.suggestion.step, checklist_items: { optional: null } },
+    { habit_id: habit.id, item_to_add: { optional: null },
+      checklist_items: [...habit.checklistItems, { text: block.suggestion.step, isChecked: false }]
+        .map(({ text, isChecked }) => ({ text, is_checked: isChecked ? true : { optional: false } })) },
+  ] }
+}
 
 export async function prepareCorrection(test) {
   const setup = test.vars.setup
+  if (['saveTask', 'saveChecklistItem'].includes(test.vars.startingStepAction)) {
+    test.vars.startingHabitBaseline = await readStartingHabits(test.vars.credentialKey)
+  }
   const requestId = randomUUID()
   const configuration = parse(readFileSync(new URL('./promptfooconfig.yaml', import.meta.url), 'utf8'))
-  const provider = await loadApiProvider('http', { options: { config: {
+  const provider = new AstraHttpProvider({ config: {
     ...configuration.providers[0].config, transformResponse: `file://${fileURLToPath(new URL('./response.mjs', import.meta.url))}`,
-  } } })
-  const vars = { ...test.vars, ...setup, evalRequestId: requestId, historyJson: '[]' }
+  } })
+  const vars = { ...test.vars, refine: undefined, ...setup, evalRequestId: requestId, historyJson: '[]' }
+  vars.clientContextJson = JSON.stringify(vars.clientContext)
   const response = await provider.callApi(setup.input, { vars })
-  if (response.error || !response.output) throw new Error('Correction setup returned no verifiable answer.')
+  if (response.error || !response.output) throw new Error(`Correction setup${setup.caseId ? ` dependency ${setup.caseId}` : ''} returned no verifiable answer.`)
   const context = { vars, test }
   const checks = await Promise.all([structural(response.output, context), behavior(response.output, context), composition(response.output, context)])
-  if (checks.some((check) => check.pass !== true || check.metadata?.skipped || check.metadata?.unavailable)) {
-    throw new Error('Correction setup failed its tool or composition gate.')
+  const failures = checks.filter((check) => check.pass !== true || check.metadata?.skipped || check.metadata?.unavailable)
+  if (failures.length) {
+    throw new Error(`Correction setup failed${setup.caseId ? ` dependency ${setup.caseId}` : ''}: ${failures.map((check) => check.reason).join('; ')}`)
+  }
+  if (test.vars.startingStepAction) prepareStartingAction(test, response.output.composition.parts[0].block)
+  if (test.vars.refine) {
+    const drafts = response.output.composition.parts.find((part) => part.kind === 'habitSuggestions').block.drafts
+    test.vars.baselineDrafts = structuredClone(drafts)
+    test.vars.refineDraft = structuredClone(drafts[0])
+    return { test }
   }
   test.vars.baselinePreview = response.output.composition.pendingOperations
   const correction = test.vars.composition?.correction
   const operation = test.vars.expectations?.required?.[0]
-  if (correction && operation?.exactArguments === true) {
-    const original = response.output.trace.calls.find((call) => call.name === operation.name)
-    const revised = structuredClone(original?.arguments)
-    const targets = revised?.habits?.filter((habit) => typeof habit.title === 'string'
-      && habit.title.toLocaleLowerCase().includes(correction.titleContains.toLocaleLowerCase()))
-    if (targets?.length !== 1 || !Object.hasOwn(targets[0], correction.field)) {
-      throw new Error('Correction setup lacks one verifiable tool argument target.')
+  if (correction && operation?.name === 'revise_pending_changes') {
+    const previews = test.vars.baselinePreview
+    const targets = previews?.length === 1 ? previews[0].items?.filter((item) =>
+      item.entityName.toLocaleLowerCase().includes(correction.titleContains.toLocaleLowerCase())) : []
+    if (targets?.length !== 1 || !targets[0].fields.some((field) => field.field === correction.field)) {
+      throw new Error('Correction setup lacks one verifiable preview target.')
     }
-    targets[0][correction.field] = correction.value
-    operation.arguments = revised
+    operation.arguments = {
+      pending_operation_id: previews[0].id,
+      items: [{ item_id: targets[0].itemId, edits_json: { jsonEquals: { [correction.field]: correction.value } } }],
+      remove_item_ids: { optional: [] },
+      answer_question: { optional: false },
+    }
   }
   test.vars.historyJson = JSON.stringify([{ role: 'user', content: setup.input }, { role: 'assistant', content: response.output.answer }])
   return { test }

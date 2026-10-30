@@ -176,8 +176,8 @@ describe('About destination geometry in Chromium', () => {
       })
       expect(measured.left).toBe(measured.versionLeft)
       expect(measured.right).toBe(measured.versionRight)
-      expect(measured.fillLeft).toBe('-12px')
-      expect(measured.fillRight).toBe('-12px')
+      expect(measured.fillLeft).toBe('-8px')
+      expect(measured.fillRight).toBe('-8px')
       expect(measured.leftHit).toBe(true)
       expect(measured.rightHit).toBe(true)
     } finally { await page.close(); vi.unstubAllEnvs() }

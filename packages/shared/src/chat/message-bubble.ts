@@ -1,3 +1,4 @@
+import type { SendOneSmallStepMessage } from './one-small-step-actions'
 import type { AgentExecuteOperationResponse } from '../types/ai'
 import type { RefreshPendingOperation, RevisePendingOperation } from '../hooks/pending-operation-revision-core'
 import type { ActionResult, ChatMessage, ChatPart } from '../types/chat'
@@ -12,6 +13,7 @@ import { attachClarificationPreview, updatePendingOperationMessage, type Pending
 import { pendingOperationExecutionPatch } from './pending-operation-message-state'
 
 export interface MessageBubbleProps {
+  onSendMessage?: SendOneSmallStepMessage
   blockAnswerInteraction?: BlockAnswerInteraction
   earlierMessages?: readonly ChatMessage[]
   laterMessages?: readonly ChatMessage[]
@@ -78,7 +80,8 @@ export function getMessageBubbleView(props: MessageBubbleProps, dismissedBreakdo
       && !message.pendingOperations?.length && !message.policyDenials?.length
       && !Object.keys(message.clarificationPreviews ?? {}).length,
     parts,
-    relatedSurfaces: getRelatedSurfaces(message.relatedSurfaces),
+    relatedSurfaces: getRelatedSurfaces([...(message.relatedSurfaces ?? []),
+      ...(parts.some(part => part.type === 'block' && part.part.kind === 'gamification') ? ['gamification'] : [])]),
     nonSuggestionActions: actions.nonSuggestionActions,
     suggestions: actions.suggestionActions.flatMap(action => {
       const key = action.entityId ?? action.entityName ?? 'suggestion'
@@ -158,6 +161,7 @@ export function getMessageBubbleOperations(props: MessageBubbleProps, transition
       ? owned.pendingOperations.map(pendingOperation => ({
         key: pendingOperation.id,
         pendingOperation,
+        focusTitleOnMount: Object.values(message.habitSuggestionOperations ?? {}).includes(pendingOperation.id) && !message.pendingOperationStates?.[pendingOperation.id],
         savedState: currentOperationState(props, pendingOperation.id),
         onStateChange: (patch: PendingOperationMessageState) => onStateChange(pendingOperation.id, patch),
         onRevise: props.onPendingOperationRevise,

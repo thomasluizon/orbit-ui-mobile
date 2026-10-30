@@ -18,6 +18,7 @@ interface RenderedTree extends ReactTestRenderer { toJSON: () => Parameters<type
 const renderer = require('react-test-renderer') as { create: (element: React.ReactElement) => RenderedTree; act: typeof import('react-test-renderer')['act'] }
 vi.mock('react-i18next', () => ({ initReactI18next: { type: '3rdParty', init: () => undefined }, useTranslation: () => ({ t: i18n.t.bind(i18n), i18n }) }))
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => null }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))

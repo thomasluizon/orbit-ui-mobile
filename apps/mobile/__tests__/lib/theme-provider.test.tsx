@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -9,7 +9,11 @@ import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
 import { useAppTheme } from '../../lib/use-app-theme'
+import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
+import { Sun, Moon } from '@/components/ui/icons'
 
+vi.mock('@/lib/use-app-theme', async () => await import('../../lib/use-app-theme'))
+vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => null }))
 vi.mock('@/lib/theme-provider', async () => await import('../../lib/theme-provider'))
 
 vi.mock('react-native', async () => ({
@@ -18,7 +22,7 @@ vi.mock('react-native', async () => ({
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ i18n: { language: 'en' } }),
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }))
 const auth = vi.hoisted(() => ({ isAuthenticated: true }))
 vi.mock('@/stores/auth-store', () => ({
@@ -31,7 +35,7 @@ const TestRenderer = require('react-test-renderer')
 const act = TestRenderer.act
 const unmounts: (() => void)[] = []
 
-async function setup(previous: ThemeMode) {
+async function setup(previous: ThemeMode, content?: ReactNode) {
   vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1))
   vi.stubGlobal('cancelAnimationFrame', vi.fn())
   setRuntimeTheme({ scheme: 'orange', themeMode: previous })
@@ -53,10 +57,11 @@ async function setup(previous: ThemeMode) {
     showDestination = () => setMounted(true)
     return mounted ? <Destination /> : null
   }
+  let root!: ReturnType<typeof TestRenderer.create>
   await act(() => {
-    const root = TestRenderer.create(
+    root = TestRenderer.create(
       <QueryClientProvider client={client}>
-        <ThemeProvider captureTheme={null}><Navigation /></ThemeProvider>
+        <ThemeProvider captureTheme={null}><Navigation />{content}</ThemeProvider>
       </QueryClientProvider>,
     )
     unmounts.push(() => root.unmount())
@@ -67,7 +72,7 @@ async function setup(previous: ThemeMode) {
   const flushNotifications = async () => {
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
   }
-  return { client, chooser, destination, mountDestination, flushNotifications, renderedThemes }
+  return { root, client, chooser, destination, mountDestination, flushNotifications, renderedThemes }
 }
 
 afterEach(async () => {
@@ -149,4 +154,22 @@ describe('mobile theme choice across profile consumers', () => {
     expect(client.getQueryData<Profile>(profileKeys.detail())?.themePreference).toBe('dark')
     expect(getRuntimeTheme().themeMode).toBe('dark')
   })
+})
+
+it('persists header presses through the native theme provider and keeps the target glyph in sync', async () => {
+  const { root, client, flushNotifications } = await setup('dark', <RootNotificationHeader />)
+  const button = root.root.findByType('Pressable')
+  expect(button.props.accessibilityLabel).toBe('settings.theme.switchToLight')
+  expect(root.root.findAllByType(Sun)).toHaveLength(1)
+  await act(() => button.props.onPress())
+  await flushNotifications()
+  expect(button.props.accessibilityLabel).toBe('settings.theme.switchToDark')
+  expect(root.root.findAllByType(Moon)).toHaveLength(1)
+  expect(client.getQueryData(profileKeys.detail())).toMatchObject({ themePreference: 'light' })
+  expect(getRuntimeTheme().themeMode).toBe('light')
+  expect(performQueuedApiMutation).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'setThemePreference', payload: { themePreference: 'light' } }))
+  await act(() => button.props.onPress())
+  await flushNotifications()
+  expect(button.props.accessibilityLabel).toBe('settings.theme.switchToLight')
+  expect(client.getQueryData(profileKeys.detail())).toMatchObject({ themePreference: 'dark' })
 })

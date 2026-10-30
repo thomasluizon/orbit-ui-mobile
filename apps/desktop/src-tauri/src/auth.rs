@@ -5,6 +5,10 @@ use tauri::{webview::cookie::SameSite, webview::Cookie, Url};
 
 pub type CookieOwner = Vec<(String, String)>;
 
+pub fn is_sign_in_path(path: &str) -> bool {
+    matches!(path, "/login" | "/auth-callback" | "/onboarding")
+}
+
 #[derive(Clone)]
 pub struct Attempt {
     pub state: String,

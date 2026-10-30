@@ -12,6 +12,7 @@ import { createMockConfigResponse } from '@orbit/shared/__tests__/factories'
 import { appConfigSchema, DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { createApiClientError } from '@orbit/shared/utils'
 import { shouldRetryQuery } from '@orbit/shared/query'
+import { queryClient as productionQueryClient } from '@/lib/query-client'
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn(), report: vi.fn() }))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.fetch }))
@@ -46,7 +47,7 @@ beforeEach(async () => {
   setAccountId(null)
   setAccountId('account-a')
   await SecureStore.deleteItemAsync('account_config')
-  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  queryClient = new QueryClient({ queryCache: productionQueryClient.getQueryCache(), defaultOptions: { queries: { retry: false } } })
   vi.spyOn(AppState, 'addEventListener')
   focusManager.setFocused(true)
   onlineManager.setOnline(true)
@@ -61,6 +62,35 @@ afterEach(() => {
 })
 
 describe('mobile config and flags', () => {
+  it('retries a background config network failure without reporting a recovered request', async () => {
+    queryClient.setDefaultOptions({ queries: { retry: shouldRetryQuery, retryDelay: 150 } })
+    respond(true)
+    const { result } = mount()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    mocks.fetch.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    let refresh!: Promise<unknown>
+    void act(() => { refresh = result.current.refetch() })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2))
+    expect(result.current.enabled).toBe(true)
+    expect(mocks.report).not.toHaveBeenCalled()
+    await act(async () => { await refresh })
+    await waitFor(() => expect(result.current.isFetching).toBe(false))
+    expect(result.current.isError).toBe(false)
+    expect(mocks.fetch).toHaveBeenCalledTimes(3)
+    expect(mocks.report).not.toHaveBeenCalled()
+  })
+
+  it('reports a config network failure once after the retry budget is exhausted', async () => {
+    queryClient.setDefaultOptions({ queries: { retry: shouldRetryQuery, retryDelay: 50 } })
+    const failure = new TypeError('Failed to fetch')
+    mocks.fetch.mockRejectedValue(failure)
+    const { result } = mount()
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(mocks.fetch).toHaveBeenCalledTimes(4)
+    expect(mocks.report).toHaveBeenCalledExactlyOnceWith(failure)
+    expect(result.current.enabled).toBe(false)
+  })
+
   it('does not report or retry a config request after session rejection', async () => {
     queryClient.setDefaultOptions({ queries: { retry: shouldRetryQuery, retryDelay: 0 } })
     mocks.fetch.mockRejectedValue(createApiClientError(401, null, 'Unauthorized'))

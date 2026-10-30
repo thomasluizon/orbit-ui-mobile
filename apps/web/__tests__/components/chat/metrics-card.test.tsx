@@ -39,7 +39,7 @@ describe('Astra metrics card on web', () => {
     expect(screen.getByText('progressScreen.window.activeDays')).toBeInTheDocument()
     expect(screen.getByText('chat.metrics.topHabit')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-testid="bar-chart"] svg path')).toHaveLength(7)
-    expect(screen.getByRole('link', { name: 'chat.metrics.progressLink' })).toHaveAttribute('href', '/progress')
+    expect(screen.queryByRole('link', { name: 'chat.metrics.progressLink' })).not.toBeInTheDocument()
   })
 
   it('renders one habit with thirty bars and a habit chip', () => {
@@ -49,7 +49,7 @@ describe('Astra metrics card on web', () => {
     expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
     expect(screen.getByText('chat.metrics.monthlyRate')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-testid="bar-chart"] svg path')).toHaveLength(30)
-    expect(screen.getByRole('link', { name: 'chat.metrics.habitLink' })).toHaveAttribute('href', `/habits/${habitId}`)
+    expect(screen.queryByRole('link', { name: 'chat.metrics.habitLink' })).not.toBeInTheDocument()
   })
 
   it('shows one empty line and no chart when the series is unavailable', () => {
@@ -78,14 +78,17 @@ describe('Astra metrics card on web', () => {
     expect(title).not.toHaveClass('truncate')
   })
   describe.each(['heading', 'top habit'] as const)('%s', (slot) => {
-  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the metric habit names %s', (name) => {
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the metric habit names %s', async (name) => {
     const { container } = render(<MetricsCard metricsCard={{ ...overview, habitId: slot === 'heading' ? 'habit-1' : null, habitTitle: name, topHabitName: name }} />)
     for (const title of [slot === 'heading' ? `Metrics for ${name}` : name]) {
       const text = [...container.querySelectorAll('[data-personal-text]')].find((element) => element.getAttribute('aria-label') === title)!
       expect(text).toHaveAttribute('aria-label', title)
       expect(text).toHaveStyle({ whiteSpace: title.includes(' ') ? 'normal' : 'nowrap', wordBreak: 'normal' })
       fireEvent.click(screen.getByRole('button', { name: slot === 'heading' ? `Show full text: ${title}` : title, expanded: false }))
-      if (title.startsWith('Metrics for ')) fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+      if (title.startsWith('Metrics for ')) {
+        await screen.findByRole('dialog', { name: title })
+        fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+      }
       else expect(screen.getByRole('button', { name: title, expanded: true })).toBeInTheDocument()
     }
   })

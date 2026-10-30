@@ -4,6 +4,7 @@ import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { PADDING, SPACING, SHEET_BODY_INSETS, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { getPrefersReducedMotion, usePrefersReducedMotion } from '@/lib/motion'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { AccessibilityInfo, StyleSheet, Text, View, useWindowDimensions, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
 import { useOverlayFocus } from './focus-provenance-view'
@@ -75,22 +76,24 @@ export function Sheet({
   children,
   ref,
 }: Readonly<MobileSheetProps>) {
+  const reducedMotion = usePrefersReducedMotion()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
   useOverlayFocus(true)
-  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const insets = useSafeAreaInsets()
+  const styles = useMemo(() => createStyles(tokens, insets.left, insets.right), [tokens, insets.left, insets.right])
   const { height, width } = useWindowDimensions()
   const bodyPaddingHorizontal = minimumBodyWidth == null
     ? PADDING.sheetInline
     : SHEET_BODY_INSETS.reduce<number>((inset, step) => (
-      minimumBodyWidth + step * 2 <= Math.min(width, SHELL_CONTENT_MAX_WIDTH) ? step : inset
+      minimumBodyWidth + step * 2 <= Math.min(width, SHELL_CONTENT_MAX_WIDTH) - insets.left - insets.right ? step : inset
     ), SHEET_BODY_INSETS[0])
-  const bodyStyle = [styles.body, { paddingHorizontal: bodyPaddingHorizontal }]
-  const { bottom: bottomInset } = useSafeAreaInsets()
-  const { titleExpanded, bodyRef, handleBodyScroll, toggleTitle } = useSheetTitleDisclosure()
+  const bodyStyle = [styles.body, { paddingHorizontal: bodyPaddingHorizontal, paddingLeft: bodyPaddingHorizontal + insets.left, paddingRight: bodyPaddingHorizontal + insets.right }]
+  const bottomInset = insets.bottom
+  const { titleClamped, titleExpanded, titleFocused, onTitleFocusChange, onClampedChange, bodyRef, handleBodyScroll, toggleTitle } = useSheetTitleDisclosure(title)
   const [headerHeight, setHeaderHeight] = useState(0)
   const [footerHeight, setFooterHeight] = useState(0)
   const { t } = useTranslation()
@@ -125,20 +128,24 @@ export function Sheet({
   }, [sheetId, registerOpenOverlay, unregisterOpenOverlay])
 
   useEffect(() => {
-    void sheetRef.current?.present().catch(() => {
+    let active = true
+    void getPrefersReducedMotion().then((reduceMotion) => {
+      if (active) return sheetRef.current?.present(0, !reduceMotion)
+    }).catch(() => {
       // WHY: A rejected presentation leaves no native sheet to keep mounted. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/src/TrueSheet.tsx#L374-L394
       handleDidDismiss()
     })
+    return () => { active = false }
   }, [handleDidDismiss])
 
   const requestClose = useCallback((exitAction?: () => void, onRejected?: () => void) => {
     exitActionRef.current = exitAction ?? null
-    void sheetRef.current?.dismiss().catch(() => {
+    void sheetRef.current?.dismiss(!reducedMotion).catch(() => {
       // WHY: A rejected dismissal leaves the native sheet visible. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/src/TrueSheet.tsx#L404-L410
       exitActionRef.current = null
       onRejected?.()
     })
-  }, [])
+  }, [reducedMotion])
 
   const handle = useMemo<SheetHandle>(() => ({ requestClose }), [requestClose])
 
@@ -164,7 +171,7 @@ export function Sheet({
     </Pressable>
   ) : null
   const header = renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
-    styles, titleExpanded, t, closeButton, onToggleTitle: toggleTitle,
+    styles, titleClamped, titleExpanded, titleFocused, onTitleFocusChange, onClampedChange, t, closeButton, onToggleTitle: toggleTitle,
     onLayout: (event) => setHeaderHeight(event.nativeEvent.layout.height) })
   const expandedTitle = title && titleExpanded && titleMode === 'typed' ? <PersonalText expanded selectable style={styles.fullTitle}>{title}</PersonalText> : null
 
@@ -239,10 +246,14 @@ export function Sheet({
 type Tokens = ReturnType<typeof createTokensV2>
 
 function renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
-  styles, titleExpanded, t, closeButton, onToggleTitle, onLayout,
+  styles, titleClamped, titleExpanded, titleFocused, onTitleFocusChange, onClampedChange, t, closeButton, onToggleTitle, onLayout,
 }: Pick<SheetProps, 'title' | 'titleMode' | 'accessibleTitle' | 'headerAccessory' | 'onClose' | 'onAttemptDismiss'> & {
   styles: ReturnType<typeof createStyles>
   titleExpanded: boolean
+  titleClamped: boolean
+  titleFocused: boolean
+  onTitleFocusChange: (focused: boolean) => void
+  onClampedChange: (clamped: boolean) => void
   t: ReturnType<typeof useTranslation>['t']
   closeButton: ReactNode
   onToggleTitle: () => void
@@ -251,13 +262,16 @@ function renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory,
   return title || accessibleTitle || headerAccessory || onClose || onAttemptDismiss ? (
     <View style={styles.header} accessibilityLabel={accessibleTitle} onLayout={onLayout}>
       {title ? titleMode === 'typed' ? (
-        <Pressable focusInset accessibilityLabel={title} accessibilityRole="button"
+        <View style={styles.titleSlot}>{titleClamped ? <Pressable focusInset accessibilityLabel={title} accessibilityRole="button"
           accessibilityHint={t(titleExpanded ? 'common.collapse' : 'common.expand')}
           accessibilityState={{ expanded: titleExpanded }}
           onPress={onToggleTitle}
-          style={({ pressed }) => [styles.titleButton, pressed ? styles.titlePressed : null]}>
-          <PersonalText style={styles.typedTitle}>{title}</PersonalText>
-        </Pressable>
+          onFocus={() => onTitleFocusChange(true)} onBlur={() => onTitleFocusChange(false)}
+          style={({ pressed }) => [styles.titleButton, pressed || titleFocused ? styles.titlePressed : null]}>
+          <PersonalText onClampedChange={onClampedChange} style={styles.typedTitle}>{title}</PersonalText>
+        </Pressable> : <View style={styles.titleText}>
+          <PersonalText accessibilityRole="header" onClampedChange={onClampedChange} style={styles.typedTitle}>{title}</PersonalText>
+        </View>}</View>
       ) : <Text accessibilityRole="header" accessibilityLabel={accessibleTitle} style={styles.title}>{title}</Text> : (
         <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />
       )}
@@ -288,7 +302,7 @@ function virtualizedBodyStyle(maxHeight: number, hasFooter: boolean) {
   return [{ maxHeight }, hasFooter ? { paddingBottom: SPACING.s0 } : null]
 }
 
-function createStyles(tokens: Tokens) {
+function createStyles(tokens: Tokens, leftInset: number, rightInset: number) {
   return StyleSheet.create({
     header: {
       alignItems: 'flex-start',
@@ -296,6 +310,8 @@ function createStyles(tokens: Tokens) {
       gap: 16,
       minHeight: 56,
       paddingHorizontal: PADDING.sheetInline,
+      paddingLeft: PADDING.sheetInline + leftInset,
+      paddingRight: PADDING.sheetInline + rightInset,
       paddingTop: PADDING.sheetHeaderTop,
       paddingBottom: PADDING.sheetHeaderBottom,
     },
@@ -307,8 +323,20 @@ function createStyles(tokens: Tokens) {
       fontFamily: 'Geist_500Medium',
       fontSize: 22,
     },
-    titleButton: {
+    titleSlot: {
       flex: 1,
+      minWidth: 0,
+      minHeight: 48,
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+    },
+    titleText: {
+      maxWidth: '100%',
+      paddingHorizontal: SPACING.s8,
+      paddingVertical: SPACING.s8,
+    },
+    titleButton: {
+      maxWidth: '100%',
       minWidth: 0,
       minHeight: 48,
       justifyContent: 'center',
@@ -323,7 +351,6 @@ function createStyles(tokens: Tokens) {
       overflow: 'hidden',
     },
     typedTitle: {
-      textDecorationLine: 'underline',
       color: tokens.fg1,
       fontFamily: 'Geist_500Medium',
       fontSize: 22,
@@ -361,16 +388,25 @@ function createStyles(tokens: Tokens) {
       gap: 8,
       justifyContent: 'flex-end',
       paddingHorizontal: PADDING.sheetInline,
+      paddingLeft: PADDING.sheetInline + leftInset,
+      paddingRight: PADDING.sheetInline + rightInset,
       paddingTop: PADDING.sheetFooterTop,
       paddingBottom: PADDING.sheetBottom,
     },
     footer: { backgroundColor: tokens.bgSheet },
-    notice: { paddingHorizontal: PADDING.sheetInline, paddingVertical: SPACING.s16 },
+    notice: { paddingHorizontal: PADDING.sheetInline, paddingLeft: PADDING.sheetInline + leftInset, paddingRight: PADDING.sheetInline + rightInset, paddingVertical: SPACING.s16 },
   })
 }
 
-function useSheetTitleDisclosure() {
-  const [titleExpanded, setTitleExpanded] = useState(false)
+function useSheetTitleDisclosure(title: string | undefined) {
+  const [disclosure, setDisclosure] = useState({ title, clamped: false, expanded: false, focused: false })
+  if (disclosure.title !== title) setDisclosure({ title, clamped: false, expanded: false, focused: false })
+  const titleClamped = disclosure.title === title && disclosure.clamped
+  const titleExpanded = titleClamped && disclosure.expanded
+  const onClampedChange = useCallback((clamped: boolean) => {
+    setDisclosure((current) => current.clamped === clamped ? current : { ...current, clamped, expanded: clamped && current.expanded, focused: clamped && current.focused })
+  }, [])
+  const onTitleFocusChange = useCallback((focused: boolean) => setDisclosure((current) => ({ ...current, focused })), [])
   const bodyRef = useRef<ScrollView>(null)
   const currentScroll = useRef(0)
   const previousScroll = useRef<number | null>(null)
@@ -381,10 +417,10 @@ function useSheetTitleDisclosure() {
   }, [titleExpanded])
   function toggleTitle() {
     if (!titleExpanded) previousScroll.current = currentScroll.current
-    setTitleExpanded(!titleExpanded)
+    setDisclosure((current) => ({ ...current, expanded: !current.expanded }))
   }
   function handleBodyScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
     currentScroll.current = event.nativeEvent.contentOffset.y
   }
-  return { titleExpanded, bodyRef, handleBodyScroll, toggleTitle }
+  return { titleClamped, titleExpanded, titleFocused: titleClamped && disclosure.focused, onTitleFocusChange, onClampedChange, bodyRef, handleBodyScroll, toggleTitle }
 }

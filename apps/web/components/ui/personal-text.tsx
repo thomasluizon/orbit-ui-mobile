@@ -36,7 +36,7 @@ function useClampedText(ref: RefObject<HTMLSpanElement | null>, text: string, li
     const measure = () => {
       if (!active) return
       const overflowingToken = [...element.querySelectorAll('span')].some((token) => token.scrollWidth > token.clientWidth)
-      onClampedChange(element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth || overflowingToken)
+      onClampedChange(element.scrollHeight > element.clientHeight + 1 || element.scrollWidth > element.clientWidth || overflowingToken)
     }
     measure()
     const observer = new ResizeObserver(measure)

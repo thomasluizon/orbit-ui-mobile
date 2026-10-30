@@ -6,6 +6,7 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import * as Menu from '@/components/ui/dropdown-menu'
 
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -37,11 +38,13 @@ describe('Today controls and habit menu ownership', () => {
     }
     const prepare = async (trigger: HTMLElement, label: string) => {
       press(trigger)
+      await act(async () => { await vi.dynamicImportSettled() })
       await screen.findByRole('menuitem', { name: label })
       if (phase === 'open') return
       fireEvent.keyDown(document, { key: 'Escape' })
       if (phase !== 'reopened') return
       press(trigger)
+      await act(async () => { await vi.dynamicImportSettled() })
       await screen.findByRole('menuitem', { name: label })
     }
     await prepare(controlsTrigger, 'Select')

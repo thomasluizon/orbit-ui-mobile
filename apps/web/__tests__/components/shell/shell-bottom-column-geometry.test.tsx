@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { act, render } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -13,6 +13,7 @@ import { Fab } from '@/components/ui/fab'
 import { Button } from '@/components/ui/pill-button'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { useUIStore } from '@/stores/ui-store'
 import { expectCompactFabNoticeGeometry } from '@/e2e/layout/fab-notice-geometry'
 import { measureChromePaint } from '@/e2e/layout/composer-column-paint'
 import { measureScrollbarGutter } from '@/e2e/layout/scrollbar-geometry'
@@ -35,12 +36,64 @@ describe('Shell bottom column geometry', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([390, 1280])('keeps the last Hoje row clear through collapse and expansion at %ipx', async width => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    useUIStore.setState({ todayComposerCollapsed: false })
+    const view = render(<ShellWide items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
+      astraRow={{ label: 'Astra', onOpen: vi.fn() }}
+      compactComposer={<Composer collapsible collapseScope="today" state="idle" value="Draft" suggestions={[]}
+        words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()}
+        onOpenConversation={vi.fn()} conversationLabel={en.todayAstra.openConversation} />}
+      tabBar={<nav style={{ height: 80 }}>Tabs</nav>}
+      fab={<Fab label="Create" onClick={vi.fn()}><span aria-hidden="true">+</span></Fab>}>
+      <div style={{ height: 1600 }}>Habits</div>
+      <div data-last-habit-row="" style={{ minHeight: 56 }}>Last habit</div>
+    </ShellWide>)
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
+    try {
+      const heights: number[] = []
+      for (const collapsed of [false, true, false]) {
+        if (width >= 1024) act(() => useUIStore.getState().setTodayComposerCollapsed(collapsed))
+        else if (collapsed) fireEvent.click(screen.getByRole('button', { name: 'shell.composer.collapse' }))
+        else if (useUIStore.getState().todayComposerCollapsed) fireEvent.click(screen.getByRole('button', { name: 'shell.composer.expand' }))
+        await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+        const geometry = await page.evaluate(() => {
+          const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+          scroller.scrollTop = scroller.scrollHeight
+          const viewport = document.querySelector<HTMLElement>('[data-shell-destination-viewport]')!
+          viewport.scrollTop = viewport.scrollHeight
+          const last = document.querySelector('[data-last-habit-row]')!.getBoundingClientRect()
+          const composer = document.querySelector('[data-composer-root]')?.getBoundingClientRect()
+          const fab = document.querySelector('[data-fab]')!.getBoundingClientRect()
+          return { lastTop: last.top, lastBottom: last.bottom, scrollerBottom: scroller.getBoundingClientRect().bottom,
+            composerTop: composer?.top, composerHeight: composer?.height ?? 0, fabTop: fab.top, fabHeight: fab.height }
+        })
+        expect(geometry.lastTop).toBeGreaterThanOrEqual(0)
+        expect(geometry.lastBottom).toBeLessThanOrEqual(geometry.scrollerBottom)
+        if (width < 1024) {
+          expect(geometry.composerHeight).toBeGreaterThan(0)
+          expect(geometry.lastBottom).toBeLessThanOrEqual(geometry.composerTop!)
+          expect(geometry.lastBottom).toBeLessThanOrEqual(geometry.fabTop)
+          if (collapsed) expect(geometry.composerHeight).toBeLessThanOrEqual(64)
+        } else {
+          expect(geometry.composerHeight).toBe(0)
+          expect(geometry.fabHeight).toBe(0)
+        }
+        heights.push(geometry.composerHeight)
+      }
+      if (width < 1024) {
+        expect(heights[0]).toBeGreaterThan(heights[1]!)
+        expect(heights[2]).toBe(heights[0])
+      }
+    } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
+  })
+
   it('resamples the shell when a refresh removes the FAB after the visibility checks', async () => {
     const view = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
       compactComposer={<Composer state="idle" value="" suggestions={[]} words={en.shell.composer} onChangeValue={() => {}} onSend={() => {}} />}
       notice={<div />} tabBar={<nav style={{ height: 80 }}>Tabs</nav>}
       fab={<Fab label="Create" onClick={() => {}}><span aria-hidden="true">+</span></Fab>} />)
-    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 412, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
       const evaluate = page.evaluate.bind(page)
@@ -71,7 +124,7 @@ describe('Shell bottom column geometry', () => {
   it.each([1100, 1352])('matches one-line account loading height and keeps wrapped accounts grounded at %ipx', async (width) => {
     const props = { items: [{ id: 'hoje', href: '/', label: 'Hoje', icon: 'hoje' }], activeId: 'hoje', navLabel: 'Navigation',
       astraRow: { label: 'Astra', onOpen: vi.fn() } }
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     const shell = (account?: string) => renderToString(<ShellWide {...props} account={account} accountEmail={account ? 'account@example.com' : undefined} />)
     const measure = () => page.evaluate(() => ['[data-shell-account]', '[data-shell-sidebar] nav'].map((selector) => {
       const bounds = document.querySelector(selector)!.getBoundingClientRect()
@@ -98,7 +151,7 @@ describe('Shell bottom column geometry', () => {
       <div style={{ height: 1600 }}>Habits</div>
     </ShellWide>)
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
       const paint = await page.locator('[data-shell-notice] [data-kind]').evaluate(measureChromePaint)
@@ -113,9 +166,9 @@ describe('Shell bottom column geometry', () => {
         return clip.contains(document.elementFromPoint(bounds.left + 8, bounds.top + 1))
       })
       expect(paddingHit).toBe(false)
-      await page.locator('[data-shell-notice] [data-kind]').evaluate((toast) => toast.closest('[role="region"]')!.remove())
+      await page.locator('[data-shell-notice] [data-kind]').evaluate((toast) => toast.closest('[data-toast-motion]')!.remove())
       expect(await page.locator('[data-shell-notice] [data-update-live-region]').count()).toBe(1)
-      expect(await page.locator('[data-shell-notice]').evaluate((clip) => clip.getBoundingClientRect().height)).toBe(0)
+      await expect.poll(() => page.locator('[data-shell-notice]').evaluate((clip) => clip.getBoundingClientRect().height)).toBe(0)
     } finally { await page.close(); view.unmount() }
   })
 
@@ -123,7 +176,7 @@ describe('Shell bottom column geometry', () => {
     const view = render(<ShellWide nav={false} action={<div className="flex justify-end px-4">
       <Button size="md" onClick={vi.fn()}>Continue</Button>
     </div>}><div style={{ height: 1600 }}>Form</div></ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
       await page.keyboard.press('Tab')
@@ -153,7 +206,7 @@ describe('Shell bottom column geometry', () => {
       fab={<Fab label="Create" onClick={vi.fn()}><span aria-hidden="true">+</span></Fab>}>
       <div className="px-4"><div data-column-reference="" style={{ height: 1600 }}>Habits</div></div>
     </ShellWide>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
       const gutter = await page.locator('[data-shell-scroller]').evaluate(measureScrollbarGutter)
@@ -193,7 +246,8 @@ describe('Shell bottom column geometry', () => {
         expect(geometry.fab.hit).toBe('Create')
         expect(geometry.fab.topClearance).toBeGreaterThanOrEqual(8)
         expect(geometry.fab.bottomClearance).toBeGreaterThanOrEqual(8)
-        expect(geometry.tabs).toEqual(geometry.column)
+        expect(geometry.tabs).toEqual({ left: 0, right: width })
+        expect(geometry.column.right - geometry.column.left).toBe(Math.min(width, 740))
       }
     } finally { await page.close(); view.unmount() }
   })

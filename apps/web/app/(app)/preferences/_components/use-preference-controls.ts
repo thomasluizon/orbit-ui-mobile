@@ -7,9 +7,8 @@ import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
 import { resolveSystemLocale } from '@orbit/shared/utils'
 import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import { useAccountId } from '@/lib/account-scope'
-import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
+import type { SupportedLocale } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
-import { useColorScheme } from '@/hooks/use-color-scheme'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import {
@@ -36,7 +35,6 @@ export function usePreferenceControls() {
   const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const { currentTheme, applyTheme } = useColorScheme()
 
   const [activePicker, setActivePicker] = useAccountScopedState<PreferencePicker | null>(null)
 
@@ -127,11 +125,6 @@ export function usePreferenceControls() {
     },
   })
 
-  function handleThemeModeChange(mode: ThemeMode) {
-    if (mode === currentTheme) return
-    applyTheme(mode)
-  }
-
   const [showGeneralPreference, setShowGeneralPreference] = useState(() => ({
     accountId,
     value: readShowGeneralOnToday(),
@@ -148,13 +141,11 @@ export function usePreferenceControls() {
 
   return {
     profile,
-    currentTheme,
     activePicker,
     setActivePicker,
     selectedLanguage,
     showGeneralOnToday,
     handleLanguageChange,
-    handleThemeModeChange,
     toggleShowGeneral,
     timeZoneMutation,
     weekStartMutation,

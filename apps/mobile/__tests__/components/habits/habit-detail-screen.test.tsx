@@ -1,4 +1,5 @@
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
+import { measureDaySurface } from '@/__tests__/support/calendar-grid-geometry'
 import { controlName, renderedText } from '@/__tests__/support/react-test-renderer'
 import { measureClampedPersonalText, expandedTextControls, pressTextControl, expectPersonalTextLayout } from '@/__tests__/support/personal-text'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -86,6 +87,8 @@ function openRescueGate() {
   mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
 }
 
+vi.mock('@/hooks/use-correct-habit-dose', () => ({ useCorrectHabitDose: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+
 const mocks = vi.hoisted(() => ({
   screenFocused: true,
   realTimeField: false,
@@ -99,6 +102,7 @@ const mocks = vi.hoisted(() => ({
   removeStorage: vi.fn(),
   detail: null as HabitDetail | null,
   detailLoading: false,
+  realHistory: false,
   detailError: false,
   refetch: vi.fn(),
   allHabitsFallback: null as Map<string, NormalizedHabit> | null,
@@ -352,9 +356,10 @@ vi.mock('@/components/ui/error-state', () => ({
   ErrorState: ({ message, action }: { message: string; action: React.ReactNode }) => React.createElement('ErrorState', { testID: 'load-error', message }, action),
 }))
 vi.mock('@/components/ui/proposed', () => ({ Proposed: ({ children, label }: { children: React.ReactNode; label: string }) => React.createElement('Proposed', { label }, children) }))
-vi.mock('@/components/ui/skeleton', () => ({
-  Skeleton: ({ label }: { label: string }) => React.createElement('Skeleton', { label }),
-}))
+vi.mock('@/components/ui/skeleton', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/skeleton')>()
+  return { Skeleton: (props: React.ComponentProps<typeof actual.Skeleton>) => mocks.realHistory ? <actual.Skeleton {...props} /> : React.createElement('Skeleton', { label: props.label }) }
+})
 vi.mock('@/components/ui/switch', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/components/ui/switch')>(),
   Switch: ({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) => React.createElement('Switch', { testID: label === 'habits.detail.slipAlert' ? 'slip-alert-switch' : label, checked, onChange }),
@@ -391,16 +396,20 @@ vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
   StatTile: ({ label, value }: { label: string; value: string }) => React.createElement('StatTile', { testID: `stat-${label}`, value }),
 }))
-vi.mock('@/components/dates/day-cell', () => ({
-  DayCell: ({ day, done, scheduled, outsideMonth, label }: { day: number; done?: number; scheduled?: number; outsideMonth: boolean; label: string }) => {
+vi.mock('@/components/dates/day-cell', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/dates/day-cell')>()
+  return { DayCell: (props: React.ComponentProps<typeof actual.DayCell>) => {
+    if (mocks.realHistory) return <actual.DayCell {...props} />
+    const { day, done, scheduled, outsideMonth, label } = props
     const outcome = scheduled === 0 ? 'not-scheduled' : done !== undefined && scheduled !== undefined && done >= scheduled ? 'full' : 'none'
     return React.createElement('DayCell', { testID: `history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`, outcome, accessibilityLabel: label })
-  },
-}))
+  } }
+})
 vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { size: number; days: string[] }) => React.createElement('DayStrip', { testID: 'detail-strip', size, dayCount: days.length, days }) }))
-vi.mock('@/components/dates/month-grid', () => ({
-  MonthGrid: ({ children, label, loadingLabel }: { children: React.ReactNode; label: string; loadingLabel?: string }) => React.createElement('MonthGrid', { label, loadingLabel }, children),
-}))
+vi.mock('@/components/dates/month-grid', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/dates/month-grid')>()
+  return { MonthGrid: (props: React.ComponentProps<typeof actual.MonthGrid>) => mocks.realHistory ? <actual.MonthGrid {...props} /> : React.createElement('MonthGrid', { label: props.label, loadingLabel: props.loadingLabel }, props.children) }
+})
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: (props: { goalId: string }) => React.createElement('View', { ...props, testID: 'read-goal' }) }))
 vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: () => null }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: ({ open }: { open: boolean }) => open ? React.createElement('CreateHabitModal', { testID: 'create-sub-habit' }) : null }))
@@ -476,6 +485,7 @@ describe('HabitDetailScreen', () => {
     offlineMocks.setOnline(false)
     mocks.detail = makeDetail()
     mocks.detailLoading = false
+    mocks.realHistory = false
     mocks.detailError = false
     mocks.allHabitsFallback = null
     mocks.allHabitsError = false
@@ -533,6 +543,16 @@ describe('HabitDetailScreen', () => {
   afterEach(() => {
     __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
     vi.useRealTimers()
+  })
+
+  it('renders repeat next time and Taken at in the owning detail screen', () => {
+    mocks.detail = { ...makeDetail(), repeatReminder: { intervalMinutes: 30 }, nextReminderAtUtc: '2026-10-29T04:00:00Z' }
+    mocks.logs = [{ id: 'dose-1', date: '2026-08-28', value: 1, createdAtUtc: '2026-08-28T02:00:00Z', takenAtUtc: '2026-08-28T02:00:00Z' }]
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(renderedText(tree!.toJSON())).toContain('habits.nextReminder')
+    expect(renderedText(tree!.toJSON())).toContain('habits.takenAt')
+    TestRenderer.act(() => tree.unmount())
   })
 
   it.each([false, true])('keeps the whole type below the full detail title, task: %s', (task) => {
@@ -1771,6 +1791,58 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findAllByProps({ title: 'habits.detail.schedule' })).toHaveLength(0)
   })
 
+  it.each([320, 412, 840])('retains every history branch and loading disc allocation at %ipx', (width) => {
+    mocks.realHistory = true
+    vi.setSystemTime(new Date(2026, 7, 12, 12))
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2025-01-01T12:00:00Z' }
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    const snapshots = []
+    for (const loading of [true, false]) {
+      mocks.detailLoading = loading
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+      if (!loading) {
+        const disclosure = tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.moreDetails'))!
+        TestRenderer.act(() => disclosure.props.onPress())
+      }
+      const boxes = measureDaySurface(tree.toJSON(), width)
+      const firstRow = boxes.find(box => box.testID === 'month-grid-row-0')!
+      const marks = boxes.filter(box => ['day-circle', 'day-history-numeral', 'skeleton-grid-shape'].includes(box.testID ?? ''))
+      expect(marks.length).toBeGreaterThanOrEqual(28)
+      if (!loading) {
+        expect(tree.root.findAllByProps({ testID: 'day-history-numeral' }).length).toBeGreaterThan(0)
+        expect(tree.root.findAllByProps({ testID: 'day-disc' }).length).toBeGreaterThan(0)
+      }
+      for (const mark of marks) {
+        const column = Math.round((mark.column.left - firstRow.left) / (mark.column.width + 4))
+        const allocation = Math.min(44, mark.column.width)
+        const expected = mark.column.left + (mark.column.width - allocation) / 2 + 17 + (allocation - 34) * column / 6
+        expect(mark.width).toBe(34); expect(mark.height).toBe(34)
+        expect(Math.abs(mark.centerX - expected), mark.testID).toBeLessThanOrEqual(0.5)
+      }
+      snapshots.push(marks.slice(0, 7).map(mark => ({ x: mark.centerX - firstRow.left, y: mark.centerY - firstRow.top })))
+      if (!loading) {
+        const previous = tree.root.findAllByType('PillButton').find((node: TestNode) => node.props.label === 'habits.detail.previousMonth')!
+        TestRenderer.act(() => { for (let month = 0; month < 13; month++) previous.props.onClick!() })
+        const older = measureDaySurface(tree.toJSON(), width)
+        const row = older.find(box => box.testID === 'month-grid-row-0')!
+        const unavailable = older.filter(box => box.testID === 'day-history-numeral')
+        expect(unavailable).toHaveLength(42)
+        for (const mark of unavailable) {
+          const column = Math.round((mark.column.left - row.left) / (mark.column.width + 4))
+          const allocation = Math.min(44, mark.column.width)
+          expect(mark.width).toBe(34); expect(mark.height).toBe(34)
+          expect(Math.abs(mark.centerX - mark.column.centerX - (allocation - 34) * (column / 6 - 0.5))).toBeLessThanOrEqual(0.5)
+        }
+      }
+      TestRenderer.act(() => tree.unmount())
+    }
+    for (const [index, before] of snapshots[0]!.entries()) {
+      expect(before.x).toBeCloseTo(snapshots[1]![index]!.x, 1)
+      expect(before.y).toBeCloseTo(snapshots[1]![index]!.y, 1)
+    }
+  })
+
   it.each([412, 840].flatMap((width) => [1, 2].map((scale) => ({ width, scale }))))('measures the full detail owner at $width and text scale $scale', ({ width, scale }) => {
     mocks.realListRows = true
     mocks.realPressTokens = true
@@ -1788,7 +1860,7 @@ describe('HabitDetailScreen', () => {
     expect(date).toBeDefined()
     for (const icon of icons) expect(icon.left).toBeCloseTo(date.left, 1)
     for (const body of geometry.parts.filter((part) => part.slot === 'list-row-body')) {
-      expect(body.left).toBeCloseTo(date.left - 12, 1)
+      expect(body.left).toBeCloseTo(date.left - 8, 1)
       expect(body.right).toBeLessThanOrEqual(width)
     }
     TestRenderer.act(() => tree.unmount())

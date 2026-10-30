@@ -1,3 +1,4 @@
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
@@ -121,12 +122,13 @@ describe('Hoje group spacing', () => {
         const bounds = element.getBoundingClientRect()
         const scroller = element.closest<HTMLElement>('[data-shell-scroller]')!
         const client = scroller.getBoundingClientRect()
+        const content = element.closest('[data-shell-page-content]')!.getBoundingClientRect()
         const style = getComputedStyle(element)
         const extent = Number.parseFloat(style.outlineWidth) + Number.parseFloat(style.outlineOffset)
         return {
           focused: element === document.activeElement && element.matches(':focus-visible'),
-          leftInset: bounds.left - client.left - scroller.clientLeft,
-          rightInset: client.left + scroller.clientLeft + scroller.clientWidth - bounds.right,
+          leftInset: bounds.left - content.left,
+          rightInset: content.right - bounds.right,
           ringInside: bounds.left - extent >= client.left + scroller.clientLeft
             && bounds.right + extent <= client.left + scroller.clientLeft + scroller.clientWidth
             && bounds.top - extent >= client.top + scroller.clientTop

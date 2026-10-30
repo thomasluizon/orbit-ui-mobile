@@ -15,6 +15,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en-US',
 }))
 
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
@@ -269,8 +270,8 @@ describe('MessageBubble', () => {
           role: 'ai',
           policyDenials: [
             {
-              operationId: 'habit.delete',
-              sourceName: 'Delete habit',
+              operationId: 'delete_habit',
+              sourceName: 'delete_habit',
               riskClass: 'Destructive',
               confirmationRequirement: 'FreshConfirmation',
               reason: 'Fresh confirmation required',

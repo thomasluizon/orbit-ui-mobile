@@ -38,7 +38,7 @@ it.each([320, 360, 384, 412].flatMap((width) => [
     tree = TestRenderer.create(<ProPitch profile={null} trialDaysLeft={null} t={t} tokens={createTokensV2('orange', 'dark')} />)
   })
   try {
-    const captions = tree.root.findAll((node) => node.type === 'Text' && node.props.children === messages.upgrade.convert.perDay)
+    const captions = tree.root.findAll((node) => node.type === 'Text' && [messages.upgrade.convert.perDay, messages.upgrade.convert.perWeek].includes(node.props.children ?? ''))
     expect(captions).toHaveLength(2)
     for (const caption of captions) {
       expect(caption.props.numberOfLines).toBeUndefined()

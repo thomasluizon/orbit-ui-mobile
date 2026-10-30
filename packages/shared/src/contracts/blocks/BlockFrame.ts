@@ -7,6 +7,7 @@ export type BlockFrameStatusLabels = Readonly<Record<BlockFrameItemStatus, strin
 
 export type BlockFrameItem = {
   readonly id: string
+  readonly groupHeading?: string
   readonly label: React.ReactNode
   readonly wrapLabel?: boolean
   readonly indented?: boolean
@@ -43,6 +44,7 @@ type BlockFrameItemEditArm =
 
 type BlockFrameCommon = {
   readonly title: string
+  readonly titleContent?: React.ReactNode
   readonly wrapTitle?: boolean
   readonly titleMode?: 'label' | 'typed'
   readonly focusTitleOnMount?: boolean

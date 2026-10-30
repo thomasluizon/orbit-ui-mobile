@@ -1,4 +1,7 @@
+import Animated from 'react-native-reanimated'
+import { ConversationChange, useConversationLayout } from '@/components/chat/conversation-motion'
 import { IconButton } from '@/components/ui/icon-button'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { ActionRow } from './action-row'
 
 import { SPACING, SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -12,7 +15,7 @@ import {
   PROPOSED_RADIUS,
   resolveBlockFrameRows,
 } from '@orbit/shared/contracts/blocks'
-import { useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, findNodeHandle, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import {
@@ -123,7 +126,7 @@ function FrameRowContent(props: FrameRowProps) {
 }
 
 function FrameRow(props: FrameRowProps) {
-  return <Proposed proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
+  return <Proposed appearance="plain" proposed={props.item.proposed === true} scope="row" label={props.proposedLabel ?? ''} keepMounted>
     <FrameRowContent {...props} />
     {props.item.body ? <View style={{ paddingHorizontal: SPACING.s12, paddingBottom: SPACING.s12 }}>{props.item.body}</View> : null}
   </Proposed>
@@ -161,17 +164,19 @@ function FrameRows({ frameProps, tokens }: Readonly<{
   }
 
   return resolveBlockFrameRows(frameProps, labels).map((rowProps) => (
-    <FrameRow
-      editLabel={rowProps.editLabel}
-      frameState={rowProps.frameState}
-      irreversibleLabel={rowProps.irreversibleLabel}
-      item={rowProps.item}
-      key={rowProps.item.id}
-      onEditItem={rowProps.onEditItem}
-      proposedLabel={rowProps.proposedLabel}
-      statusLabel={rowProps.statusLabel}
-      tokens={tokens}
-    />
+    <Fragment key={rowProps.item.id}>
+      {rowProps.item.groupHeading ? <Text accessibilityRole="header" style={[styles.groupHeading, { color: tokens.fg2 }]}>{rowProps.item.groupHeading}</Text> : null}
+      <FrameRow
+        editLabel={rowProps.editLabel}
+        frameState={rowProps.frameState}
+        irreversibleLabel={rowProps.irreversibleLabel}
+        item={rowProps.item}
+        onEditItem={rowProps.onEditItem}
+        proposedLabel={rowProps.proposedLabel}
+        statusLabel={rowProps.statusLabel}
+        tokens={tokens}
+      />
+    </Fragment>
   ))
 }
 
@@ -181,16 +186,8 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
   hasIrreversibleItem: boolean
   tokens: AppTokensV2
 }>) {
-  const { t } = useTranslation()
 
-  if (frameProps.state === 'stale') {
-    return (
-      <ActionRow>
-        {frameProps.onRefresh ? <IconButton label={frameProps.refreshLabel ?? t('blockFrame.refresh')} onClick={frameProps.onRefresh}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
-        {frameProps.staleActions}
-      </ActionRow>
-    )
-  }
+  if (frameProps.state === 'stale') return <StaleFrameFooter frameProps={frameProps} />
 
   if (!hasIrreversibleItem && (!canRenderActions || frameProps.actions == null)) return null
 
@@ -213,6 +210,17 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
   )
 }
 
+function StaleFrameFooter({ frameProps }: Readonly<{ frameProps: BlockFrameProps }>) {
+  const { t } = useTranslation()
+    if (!frameProps.onRefresh && !frameProps.staleActions) return null
+    return (
+      <ActionRow>
+        {frameProps.onRefresh ? <IconButton label={frameProps.refreshLabel ?? t('blockFrame.refresh')} onClick={frameProps.onRefresh}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
+        {frameProps.staleActions}
+      </ActionRow>
+    )
+}
+
 function FrameHeader({ props, tokens }: Readonly<{ props: Readonly<BlockFrameProps>; tokens: AppTokensV2 }>) {
   const [clamped, setClamped] = useState(false)
   const titleRef = useRef<Text>(null)
@@ -227,16 +235,22 @@ function FrameHeader({ props, tokens }: Readonly<{ props: Readonly<BlockFramePro
   }
   return (
       <View style={[styles.header, props.titleMode === 'typed' && { flexDirection: 'column', alignItems: 'stretch' }]}>
-        {props.titleMode === 'typed' ? <View onLayout={props.focusTitleOnMount ? focusTitle : undefined}><PersonalText onClampedChange={setClamped} accessibilityRef={personalTitleRef} accessibilityRole="header" style={[styles.title, { flex: 0, color: tokens.fg1 }]}>{props.title}</PersonalText></View> : <Text ref={titleRef} onLayout={props.focusTitleOnMount ? focusTitle : undefined} numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
-          {props.count !== null && (props.count !== undefined || props.items.length > 0) ? <Text style={[styles.count, { color: tokens.fg3 }]}>{props.count ?? props.items.length}</Text> : null}
-          {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly clamped={clamped}>{props.title}</PersonalTextDetails> : null}
-        </View>
+        <OrbitMark size={20} />
+        {props.titleContent ? <View accessibilityRole="header" style={{ flex: 1, minWidth: 0 }}>{props.titleContent}</View> : props.titleMode === 'typed' ? <View onLayout={props.focusTitleOnMount ? focusTitle : undefined}><PersonalText onClampedChange={setClamped} accessibilityRef={personalTitleRef} accessibilityRole="header" style={[styles.title, { flex: 0, color: tokens.fg1 }]}>{props.title}</PersonalText></View> : <Text ref={titleRef} onLayout={props.focusTitleOnMount ? focusTitle : undefined} numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>}
+        <FrameHeaderDetails props={props} tokens={tokens} clamped={clamped} />
       </View>
   )
 }
 
+function FrameHeaderDetails({ props, tokens, clamped }: Readonly<{ props: BlockFrameProps; tokens: AppTokensV2; clamped: boolean }>) {
+  return <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
+          {props.count !== null && (props.count !== undefined || props.items.length > 0) ? <Text style={[styles.count, { color: tokens.fg3 }]}>{props.count ?? props.items.length}</Text> : null}
+          {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly clamped={clamped}>{props.title}</PersonalTextDetails> : null}
+        </View>
+}
+
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
+  const layout = useConversationLayout()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { missingLabels, hasIrreversibleItem, canRenderActions } = resolveBlockFrameState(props)
@@ -246,7 +260,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
 
 
   return (
-    <View
+    <Animated.View layout={layout}
       style={[
         styles.frame,
         { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
@@ -255,6 +269,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       testID={`block-frame-${props.state}`}
     >
       <FrameHeader props={props} tokens={tokens} />
+      <ConversationChange changeKey={`${props.state}:${props.title}`} style={{ gap: 12, minHeight: 0, flexShrink: 1 }}>
       <Text accessibilityLiveRegion={props.items.length || props.state === 'stale' ? 'polite' : undefined} style={[styles.staleMessage, { color: tokens.fg2 }, props.state !== 'stale' && styles.hiddenMessage]}>
         {props.state === 'stale' ? props.staleMessage : ''}
       </Text>
@@ -284,7 +299,8 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
           />
         </>
       )}
-    </View>
+      </ConversationChange>
+    </Animated.View>
   )
 }
 
@@ -292,16 +308,17 @@ const styles = StyleSheet.create({
   frame: {
     maxHeight: '100%',
     minHeight: 0,
-    gap: 24,
+    gap: 12,
     borderRadius: PROPOSED_RADIUS.block,
     borderWidth: 1,
-    padding: SPACING.s24,
+    padding: SPACING.s16,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 16 },
   count: { fontFamily: 'Geist_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
   body: { flexShrink: 1, minHeight: 0 },
   rows: { gap: 8 },
+  groupHeading: { paddingHorizontal: SPACING.s12, paddingTop: SPACING.s16, fontFamily: 'Geist_500Medium', fontSize: 14 },
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, padding: SPACING.s12 },
   rowWords: { flex: 1, minWidth: 0 },
   rowLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },

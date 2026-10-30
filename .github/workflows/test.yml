@@ -175,7 +175,7 @@ jobs:
             test -s "apps/web/.artifacts/unit-tests/blobs/jsdom-${shard}.json"
             test -s "apps/web/.artifacts/unit-tests/timings/jsdom-${shard}.json"
           done
-          for shard in $(seq 1 8); do
+          for shard in $(seq 1 20); do
             test -s "apps/web/.artifacts/unit-tests/blobs/chromium-${shard}.json"
             test -s "apps/web/.artifacts/unit-tests/timings/chromium-${shard}.json"
           done
@@ -228,8 +228,8 @@ jobs:
       fail-fast: false
       matrix:
         project: [chromium]
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
-        total: [8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        total: [20]
         include:
           - project: jsdom
             shard: 1
@@ -247,7 +247,7 @@ jobs:
           cache: npm
       - run: npm ci
       # Partial runs collect coverage; Unit Tests applies the unchanged gate to their union.
-      # The slow shard measured 900.08 seconds in run 40121666845; file budgets protect the 15 minute step limit.
+      # Twenty shards keep measured test time below seven minutes, leaving setup and coverage headroom.
       - name: Run web shard with coverage
         timeout-minutes: 15
         working-directory: apps/web

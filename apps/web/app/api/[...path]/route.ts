@@ -36,6 +36,7 @@ const ALLOWED_PREFIXES = [
   'checklist-templates/',
   'sync/',
   'habits/',
+  'reminders/',
 ]
 
 const RETIRED_PROFILE_PATHS = new Set([
@@ -227,6 +228,9 @@ async function toNextResponse(
 }
 
 async function handleProxy(request: NextRequest, path: string) {
+  if (request.method === 'POST' && path.toLowerCase() === 'reminders/done') {
+    return toNextResponse(await proxyRequest(request, path, null))
+  }
   const session = await resolveServerSession()
   if (session.refreshFailed) {
     return NextResponse.json({ error: 'Unauthorized' }, {

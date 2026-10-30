@@ -47,6 +47,15 @@ describe('HabitEmojiSelector', () => {
     mockCloseSheet.mockClear()
   })
 
+  it('keeps the proposed emoji muted inside its well', () => {
+    const view = render(<HabitEmojiSelector selectedEmoji={firstEmoji} proposed onSelect={vi.fn()} />)
+    const well = screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }).querySelector('[data-emoji-well]')
+    expect(well).toHaveTextContent(firstEmoji)
+    expect(well).toHaveStyle({ color: 'var(--fg-3)' })
+    view.rerender(<HabitEmojiSelector selectedEmoji={firstEmoji} onSelect={vi.fn()} />)
+    expect(well).not.toHaveStyle({ color: 'var(--fg-3)' })
+  })
+
   it('marks a setup-proposed emoji beside the title', () => {
     const view = render(<UnderstandingWithEmoji resolved proposed />)
     const well = screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })

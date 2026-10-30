@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import * as Sentry from '@sentry/nextjs'
 import { getNotificationDestination, invalidateNotificationList } from '@orbit/shared/utils'
-import { proactiveKeys } from '@orbit/shared/query'
+import { habitKeys, proactiveKeys } from '@orbit/shared/query'
 import { NOTIFICATION_URL_PARAM, registerServiceWorker } from '@/lib/service-worker-registration'
 import { isDesktopPush } from '@/lib/desktop-runtime'
 import { useAccountId } from '@/lib/account-scope'
@@ -38,28 +39,34 @@ export function ServiceWorkerBridge(): null {
   const router = useRouter()
   const queryClient = useQueryClient()
   const accountId = useAccountId()
+  const language = useLocale()
 
   useEffect(() => {
     if (!isDesktopPush()) return
     let cancelled = false
     const resume = () => {
       void import('@/lib/desktop-push').then((module) => {
-        if (!cancelled) return module.resumeDesktopPush(accountId)
+        if (!cancelled) return module.resumeDesktopPush(accountId, language)
       }).catch((error: unknown) => Sentry.captureException(error))
     }
     resume()
     const interval = setInterval(resume, 60 * 60 * 1000)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [accountId])
+  }, [accountId, language])
 
   useEffect(() => {
     if (!isDesktopPush()) return
-    function receive() {
+    function receive(event: Event) {
+      if (event.type === 'orbit-desktop-reminder-done') void queryClient.invalidateQueries({ queryKey: habitKeys.all })
       void invalidateNotificationList(queryClient)
       void queryClient.invalidateQueries({ queryKey: proactiveKeys.current() })
     }
     window.addEventListener('orbit-desktop-push', receive)
-    return () => window.removeEventListener('orbit-desktop-push', receive)
+    window.addEventListener('orbit-desktop-reminder-done', receive)
+    return () => {
+      window.removeEventListener('orbit-desktop-push', receive)
+      window.removeEventListener('orbit-desktop-reminder-done', receive)
+    }
   }, [queryClient])
 
   useEffect(() => {
@@ -78,7 +85,8 @@ export function ServiceWorkerBridge(): null {
     function handleWorkerMessage(event: MessageEvent<unknown>) {
       const message = event.data
       if (typeof message !== 'object' || message === null || !('type' in message)) return
-      if (message.type === 'orbit:push-received') {
+      if (message.type === 'orbit:push-received' || message.type === 'orbit:reminder-done') {
+        if (message.type === 'orbit:reminder-done') void queryClient.invalidateQueries({ queryKey: habitKeys.all })
         void invalidateNotificationList(queryClient)
         void queryClient.invalidateQueries({ queryKey: proactiveKeys.current() })
       }

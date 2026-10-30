@@ -1,0 +1,81 @@
+{
+  "achievement": {
+    "tool": {
+      "name": "Getting momentum",
+      "description": "Complete 10 habits total",
+      "category": "Volume",
+      "rarity": "Common",
+      "xpReward": 25,
+      "iconKey": "[redacted]",
+      "isEarned": false,
+      "earnedAtUtc": null,
+      "progressCurrent": 7,
+      "progressTarget": 10
+    },
+    "rendered": {
+      "name": "Gaining momentum",
+      "description": "Complete 10 habits total",
+      "state": "Gaining momentum, not earned yet",
+      "progress": "7 of 10"
+    }
+  },
+  "featureHelp": {
+    "appSurfaces": [
+      {
+        "displayName": "Today",
+        "description": "Shows the current day's scheduled habits, AI summary, and progress status.",
+        "howToSteps": [
+          "Open Today.",
+          "Review scheduled habits and overdue items.",
+          "Log, skip, or inspect the day's tasks."
+        ],
+        "notes": [
+          "Uses timezone-aware dates from the backend.",
+          "General habits can be hidden locally on some clients."
+        ],
+        "relatedControllerActionKeys": [
+          "HabitsController.GetHabits",
+          "HabitsController.GetDailySummary"
+        ]
+      }
+    ],
+    "answer": "Choose a recurring schedule such as daily, every few days, weekly, monthly, or yearly. You can also limit it to specific weekdays, or set a flexible target of a certain number of c\nI can explain how the schedule works, but the available instructions do not show where to edit or set it in the app."
+  },
+  "rejectedCall": {
+    "name": "ask",
+    "arguments": {
+      "form": "question",
+      "question": null,
+      "title": null,
+      "multiSelect": null,
+      "allowFreeText": null,
+      "intro": null,
+      "progress": null,
+      "questions": [
+        {
+          "id": "clarify",
+          "type": "yesNo",
+          "prompt": "Confirma?",
+          "options": null,
+          "allowFreeText": false,
+          "lowLabel": null,
+          "highLabel": null,
+          "min": null,
+          "max": null,
+          "step": null,
+          "unit": null
+        }
+      ],
+      "options": null,
+      "action": null,
+      "items": null,
+      "orbit_read_complete": false
+    },
+    "resultStatus": "Failed",
+    "result": {
+      "success": false,
+      "error": "Account reads were still pending after ask. Reassess the original request using their results. Prepare every resolved change with its write tool; ask only for input that remains missing, after all other calls.",
+      "payload": null
+    }
+  }
+}

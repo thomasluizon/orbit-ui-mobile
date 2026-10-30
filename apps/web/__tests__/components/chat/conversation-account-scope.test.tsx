@@ -158,7 +158,9 @@ it('owns the feed padding and spacing between turns', () => {
   ]
   render(<AstraConversation chat={chat} />)
   const feed = screen.getByRole('feed')
-  expect(feed).toHaveStyle({ padding: '16px' })
+  expect(feed).toHaveStyle({ paddingTop: '16px', paddingBottom: '16px' })
+  expect(feed.style.paddingLeft).toBe('calc(16px + var(--shell-safe-left, 0px))')
+  expect(feed.style.paddingRight).toBe('calc(16px + var(--shell-safe-right, 0px))')
   expect(feed.firstElementChild).toHaveClass('gap-4')
   expect(feed.firstElementChild?.children).toHaveLength(2)
 })

@@ -578,7 +578,7 @@ function findButtonByName(
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetimePro: boolean) {
-  const leadingIcons = ['User', 'Crown', 'Settings', 'MessageCircle', 'Bell']
+  const leadingIcons = ['User', 'Crown', 'Settings', 'Svg', 'Bell']
   const contents = row.findAll((node: { type: unknown }) =>
     typeof node.type === 'string' && [...leadingIcons, 'Text', 'ChevronRight'].includes(node.type))
   const icons = contents.filter((node: { type: unknown }) => node.type !== 'Text')
@@ -587,6 +587,7 @@ function expectProfileRowIcons(row: ReactTestInstance, index: number, isLifetime
   expect(contents[0]!.type).toBe(leadingIcons[index])
   expect(contents[1]!.type).toBe('Text')
   expect(icons[0]!.props.size ?? icons[0]!.props.width).toBe(24)
+  if (index === 3) expect(icons[0]!.props).toMatchObject({ testID: 'astra-mark', color: createTokensV2('orange', 'dark').fg1, accessible: false })
   if (navigates) {
     expect(contents.at(-1)!.type).toBe('ChevronRight')
   }
@@ -975,7 +976,7 @@ describe('ProfileScreen', () => {
 
   it.each([
     ['account', ['profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
-    ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'profile.settingsRows.theme', 'settings.homeScreen.showGeneral']],
+    ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'settings.homeScreen.showGeneral']],
     ['astra', ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
     ['notifications', ['profile.settingsRows.remindersNote']],
   ] as const)('opens %s from Perfil and keeps its settings in that screen alone', async (destination, labels) => {
@@ -2258,7 +2259,7 @@ describe('ProfileScreen', () => {
       expect(mockRouterPush).not.toHaveBeenCalled()
     }
     expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'profile.settingsRows.theme').length).toBeGreaterThan(0)
+      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'profile.settingsRows.theme')).toHaveLength(0)
     const top = await renderProfileScreen()
     await TestRenderer.act(async () => {
       findRowByLabel(top, 'profile.support.rowTitle').props.onPress?.()
@@ -2287,18 +2288,15 @@ describe('ProfileScreen', () => {
     expect(mockRemoveAppStateListener).toHaveBeenCalledOnce()
   })
 
-  it('changes theme and general habits from their inline controls', async () => {
+  it('keeps theme selection out of preferences and changes general habits', async () => {
     const write = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
     try {
       const tree = await renderProfileSubscreen('preferences')
       await TestRenderer.act(async () => {
         tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
-          node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'preferences.themeModeLight' && typeof node.props.onPress === 'function').props.onPress()
-        tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
           node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'settings.homeScreen.showGeneral' && typeof node.props.onPress === 'function').props.onPress()
         await Promise.resolve()
       })
-      expect(mockApplyTheme).toHaveBeenCalledWith('light')
       expect(write).toHaveBeenCalledWith(expect.stringContaining('orbit_show_general_on_today'), 'true')
     } finally {
       write.mockRestore()
@@ -2461,7 +2459,7 @@ it('places the Perfil bell inside the page scroller and opens Avisos', async () 
   const tree = await renderProfileScreen()
   const scroller = tree.root.findByProps({ testID: 'profile-scroller' })
   const row = scroller.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'root-notification-header')[0]!
-  expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48, justifyContent: 'flex-end' })
+  expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 72, paddingBottom: 24, justifyContent: 'flex-end' })
   const bell = row.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]
   TestRenderer.act(() => bell.props.onPress())
   expect(mockRouterPush).toHaveBeenCalledWith('/notifications')

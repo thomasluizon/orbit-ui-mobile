@@ -10,7 +10,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { HabitRow } from '@/components/habits/habit-row'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -20,6 +20,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import en from '@orbit/shared/i18n/en.json'
 import { MoveParentOverlay } from '@/components/habits/habit-list/move-parent-overlay'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { NotificationDetailModal } from '@/components/navigation/notification-detail-modal'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { useUIStore } from '@/stores/ui-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -75,6 +78,18 @@ const habitMenuActionCases = [
 ] as const
 
 describe('Sheet', () => {
+  afterEach(() => vi.restoreAllMocks())
+  it('renders a fitting notification title as plain heading text without a tooltip or disclosure', () => {
+    const title = '1 novo evento do calendário'
+    render(<QueryClientProvider client={new QueryClient()}><NotificationDetailModal open
+      notification={createMockNotification({ title })} onOpenChange={vi.fn()}
+      onMarkAsRead={vi.fn()} onDelete={vi.fn()} /></QueryClientProvider>)
+    const heading = screen.getByRole('heading', { name: title })
+    expect(heading.querySelector('[title]')).toBeNull()
+    expect(screen.queryByRole('button', { name: title })).toBeNull()
+    expect(document.querySelector('.orbit-sheet-full-title')).toBeNull()
+  })
+
   it('keeps focus inside the real move dialog without undoing the current-parent scroll', async () => {
     const top = vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (this: HTMLElement) {
       return this.dataset.currentParent === 'true' ? 640 : 0
@@ -97,6 +112,7 @@ describe('Sheet', () => {
   })
 
   it('opens the complete typed title with one press and preserves the underlying sheet', async () => {
+    measureClampedPersonalText()
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
     const onClose = vi.fn()
     render(<Sheet title={title} titleMode="typed" onClose={onClose}><input aria-label="Draft" defaultValue="Keep this" /></Sheet>)
@@ -125,6 +141,7 @@ describe('Sheet', () => {
   })
 
   it('discloses a long personal API key name in the real revoke confirmation', async () => {
+    measureClampedPersonalText()
     keyActions.revoke.mockClear()
     render(<QueryClientProvider client={new QueryClient()}><ProfileApiKeys profile={createMockProfile({ hasProAccess: true })} unlocked /></QueryClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.revokeNamed' }))
@@ -141,6 +158,7 @@ describe('Sheet', () => {
   })
 
   it.each(habitMenuActionCases)('keeps %s reachable in a long habit menu at compact width and 200% text', async (label, actionName) => {
+    measureClampedPersonalText()
     vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const title = 'Read a chapter before bed '.repeat(8).slice(0, 200)
     expect(title).toHaveLength(200)
@@ -160,9 +178,8 @@ describe('Sheet', () => {
       dialog.style.fontSize = '200%'
       const heading = screen.getByRole('button', { name: title })
       const headingStyle = getComputedStyle(heading)
-      expect(headingStyle.flexGrow).toBe('1')
       expect(Number.parseFloat(headingStyle.minWidth)).toBe(0)
-      expect(headingStyle.width).toBe('100%')
+      expect(headingStyle.width).toBe('fit-content')
       expect(heading.firstElementChild).toHaveClass('line-clamp-2')
       const items = screen.getAllByRole('menuitem')
       expect(items).toHaveLength(labels.length)
@@ -275,7 +292,9 @@ describe('Sheet', () => {
     expect(document.querySelector('[data-shell-notice] > [role="status"]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     expect(undo).toHaveBeenCalledOnce()
-    expect(upper.querySelector('[data-kind]')).toBeNull()
+    expect(upper.querySelector('[data-kind]')?.closest('[aria-hidden="true"][inert]')).not.toBeNull()
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+    await waitFor(() => expect(upper.querySelector('[data-kind]')).toBeNull())
   })
   it('uses an accessible title without showing a visible heading', () => {
     render(<Sheet open accessibleTitle="Reschedule with AI"><p>Plan</p></Sheet>)

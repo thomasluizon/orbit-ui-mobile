@@ -298,7 +298,9 @@ describe('CommandPalette', () => {
     expect(reloadButton).toHaveFocus()
     await user.keyboard('{Enter}')
     expect(reload).toHaveBeenCalledOnce()
-    expect(palette.querySelector('[data-kind]')).toBeNull()
+    expect(palette.querySelector('[data-kind]')?.closest('[aria-hidden="true"][inert]')).not.toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reload' })).toBeNull()
+    await waitFor(() => expect(palette.querySelector('[data-kind]')).toBeNull())
     expect(screen.getByRole('dialog', { name: 'command.title' })).toBeInTheDocument()
   })
 

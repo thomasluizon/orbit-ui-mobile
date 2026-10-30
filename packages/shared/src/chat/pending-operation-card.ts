@@ -1,13 +1,21 @@
-import type { PendingAgentOperation, PendingOperationChange } from '../types/ai'
+import type { HabitPlacement, PendingAgentOperation, PendingOperationChange, PendingOperationPlacement } from '../types/ai'
 import { PENDING_OPERATION_WEEKDAYS, PREVIEW_ACTION_KEYS, summarizePendingOperationItem } from './pending-operation-item-summary'
 import { getAgentCapabilityActionLabelKey, getAgentCapabilityLabelKey } from '../utils/agent-pending-operation'
+import type { PendingOperationItemGroupType } from './pending-operation-item-groups'
 
 export { PENDING_OPERATION_WEEKDAYS } from './pending-operation-item-summary'
 export const PENDING_OPERATION_ITEM_SEARCH_THRESHOLD = 8
 
 export interface PendingOperationCardLabels {
+  itemGroup: (habitType: PendingOperationItemGroupType) => string
+  placementGroup: (name: string) => string
+  placementOption: (value: HabitPlacement, destination: string) => string
+  placementRecommended: string
+  placementRecommendation: (placement: PendingOperationPlacement) => string
+  placementChecklistNote: string
   formatTime: (value: string) => string
   approve: (count: number) => string
+  approveName?: (count: number) => string
   parentChoiceRequired: string
   noParent: string
   acting: string
@@ -94,13 +102,27 @@ const DELETION_SUBJECTS: Readonly<Record<string, string>> = {
   'checklist-templates.write': 'templates',
 }
 
+function pendingOperationTitle(
+  operation: PendingAgentOperation,
+  createsHabits: boolean,
+  translate: (key: string, values?: Record<string, string | number>) => string,
+): string {
+  const count = operation.changeTargetCount ?? operation.items?.length ?? 1
+  if (createsHabits) return translate('chat.operation.newHabits', { count })
+  if (['updateHabit', 'updateHabits'].includes(operation.actionKey ?? '') && operation.items?.length === 1) {
+    return translate('chat.operation.editHabit', { name: operation.items[0]!.entityName })
+  }
+  if (operation.capabilityId === 'habits.bulk.write') return translate('chat.operation.changeHabits', { count })
+  return translate(getAgentCapabilityLabelKey(operation.capabilityId) ?? 'chat.operation.unknown')
+}
+
 export function buildPendingOperationCardLabels(
   pendingOperation: PendingAgentOperation,
   translate: (key: string, values?: Record<string, string | number>) => string,
   formatTime: (value: string) => string,
   locale = 'en',
+  today?: string,
 ): PendingOperationCardLabels {
-  const capabilityKey = getAgentCapabilityLabelKey(pendingOperation.capabilityId)
   const hasMixedDeletion = pendingOperation.items?.some((item) => item.removesData === true)
     && pendingOperation.items.some((item) => item.removesData !== true)
   const actionKey = pendingOperation.actionKey
@@ -119,10 +141,21 @@ export function buildPendingOperationCardLabels(
       ? `chat.operation.source.${actionKey}`
       : getAgentCapabilityActionLabelKey(pendingOperation.capabilityId) ?? 'chat.pendingOp.action.applyChanges')
   return {
+    itemGroup: (habitType) => translate(`chat.preview.itemGroup.${habitType}`),
+    placementGroup: (name) => translate('chat.placement.group', { name }),
+    placementOption: (value, name) => translate(`chat.placement.option.${value}`, { name }),
+    placementRecommended: translate('chat.placement.recommended'),
+    placementRecommendation: (placement) => `${translate('chat.placement.recommendation', {
+      placement: translate(`chat.placement.option.${placement.recommended}`, { name: placement.destinationName }),
+    })} ${placement.reason[locale.startsWith('pt') ? 'pt-BR' : 'en']}`,
+    placementChecklistNote: translate('chat.placement.checklistNote'),
     formatTime,
-    approve: (count) => hasMixedDeletion ? translate('chat.pendingOp.action.applyChanges')
+    approve: (count) => createsHabits ? translate('chat.operation.create')
+      : ['updateHabit', 'updateHabits'].includes(actionKey ?? '') ? translate('common.save')
+      : hasMixedDeletion ? translate('chat.pendingOp.action.applyChanges')
       : actionKey && COUNTED_ACTIONS.includes(actionKey)
         ? translate(`chat.operation.approveCount.${actionKey}`, { count }) : actionLabel,
+    approveName: (count) => hasMixedDeletion ? translate('chat.pendingOp.action.applyChanges') : actionKey && COUNTED_ACTIONS.includes(actionKey) ? translate(`chat.operation.approveCount.${actionKey}`, { count }) : actionLabel,
     parentChoiceRequired: translate('chat.operation.parentChoiceRequired'),
     noParent: translate('habits.moveParent.toRoot'),
     acting: translate('blockFrame.status.acting'),
@@ -137,7 +170,7 @@ export function buildPendingOperationCardLabels(
     summarize: (fields, summaryActionKey = actionKey ?? undefined) => {
       const outcome = getToggleOutcome(actionKey, fields)
       return outcome ? translate(`chat.operation.toggleSource.${actionKey}.${outcome}`)
-        : summarizePendingOperationItem(fields, translate, formatTime, locale, summaryActionKey)
+        : summarizePendingOperationItem(fields, translate, formatTime, locale, summaryActionKey, today)
     },
     save: translate('common.save'),
     search: translate('common.search'),
@@ -172,8 +205,7 @@ export function buildPendingOperationCardLabels(
       ? translate(`chat.operation.deleteTitle.${deletionSubject}`, { count })
       : translate('chat.operation.confirmActionTitle', { action: confirm }),
     irreversible: translate('chat.operation.irreversible'),
-    name: createsHabits ? translate('chat.operation.newHabits', { count: pendingOperation.changeTargetCount ?? pendingOperation.items?.length ?? 1 })
-      : translate(capabilityKey ?? 'chat.operation.unknown'),
+    name: pendingOperationTitle(pendingOperation, createsHabits, translate),
     pending: translate('chat.operation.pending'),
     pendingTitle: translate('chat.operation.pendingTitle'),
     proposed: translate('chat.preview.proposed'),
@@ -189,4 +221,8 @@ export function buildPendingOperationCardLabels(
     stepUpAction: translate('chat.operation.stepUpAction'),
     stepUpMessage: translate('chat.operation.stepUpMessage'),
   }
+}
+
+export function formatPreviewMeta(meta: string): string {
+  return meta.split(' · ').map(token => token.replace(/ /g, '\u00a0')).join(' · ')
 }

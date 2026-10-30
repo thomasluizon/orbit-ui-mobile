@@ -18,6 +18,7 @@ describe('buildChatClientContext', () => {
       platform,
       timeFormat: '24h',
       supportsHabitListCard: true,
+      supportsSkippedHabitRows: true,
       supportsPendingOperationChanges: true,
       supportsParts: true,
       supportsMessageAllowance: true,
@@ -32,6 +33,7 @@ describe('buildChatClientContext', () => {
     expect(context.timeFormat).toBe('12h')
     expect(context).not.toHaveProperty('messageOrigin')
     expect(context).not.toHaveProperty('entryPointIntent')
+    expect(context).not.toHaveProperty('previousStartingStep')
   })
 
   it('uses a 12-hour profile even in a 24-hour locale', () => {

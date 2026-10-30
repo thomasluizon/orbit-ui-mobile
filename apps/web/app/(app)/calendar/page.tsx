@@ -5,7 +5,7 @@ import { PADDING, } from '@orbit/shared/theme'
 import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
 import { buildCalendarHeaderState, resolveCalendarProfileSettings, calendarDayLoadingLabel, calendarStatState, type CalendarProfile } from '@orbit/shared/utils/calendar-navigation'
 
-import { PersonalText } from '@/components/ui/personal-text'
+import { useOpenHabit } from '@/hooks/use-open-habit'
 
 import { useCalendars } from '@/hooks/use-calendars'
 
@@ -79,6 +79,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useToday } from '../today-provider'
+import { useAccountClockSeed } from '@/lib/account-clock'
 import { CalendarOptions } from './_components/calendar-options'
 import {
   CalendarHeader,
@@ -241,7 +242,9 @@ function CalendarPageContent({
   const locale = useLocale()
   const dateFnsLocale = calendarDateFnsLocale(locale)
   const { displayTime } = useTimeFormat()
-  const { weekStartsOn, hasProAccess, timeZone, autoSyncState } = resolveCalendarProfileSettings(profile)
+  const accountClockSeed = useAccountClockSeed()
+  const { weekStartsOn, hasProAccess, autoSyncState } = resolveCalendarProfileSettings(profile)
+  const timeZone = (profile ?? accountClockSeed)?.timeZone ?? null
   const isWideDesktop = useIsWideDesktop()
   const todayKey = useToday(profile?.timeZone)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
@@ -256,7 +259,7 @@ function CalendarPageContent({
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
   const [isDayDetailOpen, setIsDayDetailOpen] = useAccountScopedState(false)
   const [isEventsOpen, setIsEventsOpen] = useAccountScopedState(false)
-  const [expandedHabitTitle, setExpandedHabitTitle] = useAccountScopedState<string | null>(null)
+  const openHabit = useOpenHabit()
   const disclosedWeekDay = view === 'week' ? selectedDay : null
   const openGoogleCalendar = () => {
     openImport(null)
@@ -621,7 +624,7 @@ function CalendarPageContent({
   const pageLayout = calendarPageLayout(view, Boolean(profile), Boolean(profileError), Boolean(activeError), calendarHeader)
 
   return (
-    <div {...pageLayout.viewportProps} className={pageLayout.pageClass}>
+    <div {...pageLayout.viewportProps} data-calendar-page="" className={pageLayout.pageClass}>
       <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
       <div className={pageLayout.contentClass}>
         <CalendarOptions onGoogleCalendar={profile ? openGoogleCalendar : undefined} />
@@ -744,7 +747,7 @@ function CalendarPageContent({
           onReconnectCalendarEvents={() => openImport(null)}
           onOpenCalendarImport={openImport}
           onOpenEvents={() => openDayDisclosure(() => setIsEventsOpen(true))}
-          onOpenHabitTitle={(title) => openDayDisclosure(() => setExpandedHabitTitle(title))}
+          onOpenHabit={(id) => openDayDisclosure(() => openHabit(id, selectedDay))}
           onViewPro={openOrbitPro}
           loggable={selectedDayLoggable}
           showRecurring={showRecurring}
@@ -753,7 +756,6 @@ function CalendarPageContent({
         />
       </Sheet>) : null}
       {disclosedWeekDay ? <CalendarDayEvents key={disclosedWeekDay} sheetOnly open={isEventsOpen} onClose={() => setIsEventsOpen(false)} calendarEvents={selectedCalendarEvents} showEventSource={showEventSource} onOpenImport={openImport} /> : null}
-      <ExpandedHabitTitleSheet title={expandedHabitTitle} onClose={() => setExpandedHabitTitle(null)} />
       {showImportSheet ? <Sheet
         ref={importSheetRef}
         open
@@ -777,10 +779,3 @@ function CalendarPageContent({
   )
 }
 
-function ExpandedHabitTitleSheet({ title, onClose }: Readonly<{ title: string | null; onClose: () => void }>) {
-  const t = useTranslations()
-  if (!title) return null
-  return <Sheet open title={t('habits.form.title')} onClose={onClose}>
-    <PersonalText expanded className="text-base text-[var(--fg-1)]">{title}</PersonalText>
-  </Sheet>
-}

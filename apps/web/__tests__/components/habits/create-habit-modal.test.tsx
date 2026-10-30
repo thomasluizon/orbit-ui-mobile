@@ -1,3 +1,4 @@
+import { habitSuggestionDraftFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { appConfigSchema } from '@orbit/shared/types/config'
 import type { ActiveView } from '@orbit/shared/stores'
 import en from '@orbit/shared/i18n/en.json'
@@ -383,6 +384,11 @@ describe('CreateHabitModal', () => {
       slipAlertEnabled: false,
       checklistItems: [],
     })
+  })
+
+  it('opens a suggestion with its complete type, schedule and checklist prefilled', async () => {
+    renderWithProviders(<CreateHabitModal open initialSuggestion={habitSuggestionDraftFixture} onOpenChange={vi.fn()} />)
+    await waitFor(() => expect(mockFormReset).toHaveBeenCalledWith(expect.objectContaining({ title: 'Read', itemType: 'habit', emoji: '📖', dueTime: '22:00', dueEndTime: '22:15', checklistItems: [{ text: 'Choose a book', isChecked: false }, { text: 'Read a page', isChecked: false }] })))
   })
 
   it('renders the pushed creation header and back control', () => {

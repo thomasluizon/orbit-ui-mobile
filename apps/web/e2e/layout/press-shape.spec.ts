@@ -67,11 +67,12 @@ for (const width of [412, 1280] as const) {
       await expectHoverOnHitArea(conversation.getByRole('group', { name: ptBr.shell.composer.suggestionsLabel }).getByRole('button').first(), 'pill')
       const conversationField = conversation.locator('[data-composer-input]')
       await expect(conversationField).toBeFocused()
+      await expectHoverOnHitArea(conversation.getByRole('button', { name: ptBr.shell.composer.voice.start, exact: true }), 'pill')
       await conversationField.fill('Como começo?')
       await expectHoverOnHitArea(conversation.getByRole('button', { name: ptBr.shell.composer.send, exact: true }), 'pill')
       await conversation.getByRole('button', { name: ptBr.shell.composer.actions }).click()
       const menu = page.getByRole('menu', { name: ptBr.shell.composer.actions, exact: true })
-      for (const label of [ptBr.shell.composer.attach.file, ptBr.shell.composer.attach.image, ptBr.shell.composer.voice.start]) {
+      for (const label of [ptBr.shell.composer.attach.file, ptBr.shell.composer.attach.image]) {
         await expectHoverOnHitArea(menu.getByRole('menuitem', { name: label, exact: true }), 12)
       }
       await page.keyboard.press('Escape')
@@ -95,7 +96,7 @@ for (const width of [412, 1280] as const) {
       await expectFullTouchTarget(page.locator('a[href^="/upgrade"]').filter({ hasText: ptBr.profile.allowance.seePro }).first(), 'pill')
       await expectHoverOnHitArea(page.locator('.orbit-list-row-body').first(), 12)
       await page.goto('/upgrade')
-      await expectHoverOnHitArea(page.locator('.orbit-pill-action:enabled').first(), 'pill')
+      await expectHoverOnHitArea(page.locator('.orbit-pill-action:enabled').filter({ visible: true }).first(), 'pill')
       await context.route(`${LAYOUT_ORIGIN}${buildRecapRequestUrl('week')}`,
         (route) => route.fulfill({ json: recapResponseSchema.parse(createMockRecap()) }))
       await page.goto('/wrapped')

@@ -1,3 +1,4 @@
+import { ShellContent } from '@/components/shell/shell-content'
 import { SPACING } from '@orbit/shared/theme'
 import { unmappedBackendFormError } from '@orbit/shared/hooks'
 import { extractBackendFieldErrors, getBackendFieldError } from '@orbit/shared/utils'
@@ -381,7 +382,7 @@ export default function SupportScreen() {
         title={t('profile.support.title')}
         backLabel={backLabel}
       />
-      <KeyboardAwareScrollView
+      <ShellContent style={{ flex: 1 }}><KeyboardAwareScrollView
         avoidKeyboard={false}
         style={styles.container}
         containerStyle={styles.container}
@@ -435,7 +436,7 @@ export default function SupportScreen() {
             }}
           />
         )}
-      </KeyboardAwareScrollView>
+      </KeyboardAwareScrollView></ShellContent>
     </SafeAreaView>
   )
 }

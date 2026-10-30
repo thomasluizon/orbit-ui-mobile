@@ -1,6 +1,6 @@
 # Astra Ideas composition
 
-Active bounded amendment for #1611. This drawing replaces the text-only Ideas amendment.
+Active bounded amendment for #1611 and #1825. This drawing replaces the text-only Ideas amendment.
 DESIGN.md Information architecture and Bans retain precedence. The conversation drawing retains
 its authority outside this library.
 
@@ -10,16 +10,16 @@ its authority outside this library.
 conversation column, centred, maximum 740
 ┌──────────────────────────────────────────────┐
 │ Back to conversation          Ideas          │ AppBar, heading focus
-│ Search ideas                                 │ visible persistent label
-│ [Start]  Remember  Batch  Restart  Understand… │ one independent scroll strip
+│ [Search ideas                              ] │ shared search field, 54 minimum
+│ [Start]  Remember  Batch  Restart  Understand… │ one scroll strip, visible scrollbar
 ├──────────────────────────────────────────────┤
 │ For you now                                  │ only supplied live suggestions
-│   supplied icon  supplied label              │ unframed single target
-│   Astra glyph                                │ current request callback
+│ ┌──────────────────────────────────────────┐ │ same neutral card
+│ │ supplied icon  supplied label             │ │ supplied icon only
+│ └──────────────────────────────────────────┘ │ current request callback
 │                                              │ 24 between groups
 │ ┌──────────────────────────────────────────┐ │ 16 screen gutter
 │ │ Sun  Plan my morning                      │ │ inline 24 icon, 12 text gap
-│ │ Astra glyph                              │ │ plain attribution, 12 above
 │ └──────────────────────────────────────────┘ │ radius 20 neutral card
 │                                              │ 12 between cards
 │ ┌──────────────────────────────────────────┐ │ 16 record inset
@@ -41,10 +41,12 @@ is optional only after every title fits both locales at its resulting allocation
 column is introduced by this amendment.
 
 The sole result scroller contains the live group, category regions and paging. Back, search and
-the category strip remain outside it. Each catalog card is one button with no nested CTA, group
+the category strip remain outside it. The Ideas heading uses the sans h2 role. Search reuses the
+shared Input with its action placeholder and accessible name, without a separate visible label.
+The strip keeps a visible horizontal scrollbar so its overflow is discoverable. Each catalog card is one button with no nested CTA, group
 panel, icon tile, separator, decorative mark or accent. Its neutral fill swaps across the complete
 radius-20 shape on interaction; one inset focus perimeter stays clear of content. Targets are at
-least 48. Supplied live icons remain intact; absent icons use one neutral Lightbulb. Functional
+least 48. Supplied live intent icons remain intact; absent icons leave the title its full width. Functional
 icons are hidden from assistive technology beside their action label.
 
 ## Content and intent
@@ -57,9 +59,8 @@ normal ICU translation result. Localized braced slot words receive quiet neutral
 selection still receives the exact original translated prompt and its original slot offsets.
 Empty example content adds no line or gap.
 
-Complete prompts and the current live producer invoke Astra through their existing owners, so
-one plain 20px glyph identifies her within the action without repeating the brand name. Slots only
-prepare input and carry no request attribution. This composition changes no allowance, request,
+Complete prompts and the current live producer invoke Astra through their existing owners. Rows
+carry no repeated Astra glyph. Slots only prepare input. This composition changes no allowance, request,
 preview or confirmation policy.
 
 ## State compositions

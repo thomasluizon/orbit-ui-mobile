@@ -23,6 +23,7 @@ export function errorRetryAfter(error: unknown): number | null {
 
 export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
   if (isPayGateError(error)) return false
+  if (extractBackendErrorCode(error) === 'STALE_WEB_BUILD') return false
   const status = extractBackendStatus(error)
   if (status === 401) return false
   if (status === 429 || isUpstreamStarting(error)) {

@@ -59,6 +59,7 @@ const mocks = vi.hoisted(() => ({
   focus: vi.fn(),
   getStoredReferralCode: vi.fn(),
   getStoredAuthReturnUrl: vi.fn(),
+  storeAuthReturnUrl: vi.fn(),
   createAuthReturnUrlAttempt: vi.fn(),
   isAuthReturnUrlAttemptCurrent: vi.fn(),
   consumeStoredAuthReturnUrl: vi.fn(),
@@ -119,7 +120,7 @@ vi.mock('@/lib/auth-flow', async (importOriginal) => ({
   getStoredReferralCode: mocks.getStoredReferralCode,
   isSafeReturnUrl: () => true,
   isValidReferralCode: () => false,
-  storeAuthReturnUrl: vi.fn(),
+  storeAuthReturnUrl: mocks.storeAuthReturnUrl,
   storeReferralCode: vi.fn(),
 }))
 
@@ -311,6 +312,13 @@ it.each(['before', 'during'])('does not replay a mobile code completed %s an off
 })
 
 describe('useLoginFlow (mobile)', () => {
+  it('stores a validated explicit return URL when login opens before a code is submitted', async () => {
+    mocks.params = { returnUrl: '/calendar', ref: 'REF123' }
+    await renderLoginFlow()
+    expect(mocks.storeAuthReturnUrl).toHaveBeenCalledWith('/calendar', 1)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
   it('does not replace a callback attempt when LoginContent mounts without a return URL', async () => {
     await act(() => { TestRenderer.create(React.createElement(LoginContent,
       { callback: { state: 'pending', onContinue: () => {} } })) })

@@ -34,7 +34,9 @@ vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'orange', currentTheme: themeMock.currentTheme }),
 }))
 
-vi.mock('@/lib/motion', () => ({
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/motion')>(),
+  getPrefersReducedMotion: () => Promise.resolve(true),
   usePrefersReducedMotion: () => true,
   useResolvedMotionPreset: () => ({
     enterDuration: 0,

@@ -67,6 +67,7 @@ export type UserDataCatalogEntry = z.infer<typeof userDataCatalogEntrySchema>
 export const pendingOperationChangeSchema = z.object({
   entityId: z.string(),
   entityName: z.string(),
+  entityEmoji: z.string().nullish(),
   field: z.string(),
   oldValue: z.string().nullable(),
   newValue: z.string().nullable(),
@@ -89,14 +90,31 @@ export const pendingOperationFieldOptionsSchema = z.object({
 })
 export type PendingOperationFieldOptions = z.infer<typeof pendingOperationFieldOptionsSchema>
 
+export const habitPlacementSchema = z.enum(['sub_habit', 'checklist_item', 'new_parent'])
+export type HabitPlacement = z.infer<typeof habitPlacementSchema>
+
+export const pendingOperationPlacementSchema = z.object({
+  selected: habitPlacementSchema,
+  recommended: habitPlacementSchema,
+  reasonKey: z.string(),
+  reason: z.object({ en: z.string(), 'pt-BR': z.string() }),
+  alternatives: z.array(habitPlacementSchema),
+  destinationId: z.uuid(),
+  destinationName: z.string(),
+})
+export type PendingOperationPlacement = z.infer<typeof pendingOperationPlacementSchema>
+
 export const pendingOperationItemSchema = z.object({
   itemId: z.string(),
   entityId: z.string().nullable(),
   entityName: z.string(),
+  entityEmoji: z.string().nullish(),
+  habitType: z.string().nullish(),
   fields: z.array(pendingOperationChangeSchema),
   stateFingerprint: z.string(),
   removesData: z.boolean().nullable().optional(),
   fieldOptions: z.array(pendingOperationFieldOptionsSchema).nullable().optional(),
+  placement: pendingOperationPlacementSchema.nullish(),
 })
 export type PendingOperationItem = z.infer<typeof pendingOperationItemSchema>
 
@@ -111,12 +129,14 @@ export type PendingOperationChangePreview = z.infer<typeof pendingOperationChang
 export const revisedPendingOperationItemSchema = z.object({
   itemId: z.string(),
   edits: z.record(z.string(), z.unknown()).nullable().optional(),
+  placement: habitPlacementSchema.nullish(),
 })
 export type RevisedPendingOperationItem = z.infer<typeof revisedPendingOperationItemSchema>
 
 export const revisePendingOperationRequestSchema = z.object({
   previewFingerprint: z.string(),
   items: z.array(revisedPendingOperationItemSchema),
+  clientContext: z.record(z.string(), z.unknown()).nullish(),
 })
 export type RevisePendingOperationRequest = z.infer<typeof revisePendingOperationRequestSchema>
 
@@ -183,6 +203,7 @@ export const agentOperationResultSchema = z.object({
   policyReason: z.string().nullable().optional(),
   pendingOperationId: z.string().nullable().optional(),
   payload: z.unknown().nullable().optional(),
+  access: z.enum(['read', 'write']).optional(),
 })
 export type AgentOperationResult = z.infer<typeof agentOperationResultSchema>
 

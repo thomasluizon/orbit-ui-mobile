@@ -1,5 +1,6 @@
 import type { ChatMessage } from '../types/chat'
 import { coalesceAgentOperationOutcomes, type AgentOperationOutcome } from '../utils/agent-operation-outcomes'
+import { getAgentOperationLabelKey } from '../utils/agent-pending-operation'
 
 export interface MessageOperationBlocks {
   actions: NonNullable<ChatMessage['actions']>
@@ -12,9 +13,11 @@ function sameOperation(actionType: string, sourceName: string): boolean {
 
 export function selectMessageOperationBlocks(message: ChatMessage): MessageOperationBlocks {
   const operations = [...new Map((message.operations ?? []).map((operation, index) => [operation.pendingOperationId ?? index, operation])).values()]
-  const outcomes = coalesceAgentOperationOutcomes(operations, message.policyDenials ?? [])
+  const failures = coalesceAgentOperationOutcomes(operations, message.policyDenials ?? [])
     .filter((outcome) => outcome.status === 'Failed' || outcome.status === 'Denied' || outcome.status === 'UnsupportedByPolicy')
-  const representedFailures = [...outcomes]
+  const outcomes = failures.filter(outcome => outcome.access !== 'read'
+    && (outcome.target || getAgentOperationLabelKey(outcome.source)))
+  const representedFailures = [...failures]
   const sourceActions = message.actions ?? []
   const hiddenActionIndexes = new Set<number>()
   for (const operation of operations) {

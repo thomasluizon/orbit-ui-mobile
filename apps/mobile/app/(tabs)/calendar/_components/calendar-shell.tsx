@@ -9,6 +9,7 @@ import { ChevronDown, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { YearPicker } from '@/components/ui/year-picker'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { ThemedIconButton } from '@/components/ui/icon-button'
 import { formatCalendarMonthHeading, formatLocaleDate } from '@orbit/shared/utils'
 
 type Tokens = ReturnType<typeof createTokensV2>
@@ -22,11 +23,11 @@ function CalendarTitleControl({ tokens, compact = false, insetPaint = false, ...
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const styles = createStyles(tokens)
-  return <Pressable {...props} accessibilityRole="button" focusOffset={insetPaint ? -6 : -4}
+  return <Pressable {...props} accessibilityRole="button" focusOffset={insetPaint ? -2 : -4} hitSlop={insetPaint ? { left: 8, right: 8, top: 0, bottom: 0 } : undefined}
     onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
     onFocus={(event) => { if (event.target === event.currentTarget) setFocused(true) }}
     onBlur={(event) => { if (event.target === event.currentTarget) setFocused(false) }}
-    style={({ pressed }) => [styles.titleButton, compact && styles.monthTitleButton, !insetPaint && !props.accessibilityState?.disabled && (pressed || hovered || focused) && styles.pressed]}>
+    style={({ pressed }) => [styles.titleButton, compact && styles.monthTitleButton, insetPaint && styles.pickerButton, !insetPaint && !props.accessibilityState?.disabled && (pressed || hovered || focused) && styles.pressed]}>
     {(state) => <>{insetPaint ? <View pointerEvents="none" accessible={false} data-press-fill="" style={[styles.pickerPaint, !props.accessibilityState?.disabled && (state.pressed || hovered || focused) && styles.pressed]} /> : null}{typeof props.children === 'function' ? props.children(state) : props.children}</>}
   </Pressable>
 }
@@ -59,9 +60,9 @@ export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false
   const returnToToday = () => { if (!isTodaySelected) (period?.onCurrent ?? onCurrentMonth)() }
   const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
   return <View testID="calendar-header-group" style={styles.header}>
-    <View testID={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} style={[styles.navigation, !period && styles.monthNavigation]}>
-      <Pressable focusOffset={-6} accessibilityRole="button" accessibilityLabel={period?.previousLabel ?? previousMonthLabel} onPress={period?.onPrevious ?? onPreviousMonth} style={styles.iconButton}>{({ pressed, focused }) => <><View pointerEvents="none" accessible={false} data-press-fill="" style={[styles.iconPaint, (pressed || focused) && styles.pressed]} /><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></>}</Pressable>
-      <View style={styles.monthTitleGroup}>
+    <View testID={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} style={styles.navigation}>
+      <ThemedIconButton tokens={tokens} borderless={false} label={period?.previousLabel ?? previousMonthLabel} onPress={period?.onPrevious ?? onPreviousMonth}><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></ThemedIconButton>
+      <View style={[styles.monthTitleGroup, !period && styles.monthPickerGroup]}>
         <CalendarTitleControl tokens={tokens} compact={!period}
           accessibilityLabel={period ? t('calendar.period.goToCurrent', { period: period.label }) : `${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('dates.goToToday')}`}
           accessibilityState={{ disabled: isTodaySelected }} onPress={returnToToday}>
@@ -71,7 +72,7 @@ export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false
           <ChevronDown size={16} color={tokens.fg2} strokeWidth={2} />
         </CalendarTitleControl> : null}
       </View>
-      <Pressable focusOffset={-6} accessibilityRole="button" accessibilityLabel={period?.nextLabel ?? nextMonthLabel} onPress={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled} accessibilityState={{ disabled: period?.nextDisabled }} style={[styles.iconButton, period?.nextDisabled && { opacity: 0.4 }]}>{({ pressed, focused }) => <><View pointerEvents="none" accessible={false} data-press-fill="" style={[styles.iconPaint, !period?.nextDisabled && (pressed || focused) && styles.pressed]} /><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></>}</Pressable>
+      <ThemedIconButton tokens={tokens} borderless={false} label={period?.nextLabel ?? nextMonthLabel} onPress={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></ThemedIconButton>
     </View>
     {viewSelector}
     {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
@@ -105,11 +106,10 @@ export function CalendarLegend({ loggableLabel, fullLabel, partialLabel, noneLab
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     header: { gap: 16, paddingHorizontal: SPACING.s16, paddingTop: SPACING.s12, paddingBottom: SPACING.s24 },
-    navigation: { minHeight: 48, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
-    iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-    iconPaint: { position: 'absolute', top: SPACING.s4, bottom: SPACING.s4, left: SPACING.s4, right: SPACING.s4, borderRadius: 999, borderWidth: 1.5, borderColor: tokens.hairlineStrong },
-    pickerPaint: { position: 'absolute', top: SPACING.s4, bottom: SPACING.s4, left: SPACING.s4, right: SPACING.s4, borderRadius: 12 },
-    monthNavigation: { gap: 0 },
+    navigation: { minHeight: 48, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: SPACING.s8 },
+    pickerPaint: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12 },
+    pickerButton: { minWidth: SPACING.s32, width: SPACING.s32, paddingHorizontal: SPACING.s0 },
+    monthPickerGroup: { gap: SPACING.s8, paddingEnd: SPACING.s4 },
     monthTitleGroup: { maxWidth: '100%', flexShrink: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' },
     monthTitleButton: { flexShrink: 0, paddingHorizontal: SPACING.s8 },
     titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: 'transparent' },

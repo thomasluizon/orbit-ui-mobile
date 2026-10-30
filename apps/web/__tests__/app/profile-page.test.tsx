@@ -20,7 +20,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { getMcpEndpointUrl } from '@orbit/shared/utils/advanced-settings'
 import { accountEventApiBase } from '@/lib/account-event-api-base'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
-import { ChevronRight, MessageCircle, Trash2 } from '@/components/ui/icons'
+import { ChevronRight, Trash2 } from '@/components/ui/icons'
 
 import type { PushPreferenceSnapshot } from '@/hooks/use-push-notification-preferences'
 
@@ -543,8 +543,9 @@ describe('ProfilePage', () => {
           const card = document.querySelector('[data-testid="profile-settings-group-you"] .orbit-row-list')!.getBoundingClientRect()
           const row = document.querySelector('[data-root-notification-header]')!.getBoundingClientRect()
           const bell = document.querySelector('[data-root-notification-header] button')!.getBoundingClientRect()
+          const content = document.querySelector('[data-shell-page-content]')!.getBoundingClientRect()
           return { columnTop: column.top, columnInset: card.top - column.top, scrollerInset: card.top - scroller.top,
-            headerHeight: row.height, trailingInset: scroller.left + scrollElement.clientWidth - bell.right }
+            headerHeight: row.height, trailingInset: content.right - bell.right }
         })
         expect(geometry.columnTop).toBe(0)
         expect(geometry.columnInset).toBe(width < 1024 ? 100 : 32)
@@ -592,7 +593,6 @@ describe('ProfilePage', () => {
       const group = screen.getByTestId('profile-settings-group-you')
       const rows = group.querySelectorAll('.orbit-list-row-shell')
       expect(rows).toHaveLength(5)
-      const messageIcon = render(<MessageCircle size={24} />).container.querySelector('svg')!
       for (const [index, row] of rows.entries()) {
         const title = row.querySelector('[data-slot="list-row-title"]')!
         const icons = row.querySelectorAll('svg')
@@ -602,8 +602,8 @@ describe('ProfilePage', () => {
         expect(icons[0]!.getAttribute('width')).toBe('24')
         expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
         if (index === 3) {
-          expect(icons[0]!.innerHTML).toBe(messageIcon.innerHTML)
-          expect(row.querySelector('[data-asset^="astra-mark"]')).toBeNull()
+          expect(icons[0]).toHaveAttribute('data-asset', 'astra-mark')
+          expect(row.querySelector('a')).toHaveAttribute('href', '/profile/astra')
         }
         if (navigates) {
           const chevron = icons[1]!
@@ -651,7 +651,7 @@ describe('ProfilePage', () => {
 
   it.each([
     ['account', ['profile.settingsRows.editName', 'profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
-    ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'profile.settingsRows.theme', 'settings.homeScreen.showGeneral']],
+    ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'settings.homeScreen.showGeneral']],
     ['astra', ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
     ['notifications', ['profile.marketingEmails.question', 'profile.settingsRows.alertsOnThisDevice', 'profile.settingsRows.remindersNote']],
   ] as const)('opens %s from Perfil and keeps its settings in that screen alone', (destination, labels) => {
@@ -791,19 +791,15 @@ describe('ProfilePage', () => {
       view.unmount()
     }
     render(<ProfileSubscreen screen="preferences" />)
-    const themeChoices = screen.getByRole('group', { name: 'profile.settingsRows.theme' })
-    expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeDark' }))
-    expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeLight' }))
-    expect(themeChoices).toHaveClass('flex-wrap', 'max-w-full')
+    expect(screen.queryByRole('group', { name: 'profile.settingsRows.theme' })).not.toBeInTheDocument()
     render(<ProfilePage />)
     expect(screen.getByRole('link', { name: /profile\.support\.rowTitle/i })).toHaveAttribute('href', '/support')
   })
 
-  it('changes the inline theme and general habits preference', () => {
+  it('keeps theme selection out of preferences and changes general habits', () => {
     const write = vi.spyOn(Storage.prototype, 'setItem')
     render(<ProfileSubscreen screen="preferences" />)
-    fireEvent.click(screen.getByRole('button', { name: 'preferences.themeModeLight' }))
-    expect(mockApplyTheme).toHaveBeenCalledWith('light')
+    expect(screen.queryByRole('button', { name: 'preferences.themeModeLight' })).not.toBeInTheDocument()
 
     const showGeneral = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
     fireEvent.click(showGeneral)

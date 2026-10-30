@@ -30,7 +30,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
     const container = containerRef.current!
     const readout = readoutRef.current!
     const plotObserver = new ResizeObserver((entries) => setWidth(entries[0]!.contentRect.width))
-    const readoutObserver = new ResizeObserver((entries) => setReadoutWidth(entries[0]!.contentRect.width))
+    const readoutObserver = new ResizeObserver((entries) => setReadoutWidth(entries[0]!.contentRect.width + 20))
     plotObserver.observe(container)
     readoutObserver.observe(readout)
     return () => { plotObserver.disconnect(); readoutObserver.disconnect() }
@@ -55,9 +55,9 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
 
   if (!hasPoints) return null
   return (
-    <div className="flex w-full min-w-0 flex-col gap-2" data-testid="bar-chart">
+    <div className="orbit-bar-chart flex w-full min-w-0 flex-col gap-2" data-testid="bar-chart">
       <div className="w-full">
-        <p ref={readoutRef} data-slot="bar-chart-readout" aria-live="polite" aria-atomic="true" className="relative w-max max-w-full text-sm leading-[1.4] tabular-nums text-[var(--fg-1)] [overflow-wrap:anywhere]" style={{ left: resolveBarChartReadout(width, readoutWidth, selectedIndex, points.length) }}>
+        <p ref={readoutRef} data-slot="bar-chart-readout" aria-live="polite" aria-atomic="true" className="relative w-max max-w-full rounded-[8px] p-2 text-sm leading-[1.4] tabular-nums text-[var(--fg-1)] [overflow-wrap:anywhere]" style={{ left: resolveBarChartReadout(width, readoutWidth, selectedIndex, points.length) }}>
           {describePoint(points[selectedIndex]!)}
         </p>
       </div>
@@ -74,12 +74,13 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           onKeyDown={handleKey}
           className="orbit-bar-chart-column group relative min-w-0 flex-1 cursor-pointer touch-manipulation rounded-none bg-transparent p-0 focus-visible:outline-0"
         >
-          <span aria-hidden="true" data-slot="bar-chart-fill" style={{ insetInline: bars[index]?.fillInsetInline }} className="pointer-events-none absolute inset-0 overflow-hidden rounded-[8px] bg-transparent transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] group-hover:bg-[var(--bg-hover)] group-active:bg-[var(--bg-hover)] motion-reduce:transition-none" />
-          <span aria-hidden="true" data-slot="bar-chart-focus" style={{ insetInline: bars[index]?.fillInsetInline }} className="pointer-events-none absolute inset-0 [clip-path:inset(0)] group-focus-visible:outline group-focus-visible:outline-2 group-focus-visible:-outline-offset-2 group-focus-visible:outline-[var(--fg-1)]" />
+          {bars[index] ? <>
+            <svg data-slot="bar-chart-fill" aria-hidden="true" focusable="false" className="pointer-events-none absolute" style={{ left: bars[index].x - bars[index].slotStart, top: bars[index].y, width: bars[index].width, height: bars[index].height }} viewBox={`${bars[index].x} ${bars[index].y} ${bars[index].width} ${bars[index].height}`} preserveAspectRatio="none">
+              <path d={barChartPath(bars[index])} data-state={index === selectedIndex ? 'selected' : 'resting'} data-empty={point.rate == null || point.rate === 0 || undefined}
+                className="transition-[fill] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:fill-[var(--fg-1)] group-active:fill-[var(--fg-1)] motion-reduce:transition-none" fill={index === selectedIndex ? 'var(--fg-1)' : 'var(--fg-2)'} />
+            </svg>
+          </> : null}
         </button>)}
-        <svg data-interaction-fill-graphics="" aria-hidden="true" focusable="false" className="pointer-events-none absolute inset-0" width="100%" height={BAR_CHART_HEIGHT} viewBox={`0 0 ${width || 1} ${BAR_CHART_HEIGHT}`} preserveAspectRatio="none">
-          {bars.map((bar, index) => <path key={points[index]!.startDate} d={barChartPath(bar)} data-state={index === selectedIndex ? 'selected' : 'resting'} data-empty={points[index]!.rate == null || points[index]!.rate === 0 || undefined} fill={index === selectedIndex ? 'var(--fg-1)' : 'var(--fg-2)'} />)}
-        </svg>
       </div>
       <div className="flex justify-between font-mono text-xs tabular-nums text-[var(--fg-3)]" aria-hidden="true">
         <span>{points[0]!.dateLabel}</span><span>{points.at(-1)?.dateLabel}</span>

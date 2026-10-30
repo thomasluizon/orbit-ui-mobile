@@ -1,13 +1,14 @@
 import { createRef, useState, type ComponentProps } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { useUIStore } from '@/stores/ui-store'
 import { Button } from '@/components/ui/pill-button'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { Content as LoadedContent } from '@/components/ui/dropdown-menu-content'
+import { registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
 import { renderToString } from 'react-dom/server'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -34,6 +35,28 @@ function Example({ onSelect, ...props }: ComponentProps<typeof Menu.Content>) {
 async function openMenu(waitForContent = true) {
   await userEvent.click(screen.getByRole('button', { name: 'More' }))
   if (waitForContent) await screen.findByRole('menu')
+}
+
+function renderExitingMenu() {
+  const computeStyle = window.getComputedStyle
+  vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
+    const styles = computeStyle(element, pseudo)
+    if (element.getAttribute('role') === 'menu') {
+      // WHY: Radix retains live browser styles; jsdom snapshots them. https://github.com/thomasluizon/orbit-tickets/issues/1839
+      Object.defineProperty(styles, 'animationName', { get: () => computeStyle(element, pseudo).getPropertyValue('animation-name') })
+    }
+    return styles
+  })
+  const dismiss = vi.fn()
+  registerOverlay({ id: 'menu-escape-underlay', dismiss })
+  const keydown = vi.fn<(event: KeyboardEvent) => void>()
+  document.addEventListener('keydown', keydown)
+  onTestFinished(() => {
+    document.removeEventListener('keydown', keydown)
+    unregisterOverlay('menu-escape-underlay')
+  })
+  render(<><style>{'[role="menu"][data-state="open"] { animation-name: menu-enter; } [role="menu"][data-state="closed"] { animation-name: menu-exit; }'}</style><Example presentation="anchored" /></>)
+  return { dismiss, keydown }
 }
 
 describe('headless Menu', () => {
@@ -120,6 +143,56 @@ describe('headless Menu', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'More' })).toHaveFocus())
   })
 
+  it('restores anchor focus on Escape before the open anchored menu finishes its exit', async () => {
+    const { dismiss } = renderExitingMenu()
+    await openMenu()
+    const menu = screen.getByRole('menu')
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveFocus())
+    await userEvent.keyboard('{Escape}')
+    expect(menu).toBeInTheDocument()
+    expect(menu).toHaveAttribute('data-state', 'closed')
+    expect(menu).toHaveAttribute('inert')
+    expect(menu).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.getByRole('button', { name: 'More' })).toHaveFocus()
+    expect(dismiss).not.toHaveBeenCalled()
+  })
+
+  it('dismisses the underlying overlay once on Escape while the closed anchored menu exits', async () => {
+    const { dismiss, keydown } = renderExitingMenu()
+    await openMenu()
+    const menu = screen.getByRole('menu')
+    await userEvent.keyboard('{Escape}')
+    expect(dismiss).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'More' })).toHaveFocus()
+    expect(menu).toBeInTheDocument()
+    expect(menu).toHaveAttribute('data-state', 'closed')
+    await userEvent.keyboard('{Escape}')
+    expect(dismiss).toHaveBeenCalledExactlyOnceWith('escape')
+    expect(keydown.mock.calls.map(([event]) => event.defaultPrevented)).toEqual([true, true])
+    expect(menu).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More' })).toHaveFocus()
+  })
+
+  it.each(['open', 'closed'])('ignores an already prevented Escape while the anchored menu is %s', async (state) => {
+    const { dismiss } = renderExitingMenu()
+    await openMenu()
+    const menu = screen.getByRole('menu')
+    if (state === 'closed') {
+      await userEvent.keyboard('{Escape}')
+    }
+    const focused = state === 'open' ? screen.getByRole('menuitem', { name: 'Edit' }) : screen.getByRole('button', { name: 'More' })
+    await waitFor(() => expect(focused).toHaveFocus())
+    const preventEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') event.preventDefault() }
+    window.addEventListener('keydown', preventEscape, true)
+    onTestFinished(() => window.removeEventListener('keydown', preventEscape, true))
+    await userEvent.keyboard('{Escape}')
+    expect(dismiss).not.toHaveBeenCalled()
+    expect(focused).toHaveFocus()
+    expect(menu).toBeInTheDocument()
+    expect(menu).toHaveAttribute('data-state', state)
+  })
+
   it('dismisses on an outside press and restores its trigger', async () => {
     render(<Example />)
     await openMenu()
@@ -166,11 +239,27 @@ describe('headless Menu', () => {
 
   it('discloses a full typed sheet title', async () => {
     setWide(false)
+    const scrollHeight = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(60)
+    const clientHeight = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(40)
+    onTestFinished(() => { scrollHeight.mockRestore(); clientHeight.mockRestore() })
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir'
     render(<Example title={title} shortTitle="Ler" titleMode="typed" />)
     await openMenu()
     await userEvent.click(await screen.findByRole('button', { name: title }))
     expect(document.querySelector('.orbit-sheet-full-title')).toHaveTextContent(title)
+  })
+
+  it('renders a fitting typed sheet title without an expand control', async () => {
+    setWide(false)
+    const scrollHeight = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(40)
+    const clientHeight = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(40)
+    onTestFinished(() => { scrollHeight.mockRestore(); clientHeight.mockRestore() })
+    const title = 'Ler um capítulo'
+    render(<Example title={title} shortTitle="Ler" titleMode="typed" />)
+    await openMenu()
+    const header = screen.getByRole('dialog', { name: title }).querySelector('header')!
+    expect(header).toHaveTextContent(title)
+    expect(header.querySelector('button[aria-expanded]')).toBeNull()
   })
 
   it('keeps badged routes actionable and does not open an empty menu', async () => {

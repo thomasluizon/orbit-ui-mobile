@@ -1,12 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { z } from 'zod'
-import { actionResultSchema, chatMessageSchema, chatResponseSchema, chatStreamEventSchema } from '../types/chat'
+import { actionResultSchema, chatMessageSchema, chatResponseSchema, chatStreamEventSchema, gamificationReadBlockResponseSchema, readBlockResponseSchema } from '../types/chat'
+import { habitMonthFixture } from '../test-support/habit-month-fixture'
+import { habitSuggestionsFixture } from '../test-support/habit-suggestion-fixtures'
+import { questionBlockFixture } from '../test-support/question-fixtures'
+import { gamificationCardTitleKey, gamificationStreakPresentation } from '../chat/gamification-card-core'
+import { gamificationCardCases } from '../test-support/gamification-card-fixtures'
 import { CHAT_BLOCK_KINDS } from '../chat/block-kinds'
 import { buildChatFinalMessageFields, getChatMessageParts } from '../chat/final-message'
 import { createChatSseParser } from '../chat/sse-stream'
 import partsFixture from '../test-support/chat-parts.fixture.json'
 import { agentExecuteOperationResponseSchema } from '../types/ai'
-import { makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage, focusedPeriodTotalFixture, focusedPeriodComparisonFixture, habitRankingCardFixture } from '../test-support/chat-fixtures'
+import { makeOneSmallStepCard, makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage, focusedPeriodTotalFixture, focusedPeriodComparisonFixture, habitRankingCardFixture } from '../test-support/chat-fixtures'
 import { chatBlockLayoutCases, makeChatBlockLayoutMessage } from '../test-support/chat-block-layout'
 
 const { PostApiChatResponse } = await vi.importActual<{ PostApiChatResponse: z.ZodObject }>('../types/__generated__/api.generated')
@@ -33,6 +38,27 @@ describe('message allowance contract', () => {
 })
 
 describe('ordered chat parts', () => {
+  it.each(gamificationCardCases)('retains a generated gamification $name response through SSE and history', async ({ block }) => {
+    const { PostApiChatGamificationRefreshResponse } = await vi.importActual<{ PostApiChatGamificationRefreshResponse: z.ZodObject }>('../types/__generated__/api.generated')
+    const response = { kind: 'gamification', block, read: block.read }
+    expect(gamificationCardTitleKey(block)).toBe(block.state.profile ? block.state.achievements ? 'chat.gamificationCard.title' : 'chat.gamificationCard.levelTitle' : block.state.achievements ? 'progressScreen.sections.achievements' : 'progressScreen.sections.streak')
+    if (block.state.streak) {
+      const presentation = gamificationStreakPresentation(block.state.streak, block.read, 'en', key => key)
+      expect(presentation.days[0]?.dateStr).toBe('2026-08-19')
+      expect(presentation.days[13]?.dateStr).toBe('2026-09-01')
+      expect(presentation.days[13]?.status).toBe('frozen')
+      expect(presentation.freeze).toMatchObject({ banked: 2, ceiling: 3, usedThisMonth: 1, daysTowardNext: 5, longestValue: 9 })
+      expect(presentation.freeze.protectedDays[0]).toMatchObject({ id: '2026-09-01', isToday: true })
+    }
+    expect(PostApiChatGamificationRefreshResponse.parse(response)).toEqual(response)
+    expect(gamificationReadBlockResponseSchema.parse(response)).toEqual(response)
+    expect(readBlockResponseSchema.safeParse(response).success).toBe(false)
+    const part = { type: 'block', kind: 'gamification', block }
+    const [event] = createChatSseParser().feed(`data: ${JSON.stringify({ type: 'final', response: { aiMessage: '', actions: [], parts: [part] } })}\n\n`)
+    if (event?.type !== 'final') throw new Error('Expected a final event')
+    const message = chatMessageSchema.parse({ id: 'gamification', role: 'ai', timestamp: new Date(), ...buildChatFinalMessageFields(event.response, []) })
+    expect(message.parts).toEqual([part])
+  })
   it('keeps generated contract parts through SSE, final assembly and stored message parsing', () => {
     expect(PostApiChatResponse.parse(partsFixture.response)).toEqual(partsFixture.response)
     const [event] = createChatSseParser().feed(`data: ${JSON.stringify({ type: 'final', response: partsFixture.response })}\n\n`)
@@ -49,8 +75,14 @@ describe('ordered chat parts', () => {
       ...partsFixture.blocks.slice(0, 3),
       { type: 'block', kind: 'periodTotal', block: focusedPeriodTotalFixture },
       { type: 'block', kind: 'periodComparison', block: focusedPeriodComparisonFixture },
-      ...partsFixture.blocks.slice(3),
+      ...partsFixture.blocks.slice(3, 6),
+      { type: 'block', kind: 'gamification', block: gamificationCardCases[2]!.block },
+      ...partsFixture.blocks.slice(6),
+      { type: 'block', kind: 'question', block: questionBlockFixture },
       { type: 'block', kind: 'habitRanking', block: habitRankingCardFixture },
+      { type: 'block', kind: 'habitMonth', block: habitMonthFixture },
+      { type: 'block', kind: 'habitSuggestions', block: habitSuggestionsFixture },
+      { type: 'block', kind: 'oneSmallStep', block: makeOneSmallStepCard() },
     ]
     expect(blocks.map(part => part.kind)).toEqual(CHAT_BLOCK_KINDS)
     const response = { ...partsFixture.response, parts: blocks }

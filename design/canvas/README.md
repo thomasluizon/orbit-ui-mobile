@@ -3,6 +3,35 @@
 > **At a glance** - the granted canvas export and design tokens for every redesign surface.
 > Build from the active drawings and their amendments below. The documents in `superseded/` are not targets.
 
+### Empty-state composition amendment (#1896)
+
+The shared EmptyState uses the existing 48px asset size for both identity carriers on every
+consumer. Astra's empty thread centres its mark, title, browse action and disclosure as one
+24px stack inside symmetric padding, above the live chips and composer. The disclosure belongs
+inside that composition. Hoje's completed-day title and hint keep their 8px pairing, with 24px
+between that text block and See tomorrow. The paired owners and verification live in
+[the empty-state inventory](../empty-state-surfaces.md).
+
+### Navigation and overlay motion amendment (#1829)
+
+The owner requests transitions across the app, including spring settlement for sheets.
+In `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/shape.css`,
+the comment `Animate transform and opacity only. No bounce, no spring.` becomes
+`Animate transform and opacity only. No bounce or spring overshoot.`
+This permits the shared damped springs in `DESIGN.md` Motion while retaining the bans
+on bounce and overshoot. Token values and the remaining export stay unchanged.
+
+### One Astra drawing amendment (#1797)
+
+Under D42, the owner's order amends every small Astra variant in the granted drawings:
+"i dont understand this mini astra logo that is not even centralized vertically, on the top left and on the prompt suggestions, change to the normal logo and centralize it".
+Every `AstraGlyph` uses the normal drawing at every size on web and Android. Its shared viewBox
+fits the drawn bounds, and the drawn centre aligns with its row, chip, button or header centre.
+Conversation headers, suggestion and follow-up chips, Hoje composer entries and Astra lines,
+idea cards, proactive actions and form fill controls retain their existing size and colour tokens.
+The normal mark remains legible at 16px without a second drawing or local positioning offsets.
+This amendment supersedes any native 16px Astra drawing in the export.
+
 ### Form presentation and Astra affordance amendment (#1607)
 
 Type stays first. Short RadioRow content centres within the existing 52px minimum; wrapped
@@ -162,8 +191,11 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1881 | The sidebar lockup sits above one trailing row of theme, bell and collapse actions; the collapsed rail stacks collapse, theme and bell. Compact web and Android place theme immediately before the bell on all four tabs. The icon shows the target mode; Perfil has no theme selector. | Reuses IconButton, its 44px paint and 48px transparent target, and the existing theme preference path. |
+| #1828 | Astra question blocks reuse the conversation BlockFrame and existing choice, checkbox and Input controls. A five-option radio scale and primitive slider use the existing tokens. Prompts, supplied option labels and end labels wrap in growing rows; required omissions show inline hints and focus the first question. Supplied progress and local answered count remain separate; acting, error, offline, limit, closed and answered states follow the existing answer lifecycle. | The issued question contract needs typed single and multiple choices, scale, slider and yes or no in one answer turn. No drawing covers the two numeric controls. |
 | #1613 | Habit Create's When field routes the five recurrence-only weekly equivalents to fixed Week 1 for a deliberate dated Habit, retaining its chosen date and source words. Task retains one inline recovery to the existing Habit choice; blocked Submit focuses that group. Choosing Habit overrides an older General draft using the current Task date; inherited General locks retain parent mismatch guidance and block Submit. Manual corrections and reopened drafts win | Local recurrence is separate from calendar interpretation. It adds no summary, proposal, model call or schedule capability. |
 | #1607 | Balanced type choices, compact growing name, description immediately after name, natural-date prompt and canonical Astra identification on real request/entry targets | Explicit form presentation and action attribution order; request, acceptance, draft and save owners remain unchanged. |
+| #1619 focused gamification | One BlockFrame holds the existing Progresso level and XP row when profile is present and the existing achievement cards when the catalogue is present. Empty catalogues keep the existing empty line. Signed refresh and one related Conquistas action remain available | Separate nullable sections answer level-only, achievement-only, streak-only and combined requests. Requested streaks reuse the Progresso figure, DayStrip and read-only FreezeBank anchored to the saved date, with their own heading. No unrequested figures or six-achievement cap. |
 | #1619 focused totals and comparisons | A supplied number, unit and resolved window; two comparison windows, their values and supplied delta, without relative percentages for a zero baseline | A read answers its requested metric and dates. |
 | #1619 history and recovery | Dated rows retain zero values, signed paging and exact-query refresh; stale and partial reads use one compact state | Snapshot display stays separate from current action eligibility. |
 | #1587 | Hoje rows carry actual visible depth with one 16px step per ancestor after the 8px root inset. Well, title and supporting metadata cascade together. Measured content width and scaled title space determine the narrow boundary, accounting for shell scrollbars and safe-area gutters. Boundary rows use the full-width supporting metadata footer with first-title-line controls, and the existing drill; drill resets local depth and detail children use depth 1 once | Expanded grandchildren must remain visibly subordinate to their parents without shrinking controls or flattening adjacent levels. |
@@ -229,7 +261,7 @@ Real Android rendering, movement feel and TalkBack remain device-verification bo
 | Progresso overview | Thirty daily columns remain visible at compact and wide widths. Existing completion figures, best weekday, top habit, navigation and loading, empty, locked and error states stay with their owners. |
 | Astra metrics block | Existing metric series and figure rows use the shared selectable chart. No-data and absent-series behavior, habit context and destination links remain. |
 | Astra period insight | Existing daily and weekly series use the same control on the overview page. Figures, habit rows, narrative pages, paging and destination links remain. |
-| Shared chart control | Full-height column targets, one selected neutral bar, localized complete radio names, today selection, moving bounded readout, first/last dates and baseline stubs. Web uses one roving tab stop with arrows and Home/End; Android uses radio roles, checked states, presses and accessibility actions. |
+| Shared chart control | Hover and held press paint only on the bar with the existing selected foreground; one keyboard indicator follows the padded moving readout. Transparent full-height column targets, one selected neutral bar, localized complete radio names, today selection, moving bounded readout, first/last dates and baseline stubs. Web uses one roving tab stop with arrows and Home/End; Android uses radio roles, checked states, presses and accessibility actions. |
 
 Vitest covers chart behavior, column geometry and edge readouts on both platforms. Web cases also
 mount the owning Progresso composition at 320, 412 and 1352. The layout workflow owns whole-page evidence;
@@ -539,7 +571,7 @@ The glyph primitives provide the asset; their consumers below own its placement.
 | `today/today-ai-summary` | Removed the heading glyph and both loading and loaded round-button glyphs. Uses the single slot instead. |
 | `shell/shell-wide` (web) | Retained the sidebar conversation entry. Android uses its composer entry instead. |
 | `shell/composer` | Retained the compact Hoje and habit-detail conversation entry. Wide Hoje uses the sidebar. |
-| `profile/profile-nav-icon` | Removed the Astra settings glyph. The labelled settings row remains aligned with its neighbours. |
+| `profile/profile-nav-icon` | Draws `AstraGlyph` as the Astra settings row's leading icon (#1780). The labelled settings row remains aligned with its neighbours. |
 | `onboarding/onboarding-create-habit` | Removed the proposal-heading glyph; the attribution text and proposed treatment remain. |
 | `habits/habit-create-frame` | Removed the origin glyph; the conversation-origin text remains. |
 | `habits/habit-form-fields/tag-suggestions` | Removed the suggestion-action glyph; its localized label, loading, proposals, acceptance and retry remain. |
@@ -548,7 +580,7 @@ The glyph primitives provide the asset; their consumers below own its placement.
 | `habits/reschedule-sheet` | Removed the heading glyph; Astra attribution, disclosure and proposal actions remain. |
 | `goals/goal-detail-drawer` | Removed the ask row's glyph; the text action and contextual request remain. |
 | `upgrade/page` (web), `app/upgrade` (Android) | Removed the pitch glyph; plans and purchase states remain. |
-| `upgrade/subscription-notice` | Removed the lapsed-plan glyph; notices and recovery actions remain. |
+| `upgrade/subscription-notice` | Removed the lapsed-plan heading glyph; the lapsed Astra messages line uses `AstraGlyph` in place of a chat icon (#1780). Notices and recovery actions remain. |
 | `upgrade/billing-dashboard`, `upgrade/play-billing-dashboard` (web), `upgrade/plan-summary-card` (Android) | Removed plan-summary glyphs; provider-specific management, facts and actions remain. |
 | `review-moment/review-moment-sheet` (Android) | Removed the sheet glyph; rating copy, request and dismissal remain. The web review moment already uses text. |
 | `ui/empty-state` | Retained Astra rendering for its only Astra-mark callers, `chat/chat-empty-state` on each platform, inside the conversation. Other callers use the Orbit mark. |
@@ -588,3 +620,35 @@ notification text remains the Hoje entry label and the legacy recovery when part
 unusable. Inside the conversation a valid block replaces that prose, while the existing proactive
 action and its opened, acted and status behavior retain their owners. Existing legacy entries can
 adopt their first valid block without duplicating the message or resetting the action.
+
+### Astra question block amendment surfaces
+
+The active Astra Conversation drawing adds the question block to its report. Both clients use
+BlockFrame, RadioRow, CheckRow and Input with the existing neutral recommendation copy. The scale
+is five equal radio options, not a view switcher, with no initial selection and two end labels.
+Slider wraps Radix on web and rn-primitives on Android: a 4px fg-3 track, primary fill, 24px thumb
+inside a 48px target, radius 999 and one 2px focus perimeter. Native touch dragging and keyboard
+input supplement the primitive's accessibility adjustments. The standard hover duration applies.
+
+Required, acting, invalid, retry, offline, allowance, expired and answered states retain the same
+shared controller on both platforms. Custom text replaces an exclusive choice and may accompany
+multiple choice. The supplied progress count and local answered count are distinct. Success locks
+and names every prompt and selected answer. Supplied text grows without clamping at 200% text.
+Vitest covers controls, multipart transport, persistence, accessibility and geometry; device font
+rendering and assistive technology speech remain manual verification boundaries.
+
+## Focused gamification composition
+
+`Orbit Astra Conversation.dc.html` adds profile-only, achievement-only, streak-only, achievements with streak, combined and empty
+catalogue states for the negotiated gamification read. These compositions reuse BlockFrame,
+the Progresso level row and ProgressBar, the existing achievement card and earned disc, and
+the unchanged Progresso streak figure, DayStrip and read-only FreezeBank. A requested streak
+keeps its own heading and saved query date; absent sources contribute no figures.
+The frame retains its 16px inset and 12px content rhythm. All typography, surfaces, radii and
+colours come from the granted primitives and tokens. Both locales and appearances share the
+composition, with natural wrapping at enlarged text.
+
+Refresh uses the saved query token and leaves the answer visible while acting or recovering.
+The established Conquistas related action opens its Progresso detail. No unrequested streak,
+profile achievement count, teaser or plan control appears. This scoped refresh exception follows
+the carrying gamification work order; other compact read blocks keep their current actions.

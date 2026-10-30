@@ -1,4 +1,4 @@
-import { SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
@@ -10,6 +10,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
 export function CheckRow({
+  leading,
   label,
   placement = 'inset',
   textMode,
@@ -33,7 +34,7 @@ export function CheckRow({
   const [pressed, setPressed] = useState(false)
   const colors = checkRowTextColors(tokens, proposed, checked, pressed, Boolean(error), selection)
 
-  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow selection={selection} placement={placement} label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
+  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow leading={leading} selection={selection} placement={placement} label={label} variant={variant} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
   if (placement === 'column') return <ColumnCheckRow label={label} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
 
   return (
@@ -86,18 +87,18 @@ export function CheckRow({
 
 const styles = StyleSheet.create({
   columnRow: { width: '100%', minHeight: 52, position: 'relative', flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: SPACING.s12 },
-  columnFill: { position: 'absolute', top: 0, bottom: 0, left: -12, right: -12, borderRadius: 12 },
+  columnFill: { position: 'absolute', top: 0, bottom: 0, left: -SPACING.s8, right: -SPACING.s8, borderRadius: 12 },
   columnLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8 },
-  labelFill: { position: 'absolute', top: 0, bottom: 0, left: -12, right: 0, borderRadius: 12, overflow: 'hidden' },
+  labelFill: { position: 'absolute', top: 0, bottom: 0, left: -SPACING.s8, right: 0, borderRadius: 12, overflow: 'hidden' },
   calendarDayControlFill: { borderRadius: 24, top: -SPACING.s8, bottom: -SPACING.s8, left: -SPACING.s8, right: -SPACING.s8 },
   calendarDayControl: { width: 24, height: 24 },
-  controlFill: { position: 'absolute', top: SPACING.s4, bottom: SPACING.s4, left: SPACING.s4, right: SPACING.s4, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: SPACING.s8 },
+  controlFill: { position: 'absolute', top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: SPACING.s8 },
   personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 0, paddingStart: SPACING.s16, paddingEnd: SPACING.s4, paddingVertical: SPACING.s0 },
   personalAction: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
-  personalCopy: { minWidth: 0, flex: 1, minHeight: 48, paddingVertical: SPACING.s12, justifyContent: 'center', gap: 4, borderRadius: 12 },
-  calendarDayRow: { minHeight: 68, paddingVertical: SPACING.s0, paddingEnd: SPACING.s16, gap: SPACING.s12 },
+  personalCopy: { minWidth: 0, flex: 1, minHeight: 56, paddingVertical: SPACING.s12, justifyContent: 'center', gap: 4, borderRadius: 12 },
+  calendarDayRow: { minHeight: 68, paddingVertical: SPACING.s0, paddingEnd: SPACING.s16, gap: SPACING.s16 },
   calendarDayCopy: { minHeight: 68, paddingVertical: SPACING.s12 },
-  personalControl: { height: 48, width: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, },
+  personalControl: { height: 56, width: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 12, },
   row: { width: '100%', minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12, borderRadius: 12, overflow: 'hidden' },
   copy: { minWidth: 0, flex: 1, gap: 4 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 16 },
@@ -127,7 +128,7 @@ function getPersonalRowStyle(calendarDay: boolean, supportingText: boolean, plac
 }
 
 function getPersonalLabelFill(calendarDay: boolean) {
-  return { ...styles.labelFill, ...(calendarDay ? { top: SPACING.s4, bottom: SPACING.s4 } : {}) }
+  return { ...styles.labelFill, ...(calendarDay ? { top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE } : {}) }
 }
 
 function getPersonalControlFill(calendarDay: boolean) {
@@ -153,21 +154,31 @@ function PersonalCheckRowContent({ label, selection, checked, placement, variant
   )
 }
 
-function PersonalCheckRow({ label, selection, placement, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
+function PersonalCheckRow({ leading, label, selection, placement, variant, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   const { fontScale } = useWindowDimensions()
   const calendarDay = variant === 'calendar-day'
-  const control = <PersonalControl data-slot={selection ? 'check-row-control' : undefined} tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent hitSlop={calendarDay ? 12 : undefined} focusable={!disabled && !loading} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, calendarDay ? styles.calendarDayControl : null, selection ? { minHeight: 22.4 * fontScale + SPACING.s12 * 2 } : null, disabled || loading ? styles.disabled : null]}>
+  const control = <PersonalControl data-slot={selection ? 'check-row-control' : undefined} tokens={tokens} fillStyle={getPersonalControlFill(calendarDay)} containContent hitSlop={calendarDay ? SPACING.s16 : undefined} focusable={!disabled && !loading} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, calendarDay ? styles.calendarDayControl : null, selection ? { minHeight: 22.4 * fontScale + SPACING.s12 * 2 } : null, disabled || loading ? styles.disabled : null]}>
     {calendarDay ? <CalendarDayCircle checked={checked} color={tokens.fg1} /> : <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />}
   </PersonalControl>
   return (
     <View data-slot="list-row-body" style={getPersonalRowStyle(calendarDay, Boolean(error || description || value !== undefined), placement, selection)}>
       <View style={[styles.personalCopy, calendarDay ? styles.calendarDayCopy : null]}>
       <PersonalControl disabled={disabled} focusable={!disabled} tokens={tokens} fillStyle={getPersonalLabelFill(calendarDay)} hitSlop={{ left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={styles.personalAction} />
+      <PersonalLeading leading={leading}>
       <PersonalCheckRowContent selection={selection} checked={checked} label={label} placement={placement} variant={variant} labelExpanded={labelExpanded} error={error} description={description} value={value} tokens={tokens} />
+      </PersonalLeading>
       </View>
       {control}
     </View>
   )
+}
+
+function PersonalLeading({ leading, children }: Readonly<{ leading: CheckRowProps['leading']; children: React.ReactNode }>) {
+  if (!leading) return children
+  return <View pointerEvents="none" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+    {leading}
+    <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
+  </View>
 }
 
 function PersonalControl({ tokens, fillStyle, containContent = false, children, ...props }: Readonly<PressableProps & { tokens: ReturnType<typeof createTokensV2>; fillStyle: ViewStyle; containContent?: boolean }>) {

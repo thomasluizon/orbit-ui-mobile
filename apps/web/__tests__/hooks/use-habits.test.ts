@@ -1,10 +1,12 @@
+import { HabitListCard } from '@/components/chat/habit-list-card'
+import { habitListQueryFilters } from '@orbit/shared/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor, act, render } from '@testing-library/react'
+import { renderHook, waitFor, act, render, fireEvent, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, QueryObserver, useQuery } from '@tanstack/react-query'
 import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useRestoreHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits, useBulkMoveHabitParent } from '@/hooks/use-habits'
-import { useSearchHabits } from '@/hooks/use-habit-queries'
+import { useHabitDetail, useHabitFullDetail, useHabitLogs, useHabitMetrics, useSearchHabits } from '@/hooks/use-habit-queries'
 import { getTodayHabitList, habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import { createApiClientError } from '@orbit/shared'
 import { buildCalendarDayMap, buildChildrenIndex, formatAPIDate, getAllDoneOnDate, getReturningInterval, hasHabitScheduleOnDate, normalizeHabits } from '@orbit/shared/utils'
@@ -71,6 +73,8 @@ vi.mock('@/lib/posthog', () => ({
   identifyPostHogUser: vi.fn(),
   resetPostHogUser: vi.fn(),
 }))
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
@@ -974,6 +978,24 @@ describe('useLogHabit', () => {
     resolveMutationB?.()
   })
 
+  it('flips the Astra check before the request resolves and rolls back a rejected log', async () => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    let rejectLog!: (error: Error) => void
+    vi.mocked(logHabit).mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectLog = reject }))
+    const date = formatAPIDate(new Date())
+    const filters = { dateFrom: date, dateTo: date, includeGeneral: true, includeOverdue: true }
+    const client = createQueryClient()
+    client.setQueryData(habitKeys.list(habitListQueryFilters(filters, false)), [makeScheduleItem({ dueDate: date, scheduledDates: [date] })])
+    const view = render(React.createElement(HabitListCard, { habitList: { scope: 'date', date, items: [{ id: 'h-1', title: 'Exercise', emoji: null, depth: 0, status: 'today', isBadHabit: false }] } }), { wrapper: createWrapper(client) })
+    fireEvent.click(screen.getByRole('button', { name: /chat.habitList.log:/ }))
+    await waitFor(() => expect(screen.getByRole('img', { name: 'chat.habitList.logged' })).toHaveAttribute('data-status', 'done'))
+    await waitFor(() => expect(rejectLog).toBeTypeOf('function'))
+    await act(async () => rejectLog(new Error('Request failed')))
+    await waitFor(() => expect(screen.getByRole('img', { name: 'chat.habitList.pending' })).toHaveAttribute('data-status', 'empty'))
+    view.unmount()
+    client.clear()
+  })
+
   it('optimistically completes before query cancellation resolves', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
@@ -1261,6 +1283,92 @@ describe('useCreateHabit', () => {
 describe('useDeleteHabit', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+  })
+
+  it.each(['detail', 'row menu', 'selection'] as const)('does not request a deleted habit after %s delete', async (entry) => {
+    const { deleteHabit } = await import('@/lib/actions/habits')
+    vi.mocked(deleteHabit).mockResolvedValue(undefined)
+    const queryClient = createQueryClient()
+    const detail = makeDetail()
+    const keys = [habitKeys.detail('h-1'), habitKeys.fullDetail('h-1'), habitKeys.logs('h-1'), habitKeys.metrics('h-1')]
+    const metrics = { currentStreak: 0, longestStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 0, totalCompletions: 0, lastCompletedDate: null }
+    for (const key of keys) queryClient.setQueryData(key, key[1] === 'logs' ? [] : key[1] === 'metrics' ? metrics : key[1] === 'fullDetail' ? { habit: detail, metrics, logs: [] } : detail)
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem()])
+    const toast = vi.spyOn((await import('@/stores/app-toast-store')).useAppToastStore.getState(), 'showError')
+    mockFetch.mockImplementation(async () => Response.json({ error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND' }, { status: 404 }))
+    const { result, rerender, unmount } = renderHook(() => {
+      const detailQuery = useHabitDetail('h-1')
+      useHabitFullDetail('h-1')
+      useHabitLogs('h-1')
+      useHabitMetrics('h-1')
+      return { single: useDeleteHabit(), selection: useBulkDeleteHabits(), detailQuery }
+    }, { wrapper: createWrapper(queryClient) })
+    try {
+      await act(async () => {
+        if (entry === 'selection') await result.current.selection.mutateAsync(['h-1'])
+        else await result.current.single.mutateAsync('h-1')
+      })
+      rerender()
+      await act(async () => { await queryClient.invalidateQueries({ queryKey: habitKeys.all }) })
+      await act(async () => { await result.current.detailQuery.refetch() })
+      expect(mockFetch).not.toHaveBeenCalled()
+      expect(toast).not.toHaveBeenCalled()
+      for (const key of keys) expect(queryClient.getQueryData(key)).toBeUndefined()
+      expect(queryClient.getQueryData(habitKeys.list({}))).toEqual([])
+      expect(mockShowQueued).toHaveBeenCalled()
+    } finally {
+      unmount()
+      queryClient.clear()
+      toast.mockRestore()
+    }
+  })
+
+  it('still reports a habit deleted on another device after a local deletion', async () => {
+    const { deleteHabit } = await import('@/lib/actions/habits')
+    vi.mocked(deleteHabit).mockResolvedValue(undefined)
+    const queryClient = createQueryClient()
+    const { result, unmount } = renderHook(() => useDeleteHabit(), { wrapper: createWrapper(queryClient) })
+    await act(async () => { await result.current.mutateAsync('local') })
+    const toast = vi.spyOn((await import('@/stores/app-toast-store')).useAppToastStore.getState(), 'showError')
+    const message = 'This habit is no longer here. It may have been deleted on another device.'
+    mockFetch.mockResolvedValue(Response.json({ error: message, errorCode: 'HABIT_NOT_FOUND' }, { status: 404 }))
+    const remote = renderHook(() => useHabitDetail('remote'), { wrapper: createWrapper(queryClient) })
+    try {
+      await waitFor(() => expect(remote.result.current.isError).toBe(true))
+      expect(toast).toHaveBeenCalledWith(expect.stringContaining(message))
+    } finally {
+      remote.unmount()
+      unmount()
+      queryClient.clear()
+      toast.mockRestore()
+    }
+  })
+
+  it('does not report a canceled in-flight read while the delete acknowledgement is pending', async () => {
+    const { deleteHabit } = await import('@/lib/actions/habits')
+    let acknowledge!: () => void
+    vi.mocked(deleteHabit).mockImplementation(() => new Promise<void>((resolve) => { acknowledge = resolve }))
+    const queryClient = createQueryClient()
+    let finish!: (response: Response) => void
+    mockFetch.mockImplementation(() => new Promise<Response>((resolve) => { finish = resolve }))
+    const toast = vi.spyOn((await import('@/stores/app-toast-store')).useAppToastStore.getState(), 'showError')
+    const { result, unmount } = renderHook(() => ({ detail: useHabitFullDetail('h-1'), remove: useDeleteHabit() }), { wrapper: createWrapper(queryClient) })
+    try {
+      await waitFor(() => expect(finish).toBeTypeOf('function'))
+      act(() => { result.current.remove.mutate('h-1') })
+      await waitFor(() => expect(acknowledge).toBeTypeOf('function'))
+      await act(async () => {
+        finish(Response.json({ error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND' }, { status: 404 }))
+        await Promise.resolve()
+      })
+      expect(toast).not.toHaveBeenCalled()
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    } finally {
+      await act(async () => { acknowledge(); await Promise.resolve() })
+      unmount()
+      queryClient.clear()
+      toast.mockRestore()
+    }
   })
 
   it('calls deleteHabit action with habit ID', async () => {

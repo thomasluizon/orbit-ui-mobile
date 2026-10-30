@@ -69,7 +69,7 @@ import {
 } from './onboarding-overlay-state'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, resolveHabitDetailRouteDate, isShareableAchievement } from '@orbit/shared/utils'
+import { resolveShellComposerScope, HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, resolveHabitDetailRouteDate, isShareableAchievement } from '@orbit/shared/utils'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { isPublicPath } from '@/lib/public-paths'
 import { useHasSessionCookie } from '@/lib/session-cookie-provider'
@@ -156,6 +156,7 @@ function SyncComposerDate({ onChange }: Readonly<{ onChange: (date: string | und
 function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter()
   const pathname = usePathname()
+  const composerScope = resolveShellComposerScope(pathname)
   const t = useTranslations()
   const { showPersistentError } = useAppToast()
   const { profile, patchProfile } = useProfile()
@@ -344,7 +345,8 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         composer={
           <Composer
             {...chat.composerProps}
-            collapsible={/^\/habits\/[^/]+$/.test(pathname) && pathname !== '/habits/new'}
+            collapseScope={composerScope}
+            collapsible={composerScope !== undefined}
             suggestions={resolveComposerDockSuggestions(pathname, chat.composerProps.suggestions)}
             inputId={chat.composerInputId}
             onOpenConversation={() => setAstraConversationOpen(true)}

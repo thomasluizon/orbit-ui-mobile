@@ -315,11 +315,47 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
   check("check-surface-scope.mjs", "rejects text when its shipped CSS promotion is removed", ["--root", promoted], {
     status: 1, stderr: /--fg-3 on hover, light ratio 4\.161, TEXT floor 4\.50/,
   })
+  const proposedRowPath = "apps/web/components/chat/habit-block-row.tsx"
+  for (const [label, before, after, status] of [
+    ["paired", undefined, undefined, 0],
+    ["missing-hover", "group-hover/habit-block:text-[var(--fg-2)]", "", 1],
+    ["missing-press", "group-active/habit-block:text-[var(--fg-2)]", "", 1],
+    ["wrong-group", "group/habit-block flex", "group/other flex", 1],
+  ]) {
+    const repository = stageProducerRepository(`proposed-row-${label}`, [proposedRowPath],
+      before ? { path: proposedRowPath, before, after } : undefined)
+    check("check-surface-scope.mjs", `pairs proposed row foreground with named group interactions: ${label}`, ["--root", repository], {
+      status,
+      ...(status === 0 ? { stdout: /Surface scope guard passed/ }
+        : { stderr: /--fg-3 on card \+ hover, dark ratio 4\.029, TEXT floor 4\.50/ }),
+    })
+  }
+  for (const platform of ["web", "mobile"]) {
+    const path = `apps/${platform}/components/habits/habit-form-fields/habit-emoji-selector.tsx`
+    const mobile = platform === "mobile"
+    const paths = [path, ...(mobile ? ["apps/mobile/components/habits/habit-form-fields/styles.ts"] : [])]
+    const foreground = mobile ? "color: tokens.fg3" : "color: proposed ? 'var(--fg-3)'"
+    const glyph = mobile ? ">{selectedEmoji}</Text>" : "{selectedEmoji || <Plus"
+    const wellMarker = mobile ? 'testID="habit-emoji-well"' : 'data-emoji-well=""'
+    for (const [label, before, after, status, stderr] of [
+      ["proposed-glyph", undefined, undefined, 0],
+      ["faint-glyph", foreground, foreground.replace("fg3", "fg4").replace("fg-3", "fg-4"), 1, /--fg-4 on (?:overlay \+ )?(?:well|hover).*GRAPHIC floor 3\.00/],
+      ["caption", glyph, glyph.replace("selectedEmoji", "t('habits.form.emoji')"), 1, /--fg-3 on (?:overlay \+ )?(?:well|hover).*TEXT floor 4\.50/],
+      ["mixed-caption", glyph, mobile ? glyph.replace("</Text>", "Caption</Text>") : `Caption${glyph}`, 1, /--fg-3 on (?:overlay \+ )?(?:well|hover).*TEXT floor 4\.50/],
+      ["outside-well", wellMarker, "", 1, /--fg-3 on (?:overlay \+ )?(?:well|hover).*TEXT floor 4\.50/],
+    ]) {
+      const repository = stageProducerRepository(`emoji-well-${platform}-${label}`, paths, before ? { path, before, after } : undefined)
+      const result = check("check-surface-scope.mjs", `classifies the real ${platform} emoji well: ${label}`, ["--root", repository], {
+        status, ...(stderr ? { stderr } : {}),
+      })
+      T(`check-surface-scope.mjs: resolves the ${platform} emoji well role: ${label}`, !/UNDECLARED/.test(result.stdout), result.stdout)
+    }
+  }
   const interactionOwners = [
     { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: "group rounded-full", after: "group rounded-full hover:bg-[var(--bg-hover)]" },
     { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarItem", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
     { path: "apps/web/components/shell/shell-wide.tsx", owner: "SidebarAstraRow", before: "? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'", after: "? 'text-[var(--primary-soft)]'" },
-    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "styles.tab,", after: "styles.tab, hoveredId === item.id && { backgroundColor: tokens.bgHover }," },
+    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "style={styles.tab}", after: "style={[styles.tab, hoveredId === item.id && { backgroundColor: tokens.bgHover }]}" },
   ]
   for (const [index, owner] of interactionOwners.entries()) {
     const label = owner.owner ? `${owner.path} ${owner.owner}` : owner.path

@@ -4,7 +4,7 @@ import { createContext, useContext, useMemo, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import type { Page } from '@playwright/test'
+import type { Page, Route } from '@playwright/test'
 import type { NamespaceKeys, NestedKeyOf } from 'next-intl'
 
 const { smokeLocale } = vi.hoisted(() => ({ smokeLocale: { value: null as 'en' | 'pt-BR' | null } }))
@@ -75,11 +75,14 @@ vi.mock('next/link', () => ({
   ),
 }))
 
-vi.mock('@/components/auth/turnstile-widget', () => ({
-  TurnstileWidget: ({ onToken }: { onToken: (token: string) => void }) => (
-    <button type="button" onClick={() => onToken('widget-token')}>Solve security check</button>
-  ),
-}))
+vi.mock('@/components/auth/turnstile-widget', async (importActual) => {
+  const actual = await importActual<typeof import('@/components/auth/turnstile-widget')>()
+  return {
+    TurnstileWidget: (props: Parameters<typeof actual.TurnstileWidget>[0]) => smokeLocale.value
+      ? <actual.TurnstileWidget {...props} />
+      : <button type="button" onClick={() => props.onToken('widget-token')}>Solve security check</button>,
+  }
+})
 
 const mockPush = vi.fn()
 const NavigationContext = createContext<{ path: string; navigate: (destination: string) => void }>({ path: '/login', navigate: mockPush })
@@ -314,7 +317,7 @@ class SmokeDomLocator {
 
   async click() {
     const element = this.element()
-    expect(element).toBeEnabled()
+    await waitFor(() => expect(element).toBeEnabled())
     await act(async () => { fireEvent.click(element) })
   }
 
@@ -336,6 +339,14 @@ class SmokeDomPage {
   private view?: ReturnType<typeof render>
 
   constructor(readonly withRouteGate = false) {}
+
+  async route(pattern: string, handler: (route: Pick<Route, 'fulfill'>) => Promise<void>) {
+    expect(pattern).toBe('https://challenges.cloudflare.com/turnstile/v0/api.js*')
+    await handler({ fulfill: async ({ body } = {}) => {
+      if (typeof body !== 'string') throw new Error('Widget script response must have a string body')
+      window.eval(body)
+    } })
+  }
 
   async goto(path: string) {
     expect(path).toBe('/login')
@@ -388,6 +399,7 @@ describe('production smoke helper against LoginPage', () => {
   afterEach(() => {
     vi.unstubAllEnvs()
     smokeLocale.value = null
+    delete (window as Window & { turnstile?: unknown }).turnstile
   })
 
   it.each([
@@ -433,14 +445,16 @@ describe('production smoke helper against LoginPage', () => {
     expect(screen.queryByRole('button', { name: (locale === 'en' ? en : ptBR).onboarding.flow.what.haveAccount })).not.toBeInTheDocument()
   })
 
-  it('preserves the configured security gate instead of forcing a disabled submit', async () => {
+  it('submits email and code with fresh widget callbacks when bot protection is configured', async () => {
     smokeLocale.value = 'en'
     vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
 
-    await expect(authenticate(new SmokeDomPage() as unknown as Page)).rejects.toThrow(/enabled/)
+    await expect(authenticate(new SmokeDomPage() as unknown as Page)).rejects.toBe(verificationRequestBoundary)
 
-    expect(authRequests).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: en.auth.sendCode })).toBeDisabled()
+    expect(authRequests.mock.calls).toEqual([
+      ['/api/auth/send-code', { email: 'smoke@example.test', language: 'en', turnstileToken: 'XXXX.DUMMY.TOKEN.XXXX' }],
+      ['/api/auth/verify-code', { email: 'smoke@example.test', code: '123456', language: 'en', turnstileToken: 'XXXX.DUMMY.TOKEN.XXXX' }, expect.objectContaining({ isCurrent: expect.any(Function), signal: expect.any(AbortSignal), onSuccess: expect.any(Function) })],
+    ])
     expect(mockPush).not.toHaveBeenCalled()
   })
 

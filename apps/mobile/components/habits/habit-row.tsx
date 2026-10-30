@@ -33,6 +33,7 @@ import {
   resolveHabitRowDotState,
 } from './habit-row-model'
 import { styles } from './habit-row-styles'
+import { useHabitRowActivation } from './use-habit-row-activation'
 
 /**
  * Action callbacks consumed by HabitRow.
@@ -306,7 +307,7 @@ export const HabitRow = memo(function HabitRow({
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const { displayTime } = useTimeFormat()
+  const { displayTime, displayReminderClock: displayClock } = useTimeFormat()
 
   const isChild = depth > 0
   const todayStr = today ?? formatAPIDate(new Date())
@@ -334,6 +335,7 @@ export const HabitRow = memo(function HabitRow({
     t,
     locale,
   })
+  if (habit.nextReminderAtUtc) metaParts.push({ kind: 'next', label: t('habits.nextReminder', { time: displayClock(habit.nextReminderAtUtc) }) })
   const { onContentWidth, onTokenWidth, narrow } = useHabitRowMetadataFit(metaParts)
   const supportingMeta = largeText || depthBoundary || narrow
 
@@ -352,6 +354,7 @@ export const HabitRow = memo(function HabitRow({
   )
 
   const handlePress = resolveBodyPressAction(isSelectMode, actions)
+  const activation = useHabitRowActivation(handlePress, isSelectMode ? undefined : actions.onLongPressCard)
   const bodyPressFeedback = useBodyPressFeedback(tokens)
   const toggleStatusAction = isDoneForRange ? actions.onUnlog : actions.onLog
   const handleToggleStatus = () => {
@@ -409,12 +412,12 @@ export const HabitRow = memo(function HabitRow({
     </>
   )
   const primaryButton = renderHabitRowPrimaryButton({
-    onPress: handlePress,
-    onPressIn: bodyPressFeedback.onPressIn,
+    onPress: activation.onPress,
+    onPressIn: () => { activation.onPressIn(); bodyPressFeedback.onPressIn() },
     onPressOut: bodyPressFeedback.onPressOut,
     onHoverIn: bodyPressFeedback.onHoverIn,
     onHoverOut: bodyPressFeedback.onHoverOut,
-    onLongPress: isSelectMode ? undefined : actions.onLongPressCard,
+    onLongPress: activation.onLongPress,
     delayLongPress: 500,
     accessibilityRole: 'button',
     accessibilityLabel: knownRowAccessibilityLabel,

@@ -17,7 +17,7 @@ import { createMockAchievement, createMockGoal } from '@orbit/shared/__tests__/f
 import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { createTranslator } from 'next-intl'
+import { createTranslator, type NamespaceKeys, type NestedKeyOf } from 'next-intl'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -106,6 +106,7 @@ const mocks = vi.hoisted(() => ({
       currentStreak: 4,
       longestStreak: 9,
       lastActiveDate: null as string | null,
+      firstEligibleDate: undefined as string | null | undefined,
       freezesUsedThisMonth: 1,
       freezesAvailable: 2,
       maxFreezesPerMonth: 3,
@@ -137,12 +138,13 @@ const mocks = vi.hoisted(() => ({
   useEnglishCatalog: false,
 }))
 
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 vi.mock('next-intl', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next-intl')>()),
   useLocale: () => mocks.usePortugueseCatalog ? 'pt-BR' : 'en',
-  useTranslations: () => mocks.usePortugueseCatalog
-    ? createTranslator({ locale: 'pt-BR', messages: ptBR })
-    : mocks.useEnglishCatalog ? createTranslator({ locale: 'en', messages: en }) : (key: string, values?: Record<string, unknown>) =>
+  useTranslations: (namespace?: NamespaceKeys<typeof en, NestedKeyOf<typeof en>>) => mocks.usePortugueseCatalog
+    ? createTranslator({ locale: 'pt-BR', messages: ptBR, namespace })
+    : mocks.useEnglishCatalog ? createTranslator({ locale: 'en', messages: en, namespace }) : (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => mocks.router, usePathname: () => '/progress' }))
@@ -471,10 +473,11 @@ describe('ProgressContent', () => {
 
   it.each([1352, 1100, 840, 412].flatMap((width) => [false, true].map((panelOpen) => ({ width, panelOpen }))))(
     'keeps the content gutter at $width with conversation open=$panelOpen', async ({ width, panelOpen }) => {
-      const matchMedia = window.matchMedia.bind(window)
-      const media = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
-        ...matchMedia(query), matches: width >= 1024,
-      }))
+      const matchMedia = window.matchMedia
+      window.matchMedia = query => {
+        const result = matchMedia(query)
+        return { ...result, matches: query === '(min-width: 1024px)' ? width >= 1024 : result.matches }
+      }
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         const { container } = render(
@@ -493,7 +496,7 @@ describe('ProgressContent', () => {
           const section = document.querySelector('section')!.getBoundingClientRect()
           const goals = document.querySelector('h2:not(.sr-only)')!.getBoundingClientRect()
           const header = document.querySelector('[data-root-notification-header]')?.getBoundingClientRect()
-          const bell = document.querySelector('[data-root-notification-header] button')?.getBoundingClientRect()
+          const bell = document.querySelector('[data-root-notification-header] button[aria-label="notifications.bell"]')?.getBoundingClientRect()
           return { left: section.left - column.left, right: contentRight - section.right, goalsLeft: goals.left - column.left,
             columnWidth: scroller.clientWidth, topInset: section.top - column.top, headerHeight: header?.height ?? 0,
             trailingInset: bell && bell.width > 0 ? contentRight - bell.right : null }
@@ -503,7 +506,7 @@ describe('ProgressContent', () => {
           topInset: width < 1024 ? 88 : 16, headerHeight: width < 1024 ? 72 : 0,
           trailingInset: width < 1024 ? gutter : null })
       } finally {
-        media.mockRestore()
+        window.matchMedia = matchMedia
         await page.close()
       }
     },
@@ -844,6 +847,7 @@ describe('ProgressContent', () => {
     Object.assign(mocks.freeze.streakInfo, {
       currentStreak: 4,
       recentFreezeDates: [],
+      firstEligibleDate: undefined,
       lastActiveDate: null,
       isRepairAvailable: false,
       repairDate: null,
@@ -1843,6 +1847,16 @@ describe('ProgressContent', () => {
     expect(mocks.freeze.streakQuery.refetch).toHaveBeenCalledTimes(1)
 
     mocks.freeze.streakInfo = streakInfo
+  })
+
+  it('keeps pre-habit days neutral in the owning streak page on the account date', () => {
+    vi.setSystemTime(new Date('2026-09-26T06:00:00Z'))
+    mocks.account.profile.timeZone = 'Pacific/Honolulu'
+    Object.assign(mocks.freeze.streakInfo, { currentStreak: 1, lastActiveDate: '2026-09-25', firstEligibleDate: '2026-09-24' })
+    const { container } = render(<StreakPage />)
+    const cells = [...container.querySelectorAll('[data-scope="account"] [data-state]')]
+    expect(cells.map(cell => cell.getAttribute('data-state'))).toEqual([...Array(12).fill('not-scheduled'), 'missed', 'active'])
+    expect(cells[0]).toHaveAccessibleName(/calendar.dayCell.notScheduled/)
   })
 
   it('renders fourteen account days and exposes the bank on the owning page', () => {

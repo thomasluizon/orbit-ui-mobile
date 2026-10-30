@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { ChevronDown, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { YearPicker } from '@/components/ui/year-picker'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { IconButton } from '@/components/ui/icon-button'
 import { formatCalendarMonthHeading, formatLocaleDate } from '@orbit/shared/utils'
 
 interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
@@ -15,7 +16,6 @@ interface CalendarHeaderProps extends CalendarHeaderNavigationProps {
 
 const controlButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center border-0 text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]'
 const titleButton = `${controlButton} rounded-[12px] bg-transparent`
-const headerButton = `${controlButton} orbit-calendar-nav-control relative rounded-full bg-transparent`
 const pickerButton = `${controlButton} rounded-[12px] bg-[var(--bg-field)]`
 
 function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, year, onSelectYear }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'onSelectMonth'> & { choosingYear: boolean; year: number; onSelectYear: (year: number) => void }>) {
@@ -39,7 +39,7 @@ function CalendarNavigationTitle({ currentMonth, todayKey, isTodaySelected, peri
   const locale = useLocale()
   const heading = formatCalendarMonthHeading(currentMonth, todayKey, locale)
   const monthName = [heading.month, heading.year].filter(Boolean).join(' ')
-  return <div className="flex max-w-full min-w-0 flex-wrap items-center justify-center">
+  return <div className="flex max-w-full min-w-0 flex-wrap items-center justify-center" style={period ? undefined : { gap: 8, paddingInlineEnd: 4 }}>
         <button type="button" data-calendar-period-title={period ? '' : undefined} data-calendar-month-title={period ? undefined : ''}
           className={`${titleButton} transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] aria-disabled:cursor-default aria-disabled:hover:bg-transparent aria-disabled:active:bg-transparent aria-disabled:focus-visible:bg-transparent ${period ? 'orbit-calendar-span-title' : ''}`}
           style={period ? periodTitleStyle : monthTitleStyle}
@@ -47,7 +47,7 @@ function CalendarNavigationTitle({ currentMonth, todayKey, isTodaySelected, peri
           aria-disabled={isTodaySelected} onClick={onReturn}>
           {period ? <span>{period.label}</span> : <span className="min-w-0 whitespace-normal break-words">{heading.month}{heading.year ? <> <span style={{ color: 'var(--fg-2)' }}>{heading.year}</span></> : null}</span>}
         </button>
-        {!period ? <button type="button" className={`${titleButton} orbit-calendar-picker-control relative`} style={{ minWidth: 48, minHeight: 48 }}
+        {!period ? <button type="button" className={`${titleButton} orbit-calendar-picker-control relative`} style={{ minWidth: 32, minHeight: 48 }}
           aria-label={`${monthName}, ${t('calendar.monthPicker')}`} aria-haspopup="dialog" aria-expanded={pickerOpen} aria-controls={pickerId}
           onClick={onOpenPicker}>
           <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
@@ -66,12 +66,12 @@ export function CalendarHeader({ currentMonth, todayKey, isTodaySelected = false
   const returnToToday = () => { if (!isTodaySelected) (period?.onCurrent ?? onCurrentMonth)() }
   const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
   return <div data-testid="calendar-header-group" className="flex flex-col gap-4 px-4 pt-3 pb-6">
-    <div data-testid={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} className={`flex min-h-12 flex-wrap items-center justify-center ${period ? 'gap-2' : 'gap-0'}`}>
-      <button type="button" className={headerButton} aria-label={period?.previousLabel ?? previousMonthLabel} onClick={period?.onPrevious ?? onPreviousMonth}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
+    <div data-testid={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} className="flex min-h-12 flex-wrap items-center justify-center gap-2">
+      <IconButton borderless={false} label={period?.previousLabel ?? previousMonthLabel} onClick={period?.onPrevious ?? onPreviousMonth}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></IconButton>
       <CalendarNavigationTitle currentMonth={currentMonth} todayKey={todayKey} isTodaySelected={isTodaySelected} period={period}
         pickerId={pickerId} pickerOpen={pickerOpen} onReturn={returnToToday}
         onOpenPicker={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }} />
-      <button type="button" className={`${headerButton} disabled:opacity-40`} aria-label={period?.nextLabel ?? nextMonthLabel} onClick={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>
+      <IconButton borderless={false} label={period?.nextLabel ?? nextMonthLabel} onClick={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></IconButton>
     </div>
     {viewSelector}
     {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}

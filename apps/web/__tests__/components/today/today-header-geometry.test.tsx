@@ -1,3 +1,4 @@
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createRef } from 'react'
 import type { Locator, Page } from '@playwright/test'
@@ -12,7 +13,8 @@ import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
-import { SPACING } from '@orbit/shared/theme'
+import { SMALL_PILL_VISIBLE_MIN, SPACING } from '@orbit/shared/theme'
+import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
 import { formatAPIDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { HabitViewSwitch } from '@/components/today/habit-view-switch'
 import { TodayAstra } from '@/components/today/today-astra'
@@ -28,6 +30,8 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { useUIStore } from '@/stores/ui-store'
 import { useShellStore } from '@/stores/shell-store'
+import { measureSplitSegmentWords, mountMeasuredSegmentedControls } from '@/__tests__/support/segmented-control-geometry'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useParams: () => ({}), useRouter: () => ({ push: vi.fn() }) }))
@@ -93,12 +97,12 @@ function assertSupportingTypeStack(type: {
   if (type.metadata) expect(type.bounds.top).toBeCloseTo(type.metadata.top, 1)
 }
 
-function assertHeaderControls(controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[], width: number, scale: number) {
+function assertHeaderControls(controls: { left: number; right: number; top: number; bottom: number; width: number; height: number; targetWidth?: number; targetHeight?: number }[], width: number, scale: number) {
   for (const [index, control] of controls.entries()) {
     expect(control.left).toBeGreaterThanOrEqual(16)
     expect(control.right).toBeLessThanOrEqual(width - 16)
-    expect(control.width).toBeGreaterThanOrEqual(48)
-    expect(control.height).toBeGreaterThanOrEqual(48)
+    expect(control.targetWidth ?? control.width).toBeGreaterThanOrEqual(48)
+    expect(control.targetHeight ?? control.height).toBeGreaterThanOrEqual(48)
     if (index > 0) {
       const previous = controls[index - 1]!
       if (control.top >= previous.bottom) expect(control.top - previous.bottom).toBeGreaterThanOrEqual(4)
@@ -128,8 +132,12 @@ async function expectHeaderFillClearance(page: Page, control: Locator, content: 
       await expect.poll(() => control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(background)
       const fill = await control.boundingBox()
       const next = await content.boundingBox()
-      expect(fill!.width).toBeGreaterThanOrEqual(48)
-      expect(fill!.height).toBeGreaterThanOrEqual(48)
+      expect(fill!.width).toBeGreaterThanOrEqual(SMALL_PILL_VISIBLE_MIN)
+      expect(fill!.height).toBeGreaterThanOrEqual(SMALL_PILL_VISIBLE_MIN)
+      const target = await control.evaluate(readExpandedControlGeometry)
+      expect(target.width).toBeGreaterThanOrEqual(48)
+      expect(target.height).toBeGreaterThanOrEqual(48)
+      expect(target.edgeHits).toEqual([true, true, true, true])
       expect(next!.y - fill!.y - fill!.height).toBeGreaterThanOrEqual(24)
     } finally {
       await page.mouse.move(0, 914)
@@ -175,7 +183,7 @@ describe('Hoje header geometry', () => {
           </NextIntlClientProvider>)
           const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
           await page.setContent(`<style>${stylesheet}:root{${variables}}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
           unmount()
           await page.evaluate((theme) => { document.documentElement.className = theme }, mode)
           const content = page.locator(index === 0 ? '.today-astra-line' : '[data-first-content]')
@@ -187,7 +195,7 @@ describe('Hoje header geometry', () => {
             inspected += 1
             await expectHeaderFillClearance(page, control, content, mode)
           }
-          expect(inspected).toBe(width < 1024 ? [3, 2, 1, 1][index] : [2, 1, 0, 0][index])
+          expect(inspected).toBe(width < 1024 ? [4, 3, 2, 2][index] : [2, 1, 0, 0][index])
           if (width >= 1024) {
             const bell = page.locator('[data-shell-sidebar] button[aria-label^="' + ptBr.notifications.bell + '"]')
             const next = page.locator('[data-shell-sidebar] [data-shell-search]')
@@ -205,7 +213,7 @@ describe('Hoje header geometry', () => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       const scopedSearch = page.locator('[data-today-header-actions]').getByRole('button', { name: props.searchLabel })
       expect(await scopedSearch.count()).toBe(1)
       expect(await scopedSearch.isVisible()).toBe(true)
@@ -235,7 +243,7 @@ describe('Hoje header geometry', () => {
           fireEvent.click(within(rendered.container).getByRole('radio', { name: label }))
           expect(within(rendered.container).getByRole('radio', { name: label })).toHaveAttribute('aria-checked', 'true')
           await page.setContent(`<style>${stylesheet}</style>${rendered.container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
           const search = page.locator('[data-shell-sidebar]').getByRole('button', { name: words.nav.search, exact: true })
           expect(await search.count()).toBe(1)
           expect(await search.isVisible()).toBe(true)
@@ -256,33 +264,39 @@ describe('Hoje header geometry', () => {
     },
   )
 
-  it.each([320, 360, 384, 412, 600, 768, 840, 1024, 1352].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))(
-    'keeps all three habit views on one line in $locale at $width', async ({ width, locale }) => {
+  it.each([320, 360, 384, 412, 600, 768, 840, 1024, 1352].flatMap((width) => ['en', 'pt-BR'].flatMap((locale) => [1, 2].map((scale) => ({ width, locale, scale })))))(
+    'keeps all three habit view words whole in $locale at $width and scale $scale', async ({ width, locale, scale }) => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       const words = locale === 'en' ? en : ptBr
       try {
         await page.setContent(`<style>${stylesheet}</style>${renderToString(<NextIntlClientProvider locale={locale} messages={words}><div className="mx-auto w-full max-w-[740px]"><HabitViewSwitch value="today" onChange={noop} /></div></NextIntlClientProvider>)}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
-        await page.evaluate(() => document.fonts.ready)
-        const geometry = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-habit-view-switch] [role="radio"]')).map((radio) => {
-          const span = radio.querySelector('span')!
-          const range = document.createRange()
-          range.selectNodeContents(span)
-          const bounds = radio.getBoundingClientRect()
-          const label = range.getBoundingClientRect()
-          return { top: bounds.top, width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right, labelLeft: label.left, labelRight: label.right, lines: new Set(Array.from(range.getClientRects()).map((rect) => rect.top)).size }
-        }))
-        expect(geometry).toHaveLength(3)
-        expect(new Set(geometry.map((radio) => radio.top)).size).toBe(1)
-        for (const radio of geometry) {
-          expect(radio.width).toBeGreaterThanOrEqual(48)
-          expect(radio.height).toBeGreaterThanOrEqual(48)
-          expect(radio.lines).toBe(1)
-          expect(radio.labelLeft - radio.left).toBeGreaterThanOrEqual(8)
-          expect(radio.right - radio.labelRight).toBeGreaterThanOrEqual(8)
-          expect(radio.left).toBeGreaterThanOrEqual(16)
-          expect(radio.right).toBeLessThanOrEqual(width - 16)
-        }
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await loadAppFonts(page)
+      await mountMeasuredSegmentedControls(page)
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await vi.waitFor(async () => {
+          expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
+          const geometry = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-habit-view-switch] [role="radio"], [data-habit-view-switch] [data-menu-trigger]')).map((radio) => {
+            const span = radio.querySelector('span')!
+            const range = document.createRange()
+            range.selectNodeContents(span)
+            const bounds = radio.getBoundingClientRect()
+            const label = range.getBoundingClientRect()
+            return { folded: radio.hasAttribute('data-menu-trigger'), top: bounds.top, width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right, labelLeft: label.left, labelRight: label.right, lines: new Set(Array.from(range.getClientRects()).map((rect) => rect.top)).size }
+          }))
+          expect(geometry).toHaveLength(geometry[0]?.folded ? 1 : 3)
+          if (scale === 1) expect(geometry[0]?.folded).toBe(false)
+          expect(new Set(geometry.map((radio) => radio.top)).size).toBe(1)
+          for (const radio of geometry) {
+            expect(radio.width).toBeGreaterThanOrEqual(48)
+            expect(radio.height).toBeGreaterThanOrEqual(48)
+            expect(radio.lines).toBe(1)
+            expect(radio.labelLeft - radio.left).toBeGreaterThanOrEqual(8)
+            expect(radio.right - radio.labelRight).toBeGreaterThanOrEqual(8)
+            expect(radio.left).toBeGreaterThanOrEqual(16)
+            expect(radio.right).toBeLessThanOrEqual(width - 16)
+          }
+        }, { timeout: 2000 })
       } finally { await page.close() }
     },
   )
@@ -310,7 +324,7 @@ describe('Hoje header geometry', () => {
         expect(container.querySelectorAll(optionsSelector)).toHaveLength(1)
         expect(container.querySelectorAll(`[data-shell-column] button[aria-label^="${ptBr.notifications.bell}"]`)).toHaveLength(1)
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(() => document.fonts.ready)
         const headerInset = () => page.locator(optionsSelector).evaluate((element) => {
           const row = element.closest('[data-today-header-actions], [data-testid="calendar-shell-header"]')!
@@ -330,7 +344,7 @@ describe('Hoje header geometry', () => {
         expect(container.querySelectorAll(optionsSelector)).toHaveLength(1)
         expect(container.querySelector(optionsSelector)?.closest('[data-shell-header]')).not.toBeNull()
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(() => document.fonts.ready)
         expect(await headerInset()).toBe(width < 1024 ? 0 : 32)
         const hydratedTop = await page.locator(contentSelector).evaluate((element) => element.getBoundingClientRect().top)
@@ -359,7 +373,7 @@ describe('Hoje header geometry', () => {
             </DestinationShell>
           </NextIntlClientProvider>)
           await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
           unmount()
           await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
           await page.keyboard.press('Tab')
@@ -392,8 +406,12 @@ describe('Hoje header geometry', () => {
             expect(geometry.focusBottom).toBeLessThanOrEqual(geometry.viewportBottom)
           }
           if (contentHeight === 1600) expect(geometry.gutter).toBeGreaterThan(0)
-          expect(geometry.width).toBeGreaterThanOrEqual(48)
-          expect(geometry.height).toBeGreaterThanOrEqual(48)
+          expect(geometry.width).toBe(SMALL_PILL_VISIBLE_MIN)
+          expect(geometry.height).toBe(SMALL_PILL_VISIBLE_MIN)
+          const target = await page.getByRole('button', { name: new RegExp(`^${ptBr.notifications.bell}`) }).evaluate(readExpandedControlGeometry)
+          expect(target.width).toBeGreaterThanOrEqual(48)
+          expect(target.height).toBeGreaterThanOrEqual(48)
+          expect(target.edgeHits).toEqual([true, true, true, true])
           expect(geometry.documentWidth).toBe(width)
           trailingEdges.push(geometry.right)
         }
@@ -417,7 +435,7 @@ describe('Hoje header geometry', () => {
         const { container, unmount } = render(<NextIntlClientProvider locale={locale} messages={messages}>{surface}</NextIntlClientProvider>)
         const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value};`).join('')
         await page.setContent(`<!doctype html><style>${stylesheet}:root{${variables}}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         unmount()
         await page.evaluate((theme) => { document.documentElement.className = theme }, mode)
         const controls = page.locator('[data-today-header-actions] button, [data-testid="calendar-shell-header"] button, [data-root-notification-header] button, [data-shell-sidebar] button[aria-label^="' + messages.notifications.bell + '"]')
@@ -436,9 +454,13 @@ describe('Hoje header geometry', () => {
           await control.hover()
           await expect.poll(async () => (await measure()).background).toBe(fill)
           const hovered = await measure()
-          expect(hovered.width).toBeGreaterThanOrEqual(48)
-          expect(hovered.height).toBeGreaterThanOrEqual(48)
-          expect(Number.parseFloat(hovered.radius)).toBeGreaterThanOrEqual(24)
+          expect(hovered.width).toBeGreaterThanOrEqual(SMALL_PILL_VISIBLE_MIN)
+          expect(hovered.height).toBeGreaterThanOrEqual(SMALL_PILL_VISIBLE_MIN)
+          expect(Number.parseFloat(hovered.radius)).toBeGreaterThanOrEqual(hovered.height / 2)
+          const target = await control.evaluate(readExpandedControlGeometry)
+          expect(target.width).toBeGreaterThanOrEqual(48)
+          expect(target.height).toBeGreaterThanOrEqual(48)
+          expect(target.edgeHits).toEqual([true, true, true, true])
           await page.mouse.down()
           await expect.poll(async () => (await measure()).background).toBe(fill)
           await page.mouse.move(width - 1, 914)
@@ -486,7 +508,7 @@ describe('Hoje header geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(async (scale) => {
           document.documentElement.style.fontSize = `${16 * scale}px`
           const labels = document.querySelectorAll<HTMLElement>('[data-habit-row-body] > span > span, [data-personal-text-content] > span > span, .today-astra-sentence')
@@ -643,7 +665,7 @@ describe('Hoje header geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(async (scale) => { document.documentElement.style.fontSize = `${16 * scale}px`; await document.fonts.ready }, textScale)
         const skip = page.getByRole('link', { name: ptBr.common.skipToContent })
         const options = page.getByRole('button', { name: props.moreLabel })
@@ -677,7 +699,7 @@ describe('Hoje header geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate((theme) => { document.documentElement.className = theme }, mode)
         const previous = page.locator('main[data-shell-scroller] button').first()
         expect(await previous.getAttribute('aria-label')).toBe(props.previousLabel)
@@ -715,7 +737,7 @@ describe('Hoje header geometry', () => {
     const page = await browser.newPage({ viewport: { width: presentation === 'sheet' ? 412 : 1280, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.evaluate(async () => { await document.fonts.ready })
       const heights = await page.locator('[role="menuitem"]').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height))
       expect(heights).toEqual(presentation === 'sheet' ? [56, 56] : [48, 48])
@@ -741,7 +763,7 @@ describe('Hoje header geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(({ mode, variables }) => {
           document.documentElement.dataset.mode = mode
           for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
@@ -823,7 +845,7 @@ describe('Hoje header geometry', () => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.evaluate(async ({ textScale, labelsOnly }) => {
         await document.fonts.ready
         if (labelsOnly) {
@@ -858,7 +880,8 @@ describe('Hoje header geometry', () => {
       expect(geometry.arrows[1]!.right).toBeCloseTo(geometry.date.right - 16)
       expect(Math.abs((geometry.dateBlock.left + geometry.dateBlock.right - geometry.date.left - geometry.date.right) / 2)).toBeLessThanOrEqual(1)
       assertHeaderControls(geometry.arrows, width, scale)
-      assertHeaderControls(geometry.actions, width, scale)
+      const actionTargets = await Promise.all((await page.locator('[data-today-header-actions] button').all()).map(control => control.evaluate(readExpandedControlGeometry)))
+      assertHeaderControls(geometry.actions.map((control, index) => ({ ...control, targetWidth: actionTargets[index]!.width, targetHeight: actionTargets[index]!.height })), width, scale)
     } finally { await page.close() }
   })
   it.each([320, 412].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))(
@@ -871,7 +894,7 @@ describe('Hoje header geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.evaluate(async () => { await document.fonts.ready })
         for (const scale of [1, 2]) {
           await page.evaluate((size) => { document.documentElement.style.fontSize = `${16 * size}px` }, scale)
@@ -914,7 +937,7 @@ describe('Hoje header geometry', () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.evaluate(async (scale) => { await document.fonts.ready; document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
       const geometry = await page.evaluate(() => {
         const labels = Array.from(document.querySelectorAll('.orbit-menu-label, .orbit-sheet-title')).map((label) => {
@@ -974,7 +997,7 @@ describe('Hoje header geometry', () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.evaluate(async () => { await document.fonts.ready; document.documentElement.style.fontSize = '32px' })
       const geometry = await page.evaluate(() => {
         const heading = document.querySelector('.orbit-sheet-title')!

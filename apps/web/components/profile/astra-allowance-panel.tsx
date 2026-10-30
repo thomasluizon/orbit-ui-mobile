@@ -1,7 +1,9 @@
 'use client'
 
+import { createAstraAllowanceTranslator } from '@orbit/shared/utils'
+
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
 import { SPACING, TOUCH_TARGET_MIN, BUTTON_SIZES } from '@orbit/shared/theme'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -14,6 +16,7 @@ export function AstraAllowancePanel({
   profile,
 }: Readonly<AstraAllowancePanelProps>) {
   const t = useTranslations()
+  const translate = createAstraAllowanceTranslator(t, profile, useLocale())
   const isNonTrialPro = profile.hasProAccess && !profile.isTrialActive
   const canManageSubscription = isNonTrialPro && !profile.isLifetimePro
   const isSpent = profile.aiMessagesLimit > 0
@@ -40,7 +43,7 @@ export function AstraAllowancePanel({
     >
       <div className="flex min-w-0 flex-col" style={{ gap: 4 }}>
         <p className="m-0 min-w-0 font-sans text-[17px] leading-[1.4] text-[var(--fg-1)]">
-          {t('profile.allowance.title')}
+          {translate('profile.allowance.title')}
         </p>
         <p className="m-0 font-mono text-[12px] leading-[1.4] text-[var(--fg-3)] tabular-nums">
           {t('profile.allowance.usage', {
@@ -49,14 +52,15 @@ export function AstraAllowancePanel({
           })}
         </p>
       </div>
+      {profile.aiMessagesPeriod === 'week' ? <p className="m-0 text-sm text-[var(--fg-3)]">{translate('shell.composer.limit.renewal')}</p> : null}
       <ProgressBar
         value={profile.aiMessagesUsed}
         max={profile.aiMessagesLimit}
-        label={t('profile.allowance.title')}
+        label={translate('profile.allowance.title')}
       />
       {isSpent ? (
         <p className="m-0 font-sans text-[14px] leading-[1.5] text-[var(--fg-3)] [text-wrap:pretty]">
-          {t('profile.allowance.spent')}
+          {translate('profile.allowance.spent')}
         </p>
       ) : null}
       <div className="flex items-center" style={{ gap: 12 }}>

@@ -106,7 +106,9 @@ export function useDrillNavigation(
       const requestId = ++requestIdRef.current
       const showFeedback = !silent || feedbackPendingRef.current
       feedbackPendingRef.current = showFeedback
-      if (showFeedback) setDrillLoading(true)
+      if (showFeedback) {
+        setDrillLoading(true)
+      }
       try {
         void queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId), exact: true })
         const detail = await queryClient.fetchQuery({
@@ -135,7 +137,9 @@ export function useDrillNavigation(
       } finally {
         if (requestIdRef.current === requestId) {
           feedbackPendingRef.current = false
-          if (showFeedback) setDrillLoading(false)
+          if (showFeedback) {
+            setDrillLoading(false)
+          }
         }
       }
     },

@@ -1,10 +1,10 @@
 import { personalText } from '@/__tests__/support/personal-text'
-import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { buildCalendarDayMap } from '@orbit/shared/utils'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
+import { useUIStore } from '@/stores/ui-store'
 import { useMemo } from 'react'
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
@@ -15,6 +15,9 @@ import {
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+
+const navigation = vi.hoisted(() => ({ push: vi.fn() }))
+vi.mock('next/navigation', () => ({ useRouter: () => navigation }))
 
 const detailLocale = vi.hoisted(() => ({ language: 'en' }))
 vi.mock('@/hooks/use-calendars', () => ({
@@ -111,10 +114,12 @@ function CalendarDayDetailHarness({
   onOpenCalendarImport = () => {},
   onViewPro = () => {},
   loggable = false,
-  showRecurring = true,
+  showRecurring: showRecurringOverride,
   onEntryChange = async () => {},
   proActionVariant = 'primary',
 }: RenderProps) {
+  const storedRecurring = useUIStore(state => state.calendarShowRecurring)
+  const showRecurring = showRecurringOverride ?? storedRecurring
   const sourceEntryStates = useMemo(() => {
     const states = new Map<string, boolean>()
     if (dateStr) {
@@ -164,13 +169,31 @@ function renderDetail(props: RenderProps = {}) {
   return render(<CalendarDayDetailHarness {...props} />)
 }
 
+beforeEach(() => useUIStore.setState({ calendarShowRecurring: true }))
+
 describe('CalendarDayDetail', () => {
-  it('retires a full habit title when the account is replaced', () => {
-    renderDetail({ entries: [makeEntry({ title: 'Private habit title' })] })
-    fireEvent.click(screen.getByRole('button', { name: 'Private habit title, done' }))
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-    act(() => advanceAccountGeneration())
-    expect(screen.queryByRole('dialog')).toBeNull()
+  it.each([false, true])('opens the selected dated habit without a title sheet with loggable=%s', (loggable) => {
+    navigation.push.mockClear()
+    renderDetail({ dateStr: '2025-06-14', entries: [makeEntry({ title: 'Read' })], loggable })
+    fireEvent.click(screen.getByRole('button', { name: loggable ? 'Read' : 'Read, done' }))
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith('/habits/1?date=2025-06-14')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it.each([false, true])('carries schedule emoji and the Hoje fallback with loggable=%s', (loggable) => {
+    const date = '2025-06-15'
+    const entries = buildCalendarDayMap({ habits: [
+      createMockHabitScheduleItem({ id: 'emoji', title: 'Read', emoji: '📚', scheduledDates: [date], instances: [] }),
+      createMockHabitScheduleItem({ id: 'fallback', title: 'Walk', emoji: null, scheduledDates: [date], instances: [] }),
+    ], logs: {} }, { from: date, to: date }).get(date)!
+    renderDetail({ entries, loggable })
+    expect(screen.getByText('📚')).toBeInTheDocument()
+    expect(screen.getByText('W', { exact: true })).toBeInTheDocument()
+  })
+
+  it('shows the recurring switch inside the day card', () => {
+    renderDetail()
+    expect(screen.getByRole('switch')).toBeInTheDocument()
   })
 
   describe.each(['UTC', 'America/Sao_Paulo', 'Pacific/Auckland'])('day card headings in %s', (timeZone) => {
@@ -288,7 +311,7 @@ describe('CalendarDayDetail', () => {
       expect(onViewPro).toHaveBeenCalledOnce()
       expect(screen.queryByText('common.proBadge')).not.toBeInTheDocument()
       expect(screen.queryByText('calendar.calendars.title')).not.toBeInTheDocument()
-      expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+      expect(screen.getByRole('switch')).toBeInTheDocument()
     } finally {
       detailLocale.language = 'en'
     }
@@ -677,7 +700,7 @@ describe('CalendarDayDetail', () => {
     expect(card).toContainElement(screen.getByRole('link', { name: 'Open in Today' }))
     expect(screen.getByRole('heading', { level: 2 }).parentElement).toHaveStyle({ gap: '4px' })
     expect(screen.getByRole('button', { name: 'Meditate, done' })).toBeInTheDocument()
-    expect(screen.queryByRole('switch', { name: 'Show recurring habits' })).not.toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'calendar.showRecurringShort' })).toBeInTheDocument()
   })
 
 })
@@ -734,7 +757,7 @@ describe('day card disclosure regression', () => {
       isRecurring: false, recurrenceRule: null, reminders: [],
     })) })
     expect(screen.queryByText(personalText('Preview 3'))).not.toBeInTheDocument()
-    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    expect(screen.getByRole('switch')).toBeInTheDocument()
     expect(screen.queryByText('calendar.dayDetail.importEvents')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /1:1 FutureProofing Engineering/ }))
     expect(onOpenCalendarImport).toHaveBeenCalledWith('preview-0')

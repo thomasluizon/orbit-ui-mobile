@@ -1,10 +1,11 @@
+import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
-import { choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { makeOneSmallStepCard, questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
 import Animated from 'react-native-reanimated'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
+import { buildChatClientContext, buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockHabit, createMockProfile, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { goalKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import { chatResponseSchema, type ChatMessage, type ChatResponse } from '@orbit/shared/types/chat'
@@ -187,7 +188,7 @@ vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
 vi.mock('@/components/message-bubble', async importOriginal => {
   const actual = await importOriginal<typeof import('@/components/message-bubble')>()
-  return { MessageBubble: (props: React.ComponentProps<typeof actual.MessageBubble>) => props.isStreaming || props.message.parts?.some(part => part?.type === 'block' && part.kind === 'choice')
+  return { MessageBubble: (props: React.ComponentProps<typeof actual.MessageBubble>) => props.isStreaming || props.message.parts?.some(part => part?.type === 'block' && ['choice', 'oneSmallStep'].includes(part.kind))
     ? <actual.MessageBubble {...props} /> : React.createElement('Text', null, props.message.content) }
 })
 vi.mock('@/components/ui/markdown', () => ({ Markdown: () => null }))
@@ -484,8 +485,8 @@ describe('mobile useChatComposer', () => {
     const tree = await renderConversationHarness()
     await TestRenderer.act(async () => { useUIStore.getState().setAstraConversationOpen(true); await Promise.resolve() })
     const radios = () => visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
-    const { Button: AnswerButton } = await import('@/components/ui/pill-button')
-    const submit = () => tree.root.findAllByType(AnswerButton).find((node: { props: { children?: string } }) => node.props.children === 'chat.choice.submit')!
+    const { IconButton: AnswerButton } = await import('@/components/ui/icon-button')
+    const submit = () => tree.root.findAllByType(AnswerButton).find((node: { props: { label?: string } }) => node.props.label === 'chat.choice.submit')!
     await TestRenderer.act(async () => { radios()[2]!.props.onPress(); await Promise.resolve() })
     await TestRenderer.act(async () => { await submit().props.onClick() })
     expect(submit().props.disabled).toBe(true)
@@ -552,6 +553,29 @@ describe('mobile useChatComposer', () => {
     }
     expect(composer.current.input).toBe('')
     expect(composer.current.composerProps.attachments).toHaveLength(0)
+  })
+
+
+  it.each(allowanceRefusals.flatMap(refusal => ['http', 'sse'].flatMap(transport => ['message', 'choice', 'question'].map(submission => ({ ...refusal, transport, submission })))))('shows the $period allowance refusal in $locale over $transport for $submission without retry', async ({ period, locale, limit, body, transport, submission }) => {
+    mocks.locale = locale
+    await i18n.changeLanguage(locale)
+    mocks.translate = i18n.t.bind(i18n)
+    mocks.state.profile = createMockProfile({ hasProAccess: period === 'week', isTrialActive: false, aiMessagesUsed: 0, aiMessagesLimit: limit, aiMessagesPeriod: period === 'week' ? 'week' : 'day' })
+    mocks.openChatStream.mockResolvedValue(transport === 'http' ? Response.json(body, { status: 403 }) : sseStreamResponse(
+      frame('{"type":"started"}'), frame('{"type":"delta","text":"Checking"}'),
+      frame(JSON.stringify({ type: 'error', status: 403, error: body.error, code: body.errorCode })),
+    ))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => {
+      if (submission === 'message') await composer.current.sendMessage('Plan my morning')
+      else await composer.current.blockAnswerInteraction.send({ kind: submission === 'choice' ? 'choice' : 'question', answer: { blockId: choiceBlockFixture.blockId, selectedIds: ['morning'] }, labels: ['Morning'] })
+    })
+    expect(useChatStore.getState().messages.at(-1)).toMatchObject({ role: 'ai', content: mocks.translate(`chat.limitReachedError${period === 'week' ? 'Weekly' : ''}`) })
+    expect(composer.current.sendError).toBeNull()
+    expect(composer.current.canRetryLastSend).toBe(false)
+    await TestRenderer.act(async () => { await composer.current.retryLastSend() })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
   it('releases the daily ceiling on the next local date', async () => {
@@ -901,12 +925,67 @@ describe('mobile useChatComposer', () => {
     expect(inputHosts(tree)).toHaveLength(1)
   })
 
+  it.each([false, true])('retains composer focus after a native submission with queued=%s', async (queued) => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    useUIStore.getState().setAstraConversationOpen(true)
+    const tree = await renderConversationHarness()
+    onTestFinished(() => stream.close())
+    if (queued) {
+      TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Running message'))
+      await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    }
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Next message'))
+    const send = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === (queued ? 'shell.composer.queue.add' : 'shell.composer.send'))[0]
+    const tag = send.props.__nativeTag
+    TestRenderer.act(() => { __setTouchMode(false); __focusHost(tag) })
+    expect(__getFocusedNativeTag()).toBe(tag)
+    await TestRenderer.act(async () => { send.props.onPress(); await Promise.resolve() })
+    expect(inputHosts(tree)[0].props.value).toBe('')
+    const primary = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.start')[0]
+    expect(__getFocusedNativeTag()).toBe(inputHosts(tree)[0].props.__nativeTag)
+    expect(primary.props.__nativeTag).toBe(tag)
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(queued ? ['Next message'] : [])
+  })
+
+  it.each(['', 'Existing draft'])('keeps voice reachable at the limit through transcription with draft=%j', async (draft) => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed: 5, aiMessagesLimit: 5 })
+    useChatStore.setState({ draft, draftHydrated: true })
+    useUIStore.getState().setAstraConversationOpen(true)
+    const tree = await renderConversationHarness()
+    const voiceControl = (label: string) => visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]
+    expect(voiceControl('shell.composer.voice.start')?.props.disabled).toBe(false)
+    TestRenderer.act(() => voiceControl('shell.composer.voice.start').props.onPress())
+    expect(mocks.toggleRecording).toHaveBeenCalledOnce()
+    mocks.state.isRecording = true
+    await TestRenderer.act(() => tree.update(<ComposerConversationHarness />))
+    TestRenderer.act(() => voiceControl('shell.composer.voice.stop').props.onPress())
+    mocks.state.isRecording = false
+    mocks.state.isTranscribing = true
+    await TestRenderer.act(() => tree.update(<ComposerConversationHarness />))
+    expect(voiceControl('shell.composer.voice.stop').props.disabled).toBe(true)
+    mocks.state.isTranscribing = false
+    mocks.state.transcript = 'Recorded message'
+    await TestRenderer.act(() => tree.update(<ComposerConversationHarness />))
+    expect(inputHosts(tree)[0].props.value).toBe(draft ? `${draft} Recorded message` : 'Recorded message')
+    expect(inputHosts(tree)[0].props.editable).toBe(false)
+    expect(voiceControl('shell.composer.voice.start')?.props.disabled).toBe(false)
+    expect(voiceControl('shell.composer.send')).toBeUndefined()
+    TestRenderer.act(() => voiceControl('shell.composer.voice.start').props.onPress())
+    expect(mocks.toggleRecording).toHaveBeenCalledTimes(3)
+    expect(mocks.openChatStream).not.toHaveBeenCalled()
+  })
+
   it('does not move native focus off the voice stop control when recording starts', async () => {
     const focus = vi.fn()
     __setFocusImpl(focus)
     const tree = await renderConversationHarness()
     TestRenderer.act(() => inputHosts(tree)[0].props.onFocus())
-    const voiceButton = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.actions')[0]
+    const voiceButton = visibleComposerRoot(tree).findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.start')[0]
     const voiceTag = voiceButton.props.__nativeTag
     TestRenderer.act(() => { __setTouchMode(false); __focusHost(voiceTag) })
     expect(__getFocusedNativeTag()).toBe(voiceTag)
@@ -1049,6 +1128,52 @@ describe('mobile useChatComposer', () => {
     const formData = mocks.openChatStream.mock.calls[0]?.[0] as { get(name: string): string | null }
     const context = JSON.parse(formData.get('clientContext') as string)
     expect(context.timeFormat).toBe('24h')
+  })
+
+  it.each(['en', 'pt-BR'] as const)('forwards the %s Smaller baseline only on that tap', async locale => {
+    await i18n.changeLanguage(locale)
+    const card = makeOneSmallStepCard(locale)
+    card.actions[0]!.previousStep = card.suggestion
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ content: '', pendingOperations: [],
+      parts: [{ type: 'block', kind: 'oneSmallStep', block: card }] })] })
+    useUIStore.getState().setAstraConversationOpen(true)
+    mocks.openChatStream.mockImplementation(() => Promise.resolve(sseStreamResponse(finalFrame(makeChatResponse()))))
+    const tree = await renderConversationHarness()
+    const smaller = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      typeof node.type === 'string' && node.props.accessibilityLabel === card.actions[0]!.label)[0]
+    await TestRenderer.act(async () => { await smaller.props.onPress() })
+    const form = mocks.openChatStream.mock.calls[0]?.[0] as { get(name: string): string | null }
+    expect(form.get('message')).toBe(card.actions[0]!.message)
+    expect(JSON.parse(form.get('clientContext') as string)).toMatchObject({ supportsStartingStepContext: true,
+      previousStartingStep: card.actions[0]!.previousStep })
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Another question'))
+    await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
+    const next = mocks.openChatStream.mock.calls[1]?.[0] as { get(name: string): string | null }
+    expect(next.get('message')).toBe('Another question')
+    expect(JSON.parse(next.get('clientContext') as string)).not.toHaveProperty('previousStartingStep')
+  })
+
+
+  it.each(makeOneSmallStepCard().actions)('sends the complete $id request with current history and no confirmation token', async action => {
+    const card = makeOneSmallStepCard()
+    useChatStore.setState({ messages: [
+      makeHeldHabitMessage({ id: 'request', role: 'user', content: 'Help me start reading', pendingOperations: [] }),
+      makeHeldHabitMessage({ id: 'step', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'oneSmallStep', block: card }] }),
+    ] })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => { await composer.current.sendMessage(action.message) })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    const formData = mocks.openChatStream.mock.calls[0]?.[0] as { get(name: string): string | null }
+    expect(formData.get('message')).toBe(action.message)
+    expect(formData.get('confirmationToken')).toBeNull()
+    expect(formData.get('blockAnswer')).toBeNull()
+    const history = JSON.parse(formData.get('history') as string)
+    expect(history).toContainEqual({ role: 'user', content: 'Help me start reading' })
+    expect(history).toContainEqual({ role: 'assistant', content: JSON.stringify([{ kind: 'oneSmallStep', block: card }]) })
+    expect(JSON.parse(formData.get('clientContext') as string).partKinds).toContain('oneSmallStep')
+    expect(JSON.parse(formData.get('clientContext') as string)).not.toHaveProperty('previousStartingStep')
   })
 
   it('keeps tool steps and follow-ups on the final answer and marks a chip send', async () => {
@@ -1325,6 +1450,21 @@ describe('mobile useChatComposer', () => {
     expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(5)
   })
 
+
+  it('sends typed question answers through native multipart and persists the terminal summary', async () => {
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    onTestFinished(() => appendFormPart.mockRestore())
+    useChatStore.setState({ messages: [makeHeldHabitMessage({ id: 'questions', content: '', pendingOperations: [], parts: [{ type: 'block', kind: 'question', block: questionBlockFixture }] })] })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    const answer = { blockId: questionBlockFixture.blockId, selectedIds: [], answers: questionAnswersFixture }
+    await TestRenderer.act(async () => { expect(await composer.current.blockAnswerInteraction.send({ kind: 'question', answer, labels: ['Energy: 3', 'Reminder: No'] })).toEqual({ ok: true }) })
+    expect(appendFormPart).toHaveBeenCalledWith('blockAnswer', JSON.stringify(answer))
+    const contextCall = appendFormPart.mock.calls.find(([key]) => key === 'clientContext')!
+    expect(JSON.parse(contextCall[1] as string).partKinds).toContain('question')
+    expect(useChatStore.getState().messages[0]?.blockAnswers?.[answer.blockId]).toMatchObject({ answered: true })
+    expect(useChatStore.getState().messages.filter(message => message.role === 'user')).toHaveLength(1)
+  })
   it('sends a localized block answer once at quota and keeps the existing preview path', async () => {
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
     onTestFinished(() => appendFormPart.mockRestore())
@@ -1355,8 +1495,8 @@ describe('mobile useChatComposer', () => {
     let thread!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { thread = TestRenderer.create(<Harness />); mountedTrees.push(thread) })
     const radios = () => thread.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
-    const { Button: AnswerButton } = await import('@/components/ui/pill-button')
-    const submit = () => thread.root.findAllByType(AnswerButton).find((node: { props: { children?: string } }) => node.props.children === 'chat.choice.submit')!.props.onClick()
+    const { IconButton: AnswerButton } = await import('@/components/ui/icon-button')
+    const submit = () => thread.root.findAllByType(AnswerButton).find((node: { props: { label?: string } }) => node.props.label === 'chat.choice.submit')!.props.onClick()
     await TestRenderer.act(() => {
       radios()[2]!.props.onPress()
       thread.root.findAllByType('TextInput').find((node: { props: { maxLength?: number } }) => node.props.maxLength === 500)!.props.onChangeText('After work')
@@ -2259,9 +2399,11 @@ describe('mobile useChatComposer', () => {
       result = await composer.current.confirmAndExecutePendingOperation('pending-1')
     })
 
+    const clientContext = buildChatClientContext({ platform: 'mobile', locale: 'en' })
+    const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) }).toString()
     expect(mocks.apiClient).toHaveBeenNthCalledWith(
       1,
-      API.ai.pendingOperationConfirm('pending-1'),
+      `${API.ai.pendingOperationConfirm('pending-1')}?${query}`,
       expect.objectContaining({ method: 'POST' }),
     )
     expect(mocks.apiClient).toHaveBeenNthCalledWith(
@@ -2269,7 +2411,7 @@ describe('mobile useChatComposer', () => {
       API.ai.pendingOperationExecute('pending-1'),
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ confirmationToken: 'token-1' }),
+        body: JSON.stringify({ confirmationToken: 'token-1', clientContext }),
       }),
     )
     expect(result).toMatchObject({ ok: true })
@@ -3338,4 +3480,12 @@ describe('mobile useChatComposer', () => {
 
     expect(setItem).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'log water')
   })
+  it('uses the weekly allowance and the server reset in the account timezone', async () => {
+    mocks.state.profile = createMockProfile({ hasProAccess: true, aiMessagesUsed: 250, aiMessagesLimit: 250,
+      aiMessagesPeriod: 'week', aiMessagesResetsAt: '2026-11-09T02:00:00Z', timeZone: 'America/Sao_Paulo' })
+    const composer = await renderComposer()
+    expect(composer.current.composerProps.limitReason).toBe('shell.composer.limit.reasonWeekly:{"allowance":250}')
+    expect(composer.current.composerProps.renewalHint).toBe('shell.composer.limit.renewalWeekly:{"day":"Sunday"}')
+  })
+
 })

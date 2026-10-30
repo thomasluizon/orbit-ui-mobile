@@ -2,6 +2,47 @@ import { agentExecuteOperationResponseSchema, pendingAgentOperationSchema, type 
 
 const emptyId = '00000000-0000-0000-0000-000000000000'
 
+export function makeRestartPlanPreview(): PendingAgentOperation {
+  const operation = makeExistingHabitPreview('📖', 'rescheduleHabits')
+  const dates = [
+    ['Read', '2026-10-28', '2026-10-28'],
+    ['Stretch', '2026-10-28', '2026-10-28'],
+    ['Walk', '2026-10-26', '2026-10-28'],
+    ['Practice', '2026-10-27', '2026-10-29'],
+    ['Tidy', '2026-10-28', '2026-11-04'],
+  ] as const
+  const items = dates.map(([entityName, oldValue, newValue], index) => {
+    const entityId = `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`
+    return { ...operation.items![0]!, itemId: entityId, entityId, entityName,
+      stateFingerprint: `restart-state-${index}`,
+      fields: [{ ...operation.items![0]!.fields[0]!, entityId, entityName, oldValue, newValue, proposedValue: newValue }],
+    }
+  })
+  return pendingAgentOperationSchema.parse({ ...operation, capabilityId: 'habits.bulk.write',
+    displayName: 'bulk_reschedule_habits', changeTargetCount: items.length, items,
+    changes: items.flatMap(item => item.fields.filter(field => field.oldValue !== field.newValue)),
+    previewFingerprint: 'restart-preview',
+  })
+}
+
+export function makeTypedHabitsPreview(types: readonly (string | null | undefined)[] = ['General', 'Habit', 'Task', 'Habit', 'Task']): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(types.length)
+  return pendingAgentOperationSchema.parse({ ...operation, items: operation.items!.map((item, index) => ({ ...item, habitType: types[index] })) })
+}
+
+export function makeExistingHabitPreview(entityEmoji?: string | null, actionKey = 'updateHabit', changesOnly = false): PendingAgentOperation {
+  const entityId = '00000000-0000-4000-8000-000000000006'
+  const entityName = 'Dentista'
+  const fields = [{ entityId, entityName, entityEmoji, field: 'due_date', oldValue: '2026-10-28',
+    newValue: '2026-11-04', proposedValue: '2026-11-04', valueType: 'date', isEditable: true }]
+  return pendingAgentOperationSchema.parse({
+    ...makeCreateHabitsPreview(1), capabilityId: 'habits.write', actionKey,
+    changes: fields, changeTargetCount: 1,
+    items: changesOnly ? null : [{ itemId: entityId, entityId, entityName, entityEmoji,
+      stateFingerprint: 'existing-habit-state', removesData: actionKey === 'deleteHabit', fields }],
+  })
+}
+
 export function makeBulkCreateExecutionResponse(statuses?: readonly ('Success' | 'Failed')[]): AgentExecuteOperationResponse {
   const successCount = statuses?.filter((status) => status === 'Success').length ?? 0
   return agentExecuteOperationResponseSchema.parse({
@@ -34,6 +75,32 @@ export function makeCreateHabitsPreview(count = 12): PendingAgentOperation {
         oldValue: null, newValue: `Habit ${index + 1}`, valueType: 'text',
         proposedValue: `Habit ${index + 1}`, isEditable: true }],
     })),
+  })
+}
+
+export function makeSuggestionBatchPreview(update: 'none' | 'habit_id' | 'oldValue' = 'none'): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(2)
+  return pendingAgentOperationSchema.parse({ ...operation, actionKey: 'applyAccountChanges', capabilityId: 'chat.changes',
+    items: operation.items!.map((item, index) => {
+      const fields = [
+        ...item.fields,
+        ...[
+          { field: 'frequency_unit', newValue: 'Day', proposedValue: 'Day', valueType: 'text' },
+          { field: 'frequency_quantity', newValue: '1', proposedValue: 1, valueType: 'number' },
+          { field: 'interval_weeks', newValue: '1', proposedValue: 1, valueType: 'number' },
+          { field: 'due_date', newValue: '2026-10-27', proposedValue: '2026-10-27', valueType: 'date' },
+          { field: 'due_time', newValue: '08:15', proposedValue: '08:15', valueType: 'time' },
+          { field: 'checklist_items', newValue: '[]', proposedValue: [], valueType: 'text' },
+          { field: 'due_end_time', newValue: '08:30', proposedValue: '08:30', valueType: 'time' },
+          { field: 'reminder_enabled', newValue: 'False', proposedValue: false, valueType: 'boolean' },
+          { field: 'reminder_times', newValue: '[]', proposedValue: [], valueType: 'text' },
+          { field: 'parent_habit_id', newValue: 'No parent (top level)', proposedValue: null, valueType: 'text' },
+        ].map((field) => ({ entityId: emptyId, entityName: item.entityName, oldValue: null, isEditable: true, ...field })),
+      ]
+      if (index === 1 && update === 'habit_id') fields.push({ ...item.fields[0]!, field: 'habit_id', newValue: '00000000-0000-4000-8000-000000000002' })
+      return { ...item, fields: index === 1 && update === 'oldValue'
+        ? fields.map((field) => field.field === 'reminder_enabled' ? { ...field, oldValue: 'True' } : field) : fields }
+    }),
   })
 }
 
@@ -282,4 +349,44 @@ export function makeChildSchedulePreview(child: Readonly<Record<string, unknown>
     fields: item.fields.map((field) => field.field === 'sub_habits'
       ? { ...field, newValue: JSON.stringify([child]), proposedValue: [child] } : field),
   })) })
+}
+
+export function makePlacementPreview(selected: 'sub_habit' | 'checklist_item' | 'new_parent' = 'checklist_item'): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(2)
+  const first = operation.items![0]!
+  return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...first,
+    fields: [...first.fields, makeEveningRoutinePreview('en').items![0]!.fields.find((field) => field.field === 'sub_habits')!, ...[
+      { field: 'parent_habit_id', newValue: 'Morning routine', proposedValue: '11111111-1111-4111-8111-111111111111', valueType: 'text' },
+      { field: 'frequency_unit', newValue: 'Day', proposedValue: 'Day', valueType: 'text' },
+      { field: 'frequency_quantity', newValue: '1', proposedValue: 1, valueType: 'number' },
+      { field: 'due_time', newValue: '07:30', proposedValue: '07:30', valueType: 'time' },
+      { field: 'reminder_enabled', newValue: 'True', proposedValue: true, valueType: 'boolean' },
+      { field: 'tag_names', newValue: '["Health"]', proposedValue: ['Health'], valueType: 'text' },
+      { field: 'goal_ids', newValue: '["22222222-2222-4222-8222-222222222222"]', proposedValue: ['22222222-2222-4222-8222-222222222222'], valueType: 'text' },
+    ].map((field) => ({ entityId: emptyId, entityName: first.entityName, oldValue: null, isEditable: true, ...field }))],
+    placement: {
+      selected, recommended: 'checklist_item', reasonKey: 'chat.placement.destinationChecklist',
+      reason: { en: 'You already keep 4 checklist items here.', 'pt-BR': 'Você já tem 4 itens no checklist aqui.' },
+      alternatives: ['sub_habit', 'checklist_item', 'new_parent'].filter((value) => value !== selected),
+      destinationId: '11111111-1111-4111-8111-111111111111', destinationName: 'Morning routine',
+    },
+  }, operation.items![1]!] })
+}
+
+
+export function makeReminderHabitPreview(reminder: 'enabled' | 'atTime' | 'before' | 'scheduled' | 'disabled'): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(1)
+  const item = operation.items![0]!
+  const enabled = reminder !== 'disabled'
+  const reminderTimes = reminder === 'scheduled' ? [] : [reminder === 'before' ? 15 : 0]
+  const fields = makeSuggestionBatchPreview().items![0]!.fields.filter(field =>
+    ['title', 'frequency_unit', 'frequency_quantity', 'due_time', 'reminder_enabled', 'reminder_times'].includes(field.field))
+    .filter(field => reminder !== 'enabled' || field.field !== 'reminder_times')
+    .map(field => {
+      if (field.field === 'reminder_enabled') return { ...field, newValue: enabled ? 'True' : 'False', proposedValue: enabled }
+      if (field.field === 'reminder_times') return { ...field, newValue: JSON.stringify(reminderTimes), proposedValue: reminderTimes }
+      return field
+    })
+  if (reminder === 'scheduled') fields.push({ ...item.fields[0]!, field: 'scheduled_reminders', newValue: '[{"time":"20:00","when":"day_before"}]', proposedValue: [{ when: 'day_before', time: '20:00' }] })
+  return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...item, fields }] })
 }

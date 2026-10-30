@@ -1,6 +1,6 @@
 import { unmappedBackendFormError } from '@orbit/shared/hooks'
 import { extractBackendFieldErrors, extractBackendErrorDetails, extractBackendErrorCode, getBackendFieldError } from '@orbit/shared/utils'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
 import type { NavigationProp, ParamListBase } from 'expo-router/react-navigation'
@@ -169,14 +169,19 @@ export function useLoginFlow(isAuthCallback = false) {
     if (!isOnline) pendingAutoCode.current = null
   }, [isOnline])
 
+  const hydrateReturnUrl = useEffectEvent(async () => {
+    if (isAuthCallback || googleSession.returnUrlAttemptId !== null) return
+    const returnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
+    const safeReturnUrl = returnUrl && isSafeReturnUrl(returnUrl) ? returnUrl : undefined
+    if (safeReturnUrl || returnUrlAttemptRef.current?.returnUrl) {
+      await getOrCreateReturnUrlAttempt(returnUrlAttemptRef, safeReturnUrl).ready
+    }
+  })
+
   useEffect(() => {
     let active = true
     async function hydrate() {
-      const returnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
-      const safeReturnUrl = returnUrl && isSafeReturnUrl(returnUrl) ? returnUrl : undefined
-      if (!isAuthCallback && (safeReturnUrl || returnUrlAttemptRef.current?.returnUrl)) {
-        await getOrCreateReturnUrlAttempt(returnUrlAttemptRef, safeReturnUrl).ready
-      }
+      await hydrateReturnUrl()
       if (typeof params.ref === 'string' && isValidReferralCode(params.ref)) await storeReferralCode(params.ref)
       const referral = await getStoredReferralCode()
       if (!active) return
@@ -316,7 +321,7 @@ export function useLoginFlow(isAuthCallback = false) {
     const controller = new AbortController()
     if (!isValidEmail(attempt.email) || useAuthStore.getState().isAuthenticated || useAuthStore.getState().isLoading) return
     const returnUrlAttempt = getOrCreateReturnUrlAttempt(
-      returnUrlAttemptRef, returnUrlAttemptRef.current?.returnUrl,
+      returnUrlAttemptRef, typeof params.returnUrl === 'string' ? params.returnUrl : returnUrlAttemptRef.current?.returnUrl,
     )
     attemptScope.watch(attempt, () => controller.abort())
     busy.current = true

@@ -1,3 +1,4 @@
+export { getSegmentedControlLayout } from './segmented-control'
 export { achievementEmoji } from './achievement-emoji'
 export { createStepUpSessionState, type StepUpSessionState } from './step-up-session'
 export { submitApiKeyCreation, openApiKeyScopeOrStartStepUp, type ApiKeyCreationAdapter } from './api-key-creation'
@@ -127,6 +128,7 @@ export { splitDescriptionLinks } from './description-links'
 export {
   resolveShellDestination,
   resolveShellChrome,
+  resolveShellComposerScope,
   SHELL_DESTINATION_ROUTES,
 } from './shell-destinations'
 export type {
@@ -838,3 +840,5 @@ export { TODAY_LAUNCH_SPAN_NAME, sampleTodayLaunch, startTodayLaunchTiming, isTo
 export { readHabitRecurrencePhrase, type HabitRecurrence, type HabitRecurrencePhrase } from './habit-recurrence-phrase'
 
 export { getPendingAuthProvider, getAuthCallbackErrorKey } from './auth-login'
+
+export { createAstraAllowanceTranslator, type AstraAllowance } from './astra-allowance'

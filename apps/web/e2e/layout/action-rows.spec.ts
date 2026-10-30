@@ -2,6 +2,7 @@ import { createTranslator } from 'next-intl'
 import { setLayoutFixtureSession } from './profile-session'
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { createMockCalendarSyncEvent, createMockGamificationProfile, createMockGoal, createMockNotification, createMockRescheduleSuggestion, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { calendarAutoSyncStateSchema, calendarEventsResponseSchema } from '@orbit/shared/types/calendar'
@@ -59,7 +60,15 @@ async function assertActionGeometry(page: Page, surface?: Locator) {
       return box.width > 0 && box.height > 0 && getComputedStyle(element).visibility !== 'hidden'
     }
     const pills = [...root.querySelectorAll<HTMLElement>('.orbit-pill-action')].filter(visible)
-    const pairs: Array<{ labels: string[]; heights: number[]; gap: number; stacked: boolean; requiredWidth: number; availableWidth: number }> = []
+    const pairs: Array<{ labels: string[]; heights: number[]; gap: number; iconPair: boolean; stacked: boolean; requiredWidth: number; availableWidth: number }> = []
+    const isIconAction = (element: HTMLElement) => {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+      while (walker.nextNode()) {
+        const text = walker.currentNode as Text
+        if (text.textContent.trim() && !text.parentElement?.closest('[aria-hidden="true"]')) return false
+      }
+      return !!element.ariaLabel && !!element.querySelector('svg')
+    }
     const sharedWidth = (a: HTMLElement, b: HTMLElement) => {
       let shared = a.parentElement!
       while (!shared.contains(b)) shared = shared.parentElement!
@@ -80,7 +89,7 @@ async function assertActionGeometry(page: Page, surface?: Locator) {
           ? Math.max(aBox.top, bBox.top) - Math.min(aBox.bottom, bBox.bottom)
           : Math.max(aBox.left, bBox.left) - Math.min(aBox.right, bBox.right)
         if (gap >= 24) continue
-        pairs.push({ labels: [a.textContent || a.ariaLabel || '', b.textContent || b.ariaLabel || ''], heights: [aBox.height, bBox.height], gap, stacked, requiredWidth: aBox.width + bBox.width + 12, availableWidth: sharedWidth(a, b) })
+        pairs.push({ labels: [a.textContent || a.ariaLabel || '', b.textContent || b.ariaLabel || ''], heights: [aBox.height, bBox.height], gap, iconPair: isIconAction(a) && isIconAction(b), stacked, requiredWidth: aBox.width + bBox.width + 12, availableWidth: sharedWidth(a, b) })
       }
     }
     return { mediumCount: pills.filter((pill) => pill.dataset.size === 'md').length, pairs }
@@ -88,8 +97,8 @@ async function assertActionGeometry(page: Page, surface?: Locator) {
   expect(geometry.mediumCount).toBeLessThanOrEqual(1)
   for (const pair of geometry.pairs) {
     expect(Math.abs(pair.heights[0]! - pair.heights[1]!), pair.labels.join(', ')).toBeLessThan(0.5)
-    expect(pair.gap, pair.labels.join(', ')).toBeGreaterThanOrEqual(11.5)
-    if (pair.stacked) expect(pair.requiredWidth, pair.labels.join(', ')).toBeGreaterThan(pair.availableWidth)
+    expect(pair.gap, pair.labels.join(', ')).toBeGreaterThanOrEqual((pair.iconPair ? INTERACTION_FILL_CLEARANCE : 12) - 0.5)
+    if (pair.stacked && !pair.iconPair) expect(pair.requiredWidth, pair.labels.join(', ')).toBeGreaterThan(pair.availableWidth)
   }
 }
 

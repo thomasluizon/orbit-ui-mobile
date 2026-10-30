@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Bell } from '@/components/ui/icons'
+import { IconButton } from '@/components/ui/icon-button'
 import { useNotificationInbox } from '@/hooks/use-notification-inbox'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { createTokensV2 } from '@/lib/theme'
@@ -29,8 +29,6 @@ export function NotificationBell() {
 }
 
 export function NotificationBellDisplay({ count, onPress }: { count: number; onPress?: () => void }) {
-  const [hovered, setHovered] = useState(false)
-  const [focused, setFocused] = useState(false)
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -38,15 +36,13 @@ export function NotificationBellDisplay({ count, onPress }: { count: number; onP
   const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
   const glyph = <Bell size={24} color={tokens.fg2} strokeWidth={1.8} />
   const marker = count > 0 ? <View accessible={false} importantForAccessibility="no-hide-descendants"
-    pointerEvents="none" style={styles.countMarker}>
+    pointerEvents="none" style={[styles.countMarker, onPress ? { position: 'absolute', top: 0, right: 0 } : null]}>
     <Text accessible={false} testID="notification-count" style={styles.bellCount}>
       {count > 9 ? '9+' : count}
     </Text>
   </View> : null
-  return onPress ? <Pressable accessibilityRole="button" accessibilityLabel={label}
-        onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
-        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-        style={({ pressed }) => [styles.bellButton, (pressed || hovered || focused) && { backgroundColor: tokens.bgHover }]}
-        onPress={onPress}>{glyph}{marker}</Pressable>
+  return onPress ? <View style={styles.bellAction}>
+      <IconButton label={label} onClick={onPress}>{glyph}</IconButton>{marker}
+    </View>
     : <View accessible accessibilityRole="image" accessibilityLabel={label} style={styles.bellDisplay}>{glyph}{marker}</View>
 }

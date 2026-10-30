@@ -6,16 +6,13 @@ import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useChatNavigation } from '@/hooks/use-chat-navigation'
-import { Pressable, Text, type TextInput, View } from 'react-native'
+import { Text, type TextInput, View } from 'react-native'
 import { API } from '@orbit/shared/api'
 import { recordListCardSchema, type RecordListCard as RecordListCardData } from '@orbit/shared/types/chat'
-import { recordListDestination } from '@orbit/shared/chat/record-list-core'
 import { formatReadWindow } from '@orbit/shared/chat/read-block-core'
 import { filterRecordListItems, isUnreadRecord } from '@orbit/shared/chat'
 import type { BlockFrameItem } from '@orbit/shared/contracts/blocks'
 import { BlockFrame } from './read-block-frame'
-import { Button } from '@/components/ui/pill-button'
 import { Check, X, ChevronDown, Filter } from '@/components/ui/icons'
 import { apiClient } from '@/lib/api-client'
 import { useMarkNotificationRead } from '@/hooks/use-notifications'
@@ -43,7 +40,6 @@ function RecordTitle({ item, unread, locale, tokens }: Readonly<{ item: RecordLi
 
 export function RecordListCard({ recordList }: Readonly<{ recordList: RecordListCardData }>) {
   const { t, i18n } = useTranslation()
-  const navigate = useChatNavigation()
   const markRead = useMarkNotificationRead()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -109,14 +105,13 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,
-      control: unread ? <Pressable accessibilityRole="button" accessibilityLabel={t('notifications.markRead', { title: item.title })} onPress={() => void markNotification(item.id)} style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}><Check size={20} strokeWidth={1.8} color={tokens.fg2} /></Pressable> : undefined,
+      control: unread ? <IconButton label={t('notifications.markRead', { title: item.title })} onClick={() => void markNotification(item.id)}><Check size={20} strokeWidth={1.8} color={tokens.fg2} /></IconButton> : undefined,
     }
   })
-  const destination = recordListDestination(recordList)
   return <View style={{ width: '100%' }}>
     <BlockFrame state={failure ? 'partiallyFailed' : 'resting'} title={t(`chat.recordList.title.${recordList.kind}`)}
       count={t('chat.recordList.count', { shown: displayedItems.length, total: recordList.totalCount })} items={rows}
       body={<View style={{ gap: 8 }} accessibilityLiveRegion="polite">{recordList.totalCount > 20 ? <View><IconButton label={t('chat.recordList.filter')} accessibilityRole="button" onPress={() => filterRef.current?.focus()}><Filter size={20} strokeWidth={1.5} accessible={false} /></IconButton><TypedTextInput ref={filterRef} accessibilityLabel={t('chat.recordList.filter')} value={query} onChangeText={setQuery} onFocus={() => setFilterFocused(true)} onBlur={() => setFilterFocused(false)} style={recordFilterStyle(tokens, filterFocused)} /></View> : null}{displayedItems.length === 0 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.empty')}</Text> : null}{displayedItems.length > 0 && visibleItems.length === 0 ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}><Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.noMatches', { query: query.trim() })}</Text><IconButton label={t('chat.recordList.clearFilter')} onClick={() => setQuery('')}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton></View> : null}{recordList.kind === 'templates' && items.some((item) => (item.count ?? 0) > 20) ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.templateLimit')}</Text> : null}<Text accessibilityRole="summary" style={{ color: tokens.statusBadText, fontSize: 14 }}>{failure ?? ''}</Text></View>}
-      actions={<>{!recordList.read && nextCursor ? <IconButton label={t('chat.recordList.more')} loading={loadingMore} onClick={() => void showMore()}><ChevronDown size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}{destination ? <Button variant="ghost" size="sm" onClick={() => navigate(destination)}>{t(`chat.recordList.open.${recordList.kind}`)}</Button> : null}</>} />
+      actions={<>{!recordList.read && nextCursor ? <IconButton label={t('chat.recordList.more')} loading={loadingMore} onClick={() => void showMore()}><ChevronDown size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}</>} />
   </View>
 }

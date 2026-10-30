@@ -59,8 +59,6 @@ vi.mock('react-native', async (importOriginal) => {
 const TestRenderer = require("react-test-renderer");
 type CalendarGridComponent = typeof import("@/app/(tabs)/calendar/_components/calendar-grid")["CalendarGrid"];
 
-const VIEW_TRACK_INSET = 4;
-
 const MOCK_ACCOUNT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 function getMockAccountDateKey(): string {
@@ -109,6 +107,7 @@ const state = vi.hoisted(() => ({
   calendarRangeCalls: vi.fn(),
   logHabit: vi.fn(async () => {}),
   routerPush: vi.fn(),
+  routerSetParams: vi.fn(),
   routeParams: {},
   tabRouteNames: [] as string[],
   tabBackBehavior: '',
@@ -145,7 +144,7 @@ vi.mock("expo-router", () => ({
     })
     return null
   }, { Screen: () => null }),
-  useRouter: () => ({ push: state.routerPush, replace: vi.fn() }),
+  useRouter: () => ({ push: state.routerPush, replace: vi.fn(), setParams: state.routerSetParams }),
   useLocalSearchParams: () => state.routeParams,
 }));
 
@@ -711,7 +710,7 @@ describe("CalendarScreen views (mobile)", () => {
       for (let ancestor = host.parent; ancestor; ancestor = ancestor.parent) {
         if (typeof ancestor.type !== 'string') continue;
         inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.style).paddingTop ?? 0);
-        inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.contentContainerStyle).paddingTop ?? 0);
+        inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.contentContainerStyle ?? {}).paddingTop ?? 0);
       }
       return inset;
     };
@@ -749,11 +748,15 @@ describe("CalendarScreen views (mobile)", () => {
         const band = findBand(hosts)!;
         const measured = measureProfileRow({ type: 'View', props: {}, children: band }, width, 1);
         const segments = measured.controls.filter((control) => control.labels.some((label) => label.startsWith('calendar.view.')));
+        const track = (month ?? tree).root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup')[0]!;
+        const trackStyle = StyleSheet.flatten<ViewStyle>(track.props.style);
+        const inlineInset = Number(trackStyle.paddingHorizontal);
+        const blockInset = Number(trackStyle.paddingVertical);
         expect(segments).toHaveLength(4);
-        expect(Math.min(...segments.map((segment) => segment.left)) - VIEW_TRACK_INSET).toBeCloseTo(16);
-        expect(Math.max(...segments.map((segment) => segment.right)) + VIEW_TRACK_INSET).toBeCloseTo(width - 16);
-        const top = Math.min(...segments.map((segment) => segment.top)) - VIEW_TRACK_INSET;
-        const bottom = Math.max(...segments.map((segment) => segment.bottom)) + VIEW_TRACK_INSET;
+        expect(Math.min(...segments.map((segment) => segment.left)) - inlineInset).toBeCloseTo(16);
+        expect(Math.max(...segments.map((segment) => segment.right)) + inlineInset).toBeCloseTo(width - 16);
+        const top = Math.min(...segments.map((segment) => segment.top)) - blockInset;
+        const bottom = Math.max(...segments.map((segment) => segment.bottom)) + blockInset;
         if (switchTop === undefined) switchTop = top;
         expect.soft(top, view).toBe(switchTop);
         const firstBodyText = measured.texts.filter((text) => text.top >= bottom).sort((a, b) => a.top - b.top)[0]!;
@@ -767,7 +770,7 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it('returns Semana to profile today across a device week boundary', () => {
-    const clock = vi.spyOn(timeFormatHook, 'useTimeFormat').mockReturnValue({ ...createTimeDisplay('en', false), displayTime: (time) => time ?? '' });
+    const clock = vi.spyOn(timeFormatHook, 'useTimeFormat').mockReturnValue({ ...createTimeDisplay('en', false), displayReminderClock: createTimeDisplay('en', false).displayClock, displayTime: (time) => time ?? '' });
     const previousZone = process.env.TZ;
     process.env.TZ = 'UTC';
     vi.useFakeTimers();
@@ -794,7 +797,7 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it.each([false, true])('uses profile today after loading while preserving explicit week navigation: %s', (navigated) => {
-    const clock = vi.spyOn(timeFormatHook, 'useTimeFormat').mockReturnValue({ ...createTimeDisplay('en', false), displayTime: (time) => time ?? '' });
+    const clock = vi.spyOn(timeFormatHook, 'useTimeFormat').mockReturnValue({ ...createTimeDisplay('en', false), displayReminderClock: createTimeDisplay('en', false).displayClock, displayTime: (time) => time ?? '' });
     const previousZone = process.env.TZ;
     process.env.TZ = 'UTC';
     vi.useFakeTimers();
@@ -864,16 +867,18 @@ describe("CalendarScreen views (mobile)", () => {
       expect(segments).toHaveLength(4);
       for (const control of pager) {
         expect(control.bottom).toBeLessThanOrEqual(Math.min(...segments.map((segment) => segment.top)));
-        expect(control.width).toBeGreaterThanOrEqual(48);
-        expect(control.height).toBeGreaterThanOrEqual(48);
+        expect(control.targetWidth).toBeGreaterThanOrEqual(48);
+        expect(control.targetHeight).toBeGreaterThanOrEqual(48);
         expect(control.left).toBeGreaterThanOrEqual(16);
         expect(control.right).toBeLessThanOrEqual(304);
       }
       const title = measured.texts.find((text) => text.label === pager.find((control) => control.labels.length)!.labels[0])!;
       expect.soft(title.clipped).toBe(false);
       if (scale === 1) {
-        expect.soft(new Set(pager.map((control) => control.top)).size).toBe(1);
-        expect.soft(Math.min(...segments.map((segment) => segment.top)) - VIEW_TRACK_INSET).toBe(76);
+        const track = tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup')[0]!;
+        const blockInset = Number(StyleSheet.flatten<ViewStyle>(track.props.style).paddingVertical);
+        expect.soft(new Set(pager.map((control) => control.top + control.height / 2)).size, JSON.stringify(pager)).toBe(1);
+        expect.soft(Math.min(...segments.map((segment) => segment.top)) - blockInset).toBe(76);
         expect.soft(title.lines).toBe(1);
       }
       const titleControl = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(ptBR.calendar.period.goToCurrent.replace('{period}', '')))[0]!;
@@ -915,8 +920,8 @@ describe("CalendarScreen views (mobile)", () => {
       for (const control of measured.controls) {
         expect(control.left).toBeGreaterThanOrEqual(16);
         expect(control.right).toBeLessThanOrEqual(304);
-        expect(control.width).toBeGreaterThanOrEqual(48);
-        expect(control.height).toBeGreaterThanOrEqual(48);
+        expect(control.targetWidth).toBeGreaterThanOrEqual(48);
+        expect(control.targetHeight).toBeGreaterThanOrEqual(48);
       }
       for (const label of ['calendar.range.previous', 'calendar.range.next']) {
         const control = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
@@ -982,6 +987,7 @@ describe("CalendarScreen views (mobile)", () => {
     state.calendarEventsError = null;
     state.calendarEventsRefetch = vi.fn();
     state.routerPush.mockReset();
+    state.routerSetParams.mockReset();
     state.calendarRangeCalls.mockClear();
     state.rangeLoading = false;
     calendarStatsProps.current = null;
@@ -1080,12 +1086,35 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { header.update(<></>); tree.update(<></>); })
   })
 
-  it('leaves the top safe area to the shell', () => {
+  it('opens a routed calendar day and consumes later date requests on the mounted screen', () => {
+    state.routeParams = { date: '2026-08-03' };
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const header = renderMonthHeader(tree);
+    expect(calendarGridProps.current?.selectedDay).toBe('2026-08-03');
+    expect(state.routerSetParams).toHaveBeenCalledWith({ date: undefined });
+    state.routeParams = {};
+    TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+    pressView(tree, 'week');
+    state.routeParams = { date: '2026-08-03' };
+    TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+    expect(tree.root.findAll(node => node.type === 'Pressable' && node.props.testID === 'segment-month-selected-enabled')).toHaveLength(1);
+    expect(formatAPIDate(state.calendarDataCalls.mock.lastCall![0])).toBe('2026-08-01');
+    state.routeParams = { date: '2026-09-03' };
+    TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+    const nextHeader = renderMonthHeader(tree);
+    expect(calendarGridProps.current?.selectedDay).toBe('2026-09-03');
+    TestRenderer.act(() => advanceAccountGeneration());
+    const resetHeader = renderMonthHeader(tree);
+    expect(calendarGridProps.current?.selectedDay).toBe(formatAPIDate(new Date()));
+    TestRenderer.act(() => { header.update(<></>); nextHeader.update(<></>); resetHeader.update(<></>); tree.update(<></>); });
+  });
+
+  it('leaves every safe area to the shell', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />) })
     const safeAreas = tree.root.findAll((node) => node.type === SafeAreaView)
-    expect(safeAreas.length).toBeGreaterThan(0)
-    for (const safeArea of safeAreas) expect(safeArea.props.edges).toEqual(['left', 'right'])
+    expect(safeAreas).toHaveLength(0)
     TestRenderer.act(() => tree.update(<></>))
   })
 
@@ -1628,7 +1657,7 @@ describe("CalendarScreen views (mobile)", () => {
     const gridShapes = tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
     );
-    for (const shape of gridShapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 44, height: 44 });
+    for (const shape of gridShapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 34, height: 34 });
   });
 
   it.each([
@@ -1683,7 +1712,7 @@ describe("CalendarScreen views (mobile)", () => {
 
     expect(hostTexts(tree)).toContain('calendar.loadError');
     const retry = tree.root.findAll(
-      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.testID === 'button-ghost-sm',
+      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'common.retry',
     );
     expect(retry).toHaveLength(1);
     TestRenderer.act(() => { retry[0]!.props.onPress(); });
@@ -2101,14 +2130,20 @@ describe("CalendarScreen views (mobile)", () => {
     try {
       TestRenderer.act(() => {
         if (disclosure === 'events') calendarDayDetailProps.current!.onOpenEvents?.();
-        else calendarDayDetailProps.current!.onOpenHabitTitle?.('Long habit title');
+        else calendarDayDetailProps.current!.onOpenHabit?.('habit-1');
       });
       expect(sheetTestControls.isDismissPending).toBe(true);
+      expect(state.routerPush).not.toHaveBeenCalled();
       expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.open)).toHaveLength(0);
       TestRenderer.act(() => { sheetTestControls.completeDismissal(); });
       const sheets = tree.root.findAll((node) => node.type === 'Sheet');
+      if (disclosure === 'habit') {
+        expect(state.routerPush).toHaveBeenCalledExactlyOnceWith({ pathname: '/habits/[id]', params: { id: 'habit-1', date: '2026-09-10' } });
+        expect(sheets).toHaveLength(0);
+        return;
+      }
       expect(sheets).toHaveLength(1);
-      expect(sheets[0]!.props.title).toBe(disclosure === 'events' ? 'calendar.dayDetail.eventsTitle' : 'habits.form.title');
+      expect(sheets[0]!.props.title).toBe('calendar.dayDetail.eventsTitle');
       TestRenderer.act(() => { tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]!.props.onPress(); });
       TestRenderer.act(() => { sheetTestControls.completeDismissal(); });
       TestRenderer.act(() => { week.props.onSelectDay('2026-09-10'); });
@@ -2200,7 +2235,7 @@ describe("CalendarScreen views (mobile)", () => {
     const retryButtons = tree!.root.findAll(
       (node) =>
         typeof node.type === "string" &&
-        node.props.accessibilityRole === "button" && node.props.testID === "button-ghost-sm",
+        node.props.accessibilityRole === "button" && node.props.accessibilityLabel === "common.retry",
     );
     expect(retryButtons).toHaveLength(1);
     TestRenderer.act(() => {

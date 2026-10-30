@@ -112,6 +112,11 @@ function absoluteLeft(node: YogaNode): number {
   return node.getComputedLeft() + (parent ? absoluteLeft(parent) : 0)
 }
 
+function absoluteTop(node: YogaNode): number {
+  const parent = node.getParent()
+  return node.getComputedTop() + (parent ? absoluteTop(parent) : 0)
+}
+
 afterEach(() => {
   ;(globalThis as { __DEV__?: boolean }).__DEV__ = true
 })
@@ -127,8 +132,8 @@ describe('BlockFrame on mobile', () => {
       const root = nodes.get('block-frame-resting')!
       const header = root.getChild(0)
       const body = nodes.get('block-frame-body')!
-      expect(body.getComputedTop() - header.getComputedTop() - header.getComputedHeight()).toBeCloseTo(24, 1)
-      expect(root.getComputedPadding(Yoga.EDGE_LEFT)).toBe(24)
+      expect(absoluteTop(body) - absoluteTop(header) - header.getComputedHeight()).toBeCloseTo(12, 1)
+      expect(root.getComputedPadding(Yoga.EDGE_LEFT)).toBe(16)
       expect(nodes.get('block-frame-item-one-pending')!.getComputedPadding(Yoga.EDGE_LEFT)).toBe(12)
       const count = tree.root.find(node => node.type === 'Text' && prop(node, 'children') === 2)
       expect(StyleSheet.flatten(prop<TextStyle>(count, 'style')).fontFamily).toBe('Geist_400Regular')

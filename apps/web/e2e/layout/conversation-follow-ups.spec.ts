@@ -57,7 +57,7 @@ for (const width of [320, 412, 1352]) {
           const row = group.getByRole('button', { name: labels[index], exact: true })
           await expect(row).toHaveText(labels[index]!)
           await expect(row).not.toContainText(pt.nav.astra)
-          await expect(row.locator('[data-asset="astra-mark-16"]')).toHaveCount(1)
+          await expect(row.locator('[data-asset="astra-mark"]')).toHaveCount(1)
           const geometry = await row.evaluate(element => {
             const text = element.querySelector('span')!
             const bounds = element.getBoundingClientRect()

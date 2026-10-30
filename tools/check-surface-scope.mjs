@@ -313,9 +313,17 @@ function graphicOnlyContainer(node, graphicTags) {
   const opening = openingElement(node)
   const element = opening && ts.isJsxOpeningElement(opening) ? opening.parent : undefined
   if (!element || !ts.isJsxElement(element)) return false
+  const emojiWell = ancestor(element, (current) => ts.isJsxElement(current)
+    && (attributeText(current.openingElement, "data-emoji-well", current.getSourceFile()) !== undefined
+      || attributeText(current.openingElement, "testID", current.getSourceFile()) === "habit-emoji-well"))
   let hasGraphic = false
   const inspect = (child) => {
     if (ts.isJsxText(child)) return child.text.trim() === ""
+    if (emojiWell) {
+      if (ts.isJsxExpression(child) && child.expression) return inspect(child.expression)
+      if (ts.isIdentifier(child) && child.text === "selectedEmoji") { hasGraphic = true; return true }
+      if (ts.isBinaryExpression(child) && child.operatorToken.kind === ts.SyntaxKind.BarBarToken) return inspect(child.left) && inspect(child.right)
+    }
     if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) {
       const tag = jsxTag(ts.isJsxElement(child) ? child.openingElement : child)
       if (graphicTags.has(tag) || /(?:Icon|Glyph)$/.test(tag)) { hasGraphic = true; return true }
@@ -1373,10 +1381,12 @@ function scopedForeground(token, openings, state, ancestry) {
 }
 
 function inheritedGroupForeground(node, token, openings, state) {
-  if (state.interaction !== "hover") return token
+  if (state.interaction !== "hover" && state.interaction !== "pressed") return token
   const literal = ancestor(node, ts.isStringLiteralLike)
   if (!literal) return token
-  for (const match of literal.text.matchAll(/group-hover(?:\/([\w-]+))?:text-\[var\((--[\w-]+)\)\]/g)) {
+  const variant = state.interaction === "pressed" ? "active" : "hover"
+  const overrides = new RegExp(`group-${variant}(?:/([\\w-]+))?:text-\\[var\\((--[\\w-]+)\\)\\]`, "g")
+  for (const match of literal.text.matchAll(overrides)) {
     const groupClass = match[1] ? `group/${match[1]}` : "group"
     const groupIndex = openings.findIndex((opening) => (attributeText(opening, "className", opening.getSourceFile()) ?? "").split(/[\s"'`]+/).includes(groupClass))
     if (groupIndex < 0) continue

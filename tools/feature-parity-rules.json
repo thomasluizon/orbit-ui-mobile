@@ -629,12 +629,6 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
-    "mobile:control:habits.form.title": {
-      "targets": [
-        "mobile:content:habits.form.title"
-      ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
-    },
     "mobile:control:habits.form.titlePlaceholder": {
       "targets": [
         "mobile:content:habits.form.describe"
@@ -877,9 +871,22 @@
     },
     "mobile:control:preferences.themeMode": {
       "targets": [
-        "mobile:display:profile.settingsRows.theme"
+        "mobile:control:settings.theme.switchToDark",
+        "mobile:control:settings.theme.switchToLight"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
+    },
+    "mobile:control:preferences.themeModeDark": {
+      "targets": [
+        "mobile:control:settings.theme.switchToDark"
+      ],
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
+    },
+    "mobile:control:preferences.themeModeLight": {
+      "targets": [
+        "mobile:control:settings.theme.switchToLight"
+      ],
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
     },
     "mobile:control:preferences.title": {
       "targets": [
@@ -1010,18 +1017,6 @@
     "mobile:control:settings.notifications.title": {
       "targets": [
         "mobile:control:profile.groups.notifications"
-      ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
-    },
-    "mobile:control:settings.theme.switchToDark": {
-      "targets": [
-        "mobile:control:preferences.themeModeDark"
-      ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
-    },
-    "mobile:control:settings.theme.switchToLight": {
-      "targets": [
-        "mobile:control:preferences.themeModeLight"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
@@ -1464,6 +1459,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:display:onboarding.flow.when.limit": {
+      "targets": [
+        "mobile:content:onboarding.flow.when.limit"
+      ],
+      "owners": [
+        "apps/mobile/components/onboarding/onboarding-create-habit.tsx"
+      ],
+      "reason": "OnboardingCreateHabit renders the daily limit through translate, with onboarding.flow.when.limitWeekly selected for a weekly profile."
+    },
     "mobile:display:orbitMcp.createHeading": {
       "targets": [
         "mobile:control:profile.apiKeys.create"
@@ -1488,6 +1492,15 @@
       ],
       "reason": "The connection guide renders the retained label in its sheet title or instructions, reached through the connection instructions action."
     },
+    "mobile:display:profile.allowance.title": {
+      "targets": [
+        "mobile:content:profile.allowance.title"
+      ],
+      "owners": [
+        "apps/mobile/components/profile/astra-allowance-panel.tsx"
+      ],
+      "reason": "AstraAllowancePanel retains its heading and progress label through translate, with profile.allowance.titleWeekly selected for a weekly profile."
+    },
     "mobile:display:profile.deleteAccount.deactivated": {
       "targets": [
         "mobile:content:stepUp.successBody"
@@ -1505,6 +1518,13 @@
         "mobile:content:profile.deleteAccount.warningPro"
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
+    },
+    "mobile:display:profile.settingsRows.theme": {
+      "targets": [
+        "mobile:control:settings.theme.switchToDark",
+        "mobile:control:settings.theme.switchToLight"
+      ],
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
     },
     "mobile:display:referral.drawer.couponsEarned": {
       "targets": [
@@ -1616,7 +1636,10 @@
       "targets": [
         "mobile:content:upgrade.billing.plan.lifetimeHint"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "owners": [
+        "apps/mobile/components/upgrade/plan-summary-card.tsx"
+      ],
+      "reason": "The lifetime description flows from subscriptionSummary.bodyKey through translate into the rendered plan summary."
     },
     "mobile:display:upgrade.billing.plan.monthly": {
       "targets": [
@@ -1636,11 +1659,23 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "mobile:display:upgrade.billing.usage.aiMessages": {
+      "targets": [
+        "mobile:content:upgrade.billing.usage.aiMessages"
+      ],
+      "owners": [
+        "apps/mobile/components/upgrade/usage-card.tsx"
+      ],
+      "reason": "The usage counter retains its rendered label through translate, with upgrade.billing.usage.aiMessagesWeekly selected for a weekly profile."
+    },
     "mobile:display:upgrade.manageHint": {
       "targets": [
         "mobile:content:upgrade.billing.plan.lifetimeHint"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "owners": [
+        "apps/mobile/components/upgrade/plan-summary-card.tsx"
+      ],
+      "reason": "The lifetime plan summary retains the existing description that there is nothing to renew or cancel, selected through subscriptionSummary.bodyKey."
     },
     "mobile:display:versionUpdate.readyTitle": {
       "targets": [
@@ -1694,7 +1729,7 @@
       "targets": [
         "mobile:content:profile.calendarSync.title"
       ],
-      "reason": "The Calend\u00e1rios sheet replaces the standalone route."
+      "reason": "The Calendários sheet replaces the standalone route."
     },
     "mobile:route:/streak": {
       "targets": [
@@ -2648,9 +2683,22 @@
     },
     "web:control:preferences.themeMode": {
       "targets": [
-        "web:display:profile.settingsRows.theme"
+        "web:control:settings.theme.switchToDark",
+        "web:control:settings.theme.switchToLight"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
+    },
+    "web:control:preferences.themeModeDark": {
+      "targets": [
+        "web:control:settings.theme.switchToDark"
+      ],
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
+    },
+    "web:control:preferences.themeModeLight": {
+      "targets": [
+        "web:control:settings.theme.switchToLight"
+      ],
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
     },
     "web:control:preferences.title": {
       "targets": [
@@ -2781,18 +2829,6 @@
     "web:control:settings.notifications.title": {
       "targets": [
         "web:control:profile.groups.notifications"
-      ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
-    },
-    "web:control:settings.theme.switchToDark": {
-      "targets": [
-        "web:control:preferences.themeModeDark"
-      ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
-    },
-    "web:control:settings.theme.switchToLight": {
-      "targets": [
-        "web:control:preferences.themeModeLight"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
@@ -3287,15 +3323,6 @@
       ],
       "reason": "#1668 retains tag-generation context in the mark-only action accessible name and its pending hint."
     },
-    "web:display:habits.form.tags": {
-      "targets": [
-        "web:control:habits.form.tags"
-      ],
-      "owners": [
-        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx"
-      ],
-      "reason": "#1668 retains the Tags field name on its picker row; the separate tag-suggestion status region uses its contextual suggestion name."
-    },
     "web:display:habits.form.timesPerUnit": {
       "targets": [
         "web:control:habits.form.timesPerUnit"
@@ -3344,6 +3371,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:display:onboarding.flow.when.limit": {
+      "targets": [
+        "web:content:onboarding.flow.when.limit"
+      ],
+      "owners": [
+        "apps/web/components/onboarding/onboarding-create-habit.tsx"
+      ],
+      "reason": "OnboardingCreateHabit renders the daily limit through translate, with onboarding.flow.when.limitWeekly selected for a weekly profile."
+    },
     "web:display:orbitMcp.created": {
       "targets": [
         "web:content:orbitMcp.created"
@@ -3356,11 +3392,27 @@
       ],
       "reason": "The restored label reaches rendered output through its component or bound control."
     },
+    "web:display:profile.allowance.title": {
+      "targets": [
+        "web:content:profile.allowance.title"
+      ],
+      "owners": [
+        "apps/web/components/profile/astra-allowance-panel.tsx"
+      ],
+      "reason": "AstraAllowancePanel retains its heading and progress label through translate, with profile.allowance.titleWeekly selected for a weekly profile."
+    },
     "web:display:profile.deleteAccount.deactivated": {
       "targets": [
         "web:content:stepUp.successBody"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:display:profile.settingsRows.theme": {
+      "targets": [
+        "web:control:settings.theme.switchToDark",
+        "web:control:settings.theme.switchToLight"
+      ],
+      "reason": "Theme selection moves from Perfil preferences to the shared shell icon action under #1881."
     },
     "web:display:referral.drawer.couponsEarned": {
       "targets": [
@@ -3496,7 +3548,10 @@
       "targets": [
         "web:content:upgrade.billing.plan.lifetimeHint"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "owners": [
+        "apps/web/components/upgrade/billing-dashboard.tsx"
+      ],
+      "reason": "The lifetime description flows from subscriptionSummary.bodyKey through translate into the rendered plan summary."
     },
     "web:display:upgrade.billing.plan.monthly": {
       "targets": [
@@ -3516,11 +3571,23 @@
       ],
       "reason": "The same label is supplied through the redesigned component or its word binding."
     },
+    "web:display:upgrade.billing.usage.aiMessages": {
+      "targets": [
+        "web:content:upgrade.billing.usage.aiMessages"
+      ],
+      "owners": [
+        "apps/web/components/upgrade/usage-stats.tsx"
+      ],
+      "reason": "The usage counter retains its rendered label through translate, with upgrade.billing.usage.aiMessagesWeekly selected for a weekly profile."
+    },
     "web:display:upgrade.manageHint": {
       "targets": [
         "web:content:upgrade.billing.plan.lifetimeHint"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "owners": [
+        "apps/web/components/upgrade/billing-dashboard.tsx"
+      ],
+      "reason": "The lifetime plan summary retains the existing description that there is nothing to renew or cancel, selected through subscriptionSummary.bodyKey."
     },
     "web:display:upgrade.plans.monthly.period": {
       "targets": [
@@ -3574,7 +3641,7 @@
       "targets": [
         "web:content:profile.calendarSync.title"
       ],
-      "reason": "The Calend\u00e1rios sheet replaces the standalone route."
+      "reason": "The Calendários sheet replaces the standalone route."
     },
     "web:route:/explore": {
       "targets": [
@@ -3665,10 +3732,10 @@
       "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
-    "mobile:control:habits.form.suggestDate": {
+    "mobile:control:habits.form.title": {
       "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
-      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
+      "rule": "The title-only sheet is removed under #1858; habit detail supplies the full title.",
+      "reason": "#1858 replaces the calendar title-only sheet with the selected habit's detail; no reachable mobile surface renders the former title label."
     },
     "mobile:control:onboarding.featureGuide.astra": {
       "citation": "DESIGN.md",
@@ -3848,11 +3915,6 @@
       "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
-    "mobile:control:shell.composer.offline.reason": {
-      "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
-      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
-    },
     "mobile:control:streakDisplay.freeze.celebrationSubtitle": {
       "citation": "DESIGN.md",
       "rule": "**Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal",
@@ -3967,17 +4029,17 @@
     },
     "mobile:route:/advanced": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "mobile:route:/ai-settings": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "mobile:route:/preferences": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "mobile:route:/retrospective": {
@@ -4067,11 +4129,6 @@
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
     },
     "web:control:habits.form.askDate": {
-      "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
-      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
-    },
-    "web:control:habits.form.suggestDate": {
       "citation": "DESIGN.md",
       "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
       "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
@@ -4363,11 +4420,6 @@
       "reason": "The desktop stats rail and its open and close controls are deleted.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
     },
-    "web:control:shell.composer.offline.reason": {
-      "citation": "DESIGN.md",
-      "rule": "Automatic date interpretation removes the separate Astra date pill, its cost line, the Proposed candidate and its acceptance control.",
-      "reason": "#1714 replaces the explicit date request, cost and candidate controls with automatic interpretation, inline Astra attribution and an editable resolved picker date; offline and allowance recovery keep the manual picker."
-    },
     "web:control:shell.openRail": {
       "citation": "DESIGN.md",
       "rule": "**The desktop stats rail.** Progresso owns the question it was answering.",
@@ -4500,12 +4552,12 @@
     },
     "web:route:/advanced": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "web:route:/ai-settings": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "web:route:/insights": {
@@ -4516,7 +4568,7 @@
     },
     "web:route:/preferences": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Only the duplicate destination is removed. Its settings are audited individually."
     },
     "web:route:/retrospective": {
@@ -4524,6 +4576,86 @@
       "rule": "**The retrospective's empty, locked and no-data screens.** It is an event now, so they are",
       "reason": "Retrospectives arrive through Astra instead of the standalone generation destination.",
       "adr": "2 Areas/20-29 Orbit Engineering/Decisions/Astra is a layer with a front door, not a fourth tab.md"
+    },
+    "web:control:chat.account.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.calendarCard.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.daySummary.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.goalList.progressLink": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.insight.progressLink": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.streakCard.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.ranking.refresh": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.account.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.calendarCard.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.daySummary.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.goalList.progressLink": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.insight.progressLink": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.streakCard.open": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "mobile:control:chat.ranking.refresh": {
+      "citation": "DESIGN.md",
+      "rule": "Astra read blocks omit manual refresh and footer links to shell destinations.",
+      "reason": "The read answer omits the redundant footer action under #1743; shell destinations and useful in-place actions remain available."
+    },
+    "web:control:chat.streakCard.current": {
+      "citation": "DESIGN.md",
+      "rule": "The streak figure and plural day unit replace the separate current-streak label.",
+      "reason": "Only the repeated label is removed; the current streak stays visible in CompactFigure."
+    },
+    "mobile:control:chat.streakCard.current": {
+      "citation": "DESIGN.md",
+      "rule": "The streak figure and plural day unit replace the separate current-streak label.",
+      "reason": "Only the repeated label is removed; the current streak stays visible in CompactFigure."
     }
   },
   "tickets": {
@@ -4671,7 +4803,7 @@
     },
     "duplicate-settings-pages": {
       "citation": ".claude/specs/orbit-prod-release.md",
-      "rule": "the old duplicate Prefer\u00eancias, Avan\u00e7ado and Recursos de IA pages stay gone as separate copies",
+      "rule": "the old duplicate Preferências, Avançado and Recursos de IA pages stay gone as separate copies",
       "reason": "Perfil sub-menus replace duplicate pages; their individual settings remain in the audit."
     },
     "old-floating-back-to-top": {

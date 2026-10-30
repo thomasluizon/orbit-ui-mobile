@@ -128,8 +128,8 @@ describe('sub-screen start edges in isolated Chromium', () => {
               const rect = element.getBoundingClientRect()
               return { left: rect.left, width: rect.width }
             }
-            const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
-            const owner = { column: bounds(document.querySelector('[data-shell-column]')!), scroller: bounds(scroller), available: scroller.clientWidth }
+            const content = document.querySelector<HTMLElement>('[data-shell-page-content]')!
+            const owner = { column: bounds(document.querySelector('[data-shell-column]')!), content: bounds(content), available: content.clientWidth }
             const back = document.querySelector('[data-shell-header] button')!
             const upgrade = document.querySelector('[data-upgrade-screen]')
             if (upgrade) {
@@ -144,13 +144,14 @@ describe('sub-screen start edges in isolated Chromium', () => {
             }
             const body = state === 'support-success'
               ? document.querySelector('h2')! : document.querySelector('form button')!
-            return { ...owner, back: bounds(back), body: bounds(body), box: bounds(document.querySelector('[data-shell-scroller] > div')!) }
+            return { ...owner, back: bounds(back), body: bounds(body), box: bounds(content.firstElementChild!) }
           }, state)
           expect.soft(Math.abs(geometry.body.left - geometry.box.left - 16)).toBeLessThanOrEqual(0.5)
           expect.soft(geometry.column.width).toBe(Math.min(width, 740))
+          expect.soft(geometry.content.width).toBeLessThanOrEqual(740)
           expect.soft(geometry.column.left + geometry.column.width / 2).toBe(width / 2)
           // WHY: #1570 centres the capped column inside the usable scroller. https://github.com/thomasluizon/orbit-tickets/issues/1570
-          expect.soft(geometry.box.left).toBe(geometry.scroller.left + (geometry.available - geometry.box.width) / 2)
+          expect.soft(geometry.box.left).toBe(geometry.content.left + (geometry.available - geometry.box.width) / 2)
           expect.soft(geometry.box.width).toBe(contentFrameWidth(state, width, geometry.available))
           if (state === 'support') expect(geometry.body.width).toBe(supportFormWidth(width, geometry.available))
         } finally { await page.close(); view.unmount(); client.clear() }

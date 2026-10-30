@@ -4,6 +4,20 @@
 
 Each source reference identifies the action after migration. Labels remain localized through the existing shared locale keys or caller-supplied translated labels. Both platform primitives use the same 48px round target: 44px neutral interaction paint at radius 22 plus a transparent 2px hit extension on every side. Disabled and busy behavior share that geometry. Web exposes its label through both aria-label and the native title tooltip.
 
+The wide sidebar bell (`components/navigation/notification-bell.tsx`, corner placement) and collapse control (`components/shell/shell-wide.tsx`) use the same primitive. Their glyphs centre within 0.5px on both axes, with at least 8px between feedback and the lockup or sibling control. The 232px expanded and 96px collapsed rails retain their widths. Android retains its tab navigation shell.
+
+The paired calendar `calendar-shell.tsx` owners retain centred 44px ghost paint and
+transparent 48px targets. Geometry assertions measure the complete target separately from paint.
+Web `app/(app)/today-shell.tsx` and calendar `calendar-options.tsx` reserve a 48px bell row around the shared icon action,
+matching the other compact destination headers without moving its 44px paint.
+Web `today-shell` and Android `components/today/today-date-control.tsx` keep 8px between header action fills.
+Android `components/navigation/notification-bell.tsx` and `notification-bell.styles.ts` position
+the unread badge beside the shared icon action, outside its circular clipping surface. A local
+wrapper preserves the single named action, 44px centred paint, 48px transparent target and 8px
+neighbour clearance. The badge retains system text scaling and contributes no accessibility stop.
+Web `components/navigation/notification-bell.tsx` keeps the badge in its existing visible-overflow
+button; both platform guards check rounded badge paint against every clipping ancestor.
+
 The inventory includes retries, stale refresh, signed paging, disclosure, add controls, copy and sharing, drawn sheet footer actions and per-record actions. Read-block revisions, preview drafts, clipboard feedback, pending requests and focus handoffs retain their original owners.
 
 Text remains for the primary consequence ending a form or confirmation, required sign-in wording, and contextual requests, choices or destinations drawn in the active canvas. In particular, approval and destructive confirmation name their consequence; a pending preview's edit, reject and retry controls use icons. Personal text, calendar values, menu rows and selectable records remain content-bearing controls.
@@ -240,3 +254,63 @@ The common `ui/block-frame` stale footer and `chat/read-block-frame` query foote
 The ESLint rule resolves literal text, both locale catalogs, local label bindings, translated conditional keys and pill import aliases. It ignores accessible labels on icon-only controls and preserves mixed contextual flow labels. Primitive tests cover bilingual names, target dimensions, hover, disabled and busy behavior. Stale-frame regression tests prove refresh has no visible label and invokes its existing callback. Consumer tests query accessible names rather than removed visible strings. Native target styles are unit evidence; device rendering remains a platform boundary.
 
 API-key creation uses one plus entry opening distinct scoped and unscoped menu choices on both platforms, using the existing localized labels. A plus glyph alone cannot distinguish the two choices.
+
+Habit suggestions use the paired `components/chat/habit-suggestions-card.tsx` owners.
+Add uses Plus, Edit uses Pencil, Tweak uses AdjustmentsHorizontal and Swap uses RefreshCw.
+The inline instruction submits through ArrowUp, and failed requests keep a named RefreshCw
+retry. Every action retains a localized accessible name, a distinct shared icon target and
+its disabled or busy state. Add all retains its explicitly requested primary text pill.
+
+The 8px clearance amendment updates the paired pill, list-row, check-row, segmented-control,
+weekday-picker, composer, calendar header, profile preference and bar-chart owners listed in
+`interaction-fill-surfaces.md`, plus web `ui/pill-action-style` and `shell/shell-wide`.
+Pill focus stays inside its paint. Collapsed sidebar search, navigation and Astra glyphs share
+the centre of their feedback. Badges belong to their own control and do not move its fill centre.
+
+The paired `ui/segmented-control.tsx` owners keep 8px gaps between full-segment fills and 8px
+inline label padding inside 48px targets. Their track has no inline padding and retains 4px
+block padding. Android's position ring paints as an absolute overlay, leaving label measurement
+unchanged by selection or focus. Both unit geometry cases require at least 8px spare for the
+four Portuguese calendar views inside a 288px frame before distributing remaining width.
+
+Every interactive notification bell placement uses IconButton on both platforms. The count sits
+at its corner and belongs to the same control; it does not shift the glyph or the feedback centre.
+The passive web corner bell in `navigation/notification-bell.tsx` retains the same 44px box,
+glyph centre and count placement on the inbox. Its image semantics add no focus target.
+
+The paired `navigation/root-notification-header.tsx` owners retain the existing 48px content row
+and 24px bottom inset around the bell's 44px paint and transparent 48px target.
+
+The web `app/(app)/calendar/page.tsx` marker scopes the narrow grid width in `app/globals.css`
+to the calendar destination. Month and range discs keep 8px neighbour clearance while the shell
+retains its stable 4px scrollbar. Embedded compact calendars retain their containing width.
+The paired `habits/habit-detail-screen.tsx` history owners use the same distributed 34px
+allocation for loaded discs, future and unavailable numerals and loading placeholders.
+Web `ui/bar-chart.tsx` and `app/globals.css` derive the single readout indicator from the
+radio's live keyboard focus, including a keyboard press after pointer focus.
+
+Web `app/globals.css` keeps menu item focus inside its paint, preserving 8px before account
+header text. The `shell/shell-wide.tsx` root isolates page stacking beneath portalled menus.
+
+The Android composer owner `components/shell/composer.tsx` preserves its measured field
+height when allowance feedback changes the placeholder. Its actions retain 8px paint
+clearance. Geometry checks include each icon action's transparent hit extension when
+checking the 48px target; the centred paint remains 44px. The Android day-detail owner
+`app/(tabs)/calendar/_components/calendar-day-detail.tsx` uses the same 8px disclosure
+paint inset as its web mirror, including when logging is unavailable.
+
+The paired `components/ui/check-row.tsx` owners centre the 24px checkbox glyph in 40px
+paint with 8px internal padding and neighbour clearance, using the existing comfortable
+56px target. Calendar-day controls retain their 24px layout width with 16px transparent
+hit extensions and a 16px label gap. The paired calendar `calendar-shell.tsx` owners use
+44px ghost chevrons with transparent 48px targets. The month picker retains 32px
+paint width around its 16px glyph, with 48px height and a transparent 48px target.
+Its group reserves 8px between paints and 4px at the trailing edge. The paired `ui/app-bar.tsx` owners keep
+8px between back feedback and titles. Web `app/globals.css` insets chip focus to match
+native `ui/inset-focus-pressable`, covering the onboarding and Wrapped choices.
+
+The paired `ui/list-row.tsx` owners retain whole read-only labels while trailing theme
+choices wrap within their available width. Existing action padding stays unchanged.
+
+The paired `ui/icon-button.tsx` owners preserve the existing ghost border for calendar
+chevrons while retaining the shared painted size and transparent target.

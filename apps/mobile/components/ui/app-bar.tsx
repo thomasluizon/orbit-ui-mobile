@@ -1,9 +1,10 @@
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SPACING, TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
 import type { ReactElement, Ref } from 'react'
 import type { NavHeaderProps } from '@orbit/shared/contracts/navigation'
 import { StyleSheet, Text, View } from 'react-native'
 import { ChevronLeft } from '@/components/ui/icons'
 import { MotionPressable } from '@/components/ui/motion-pressable'
+import { ShellContent } from '@/components/shell/shell-content'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -11,29 +12,31 @@ type AppBarTitleProps =
   | { titleVisual: ReactElement; titleRef?: Ref<View> }
   | { titleVisual?: undefined; titleRef?: Ref<Text> }
 
-export function AppBar({ title, onBack, backLabel, action, titleRef, titleVisual, titleIsHeading = true }: Readonly<NavHeaderProps & AppBarTitleProps & { titleIsHeading?: boolean }>) {
+export function AppBar({ title, titleVariant, onBack, backLabel, action, titleRef, titleVisual, titleIsHeading = true }: Readonly<NavHeaderProps & AppBarTitleProps & { titleIsHeading?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
-    <View testID={onBack ? 'nav-header-back' : 'nav-header-plain'} style={styles.row}>
+    <View testID={onBack ? 'nav-header-back' : 'nav-header-plain'} style={styles.surface}><ShellContent><View style={styles.row}>
       {onBack && <View style={styles.leading}>
-        <MotionPressable accessibilityRole="button" accessibilityLabel={backLabel} onPress={onBack}
+        <MotionPressable testID="nav-header-back-control" accessibilityRole="button" accessibilityLabel={backLabel} onPress={onBack}
           style={({ pressed }) => [styles.back, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>
           <ChevronLeft size={24} strokeWidth={2} color={tokens.fg1} />
         </MotionPressable>
       </View>}
       {titleVisual !== undefined ? <View ref={titleRef} accessible accessibilityRole={titleIsHeading ? 'header' : 'image'} accessibilityLabel={title} style={styles.visualTitle}>{titleVisual}</View>
-        : <Text ref={titleRef} accessibilityRole={titleIsHeading ? 'header' : undefined} style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>}
+        : <Text ref={titleRef} accessibilityRole={titleIsHeading ? 'header' : undefined} style={[styles.title, titleVariant === 'screen' ? styles.screenTitle : null, { color: tokens.fg1 }]}>{title}</Text>}
       <View style={styles.action}>{action}</View>
-    </View>
+    </View></ShellContent></View>
   )
 }
 
 const styles = StyleSheet.create({
-  row: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.s16 },
+  surface: { minHeight: 56 },
+  row: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: SPACING.s8, paddingHorizontal: SPACING.s16 },
   leading: { minWidth: TOUCH_TARGET_MIN, alignItems: 'flex-start' },
   back: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, fontFamily: 'GeistMono_500Medium', fontSize: 12, textAlign: 'left' },
+  screenTitle: { fontFamily: 'Geist_500Medium', fontSize: typeRoles.h2.size, lineHeight: typeRoles.h2.size * typeRoles.h2.lineHeight, letterSpacing: typeRoles.h2.size * typeRoles.h2.letterSpacingEm },
   visualTitle: { flex: 1, alignItems: 'flex-start', justifyContent: 'center' },
   action: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
 })

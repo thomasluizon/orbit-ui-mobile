@@ -1,4 +1,5 @@
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
 import { readControlPaint } from '@/e2e/layout/control-paint'
 import { execFileSync } from 'node:child_process'
 import { NextIntlClientProvider } from 'next-intl'
@@ -28,6 +29,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { DayCell } from '@/components/dates/day-cell'
 
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 
@@ -75,7 +77,7 @@ describe('painted press and hover shapes', () => {
     const hitArea = container.querySelector('button')
     expect(hitArea?.className).toContain('orbit-day-target')
     const circle = hitArea?.querySelector('[data-day-circle]')
-    expect(circle).toHaveStyle({ maxWidth: '44px', borderRadius: '22px' })
+    expect(circle).toHaveStyle({ width: '34px', height: '34px', borderRadius: '17px' })
 
     const pressFill = hitArea?.querySelector('[data-press-fill]')
     expect(pressFill?.className).toContain('absolute inset-0')
@@ -191,7 +193,7 @@ describe('interaction fill parity in Chromium', () => {
       await button.hover()
       const fills = button.locator('[data-press-fill]')
       await expect.poll(() => fills.first().evaluate((fill) => getComputedStyle(fill).opacity)).toBe('1')
-      for (const [index, diameter] of [44, 34].entries()) {
+      for (const [index, diameter] of [34, 34].entries()) {
         const bounds = await fills.nth(index).boundingBox()
         expect(bounds!.width).toBeCloseTo(diameter, 1)
         expect(bounds!.height).toBeCloseTo(diameter, 1)
@@ -266,7 +268,7 @@ describe('interaction fill parity in Chromium', () => {
       const expectedFill = await page.evaluate((fill) => { const probe = document.createElement('span'); probe.style.backgroundColor = fill; document.body.append(probe); const color = getComputedStyle(probe).backgroundColor; probe.remove(); return color }, variables['--bg-hover']!)
       for (const label of ['Previous day', 'Next day', 'List options', 'Search', 'Previous month', 'Next month', `Abril, ${ptBr.calendar.monthPicker}`, 'Previous week', 'Next week', 'Week, voltar para hoje', ptBr.notifications.bell, 'common.back', 'Idle chip', 'Selected chip', ptBr.common.close, 'Cancel']) {
         const control = page.getByRole('button', { name: label, exact: true })
-        const bounds = await control.boundingBox()
+        const bounds = await control.evaluate(readExpandedControlGeometry)
         expect(bounds!.width, `${label} target width`).toBeGreaterThanOrEqual(48)
         expect(bounds!.height, `${label} target height`).toBeGreaterThanOrEqual(48)
         await control.hover()

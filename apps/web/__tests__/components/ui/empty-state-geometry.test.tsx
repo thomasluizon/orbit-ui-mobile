@@ -36,6 +36,20 @@ describe('EmptyState title geometry', () => {
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each(['orbit', 'astra'] as const)('uses the shared 48px %s mark with one title and action', async mark => {
+    const { container } = render(<EmptyState mark={mark} title="Invitation" action={<button>Continue</button>} />)
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      expect(await page.locator('[data-empty-state-mark] svg').evaluate(element => {
+        const bounds = element.getBoundingClientRect()
+        return { width: bounds.width, height: bounds.height }
+      })).toEqual({ width: 48, height: 48 })
+      expect(await page.locator('[data-mark] > p').textContent()).toBe('Invitation')
+      expect(await page.getByRole('button').count()).toBe(1)
+    } finally { await page.close() }
+  })
+
   it.each(cases)('$key fits at $width in $locale without truncation', async ({ width, title, inset }) => {
     const { container } = render(<div style={{ paddingInline: inset }}><EmptyState title={title} /></div>)
     const page = await browser.newPage({ viewport: { width, height: 900 } })

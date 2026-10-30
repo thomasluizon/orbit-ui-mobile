@@ -121,7 +121,8 @@ describe('collapsed sidebar geometry in Chromium', () => {
           overflow: sidebar.scrollWidth > sidebar.clientWidth,
           targets: [...sidebar.querySelectorAll('button, a[href]')].map(element => {
             const bounds = element.getBoundingClientRect()
-            return { width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right }
+            const hitPadding = element.matches('.orbit-pill-action.touch-target') ? Math.max(0, -Number.parseFloat(getComputedStyle(element, '::after').left)) : 0
+            return { width: bounds.width + 2 * hitPadding, height: bounds.height + 2 * hitPadding, left: bounds.left - hitPadding, right: bounds.right + hitPadding }
           }),
         }
       })

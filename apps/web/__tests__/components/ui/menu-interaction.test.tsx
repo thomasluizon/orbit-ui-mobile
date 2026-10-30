@@ -26,18 +26,22 @@ describe('Menu interaction colours in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it('underlines every word of a typed sheet title', async () => {
+  it('renders every word of a typed sheet title without a text decoration', async () => {
     const title = 'Ler um capítulo inteiro'
     render(<Menu.Root open={true}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content presentation="sheet" title={title} titleMode="typed" items={[{ id: 'edit', label: 'Edit', icon: 'pencil' }]}  /></Menu.Root>)
     const dialog = await screen.findByRole('dialog', { name: title }, { timeout: 10_000 })
     const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      const heading = page.locator('.orbit-sheet-title-content')
+      expect(await heading.evaluate((element) => element.tagName)).toBe('SPAN')
+      expect(await page.getByRole('button', { name: title }).count()).toBe(0)
+      expect(await heading.locator('[data-personal-text]').evaluate((element) => getComputedStyle(element).textDecorationLine)).toBe('none')
       const words = await page.locator('.orbit-sheet-typed-title > span').evaluateAll((elements) =>
         elements.map((element) => ({ text: element.textContent, decoration: getComputedStyle(element).textDecorationLine })))
       expect(words.map((word) => word.text)).toEqual(title.split(' '))
-      for (const word of words) expect(word.decoration, word.text).toBe('underline')
+      for (const word of words) expect(word.decoration, word.text).toBe('none')
     } finally { await page.close() }
   })
 
@@ -57,7 +61,7 @@ describe('Menu interaction colours in Chromium', () => {
       await page.emulateMedia({ reducedMotion })
       const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
       await page.setContent(`<style>${stylesheet} :root { ${theme} }</style>${markup}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       const remove = page.getByRole('menuitem', { name: 'Delete', exact: true })
       const measure = () => remove.evaluate((row) => {
         const style = getComputedStyle(row)

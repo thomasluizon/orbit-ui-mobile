@@ -1,15 +1,17 @@
 'use client'
 
+import { ContentFade, ListMotionItem, ListPresence, MotionDisclosure } from '@/components/motion/list-motion'
+
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 
 import { MAX_BULK_OPERATION_SIZE } from '@orbit/shared/api'
 
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
 
-import { Fragment, Suspense, useMemo, useCallback, useEffect, useId, useState, useRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
+import { Fragment, Suspense, useMemo, useCallback, useEffect, useLayoutEffect, useId, useState, useRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
+import { useOpenHabit } from '@/hooks/use-open-habit'
 import {
   buildHabitDateBuckets,
   filterHabitViewRoots,
@@ -354,7 +356,7 @@ export function HabitList({
   const accountGeneration = useAccountGeneration()
   const t = useTranslations()
   const { isOnline } = useOffline()
-  const router = useRouter()
+  const openHabit = useOpenHabit()
   const { profile } = useProfile()
   const todayStr = useToday(profile?.timeZone)
   const locale = useLocale()
@@ -520,7 +522,7 @@ export function HabitList({
 
   useEffect(() => { onAllLoadedIdsChange?.(allLoadedIds) }, [allLoadedIds, onAllLoadedIdsChange])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     promptDataRef.current = {
       getChildren,
       visibility,
@@ -584,7 +586,7 @@ export function HabitList({
     [childrenProgressMap],
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const confirmedResolutions = confirmedResolutionsRef.current
     refreshConfirmedResolutions(
       confirmedResolutions,
@@ -997,7 +999,7 @@ export function HabitList({
   })()
 
   function openDetail(habit: NormalizedHabit) {
-    router.push(`/habits/${habit.id}?date=${selectedDateStr}&from=today`)
+    openHabit(habit.id, selectedDateStr, true)
   }
 
   const handleEditModalOpenChange = useCallback((open: boolean) => {
@@ -1164,7 +1166,7 @@ export function HabitList({
 
       const rows = Array.from(
         container.querySelectorAll<HTMLElement>(':scope [data-habit-row-body]'),
-      )
+      ).filter((row) => !row.closest('[inert]'))
       const activeElement = document.activeElement
       if (!(activeElement instanceof HTMLElement) || !rows.includes(activeElement)) return
 
@@ -1311,9 +1313,9 @@ export function HabitList({
       <Fragment key={item.id}>
         {sortable ? <SortableHabitItem id={item.id}>{row}</SortableHabitItem> : row}
         {childPanelId ? (
-          <div id={childPanelId} className="habit-row-group" hidden={collapsedIds.has(item.id)}>
+          <MotionDisclosure id={childPanelId} expanded={!collapsedIds.has(item.id)}>
             {panel.filter((child) => child.parentId === item.id).map((child) => renderHabitTree(child, panel, sortable))}
-          </div>
+          </MotionDisclosure>
         ) : null}
       </Fragment>
     )
@@ -1321,12 +1323,12 @@ export function HabitList({
 
   function renderAllHabitGroups(): React.ReactNode {
     return <div className="flex min-w-0 flex-col gap-6">
-      {buildHabitDateBuckets(habits, todayStr).map((bucket) => <section key={bucket.key} className="flex min-w-0 flex-col gap-3" aria-label={formatHabitDateBucketLabel(bucket.key, todayStr, locale, t)}>
+      <ListPresence>{buildHabitDateBuckets(habits, todayStr).map((bucket) => <ListMotionItem key={bucket.key}><section className="flex min-w-0 flex-col gap-3" aria-label={formatHabitDateBucketLabel(bucket.key, todayStr, locale, t)}>
         <h2 className="font-mono text-xs font-medium text-[var(--fg-3)]">{formatHabitDateBucketLabel(bucket.key, todayStr, locale, t)}</h2>
-        {dragPanels.filter((panel) => bucket.habits.some((habit) => habit.id === panel[0]?.id)).map((panel) => <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
+        <ListPresence>{dragPanels.filter((panel) => bucket.habits.some((habit) => habit.id === panel[0]?.id)).map((panel) => <ListMotionItem key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
           {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, false))}
-        </div>)}
-      </section>)}
+        </ListMotionItem>)}</ListPresence>
+      </section></ListMotionItem>)}</ListPresence>
     </div>
   }
 
@@ -1362,9 +1364,7 @@ export function HabitList({
       )
     }
 
-    if (habits.length === 0) return renderEmptyList()
-
-    if (view === 'all') return renderAllHabitGroups()
+    if (view === 'all') return <>{habits.length === 0 ? renderEmptyList() : null}{renderAllHabitGroups()}</>
 
     if (isDndEnabled) {
       return (
@@ -1381,11 +1381,12 @@ export function HabitList({
             strategy={verticalListSortingStrategy}
           >
             <div className={isDragging ? 'is-dragging flex flex-col' : 'flex flex-col'} style={{ gap: 12 }}>
-              {activeDragPanels.map((panel) => (
-                <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
+              {habits.length === 0 ? renderEmptyList() : null}
+              <ListPresence>{activeDragPanels.map((panel) => (
+                <ListMotionItem key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
                   {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, true))}
-                </div>
-              ))}
+                </ListMotionItem>
+              ))}</ListPresence>
             </div>
           </SortableContext>
         </DndContext>
@@ -1394,22 +1395,23 @@ export function HabitList({
 
     return (
       <div className="flex flex-col" style={{ gap: 12 }}>
-        {dragPanels.map((panel) => (
-          <div key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
+        {habits.length === 0 ? renderEmptyList() : null}
+        <ListPresence>{dragPanels.map((panel) => (
+          <ListMotionItem key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
             {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, false))}
-          </div>
-        ))}
+          </ListMotionItem>
+        ))}</ListPresence>
       </div>
     )
   }
 
   function renderList(): React.ReactNode {
-    if (habitsQuery.isLoading) return <HabitListSkeleton />
+    if (habitsQuery.isLoading) return null
     if (habitsQuery.isError && !habitsQuery.data) return <HabitListEmptyState
       title={t('habits.loadError')} description="" actionLabel={t('common.retry')} actionIcon="refresh"
       onAction={() => { void habitsQuery.refetch() }} variant="secondary" />
 
-    return <TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty={habits.length === 0}><div
+    return <ContentFade key={JSON.stringify([view, selectedDateStr, searchQuery, filters])}><TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty={habits.length === 0}><div
       ref={setListContainerRef}
       data-habit-list=""
       tabIndex={-1}
@@ -1422,64 +1424,64 @@ export function HabitList({
         {!drill.currentParent && showAllDone ? <HabitListAllDone onSeeUpcoming={onSeeUpcoming} /> : null}
         {renderMainContent()}
       </div>
-
-      <DeferredEditHabitModal
-        open={showEditModal}
-        onOpenChange={handleEditModalOpenChange}
-        habit={habitToEdit}
-        onSaved={editModalOnSaved ?? undefined}
-        lockedGeneral={editHabitLockedGeneral}
-      />
-
-      <DeferredRescheduleSheet
-        open={showRescheduleSheet}
-        onOpenChange={(open) => {
-          setShowRescheduleSheet(open)
-          if (!open) setHabitToReschedule(null)
-        }}
-        habit={habitToReschedule}
-      />
-
-      <DeferredCreateHabitModal
-        open={showSubHabitModal}
-        onOpenChange={setShowSubHabitModal}
-        parentHabit={subHabitParent}
-      />
-
-      <DeferredConfirmDialogs
-        key={accountGeneration}
-        t={t}
-        showDeleteConfirm={showDeleteConfirm}
-        deletePending={deletePending}
-        deleteHabitName={deleteConfirmation.name}
-        deleteDescendantCount={deleteConfirmation.descendantCount}
-        duplicateHabitName={habitToDuplicate?.title ?? null}
-        parentPrompt={parentPrompt?.date === selectedDateStr
-          ? { id: parentPrompt.habit.id, name: parentPrompt.habit.title, mode: parentPrompt.mode }
-          : null}
-        onConfirmDelete={() => void confirmDelete()}
-        onDeleteClosed={() => {
-          setHabitToDelete(null)
-          listContainerRef.current?.focus()
-        }}
-        onCancelDelete={() => {
-          setHabitToDelete(null)
-          setShowDeleteConfirm(false)
-        }}
-        onConfirmDuplicate={() => void confirmDuplicate()}
-        onCancelDuplicate={() => setHabitToDuplicate(null)}
-        onConfirmParent={confirmParentSettlement}
-        onCancelParent={() => setParentPromptQueue(
-          (current) => shiftParentPrompt(current, selectedDateStr),
-        )}
-      />
-    </div></TodayLaunchContent>
+    </div></TodayLaunchContent></ContentFade>
   }
 
   return <>
+    <ListPresence>{habitsQuery.isLoading ? <ContentFade key="loading"><HabitListSkeleton /></ContentFade> : null}</ListPresence>
     {renderList()}
+    <DeferredEditHabitModal
+      open={showEditModal}
+      onOpenChange={handleEditModalOpenChange}
+      habit={habitToEdit}
+      onSaved={editModalOnSaved ?? undefined}
+      lockedGeneral={editHabitLockedGeneral}
+    />
+
+    <DeferredRescheduleSheet
+      open={showRescheduleSheet}
+      onOpenChange={(open) => {
+        setShowRescheduleSheet(open)
+        if (!open) setHabitToReschedule(null)
+      }}
+      habit={habitToReschedule}
+    />
+
+    <DeferredCreateHabitModal
+      open={showSubHabitModal}
+      onOpenChange={setShowSubHabitModal}
+      parentHabit={subHabitParent}
+    />
+
+    <DeferredConfirmDialogs
+      key={accountGeneration}
+      t={t}
+      showDeleteConfirm={showDeleteConfirm}
+      deletePending={deletePending}
+      deleteHabitName={deleteConfirmation.name}
+      deleteDescendantCount={deleteConfirmation.descendantCount}
+      duplicateHabitName={habitToDuplicate?.title ?? null}
+      parentPrompt={parentPrompt?.date === selectedDateStr
+        ? { id: parentPrompt.habit.id, name: parentPrompt.habit.title, mode: parentPrompt.mode }
+        : null}
+      onConfirmDelete={() => void confirmDelete()}
+      onDeleteClosed={() => {
+        setHabitToDelete(null)
+        listContainerRef.current?.focus()
+      }}
+      onCancelDelete={() => {
+        setHabitToDelete(null)
+        setShowDeleteConfirm(false)
+      }}
+      onConfirmDuplicate={() => void confirmDuplicate()}
+      onCancelDuplicate={() => setHabitToDuplicate(null)}
+      onConfirmParent={confirmParentSettlement}
+      onCancelParent={() => setParentPromptQueue(
+        (current) => shiftParentPrompt(current, selectedDateStr),
+      )}
+    />
     {moveIntent && moveIntent.accountGeneration === accountGeneration ? (
-      <Suspense fallback={<PendingMoveParent onClose={closeMoveParentPicker} />}>
+      <Suspense key="move-parent" fallback={<PendingMoveParent onClose={closeMoveParentPicker} />}>
         <MoveParentController key={moveIntent.key} intent={moveIntent}
           onBulkMove={onBulkMove} onClose={closeMoveParentPicker} />
       </Suspense>

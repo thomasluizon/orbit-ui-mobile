@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="orbit-astra-action-contract" content="Actions and composer entries retain AstraGlyph without appended branding. Named sidebar navigation retains the visible Astra name and sibling destination treatment (#1687). Useful action text remains. Icon-only entry and send retain separate accessible action names. Input prompts omit the brand. Habit detail can collapse to one compact mark row, preserving its draft and device preference (#1668). Deterministic proposal acceptance remains unchanged.">
+<meta name="orbit-astra-glyph-contract" content="Under D42, owner order #1797 replaces every small Astra variant with the normal Astra drawing at every size. The shared viewBox fits its drawn bounds; headers, chips, composer entries and Hoje lines centre the drawn mark, preserving size and colour tokens. See README.md for the owner wording.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
 </head>
@@ -59,6 +60,7 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>empty, preview, preview acting, stale, habits, goals, goals empty, clarification, metrics, breakdown, conflict, batch failed, the five operation outcomes, streaming, busy, recording, transcribing, attachments, offline, at limit, model error, copy, loading. A plan axis sits beside the state, free or Pro, defaulting to free: at limit free and at limit Pro came OFF the state axis in the same edit, because a plan is an account fact that survives a state change, and one at limit state now reads its ceiling from the plan, 5 against 50 (D70 item 1). Reached by using the screen rather than the axis: recording from the voice entry in the + menu, transcribing by pressing stop, the transcript landing in the field as composing, the attachment tray by attaching, a remove per item, the composer's live suggestions each opening a drawn answer, and the goal rows and chip leaving for Progresso. The logging check, the pagination, the frequency pills, the accept confirmation and the copy control all work.</p>
       <p><span style="color:var(--fg-3)">preview&nbsp;&nbsp;</span>one batch preview, per item edit, one accept. Three actions, approve edit reject, never a single OK, because a single OK gives the person no way to change one line without discarding the rest. The payload is withheld until approval, so the preview is a preview: nothing in it has been written. It never auto dismisses. Rejecting it collapses the block in place to one line naming what was declined: keeping the block with spent actions would read as broken rather than finished, and removing it would leave a person scrolling back unable to tell a decline from a failure. An irreversible row differs from a reversible one by the frame's own neutral mark, so it is a shape and a word rather than colour alone, and because one row is irreversible the frame states in the action row that the accept asks for a confirmation. Bulk log and bulk skip carry none, since both are reversible. Answered 2026-08-18: a partially failed bulk create keeps the rows it created and the retry covers only the failures. There is no batch undo, so the partially failed frame offers the retry and nothing that promises a rollback.</p>
       <p><span style="color:var(--fg-3)">habits&nbsp;&nbsp;</span>the same two controls the list has everywhere: the trailing ring logs optimistically and rides in the row's control slot, and the label is the tap target that opens the habit. The chat teaches no new gesture. Pagination pages in place and the header count moves with it, so a reply never drills out into a full list.</p>
+      <p><span style="color:var(--fg-3)">question block amendment (#1828)&nbsp;&nbsp;</span>One BlockFrame holds up to ten required questions: existing RadioRow single choices and yes or no, CheckRow multiple choices and labelled Input custom answers, with a neutral Recommended line. The 1 to 5 scale is five equal radios with no default and two wrapping end labels below. The slider wraps Radix on web and rn-primitives on Android: a 4px fg-3 track, primary fill, a 24px thumb in a 48px target, radius 999 and one 2px focus ring. Native touch and keyboard adapters accompany screen-reader adjustments; all share decimal steps from min. Supplied prompts and options wrap in growing rows. Supplied progress and the local answered count remain separate. Send shows inline required hints and focuses the first omission. Acting disables the block; invalid and failed requests preserve answers; offline and allowance retain the existing reasons and identical retry. Expired or superseded questions close; success locks and names the chosen answers. One typed multipart answer becomes one user turn and never authorizes a write.</p>
       <p><span style="color:var(--fg-3)">clarification&nbsp;&nbsp;</span>one short question with tappable answers, which the contract requires whenever Astra cannot resolve what was said. It is not politeness: guessing between two habits with the same verb writes the wrong log, and a wrong log is worse than a question.</p>
       <p><span style="color:var(--fg-3)">metrics&nbsp;&nbsp;</span>one overview answering how the period went, three real figures and a chip through to Progresso. No per habit drill in inside the chat, and no chart: the numbers are rows, which is what the system can draw honestly.</p>
       <p><span style="color:var(--fg-3)">goals&nbsp;&nbsp;</span>the sixth block (goal-list-card.tsx, rendered by message-bubble.tsx:165-166 off message.goalList; [[orbit:goals]] is D69’s third directive token). One row per goal through the same BlockFrame as the other five: the name, its figure with the deadline where one exists (chat.goalList.percentage, .progress, .deadline), and its ring in the row’s control slot, the done disc at 100 because completion is never the accent. A goal row opens the goal, because the chat opens the goal detail from a card today (chat/page.tsx:214), exactly as a habit row opens the habit (:208), and the chip goes through to Progresso. Its own empty line (chat.goalList.empty) says a goal starts from a habit or from an ask, so the empty block still routes somewhere real.</p>
@@ -72,7 +74,7 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">busy&nbsp;&nbsp;</span>the concurrent limit is exactly one, so a second message while one is in flight is refused rather than queued. The composer's own busy state carries it: the send control goes neutral and inactive rather than accent, which is what separates refused from accepted, and the refusal sits above the pill. There is no queue and no draft buffer, because a queued message would act on state the person can no longer see.</p>
       <p><span style="color:var(--fg-3)">composer&nbsp;&nbsp;</span>The conversation input is a one-line pill without a leading Astra glyph. Only the empty thread keeps its set of 3 to 6 live starter chips above it; populated answers have no generic suggestion strip; no chips show at the daily limit. Chips hug their labels in a horizontal scroll strip with the next chip peeking when content overflows. The block keeps its top hairline and 16 padding, aligned with the thread inset, with no wrapper padding. One + menu holds photo, document and voice; recording keeps a visible stop, attachments stay inside the container, and typing grows to five lines before internal scrolling. Closing disclosure preserves the draft.</p>
       <p><span style="color:var(--fg-3)">lean answers&nbsp;&nbsp;</span>Validated answers begin with their interactive block and the least external text. The existing small ghost pills form one follow-up row with an 8 gap, zero to two short labels and no visible heading; activation sends the full contextual question once. Completed steps use the existing neutral disclosure after the answer. Pending dots or running tools remain until final delivery; provisional prose stays hidden. A block-only final answer receives one localized completion announcement. Data-backed proactive entries negotiate and lead with their corresponding validated block, using the existing read scope and refresh controls. The saved notification prose stays on the Hoje entry and returns inside the conversation only when parts are absent or unusable. The existing proactive action keeps its status and one-time reporting. Sparse notification facts cannot fabricate a read result.</p>
-      <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>The Astra mark, title and disclosure are centred in the thread. The disclosure, aiDisclosure.notMedicalAdvice, uses --fg-3. There is no prompt or second set of opener chips in the empty thread; the live chips remain above the conversation input.</p>
+      <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>The shared EmptyState uses a 48px mark for both identity carriers (#1896). The Astra mark, title, ghost browse action and disclosure form one group centred in the thread area above the live chips and composer, at compact, foldable and desktop widths. Each adjacent element has a 24px gap; the disclosure is inside the same symmetric 48px block padding, with no extra padding between it and the action. The disclosure, aiDisclosure.notMedicalAdvice, uses --fg-3. This composition supersedes the separate disclosure in the emptyNode below. There is no prompt or second set of opener chips in the empty thread; the live chips remain above the conversation input.</p>
       <p><span style="color:var(--fg-3)">copy&nbsp;&nbsp;</span>message text stays selectable on both platforms. Every fenced or indented code block in an Astra reply carries one small copy control in a separate row above its text, always visible. No message carries a per-message copy control. Copying confirms in place and through a polite live announcement. This block rule supersedes the per-message pill drawn below.</p>
       <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24, gap only. 44 is the touch token for the log ring and the row edit, 40 the frequency pill and the small button, 52 the compact row, 32 the emoji well.</p>
       <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>8 on chips, badges, strip cells and the emoji well, 12 on wells and inline events, 16 on the person's own message, 20 on blocks, 28 on the shell frame, 999 on interactive. The conversation fills the shell column and has no separate rounded edge beside a destination.</p>
@@ -603,7 +605,7 @@ class Component extends DCLogic {
       mode: s.mode, lang: t.lang, onCC: this.onCC,
       cc: { mode: s.mode, width: s.width, state: st, locale: s.loc, plan: s.plan },
       stateAxis: ['empty', 'preview', 'preview acting', 'stale', 'habits', 'ranking', 'ranking empty', 'ranking stale', 'goals', 'goals empty',
-        'clarification', 'metrics', 'periodTotal', 'periodComparison', 'history', 'read stale', 'read partial', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
+        'gamification', 'gamification profile', 'gamification achievements', 'gamification empty', 'gamification streak', 'gamification achievements streak', 'clarification', 'metrics', 'periodTotal', 'periodComparison', 'history', 'read stale', 'read partial', 'breakdown', 'conflict', 'batch failed', 'op pending', 'op step up',
         'op denied', 'op policy', 'op done', 'streaming', 'busy', 'recording', 'transcribing',
         'attachments', 'offline', 'at limit', 'model error', 'copy', 'loading'],
       planAxis: ['free', 'Pro'],
@@ -792,6 +794,42 @@ class Component extends DCLogic {
       actions: H(F, null, s.page === 1 ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ page: 2 }) }, readWords.more) : null, refreshRead),
     });
 
+    const gamificationRead = () => {
+      const pt = s.loc === 'pt-BR';
+      const hasStreak = st === 'gamification streak' || st === 'gamification achievements streak';
+      const profile = !hasStreak && st !== 'gamification achievements' && st !== 'gamification empty';
+      const catalogue = st !== 'gamification profile' && st !== 'gamification streak';
+      const items = [];
+      if (profile) items.push({ label: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 } },
+        H('div', { style: { display: 'flex', alignItems: 'baseline', gap: 12 } },
+          H('p', { 'data-mock': '', style: { flex: 1, fontSize: 17, lineHeight: '22px', fontWeight: 500 } }, pt ? 'Nível 3 · Orbitador' : 'Level 3 · Orbiter'),
+          H('p', { 'data-mock': '', style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)' } }, s.gamificationRefreshed ? '600 / 800 XP' : '500 / 800 XP')),
+        H(D.ProgressBar, { value: s.gamificationRefreshed ? 50 : 25, max: 100, label: pt ? 'Progresso até o próximo nível' : 'Progress to the next level' })) });
+      if (catalogue) items.push({ label: st === 'gamification empty'
+        ? H('p', { style: { fontSize: 14, color: 'var(--fg-2)' } }, pt ? 'Registre para conquistar' : 'Log habits to earn them')
+        : H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16, background: 'var(--bg-card)', borderRadius: 'var(--r-card)', boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' } },
+          H('div', { style: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 } },
+            H('span', { role: 'img', 'aria-label': pt ? 'Primeira órbita, conquistada' : 'First Orbit, earned', style: { width: 32, height: 32, flex: '0 0 auto', borderRadius: 'var(--r-pill)', background: 'var(--status-done)', color: 'var(--bg)', display: 'grid', placeItems: 'center' } }, H(D.Icon, { name: 'satellite', size: 20 })),
+            H('div', { style: { flex: '1 1 120px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
+              H('p', { style: { fontSize: 14, fontWeight: 500 } }, pt ? 'Primeira órbita' : 'First Orbit'),
+              H('p', { style: { fontSize: 12, lineHeight: '17px', color: 'var(--fg-3)' } }, pt ? 'Crie seu primeiro hábito' : 'Create your first habit')),
+            H(window.OrbitNativeMobile.Badge, null, pt ? 'Conquistada' : 'Earned'))) });
+      if (hasStreak) items.push({ label: H('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
+        catalogue ? H('h3', { style: { fontSize: 16, fontWeight: 500 } }, pt ? 'Sequência' : 'Streak') : null,
+        H('div', { style: { display: 'flex', alignItems: 'baseline', gap: 12 } },
+          H('p', { 'data-mock': '', style: { fontFamily: 'var(--font-display)', fontSize: 60, fontWeight: 600, lineHeight: 1, letterSpacing: '-0.03em' } }, s.gamificationRefreshed ? '6' : '5'),
+          H('p', { style: { fontSize: 17, color: 'var(--fg-2)' } }, pt ? 'dias seguidos' : 'days in a row')),
+        H(D.DayStrip, { scope: 'account', days: Array.from({ length: 14 }, (_, index) => index === 13 ? 'frozen' : index >= 8 ? 'active' : 'missed'),
+          labels: Array.from({ length: 14 }, (_, index) => String(index + 1)), label: pt ? 'Atividade nos últimos 14 dias' : 'Activity over the last 14 days',
+          words: { active: pt ? 'dia ativo' : 'day active', frozen: pt ? 'dia congelado' : 'day frozen', missed: pt ? 'dia sem registro' : 'day missed', today: pt ? 'Hoje' : 'Today' } }),
+        H('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 16 } },
+          H(D.StatTile, { value: mock('9'), label: pt ? 'Maior sequência' : 'Longest streak' }),
+          H(D.StatTile, { value: mock(pt ? 'Bronze' : 'Bronze'), label: pt ? 'Nível da sequência' : 'Streak tier' })),
+        H('p', { 'data-mock': '', style: { fontSize: 14, color: 'var(--fg-2)' } }, pt ? 'Congelamentos: 2 / 3' : 'Freezes: 2 / 3')) });
+      return this.block({ title: profile ? (catalogue ? (pt ? 'Nível e conquistas' : 'Level and achievements') : (pt ? 'Nível' : 'Level')) : (catalogue ? (pt ? 'Conquistas' : 'Achievements') : (pt ? 'Sequência' : 'Streak')), items,
+        actions: H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ gamificationRefreshed: true }) }, readWords.refresh) });
+    };
+
     const turnsFor = () => {
       switch (COMPOSER_STATES.indexOf(st) >= 0 ? 'habits' : st) {
         case 'empty':
@@ -828,6 +866,13 @@ class Component extends DCLogic {
             actions: H(F, null, t.cl.answers.map((a, i) =>
               H(D.Button, { key: i, size: 'sm', variant: 'ghost', onClick: () => this.setState({ st: 'habits' }) }, a))),
           }))];
+        case 'gamification':
+        case 'gamification profile':
+        case 'gamification achievements':
+        case 'gamification empty':
+        case 'gamification streak':
+        case 'gamification achievements streak':
+          return [this.node(gamificationRead()), this.node(H('a', { href: '/progress/achievements' }, s.loc === 'pt-BR' ? 'Conquistas' : 'Achievements'))];
         case 'periodTotal':
           return [this.node(totalRead('resting'))];
         case 'periodComparison':

@@ -36,6 +36,8 @@
     "html_url": "https://github.com/example/repository/item/1",
     "number": 1,
     "state_reason": "completed",
-    "title": "Recorded source title"
+    "title": "Recorded source title",
+    "created_at": "2026-10-01T00:00:00Z",
+    "pull_request": null
   }
 }

@@ -3,6 +3,7 @@
 import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 
 
+import { useAccountClockSeed } from '@/lib/account-clock'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import type { Locale } from 'date-fns'
@@ -201,12 +202,17 @@ export function CalendarTimeGrid({
   const bodyRef = useRef<HTMLDivElement>(null)
   const [isPanePinned, setIsPanePinned] = useState(true)
   const [scrollGeometry, setScrollGeometry] = useState({ snapMargin: 0, trailingSpace: 0 })
-  const [now, setNow] = useState<Date>(() => nowDate())
+  const accountClockSeed = useAccountClockSeed()
+  const [now, setNow] = useState<Date>(() => accountClockSeed ? new Date(accountClockSeed.now) : nowDate())
   const nowMinutes = getAccountDateTime(now, timeZone).minutes
 
   useEffect(() => {
+    const hydrationTimer = setTimeout(() => setNow(nowDate()), 0)
     const interval = setInterval(() => setNow(nowDate()), 60_000)
-    return () => clearInterval(interval)
+    return () => {
+      clearTimeout(hydrationTimer)
+      clearInterval(interval)
+    }
   }, [])
 
   const perColumn = useMemo(

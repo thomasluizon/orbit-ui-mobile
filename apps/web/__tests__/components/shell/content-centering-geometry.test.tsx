@@ -1,3 +1,4 @@
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -86,6 +87,7 @@ describe('page content centring and add control clearance', () => {
       </NextIntlClientProvider>);`, {
       'next/link': "import React from 'react'; export default ({ children, ...props }) => React.createElement('a', props, children);",
       '@sentry/nextjs': 'export const captureException = () => {};',
+      '@/hooks/use-color-scheme': "export const useColorScheme = () => ({ currentTheme: 'dark', toggleTheme: () => {} });",
       '@/stores/auth-store': 'import { create } from "zustand"; export const useAuthStore = create(() => ({ isAuthenticated: true, user: { userId: "shell-account" }, logout: async () => {} }));',
       './notification-bell': 'export const NotificationBell = () => null;',
       '@/components/ui/dropdown-menu': 'export const Root = ({children}) => children; export const Trigger = ({children}) => children; export const Content = () => null;',
@@ -104,7 +106,7 @@ describe('page content centring and add control clearance', () => {
         </HabitCreateFrame>
       </ShellWide>
     </NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const columns = await page.evaluate(() => [...document.querySelectorAll('[data-shell-column], [data-habit-create-screen], [data-habit-create-action]')].map(element => {
@@ -132,7 +134,7 @@ describe('page content centring and add control clearance', () => {
         </ShellWide>
       </NextIntlClientProvider>)
       await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
-      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.evaluate(() => {
@@ -158,7 +160,7 @@ describe('page content centring and add control clearance', () => {
         <TodayAstraLine text="Review your routine" destination="Astra" onPress={vi.fn()} />
       </ShellWide>
     </NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const overflow = await page.evaluate(() => {
@@ -187,7 +189,7 @@ describe('page content centring and add control clearance', () => {
         {[...habits.values()].map(habit => <HabitRow key={habit.id} habit={habit} actions={{ onDetail: vi.fn() }} />)}
       </ShellWide>
     </NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width: 740, height } })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 740, height } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
@@ -213,7 +215,7 @@ describe('page content centring and add control clearance', () => {
     [{ top: 0, bottom: 0, left: 0, right: 0 }, { top: 24, bottom: 16, left: 0, right: 0 }].map(insets => ({ ...viewport, ...insets })),
   ).concat([{ width: 844, height: 390, top: 0, bottom: 21, left: 44, right: 44 }]).flatMap(viewport => [false, true].map(pressure => ({ ...viewport, pressure }))))(
     'keeps the real composer and bottom controls reachable at $width by $height with insets $top/$bottom, pressure=$pressure', async (viewport) => {
-      const page = await browser.newPage({ viewport })
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport })
       try {
         const session = await page.context().newCDPSession(page)
         await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: viewport.top, bottom: viewport.bottom, left: viewport.left, right: viewport.right } })
@@ -228,12 +230,14 @@ describe('page content centring and add control clearance', () => {
           const observer = new ResizeObserver(() => { observer.disconnect(); resolve() })
           observer.observe(document.querySelector('[data-shell-header]')!)
         }))
-        const settled = await page.evaluate(() => ({
+        const measureSettled = () => page.evaluate(() => ({
           bottom: document.querySelector('[data-shell-bottom]')!.getBoundingClientRect().bottom,
           tabsBottom: document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect().bottom,
           bottomHeight: document.querySelector('[data-shell-bottom-viewport]')!.getBoundingClientRect().height,
           pageHeight: document.querySelector('[data-shell-scroller]')!.getBoundingClientRect().height,
         }))
+        await expect.poll(async () => (await measureSettled()).tabsBottom).toBeLessThanOrEqual(viewport.height - viewport.bottom)
+        const settled = await measureSettled()
         expect.soft(settled.bottom, 'settled trailing chrome stays inside the safe viewport').toBeLessThanOrEqual(viewport.height - viewport.bottom)
         expect.soft(settled.tabsBottom, 'settled actual tabs stay inside the safe viewport').toBeLessThanOrEqual(viewport.height - viewport.bottom)
         expect(settled.bottomHeight, 'bottom controls yield before the protected page').toBe(viewport.pressure ? 80 : 64)
@@ -287,7 +291,7 @@ describe('page content centring and add control clearance', () => {
           </HabitCreateFrame>
         </ShellWide>
       </NextIntlClientProvider>)
-      const page = await browser.newPage({ viewport })
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await loadAppFonts(page)
@@ -330,7 +334,7 @@ describe('page content centring and add control clearance', () => {
         <ProfileSettingsFrame isLoading={false} loadingLabel="Carregando" labels={{}} rows={{}} />
       </ShellWide>
     </NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
@@ -359,7 +363,7 @@ describe('page content centring and add control clearance', () => {
         fab={<Fab label="Create" onClick={vi.fn()}>+</Fab>} tabBar={<div style={{ height: 80 }} />}>
         <div className="flex flex-col gap-3 px-4">{[...habits.values()].map(habit => <HabitRow key={habit.id} habit={habit} actions={{ onDetail: vi.fn(), onLog: vi.fn(), onEdit: vi.fn() }} />)}</div>
       </ShellWide></NextIntlClientProvider>)
-      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await loadAppFonts(page)
@@ -417,7 +421,7 @@ describe('page content centring and add control clearance', () => {
       fab={<Fab label="Criar" onClick={vi.fn()}>+</Fab>} tabBar={<div style={{ height: 80 }} />}>
       <div className="flex flex-col gap-3 px-4">{[...habits.values()].map(habit => <HabitRow key={habit.id} habit={habit} actions={{ onDetail: vi.fn(), onLog: vi.fn(), onEdit: vi.fn() }} />)}</div>
     </ShellWide></NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport })
     try {
       const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
       await page.setContent(`<style>${stylesheet}:root{${theme};font-size:${16 * textScale}px}</style>${container.innerHTML}`)

@@ -6,7 +6,7 @@ export interface FreezeBankProtectedDay {
   isToday?: boolean
 }
 
-export interface FreezeBankWords extends AccountDayWords {
+export interface FreezeBankWords extends Omit<AccountDayWords, 'notScheduled'> {
   legendLabel: string
   bankedLabel: string
   usedLabel: string

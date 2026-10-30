@@ -1,0 +1,27 @@
+[
+  {
+    "caseId": "composition-compound-missing-kind-en",
+    "repeat": 1,
+    "answer": "Habits: 2\nWater (Today)\nWalk (Today)\n\nGoals: 1\nConsistent hydration: 0/10 sessions"
+  },
+  {
+    "caseId": "composition-compound-missing-kind-en",
+    "repeat": 2,
+    "answer": "Habits: 2\nWater (Today)\nWalk (Today)\n\nGoals: 1\nConsistent hydration: 0/10 sessions"
+  },
+  {
+    "caseId": "composition-compound-missing-kind-en",
+    "repeat": 3,
+    "answer": "Habits: 2\nWater (Today)\nWalk (Today)\n\nGoals: 1\nConsistent hydration: 0/10 sessions"
+  },
+  {
+    "caseId": "composition-compound-missing-kind-pt-BR",
+    "repeat": 1,
+    "answer": "Hábitos: 2\nBeber água (Hoje)\nCaminhada (Hoje)\n\nMetas: 1\nHidratação constante: 0/10 sessões"
+  },
+  {
+    "caseId": "composition-compound-missing-kind-pt-BR",
+    "repeat": 3,
+    "answer": "Hábitos: 2\nBeber água (Hoje)\nCaminhada (Hoje)\n\nMetas: 1\nHidratação constante: 0/10 sessões"
+  }
+]

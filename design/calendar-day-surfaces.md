@@ -1,12 +1,15 @@
 # Calendar day surfaces
 
 The day target spans its column and stays at least 44 high. DayCell owns the visible
-circle, capped at 44 and centred in the column, with a concentric 34 status mark.
+34px circle and concentric status mark, distributed inside the column's existing 44px
+allocation so adjacent discs retain at least 8px. Future and unavailable history numerals
+and loading placeholders use the same allocation on both platforms.
 The calendar drawing governs the geometry; existing fill tokens retain their roles.
 
 | Surface | Web owner | Android owner | States |
 | --- | --- | --- | --- |
 | Calendar month | calendar-grid and DayCell | calendar-grid and DayCell | none, partial, full, not scheduled, future, outside month, loggable, today, selected, today with selection, hover, press, keyboard focus |
+| Astra habit month | chat/habit-month-card and calendar-grid | chat/habit-month-card and calendar-grid | done, missed, skipped, not scheduled, future, today, partial month, multiple months, signed refresh, stale and failed recovery |
 | Calendar period | calendar-range-view and DayCell | calendar-range-view and DayCell | none, partial, full, not scheduled, today, leading empty slot |
 | Habit month history | habit-detail-screen and DayCell | habit-detail-screen and DayCell | completed, missed, not scheduled, today, future, unavailable, outside month |
 | Month loading grid | calendar-grid and Skeleton | calendar-grid and Skeleton | circular placeholders in full-column slots, seven tracks while profile preferences load |
@@ -36,3 +39,27 @@ from accessibility and interaction, with named visible skeletons above it.
 The web loggable day well transitions its background with the same control duration
 and easing as the hover fill. Press keeps its immediate well removal. Selected,
 future and today indicators retain their paint.
+
+Astra habit-month blocks reuse the calendar projection, month grid and day cells.
+The supplied local today and week start govern the saved snapshot. Compact grids
+omit screen insets; each queried month keeps seven columns, and dates outside the
+absolute query stay unavailable. Selecting a day opens that date on Calendário.
+The dedicated habit-month refresh replaces the card and signed read metadata
+together, with the existing named refresh icon and retained failure recovery.
+Shared contract tests cover legacy text and range boundaries. Paired component
+tests cover day states, navigation and refresh; the native screen test covers
+routed dates, later requests and account changes.
+
+The selected-day habit body opens that habit's detail with the selected date on web
+and Android, including from the week day sheet after dismissal. The full title remains
+one tap away there. Rows reuse Hoje's leading emoji well and initial fallback. The
+46px well and 12px block insets give short rows a 70px resting floor; longer titles
+and larger text grow the row. The completion control remains independent and
+loading rows stay disabled. The title-only sheet is removed under #1858; habit detail
+supplies the full title.
+
+A labelled Switch row at the top of the day list shares `calendarShowRecurring`
+with Options. Its ON-state label is Mostrar hábitos / Show habits, in the habit form's Task and Habit terms: off leaves one-time tasks. Hiding recurring
+habits leaves one-time tasks and dated calendar events; the completion summary counts
+only visible habits. A fully hidden list reuses the existing empty-day copy. Both
+controls retain one shape-following focus indicator and inset paint that clears neighbours.

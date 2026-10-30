@@ -219,7 +219,7 @@ describe('i18n locale parity', () => {
     expect(new Set([catalog.habits.rowTypeTask, catalog.habits.form.typeHabit]).size).toBe(2)
   })
 
-  it('keeps internal habit type names out of copy while retaining the named General view', () => {
+  it('keeps internal habit type names out of copy while retaining named General surfaces', () => {
     const otherMeanings = new Set([
       'preferences.general',
       'chat.insight.overview',
@@ -234,7 +234,7 @@ describe('i18n locale parity', () => {
         if (otherMeanings.has(key)) continue
         if (key === 'habits.form.typeTask' && value === task) continue
         expect(value, `${locale}: ${key}`).not.toMatch(internal)
-        if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral') {
+        if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral' && key !== 'chat.preview.itemGroup.General') {
           expect(value, `${locale}: ${key}`).not.toMatch(general)
         }
       }
@@ -524,7 +524,7 @@ describe('counted message grammar', () => {
       'celebration.goal.line', 'celebration.goal.lineWithoutUnit',
     ],
     invariantQuantifiers: [
-      'notifications.bellWithCount', 'shell.composer.usage',
+      'notifications.bellWithCount', 'shell.composer.usage', 'shell.composer.usageWeekly',
       'habits.form.moreSelected', 'calendar.timeGrid.moreLabel',
       'chat.preview.more', 'goals.detail.showAllHistory',
     ],

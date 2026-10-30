@@ -6,9 +6,12 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { HabitRow } from '@/components/habits/habit-row'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
+vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayReminderClock: () => '04:00' }) }))
+
 const locale = vi.hoisted(() => ({ value: 'en' }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string, values?: { done: number; total: number }) => {
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string, values?: Record<string, string | number>) => {
   const messages = locale.value === 'en' ? en : ptBR
+  if (key === 'habits.nextReminder') return messages.habits.nextReminder.replace('{time}', String(values?.time))
   if (key === 'habits.form.typeHabit') return messages.habits.form.typeHabit
   if (key === 'habits.rowTypeTask') return messages.habits.rowTypeTask
   if (key === 'habits.form.checklist') return messages.habits.form.checklist
@@ -151,3 +154,13 @@ describe('integrated row metadata', () => {
     expect(container.querySelector('[data-habit-row-body]')).toHaveAccessibleName('Walk, Habit')
   })
 })
+
+  it.each(['en', 'pt-BR'])('shows only the supplied next reminder instant in %s', (language) => {
+    locale.value = language
+    const habit = createMockHabit({ repeatReminder: { intervalMinutes: 30 }, nextReminderAtUtc: '2026-10-29T04:00:00Z' })
+    const view = render(<HabitRow habit={habit} />)
+    expect(view.container.textContent).toContain(language === 'en' ? 'Next at 04:00' : 'Próximo às 04:00')
+    view.rerender(<HabitRow habit={{ ...habit, nextReminderAtUtc: null }} />)
+    expect(view.container.textContent).not.toContain('04:00')
+    view.unmount()
+  })

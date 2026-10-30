@@ -108,6 +108,21 @@ describe('pending operation edits', () => {
     expect(reconcilePendingOperationRevisionState(state, { ...operation, ...revised }).editedItemIds).toEqual([item.itemId])
     expect(reconcilePendingOperationRevisionState(state, { ...operation, previewFingerprint: 'preview-other' }).editedItemIds).toEqual([])
   })
+  it('keeps original member identity when successive revisions renumber and rename the retained items', () => {
+    const first = { ...item, itemId: '0/0' }
+    const second = { ...item, itemId: '1/0' }
+    const third = { ...item, itemId: '2/0' }
+    const operation = makePendingAgentOperation({ previewFingerprint: 'preview-1', items: [first, second, third] })
+    const preview = { changes: [], changeTargetCount: 2, previewFingerprint: 'preview-2',
+      items: [{ ...second, itemId: '0/0', entityName: 'New title' }, { ...third, itemId: '1/0' }] }
+    const revised = applyPendingOperationRevisionPreview(createPendingOperationRevisionState(operation), preview, undefined, [second, third])
+    expect(revised.originalItemIds).toEqual(['1/0', '2/0'])
+    const echoed = reconcilePendingOperationRevisionState(revised, revised.operation)
+    const retained = preview.items[1]!
+    const final = applyPendingOperationRevisionPreview(echoed, { ...preview, changeTargetCount: 1,
+      previewFingerprint: 'preview-3', items: [{ ...retained, itemId: '0/0' }] }, undefined, [retained])
+    expect(final.originalItemIds).toEqual(['2/0'])
+  })
 })
 
 describe('pending operation authorization', () => {

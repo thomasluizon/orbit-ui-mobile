@@ -9,6 +9,7 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import { translateApiFetchMessage } from '@/lib/api-fetch'
 import { getAccountEventOrigin } from '@/lib/account-event-origin'
 import { useVersionGateStore } from '@/stores/version-gate-store'
+import { reloadStaleBuildOnce } from '@/lib/stale-build-recovery'
 
 let activeAccountIntent: string | null | undefined
 
@@ -75,7 +76,9 @@ export async function runServerActionResult<T>(
   } catch (error: unknown) {
     if (unstable_isUnrecognizedActionError(error)) {
       useVersionGateStore.getState().requireReload('appUpdated')
+      reloadStaleBuildOnce()
       if (failureMode === 'reload') return new Promise<ServerActionResult<T>>(() => {})
+      throw createApiClientError(409, { errorCode: 'STALE_WEB_BUILD' }, translateApiFetchMessage('errors.api.appUpdated') ?? 'STALE_WEB_BUILD')
     }
     throw error
   }

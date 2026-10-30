@@ -5,6 +5,7 @@ import { GET as start } from '@/app/api/auth/google/start/route'
 import { GET as callback } from '@/app/api/auth/desktop/callback/route'
 import { POST as exchange } from '@/app/api/auth/desktop/exchange/route'
 import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
+import { proxy } from '@/proxy'
 import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 
 const api = vi.fn()
@@ -35,6 +36,24 @@ function redemption(body: unknown = { code: handoffCode, state, codeVerifier: ve
     body: typeof body === 'string' ? body : JSON.stringify(body) })
 }
 
+async function pageDestination(response: Response) {
+  expect(response.status).toBe(200)
+  expect(response.headers.get('location')).toBeNull()
+  expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8')
+  expect(response.headers.get('cache-control')).toBe('no-store')
+  expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+  expect(response.headers.get('set-cookie')).toContain(`${GOOGLE_OAUTH_COOKIE}=;`)
+  const page = new DOMParser().parseFromString(await response.text(), 'text/html')
+  const links = page.querySelectorAll('a')
+  expect(links).toHaveLength(1)
+  const destination = new URL(links[0]!.href)
+  expect(page.querySelector('h1')?.textContent).toBe(destination.searchParams.has('error') ? 'Sign-in failed' : 'Signed in')
+  expect(page.body.textContent).not.toContain(handoffCode)
+  expect(page.body.textContent).not.toContain(account.token)
+  expect(page.body.textContent).not.toContain(account.refreshToken)
+  return destination
+}
+
 describe('desktop Google BFF handoff', () => {
   beforeEach(() => {
     vi.stubEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID', 'web-client')
@@ -53,9 +72,23 @@ describe('desktop Google BFF handoff', () => {
     const googleSession = JSON.parse(pending.cookie.value)
     expect(googleSession.desktop).toEqual({ state, codeChallenge, redirectUri })
     expect(pending.cookie.httpOnly).toBe(true)
+    const browserHeaders = { cookie: `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(pending.cookie.value)}` }
+    const redirect = await proxy(new NextRequest(`${origin}/auth-callback?code=google-code&state=${pending.googleState}&ignored=value`, {
+      headers: browserHeaders,
+    }))
+    expect(redirect.status).toBe(307)
+    expect(redirect.headers.get('location')).toBe(`${origin}/api/auth/desktop/callback?code=google-code&state=${pending.googleState}`)
+    expect(await redirect.text()).toBe('')
+    expect(redirect.headers.get('cache-control')).toBe('no-store')
+    expect(redirect.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(redirect.headers.get('set-cookie')).toBeNull()
+    expect(api).not.toHaveBeenCalled()
     api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(Response.json({ code: handoffCode, expiresIn: 60 }))
-    const returned = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
-    const destination = new URL(returned.headers.get('location')!)
+    const returned = await callback(new NextRequest(redirect.headers.get('location')!, { headers: browserHeaders }))
+    expect(returned.status).toBe(200)
+    const document = new DOMParser().parseFromString(await returned.clone().text(), 'text/html')
+    expect(document.querySelectorAll('script')).toHaveLength(0)
+    const destination = await pageDestination(returned)
     expect(destination.toString()).toBe(`${redirectUri}?state=${state}&code=${handoffCode}`)
     expect(api.mock.calls[0]?.[0]).toBe('http://localhost:5000/api/auth/google/code')
     expect(JSON.parse(api.mock.calls[0]?.[1].body)).toMatchObject({ codeVerifier: googleSession.verifier,
@@ -68,6 +101,12 @@ describe('desktop Google BFF handoff', () => {
     expect(returned.headers.get('referrer-policy')).toBe('no-referrer')
     expect(destination.toString()).not.toContain(account.token)
     expect(destination.toString()).not.toContain(account.refreshToken)
+
+    const completedCalls = api.mock.calls.length
+    const replay = await callback(new NextRequest(redirect.headers.get('location')!))
+    expect(replay.status).toBe(400)
+    expect(await replay.json()).toEqual({ error: 'Invalid OAuth state' })
+    expect(api).toHaveBeenCalledTimes(completedCalls)
 
     api.mockResolvedValueOnce(Response.json(account))
     const session = await exchange(redemption())
@@ -86,6 +125,36 @@ describe('desktop Google BFF handoff', () => {
     const response = start(new NextRequest(`${origin}/api/auth/google/start?purpose=signin&${query}`))
     expect(response.status).toBe(400)
     expect(response.cookies.get(GOOGLE_OAUTH_COOKIE)).toBeUndefined()
+  })
+
+  it.each([false, true])('allows the completion script under every proxy and route policy, failure %s', async failed => {
+    const pending = attempt()
+    const incoming = pending.request(`${failed ? 'error=access_denied' : 'code=google-code'}&state=${pending.googleState}`)
+    incoming.headers.set('x-nonce', 'untrusted-client-nonce')
+    const secured = await proxy(incoming)
+    const forwarded = new Headers()
+    const overridden = secured.headers.get('x-middleware-override-headers')!.split(',')
+    for (const name of overridden) {
+      forwarded.set(name, secured.headers.get(`x-middleware-request-${name}`)!)
+    }
+    if (!failed) {
+      api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(Response.json({ code: handoffCode, expiresIn: 60 }))
+    }
+    const response = await callback(new NextRequest(incoming.url, { headers: forwarded }))
+    const document = new DOMParser().parseFromString(await response.clone().text(), 'text/html')
+    const scripts = document.querySelectorAll('script')
+    expect(scripts).toHaveLength(1)
+    const nonce = scripts[0]!.nonce
+    const policies = [secured.headers.get('content-security-policy')!, response.headers.get('content-security-policy')]
+      .filter((policy): policy is string => policy !== null)
+    for (const policy of policies) {
+      const scriptSources = policy.split(';').map(directive => directive.trim()).find(directive => directive.startsWith('script-src '))!.split(/\s+/)
+      expect(scriptSources).toContain(`'nonce-${nonce}'`)
+    }
+    expect(nonce).toBe(forwarded.get('x-nonce'))
+    expect(nonce).not.toBe('untrusted-client-nonce')
+    expect(response.headers.get('content-security-policy')).toBeNull()
+    expect((await pageDestination(response)).toString()).toBe(`${redirectUri}?state=${state}&${failed ? 'error=authentication_failed' : `code=${handoffCode}`}`)
   })
 
   it('rejects desktop calendar scope and unrecognised deployment origins', () => {
@@ -109,7 +178,9 @@ describe('desktop Google BFF handoff', () => {
   it('returns browser cancellation to the owning native attempt', async () => {
     const pending = attempt()
     const response = await callback(pending.request(`error=access_denied&state=${pending.googleState}`))
-    expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&error=authentication_failed`)
+    const document = new DOMParser().parseFromString(await response.clone().text(), 'text/html')
+    expect(document.querySelectorAll('script')).toHaveLength(0)
+    expect((await pageDestination(response)).toString()).toBe(`${redirectUri}?state=${state}&error=authentication_failed`)
     expect(api).not.toHaveBeenCalled()
   })
 
@@ -122,7 +193,7 @@ describe('desktop Google BFF handoff', () => {
     if (outcome === 'revoke network failure') api.mockRejectedValueOnce(new Error('unavailable'))
     else api.mockResolvedValueOnce(new Response(null, { status: outcome === 'revoke rejection' ? 503 : 200 }))
     const response = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
-    expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&${outcome === 'handoff failure' ? 'error=authentication_failed' : `code=${handoffCode}`}`)
+    expect((await pageDestination(response)).toString()).toBe(`${redirectUri}?state=${state}&${outcome === 'handoff failure' ? 'error=authentication_failed' : `code=${handoffCode}`}`)
     const revocation = api.mock.calls.find(([url]) => url === 'http://localhost:5000/api/auth/logout')
     expect(revocation).toBeDefined()
     expect(revocation?.[1]).toMatchObject({ method: 'POST', body: JSON.stringify({ refreshToken: account.refreshToken }) })
@@ -132,7 +203,7 @@ describe('desktop Google BFF handoff', () => {
     const pending = attempt('existing-browser-session')
     api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(Response.json({ code: handoffCode, expiresIn: 60 }))
     const response = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
-    expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&code=${handoffCode}`)
+    expect((await pageDestination(response)).toString()).toBe(`${redirectUri}?state=${state}&code=${handoffCode}`)
     expect(response.cookies.get('auth_token')).toBeUndefined()
   })
 
@@ -142,7 +213,7 @@ describe('desktop Google BFF handoff', () => {
     const productionRedirect = 'org.useorbit.desktop://auth/callback'
     api.mockResolvedValueOnce(Response.json(account)).mockResolvedValueOnce(Response.json({ code: handoffCode, expiresIn: 60 }))
     const response = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
-    expect(response.headers.get('location')).toBe(`${productionRedirect}?state=${state}&code=${handoffCode}`)
+    expect((await pageDestination(response)).toString()).toBe(`${productionRedirect}?state=${state}&code=${handoffCode}`)
     api.mockResolvedValueOnce(Response.json(account))
     const session = await exchange(redemption({ code: handoffCode, state, codeVerifier: verifier, redirectUri: productionRedirect }))
     expect(session.status).toBe(200)
@@ -157,7 +228,7 @@ describe('desktop Google BFF handoff', () => {
       failure === 'handoff' ? new Response(null, { status: 503 }) : Response.json({ code: 'bad', expiresIn: 60 }),
     )
     const response = await callback(pending.request(`code=google-code&state=${pending.googleState}`))
-    expect(response.headers.get('location')).toBe(`${redirectUri}?state=${state}&error=authentication_failed`)
+    expect((await pageDestination(response)).toString()).toBe(`${redirectUri}?state=${state}&error=authentication_failed`)
     expect(response.cookies.get('auth_token')).toBeUndefined()
   })
 

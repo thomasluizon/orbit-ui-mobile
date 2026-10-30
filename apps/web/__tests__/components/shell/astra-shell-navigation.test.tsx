@@ -1,3 +1,4 @@
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { createRef, type ReactNode, type MouseEventHandler } from 'react'
 import { PeriodInsightCard } from '@/components/chat/period-insight-card'
@@ -78,7 +79,7 @@ it('keeps focus in each anchored attachment action and lets Escape close the men
   fireEvent.pointerDown(screen.getByRole('button', { name: words.actions }), { button: 0, ctrlKey: false })
   const menu = await screen.findByRole('menu', { name: words.actions })
   expect(document.querySelector('[data-shell]')).not.toContainElement(menu)
-  for (const label of [attachWords.image, attachWords.file, voiceWords.start]) {
+  for (const label of [attachWords.image, attachWords.file]) {
     const item = within(menu).getByRole('menuitem', { name: label })
     act(() => item.focus())
     expect(item).toHaveFocus()
@@ -198,7 +199,8 @@ it.each([false, true])('opens the conversation with disabled sending at the dail
   const conversation = screen.getByRole('dialog', { name: 'Astra' })
   expect(within(conversation).getByText('Daily allowance reached')).toBeVisible()
   expect(within(conversation).getByRole('textbox', { name: words.placeholder })).toBeDisabled()
-  expect(within(conversation).getByRole('button', { name: `${words.send}` })).toBeDisabled()
+  expect(within(conversation).queryByRole('button', { name: words.send })).not.toBeInTheDocument()
+  expect(within(conversation).getByRole('button', { name: voiceWords.start })).toBeEnabled()
   expect(conversation).toContainElement(document.activeElement as HTMLElement)
   fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
   expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
@@ -224,7 +226,7 @@ const insight: PeriodInsightData = {
   narrative: { highlights: 'Walked', trends: '', suggestion: '', missed: '' },
 }
 
-it.each([[false, '/'], [true, '/'], [false, '/progress'], [true, '/progress']] as const)('leaves full-screen Astra for Progresso from the period insight with wide=%s at %s', (wide, pathname) => {
+it.each([[false, '/'], [true, '/'], [false, '/progress'], [true, '/progress']] as const)('keeps insight disclosure in Astra and navigates to Progresso from the shell with wide=%s at %s', (wide, pathname) => {
   navigation.wide = wide
   navigation.pathname = pathname
   const block = <PeriodInsightCard periodInsight={insight} />
@@ -235,8 +237,9 @@ it.each([[false, '/'], [true, '/'], [false, '/progress'], [true, '/progress']] a
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   fireEvent.click(within(conversation).getByRole('button', { name: 'chat.readBlock.less' }))
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
-  fireEvent.click(within(conversation).getByRole('link', { name: 'Ver no Progresso' }))
-  expect(navigation.push).toHaveBeenCalledWith('/progress')
+  expect(within(conversation).queryByRole('link', { name: 'Ver no Progresso' })).toBeNull()
+  fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }))
+  if (pathname !== '/progress') expect(navigation.push).toHaveBeenCalledWith('/progress')
   view.rerender(<App block={block} />)
   expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
@@ -244,10 +247,10 @@ it.each([[false, '/'], [true, '/'], [false, '/progress'], [true, '/progress']] a
   expect(document.querySelector('[data-shell-destination]')).not.toHaveAttribute('inert')
 })
 
-it('keeps Astra open when its destination link opens in another tab', () => {
+it('keeps Astra open when a shell destination link opens in another tab', () => {
   render(<App block={<PeriodInsightCard periodInsight={insight} />} />)
   act(() => useUIStore.getState().setAstraConversationOpen(true))
-  fireEvent.click(screen.getByRole('link', { name: 'Ver no Progresso' }), { ctrlKey: true })
+  fireEvent.click(screen.getByRole('link', { name: 'nav.progress' }), { ctrlKey: true })
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
   expect(navigation.push).not.toHaveBeenCalled()
 })

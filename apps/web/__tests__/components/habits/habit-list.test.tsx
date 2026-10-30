@@ -41,7 +41,7 @@ const dragLocale = vi.hoisted(() => ({ portuguese: false, english: false }))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined, hasProAccess: true }))
 const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true }))
 const setFrequencyFilters = vi.hoisted(() => vi.fn())
-const moveControllerOwner = vi.hoisted(() => ({ loaded: vi.fn(), initialize: vi.fn() }))
+const moveControllerOwner = vi.hoisted(() => ({ loaded: vi.fn(), initialize: vi.fn(), mounted: vi.fn() }))
 const moveModuleLoad = vi.hoisted(() => ({
   generation: 0, hold: null as Promise<void> | null, pending: null as Promise<unknown> | null, requested: vi.fn(), ready: vi.fn(),
 }))
@@ -77,6 +77,15 @@ vi.mock('@orbit/shared/hooks/move-parent-core', async (importOriginal) => {
   return { ...actual, createMoveParentState: () => {
     moveControllerOwner.initialize()
     return actual.createMoveParentState()
+  } }
+})
+
+vi.mock('@/components/habits/habit-list/move-parent-controller', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-list/move-parent-controller')>()
+  const { useEffect } = await import('react')
+  return { ...actual, MoveParentController: function MountedController(props: React.ComponentProps<typeof actual.MoveParentController>) {
+    useEffect(() => { moveControllerOwner.mounted() }, [])
+    return <actual.MoveParentController {...props} />
   } }
 })
 
@@ -126,7 +135,7 @@ vi.mock('@/app/(app)/today-provider', () => ({
 }))
 
 
-const mockHabitsData = {
+let mockHabitsData = {
   habitsById: new Map<string, NormalizedHabit>(),
   childrenByParent: new Map<string, string[]>(),
   topLevelHabits: [] as NormalizedHabit[],
@@ -393,7 +402,7 @@ vi.mock('@/components/habits/reschedule-sheet', () => ({
 }))
 
 vi.mock('@/components/habits/edit-habit-modal', () => ({
-  EditHabitModal: ({
+  EditHabitModal: function EditHabitModal({
     open,
     habit,
     onSaved,
@@ -403,14 +412,17 @@ vi.mock('@/components/habits/edit-habit-modal', () => ({
     habit?: NormalizedHabit | null
     onSaved?: () => void | Promise<void>
     lockedGeneral?: boolean | null
-  }) =>
-    open ? (
+  }) {
+    const [title, setTitle] = React.useState(habit?.title ?? '')
+    return open ? (
       <>
+        <input aria-label="Habit title" value={title} onChange={(event) => setTitle(event.target.value)} />
         <button data-testid="edit-habit-modal-save" onClick={() => void onSaved?.()}>save</button>
         <span data-testid="edit-habit-modal-title">{habit?.title ?? ''}</span>
         <span data-testid="edit-habit-modal-locked-general">{String(lockedGeneral)}</span>
       </>
-    ) : null,
+    ) : null
+  },
 }))
 
 vi.mock('@/components/habits/log-habit-modal', () => ({
@@ -831,7 +843,7 @@ describe('HabitList', () => {
     else await screen.findByTestId('move-source')
     fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
     expect(onBulkMove).toHaveBeenCalledOnce()
-    expect(moveControllerOwner.initialize).toHaveBeenCalledOnce()
+    expect(moveControllerOwner.mounted).toHaveBeenCalledOnce()
     await act(async () => { releaseMove({ results: [
       { index: 0, habitId: 'source', status: 'Success' },
       { index: 1, habitId: 'past', status: 'Failed', error: 'Move refused by server' },
@@ -848,7 +860,7 @@ describe('HabitList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(onBulkMove).toHaveBeenNthCalledWith(2, ['past'], 'future')
-    expect(moveControllerOwner.initialize).toHaveBeenCalledOnce()
+    expect(moveControllerOwner.mounted).toHaveBeenCalledOnce()
   })
 
   it.each(['single', 'bulk'] as const)('captures the %s source before a delayed Move import and a changed view', async (entry) => {
@@ -1018,6 +1030,25 @@ describe('HabitList', () => {
     expect(deleteHabitMutateAsync).toHaveBeenCalledWith(id)
   })
 
+  it('preserves the General editor and its unsaved title across account midnight', async () => {
+    accountDate.timeZone = 'Pacific/Honolulu'
+    vi.setSystemTime(new Date('2026-09-13T09:59:59Z'))
+    Object.assign(mockHabitsData, createHabitViewFixture(TODAY, 'general'))
+    const list = <HabitList view="general" filters={{ isGeneral: true }} />
+    const rendered = renderWithProviders(list)
+    fireEvent.click(screen.getByTestId('edit-general'))
+    const editor = await screen.findByRole('textbox', { name: 'Habit title' })
+    fireEvent.change(editor, { target: { value: 'Unsaved habit title' } })
+    expect(editor).toHaveValue('Unsaved habit title')
+
+    vi.setSystemTime(new Date('2026-09-13T10:00:01Z'))
+    rendered.rerenderWithProviders(<HabitList view="general" filters={{ isGeneral: true }} />)
+
+    expect(await screen.findByRole('textbox', { name: 'Habit title' })).toBe(editor)
+    expect(editor).toHaveValue('Unsaved habit title')
+    expect(mockHabitsData.habitsById.get('general')?.title).toBe('Any day')
+  })
+
   it.each(['today', 'all', 'general'] as const)('restores production membership and nesting in %s', (view) => {
     useActualHabitVisibility = true
     Object.assign(mockHabitsData, createHabitViewFixture(TODAY, view))
@@ -1151,7 +1182,7 @@ describe('HabitList', () => {
     const disclosure = container.querySelector<HTMLButtonElement>('[data-habit-title="Branch"] [data-habit-row-control="disclosure"]')!
     if (width !== 320 || textScale === 1) {
       fireEvent.click(disclosure)
-      expect(container.querySelector('[data-habit-title="Grandchild"]')).toBeNull()
+      expect(container.querySelector('[data-habit-title="Grandchild"]')?.closest('[inert]')).not.toBeNull()
       fireEvent.click(disclosure)
       expect(container.querySelector('[data-habit-title="Grandchild"]')).toBeInTheDocument()
     }
@@ -1583,12 +1614,14 @@ describe('HabitList', () => {
     mockHabitsData.topLevelHabits = [parent, single]
     const { container } = renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
     fireEvent.click(screen.getByRole('button', { name: 'common.collapse' }))
+    await waitFor(() => expect(container.querySelector('[data-motion-disclosure]')).toHaveAttribute('hidden'))
     const cssPath = resolve(process.cwd(), 'app/globals.css')
     const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
     const launch = launchChrome()
     try {
       const browser = await launch
       for (const mode of ['dark', 'light'] as const) {
+        await waitFor(() => expect(container.querySelector('[data-motion-disclosure]')).toHaveAttribute('hidden'))
         const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value};`).join('')
         const page = await browser.newPage()
         await page.setContent(`<html class="${mode}"><style>${stylesheet.css}:root{${variables}}</style><body style="background:var(--bg)">${container.innerHTML}</body></html>`)
@@ -1639,6 +1672,7 @@ describe('HabitList', () => {
           if (panel.track) expect(contrastOnSurface(panel.track, [panel.canvas, panel.card])).toBeGreaterThanOrEqual(3)
         }
         fireEvent.click(screen.getByRole('button', { name: 'common.expand' }))
+        await waitFor(() => expect(container.querySelector('[data-motion-disclosure] > div')).toHaveStyle({ height: 'auto' }))
         await page.setContent(`<html class="${mode}"><style>${stylesheet.css}:root{${variables}}</style><body style="background:var(--bg)">${container.innerHTML}</body></html>`)
         const gaps = await page.locator('[data-testid="habit-row"]').evaluateAll((rows) => {
           const bounds = rows.map((row) => row.getBoundingClientRect()).filter((row) => row.height > 0)
@@ -1804,7 +1838,9 @@ describe('HabitList', () => {
     expect(disclosure).toHaveAccessibleName('common.expand')
     expect(disclosure).toHaveAttribute('aria-expanded', 'false')
     expect(disclosure).toHaveAttribute('aria-controls', panelId)
-    expect(screen.queryByText(personalText(child.title))).toBeNull()
+    expect(document.getElementById(panelId)).toHaveAttribute('inert')
+    expect(document.getElementById(panelId)).toHaveAttribute('aria-hidden', 'true')
+    await waitFor(() => expect(screen.queryByText(personalText(child.title))).toBeNull())
     expect(document.getElementById(panelId)).not.toBeVisible()
     expect(screen.getByText(personalText(secondChild.title))).toBeInTheDocument()
 
@@ -2127,8 +2163,7 @@ describe('HabitList', () => {
       const browser = await launch
       const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
       await page.setContent(`<style>${stylesheet.css}</style>${container.innerHTML}`)
-      const gap = await page.getByText('habits.allDoneToday', { exact: true }).evaluate((element) => {
-        const banner = element.parentElement!
+      const gap = await page.getByTestId('habit-list-all-done').evaluate((banner) => {
         const row = document.querySelector('[data-testid="habit-card-anytime"]')!
         return row.getBoundingClientRect().top - banner.getBoundingClientRect().bottom
       })
@@ -2158,8 +2193,13 @@ describe('HabitList', () => {
     expect(screen.queryByText('habits.nothingOpen')).not.toBeInTheDocument()
   })
 
-  it('keeps a completed row in place for 1400 ms', () => {
+  it.each([false, true])('keeps a completed row in place for 1400 ms with reduced motion=%s', (reduced) => {
     vi.useFakeTimers()
+    const matchMedia = globalThis.matchMedia
+    vi.stubGlobal('matchMedia', (query: string) => {
+      const result = matchMedia(query)
+      return query === '(prefers-reduced-motion: reduce)' ? { ...result, matches: reduced } : result
+    })
     useActualHabitVisibility = true
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
     const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
@@ -2180,11 +2220,15 @@ describe('HabitList', () => {
     expect(screen.getByTestId('habit-card-h-1')).toBeInTheDocument()
 
     act(() => {
-      vi.advanceTimersByTime(1400)
+      vi.advanceTimersByTime(1399)
     })
+    expect(screen.getByTestId('habit-card-h-1').closest('[inert]')).toBeNull()
+    act(() => { vi.advanceTimersByTime(1) })
 
-    expect(screen.queryByTestId('habit-card-h-1')).toBeNull()
+    if (reduced) expect(screen.queryByTestId('habit-card-h-1')).toBeNull()
+    else expect(screen.getByTestId('habit-card-h-1').closest('[inert]')).not.toBeNull()
     result.unmount()
+    vi.stubGlobal('matchMedia', matchMedia)
     setTimeoutSpy.mockRestore()
     vi.useRealTimers()
   })
@@ -2663,7 +2707,12 @@ describe('HabitList', () => {
     expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
-  it('uses the current logged and skipped mix when confirmation is accepted', async () => {
+  it.each([
+    ['after effects', true],
+    ['before effects', true],
+    ['before effects', false],
+    ['after delayed dismissal', true],
+  ] as const)('uses the current logged and skipped mix when confirmation is accepted %s with persisted completion %s', async (timing, completed) => {
     const parent = createMockHabit({
       id: 'parent',
       title: 'Parent',
@@ -2674,34 +2723,63 @@ describe('HabitList', () => {
       id: 'child',
       title: 'Child',
       parentId: 'parent',
-      isCompleted: true,
+      isCompleted: completed,
     })
     mockHabitsData.habitsById.set(parent.id, parent)
     mockHabitsData.habitsById.set(child.id, child)
     mockHabitsData.childrenByParent.set(parent.id, [child.id])
     mockHabitsData.topLevelHabits = [parent]
+    let resolveSkip: () => void = () => {}
+    const pendingSkip = new Promise<void>((resolve) => { resolveSkip = resolve })
+    skipHabitMutateAsync.mockReturnValue(pendingSkip)
     const ref = React.createRef<HabitListHandle>()
-    const renderList = () => <HabitList ref={ref} filters={defaultFilters} />
+    function ConfirmInLayout({ confirm }: { confirm: boolean }) {
+      React.useLayoutEffect(() => {
+        if (confirm) fireEvent.click(screen.getByRole('button', { name: 'habits.autoLogParentConfirm' }))
+      }, [confirm])
+      return null
+    }
+    const renderList = (confirm = false) => <>
+      <HabitList ref={ref} filters={defaultFilters} />
+      <ConfirmInLayout confirm={confirm} />
+    </>
     const { rerenderWithProviders } = renderWithProviders(renderList())
 
-    act(() => ref.current?.checkAndPromptParentLog(child.id))
-
-    act(() => {
-      mockHabitsData.habitsById.set(child.id, {
-        ...child,
-        isCompleted: false,
-        isFlexible: true,
-        flexibleTarget: 1,
-        flexibleCompleted: 1,
-        isLoggedInRange: false,
-      })
-      mockHabitsDataUpdatedAt += 1
-      rerenderWithProviders(renderList())
+    await act(async () => {
+      ref.current?.checkAndPromptParentLog(child.id)
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
+    if (timing === 'after delayed dismissal') {
+      sheetTestControls.defer(true)
+      await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      expect(skipHabitMutateAsync).not.toHaveBeenCalled()
+      expect(logHabitMutateAsync).not.toHaveBeenCalled()
+    }
 
+    await act(async () => {
+      mockHabitsData = {
+        ...mockHabitsData,
+        habitsById: new Map(mockHabitsData.habitsById).set(child.id, {
+          ...child,
+          isCompleted: false,
+          isFlexible: true,
+          flexibleTarget: 1,
+          flexibleCompleted: 1,
+          isLoggedInRange: false,
+        }),
+      }
+      mockHabitsDataUpdatedAt += 1
+      rerenderWithProviders(renderList(timing === 'before effects'))
+    })
+    if (timing === 'after effects') await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+
+    if (timing === 'after delayed dismissal') act(() => sheetTestControls.completeDismissal())
+
+    expect(logHabitMutateAsync).not.toHaveBeenCalled()
+    expect(skipHabitMutateAsync).toHaveBeenCalledOnce()
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, intent: 'log' })
+    await act(async () => { resolveSkip(); await pendingSkip })
   })
 
   it('settles the parent exactly once for a burst of sibling completions', async () => {

@@ -1,18 +1,30 @@
-export { composition } from './composition.mjs'
+import { refineResult } from './suggestions.mjs'
+import { restartProposal, restartReadback } from './restart.mjs'
+import { composition } from './composition.mjs'
+export { composition }
 import { assertions } from 'promptfoo'
-import { readFileSync } from 'node:fs'
-import { parse } from 'yaml'
-import { isDeepStrictEqual } from 'node:util'
+import { matchesArguments, matchesOperation, outcomeCalls } from './operation-matcher.mjs'
+import { tools, legacyTools, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
 
-const catalog = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
-const toolWrites = new Map(catalog.map((tool) => [tool.function.name, tool.writes]))
+const toolWrites = new Map(tools.map((tool) => [tool.function.name, tool.writes]))
+
+const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
+  parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
+} }))
+const compositionCatalog = traceCatalog(tools)
+const legacyCatalog = traceCatalog(legacyTools)
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const decode = (output) => typeof output === 'string' ? JSON.parse(output) : output
-const normalizeText = (text) => text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase().replace(/\s+/g, ' ').trim()
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const statuses = new Set(['Succeeded', 'Failed', 'PendingConfirmation', 'Denied', 'UnsupportedByPolicy', 'NotExecuted'])
+
+export function savedStep(output, context) {
+  if (!['saveTask', 'saveChecklistItem'].includes(context.vars.startingStepAction)) return result(true, 'No saved-step approval requested.')
+  const verdict = decode(output)?.savedStepReadback
+  return verdict?.pass === true ? verdict : result(false, verdict?.reason ?? 'Missing saved-step approval readback.')
+}
 
 function traceBoundary(output, context) {
   const { trace } = decode(output)
@@ -43,7 +55,9 @@ function traceBoundary(output, context) {
     ids.add(call.id)
     if (call.resultStatus === 'NotExecuted' && call.result === null) continue
     const payload = call.result
-    if (!isObject(payload) || payload.id !== call.id || payload.name !== call.name
+    const omitsName = toolSensitiveFields.get(call.name)?.has('name') === true
+    if (!isObject(payload) || payload.id !== call.id
+      || (omitsName ? Object.hasOwn(payload, 'name') : payload.name !== call.name)
       || typeof payload.success !== 'boolean' || !Object.hasOwn(payload, 'payload')
       || !['entityId', 'entityName', 'error'].every((key) => Object.hasOwn(payload, key)
         && (payload[key] === null || typeof payload[key] === 'string'))) {
@@ -54,48 +68,18 @@ function traceBoundary(output, context) {
 }
 
 export async function structural(output, context) {
+  if (context.vars.refine) return refineResult(decode(output), context.vars)
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
   if (trace.calls.length === 0) return result(true, 'No tool calls to validate.')
   return assertions.runAssertion({
     assertion: { type: 'is-valid-openai-tools-call' },
-    provider: { config: { tools: catalog } },
+    provider: { config: { tools: context.vars.clientContext?.supportsParts === true ? compositionCatalog : legacyCatalog } },
     test: context.test,
     providerResponse: { output: trace.calls.map((call) => ({
       type: 'function', function: { name: call.name, arguments: JSON.stringify(call.arguments) },
     })) },
   })
-}
-
-function matchesArguments(actual, expected) {
-  if (actual === '[redacted]') return false
-  if (Array.isArray(expected)) {
-    if (!Array.isArray(actual) || actual.length !== expected.length) return false
-    const unmatched = [...actual]
-    return expected.every((value) => {
-      const index = unmatched.findIndex((candidate) => matchesArguments(candidate, value))
-      if (index < 0) return false
-      unmatched.splice(index, 1)
-      return true
-    })
-  }
-  if (expected && typeof expected === 'object') {
-    if ('optional' in expected) return actual == null || matchesArguments(actual, expected.optional)
-    if ('textContains' in expected) {
-      return typeof actual === 'string' && normalizeText(actual).includes(normalizeText(expected.textContains))
-    }
-    return actual && typeof actual === 'object'
-      && Object.entries(expected).every(([key, value]) => matchesArguments(actual[key], value))
-  }
-  return actual === expected
-}
-
-function matchesOperation(call, expected) {
-  if (expected.anyOf) return expected.anyOf.some((alternative) => matchesOperation(call, alternative))
-  return call.name === expected.name
-    && (expected.argumentsAnyOf ?? [expected.arguments ?? {}])
-      .some((arguments_) => expected.exactArguments === true
-        ? isDeepStrictEqual(call.arguments, arguments_) : matchesArguments(call.arguments, arguments_))
 }
 
 function checkMutationScope(calls, expectations) {
@@ -114,38 +98,49 @@ function checkMutationScope(calls, expectations) {
 export function behavior(output, context) {
   const { httpStatus = 200 } = decode(output)
   if (httpStatus !== (context.vars.expectedHttpStatus ?? 200)) return result(false, 'Unexpected HTTP outcome for this scenario.')
+  if (context.vars.refine) return refineResult(decode(output), context.vars)
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
   const expectations = context.vars.expectations
-  for (const forbidden of expectations.forbidden ?? []) {
-    if (trace.calls.some((call) => call.name === forbidden)) return result(false, `Forbidden tool: ${forbidden}`)
+  const forbidden = [...new Set(trace.calls.filter((call) => expectations.forbidden?.includes(call.name)).map((call) => call.name))]
+  if (forbidden.length) return result(false, `Forbidden tool: ${forbidden.join(', ')}`)
+  const outside = [...new Set(trace.calls.filter((call) => expectations.allowed && !expectations.allowed.includes(call.name))
+    .map((call) => `${call.name} (${call.resultStatus})`))]
+  if (outside.length) {
+    return result(false, `A tool was called outside the allowed set: ${outside.join(', ')}.`)
   }
-  if (expectations.allowed && trace.calls.some((call) => !expectations.allowed.includes(call.name))) {
-    return result(false, 'A tool acted outside the allowed set.')
-  }
-  const scopeFailure = checkMutationScope(trace.calls, expectations)
+  const calls = outcomeCalls(trace.calls, expectations)
+  const scopeFailure = checkMutationScope(calls, expectations)
   if (scopeFailure) return scopeFailure
-  for (const call of trace.calls) {
+  for (const call of calls) {
     const expected = [...expectations.required ?? [], ...expectations.permittedMutations ?? []]
       .find((operation) => matchesOperation(call, operation))
     const status = expected?.anyOf?.find((alternative) => matchesOperation(call, alternative))?.resultStatus
       ?? expected?.resultStatus ?? (toolWrites.get(call.name) ? 'PendingConfirmation' : 'Succeeded')
-    if (call.resultStatus !== status || call.result?.success !== true || call.result.error !== null
+    const validResult = status === 'Failed'
+      ? expected?.result !== undefined && call.result?.success === false
+        && typeof call.result.error === 'string' && call.result.error.trim().length > 0
+      : call.result?.success === true && call.result.error === null
+    if (call.resultStatus !== status || !validResult
       || (status === 'PendingConfirmation' && call.result.payload?.status !== 'awaiting_confirmation')) {
       return result(false, `Tool execution did not reach its expected outcome: ${call.name}`)
     }
   }
   // Match distinct calls without imposing a sequence on independent operations.
-  const unmatched = [...trace.calls]
+  const unmatched = [...calls]
   for (const required of expectations.required ?? []) {
     const index = unmatched.findIndex((call) => matchesOperation(call, required)
       && (required.resultStatus === undefined || call.resultStatus === required.resultStatus)
-      && (required.result === undefined || matchesArguments(call.result, required.result)))
+      && (required.result === undefined || matchesArguments(call.result, required.result, true)))
     if (index < 0) return result(false, `Missing tool or incorrect arguments/result: ${required.name ?? required.anyOf.map(({ name }) => name).join(' or ')}`)
     unmatched.splice(index, 1)
   }
   for (const [name, count] of Object.entries(expectations.counts ?? {})) {
-    if (trace.calls.filter((call) => call.name === name).length !== count) return result(false, `Wrong call count: ${name}`)
+    if (calls.filter((call) => call.name === name).length !== count) return result(false, `Wrong call count: ${name}`)
+  }
+  if (context.vars.restart) {
+    const proposal = restartProposal(decode(output), context.vars)
+    return proposal.pass ? restartReadback(decode(output), context.vars) : proposal
   }
   return result(true, 'Required tools, arguments and results matched.')
 }

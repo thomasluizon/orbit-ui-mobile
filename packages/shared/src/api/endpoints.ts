@@ -1,4 +1,9 @@
 export const API = {
+  onboarding: {
+    challenge: '/api/onboarding/challenge',
+    install: '/api/onboarding/install',
+    suggestSetup: '/api/onboarding/suggest-setup',
+  },
   proactive: {
     current: '/api/ai/proactive/current',
     status: (id: string) => `/api/ai/proactive/${id}` as const,
@@ -41,11 +46,12 @@ export const API = {
     importPromptDismiss: '/api/profile/import-prompt/dismiss',
     language: '/api/profile/language',
     themePreference: '/api/profile/theme-preference',
-    colorScheme: '/api/profile/color-scheme',
     reset: '/api/profile/reset',
     export: '/api/profile/export',
     marketingConsent: '/api/profile/marketing-consent',
   },
+
+  reminders: { done: '/api/reminders/done' },
 
   habits: {
     list: '/api/habits',
@@ -58,6 +64,7 @@ export const API = {
     widget: '/api/habits/widget',
     detail: (id: string) => `/api/habits/${id}/detail` as const,
     log: (id: string) => `/api/habits/${id}/log` as const,
+    correctDose: (id: string, logId: string) => `/api/habits/${id}/logs/${logId}/dose` as const,
     logs: (id: string) => `/api/habits/${id}/logs` as const,
     skip: (id: string) => `/api/habits/${id}/skip` as const,
     undoSkip: (id: string, skipId: string) => `/api/habits/${id}/skip/${skipId}/undo` as const,
@@ -143,12 +150,17 @@ export const API = {
   },
 
   chat: {
+    refineHabitSuggestion: '/api/chat/habit-suggestions/refine',
+    previewHabitSuggestion: '/api/chat/habit-suggestions/preview',
+    previewAllHabitSuggestions: '/api/chat/habit-suggestions/preview-all',
     send: '/api/chat',
     stream: '/api/chat/stream',
     transcribe: '/api/chat/transcribe',
     records: '/api/chat/records',
     habitRanking: '/api/chat/habit-ranking',
     refreshRead: '/api/chat/reads/refresh',
+    refreshGamification: '/api/chat/gamification/refresh',
+    refreshHabitMonth: '/api/chat/habit-month/refresh',
   },
 
   ai: {

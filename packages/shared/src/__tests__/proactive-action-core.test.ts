@@ -10,7 +10,7 @@ const item = proactiveItemSchema.parse(createMockProactiveItem())
 const clients: QueryClient[] = []
 
 interface HookState {
-  profile: { aiMessagesUsed: number; aiMessagesLimit: number } | undefined
+  profile: ReturnType<ProactiveActionAdapters['useProfile']>['profile']
   status: { data: ProactiveItemStatus | undefined; isError: boolean }
   isPending: boolean
   isOnline: boolean
@@ -61,6 +61,11 @@ afterEach(() => {
 })
 
 describe('shared proactive action hook', () => {
+  it('carries the weekly allowance period with the quota explanation', () => {
+    const context = setup({ profile: { aiMessagesUsed: 250, aiMessagesLimit: 250, aiMessagesPeriod: 'week' } })
+    expect(context.render()).toMatchObject({ reason: 'shell.composer.limit.reason', allowance: 250, aiMessagesPeriod: 'week' })
+  })
+
   it.each<{ scenario: string; overrides: Partial<HookState>; reason: string }>([
     { scenario: 'already acted', overrides: { acted: true }, reason: 'proactive.ended' },
     { scenario: 'ended status', overrides: { status: { data: { id: item.id, status: 'ended' }, isError: false } }, reason: 'proactive.ended' },

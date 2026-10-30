@@ -26,7 +26,7 @@ describe('Composer compact geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
     try {
       await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer })}</script>`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.addScriptTag({ content: composerScript })
       await loadAppFonts(page)
       const strip = page.getByRole('group', { name: messages.shell.composer.suggestionsLabel })
@@ -59,7 +59,7 @@ describe('Composer compact geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width: 600, height: 740 } })
     try {
       await page.setContent(`<style>${stylesheet}</style><div id="root" style="width:208px"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.addScriptTag({ content: composerScript })
       await loadAppFonts(page)
       const strip = page.getByRole('group', { name: en.shell.composer.suggestionsLabel })
@@ -102,7 +102,7 @@ describe('Composer compact geometry in Chromium', () => {
       }
       const resized = await measure()
       await page.setContent(`<style>${stylesheet}</style><div id="root" style="width:459px"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.addScriptTag({ content: composerScript })
       await loadAppFonts(page)
       await vi.waitFor(async () => { expect(await measure()).toEqual(resized) })
@@ -119,7 +119,7 @@ describe('Composer compact geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
     try {
       await page.setContent(`<style>${stylesheet}html{font-size:32px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer })}</script>`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await page.addScriptTag({ content: composerScript })
       await loadAppFonts(page)
       const strip = page.getByRole('group', { name: messages.shell.composer.suggestionsLabel })
@@ -146,7 +146,7 @@ describe('Composer compact geometry in Chromium', () => {
       const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
       try {
         await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer })}</script>`)
-        await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+        await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
         await page.addScriptTag({ content: composerScript })
         await loadAppFonts(page)
         const strip = page.getByRole('group', { name: messages.shell.composer.suggestionsLabel })
@@ -182,8 +182,12 @@ describe('Composer compact geometry in Chromium', () => {
                 })
                 if (!sharesLine) combinedLines.push(fragment)
               }
+              const mark = button.querySelector<SVGSVGElement>('[data-asset="astra-mark"]')!
+              const ink = mark.getBBox()
+              const drawnCentre = new DOMPoint(ink.x + ink.width / 2, ink.y + ink.height / 2).matrixTransform(mark.getScreenCTM()!)
+              const firstLineCentre = button.querySelector('[data-suggestion-content]')!.getBoundingClientRect().top + parseFloat(style.lineHeight) / 2
               const attribution = [...button.querySelectorAll<HTMLElement>('[translate="no"]')]
-              const marks = [...button.querySelectorAll<SVGElement>('[data-asset="astra-mark-16"]')]
+              const marks = [...button.querySelectorAll<SVGElement>('[data-asset="astra-mark"]')]
               return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height,
                 label: text.textContent, accessibleName: button.getAttribute('aria-label'), lines: lines.length, textOverflow: style.textOverflow,
                 combinedText: text.parentElement!.textContent, combinedLines: combinedLines.length,
@@ -194,7 +198,7 @@ describe('Composer compact geometry in Chromium', () => {
                   return ink.left >= bounds.left && ink.right <= bounds.right && ink.top >= bounds.top && ink.bottom <= bounds.bottom
                 }),
                 marks: marks.length, decorative: marks.every(mark => mark.getAttribute('aria-hidden') === 'true'),
-                iconTop: button.querySelector('svg')!.getBoundingClientRect().top, firstLineTop: lines[0]!.top }
+                drawnCentre: drawnCentre.y, firstLineCentre }
             })
             const partial = controls.find(control => control.left < viewport.right && control.right > viewport.right)
             return { viewport: viewport.width, available: element.parentElement!.getBoundingClientRect().width,
@@ -224,7 +228,7 @@ describe('Composer compact geometry in Chromium', () => {
             expect(control.height, evidence).toBeGreaterThanOrEqual(48)
             expect(control.width, evidence).toBeLessThanOrEqual(measured.viewport)
             if (fontScale === 1) expect(control.lines, evidence).toBe(1)
-            if (control.lines > 1) expect(Math.abs(control.iconTop - control.firstLineTop), evidence).toBeLessThanOrEqual(8)
+            expect(Math.abs(control.drawnCentre - control.firstLineCentre), evidence).toBeLessThanOrEqual(1)
           }
           await strip.locator('button').last().evaluate(element => (element as HTMLElement).blur())
           await strip.locator('button').last().focus()
@@ -250,7 +254,7 @@ describe('Composer compact geometry in Chromium', () => {
     const page = await browser.newPage({ viewport: { width, height: 740 } })
     try {
       await page.setContent(`<style>${stylesheet}html{font-size:32px}</style>${container.innerHTML}`)
-      await page.locator('.orbit-menu-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
+      await page.locator('.orbit-menu-panel, .orbit-sheet-panel').evaluateAll((panels) => Promise.all(panels.flatMap((panel) => panel.getAnimations().map((animation) => animation.finished))))
       await loadAppFonts(page)
       const strip = page.getByRole('group', { name: en.shell.composer.suggestionsLabel })
       const tops = []

@@ -5,6 +5,8 @@ export const habitLogSchema = z.object({
   date: z.string(),
   value: z.number(),
   createdAtUtc: z.string(),
+  takenAtUtc: z.string().nullish(),
+  reminderAtUtc: z.string().nullish(),
 })
 
 export type HabitLog = z.infer<typeof habitLogSchema>
@@ -15,6 +17,7 @@ export type HabitDayStatus = z.infer<typeof habitDayStatusSchema>
 
 export const calendarDayEntrySchema = z.object({
   habitId: z.string(),
+  emoji: z.string().nullable().optional(),
   title: z.string(),
   status: habitDayStatusSchema,
   isBadHabit: z.boolean(),

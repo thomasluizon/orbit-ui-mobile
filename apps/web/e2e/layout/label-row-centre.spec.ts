@@ -8,12 +8,12 @@ import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-sess
 import { test } from './upgrade-fixtures'
 
 async function expectRowCentres(surface: Locator, scale: number) {
-  await expect(surface.locator('[data-slot="list-row-title"]')).toHaveCount(6)
+  await expect(surface.locator('[data-slot="list-row-title"]')).toHaveCount(5)
   await expect(surface.locator('[data-slot="list-row-value"]')).toHaveCount(4)
   await expect(async () => {
     const rows = await surface.locator('.orbit-list-row-shell').evaluateAll((rows, scale) => rows.map((row) => {
       const label = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
-      const control = row.querySelector('[data-slot="switch-track"], [role="group"], [data-slot="list-row-value"]')!
+      const control = row.querySelector('[data-slot="switch-track"], [data-slot="list-row-value"]')!
       const title = label.getBoundingClientRect()
       const accessory = control.getBoundingClientRect()
       const lineHeight = parseFloat(getComputedStyle(label).lineHeight)
@@ -42,8 +42,6 @@ for (const width of [412, 1352]) {
           await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
           await page.goto('/profile/preferences')
           const surface = page.getByTestId('profile-settings-group-preferences')
-          const choices = surface.getByRole('group', { name: words.profile.settingsRows.theme, exact: true })
-          await expect(choices.getByRole('button')).toHaveCount(2)
           await page.evaluate(() => document.fonts.ready)
           await expectRowCentres(surface, 1)
           await page.evaluate(() => { document.documentElement.style.fontSize = '200%' })

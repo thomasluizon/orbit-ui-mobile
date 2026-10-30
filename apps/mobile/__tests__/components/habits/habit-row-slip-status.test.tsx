@@ -22,7 +22,11 @@ vi.mock('react-i18next', () => ({
 }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
-vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/motion')>(),
+  getPrefersReducedMotion: () => Promise.resolve(true),
+  usePrefersReducedMotion: () => true,
+}))
 
 function LoggingRow({ parent, selectMode = false, logged = 'none' }: Readonly<{ parent: boolean; selectMode?: boolean; logged?: 'none' | 'completed' | 'range' }>) {
   const initial = createMockHabit({ title: 'Coffee', isBadHabit: true, isCompleted: logged === 'completed', isLoggedInRange: logged === 'range',

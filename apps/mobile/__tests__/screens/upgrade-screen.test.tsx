@@ -272,10 +272,12 @@ function assertSubscriptionContent(tree: Awaited<ReturnType<typeof renderScreen>
   const pitch = state === 'free' || state === 'trial'
   const expired = state === 'expired'
   const play = state.startsWith('play')
-  expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')).toHaveLength(0)
   const resourceLists = tree.root.findAll((node) => node.type === 'View'
     && node.props.accessibilityLabel === (pitch ? messages.upgrade.outcomes.label : messages.upgrade.included))
   expect(resourceLists).toHaveLength(pitch ? 2 : 1)
+  for (const resourceList of resourceLists) {
+    expect(resourceList.findAll((node) => typeof node.type === 'string' && node.props.testID === 'astra-mark')).toHaveLength(1)
+  }
   const text = JSON.stringify(tree.toJSON())
   for (const outcome of Object.values(messages.upgrade.outcomes).slice(1)) expect(text).toContain(outcome)
   const action = pitch ? messages.upgrade.plans.cta : expired ? messages.upgrade.billing.lapsed.action
@@ -566,8 +568,8 @@ describe('UpgradeScreen', () => {
   })
 
   describe.each([
-    { locale: 'en', messages: en, trialHeading: '50 a day or back to 5.' },
-    { locale: 'pt-BR', messages: ptBR, trialHeading: '50 por dia ou só 5.' },
+    { locale: 'en', messages: en, trialHeading: '250 a week.' },
+    { locale: 'pt-BR', messages: ptBR, trialHeading: '250 por semana.' },
   ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
     beforeEach(async () => {
       mocks.renderComposition = true

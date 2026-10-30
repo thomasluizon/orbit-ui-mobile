@@ -1,5 +1,8 @@
 'use client'
 
+import { ListMotionItem, ListPresence } from '@/components/motion/list-motion'
+import { StreakFigure } from '@/components/gamification/streak-figure'
+
 import { IconButton } from '@/components/ui/icon-button'
 import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 
@@ -32,7 +35,6 @@ import { useDragAccessibility } from '@/components/ui/drag-accessibility'
 import { DndContext, closestCenter } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useLocale, useTranslations } from 'next-intl'
-import type { Achievement } from '@orbit/shared/types/gamification'
 import type { Goal } from '@orbit/shared/types/goal'
 import {
   buildGoalMovePositions,
@@ -46,7 +48,6 @@ import {
   formatStreakRepairDates,
   getBestRetrospectiveWeekdayKey,
   getProgressGoalLabelKey,
-  getGamificationLevelTitleKey,
   getStreakRepairErrorMessageKey,
   getStreakTierLabelKey,
   isPayGateError,
@@ -67,9 +68,9 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { FreezeBank } from '@/components/ui/freeze-bank'
 import { ChevronDown, ChevronRight, Lock, Snowflake, RefreshCw, Plus } from '@/components/ui/icons'
-import { AchievementMark } from '@/components/gamification/achievement-mark'
+import { AchievementTile } from '@/components/gamification/achievement-tile'
+import { LevelSummary } from '@/components/gamification/level-summary'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
-import { ProgressBar } from '@/components/ui/progress-bar'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { ProBadge } from '@/components/ui/pro-badge'
 import * as Menu from '@/components/ui/dropdown-menu'
@@ -340,10 +341,11 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
   const repair = useRepairStreak(timeZone)
   const currentStreak = freeze.streakInfo?.currentStreak ?? gamificationProfile?.currentStreak ?? accountProfile?.currentStreak ?? 0
   const longestStreak = freeze.streakInfo?.longestStreak ?? gamificationProfile?.longestStreak ?? accountProfile?.longestStreak ?? 0
-  const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday, new Date(), 14, timeZone ?? undefined)
+  const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday, new Date(), 14, timeZone ?? undefined, freeze.streakInfo?.firstEligibleDate)
   const labels = useMemo(() => days.map((day) => new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(day.date)), [days, locale])
   const tier = t(getStreakTierLabelKey(currentStreak))
   const dayWords = {
+    notScheduled: t('calendar.dayCell.notScheduled'),
     active: t('progressScreen.streak.active'),
     frozen: t('progressScreen.streak.frozen'),
     missed: t('progressScreen.streak.missed'),
@@ -365,10 +367,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
 
   return (
     <section aria-labelledby={headingId} aria-busy={loading} data-progress-streak-summary="" className="flex w-full flex-col gap-4"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
-      <div className="flex items-baseline gap-3">
-        <p className="font-display text-[60px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-[var(--fg-1)]">{new Intl.NumberFormat(locale).format(currentStreak)}</p>
-        <p className="text-[17px] text-[var(--fg-2)]">{t('progressScreen.streak.currentLabel', { count: currentStreak })}</p>
-      </div>
+      <StreakFigure currentStreak={currentStreak} />
       <div role="group" aria-busy={loading} aria-label={loading ? t('progressScreen.loading') : undefined} className="relative min-w-0 w-full py-1">
         <div inert={loading || undefined} aria-hidden={loading || undefined} className={loading ? 'invisible' : undefined}>
           <DayStrip size={isDesktop ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
@@ -428,7 +427,7 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
       style={{
         translate: transform ? `${transform.x}px ${transform.y}px` : undefined,
         transform: transform ? `scaleX(${transform.scaleX}) scaleY(${transform.scaleY})` : undefined,
-        transition: 'background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), scale 150ms var(--ease-out)',
+        transition: 'background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard), scale var(--dur-press) var(--ease-out)',
       }}
       aria-roledescription={canReorder ? attributes['aria-roledescription'] : undefined}
       aria-describedby={canReorder ? attributes['aria-describedby'] : undefined}
@@ -501,14 +500,12 @@ function GoalsSection({ goals, onOpenGoal, onCreate, filter, setFilter }: Readon
           onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} /></Menu.Root> : null}
       {goals.length === 0 ? <GoalsEmptyState onCreate={onCreate} inSection /> : null}
       {goals.length > 0 && filtered.length === 0 ? <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" minimumHeight={48} onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
-      {filtered.length > 0 ? (
-        <DndContext accessibility={dragAccessibility} sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
-          {filtered.map((goal) => {
+      <DndContext accessibility={dragAccessibility} sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
+          <ListPresence>{filtered.map((goal) => {
             const index = goals.findIndex((item) => item.id === goal.id)
-            return <GoalCard key={goal.id} goal={goal} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} />
-          })}
+            return <ListMotionItem key={goal.id}><GoalCard goal={goal} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} /></ListMotionItem>
+          })}</ListPresence>
         </div></SortableContext></DndContext>
-      ) : null}
       {reorderAnnouncements.map((message, index) => (
         <p key={index} role="status" aria-live="polite" aria-atomic="true" data-testid="goal-reorder-status" className="sr-only">{message}</p>
       ))}
@@ -576,32 +573,6 @@ function WindowSection() {
   )
 }
 
-function AchievementTile({ achievement }: Readonly<{ achievement: Achievement }>) {
-  const t = useTranslations()
-  const current = achievement.progressCurrent
-  const target = achievement.progressTarget
-  const hasProgress = current != null && target != null
-  const name = t(`gamification.achievements.${achievement.id}.name`)
-  return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-record-inset shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" data-achievement-id={achievement.id}>
-      <div className="flex flex-wrap items-center gap-3">
-        <AchievementMark achievement={achievement} name={name} />
-        <div className="flex min-w-0 flex-[1_1_120px] flex-col gap-1">
-          <p className={`text-[14px] font-medium leading-[1.4] ${achievement.isEarned ? 'text-[var(--fg-1)]' : 'text-[var(--fg-2)]'}`}>{name}</p>
-          <p className="text-pretty text-[12px] leading-[17px] text-[var(--fg-3)]">{t(`gamification.achievements.${achievement.id}.description`)}</p>
-        </div>
-        {achievement.isEarned ? <div className="shrink-0"><Badge>{t('progressScreen.achievements.earnedLabel')}</Badge></div> : null}
-      </div>
-      {hasProgress ? (
-        <div className="flex flex-col gap-1">
-          <ProgressBar value={current} max={target} label={t('progressScreen.achievements.progressLabel', { name, current, target })} />
-          <p className="font-[var(--font-mono)] text-[12px] leading-[17px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.achievements.progress', { current, target })}</p>
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
 function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Readonly<{
   gamificationAvailable: boolean
   profile: ReturnType<typeof useGamificationProfile>['profile']
@@ -624,16 +595,9 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
   if (!profile) return null
   const achievements = visibleProgressAchievements(profile.achievements)
   const categories = Array.from(new Set(achievements.map((achievement) => achievement.category)))
-  const levelTitle = t(getGamificationLevelTitleKey(profile.level))
   return (
     <>
-      <div className="flex w-full flex-col gap-3" data-testid="progress-xp-summary">
-        <div className="flex items-baseline gap-3">
-          <p className="min-w-0 flex-1 text-[17px] font-medium leading-[22px] text-[var(--fg-1)]">{t('progressScreen.achievements.level', { level: profile.level, title: levelTitle })}</p>
-          <p className="font-[var(--font-mono)] text-[12px] leading-[17px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel })}</p>
-        </div>
-        <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
-      </div>
+      <LevelSummary profile={profile} xpProgress={xpProgress} />
       <Section title={t('progressScreen.sections.achievements')}>
         {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} action={<PillLink href="/" variant="primary" size="sm">{t('progressScreen.achievements.emptyAction')}</PillLink>} /> : categories.map((category) => <div key={category} className="flex flex-col gap-section-title-gap"><h2 className="pt-1 text-[14px] font-medium leading-5 text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h2><div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))] gap-3 lg:gap-4">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
       </Section>

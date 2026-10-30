@@ -1,3 +1,4 @@
+import { RepeatReminderDetail } from './repeat-reminder-detail'
 import { IconButton } from '@/components/ui/icon-button'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { DescriptionCopyButton } from './description-copy-button'
@@ -62,6 +63,7 @@ import { AppBar } from '@/components/ui/app-bar'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DayCell } from '@/components/dates/day-cell'
+import { DayColumnContent } from '@/components/dates/day-column-content'
 import { DayStrip } from '@/components/dates/day-strip'
 import { ErrorState } from '@/components/ui/error-state'
 import { ListRow } from '@/components/ui/list-row'
@@ -238,7 +240,7 @@ function Header({ habit, summary, completed, logged, overdue, progress, tokens, 
 function HistoryLoading() {
   const { t, i18n } = useTranslation()
   return <MonthGrid weekdayLabels={formatWeekdayLabels(i18n.language, 1)} gap={4} loadingLabel={t('habits.detail.loading')}>
-    {Array.from({ length: 42 }, (_, index) => <View key={index} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' }}><Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></View>)}
+    {Array.from({ length: 42 }, (_, index) => <View key={index} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' }}><DayColumnContent><View style={{ width: 34, flexShrink: 0 }}><Skeleton variant="grid" circular rows={1} cols={1} cell={34} gap={0} grouped /></View></DayColumnContent></View>)}
   </MonthGrid>
 }
 
@@ -276,7 +278,7 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
               accessibilityLabel={day.outsideMonth ? undefined : `${cellLabel}, ${outcomeWord}, ${t('habits.detail.readOnlyWord')}`}
               style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center', justifyContent: 'center', opacity: day.outsideMonth ? 0 : 1 }}
             >
-              <Text style={{ color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] }}>{day.day}</Text>
+              <DayColumnContent><View testID="day-history-numeral" style={{ width: 34, height: 34, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] }}>{day.day}</Text></View></DayColumnContent>
             </View>
           )
         }
@@ -603,6 +605,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         <HabitDueDate habit={habit} language={language} />
 
       </View>
+      {habit.repeatReminder || habit.nextReminderAtUtc ? <RepeatReminderDetail habit={habit} logs={logs} /> : null}
       <HabitChecklist items={habit.checklistItems} interactive onToggle={(index) => void toggleItem(index)} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} />
       {children.length > 0 ? <Surface>
         <SectionTitle color={tokens.fg1}>{t('habits.detail.inside')}</SectionTitle>

@@ -1,9 +1,13 @@
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, readFileSync } from 'node:fs'
+import { parse } from 'yaml'
 import { randomUUID } from 'node:crypto'
 import { tsImport } from 'tsx/esm/api'
-import { apiOrigin, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
-import { dateOffset, resetFixture } from './fixtures/reset.mjs'
+import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
+import { dateOffset, requireEvalOrigin, resetFixture } from './fixtures/reset.mjs'
+import { fixtureHabitTitles } from './fixtures/names.mjs'
+import { requireEvalAccess } from './fixtures/api.mjs'
 import { prepareCorrection } from './setup.mjs'
+import { describeCase } from './latency.mjs'
 import { descriptors } from './merge-reports.mjs'
 import { summarize, writeReport, writeResults } from './report.mjs'
 
@@ -11,6 +15,8 @@ const { buildChatClientContext } = await tsImport('../../packages/shared/src/cha
 
 let completedResults = []
 let selectedCases = []
+const accountAccess = new Map()
+const freshFreeWindows = new Set()
 
 function persistResults(results, expectedCases) {
   writeResults(results)
@@ -20,21 +26,54 @@ function persistResults(results, expectedCases) {
   return { summary, markdown: writeReport(summary) }
 }
 
-export function beforeAll({ suite }) {
+export async function beforeAll({ suite }) {
   completedResults = []
-  selectedCases = suite.tests.map((test) => test.metadata)
+  selectedCases = suite.tests.map(describeCase)
+  accountAccess.clear()
+  freshFreeWindows.clear()
   persistResults(completedResults, selectedCases)
   const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE']
   for (const key of new Set(required)) {
     if (!process.env[key]) throw new Error(`Missing required environment variable: ${key}`)
   }
   apiOrigin()
-  readCredentials()
+  requireEvalOrigin()
   if (process.env.ORBIT_EVAL_OVERDUE_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
+  const { apiCommit } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
+  const health = await healthyApi({ fresh: true })
+  if (!/^[a-f0-9]{40}$/.test(apiCommit) || apiCommit !== health.commit) {
+    throw new Error(`Astra catalog ${apiCommit} differs from API ${health.commit}. Regenerate from a clean API checkout at that commit with node evals/astra/generate-catalog.mjs <api-checkout>.`)
+  }
+  readCredentials()
+  await requireAccountPolicies(suite.tests)
+  await warmUpAccounts(suite.tests)
+}
+
+async function warmUpAccounts(tests) {
+  const warmed = new Set()
+  for (const test of tests) {
+    const key = test.vars.credentialKey
+    if (warmed.has(key)) continue
+    warmed.add(key)
+    try {
+      await resetFixture({ metadata: { ...test.metadata }, vars: structuredClone(test.vars) }, undefined, accountAccess.get(key) === true)
+    } catch (error) {
+      process.stderr.write(`Astra fixture warm-up unavailable for ${key}: ${safeFailureMessage(error)}\n`)
+    }
+  }
+}
+
+async function requireAccountPolicies(tests) {
+  for (const key of new Set(tests.map((test) => test.vars.credentialKey))) {
+    await refreshCredential(key)
+    accountAccess.set(key, await requireEvalAccess(key))
+  }
 }
 
 export async function beforeEach({ test }) {
   delete test.vars.preconditionFailure
+  delete test.vars.fixtureEvidence
+  delete test.vars.legacyProfileLanguage
   try { return await prepareAttempt(test) } catch (error) {
     test.vars.preconditionFailure = safeFailureMessage(error)
     process.stderr.write(`Astra precondition unavailable for ${test.metadata.id}: ${test.vars.preconditionFailure}\n`)
@@ -43,14 +82,23 @@ export async function beforeEach({ test }) {
 }
 
 async function prepareAttempt(test) {
+  requireEvalOrigin()
   await refreshCredential(test.vars.credentialKey)
   const today = new Date().toISOString().slice(0, 10)
   test.vars.accountDate = today
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
-  await resetFixture(test, today)
+  const windowKey = `${test.vars.credentialKey}:${test.metadata.id}:${today}`
+  const needsFreshWindow = test.vars.preconditions?.freshFreeDailyWindow === true
+  const retrospective = await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true,
+    needsFreshWindow && !freshFreeWindows.has(windowKey))
+  if (needsFreshWindow) freshFreeWindows.add(windowKey)
+  test.vars.fixtureHabitTitles = fixtureHabitTitles(test.metadata.fixture, test.metadata.locale)
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
     accountDate: today,
+    tomorrowDate: dateOffset(today, 1),
+    accountYear: today.slice(0, 4),
+    retrospectiveFrom: dateOffset(today, -29),
     habitId: account.habitId ?? process.env.ORBIT_EVAL_HABIT_ID,
     secondHabitId: account.secondHabitId ?? process.env.ORBIT_EVAL_SECOND_HABIT_ID,
     overdueDate: process.env.ORBIT_EVAL_OVERDUE_DATE,
@@ -60,7 +108,16 @@ async function prepareAttempt(test) {
     substitutions[`${key}Localized`] = new Intl.DateTimeFormat(test.metadata.locale ?? 'en', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${substitutions[key]}T12:00:00Z`))
   }
   const substitute = (value) => {
-    if (typeof value === 'string') return value.replace(/\{(accountDate|habitId|secondHabitId|overdueDate|historyFrom|historyTo|comparisonFrom|comparisonTo|historyFromLocalized|historyToLocalized|comparisonFromLocalized|comparisonToLocalized)\}/g, (_, key) => {
+    if (typeof value === 'string') return value.replace(/\{([A-Za-z][^{}\s]*)\}/g, (_, key) => {
+      const offset = /^accountDate(En|PtBR)?([+-]\d+)$/.exec(key)
+      if (offset) {
+        const date = dateOffset(substitutions.accountDate, Number(offset[2]))
+        const [, month, day] = date.split('-')
+        if (offset[1] === 'En') return `${month}/${day}`
+        if (offset[1] === 'PtBR') return `${day}/${month}`
+        return date
+      }
+      if (!Object.hasOwn(substitutions, key)) throw new Error(`Unknown fixture substitution: ${key}`)
       if (!substitutions[key]) throw new Error(`Missing fixture substitution: ${key}`)
       return substitutions[key]
     })
@@ -69,7 +126,15 @@ async function prepareAttempt(test) {
     return value
   }
   test.vars = substitute(test.vars)
+  if (test.metadata.fixture === 'composition-stale') {
+    test.vars.expectations.required[0].result = { payload: retrospective }
+  }
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })
+  if (test.vars.clientContext.supportsParts === true) {
+    test.vars.clientContext = { ...buildChatClientContext({ platform: test.metadata.platform ?? 'web',
+      locale: test.metadata.locale ?? 'en' }), ...test.vars.clientContext }
+  }
+  if (!test.vars.clientContext.locale && test.metadata.locale === 'pt-BR') test.vars.legacyProfileLanguage = 'pt-BR'
   test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
   test.vars.historyJson = JSON.stringify(test.vars.history ?? [])
   test.vars.evalRequestId = randomUUID()
@@ -82,8 +147,8 @@ export function afterEach({ result }) {
 }
 
 export function afterAll({ results, suite }) {
-  const { summary, markdown } = persistResults(results, suite.tests.map((test) => test.metadata))
+  const { summary, markdown } = persistResults(results, suite.tests.map(describeCase))
   process.stdout.write(`${markdown}\n`)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${markdown}\n`)
-  if (summary.status !== 'pass') throw new Error(`Astra launch gate ${summary.status}; see reports/summary.md and reports/results.json.`)
+  if (summary.status !== 'pass') process.exitCode = 1
 }

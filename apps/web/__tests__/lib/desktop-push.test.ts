@@ -34,6 +34,7 @@ beforeEach(() => {
   current = saved
   pending = []
   installWebLocks()
+  Object.defineProperty(window, '__ORBIT_DESKTOP_COMMANDS__', { configurable: true, value: ['desktop_push'] })
   Object.defineProperty(window, '__TAURI_INTERNALS__', { configurable: true, value: { invoke: mocks.invoke } })
   mocks.subscribe.mockResolvedValue(undefined)
   mocks.unsubscribe.mockResolvedValue(undefined)
@@ -48,7 +49,7 @@ beforeEach(() => {
     return snapshot()
   })
 })
-afterEach(() => { Reflect.deleteProperty(window, '__TAURI_INTERNALS__'); vi.unstubAllGlobals() })
+afterEach(() => { Reflect.deleteProperty(window, '__TAURI_INTERNALS__'); Reflect.deleteProperty(window, '__ORBIT_DESKTOP_COMMANDS__'); vi.unstubAllGlobals() })
 
 describe('desktop push through the native bridge', () => {
   it('persists the attempted endpoint before the API write so sign-out can revoke an uncertain renewal', async () => {
@@ -74,6 +75,11 @@ describe('desktop push through the native bridge', () => {
     expect((await loadDesktopPush('account-b')).subscribed).toBe(false)
   })
 
+  it('carries the account language through the origin checked native session command', async () => {
+    await resumeDesktopPush('account-a', 'pt-BR')
+    expect(mocks.invoke).toHaveBeenCalledWith('desktop_push', { action: 'session', accountId: 'account-a', language: 'pt-BR' })
+  })
+
   it('commits ownership only after the API accepts registration', async () => {
     const conflict = Object.assign(new Error('Concurrent update'), { code: 'CONCURRENT_UPDATE_CONFLICT' })
     mocks.subscribe.mockRejectedValue(conflict)
@@ -96,7 +102,8 @@ describe('desktop push through the native bridge', () => {
     expect(current).toBeNull()
   })
 
-  it('pauses the former account when a replacement account owns the session', async () => {
+  it.each([true, false])('pauses the former account when a replacement account owns the session (commands advertised: %s)', async (advertised) => {
+    if (!advertised) Reflect.deleteProperty(window, '__ORBIT_DESKTOP_COMMANDS__')
     mocks.account = 'account-b'
     await resumeDesktopPush('account-b')
     expect(mocks.invoke).toHaveBeenCalledWith('desktop_push', { action: 'session', accountId: 'account-b' })
@@ -110,7 +117,8 @@ describe('desktop push through the native bridge', () => {
     expect(mocks.invoke.mock.calls.some(([, payload]) => payload.action === 'commit')).toBe(false)
   })
 
-  it('revokes the API registration before ending the native subscription', async () => {
+  it.each([true, false])('revokes the API registration before ending the native subscription (commands advertised: %s)', async (advertised) => {
+    if (!advertised) Reflect.deleteProperty(window, '__ORBIT_DESKTOP_COMMANDS__')
     const sequence: string[] = []
     mocks.unsubscribe.mockImplementation(async () => { sequence.push('api'); expect(current).toBe(saved) })
     const native = mocks.invoke.getMockImplementation()!
@@ -124,7 +132,8 @@ describe('desktop push through the native bridge', () => {
     expect(current).toBeNull()
   })
 
-  it('drops local delivery on failed revocation and retries the stale endpoint on the next matching sign-in', async () => {
+  it.each([true, false])('drops local delivery on failed revocation and retries the stale endpoint on the next matching sign-in (commands advertised: %s)', async (advertised) => {
+    if (!advertised) Reflect.deleteProperty(window, '__ORBIT_DESKTOP_COMMANDS__')
     mocks.unsubscribe.mockRejectedValue(new Error('Offline'))
     await expect(releaseDesktopPush('account-a')).rejects.toThrow('Offline')
     expect(owner).toBeNull()
@@ -194,4 +203,39 @@ describe('desktop push through the native bridge', () => {
     expect(result.subscribed).toBe(false)
     expect(mocks.subscribe).not.toHaveBeenCalled()
   })
+})
+
+
+it('keeps registration writes inert while retaining access to saved push in older desktop shells', async () => {
+  Reflect.deleteProperty(window, '__ORBIT_DESKTOP_COMMANDS__')
+  expect(await loadDesktopPush('account-a')).toMatchObject({ subscribed: true, status: 'registered' })
+  await resumeDesktopPush('account-a')
+  expect(await ensureDesktopPush()).toMatchObject({ supported: false, status: 'unsupported' })
+  expect(mocks.invoke.mock.calls.map(([, payload]) => payload.action)).not.toEqual(expect.arrayContaining(['request']))
+  expect(mocks.invoke.mock.calls.map(([, payload]) => payload.action)).not.toEqual(expect.arrayContaining(['stage']))
+  expect(mocks.invoke.mock.calls.map(([, payload]) => payload.action)).not.toEqual(expect.arrayContaining(['commit']))
+  expect(mocks.subscribe).not.toHaveBeenCalled()
+})
+
+it('treats a native unknown command response as unsupported in an older desktop shell', async () => {
+  Reflect.deleteProperty(window, '__ORBIT_DESKTOP_COMMANDS__')
+  mocks.invoke.mockRejectedValue('Command desktop_push not found')
+  expect(await loadDesktopPush('account-a')).toMatchObject({ supported: false, status: 'unsupported' })
+  await expect(resumeDesktopPush('account-a')).resolves.toBeUndefined()
+  await expect(releaseDesktopPush('account-a')).resolves.toBeUndefined()
+  expect(mocks.invoke).toHaveBeenCalledWith('desktop_push', { action: 'status' })
+  expect(mocks.unsubscribe).not.toHaveBeenCalled()
+})
+
+it('retains real native failures during cleanup in an older desktop shell', async () => {
+  Reflect.deleteProperty(window, '__ORBIT_DESKTOP_COMMANDS__')
+  const failure = new Error('Cannot save native confirmation')
+  const native = mocks.invoke.getMockImplementation()!
+  mocks.invoke.mockImplementation(async (command, payload) => {
+    if (payload.action === 'clear') throw failure
+    return native(command, payload)
+  })
+  await expect(releaseDesktopPush('account-a')).rejects.toBe(failure)
+  expect(mocks.unsubscribe).toHaveBeenCalledWith(expect.objectContaining({ endpoint: saved.endpoint }), 'account-a')
+  expect(pending).toEqual([{ owner: 'account-a', registration: saved, revoke: true }])
 })

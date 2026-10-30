@@ -5,8 +5,7 @@ import { MoreVertical } from '@/components/ui/icons'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { NotificationBell } from '@/components/navigation/notification-bell'
-import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
+import { DestinationHeaderRow, HeaderAppearanceActions } from '@/components/navigation/root-notification-header'
 import { useUIStore } from '@/stores/ui-store'
 import type { AppTokensV2 } from '@/lib/theme'
 import { CalendarLegend } from './calendar-shell'
@@ -34,7 +33,7 @@ export function CalendarOptions({ tokens, onGoogleCalendar }: Readonly<{ tokens:
   return <>
     <DestinationHeaderRow testID="calendar-shell-header">
       <Pressable accessibilityRole="button" accessibilityLabel={t('calendar.options')} accessibilityState={{ expanded: menuOpen }} onPress={() => setMenuOpen(true)} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><MoreVertical size={24} color={tokens.fg2} strokeWidth={2} /></Pressable>
-      <NotificationBell />
+      <HeaderAppearanceActions />
     </DestinationHeaderRow>
     {menuOpen ? <Sheet ref={optionsSheetRef} open title={t('calendar.options')} onClose={() => setMenuOpen(false)}>
       <View style={{ gap: 8 }}>
