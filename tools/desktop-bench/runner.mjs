@@ -86,7 +86,7 @@ export async function benchmark({ repository, directory, output, repetitions }) 
     const seed = await fetch('http://127.0.0.1:5099/_test/session-fixtures', { method: 'PUT', headers: { Authorization: `Bearer ${fixtures.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ fixtures: fixtures.fixtures }) })
     if (!seed.ok) throw new Error(`Fixture seed failed: ${seed.status} ${await seed.text()}`)
     start(process.execPath, [require.resolve('next/dist/bin/next'), 'start', '--port', '3401', '--hostname', '127.0.0.1'], { cwd: join(repository, 'apps/web'), env: environment, log: join(work, 'web.log') })
-    await waitForHttp('http://127.0.0.1:3401/')
+    await waitForHttp('http://127.0.0.1:3401/api/health')
     proxy = await startProxy({ token: fixtures.token, probePath: join(directory, 'probe.js'), port: 3400, upstreamPort: 3401 })
     await fetch('http://127.0.0.1:3400/').then((response) => response.arrayBuffer())
     const runs = []
