@@ -20,11 +20,10 @@ Finish the spec: an empty board and verified releases, driven to launch, in `## 
 
 ## In flight
 
-UI `main` is `dcc222f82`, API `main` is `b141d299`, landing `main` is `06ee66c`. Production web serves `6cae53206` (verified) with the release of `dcc222f82` running; production API `b141d299` (verified); Android Open 1.3.118 (177) from `dcc222f82` is uploaded; desktop production 0.1.12. Staging API and web stay suspended until 1 Nov 00:00 UTC; nothing waits for them.
+UI `main` is `dcc222f82`, API `main` is `b141d299`, landing `main` is `06ee66c`. Production web serves `dcc222f82` (verified, run 41031267840); production API `b141d299` (verified); Android Open 1.3.118 (177) from `dcc222f82` is uploaded; desktop production 0.1.12. Staging API and web stay suspended until 1 Nov 00:00 UTC; nothing waits for them.
 
 | Item | Disposition |
 | --- | --- |
-| Production web release of `dcc222f82` (`#1898`) | Run 41031267840 was waiting on its `desktop-test / Desktop aarch64-pc-windows-msvc` job at the handoff (the other desktop jobs green). Next: read the run; on success verify `/api/health` serves `dcc222f82`; on a red read the job log and fix or rerun once. |
 | `orbit-api#1021` (`#1617`) | Head `b82c3c84`, six commits, diff read and accepted against `note-api-nokeyword.md`. CI and Pullfrog not yet read. Shares `AnswerComposition.md`, `StrictChatToolSchemaTests.cs`, `tools/capability-inventory.baseline.json` with API `main` `b141d299` (merge-tree exit 0). Next: `wait-ci`, threads, `api-combined2.sh <new label> b82c3c841...` (full sha), merge, production API with `force_unstaged` (no migration expected; check), then the gate rerun. |
 | `ui#2236` (`#26` harness) | Head `a9cabde70`, diff read and accepted; CI green and Pullfrog APPROVED at that head with 0 threads. Owed before merge: replay the gate 10 attempts (`eval-gate-prod/evals/astra/reports/attempts`) through the new `composition()` and confirm no attempt that passed now fails on the new block-kind check; a flip goes back as a round. Then threads, merge. |
 | `ui#2235` (`#1560` step 8) | Head `362e5adc1`, Pullfrog APPROVED, 0 threads. `measure (windows-latest)` red (run 41028832510): "Viewport mismatch: 900,681 versus 900,729" (`tools/desktop-bench/runner.mjs:36`; Electron gets 48 px less content height on Windows, likely its default menu bar). Next: CI fix round 3 (default, `--review-batch`, worktree `ticket-1560-perf-acceptance`, relaunch reason past the branch cap): both shells get the same content viewport, never relax the check. Then the Windows numbers into the body, `#1560` and D148, the shell decision by the owner rule "Electron only if it measures best" (macOS runner numbers are in the body and the decision log), merge. Step 9 follows. |
@@ -38,12 +37,12 @@ UI `main` is `dcc222f82`, API `main` is `b141d299`, landing `main` is `06ee66c`.
 | `#1766` | Upstream still blocks: `@expo/cli` 58.1.17 wants zod `^3.25.76`, `@lhci/cli` 0.15.1 pins lighthouse 12.6.1 (checked this session). Recheck daily. |
 | Worktrees | Live with open PRs: `ticket-1617-g11-ask` (api), `ticket-26-g11-harness`, `ticket-1560-perf-acceptance` (ui). Merged, tear down now: `ticket-1898-sentry-ui`, `ticket-1899-starting-step-context` (ui, tickets closed or closing); `ticket-1674-g11-brain-dump` (api) when `#1674` closes. Earlier rows of the previous prompt still apply. Removed this session after pinning heads under `refs/orbit-scratch-archive/` (branches kept): `ticket-1242-week-grid-one-scroller` (`#1242` shipped as `ui#1652`) and `ticket-1503-push-endpoint-check` (its one commit is already on API `main`). `ticket-1822-medical-titles` no longer exists. |
 
-Inventory: open pull requests `ui#1989` (relay docs), `ui#2234`, `ui#2235`, `ui#2236`; `orbit-api#1021`; landing none. Stashes: none in all three repositories. Unpushed commits: none on the live branches. Running at the handoff: the production web release watcher and CI waiters (stopped by the relay tool). Owner questions (in the run state and `## Open questions`): `#1862` Mac sign-in check, `#1860` and `#1783` phone checks (asked once, never re-ask), `#1726` credentials, and the Render build spend limit (his cost decision, never raise it for him).
+Inventory: open pull requests `ui#1989` (relay docs), `ui#2234`, `ui#2235`, `ui#2236`; `orbit-api#1021`; landing none. Stashes: none in all three repositories. Unpushed commits: none on the live branches. Running at the handoff: nothing (drain complete). Owner questions (in the run state and `## Open questions`): `#1862` Mac sign-in check, `#1860` and `#1783` phone checks (asked once, never re-ask), `#1726` credentials, and the Render build spend limit (his cost decision, never raise it for him).
 
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
-2. The In flight rows: the web release, `orbit-api#1021` to production, the `ui#2236` replay check and merge, the `ui#2235` round 3, then the gate rerun r2 and `#1900`.
+2. The In flight rows: `orbit-api#1021` to production, the `ui#2236` replay check and merge, the `ui#2235` round 3, then the gate rerun r2 and `#1900`.
 3. Every other launchable ticket in `## The order`, including `#1560` step 9 once step 8 settles the shell.
 4. The Sentry closes, `#1880`, the landing release at the reset, and the rest of `## The order`. Before naming any remaining ticket as blocked on the owner, try every installed tool once more and write what each returned.
 
@@ -62,7 +61,7 @@ Unattended run: never ask the owner anything (standing owner order: keep working
 - Reading list, entry point, newest-prompt check, Crank and Sleep rules, refused routes, helpers and scratchpad carry: carried (ids updated to this session; `note-g11-common.md`, `triage-gate-prod-r1.md` and `gate-prod-failing-ids.txt` added).
 - Answer any owner message first: carried (no owner message arrived this session).
 - `ui#2232` round, merge, production web and the gate rerun: done (thread fixed as a coordinator review fix `869672387`, merged `6cae53206`, production web run 41022438816 verified, rerun r1 16 of 25 pass; `#1899` closed after Android Open 1.3.118).
-- `ui#2233` round, merge, production web, Android Open: done except the web release verification (round `ef76efd93`, layout spec green locally 47 of 47, merged `dcc222f82`, Android run 41031315099 SUCCESS; web run 41031267840 carried). Sentry resolve carried.
+- `ui#2233` round, merge, production web, Android Open: done (round `ef76efd93`, layout spec green locally 47 of 47, merged `dcc222f82`, production web run 41031267840 verified, Android run 41031315099 SUCCESS). Sentry resolve carried.
 - `ui#2235` diff read and Windows numbers: diff read and two CI rounds done; round 3 and the numbers carried.
 - `ui#2234`: carried (now conflicts; the bot refreshes it).
 - Gate rerun pass 3, closes and eval teardown: carried as Gate rerun r2.
