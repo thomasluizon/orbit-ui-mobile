@@ -1,6 +1,10 @@
 import { spawnSync } from 'node:child_process'
+import { EventEmitter } from 'node:events'
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, win32 } from 'node:path'
+import { createInterface } from 'node:readline'
+import { PassThrough } from 'node:stream'
+import { pathToFileURL } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus } from '../desktop-bench/acceptance-contract.mjs'
 import { T, REPO_ROOT, check, root } from './_harness.mjs'
@@ -11,10 +15,150 @@ function rejects(label, operation) {
   T(label, failure instanceof Error)
 }
 
+async function bindErrorCases() {
+  const hostSource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/host.mjs'), 'utf8')
+    .replace(/^import .*$/gm, '').replace(/^export \{.*$/gm, '').replaceAll('export ', '')
+  const bindFailures = []
+  for (const code of ['EACCES', 'EADDRINUSE']) {
+    const original = Object.assign(new Error(`listen ${code}: 127.0.0.1:443`), { code })
+    let onError
+    const context = {
+      Set, Error,
+      createServer: () => ({ once(event, callback) { onError = callback }, listen() { onError(original) } }),
+    }
+    runInNewContext(`${hostSource}\nglobalThis.assertFree = assertFree`, context)
+    try { await context.assertFree(443) } catch (error) { bindFailures.push(error) }
+    T(`${code} preflight preserves its errno and original error`, bindFailures.at(-1)?.message.includes(code) && bindFailures.at(-1)?.cause === original)
+  }
+  T('permission failures never report an occupied port', !bindFailures[0]?.message.includes('occupied') && bindFailures[1]?.message.includes('occupied'))
+}
+
+async function releaseImportCases() {
+  const runnerSource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
+  const importExpression = /const \{ buildManifest, artifactName, verifyArtifact \} = await (.+)/.exec(runnerSource)[1]
+  for (const repository of [win32.join('d:\\runner workspace', 'orbit#checkout'), REPO_ROOT]) {
+    const windowsPath = repository !== REPO_ROOT
+    let imported
+    const context = {
+      join: windowsPath ? win32.join : join,
+      pathToFileURL: (path) => pathToFileURL(path, { windows: windowsPath }),
+      importModule: async (specifier) => { imported = specifier },
+    }
+    runInNewContext(`globalThis.loadRelease = async (repository) => ${importExpression.replace('import(', 'importModule(')}`, context)
+    await context.loadRelease(repository)
+    const expected = pathToFileURL(context.join(repository, 'apps/desktop/scripts/release.ts'), { windows: windowsPath }).href
+    T('release import receives a file URL for platform paths, including spaces and fragments', imported === expected, imported)
+  }
+}
+
+async function httpsForwarderCases() {
+  const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/https-forwarder.mjs'), 'utf8')
+    .replace(/^import .*$/gm, '').replace('export async function', 'async function')
+  for (const failure of [undefined, 'bind', 'groups', 'gid', 'uid']) {
+    const calls = []
+    const original = Object.assign(new Error('listen EACCES: 127.0.0.1:443'), { code: 'EACCES' })
+    const server = new EventEmitter()
+    server.listen = (port, host, ready) => {
+      calls.push(['bind', port, host])
+      if (failure === 'bind') server.emit('error', original)
+      else ready()
+    }
+    server.close = () => calls.push(['close'])
+    const identity = new EventEmitter()
+    const changeIdentity = (kind, value) => { calls.push([kind, value]); if (failure === kind) throw original }
+    Object.assign(identity, {
+      setgroups: (groups) => changeIdentity('groups', groups),
+      setgid: (gid) => changeIdentity('gid', gid), setuid: (uid) => changeIdentity('uid', uid),
+      stdin: Object.assign(new EventEmitter(), { resume() {} }),
+      stdout: { write: (line) => calls.push(['ready', line]) },
+    })
+    const socket = () => Object.assign(new EventEmitter(), {
+      pipe(peer) { calls.push(['pipe', this, peer]); return peer },
+      destroy() { if (this.destroyed) return; this.destroyed = true; this.emit('close') },
+    })
+    const upstreams = []
+    const context = { process: identity, Set, Number, Error, createServer: () => server,
+      createConnection: (options) => { calls.push(['connect', options]); const upstream = socket(); upstreams.push(upstream); return upstream } }
+    runInNewContext(`${source}\nglobalThis.forwardHttps = forwardHttps`, context)
+    let rejected
+    try { await context.forwardHttps(1001, 1002) } catch (error) { rejected = error }
+    if (failure) {
+      T(`listener ${failure} failure retains its cause, closes the socket and never reports readiness`,
+        rejected === original && calls.at(-1)[0] === 'close' && !calls.some(([kind]) => kind === 'ready'))
+      continue
+    }
+    T('HTTPS listener binds loopback 443 before clearing groups and dropping its identity',
+      JSON.stringify(calls) === JSON.stringify([['bind', 443, '127.0.0.1'], ['groups', []], ['gid', 1002], ['uid', 1001], ['ready', 'listening\n']]))
+    const first = socket()
+    const second = socket()
+    server.emit('connection', first)
+    server.emit('connection', second)
+    T('listener forwards the encrypted stream in both directions to unprivileged loopback 3443',
+      calls.filter(([kind]) => kind === 'connect').every(([, options]) => options.host === '127.0.0.1' && options.port === 3443) &&
+      calls.some(([kind, from, to]) => kind === 'pipe' && from === first && to === upstreams[0]) &&
+      calls.some(([kind, from, to]) => kind === 'pipe' && from === upstreams[0] && to === first))
+    upstreams[0].emit('error', new Error('upstream disconnected'))
+    T('relay errors close both halves of the affected stream', first.destroyed && upstreams[0].destroyed && !second.destroyed)
+    identity.stdin.emit('end')
+    T('closing the control pipe releases the listener and all remaining connections', calls.at(-1)[0] === 'close' && second.destroyed && upstreams[1].destroyed)
+    calls.length = 0
+    try { await context.forwardHttps(0, 1002) } catch (error) { rejected = error }
+    T('the listener rejects a root target identity before binding', calls.length === 0 && rejected?.message.includes('unprivileged'))
+  }
+}
+
+async function listenerStartupCases() {
+  const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-platform.mjs'), 'utf8')
+  const listener = source.slice(source.indexOf('export async function startHttpsListener'), source.indexOf('export async function buildInstaller'))
+    .replace('export async function', 'async function').replaceAll('import.meta.url', JSON.stringify(pathToFileURL(join(REPO_ROOT, 'tools/desktop-bench/acceptance-platform.mjs')).href))
+  for (const scenario of ['ready', 'bind-error', 'early-exit', 'unexpected-reply']) {
+    const child = { stdin: new PassThrough(), stdout: new PassThrough() }
+    let complete
+    let fail
+    const handle = { child, done: new Promise((resolve, reject) => { complete = resolve; fail = reject }) }
+    const original = new Error('listen EADDRINUSE: 127.0.0.1:443')
+    let launched
+    let stopped = false
+    const context = { URL, String, Number, Error, Promise, JSON, createInterface,
+      process: { execPath: process.execPath, getuid: () => 1001, getgid: () => 1002 },
+      start: (command, argumentsList, options) => {
+        launched = { command, argumentsList, options }
+        queueMicrotask(() => {
+          if (scenario === 'bind-error') fail(original)
+          else if (scenario === 'early-exit') complete()
+          else child.stdout.write(scenario === 'ready' ? 'listening\n' : 'unexpected\n')
+        })
+        return handle
+      },
+      stop: async (listenerHandle) => { stopped = true; await listenerHandle.nativeRequest('stop') },
+    }
+    runInNewContext(`${listener}\nglobalThis.startHttpsListener = startHttpsListener`, context)
+    let result
+    let rejected
+    try { result = await context.startHttpsListener() } catch (error) { rejected = error }
+    if (scenario === 'ready') {
+      T('only the listener starts with noninteractive sudo and the caller identity',
+        result === handle && launched.command === 'sudo' && launched.argumentsList.slice(0, 4).join(',') === ['-n', process.execPath, '--input-type=module', '-e'].join(',') &&
+        launched.argumentsList.slice(-2).join(',') === '1001,1002' && launched.options.stdio.join(',') === 'pipe,pipe,pipe')
+      await result.nativeRequest('stop')
+      T('listener shutdown closes its input without a privileged process kill', child.stdin.writableEnded && !stopped)
+    } else {
+      T(`listener startup handles ${scenario} without leaking its process`, stopped && child.stdin.writableEnded &&
+        (scenario === 'bind-error' ? rejected === original : rejected?.message.includes(scenario === 'early-exit' ? 'before readiness' : 'Unexpected')))
+    }
+    child.stdout.destroy()
+    child.stdin.destroy()
+  }
+}
+
 export async function cases() {
   check('desktop-bench/acceptance.mjs', 'installed acceptance help is cwd safe', ['--help'], { status: 0, stdout: /Usage/ }, { cwd: root })
   check('desktop-bench/acceptance.mjs', 'installed acceptance rejects unknown flags before doing work', ['--unknown'], { status: 2 })
   check('desktop-bench/acceptance.mjs', 'installed acceptance rejects output inside repository', ['--output', REPO_ROOT], { status: 2 })
+  await bindErrorCases()
+  await releaseImportCases()
+  await httpsForwarderCases()
+  await listenerStartupCases()
   const native = { denied: false, error: null, nodes: [
     { id: '0', role: 'Document', name: '', interactive: false, focused: false, selected: false },
     { id: '0/1', role: 'Edit', name: 'Search commands', interactive: true, focused: true, selected: false },

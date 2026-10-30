@@ -2,14 +2,14 @@ import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { lookup } from 'node:dns/promises'
 import { request as requestHttp } from 'node:http'
 import { buildHermeticWeb } from './runner.mjs'
 import { readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
 import { assertFree, execute, start, stopAll, waitFor, waitForHttp } from './host.mjs'
-import { buildInstaller, desktopOrigin, install, isolateOrigins, startRecording } from './acceptance-platform.mjs'
+import { buildInstaller, desktopOrigin, install, isolateOrigins, startHttpsListener, startRecording } from './acceptance-platform.mjs'
 import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature } from './acceptance-contract.mjs'
 
 const require = createRequire(import.meta.url)
@@ -43,7 +43,7 @@ async function hermeticServices(repository, output) {
 }
 
 async function updateServer(repository, output, shell, report) {
-  const { buildManifest, artifactName, verifyArtifact } = await import(join(repository, 'apps/desktop/scripts/release.ts'))
+  const { buildManifest, artifactName, verifyArtifact } = await import(pathToFileURL(join(repository, 'apps/desktop/scripts/release.ts')).href)
   const signatures = Object.fromEntries(['aarch64-apple-darwin', 'x86_64-apple-darwin', 'x86_64-pc-windows-msvc', 'aarch64-pc-windows-msvc']
     .map((target) => [artifactName('staging', '2.0.0', target), shell.signature]))
   const valid = buildManifest('staging', '2.0.0', signatures)
@@ -151,7 +151,9 @@ export async function acceptance({ repository, output }) {
   let builtWeb = false
   try {
     if (existsSync(nextOutput)) throw new Error('Acceptance requires a fresh hermetic web build')
-    for (const port of [443, 5099, 3401]) await assertFree(port)
+    const proxyPort = windows ? 443 : 3443
+    for (const port of [proxyPort, 5099, 3401]) await assertFree(port)
+    if (!windows) await startHttpsListener()
     finishRecording = await startRecording(output)
     process.stdout.write('Building release-shaped installer and hermetic web application\n')
     const shell = await buildInstaller(repository, output)
@@ -164,7 +166,7 @@ export async function acceptance({ repository, output }) {
       const addresses = await lookup(hostname, { all: true })
       if (!addresses.length || addresses.some((entry) => entry.address !== '127.0.0.1')) throw new Error(`Origin isolation failed for ${hostname}`)
     }
-    proxy = await startProxy({ probePath: join(directory, 'acceptance-probe.js'), port: 443, upstreamPort: 3401, tls: isolation, route: updates.route, acceptance: true })
+    proxy = await startProxy({ probePath: join(directory, 'acceptance-probe.js'), port: proxyPort, upstreamPort: 3401, tls: isolation, route: updates.route, acceptance: true })
     const executable = await install(shell.installer, output)
     report.install = { source: shell.installer, executable, target: shell.target, version: '1.0.0', optionalFeatures: [] }
     let handle = installedLaunch(executable, output, 'installed')

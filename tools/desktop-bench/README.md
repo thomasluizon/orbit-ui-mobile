@@ -97,6 +97,12 @@ and proxy. The release build uses the same staging prepare and package commands 
 
 The job generates an ephemeral root certificate and Tauri key. It maps the shell's exact web and
 update hosts to loopback, trusts the root in the VM's system store, and checks DNS before launching.
+On macOS a separate listener uses passwordless `sudo` to bind loopback port 443, then clears its
+supplementary groups and drops to the runner's user and group before accepting connections. It
+forwards the encrypted stream to the user's TLS proxy on port 3443. Binding that listener is the
+443 preflight; conflicts and permission errors retain their original errno. The app, proxy and
+builds run as the ordinary runner user. Cleanup closes the listener through its input pipe.
+Windows binds its TLS proxy directly to port 443 with the runner's existing privileges.
 The hermetic builder accepts `HERMETIC_DESKTOP_ORIGIN` for its compiled site and event origins;
 ordinary layout and benchmark builds retain their loopback defaults. TLS, channel validation,
 origin capabilities and signature verification remain active. The proxy forwards cookies without

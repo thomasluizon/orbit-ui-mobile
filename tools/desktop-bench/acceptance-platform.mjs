@@ -2,12 +2,35 @@ import { createRequire } from 'node:module'
 import { X509Certificate } from 'node:crypto'
 import { readFile, writeFile, copyFile, readdir, stat, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import { execute, start, waitFor } from './host.mjs'
+import { createInterface } from 'node:readline'
+import { execute, start, stop, waitFor } from './host.mjs'
 import { npmCli } from './build.mjs'
 
 const require = createRequire(import.meta.url)
 const windows = process.platform === 'win32'
 export const desktopOrigin = 'https://app-staging.useorbit.org'
+
+export async function startHttpsListener() {
+  const moduleUrl = new URL('./https-forwarder.mjs', import.meta.url).href
+  const source = `const { forwardHttps } = await import(${JSON.stringify(moduleUrl)}); await forwardHttps(Number(process.argv[1]), Number(process.argv[2]))`
+  const handle = start('sudo', ['-n', process.execPath, '--input-type=module', '-e', source, String(process.getuid()), String(process.getgid())],
+    { stdio: ['pipe', 'pipe', 'pipe'] })
+  handle.nativeRequest = async () => { handle.child.stdin.end() }
+  const lines = createInterface({ input: handle.child.stdout })
+  try {
+    const ready = await Promise.race([
+      new Promise((resolve) => lines.once('line', resolve)),
+      handle.done.then(() => { throw new Error('HTTPS listener exited before readiness') }),
+    ])
+    if (ready !== 'listening') throw new Error(`Unexpected HTTPS listener reply: ${ready}`)
+    return handle
+  } catch (error) {
+    await stop(handle)
+    throw error
+  } finally {
+    lines.close()
+  }
+}
 
 export async function buildInstaller(repository, output) {
   const desktop = join(repository, 'apps/desktop')
