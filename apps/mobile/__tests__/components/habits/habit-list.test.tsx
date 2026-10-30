@@ -1984,7 +1984,7 @@ describe('HabitList', () => {
     expect(tree!.root.findAll((node) => node.type === HabitRow)
       .map((node) => (node.props.habit as NormalizedHabit).id)).toContain('anytime')
     const geometry = measureSafeArea((tree! as GeometryTree).toJSON(), (host) => {
-      if (host.children?.some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('habits.allDoneToday'))) return 'banner'
+      if (host.props.testID === 'habit-list-all-done') return 'banner'
       return host.props.testID === 'habit-row' ? 'row' : undefined
     })
     expect(geometry.get('row')!.top - geometry.get('banner')!.bottom).toBe(24)

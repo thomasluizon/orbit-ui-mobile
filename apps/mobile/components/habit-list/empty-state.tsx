@@ -110,7 +110,7 @@ export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: (
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { t } = useTranslation()
   return (
-    <View style={styles.allDone}>
+    <View testID="habit-list-all-done" style={styles.allDone}>
       <View style={styles.allDoneText}>
         <Text style={[styles.allDoneTitle, { color: tokens.fg1 }]}>{t('habits.allDoneToday')}</Text>
         <Text style={[styles.allDoneHint, { color: tokens.fg2 }]}>{t('habits.allDoneHint')}</Text>
