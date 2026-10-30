@@ -149,7 +149,7 @@ describe.each(['ambiguity-pt', 'ambiguity-en'])('%s clarification alternatives',
   } }
   function clarification(parts = [choice], aiMessage = '') {
     const produced = response(parts, aiMessage)
-    const call = toolCall('ask', { form: 'choice', question, options: choice.block.options, multiSelect: false, allowFreeText: true },
+    const call = toolCall('ask', { input: { form: 'choice', question, options: choice.block.options, multiSelect: false, allowFreeText: true } },
       'Succeeded', 'call-1', vars.clientContext)
     call.result.entityId = choice.block.blockId
     produced.evalTrace.toolCalls = [call]
