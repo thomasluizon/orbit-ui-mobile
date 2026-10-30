@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orbit.Application.Chat.Commands;
+using Orbit.Application.Chat.Models;
 using Orbit.Application.Common;
 using Orbit.Application.Chat.Tools;
 using Orbit.Domain.Common;
@@ -66,11 +67,14 @@ var method = handlerType.GetMethod("RequestInitialAiResponseAsync", BindingFlags
 var collectSensitiveFields = handlerType.GetNestedType("ChatEvalTraceCollector", BindingFlags.NonPublic)!
     .GetMethod("CollectSensitiveFields", BindingFlags.NonPublic | BindingFlags.Static)!;
 var partKinds = JsonSerializer.Deserialize<string[]>(args[1])!;
+var habitSetupBinding = new { draftCallId = "__draft_call_id__", missingField = "__missing_field__" };
 File.WriteAllText(args[0], JsonSerializer.Serialize(new {
     tools = await ExportTools(true), legacyTools = await ExportTools(false),
-    postReadTools = await ExportTools(true, afterAccountRead: true) }));
+    postReadTools = await ExportTools(true, afterAccountRead: true), habitSetupBinding,
+    habitSetupTools = await ExportTools(true, draft: new HabitSetupDraft(
+        habitSetupBinding.draftCallId, "New habit draft", habitSetupBinding.missingField, Guid.Empty)) }));
 
-async Task<object[]> ExportTools(bool supportsParts, bool afterAccountRead = false)
+async Task<object[]> ExportTools(bool supportsParts, bool afterAccountRead = false, HabitSetupDraft? draft = null)
 {
     captured = null;
     var state = Activator.CreateInstance(handlerType.GetNestedType("ChatTurnState", BindingFlags.NonPublic)!, nonPublic: true);
@@ -79,12 +83,15 @@ async Task<object[]> ExportTools(bool supportsParts, bool afterAccountRead = fal
     await (Task<Result<AiResponse>>)method.Invoke(handler, [request, context, null, new AiTurnTelemetry(), state, CancellationToken.None])!;
     if (captured is null) throw new InvalidOperationException("The API did not build a tool request.");
     var declarations = captured.ToolDeclarations;
-    if (afterAccountRead)
+    if (afterAccountRead || draft is not null)
     {
-        // Mirror ProcessUserChatCommand.Ask.cs:117-140 through the actual continuation declaration builder.
+        // Use ProcessUserChatCommand.Ask.cs:185-197's continuation declaration builder for both prerequisites.
         var resultsType = handlerType.GetNestedType("ToolExecutionAccumulator", BindingFlags.NonPublic)!;
         var results = Activator.CreateInstance(resultsType, nonPublic: true)!;
-        resultsType.GetProperty("HasSuccessfulAccountRead")!.SetValue(results, true);
+        resultsType.GetProperty("HasSuccessfulAccountRead")!.SetValue(results, afterAccountRead);
+        if (draft is not null)
+            ((IDictionary<string, HabitSetupDraft>)resultsType.GetProperty("MissingHabitDrafts")!.GetValue(results)!)
+                .Add(draft.CallId, draft);
         var conversation = new AiConversationContext();
         handlerType.GetMethod("RefreshAskSchema", BindingFlags.NonPublic | BindingFlags.Instance)!
             .Invoke(handler, [conversation, request, context, results]);

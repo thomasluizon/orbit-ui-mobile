@@ -4,23 +4,54 @@ import { composition } from './composition.mjs'
 export { composition }
 import { assertions } from 'promptfoo'
 import { matchesArguments, matchesOperation, outcomeCalls } from './operation-matcher.mjs'
-import { tools, legacyTools, postReadTools, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
-
-const toolWrites = new Map(tools.map((tool) => [tool.function.name, tool.writes]))
+import { tools, legacyTools, postReadTools, habitSetupTools, habitSetupBinding,
+  toolWrites, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
 
 const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
 } }))
 const compositionCatalog = traceCatalog(tools)
 const legacyCatalog = traceCatalog(legacyTools)
-const postReadUpdates = new Map(traceCatalog(postReadTools).map((tool) => [tool.function.name, tool]))
-const postReadCatalog = compositionCatalog.map((tool) => postReadUpdates.get(tool.function.name) ?? tool)
+const mergeCatalog = (initial, updates) => [...new Map([...initial, ...updates].map((tool) => [tool.function.name, tool])).values()]
+const postReadCatalog = mergeCatalog(compositionCatalog, traceCatalog(postReadTools))
+const habitSetupCatalog = traceCatalog(habitSetupTools)
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const decode = (output) => typeof output === 'string' ? JSON.parse(output) : output
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const statuses = new Set(['Succeeded', 'Failed', 'PendingConfirmation', 'Denied', 'UnsupportedByPolicy', 'NotExecuted'])
+
+function bindDraftSchema(schema, draft) {
+  if (Array.isArray(schema)) return schema.map((entry) => bindDraftSchema(entry, draft))
+  if (!isObject(schema)) return schema
+  return Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, key === 'enum'
+    ? value.map((entry) => entry === habitSetupBinding.draftCallId ? draft.callId
+      : entry === habitSetupBinding.missingField ? draft.missingField : entry)
+    : bindDraftSchema(value, draft)]))
+}
+
+function boundHabitSetupCatalog(drafts) {
+  const bound = structuredClone(habitSetupCatalog)
+  for (const tool of bound) {
+    const input = tool.function.parameters.properties.input
+    input.anyOf = [...drafts.values()].flatMap((draft) => bindDraftSchema(input.anyOf, draft))
+  }
+  return mergeCatalog(compositionCatalog, bound)
+}
+
+function recordHabitSetupDraft(call, drafts) {
+  if (!['create_habit', 'create_sub_habit'].includes(call.name) || typeof call.arguments.title !== 'string') return
+  for (const [id, draft] of drafts) {
+    if (draft.title === call.arguments.title) drafts.delete(id)
+  }
+  const payload = call.result?.payload
+  if (call.resultStatus !== 'Succeeded' || call.result.success !== true || !isObject(payload)
+    || payload.draft_call_id !== call.id || payload.title !== call.arguments.title
+    || typeof payload.missing_field !== 'string' || !payload.missing_field.trim()
+    || !isObject(payload.clarification) || payload.clarification.missingArgumentKey !== payload.missing_field) return
+  drafts.set(call.id, { callId: call.id, title: payload.title, missingField: payload.missing_field })
+}
 
 export function savedStep(output, context) {
   if (!['saveTask', 'saveChecklistItem'].includes(context.vars.startingStepAction)) return result(true, 'No saved-step approval requested.')
@@ -75,6 +106,8 @@ export async function structural(output, context) {
   if ('pass' in trace) return trace
   const supportsParts = context.vars.clientContext?.supportsParts === true
   let catalog = supportsParts ? compositionCatalog : legacyCatalog
+  let hasSuccessfulAccountRead = false
+  const drafts = new Map()
   let verdict = result(true, 'No tool calls to validate.')
   for (const call of trace.calls) {
     verdict = await assertions.runAssertion({
@@ -86,12 +119,17 @@ export async function structural(output, context) {
       }] },
     })
     if (!verdict.pass) return verdict
-    // Mirror ProcessUserChatCommand.Ask.cs:117-140 via ToolResults.cs:60-84's typed-read evidence.
+    // Mirror ProcessUserChatCommand.Ask.cs:125-197 and ToolResults.cs:60-84 for ordered, typed declaration updates.
     const successfulAccountRead = toolWrites.get(call.name) === false
       && call.resultStatus === 'Succeeded' && call.result.success === true
       && (call.result.readDirective === `[[orbit:read:${call.id}]]`
         || (call.name === 'query_habits' && call.result.payload?.selection_required === true))
-    if (supportsParts && successfulAccountRead) catalog = postReadCatalog
+    if (supportsParts) {
+      recordHabitSetupDraft(call, drafts)
+      hasSuccessfulAccountRead ||= successfulAccountRead
+      if (hasSuccessfulAccountRead) catalog = postReadCatalog
+      else if (drafts.size) catalog = boundHabitSetupCatalog(drafts)
+    }
   }
   return verdict
 }
