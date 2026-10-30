@@ -22,10 +22,11 @@ const styles = `${fonts}${themeStyles}
 html { font-synthesis:none; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
 body { background:var(--bg); color:var(--fg-1); font-family:var(--font-sans); }
 main { min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+main > .orbit-auth-panel { align-items:center; text-align:center; }
 h1 { font-family:var(--font-display); font-size:22px; font-weight:500; line-height:1.2; letter-spacing:-0.02em; text-wrap:balance; }
 p { font-size:16px; line-height:1.55; color:var(--fg-2); overflow-wrap:anywhere; text-wrap:pretty; }
 .desktop-auth-message { display:flex; flex-direction:column; gap:8px; }
-.orbit-pill-action { display:inline-flex; align-items:center; justify-content:center; align-self:flex-start; white-space:nowrap; position:relative; border-radius:999px; color:var(--fg-on-primary); background:var(--primary); text-decoration:none; font-weight:500; font-family:var(--font-sans); transition:background-color 240ms cubic-bezier(0.2,0,0,1); }
+.orbit-pill-action { display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; position:relative; border-radius:999px; color:var(--fg-on-primary); background:var(--primary); text-decoration:none; font-weight:500; font-family:var(--font-sans); transition:background-color 240ms cubic-bezier(0.2,0,0,1); }
 .orbit-pill-action::after { content:""; position:absolute; inset:-4px 0; }
 .orbit-pill-action:focus-visible { outline:2px solid var(--fg-1); outline-offset:2px; }
 .orbit-pill-action:active { background:var(--primary-pressed); }
