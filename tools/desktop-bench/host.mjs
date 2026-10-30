@@ -100,6 +100,7 @@ export async function processSnapshot(macProbe, windowsScript) {
 
 export async function treeSample(handle, macProbe, windowsScript) {
   const members = processTree(await processSnapshot(macProbe, windowsScript), handle.child.pid)
+    .filter((entry) => process.platform !== 'darwin' || entry.pid !== handle.child.pid)
   if (!members.length) throw new Error('Shell process tree disappeared')
   return { epochMs: Date.now(), residentBytes: members.reduce((sum, entry) => sum + entry.residentBytes, 0), members }
 }
