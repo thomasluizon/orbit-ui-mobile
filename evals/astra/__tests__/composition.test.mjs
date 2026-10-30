@@ -60,8 +60,23 @@ describe('production composition gate', () => {
       expect(assertions.composition(produced, { vars }).pass).toBe(read.completeness === completeness && read.recovery === recovery)
     }
   })
-  it('rejects prose-first ordering through the configured assertions', async () => {
-    expect((await gate(response([{ type: 'text', text: 'Ready.' }, block]))).pass).toBe(false)
+  it.each(['Ready.', 'Comece pela caminhada.', 'x'.repeat(180)])('accepts one short digit-free leading line: %s', async (text) => {
+    expect((await gate(response([{ type: 'text', text }, block], text))).pass).toBe(true)
+  })
+  it.each([
+    ['two leading text parts', [{ type: 'text', text: 'Ready.' }, { type: 'text', text: 'Start here.' }, block]],
+    ['leading digit', [{ type: 'text', text: 'You have 1 pending habit.' }, block]],
+    ['two leading lines', [{ type: 'text', text: 'Ready.\nStart here.' }, block]],
+    ['leading paragraph', [{ type: 'text', text: 'Ready.\n\nStart here.' }, block]],
+    ['long leading line', [{ type: 'text', text: 'x'.repeat(181) }, block]],
+    ['leading heading', [{ type: 'text', text: '# Ready' }, block]],
+    ['leading bold heading', [{ type: 'text', text: '**Ready**' }, block]],
+    ['leading list', [{ type: 'text', text: '- Ready' }, block]],
+    ['text only', [{ type: 'text', text: 'Ready.' }]],
+    ['extra trailing text part', [{ type: 'text', text: 'Ready.' }, block, { type: 'text', text: 'Start here.' }]],
+  ])('rejects %s with the data ordering failure', async (_, parts) => {
+    const prose = parts.filter((part) => part.type === 'text').map((part) => part.text).join('\n\n')
+    expect(await gate(response(parts, prose))).toMatchObject({ pass: false, reason: 'Data answer leads with prose.' })
   })
   it('accepts a block-first answer and retains its ordered payload', async () => {
     const produced = response([block, { type: 'text', text: 'Ready.' }])

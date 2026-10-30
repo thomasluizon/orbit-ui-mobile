@@ -29,13 +29,14 @@ function dailyAnswer(test, prose = '') {
       depth: ['Meals', 'Water'].includes(title) ? 0 : 1, isBadHabit: false, status: title === 'Breakfast' ? 'done' : 'today' })) }
   call.result.payload = { summary: prose, insight: '', fromCache: false, readCard: card, sourceRevision: 'fixture-revision' }
   const response = { ...chatResponse(test.vars.evalRequestId, [call]), aiMessage: prose,
-    parts: [{ type: 'block', kind: 'daySummary', block: card }, ...(prose ? [{ type: 'text', text: prose }] : [])] }
+    parts: [...(prose ? [{ type: 'text', text: prose }] : []), { type: 'block', kind: 'daySummary', block: card }] }
   return parseResponse(response, '', { response: { status: 200, headers: { 'x-orbit-request-id': test.vars.evalRequestId } } })
 }
 
-it.each(['en', 'pt-BR'])('grades %s next steps through the existing tool, composition and rubric helpers', async (locale) => {
+it.each(['en', 'pt-BR'])('grades %s sentence-first next steps through the existing tool, composition and rubric helpers', async (locale) => {
   const test = scenario(locale)
-  const prose = locale === 'en' ? 'Start with lunch.' : 'Comece pelo seu almoço.'
+  const prose = locale === 'en' ? 'Your lunch is the next step because it is the earliest pending meal.'
+    : 'Seu almoço é o próximo passo por ser a primeira refeição pendente.'
   const output = dailyAnswer(test, prose)
   expect((await structural(output, { vars: test.vars, test })).pass).toBe(true)
   expect(behavior(output, { vars: test.vars }).pass).toBe(true)
