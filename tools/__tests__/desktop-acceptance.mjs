@@ -1,13 +1,13 @@
 import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { readFileSync } from 'node:fs'
-import { join, win32 } from 'node:path'
+import { dirname, join, resolve, win32 } from 'node:path'
 import { createInterface } from 'node:readline'
 import { PassThrough } from 'node:stream'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus } from '../desktop-bench/acceptance-contract.mjs'
-import { T, REPO_ROOT, check, root } from './_harness.mjs'
+import { T, REPO_ROOT, check, configure, failureCount, root } from './_harness.mjs'
 import { networkCases } from './desktop-acceptance-network.mjs'
 
 function rejects(label, operation) {
@@ -285,4 +285,10 @@ export async function cases() {
   const workflow = readFileSync(join(REPO_ROOT, '.github/workflows/desktop-acceptance.yml'), 'utf8')
   T('native acceptance retains both VMs, per-ref cancellation and always-uploaded evidence',
     workflow.includes('runner: [macos-latest, windows-latest]') && workflow.includes('desktop-acceptance-${{ github.ref }}') && workflow.includes('if: always()'))
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  configure({ toolsDir: resolve(dirname(fileURLToPath(import.meta.url)), '..'), self: 'desktop-acceptance' })
+  await cases()
+  process.exitCode = failureCount() === 0 ? 0 : 1
 }

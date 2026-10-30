@@ -44,6 +44,9 @@ static void walk(AXUIElementRef element, NSString *path, NSMutableArray *nodes, 
     NSArray *interactiveRoles = @[@"AXButton", @"AXCheckBox", @"AXRadioButton", @"AXTextField", @"AXTextArea", @"AXComboBox", @"AXPopUpButton", @"AXLink", @"AXSlider", @"AXMenuItem", @"AXTab"];
     node[@"interactive"] = @([interactiveRoles containsObject:role] || [actionNames containsObject:@"AXPress"]);
     NSArray *children = attribute(element, kAXChildrenAttribute, node) ?: @[];
+    // AXContents exposes a scroll area's content separately from its controls: https://developer.apple.com/documentation/applicationservices/kaxcontentsattribute
+    NSArray *contents = attribute(element, kAXContentsAttribute, node) ?: @[];
+    children = [children arrayByAddingObjectsFromArray:contents];
     for (NSUInteger index = 0; index < children.count; index++) {
         walk((__bridge AXUIElementRef)children[index], [path stringByAppendingFormat:@"/%lu", (unsigned long)index], nodes, visited);
     }

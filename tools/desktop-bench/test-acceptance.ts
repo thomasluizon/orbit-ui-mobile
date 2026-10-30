@@ -10,6 +10,7 @@ import { after, test } from 'node:test'
 import { emailReply, acceptanceEmail, acceptanceCode } from './acceptance-mock'
 import { verifyArtifact } from '../../apps/desktop/scripts/release'
 import { assertAccessibleTree, corruptSignature } from './acceptance-contract.mjs'
+import * as acceptanceContract from './acceptance-contract.mjs'
 
 const vector = JSON.parse(readFileSync(new URL('../../apps/desktop/__fixtures__/signer-vector.json', import.meta.url), 'utf8')) as { payload: string; signature: string; publicKey: string; version: string }
 const bytes = Buffer.from(vector.payload)
@@ -43,6 +44,47 @@ test('named page button passes and unnamed controls retain their complete diagno
   for (const role of ['', 'Custom', 'AXUnknown']) {
     assert.throws(() => assertAccessibleTree(tree([{ ...button, role }]), 'win32'))
   }
+})
+
+const runtimeCapture = JSON.parse(readFileSync(new URL('./__fixtures__/uia-runtime-root.json', import.meta.url), 'utf8')) as { nodes: (typeof button)[] }
+const runtimeRoot = runtimeCapture.nodes.at(-1)!
+const runtimeTree = () => ({ denied: false, error: null, nodes: [
+  ...structuredClone(runtimeCapture.nodes),
+  { ...button, id: `${runtimeRoot.id}/0`, role: 'Document', name: 'Today', interactive: false },
+  { ...button, id: `${runtimeRoot.id}/0/0` },
+] })
+
+test('only the captured WebView2 runtime root is excluded while its page controls stay required', () => {
+  assert.equal(assertAccessibleTree(runtimeTree(), 'win32').controls, 1)
+  const unnamedPage = runtimeTree()
+  unnamedPage.nodes.at(-1)!.name = ''
+  assert.throws(() => assertAccessibleTree(unnamedPage, 'win32'), /role and name/)
+  const pane = runtimeTree()
+  Object.assign(pane.nodes.at(-1)!, { role: 'Pane', ClassName: 'app-region', name: '' })
+  assert.throws(() => assertAccessibleTree(pane, 'win32'), /role and name/)
+  assert.throws(() => assertAccessibleTree({ ...runtimeTree(), nodes: runtimeCapture.nodes }, 'win32'), /no web content/)
+  const emptyPage = runtimeTree()
+  emptyPage.nodes.pop()
+  assert.throws(() => assertAccessibleTree(emptyPage, 'win32'), /no interactive controls/)
+})
+
+test('runtime class and framework must match at every level of the native host ancestry', () => {
+  for (let index = 0; index < runtimeCapture.nodes.length; index++) {
+    for (const property of ['FrameworkId', 'ClassName', 'role'] as const) {
+      const snapshot = runtimeTree()
+      snapshot.nodes[index][property] = 'app-control'
+      assert.throws(() => assertAccessibleTree(snapshot, 'win32'), /role and name/, `${index}.${property}`)
+    }
+  }
+  const misplaced = runtimeTree()
+  misplaced.nodes[runtimeCapture.nodes.length - 1].id = `${runtimeRoot.id}/0/1`
+  assert.throws(() => assertAccessibleTree(misplaced, 'win32'), /role and name/)
+  const pageImpostor = runtimeTree()
+  Object.assign(pageImpostor.nodes.at(-1)!, { ...runtimeRoot, id: `${runtimeRoot.id}/0/0` })
+  assert.throws(() => assertAccessibleTree(pageImpostor, 'win32'), /role and name/)
+  const mac = runtimeTree()
+  mac.nodes[runtimeCapture.nodes.length].role = 'AXWebArea'
+  assert.throws(() => assertAccessibleTree(mac, 'darwin'), /role and name/)
 })
 
 for (const role of ['Button', 'Pane']) {
@@ -168,7 +210,7 @@ test('surface inspection writes the entire capture before validating or failing 
   for (const failedCommand of [false, true]) {
     const snapshot = tree([{ ...button, name: '' }])
     const records: { path: string; value: unknown }[] = []
-    const context = { Error, join, process: { platform: 'win32' }, assertAccessibleTree,
+    const context = { Error, join, process: { platform: 'win32' }, ...acceptanceContract, waitFor: async (read: () => Promise<unknown>) => read(),
       record: async (path: string, value: unknown) => { records.push({ path, value }) },
       native: async () => { if (failedCommand) throw new Error('Native reader exited'); return snapshot },
     }
@@ -183,6 +225,102 @@ test('surface inspection writes the entire capture before validating or failing 
   }
 })
 
+function inspectionContext(platform: string) {
+  const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
+  const inspect = runner.slice(runner.indexOf('async function inspectSurfaces'), runner.indexOf('function installedLaunch'))
+  const host = readFileSync(new URL('./host.mjs', import.meta.url), 'utf8')
+  const polling = host.slice(host.indexOf('export async function waitFor('), host.indexOf('export async function waitForHttp'))
+    .replace('export async function', 'async function')
+  let elapsed = 0
+  const records: { path: string; value: unknown }[] = []
+  const context = { Error, join, ...acceptanceContract, process: { platform },
+    Date: { now: () => elapsed }, delay: async (milliseconds: number) => { elapsed += milliseconds },
+    record: async (path: string, value: unknown) => { records.push({ path, value }) },
+  }
+  runInNewContext(`${polling}\n${inspect}\nglobalThis.inspect = inspectSurfaces`, context)
+  return { records, elapsed: () => elapsed,
+    inspect: (context as typeof context & { inspect: (...args: unknown[]) => Promise<void> }).inspect }
+}
+
+test('surface inspection primes and polls the native web content without accepting browser chrome', async () => {
+  for (const platform of ['win32', 'darwin']) {
+    const first = platform === 'win32' ? runtimeTree() : { denied: false, error: null, nodes: [
+      { ...button, id: '0', role: 'AXApplication', interactive: false },
+      { ...button, id: '0/0', role: 'AXGroup', interactive: false },
+    ] }
+    if (platform === 'win32') first.nodes.pop()
+    const ready = platform === 'win32' ? runtimeTree() : { ...tree(), nodes: [
+      { ...button, id: '0', role: 'AXWebArea', interactive: false },
+      { ...button, id: '0/0', role: 'AXButton' },
+    ] }
+    const context = inspectionContext(platform)
+    let calls = 0
+    const report = { accessibility: {} as Record<string, unknown> }
+    const native = async () => ++calls < 3 ? first : ready
+    const proxy = { send: (command: string) => { assert.equal(command, 'astra'); throw new Error('Hoje inspected') } }
+    await assert.rejects(() => context.inspect(proxy, native, { child: { pid: 1 } }, 'output', report), /Hoje inspected/)
+    assert.equal(calls, 3)
+    assert.equal(context.elapsed(), 100)
+    assert.equal(context.records.length, 3)
+    assert.equal(context.records[0].value, first)
+    assert.equal(context.records.at(-1)?.value, ready)
+    assert.deepEqual(report.accessibility.hoje, { controls: 1 })
+  }
+})
+
+test('native web readiness is bounded and keeps the final incomplete tree for diagnosis', async () => {
+  for (const snapshot of [
+    { denied: false, error: null, nodes: [{ ...button, id: '0', role: 'AXGroup', interactive: false }] },
+    { ...tree(), nodes: [{ ...button, id: '0', role: 'AXWebArea', interactive: false }] },
+  ]) {
+    const context = inspectionContext('darwin')
+    const report = { accessibility: {} }
+    await assert.rejects(() => context.inspect({}, async () => snapshot, { child: { pid: 1 } }, 'output', report), /Timed out waiting for hoje native web content/)
+    assert.equal(context.elapsed(), 10000)
+    assert.equal(context.records.length, 200)
+    assert.equal(context.records.at(-1)?.value, snapshot)
+    assert.deepEqual(report.accessibility, {})
+  }
+})
+
+test('native capture failures and unnamed page controls fail immediately during readiness polling', async () => {
+  for (const snapshot of [
+    { ...tree(), error: 'AX read failed' },
+    tree([{ ...button, name: '' }]),
+  ]) {
+    const context = inspectionContext('win32')
+    await assert.rejects(() => context.inspect({}, async () => snapshot, { child: { pid: 1 } }, 'output', { accessibility: {} }),
+      snapshot.error ? /AX read failed/ : /role and name/)
+    assert.equal(context.elapsed(), 0)
+    assert.equal(context.records.length, 1)
+    assert.equal(context.records[0].value, snapshot)
+  }
+})
+
+test('acceptance cleanup records failures without replacing the original acceptance error', async () => {
+  const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
+  const finalization = runner.slice(runner.indexOf('  } catch (error) {\n    report.error = error.stack'), runner.lastIndexOf('\n}'))
+  for (const primary of [undefined, new Error('Native acceptance failed')]) {
+    for (const cleanup of [undefined, new Error('Recording failed')]) {
+      const records: { path: string; value: unknown }[] = []
+      const report = { passed: !primary, cleanupErrors: undefined as string[] | undefined }
+      const context = { Error, join, primary, report, output: 'output', proxy: undefined, finishRecording: undefined,
+        isolation: undefined, builtWeb: false, stopAll: async () => { if (cleanup) throw cleanup },
+        record: async (path: string, value: unknown) => { records.push({ path, value }) },
+      }
+      runInNewContext(`globalThis.finish = async () => { try { if (primary) throw primary\n${finalization}\n}`, context)
+      const finish = (context as typeof context & { finish: () => Promise<void> }).finish
+      if (primary || cleanup) await assert.rejects(finish, primary ? error => error === primary : /Acceptance cleanup failed:.*Recording failed/)
+      else await finish()
+      assert.equal(records.length, 1)
+      assert.equal(records[0].path, join('output', 'report.json'))
+      assert.equal(records[0].value, report)
+      assert.equal(report.passed, !primary && !cleanup)
+      assert.equal(report.cleanupErrors?.length ?? 0, cleanup ? 1 : 0)
+    }
+  }
+})
+
 const nativeFixture = `#import <AppKit/AppKit.h>
 #import <ApplicationServices/ApplicationServices.h>
 static int applicationReads = 0, invalidReads = 0;
@@ -193,6 +331,15 @@ static AXUIElementRef fixtureApplication(pid_t pid) {
         @"AXDOMIdentifier": @"today-button", @"AXDOMClassList": @[@"action"], @"AXSubrole": @"AXTestButton",
         @"AXRoleDescription": @"button", @"AXHidden": @NO};
     NSDictionary *web = @{@"AXRole": @"AXWebArea", @"AXChildren": @[button]};
+    if ([scenario isEqual:@"no-web"]) {
+        return (AXUIElementRef)CFBridgingRetain(@{@"AXRole": @"AXApplication", @"AXChildren": @[@{@"AXRole": @"AXGroup"}]});
+    }
+    if ([scenario hasPrefix:@"scroll-"]) {
+        NSMutableDictionary *scroll = [@{@"AXRole": @"AXScrollArea"} mutableCopy];
+        if (![scenario isEqual:@"scroll-contents"]) scroll[@"AXChildren"] = @[web];
+        if (![scenario isEqual:@"scroll-children"]) scroll[@"AXContents"] = @[web];
+        return (AXUIElementRef)CFBridgingRetain(@{@"AXRole": @"AXApplication", @"AXChildren": @[scroll]});
+    }
     return (AXUIElementRef)CFBridgingRetain(@{@"AXRole": @"AXApplication", @"AXChildren": @[web]});
 }
 static BOOL shouldInvalidate(void) {
@@ -243,6 +390,35 @@ if (process.platform === 'darwin') {
   writeFileSync(source, nativeFixture.replace('NATIVE_SOURCE', JSON.stringify(fileURLToPath(new URL('./acceptance-ax.m', import.meta.url)))))
   const compilation = spawnSync('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', source, '-o', executable], { encoding: 'utf8', timeout: 30000 })
   assert.equal(compilation.status, 0, compilation.stderr)
+  for (const scenario of ['scroll-children', 'scroll-contents', 'scroll-duplicate']) {
+    test(`native AX traversal follows ${scenario} to the web area exactly once`, () => {
+      const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
+      assert.equal(capture.status, 0, capture.stderr)
+      const snapshot = JSON.parse(capture.stdout)
+      assert.equal(snapshot.error, null)
+      assert.equal(assertAccessibleTree(snapshot, 'darwin').controls, 1)
+      assert.equal(snapshot.nodes.filter(node => node.role === 'AXWebArea').length, 1)
+      assert.equal(snapshot.nodes.filter(node => node.role === 'AXButton').length, 1)
+      const document = snapshot.nodes.find(node => node.role === 'AXWebArea')
+      const control = snapshot.nodes.find(node => node.role === 'AXButton')
+      assert.ok(control.id.startsWith(`${document.id}/`))
+    })
+  }
+  test('native AX reader preserves an uninitialized WKWebView group until a later capture exposes its remote child', async () => {
+    const context = inspectionContext('darwin')
+    let calls = 0
+    const native = async () => {
+      const capture = spawnSync(executable, [++calls === 1 ? 'no-web' : 'scroll-contents'], { encoding: 'utf8', timeout: 10000 })
+      assert.equal(capture.status, 0, capture.stderr)
+      return JSON.parse(capture.stdout)
+    }
+    const proxy = { send: () => { throw new Error('Hoje inspected') } }
+    const report = { accessibility: {} as Record<string, unknown> }
+    await assert.rejects(() => context.inspect(proxy, native, { child: { pid: 1 } }, 'output', report), /Hoje inspected/)
+    assert.equal(calls, 2)
+    assert.deepEqual(report.accessibility.hoje, { controls: 1 })
+    assert.equal(context.records.length, 2)
+  })
   for (const scenario of ['success', 'once', 'twice', 'other', 'attribute-once', 'root-once']) {
     test(`native AX traversal ${scenario} preserves the tree and retries only invalid elements once`, () => {
       const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })

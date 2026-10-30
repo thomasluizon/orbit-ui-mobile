@@ -10,7 +10,7 @@ import { readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
 import { assertFree, execute, start, stopAll, waitFor, waitForHttp } from './host.mjs'
 import { buildInstaller, desktopOrigin, install, isolateOrigins, startHttpsListener, startRecording } from './acceptance-platform.mjs'
-import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature } from './acceptance-contract.mjs'
+import { NativeTreePendingError, assertAccessibleTree, assertCookieEvidence, assertPaletteFocus, corruptSignature } from './acceptance-contract.mjs'
 
 const require = createRequire(import.meta.url)
 const directory = dirname(fileURLToPath(import.meta.url))
@@ -103,16 +103,25 @@ async function updateServer(repository, output, shell, report) {
 
 async function inspectSurfaces(proxy, native, handle, output, report) {
   const dump = async (surface) => {
-    let tree
-    try {
-      tree = await native(handle.child.pid, 'dump')
-    } catch (error) {
-      await record(join(output, 'trees', `${surface}.json`), { denied: false, error: error.message, nodes: [] })
-      throw error
-    }
-    await record(join(output, 'trees', `${surface}.json`), tree)
-    report.accessibility[surface] = assertAccessibleTree(tree, process.platform)
-    return tree
+    // WebKit initializes remote AX children on demand: https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/mac/WebViewImpl.mm
+    const captured = await waitFor(async () => {
+      let tree
+      try {
+        tree = await native(handle.child.pid, 'dump')
+      } catch (error) {
+        await record(join(output, 'trees', `${surface}.json`), { denied: false, error: error.message, nodes: [] })
+        throw error
+      }
+      await record(join(output, 'trees', `${surface}.json`), tree)
+      try {
+        return { tree, verdict: assertAccessibleTree(tree, process.platform) }
+      } catch (error) {
+        if (error instanceof NativeTreePendingError) return false
+        throw error
+      }
+    }, `${surface} native web content`, 10000)
+    report.accessibility[surface] = captured.verdict
+    return captured.tree
   }
   await dump('hoje')
   proxy.send('astra')
@@ -218,6 +227,6 @@ export async function acceptance({ repository, output }) {
     }
     if (failures.length) { report.passed = false; report.cleanupErrors = failures }
     await record(join(output, 'report.json'), report)
-    if (failures.length) throw new Error(`Acceptance cleanup failed: ${failures.join('\n')}`)
   }
+  if (report.cleanupErrors?.length) throw new Error(`Acceptance cleanup failed: ${report.cleanupErrors.join('\n')}`)
 }
