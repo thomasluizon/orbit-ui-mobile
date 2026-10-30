@@ -32,6 +32,10 @@ export function beforeSendEvent(event: ErrorEvent, hint: EventHint): ErrorEvent 
  * chat content). The opaque user id, route, and HTTP method are retained as non-PII diagnostics.
  */
 export function scrubEvent(event: ErrorEvent): ErrorEvent {
+  if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+    const version = (window as Window & { __ORBIT_DESKTOP_VERSION__?: unknown }).__ORBIT_DESKTOP_VERSION__
+    event.tags = { ...event.tags, desktop_shell_version: typeof version === 'string' ? version : 'unknown' }
+  }
   if (event.user) {
     delete event.user.email
     delete event.user.username

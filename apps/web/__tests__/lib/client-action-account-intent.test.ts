@@ -1,3 +1,5 @@
+import { QueryObserver, QueryClient } from '@tanstack/react-query'
+import { shouldRetryQuery } from '@orbit/shared/query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { wrapServerAction } from '@/app/actions/action-result'
 import { createApiClientError } from '@orbit/shared'
@@ -40,6 +42,7 @@ const reloadMock = vi.fn()
 
 describe('client account intent', () => {
   beforeEach(() => {
+    sessionStorage.clear()
     setAccountEventOrigin(null)
     account.id = 'account-a'
     account.generation = 1
@@ -131,6 +134,7 @@ describe('client account intent', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0))
 
+    expect(reloadMock).toHaveBeenCalledOnce()
     expect(useVersionGateStore.getState().reloadReason).toBe('appUpdated')
     expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(onUnexpectedRejection).not.toHaveBeenCalled()
@@ -148,7 +152,7 @@ describe('client account intent', () => {
     expect(screen.getByText(en.errors.api.appUpdated)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'versionUpdate.laterCta' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: en.errors.api.reload }))
-    expect(reloadMock).toHaveBeenCalledOnce()
+    expect(reloadMock).toHaveBeenCalledTimes(2)
     expect(onUnexpectedRejection).not.toHaveBeenCalled()
   })
 
@@ -173,4 +177,22 @@ it('preserves validation fields and paired codes through the action boundary', a
   const result = await wrapServerAction(async () => { throw createApiClientError(400, payload, 'Fallback') })
   expect(result).toMatchObject({ ok: false, fieldErrors: payload.errors, errorDetails: payload.errorDetails })
   await expect(runServerAction(Promise.resolve(result))).rejects.toMatchObject({ fieldErrors: payload.errors, errorDetails: payload.errorDetails })
+})
+
+
+it('stops retrying an action from an obsolete desktop web build and reloads once', async () => {
+  sessionStorage.clear()
+  const client = new QueryClient({ defaultOptions: { queries: { retry: shouldRetryQuery, retryDelay: 0 } } })
+  const invoke = vi.fn(async () => runServerAction(Promise.reject(new UnrecognizedActionError('Unknown action')), 'reject'))
+  const query = new QueryObserver(client, { queryKey: ['obsolete-action'], queryFn: invoke })
+  const stop = query.subscribe(() => {})
+  try {
+    await vi.waitFor(() => expect(query.getCurrentResult().isError).toBe(true))
+    expect(invoke).toHaveBeenCalledOnce()
+    expect(reloadMock).toHaveBeenCalled()
+    const count = reloadMock.mock.calls.length
+    await query.refetch()
+    expect(reloadMock).toHaveBeenCalledTimes(count)
+    expect(query.getCurrentResult().error).toMatchObject({ status: 409, code: 'STALE_WEB_BUILD' })
+  } finally { stop(); client.clear() }
 })

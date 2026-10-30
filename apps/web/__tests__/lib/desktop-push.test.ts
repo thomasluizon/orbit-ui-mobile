@@ -34,6 +34,7 @@ beforeEach(() => {
   current = saved
   pending = []
   installWebLocks()
+  Object.defineProperty(window, '__ORBIT_DESKTOP_COMMANDS__', { configurable: true, value: ['desktop_push'] })
   Object.defineProperty(window, '__TAURI_INTERNALS__', { configurable: true, value: { invoke: mocks.invoke } })
   mocks.subscribe.mockResolvedValue(undefined)
   mocks.unsubscribe.mockResolvedValue(undefined)
@@ -48,7 +49,7 @@ beforeEach(() => {
     return snapshot()
   })
 })
-afterEach(() => { Reflect.deleteProperty(window, '__TAURI_INTERNALS__'); vi.unstubAllGlobals() })
+afterEach(() => { Reflect.deleteProperty(window, '__TAURI_INTERNALS__'); Reflect.deleteProperty(window, '__ORBIT_DESKTOP_COMMANDS__'); vi.unstubAllGlobals() })
 
 describe('desktop push through the native bridge', () => {
   it('persists the attempted endpoint before the API write so sign-out can revoke an uncertain renewal', async () => {
@@ -199,4 +200,15 @@ describe('desktop push through the native bridge', () => {
     expect(result.subscribed).toBe(false)
     expect(mocks.subscribe).not.toHaveBeenCalled()
   })
+})
+
+
+it('keeps undeclared push commands inert in older desktop shells', async () => {
+  Reflect.deleteProperty(window, '__ORBIT_DESKTOP_COMMANDS__')
+  expect(await loadDesktopPush('account-a')).toMatchObject({ supported: false, status: 'unsupported' })
+  await resumeDesktopPush('account-a')
+  await releaseDesktopPush('account-a')
+  expect(await ensureDesktopPush()).toMatchObject({ supported: false, status: 'unsupported' })
+  expect(mocks.invoke).not.toHaveBeenCalled()
+  expect(mocks.subscribe).not.toHaveBeenCalled()
 })

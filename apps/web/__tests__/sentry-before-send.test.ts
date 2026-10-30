@@ -175,3 +175,12 @@ it('scrubs event stream tickets from URLs and breadcrumb messages while retainin
   expect(result.breadcrumbs?.[2]?.data?.to).toBe('/api/events?cursor=next&ticket=[Filtered]')
   expect(result.breadcrumbs?.[3]?.data?.url).toBe('/api/events/ticket')
 })
+
+
+it('tags webview errors with the running shell version', () => {
+  vi.stubGlobal('__TAURI_INTERNALS__', { invoke: vi.fn() })
+  vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', '0.1.12')
+  try {
+    expect(beforeSendEvent({ type: undefined }, {})?.tags?.desktop_shell_version).toBe('0.1.12')
+  } finally { vi.unstubAllGlobals() }
+})

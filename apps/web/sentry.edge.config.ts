@@ -5,6 +5,7 @@ const dsn = process.env.SENTRY_DSN
 
 Sentry.init({
   dsn,
+  release: process.env.NEXT_PUBLIC_WEB_COMMIT_SHA || undefined,
   enabled: Boolean(dsn),
   environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || 'production',
   tracesSampleRate: 0,
