@@ -50,12 +50,14 @@ window.reloadReorderFixture = async () => {
   mount()
 }
 const root = createRoot(document.getElementById('root')!)
-let generation = 0
+let mountCount = 0
 function mount() {
+  mountCount += 1
+  const listKey = `mount-${mountCount}`
   root.render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
     <QueryClientProvider client={client}><TodayProvider>
       <div data-shell-scroller style={{ height: '100dvh', overflow: 'auto', paddingTop: 24 }}>
-        <HabitList key={generation++} view="today" filters={{ dateFrom: date, dateTo: date, includeOverdue: true }} />
+        <HabitList key={listKey} view="today" filters={{ dateFrom: date, dateTo: date, includeOverdue: true }} />
       </div>
     </TodayProvider></QueryClientProvider>
   </NextIntlClientProvider>)
