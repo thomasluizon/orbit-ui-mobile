@@ -103,3 +103,21 @@ export function captureScreen(name: string): void {
 export function capturePurchase(event: 'purchase_started' | 'purchase_verified', store: 'play' | 'app_store'): void {
   if (posthog && analyticsEnabled) void posthog.capture(event, { store })
 }
+
+export function captureAndroidUpdateCheck(properties: {
+  outcome: 'success' | 'error'
+  play_status: number | null
+  available_version_code: number | null
+  installed_version_code: number
+  play_error_code: number | null
+}): void {
+  if (posthog && analyticsEnabled) void posthog.capture('android_update_checked', properties)
+}
+
+export function captureAndroidUpdateSheetShown(properties: {
+  sheet: 'available' | 'ready'
+  available_version_code: number | null
+  installed_version_code: number
+}): void {
+  if (posthog && analyticsEnabled) void posthog.capture('android_update_sheet_shown', properties)
+}

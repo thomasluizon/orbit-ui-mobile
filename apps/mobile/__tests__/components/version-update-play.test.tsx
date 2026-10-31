@@ -2,6 +2,8 @@ import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VersionUpdateDrawer } from '@/components/version-update-drawer'
+import * as Sentry from '@sentry/react-native'
+import { captureAndroidUpdateCheck, captureAndroidUpdateSheetShown } from '@/lib/posthog'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 interface TestNode {
@@ -29,6 +31,11 @@ const mocks = vi.hoisted(() => ({
   setItem: vi.fn(),
   resumeListeners: new Set<(state: string) => void>(),
   nativeListeners: new Map<string, Set<(event: unknown) => void>>(),
+}))
+
+vi.mock('@/lib/posthog', () => ({
+  captureAndroidUpdateCheck: vi.fn(),
+  captureAndroidUpdateSheetShown: vi.fn(),
 }))
 
 vi.mock('expo-application', () => ({
@@ -142,6 +149,77 @@ afterEach(async () => {
 })
 
 describe('Play update sheet selection', () => {
+  it('records the Play result once per check and the sheet once per presentation', async () => {
+    await mount()
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'success', play_status: 2, available_version_code: 141,
+      installed_version_code: 140, play_error_code: null,
+    })
+    expect(captureAndroidUpdateSheetShown).toHaveBeenCalledExactlyOnceWith({
+      sheet: 'available', available_version_code: 141, installed_version_code: 140,
+    })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(captureAndroidUpdateSheetShown).toHaveBeenCalledOnce()
+    await TestRenderer.act(() => {
+      for (const listener of mocks.resumeListeners) listener('active')
+    })
+    await flushQueries()
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledTimes(2)
+    expect(captureAndroidUpdateSheetShown).toHaveBeenCalledOnce()
+  })
+  it('reports a failed Play check with its install error code once without retrying', async () => {
+    mocks.checkNeedsUpdate.mockRejectedValue(new Error('Install Error(-9): The Play Store app is either not installed or not the official version.'))
+    await mount()
+    expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: expect.stringContaining('Install Error(-9)') }),
+      expect.objectContaining({ extra: { installed_version_code: 140, play_error_code: -9 } }),
+    )
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'error', play_status: null, available_version_code: null,
+      installed_version_code: 140, play_error_code: -9,
+    })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(mocks.checkNeedsUpdate).toHaveBeenCalledOnce()
+    expect(Sentry.captureException).toHaveBeenCalledOnce()
+    expect(sheetTitles()).toEqual([])
+    expect(captureAndroidUpdateSheetShown).not.toHaveBeenCalled()
+  })
+  it('records an unavailable Play result without inventing a store version', async () => {
+    mocks.checkNeedsUpdate.mockResolvedValue({
+      updateAvailability: 1, isImmediateUpdateAllowed: false, isFlexibleUpdateAllowed: false,
+      updatePriority: 0, versionCode: 140, packageName: 'org.useorbit.app.staging', totalBytes: 0,
+    })
+    await mount()
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'success', play_status: 1, available_version_code: 140,
+      installed_version_code: 140, play_error_code: null,
+    })
+    expect(sheetTitles()).toEqual([])
+    expect(captureAndroidUpdateSheetShown).not.toHaveBeenCalled()
+  })
+  it('does not snooze versionCode 181 after snoozing 180 in the same session', async () => {
+    mocks.offeredBuild = 180
+    await mount()
+    await press('versionUpdate.laterCta')
+    expect(sheetTitles()).toEqual([])
+    mocks.offeredBuild = 181
+    await TestRenderer.act(() => {
+      for (const listener of mocks.resumeListeners) listener('active')
+    })
+    await flushQueries()
+    expect(sheetTitles()).toEqual(['versionUpdate.title'])
+  })
+  it('does not let a stored snooze for versionCode 180 hide 181', async () => {
+    mocks.offeredBuild = 181
+    mocks.getItem.mockResolvedValue(JSON.stringify({ versionCode: '180', until: Date.now() + 86_400_000 }))
+    await mount()
+    expect(sheetTitles()).toEqual(['versionUpdate.title'])
+  })
+  it('expires the legacy untyped Android snooze', async () => {
+    mocks.getItem.mockResolvedValue(String(Date.now() + 86_400_000))
+    await mount()
+    expect(sheetTitles()).toEqual(['versionUpdate.title'])
+  })
   it('shows no sheet when Play offers the installed version code', async () => {
     mocks.offeredBuild = 140
     await mount()
@@ -193,8 +271,10 @@ describe('Play update sheet selection', () => {
     await mount()
     await press('versionUpdate.laterCta')
     const snoozedUntil = Date.now() + 24 * 60 * 60 * 1000
-    expect(mocks.setItem).toHaveBeenCalledWith('orbit:version-update-snoozed-until', String(snoozedUntil))
-    mocks.getItem.mockResolvedValue(String(snoozedUntil))
+    expect(mocks.setItem).toHaveBeenCalledWith('orbit:version-update-snoozed-until', expect.any(String))
+    const storedSnooze = mocks.setItem.mock.calls[0]?.[1] as string
+    expect(JSON.parse(storedSnooze)).toEqual({ versionCode: '141', until: snoozedUntil })
+    mocks.getItem.mockResolvedValue(storedSnooze)
     await unmount()
     await mount()
     expect(sheetTitles()).toEqual([])

@@ -35,6 +35,29 @@ describe('mobile PostHog adapter', () => {
     expect(client.reset).toHaveBeenCalledOnce()
   })
 
+  it('gates Android update diagnostics through the analytics preference', async () => {
+    vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
+    const analytics = await import('@/lib/posthog')
+    const check = {
+      outcome: 'success' as const, play_status: 2, available_version_code: 181,
+      installed_version_code: 178, play_error_code: null,
+    }
+    const sheet = { sheet: 'available' as const, available_version_code: 181, installed_version_code: 178 }
+    await analytics.applyPostHogGate(false)
+    analytics.captureAndroidUpdateCheck(check)
+    analytics.captureAndroidUpdateSheetShown(sheet)
+    expect(analytics.posthog!.capture).not.toHaveBeenCalled()
+    await analytics.applyPostHogGate(true)
+    analytics.captureAndroidUpdateCheck(check)
+    analytics.captureAndroidUpdateSheetShown(sheet)
+    expect(analytics.posthog!.capture).toHaveBeenNthCalledWith(1, 'android_update_checked', check)
+    expect(analytics.posthog!.capture).toHaveBeenNthCalledWith(2, 'android_update_sheet_shown', sheet)
+    await analytics.setAnalyticsOptOut(true)
+    analytics.captureAndroidUpdateCheck(check)
+    analytics.captureAndroidUpdateSheetShown(sheet)
+    expect(analytics.posthog!.capture).toHaveBeenCalledTimes(2)
+  })
+
   it('opts out and suppresses captures when the server flag is off', async () => {
     vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
     const analytics = await import('@/lib/posthog')
