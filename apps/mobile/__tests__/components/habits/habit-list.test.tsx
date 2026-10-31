@@ -1,3 +1,4 @@
+import { withTimingCalls } from '@/test-mocks/react-native-reanimated'
 import { testI18n } from '@/__tests__/support/i18n'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { resetAccountQueries } from '@orbit/shared/query'
@@ -3459,6 +3460,38 @@ describe('HabitList', () => {
         { habitId: 'first', position: 1 },
       ],
     })
+  })
+
+  it('lets native draggable cells own position changes during collapse and drop', async () => {
+    const parent = createMockHabit({ id: 'drag-parent', title: 'Parent', position: 0, hasSubHabits: true })
+    const child = createMockHabit({ id: 'drag-child', title: 'Child', parentId: parent.id, position: 0 })
+    const siblings = [1, 2, 3].map((position) => createMockHabit({ id: `drag-${position}`, title: `Habit ${position}`, position }))
+    seedHabits([parent, child, ...siblings])
+    const element = <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = createTestTree(element) })
+    await TestRenderer.act(() => {
+      for (const row of tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) =>
+        String(node.type) === 'AnimatedView' && String(node.props.testID).startsWith('habit-motion-'))) {
+        row.props.onLayout({ nativeEvent: { layout: { height: 80 } } })
+      }
+    })
+    withTimingCalls.length = 0
+    await TestRenderer.act(() => {
+      tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) =>
+        typeof node.props.onLongPress === 'function' && isInteractiveRow(node))[0]!.props.onLongPress()
+    })
+    expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: import('react-test-renderer').ReactTestInstance) => (row.props.habit as NormalizedHabit).id)).toEqual([parent.id, ...siblings.map((habit) => habit.id)])
+    expect(withTimingCalls.filter((call) => call.value === 0)).toEqual([])
+    await TestRenderer.act(async () => {
+      await tree.root.findByType('DraggableFlatList').props.onDragEnd({ from: 0, to: 2 })
+    })
+    expect(reorderMutateAsync).toHaveBeenCalledWith({ positions: [
+      { habitId: 'drag-1', position: 0 }, { habitId: 'drag-2', position: 1 },
+      { habitId: parent.id, position: 2 }, { habitId: 'drag-3', position: 3 },
+    ] })
+    expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: import('react-test-renderer').ReactTestInstance) => (row.props.habit as NormalizedHabit).id)).toEqual([parent.id, child.id, ...siblings.map((habit) => habit.id)])
+    expect(withTimingCalls.filter((call) => call.value === 0)).toEqual([])
   })
 
   it('renders every row with calibrated render-window props while keeping reorder working', async () => {

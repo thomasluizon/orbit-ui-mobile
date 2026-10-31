@@ -31,7 +31,7 @@ describe('sortable habit stacking', () => {
     )
 
     expect(screen.getByText('Read').parentElement).toHaveStyle({
-      opacity: '0.5',
+      opacity: '1',
       zIndex: '1',
     })
   })
