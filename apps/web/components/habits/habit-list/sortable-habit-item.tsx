@@ -34,7 +34,7 @@ export function SortableHabitItem({
   }
 
   return (
-    <div ref={setNodeRef} className="rounded-[20px]" style={style} {...rowListeners}>
+    <div ref={setNodeRef} data-sortable-habit={id} className="rounded-[20px]" style={style} {...rowListeners}>
       {children}
     </div>
   )

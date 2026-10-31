@@ -37,24 +37,47 @@ beforeAll(async () => {
 }, 30_000)
 afterAll(async () => { await closeChrome(launch) })
 
-it.each([412, 1280])('keeps real sortable rows visible across a two-row drag at %spx', async (width) => {
+const cases = [412, 1280].flatMap((width) => (['light', 'dark'] as const).flatMap((mode) =>
+  ['Habit 1', 'Habit 0'].map((title) => ({ width, mode, title }))))
+
+it.each(cases)('keeps $title visible across a two-row drag at $width px in $mode', async ({ width, mode, title }) => {
   const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'no-preference' })
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   try {
-    await page.route('https://habit-list.test/', (route) => route.fulfill({ contentType: 'text/html', body: `<!doctype html><style>${stylesheet}</style><div id="root"></div>` }))
+    const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+    await page.route('https://habit-list.test/', (route) => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html class="${mode}"><style>${stylesheet}:root{${variables}}</style><div id="root"></div>` }))
     await page.goto('https://habit-list.test/')
     await page.addScriptTag({ content: script })
     const rows = page.locator('[data-testid="habit-row"]')
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 6)
-    const source = page.locator('[data-habit-title="Habit 1"] [data-habit-row-body]')
-    const target = page.locator('[data-habit-title="Habit 3"]')
-    const start = await source.boundingBox()
-    const end = await target.boundingBox()
-    if (!start || !end) throw new Error('Missing drag rows')
+    const source = page.locator(`[data-habit-title="${title}"] [data-habit-row-body]`)
+    const target = page.locator(`[data-habit-title="${title === 'Habit 0' ? 'Habit 2' : 'Habit 3'}"]`)
+    const expected = title === 'Habit 0' ? ['Habit 1', 'Habit 2', 'Habit 0', 'Child', 'Habit 3', 'Habit 4']
+      : ['Habit 0', 'Child', 'Habit 2', 'Habit 3', 'Habit 1', 'Habit 4']
+    let start = await source.boundingBox()
+    if (!start) throw new Error('Missing drag row')
+    if (title === 'Habit 0') {
+      await page.mouse.move(start.x + 12, start.y + start.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(start.x + 12, start.y + start.height / 2 + 8)
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 5)
+      await page.keyboard.press('Escape')
+      await page.mouse.up()
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 6, undefined, { timeout: 1000 })
+      expect(await page.evaluate(() => window.reorderRequests)).toEqual([])
+      start = await source.boundingBox()
+      if (!start) throw new Error('Missing restored parent')
+    }
     await page.mouse.move(start.x + 12, start.y + start.height / 2)
     await page.mouse.down()
     await page.mouse.move(start.x + 12, start.y + start.height / 2 + 8)
+    if (title === 'Habit 0') await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 5, undefined, { timeout: 2000 })
+    const end = await target.evaluate((row) => {
+      const box = row.getBoundingClientRect()
+      const transform = new DOMMatrixReadOnly(getComputedStyle(row.closest('[data-sortable-habit]')!).transform)
+      return { y: box.top - transform.m42, height: box.height }
+    })
     await page.mouse.move(start.x + 12, end.y + end.height / 2, { steps: 20 })
     const during = await rows.evaluateAll((elements) => elements.map((row) => {
       const box = row.getBoundingClientRect()
@@ -63,16 +86,21 @@ it.each([412, 1280])('keeps real sortable rows visible across a two-row drag at 
         const hit = document.elementFromPoint(x, box.top + box.height * fraction)
         return hit !== null && row.contains(hit)
       })
-      return { title: row.getAttribute('data-habit-title'), top: box.top, bottom: box.bottom,
-        visible }
+      let opaque = true
+      for (let node: Element | null = row; node; node = node.parentElement) opaque &&= getComputedStyle(node).opacity === '1'
+      return { title: row.getAttribute('data-habit-title'), top: box.top, bottom: box.bottom, visible: visible && opaque }
     }))
     expect(during.filter((row) => !row.visible), JSON.stringify({ during, errors })).toEqual([])
     await page.mouse.up()
-    await page.waitForFunction(() => window.reorderRequests.length === 1)
-    await page.waitForFunction(() => [...document.querySelectorAll('[data-habit-title]')].filter((row) => row.getAttribute('data-depth') === '0').map((row) => row.getAttribute('data-habit-title')).join(',') === 'Habit 0,Habit 2,Habit 3,Habit 1,Habit 4')
+    await page.waitForFunction(() => window.reorderRequests.length === 1, undefined, { timeout: 2000 })
+    await page.waitForFunction((titles) => [...document.querySelectorAll('[data-testid="habit-row"]')].map((row) => row.getAttribute('data-habit-title')).join(',') === titles.join(','), expected, { timeout: 2000 }).catch(async (cause: unknown) => {
+      throw new Error(JSON.stringify({ expected, actual: await rows.evaluateAll((elements) => elements.map((row) => row.getAttribute('data-habit-title'))), requests: await page.evaluate(() => window.reorderRequests) }), { cause })
+    })
     await page.waitForFunction(() => {
       const boxes = [...document.querySelectorAll('[data-testid="habit-row"]')].map((row) => row.getBoundingClientRect())
-      return boxes.every((box, index) => index === 0 || Math.abs(box.top - boxes[index - 1]!.bottom) <= 13)
+      return boxes.every((box, index) => index === 0 || (box.top - boxes[index - 1]!.bottom >= 7 && box.top - boxes[index - 1]!.bottom <= 13))
+    }, undefined, { timeout: 2000 }).catch(async (cause: unknown) => {
+      throw new Error(JSON.stringify(await rows.evaluateAll((elements) => elements.map((row) => { const box = row.getBoundingClientRect(); return { title: row.getAttribute('data-habit-title'), top: box.top, bottom: box.bottom } }))), { cause })
     })
     const geometry = await rows.evaluateAll((elements) => elements.map((row) => {
       const box = row.getBoundingClientRect()
@@ -81,7 +109,7 @@ it.each([412, 1280])('keeps real sortable rows visible across a two-row drag at 
     for (let index = 1; index < geometry.length; index++) expect(geometry[index]!.top - geometry[index - 1]!.bottom).toBeLessThanOrEqual(13)
     await page.evaluate(() => window.reloadReorderFixture())
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 6)
-    expect(await rows.evaluateAll((elements) => elements.map((row) => row.getAttribute('data-habit-title')))).toEqual(['Habit 0', 'Child', 'Habit 2', 'Habit 3', 'Habit 1', 'Habit 4'])
+    expect(await rows.evaluateAll((elements) => elements.map((row) => row.getAttribute('data-habit-title')))).toEqual(expected)
     expect(errors).toEqual([])
   } finally { await page.close() }
 })

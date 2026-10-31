@@ -46,7 +46,7 @@ export function MotionDisclosure({ expanded, id, children, positionMotion = true
   const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
   const [visible, setVisible] = useState(expanded)
   if (expanded && !visible) setVisible(true)
-  if (!positionMotion) return <div id={id} hidden={!expanded} data-motion-disclosure="" className="habit-row-group">
+  if (!positionMotion) return <div id={id} hidden={!expanded} inert={!expanded} aria-hidden={!expanded || undefined} data-motion-disclosure="" className="habit-row-group">
     <div className="flex flex-col gap-2" style={{ height: 'auto', opacity: 1 }}>{children}</div>
   </div>
   return <div id={id} hidden={!expanded && (!visible || reduced)} inert={!expanded} aria-hidden={!expanded || undefined} data-motion-disclosure="" className="habit-row-group overflow-hidden">

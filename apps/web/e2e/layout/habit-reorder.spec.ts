@@ -1,0 +1,87 @@
+import { expect } from '@playwright/test'
+import { API } from '@orbit/shared/api'
+import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { profileSchema } from '@orbit/shared/types/profile'
+import { applyReorderPositions } from '../../lib/habit-mutation-helpers'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
+import { test } from './layout-test'
+import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
+
+for (const width of [320, 360, 384, 412, 600, 768, 1280]) for (const mode of ['light', 'dark'] as const) {
+  test(`Hoje reorder keeps visible rows and contiguous slots at ${width}px in ${mode}`, async ({ page, context }) => {
+    await page.setViewportSize({ width, height: 915 })
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    const date = '2026-09-04'
+    const child = makeHabitScheduleItem({ id: 'child', title: 'Child', children: [], hasSubHabits: false, scheduledDates: [date] })
+    const items = Array.from({ length: 5 }, (_, position) => makeHabitScheduleItem({
+      id: `root-${position}`, title: `Habit ${position}`, position, dueDate: date, scheduledDates: [date],
+      children: position === 0 ? [child] : [], hasSubHabits: position === 0,
+    }))
+    const order = [0, 2, 3, 1, 4]
+    const reordered = applyReorderPositions(items, order.map((index, position) => ({ habitId: `root-${index}`, position })))
+    const profile = profileSchema.parse({ ...profileFixture, themePreference: mode, language: 'en', timeZone: 'UTC' })
+    await setLayoutProfileSession(context, profile)
+    await setLayoutFixtureSession(context, [
+      { path: API.profile.get, body: profile },
+      { path: API.habits.count, body: { count: 6 } },
+      { path: API.habits.list, body: { ...emptyHabitsPageFixture, items, totalCount: 5 },
+        afterMutation: { method: 'PUT', path: API.habits.reorder, body: { ...emptyHabitsPageFixture, items: reordered, totalCount: 5 } } },
+    ])
+    await page.goto('/')
+    const rows = page.getByTestId('habit-row')
+    await expect(rows).toHaveCount(6)
+    await page.evaluate(() => document.fonts.ready)
+    const source = page.locator('[data-habit-title="Habit 1"]')
+    const start = await source.locator('[data-habit-row-body]').boundingBox()
+    const target = await page.locator('[data-habit-title="Habit 3"]').boundingBox()
+    if (!start || !target) throw new Error('Missing reorder rows')
+    await page.mouse.move(start.x + 12, start.y + start.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(start.x + 12, start.y + start.height / 2 + 8)
+    const observations = rows.evaluateAll((elements) => new Promise<string[]>((resolve) => {
+      const list = elements[0]!.closest('[data-habit-list]')!
+      const failures = new Set<string>()
+      const started = performance.now()
+      const sample = () => {
+        const slots = Array.from(list.querySelectorAll('[data-testid="habit-row"]')).map((row) => {
+          const bounds = row.getBoundingClientRect()
+          const sortable = row.closest('[data-sortable-habit]')!
+          const transform = new DOMMatrixReadOnly(getComputedStyle(sortable).transform)
+          const title = row.getAttribute('data-habit-title')!
+          let top = bounds.top
+          let bottom = bounds.bottom
+          for (let ancestor: Element | null = row; ancestor; ancestor = ancestor.parentElement) {
+            const style = getComputedStyle(ancestor)
+            if (style.opacity !== '1' || style.visibility === 'hidden' || style.display === 'none') failures.add(`${title}: hidden`)
+            if (['hidden', 'clip'].includes(style.overflowY)) {
+              const clip = ancestor.getBoundingClientRect()
+              top = Math.max(top, clip.top)
+              bottom = Math.min(bottom, clip.bottom)
+            }
+          }
+          if (bottom - top < 1) failures.add(`${title}: clipped`)
+          const scroller = row.closest<HTMLElement>('[data-shell-scroller]')!
+          const contentTop = bounds.top - scroller.getBoundingClientRect().top + scroller.scrollTop
+          if (contentTop + bounds.height < 0 || contentTop > scroller.scrollHeight) failures.add(`${title}: unreachable`)
+          return { top: bounds.top - transform.m42, bottom: bounds.bottom - transform.m42 }
+        })
+        for (let index = 1; index < slots.length; index++) {
+          if (slots[index]!.top - slots[index - 1]!.bottom > 13) failures.add('Row slots exceed the shared gap')
+        }
+        if (performance.now() - started >= 750) resolve([...failures])
+        else requestAnimationFrame(sample)
+      }
+      requestAnimationFrame(sample)
+    }))
+    await page.mouse.move(start.x + 12, target.y + target.height / 2, { steps: 20 })
+    await page.mouse.up()
+    expect(await observations).toEqual([])
+    const expected = ['Habit 0', 'Child', 'Habit 2', 'Habit 3', 'Habit 1', 'Habit 4']
+    await expect.poll(() => rows.evaluateAll((elements) => elements.map((row) => row.getAttribute('data-habit-title')))).toEqual(expected)
+    await expect.poll(() => rows.evaluateAll((elements) => elements.every((row, index) => index === 0 || row.getBoundingClientRect().top - elements[index - 1]!.getBoundingClientRect().bottom <= 13))).toBe(true)
+    await page.reload()
+    await expect.poll(() => rows.evaluateAll((elements) => elements.map((row) => row.getAttribute('data-habit-title')))).toEqual(expected)
+    await expect.poll(() => rows.evaluateAll((elements) => elements.every((row, index) => index === 0 || row.getBoundingClientRect().top - elements[index - 1]!.getBoundingClientRect().bottom <= 13))).toBe(true)
+  })
+}

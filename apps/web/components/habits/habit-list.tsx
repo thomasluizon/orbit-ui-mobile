@@ -750,6 +750,10 @@ export function HabitList({
       }
     }
 
+    restoreAfterDrag()
+  }
+
+  function restoreAfterDrag() {
     setIsDragging(false)
     setDragOverrideItems(null)
 
@@ -1442,6 +1446,7 @@ export function HabitList({
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={restoreAfterDrag}
       >
         <SortableContext
           items={activeDragItems.map((item) => item.id)}
