@@ -1,3 +1,4 @@
+import { useChatStore } from '@/stores/chat-store'
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { API } from "@orbit/shared/api";
@@ -40,7 +41,7 @@ export function usePendingOperationExecution({
   handleExecutedOperation,
 }: UsePendingOperationExecutionOptions) {
   const { t, i18n } = useTranslation();
-  const getClientContext = useCallback(() => buildChatClientContext({ platform: 'mobile', locale: i18n.language }), [i18n.language]);
+  const getClientContext = useCallback(() => buildChatClientContext({ platform: 'mobile', locale: i18n.language, conversationId: useChatStore.getState().conversationId ?? undefined }), [i18n.language]);
   const [batchCount, setBatchCount] = useState(0);
   const trackBatch = useCallback(async <Result,>(operation: () => Promise<Result>) => {
     setBatchCount((count) => count + 1);

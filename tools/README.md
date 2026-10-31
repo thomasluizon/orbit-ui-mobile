@@ -83,6 +83,7 @@ for source selection, evidence limits and Open recovery.
 | Tool | What it does | Usage |
 |---|---|---|
 | `desktop-bench/run.mjs` | Builds unsigned Tauri and temporary Electron shells, measures cold and warm Orbit workloads, and writes JSON and Markdown summaries. | `node tools/desktop-bench/run.mjs --output <absolute-directory-outside-repository> [--runs <at-least-5>]` |
+| `desktop-bench/acceptance.mjs` | Builds and installs the release shell on disposable macOS and Windows VMs, records email cookie and updater checks, and dumps platform accessibility trees. | `node tools/desktop-bench/acceptance.mjs --output <absolute-directory-outside-repository>` |
 
 ## Product gates
 

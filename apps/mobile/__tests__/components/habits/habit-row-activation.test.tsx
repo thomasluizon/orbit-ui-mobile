@@ -71,6 +71,16 @@ describe.each([false, true])('native habit row activation, selecting=%s', (selec
     TestRenderer.act(() => body().props.onPress())
     expect(primary).toHaveBeenCalledOnce()
   })
+
+  it('names the row group while retaining its independent accessible actions', () => {
+    const { body } = renderRow(selectMode)
+    const row = renderer.root.findByProps({ testID: 'habit-row' })
+    expect(row.props.role).toBe('group')
+    expect(row.props.accessibilityLabel).toBe('Read')
+    expect(row.props.accessible).not.toBe(true)
+    expect(body().props.accessibilityLabel).toContain('Read')
+    expect(body().props.accessibilityRole).toBe('button')
+  })
 })
 
 it('keeps a completed long press from opening detail or toggling selection on release', () => {

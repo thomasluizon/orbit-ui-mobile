@@ -1,3 +1,5 @@
+import type { AgentOperationResult } from '../types/ai'
+
 const WRITE_CAPABILITY_IDS = new Set([
   'habits.write',
   'goals.write',
@@ -47,6 +49,38 @@ const OPERATION_LABEL_KEYS: Readonly<Record<string, string>> = {
   UpdateGoalProgress: 'chat.operation.source.updateGoalProgress',
   UpdateGoalStatus: 'chat.operation.source.updateGoalStatus',
   LinkHabitsToGoal: 'chat.operation.source.linkHabitsToGoal',
+  AssignTags: 'chat.operation.source.assignTags',
+  BulkCreateHabits: 'chat.operation.source.createHabits',
+  BulkDeleteHabits: 'chat.operation.source.deleteHabits',
+  BulkRescheduleHabits: 'chat.operation.source.rescheduleHabits',
+  BulkUpdateHabitEmojis: 'chat.operation.source.updateHabitEmojis',
+  BulkUpdateHabits: 'chat.operation.source.updateHabits',
+  CreateChecklistTemplate: 'chat.operation.source.createChecklistTemplate',
+  CreateTag: 'chat.operation.source.createTag',
+  DeleteChecklistTemplate: 'chat.operation.source.deleteChecklistTemplate',
+  DeleteNotifications: 'chat.operation.source.deleteNotifications',
+  DeleteTag: 'chat.operation.source.deleteTag',
+  DuplicateHabit: 'chat.operation.source.duplicateHabit',
+  GetReferralCode: 'chat.operation.source.viewReferralCode',
+  LinkGoalsToHabit: 'chat.operation.source.linkGoalsToHabit',
+  ManageAccount: 'chat.operation.source.manageAccount',
+  ManageApiKeys: 'chat.operation.source.manageApiKeys',
+  ManageCalendarSync: 'chat.operation.source.manageCalendarSync',
+  ManageSubscription: 'chat.operation.source.manageSubscription',
+  MoveHabitParent: 'chat.operation.source.moveHabitParent',
+  ReorderGoals: 'chat.operation.source.reorderGoals',
+  ReorderHabits: 'chat.operation.source.reorderHabits',
+  SendSupportRequest: 'chat.operation.source.sendSupportRequest',
+  SetAiSummary: 'chat.operation.source.setAiSummary',
+  SetProactiveAstra: 'chat.operation.source.setProactiveAstra',
+  SuggestBreakdown: 'chat.operation.source.suggestBreakdown',
+  UndoSkipHabit: 'chat.operation.source.undoSkipHabit',
+  UnlogHabit: 'chat.operation.source.unlogHabit',
+  UpdateChecklist: 'chat.operation.source.updateChecklist',
+  UpdateChecklistTemplate: 'chat.operation.source.updateChecklistTemplate',
+  UpdateNotifications: 'chat.operation.source.updateNotifications',
+  UpdateProfilePreferences: 'chat.operation.source.updateProfilePreferences',
+  UpdateTag: 'chat.operation.source.updateTag',
 }
 
 /**
@@ -83,4 +117,25 @@ export function getAgentPolicyReasonKey(reason: string | null | undefined): stri
   return reason && LOCALIZED_POLICY_REASONS.has(reason)
     ? `chat.pendingOp.errors.${reason}`
     : null
+}
+
+const ACCOUNT_DENIAL_REASONS = new Set([
+  'PAY_GATE', 'HABIT_LIMIT_REACHED', 'NO_PERMISSION', 'HABIT_NOT_OWNED', 'UPGRADE_REQUIRED',
+  'account_deactivated', 'user_not_found',
+])
+const ACCOUNT_DENIAL_PREFIXES = ['plan_required:', 'feature_plan_required:', 'target_not_owned:']
+
+export function getAgentOperationCopyKeys(operation: Pick<AgentOperationResult, 'status' | 'policyReason' | 'errorCode'>): {
+  titleKey: string
+  statusKey: string
+} {
+  const reasonKey = getAgentPolicyReasonKey(operation.policyReason)
+  const accountDenied = ACCOUNT_DENIAL_REASONS.has(operation.policyReason ?? '')
+    || ACCOUNT_DENIAL_REASONS.has(operation.errorCode ?? '')
+    || ACCOUNT_DENIAL_PREFIXES.some(prefix => operation.policyReason?.startsWith(prefix))
+  const neutral = operation.status === 'Denied' && !accountDenied && !reasonKey
+  return {
+    titleKey: `chat.operation.outcome.${neutral ? 'changeNotMade' : operation.status}`,
+    statusKey: reasonKey ?? `chat.operation.status.${neutral ? 'changeNotMade' : operation.status}`,
+  }
 }

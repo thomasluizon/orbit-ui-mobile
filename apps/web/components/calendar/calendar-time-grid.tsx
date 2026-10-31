@@ -32,12 +32,15 @@ const pinnedPaneBackground = {
   backgroundColor: 'var(--bg-elev)',
 } as const
 
-function readGridScroll(node: HTMLDivElement, previous: Readonly<{ top: number; left: number }>) {
+function readGridScroll(node: HTMLDivElement, previous: Readonly<{ top: number; left: number; columnWidth: number }>) {
+  const columnWidth = node.querySelector('[data-testid="time-grid-col-header"]')?.getBoundingClientRect().width ?? 0
+  const resnappedHorizontally = previous.columnWidth > 0 && columnWidth !== previous.columnWidth
+    && Math.abs(node.scrollLeft - previous.left * columnWidth / previous.columnWidth) <= 1
   const movedVertically = isCalendarGridScrollMovement(node.scrollTop, previous.top, node.scrollHeight - node.clientHeight)
   const clampedTop = !movedVertically && node.scrollTop < previous.top
   return {
-    moved: movedVertically || isCalendarGridScrollMovement(node.scrollLeft, previous.left, node.scrollWidth - node.clientWidth),
-    position: { top: clampedTop ? previous.top : node.scrollTop, left: node.scrollLeft },
+    moved: movedVertically || (!resnappedHorizontally && isCalendarGridScrollMovement(node.scrollLeft, previous.left, node.scrollWidth - node.clientWidth)),
+    position: { top: clampedTop ? previous.top : node.scrollTop, left: node.scrollLeft, columnWidth },
   }
 }
 
@@ -242,14 +245,14 @@ export function CalendarTimeGrid({
   const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth} + ${scrollGeometry.trailingSpace}px)`
 
   const hasMovedGrid = useRef(false)
-  const openingScroll = useRef({ top: 0, left: 0 })
+  const openingScroll = useRef({ top: 0, left: 0, columnWidth: 0 })
   useLayoutEffect(() => {
     const node = bodyRef.current
     if (!node) return
     const open = () => {
       const scroll = readGridScroll(node, openingScroll.current)
       hasMovedGrid.current ||= scroll.moved
-      openingScroll.current = hasMovedGrid.current ? scroll.position : { top: node.scrollTop, left: node.scrollLeft }
+      openingScroll.current = hasMovedGrid.current ? scroll.position : { ...scroll.position, top: node.scrollTop }
       const paneHeight = node.firstElementChild?.clientHeight ?? 0
       const shouldPin = paneHeight <= node.clientHeight / 2
       if (shouldPin !== isPanePinned) {
@@ -284,7 +287,7 @@ export function CalendarTimeGrid({
         const { left } = resolveCalendarGridOpeningScroll(columns.findIndex(({ isToday }) => isToday), columnWidth, viewportWidth, columns.length)
         node.scrollLeft = left
       }
-      openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
+      openingScroll.current = { top: node.scrollTop, left: node.scrollLeft, columnWidth: scroll.position.columnWidth }
     }
     const preserveOpeningPosition = (event: KeyboardEvent) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) hasMovedGrid.current = true
@@ -335,7 +338,7 @@ export function CalendarTimeGrid({
             const node = event.currentTarget
             const scroll = readGridScroll(node, openingScroll.current)
             hasMovedGrid.current ||= scroll.moved
-            openingScroll.current = hasMovedGrid.current ? scroll.position : { top: node.scrollTop, left: node.scrollLeft }
+            openingScroll.current = hasMovedGrid.current ? scroll.position : { ...scroll.position, top: node.scrollTop }
           }}
           onWheel={() => { hasMovedGrid.current = true }}
           onTouchMove={() => { hasMovedGrid.current = true }}

@@ -13,10 +13,14 @@ import type { createTokensV2 } from '@/lib/theme'
 import { useThemeTokens } from '@/hooks/use-theme-tokens'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ListRow } from '@/components/ui/list-row'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { KeyboardAwareFlatList } from '@/components/ui/keyboard-aware-scroll-view'
 
 interface TagPickerFieldProps {
+  editorDirty?: boolean
+  onDiscardEditor?: () => void
   tags: HabitTag[]
   selectedIds: string[]
   atLimit: boolean
@@ -36,13 +40,18 @@ function TagPreview({ tags, moreLabel, styles }: Readonly<{ tags: HabitTag[]; mo
   return <View style={styles.chips}>{tags.slice(0, 3).map((tag) => <View key={tag.id} style={styles.chip}><PersonalTextDetails lines={1} textStyle={styles.chipText}>{tag.name}</PersonalTextDetails></View>)}{tags.length > 3 ? <View style={[styles.chip, { paddingHorizontal: SPACING.s8, paddingVertical: SPACING.s8 }]}><Text style={styles.chipText}>{moreLabel}</Text></View> : null}</View>
 }
 
-export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, suggestions, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerFieldProps>) {
+export function TagPickerField({ editorDirty = false, onDiscardEditor, tags, selectedIds, atLimit, disabled, editor, suggestions, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerFieldProps>) {
   const { disabled: formDisabled, guard, isDisabled } = useHabitFormInteraction()
   disabled = disabled || formDisabled
   const { t } = useTranslation()
   const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [open, setOpen] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
+  const finishClose = () => { setOpen(false); setQuery(''); onDiscardEditor?.() }
+  const dismiss = useDismissGuard({ isDirty: editorDirty, onDismiss: () => closeSheet(finishClose) })
+  const requestDismiss = () => { if (!disabled) dismiss.requestDismiss() }
+
   const [query, setQuery] = useState('')
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds])
   const selectedTags = tags.filter((tag) => selectedSet.has(tag.id))
@@ -59,12 +68,13 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, s
   return <>
     <ListRow disabled={disabled} title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} placement="column" onClick={() => setOpen(true)} />
     <TagPreview tags={selectedTags} moreLabel={t('habits.form.moreSelected', { count: Math.max(0, selectedTags.length - 3) })} styles={styles} />
-    {open ? <Sheet open title={t('habits.form.tags')} virtualizedBody={tags.length >= 21} onClose={() => { setOpen(false); setQuery('') }}><View style={styles.list}>
+    {open ? <Sheet ref={sheetRef} open title={t('habits.form.tags')} virtualizedBody={tags.length >= 21} onClose={!disabled && dismiss.canDismiss ? finishClose : undefined} onAttemptDismiss={requestDismiss}><View style={styles.list}>
       {tags.length >= 8 ? <Text style={styles.count}>{t('habits.form.availableCount', { count: tags.length })}</Text> : null}
       {tags.length >= 21 ? <BottomSheetAppTextInput isChangeDisabled={isDisabled} editable={!disabled} accessibilityState={{ disabled }} value={query} onChangeText={guard(setQuery)} accessibilityLabel={t('habits.form.searchTags')} placeholder={t('habits.form.searchTags')} style={styles.search} /> : null}
       {tags.length === 0 && !editor ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noTags')}</Text><IconButton label={t('habits.form.newTag')} disabled={disabled} onPress={guard(onCreate)}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton></View> : null}
       {tags.length >= 21 ? <KeyboardAwareFlatList key={query} data={filtered} renderItem={renderTag} keyExtractor={(tag) => tag.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" ListFooterComponent={trailingControls} /> : <>{filtered.map((tag) => <View key={tag.id}>{renderTag({ item: tag })}</View>)}{trailingControls}</>}
-    </View></Sheet> : null}
+    </View><DiscardChangesSheet open={dismiss.showDiscardDialog} onKeepEditing={dismiss.cancelDismiss} onDiscard={dismiss.confirmDismiss} />
+      </Sheet> : null}
   </>
 }
 

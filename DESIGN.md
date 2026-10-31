@@ -1300,7 +1300,7 @@ One primitive covers the drawer, sheet, dialog and modal. It presents as a botto
 | platform | library | version and contract |
 |---|---|---|
 | **web** | **`@base-ui/react`**, `Dialog` from the `./dialog` subpath | 1.7.0, MIT, `github.com/mui/base-ui`, peer `react ^19` |
-| **mobile** | **`@lodev09/react-native-true-sheet`** | 3.11.3, already installed |
+| **mobile** | **`@lodev09/react-native-true-sheet`** | 4.0.1, already installed |
 
 **Web rationale.** The primitive is `ui/sheet.tsx`, built on Base UI's `Dialog`. It replaced `app-overlay.tsx`, which hand-rolled the backdrop, the focus trap, the body-scroll lock, the overlay stack and the portal in one 375-line component carrying a `no-giant-component` deferral. That component rendered `<dialog open>` rather than calling `showModal()`, so it got none of the platform's free behaviour and rebuilt the trap, the background inertness and the Escape handling by hand, then needed `z-[9999]` because it never entered the top layer. Base UI supplies all of that behind one `modal` prop, which is code standard 11 applied exactly.
 
@@ -1316,7 +1316,7 @@ account's overlay immediately, without an exit transition. Most owners reset the
 its owner closes the flag. The exit would keep the previous account's content visible. Nothing else
 may flip the flag.
 
-Android wide sheets stay bottom-attached to the centred shell column with TrueSheet's `maxContentWidth` and `anchor: 'center'`. TrueSheet ignores `presentation` on Android and supports `detached` only on web, so web keeps its centred dialog at `sm` and above as a platform adapter.
+Android wide sheets stay bottom-attached to the centred shell column with TrueSheet's `maxContentWidth` and `placement: 'center'`. TrueSheet ignores `presentation` on Android and supports `detached` only on web, so web keeps its centred dialog at `sm` and above as a platform adapter.
 
 ### Sizing
 
@@ -1328,7 +1328,7 @@ Android wide sheets stay bottom-attached to the centred shell column with TrueSh
 
 - A destination view with a time grid keeps one vertical scroller: the grid fills the height the page leaves, and the page does not scroll in that view. On web, `data-page-viewport` bounds the shell content and route wrappers only for that view; other views keep their page scroll and shell bottom clearance.
 - **Exactly one page-level scroll container per overlay, owned by the primitive.**
-- **A caller never nests its own scroll container inside a scrollable sheet**, except for the bounded TimeField columns below. TrueSheet's native `scrollable` stays off while the primitive owns the body scroller.
+- **A caller never nests its own scroll container inside a scrollable sheet**, except for the bounded TimeField columns below. TrueSheet's native scroll coordination stays off by omitting `scrollableRef` while the primitive owns the body scroller. The native footer uses absolute positioning and owns its bottom safe-area inset.
 - **An overlay never opens scrolled away from its own first line.**
 - `overscroll-behavior: contain` on the scroll container, so scrolling inside never scrolls the page behind it.
 

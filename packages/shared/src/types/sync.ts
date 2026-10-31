@@ -39,6 +39,13 @@ export type MutationEntityType = z.infer<typeof mutationEntityTypeSchema>
 export const queuedMutationStatusSchema = z.enum(['pending', 'syncing', 'failed'])
 export type QueuedMutationStatus = z.infer<typeof queuedMutationStatusSchema>
 
+export const parentPromptContinuationSchema = z.array(z.object({
+  habitId: z.string(),
+  date: z.string(),
+  mode: z.enum(['log', 'skip']),
+}))
+export type ParentPromptContinuation = z.infer<typeof parentPromptContinuationSchema>
+
 export const queuedMutationSchema = z.object({
   id: z.string(),
   timestamp: z.number(),
@@ -55,6 +62,8 @@ export const queuedMutationSchema = z.object({
   targetEntityId: z.string().nullable().optional(),
   clientEntityId: z.string().nullable().optional(),
   dependsOn: z.array(z.string()).optional(),
+  suppressParentSettlement: z.boolean().optional(),
+  parentPromptContinuation: parentPromptContinuationSchema.optional(),
   lastError: z.string().nullable().optional(),
 })
 export type QueuedMutation = z.infer<typeof queuedMutationSchema>

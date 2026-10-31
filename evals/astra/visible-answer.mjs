@@ -8,7 +8,7 @@ import { visiblePreview } from './visible-preview.mjs'
 
 const { getMessageBubbleView, getMessageBubbleOperations } = await tsImport('../../packages/shared/src/chat/message-bubble.ts', import.meta.url)
 const { buildActionChipsModel, resolveActionChipText } = await tsImport('../../packages/shared/src/chat/action-chips.ts', import.meta.url)
-const { getAgentOperationLabelKey, getAgentPolicyReasonKey } = await tsImport('../../packages/shared/src/utils/agent-pending-operation.ts', import.meta.url)
+const { getAgentOperationLabelKey, getAgentOperationCopyKeys } = await tsImport('../../packages/shared/src/utils/agent-pending-operation.ts', import.meta.url)
 const { createBreakdownDrafts } = await tsImport('../../packages/shared/src/hooks/breakdown-suggestion-core.ts', import.meta.url)
 const { getBreakdownCadenceKey } = await tsImport('../../packages/shared/src/utils/breakdown-suggestion.ts', import.meta.url)
 const { getChatFollowUps } = await tsImport('../../packages/shared/src/chat/follow-ups.ts', import.meta.url)
@@ -28,9 +28,10 @@ function actionChips(actions, t) {
   return rows.length ? { title: t('chat.action.changes'), rows, conflicts: visibleConflicts(model.conflicts) } : undefined
 }
 function outcomeBlock(outcome, t) {
-  return { title: t(`chat.operation.outcome.${outcome.status}`),
+  const copy = getAgentOperationCopyKeys(outcome)
+  return { title: t(copy.titleKey),
     label: outcome.target || t(getAgentOperationLabelKey(outcome.source) ?? 'chat.operation.unknown'),
-    meta: t(getAgentPolicyReasonKey(outcome.policyReason) ?? `chat.operation.status.${outcome.status}`),
+    meta: t(copy.statusKey),
     action: outcome.status === 'UnsupportedByPolicy' ? t('chat.operation.openProfile') : undefined,
   }
 }

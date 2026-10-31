@@ -141,6 +141,13 @@ describe('mobile offline queue', () => {
     replayMocks.invalidateQueries.mockClear()
   })
 
+  it('retains the parent confirmation boundary and selected suffix in stored queue metadata', () => {
+    const parentPromptContinuation = [{ habitId: 'root', date: '2026-09-12', mode: 'skip' as const }]
+    const mutation = { ...buildQueuedMutation({ type: 'bulkLogHabits', scope: 'habits', endpoint: '/api/habits/bulk/log', method: 'POST', payload: { items: [{ habitId: 'parent' }] } }), suppressParentSettlement: true, parentPromptContinuation }
+    enqueue(mutation)
+    expect(getAll()).toEqual([expect.objectContaining({ id: mutation.id, suppressParentSettlement: true, parentPromptContinuation })])
+  })
+
   it.each([{ parentId: '22222222-2222-4222-8222-222222222222' }, { clearParent: true }])('keeps parent changes after pending Create instead of merging incompatible fields: %s', (parentChange) => {
     const source = 'offline-habit-source'
     enqueueWithCompaction(makeMutation({ id: 'create-source', clientEntityId: source, payload: { title: 'Before' } }))

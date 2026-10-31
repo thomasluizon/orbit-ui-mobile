@@ -12,7 +12,10 @@ const active = new Set()
 export async function assertFree(port) {
   const server = createServer()
   await new Promise((resolve, reject) => {
-    server.once('error', () => reject(new Error(`Loopback port ${port} is occupied; no existing process was stopped`)))
+    server.once('error', (error) => {
+      const reason = error.code === 'EADDRINUSE' ? 'is occupied' : 'could not be bound'
+      reject(new Error(`Loopback port ${port} ${reason}: ${error.message}; no existing process was stopped`, { cause: error }))
+    })
     server.listen(port, '127.0.0.1', resolve)
   })
   await new Promise((resolve) => server.close(resolve))

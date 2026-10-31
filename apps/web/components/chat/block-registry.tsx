@@ -63,7 +63,7 @@ export function ChatBlock<Kind extends ChatBlockKind>({ part, onActionChipClick,
   const savedAnswer = 'blockId' in part.block ? savedAnswers?.[part.block.blockId] : undefined
   if ('read' in part.block && part.block.read) {
     const snapshot = { kind: part.kind, block: part.block, read: part.block.read } as ReadBlockSnapshot
-    return <ReadBlockBoundary snapshot={snapshot}>{current => <Fragment key={current.read.revision}>{blockRegistry[part.kind](current.block as BlockContent[Kind], onActionChipClick, { interaction, expired, savedAnswer, message, onSendMessage })}</Fragment>}</ReadBlockBoundary>
+    return <ReadBlockBoundary snapshot={snapshot} onSendMessage={onSendMessage} interaction={interaction}>{current => <Fragment key={current.read.revision}>{blockRegistry[part.kind](current.block as BlockContent[Kind], onActionChipClick, { interaction, expired, savedAnswer, message, onSendMessage })}</Fragment>}</ReadBlockBoundary>
   }
   return blockRegistry[part.kind](part.block, onActionChipClick, { interaction, expired, savedAnswer, message, onSendMessage })
 }

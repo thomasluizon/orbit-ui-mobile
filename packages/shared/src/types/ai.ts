@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { astraNextActionSchema } from './astra-offer'
 
 const agentRiskClassSchema = z.enum(['Low', 'Destructive', 'High'])
 
@@ -74,6 +75,12 @@ export const pendingOperationChangeSchema = z.object({
   valueType: z.string(),
   proposedValue: z.unknown().nullable().optional(),
   isEditable: z.boolean().optional(),
+  provenance: z.enum(['requested', 'stored', 'suggested']).nullish(),
+  removal: z.object({
+    offerKey: z.string(),
+    field: z.string(),
+    fields: z.array(z.string()).nullish(),
+  }).nullish(),
 })
 export type PendingOperationChange = z.infer<typeof pendingOperationChangeSchema>
 
@@ -130,6 +137,7 @@ export const revisedPendingOperationItemSchema = z.object({
   itemId: z.string(),
   edits: z.record(z.string(), z.unknown()).nullable().optional(),
   placement: habitPlacementSchema.nullish(),
+  removeSuggestedFields: z.array(z.string()).nullish(),
 })
 export type RevisedPendingOperationItem = z.infer<typeof revisedPendingOperationItemSchema>
 
@@ -162,6 +170,7 @@ export const pendingAgentOperationSchema = z.object({
   items: z.array(pendingOperationItemSchema).nullable().optional(),
   previewFingerprint: z.string().nullable().optional(),
   actionKey: z.string().nullable().optional(),
+  nextAction: astraNextActionSchema.nullish().catch(null),
 })
 export type PendingAgentOperation = z.infer<typeof pendingAgentOperationSchema>
 
@@ -204,6 +213,7 @@ export const agentOperationResultSchema = z.object({
   pendingOperationId: z.string().nullable().optional(),
   payload: z.unknown().nullable().optional(),
   access: z.enum(['read', 'write']).optional(),
+  errorCode: z.string().nullable().optional(),
 })
 export type AgentOperationResult = z.infer<typeof agentOperationResultSchema>
 

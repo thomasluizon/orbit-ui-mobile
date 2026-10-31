@@ -13,6 +13,10 @@ export interface QueuedPrompt {
 }
 
 export interface ChatStoreState {
+  conversationId: string | null
+  dismissedOfferKeys: string[]
+  ensureConversation: (id: string) => string
+  dismissOffer: (key: string) => void
   queuedPrompts: QueuedPrompt[]
   queuePaused: boolean
   queueReady: boolean
@@ -64,6 +68,14 @@ export function prepareChatRequest(
 
 export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
   return {
+    conversationId: null,
+    dismissedOfferKeys: [],
+    ensureConversation: (id) => {
+      let resolved = id
+      set(state => { resolved = state.conversationId ?? id; return { conversationId: resolved } })
+      return resolved
+    },
+    dismissOffer: (key) => set(state => ({ dismissedOfferKeys: [...new Set([...state.dismissedOfferKeys, key])] })),
     queuedPrompts: [],
     queuePaused: false,
     queueReady: false,

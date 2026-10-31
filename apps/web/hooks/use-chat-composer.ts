@@ -94,6 +94,7 @@ interface AttemptedSend {
   clearDraftOnSuccess: boolean
   restoredDraftRevision: number | null
   messageOrigin?: 'followUp'
+  selectedOfferKey?: ChatClientContext['selectedOfferKey']
   previousStartingStep?: ChatClientContext['previousStartingStep']
   contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>
 }
@@ -479,6 +480,9 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       uses24HourClock: profile?.uses24HourClock,
       messageOrigin: attempted.messageOrigin,
       previousStartingStep: attempted.previousStartingStep,
+      selectedOfferKey: attempted.selectedOfferKey,
+      conversationId: useChatStore.getState().ensureConversation(crypto.randomUUID()),
+      dismissedOfferKeys: useChatStore.getState().dismissedOfferKeys,
       entryPointIntent,
     })
     formData.append('clientContext', JSON.stringify(clientContext))
@@ -503,6 +507,9 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       createMessageId: () => crypto.randomUUID(), stoppedMessage: t('shell.composer.queue.stopped'),
       clearActivity: () => { activeStepsRef.current = []; setActiveSteps([]) }, abort: () => controller.abort(),
     })
+    const acceptSelectedOffer = () => {
+      if (ownsAccount() && attempted.selectedOfferKey) useChatStore.getState().dismissOffer(attempted.selectedOfferKey)
+    }
     const { isCancelled, isHidden, stop } = reply
     stopReply.current = stop
     const ensureDraftMessage = () => {
@@ -564,6 +571,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       if (isHidden() && outcome.kind !== 'final') return { kind: 'cancelled' }
 
       if (outcome.kind === 'final') {
+        acceptSelectedOffer()
         await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost, reply)
         finalReceived = reply.canComplete()
         return finalReceived ? { kind: 'final' } : { kind: 'cancelled' }
@@ -635,8 +643,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   }, [performSend, setInput, setSendError, t, clearImage, removeTextFile])
 
   const sendMessage = useCallback(
-    async (content?: string, requestContext?: 'followUp' | Pick<ChatClientContext, 'previousStartingStep'>, contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
-      const { messageOrigin, previousStartingStep }: Pick<ChatClientContext, 'messageOrigin' | 'previousStartingStep'> =
+    async (content?: string, requestContext?: 'followUp' | Pick<ChatClientContext, 'previousStartingStep' | 'selectedOfferKey'>, contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
+      const { messageOrigin, previousStartingStep, selectedOfferKey }: Pick<ChatClientContext, 'messageOrigin' | 'previousStartingStep' | 'selectedOfferKey'> =
         typeof requestContext === 'object' ? requestContext : { messageOrigin: requestContext }
       const sendsComposerDraft = content === undefined && messageOrigin !== 'followUp'
       const typedContent = content?.trim() ?? input.trim()
@@ -678,6 +686,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
         restoredDraftRevision: null,
         messageOrigin,
         previousStartingStep,
+        selectedOfferKey,
         contextualRequest,
       }
 

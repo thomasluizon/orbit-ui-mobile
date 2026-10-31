@@ -1,9 +1,9 @@
 import type { OtpInputProps } from '@orbit/shared/contracts/forms'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { TypedTextInput } from './typed-text-input'
 import { Platform, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useKeyboardAwareInputReveal } from '@/components/ui/keyboard-aware-scroll-view'
 
 export function OtpInput({
   label,
@@ -20,7 +20,6 @@ export function OtpInput({
 }: Readonly<OtpInputProps>) {
   const inputRef = useRef<TextInput>(null)
   const { fontScale } = useWindowDimensions()
-  const keyboardAware = useKeyboardAwareInputReveal()
   const [focused, setFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -47,11 +46,11 @@ export function OtpInput({
   return (
     <View style={styles.root}>
       <View style={styles.cellRow}>
-        <TextInput
+        <TypedTextInput
           ref={inputRef}
           value={value}
           onChangeText={handleChange}
-          onFocus={() => { setFocused(true); keyboardAware?.revealInput(inputRef.current) }}
+          onFocus={() => { setFocused(true); }}
           onBlur={() => { setFocused(false); onBlur?.() }}
           editable={!disabled}
           keyboardType="number-pad"

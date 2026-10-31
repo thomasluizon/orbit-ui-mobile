@@ -8,6 +8,8 @@ import { API } from '@orbit/shared/api'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { ActionRow } from '@/components/ui/action-row'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -28,12 +30,14 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
   const tokens = createTokensV2(currentScheme, currentTheme)
 
   const [name, setName] = useState(() => profile?.name ?? '')
+  const [initialName, setInitialName] = useState(() => profile?.name ?? '')
   const [error, setError] = useState('')
   const [prevOpen, setPrevOpen] = useState(open)
   if (open !== prevOpen) {
     setPrevOpen(open)
     if (open) {
       setName(profile?.name ?? '')
+      setInitialName(profile?.name ?? '')
       setError('')
     }
   }
@@ -57,7 +61,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
       return { previous }
     },
     onSuccess: () => {
-      closeSheet()
+      closeSheet(onClose)
     },
     onError: (err, _nextName, context) => {
       if (context?.previous !== undefined) {
@@ -66,6 +70,9 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
       setError(getFriendlyErrorMessage(err, t, 'profile.editName.errorGeneric', 'generic'))
     },
   })
+
+  const dismiss = useDismissGuard({ isDirty: name !== initialName, onDismiss: () => closeSheet(onClose) })
+  const requestDismiss = () => { if (!mutation.isPending) dismiss.requestDismiss() }
 
   function handleNameChange(value: string) {
     setName(value)
@@ -86,14 +93,15 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
   }
 
   return (
-    open ? (<Sheet
+    open ? (<><Sheet
       ref={sheetRef}
       open
-      onClose={onClose}
+      onClose={!mutation.isPending && dismiss.canDismiss ? onClose: undefined}
+      onAttemptDismiss={requestDismiss}
       title={t('profile.editName.title')}
       actions={(
         <ActionRow>
-          <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
+          <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={requestDismiss}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" onClick={handleSave} disabled={mutation.isPending} loading={mutation.isPending}>
             {t('common.save')}
           </PillButton>
@@ -125,7 +133,9 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
           </Text>
         ) : null}
       </View>
-    </Sheet>) : null
+    </Sheet>
+    <DiscardChangesSheet open={dismiss.showDiscardDialog} onKeepEditing={dismiss.cancelDismiss} onDiscard={dismiss.confirmDismiss} />
+    </>) : null
   )
 }
 

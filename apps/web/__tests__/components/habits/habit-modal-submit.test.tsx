@@ -51,6 +51,8 @@ vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map(), EMPTY_CHILDREN_BY_PARENT: new Map(), EMPTY_NORMALIZED_HABITS: [],
   useHabits: () => { const items = editorParentState.items; const normalized = React.useMemo(() => normalizeHabitQueryData(items), [items]); return { data: normalized, isSuccess: true, isLoading: false, isError: false, refetch: vi.fn(), getChildren: (id: string) => (normalized.childrenByParent.get(id) ?? []).map((child) => normalized.habitsById.get(child)!) } },
   useSkipHabit: () => ({ mutateAsync: completion, isPending: false }),
+  useBulkLogHabits: () => ({ mutateAsync: completion, isPending: false }),
+  useBulkSkipHabits: () => ({ mutateAsync: completion, isPending: false }),
   useDuplicateHabit: () => ({ mutateAsync: completion, isPending: false }),
   useReorderHabits: () => ({ mutate: completion, isPending: false }),
   useMoveHabitParent: () => ({ mutateAsync: completion, isPending: false }),
@@ -449,7 +451,7 @@ describe('controlled full editor checklist', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.clearChecklist' }))
     expect(mutation).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
-    expect(screen.getByText('habits.form.unsavedHabit')).toBeInTheDocument()
+    expect(screen.getByText('common.discardChangesDescription')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
     await waitFor(() => expect(onClose).toHaveBeenCalledWith(false))
     expect(mutation).not.toHaveBeenCalled()

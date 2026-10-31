@@ -529,6 +529,7 @@ export {
   getAgentCapabilityLabelKey,
   getAgentOperationLabelKey,
   getAgentPolicyReasonKey,
+  getAgentOperationCopyKeys,
 } from './agent-pending-operation'
 export { coalesceAgentOperationOutcomes } from './agent-operation-outcomes'
 export type { AgentOperationOutcome } from './agent-operation-outcomes'
@@ -842,3 +843,6 @@ export { readHabitRecurrencePhrase, type HabitRecurrence, type HabitRecurrencePh
 export { getPendingAuthProvider, getAuthCallbackErrorKey } from './auth-login'
 
 export { createAstraAllowanceTranslator, type AstraAllowance } from './astra-allowance'
+
+export { computeParentResolutionProgress, computeParentPromptChain, selectParentPromptAncestor, settleParentPromptChain } from './parent-prompt-chain'
+export type { ParentPromptChain } from './parent-prompt-chain'
