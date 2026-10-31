@@ -9,6 +9,9 @@ interface ChatClientContextOptions {
   messageOrigin?: ChatClientContext['messageOrigin']
   entryPointIntent?: ChatClientContext['entryPointIntent']
   previousStartingStep?: ChatClientContext['previousStartingStep']
+  conversationId?: string
+  dismissedOfferKeys?: string[]
+  selectedOfferKey?: string | null
 }
 
 export function buildChatClientContext({
@@ -18,6 +21,9 @@ export function buildChatClientContext({
   messageOrigin,
   entryPointIntent,
   previousStartingStep,
+  conversationId,
+  dismissedOfferKeys,
+  selectedOfferKey,
 }: ChatClientContextOptions): ChatClientContext {
   return {
     platform,
@@ -47,6 +53,7 @@ export function buildChatClientContext({
     supportsCompletedHabitsMetric: true,
     supportsParts: true,
     partKinds: [...CHAT_BLOCK_KINDS],
+    ...(conversationId ? { supportsProactiveOffers: true, conversationId, dismissedOfferKeys: dismissedOfferKeys?.slice(-100), selectedOfferKey } : {}),
     ...(previousStartingStep ? { previousStartingStep } : {}),
     ...(messageOrigin ? { messageOrigin } : {}),
     ...(entryPointIntent ? { entryPointIntent } : {}),

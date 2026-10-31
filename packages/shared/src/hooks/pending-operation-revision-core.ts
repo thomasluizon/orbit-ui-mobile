@@ -74,7 +74,7 @@ export function applyPendingOperationRevisionPreview(
   const selectedIds = new Set(selected.map(item => item.itemId))
   return {
     ...current,
-    operation: { ...current.operation, ...preview },
+    operation: { ...current.operation, ...preview, nextAction: null },
     authorizationVersion: current.authorizationVersion + 1,
     originalItemIds: (current.operation.items ?? []).flatMap((item, index) => selectedIds.has(item.itemId) ? [current.originalItemIds[index]!] : []),
     drafts: Object.fromEntries(Object.entries(current.drafts).filter(([id]) => id !== editedItemId && itemIds.has(id))),
@@ -101,12 +101,12 @@ const structuredFields = new Set([
   'reminder_times', 'scheduled_reminders',
 ])
 const listFields = new Set(['checklist_items', 'sub_habits', 'reminder_times', 'scheduled_reminders'])
-const editableListFields = new Set(['checklist_items', 'reminder_times', 'scheduled_reminders'])
 
 export function isPendingOperationEditableField(field: { field: string; valueType: string; isEditable?: boolean; proposedValue?: unknown }): boolean {
+  const name = field.field.split('/').at(-1)!
+  if (field.isEditable === true) return field.valueType !== 'action' && (!listFields.has(name) || Array.isArray(field.proposedValue))
   return field.isEditable !== false && field.valueType !== 'action'
-    && (!listFields.has(field.field) || editableListFields.has(field.field)
-      && field.isEditable === true && Array.isArray(field.proposedValue))
+    && !listFields.has(name)
 }
 
 export function pendingOperationListRows(value: string): readonly unknown[] {
@@ -134,8 +134,9 @@ export function addPendingOperationListRow(value: string, field: string): string
   return JSON.stringify([...pendingOperationListRows(value), row])
 }
 
-function editedValue(field: string, value: string): unknown {
-  if (field.startsWith('is_') || field === 'enabled' || field === 'reminder_enabled') {
+function editedValue(change: PendingOperationItem['fields'][number], value: string): unknown {
+  const field = change.field.split('/').at(-1)!
+  if (typeof change.proposedValue === 'boolean' || field.startsWith('is_') || field === 'enabled' || field === 'reminder_enabled') {
     if (value !== 'true' && value !== 'false') throw new Error('Invalid boolean')
     return value === 'true'
   }
@@ -144,7 +145,11 @@ function editedValue(field: string, value: string): unknown {
     if (row === '' || !Number.isInteger(Number(row))) throw new Error('Invalid reminder offset')
     return Number(row)
   })
-  if (structuredFields.has(field)) return JSON.parse(value)
+  if (structuredFields.has(field) || typeof change.proposedValue === 'object' && change.proposedValue !== null) return JSON.parse(value)
+  if (typeof change.proposedValue === 'number') {
+    if (!value.trim() || !Number.isFinite(Number(value))) throw new Error('Invalid number')
+    return Number(value)
+  }
   return value === '' && field !== 'title' ? null : value
 }
 
@@ -155,12 +160,13 @@ export function pendingOperationDraft(item: PendingOperationItem): Record<string
 }
 
 function pendingOperationFieldDraft(field: PendingOperationItem['fields'][number]): string {
-  if (Array.isArray(field.proposedValue)) return field.field === 'days'
+  if (Array.isArray(field.proposedValue)) return field.field.split('/').at(-1) === 'days'
     ? field.proposedValue.join(', ') : JSON.stringify(field.proposedValue)
   if (field.proposedValue === null) return ''
   if (typeof field.proposedValue === 'boolean' || typeof field.proposedValue === 'number')
     return String(field.proposedValue)
   if (typeof field.proposedValue === 'string') return field.proposedValue
+  if (typeof field.proposedValue === 'object') return JSON.stringify(field.proposedValue)
   return field.newValue ?? ''
 }
 
@@ -171,7 +177,7 @@ export function pendingOperationEdits(
   return Object.fromEntries(item.fields
     .filter((field) => isPendingOperationEditableField(field)
       && draft[field.field] !== pendingOperationFieldDraft(field))
-    .map((field) => [field.field, editedValue(field.field, draft[field.field] ?? '')]))
+    .map((field) => [field.field, editedValue(field, draft[field.field] ?? '')]))
 }
 
 export function pendingOperationRevisionRequest(
@@ -179,6 +185,7 @@ export function pendingOperationRevisionRequest(
   selected: readonly PendingOperationItem[],
   edits?: { itemId: string; values: Record<string, unknown> },
   placement?: PendingOperationPlacementEdit,
+  removal?: { itemId: string; fields: readonly string[] },
 ): RevisePendingOperationRequest {
   return {
     previewFingerprint,
@@ -186,6 +193,7 @@ export function pendingOperationRevisionRequest(
       itemId: item.itemId,
       ...(edits?.itemId === item.itemId ? { edits: edits.values } : {}),
       ...(placement?.itemId === item.itemId ? { placement: placement.value } : {}),
+      ...(removal?.itemId === item.itemId ? { removeSuggestedFields: [...removal.fields] } : {}),
     })),
   }
 }

@@ -3,6 +3,7 @@
 import { getLocale } from 'next-intl/server'
 import { buildChatClientContext } from '@orbit/shared/chat'
 import { API, MAX_CLARIFICATION_VALUE_LENGTH } from '@orbit/shared/api'
+import { dismissConversationOffersRequestSchema } from '@orbit/shared/types/astra-offer'
 import type {
   AgentExecuteOperationResponse,
   AgentStepUpChallenge,
@@ -17,13 +18,21 @@ import { wrapServerAction, type ServerActionResult } from './action-result'
 
 export type PendingOperationActionResult<T> = ServerActionResult<T>
 
+export async function dismissChatOffers(conversationId: string, offerKeys: string[], intendedAccountId: string | null) {
+  const request = dismissConversationOffersRequestSchema.parse({ conversationId, offerKeys })
+  return wrapServerAction(() => serverAuthMutate(API.chat.dismissOffers, {
+    method: 'POST', body: JSON.stringify(request),
+  }, intendedAccountId))
+}
+
 // react-doctor-disable-next-line server-auth-actions -- FP: serverAuthMutate enforces auth (resolveServerSession throws 401 before any request); RD cannot trace the call nested in wrapServerAction. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function revisePendingOperation(
   id: string,
   request: RevisePendingOperationRequest,
   intendedAccountId: string | null,
+  conversationId?: string,
 ): Promise<PendingOperationActionResult<PendingOperationRevisionResult>> {
-  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale(), conversationId })
   return wrapServerAction(() =>
     serverAuthMutate<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
       method: 'POST',
@@ -36,8 +45,9 @@ export async function revisePendingOperation(
 export async function refreshPendingOperation(
   id: string,
   intendedAccountId: string | null,
+  conversationId?: string,
 ): Promise<PendingOperationActionResult<PendingOperationRevisionResult>> {
-  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale(), conversationId })
   const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) })
   return wrapServerAction(() =>
     serverAuthMutate<PendingOperationRevisionResult>(`${API.ai.pendingOperationRefresh(id)}?${query.toString()}`, {
@@ -50,8 +60,9 @@ export async function refreshPendingOperation(
 export async function confirmPendingOperation(
   id: string,
   intendedAccountId: string | null,
+  conversationId?: string,
 ): Promise<PendingOperationActionResult<PendingAgentOperationConfirmation>> {
-  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale(), conversationId })
   const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext) })
   return wrapServerAction(() =>
     serverAuthMutate<PendingAgentOperationConfirmation>(`${API.ai.pendingOperationConfirm(id)}?${query.toString()}`, {
@@ -94,8 +105,9 @@ export async function executePendingOperation(
   id: string,
   confirmationToken: string,
   intendedAccountId: string | null,
+  conversationId?: string,
 ): Promise<PendingOperationActionResult<AgentExecuteOperationResponse>> {
-  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale() })
+  const clientContext = buildChatClientContext({ platform: 'web', locale: await getLocale(), conversationId })
   return wrapServerAction(() =>
     serverAuthMutate<AgentExecuteOperationResponse>(API.ai.pendingOperationExecute(id), {
       method: 'POST',

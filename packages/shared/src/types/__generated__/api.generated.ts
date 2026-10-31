@@ -112,7 +112,13 @@ export const PostApiAiPendingOperationsIdPreviewRefreshResponse = zod.object({
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
   "isEditable": zod.boolean().default(postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoChangesItemIsEditableDefault),
-  "entityEmoji": zod.string().nullish()
+  "entityEmoji": zod.string().nullish(),
+  "provenance": zod.string().nullish(),
+  "removal": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "field": zod.string(),
+  "fields": zod.array(zod.string()).nullish()
+})]).optional()
 })),
   "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoChangeTargetCountRegExpTwo)]),
   "items": zod.array(zod.object({
@@ -128,7 +134,13 @@ export const PostApiAiPendingOperationsIdPreviewRefreshResponse = zod.object({
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
   "isEditable": zod.boolean().default(postApiAiPendingOperationsIdPreviewRefreshResponsePreviewTwoItemsItemFieldsItemIsEditableDefault),
-  "entityEmoji": zod.string().nullish()
+  "entityEmoji": zod.string().nullish(),
+  "provenance": zod.string().nullish(),
+  "removal": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "field": zod.string(),
+  "fields": zod.array(zod.string()).nullish()
+})]).optional()
 })),
   "stateFingerprint": zod.string(),
   "removesData": zod.boolean().nullish(),
@@ -176,7 +188,8 @@ export const PostApiAiPendingOperationsIdReviseBody = zod.object({
   "items": zod.array(zod.object({
   "itemId": zod.string(),
   "edits": zod.unknown().optional(),
-  "placement": zod.string().nullish()
+  "placement": zod.string().nullish(),
+  "removeSuggestedFields": zod.array(zod.string()).nullish()
 })),
   "clientContext": zod.union([zod.null(),zod.object({
   "platform": zod.string().nullish(),
@@ -213,7 +226,11 @@ export const PostApiAiPendingOperationsIdReviseBody = zod.object({
   "step": zod.string(),
   "language": zod.string()
 })]).optional(),
-  "supportsStartingStepContext": zod.boolean().nullish()
+  "supportsStartingStepContext": zod.boolean().nullish(),
+  "supportsProactiveOffers": zod.boolean().nullish(),
+  "conversationId": zod.uuid().nullish(),
+  "dismissedOfferKeys": zod.array(zod.string()).nullish(),
+  "selectedOfferKey": zod.string().nullish()
 })]).optional()
 })
 
@@ -313,7 +330,11 @@ export const PostApiAiPendingOperationsIdExecuteBody = zod.object({
   "step": zod.string(),
   "language": zod.string()
 })]).optional(),
-  "supportsStartingStepContext": zod.boolean().nullish()
+  "supportsStartingStepContext": zod.boolean().nullish(),
+  "supportsProactiveOffers": zod.boolean().nullish(),
+  "conversationId": zod.uuid().nullish(),
+  "dismissedOfferKeys": zod.array(zod.string()).nullish(),
+  "selectedOfferKey": zod.string().nullish()
 })]).optional()
 })
 
@@ -823,7 +844,11 @@ export const PostApiChatReadsRefreshBody = zod.object({
   "step": zod.string(),
   "language": zod.string()
 })]).optional(),
-  "supportsStartingStepContext": zod.boolean().nullish()
+  "supportsStartingStepContext": zod.boolean().nullish(),
+  "supportsProactiveOffers": zod.boolean().nullish(),
+  "conversationId": zod.uuid().nullish(),
+  "dismissedOfferKeys": zod.array(zod.string()).nullish(),
+  "selectedOfferKey": zod.string().nullish()
 })]).optional(),
   "page": zod.boolean().default(postApiChatReadsRefreshBodyPageDefault)
 })
@@ -1004,7 +1029,16 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockOneReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockOneTotalCountRegExpTwo)]).nullish(),
   "sourceRevision": zod.string().nullish()
@@ -1035,7 +1069,16 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockTwoReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockTwoTotalCountRegExpTwo)]).nullish(),
   "sourceRevision": zod.string().nullish()
@@ -1090,7 +1133,16 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockThreeReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional()
 }),zod.object({
   "period": zod.string(),
@@ -1147,7 +1199,16 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockFourReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional()
 }),zod.object({
   "date": zod.iso.date(),
@@ -1184,7 +1245,16 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockFiveReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional(),
   "dateTo": zod.iso.date().nullish()
 }),zod.object({
@@ -1299,7 +1369,16 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockSixReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional(),
   "firstEligibleDate": zod.iso.date().nullish()
 }),zod.object({
@@ -1358,7 +1437,16 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockSevenReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional()
 }),zod.object({
   "kind": zod.string(),
@@ -1385,7 +1473,26 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockEightReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
+})]).optional(),
+  "connection": zod.union([zod.null(),zod.object({
+  "connected": zod.boolean(),
+  "workspaceName": zod.string().nullable(),
+  "status": zod.string(),
+  "lastPollAtUtc": zod.iso.datetime({"offset":true}).nullable(),
+  "sharedDatabases": zod.array(zod.object({
+  "id": zod.uuid(),
+  "title": zod.string()
+}))
 })]).optional()
 }),zod.object({
   "kind": zod.string(),
@@ -1406,7 +1513,16 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockNineReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional(),
   "aiMessagesPeriod": zod.string().nullish(),
   "aiMessagesResetsAt": zod.iso.datetime({"offset":true}).nullish()
@@ -1449,7 +1565,16 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockOnezeroReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional()
 }),zod.object({
   "metric": zod.string(),
@@ -1498,7 +1623,16 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseBlockOneoneReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional()
 })]),
   "read": zod.object({
@@ -1510,7 +1644,16 @@ export const PostApiChatReadsRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatReadsRefreshResponseReadTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })
 })
 
@@ -1558,7 +1701,26 @@ export const GetApiChatRecordsKindResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', getApiChatRecordsKindResponseReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
+})]).optional(),
+  "connection": zod.union([zod.null(),zod.object({
+  "connected": zod.boolean(),
+  "workspaceName": zod.string().nullable(),
+  "status": zod.string(),
+  "lastPollAtUtc": zod.iso.datetime({"offset":true}).nullable(),
+  "sharedDatabases": zod.array(zod.object({
+  "id": zod.uuid(),
+  "title": zod.string()
+}))
 })]).optional()
 })
 
@@ -1790,7 +1952,16 @@ export const PostApiChatResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseOperationsItemReadBlockTwoReadTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })
 })]).optional(),
   "errorCode": zod.string().nullish(),
@@ -1813,7 +1984,13 @@ export const PostApiChatResponse = zod.object({
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
   "isEditable": zod.boolean().default(postApiChatResponsePendingOperationsItemChangesItemIsEditableDefault),
-  "entityEmoji": zod.string().nullish()
+  "entityEmoji": zod.string().nullish(),
+  "provenance": zod.string().nullish(),
+  "removal": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "field": zod.string(),
+  "fields": zod.array(zod.string()).nullish()
+})]).optional()
 })).nullish(),
   "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePendingOperationsItemChangeTargetCountRegExpTwo)]).nullish(),
   "items": zod.array(zod.object({
@@ -1829,7 +2006,13 @@ export const PostApiChatResponse = zod.object({
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
   "isEditable": zod.boolean().default(postApiChatResponsePendingOperationsItemItemsItemFieldsItemIsEditableDefault),
-  "entityEmoji": zod.string().nullish()
+  "entityEmoji": zod.string().nullish(),
+  "provenance": zod.string().nullish(),
+  "removal": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "field": zod.string(),
+  "fields": zod.array(zod.string()).nullish()
+})]).optional()
 })),
   "stateFingerprint": zod.string(),
   "removesData": zod.boolean().nullish(),
@@ -1859,7 +2042,16 @@ export const PostApiChatResponse = zod.object({
   "habitType": zod.string().nullish()
 })).nullish(),
   "previewFingerprint": zod.string().nullish(),
-  "actionKey": zod.string().nullish()
+  "actionKey": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })).nullish(),
   "policyDenials": zod.array(zod.object({
   "operationId": zod.string(),
@@ -1900,7 +2092,16 @@ export const PostApiChatResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseHabitListTwoReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseHabitListTwoTotalCountRegExpTwo)]).nullish(),
   "sourceRevision": zod.string().nullish()
@@ -1932,7 +2133,16 @@ export const PostApiChatResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseGoalListTwoReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseGoalListTwoTotalCountRegExpTwo)]).nullish(),
   "sourceRevision": zod.string().nullish()
@@ -1988,7 +2198,16 @@ export const PostApiChatResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseMetricsCardTwoReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional()
 })]).optional(),
   "periodInsight": zod.union([zod.null(),zod.object({
@@ -2046,7 +2265,16 @@ export const PostApiChatResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional()
 })]).optional(),
   "daySummary": zod.union([zod.null(),zod.object({
@@ -2084,7 +2312,16 @@ export const PostApiChatResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseDaySummaryTwoReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional(),
   "dateTo": zod.iso.date().nullish()
 })]).optional(),
@@ -2200,7 +2437,16 @@ export const PostApiChatResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseStreakTwoReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional(),
   "firstEligibleDate": zod.iso.date().nullish()
 })]).optional(),
@@ -2260,7 +2506,16 @@ export const PostApiChatResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseCalendarTwoReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional()
 })]).optional(),
   "recordLists": zod.array(zod.object({
@@ -2288,7 +2543,26 @@ export const PostApiChatResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseRecordListsItemReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
+})]).optional(),
+  "connection": zod.union([zod.null(),zod.object({
+  "connected": zod.boolean(),
+  "workspaceName": zod.string().nullable(),
+  "status": zod.string(),
+  "lastPollAtUtc": zod.iso.datetime({"offset":true}).nullable(),
+  "sharedDatabases": zod.array(zod.object({
+  "id": zod.uuid(),
+  "title": zod.string()
+}))
 })]).optional()
 })).nullish(),
   "accountRows": zod.union([zod.null(),zod.object({
@@ -2310,7 +2584,16 @@ export const PostApiChatResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseAccountRowsTwoReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional(),
   "aiMessagesPeriod": zod.string().nullish(),
   "aiMessagesResetsAt": zod.iso.datetime({"offset":true}).nullish()
@@ -2428,7 +2711,11 @@ export const PostApiChatGamificationRefreshBody = zod.object({
   "step": zod.string(),
   "language": zod.string()
 })]).optional(),
-  "supportsStartingStepContext": zod.boolean().nullish()
+  "supportsStartingStepContext": zod.boolean().nullish(),
+  "supportsProactiveOffers": zod.boolean().nullish(),
+  "conversationId": zod.uuid().nullish(),
+  "dismissedOfferKeys": zod.array(zod.string()).nullish(),
+  "selectedOfferKey": zod.string().nullish()
 })]).optional()
 })
 
@@ -2561,7 +2848,16 @@ export const PostApiChatGamificationRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatGamificationRefreshResponseBlockReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional()
 }),
   "read": zod.object({
@@ -2573,7 +2869,16 @@ export const PostApiChatGamificationRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatGamificationRefreshResponseReadTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })
 })
 
@@ -2619,7 +2924,11 @@ export const PostApiChatHabitMonthRefreshBody = zod.object({
   "step": zod.string(),
   "language": zod.string()
 })]).optional(),
-  "supportsStartingStepContext": zod.boolean().nullish()
+  "supportsStartingStepContext": zod.boolean().nullish(),
+  "supportsProactiveOffers": zod.boolean().nullish(),
+  "conversationId": zod.uuid().nullish(),
+  "dismissedOfferKeys": zod.array(zod.string()).nullish(),
+  "selectedOfferKey": zod.string().nullish()
 })]).optional()
 })
 
@@ -2844,7 +3153,16 @@ export const PostApiChatHabitMonthRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitMonthRefreshResponseBlockReadTwoTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional()
 }),
   "read": zod.object({
@@ -2856,7 +3174,16 @@ export const PostApiChatHabitMonthRefreshResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitMonthRefreshResponseReadTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })
 })
 
@@ -3124,7 +3451,16 @@ export const PostApiChatHabitSuggestionsPreviewResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewResponseOperationReadBlockTwoReadTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })
 })]).optional(),
   "errorCode": zod.string().nullish(),
@@ -3147,7 +3483,13 @@ export const PostApiChatHabitSuggestionsPreviewResponse = zod.object({
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
   "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoChangesItemIsEditableDefault),
-  "entityEmoji": zod.string().nullish()
+  "entityEmoji": zod.string().nullish(),
+  "provenance": zod.string().nullish(),
+  "removal": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "field": zod.string(),
+  "fields": zod.array(zod.string()).nullish()
+})]).optional()
 })).nullish(),
   "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoChangeTargetCountRegExpTwo)]).nullish(),
   "items": zod.array(zod.object({
@@ -3163,7 +3505,13 @@ export const PostApiChatHabitSuggestionsPreviewResponse = zod.object({
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
   "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewResponsePendingOperationTwoItemsItemFieldsItemIsEditableDefault),
-  "entityEmoji": zod.string().nullish()
+  "entityEmoji": zod.string().nullish(),
+  "provenance": zod.string().nullish(),
+  "removal": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "field": zod.string(),
+  "fields": zod.array(zod.string()).nullish()
+})]).optional()
 })),
   "stateFingerprint": zod.string(),
   "removesData": zod.boolean().nullish(),
@@ -3193,7 +3541,16 @@ export const PostApiChatHabitSuggestionsPreviewResponse = zod.object({
   "habitType": zod.string().nullish()
 })).nullish(),
   "previewFingerprint": zod.string().nullish(),
-  "actionKey": zod.string().nullish()
+  "actionKey": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional(),
   "policyDenial": zod.union([zod.null(),zod.object({
   "operationId": zod.string(),
@@ -3270,7 +3627,16 @@ export const PostApiChatHabitSuggestionsPreviewAllResponse = zod.object({
   "refreshToken": zod.string(),
   "nextCursor": zod.string().nullish(),
   "totalCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewAllResponseOperationReadBlockTwoReadTotalCountRegExpTwo)]).nullish(),
-  "recovery": zod.string().nullish()
+  "recovery": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })
 })]).optional(),
   "errorCode": zod.string().nullish(),
@@ -3293,7 +3659,13 @@ export const PostApiChatHabitSuggestionsPreviewAllResponse = zod.object({
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
   "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoChangesItemIsEditableDefault),
-  "entityEmoji": zod.string().nullish()
+  "entityEmoji": zod.string().nullish(),
+  "provenance": zod.string().nullish(),
+  "removal": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "field": zod.string(),
+  "fields": zod.array(zod.string()).nullish()
+})]).optional()
 })).nullish(),
   "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoChangeTargetCountRegExpTwo)]).nullish(),
   "items": zod.array(zod.object({
@@ -3309,7 +3681,13 @@ export const PostApiChatHabitSuggestionsPreviewAllResponse = zod.object({
   "valueType": zod.string(),
   "proposedValue": zod.unknown().optional(),
   "isEditable": zod.boolean().default(postApiChatHabitSuggestionsPreviewAllResponsePendingOperationTwoItemsItemFieldsItemIsEditableDefault),
-  "entityEmoji": zod.string().nullish()
+  "entityEmoji": zod.string().nullish(),
+  "provenance": zod.string().nullish(),
+  "removal": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "field": zod.string(),
+  "fields": zod.array(zod.string()).nullish()
+})]).optional()
 })),
   "stateFingerprint": zod.string(),
   "removesData": zod.boolean().nullish(),
@@ -3339,7 +3717,16 @@ export const PostApiChatHabitSuggestionsPreviewAllResponse = zod.object({
   "habitType": zod.string().nullish()
 })).nullish(),
   "previewFingerprint": zod.string().nullish(),
-  "actionKey": zod.string().nullish()
+  "actionKey": zod.string().nullish(),
+  "nextAction": zod.union([zod.null(),zod.object({
+  "offerKey": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "surface": zod.string().nullish(),
+  "prompt": zod.string().nullish(),
+  "entityId": zod.uuid().nullish(),
+  "date": zod.iso.date().nullish()
+})]).optional()
 })]).optional(),
   "policyDenial": zod.union([zod.null(),zod.object({
   "operationId": zod.string(),
@@ -3350,6 +3737,18 @@ export const PostApiChatHabitSuggestionsPreviewAllResponse = zod.object({
   "pendingOperationId": zod.uuid().nullish()
 })]).optional()
 })
+
+
+export const PostApiChatOffersDismissHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostApiChatOffersDismissBody = zod.object({
+  "conversationId": zod.uuid(),
+  "offerKeys": zod.array(zod.string())
+})
+
+export const PostApiChatOffersDismissResponse = zod.void()
 
 
 export const GetApiChecklistTemplatesHeader = zod.object({

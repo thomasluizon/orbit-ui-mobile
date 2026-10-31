@@ -1602,6 +1602,10 @@
       }
     },
     "blockCopy": { "copy": "Copiar", "copied": "Copiado", "copyError": "Não consegui copiar. Tente de novo." },
+    "offers": {
+      "dismiss": "Dispensar sugestão",
+      "failed": "Não consegui atualizar a sugestão. Tente de novo."
+    },
     "title": "Astra",
     "offline": {
       "title": "Você está sem conexão"
@@ -2153,7 +2157,14 @@
         "scheduled_reminders": "Lembretes agendados",
         "delete": "Apagar",
         "dismiss_import": "Dispensar importação",
-        "run_sync": "Sincronizar agora"
+        "color": "Cor",
+        "positions": "Ordem",
+        "run_sync": "Sincronizar agora",
+        "repeat_reminder": "Repetir lembrete",
+        "interval_minutes": "Intervalo em minutos",
+        "start_at_utc": "Primeiro lembrete",
+        "items": "Itens",
+        "text": "Texto"
       },
       "confirmTitle": "Aprovar esta mudança?",
       "confirm": "Aprovar",

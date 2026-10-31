@@ -16,6 +16,7 @@ import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 
 interface RenderedTree extends ReactTestRenderer { toJSON: () => Parameters<typeof measureProfileRow>[0]; unmount: () => void }
 const renderer = require('react-test-renderer') as { create: (element: React.ReactElement) => RenderedTree; act: typeof import('react-test-renderer')['act'] }
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('react-i18next', () => ({ initReactI18next: { type: '3rdParty', init: () => undefined }, useTranslation: () => ({ t: i18n.t.bind(i18n), i18n }) }))
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => null }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))

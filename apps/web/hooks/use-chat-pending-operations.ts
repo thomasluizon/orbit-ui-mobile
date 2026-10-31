@@ -17,11 +17,17 @@ import {
 import { accountIntentWithOrigin, runServerActionResult } from '@/lib/client-action'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { useChatStore } from '@/stores/chat-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 
 type PendingExecutionResult =
   | { ok: true; response: AgentExecuteOperationResponse }
   | { ok: false; error: string; stale?: boolean }
+
+function conversationArgument(): [] | [string] {
+  const id = useChatStore.getState().conversationId
+  return id ? [id] : []
+}
 
 function pendingOperationError(
   failure: { error: string; code?: string },
@@ -73,7 +79,7 @@ export function useChatPendingOperations(
   const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
-    const response = await runChatAction(revisePendingOperation(id, request, accountIntentWithOrigin(intendedAccountId)))
+    const response = await runChatAction(revisePendingOperation(id, request, accountIntentWithOrigin(intendedAccountId), ...conversationArgument()))
     if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
     if (!response) return accountChangedResult(t)
     if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
@@ -85,7 +91,7 @@ export function useChatPendingOperations(
   const refreshPendingOperationForBubble = useCallback(async (id: string) => {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
-    const response = await runChatAction(refreshPendingOperation(id, accountIntentWithOrigin(intendedAccountId)))
+    const response = await runChatAction(refreshPendingOperation(id, accountIntentWithOrigin(intendedAccountId), ...conversationArgument()))
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
     if (!response) return accountChangedResult(t)
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
@@ -97,7 +103,7 @@ export function useChatPendingOperations(
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
-    const confirmation = await runChatAction(confirmPendingOperation(pendingOperationId, accountIntentWithOrigin(intendedAccountId)))
+    const confirmation = await runChatAction(confirmPendingOperation(pendingOperationId, accountIntentWithOrigin(intendedAccountId), ...conversationArgument()))
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
     if (!confirmation) return accountChangedResult(t)
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
@@ -109,6 +115,7 @@ export function useChatPendingOperations(
       pendingOperationId,
       confirmation.data.confirmationToken,
       accountIntentWithOrigin(intendedAccountId),
+      ...conversationArgument(),
     ))
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
     if (!execution) return accountChangedResult(t)
@@ -126,7 +133,7 @@ export function useChatPendingOperations(
     async (pendingOperationId: string) => {
       const intendedAccountId = getHeldAccountId()
       const accountGeneration = getAccountGeneration()
-      const confirmation = await runChatAction(confirmPendingOperation(pendingOperationId, accountIntentWithOrigin(intendedAccountId)))
+      const confirmation = await runChatAction(confirmPendingOperation(pendingOperationId, accountIntentWithOrigin(intendedAccountId), ...conversationArgument()))
       if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
       if (!confirmation) return accountChangedResult(t)
       if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
@@ -178,6 +185,7 @@ export function useChatPendingOperations(
         pendingOperationId,
         confirmationToken,
         accountIntentWithOrigin(intendedAccountId),
+        ...conversationArgument(),
       ))
       if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
       if (!execution) return accountChangedResult(t)

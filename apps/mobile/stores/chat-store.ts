@@ -28,6 +28,8 @@ export const useChatStore = create<MobileChatStoreState>((set) => ({
       replyActive: false,
       replyRevision: 0,
       messages: [],
+      conversationId: null,
+      dismissedOfferKeys: [],
       proactiveEntryId: null,
       proactiveOutcomes: {},
       isTyping: false,

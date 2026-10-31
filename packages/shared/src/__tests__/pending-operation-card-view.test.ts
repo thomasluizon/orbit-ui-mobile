@@ -1,4 +1,5 @@
-import { makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { astraOfferFixture, makeOfferedPreview } from '../test-support/astra-offer-fixtures'
+import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -11,7 +12,7 @@ import {
   type PendingOperationFrame,
   type PendingOperationVerificationProps,
 } from '../chat/pending-operation-card-view'
-import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from '../chat/pending-operation-card'
+import { buildPendingOperationCardLabels, formatPreviewMeta, type PendingOperationCardLabels } from '../chat/pending-operation-card'
 import { pendingOperationSubHabits } from '../chat/pending-operation-sub-habits'
 import { pendingAgentOperationSchema } from '../types/ai'
 import en from '../i18n/en.json'
@@ -500,6 +501,43 @@ it('labels the pending operation from its capability without exposing risk', () 
     dismiss_import: 'chat.operation.field.dismiss_import',
     run_sync: 'chat.operation.field.run_sync',
   })
+})
+
+/**
+ * orbit-api src/Orbit.Application/Chat/PendingOperationChangePreviewer.cs:41,50,362,980;
+ * PendingOperationChangePreviewer.Reuse.cs:59 and .Offers.cs:327,348 declare habit and nested offer fields.
+ * AgentArgumentPreview.cs:70 and PendingOperationRevisionService.cs:169,249 restrict schema-backed edits.
+ */
+const producerEditableFieldsWithCopy = [
+  'title', 'description', 'emoji', 'frequency_unit', 'frequency_quantity', 'interval_weeks',
+  'days', 'due_date', 'start_date', 'end_date', 'due_time', 'due_end_time',
+  'goal_ids', 'tag_names', 'tag_ids', 'habit_id', 'parent_habit_id', 'is_bad_habit',
+  'is_general', 'is_flexible', 'checklist_items', 'sub_habits', 'slip_alert_enabled',
+  'reminder_enabled', 'reminder_times', 'scheduled_reminders', 'relative_reminders',
+  'repeat_reminder', 'is_completed', 'date',
+  /** Tools/Implementations/UpdateHabitTool.cs:35; AgentEditableArguments.cs:25; ManageApiKeysTool.cs:29. */
+  'clear_parent', 'scopes', 'is_read_only', 'expires_at_utc',
+  /** AgentEditableArguments.cs:26,27; Tools/Implementations/ManageSubscriptionTool.cs:18; ManageAccountTool.cs:19. */
+  'interval', 'code',
+  /** Tools/Implementations/CreateGoalTool.cs:23; UpdateGoalProgressTool.cs:25; UpdateGoalStatusTool.cs:27. */
+  'target_value', 'unit', 'deadline', 'goal_type', 'current_value', 'note', 'status', 'habit_ids',
+  /** Tools/Implementations/TagTools.cs:39,79; ChecklistTemplateTools.cs:52,98; ReorderHabitsTool.cs:20; ReorderGoalsTool.cs:20. */
+  'name', 'color', 'items', 'positions',
+  /** AgentEditableArguments.cs:14; Tools/Implementations/ProfileTools.cs:58,184; CalendarTools.cs:132. */
+  'timezone', 'language', 'week_start_day', 'uses_24_hour_clock', 'theme_preference', 'enabled',
+  /** Tools/Implementations/SendSupportRequestTool.cs:17. */
+  'email', 'subject', 'message',
+] as const
+
+it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('labels producer editable preview fields with approved copy in $locale', ({ locale, messages }) => {
+  const localized = buildPendingOperationCardLabels(makePendingAgentOperation(), (key, values) => translateMessages(messages, key, values), value => value, locale)
+  for (const field of producerEditableFieldsWithCopy) {
+    const label = localized.fieldLabels[field]
+    expect.soft(label, field).toBeTypeOf('string')
+    expect.soft(label?.trim(), field).toBeTruthy()
+    expect.soft(label, field).not.toBe(field)
+    expect.soft(label, field).not.toMatch(/^(chat|habits|goals|profile|settings)\./)
+  }
 })
 
 it('names every held write capability in both locales', () => {
@@ -1149,4 +1187,88 @@ describe('typed preview rows', () => {
       ['1', 'General habits', undefined],
     ])
   })
+})
+
+it('keeps each offered row editable and independently removable before approval', () => {
+  const operation = makeOfferedPreview()
+  const card = createCard()
+  const removeField = vi.fn()
+  card.revision = {
+    operation, canRevise: true, items: operation.items!, editingItem: undefined,
+    draft: {}, editedItemIds: [], busy: false, stale: false, canRefresh: false,
+    refresh: vi.fn(), rejected: false, error: undefined,
+    setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(),
+    saveEdit: vi.fn(), rejectItem: vi.fn(), rejectAll: vi.fn(), removeField,
+  }
+  const localized = buildPendingOperationCardLabels(operation, translateEnglish, value => value)
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+  const offered = record.frame!.items.filter(item => item.id.includes(':offer:'))
+  expect(offered).toHaveLength(2)
+  expect(offered.every(item => item.proposed && item.indented)).toBe(true)
+  const label = localized.fieldLabels.repeat_reminder!
+  record.buttons.find(button => button.label === `${localized.edit} ${label}`)!.onClick()
+  expect(card.revision.startEdit).toHaveBeenCalledWith('0')
+  record.buttons.find(button => button.label === `${localized.remove} ${label}`)!.onClick()
+  expect(removeField).toHaveBeenCalledWith('0', operation.items![0]!.fields[2])
+  expect(card.execute).not.toHaveBeenCalled()
+})
+
+it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('retains localized preview choices and counted controls in $locale', ({ locale, messages }) => {
+  const operation = makePlacementPreview()
+  const placement = operation.items![0]!.placement!
+  const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale)
+  expect({
+    group: localized.placementGroup('Water'),
+    option: localized.placementOption('checklist_item', placement.destinationName),
+    recommendation: localized.placementRecommendation(placement),
+    rejected: localized.rejected(2), more: localized.more(3), open: localized.openNamed('Water'),
+  }).toEqual(locale === 'en' ? {
+    group: 'Placement for Water', option: 'Checklist item in Morning routine',
+    recommendation: 'Astra suggests: Checklist item in Morning routine. You already keep 4 checklist items here.',
+    rejected: 'The 2 changes were rejected. Nothing was saved.', more: 'and 3 more', open: 'Open details: Water',
+  } : {
+    group: 'Onde colocar Water', option: 'Item do checklist de Morning routine',
+    recommendation: 'Astra sugere: Item do checklist de Morning routine. Você já tem 4 itens no checklist aqui.',
+    rejected: 'As 2 mudanças foram rejeitadas. Nada foi salvo.', more: 'e mais 3', open: 'Abrir detalhes: Water',
+  })
+  expect(formatPreviewMeta('Every day · at 08:00')).toBe('Every\u00a0day · at\u00a008:00')
+})
+
+it.each([false, true])('passes the preview offer through the frame with busy=%s', busy => {
+  const operation = { ...makeOfferedPreview(), nextAction: astraOfferFixture }
+  const { record, render } = createRenderers()
+  const offer = vi.fn(() => 'preview-offer')
+  renderPendingOperationCard({ card: { ...createCard(), busy }, labels, render: { ...render, offer }, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+  expect(offer).toHaveBeenCalledExactlyOnceWith(astraOfferFixture, busy)
+  expect(record.frame?.body).toBe('preview-offer')
+})
+
+it.each(['done', 'failed'] as const)('withholds offers and offered field controls after a %s outcome', status => {
+  const operation = { ...makeOfferedPreview(), nextAction: astraOfferFixture }
+  const { record, render } = createRenderers()
+  const offer = vi.fn(() => 'preview-offer')
+  renderPendingOperationCard({ card: { ...createCard(), status }, labels, render: { ...render, offer }, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+  expect(offer).not.toHaveBeenCalled()
+  expect(record.frame?.items.some(item => item.id.includes(':offer:'))).toBe(false)
+})
+
+it('revises placement through the displayed preview choice without executing it', () => {
+  const operation = makePlacementPreview()
+  const card = createCard()
+  card.revision = {
+    operation, canRevise: true, items: operation.items!, editingItem: undefined,
+    draft: {}, editedItemIds: [], busy: false, stale: false, canRefresh: false,
+    refresh: vi.fn(), rejected: false, error: undefined,
+    setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(), switchPlacement: vi.fn(),
+    saveEdit: vi.fn(), rejectItem: vi.fn(), rejectAll: vi.fn(),
+  }
+  const { render } = createRenderers()
+  const placementChoice = vi.fn<PendingOperationCardRenderers<string>['placementChoice']>(() => 'placement-choice')
+  renderPendingOperationCard({ card, labels, render: { ...render, placementChoice }, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+  const choice = placementChoice.mock.calls[0]![0]
+  expect(choice).toMatchObject({ itemId: '0', placement: operation.items![0]!.placement, busy: false, disabled: false })
+  choice.onSelect('new_parent')
+  expect(card.revision.switchPlacement).toHaveBeenCalledExactlyOnceWith('0', 'new_parent')
+  expect(card.execute).not.toHaveBeenCalled()
 })
