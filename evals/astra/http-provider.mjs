@@ -1,3 +1,4 @@
+import { completeOfferAttempt } from './offer-lifecycle.mjs'
 import { withLegacyProfileLanguage } from './fixtures/language.mjs'
 import { suggestionAnswer } from './suggestions.mjs'
 import { loadApiProvider } from 'promptfoo'
@@ -18,7 +19,7 @@ export default class AstraHttpProvider {
   id() { return 'astra-http' }
 
   async refine(prompt, context, options) {
-    const { multipart, transformResponse, ...config } = this.config
+    const { multipart: _multipart, transformResponse: _transformResponse, ...config } = this.config
     const provider = await loadApiProvider('http', { options: { config: {
       ...config, url: `${config.url}/habit-suggestions/refine`,
       headers: { ...config.headers, 'Content-Type': 'application/json' },
@@ -53,6 +54,14 @@ export default class AstraHttpProvider {
   }
 
   async attempt(prompt, context, options) {
+    if (context.vars.offerFamily) {
+      const response = await this.chat(prompt, context, options)
+      if (response.output?.composition && !response.error) {
+        response.output.offerReadback = await completeOfferAttempt(response.output, context.vars,
+          (input, next) => this.chat(input, next, options))
+      }
+      return response
+    }
     if (!context.vars.brainDump || context.vars.preconditionFailure) return this.chat(prompt, context, options)
     const baseline = await brainDumpBaseline(context.vars)
     const response = await this.chat(prompt, context, options)

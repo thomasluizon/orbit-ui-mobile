@@ -11,7 +11,7 @@ import { summarize } from '../report.mjs'
 import { behavior } from '../assertions.mjs'
 import { toolCall } from './fixtures/producer.mjs'
 
-const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((file) => parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')))
+const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((file) => parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'), { merge: true }))
 let habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered
 beforeEach(() => {
   offlineCredentials()

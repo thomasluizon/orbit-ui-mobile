@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import AstraHttpProvider from './http-provider.mjs'
 import { behavior, composition, structural } from './assertions.mjs'
+import { publicApi } from './fixtures/api.mjs'
+import { offerActions } from './proactive-offers.mjs'
 import { readStartingHabits } from './step-persistence.mjs'
 
 function prepareStartingAction(test, block) {
@@ -39,7 +41,7 @@ export async function prepareCorrection(test) {
   const provider = new AstraHttpProvider({ config: {
     ...configuration.providers[0].config, transformResponse: `file://${fileURLToPath(new URL('./response.mjs', import.meta.url))}`,
   } })
-  const vars = { ...test.vars, refine: undefined, ...setup, evalRequestId: requestId, historyJson: '[]' }
+  const vars = { ...test.vars, refine: undefined, ...setup, evalRequestId: requestId, historyJson: '[]', offerFamily: undefined }
   vars.clientContextJson = JSON.stringify(vars.clientContext)
   const response = await provider.callApi(setup.input, { vars })
   if (response.error || !response.output) throw new Error(`Correction setup${setup.caseId ? ` dependency ${setup.caseId}` : ''} returned no verifiable answer.`)
@@ -48,6 +50,21 @@ export async function prepareCorrection(test) {
   const failures = checks.filter((check) => check.pass !== true || check.metadata?.skipped || check.metadata?.unavailable)
   if (failures.length) {
     throw new Error(`Correction setup failed${setup.caseId ? ` dependency ${setup.caseId}` : ''}: ${failures.map((check) => check.reason).join('; ')}`)
+  }
+  if (test.vars.offerFamily) {
+    const actions = offerActions(response.output.composition)
+    if (test.vars.offerFamily !== 'preview-rejection' && actions.length !== 1) throw new Error('Offer setup requires exactly one issued action.')
+    test.vars.issuedOffer = structuredClone(actions[0] ?? null)
+    if (test.vars.offerFamily === 'dismissal') {
+      const dismissed = await publicApi(test.vars.credentialKey)('POST', 'chat/offers/dismiss', {
+        conversationId: test.vars.clientContext.conversationId, offerKeys: [actions[0].action.offerKey],
+      })
+      if (dismissed.status !== 204) throw new Error('Offer dismissal did not return HTTP 204.')
+    }
+    if (test.vars.offerFamily === 'action-lifecycle') {
+      test.vars.clientContext.selectedOfferKey = actions[0].action.offerKey
+      test.vars.clientContextJson = JSON.stringify(test.vars.clientContext)
+    }
   }
   if (test.vars.startingStepAction) prepareStartingAction(test, response.output.composition.parts[0].block)
   if (test.vars.refine) {

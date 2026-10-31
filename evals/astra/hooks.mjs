@@ -4,8 +4,10 @@ import { randomUUID } from 'node:crypto'
 import { tsImport } from 'tsx/esm/api'
 import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
 import { dateOffset, requireEvalOrigin, resetFixture } from './fixtures/reset.mjs'
+import { seedOfferFixture } from './fixtures/offers.mjs'
 import { fixtureHabitTitles } from './fixtures/names.mjs'
 import { requireEvalAccess } from './fixtures/api.mjs'
+import { freshConversation, configureOffers } from './offer-context.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { describeCase } from './latency.mjs'
 import { descriptors } from './merge-reports.mjs'
@@ -17,6 +19,7 @@ let completedResults = []
 let selectedCases = []
 const accountAccess = new Map()
 const freshFreeWindows = new Set()
+const offerAttempts = new Map()
 
 function persistResults(results, expectedCases) {
   writeResults(results)
@@ -31,6 +34,7 @@ export async function beforeAll({ suite }) {
   selectedCases = suite.tests.map(describeCase)
   accountAccess.clear()
   freshFreeWindows.clear()
+  offerAttempts.clear()
   persistResults(completedResults, selectedCases)
   const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE']
   for (const key of new Set(required)) {
@@ -74,6 +78,14 @@ export async function beforeEach({ test }) {
   delete test.vars.preconditionFailure
   delete test.vars.fixtureEvidence
   delete test.vars.legacyProfileLanguage
+  freshConversation(test.vars)
+  configureOffers(test)
+  if (test.vars.offerFamily) {
+    const attempt = offerAttempts.get(test.metadata.id) ?? 0
+    test.vars.offerVariant = attempt % 3
+    offerAttempts.set(test.metadata.id, attempt + 1)
+    delete test.vars.offerExclusion
+  }
   try { return await prepareAttempt(test) } catch (error) {
     test.vars.preconditionFailure = safeFailureMessage(error)
     process.stderr.write(`Astra precondition unavailable for ${test.metadata.id}: ${test.vars.preconditionFailure}\n`)
@@ -92,6 +104,7 @@ async function prepareAttempt(test) {
   const retrospective = await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true,
     needsFreshWindow && !freshFreeWindows.has(windowKey))
   if (needsFreshWindow) freshFreeWindows.add(windowKey)
+  await seedOfferFixture(test, today)
   test.vars.fixtureHabitTitles = fixtureHabitTitles(test.metadata.fixture, test.metadata.locale)
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
@@ -126,7 +139,7 @@ async function prepareAttempt(test) {
     return value
   }
   test.vars = substitute(test.vars)
-  if (test.metadata.fixture === 'composition-stale') {
+  if (test.metadata.fixture === 'composition-stale' && test.vars.expectations?.required?.[0]) {
     test.vars.expectations.required[0].result = { payload: retrospective }
   }
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })

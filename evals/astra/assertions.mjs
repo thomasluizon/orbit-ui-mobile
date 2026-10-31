@@ -2,10 +2,11 @@ import { refineResult } from './suggestions.mjs'
 import { restartProposal, restartReadback } from './restart.mjs'
 import { composition } from './composition.mjs'
 export { composition }
+export { proactiveOffers } from './proactive-offers.mjs'
 import { assertions } from 'promptfoo'
 import { matchesArguments, matchesOperation, outcomeCalls } from './operation-matcher.mjs'
 import { tools, legacyTools, postReadTools, habitSetupTools, habitSetupBinding,
-  toolWrites, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
+  toolWrites, toolSensitiveFields, observableSchema, offerTools, offerPostReadTools } from './trace-policy.mjs'
 
 const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
@@ -14,6 +15,8 @@ const compositionCatalog = traceCatalog(tools)
 const legacyCatalog = traceCatalog(legacyTools)
 const mergeCatalog = (initial, updates) => [...new Map([...initial, ...updates].map((tool) => [tool.function.name, tool])).values()]
 const postReadCatalog = mergeCatalog(compositionCatalog, traceCatalog(postReadTools))
+const offerCatalog = traceCatalog(offerTools)
+const offerContinuationCatalog = mergeCatalog(offerCatalog, traceCatalog(offerPostReadTools))
 const habitSetupCatalog = traceCatalog(habitSetupTools)
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
@@ -105,7 +108,9 @@ export async function structural(output, context) {
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
   const supportsParts = context.vars.clientContext?.supportsParts === true
-  let catalog = supportsParts ? compositionCatalog : legacyCatalog
+  const offers = context.vars.clientContext?.supportsProactiveOffers === true
+  if (offers && !offerCatalog.length) return result(false, 'Missing producer-exported proactive tool catalog; regenerate against the evaluated API.', { unavailable: true })
+  let catalog = offers ? offerCatalog : supportsParts ? compositionCatalog : legacyCatalog
   let hasSuccessfulAccountRead = false
   const drafts = new Map()
   let verdict = result(true, 'No tool calls to validate.')
@@ -127,7 +132,7 @@ export async function structural(output, context) {
     if (supportsParts) {
       recordHabitSetupDraft(call, drafts)
       hasSuccessfulAccountRead ||= successfulAccountRead
-      if (hasSuccessfulAccountRead) catalog = postReadCatalog
+      if (hasSuccessfulAccountRead) catalog = offers ? offerContinuationCatalog : postReadCatalog
       else if (drafts.size) catalog = boundHabitSetupCatalog(drafts)
     }
   }

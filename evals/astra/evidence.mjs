@@ -1,5 +1,5 @@
 import { redactCredentials } from './credentials.mjs'
-import { tools, legacyTools, postReadTools, habitSetupTools, normalizeField } from './trace-policy.mjs'
+import { tools, legacyTools, postReadTools, habitSetupTools, offerTools, offerPostReadTools, normalizeField } from './trace-policy.mjs'
 
 function collectStrings(value, withheld) {
   if (typeof value === 'string' && value) withheld.add(value)
@@ -71,7 +71,7 @@ function resultEvidence(result) {
 
 export function attemptEvidence(entry, attempt) {
   const output = entry.response?.output
-  const catalog = entry.testCase.vars?.clientContext?.supportsParts === true ? [...tools, ...postReadTools, ...habitSetupTools] : legacyTools
+  const catalog = entry.testCase.vars?.clientContext?.supportsParts === true ? [...tools, ...postReadTools, ...habitSetupTools, ...offerTools, ...offerPostReadTools] : legacyTools
   const withheld = new Set()
   const toolCalls = (output?.trace?.calls ?? []).map((call) => {
     const declarations = catalog.filter((candidate) => candidate.function.name === call.name)
@@ -96,6 +96,7 @@ export function attemptEvidence(entry, attempt) {
     timing: timingEvidence(output?.trace?.timing),
     savedStep: entry.gradingResult?.componentResults?.find((assertion) => assertion.assertion?.metric === 'savedStep')?.metadata?.savedStep ?? null,
     ...(output?.brainDumpReadback ? { brainDumpReadback: output.brainDumpReadback } : {}),
+    ...(output?.offerReadback ? { offerReadback: output.offerReadback } : {}),
     renderError: output?.renderError ?? null,
     graderRationale: attempt.assertions.filter((assertion) => assertion.metric === 'finalAnswer')
       .map((assertion) => assertion.reason).join('\n') || entry.gradingResult?.reason || null,

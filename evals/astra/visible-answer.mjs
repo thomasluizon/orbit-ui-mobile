@@ -3,6 +3,7 @@ import { startingStepAnswer } from './one-small-step.mjs'
 import { tsImport } from 'tsx/esm/api'
 import { catalogTranslator } from './catalog-translator.mjs'
 import { visibleBlock } from './visible-blocks.mjs'
+import { visibleOffer } from './proactive-offers.mjs'
 import { visiblePreview } from './visible-preview.mjs'
 
 const { getMessageBubbleView, getMessageBubbleOperations } = await tsImport('../../packages/shared/src/chat/message-bubble.ts', import.meta.url)
@@ -58,8 +59,10 @@ export function visibleAnswer(composition, clientContext, accountDate) {
   const view = getMessageBubbleView(props, new Set())
   const operations = getMessageBubbleOperations(props, projectionCannotWrite)
   const parts = view.parts.map((part) => part.type === 'text' ? { type: 'text', text: part.text }
-    : { type: 'block', kind: part.part.kind, block: visibleBlock(part.part, options) })
+    : { type: 'block', kind: part.part.kind, block: { ...visibleBlock(part.part, options),
+      nextAction: visibleOffer(part.part.block.read?.nextAction) } })
   const pendingOperations = operations.pendingOperations.map(({ pendingOperation }) => ({
+    nextAction: visibleOffer(pendingOperation.nextAction),
     ...(pendingOperation.confirmationRequirement === 'StepUp'
       && pendingOperation.items == null && pendingOperation.changes == null ? {} : visiblePreview(pendingOperation)),
     ...(pendingOperation.confirmationRequirement === 'StepUp'

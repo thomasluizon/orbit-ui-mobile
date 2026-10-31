@@ -7,10 +7,12 @@ import { publicApi, requireEvalAccess } from './api.mjs'
 import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle, startingChecklistItems } from './names.mjs'
 import { exhaustAllowance } from './allowance.mjs'
 import { seedRestart } from './restart.mjs'
+import { configureOffers, freshConversation } from '../offer-context.mjs'
+import { seedOfferFixture } from './offers.mjs'
 import { seedHojeNextStep } from './hoje-next-step.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
-  parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')))
+  parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'), { merge: true }))
 const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-history', 'empty', 'overdue', 'skipped',
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
   'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'starting-step-checklist', 'hoje-next-step'])
@@ -87,13 +89,13 @@ async function restoreHabits(api, exported, account, fixture, today, titles) {
   for (const [id, title] of [[account.habitId, titles[0]], [account.secondHabitId, titles[1]]]) {
     const start = fixture === 'overdue' ? process.env.ORBIT_EVAL_OVERDUE_DATE
       : fixture.startsWith('composition') ? dateOffset(today, -6) : today
-    await api('PUT', `habits/${id}`, { ...dailyHabit(title, start), clearEndDate: true, clearParent: true })
+    await api('PUT', `habits/${id}`, { ...dailyHabit(title, start), clearEndDate: true, clearParent: true, clearRepeatReminder: true, emoji: null })
     const history = exported.habits.find((habit) => habit.id === id)?.logs
     if (!Array.isArray(history)) throw new Error('Fixture export lacks stable habit history.')
     const completed = history.filter((log) => log.value > 0)
     if (completed.some((log) => log.date < dateOffset(today, -7))) throw new Error('Positive history outside the public undo window needs a new corpus window; stable IDs cannot be recreated.')
     for (const log of completed) await api('POST', `habits/${id}/log`, { date: log.date })
-    await api('PUT', `habits/${id}`, { ...dailyHabit(title, start), clearEndDate: true, clearParent: true })
+    await api('PUT', `habits/${id}`, { ...dailyHabit(title, start), clearEndDate: true, clearParent: true, clearRepeatReminder: true, emoji: null })
   }
 }
 function compositionOffsets(habit, today, fixture, offsets) {
@@ -265,7 +267,11 @@ export async function runReset(caseId) {
   requireEvalOrigin()
   await refreshCredential(test.vars.credentialKey)
   const unmetered = await requireEvalAccess(test.vars.credentialKey)
-  await resetFixture(test, undefined, unmetered)
+  configureOffers(test)
+  freshConversation(test.vars)
+  const today = new Date().toISOString().slice(0, 10)
+  await resetFixture(test, today, unmetered)
+  await seedOfferFixture(test, today)
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try { await runReset(process.argv[2]) } catch (error) {

@@ -303,6 +303,60 @@ tool evidence for the refine request. Each attempt records two messages, so each
 three attempts record six messages even with the main account's exemption. Harness tests exercise
 this flow offline; never treat their passing result as evidence from a live model run.
 
+### Proactive offer gate
+
+The `offers-*` families add 58 bilingual cases to the composition corpus. Their supplied inputs and
+rubrics remain verbatim. Each case retains three independent attempts and its family/locale pass^3
+result. A fresh conversation UUID replaces every case seed before setup; setup, revisions, selection,
+reload and device changes keep that attempt's UUID. Request trace UUIDs remain independently generated
+for each HTTP turn. No seed conversation ID reaches the API.
+
+The producer is `orbit-api#1031`. Keep this harness merge held until that change is live on the
+production API and the coordinator's production run passes all three attempts of these cases.
+Regenerate the catalog against that production commit before running. The exporter captures
+`offerTools` and `offerPostReadTools` through the producer's offer-enabled request builders, including
+`suggested_fields` and removal arguments. A missing offer catalog fails structural validation;
+the harness never accepts these arguments against a hand-written schema. Existing clients keep their
+existing catalogs. Authenticated traces remain request-opt-in and retain independent identity checks.
+
+The `proactiveOffers` assertion validates `block.read.nextAction` and pending-preview `nextAction`,
+including action kind, label, prompt or surface, owned targets, occurrence dates and complete/current
+read metadata. It rejects multiple global offers, external follow-ups, resolved/avoid log targets,
+unsupported-client metadata, successful unsolicited mutations and missing persisted-state evidence.
+Preview fields must identify `requested`, `stored` or `suggested` provenance. Suggestions must be
+editable and carry their entire removal group. Slash-separated child paths stay local to their child;
+requested fields and siblings must survive removal. Action labels/prompts and visible suggestion
+metadata are included in the graded answer projection.
+
+Family setup runs after the normal disposable-account fixture reset, including the standalone reset
+executable. It uses public APIs and independently reads back every change. Goal-behind attempts
+alternate near-deadline `at_risk` and past-deadline `behind`; goal-on-track attempts cover `on_track`,
+`completed` and `no_deadline`. Reminder-gap covers reminders off and reminders on with the same missed
+schedule. Resolved covers a completed occurrence and a skipped avoid habit. Stored-field setup retains
+an emoji, tag, reminder and checked checklist item. Goal-link uses an owned mobility goal; goal-gap
+includes an equivalent active goal exclusion. Fixtures never change plan entitlements or feature flags.
+Calendar exclusions use the actual profile connection and `calendar_integration` configuration.
+Connected and locked states require an already connected or locked disposable account; public fixture
+APIs cannot synthesize Google OAuth consent or an entitlement. Offline HTTP replays cover all three
+availability states without inventing a connection in a live response.
+
+Lifecycle work finishes inside the provider before an attempt returns. Every offer turn compares
+independent exports before and after to catch an unrequested persisted write. Preview cases remove a
+suggested group, revise an unrelated emoji, verify preservation, reject and prove unchanged storage.
+Dismissal calls `POST /api/chat/offers/dismiss` with the actually issued key, checks the main reply,
+then eleven unrelated turns, a fresh history and a mobile context. A newly seeded due occurrence must
+still receive a different eligible offer. Action-lifecycle selects the actually issued key, follows the
+one-small-step save action, revises, rejects, reproposes, approves through the confirmation gateway,
+and independently reads back approved fields and untouched account collections. Confirmation tokens
+stay in memory. Lifecycle failures are failed attempts, never skipped success.
+
+Use `npm test --prefix evals/astra` for the offline suite. New offer tests must drive the hooks,
+assertions, fixture requests and lifecycle ports with producer-derived responses and include a
+purposefully wrong response for each path. Selector timeouts and invalid candidate IDs use intercepted
+responses with no action; they cannot satisfy a required eligible-action case. Historical and partial
+read replays must reject unsafe actions even when the prose sounds reasonable. These replays never
+call Orbit, start an app server, increase an AI ceiling or replace the coordinator's real pass^3 run.
+
 ### Environment and reproducible fixtures
 
 Restart cases cover proposal, approval, rejection and the preference for exactly two habits

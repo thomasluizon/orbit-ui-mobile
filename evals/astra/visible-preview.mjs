@@ -5,7 +5,14 @@ const previewTextFields = new Set(['title', 'name', 'emoji', 'description', 'fre
   'unit', 'goal_type', 'status', 'note', 'subject', 'message', 'email', 'text', 'summary', 'color', 'action',
   'timezone', 'language', 'week_start_day', 'theme_preference', 'interval', 'delete', 'dismiss_import', 'run_sync'])
 
-function previewField({ field, newValue, proposedValue }) {
+function previewField(change) {
+  const projected = previewValue(change)
+  return projected ? { ...projected, provenance: change.provenance ?? undefined,
+    removal: change.removal ?? undefined } : null
+}
+
+function previewValue({ field, newValue, proposedValue }) {
+  if (field === 'repeat_reminder' || field === 'relative_reminders' || field.includes('/')) return { field, value: proposedValue }
   if (['tag_ids', 'goal_ids', 'habit_ids', 'positions', 'scopes'].includes(field)) {
     return Array.isArray(proposedValue) ? { field, count: proposedValue.length } : null
   }
