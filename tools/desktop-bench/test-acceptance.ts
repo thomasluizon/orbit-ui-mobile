@@ -416,10 +416,40 @@ static int applicationReads = 0, invalidReads = 0;
 static NSString *scenario;
 static AXUIElementRef fixtureApplication(pid_t pid) {
     applicationReads++;
-    NSDictionary *button = @{@"AXRole": @"AXButton", @"AXTitle": @"Today", @"AXIdentifier": @"today",
+    NSMutableDictionary *button = [@{@"AXRole": @"AXButton", @"AXTitle": @"Today", @"AXIdentifier": @"today",
         @"AXDOMIdentifier": @"today-button", @"AXDOMClassList": @[@"action"], @"AXSubrole": @"AXTestButton",
-        @"AXRoleDescription": @"button", @"AXHidden": @NO};
-    NSDictionary *web = @{@"AXRole": @"AXWebArea", @"AXChildren": @[button]};
+        @"AXRoleDescription": @"button", @"AXHidden": @NO} mutableCopy];
+    if ([scenario isEqual:@"unnamed-button"] || [scenario isEqual:@"description-button"] || [scenario isEqual:@"web-system-button"]) [button removeObjectForKey:@"AXTitle"];
+    if ([scenario isEqual:@"description-button"]) button[@"AXDescription"] = @"Search habits";
+    if ([scenario isEqual:@"unnamed-button"]) button[@"AXEnabled"] = @NO;
+    if ([scenario isEqual:@"web-system-button"]) { button[@"AXSubrole"] = @"AXCloseButton"; button[@"AXRoleDescription"] = @"close button"; }
+    NSMutableDictionary *web = [@{@"AXRole": @"AXWebArea", @"AXChildren": @[button]} mutableCopy];
+    if ([scenario hasPrefix:@"empty-"]) {
+        NSMutableDictionary *group = [@{@"AXRole": @"AXGroup", @"AXSubrole": @"AXEmptyGroup", @"AXRoleDescription": @"alert",
+            @"AXDOMIdentifier": @"__next-route-announcer__", @"actions": @[@"AXPress", @"AXShowMenu", @"AXScrollToVisible"]} mutableCopy];
+        if ([scenario isEqual:@"empty-focusable"]) group[@"acceptsFocus"] = @YES;
+        if ([scenario isEqual:@"empty-focused"]) group[@"AXFocused"] = @YES;
+        if ([scenario isEqual:@"empty-named"]) group[@"AXDescription"] = @"Action";
+        if ([scenario isEqual:@"empty-children"]) group[@"AXChildren"] = @[@{@"AXRole": @"AXStaticText"}];
+        if ([scenario isEqual:@"empty-generic"]) [group removeObjectForKey:@"AXSubrole"];
+        web[@"AXChildren"] = @[button, group];
+    }
+    if ([scenario hasPrefix:@"system-"]) {
+        NSMutableArray *children = [NSMutableArray arrayWithObject:web];
+        for (NSString *subrole in @[@"AXCloseButton", @"AXFullScreenButton", @"AXMinimizeButton", @"AXZoomButton"]) {
+            [children addObject:@{@"AXRole": @"AXButton", @"AXSubrole": subrole,
+                @"AXRoleDescription": NSAccessibilityRoleDescription(@"AXButton", subrole)}];
+        }
+        if ([scenario isEqual:@"system-generic"]) [children addObject:@{@"AXRole": @"AXButton", @"AXRoleDescription": @"button"}];
+        if ([scenario isEqual:@"system-no-description"]) [children addObject:@{@"AXRole": @"AXButton", @"AXSubrole": @"AXCloseButton"}];
+        NSDictionary *extra = @{@"AXRole": @"AXMenuBarItem", @"AXSubrole": @"AXMenuExtra", @"AXRoleDescription": @"status menu", @"actions": @[@"AXPress"]};
+        return (AXUIElementRef)CFBridgingRetain(@{@"AXRole": @"AXApplication", @"AXChildren": @[
+            @{@"AXRole": @"AXWindow", @"AXChildren": children}, @{@"AXRole": @"AXMenuBar", @"AXChildren": @[extra]}]});
+    }
+    if ([scenario isEqual:@"separator"]) {
+        return (AXUIElementRef)CFBridgingRetain(@{@"AXRole": @"AXApplication", @"AXChildren": @[web, [NSMenuItem separatorItem]]});
+    }
+    if ([scenario isEqual:@"unnamed-menu"]) web[@"AXChildren"] = @[button, @{@"AXRole": @"AXMenuItem", @"AXEnabled": @YES, @"actions": @[@"AXPress"]}];
     if ([scenario isEqual:@"no-web"]) {
         return (AXUIElementRef)CFBridgingRetain(@{@"AXRole": @"AXApplication", @"AXChildren": @[@{@"AXRole": @"AXGroup"}]});
     }
@@ -435,28 +465,38 @@ static BOOL shouldInvalidate(void) {
     return invalidReads++ < ([scenario isEqual:@"twice"] ? 2 : 1);
 }
 static AXError fixtureAttribute(AXUIElementRef element, CFStringRef key, CFTypeRef *value) {
-    NSDictionary *attributes = (__bridge NSDictionary *)element;
+    id object = (__bridge id)element;
+    NSDictionary *attributes = [object isKindOfClass:[NSDictionary class]] ? object : nil;
     if ([scenario isEqual:@"attribute-once"] && [attributes[@"AXRole"] isEqual:@"AXButton"] &&
         CFEqual(key, CFSTR("AXHidden")) && shouldInvalidate()) return kAXErrorInvalidUIElement;
     if ([scenario isEqual:@"root-once"] && [attributes[@"AXRole"] isEqual:@"AXApplication"] &&
         CFEqual(key, kAXChildrenAttribute) && shouldInvalidate()) return kAXErrorInvalidUIElement;
-    id result = attributes[(__bridge NSString *)key];
+    id result = attributes ? attributes[(__bridge NSString *)key] : [object accessibilityAttributeValue:(__bridge NSString *)key];
     if (!result) return kAXErrorAttributeUnsupported;
     *value = CFBridgingRetain(result);
     return kAXErrorSuccess;
 }
 static AXError fixtureActions(AXUIElementRef element, CFArrayRef *names) {
-    NSDictionary *attributes = (__bridge NSDictionary *)element;
+    id object = (__bridge id)element;
+    if (![object isKindOfClass:[NSDictionary class]]) { *names = (CFArrayRef)CFBridgingRetain([object accessibilityActionNames]); return kAXErrorSuccess; }
+    NSDictionary *attributes = object;
     if ([attributes[@"AXRole"] isEqual:@"AXButton"]) {
         if ([scenario isEqual:@"other"]) return kAXErrorCannotComplete;
         if (([scenario isEqual:@"once"] || [scenario isEqual:@"twice"]) && shouldInvalidate()) return kAXErrorInvalidUIElement;
         *names = (CFArrayRef)CFBridgingRetain(@[@"AXPress"]);
-    } else *names = (CFArrayRef)CFBridgingRetain(@[]);
+    } else *names = (CFArrayRef)CFBridgingRetain(attributes[@"actions"] ?: @[]);
+    return kAXErrorSuccess;
+}
+static AXError fixtureSettable(AXUIElementRef element, CFStringRef key, Boolean *settable) {
+    id object = (__bridge id)element;
+    if ([scenario isEqual:@"focusable-once"] && [object[@"AXRole"] isEqual:@"AXButton"] && shouldInvalidate()) return kAXErrorInvalidUIElement;
+    *settable = [object isKindOfClass:[NSDictionary class]] ? [object[@"acceptsFocus"] boolValue] : [object accessibilityIsAttributeSettable:(__bridge NSString *)key];
     return kAXErrorSuccess;
 }
 #define AXUIElementCreateApplication fixtureApplication
 #define AXUIElementCopyAttributeValue fixtureAttribute
 #define AXUIElementCopyActionNames fixtureActions
+#define AXUIElementIsAttributeSettable fixtureSettable
 #define main acceptanceMain
 #include NATIVE_SOURCE
 #undef main
@@ -479,6 +519,44 @@ if (process.platform === 'darwin') {
   writeFileSync(source, nativeFixture.replace('NATIVE_SOURCE', JSON.stringify(fileURLToPath(new URL('./acceptance-ax.m', import.meta.url)))))
   const compilation = spawnSync('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', source, '-o', executable], { encoding: 'utf8', timeout: 30000 })
   assert.equal(compilation.status, 0, compilation.stderr)
+  for (const scenario of ['empty-live', 'empty-named', 'description-button', 'system-controls', 'separator']) {
+    test(`native AX semantics accept ${scenario} without exempting unnamed app controls`, () => {
+      const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
+      assert.equal(capture.status, 0, capture.stderr)
+      const snapshot = JSON.parse(capture.stdout)
+      assert.equal(snapshot.error, null, JSON.stringify(snapshot))
+      assert.equal(assertAccessibleTree(snapshot, 'darwin').controls,
+        scenario === 'system-controls' ? 6 : scenario === 'empty-named' ? 2 : 1)
+      if (scenario === 'empty-live') {
+        const announcer = snapshot.nodes.find(node => node.AXDOMIdentifier === '__next-route-announcer__')
+        assert.equal(Boolean(announcer.interactive), false)
+      }
+      if (scenario === 'description-button') assert.equal(snapshot.nodes.find(node => node.role === 'AXButton').name, 'Search habits')
+      if (scenario === 'system-controls') {
+        for (const node of snapshot.nodes.filter(node => node.AXSubrole && node.AXSubrole !== 'AXTestButton')) {
+          assert.equal(Boolean(node.interactive), true)
+          assert.equal(node.name, node.AXRoleDescription)
+        }
+      }
+      if (scenario === 'separator') {
+        const separator = snapshot.nodes.find(node => node.role === 'AXMenuItem')
+        assert.equal(separator.AXEnabled, false)
+        assert.equal(separator.AXTitle, '')
+        assert.equal(separator.focusable, false)
+        assert.equal(separator.interactive, false)
+        assert.ok(separator.actions.includes('AXPress'))
+      }
+    })
+  }
+  for (const scenario of ['unnamed-button', 'web-system-button', 'empty-focusable', 'empty-focused', 'empty-children', 'empty-generic', 'system-generic', 'system-no-description', 'unnamed-menu']) {
+    test(`native AX semantics keep ${scenario} failing role and name acceptance`, () => {
+      const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
+      assert.equal(capture.status, 0, capture.stderr)
+      const snapshot = JSON.parse(capture.stdout)
+      assert.equal(snapshot.error, null)
+      assert.throws(() => assertAccessibleTree(snapshot, 'darwin'), /role and name/)
+    })
+  }
   for (const scenario of ['scroll-children', 'scroll-contents', 'scroll-duplicate']) {
     test(`native AX traversal follows ${scenario} to the web area exactly once`, () => {
       const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
@@ -508,7 +586,7 @@ if (process.platform === 'darwin') {
     assert.deepEqual(report.accessibility.hoje, { controls: 1 })
     assert.equal(context.records.length, 2)
   })
-  for (const scenario of ['success', 'once', 'twice', 'other', 'attribute-once', 'root-once']) {
+  for (const scenario of ['success', 'once', 'twice', 'other', 'attribute-once', 'root-once', 'focusable-once']) {
     test(`native AX traversal ${scenario} preserves the tree and retries only invalid elements once`, () => {
       const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
       assert.equal(capture.status, 0, capture.stderr)

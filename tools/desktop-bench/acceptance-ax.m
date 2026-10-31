@@ -17,7 +17,26 @@ static id attribute(AXUIElementRef element, CFStringRef key, NSDictionary *node)
     return CFBridgingRelease(value);
 }
 
-static void walk(AXUIElementRef element, NSString *path, NSMutableArray *nodes, NSMutableSet *visited) {
+static BOOL focusable(AXUIElementRef element, NSDictionary *node) {
+    Boolean settable = false;
+    AXError error = AXUIElementIsAttributeSettable(element, kAXFocusedAttribute, &settable);
+    if (error == kAXErrorAttributeUnsupported || error == kAXErrorNoValue) return NO;
+    if (error != kAXErrorSuccess) failAX(error, @"AXUIElementIsAttributeSettable(AXFocused)", node);
+    return settable;
+}
+
+static BOOL interactive(NSDictionary *node, NSArray *children, NSArray *actions) {
+    NSString *role = node[@"role"];
+    BOOL empty = ![node[@"name"] length] && !children.count && ![node[@"focused"] boolValue] && ![node[@"focusable"] boolValue];
+    // An empty, unfocusable group is structural even when AXPress is advertised (#1560).
+    if (empty && [role isEqual:@"AXGroup"] && [node[@"AXSubrole"] isEqual:@"AXEmptyGroup"]) return NO;
+    // AppKit separators are disabled blank menu items: https://developer.apple.com/documentation/appkit/nsmenuitem/isseparatoritem
+    if (empty && [role isEqual:@"AXMenuItem"] && [node[@"AXEnabled"] isEqual:@NO]) return NO;
+    NSArray *roles = @[@"AXButton", @"AXCheckBox", @"AXRadioButton", @"AXTextField", @"AXTextArea", @"AXComboBox", @"AXPopUpButton", @"AXLink", @"AXSlider", @"AXMenuItem", @"AXTab"];
+    return [roles containsObject:role] || [actions containsObject:@"AXPress"];
+}
+
+static void walk(AXUIElementRef element, NSString *path, NSMutableArray *nodes, NSMutableSet *visited, BOOL insideWeb) {
     if ([visited containsObject:(__bridge id)element]) return;
     [visited addObject:(__bridge id)element];
     if (nodes.count >= 20000) @throw [NSException exceptionWithName:@"AXRead" reason:@"Accessibility tree exceeded node limit" userInfo:nil];
@@ -26,29 +45,36 @@ static void walk(AXUIElementRef element, NSString *path, NSMutableArray *nodes, 
     [nodes addObject:node];
     NSString *role = attribute(element, kAXRoleAttribute, node) ?: @"";
     node[@"role"] = role;
-    NSString *name = attribute(element, kAXTitleAttribute, node);
-    if (!name.length) name = attribute(element, kAXDescriptionAttribute, node) ?: @"";
-    node[@"name"] = name;
+    BOOL webContent = insideWeb || [role isEqual:@"AXWebArea"];
     node[@"focused"] = attribute(element, kAXFocusedAttribute, node) ?: @NO;
     node[@"selected"] = attribute(element, kAXSelectedAttribute, node) ?: @NO;
-    for (NSString *key in @[@"AXIdentifier", @"AXDOMIdentifier", @"AXDOMClassList", @"AXSubrole", @"AXRoleDescription", @"AXHidden"]) {
+    for (NSString *key in @[@"AXTitle", @"AXDescription", @"AXEnabled", @"AXIdentifier", @"AXDOMIdentifier", @"AXDOMClassList", @"AXSubrole", @"AXRoleDescription", @"AXHidden"]) {
         id value = attribute(element, (__bridge CFStringRef)key, node);
         if (value) node[key] = value;
     }
+    NSString *name = node[@"AXTitle"];
+    if (!name.length) name = node[@"AXDescription"];
+    NSArray *windowSubroles = @[@"AXCloseButton", @"AXFullScreenButton", @"AXMinimizeButton", @"AXZoomButton"];
+    BOOL systemControl = ([role isEqual:@"AXButton"] && [windowSubroles containsObject:node[@"AXSubrole"]]) ||
+        ([role isEqual:@"AXMenuBarItem"] && [node[@"AXSubrole"] isEqual:@"AXMenuExtra"]);
+    // Native system subroles convey purpose through their localized role descriptions; web controls still need labels (#1560).
+    if (!name.length && !webContent && systemControl) name = node[@"AXRoleDescription"];
+    node[@"name"] = name ?: @"";
+    node[@"focusable"] = @(focusable(element, node));
     CFArrayRef actions = NULL;
     AXError actionError = AXUIElementCopyActionNames(element, &actions);
     if (actionError != kAXErrorSuccess && actionError != kAXErrorNotImplemented && actionError != kAXErrorActionUnsupported) {
         failAX(actionError, @"AXUIElementCopyActionNames", node);
     }
     NSArray *actionNames = CFBridgingRelease(actions);
-    NSArray *interactiveRoles = @[@"AXButton", @"AXCheckBox", @"AXRadioButton", @"AXTextField", @"AXTextArea", @"AXComboBox", @"AXPopUpButton", @"AXLink", @"AXSlider", @"AXMenuItem", @"AXTab"];
-    node[@"interactive"] = @([interactiveRoles containsObject:role] || [actionNames containsObject:@"AXPress"]);
+    node[@"actions"] = actionNames ?: @[];
     NSArray *children = attribute(element, kAXChildrenAttribute, node) ?: @[];
     // AXContents exposes a scroll area's content separately from its controls: https://developer.apple.com/documentation/applicationservices/kaxcontentsattribute
     NSArray *contents = attribute(element, kAXContentsAttribute, node) ?: @[];
     children = [children arrayByAddingObjectsFromArray:contents];
+    node[@"interactive"] = @(interactive(node, children, actionNames));
     for (NSUInteger index = 0; index < children.count; index++) {
-        walk((__bridge AXUIElementRef)children[index], [path stringByAppendingFormat:@"/%lu", (unsigned long)index], nodes, visited);
+        walk((__bridge AXUIElementRef)children[index], [path stringByAppendingFormat:@"/%lu", (unsigned long)index], nodes, visited, webContent);
     }
 }
 
@@ -58,7 +84,7 @@ static NSDictionary *captureTree(pid_t processId) {
         AXUIElementRef app = AXUIElementCreateApplication(processId);
         NSMutableArray *nodes = [NSMutableArray array];
         @try {
-            walk(app, @"0", nodes, [NSMutableSet set]);
+            walk(app, @"0", nodes, [NSMutableSet set], NO);
             return @{@"denied": @NO, @"error": [NSNull null], @"nodes": nodes, @"attempts": attempts};
         } @catch (NSException *exception) {
             NSNumber *code = exception.userInfo[@"code"];
