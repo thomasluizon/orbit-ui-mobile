@@ -29,13 +29,13 @@ export function ListMotionItem({ children, className, style, ref }: Readonly<{
   const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
   const enter = resolveMotionPreset('list-enter', reduced)
   const exit = resolveMotionPreset('list-exit', reduced)
-  const present = useExitDeadline(reduced ? 0 : exit.exitDuration)
+  const present = useExitDeadline(exit.exitDuration)
   const presence = useContext(PresenceContext)
   return <PresenceContext.Provider value={null}><motion.div ref={ref} layout={reduced ? false : 'position'}
     data-list-motion="" className={className} style={style} inert={!present} aria-hidden={!present || undefined}
-    initial={reduced || presence?.initial === false ? false : { opacity: 0, y: enter.shift }}
-    animate={present ? { opacity: 1, y: 0 } : { opacity: 0, y: exit.shift, transition: { duration: reduced ? 0 : exit.exitDuration / 1000, ease: exit.exitEasing } }}
-    transition={{ duration: reduced ? 0 : enter.enterDuration / 1000, ease: enter.enterEasing,
+    initial={presence?.initial === false ? false : reduced ? { opacity: 0 } : { opacity: 0, y: enter.shift }}
+    animate={present ? reduced ? { opacity: 1 } : { opacity: 1, y: 0 } : { opacity: 0, ...(reduced ? {} : { y: exit.shift }), transition: { duration: exit.exitDuration / 1000, ease: exit.exitEasing } }}
+    transition={{ duration: enter.enterDuration / 1000, ease: enter.enterEasing,
       layout: reduced ? { duration: 0 } : { type: 'spring', ...motionSprings.soft } }}>
     {children}
   </motion.div></PresenceContext.Provider>

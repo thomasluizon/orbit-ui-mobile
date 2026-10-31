@@ -22,17 +22,19 @@ export function getAllDoneOnDate(
   habitsById: Map<string, NormalizedHabit>,
   childrenByParent: Map<string, string[]>,
   date: string,
+  confirmedSkippedIds: ReadonlySet<string> = new Set(),
 ): { allDone: boolean; count: number } {
   let count = 0
   let openCount = 0
   const visit = (habit: NormalizedHabit): void => {
+    const confirmedSkip = confirmedSkippedIds.has(habit.id)
     const pendingSkip = isPendingSkipOnDate(habit, date)
     if (!habit.isGeneral && !habit.isBadHabit &&
-      (hasHabitScheduleOnDate(habit, date) || habit.isOverdue || pendingSkip)) {
+      (hasHabitScheduleOnDate(habit, date) || habit.isOverdue || pendingSkip || confirmedSkip)) {
       const logged = isHabitLoggedOnDate(habit, date)
       const skipped = isHabitSkippedOnDate(habit, date)
       const completed = habit.isCompleted || logged
-      const done = !skipped && !pendingSkip && completed
+      const done = confirmedSkip || (!skipped && !pendingSkip && completed)
       if (!done && (!skipped || pendingSkip)) openCount++
       if (done) count++
     }

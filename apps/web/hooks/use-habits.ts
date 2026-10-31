@@ -1,5 +1,7 @@
 'use client'
 
+import { checkCompletionAfterSkip, settleBulkSkippedHabits } from '@orbit/shared/query/skip-completion'
+
 import type { HabitListKey } from '@orbit/shared/query'
 
 import { useQueryClient } from '@tanstack/react-query'
@@ -402,7 +404,7 @@ export function useSkipHabit() {
       const previousLists = snapshotHabitLists(queryClient)
       const previous = previousLists.flatMap(([, items]) => items ? [findHabitInList(items, habitId)] : [])
         .find((habit) => habit !== null)
-      const skippedDate = date ?? getAccountDay(new Date())
+      const skippedDate = date ?? getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
       applyCachedHabitSkip(queryClient, habitId, skippedDate)
       return { previousLists, skippedDate, postponed: previous?.frequencyUnit === null }
     },
@@ -420,7 +422,11 @@ export function useSkipHabit() {
     },
     onSettled: (_result, error, { habitId }, context) => {
       if (error) return
-      if (context) clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
+      if (context) {
+        clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
+        checkCompletionAfterSkip(queryClient, [{ habitId, date: context.skippedDate }],
+          queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone, useUIStore.getState().checkAllDoneCelebration, context.previousLists)
+      }
       invalidateHabitDependents(queryClient, habitId)
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
@@ -953,22 +959,22 @@ export function useBulkSkipHabits() {
     onMutate: async (items) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
       const previousLists = snapshotHabitLists(queryClient)
-      const completedIds = items.map((item) => item.habitId)
-      updateHabitLists(queryClient, (currentItems) =>
-        completedIds.reduce(
-          (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
-          currentItems,
-        ),
-      )
-      return { previousLists }
+      const occurrenceDate = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+      for (const item of items) applyCachedHabitSkip(queryClient, item.habitId, item.date ?? occurrenceDate)
+
+      return { previousLists, occurrenceDate }
     },
 
     onError: (_error, _items, context) => {
       if (context?.previousLists) restoreHabitLists(queryClient, context.previousLists)
     },
 
-    onSuccess: (result, _items, context) => {
-      restoreRejectedBulkItems(queryClient, context.previousLists, result.results)
+    onSuccess: (result, items, context) => {
+      const acceptedIds = new Set(result.results.filter((entry) => entry.status === 'Success').map((entry) => entry.habitId))
+      const rejectedIds = new Set([...result.ambiguousIds, ...items.filter((item) => !acceptedIds.has(item.habitId)).map((item) => item.habitId)])
+      const confirmed = settleBulkSkippedHabits(queryClient, items, context.previousLists, rejectedIds, context.occurrenceDate)
+      checkCompletionAfterSkip(queryClient, confirmed, queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone,
+        useUIStore.getState().checkAllDoneCelebration, context.previousLists)
     },
 
     onSettled: () => {
