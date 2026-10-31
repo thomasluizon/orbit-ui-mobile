@@ -93,7 +93,6 @@ export function SupportForm({
           {t('profile.support.subject')}
         </span>
         <RadioGroup
-          className="flex flex-col gap-1"
           aria-labelledby="support-subject-label"
           aria-describedby={subjectError ? 'support-subject-error' : undefined}
           aria-invalid={subjectError ? true : undefined}
