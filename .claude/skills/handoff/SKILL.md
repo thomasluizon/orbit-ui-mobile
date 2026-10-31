@@ -30,6 +30,11 @@ It never invokes `/questions`, asks the owner anything, or ends the session befo
 is confirmed. This is the exception to the owner handoff's ending
 rule below. Every other inventory, spec, prompt, commit and push requirement still applies.
 
+For a detached local check that survives the relay, start
+`node tools/wait-file.mjs --file <absolute completion file> --what <check label>` as a background
+task. Use a fresh completion file for each check. Like the worker launcher, CI waiter and release
+waiter, it registers a wake source until it exits; a plain shell polling loop does not.
+
 Relay mode waits for every live background Workflow run and background subagent to finish before ending the session, with the hook and relay tool checking recorded launch and completion evidence and the owning process start identity.
 
 Read the open chain with `openSessionChain` from `tools/lib/session-chain.mjs`, using this

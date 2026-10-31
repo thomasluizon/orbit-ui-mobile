@@ -118,14 +118,18 @@ Follow `/orchestrate`'s "Every turn under `--sleep` ends with a live wake source
 - Preserve repository-qualified `pullRequests` and the append-only `readinessLedger`, with actual
   receipt paths. Update state at step 9 as work lands. Never clear the ledger to claim completion.
 - While actionable work or readiness debt remains, always leave a live background wake source
-  that will re-invoke this session and name it on the turn's last line. Only
-  `tools/launch-worker.mjs`, `tools/submit-cloud-worker.mjs --watch <receiptPath>`, and
-  `tools/wait-ci.mjs --repo <key> --pr <n>` call `registerWakeSource`. These calls write
+  that will re-invoke this session and name it on the turn's last line.
+  `tools/launch-worker.mjs`, `tools/submit-cloud-worker.mjs --watch <receiptPath>`,
+  `tools/wait-ci.mjs --repo <key> --pr <n>`, `tools/wait-release.mjs`,
+  `tools/wait-file.mjs --file <absolute completion file>` and `tools/relay-session.mjs`
+  call `registerWakeSource`. These calls write
   `.git/orbit-wake-sources/<pid>.json`. A background shell command does not register a wake source,
   however long it runs. A background `npm install` is not a wake source. A remote Cloud task or a GitHub check by itself cannot
   wake this session.
 - If a slot is free and admission permits new ticket work, launch the next worker.
   When work waits on CI or review, start `tools/wait-ci.mjs` in the background for those pull requests.
+  For a detached local check, start `node tools/wait-file.mjs --file <absolute completion file>
+  --what <check label>` in the background with a fresh completion file for that check.
   Verify the wake source is live; a stale pid file or an unscheduled promise to watch CI is not one.
 - With `relay.enabled: true` and `relay.pending: true`, launch nothing, including review batches.
   Wait for existing launchers and release watchers to finish; their exits wake this session.

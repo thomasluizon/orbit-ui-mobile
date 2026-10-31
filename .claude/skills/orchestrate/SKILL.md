@@ -1543,7 +1543,10 @@ finished, so nobody goes looking. A claim that CI will wake the session requires
 `submit-cloud-worker.mjs` enforce the GitHub counts. Existing pull request work can proceed.
 When CI or review is the remaining work, start
 `node tools/wait-ci.mjs --repo <key> --pr <n> [--require-check pullfrog-approval]` in the background.
-The worker launcher, Cloud receipt watcher, and CI waiter each register a live wake source.
+The worker launcher, Cloud receipt watcher, CI waiter, release waiter, file waiter and relay tool
+each register a live wake source. For a detached local check, start
+`node tools/wait-file.mjs --file <absolute completion file> --what <check label>` in the background.
+Use a fresh completion file for each check; a plain shell polling loop registers no wake source.
 
 **The gate:** `.claude/hooks/require-wake-source.mjs` runs on `Stop` and refuses the stop when the
 run record says `--sleep` with tickets remaining and no registered wake source is a live process. So
