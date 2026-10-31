@@ -9,7 +9,7 @@ import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { motionSprings, shouldDismissSheet, SHEET_BODY_INSETS } from '@orbit/shared/theme'
 import { Dialog } from '@base-ui/react/dialog'
 import { animate, motion, useDragControls, useMotionValue, type PanInfo, type HTMLMotionProps } from 'motion/react'
-import { subscribeKeyboardViewport } from '@/hooks/use-keyboard-viewport'
+import { needsKeyboardViewportResize, subscribeKeyboardViewport } from '@/hooks/use-keyboard-viewport'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
@@ -245,7 +245,9 @@ function revealSheetBodyFocus(body: HTMLDivElement) {
   const borderTop = Number.parseFloat(style.borderTopWidth) || 0
   const borderBottom = Number.parseFloat(style.borderBottomWidth) || 0
   const scrollbarHeight = Math.max(0, body.offsetHeight - body.clientHeight - borderTop - borderBottom)
-  const viewport = window.visualViewport
+  const viewport = window.visualViewport && needsKeyboardViewportResize(window.visualViewport)
+    ? window.visualViewport
+    : null
   const clearance = focused.matches('input, textarea, [contenteditable="true"]') ? 24 : 0
   const footer = body.closest('[role="dialog"]')?.querySelector('footer')
   const viewportBottom = viewport ? viewport.offsetTop + viewport.height - (footer?.getBoundingClientRect().height ?? 0) : Infinity
@@ -262,12 +264,17 @@ function useSheetKeyboardViewport(bodyRef: RefObject<HTMLDivElement | null>, vir
     const viewport = window.visualViewport
     if (!viewport || !element) return
     const update = () => {
-      element.style.top = `${viewport.offsetTop}px`
-      element.style.height = `${viewport.height}px`
-      element.style.bottom = 'auto'
+      const resize = needsKeyboardViewportResize(viewport)
+      element.style.top = resize ? `${viewport.offsetTop}px` : ''
+      element.style.height = resize ? `${viewport.height}px` : ''
+      element.style.bottom = resize ? 'auto' : ''
       const panel = element.querySelector<HTMLElement>('[role="dialog"]')
-      if (panel) panel.style.maxHeight = `${viewport.height * 0.85}px`
-      if (!virtualizedBody && bodyRef.current) revealSheetBodyFocus(bodyRef.current)
+      if (panel) {
+        panel.style.maxHeight = resize ? `${viewport.height * 0.85}px` : ''
+      }
+      if (!virtualizedBody && bodyRef.current) {
+        revealSheetBodyFocus(bodyRef.current)
+      }
     }
     update()
     return subscribeKeyboardViewport(viewport, update)
@@ -285,7 +292,10 @@ function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {
     revealSheetBodyFocus(body)
     let revealedScrollTop = body.scrollTop
     const observer = new ResizeObserver(() => {
-      if (body.scrollTop !== revealedScrollTop) { observer.disconnect(); return }
+      if (body.scrollTop !== revealedScrollTop) {
+        observer.disconnect()
+        return
+      }
       revealSheetBodyFocus(body)
       revealedScrollTop = body.scrollTop
     })

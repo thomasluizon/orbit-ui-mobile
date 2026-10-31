@@ -44,6 +44,10 @@ select[aria-hidden="true"] {
   transition-timing-function: var(--motion-ease-exit);
 }
 
+:where(input, textarea, [contenteditable="true"]) {
+  scroll-margin-block: var(--orbit-space-24);
+}
+
 .orbit-sheet-viewport {
   position: fixed;
   inset: 0;

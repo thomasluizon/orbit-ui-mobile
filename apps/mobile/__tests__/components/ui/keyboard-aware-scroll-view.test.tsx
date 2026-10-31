@@ -219,6 +219,28 @@ describe('KeyboardAwareScrollView (mobile)', () => {
     }).not.toThrow()
   })
 
+  it('cancels pending keyboard and focus animation frames on unmount', () => {
+    let nextFrame = 0
+    const pending = new Map<number, (timestamp: number) => void>()
+    vi.stubGlobal('requestAnimationFrame', (callback: (timestamp: number) => void) => {
+      pending.set(++nextFrame, callback)
+      return nextFrame
+    })
+    const cancel = vi.fn((frame: number) => pending.delete(frame))
+    vi.stubGlobal('cancelAnimationFrame', cancel)
+    const tree = renderScrollView()
+    const input = createFocusableInput({ y: 700, height: 40 })
+    TestRenderer.act(() => {
+      __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400 } })
+      capturedContext?.revealInput(input)
+    })
+    expect(pending.size).toBeGreaterThan(0)
+    const frames = [...pending.keys()]
+    TestRenderer.act(() => tree.unmount())
+    expect(pending.size).toBe(0)
+    for (const frame of frames) expect(cancel).toHaveBeenCalledWith(frame)
+  })
+
   it('unsubscribes the keyboard listeners on unmount', () => {
     const tree = renderScrollView()
     TestRenderer.act(() => {

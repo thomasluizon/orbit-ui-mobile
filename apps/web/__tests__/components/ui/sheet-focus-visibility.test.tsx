@@ -9,6 +9,7 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 function ParentPickerHost({ virtualizedBody }: Readonly<{ virtualizedBody?: boolean }>) {
@@ -70,10 +71,11 @@ async function mountMeasuredSheet(virtualizedBody = false) {
 
 describe('Sheet focused control visibility', () => {
   it('keeps a typed field clear of the pinned footer when the visual viewport shrinks and pans', async () => {
+    vi.spyOn(document.documentElement, 'clientHeight', 'get').mockReturnValue(740)
     let viewportHeight = 740
     let viewportTop = 0
     const viewport = document.createElement('div')
-    Object.defineProperties(viewport, { height: { get: () => viewportHeight }, offsetTop: { get: () => viewportTop } })
+    Object.defineProperties(viewport, { height: { get: () => viewportHeight }, offsetTop: { get: () => viewportTop }, scale: { value: 1 } })
     vi.stubGlobal('visualViewport', viewport)
     const { body, setBodyHeight } = await mountMeasuredSheet()
     const input = screen.getByRole('textbox', { name: 'Title' })
