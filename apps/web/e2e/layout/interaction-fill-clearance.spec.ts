@@ -2,12 +2,50 @@ import { expect } from '@playwright/test'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { completeInstallOnboarding } from './install-onboarding'
 import { test } from './layout-test'
+import { test as optionTest } from './upgrade-fixtures'
 import { inspectControls } from './interaction-fill-states'
 import { captureControlInventory } from './interaction-fill-inventory'
 import { layoutRouteInventory } from './layout-route-inventory'
 import { installInteractionFillFixtures } from './interaction-fill-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+
+for (const width of [320, 360, 384, 412, 600, 1024, 1352]) {
+  for (const locale of ['en', 'pt-BR'] as const) {
+    for (const mode of ['light', 'dark'] as const) {
+      optionTest.describe(`option row clearance at ${width}px in ${locale} and ${mode}`, () => {
+        optionTest.use({ appLocale: locale, layoutProfile: { themePreference: mode }, viewport: { width, height: 1000 }, contextOptions: { reducedMotion: 'reduce' } })
+        optionTest('keeps hovered, pressed and focused options clear of selected neighbours', async ({ page }) => {
+          const words = (locale === 'en' ? en : ptBR).habits.form
+          await page.goto('/habits/new')
+          const screen = page.locator('[data-habit-create-screen]')
+          await screen.getByRole('radio', { name: words.typeHabit, exact: true }).click()
+          await screen.getByRole('button', { name: words.moreDetails, exact: true }).click()
+          const noSchedule = screen.getByRole('radio', { name: new RegExp(words.noSchedule) })
+          await noSchedule.click()
+          await page.evaluate(() => document.fonts.ready)
+          for (const [label, neighbour] of [
+            [words.timesPerUnit, noSchedule],
+            [words.typeTask, screen.getByRole('radio', { name: words.typeHabit, exact: true })],
+          ] as const) {
+            await expect(neighbour).toHaveAttribute('aria-checked', 'true')
+            const row = screen.getByRole('radio', { name: label, exact: true })
+            await inspectControls(page, row, `option rows, ${width}px, ${locale}, ${mode}`, INTERACTION_FILL_CLEARANCE)
+            const bounds = (await row.boundingBox())!
+            const next = (await neighbour.boundingBox())!
+            expect(next.y - bounds.y - bounds.height).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+            expect(next.x).toBe(bounds.x)
+            expect(next.width).toBe(bounds.width)
+            const titleFits = await row.locator('[data-slot="list-row-title"]').evaluate(element =>
+              element.scrollWidth <= element.clientWidth && element.getBoundingClientRect().height <= parseFloat(getComputedStyle(element).lineHeight) + 1)
+            expect(titleFits).toBe(true)
+            await expect(neighbour).toHaveAttribute('aria-checked', 'true')
+          }
+        })
+      })
+    }
+  }
+}
 
 for (const change of ['remove', 'add', 'replace'] as const) {
   test(`interaction fill inventory settles after controls ${change} during capture`, async ({ page }) => {

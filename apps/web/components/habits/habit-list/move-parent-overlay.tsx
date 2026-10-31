@@ -2,7 +2,7 @@
 
 import { IconButton } from '@/components/ui/icon-button'
 
-import { SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Home, Search, RefreshCw } from '@/components/ui/icons'
@@ -171,7 +171,6 @@ export function MoveParentOverlay({
         <RadioGroup
           aria-label={t('habits.moveParent.destinations')}
           className="flex flex-col min-h-0"
-          style={{ gap: 4 }}
         >
           {rootOption && (
             <MoveTargetRow
@@ -183,7 +182,7 @@ export function MoveParentOverlay({
             />
           )}
 
-          <div ref={positionOptions} data-slot="move-destinations-scroll" className="flex flex-col overflow-y-auto overscroll-contain min-h-0 relative" style={{ gap: 4 }}>
+          <div ref={positionOptions} data-slot="move-destinations-scroll" className="flex flex-col overflow-y-auto overscroll-contain min-h-0 relative" style={{ gap: INTERACTION_FILL_CLEARANCE }}>
           {treeRows.map((option) => (
             <div key={option.id} data-move-parent-id={option.id} data-current-parent={option.id === movingHabitParentId}>
               <MoveTargetRow
