@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
@@ -11,6 +12,8 @@ interface ConfirmSheetProps {
   open: boolean
   title: string
   titleMode?: SheetProps['titleMode']
+  children?: ReactNode
+  confirmDisabled?: boolean
   message: string
   confirmLabel: string
   cancelLabel?: string
@@ -35,6 +38,8 @@ export function ConfirmSheet({
   title,
   titleMode = 'label',
   message,
+  children,
+  confirmDisabled = false,
   confirmLabel,
   cancelLabel,
   minimumActionHeight,
@@ -88,7 +93,7 @@ export function ConfirmSheet({
     else closeSheet()
   }
   const confirm = () => {
-    if (actionsDisabled) return
+    if (actionsDisabled || confirmDisabled) return
     if (confirmImmediately) {
       onConfirm()
       return
@@ -103,7 +108,7 @@ export function ConfirmSheet({
       variant={destructive ? 'destructive' : inlineActions && isDesktop ? 'secondary' : 'primary'}
       size="sm"
       minimumHeight={minimumActionHeight}
-      disabled={actionsDisabled}
+      disabled={actionsDisabled || confirmDisabled}
       loading={loading}
       onClick={confirm}
     >
@@ -133,7 +138,8 @@ export function ConfirmSheet({
         </>
       }
     >
-      <p className="break-words text-sm text-[var(--fg-2)]">{message}</p>
+      {message ? <p className="break-words text-sm text-[var(--fg-2)]">{message}</p> : null}
+      {children}
     </Sheet>
   )
 }

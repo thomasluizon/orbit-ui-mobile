@@ -51,6 +51,8 @@ vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map(), EMPTY_CHILDREN_BY_PARENT: new Map(), EMPTY_NORMALIZED_HABITS: [],
   useHabits: () => { const items = editorParentState.items; const normalized = React.useMemo(() => normalizeHabitQueryData(items), [items]); return { data: normalized, isSuccess: true, isLoading: false, isError: false, refetch: vi.fn(), getChildren: (id: string) => (normalized.childrenByParent.get(id) ?? []).map((child) => normalized.habitsById.get(child)!) } },
   useSkipHabit: () => ({ mutateAsync: completion, isPending: false }),
+  useBulkLogHabits: () => ({ mutateAsync: completion, isPending: false }),
+  useBulkSkipHabits: () => ({ mutateAsync: completion, isPending: false }),
   useDuplicateHabit: () => ({ mutateAsync: completion, isPending: false }),
   useReorderHabits: () => ({ mutate: completion, isPending: false }),
   useMoveHabitParent: () => ({ mutateAsync: completion, isPending: false }),

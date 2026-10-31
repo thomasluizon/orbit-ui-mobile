@@ -1,4 +1,5 @@
 import { KeyboardAwareFlatList, KeyboardAwareScrollHost } from '@/components/ui/keyboard-aware-scroll-view'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useRetainedHabitList } from '@/hooks/use-retained-habit-list'
 import { useListScrollReservation } from '@/hooks/use-list-scroll-reservation'
 import { HabitListMotionRow } from '@/components/motion/habit-list-row'
@@ -50,10 +51,13 @@ import {
   formatHabitDateBucketLabel,
   canLogHabitOnDate,
   computeHabitReorderPositions,
-  computeParentSettlementDecision,
+  computeParentPromptChain,
+  selectParentPromptAncestor,
+  settleParentPromptChain,
+  type ParentPromptChain,
   computeParentPromptDecision,
   computeHabitDayProgress,
-  computeParentPromptProgress,
+  computeParentResolutionProgress,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   formatAPIDate,
@@ -70,6 +74,8 @@ import {
   EMPTY_NORMALIZED_HABITS,
   useHabits,
   useLogHabit,
+  useBulkLogHabits,
+  useBulkSkipHabits,
   useSkipHabit,
   useDeleteHabit,
   useDuplicateHabit,
@@ -227,11 +233,7 @@ const SKELETON_KEYS = [
 ]
 const KEYBOARD_SHOULD_PERSIST_TAPS = 'handled'
 
-interface ParentSettlementPrompt {
-  habit: NormalizedHabit
-  mode: 'log' | 'skip'
-  date: string
-}
+type ParentSettlementPrompt = ParentPromptChain
 
 interface ParentPromptQueue {
   date: string
@@ -257,16 +259,8 @@ function removeParentPrompt(
   date: string,
 ): ParentPromptQueue {
   if (queue.date !== date) return queue
-  const prompts = queue.prompts.filter((prompt) => prompt.habit.id !== habitId)
+  const prompts = queue.prompts.filter((prompt) => !prompt.ancestors.some(({ habit }) => habit.id === habitId))
   return prompts.length === queue.prompts.length ? queue : { ...queue, prompts }
-}
-
-function removeQueuedParentPrompt(
-  queue: ParentPromptQueue,
-  prompt: ParentSettlementPrompt | null,
-): ParentPromptQueue {
-  if (!prompt) return queue
-  return removeParentPrompt(queue, prompt.habit.id, prompt.date)
 }
 
 function shiftParentPrompt(queue: ParentPromptQueue, date: string): ParentPromptQueue {
@@ -291,6 +285,8 @@ interface ParentSettlementOperation {
 
 interface ConfirmedResolutionRecord {
   date: string
+  sources: Map<string, { habit: NormalizedHabit; mode: HabitResolutionMode }>
+  pending: Map<string, Promise<boolean>>
   modes: Map<string, HabitResolutionMode>
   skippedIds: Set<string>
   activeSettlements: number
@@ -303,15 +299,25 @@ function getParentPromptProgress(
   settlementData: ParentSettlementData | null,
 ) {
   if (!settlementData) return { done: 0, total: 0, loggedDone: 0 }
-  return computeParentPromptProgress({
-    parentId: habitId,
+  return computeParentResolutionProgress(habitId, settlementData.habitsById, {
     getChildren: settlementData.getChildren,
     isRelevantToday: settlementData.visibility.isRelevantToday,
     isDueOnSelectedDate: settlementData.visibility.isDueOnSelectedDate,
     skippedIds: confirmedResolutions.skippedIds,
     isListView: settlementData.isListView,
     resolvedModes: confirmedResolutions.modes,
-  })
+  }, confirmedResolutions.sources)
+}
+
+function getParentPromptChain(childId: string, record: ConfirmedResolutionRecord, settlement: ParentSettlementData) {
+  return computeParentPromptChain(childId, settlement.habitsById, settlement.selectedDateStr, {
+    getChildren: settlement.getChildren,
+    isRelevantToday: settlement.visibility.isRelevantToday,
+    isDueOnSelectedDate: settlement.visibility.isDueOnSelectedDate,
+    isListView: settlement.isListView,
+    skippedIds: record.skippedIds,
+    resolvedModes: record.modes,
+  }, record.sources)
 }
 
 function clearPersistedResolutions(
@@ -341,6 +347,7 @@ function refreshConfirmedResolutions(
     return
   }
   if (confirmedResolutions.activeSettlements === 0) {
+    confirmedResolutions.sources.clear()
     confirmedResolutions.modes.clear()
     confirmedResolutions.skippedIds.clear()
     confirmedResolutions.clearWhenIdle = false
@@ -352,6 +359,8 @@ function refreshConfirmedResolutions(
 function createConfirmedResolutionRecord(date: string): ConfirmedResolutionRecord {
   return {
     date,
+    sources: new Map(),
+    pending: new Map(),
     modes: new Map(),
     skippedIds: new Set(),
     activeSettlements: 0,
@@ -372,29 +381,6 @@ function getDeleteConfirmation(
       (descendantId) => childrenByParent.get(descendantId) ?? [],
     ).length,
   }
-}
-
-function getVisibleParentPrompt(
-  prompt: ParentSettlementPrompt | null,
-  selectedDate: string,
-): { id: string; name: string; mode: 'log' | 'skip' } | null {
-  if (!prompt || prompt.date !== selectedDate) return null
-  return { id: prompt.habit.id, name: prompt.habit.title, mode: prompt.mode }
-}
-
-function resolveParentSettlement(
-  prompt: ParentSettlementPrompt | null,
-  selectedDate: string,
-  habitsById: ReadonlyMap<string, NormalizedHabit>,
-  getProgress: (parentId: string) => ReturnType<typeof computeParentPromptProgress>,
-): { parentId: string; mode: 'log' | 'skip'; date: string } | null {
-  if (!prompt || prompt.date !== selectedDate) return null
-  const mode = computeParentSettlementDecision(
-    habitsById.get(prompt.habit.id) ?? null,
-    getProgress(prompt.habit.id),
-    prompt.date,
-  )
-  return mode ? { parentId: prompt.habit.id, mode, date: prompt.date } : null
 }
 
 function renderAllDoneListHeader(
@@ -523,6 +509,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [habitsQuery.data?.childrenByParent],
     )
 
+    const bulkLog = useBulkLogHabits({ suppressParentSettlement: true })
+    const bulkSkip = useBulkSkipHabits({ suppressParentSettlement: true })
+    const { showError } = useAppToast()
     const logMutation = useLogHabit()
     const logMutateAsync = logMutation.mutateAsync
     const skipMutation = useSkipHabit()
@@ -888,7 +877,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       habitId: string,
       mode: HabitResolutionMode,
     ) => {
-      confirmedResolutions.modes.set(habitId, mode)
+      const habit = promptDataRef.current?.habitsById.get(habitId)
+        if (habit) confirmedResolutions.sources.set(habitId, { habit, mode })
+        confirmedResolutions.modes.set(habitId, mode)
       if (mode === 'skip') {
         confirmedResolutions.skippedIds.add(habitId)
       } else {
@@ -901,6 +892,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     ) => {
       confirmedResolutions.activeSettlements -= 1
       if (confirmedResolutions.activeSettlements === 0 && confirmedResolutions.clearWhenIdle) {
+        confirmedResolutions.sources.clear()
         confirmedResolutions.modes.clear()
         confirmedResolutions.skippedIds.clear()
         confirmedResolutions.clearWhenIdle = false
@@ -937,9 +929,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           promptedParentIdsRef.current,
         )
         if (decision.type === 'open') {
+          const ancestors = getParentPromptChain(childHabitId, confirmedResolutions, settlementData)
+          if (ancestors.length === 0) return
           confirmedResolutions.clearWhenIdle = false
-          promptedParentIdsRef.current.add(parentHabit.id)
+          for (const { habit } of ancestors) promptedParentIdsRef.current.add(habit.id)
           setParentPromptQueue((current) => enqueueParentPrompt(current, {
+            childId: childHabitId,
+            ancestors,
+            selectedCount: 1,
             habit: parentHabit,
             mode: decision.mode,
             date: settlementData.selectedDateStr,
@@ -981,6 +978,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         )
         if (decision.type === 'release') promptedParentIdsRef.current.delete(parentHabit.id)
         if (decision.type !== 'open') return
+        if (getParentPromptChain(childHabitId, operation.confirmedResolutions, operation.data).length === 0) return
         const { mode } = decision
 
         if (mode === 'log' && operation.requiresLogConfirmation) {
@@ -1045,12 +1043,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const checkAndPromptParentLog = useCallback((childHabitId: string) => {
       const confirmedResolutions = confirmedResolutionsRef.current
       recordHabitResolution(confirmedResolutions, childHabitId, 'log')
+      const habit = promptDataRef.current?.habitsById.get(childHabitId)
+      if (habit?.isCompleted || habit?.isLoggedInRange) confirmedResolutions.modes.delete(childHabitId)
       checkAndSettleParent(childHabitId, confirmedResolutions)
     }, [checkAndSettleParent, recordHabitResolution])
 
     const settleBulkHabitResolutions = useCallback((
       resolutions: readonly HabitResolution[],
       date: string,
+      settleParents = true,
     ) => {
       const settlementData = promptDataRef.current
       if (!settlementData) return
@@ -1064,6 +1065,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         recordHabitResolution(confirmedResolutions, resolution.habitId, resolution.mode)
       }
 
+      if (!settleParents) return
       const childIdByAffectedParent = new Map<string, string>()
       for (const resolution of resolutions) {
         if (hasAncestorInSet(resolution.habitId, habitsById, resolvedIds)) continue
@@ -1092,7 +1094,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         item.date !== selectedDateStr || !available?.has(item.habitId))
       if (matched.length > 0) {
         const mode = success.type === 'bulkLogHabits' ? 'log' : 'skip'
-        settleBulkHabitResolutions(matched.map((item) => ({ habitId: item.habitId, mode })), selectedDateStr)
+        settleBulkHabitResolutions(matched.map((item) => ({ habitId: item.habitId, mode })), selectedDateStr, !success.suppressParentSettlement)
         const selection = useUIStore.getState()
         if (selection.isSelectMode) {
           const resolvedIds = new Set(matched.map((item) => item.habitId))
@@ -1106,73 +1108,68 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       return remaining.length === success.items.length ? false : remaining
     }), [habitsById, selectedDateStr, settleBulkHabitResolutions])
 
-    const confirmParentSettlement = useCallback(async () => {
+    async function confirmParentSettlement() {
       const settlementData = promptDataRef.current
-      const confirmedResolutions = confirmedResolutionsRef.current
-      const settlement = resolveParentSettlement(
-        parentPrompt,
-        selectedDateStr,
-        settlementData?.habitsById ?? EMPTY_HABITS_BY_ID,
-        (parentId) => getParentPromptProgress(
-          parentId,
-          confirmedResolutions,
-          settlementData,
-        ),
-      )
-      setParentPromptQueue((current) => removeQueuedParentPrompt(current, parentPrompt))
-      if (!settlement) {
-        promptedParentIdsRef.current.delete(parentPrompt?.habit.id ?? '')
-        return
-      }
-      const { parentId, mode, date } = settlement
-      if (!settlementData) return
-      if (settlementDateIsReadOnly(date)) {
-        promptedParentIdsRef.current.delete(parentId)
-        return
-      }
-      confirmedResolutions.activeSettlements += 1
+      const record = confirmedResolutionsRef.current
+      const prompt = parentPrompt
+      if (!prompt || !settlementData || prompt.date !== selectedDateStr) return
+      setParentPromptQueue((current) => removeParentPrompt(current, prompt.habit.id, prompt.date))
+      const isCurrent = () => confirmedResolutionsRef.current === record &&
+        promptDataRef.current?.selectedDateStr === prompt.date && !settlementDateIsReadOnly(prompt.date)
+      record.activeSettlements += 1
+      const settledIds = new Set<string>()
       try {
-        try {
-          if (mode === 'skip') {
-            await skipMutation.mutateAsync({ habitId: parentId, date })
-          } else {
-            markRecentlyCompleted(parentId, date)
-            await logMutateAsync({
-              habitId: parentId,
-              date,
-              intent: 'log',
-            })
-          }
-        } catch {
-          if (confirmedResolutionsRef.current === confirmedResolutions) {
-            promptedParentIdsRef.current.delete(parentId)
-            clearRecentlyCompleted(parentId, date)
-          }
-          return
-        }
-
-        if (
-          promptDataRef.current?.selectedDateStr !== date ||
-          confirmedResolutionsRef.current !== confirmedResolutions
-        ) return
-        recordHabitResolution(confirmedResolutions, parentId, mode)
-        checkAndSettleParent(parentId, confirmedResolutions, settlementData)
+        const selectedIds = new Set(prompt.ancestors.slice(0, prompt.selectedCount).map(({ habit }) => habit.id))
+        const knownHabits = new Map([...record.sources].map(([id, { habit }]) => [id, habit] as const).concat([...settlementData.habitsById]))
+        const pendingChildren = [...record.pending].filter(([id]) => hasAncestorInSet(id, knownHabits, selectedIds)).map(([, write]) => write)
+        if ((await Promise.all(pendingChildren)).some((success) => !success) || !isCurrent()) return
+        const ancestors = getParentPromptChain(prompt.childId, record, promptDataRef.current ?? settlementData).slice(0, prompt.selectedCount)
+        if (ancestors.length !== prompt.selectedCount || ancestors.some(({ habit }, index) =>
+          habit.id !== prompt.ancestors[index]?.habit.id)) return
+        const failedIds = await settleParentPromptChain(ancestors, {
+          date: prompt.date,
+          log: (items, parentPromptContinuation) => bulkLog.mutateAsync(parentPromptContinuation.length > 0 ? { items, parentPromptContinuation } : items),
+          skip: (items, parentPromptContinuation) => bulkSkip.mutateAsync(parentPromptContinuation.length > 0 ? { items, parentPromptContinuation } : items),
+          isCurrent,
+          onSettled: ({ habitId, mode }) => {
+            settledIds.add(habitId)
+            recordHabitResolution(record, habitId, mode)
+            if (mode === 'log') markRecentlyCompleted(habitId, prompt.date)
+          },
+        })
+        if (failedIds.length > 0 && isCurrent()) showError(t('habits.bulkBar.partialFailure', { count: failedIds.length }))
+      } catch (error) {
+        if (isCurrent()) showError(getFriendlyErrorMessage(error, t, 'common.error'))
       } finally {
-        finishParentSettlement(confirmedResolutions)
+        if (isCurrent()) {
+          for (const { habit } of prompt.ancestors.slice(0, prompt.selectedCount)) {
+            if (!settledIds.has(habit.id)) promptedParentIdsRef.current.delete(habit.id)
+          }
+        }
+        finishParentSettlement(record)
       }
-    }, [
-      checkAndSettleParent,
-      clearRecentlyCompleted,
-      finishParentSettlement,
-      logMutateAsync,
-      markRecentlyCompleted,
-      parentPrompt,
-      recordHabitResolution,
-      selectedDateStr,
-      settlementDateIsReadOnly,
-      skipMutation,
-      setParentPromptQueue,
-    ])
+    }
+
+    function selectParentAncestor(index: number, checked: boolean) {
+      setParentPromptQueue((current) => ({ ...current, prompts: current.prompts.map((prompt) =>
+        prompt === parentPrompt ? selectParentPromptAncestor(prompt, index, checked) : prompt) }))
+    }
+
+    function releaseOptimisticResolution(habitId: string, record: ConfirmedResolutionRecord, sourceParentId?: string | null) {
+      const parentAtResolution = sourceParentId ?? record.sources.get(habitId)?.habit.parentId
+      record.sources.delete(habitId)
+      record.modes.delete(habitId)
+      record.skippedIds.delete(habitId)
+      if (confirmedResolutionsRef.current !== record) return
+      clearRecentlyCompleted(habitId, record.date)
+      let parentId = parentAtResolution ?? promptDataRef.current?.habitsById.get(habitId)?.parentId
+      while (parentId) {
+        promptedParentIdsRef.current.delete(parentId)
+        const releasedId = parentId
+        setParentPromptQueue((current) => removeParentPrompt(current, releasedId, record.date))
+        parentId = promptDataRef.current?.habitsById.get(parentId)?.parentId
+      }
+    }
 
     const handleLogged = useCallback(
       (habitId: string, markAsRecentlyCompleted: boolean) => {
@@ -1185,94 +1182,71 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [checkAndPromptParentLog, markRecentlyCompleted],
     )
 
-    const handleDirectToggle = useCallback(
-      async (habitId: string, intent: 'log' | 'unlog') => {
-        if (!profile) return
-        const currentDate = new Date()
-        const accountToday = formatAPIDateInTimeZone(currentDate, accountTimeZone)
-        const boundary = getTodayBoundary(selectedDateStr, accountToday)
-        const habit = habitsById.get(habitId)
-        if (boundary === 'read-only' || (!selectedDate && selectedDateStr !== accountToday) ||
-          (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, selectedDateStr, accountToday)))) return
-        const toggleKey = `${habitId}:${selectedDateStr}`
-        const pendingToggleKeys = pendingToggleKeysRef.current
-        if (pendingToggleKeys.has(toggleKey)) return
-
-        pendingToggleKeys.add(toggleKey)
-        if (intent === 'log') markRecentlyCompleted(habitId)
-        let mutationSucceeded = false
-
-        try {
-          await logMutateAsync(
-            selectedDate
-              ? { habitId, date: selectedDateStr, intent }
-              : { habitId, intent },
-          )
-          mutationSucceeded = true
-          if (intent === 'log') handleLogged(habitId, false)
-          await refetch()
-        } catch {
-          if (!mutationSucceeded && intent === 'log') clearRecentlyCompleted(habitId)
-        } finally {
-          pendingToggleKeys.delete(toggleKey)
-        }
-      },
-      [
-        clearRecentlyCompleted,
-        handleLogged,
-        habitsById,
-        logMutateAsync,
-        markRecentlyCompleted,
-        accountTimeZone,
-        profile,
-        refetch,
-        selectedDate,
-        selectedDateStr,
-      ],
-    )
-
-    const skipHabit = useCallback(async (habit: NormalizedHabit) => {
+    async function handleDirectToggle(habitId: string, intent: 'log' | 'unlog') {
       if (!profile) return
       const currentDate = new Date()
       const accountToday = formatAPIDateInTimeZone(currentDate, accountTimeZone)
       const boundary = getTodayBoundary(selectedDateStr, accountToday)
+      const habit = habitsById.get(habitId)
+      if (boundary === 'read-only' || (!selectedDate && selectedDateStr !== accountToday) ||
+        (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, selectedDateStr, accountToday)))) return
+      const toggleKey = `${habitId}:${selectedDateStr}`
+      const pendingToggleKeys = pendingToggleKeysRef.current
+      if (pendingToggleKeys.has(toggleKey)) return
+
+      pendingToggleKeys.add(toggleKey)
+      const confirmedResolutions = confirmedResolutionsRef.current
+      confirmedResolutions.activeSettlements += 1
+      if (intent === 'log') {
+        markRecentlyCompleted(habitId)
+        handleLogged(habitId, false)
+      }
+      let mutationSucceeded = false
+
+      try {
+        const mutation = logMutateAsync(
+          selectedDate
+            ? { habitId, date: selectedDateStr, intent }
+            : { habitId, intent },
+        )
+        confirmedResolutions.pending.set(habitId, Promise.resolve(mutation).then(() => true, () => false))
+        await mutation
+        mutationSucceeded = true
+        await refetch()
+      } catch {
+        if (!mutationSucceeded && intent === 'log') releaseOptimisticResolution(habitId, confirmedResolutions, habit?.parentId)
+      } finally {
+        confirmedResolutions.pending.delete(habitId)
+        finishParentSettlement(confirmedResolutions)
+        pendingToggleKeys.delete(toggleKey)
+      }
+    }
+
+
+    async function skipHabit(habit: NormalizedHabit) {
+      if (!profile) return
+      const accountToday = formatAPIDateInTimeZone(new Date(), accountTimeZone)
+      const boundary = getTodayBoundary(selectedDateStr, accountToday)
       if (boundary === 'read-only' || !canLogHabitOnDate(habit, selectedDateStr, accountToday)) return
       const habitId = habit.id
-      const date = selectedDateStr
-      const settlementData = promptDataRef.current
-      const confirmedResolutions = confirmedResolutionsRef.current
+      const record = confirmedResolutionsRef.current
+      if (record.pending.has(habitId)) return
+      record.activeSettlements += 1
+      recordHabitResolution(record, habitId, 'skip')
+      checkAndSettleParent(habitId, record)
       try {
-        await skipMutation.mutateAsync({
-          habitId,
-          date,
-          onUndo: () => {
-            confirmedResolutions.modes.delete(habitId)
-            confirmedResolutions.skippedIds.delete(habitId)
-          },
+        const mutation = skipMutation.mutateAsync({ habitId, date: record.date,
+          onUndo: () => releaseOptimisticResolution(habitId, record, habit.parentId),
         })
-        if (
-          promptDataRef.current?.selectedDateStr !== date ||
-          confirmedResolutionsRef.current !== confirmedResolutions
-        ) return
-        recordHabitResolution(confirmedResolutions, habitId, 'skip')
-        if (settlementData) {
-          settleParentAutomatically(habitId, {
-            data: settlementData,
-            date,
-            confirmedResolutions,
-            requiresLogConfirmation: true,
-          })
-        }
+        record.pending.set(habitId, Promise.resolve(mutation).then(() => true, () => false))
+        await mutation
       } catch {
+        releaseOptimisticResolution(habitId, record, habit.parentId)
+      } finally {
+        record.pending.delete(habitId)
+        finishParentSettlement(record)
       }
-    }, [
-      accountTimeZone,
-      profile,
-      recordHabitResolution,
-      selectedDateStr,
-      settleParentAutomatically,
-      skipMutation,
-    ])
+    }
 
     const { moveIds, sharedMoveParentId, moveParentOptions, selectedMoveOption, inventoryState } = getMoveParentSelection(
       { ...moveInventory, maxHabitDepth, t, validateMoveTarget: (target, source) =>
@@ -1630,7 +1604,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           deleteHabitName={deleteConfirmation.name}
           deleteDescendantCount={deleteConfirmation.descendantCount}
           duplicateHabitName={habitToDuplicate?.title ?? null}
-          parentPrompt={getVisibleParentPrompt(parentPrompt, selectedDateStr)}
+          parentPrompt={parentPrompt}
           onConfirmDelete={() => void confirmDelete()}
           onDeleteClosed={() => setHabitToDelete(null)}
           onCancelDelete={() => {
@@ -1639,6 +1613,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           }}
           onConfirmDuplicate={() => void confirmDuplicate()}
           onCancelDuplicate={() => setHabitToDuplicate(null)}
+          onSelectParentAncestor={selectParentAncestor}
           onConfirmParent={() => void confirmParentSettlement()}
           onCancelParent={() => setParentPromptQueue(
             (current) => shiftParentPrompt(current, selectedDateStr),

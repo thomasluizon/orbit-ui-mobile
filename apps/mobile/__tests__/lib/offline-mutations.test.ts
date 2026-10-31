@@ -682,6 +682,7 @@ describe('offline mutations', () => {
       const request = {
         type,
         scope: 'habits' as const,
+        suppressParentSettlement: true,
         endpoint: `/api/habits/bulk/${type === 'bulkLogHabits' ? 'log' : 'skip'}`,
         method: 'POST' as const,
         payload: { items: [
@@ -712,6 +713,7 @@ describe('offline mutations', () => {
         expect.anything(),
       )
       expect(listener).toHaveBeenCalledWith({
+        suppressParentSettlement: true,
         mutationId: mutation.id,
         type,
         items: [{ habitId: 'accepted', date: '2026-09-25' }],
@@ -719,6 +721,26 @@ describe('offline mutations', () => {
       expect(mocks.queued).toHaveLength(0)
     },
   )
+
+  it.each(['Success', 'Failed'] as const)('retains a selected mixed-chain suffix until its first queued batch replays with %s', async (status) => {
+    const parentPromptContinuation = [{ habitId: 'root', date: '2026-09-12', mode: 'log' as const }]
+    await runQueuedMutation({
+      mutation: { type: 'bulkSkipHabits', scope: 'habits', suppressParentSettlement: true,
+        parentPromptContinuation, endpoint: API.habits.bulkSkip, method: 'POST',
+        payload: { items: [{ habitId: 'parent', date: '2026-09-12' }] } },
+      execute: () => Promise.reject(new Error('should stay offline')),
+    })
+    expect(mocks.queued[0]).toMatchObject({ parentPromptContinuation })
+    mocks.setOnline(true)
+    mocks.apiClient.mockResolvedValueOnce({ results: [{ index: 0, habitId: 'parent', status, error: status === 'Failed' ? 'Rejected' : null }] })
+    mocks.apiClient.mockResolvedValue({ results: [{ index: 0, habitId: 'root', status: 'Success', logId: null, error: null }] })
+    await flushQueuedMutations()
+    await flushQueuedMutations()
+    expect(mocks.apiClient.mock.calls.map(([endpoint]) => endpoint)).toEqual(status === 'Success' ? [API.habits.bulkSkip, API.habits.bulkLog] : [API.habits.bulkSkip])
+    if (status === 'Success') expect(mocks.apiClient).toHaveBeenLastCalledWith(API.habits.bulkLog,
+      expect.objectContaining({ body: JSON.stringify({ items: [{ habitId: 'root', date: '2026-09-12' }] }) }), expect.anything())
+    expect(mocks.queued).toHaveLength(0)
+  })
 
   it('binds an in-flight bulk response to the account that began its flush', async () => {
     mocks.setOnline(true)
