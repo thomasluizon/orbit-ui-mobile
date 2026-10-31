@@ -161,6 +161,94 @@ async function listenerStartupCases() {
   }
 }
 
+async function installedLaunchCases() {
+  const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
+  const launches = []
+  let settings = {}
+  const proxy = {
+    reset(value) { settings = value },
+    read(kind) { return kind === 'hoje' ? { nativeVersion: '1.0.0' } : { snapshot: {} } },
+    send() {}, stop() {},
+  }
+  const context = {
+    join, directory: '/fixture', windows: true, process: { platform: 'win32', arch: 'x64', stdout: { write() {} } },
+    mkdir: async () => {}, existsSync: () => false, assertFree: async () => {}, startRecording: async () => () => {},
+    buildInstaller: async () => ({}), hermeticServices: async () => {}, nativeTool: async () => () => {},
+    updateServer: async () => ({ route() {}, mode() {}, cookieEvidence() {} }),
+    isolateOrigins: async () => ({ restore() {} }), lookup: async () => [{ address: '127.0.0.1' }],
+    startProxy: async () => proxy, install: async () => '/fixture/Orbit',
+    installedLaunch: () => { launches.push(settings.expectAuthenticated === true); return {} },
+    waitFor: async (read) => read(), inspectSurfaces: async () => {}, quit: async () => {},
+    readFile: async () => 'signature verification failed', record: async () => {}, rm: async () => {}, stopAll: async () => {},
+  }
+  runInNewContext(source.slice(source.indexOf('export async function acceptance')).replace('export ', '') + '\nglobalThis.acceptance = acceptance', context)
+  await context.acceptance({ repository: '/fixture', output: '/output' })
+  T('installed updater relaunches require the persisted session after the initial email launch', JSON.stringify(launches) === '[false,true,true]', JSON.stringify(launches))
+}
+
+async function servedProbe(expectAuthenticated) {
+  const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/server.mjs'), 'utf8')
+    .replace(/^import .*$/gm, '').replace('export async function startProxy', 'async function startProxy')
+  let handler
+  let probe
+  const context = {
+    benchmarkViewport: [900, 600],
+    readFile: async () => readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-probe.js'), 'utf8'),
+    createServer: (callback) => { handler = callback; return { once() {}, listen(port, host, ready) { ready() } } },
+  }
+  runInNewContext(`${source}\nglobalThis.startProxy = startProxy`, context)
+  const proxy = await context.startProxy({ probePath: 'probe', port: 3400, acceptance: true })
+  if (expectAuthenticated !== undefined) proxy.reset({ expectAuthenticated })
+  await handler({ url: '/_bench/probe.js' }, { writeHead() {}, end(value) { probe = value } })
+  return probe.replace('run().catch', 'globalThis.completion = run().catch')
+}
+
+async function sessionProbeCases() {
+  for (const [pathname, status, expectAuthenticated, expected] of [
+    ['/login', 200, undefined, 'redirect'],
+    ['/onboarding', 200, false, 'redirect'],
+    ['/login', 200, true, 'redirect'],
+    ['/onboarding', 200, true, 'redirect'],
+    ['/', 200, true, 'hoje'],
+    ['/login', 401, true, 'error'],
+    ['/onboarding', 401, true, 'error'],
+    ['/', 401, true, 'error'],
+    ['/login', 500, false, 'error'],
+    ['/login', 500, true, 'error'],
+  ]) {
+    const requests = []
+    const reports = []
+    let destination
+    let reachedHoje
+    const hoje = new Promise((resolve) => { reachedHoje = resolve })
+    const browserWindow = { __ORBIT_DESKTOP_VERSION__: '1.0.0' }
+    browserWindow.top = browserWindow
+    const context = {
+      window: browserWindow, document: { readyState: 'complete', cookie: '', querySelector: () => ({}) },
+      location: { pathname, assign: (path) => { destination = path } }, setTimeout,
+      fetch: async (path, options) => {
+        if (path === '/_bench/events') {
+          const event = JSON.parse(options.body)
+          reports.push(event)
+          if (event.kind === 'hoje') reachedHoje()
+          return new Response(null, { status: 204 })
+        }
+        if (path === '/_bench/command') return new Promise(() => {})
+        requests.push(path)
+        if (path === '/api/auth/session') return new Response(null, { status })
+        return new Response('{}')
+      },
+    }
+    runInNewContext(await servedProbe(expectAuthenticated), context)
+    await Promise.race([context.completion, hoje])
+    const expectedError = status === 401 ? 'Authenticated installed relaunch lost its BFF session' : `BFF session check failed: HTTP ${status}`
+    const accepted = expected === 'redirect' ? destination === '/' : reports.some((event) => event.kind === expected && (expected !== 'error' || event.message === expectedError))
+    T(`session probe ${pathname} HTTP ${status} expected-auth=${expectAuthenticated} yields ${expected} without signing in`,
+      accepted && requests.join(',') === '/api/auth/session' && !reports.some((event) => event.kind === 'email-completed') &&
+      (expected === 'redirect' || destination === undefined), JSON.stringify({ requests, reports, destination }))
+  }
+}
+
 export async function cases() {
   check('desktop-bench/acceptance.mjs', 'installed acceptance help is cwd safe', ['--help'], { status: 0, stdout: /Usage/ }, { cwd: root })
   check('desktop-bench/acceptance.mjs', 'installed acceptance rejects unknown flags before doing work', ['--unknown'], { status: 2 })
@@ -170,6 +258,8 @@ export async function cases() {
   await httpsForwarderCases()
   await listenerStartupCases()
   await networkCases()
+  await installedLaunchCases()
+  await sessionProbeCases()
   const native = { denied: false, error: null, nodes: [
     { id: '0', role: 'Document', name: '', interactive: false, focused: false, selected: false },
     { id: '0/1', role: 'Edit', name: 'Search commands', interactive: true, focused: true, selected: false },
@@ -216,8 +306,7 @@ export async function cases() {
     const compilation = spawnSync('clang', ['-fsyntax-only', '-fobjc-arc', join(REPO_ROOT, 'tools/desktop-bench/acceptance-ax.m')], { encoding: 'utf8', timeout: 30000 })
     T('macOS accessibility reader compiles against the installed SDK without opening an app', compilation.status === 0, compilation.stderr)
   }
-  const probeSource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-probe.js'), 'utf8')
-    .replace('run().catch', 'globalThis.completion = run().catch')
+  const probeSource = await servedProbe(false)
   for (const scenario of ['success', 'send-failure', 'token-leak', 'readable-cookie']) {
     const requests = []
     const reports = []
@@ -230,6 +319,7 @@ export async function cases() {
       setTimeout, navigator: { platform: 'MacIntel' },
       fetch: async (path, options) => {
         if (path === '/_bench/events') { reports.push(JSON.parse(options.body)); return { ok: true } }
+        if (path === '/api/auth/session') return new Response(null, { status: 401 })
         requests.push({ path, body: JSON.parse(options.body) })
         return new Response(JSON.stringify(scenario === 'token-leak' ? { token: 'forbidden' } : {}), { status: scenario === 'send-failure' ? 400 : 200 })
       },

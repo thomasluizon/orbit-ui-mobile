@@ -207,7 +207,7 @@ export async function acceptance({ repository, output }) {
     await quit(native, handle)
     report.cleanQuit = true
     for (const [mode, phase] of [['bad', 'failed'], ['valid', 'downloaded']]) {
-      proxy.reset({})
+      proxy.reset({ expectAuthenticated: true })
       updates.mode(mode)
       handle = installedLaunch(executable, output, `update-${mode}`)
       await waitFor(() => proxy.read('hoje'), 'authenticated installed relaunch')

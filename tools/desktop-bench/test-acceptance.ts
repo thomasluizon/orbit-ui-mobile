@@ -150,6 +150,7 @@ ${serialize}`
 })
 
 const probeSource = readFileSync(new URL('./acceptance-probe.js', import.meta.url), 'utf8')
+  .replaceAll('__BENCH_EXPECT_AUTHENTICATED__', 'false')
   .replace('run().catch', 'globalThis.completion = run().catch')
 const safariStack = 'emailSignIn@https://app-staging.useorbit.org/_bench/probe.js:22:40'
 
@@ -166,6 +167,7 @@ for (const path of ['send-code', 'verify-code']) {
       setTimeout,
       fetch: async (url: string, options: { body: string }) => {
         if (url === '/_bench/events') { reports.push(JSON.parse(options.body)); return new Response(null, { status: 204 }) }
+        if (url === '/api/auth/session') return new Response(null, { status: 401 })
         return new Response(url === `/api/auth/${path}` ? failureBody : '{}', { status: url === `/api/auth/${path}` ? 403 : 200 })
       },
     }

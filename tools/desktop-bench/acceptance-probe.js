@@ -73,10 +73,15 @@
   }
   async function run() {
     await until(() => document.readyState === 'complete', 'page load')
+    const session = await fetch('/api/auth/session', { cache: 'no-store' })
+    if (!session.ok && session.status !== 401) throw new Error(`BFF session check failed: HTTP ${session.status}`)
+    if (__BENCH_EXPECT_AUTHENTICATED__ && !session.ok) throw new Error('Authenticated installed relaunch lost its BFF session')
     if (location.pathname.includes('/login') || location.pathname.includes('/onboarding')) {
-      await emailSignIn()
+      if (session.ok) location.assign('/')
+      else await emailSignIn()
       return
     }
+    if (!session.ok) throw new Error('Hoje requires an authenticated BFF session')
     await until(() => document.querySelector('[data-habit-id="bench-0000"]') && document.querySelector('[data-composer-input]:not([disabled])'), 'Hoje')
     await report('hoje', { route: location.pathname, nativeVersion: window.__ORBIT_DESKTOP_VERSION__ })
     while (true) {

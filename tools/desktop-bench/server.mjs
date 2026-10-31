@@ -15,7 +15,8 @@ export async function startProxy({ token, probePath, port, upstreamPort, closeCo
     if (route?.(incoming, response)) return
     if (incoming.url === '/_bench/probe.js') {
       response.writeHead(200, { 'content-type': 'application/javascript', 'cache-control': 'no-store' })
-      response.end(acceptance ? probe : probe.replaceAll('__BENCH_READINESS_ONLY__', JSON.stringify(launch.readinessOnly))
+      response.end(acceptance ? probe.replaceAll('__BENCH_EXPECT_AUTHENTICATED__', JSON.stringify(launch?.expectAuthenticated === true))
+        : probe.replaceAll('__BENCH_READINESS_ONLY__', JSON.stringify(launch.readinessOnly))
         .replaceAll('__BENCH_NATIVE_WINDOW__', JSON.stringify(launch.nativeWindow)))
     } else if (incoming.url === '/_bench/events') {
       try {
