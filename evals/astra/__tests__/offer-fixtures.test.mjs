@@ -38,6 +38,10 @@ function fixture(family, variant = 0, fault) {
     }
     const [resource, id, operation] = path.split('/')
     if (resource === 'tags') return new Response(null, { status: 204 })
+    // UpdateGoalCommand rejects a deadline before the account's current date.
+    if (resource === 'goals' && options.method === 'PUT' && !operation && body.deadline < today) {
+      return new Response(null, { status: 400 })
+    }
     const item = state[resource].find((entry) => entry.id === id)
     if (options.method === 'GET') {
       return Response.json(item)
@@ -47,9 +51,9 @@ function fixture(family, variant = 0, fault) {
     if (operation === 'status') item.status = body.status
     if (options.method === 'PUT' && operation !== 'status' && fault !== 'fields') {
       // Habit.ApplyRequiredUpdates keeps the occurrence when the unchanged startDate is supplied.
-      const dueDate = body.startDate != null ? item.dueDate : body.dueDate ?? item.dueDate
       const previous = { ...item }
-      Object.assign(item, body, { dueDate })
+      const occurrence = resource === 'habits' ? { dueDate: body.startDate != null ? item.dueDate : body.dueDate ?? item.dueDate } : {}
+      Object.assign(item, body, occurrence)
       if (['dueDate', 'reminderEnabled', 'reminderTimes'].includes(fault)) item[fault] = previous[fault]
     }
     return new Response(null, { status: 204 })
@@ -58,13 +62,21 @@ function fixture(family, variant = 0, fault) {
   return { test, state, requests }
 }
 
-it.each([0, 1, 2])('seeds and reads back behind and safe goal variants %s', async (variant) => {
-  for (const family of ['goal-behind', 'goal-on-track']) {
+it.each([['goal-behind', 0], ['goal-behind', 2], ['goal-on-track', 0], ['goal-on-track', 1], ['goal-on-track', 2]])(
+  'seeds and reads back the available %s goal variant %s', async (family, variant) => {
     const { test } = fixture(family, variant)
     await seedOfferFixture(test, today)
-    expect(test.vars.offerGoalTracking).toBe(family === 'goal-behind'
-      ? variant === 1 ? 'behind' : 'at_risk' : ['on_track', 'completed', 'no_deadline'][variant])
-  }
+    expect(test.vars.offerGoalTracking).toBe(family === 'goal-behind' ? 'at_risk' : ['on_track', 'completed', 'no_deadline'][variant])
+  },
+)
+
+it('keeps the behind attempt unavailable when the public API rejects its past deadline', async () => {
+  const { test, requests } = fixture('goal-behind', 1)
+  await expect(seedOfferFixture(test, today)).rejects.toThrow('Fixture API PUT failed with HTTP 400.')
+  expect(requests.find(({ method }) => method === 'PUT').body.deadline).toBe('2031-06-09')
+  expect(test.vars.offerGoalTracking).toBeUndefined()
+  expect(test.vars.offerBaseline).toBeUndefined()
+  expect(test.vars.offerRequireReadback).toBeUndefined()
 })
 
 it.each([0, 1, 2])('seeds reminder and equivalent-goal exclusions %s', async (variant) => {

@@ -338,11 +338,14 @@ grades supportive content and language. Ordinary parts-capable answers retain th
 
 Family setup runs after the normal disposable-account fixture reset, including the standalone reset
 executable. It uses public APIs and independently reads back every change. Goal-behind attempts
-alternate near-deadline `at_risk` and past-deadline `behind`, verified through the complete paged
-goal-list DTO. Their target stays above progress derived from seeded logs; goal-on-track attempts cover `on_track`,
+require near-deadline `at_risk` and past-deadline `behind`, verified through the complete paged
+goal-list DTO. Public goal creation and updates reject past deadlines, so the expired-deadline variant
+stops at fixture setup. Its offline replay enforces that failure; it does not certify `behind` coverage
+or waive that gate attempt. Their target stays above progress derived from seeded logs; goal-on-track attempts cover `on_track`,
 `completed` and `no_deadline`. Reminder-gap covers reminders off and reminders on with the same missed
 schedule. Occurrence edits omit the unchanged `startDate`, which otherwise takes precedence over
-`dueDate`; readback compares the requested date and reminder settings exactly. Resolved covers a completed occurrence and a skipped avoid habit. Stored-field setup retains
+`dueDate`; readback compares the requested date and reminder settings exactly. Resolved covers a completed
+occurrence and a skipped avoid habit. Stored-field setup retains
 an emoji, tag, reminder and checked checklist item. Goal-link uses an owned mobility goal; goal-gap
 includes an equivalent active goal exclusion. Fixtures never change plan entitlements or feature flags.
 The stale offer fixture caches the requested weekly retrospective using the account week-start setting;
