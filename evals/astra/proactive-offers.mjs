@@ -31,6 +31,7 @@ function validAction({ action, read, pending }, vars) {
   const key = `${family}:${action.entityId ?? action.surface ?? 'account'}${action.date ? `:${action.date}` : ''}`
   if (action.kind !== kind || action.offerKey !== key) return false
   if (pending) return uuid(pending.id) && text(pending.previewFingerprint)
+    && (family !== 'aim' || text(vars.requestedAim))
   return uuid(read?.queryId) && text(read.queryFamily) && read.scope !== null && typeof read.scope === 'object'
     && text(read.revision) && text(read.refreshToken) && read.completeness === 'complete' && read.recovery == null
     && (!['log', 'restart', 'smallStep'].includes(action.offerKey.split(':')[0]) || action.date != null)
@@ -137,7 +138,7 @@ function familyFailure(response, vars, actions) {
     && Array.isArray(field.proposedValue) && field.proposedValue.length > 0
     && field.proposedValue.every((id) => vars.fixtureEvidence?.goals?.some((goal) => goal.id === id)))) return 'Suggested goal link is missing or unowned.'
   if (vars.offerFamily === 'dated-reminder' && !suggested.some((field) => reminders.includes(field.field))) return 'Missing removable dated-task reminder.'
-  if (vars.offerFamily === 'metadata' && (!has('emoji') || !suggested.some((field) => ['tag_ids', 'tag_names'].includes(field.field)))) return 'Missing separately removable metadata suggestions.'
+  if (vars.offerFamily === 'metadata' && !suggested.some((field) => ['emoji', 'tag_ids', 'tag_names'].includes(field.field))) return 'Missing a removable metadata suggestion.'
   if (vars.offerFamily === 'stale' && !(response.parts ?? []).some((part) => part.kind === 'periodInsight'
     && part.block.read?.completeness === 'stale' && part.block.read.recovery === 'refresh')) return 'Missing retained stale recovery state.'
   if (vars.offerFamily === 'multi-block' && !isDeepStrictEqual((response.parts ?? []).filter((part) => part.type === 'block').map((part) => part.kind), ['habitList', 'goalList'])) return 'Compound block order changed.'

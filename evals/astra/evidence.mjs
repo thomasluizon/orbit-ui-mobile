@@ -83,7 +83,9 @@ export function attemptEvidence(entry, attempt) {
         ? { anyOf: declarations.map((tool) => tool.function.parameters) } : undefined, sensitiveFields, withheld),
       resultStatus: call.resultStatus, ...(declarations.length ? { result: resultEvidence(call.result, call.name) } : {}) }
   })
-  return sanitizeEvidence({ ...attempt,
+  const evidence = sanitizeEvidence({ ...attempt,
+    ...(output?.httpError ? { httpError: output.httpError } : {}),
+    ...(entry.testCase.vars?.offerFamily ? { requestedAim: entry.testCase.vars.requestedAim ?? null } : {}),
     answer: output?.answer ?? null,
     composition: (output?.composition?.parts ?? []).filter((part) => part?.type === 'block')
       .map((part) => ({ kind: part.kind, subtype: part.block?.kind ?? null })),
@@ -102,4 +104,10 @@ export function attemptEvidence(entry, attempt) {
     graderRationale: attempt.assertions.filter((assertion) => assertion.metric === 'finalAnswer')
       .map((assertion) => assertion.reason).join('\n') || entry.gradingResult?.reason || null,
   }, withheld)
+  const requestId = output?.httpError?.responseRequestId
+  if (typeof requestId === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(requestId)
+    && redactCredentials(requestId) === requestId && !withheld.has(requestId)) {
+    evidence.httpError.responseRequestId = requestId
+  }
+  return evidence
 }

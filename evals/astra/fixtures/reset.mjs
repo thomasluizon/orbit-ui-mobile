@@ -16,7 +16,7 @@ const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =
   parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'), { merge: true }))
 const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-history', 'empty', 'overdue', 'skipped',
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
-  'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'starting-step-checklist', 'hoje-next-step'])
+  'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'restart-non-daily', 'starting-step-checklist', 'hoje-next-step'])
 export const disposableEvalOrigins = ['https://orbit-api-staging-uqu2.onrender.com', 'https://api.useorbit.org']
 export function requireEvalOrigin() {
   if (!disposableEvalOrigins.includes(apiOrigin())) throw new Error('Fixture reset requires a known eval origin and a disposable eval account.')
@@ -249,8 +249,9 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     test.vars.fixtureEvidence = fixtureEvidence(await seedHojeNextStep(api, account, today, dailyHabit), fixture, today, account)
     return
   }
-  if (fixture === 'restart') {
-    test.vars.restartBaseline = await seedRestart(api, account, today, titles, dailyHabit, dateOffset)
+  if (fixture === 'restart' || fixture === 'restart-non-daily') {
+    test.vars.restartBaseline = await seedRestart(api, account, today, titles, dailyHabit, dateOffset, fixture === 'restart-non-daily')
+    test.vars.fixtureEvidence = fixtureEvidence(await snapshot(api), fixture, today, account)
     return
   }
   if (fixture === 'starting-step-checklist') {

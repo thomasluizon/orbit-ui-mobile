@@ -21,6 +21,29 @@ const scenarios = parse(readFileSync(new URL('../composition-scenarios.yaml', im
 const today = '2031-06-10'
 const habitId = '22222222-2222-4222-8222-222222222222'
 
+it('retains unexpected 400 evidence through the installed HTTP provider without readback requests', async () => {
+  const scenario = structuredClone(scenarios.find((entry) => entry.metadata.id === 'offers-ordinary-reading-en'))
+  configureOffers(scenario)
+  const vars = { ...scenario.vars, evalRequestId: 'independent-request', accountDate: today,
+    clientContextJson: JSON.stringify(scenario.vars.clientContext), historyJson: '[]' }
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline')
+  const requests = []
+  vi.stubGlobal('fetch', async (url) => {
+    requests.push(new URL(url).pathname)
+    return Response.json({ error: 'Unable to compose an answer.', errorCode: 'AI_EMPTY_RESPONSE' }, {
+      status: 400, headers: { 'x-orbit-request-id': vars.evalRequestId },
+    })
+  })
+  const provider = new AstraHttpProvider({ config: { ...configuration.providers[0].config,
+    url: 'https://api.useorbit.org/api/chat', transformResponse: `file://${fileURLToPath(new URL('../response.mjs', import.meta.url))}` } })
+  const response = await provider.callApi(vars.input, { vars })
+  expect(response.error).toBe('Astra returned an unexpected refusal.')
+  expect(response.output).toMatchObject({ httpStatus: 400,
+    httpError: { errorCode: 'AI_EMPTY_RESPONSE', error: 'Unable to compose an answer.', responseRequestId: vars.evalRequestId } })
+  expect(response.output).not.toHaveProperty('offerReadback')
+  expect(requests).toEqual(['/api/chat'])
+})
+
 // Producer: HandleCrisisTurnAsync, CrisisSupportGuard and the enclosing opt-in eval trace collector.
 const crisisText = {
   en: "I'm sorry you're going through this. You deserve support right now.\n\nCall or text 988 (Suicide and Crisis Lifeline)",

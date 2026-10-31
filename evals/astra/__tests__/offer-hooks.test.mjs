@@ -5,6 +5,7 @@ import { beforeAll, beforeEach } from '../hooks.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
+import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
 
 const catalogFault = vi.hoisted(() => ({ missing: false }))
 vi.mock('node:fs', async (original) => {
@@ -22,9 +23,28 @@ vi.mock('../trace-policy.mjs', async (original) => {
 afterEach(() => { catalogFault.missing = false; vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 
+it.each(['en', 'pt-BR'])('prepares the shared client kinds for %s offer requests and preview setup', async (locale) => {
+  offlineCredentials()
+  const scenario = structuredClone(corpus.find((entry) => entry.metadata.id === `offers-ordinary-reading-${locale}`))
+  vi.stubGlobal('fetch', async (url) => {
+    const path = new URL(url).pathname
+    if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    if (path === '/api/profile/export') return Response.json({ habits: [], goals: [], tags: [], checklistTemplates: [] })
+    return refreshResponse()
+  })
+  const { test } = await beforeEach({ test: scenario })
+  expect(test.vars.preconditionFailure).toBeUndefined()
+  expect(test.vars.clientContext.partKinds).toEqual(buildChatClientContext({ platform: 'web', locale }).partKinds)
+  expect(JSON.parse(test.vars.clientContextJson).partKinds).toEqual(test.vars.clientContext.partKinds)
+  const setup = structuredClone(corpus.find((entry) => entry.metadata.id === `offers-preview-rejection-${locale}`))
+  const { configureOffers } = await import('../offer-context.mjs')
+  configureOffers(setup)
+  expect(setup.vars.setup.clientContext.partKinds).toEqual(test.vars.clientContext.partKinds)
+})
+
 it('keeps all supplied cases, resolves their YAML contexts and configures three attempts', () => {
   const cases = corpus.filter((entry) => entry.metadata.family.startsWith('offers-'))
-  expect(cases).toHaveLength(58)
+  expect(cases).toHaveLength(60)
   expect(new Set(cases.map((entry) => entry.metadata.family)).size).toBe(29)
   expect(cases.every((entry) => entry.vars.clientContext.locale === entry.metadata.locale)).toBe(true)
   expect(cases.every((entry) => !Object.hasOwn(entry.vars.clientContext, '<<'))).toBe(true)

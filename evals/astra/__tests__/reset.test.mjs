@@ -27,6 +27,30 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const scenario = (fixture) => structuredClone(corpus.find((entry) => entry.metadata.fixture === fixture))
+it.each(['en', 'pt-BR'])('seeds missed non-daily offer occurrences and verifies their cadence in %s', async (locale) => {
+  const test = structuredClone(corpus.find((entry) => entry.metadata.id === `offers-missed-${locale}`))
+  test.metadata.fixture = 'restart-non-daily'
+  test.vars.accountDate = '2026-10-24'
+  await resetFixture(test)
+  const active = habits.filter((habit) => !habit.deleted)
+  expect(active).toHaveLength(6)
+  const overdue = active.filter((habit) => habit.dueDate < test.vars.accountDate)
+  expect(overdue).toHaveLength(4)
+  expect(overdue.every((habit) => habit.frequencyUnit === 'Day' && habit.frequencyQuantity === 3)).toBe(true)
+  expect(overdue.every((habit) => (Date.parse(`${test.vars.accountDate}T12:00:00Z`) - Date.parse(`${habit.dueDate}T12:00:00Z`)) / 86400000 % 3 !== 0)).toBe(true)
+  expect(active.every((habit) => habit.logs.length === 1)).toBe(true)
+  expect(test.vars.fixtureEvidence.habits).toHaveLength(6)
+  expect(requests.some(({ path }) => path.startsWith('chat'))).toBe(false)
+  const source = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    const response = await source(url, options)
+    if (options.method === 'GET' && /^\/api\/habits\/[^/]+$/u.test(new URL(url).pathname)) {
+      return Response.json({ ...await response.json(), frequencyQuantity: 1 })
+    }
+    return response
+  })
+  await expect(resetFixture(test)).rejects.toThrow('Restart fixture failed independent field or history verification.')
+})
 it('resets behind fixtures on the profile calendar day without replacing the original timezone', async () => {
   vi.setSystemTime(new Date('2031-06-10T00:30:00Z'))
   const test = structuredClone(corpus.find((entry) => entry.metadata.id === 'offers-goal-behind-en'))
@@ -162,7 +186,7 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
   else if (fixture === 'free-at-limit') expect(active).toHaveLength(capacity)
   else if (fixture === 'malicious-title') expect(active).toHaveLength(3)
   else if (fixture === 'hoje-next-step') expect(active).toHaveLength(12)
-  else if (fixture === 'restart') {
+  else if (fixture === 'restart' || fixture === 'restart-non-daily') {
     expect(active).toHaveLength(6)
     expect(test.vars.restartBaseline).toHaveLength(6)
     expect(active.filter((habit) => habit.dueDate < '2026-10-24')).toHaveLength(4)

@@ -16,7 +16,7 @@ const cases = [
   ['parent', { parent_habit_id: [owned, 'suggested'] }, (fields) => { fields[0].proposedValue = unknown }],
   ['root', { title: ['Journal', 'requested'] }, (fields) => { fields.push(field('parent_habit_id', owned, 'suggested')) }],
   ['goal-link', { goal_ids: [[owned], 'suggested'] }, (fields) => { fields[0].proposedValue = [unknown] }],
-  ['metadata', { emoji: ['🎨', 'suggested'], tag_names: [['Art'], 'suggested'] }, (fields) => { fields.shift() }],
+  ['metadata', { emoji: ['🎨', 'suggested'], tag_names: [['Art'], 'suggested'] }, (fields) => { fields.splice(0) }],
   ['bounded', { start_date: ['2031-06-11', 'requested'], end_date: ['2031-06-17', 'requested'] }, (fields) => { fields[1].proposedValue = '2031-06-16' }],
 ]
 
@@ -37,4 +37,29 @@ it.each(cases)('accepts the typed %s proposal and rejects a deliberately wrong f
   expect(proactiveOffers(output, { vars }).pass).toBe(true)
   breakField(pending.items[0].fields)
   expect(proactiveOffers(output, { vars }).pass).toBe(false)
+})
+
+it.each(['emoji', 'tag_names'])('accepts a relevant removable %s suggestion without requiring both metadata kinds', (name) => {
+  const pending = preview('Watercolor')
+  pending.items[0].fields = [field(name, name === 'emoji' ? '🎨' : ['Art'], 'suggested')]
+  const vars = { offerFamily: 'metadata', clientContext: { supportsProactiveOffers: true }, composition: { mode: 'preview' } }
+  const output = { composition: { parts: [], pendingOperations: [pending] }, trace: { calls: [] } }
+  expect(proactiveOffers(output, { vars }).pass).toBe(true)
+  pending.items[0].fields = []
+  expect(proactiveOffers(output, { vars }).pass).toBe(false)
+})
+
+it.each([undefined, null, '', '  ', false])('rejects a preview aim action without a typed requested aim: %s', (requestedAim) => {
+  const pending = preview('Read a book')
+  pending.nextAction = { offerKey: 'aim:account', kind: 'continueChat', label: 'Plan this goal',
+    prompt: 'Suggest a goal for what is in this preview.' }
+  const output = { composition: { parts: [], pendingOperations: [pending] }, trace: { calls: [] } }
+  const vars = { offerFamily: 'ordinary-reading', requestedAim, input: 'Create Read a book daily.',
+    clientContext: { supportsProactiveOffers: true }, composition: { mode: 'preview' } }
+  expect(proactiveOffers(output, { vars }).pass).toBe(false)
+  vars.requestedAim = 'Read twelve books'
+  expect(proactiveOffers(output, { vars }).pass).toBe(true)
+  delete pending.nextAction
+  delete vars.requestedAim
+  expect(proactiveOffers(output, { vars }).pass).toBe(true)
 })

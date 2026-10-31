@@ -4161,7 +4161,7 @@
   metadata: {"id": "offers-repeat-en", "category": "composition", "family": "offers-repeat", "locale": "en", "fixture": "empty"}
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    clientContext: &offers_en {"platform": "web", "locale": "en", "timeFormat": "24h", "supportsParts": true, "supportsPendingOperationChanges": true, "supportsProactiveOffers": true, "conversationId": "dff155a1-6899-5048-86bf-88cf6269ffaf", "partKinds": ["habitList", "goalList", "daySummary", "metrics", "periodInsight", "recordList", "accountRows", "oneSmallStep"], "supportsHabitListCard": true, "supportsHabitListDoneStatus": true, "supportsDatedHabitListCard": true, "supportsSkippedHabitRows": true, "supportsGoalListCard": true, "supportsDaySummaryCard": true, "supportsMetricsCard": true, "supportsPeriodInsightCard": true, "supportsRecordListCard": true, "supportsAccountRowsCard": true}
+    clientContext: &offers_en {"platform": "web", "locale": "en", "timeFormat": "24h", "supportsParts": true, "supportsProactiveOffers": true, "conversationId": "dff155a1-6899-5048-86bf-88cf6269ffaf"}
     input: "Help me remember to drink water throughout the day."
     composition: {"mode": "preview", "previews": 1}
     expectations: &offers_write_tools {allowed: ["query_habits", "query_goals", "list_tags", "get_checklist_templates", "create_habit", "create_sub_habit", "bulk_create_habits", "update_habit", "bulk_update_habits", "create_goal", "link_goals_to_habit", "assign_tags", "revise_pending_changes"]}
@@ -4170,7 +4170,7 @@
   metadata: {"id": "offers-repeat-pt-BR", "category": "composition", "family": "offers-repeat", "locale": "pt-BR", "fixture": "empty"}
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
-    clientContext: &offers_pt {"platform": "web", "locale": "pt-BR", "timeFormat": "24h", "supportsParts": true, "supportsPendingOperationChanges": true, "supportsProactiveOffers": true, "conversationId": "5f777d69-2c89-5108-b9fb-0cf65cf2f972", "partKinds": ["habitList", "goalList", "daySummary", "metrics", "periodInsight", "recordList", "accountRows", "oneSmallStep"], "supportsHabitListCard": true, "supportsHabitListDoneStatus": true, "supportsDatedHabitListCard": true, "supportsSkippedHabitRows": true, "supportsGoalListCard": true, "supportsDaySummaryCard": true, "supportsMetricsCard": true, "supportsPeriodInsightCard": true, "supportsRecordListCard": true, "supportsAccountRowsCard": true}
+    clientContext: &offers_pt {"platform": "web", "locale": "pt-BR", "timeFormat": "24h", "supportsParts": true, "supportsProactiveOffers": true, "conversationId": "5f777d69-2c89-5108-b9fb-0cf65cf2f972"}
     input: "Me ajude a lembrar de beber água ao longo do dia."
     composition: {"mode": "preview", "previews": 1}
     expectations: *offers_write_tools
@@ -4345,7 +4345,7 @@
     input: "Create a daily watercolor practice habit."
     composition: {"mode": "preview", "previews": 1}
     expectations: *offers_write_tools
-    rubric: "Answer in English. Offer fitting emoji/tags as separately removable suggestions; avoid arbitrary unrelated options."
+    rubric: "Answer in English. Offer at least one fitting emoji or tag suggestion, each separately removable; omit irrelevant options. Tags are optional on this empty account."
 - description: "proactive metadata in pt-BR"
   metadata: {"id": "offers-metadata-pt-BR", "category": "composition", "family": "offers-metadata", "locale": "pt-BR", "fixture": "empty"}
   vars:
@@ -4354,7 +4354,7 @@
     input: "Crie um hábito diário de praticar aquarela."
     composition: {"mode": "preview", "previews": 1}
     expectations: *offers_write_tools
-    rubric: "Answer in Brazilian Portuguese. Offer fitting emoji/tags as separately removable suggestions; avoid arbitrary unrelated options."
+    rubric: "Answer in Brazilian Portuguese. Offer at least one fitting emoji or tag suggestion, each separately removable; omit irrelevant options. Tags are optional on this empty account."
 - description: "proactive stored in en"
   metadata: {"id": "offers-stored-en", "category": "composition", "family": "offers-stored", "locale": "en", "fixture": "pro"}
   vars:
@@ -4407,6 +4407,22 @@
     input: "Liste meus hábitos atrasados."
     composition: {"mode": "data"}
     rubric: "Answer in Brazilian Portuguese. Offer exactly one grounded restart or skip action inside the block; use an actual occurrence date where known, no pending write."
+- description: "proactive missed non-daily in en"
+  metadata: {"id": "offers-missed-non-daily-en", "category": "composition", "family": "offers-missed", "locale": "en", "fixture": "restart-non-daily"}
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext: {<<: *offers_en, conversationId: "74e7ed63-dd08-4cf3-a4b5-600909509bba"}
+    input: "List my overdue habits."
+    composition: {"mode": "data"}
+    rubric: "Answer in English. Offer exactly one grounded restart or skip action inside the block; use an actual missed occurrence on the every-three-days schedule, which is not due today; no pending write."
+- description: "proactive missed non-daily in pt-BR"
+  metadata: {"id": "offers-missed-non-daily-pt-BR", "category": "composition", "family": "offers-missed", "locale": "pt-BR", "fixture": "restart-non-daily"}
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    clientContext: {<<: *offers_pt, conversationId: "6cdbd183-c6ac-4143-b5d1-927ad7d2b094"}
+    input: "Liste meus hábitos atrasados."
+    composition: {"mode": "data"}
+    rubric: "Answer in Brazilian Portuguese. Offer exactly one grounded restart or skip action inside the block; use an actual missed occurrence on the every-three-days schedule, which is not due today; no pending write."
 - description: "proactive due-log in en"
   metadata: {"id": "offers-due-log-en", "category": "composition", "family": "offers-due-log", "locale": "en", "fixture": "hoje-next-step"}
   vars:
