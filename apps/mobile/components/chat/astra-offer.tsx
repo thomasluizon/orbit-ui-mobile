@@ -24,7 +24,7 @@ function ActiveAstraOffer(props: Readonly<AstraOfferProps>) {
   return <>{offer.visible ? <View testID="astra-offer" style={styles.slot}>
     <View style={styles.actions}>
       <PillButton size="sm" variant="ghost" minimumHeight={SMALL_PILL_VISIBLE_MIN} retainLeadingIcon leadingIcon={props.action.kind === 'openSurface' ? undefined : <AstraGlyph size={16} />} loading={offer.pending} accessibleName={props.action.label} disabled={offer.disabled} onClick={() => void offer.act()}>{props.action.label}</PillButton>
-      <IconButton label={t('chat.offers.dismiss')} disabled={offer.disabled} onClick={() => void offer.dismiss()}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+      <IconButton label={t('chat.offers.dismiss')} disabled={offer.dismissDisabled} onClick={() => void offer.dismiss()}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     </View>
     <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: 14 }}>{offer.failed ? t('chat.offers.failed') : offer.reason ? t(offer.reason) : ''}</Text>
   </View> : null}<ReferralDrawer open={offer.referralsOpen} onClose={offer.closeReferrals} /></>

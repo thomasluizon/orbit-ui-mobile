@@ -450,3 +450,17 @@ describe('read offers', () => {
     expect(screen.getByRole('button', { name: en.chat.offers.dismiss })).toBeEnabled()
   })
 })
+
+
+it('keeps dismissal available when the conversation action cannot send', async () => {
+  useChatStore.setState({ conversationId: offerConversationId, dismissedOfferKeys: [] })
+  vi.mocked(dismissChatOffers).mockReset().mockResolvedValue({ ok: true, data: null })
+  mount({ kind: 'periodTotal', block: offeredReadFixture })
+  try {
+    expect(screen.getByRole('button', { name: astraOfferFixture.label })).toBeDisabled()
+    const dismiss = screen.getByRole('button', { name: en.chat.offers.dismiss })
+    expect(dismiss).toBeEnabled()
+    fireEvent.click(dismiss)
+    await waitFor(() => expect(dismissChatOffers).toHaveBeenCalledExactlyOnceWith(offerConversationId, [astraOfferFixture.offerKey], null))
+  } finally { useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] }) }
+})

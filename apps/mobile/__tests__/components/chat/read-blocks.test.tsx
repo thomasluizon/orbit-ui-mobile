@@ -508,3 +508,20 @@ describe('read offers on Android', () => {
     await act(() => tree.unmount())
   })
 })
+
+
+it('keeps dismissal available when the conversation action cannot send', async () => {
+  state.actualCopy = true
+  useChatStore.setState({ conversationId: offerConversationId, dismissedOfferKeys: [] })
+  vi.mocked(apiClient).mockResolvedValue(null)
+  const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture })
+  try {
+    const buttons = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')
+    const action = buttons.find(node => node.props.accessibilityLabel === astraOfferFixture.label)!
+    const dismiss = buttons.find(node => node.props.accessibilityLabel === en.chat.offers.dismiss)!
+    expect(action.props.accessibilityState).toMatchObject({ disabled: true })
+    expect(dismiss.props.accessibilityState).toMatchObject({ disabled: false })
+    await press(tree, en.chat.offers.dismiss)
+    expect(apiClient).toHaveBeenCalledWith(API.chat.dismissOffers, expect.objectContaining({ method: 'POST' }))
+  } finally { await act(() => tree.unmount()); useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] }) }
+})

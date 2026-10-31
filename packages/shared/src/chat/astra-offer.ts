@@ -34,7 +34,7 @@ export function canShowAstraOffer(action: AstraOfferProps['action'], context: Pi
 }
 
 export interface AstraOfferState {
-  visible: boolean; pending: boolean; failed: boolean; disabled: boolean; reason: string | undefined
+  visible: boolean; pending: boolean; failed: boolean; disabled: boolean; dismissDisabled: boolean; reason: string | undefined
   act: () => Promise<void>; dismiss: () => Promise<void>
 }
 
@@ -52,12 +52,13 @@ export function createUseAstraOffer(adapters: {
     const [failed, setFailed] = adapters.useState(false)
     const session = adapters.getSession()
     const visible = canShowAstraOffer(action, { conversationId: session.conversationId, supportsProactiveOffers: enabled }, session.dismissedOfferKeys)
-    const reason = interaction?.isOnline === false ? 'chat.choice.offline'
+    const reason = interaction?.isOnline === false ? 'chat.offline.title'
       : interaction?.isSending || props.unavailable ? 'blockFrame.status.acting'
       : action?.kind !== 'openSurface' && (interaction?.atMessageLimit || interaction?.dailyBudgetReached) ? 'chat.offers.limit' : undefined
+    const dismissDisabled = pending || interaction?.isOnline === false
     const disabled = pending || Boolean(reason) || (action?.kind !== 'openSurface' && !onSendMessage)
     async function run(dismissOnly: boolean) {
-      if (!visible || !session.conversationId || lock.pending || disabled) return
+      if (!visible || !session.conversationId || lock.pending || (dismissOnly ? dismissDisabled : disabled)) return
       lock.pending = true
       setPending(true)
       setFailed(false)
@@ -78,6 +79,6 @@ export function createUseAstraOffer(adapters: {
         if (isCurrent()) setPending(false)
       }
     }
-    return { visible, pending, failed, disabled, reason, act: () => run(false), dismiss: () => run(true) }
+    return { visible, pending, failed, disabled, dismissDisabled, reason, act: () => run(false), dismiss: () => run(true) }
   }
 }

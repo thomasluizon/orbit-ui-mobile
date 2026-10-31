@@ -69,7 +69,7 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
     {canPage && snapshot.kind !== 'gamification' ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
     {props.actions}
   </>
-  const body = <>{window ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{formatReadWindow(window, locale)}</Text> : null}{message && state !== 'stale' ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: 14 }}>{t(message)}</Text> : null}{props.body}<AstraOffer {...offer} action={snapshot.read.nextAction} unavailable={pending || stale} /></>
+  const body = <>{window ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{formatReadWindow(window, locale)}</Text> : null}{message && state !== 'stale' ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: 14 }}>{t(message)}</Text> : null}{props.body}<AstraOffer {...offer} action={stale ? null : snapshot.read.nextAction} unavailable={pending} /></>
   const frameProps = readBlockFrameProps(props, state, message, () => { void run(false) }, t, actions)
   return <Frame {...frameProps} body={body} />
 }
