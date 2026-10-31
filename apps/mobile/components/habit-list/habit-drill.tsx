@@ -1,6 +1,9 @@
-import { ContentFade } from '@/components/motion/content-fade'
+import { useRetainedHabitList } from '@/hooks/use-retained-habit-list'
+import { useListScrollReservation } from '@/hooks/use-list-scroll-reservation'
+import { usePrefersReducedMotion } from '@/lib/motion'
+import { HabitListMotionRow } from '@/components/motion/habit-list-row'
 import { IconButton } from '@/components/ui/icon-button'
-import { useState, type ReactElement, type ReactNode, type RefObject } from 'react'
+import { useMemo, useState, type ReactElement, type ReactNode, type RefObject } from 'react'
 import {
   FlatList,
   Pressable,
@@ -87,15 +90,19 @@ export function HabitDrill({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [clamped, setClamped] = useState(false)
-  const renderItem: ListRenderItem<NormalizedHabit> = ({ item: child }) => {
+  const reduced = usePrefersReducedMotion()
+  const source = useMemo(() => drill.drillLoading || drill.drillError ? [] : drill.drillChildren, [drill.drillLoading, drill.drillError, drill.drillChildren])
+  const presentation = useRetainedHabitList(source, drill.currentParentId ?? '', reduced)
+  const reservation = useListScrollReservation(drill.currentParentId ?? '')
+  const renderItem: ListRenderItem<NormalizedHabit> = ({ item: child, index }) => {
     const nestedChildren = drill.getDrillChildren(child.id)
-    return <ContentFade>{renderHabitCard(
+    return <HabitListMotionRow id={child.id} phase={presentation.rows[index]!.phase} offset={presentation.rows[index]!.offset} itemIds={presentation.itemIds} measure={presentation.measure}>{renderHabitCard(
       child,
       0,
       nestedChildren.length > 0,
       child.hasSubHabits || nestedChildren.length > 0,
       { isDrillCard: true },
-    )}</ContentFade> as ReactElement
+    )}</HabitListMotionRow> as ReactElement
   }
 
   const header = (
@@ -175,16 +182,17 @@ export function HabitDrill({
   return (
     <FlatList
       ref={drillListRef}
-      data={drill.drillLoading || drill.drillError ? [] : drill.drillChildren}
+      data={presentation.items}
+      onLayout={reservation.onLayout}
       keyboardShouldPersistTaps="handled"
       keyExtractor={(item) => item.id}
       renderItem={renderItem}
       ListHeaderComponent={header}
       ListEmptyComponent={empty}
       ListFooterComponent={drill.drillChildren.length > 0 ? addRow : null}
-      contentContainerStyle={[styles.listContent, bulkBarStyle]}
+      contentContainerStyle={[styles.listContent, bulkBarStyle, { minHeight: reservation.minimumHeight }]}
       refreshControl={refreshControl}
-      onScroll={onListScroll}
+      onScroll={(event) => { reservation.onOffset(event.nativeEvent.contentOffset.y); onListScroll(event) }}
       onFocus={onFocus}
       scrollEventThrottle={16}
       onScrollBeginDrag={onScrollBeginDrag}

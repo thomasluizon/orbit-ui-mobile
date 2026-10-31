@@ -30,14 +30,14 @@ describe('list motion', () => {
     expect(screen.getByRole('button', { name: 'Child' })).toBeVisible()
   })
 
-  it('removes a departing row immediately when reduced motion is enabled during its exit', async () => {
+  it('finishes a departing row with a short fade when reduced motion is enabled during its exit', async () => {
     const view = render(<ListPresence><ListMotionItem key="old"><button>Old</button></ListMotionItem></ListPresence>)
     const replacement = <ListPresence><ListMotionItem key="new"><button>New</button></ListMotionItem></ListPresence>
     view.rerender(replacement)
     expect(screen.getByText('Old')).toBeInTheDocument()
     preference.reduced = true
     view.rerender(<ListPresence><ListMotionItem key="new"><button>New</button></ListMotionItem></ListPresence>)
-    expect(screen.queryByText('Old')).toBeNull()
+    await waitFor(() => expect(screen.queryByText('Old')).toBeNull())
     await waitFor(() => expect(screen.getByRole('button', { name: 'New' })).toBeVisible())
   })
 
