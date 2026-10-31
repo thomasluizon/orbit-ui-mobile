@@ -108,16 +108,16 @@ export function useDrillNavigation(
   const drillChildren = useMemo(
     () => currentParentId
       ? visibilityOptions
-        ? getVisibleDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, todayStr)
+        ? getVisibleDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, todayStr)
         : drillChildrenMap.get(currentParentId) ?? []
       : [],
-    [currentParentId, drillChildrenMap, visibilityOptions, view, todayStr],
+    [currentParentId, drillChildrenMap, visibilityOptions, todayStr],
   )
   const hasUnfilteredChildren = currentParentId
     ? (drillChildrenMap.get(currentParentId)?.length ?? 0) > 0
     : false
   const canRevealCompletedChildren = currentParentId !== null && drillChildren.length === 0 && visibilityOptions
-    ? canRevealCompletedDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, todayStr)
+    ? canRevealCompletedDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, todayStr)
     : false
   const completedCount = countCompletedDrillChildren(
     drillChildren,
@@ -202,10 +202,10 @@ export function useDrillNavigation(
   const getDrillChildren = useCallback(
     (parentId: string): NormalizedHabit[] => {
       return visibilityOptions
-        ? getVisibleDrillChildren(parentId, drillChildrenMap, visibilityOptions, view, todayStr)
+        ? getVisibleDrillChildren(parentId, drillChildrenMap, visibilityOptions, todayStr)
         : drillChildrenMap.get(parentId) ?? []
     },
-    [drillChildrenMap, visibilityOptions, view, todayStr],
+    [drillChildrenMap, visibilityOptions, todayStr],
   )
 
   const lastUpdatedRef = useRef(lastUpdated)

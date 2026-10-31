@@ -208,7 +208,25 @@ describe('mobile useDrillNavigation', () => {
     expect(holder.current.drillChildren.map((child) => child.id)).toEqual(['child'])
   })
 
-  it('hides completed drill children until Show completed is enabled', async () => {
+  it.each(['today', 'all', 'general'] as const)('keeps children on other dates and toggles only completed one-time tasks from %s', async (view) => {
+    const date = '2026-07-13'
+    mocks.apiClient.mockResolvedValue(makeDetail({ children: [
+      makeChild({ id: 'future', dueDate: '2026-08-01', position: 1 }),
+      makeChild({ id: 'undated', isGeneral: true, position: 0 }),
+      makeChild({ id: 'done-once', isCompleted: true, position: 2 }),
+    ] }))
+    const byId = new Map<string, NormalizedHabit>()
+    const options = { habitsById: byId, childrenByParent: new Map<string, string[]>(),
+      selectedDate: date, searchQuery: '', showCompleted: false, recentlyCompletedIds: new Set<string>() }
+    const { holder, rerender } = renderDrill(byId, 1, options, date, view)
+    await actAsync(() => holder.current.drillInto('p1'))
+    expect(holder.current.drillChildren.map((child) => child.id)).toEqual(['undated', 'future'])
+    rerender(byId, 1, { ...options, showCompleted: true })
+    expect(holder.current.drillChildren.map((child) => child.id)).toEqual(['undated', 'future', 'done-once'])
+    expect(holder.current.completedCount).toBe(0)
+  })
+
+  it('hides completed one-time children and keeps logged recurring children', async () => {
     const date = '2026-07-13'
     const children = [
       makeChild({ id: 'one-time', isCompleted: true }),
@@ -234,9 +252,9 @@ describe('mobile useDrillNavigation', () => {
 
     const hidden = renderDrill(habitsById, 1, options)
     await actAsync(() => hidden.holder.current.drillInto('p1'))
-    expect(hidden.holder.current.drillChildren).toEqual([])
+    expect(hidden.holder.current.drillChildren.map((child) => child.id)).toEqual(['recurring'])
     expect(hidden.holder.current.hasUnfilteredChildren).toBe(true)
-    expect(hidden.holder.current.canRevealCompletedChildren).toBe(true)
+    expect(hidden.holder.current.canRevealCompletedChildren).toBe(false)
 
     const shown = renderDrill(habitsById, 1, { ...options, showCompleted: true })
     await actAsync(() => shown.holder.current.drillInto('p1'))
@@ -264,7 +282,7 @@ describe('mobile useDrillNavigation', () => {
     const options = {
       habitsById: byId,
       childrenByParent: new Map([['p1', ['container']], ['container', ['active']]]),
-      selectedDate: date, searchQuery: '', showCompleted: false,
+      selectedDate: date, searchQuery: '', showCompleted: true,
       recentlyCompletedIds: new Set<string>(),
     }
     mocks.apiClient.mockResolvedValue(makeDetail({ children: [container] }))
