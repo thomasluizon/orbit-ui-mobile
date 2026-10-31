@@ -1505,7 +1505,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         const index = getIndex() ?? 0
         const nextItem = presentation.items[index + 1]
         const motionRow = presentation.rows[index]!
-        return <HabitListMotionRow id={item.id} phase={motionRow.phase} offset={motionRow.offset} itemIds={presentation.itemIds} measure={presentation.measure}><TodayLaunchContent enabled={view === 'today' && index === 0} fromCache={launchFromCache} empty={false}>{renderHabitCard(
+        return <HabitListMotionRow id={item.id} phase={motionRow.phase} offset={motionRow.offset} itemIds={presentation.itemIds} measure={presentation.measure} positionMotion={false}><TodayLaunchContent enabled={view === 'today' && index === 0} fromCache={launchFromCache} empty={false}>{renderHabitCard(
           item.habit,
           item.depth,
           item.hasChildren,

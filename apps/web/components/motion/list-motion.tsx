@@ -20,31 +20,35 @@ function useExitDeadline(duration: number) {
   return present
 }
 
-export function ListMotionItem({ children, className, style, ref }: Readonly<{
+export function ListMotionItem({ children, className, style, ref, positionMotion = true }: Readonly<{
   ref?: Ref<HTMLDivElement>
   children: ReactNode
   className?: string
   style?: CSSProperties
+  positionMotion?: boolean
 }>) {
   const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
   const enter = resolveMotionPreset('list-enter', reduced)
   const exit = resolveMotionPreset('list-exit', reduced)
   const present = useExitDeadline(exit.exitDuration)
   const presence = useContext(PresenceContext)
-  return <PresenceContext.Provider value={null}><motion.div ref={ref} layout={reduced ? false : 'position'}
+  return <PresenceContext.Provider value={null}><motion.div ref={ref} layout={reduced || !positionMotion ? false : 'position'}
     data-list-motion="" className={className} style={style} inert={!present} aria-hidden={!present || undefined}
-    initial={presence?.initial === false ? false : reduced ? { opacity: 0 } : { opacity: 0, y: enter.shift }}
-    animate={present ? reduced ? { opacity: 1 } : { opacity: 1, y: 0 } : { opacity: 0, ...(reduced ? {} : { y: exit.shift }), transition: { duration: exit.exitDuration / 1000, ease: exit.exitEasing } }}
+    initial={presence?.initial === false ? false : reduced || !positionMotion ? { opacity: 0 } : { opacity: 0, y: enter.shift }}
+    animate={present ? reduced || !positionMotion ? { opacity: 1 } : { opacity: 1, y: 0 } : { opacity: 0, ...(reduced || !positionMotion ? {} : { y: exit.shift }), transition: { duration: exit.exitDuration / 1000, ease: exit.exitEasing } }}
     transition={{ duration: enter.enterDuration / 1000, ease: enter.enterEasing,
       layout: reduced ? { duration: 0 } : { type: 'spring', ...motionSprings.soft } }}>
     {children}
   </motion.div></PresenceContext.Provider>
 }
 
-export function MotionDisclosure({ expanded, id, children }: Readonly<{ expanded: boolean; id?: string; children: ReactNode }>) {
+export function MotionDisclosure({ expanded, id, children, positionMotion = true }: Readonly<{ expanded: boolean; id?: string; children: ReactNode; positionMotion?: boolean }>) {
   const reduced = useViewportMatch('(prefers-reduced-motion: reduce)')
   const [visible, setVisible] = useState(expanded)
   if (expanded && !visible) setVisible(true)
+  if (!positionMotion) return <div id={id} hidden={!expanded} inert={!expanded} aria-hidden={!expanded || undefined} data-motion-disclosure="" className="habit-row-group">
+    <div className="flex flex-col gap-2" style={{ height: 'auto', opacity: 1 }}>{children}</div>
+  </div>
   return <div id={id} hidden={!expanded && (!visible || reduced)} inert={!expanded} aria-hidden={!expanded || undefined} data-motion-disclosure="" className="habit-row-group overflow-hidden">
     <AnimatePresence initial={false} onExitComplete={() => setVisible(false)}>
       {expanded ? <DisclosureBody key="children" duration={reduced ? 0 : motionDurations.base}>{children}</DisclosureBody> : null}

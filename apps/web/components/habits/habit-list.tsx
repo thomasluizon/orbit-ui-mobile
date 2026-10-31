@@ -750,6 +750,10 @@ export function HabitList({
       }
     }
 
+    restoreAfterDrag()
+  }
+
+  function restoreAfterDrag() {
     setIsDragging(false)
     setDragOverrideItems(null)
 
@@ -1380,8 +1384,9 @@ export function HabitList({
       <Fragment key={item.id}>
         {sortable ? <SortableHabitItem id={item.id}>{row}</SortableHabitItem> : row}
         {childPanelId ? (
-          <MotionDisclosure id={childPanelId} expanded={!collapsedIds.has(item.id)}>
-            <ListPresence>{panel.filter((child) => child.parentId === item.id).map((child) => <ListMotionItem key={child.id} className="flex min-w-0 flex-col gap-2">{renderHabitTree(child, panel, sortable)}</ListMotionItem>)}</ListPresence>
+          <MotionDisclosure id={childPanelId} expanded={!collapsedIds.has(item.id)} positionMotion={!sortable}>
+            {sortable ? panel.filter((child) => child.parentId === item.id).map((child) => renderHabitTree(child, panel, sortable)) :
+              <ListPresence>{panel.filter((child) => child.parentId === item.id).map((child) => <ListMotionItem key={child.id} className="flex min-w-0 flex-col gap-2">{renderHabitTree(child, panel, sortable)}</ListMotionItem>)}</ListPresence>}
           </MotionDisclosure>
         ) : null}
       </Fragment>
@@ -1441,6 +1446,7 @@ export function HabitList({
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={restoreAfterDrag}
       >
         <SortableContext
           items={activeDragItems.map((item) => item.id)}
@@ -1449,7 +1455,8 @@ export function HabitList({
           <div className={isDragging ? 'is-dragging flex flex-col' : 'flex flex-col'} style={{ gap: 12 }}>
             {habits.length === 0 ? renderEmptyList() : null}
             <ListPresence>{(isDndEnabled ? activeDragPanels : dragPanels).map((panel) => (
-              <ListMotionItem key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
+              <ListMotionItem key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} positionMotion={!isDndEnabled}
+                style={isDndEnabled ? { ...listViewPanelStyle, overflow: 'visible' } : listViewPanelStyle}>
                 {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, isDndEnabled))}
               </ListMotionItem>
             ))}</ListPresence>
