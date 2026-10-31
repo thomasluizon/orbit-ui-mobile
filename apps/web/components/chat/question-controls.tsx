@@ -2,6 +2,7 @@
 
 import { useLocale } from 'next-intl'
 import { formatQuestionNumber, type QuestionControlProps } from '@orbit/shared/chat'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { RadioGroup, RadioItem } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { CheckRow } from '@/components/ui/check-row'
@@ -11,10 +12,13 @@ import { Slider } from '@/components/ui/slider'
 function QuestionScale({ question, answer, disabled, controller }: QuestionControlProps) {
   if (question.type !== 'scale') return null
   return <div className="flex min-w-0 flex-col gap-2">
-    <RadioGroup aria-label={question.prompt} aria-required="true" className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(var(--touch-min),1fr))]">
+    <RadioGroup aria-label={question.prompt} aria-required="true" className="grid min-w-0 grid-cols-5" style={{ gap: 0 }}>
       {[1, 2, 3, 4, 5].map(number => <RadioItem key={number} selected={answer?.number === number} disabled={disabled} onSelect={() => controller.setAnswer(question, { number })}>
         <button type="button" role="radio" aria-label={String(number)} aria-checked={answer?.number === number} disabled={disabled}
-          className="orbit-selection-ring min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-[var(--r-well)] border-0 bg-transparent p-2 text-base text-[var(--fg-1)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] aria-checked:bg-[var(--bg-well)] disabled:opacity-60">{number}</button>
+          className="group/scale-option grid min-h-[var(--touch-min)] min-w-[var(--touch-min)] border-0 bg-transparent text-base text-[var(--fg-1)] focus-visible:outline-none disabled:opacity-60" style={{ padding: INTERACTION_FILL_CLEARANCE / 2 }}>
+          <span data-slot="question-scale-fill" data-selected={answer?.number === number ? '' : undefined}
+            className="orbit-selection-ring pointer-events-none flex min-w-0 items-center justify-center rounded-[var(--r-well)] p-2 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/scale-option:bg-[var(--bg-hover)] group-active/scale-option:bg-[var(--bg-hover)] group-focus-visible/scale-option:bg-[var(--bg-hover)] group-focus-visible/scale-option:outline group-focus-visible/scale-option:outline-2 group-focus-visible/scale-option:-outline-offset-2 group-focus-visible/scale-option:outline-[var(--primary)] group-aria-checked/scale-option:bg-[var(--bg-well)]">{number}</span>
+        </button>
       </RadioItem>)}
     </RadioGroup>
     <div className="grid min-w-0 grid-cols-2 gap-4 text-sm text-[var(--fg-3)]"><span className="break-words">{question.lowLabel}</span><span className="break-words text-right">{question.highLabel}</span></div>

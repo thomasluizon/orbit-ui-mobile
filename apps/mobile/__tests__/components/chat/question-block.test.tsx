@@ -1,5 +1,6 @@
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
+import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import { afterEach, expect, it, vi } from 'vitest'
 import { AccessibilityInfo, StyleSheet, Text, type TextStyle } from 'react-native'
 import type { ComponentProps } from 'react'
@@ -127,14 +128,29 @@ it('formats Android slider limits, selection, announcements and submitted summar
   expect(roles('slider')).toHaveLength(0)
   expect(text()).toContain('How long?: 0,15 hours')
 })
-it('clips the scale press fill to its full target with the control radius', async () => {
+it.each(['pressed', 'focused', 'selected'] as const)('insets the Android scale paint inside its transparent target while %s', async state => {
   await mount()
   const scale = roles('radio').find(node => node.props.accessibilityLabel === '3')!
-  const style = scale.props.style as (state: { pressed: boolean }) => Parameters<typeof StyleSheet.flatten>[0]
-  const resting = StyleSheet.flatten(style({ pressed: false })) as TextStyle
-  const pressed = StyleSheet.flatten(style({ pressed: true })) as TextStyle
-  expect(pressed).toMatchObject({ minHeight: 48, borderRadius: 12, overflow: 'hidden' })
-  expect(pressed.backgroundColor).not.toBe(resting.backgroundColor)
+  if (state === 'selected') await press(scale)
+  else if (state === 'pressed') await renderer.act(() => (scale.props.onPressIn as () => void)())
+  else await renderer.act(() => (scale.props.onFocus as (event: { target: number; currentTarget: number }) => void)({ target: 1, currentTarget: 1 }))
+  const parts = measureInteractionFills(tree.toJSON() as Parameters<typeof measureProfileRow>[0], 380, false)
+  const target = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === '3')!
+  const fill = parts.find(part => part.host.props['data-slot'] === 'question-scale-fill' && part.ancestors.includes(target.slot))!
+  expect(target.style.backgroundColor).toBeUndefined()
+  expect(target.style.outlineWidth).toBeUndefined()
+  expect(target.style.borderWidth ?? 0).toBe(0)
+  expect(fill.style).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+  expect(fill.style.backgroundColor).not.toBe('transparent')
+  if (state === 'selected') expect(fill.style.outlineWidth).toBe(2)
+  if (state === 'focused') {
+    const ring = parts.find(part => part.ancestors.includes(target.slot) && part.style.outlineWidth === 2)!
+    expect(ring.left).toBe(fill.left)
+    expect(ring.right).toBe(fill.right)
+    expect(ring.top).toBe(fill.top)
+    expect(ring.bottom).toBe(fill.bottom)
+    expect(ring.style.outlineOffset).toBe(-2)
+  }
 })
 it('keeps custom text, replaces single and yes/no answers and combines multiple choice and text', async () => {
   await mount()
@@ -187,20 +203,31 @@ it.each([320, 360, 384, 412, 600, 1024, 1352].flatMap(width => ['en', 'pt-BR'].f
   const group = roles('radiogroup').find(node => node.props.testID === 'question-scale')!
   const layoutEvent = { nativeEvent: { layout: { x: frame.left, y: frame.top, width: frame.width, height: frame.height } } }
   await renderer.act(() => group.props.onLayout(layoutEvent))
+  await press(roles('radio').find(node => node.props.accessibilityLabel === '2')!)
+  await renderer.act(() => (roles('radio').find(node => node.props.accessibilityLabel === '3')!.props.onPressIn as () => void)())
   const layout = measureProfileRow(tree.toJSON() as Parameters<typeof measureProfileRow>[0], width - 32, scale)
   const scaleRows = layout.controls.filter(control => /^[1-5]$/.test(control.accessibilityLabel ?? ''))
   expect(scaleRows).toHaveLength(5)
+  expect(new Set(scaleRows.map(row => row.top)).size, 'all five scale targets share one row').toBe(1)
   for (const [index, row] of scaleRows.entries()) {
     expect(row.width).toBeGreaterThanOrEqual(48)
     expect(row.height).toBeGreaterThanOrEqual(48)
     expect(row.width).toBeCloseTo(scaleRows[0]!.width, 1)
+    expect(row.bottom).toBeCloseTo(scaleRows[0]!.bottom, 1)
+    if (index > 0) expect(row.left, 'neighbouring scale targets touch').toBeCloseTo(scaleRows[index - 1]!.right, 1)
     expect(row.left).toBeGreaterThanOrEqual(0)
     expect(row.right).toBeLessThanOrEqual(width - 32 + 1)
-    for (const neighbour of scaleRows.slice(index + 1)) {
-      const horizontal = Math.max(0, neighbour.left - row.right, row.left - neighbour.right)
-      const vertical = Math.max(0, neighbour.top - row.bottom, row.top - neighbour.bottom)
-      expect(Number(Math.hypot(horizontal, vertical).toFixed(3))).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
-    }
+  }
+  const fills = layout.parts.filter(part => part.slot === 'question-scale-fill')
+  expect(fills).toHaveLength(5)
+  for (const [index, fill] of fills.entries()) {
+    const row = scaleRows[index]!
+    expect(fill.left - row.left).toBeCloseTo(INTERACTION_FILL_CLEARANCE / 2, 1)
+    expect(row.right - fill.right).toBeCloseTo(INTERACTION_FILL_CLEARANCE / 2, 1)
+    expect(fill.top - row.top).toBeCloseTo(INTERACTION_FILL_CLEARANCE / 2, 1)
+    expect(row.bottom - fill.bottom).toBeCloseTo(INTERACTION_FILL_CLEARANCE / 2, 1)
+    if (index > 0) expect(Number((fill.left - fills[index - 1]!.right).toFixed(3))).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+    if (index === 1 || index === 2) expect(fill.style.backgroundColor).not.toBe('transparent')
   }
   const labels = supplied.questions.flatMap(question => question.type === 'singleChoice' || question.type === 'multipleChoice' ? question.options.map(option => option.label) : [])
   for (const label of labels) {
