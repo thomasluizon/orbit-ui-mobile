@@ -607,8 +607,8 @@ The merged JSON records each selected result's `sourceWindow` as its one-based p
 input paths (`--rerun` itself does not count). Replaced entries retain their counts, verdicts,
 latency and precondition reasons under `superseded`, with their own `sourceWindow`. The Markdown
 replacement table shows the final and superseded windows and the superseded attempt counts.
-An interrupted entry with failed attempts is incomplete for continuation; `reportedPass3` retains
-its original verdict when this differs from the merged verdict.
+An interrupted entry with a failed attempt is a failure, not an incomplete case: only its single
+declared rerun replaces it.
 Use those window numbers to locate the preserved original attempt files; superseded attempts never
 contribute to the final pass^3 counts. Missing or skipped evidence cannot become a pass through
 merging, and a case without complete evidence remains incomplete. A window pass is not full-corpus acceptance.

@@ -96,12 +96,20 @@ it('rejects complete failed-case replacement without a declaration and rejects a
 })
 
 it('keeps all interrupted evidence without adding superseded attempts to the final counts', () => {
-  const first = summarize([result(1, false)], [descriptors[1]])
+  const first = summarize([result(1)], [descriptors[1]])
   const second = summarize([result(1), result(1)], [descriptors[1]])
   const merged = mergeReports([first, second, window(1)], descriptors)
   expect(merged.cases[1]).toMatchObject({ attempts: 3, passed: 3, sourceWindow: 3,
-    superseded: [{ attempts: 1, passed: 0, sourceWindow: 1, reportedPass3: 'fail' }, { attempts: 2, passed: 2, sourceWindow: 2 }] })
+    superseded: [{ attempts: 1, passed: 1, sourceWindow: 1, pass3: 'incomplete' }, { attempts: 2, passed: 2, sourceWindow: 2 }] })
   expect(mergeReports([first], descriptors).cases[1].pass3).toBe('incomplete')
+})
+
+it('keeps an interrupted case with a failed attempt failed until its declared rerun', () => {
+  const first = summarize([result(1, false)], [descriptors[1]])
+  expect(mergeReports([first], descriptors).cases[1].pass3).toBe('fail')
+  expect(() => mergeReports([first, window(1)], descriptors)).toThrow(/declare its permitted rerun/)
+  expect(mergeReports([first, window(1)], descriptors, { rerunWindows: [2] }).cases[1])
+    .toMatchObject({ rerun: true, sourceWindow: 2, pass3: 'pass', superseded: [{ attempts: 1, passed: 0, sourceWindow: 1, pass3: 'fail' }] })
 })
 
 it('continues an interrupted rerun without granting another rerun', () => {

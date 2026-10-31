@@ -23,11 +23,12 @@ function windowEntry(entry, descriptor) {
     validateLatencySummary(entry.latency)
     if (entry.latency.status !== 'pass' && entry.pass3 === 'pass') throw new Error('Window claims a pass without passing latency evidence.')
   }
-  const pass3 = !complete || (descriptor.readLatency && entry.latency.status === 'incomplete') ? 'incomplete' : entry.pass3
+  const pass3 = entry.pass3 === 'fail' ? 'fail'
+    : !complete || (descriptor.readLatency && entry.latency.status === 'incomplete') ? 'incomplete' : entry.pass3
   return { id: entry.id, family: entry.family, locale: entry.locale, attempts: entry.attempts,
     passed: entry.passed, ...(descriptor.readLatency ? { latency: entry.latency } : {}), unavailableReasons: entry.unavailableReasons ?? [],
     skipped: entry.skipped, unavailable: entry.unavailable, missingComposition: entry.missingComposition,
-    pass3, ...(pass3 !== entry.pass3 ? { reportedPass3: entry.pass3 } : {}) }
+    pass3 }
 }
 
 export function mergeReports(windows, expected = descriptors, { rerunWindows = [] } = {}) {
