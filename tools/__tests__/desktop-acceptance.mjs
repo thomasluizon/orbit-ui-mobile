@@ -295,6 +295,10 @@ async function controlledPaletteCases() {
       const current = context.paletteState()
       T(`palette probe follows real ArrowDown to enabled result ${expected} without waiting for the wrong index`,
         current.selected === expected && current.selected === previous.selected + 1 && current.inputFocused, JSON.stringify({ previous, current }))
+      T('palette probe reports the real controlled listbox and active descendant identifiers',
+        current.listId === input.getAttribute('aria-controls') && Boolean(current.listId) &&
+        current.activeDescendantId === input.getAttribute('aria-activedescendant') &&
+        current.activeDescendantId === items[expected + 1].id, JSON.stringify(current))
       previous = current
     }
   } finally {
@@ -305,6 +309,43 @@ async function controlledPaletteCases() {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor)
       else delete globalThis[key]
     }
+  }
+}
+
+function nativePaletteFocusCases() {
+  const captured = JSON.parse(readFileSync(join(REPO_ROOT, 'tools/desktop-bench/__fixtures__/uia-palette-focus.json'), 'utf8'))
+  const input = captured.nodes.find((node) => node.role === 'ComboBox')
+  const listbox = captured.nodes.find((node) => node.role === 'List')
+  const options = captured.nodes.filter((node) => node.role === 'ListItem')
+  const selected = options.findIndex((node) => node.selected)
+  const current = { inputFocused: true, inputName: input.name, selected, results: options.map((node) => node.name),
+    listId: listbox.AutomationId, activeDescendantId: options[selected].AutomationId }
+  const previous = { ...current, selected: selected - 1 }
+  let failure
+  try { assertPaletteFocus(previous, current, captured) } catch (error) { failure = error }
+  T('captured UIA focus on the selected palette active descendant passes', !failure, failure?.message)
+  const inputFocus = structuredClone(captured)
+  inputFocus.nodes.forEach((node) => { node.focused = node.role === 'ComboBox' })
+  assertPaletteFocus(previous, current, inputFocus)
+  T('captured UIA palette also accepts focus on its input', true)
+  for (const mutation of ['unrelated', 'wrong-result', 'outside-listbox', 'wrong-listbox', 'wrong-descendant', 'unselected', 'wrong-role']) {
+    const tree = structuredClone(captured)
+    const state = { ...current }
+    const option = tree.nodes.find((node) => node.AutomationId === current.activeDescendantId)
+    if (mutation === 'unrelated') {
+      option.focused = false
+      tree.nodes.push({ ...input, id: '0/unrelated', role: 'Button', focused: true })
+    }
+    if (mutation === 'wrong-result') {
+      option.focused = false
+      tree.nodes.find((node) => node.name === current.results[0]).focused = true
+    }
+    if (mutation === 'outside-listbox') option.id = `${listbox.id}0/0`
+    if (mutation === 'wrong-listbox') state.listId = 'another-listbox'
+    if (mutation === 'wrong-descendant') state.activeDescendantId = options[0].AutomationId
+    if (mutation === 'unselected') option.selected = false
+    if (mutation === 'wrong-role') option.role = 'Button'
+    rejects(`palette rejects platform focus ${mutation}`, () => assertPaletteFocus(previous, state, tree))
   }
 }
 
@@ -320,6 +361,7 @@ export async function cases() {
   await installedLaunchCases()
   await sessionProbeCases()
   await controlledPaletteCases()
+  nativePaletteFocusCases()
   const native = { denied: false, error: null, nodes: [
     { id: '0', role: 'Document', name: '', interactive: false, focused: false, selected: false },
     { id: '0/1', role: 'Edit', name: 'Search commands', interactive: true, focused: true, selected: false },

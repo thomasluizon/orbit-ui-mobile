@@ -47,10 +47,15 @@ export function assertPaletteFocus(previous, current, tree) {
   const expected = previous.selected + 1
   if (expected >= current.results.length || current.selected !== expected) throw new Error(`Palette result order: expected ${expected}, received ${current.selected}`)
   const focused = tree.nodes.filter((node) => node.focused)
-  if (!focused.some((node) => ['Edit', 'ComboBox', 'AXTextField', 'AXComboBox'].includes(node.role) && node.name === current.inputName)) {
-    throw new Error('Platform accessibility tree does not expose focused palette input')
-  }
   const selectedName = current.results[current.selected]
+  const inputFocused = focused.some((node) => ['Edit', 'ComboBox', 'AXTextField', 'AXComboBox'].includes(node.role) && node.name === current.inputName)
+  const listbox = current.listId && tree.nodes.find((node) => node.role === 'List' && node.AutomationId === current.listId)
+  // Chromium exposes the active descendant as platform focus while DOM focus stays in the input (#1560).
+  const descendantFocused = listbox && current.activeDescendantId && focused.some((node) => node.role === 'ListItem' &&
+    node.AutomationId === current.activeDescendantId && node.name === selectedName && node.selected && node.id.startsWith(`${listbox.id}/`))
+  if (!inputFocused && !descendantFocused) {
+    throw new Error('Platform accessibility tree does not expose focus on the palette input or its selected active descendant')
+  }
   if (!tree.nodes.some((node) => node.name === selectedName && (node.selected || node.focused))) {
     throw new Error(`Platform accessibility tree does not expose selected palette result: ${selectedName}`)
   }

@@ -58,7 +58,8 @@
     const input = document.querySelector('[cmdk-input]')
     const results = [...document.querySelectorAll('[cmdk-item]:not([aria-disabled="true"])')]
     const selected = results.findIndex((result) => result.getAttribute('aria-selected') === 'true')
-    return { inputFocused: document.activeElement === input, selected, results: results.map((result) => result.getAttribute('aria-label') || result.textContent.trim()), inputName: input?.getAttribute('aria-label') }
+    return { inputFocused: document.activeElement === input, selected, results: results.map((result) => result.getAttribute('aria-label') || result.textContent.trim()),
+      inputName: input?.getAttribute('aria-label'), listId: input?.getAttribute('aria-controls'), activeDescendantId: input?.getAttribute('aria-activedescendant') }
   }
   async function update(expected) {
     const invoke = window.__TAURI_INTERNALS__?.invoke
