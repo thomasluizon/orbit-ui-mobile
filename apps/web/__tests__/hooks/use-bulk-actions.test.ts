@@ -1,3 +1,4 @@
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
@@ -87,6 +88,18 @@ function bulkSuccess(ids: string[]) {
  * delete asks. These assertions state that requirement rather than inherit it.
  */
 describe('useBulkActions reversibility boundary', () => {
+  it.each([false, true])('excludes General habits from bulk Skip, mixed=%s', async (mixed) => {
+    const general = createMockHabit({ id: 'general', isGeneral: true, frequencyUnit: null })
+    const daily = createMockHabit({ id: 'daily' })
+    const habits = mixed ? [general, daily] : [general]
+    const { result } = renderBulkActions(new Set(habits.map(habit => habit.id)), false,
+      new Map(habits.map(habit => [habit.id, habit])))
+    await act(async () => { await result.current.confirmBulkSkip() })
+    if (mixed) expect(bulkSkip.mutateAsync).toHaveBeenCalledWith([{ habitId: 'daily', date: VIEWED_DATE }])
+    else expect(bulkSkip.mutateAsync).not.toHaveBeenCalled()
+    expect(result.current.skippableCount).toBe(mixed ? 1 : 0)
+  })
+
   beforeEach(() => {
     showToast.mockReset()
     showQueued.mockReset()

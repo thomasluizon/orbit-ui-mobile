@@ -21,6 +21,7 @@ function reportAccountSwitch(error: unknown): boolean {
 
 export function useBulkActions({
   selectedHabitIds,
+  habitsById,
   selectedDateStr,
   completionReadOnly,
   accountTimeZone,
@@ -34,6 +35,7 @@ export function useBulkActions({
   const bulkLog = useBulkLogHabits()
   const bulkSkip = useBulkSkipHabits()
   const bulkMove = useBulkMoveHabitParent()
+  const skippableHabitIds = Array.from(selectedHabitIds).filter(id => !habitsById.get(id)?.isGeneral)
   const currentPermission = useRef({ selectedDateStr, completionReadOnly })
   useLayoutEffect(() => {
     currentPermission.current = { selectedDateStr, completionReadOnly }
@@ -109,10 +111,11 @@ export function useBulkActions({
 
   return {
     showBulkDeleteConfirm,
+    skippableCount: skippableHabitIds.length,
     setShowBulkDeleteConfirm,
     confirmBulkDelete: () => executeDelete(Array.from(selectedHabitIds)),
     confirmBulkLog: () => executeCompletion(Array.from(selectedHabitIds), 'log'),
-    confirmBulkSkip: () => executeCompletion(Array.from(selectedHabitIds), 'skip'),
+    confirmBulkSkip: () => executeCompletion(skippableHabitIds, 'skip'),
     confirmBulkMove: (habitIds: string[], parentId: string | null) => executeBulkMoveParent(habitIds, parentId, {
       mutate: bulkMove.mutateAsync, getAccountGeneration, onSuccess, onPartialFailure,
     }),

@@ -84,6 +84,19 @@ function bulkSuccess(ids: string[]) {
 }
 
 describe('useBulkActions replay acknowledgement', () => {
+  it.each([false, true])('excludes General habits from bulk Skip, mixed=%s', async (mixed) => {
+    bulkSkip.mutateAsync.mockResolvedValue(bulkSuccess(['daily']))
+    const general = createMockHabit({ id: 'general', isGeneral: true, frequencyUnit: null })
+    const daily = createMockHabit({ id: 'daily' })
+    const habits = mixed ? [general, daily] : [general]
+    const { captured } = renderBulkActions(new Set(habits.map(habit => habit.id)), false,
+      new Map(habits.map(habit => [habit.id, habit])))
+    await TestRenderer.act(async () => { await captured.current!.confirmBulkSkip() })
+    if (mixed) expect(bulkSkip.mutateAsync).toHaveBeenCalledWith([{ habitId: 'daily', date: VIEWED_DATE }])
+    else expect(bulkSkip.mutateAsync).not.toHaveBeenCalled()
+    expect(captured.current!.skippableCount).toBe(mixed ? 1 : 0)
+  })
+
   beforeEach(() => {
     bulkLog.mutateAsync.mockReset()
     bulkSkip.mutateAsync.mockReset()

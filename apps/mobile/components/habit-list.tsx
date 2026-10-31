@@ -206,7 +206,7 @@ function ActionRow({
         ? () => latestRef.current.onLongPressCard?.()
         : undefined,
     }
-  }, [canSkip, rowProps.drillInsteadOfExpand, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
+  }, [canSkip, rowProps.drillInsteadOfExpand, habit.isGeneral, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
 
   return <HabitRow {...rowProps} habit={habit} actions={actions} />
 }
