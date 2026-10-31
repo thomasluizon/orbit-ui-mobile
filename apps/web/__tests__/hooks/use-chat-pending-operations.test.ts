@@ -1,3 +1,5 @@
+import { useChatStore } from '@/stores/chat-store'
+import { offerConversationId } from '@orbit/shared/test-support/astra-offer-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
@@ -301,4 +303,22 @@ describe('useChatPendingOperations', () => {
     expect(onExecuted).not.toHaveBeenCalled()
     expect(outcome).toMatchObject({ ok: false, error: 'chat.sendError' })
   })
+})
+
+
+it('retains the negotiated conversation while removing an offered group', async () => {
+  setAccountEventOrigin('chat-connection')
+  useChatStore.setState({ conversationId: offerConversationId })
+  const response = { isSuccess: true, error: null, pendingOperationId: 'pending-1', cancelled: false, preview: { changes: [], items: [], changeTargetCount: 1, previewFingerprint: 'next' } }
+  mocks.revisePendingOperation.mockReset().mockResolvedValue({ ok: true, data: response })
+  mocks.confirmPendingOperation.mockReset()
+  mocks.executePendingOperation.mockReset()
+  const { result } = renderHook(() => useChatPendingOperations(vi.fn()))
+  const request = { previewFingerprint: 'current', items: [{ itemId: '0', removeSuggestedFields: ['reminder_enabled', 'repeat_reminder'] }] }
+  try {
+    await act(async () => { await result.current.revisePendingOperationForBubble('pending-1', request) })
+    expect(mocks.revisePendingOperation).toHaveBeenCalledExactlyOnceWith('pending-1', request, JSON.stringify({ accountId: null, eventOrigin: 'chat-connection' }), offerConversationId)
+    expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
+    expect(mocks.executePendingOperation).not.toHaveBeenCalled()
+  } finally { useChatStore.setState({ conversationId: null }); setAccountEventOrigin(null) }
 })

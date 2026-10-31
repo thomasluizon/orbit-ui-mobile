@@ -1,3 +1,5 @@
+import { astraOfferFixture, offeredReadFixture, offerConversationId } from '@orbit/shared/test-support/astra-offer-fixtures'
+import { useChatStore } from '@/stores/chat-store'
 import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
@@ -5,7 +7,7 @@ import pt from '@orbit/shared/i18n/pt-BR.json'
 import { act, create } from 'react-test-renderer'
 import type { GeometryTree } from '../../support/safe-area-geometry'
 import { renderedText } from '../../support/react-test-renderer'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, skippedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { gamificationCardCases, gamificationCardFixture } from '@orbit/shared/test-support/gamification-card-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -38,9 +40,9 @@ vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false }) }))
 
 const total = { kind: 'periodTotal' as const, block: focusedPeriodTotalFixture }
-async function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total) {
+async function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, onSendMessage?: Parameters<typeof ChatBlock>[0]['onSendMessage']) {
   let tree!: GeometryTree
-  await act(() => { tree = create(<ChatBlock part={part} onActionChipClick={vi.fn()} />) as GeometryTree })
+  await act(() => { tree = create(<ChatBlock part={part} onSendMessage={onSendMessage} onActionChipClick={vi.fn()} />) as GeometryTree })
   return tree
 }
 async function press(tree: GeometryTree, label: string) {
@@ -467,4 +469,42 @@ it.each(['en', 'pt-BR'] as const)('lets a live completion supersede the saved sk
   expect(skippedCheck!.props.style).toEqual(loggedCheck!.props.style)
   expect(rows[0]!.findAll(node => String(node.type) === 'Text' && node.props.children === messages.habits.statusDot.skip)).toHaveLength(0)
   await act(() => tree.unmount())
+})
+
+
+describe('read offers on Android', () => {
+  beforeEach(() => { useChatStore.setState({ conversationId: offerConversationId, dismissedOfferKeys: [] }) })
+  afterEach(() => { useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] }) })
+  it.each(['preparePreview', 'continueChat'] as const)('sends %s once through the existing chat path', async kind => {
+    const send = vi.fn(async () => {})
+    const tree = await mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...astraOfferFixture, kind } } } }, send)
+    await press(tree, astraOfferFixture.label)
+    expect(send).toHaveBeenCalledExactlyOnceWith(astraOfferFixture.prompt, { selectedOfferKey: astraOfferFixture.offerKey })
+    expect(apiClient).not.toHaveBeenCalled()
+    await act(() => tree.unmount())
+  })
+  it.each(['en', 'pt-BR'] as const)('dismisses the offer in %s through the producer endpoint', async locale => {
+    state.locale = locale; state.actualCopy = true
+    const messages = locale === 'en' ? en : pt
+    vi.mocked(apiClient).mockResolvedValue(null)
+    const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture }, vi.fn())
+    expect(renderedText(tree.toJSON())).toContain(astraOfferFixture.label)
+    await press(tree, messages.chat.offers.dismiss)
+    expect(apiClient).toHaveBeenCalledWith(API.chat.dismissOffers, expect.objectContaining({ body: JSON.stringify({ conversationId: offerConversationId, offerKeys: [astraOfferFixture.offerKey] }) }))
+    expect(renderedText(tree.toJSON())).not.toContain(astraOfferFixture.label)
+    await act(() => tree.unmount())
+  })
+  it('opens a known surface after acknowledging the offer', async () => {
+    vi.mocked(apiClient).mockResolvedValue(null)
+    const tree = await mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...astraOfferFixture, kind: 'openSurface', surface: 'calendar-sync' } } } })
+    await press(tree, astraOfferFixture.label)
+    expect(state.push).toHaveBeenCalledWith('/calendar?import=1')
+    await act(() => tree.unmount())
+  })
+  it('withholds offers without the negotiated conversation', async () => {
+    useChatStore.setState({ conversationId: null })
+    const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture })
+    expect(renderedText(tree.toJSON())).not.toContain(astraOfferFixture.label)
+    await act(() => tree.unmount())
+  })
 })

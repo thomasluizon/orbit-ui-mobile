@@ -53,7 +53,7 @@ export function buildChatClientContext({
     supportsCompletedHabitsMetric: true,
     supportsParts: true,
     partKinds: [...CHAT_BLOCK_KINDS],
-    ...(conversationId ? { supportsProactiveOffers: true, conversationId, dismissedOfferKeys, selectedOfferKey } : {}),
+    ...(conversationId ? { supportsProactiveOffers: true, conversationId, dismissedOfferKeys: dismissedOfferKeys?.slice(-100), selectedOfferKey } : {}),
     ...(previousStartingStep ? { previousStartingStep } : {}),
     ...(messageOrigin ? { messageOrigin } : {}),
     ...(entryPointIntent ? { entryPointIntent } : {}),

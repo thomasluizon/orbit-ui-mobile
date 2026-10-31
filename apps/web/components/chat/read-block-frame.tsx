@@ -1,5 +1,8 @@
 'use client'
 
+import { AstraOffer } from './astra-offer'
+import type { AstraOfferProps } from '@orbit/shared/chat'
+
 import { ConversationCrossfade } from './conversation-motion'
 
 import { IconButton } from '@/components/ui/icon-button'
@@ -28,11 +31,13 @@ const useReadBlockSession = createUseReadBlockSession({
   },
 })
 
+const OfferContext = createContext<Omit<AstraOfferProps, 'action'>>({})
+
 const ReadContext = createContext<ReadBlockState | null>(null)
 
-export function ReadBlockBoundary({ snapshot, children }: ReadBlockBoundaryProps<ReactNode>) {
+export function ReadBlockBoundary({ snapshot, children, ...offer }: ReadBlockBoundaryProps<ReactNode> & Omit<AstraOfferProps, 'action'>) {
   const generation = useSyncExternalStore(subscribeToAccountGeneration, getAccountGeneration, getAccountGeneration)
-  return <ReadBlockSession key={`${generation}:${snapshot.read.queryId}:${snapshot.read.revision}`} snapshot={snapshot}>{children}</ReadBlockSession>
+  return <OfferContext.Provider value={offer}><ReadBlockSession key={`${generation}:${snapshot.read.queryId}:${snapshot.read.revision}`} snapshot={snapshot}>{children}</ReadBlockSession></OfferContext.Provider>
 }
 
 function ReadBlockSession({ snapshot: initial, children }: ReadBlockBoundaryProps<ReactNode>) {
@@ -52,6 +57,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
 function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; context: ReadBlockState }>) {
   const t = useTranslations()
   const locale = useLocale()
+  const offer = useContext(OfferContext)
   const { snapshot, pending, failure, stale, run } = context
   const { state, message, window, canPage } = readBlockPresentation(snapshot, props.state, pending, failure, stale)
   const actions = <>
@@ -59,7 +65,7 @@ function QueryBlockFrame({ props, context }: Readonly<{ props: BlockFrameProps; 
     {canPage && snapshot.kind !== 'gamification' ? <IconButton label={t('chat.recordList.more')} disabled={pending} onClick={() => { void run(true) }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
     {props.actions}
   </>
-  const body = <>{window ? <p className="text-sm text-[var(--fg-3)]">{formatReadWindow(window, locale)}</p> : null}{message && state !== 'stale' ? <p role="status" className="text-sm text-[var(--fg-2)]">{t(message)}</p> : null}{props.body}</>
+  const body = <>{window ? <p className="text-sm text-[var(--fg-3)]">{formatReadWindow(window, locale)}</p> : null}{message && state !== 'stale' ? <p role="status" className="text-sm text-[var(--fg-2)]">{t(message)}</p> : null}{props.body}<AstraOffer {...offer} action={snapshot.read.nextAction} unavailable={pending || stale} /></>
   const frameProps = readBlockFrameProps(props, state, message, () => { void run(false) }, t, actions)
   return <Frame {...frameProps} body={body} />
 }

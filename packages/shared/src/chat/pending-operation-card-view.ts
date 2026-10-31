@@ -10,6 +10,7 @@ import { getPendingOperationCardPresentation, getPendingOperationItemResults } f
 import { isPendingOperationEditableField } from '../hooks/pending-operation-revision-core'
 import type { PendingOperationCardLabels } from './pending-operation-card'
 import { getActionChipNavigation } from './action-chips'
+import type { AstraNextAction } from '../types/astra-offer'
 
 export interface PreviewItemTitleProps {
   meta?: string
@@ -107,6 +108,7 @@ export type PendingOperationFrame<Node> = PendingOperationFrameBase<Node> & (
 )
 
 export interface PendingOperationCardRenderers<Node> {
+  offer?: (action: AstraNextAction, disabled: boolean) => Node
   blockFrame: (props: PendingOperationFrame<Node>) => Node
   button: (spec: PendingOperationButtonSpec) => Node
   confirmSheet: (props: PendingOperationConfirmSheetProps) => Node
@@ -168,6 +170,7 @@ export interface PendingOperationCardActions {
     renameItem?: (itemId: string, title: string) => Promise<boolean>
     rejectSubHabit?: (itemId: string, index: number) => Promise<boolean>
     rejectItem: (itemId: string) => Promise<boolean>
+    removeField?: (itemId: string, field: PendingOperationChange) => Promise<boolean>
     rejectAll: () => Promise<boolean>
   }
 }
@@ -366,7 +369,7 @@ function previewRows<Node>(
         ? itemControl(item, items.length, revision, card, labels, render, status, result?.habitId)
         : completedTargetControl(result?.habitId ?? (items.length === 1 ? card.completedOperation?.targetId ?? item.entityId : item.entityId), item.entityName, card, labels, render, status),
     }
-    return [parent, ...(item.placement?.selected === 'checklist_item' ? [] : pendingOperationSubHabits(item.fields)).map((child, childIndex) => ({
+    return [parent, ...offeredFieldRows(item, card, labels, render), ...(item.placement?.selected === 'checklist_item' ? [] : pendingOperationSubHabits(item.fields)).map((child, childIndex) => ({
       id: `${item.itemId}-child-${childIndex}`, label: child.title,
       icon: child.fields.find((field) => field.field === 'emoji')?.newValue ?? undefined,
       meta: labels.summarize(child.fields, 'createHabit'), indented: true,
@@ -399,6 +402,24 @@ function placementSummary(item: PreviewItem, operation: PendingAgentOperation, l
   if (!placement) return summary || labels.pending
   const selected = labels.placementOption(placement.selected, placement.destinationName)
   return placement.selected === 'checklist_item' || !summary ? selected : `${selected} · ${summary}`
+}
+
+function offeredFieldRows<Node>(item: PreviewItem, card: PendingOperationCardActions, labels: PendingOperationCardLabels, render: PendingOperationCardRenderers<Node>): PendingOperationFrame<Node>['items'] {
+  if (card.status != null) return []
+  const revision = card.revision
+  return item.fields.filter(field => field.provenance === 'suggested').map(field => {
+    const name = labels.fieldLabels[field.field.split('/').at(-1)!] ?? field.field
+    const disabled = card.busy || revision?.busy === true || revision?.stale === true
+    return {
+      id: `${item.itemId}:offer:${field.field}`, label: field.field.includes('/') ? `${field.entityName}: ${name}` : name,
+      meta: field.newValue ?? '', status: undefined, irreversible: false, proposed: true,
+      wrapLabel: true, wrapMeta: true, indented: true,
+      control: revision?.canRevise ? render.fragment(
+        render.button({ label: `${labels.edit} ${name}`, icon: 'edit', disabled, onClick: () => revision.startEdit(item.itemId) }),
+        field.removal && revision.removeField ? render.removeItem(`${labels.remove} ${name}`, disabled, () => { void revision.removeField!(item.itemId, field) }) : undefined,
+      ) : undefined,
+    }
+  })
 }
 
 function groupedChanges(changes: readonly PendingOperationChange[]): PreviewItem[] {
@@ -436,6 +457,12 @@ function targetCount(operation: PendingAgentOperation): number {
     ?? Math.max(1, new Set(operation.changes?.map((change) => change.entityId)).size)
 }
 
+function frameBody<Node>(operation: PendingAgentOperation, card: PendingOperationCardActions, labels: PendingOperationCardLabels, render: PendingOperationCardRenderers<Node>): Node | undefined {
+  if (card.revision?.stale) return undefined
+  return render.fragment(previewBody(card, labels, render), operation.nextAction && card.status == null
+    ? render.offer?.(operation.nextAction, card.busy || card.revision?.busy === true) : undefined)
+}
+
 function previewFrame<Node>(
   pendingOperation: PendingAgentOperation,
   card: PendingOperationCardActions,
@@ -450,7 +477,7 @@ function previewFrame<Node>(
     title: previewItems ? labels.name : labels.pendingTitle,
     wrapTitle: true,
     focusTitleOnMount: card.focusTitleOnMount,
-    body: revision?.stale ? undefined : previewBody(card, labels, render),
+    body: frameBody(pendingOperation, card, labels, render),
     count: pendingOperation.changeTargetCount ?? undefined,
     items: previewItems ?? [{
       id: pendingOperation.id, label: labels.name, meta: labels.pending,

@@ -92,6 +92,7 @@ interface AttemptedSend {
   clearDraftOnSuccess: boolean;
   restoredDraftRevision: number | null;
   messageOrigin?: 'followUp';
+  selectedOfferKey?: ChatClientContext['selectedOfferKey']
   previousStartingStep?: ChatClientContext['previousStartingStep'];
   contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>;
 }
@@ -579,6 +580,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         uses24HourClock: profile?.uses24HourClock,
         messageOrigin: attempted.messageOrigin,
         previousStartingStep: attempted.previousStartingStep,
+      selectedOfferKey: attempted.selectedOfferKey,
+      conversationId: useChatStore.getState().ensureConversation(randomUUID()),
+      dismissedOfferKeys: useChatStore.getState().dismissedOfferKeys,
         entryPointIntent,
       });
       formData.append("clientContext", JSON.stringify(clientContext));
@@ -639,7 +643,10 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
               const errorBody = (await response.json().catch(() => null)) as { error?: string; errorCode?: string; code?: string } | null;
               return { kind: 'httpError', status: response.status, error: errorBody?.error ?? t("chat.sendError"), code: errorBody?.code ?? errorBody?.errorCode ?? null };
             }
-            if (ownsAccount()) onAccepted?.();
+            if (ownsAccount()) {
+            if (attempted.selectedOfferKey) useChatStore.getState().dismissOffer(attempted.selectedOfferKey)
+            onAccepted?.()
+          };
             return { kind: 'stream', chunks: streamTextChunks(response.body, armIdleTimer) };
           },
           callbacks: {
@@ -740,8 +747,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   }, [performSend, setInput, setSendError, t, setSelectedImage, setImagePreview, setSelectedTextFile])
 
   const sendMessage = useCallback(
-    async (content?: string, requestContext?: 'followUp' | Pick<ChatClientContext, 'previousStartingStep'>, contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
-      const { messageOrigin, previousStartingStep }: Pick<ChatClientContext, 'messageOrigin' | 'previousStartingStep'> =
+    async (content?: string, requestContext?: 'followUp' | Pick<ChatClientContext, 'previousStartingStep' | 'selectedOfferKey'>, contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
+      const { messageOrigin, previousStartingStep, selectedOfferKey }: Pick<ChatClientContext, 'messageOrigin' | 'previousStartingStep' | 'selectedOfferKey'> =
         typeof requestContext === 'object' ? requestContext : { messageOrigin: requestContext };
       const sendsComposerDraft = content === undefined && messageOrigin !== 'followUp';
       const typedContent = content?.trim() ?? input.trim();
@@ -782,6 +789,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         restoredDraftRevision: null,
         messageOrigin,
         previousStartingStep,
+        selectedOfferKey,
         contextualRequest,
       };
 

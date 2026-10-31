@@ -1,7 +1,10 @@
+import { astraOfferFixture, offeredReadFixture, offerConversationId } from '@orbit/shared/test-support/astra-offer-fixtures'
+import { useChatStore } from '@/stores/chat-store'
+import { dismissChatOffers } from '@/app/actions/chat'
 import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
 import { personalText } from '@/__tests__/support/personal-text'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, skippedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import en from '@orbit/shared/i18n/en.json'
@@ -18,7 +21,7 @@ import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { chatPartSchema, habitMonthCardSchema, habitMonthReadBlockResponseSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
 const state = vi.hoisted(() => ({ isError: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
-vi.mock('@/app/actions/chat', () => ({ refreshReadBlock: vi.fn(), refreshHabitMonth: vi.fn(), refreshGamification: vi.fn() }))
+vi.mock('@/app/actions/chat', () => ({ dismissChatOffers: vi.fn(), refreshReadBlock: vi.fn(), refreshHabitMonth: vi.fn(), refreshGamification: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }), useHabitMetrics: () => ({}) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
@@ -29,8 +32,8 @@ vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false }) }))
 
 const total = { type: 'block' as const, kind: 'periodTotal' as const, block: focusedPeriodTotalFixture }
-function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, locale: 'en' | 'pt-BR' = 'en') {
-  return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><ChatBlock part={part} onActionChipClick={vi.fn()} /></NextIntlClientProvider>)
+function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, locale: 'en' | 'pt-BR' = 'en', onSendMessage?: Parameters<typeof ChatBlock>[0]['onSendMessage']) {
+  return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><ChatBlock part={part} onSendMessage={onSendMessage} onActionChipClick={vi.fn()} /></NextIntlClientProvider>)
 }
 beforeEach(() => { state.isError = false; vi.mocked(refreshReadBlock).mockReset(); vi.mocked(refreshGamification).mockReset(); vi.mocked(refreshHabitMonth).mockReset(); state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
 
@@ -408,4 +411,42 @@ it.each(['en', 'pt-BR'] as const)('lets a live completion supersede the saved sk
   expect(within(row).getByRole('img', { name: messages.chat.habitList.logged })).toHaveAttribute('data-status', 'done')
   expect(row.querySelector('[data-habit-block-meta]')).toBeNull()
   view.unmount()
+})
+
+
+describe('read offers', () => {
+  beforeEach(() => { useChatStore.setState({ conversationId: offerConversationId, dismissedOfferKeys: [] }); vi.mocked(dismissChatOffers).mockReset().mockResolvedValue({ ok: true, data: null }) })
+  afterEach(() => { useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] }) })
+  it.each(['en', 'pt-BR'] as const)('renders and dismisses the supplied offer in %s', async locale => {
+    const messages = locale === 'en' ? en : pt
+    mount({ kind: 'periodTotal', block: offeredReadFixture }, locale, vi.fn())
+    expect(screen.getByRole('button', { name: astraOfferFixture.label })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: messages.chat.offers.dismiss }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: astraOfferFixture.label })).not.toBeInTheDocument())
+    expect(dismissChatOffers).toHaveBeenCalledExactlyOnceWith(offerConversationId, [astraOfferFixture.offerKey], null)
+  })
+  it.each(['preparePreview', 'continueChat'] as const)('sends %s through chat once without approval', async kind => {
+    const send = vi.fn(async () => {})
+    mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...astraOfferFixture, kind } } } }, 'en', send)
+    fireEvent.click(screen.getByRole('button', { name: astraOfferFixture.label }))
+    await waitFor(() => expect(send).toHaveBeenCalledExactlyOnceWith(astraOfferFixture.prompt, { selectedOfferKey: astraOfferFixture.offerKey }))
+    expect(dismissChatOffers).not.toHaveBeenCalled()
+  })
+  it('opens the supplied surface and never treats its string as a route', async () => {
+    mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...astraOfferFixture, kind: 'openSurface', surface: 'calendar-sync' } } } })
+    fireEvent.click(screen.getByRole('button', { name: astraOfferFixture.label }))
+    await waitFor(() => expect(state.push).toHaveBeenCalledWith('/calendar?import=1'))
+  })
+  it('withholds offers without a negotiated conversation', () => {
+    useChatStore.setState({ conversationId: null })
+    mount({ kind: 'periodTotal', block: offeredReadFixture })
+    expect(screen.queryByRole('button', { name: astraOfferFixture.label })).not.toBeInTheDocument()
+  })
+  it('retains a failed dismissal for retry', async () => {
+    vi.mocked(dismissChatOffers).mockResolvedValueOnce({ ok: false, error: 'offline', code: 'offline', status: 0, sessionRefreshFailed: false })
+    mount({ kind: 'periodTotal', block: offeredReadFixture }, 'en', vi.fn())
+    fireEvent.click(screen.getByRole('button', { name: en.chat.offers.dismiss }))
+    await screen.findByText(en.chat.offers.failed)
+    expect(screen.getByRole('button', { name: en.chat.offers.dismiss })).toBeEnabled()
+  })
 })

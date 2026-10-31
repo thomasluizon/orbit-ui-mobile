@@ -1,3 +1,4 @@
+import { makeOfferedPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
 import { makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
@@ -42,6 +43,8 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: vis
   if (key === 'chat.action.openEntity') return `Open details: ${values?.name}`
   return key
 } }) }))
+
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
@@ -1636,4 +1639,33 @@ it.each(['en', 'pt-BR'])('shows the producer repeat reminder text in the preview
   const { tree } = renderCard(operation)
   expect((tree.root.findByProps({ testID: 'preview-item-meta' }).props.children as string).replace(/\u00a0/g, ' ')).toContain(text)
   TestRenderer.act(() => tree.unmount())
+})
+
+
+describe('offered preview fields on Android', () => {
+  beforeEach(() => { visibleLocale.actual = true; visibleLocale.language = 'en' })
+  it('edits the typed repeat reminder without executing the operation', async () => {
+    const operation = makeOfferedPreview()
+    const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: { changes: operation.changes, items: operation.items, changeTargetCount: 1, previewFingerprint: 'preview-two' } } })
+    const { tree, handlers } = renderCard(operation, onRevise)
+    expect(renderedText(tree.toJSON())).toContain('Every 2 hours')
+    await TestRenderer.act(() => press(tree, 'Edit Repeat reminder').props.onPress())
+    await TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: en.chat.operation.field.interval_minutes }).props.onChangeText('180'))
+    await TestRenderer.act(() => press(tree, en.common.save).props.onPress())
+    expect(onRevise).toHaveBeenCalledWith(operation.id, { previewFingerprint: 'preview-one', items: [{ itemId: '0', edits: { repeat_reminder: { interval_minutes: 180, active_start: '08:00', active_end: '22:00' } } }] })
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    await TestRenderer.act(() => tree.unmount())
+  })
+  it('removes the full offered reminder group and preserves the requested title', async () => {
+    const operation = makeOfferedPreview()
+    const items = operation.items!.map(item => ({ ...item, fields: item.fields.filter(field => field.provenance !== 'suggested') }))
+    const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: { changes: items[0]!.fields, items, changeTargetCount: 1, previewFingerprint: 'preview-two' } } })
+    const { tree, handlers } = renderCard(operation, onRevise)
+    await TestRenderer.act(() => press(tree, 'Remove Repeat reminder').props.onPress())
+    expect(onRevise).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: 'preview-one', items: [{ itemId: '0', removeSuggestedFields: ['reminder_enabled', 'repeat_reminder'] }] })
+    expect(renderedText(tree.toJSON())).not.toContain('Every 2 hours')
+    expect(renderedText(tree.toJSON())).toContain('Water')
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    await TestRenderer.act(() => tree.unmount())
+  })
 })

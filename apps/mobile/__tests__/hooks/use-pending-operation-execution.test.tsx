@@ -1,3 +1,5 @@
+import { useChatStore } from '@/stores/chat-store'
+import { offerConversationId } from '@orbit/shared/test-support/astra-offer-fixtures'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { buildChatClientContext } from '@orbit/shared/chat'
@@ -221,4 +223,18 @@ describe('usePendingOperationExecution step-up flow', () => {
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
     expect(appendExecutionMessage).not.toHaveBeenCalled()
   })
+})
+
+
+it('retains the negotiated conversation while removing an offered group', async () => {
+  useChatStore.setState({ conversationId: offerConversationId })
+  mocks.apiClient.mockReset().mockResolvedValue({ isSuccess: true, error: null, pendingOperationId: 'pending-1', cancelled: false, preview: { changes: [], items: [], changeTargetCount: 1, previewFingerprint: 'next' } })
+  const executed = vi.fn()
+  const hook = await renderExecution(executed)
+  const request = { previewFingerprint: 'current', items: [{ itemId: '0', removeSuggestedFields: ['reminder_enabled', 'repeat_reminder'] }] }
+  try {
+    await TestRenderer.act(async () => { await hook.current.revisePendingOperationForBubble('pending-1', request) })
+    expect(mocks.apiClient).toHaveBeenCalledExactlyOnceWith(API.ai.pendingOperationRevise('pending-1'), { method: 'POST', body: JSON.stringify({ ...request, clientContext: buildChatClientContext({ platform: 'mobile', locale: 'pt-BR', conversationId: offerConversationId }) }) }, pendingOperationRevisionResultSchema)
+    expect(executed).not.toHaveBeenCalled()
+  } finally { useChatStore.setState({ conversationId: null }) }
 })

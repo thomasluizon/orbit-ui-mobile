@@ -10,6 +10,7 @@ export interface ChatStreamRequest<Image> {
   blockAnswer?: BlockAnswer
   messageOrigin?: 'followUp'
   previousStartingStep?: ChatClientContext['previousStartingStep']
+  selectedOfferKey?: ChatClientContext['selectedOfferKey']
   intendedAccountId?: string | null
 }
 

@@ -1602,6 +1602,11 @@
       }
     },
     "blockCopy": { "copy": "Copy", "copied": "Copied", "copyError": "Couldn't copy. Try again." },
+    "offers": {
+      "dismiss": "Dismiss offer",
+      "failed": "Could not update this offer. Try again.",
+      "limit": "Your message limit has been reached."
+    },
     "title": "Astra",
     "offline": {
       "title": "You’re offline"
@@ -2153,7 +2158,30 @@
         "scheduled_reminders": "Scheduled reminders",
         "delete": "Delete",
         "dismiss_import": "Dismiss import",
-        "run_sync": "Sync now"
+        "run_sync": "Sync now",
+        "repeat_reminder": "Repeat reminder",
+        "interval_minutes": "Interval (minutes)",
+        "active_start": "Active from",
+        "active_end": "Active until",
+        "start_at_utc": "First reminder",
+        "relative_reminders": "Relative reminders",
+        "start_date": "Start date",
+        "due_end_time": "End time",
+        "slip_alert_enabled": "Slip alerts",
+        "tag_ids": "Tags",
+        "tag_names": "Tags",
+        "goal_ids": "Goals",
+        "habit_ids": "Habits",
+        "target_value": "Target",
+        "unit": "Unit",
+        "deadline": "Deadline",
+        "items": "Items",
+        "name": "Name",
+        "habit_id": "Habit",
+        "is_checked": "Checked",
+        "text": "Text",
+        "when": "Day",
+        "time": "Time"
       },
       "confirmTitle": "Approve this change?",
       "confirm": "Approve",

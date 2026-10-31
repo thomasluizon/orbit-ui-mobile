@@ -927,6 +927,20 @@ describe('web useChatComposer streaming send', () => {
     }
   })
 
+  it('negotiates offers and sends the selected key only with that request', async () => {
+    useChatStore.setState({ conversationId: null, dismissedOfferKeys: ['dismissed'] })
+    mocks.fetch.mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse()))))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Suggest a reminder', { selectedOfferKey: 'read:reminder' }) })
+    const first = JSON.parse((mocks.fetch.mock.calls[0]![1]!.body as FormData).get('clientContext') as string)
+    expect(first).toMatchObject({ supportsProactiveOffers: true, supportsParts: true, supportsPendingOperationChanges: true, selectedOfferKey: 'read:reminder', dismissedOfferKeys: ['dismissed'] })
+    expect(first.conversationId).toBe(useChatStore.getState().conversationId)
+    await act(async () => { await result.current.sendMessage('Another question') })
+    const next = JSON.parse((mocks.fetch.mock.calls[1]![1]!.body as FormData).get('clientContext') as string)
+    expect(next.conversationId).toBe(first.conversationId)
+    expect(next).not.toHaveProperty('selectedOfferKey')
+  })
+
   it('sends the profile clock preference to Astra', async () => {
     mocks.state.profile = createMockProfile({ uses24HourClock: true })
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
@@ -3260,3 +3274,5 @@ describe('web useChatComposer streaming send', () => {
   })
 
 })
+
+beforeEach(() => { useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] }) })

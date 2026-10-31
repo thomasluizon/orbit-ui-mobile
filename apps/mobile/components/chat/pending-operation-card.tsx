@@ -1,3 +1,6 @@
+import { StructuredPreviewField } from './structured-preview-field'
+import { AstraOffer } from './astra-offer'
+import { type AstraOfferProps, buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
 import { IconButton } from '@/components/ui/icon-button'
 import { WeekdayPicker } from '@/components/ui/weekday-picker'
 import { getAccountDay, nowDate, toTime24 } from '@orbit/shared/utils'
@@ -7,7 +10,6 @@ import { ActionRow } from '@/components/ui/action-row'
 import { TimeField } from '@/components/ui/time-field'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
-import { buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, Pressable, Text, View } from 'react-native'
 import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
@@ -118,15 +120,17 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
           : <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} onSelect={() => onSelectItem(entry.itemId)} />)}</RadioGroup></View> : null}
       {item.fields.filter((field) => isPendingOperationEditableField(field)
         && !(item.placement?.selected === 'new_parent' && field.field === 'parent_habit_id')).map((field) => {
-        const label = labels.fieldLabels[field.field] ?? field.field
+        const fieldName = field.field.split('/').at(-1)!
+        const label = labels.fieldLabels[fieldName] ?? fieldName
         const choices = item.fieldOptions?.find((entry) => entry.field === field.field && entry.field === 'parent_habit_id')
         if (choices) return <ParentChoice key={field.field} itemId={item.itemId} itemName={item.entityName} field={choices} labels={labels} disabled={busy}
           selectedValue={draft[field.field] === '' ? null : draft[field.field]} onSelect={(value) => { if (value === null || typeof value === 'string') onChange(field.field, value ?? '') }} />
         if (field.field === 'checklist_items' || field.field === 'reminder_times' || field.field === 'scheduled_reminders') return <ListFieldEditor key={field.field} field={field.field} value={draft[field.field] ?? '[]'} labels={labels} busy={busy} error={error} onChange={(value) => onChange(field.field, value)} />
+        if (field.proposedValue !== null && typeof field.proposedValue === 'object' && fieldName !== 'days') return <StructuredPreviewField key={field.field} field={field.field} value={draft[field.field] ?? JSON.stringify(field.proposedValue)} labels={labels} busy={busy} error={error} onChange={value => onChange(field.field, value)} />
         if (field.valueType === 'boolean') return <Switch key={field.field} label={label} checked={draft[field.field] === 'true'} disabled={busy} onChange={(value) => onChange(field.field, String(value))} />
-        if (field.field === 'days') {
-          const days = (draft.days ?? '').split(',').map((day) => day.trim())
-          return <View key={field.field} style={{ gap: 8 }}><Text style={{ color: tokens.fg1 }}>{label}</Text><WeekdayPicker label={label} days={days} scheduleLocked={busy} dayOptions={PENDING_OPERATION_WEEKDAYS.map(day => ({ value: day, label: labels.dayLabels[day]!, accessibleLabel: labels.dayLabels[day]! }))} onToggleDay={day => onChange('days', PENDING_OPERATION_WEEKDAYS.filter(name => name === day ? !days.includes(name) : days.includes(name)).join(', '))} /></View>
+        if (fieldName === 'days') {
+          const days = (draft[field.field] ?? '').split(',').map((day) => day.trim())
+          return <View key={field.field} style={{ gap: 8 }}><Text style={{ color: tokens.fg1 }}>{label}</Text><WeekdayPicker label={label} days={days} scheduleLocked={busy} dayOptions={PENDING_OPERATION_WEEKDAYS.map(day => ({ value: day, label: labels.dayLabels[day]!, accessibleLabel: labels.dayLabels[day]! }))} onToggleDay={day => onChange(field.field, PENDING_OPERATION_WEEKDAYS.filter(name => name === day ? !days.includes(name) : days.includes(name)).join(', '))} /></View>
         }
         if (field.valueType === 'time') return <TimeField key={field.field} label={label} value={toTime24(draft[field.field])} onChange={(value) => onChange(field.field, value)} disabled={busy} error={error ? labels.invalid : undefined} />
         return <Input
@@ -275,7 +279,9 @@ export function PendingOperationCard({
   focusTitleOnMount,
   savedState,
   onStateChange,
-}: Readonly<PendingOperationCardAdapterProps>) {
+  onSendMessage,
+  interaction,
+}: Readonly<PendingOperationCardAdapterProps & Pick<AstraOfferProps, 'onSendMessage' | 'interaction'>>) {
   const { t, i18n } = useTranslation()
   const { displayTime } = useTimeFormat()
   const { profile } = useProfile()
@@ -292,7 +298,7 @@ export function PendingOperationCard({
     focusTitleOnMount={focusTitleOnMount}
     savedState={savedState}
     onStateChange={onStateChange}
-    render={pendingOperationRenderers}
+    render={{ ...pendingOperationRenderers, offer: (action, unavailable) => <AstraOffer action={action} unavailable={unavailable} onSendMessage={onSendMessage} interaction={interaction} /> }}
     labels={(operation) => buildPendingOperationCardLabels(operation, t, displayTime, i18n.language, today)}
   />
 }

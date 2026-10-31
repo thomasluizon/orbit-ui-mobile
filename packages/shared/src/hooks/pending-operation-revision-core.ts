@@ -74,7 +74,7 @@ export function applyPendingOperationRevisionPreview(
   const selectedIds = new Set(selected.map(item => item.itemId))
   return {
     ...current,
-    operation: { ...current.operation, ...preview },
+    operation: { ...current.operation, ...preview, nextAction: null },
     authorizationVersion: current.authorizationVersion + 1,
     originalItemIds: (current.operation.items ?? []).flatMap((item, index) => selectedIds.has(item.itemId) ? [current.originalItemIds[index]!] : []),
     drafts: Object.fromEntries(Object.entries(current.drafts).filter(([id]) => id !== editedItemId && itemIds.has(id))),
@@ -103,9 +103,10 @@ const structuredFields = new Set([
 const listFields = new Set(['checklist_items', 'sub_habits', 'reminder_times', 'scheduled_reminders'])
 
 export function isPendingOperationEditableField(field: { field: string; valueType: string; isEditable?: boolean; proposedValue?: unknown }): boolean {
-  if (field.isEditable === true) return field.valueType !== 'action'
+  const name = field.field.split('/').at(-1)!
+  if (field.isEditable === true) return field.valueType !== 'action' && (!listFields.has(name) || Array.isArray(field.proposedValue))
   return field.isEditable !== false && field.valueType !== 'action'
-    && !listFields.has(field.field)
+    && !listFields.has(name)
 }
 
 export function pendingOperationListRows(value: string): readonly unknown[] {
@@ -135,7 +136,7 @@ export function addPendingOperationListRow(value: string, field: string): string
 
 function editedValue(change: PendingOperationItem['fields'][number], value: string): unknown {
   const field = change.field.split('/').at(-1)!
-  if (field.startsWith('is_') || field === 'enabled' || field === 'reminder_enabled') {
+  if (typeof change.proposedValue === 'boolean' || field.startsWith('is_') || field === 'enabled' || field === 'reminder_enabled') {
     if (value !== 'true' && value !== 'false') throw new Error('Invalid boolean')
     return value === 'true'
   }
@@ -159,7 +160,7 @@ export function pendingOperationDraft(item: PendingOperationItem): Record<string
 }
 
 function pendingOperationFieldDraft(field: PendingOperationItem['fields'][number]): string {
-  if (Array.isArray(field.proposedValue)) return field.field === 'days'
+  if (Array.isArray(field.proposedValue)) return field.field.split('/').at(-1) === 'days'
     ? field.proposedValue.join(', ') : JSON.stringify(field.proposedValue)
   if (field.proposedValue === null) return ''
   if (typeof field.proposedValue === 'boolean' || typeof field.proposedValue === 'number')

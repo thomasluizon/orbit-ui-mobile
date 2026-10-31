@@ -1602,6 +1602,11 @@
       }
     },
     "blockCopy": { "copy": "Copiar", "copied": "Copiado", "copyError": "Não consegui copiar. Tente de novo." },
+    "offers": {
+      "dismiss": "Dispensar sugestão",
+      "failed": "Não consegui atualizar a sugestão. Tente de novo.",
+      "limit": "Você atingiu seu limite de mensagens."
+    },
     "title": "Astra",
     "offline": {
       "title": "Você está sem conexão"
@@ -2153,7 +2158,30 @@
         "scheduled_reminders": "Lembretes agendados",
         "delete": "Apagar",
         "dismiss_import": "Dispensar importação",
-        "run_sync": "Sincronizar agora"
+        "run_sync": "Sincronizar agora",
+        "repeat_reminder": "Repetir lembrete",
+        "interval_minutes": "Intervalo (minutos)",
+        "active_start": "A partir de",
+        "active_end": "Até",
+        "start_at_utc": "Primeiro lembrete",
+        "relative_reminders": "Lembretes relativos",
+        "start_date": "Data inicial",
+        "due_end_time": "Horário final",
+        "slip_alert_enabled": "Alertas de deslize",
+        "tag_ids": "Etiquetas",
+        "tag_names": "Etiquetas",
+        "goal_ids": "Metas",
+        "habit_ids": "Hábitos",
+        "target_value": "Alvo",
+        "unit": "Unidade",
+        "deadline": "Prazo",
+        "items": "Itens",
+        "name": "Nome",
+        "habit_id": "Hábito",
+        "is_checked": "Concluído",
+        "text": "Texto",
+        "when": "Dia",
+        "time": "Horário"
       },
       "confirmTitle": "Aprovar esta mudança?",
       "confirm": "Aprovar",
