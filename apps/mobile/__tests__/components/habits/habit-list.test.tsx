@@ -1,3 +1,4 @@
+import { withTimingCalls } from '@/test-mocks/react-native-reanimated'
 import { testI18n } from '@/__tests__/support/i18n'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { resetAccountQueries } from '@orbit/shared/query'
@@ -20,6 +21,7 @@ import { bulkLogResultSchema, bulkSkipResultSchema, habitScheduleItemSchema, ski
 import type { HabitScheduleItem, NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
+import DraggableFlatList from 'react-native-draggable-flatlist'
 import { MoveParentDialog } from '@/components/habit-list/move-parent-dialog'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { buildOptimisticHabit } from '@/lib/habit-mutation-helpers'
@@ -590,7 +592,7 @@ function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
       selectedHabitIds,
       selectedDateStr: TODAY,
       completionReadOnly: false,
-      habitsById: new Map(),
+      habitsById: mockHabitsData.habitsById,
       habitListRef,
       onSuccess: vi.fn(),
       onPartialFailure: vi.fn(),
@@ -3498,6 +3500,45 @@ describe('HabitList', () => {
     })
   })
 
+  it.each([
+    { draggedIndex: 0, from: 0, to: 2, order: ['drag-1', 'drag-2', 'drag-parent', 'drag-3'] },
+    { draggedIndex: 2, from: 2, to: 4, order: ['drag-parent', 'drag-2', 'drag-3', 'drag-1'] },
+  ])('saves the native placeholder order without extra motion when dropping row $draggedIndex', async ({ draggedIndex, from, to, order }) => {
+    const parent = createMockHabit({ id: 'drag-parent', title: 'Parent', position: 0, hasSubHabits: true })
+    const child = createMockHabit({ id: 'drag-child', title: 'Child', parentId: parent.id, position: 0 })
+    const siblings = [1, 2, 3].map((position) => createMockHabit({ id: `drag-${position}`, title: `Habit ${position}`, position }))
+    seedHabits([parent, child, ...siblings])
+    const element = <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = createTestTree(element) })
+    await TestRenderer.act(() => {
+      for (const row of tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) =>
+        String(node.type) === 'AnimatedView' && String(node.props.testID).startsWith('habit-motion-'))) {
+        row.props.onLayout({ nativeEvent: { layout: { height: 80 } } })
+      }
+    })
+    withTimingCalls.length = 0
+    await TestRenderer.act(() => {
+      const row = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)[draggedIndex]!
+      row.findAll((node: import('react-test-renderer').ReactTestInstance) =>
+        typeof node.props.onLongPress === 'function')[0]!.props.onLongPress()
+    })
+    const during = draggedIndex === 0 ? [parent.id, ...siblings.map((habit) => habit.id)] : [parent.id, child.id, ...siblings.map((habit) => habit.id)]
+    expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: import('react-test-renderer').ReactTestInstance) => (row.props.habit as NormalizedHabit).id)).toEqual(during)
+    expect(withTimingCalls.filter((call) => call.value === 0)).toEqual([])
+    const list = tree.root.findByType(DraggableFlatList)
+    const preview = [...list.props.data] as { id: string; parentId: string | null }[]
+    preview.splice(to, 0, preview.splice(from, 1)[0]!)
+    const previewRoots = preview.filter((item) => item.parentId === null).map((item) => item.id)
+    expect(previewRoots).toEqual(order)
+    await TestRenderer.act(async () => {
+      await list.props.onDragEnd({ from, to, data: preview })
+    })
+    expect(reorderMutateAsync).toHaveBeenCalledWith({ positions: previewRoots.map((habitId, position) => ({ habitId, position })) })
+    expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: import('react-test-renderer').ReactTestInstance) => (row.props.habit as NormalizedHabit).id)).toEqual([parent.id, child.id, ...siblings.map((habit) => habit.id)])
+    expect(withTimingCalls.filter((call) => call.value === 0)).toEqual([])
+  })
+
   it('renders every row with calibrated render-window props while keeping reorder working', async () => {
     const habits = Array.from({ length: 12 }, (_, index) =>
       createMockHabit({
@@ -4880,11 +4921,16 @@ describe('HabitList', () => {
     bulkSkipMutateAsync.mockRejectedValueOnce(new Error('offline'))
     const actions = renderBulkActionsWithHabitList(new Set([childA.id, childB.id]))
 
+    expect(actions.current?.skippableCount).toBe(2)
     await TestRenderer.act(async () => {
       await expect(actions.current?.confirmBulkSkip()).rejects.toThrow('offline')
       await Promise.resolve()
     })
 
+    expect(bulkSkipMutateAsync).toHaveBeenCalledExactlyOnceWith([
+      { habitId: childA.id, date: TODAY },
+      { habitId: childB.id, date: TODAY },
+    ])
     expect(logMutateAsync).not.toHaveBeenCalled()
     expect(skipMutateAsync).not.toHaveBeenCalled()
   })

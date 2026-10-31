@@ -22,7 +22,7 @@ describe('sortable habit stacking', () => {
     sortable.isDragging = false
   })
 
-  it('raises only the dragged row within the local sibling scale', () => {
+  it('dims and raises only the dragged row within the local sibling scale', () => {
     sortable.isDragging = true
     render(
       <NextIntlClientProvider locale="en" messages={en}><SortableHabitItem id="habit-1">

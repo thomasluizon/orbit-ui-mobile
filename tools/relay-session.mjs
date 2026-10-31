@@ -10,7 +10,7 @@ import { readSessionContext, readSessionMetrics } from "./lib/session-context.mj
 import { readBackgroundRuns } from "./lib/background-runs.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
 import { HANDOFF_PROMPT_PATH, handoffCrank, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
-import { REPO_ROOT, acquireRelayLock, clearWakeSource, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, writeRunState } from "./lib/run-state.mjs"
+import { REPO_ROOT, acquireRelayLock, clearWakeSource, isRelayWaiter, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, writeRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain | --close-terminal <payload>]
 
@@ -165,7 +165,7 @@ export const relaySession = async ({ repoRoot = REPO_ROOT, sessionId = process.e
 
 const assertDrained = (repoRoot, sessionId) => {
   const sources = readWakeSourceStates(repoRoot)
-  const blockers = [...sources.live.filter((source) => !source.what?.startsWith("CI ") && source.what !== "Context relay retry"), ...sources.orphaned]
+  const blockers = [...sources.live.filter((source) => !isRelayWaiter(source) && source.what !== "Context relay retry"), ...sources.orphaned]
   const launchers = readWorkerLaunches(repoRoot).filter((launch) => isWakeSourceAlive({ pid: launch.launcherPid, processStartIdentity: launch.launcherProcessStartIdentity }))
   const pids = [...new Set([...blockers.map((source) => source.workerPid ?? source.pid), ...launchers.map((launch) => launch.launcherPid)])]
   const backgroundRuns = readBackgroundRuns(sessionId, repoRoot)
@@ -193,9 +193,9 @@ const provePromptPublished = (repoRoot, execute, crank) => {
   return prompt
 }
 
-const stopCiWaiters = (sessionId, repoRoot) => {
+const stopRelayWaiters = (sessionId, repoRoot) => {
   for (const source of readWakeSourceStates(repoRoot).live) {
-    if (source.sessionId !== sessionId || !source.what?.startsWith("CI ") || !isWakeSourceAlive(source)) continue
+    if (source.sessionId !== sessionId || !isRelayWaiter(source) || !isWakeSourceAlive(source)) continue
     process.kill(source.pid, "SIGTERM")
     clearWakeSource(source.pid, repoRoot)
   }
@@ -221,7 +221,7 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
   if (current?.sessionId !== sessionId || !current.relay?.pending) throw new Error("owner canceled the relay drain")
   const attempting = { ...current, relay: { ...current.relay, successorSessionId, lastAttemptAt: now, attempts: (current.relay.attempts ?? 0) + 1 } }
   writeRunState(attempting, repoRoot)
-  stopCiWaiters(sessionId, repoRoot)
+  stopRelayWaiters(sessionId, repoRoot)
   appendChainEntry(await sessionChainEntry(attempting, previous.relay.transcriptPath), repoRoot)
   let terminal = null
   try {

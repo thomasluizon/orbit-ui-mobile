@@ -22,7 +22,8 @@ export function buildSearchEntries(
 ): CommandHabitEntry[] {
   if (!collection) return []
   if (query.length > 0 && page === null) return collection.topLevelHabits.map((habit) => ({ habit, parentTitle: null }))
-  return buildCommandHabitList(collection, query)
+  const entries = buildCommandHabitList(collection, query)
+  return page === 'skip' ? entries.filter(({ habit }) => !habit.isGeneral) : entries
 }
 
 export function buildSearchMatchLines(

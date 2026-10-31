@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Time24 } from '@orbit/shared/contracts/forms'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { Gesture } from 'react-native-gesture-handler'
 import { __resetTestHostConfig, __setScrollToImpl, __setWindowDimensions } from '../../../test-mocks/react-native'
@@ -204,8 +205,13 @@ describe('TimeField scroll ownership in the native Sheet', () => {
         const selectedNode = nodes.get(selected)!
         expect(selectedNode.getComputedTop() - offset).toBeGreaterThanOrEqual(-0.5)
         expect(selectedNode.getComputedTop() - offset + selectedNode.getComputedHeight()).toBeLessThanOrEqual(viewportHeight + 0.5)
-        for (const option of children(scrollHost)) {
+        const options = children(scrollHost)
+        for (const [index, option] of options.entries()) {
           const row = nodes.get(option)!
+          if (index > 0) {
+            const previous = nodes.get(options[index - 1]!)!
+            expect(row.getComputedTop() - previous.getComputedTop() - previous.getComputedHeight()).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+          }
           const reachableOffset = Math.max(0, Math.min(row.getComputedTop(), content.getComputedHeight() - viewportHeight))
           expect(row.getComputedTop() - reachableOffset).toBeGreaterThanOrEqual(-0.5)
           expect(row.getComputedTop() - reachableOffset + row.getComputedHeight()).toBeLessThanOrEqual(viewportHeight + 0.5)

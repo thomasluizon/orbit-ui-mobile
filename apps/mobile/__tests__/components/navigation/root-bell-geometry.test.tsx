@@ -230,7 +230,7 @@ it('paints every root bell from the restored notification cache before a delayed
   await setQueryCacheScope(null)
 })
 
-it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))(
+it.each([320, 360, 384, 412, 840, 1024, 1352].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))(
   'aligns all four root bells at $width with text scale $fontScale and opens Avisos', async ({ width, fontScale }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     const surfaces: [string, ReactNode][] = [

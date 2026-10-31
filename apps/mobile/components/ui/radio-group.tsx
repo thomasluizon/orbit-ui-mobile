@@ -1,4 +1,5 @@
 import * as Primitive from '@rn-primitives/radio-group'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { type ReactElement, type ReactNode } from 'react'
 import type { ViewProps } from 'react-native'
 import { SelectionFocusProvider, useSelectionFocusGroup, useSelectionFocusItem, useHasSelectionFocusGroup } from './selection-focus'
@@ -11,9 +12,9 @@ export function RadioGroup({ children, onCommit, focusRequest, shouldFocus, ...p
   </SelectionFocusProvider>
 }
 
-function RadioRoot({ children, ...props }: Readonly<ViewProps & { children: ReactNode }>) {
+function RadioRoot({ children, style, ...props }: Readonly<ViewProps & { children: ReactNode }>) {
   const { value, select } = useSelectionFocusGroup()
-  return <Primitive.Root {...props} value={value} onValueChange={select} accessibilityRole="radiogroup">{children}</Primitive.Root>
+  return <Primitive.Root {...props} style={[{ gap: INTERACTION_FILL_CLEARANCE }, style]} value={value} onValueChange={select} accessibilityRole="radiogroup">{children}</Primitive.Root>
 }
 
 function RegisteredItem({ selected, onSelect, disabled = false, busy = false, children }: Readonly<{ selected: boolean; onSelect?: () => void; disabled?: boolean; busy?: boolean; children: ReactElement }>) {

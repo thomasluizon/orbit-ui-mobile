@@ -134,6 +134,19 @@ beforeEach(() => {
 })
 
 describe('CommandPalette', () => {
+  it('excludes General habits only from the Skip page', async () => {
+    habitsQuery.data = buildQueryData([
+      createMockHabit({ id: 'general', title: 'Undated routine', isGeneral: true, frequencyUnit: null }),
+      createMockHabit({ id: 'daily', title: 'Daily walk' }),
+    ])
+    await renderPaletteContent(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />)
+    expect(screen.getByRole('option', { name: 'Undated routine' })).toBeInTheDocument()
+    fireEvent.click(screen.getByText('command.skipHabit'))
+    expect(screen.queryByRole('option', { name: 'Undated routine' })).toBeNull()
+    fireEvent.click(screen.getByRole('option', { name: 'Daily walk' }))
+    expect(mockSkipHabitMutate).toHaveBeenCalledWith({ habitId: 'daily' }, expect.any(Object))
+  })
+
   it('announces a stale action once inside the active dialog', async () => {
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setApiFetchTranslate((key) => key)

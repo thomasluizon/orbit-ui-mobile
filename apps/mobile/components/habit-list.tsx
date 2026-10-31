@@ -188,7 +188,7 @@ function ActionRow({
     return {
       onLog: () => handlersRef.current.toggle(latestRef.current.habit, 'log'),
       onUnlog: () => handlersRef.current.toggle(latestRef.current.habit, 'unlog'),
-      onSkip: canSkip ? () => handlersRef.current.skip(latestRef.current.habit) : undefined,
+      onSkip: canSkip && !habit.isGeneral ? () => handlersRef.current.skip(latestRef.current.habit) : undefined,
       onReschedule: habit.isOverdue
         ? () => handlersRef.current.reschedule(latestRef.current.habit)
         : undefined,
@@ -206,7 +206,7 @@ function ActionRow({
         ? () => latestRef.current.onLongPressCard?.()
         : undefined,
     }
-  }, [canSkip, rowProps.drillInsteadOfExpand, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
+  }, [canSkip, rowProps.drillInsteadOfExpand, habit.isGeneral, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
 
   return <HabitRow {...rowProps} habit={habit} actions={actions} />
 }
@@ -1503,7 +1503,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         const index = getIndex() ?? 0
         const nextItem = presentation.items[index + 1]
         const motionRow = presentation.rows[index]!
-        return <HabitListMotionRow id={item.id} phase={motionRow.phase} offset={motionRow.offset} itemIds={presentation.itemIds} measure={presentation.measure}><TodayLaunchContent enabled={view === 'today' && index === 0} fromCache={launchFromCache} empty={false}>{renderHabitCard(
+        return <HabitListMotionRow id={item.id} phase={motionRow.phase} offset={motionRow.offset} itemIds={presentation.itemIds} measure={presentation.measure} positionMotion={false}><TodayLaunchContent enabled={view === 'today' && index === 0} fromCache={launchFromCache} empty={false}>{renderHabitCard(
           item.habit,
           item.depth,
           item.hasChildren,

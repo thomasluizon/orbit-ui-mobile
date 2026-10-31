@@ -1,4 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native'
+import { useState } from 'react'
+import { INTERACTION_FILL_CLEARANCE, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
 import { formatQuestionNumber, type QuestionControlProps } from '@orbit/shared/chat'
 import { RadioGroup, RadioItem } from '@/components/ui/radio-group'
@@ -13,13 +15,20 @@ import { useAppTheme } from '@/lib/use-app-theme'
 function QuestionScale({ question, answer, disabled, controller, words }: QuestionControlProps) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const [availableWidth, setAvailableWidth] = useState(0)
+  const optionWidth = Math.max(TOUCH_TARGET_MIN, availableWidth / 5)
   if (question.type !== 'scale') return null
   return <View style={{ minWidth: 0, gap: 8 }}>
-    <RadioGroup accessibilityLabel={question.prompt} accessibilityHint={words.required} style={{ flexDirection: 'row' }}>
+    <RadioGroup testID="question-scale" accessibilityLabel={question.prompt} accessibilityHint={words.required} onLayout={event => setAvailableWidth(event.nativeEvent.layout.width)} style={{ flexDirection: 'row', gap: 0 }}>
       {[1, 2, 3, 4, 5].map(number => <RadioItem key={number} selected={answer?.number === number} disabled={disabled} onSelect={() => controller.setAnswer(question, { number })}>
-        <InsetFocusPressable accessibilityRole="radio" accessibilityLabel={String(number)} accessibilityState={{ checked: answer?.number === number, disabled }} disabled={disabled} focusable={!disabled}
-          style={({ pressed }) => [styles.scaleOption, { opacity: disabled ? 0.6 : 1, backgroundColor: pressed ? tokens.bgHover : answer?.number === number ? tokens.bgWell : 'transparent' }]}>
-          <Text style={{ color: tokens.fg1, fontSize: 16, lineHeight: 24, fontFamily: 'Geist_400Regular' }}>{number}</Text>
+        <InsetFocusPressable accessibilityRole="radio" accessibilityLabel={String(number)} accessibilityState={{ checked: answer?.number === number, disabled }} disabled={disabled} focusable={!disabled} focusInset={INTERACTION_FILL_CLEARANCE / 2} focusOffset={-2} focusColor={tokens.primary}
+          style={[styles.scaleOption, { width: optionWidth, opacity: disabled ? 0.6 : 1 }]}>
+          {({ pressed, focused }) => <View data-slot="question-scale-fill" style={[styles.scaleFill, {
+            backgroundColor: pressed || focused ? tokens.bgHover : answer?.number === number ? tokens.bgWell : 'transparent',
+            outlineWidth: answer?.number === number && !focused ? 2 : 0, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.primary,
+          }]}>
+            <Text style={{ color: tokens.fg1, fontSize: 16, lineHeight: 24, fontFamily: 'Geist_400Regular' }}>{number}</Text>
+          </View>}
         </InsetFocusPressable>
       </RadioItem>)}
     </RadioGroup>
@@ -52,5 +61,6 @@ export function QuestionControls(props: QuestionControlProps) {
 }
 
 const styles = StyleSheet.create({
-  scaleOption: { flex: 1, minWidth: 0, minHeight: 48, alignItems: 'center', justifyContent: 'center', padding: 8, borderRadius: 12, overflow: 'hidden' },
+  scaleOption: { minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, padding: INTERACTION_FILL_CLEARANCE / 2, borderRadius: 12 },
+  scaleFill: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8, borderRadius: 12, overflow: 'hidden' },
 })

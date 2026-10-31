@@ -78,7 +78,7 @@ function OfflineManager() {
 
 function PostHogGate() {
   const { config, isFetchedAfterMount, isFetching, refetch } = useConfig()
-  const enabled = isFetchedAfterMount && !isFetching && config.features.analytics?.enabled === true
+  const enabled = isFetchedAfterMount && !isFetching ? config.features.analytics?.enabled === true : undefined
   const segments = useSegments()
   const screen = segments.join('/') || 'index'
 
