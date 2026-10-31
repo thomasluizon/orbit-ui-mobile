@@ -9,6 +9,7 @@ import { getAccountDay } from '@orbit/shared/utils'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { bulkSkipResultSchema, type BulkSkipItemRequest } from '@orbit/shared/types/habit'
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
+import { SelectionTray } from '@/components/habits/selection-tray'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { TodayProvider } from '@/app/(app)/today-provider'
@@ -43,7 +44,6 @@ window.skipScrollFixture = async (path, options) => {
   if (path !== API.habits.bulkSkip) throw new Error(`Unexpected fixture write: ${path}`)
   const input = JSON.parse(options.body) as { items: BulkSkipItemRequest[] }
   items = []
-  await new Promise<void>((done) => setTimeout(done, 200))
   return bulkSkipResultSchema.parse({ results: input.items.map(({ habitId }, index) => ({ index, status: 'Success', habitId, error: null })) })
 }
 
@@ -54,10 +54,13 @@ function Fixture() {
   return <ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }} header={<span>Today</span>}
     tabBar={<BottomTabBar activeId="hoje" label="Navigation" onSelect={() => {}} items={[{ id: 'hoje', href: '/', label: 'Today' }]} />}
     fab={selecting ? undefined : <button>Create</button>}
-    composer={selecting ? <button onClick={() => { void skip.mutateAsync(requests).then(() => {
-      list.current?.settleBulkHabitResolutions(requests.map(({ habitId }) => ({ habitId, mode: 'skip' })), date)
-      setSelecting(false)
-    }) }}>Skip selected</button> : undefined}
+    composer={selecting ? <SelectionTray selectedCount={requests.length} allSelected
+      onSelectAll={() => {}} onDeselectAll={() => {}} onBulkLog={() => {}}
+      onBulkMove={() => {}} onBulkDelete={() => {}} onCancel={() => {}}
+      onBulkSkip={() => { void skip.mutateAsync(requests).then(() => {
+        list.current?.settleBulkHabitResolutions(requests.map(({ habitId }) => ({ habitId, mode: 'skip' })), date)
+        setSelecting(false)
+      }) }} /> : undefined}
     compactComposer={selecting ? undefined : <textarea aria-label="Draft" />}>
     <div id="orbit-main" className="flex min-h-full flex-col">
       <HabitList ref={list} view="today" filters={{ dateFrom: date, dateTo: date, includeOverdue: true }}

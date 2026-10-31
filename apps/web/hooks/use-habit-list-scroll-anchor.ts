@@ -10,16 +10,22 @@ export function useHabitListScrollAnchor() {
     let offset = scroller.scrollTop
     let viewport = scroller.clientHeight
     let minimumHeight = 0
+    let retainedHeight = 0
     const reserve = (allowShrink: boolean) => {
       viewport = scroller.clientHeight
-      const remainingScroll = scroller.scrollHeight - offset - viewport
-      const neededHeight = Math.max(0, list.clientHeight - remainingScroll)
+      list.style.minHeight = '0px'
+      const contentHeight = list.clientHeight
+      const contentTop = list.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
+      retainedHeight = allowShrink ? Math.max(contentHeight, minimumHeight) : Math.max(retainedHeight, contentHeight)
+      const remainingContent = Math.max(0, contentTop + retainedHeight - offset - viewport)
+      const neededHeight = Math.max(0, retainedHeight - remainingContent)
       minimumHeight = allowShrink ? neededHeight : Math.max(minimumHeight, neededHeight)
       list.style.minHeight = `${minimumHeight}px`
       scroller.scrollTop = offset
     }
     const onScroll = () => {
       const sameViewport = viewport === scroller.clientHeight
+      if (sameViewport && offset === scroller.scrollTop) return
       if (sameViewport) offset = scroller.scrollTop
       reserve(sameViewport)
     }
