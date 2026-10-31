@@ -146,9 +146,8 @@ for (const width of [412, 1352]) {
               await expect(submit).toBeVisible()
               await expect(submit).toBeEnabled()
               await expect(submit).toHaveAccessibleDescription(messages.habits.form.createWhy)
-              for (const type of [messages.habits.form.typeTask, messages.habits.form.typeHabit]) {
-                await expect(page.getByRole('radio', { name: type, exact: true })).not.toBeChecked()
-              }
+              await expect(page.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })).toBeChecked()
+              await expect(page.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) })).not.toBeChecked()
               await expect(submit).toHaveAttribute('data-size', 'md')
             }
             if (route === '/upgrade') await expect(page.getByRole('button', { name: messages.upgrade.billing.payment.change, exact: true })).toBeVisible()

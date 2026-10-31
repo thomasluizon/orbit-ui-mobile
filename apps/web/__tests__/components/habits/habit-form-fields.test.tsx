@@ -8,6 +8,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { RepeatReminderSection } from '@/components/habits/habit-form-fields/repeat-reminder-section'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import type { HabitFormProposal } from '@orbit/shared/utils'
@@ -760,4 +761,12 @@ it('keeps the type-driven decision order and conditional end time in the owning 
   for (const group of ['steps', 'avoidGroup', 'organize', 'ending']) {
     expect(screen.getByRole('heading', { name: `habits.form.${group}` })).toBeVisible()
   }
+})
+
+
+it('preserves fixed reminder choices when their selected radio is pressed again', () => {
+  const onChange = vi.fn()
+  render(<RepeatReminderSection value={null} enabled general={false} onToggle={vi.fn()} onChange={onChange} />)
+  fireEvent.click(screen.getByRole('radio', { name: 'habits.form.definedTimes' }))
+  expect(onChange).not.toHaveBeenCalled()
 })

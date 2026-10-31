@@ -141,12 +141,12 @@ test('a long creation screen scrolls under its pinned safe area footer', async (
   await page.goto('/habits/new')
   const screen = page.locator('[data-habit-create-screen]')
   await expect(screen).toBeVisible()
-  await expect(page.getByRole('heading', { name: messages.habits.form.newHabit })).toBeVisible()
-  await expect(page.getByRole('dialog', { name: messages.habits.form.newHabit })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: messages.habits.form.newTask })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: messages.habits.form.newTask })).toHaveCount(0)
   await screen.getByRole('button', { name: messages.habits.form.moreDetails }).click()
   await expect(screen.locator('.habit-form-disclosure[data-open="true"]')).toBeVisible()
   const footer = page.locator('[data-habit-create-action]')
-  await expect(footer.getByRole('button', { name: messages.habits.createHabit, exact: true })).toBeVisible()
+  await expect(footer.getByRole('button', { name: messages.habits.createTask, exact: true })).toBeVisible()
   await screen.evaluate(() => document.fonts.ready.then(() => undefined))
 
   const measured = await page.locator('[data-shell="wide"]').evaluate((element) => {

@@ -17,6 +17,7 @@ import { captureError } from '@/lib/sentry'
 import { createApiClientError } from '@orbit/shared/utils'
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
+import { RepeatReminderSection } from '@/components/habits/habit-form-fields/repeat-reminder-section'
 import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { HabitScheduleFields } from '@/components/habits/habit-form-fields/habit-schedule-fields'
@@ -2381,4 +2382,14 @@ it('keeps native Task copy, a compact description and conditional end time throu
   const exactTime = tree.root.findAllByType('TimeField').find((node: { props: { label: string } }) => node.props.label === 'habits.form.exactTime')!
   await TestRenderer.act(() => exactTime.props.onChange('08:00'))
   expect(tree.root.findAllByType('TimeField').some((node: { props: { label: string } }) => node.props.label === 'habits.form.dueEndTime')).toBe(true)
+})
+
+
+it('preserves native fixed reminder choices when their selected radio is pressed again', () => {
+  const onChange = vi.fn()
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderSection value={null} enabled general={false} onToggle={vi.fn()} onChange={onChange} />) })
+  const radio = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.definedTimes')[0]!
+  TestRenderer.act(() => radio.props.onPress())
+  expect(onChange).not.toHaveBeenCalled()
 })

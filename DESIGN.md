@@ -2070,8 +2070,8 @@ Everything else, and specifically: the 65ch measure, the 2x gap rhythm, concentr
 
 The habit reminder sheet offers Repeat every for every task and habit schedule (#1922). It replaces relative and fixed-clock reminders. Existing Select, TimeField and ListRow
 controls own interval, start time and optional active hours, including an overnight window. All day
-is the default. Cadence changes retain the repeat choice in that draft. The existing sheet
-footer owns Save and Cancel; no repeat-specific token or surface is introduced.
+is the default. Cadence changes retain the repeat choice in that draft. The timing sheet closes with Done;
+Create or Save on the form owns persistence. No repeat-specific token is introduced.
 
 Hoje rows keep the complete next-time phrase as a single metadata token in the canonical wrapping
 flow. Its existing measured footer takes over when the heading column cannot fit it. Detail repeats

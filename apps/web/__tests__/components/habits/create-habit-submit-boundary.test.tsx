@@ -103,7 +103,7 @@ async function openNestedHabit(context: 'create' | 'edit') {
 }
 
 function assertPortalForm(child: HTMLElement, parentForm: HTMLFormElement) {
-  const title = within(child).getByLabelText(en.habits.form.describe) as HTMLTextAreaElement
+  const title = child.querySelector<HTMLTextAreaElement>('textarea')!
   const submit = within(child).getByRole('button', { name: new RegExp(`${en.habits.createHabit}|${en.habits.createTask}`) }) as HTMLButtonElement
   expect(title.form).not.toBeNull()
   expect(parentForm).not.toContainElement(title.form)
@@ -146,7 +146,7 @@ describe('nested habit submit ownership through the goal picker', () => {
     const { user, child, parentSubmit, onGoalCreated } = await openNestedHabit(context)
     const submit = within(child).getByRole('button', { name: new RegExp(`${en.habits.createHabit}|${en.habits.createTask}`) })
     await user.click(submit)
-    expect(await within(child).findByText(en.habits.form.titleRequired)).toHaveAttribute('role', 'alert')
+    expect(within(child).getByRole('textbox', { name: en.habits.form.taskDescribe })).toHaveAttribute('aria-invalid', 'true')
     expect(mocks.createHabit).not.toHaveBeenCalled()
     expect(parentSubmit).not.toHaveBeenCalled()
     await user.click(within(child).getByRole('radio', { name: new RegExp(en.habits.form.typeHabit) }))
@@ -234,12 +234,12 @@ describe('nested habit submit ownership through the goal picker', () => {
     const onOpenChange = vi.fn()
     const user = userEvent.setup()
     render(<QueryClientProvider client={queryClient}><CreateHabitModal open onOpenChange={onOpenChange} /></QueryClientProvider>)
-    const child = await screen.findByRole('dialog', { name: messages.habits.form.newHabit })
-    await user.click(within(child).getByRole('radio', { name: messages.habits.form.typeTask }))
-    await user.type(within(child).getByLabelText(messages.habits.form.describe), 'Collect a book')
+    const child = await screen.findByRole('dialog', { name: messages.habits.form.newTask })
+    await user.click(within(child).getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) }))
+    await user.type(within(child).getByLabelText(messages.habits.form.taskDescribe), 'Collect a book')
     await user.type(within(child).getByLabelText(messages.habits.form.datePhrase), '2030-01-15')
-    const submit = within(child).getByRole('button', { name: messages.habits.createHabit }) as HTMLButtonElement
-    const title = within(child).getByLabelText(messages.habits.form.describe) as HTMLTextAreaElement
+    const submit = within(child).getByRole('button', { name: messages.habits.createTask }) as HTMLButtonElement
+    const title = within(child).getByLabelText(messages.habits.form.taskDescribe) as HTMLTextAreaElement
     expect(submit.form).toBe(title.form)
     expect(title.form).not.toContainElement(submit)
     submit.focus()
