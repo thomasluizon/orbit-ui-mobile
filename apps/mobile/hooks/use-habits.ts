@@ -125,6 +125,7 @@ import { captureHabitLogged } from '@/lib/posthog'
 import { apiClient } from '@/lib/api-client'
 import { getAccountId } from '@/lib/account-scope'
 import { getAccountGeneration } from '@/lib/session-epoch'
+import { fetchProfile } from './use-profile'
 
 type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string; __offlineDependsOn?: string[] }
 type BulkCreateHabitMutationInput = BulkCreateRequest & { __offlineTempIds?: string[] }
@@ -265,6 +266,24 @@ function checkTodayCompletionAfterLog(
     : null
 }
 
+async function resolveHabitLogDate(
+  queryClient: ReturnType<typeof useQueryClient>,
+  occurrenceTime: Date,
+): Promise<string | undefined> {
+  try {
+    const profile = queryClient.getQueryData<Profile>(profileKeys.detail()) ?? await queryClient.ensureQueryData<Profile>({
+      queryKey: profileKeys.detail(),
+      queryFn: fetchProfile,
+      networkMode: 'always',
+      retry: false,
+    })
+    return getAccountDay(occurrenceTime, profile.timeZone)
+  } catch {
+    /** #1928: without a resolved profile, leave the account day to the server. */
+    return undefined
+  }
+}
+
 export function useLogHabit() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
@@ -277,17 +296,19 @@ export function useLogHabit() {
     LogHabitMutationInput,
     LogHabitSnapshot
   >({
-    mutationFn: ({ habitId, date }) => {
-      const occurrenceDate = date ?? getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+    mutationFn: async ({ habitId, date }) => {
+      const occurrenceTime = new Date()
+      const occurrenceDate = date ?? await resolveHabitLogDate(queryClient, occurrenceTime)
+      const dedupeDate = occurrenceDate ?? getAccountDay(occurrenceTime)
       return performQueuedApiMutation<LogHabitResponse>({
         type: 'logHabit',
         scope: 'habits',
         endpoint: API.habits.log(habitId),
         method: 'POST',
-        payload: { date: occurrenceDate },
+        payload: occurrenceDate ? { date: occurrenceDate } : {},
         entityType: 'habit',
         targetEntityId: habitId,
-        dedupeKey: `habit-toggle:${habitId}:${occurrenceDate}`,
+        dedupeKey: `habit-toggle:${habitId}:${dedupeDate}`,
       })
     },
 
@@ -1433,8 +1454,10 @@ export function useBulkLogHabits(options: { suppressParentSettlement?: boolean }
   >({
     mutationFn: async (input) => {
       const { items: requestedItems, parentPromptContinuation } = normalizeParentPromptBulkInput(input)
-      const occurrenceDate = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
-      const items = requestedItems.map((item) => ({ ...item, date: item.date ?? occurrenceDate }))
+      const occurrenceDate = requestedItems.some((item) => item.date === undefined)
+        ? await resolveHabitLogDate(queryClient, new Date()) : undefined
+      const items = requestedItems.map((item) => item.date === undefined && occurrenceDate
+        ? { ...item, date: occurrenceDate } : item)
       const results: BulkLogResult['results'] = []
       const streakResponses: BulkLogResult[] = []
       const ambiguousIds: string[] = []
