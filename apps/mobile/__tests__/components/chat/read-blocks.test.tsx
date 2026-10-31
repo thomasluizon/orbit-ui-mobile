@@ -1,3 +1,5 @@
+import { astraOfferFixture, offeredReadFixture, offerConversationId } from '@orbit/shared/test-support/astra-offer-fixtures'
+import { useChatStore } from '@/stores/chat-store'
 import { chatNavigationCases } from '@orbit/shared/test-support/chat-navigation-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
@@ -5,7 +7,7 @@ import pt from '@orbit/shared/i18n/pt-BR.json'
 import { act, create } from 'react-test-renderer'
 import type { GeometryTree } from '../../support/safe-area-geometry'
 import { renderedText } from '../../support/react-test-renderer'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDatedHabitListFixture, skippedDatedHabitListFixture, focusedStaleRecapFixture, focusedHistoryFixture, focusedPeriodComparisonFixture, focusedPeriodTotalFixture, focusedPeriodMetricsFixture, focusedReadMetadataFixture } from '@orbit/shared/test-support/chat-fixtures'
 import { gamificationCardCases, gamificationCardFixture } from '@orbit/shared/test-support/gamification-card-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -21,7 +23,7 @@ import { API } from '@orbit/shared/api'
 import { motionDurations } from '@orbit/shared/theme'
 import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
-const state = vi.hoisted(() => ({ isError: false, locale: 'en', actualCopy: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
+const state = vi.hoisted(() => ({ isError: false, aiMessagesPeriod: 'day', locale: 'en', actualCopy: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ i18n: { language: state.locale }, t: (key: string, values?: Record<string, string | number>) => {
   if (!state.actualCopy) return key
   const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, state.locale === 'en' ? en : pt)
@@ -32,15 +34,15 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }), useHabitMetrics: () => ({}) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC' } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC', aiMessagesPeriod: state.aiMessagesPeriod } }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakQuery: { isPending: false } }) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false }) }))
 
 const total = { kind: 'periodTotal' as const, block: focusedPeriodTotalFixture }
-async function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total) {
+async function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, onSendMessage?: Parameters<typeof ChatBlock>[0]['onSendMessage'], interaction?: Parameters<typeof ChatBlock>[0]['interaction']) {
   let tree!: GeometryTree
-  await act(() => { tree = create(<ChatBlock part={part} onActionChipClick={vi.fn()} />) as GeometryTree })
+  await act(() => { tree = create(<ChatBlock part={part} onSendMessage={onSendMessage} interaction={interaction} onActionChipClick={vi.fn()} />) as GeometryTree })
   return tree
 }
 async function press(tree: GeometryTree, label: string) {
@@ -467,4 +469,75 @@ it.each(['en', 'pt-BR'] as const)('lets a live completion supersede the saved sk
   expect(skippedCheck!.props.style).toEqual(loggedCheck!.props.style)
   expect(rows[0]!.findAll(node => String(node.type) === 'Text' && node.props.children === messages.habits.statusDot.skip)).toHaveLength(0)
   await act(() => tree.unmount())
+})
+
+
+describe('read offers on Android', () => {
+  beforeEach(() => { state.aiMessagesPeriod = 'day'; useChatStore.setState({ conversationId: offerConversationId, dismissedOfferKeys: [] }) })
+  afterEach(() => { useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] }) })
+  it.each((['en', 'pt-BR'] as const).flatMap(locale => (['day', 'week'] as const).flatMap(period => [false, true].map(dailyBudgetReached => ({ locale, period, dailyBudgetReached })))))(
+    'shows the existing $period limit copy in $locale with daily budget $dailyBudgetReached', async ({ locale, period, dailyBudgetReached }) => {
+      state.locale = locale; state.actualCopy = true; state.aiMessagesPeriod = period
+      const messages = locale === 'en' ? en : pt
+      const send = vi.fn(async () => {})
+      const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture }, send, { isOnline: true, isSending: false, atMessageLimit: true, dailyBudgetReached, allowance: 5, send: vi.fn() })
+      try {
+        const reason = dailyBudgetReached ? messages.chat.dailyBudgetReached : period === 'week' ? messages.shell.composer.limit.exhaustedWeekly : messages.shell.composer.limit.exhausted
+        expect(renderedText(tree.toJSON())).toContain(reason)
+        const action = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === astraOfferFixture.label)[0]!
+        expect(action.props.accessibilityState).toMatchObject({ disabled: true })
+        expect(send).not.toHaveBeenCalled()
+        await press(tree, messages.chat.offers.dismiss)
+        expect(renderedText(tree.toJSON())).not.toContain(astraOfferFixture.label)
+      } finally { await act(() => tree.unmount()) }
+    })
+  it.each(['preparePreview', 'continueChat'] as const)('sends %s once through the existing chat path', async kind => {
+    const send = vi.fn(async () => {})
+    const tree = await mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...astraOfferFixture, kind } } } }, send)
+    await press(tree, astraOfferFixture.label)
+    expect(send).toHaveBeenCalledExactlyOnceWith(astraOfferFixture.prompt, { selectedOfferKey: astraOfferFixture.offerKey })
+    expect(apiClient).not.toHaveBeenCalled()
+    await act(() => tree.unmount())
+  })
+  it.each(['en', 'pt-BR'] as const)('dismisses the offer in %s through the producer endpoint', async locale => {
+    state.locale = locale; state.actualCopy = true
+    const messages = locale === 'en' ? en : pt
+    vi.mocked(apiClient).mockResolvedValue(null)
+    const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture }, vi.fn())
+    expect(renderedText(tree.toJSON())).toContain(astraOfferFixture.label)
+    await press(tree, messages.chat.offers.dismiss)
+    expect(apiClient).toHaveBeenCalledWith(API.chat.dismissOffers, expect.objectContaining({ body: JSON.stringify({ conversationId: offerConversationId, offerKeys: [astraOfferFixture.offerKey] }) }))
+    expect(renderedText(tree.toJSON())).not.toContain(astraOfferFixture.label)
+    await act(() => tree.unmount())
+  })
+  it('opens a known surface after acknowledging the offer', async () => {
+    vi.mocked(apiClient).mockResolvedValue(null)
+    const tree = await mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...astraOfferFixture, kind: 'openSurface', surface: 'calendar-sync' } } } })
+    await press(tree, astraOfferFixture.label)
+    expect(state.push).toHaveBeenCalledWith('/calendar?import=1')
+    await act(() => tree.unmount())
+  })
+  it('withholds offers without the negotiated conversation', async () => {
+    useChatStore.setState({ conversationId: null })
+    const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture })
+    expect(renderedText(tree.toJSON())).not.toContain(astraOfferFixture.label)
+    await act(() => tree.unmount())
+  })
+})
+
+
+it('keeps dismissal available when the conversation action cannot send', async () => {
+  state.actualCopy = true
+  useChatStore.setState({ conversationId: offerConversationId, dismissedOfferKeys: [] })
+  vi.mocked(apiClient).mockResolvedValue(null)
+  const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture })
+  try {
+    const buttons = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')
+    const action = buttons.find(node => node.props.accessibilityLabel === astraOfferFixture.label)!
+    const dismiss = buttons.find(node => node.props.accessibilityLabel === en.chat.offers.dismiss)!
+    expect(action.props.accessibilityState).toMatchObject({ disabled: true })
+    expect(dismiss.props.accessibilityState).toMatchObject({ disabled: false })
+    await press(tree, en.chat.offers.dismiss)
+    expect(apiClient).toHaveBeenCalledWith(API.chat.dismissOffers, expect.objectContaining({ method: 'POST' }))
+  } finally { await act(() => tree.unmount()); useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] }) }
 })

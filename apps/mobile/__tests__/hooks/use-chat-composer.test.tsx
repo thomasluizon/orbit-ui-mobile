@@ -1120,6 +1120,39 @@ describe('mobile useChatComposer', () => {
     expect(useChatStore.getState().messages[0]?.content).toBe('Voice request')
   })
 
+  it('retains a selected offer through a started event and a concurrency refusal', async () => {
+    useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] })
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValueOnce(stream.response)
+    const composer = await renderComposer()
+    let sending!: Promise<void>
+    await TestRenderer.act(async () => { sending = composer.current.sendMessage('Suggest a reminder', { selectedOfferKey: 'read:reminder' }); await Promise.resolve() })
+    const beforeStarted = [...useChatStore.getState().dismissedOfferKeys]
+    await TestRenderer.act(async () => { stream.enqueue(frame('{"type":"started","turnId":"fe4a8c19-9c97-481a-882d-ed7dea936ec0","state":"running","replayed":false}')); await Promise.resolve() })
+    const afterStarted = [...useChatStore.getState().dismissedOfferKeys]
+    await TestRenderer.act(async () => { stream.enqueue(frame('{"type":"error","status":429,"error":"Too many requests","code":"RATE_LIMITED"}')); stream.close(); await sending })
+    expect({ beforeStarted, afterStarted, afterRefusal: useChatStore.getState().dismissedOfferKeys }).toEqual({ beforeStarted: [], afterStarted: [], afterRefusal: [] })
+    mocks.openChatStream.mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+    await TestRenderer.act(async () => { await composer.current.sendMessage('Suggest a reminder', { selectedOfferKey: 'read:reminder' }) })
+    expect(useChatStore.getState().dismissedOfferKeys).toEqual(['read:reminder'])
+  })
+
+  it('negotiates offers and sends the selected key only with that request', async () => {
+    useChatStore.setState({ conversationId: null, dismissedOfferKeys: ['dismissed'] })
+    mocks.openChatStream.mockImplementation(() => Promise.resolve(sseStreamResponse(finalFrame(makeChatResponse()))))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => { await composer.current.sendMessage('Suggest a reminder', { selectedOfferKey: 'read:reminder' }) })
+    const form = mocks.openChatStream.mock.calls[0]![0] as { get(name: string): string | null }
+    const first = JSON.parse(form.get('clientContext') as string)
+    expect(first).toMatchObject({ supportsProactiveOffers: true, supportsParts: true, supportsPendingOperationChanges: true, selectedOfferKey: 'read:reminder', dismissedOfferKeys: ['dismissed'] })
+    expect(first.conversationId).toBe(useChatStore.getState().conversationId)
+    await TestRenderer.act(async () => { await composer.current.sendMessage('Another question') })
+    const nextForm = mocks.openChatStream.mock.calls[1]![0] as { get(name: string): string | null }
+    const next = JSON.parse(nextForm.get('clientContext') as string)
+    expect(next.conversationId).toBe(first.conversationId)
+    expect(next).not.toHaveProperty('selectedOfferKey')
+  })
+
   it('sends the profile clock preference to Astra', async () => {
     mocks.state.profile = createMockProfile({ uses24HourClock: true })
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
@@ -3489,3 +3522,5 @@ describe('mobile useChatComposer', () => {
   })
 
 })
+
+beforeEach(() => { useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] }) })

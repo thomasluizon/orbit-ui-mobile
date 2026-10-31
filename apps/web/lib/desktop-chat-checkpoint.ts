@@ -8,6 +8,8 @@ const checkpointSchema = z.object({
   expiresAt: z.number(),
   conversationOpen: z.boolean(),
   chat: z.object({
+    conversationId: z.uuid().nullable().default(null),
+    dismissedOfferKeys: z.array(z.string()).default([]),
     messages: z.array(chatMessageSchema.extend({ timestamp: z.coerce.date() })),
     draft: z.string(),
     proactiveEntryId: z.string().nullable(),
@@ -35,7 +37,7 @@ export async function writeDesktopChatCheckpoint(accountId: string, chat: ChatSt
     ...message, imageUrl: await durableImageUrl(message.imageUrl),
   })))
   const checkpoint = { accountId, expiresAt: Date.now() + 5 * 60_000, conversationOpen,
-    chat: { messages, draft: chat.draft, proactiveEntryId: chat.proactiveEntryId,
+    chat: { messages, conversationId: chat.conversationId, dismissedOfferKeys: chat.dismissedOfferKeys, draft: chat.draft, proactiveEntryId: chat.proactiveEntryId,
       proactiveOutcomes: chat.proactiveOutcomes, contextualSuggestion: chat.contextualSuggestion } }
   checkpointSchema.parse(checkpoint)
   const storage = persistent ? localStorage : sessionStorage

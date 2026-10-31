@@ -44,16 +44,18 @@ export function usePendingOperationRevision(
   const items = useMemo(() => operation.items ?? [], [operation.items])
   const editingItem = items.find((item) => item.itemId === editingItemId)
   const canRevise = Boolean(onRevise && operation.previewFingerprint && operation.items)
+  const inFlight = useRef(false)
   const operationRef = useRef(operation)
   useLayoutEffect(() => { operationRef.current = operation }, [operation])
 
-  const revise = useCallback(async (selected: readonly PendingOperationItem[], edits?: { itemId: string; values: Record<string, unknown> }, placement?: PendingOperationPlacementEdit): Promise<boolean> => {
-    if (!onRevise || !operation.previewFingerprint || busy) return false
+  const revise = useCallback(async (selected: readonly PendingOperationItem[], edits?: { itemId: string; values: Record<string, unknown> }, placement?: PendingOperationPlacementEdit, removal?: { itemId: string; fields: readonly string[] }): Promise<boolean> => {
+    if (!onRevise || !operation.previewFingerprint || busy || inFlight.current) return false
+    inFlight.current = true
     const requestFingerprint = operation.previewFingerprint
     setBusy(true)
     setRevisionError(undefined)
     try {
-      const response = await onRevise(operation.id, pendingOperationRevisionRequest(requestFingerprint, selected, edits, placement))
+      const response = await onRevise(operation.id, pendingOperationRevisionRequest(requestFingerprint, selected, edits, placement, removal))
       if (operationRef.current.id !== operation.id || operationRef.current.previewFingerprint !== requestFingerprint) return false
       if (!response.ok) {
         setStaleFingerprint(response.stale ? requestFingerprint : undefined)
@@ -80,12 +82,14 @@ export function usePendingOperationRevision(
       setRevisionError({ fingerprint: requestFingerprint, message: 'invalid', source: 'revision' })
       return false
     } finally {
+      inFlight.current = false
       setBusy(false)
     }
   }, [busy, onRevise, onSettled, operation, synchronized])
 
   const refresh = useCallback(async (): Promise<void> => {
-    if (!onRefresh || busy || !operation.previewFingerprint || refreshUnavailable) return
+    if (!onRefresh || busy || !operation.previewFingerprint || refreshUnavailable || inFlight.current) return
+    inFlight.current = true
     const requestFingerprint = operation.previewFingerprint
     setBusy(true)
     setRevisionError(undefined)
@@ -98,18 +102,19 @@ export function usePendingOperationRevision(
       } else if (response.result.preview) {
         const preview = response.result.preview
         setRevision((current) => current.operation.previewFingerprint === requestFingerprint
-          ? { ...createPendingOperationRevisionState({ ...current.operation, ...preview }),
+          ? { ...createPendingOperationRevisionState({ ...current.operation, ...preview, nextAction: null }),
               sourceFingerprint: current.sourceFingerprint,
               originalItemIds: current.originalItemIds,
               authorizationVersion: current.authorizationVersion + 1 } : current)
         setTitleDrafts({})
         setStaleFingerprint(undefined)
         setRefreshUnavailableFingerprint(undefined)
-        onSettled?.({ operation: { ...operation, ...preview }, editedItemIds: [], originalItemIds: [...synchronized.originalItemIds], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
+        onSettled?.({ operation: { ...operation, ...preview, nextAction: null }, editedItemIds: [], originalItemIds: [...synchronized.originalItemIds], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })
       }
     } catch {
       setRevisionError({ fingerprint: requestFingerprint, message: 'invalid', source: 'refresh' })
     } finally {
+      inFlight.current = false
       setBusy(false)
     }
   }, [busy, onRefresh, onSettled, operation, refreshUnavailable, synchronized.originalItemIds])
@@ -163,6 +168,10 @@ export function usePendingOperationRevision(
       const field = items.find((item) => item.itemId === itemId)?.fields.find((entry) => entry.field === 'sub_habits')
       if (field?.isEditable !== true || !Array.isArray(field.proposedValue) || index < 0 || index >= field.proposedValue.length) return Promise.resolve(false)
       return revise(items, { itemId, values: { sub_habits: field.proposedValue.filter((_, childIndex) => childIndex !== index) } })
+    },
+    removeField: (itemId: string, field: PendingOperationItem['fields'][number]) => {
+      if (field.provenance !== 'suggested' || !field.removal) return Promise.resolve(false)
+      return revise(items, undefined, undefined, { itemId, fields: field.removal.fields?.length ? field.removal.fields : [field.removal.field] })
     },
     rejectItem: (itemId: string) => revise(items.filter((item) => item.itemId !== itemId)),
     rejectAll: () => revise([]),
