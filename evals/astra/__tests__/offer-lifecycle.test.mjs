@@ -65,17 +65,24 @@ function reminderPreview() {
   return pending
 }
 
-it.each(['valid', 'resurrected', 'title-lost', 'different-id'])('retains a rejected group across a later unrelated edit: %s', async (fault) => {
+it.each(['valid', 'resurrected', 'title-lost', 'different-id', 'wrong-executable-emoji', 'missing-emoji', 'leaf-lost-later'])('retains a rejected group across a later unrelated edit: %s', async (fault) => {
   const original = reminderPreview()
   const removed = structuredClone(original)
   removed.items[0].fields.pop()
+  if (fault !== 'missing-emoji') removed.items[0].fields.push({ ...removed.items[0].fields[0],
+    field: 'emoji', newValue: '🍃', proposedValue: fault === 'wrong-executable-emoji' ? '💀' : '🍃', provenance: 'requested' })
   if (fault === 'different-id') removed.id = habitId
   if (fault === 'title-lost') removed.items[0].fields[0].proposedValue = 'Wrong'
   const vars = { ...varsFor(), baselinePreview: [original] }
+  const requests = []
   const api = async (_method, path, body) => {
+    requests.push(path)
     if (path.endsWith('/revise') && body.items.length) {
+      expect(body.items[0].edits).toEqual({ description: 'A short water break.' })
       const revised = structuredClone(removed)
-      revised.items[0].fields.push({ ...revised.items[0].fields[0], field: 'emoji', proposedValue: '🍃', provenance: 'requested' })
+      revised.items[0].fields.push({ ...revised.items[0].fields[0], field: 'description', newValue: 'A short water break.',
+        proposedValue: 'A short water break.', provenance: 'requested' })
+      if (fault === 'leaf-lost-later') revised.items[0].fields.find((field) => field.field === 'emoji').proposedValue = '💀'
       if (fault === 'resurrected') revised.items[0].fields.push(original.items[0].fields[1])
       return { payload: { isSuccess: true, error: null, pendingOperationId: removed.id,
         preview: { items: revised.items, previewFingerprint: 'edited' }, cancelled: false } }
@@ -87,6 +94,7 @@ it.each(['valid', 'resurrected', 'title-lost', 'different-id'])('retains a rejec
   const promise = checkPreviewRejection(api, { composition: { pendingOperations: [removed] } }, vars)
   if (fault === 'valid') await expect(promise).resolves.toBeUndefined()
   else await expect(promise).rejects.toThrow()
+  if (['wrong-executable-emoji', 'missing-emoji'].includes(fault)) expect(requests).toEqual([])
 })
 
 it.each(['valid', 'wrong-key', 'wrong-revision', 'unapproved-write'])('selects, revises, rejects and approves the issued step: %s', async (fault) => {

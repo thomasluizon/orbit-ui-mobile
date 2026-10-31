@@ -2,14 +2,21 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { readOfferState, seedOfferFixture } from '../fixtures/offers.mjs'
 import { seedStaleRetrospective } from '../fixtures/reset.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
+import { writeFileSync } from 'node:fs'
+import { offlineCredentials } from './fixtures/credentials.mjs'
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 const today = '2031-06-10'
 const ids = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222']
 
 function fixture(family, variant = 0, fault) {
+  if (family === 'stored') {
+    const credentials = offlineCredentials()
+    writeFileSync(credentials, JSON.stringify({ ORBIT_EVAL_TOKEN: { refreshToken: 'offline-refresh',
+      habitId: ids[0], secondHabitId: ids[1] } }))
+  }
   vi.useFakeTimers().setSystemTime(new Date('2031-06-10T12:00:00Z'))
-  const profile = { timeZone: 'America/Sao_Paulo', hasGoogleConnection: variant === 1 }
+  const profile = { timeZone: 'America/Sao_Paulo', hasGoogleConnection: variant === 1, weekStartDay: 1 }
   const accountDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: profile.timeZone }).format(new Date())
   const state = { habits: ids.map((id, index) => ({ id, title: ['Water', 'Walk'][index],
     description: null, frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: today, isBadHabit: false,
@@ -46,7 +53,11 @@ function fixture(family, variant = 0, fault) {
       return Response.json({ items: fault === 'goal-items' ? null : items, page: 1, pageSize: 50, totalCount: items.length, totalPages: fault === 'goal-pages' ? 2 : 1 })
     }
     const [resource, id, operation] = path.split('/')
-    if (resource === 'tags') return new Response(null, { status: 204 })
+    if (resource === 'tags') {
+      if (operation === 'assign' && fault !== 'tag') state.habits.find((habit) => habit.id === id).tags
+        = state.tags.filter((tag) => body.tagIds.includes(tag.id))
+      return new Response(null, { status: 204 })
+    }
     // UpdateGoalCommand rejects a deadline before the account's current date.
     if (resource === 'goals' && options.method === 'PUT' && !operation && body.deadline < accountDate()) {
       return new Response(null, { status: 400 })
@@ -180,7 +191,46 @@ it.each(['resolved', 'stored', 'goal-link', 'empty'])('establishes the %s family
   if (family === 'goal-link') expect(test.vars.offerBaseline.goals[0].title).toBe('Daily mobility')
 })
 
-it.each([['goal-behind', 'tracking'], ['goal-behind', 'goal-items'], ['goal-behind', 'goal-pages'], ['stored', 'fields'], ['resolved', 'skip'], ['empty', 'collections']])(
+it.each(['en', 'pt-BR'])('seeds stored metadata on the registry rename target after its sibling in UUID order: %s', async (locale) => {
+  const { test, state, requests } = fixture('stored')
+  const habitId = '33333333-3333-4333-8333-333333333333'
+  state.habits[0].id = habitId
+  for (const habit of state.habits) Object.assign(habit, { reminderEnabled: false, reminderTimes: [] })
+  test.metadata.locale = locale
+  writeFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, JSON.stringify({ ORBIT_EVAL_TOKEN: {
+    refreshToken: 'offline-refresh', habitId, secondHabitId: ids[1],
+  } }))
+  await seedOfferFixture(test, today)
+  expect(test.vars.offerBaseline.habits[0].id).toBe(ids[1])
+  expect(test.vars.offerBaseline.habits.find((habit) => habit.id === habitId)).toMatchObject({
+    emoji: '💧', reminderEnabled: true, reminderTimes: [30], tags: [state.tags[0]],
+    checklistItems: [{ text: locale === 'en' ? 'Prepare water' : 'Preparar água', isChecked: true }],
+  })
+  expect(state.habits.find((habit) => habit.id === ids[1])).toMatchObject({ emoji: null, reminderEnabled: false, reminderTimes: [], checklistItems: [] })
+  expect(requests.filter(({ path, method }) => method === 'PUT').every(({ path }) => path.includes(habitId))).toBe(true)
+})
+
+it('reads the missed fixture week start independently and rejects missing account evidence', async () => {
+  const { test, profile } = fixture('missed')
+  await seedOfferFixture(test, today)
+  expect(test.vars.offerWeekStartDay).toBe(1)
+  delete profile.weekStartDay
+  await expect(seedOfferFixture(test, today)).rejects.toThrow('account week start')
+})
+
+it('rejects stored setup when the rename target is absent from the registry or account', async () => {
+  for (const habitId of [undefined, '33333333-3333-4333-8333-333333333333']) {
+    const { test, requests } = fixture('stored')
+    writeFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, JSON.stringify({ ORBIT_EVAL_TOKEN: {
+      refreshToken: 'offline-refresh', habitId,
+    } }))
+    await expect(seedOfferFixture(test, today)).rejects.toThrow('rename target')
+    expect(requests.every(({ method }) => method === 'GET')).toBe(true)
+    expect(test.vars.offerRequireReadback).toBeUndefined()
+  }
+})
+
+it.each([['goal-behind', 'tracking'], ['goal-behind', 'goal-items'], ['goal-behind', 'goal-pages'], ['stored', 'fields'], ['stored', 'tag'], ['resolved', 'skip'], ['empty', 'collections']])(
   'rejects unproved %s setup with %s response', async (family, fault) => {
     const { test } = fixture(family, 0, fault)
     await expect(seedOfferFixture(test, today)).rejects.toThrow(['goal-items', 'goal-pages'].includes(fault)

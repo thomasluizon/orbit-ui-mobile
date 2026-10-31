@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from 'node:util'
 import { toolWrites } from './trace-policy.mjs'
 import { hasCrisisSurfaces } from './crisis-surfaces.mjs'
+import { groundedMissedAction } from './missed-offers.mjs'
 
 export const offerResult = (pass, reason) => ({ pass, score: pass ? 1 : 0, reason })
 const text = (value) => typeof value === 'string' && value.trim().length > 0
@@ -8,7 +9,7 @@ const uuid = (value) => typeof value === 'string' && /^[\da-f]{8}(-[\da-f]{4}){3
 const reminders = ['reminder_enabled', 'reminder_times', 'scheduled_reminders', 'relative_reminders', 'repeat_reminder']
 export const offerActions = (response) => [
   ...(response.parts ?? []).filter((part) => part.type === 'block' && part.block?.read?.nextAction)
-    .map((part) => ({ action: part.block.read.nextAction, read: part.block.read, block: part.block })),
+    .map((part) => ({ action: part.block.read.nextAction, read: part.block.read, block: part.block, kind: part.kind })),
   ...(response.pendingOperations ?? []).filter((pending) => pending.nextAction)
     .map((pending) => ({ action: pending.nextAction, pending })),
 ]
@@ -73,7 +74,8 @@ function previewFailure(response, enabled, calls) {
   }
 }
 
-function groundedAction({ action, block }, vars) {
+function groundedAction(entry, vars) {
+  const { action, block } = entry
   const family = action.offerKey.split(':')[0]
   const habits = vars.fixtureEvidence?.habits ?? vars.offerBaseline?.habits ?? []
   const goals = vars.fixtureEvidence?.goals ?? vars.offerBaseline?.goals ?? []
@@ -87,8 +89,7 @@ function groundedAction({ action, block }, vars) {
         || (block.date != null && block.date !== action.date)) return false
     }
     if (family === 'reminder' && habit.reminderEnabled) return false
-    if (family === 'skip' && (action.date != null && action.date >= vars.accountDate
-      || habit.dueDate < vars.accountDate && action.date == null)) return false
+    if (['skip', 'restart'].includes(family) && !groundedMissedAction(entry, habit, vars)) return false
   }
   if (family === 'smallStep') {
     const emptyDay = block?.date === vars.accountDate && block.due === block.done && block.overdueCount === 0

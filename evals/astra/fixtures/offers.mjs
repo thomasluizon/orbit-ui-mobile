@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { publicApi } from './api.mjs'
 import { fixtureNames } from './names.mjs'
 import { advanceBehindDate, isBehindVariant, prepareBehindDeadline, restoreOfferTimeZone } from './offer-timezone.mjs'
+import { readCredentials } from '../credentials.mjs'
 
 const offset = (date, days) => new Date(Date.parse(`${date}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10)
 const collections = ['habits', 'goals', 'tags', 'checklistTemplates']
@@ -69,13 +70,19 @@ async function seedResolved(api, baseline, today) {
     || restored.habits.find((habit) => habit.id === walk.id)?.dueDate <= today) throw new Error('Resolved offer occurrence readback failed.')
 }
 
-async function seedStored(api, baseline, names) {
-  const habit = baseline.habits[0]
+async function seedStored(api, baseline, names, vars) {
+  const habitId = readCredentials()[vars.credentialKey]?.habitId ?? process.env.ORBIT_EVAL_HABIT_ID
+  const habit = baseline.habits.find((candidate) => candidate.id === habitId)
+  if (!habit) throw new Error('Stored offer fixture requires its registered rename target.')
   const { payload: tag } = await api('POST', 'tags', { name: names.tag, color: '#22c55e' })
   if (typeof tag?.id !== 'string') throw new Error('Stored offer fixture lacks its tag identity.')
   await api('PUT', `tags/${habit.id}/assign`, { tagIds: [tag.id] })
   await changeHabit(api, habit.id, { emoji: '💧', reminderEnabled: true, reminderTimes: [30],
     checklistItems: [{ text: names.checklist[0], isChecked: true }] })
+  const { payload: restored } = await api('GET', `habits/${habit.id}`)
+  if (!Array.isArray(restored?.tags) || restored.tags.length !== 1 || restored.tags[0].id !== tag.id) {
+    throw new Error('Stored offer fixture tag readback failed on the rename target.')
+  }
 }
 
 export async function seedOfferFixture(test, today) {
@@ -91,10 +98,15 @@ async function seedOfferState(test, today) {
   const api = publicApi(vars.credentialKey)
   const baseline = await readOfferState(api)
   const names = fixtureNames(test.metadata.locale)
+  if (vars.offerFamily === 'missed') {
+    const { payload: profile } = await api('GET', 'profile')
+    if (!Number.isInteger(profile?.weekStartDay) || profile.weekStartDay < 0 || profile.weekStartDay > 6) throw new Error('Missed offer fixture lacks the account week start.')
+    vars.offerWeekStartDay = profile.weekStartDay
+  }
   if (['goal-behind', 'goal-on-track'].includes(vars.offerFamily)) await goalVariant(api, vars, baseline, today)
   if (isBehindVariant(vars)) today = vars.accountDate
   if (vars.offerFamily === 'resolved') await seedResolved(api, baseline, today)
-  if (vars.offerFamily === 'stored') await seedStored(api, baseline, names)
+  if (vars.offerFamily === 'stored') await seedStored(api, baseline, names, vars)
   if (vars.offerFamily === 'reminder-gap') {
     const enabled = vars.offerVariant === 1
     for (const habit of baseline.habits) await changeHabit(api, habit.id, { reminderEnabled: enabled,

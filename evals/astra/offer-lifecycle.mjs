@@ -69,13 +69,17 @@ export async function checkPreviewRejection(api, output, vars) {
   const removed = original.items.flatMap((item) => item.fields.filter((field) => field.provenance === 'suggested'
     && /(?:reminder|scheduled_reminders)/u.test(field.field)).map((field) => `${item.itemId}:${field.field}`))
   const edited = pending.items.map((item) => `${item.itemId}:emoji`)
+  if (!original.items.every((item) => pending.items.find((candidate) => candidate.itemId === item.itemId)
+    ?.fields.some((field) => field.field === 'emoji' && field.proposedValue === '🍃'))) {
+    throw new Error('Suggestion rejection did not apply the requested leaf emoji to the intended item.')
+  }
   if (!removed.length || !preservesOfferFields(original, pending, removed, edited)
     || pending.items.some((item) => item.fields.some((field) => removed.includes(`${item.itemId}:${field.field}`) && field.provenance === 'suggested'))) {
     throw new Error('Suggested reminder removal lost requested or stored fields.')
   }
   const previous = pending
-  pending = await reviseOfferPreview(api, pending, pending.items.map((item) => ({ itemId: item.itemId, edits: { emoji: '🍃' } })), vars.clientContext)
-  if (!preservesOfferFields(previous, pending, [], edited)
+  pending = await reviseOfferPreview(api, pending, pending.items.map((item) => ({ itemId: item.itemId, edits: { description: 'A short water break.' } })), vars.clientContext)
+  if (!preservesOfferFields(previous, pending, [], pending.items.map((item) => `${item.itemId}:description`))
     || pending.items.some((item) => item.fields.some((field) => removed.includes(`${item.itemId}:${field.field}`) && field.provenance === 'suggested'))) throw new Error('Unrelated revision regenerated rejected suggestions.')
   await rejectOfferPreview(api, pending, vars)
 }
