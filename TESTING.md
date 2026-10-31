@@ -181,8 +181,9 @@ with a hard monthly limit. An eval account without that key fails closed and nev
 back to the production key. The API enforces `AI__EvalDailyBudgetUsd`, a hard shared ceiling
 of 0.50 USD per UTC day per environment for all eval accounts together. The per-account
 `astra_eval_unmetered` flag does not bypass this shared ceiling.
-A quota or ceiling stop ends the run. Never resume it on another account, key, environment
-or day, reset a counter, raise a ceiling or rotate accounts to finish. No paid-key probe
+A ceiling stop ends that UTC day's window; the gate continues with its remaining cases in the
+next UTC day's window (`### Daily windows and combined report`). Never continue it on another
+account, key or environment, reset a counter, raise a ceiling or rotate accounts to finish. No paid-key probe
 runs without a written cost estimate on the owning ticket first; record the actual cost
 on that ticket afterward.
 
@@ -535,48 +536,60 @@ its previous state after the run. Header alone or flag alone cannot enable traci
 | `budget-exhausted` | Daily message allowance exhausted through at most five ordinary requests, independently verified from profile; an unavailable precondition stays incomplete |
 | `hoje-next-step` | UTC profile in the case language, English titles in both locales: Meals with Breakfast logged today, then pending Lunch at 12:00, Afternoon snack at 16:00 and Dinner at 19:00; Water with six pending Water - 710ml children. Registered root IDs are preserved; ordered children, times, parent links and completion history require independent readback |
 
-### Gate subsets and combined report
+### Daily windows and combined report
 
-Read each account's profile allowance before the app-launch gate. The Free message allowance
-uses the account's local date; fixtures configure UTC. Its fresh-window precondition requires
-zero messages used. An unavailable precondition leaves the case incomplete; it does not authorize
-waiting for another day or changing accounts to finish.
+The API resets the Free message allowance at midnight in the account's time zone, using its
+local date (`UserDateService.GetUserTodayAsync`, `User.GetAiMessagesUsedForQuota` and
+`AiAllowanceReset.GetResetsAtUtc` in orbit-api). Fixtures configure UTC, so their Free window
+starts at 00:00 UTC. The fresh-window check reads the profile before timezone setup and still
+requires zero messages used; if the account's time zone has changed, use its current profile
+`aiMessagesResetsAt` before scheduling `edge-free-limit-en`. An unavailable precondition leaves
+the case incomplete until that account's next daily window.
 
 The main account's `astra_eval_unmetered` flag bypasses only its per-account message, model-call
 and spend ceilings while preserving usage records. All accounts share the hard eval ceiling.
 Ordinary cases record three messages; refine, medical correction and starting-step follow-up cases
 record six, including setup turns. Leave `repeat: 3`, serial execution, no retries and caching disabled.
-Use the same configured accounts while their required plan access remains active.
+Keep each case's three attempts in one window. Use the same configured accounts while their
+required plan access remains active; do not buy quota or add accounts.
 
-Within the single app-launch gate, select case IDs with the installed promptfoo metadata filter
-and preserve each sanitized subset summary before another invocation overwrites it:
+The hard eval ceiling is per UTC day, and one full gate costs more than one day's ceiling, so the
+one app-launch gate runs as daily windows. When the ceiling stops a run, that UTC day's window
+ends; the gate continues in the next UTC day's window with only the cases that have no complete
+result yet. A later window never reruns a case that already has a complete result, except the
+single permitted rerun of a failing case.
+
+From `evals/astra`, select case IDs with the installed promptfoo metadata filter and preserve each
+sanitized window summary before another run overwrites it:
 
 ```sh
 npx promptfoo eval --filter-metadata 'id=single-read-en,single-create-pt'
-mkdir -p reports/subset-01
-cp reports/summary.json reports/subset-01/summary.json
-cp reports/summary.md reports/subset-01/summary.md
+mkdir -p reports/window-01
+cp reports/summary.json reports/window-01/summary.json
+cp reports/summary.md reports/window-01/summary.md
 ```
 
 `--filter-metadata` uses substring alternatives separated by commas, not an exact-match regular
 expression; use full IDs and check the resulting case table. `--filter-pattern` matches case
-descriptions, not IDs. Each selected case still runs three times. Subsets partition the launch
-gate; they never authorize another live run or continuation after a quota or ceiling stop.
-Composition analytics use two rolling three-day periods ending yesterday, inside the public log window.
+descriptions, not IDs. Each selected case still runs three times. Select disjoint case sets in
+later windows and save them as `window-02`, `window-03` and so on. Reset `single-read-en` before
+leaving an account idle across multiple days: public log undo accepts only the past seven days,
+and positive history beyond that window cannot be removed while preserving IDs. Composition
+analytics use two rolling three-day periods ending yesterday, inside this public write window.
 
-Merge the sanitized subset files against the complete checked-in corpus:
+Merge all sanitized window files against the complete checked-in corpus:
 
 ```sh
-node merge-reports.mjs reports/subset-01/summary.json reports/subset-02/summary.json
+node merge-reports.mjs reports/window-01/summary.json reports/window-02/summary.json
 ```
 
-Supply every actual subset explicitly. The command writes `reports/summary.md` and `summary.json`,
+Supply every actual window explicitly. The command writes `reports/summary.md` and `summary.json`,
 returns nonzero for failure or incompleteness, and reports every family and locale. Missing cases
 remain incomplete. Overlapping IDs, foreign IDs, mismatched labels, wrong k or impossible counts
 are rejected. Preserve the initial failure evidence separately. For each failing case's single
 permitted rerun, explicitly omit its previous summary from the merge input. Missing or skipped
-evidence cannot become a pass through merging. A subset pass is not full-corpus acceptance.
-Keep one settled API/prompt/tool surface across the launch gate. A changed surface is validated
+evidence cannot become a pass through merging. A window pass is not full-corpus acceptance.
+Keep one settled API/prompt/tool surface across the launch gate's windows. A changed surface is validated
 offline in fix rounds and never authorizes an additional live run.
 
 For the manual Action, create the **astra-eval** environment in GitHub
@@ -591,14 +604,14 @@ Configure `ORBIT_EVAL_BASE_URL`, `ORBIT_EVAL_GRADER`, and `ORBIT_EVAL_SECRETS_TO
 **astra-eval > Environment secrets**. The last key needs this repository's Environments write
 permission to update an environment secret; repository Actions secrets write permission alone
 is insufficient. `OPENAI_API_KEY` is only needed if explicitly selecting an OpenAI API grader.
-Dispatch **Actions > Astra eval > Run workflow** with a comma-separated `case_ids` subset for the
-app-launch gate. It creates a mode-600 temporary credentials file, persists only successful token
+Dispatch **Actions > Astra eval > Run workflow** with a comma-separated `case_ids` set for the
+day's window. It creates a mode-600 temporary credentials file, persists only successful token
 rotations when no refresh failed, uploads sanitized summaries, then deletes local credentials and
 markers. Persistence still runs after unrelated eval failures. A failed or interrupted refresh or
 secret write requires session recovery before any permitted dispatch; never reuse the stale secret.
-Do not run local and Action jobs against the same sessions. Download each subset artifact and merge
+Do not run local and Action jobs against the same sessions. Download each window artifact and merge
 locally as above. Successful resets, environment-secret persistence and a permitted subsequent
-subset using the rotated session prove configuration took effect. There is no automatic dispatch.
+window using the rotated session prove configuration took effect. There is no automatic dispatch.
 
 ### Codex rubric grader
 
@@ -662,7 +675,7 @@ and `other`. Missing, malformed or mismatched timing fails the budget. Exclusive
 sum to the turn total within 1 ms for floating point rounding. Repeated scopes, including a second
 model call, are summed by name within each turn before taking the three-run phase medians.
 The reports show total and per-phase medians in milliseconds; phase medians need not sum to the
-total median. Merged subsets preserve and validate these results against the current budget;
+total median. Merged windows preserve and validate these results against the current budget;
 older read summaries without latency evidence remain incomplete unless the permitted failing-case
 rerun supplies it. No fixture setup or grader time enters the API turn measurement.
 
@@ -682,7 +695,7 @@ The file has mode 600 and survives a failed or incomplete gate even when promptf
 its requested output file. Summaries update after each attempt too; a later fixture or refresh failure
 preserves completed attempts and leaves unrun cases incomplete. Starting a run clears the prior reports.
 Reasons can contain private answer details: keep this file local and
-do not upload it. Copy it into each private subset directory before the next run replaces it.
+do not upload it. Copy it into each private window directory before the next run replaces it.
 Each family and locale also receives a pass^3 aggregate; any failing or incomplete case prevents its pass. The Action
 publishes these summaries and a job summary. It does not upload raw responses or a promptfoo
 database. Sharing and database writes are disabled in the configuration. For local runs, set

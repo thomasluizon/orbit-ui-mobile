@@ -20,8 +20,9 @@ Eval traffic uses `AI__EvalApiKey`, the separate OpenAI key for the `Orbit Eval`
 hard monthly limit. An eval account without that key fails closed and never falls back to the
 production key. The API enforces `AI__EvalDailyBudgetUsd`, a hard shared ceiling of 0.50 USD per
 UTC day per environment for all eval accounts together, including accounts with
-`astra_eval_unmetered`. A quota or ceiling stop ends the run. Never resume it on another account,
-key, environment or day, reset a counter, raise a ceiling or rotate accounts to finish.
+`astra_eval_unmetered`. A ceiling stop ends that UTC day's window; the gate continues with its remaining cases in the
+next UTC day's window (`TESTING.md` `### Daily windows and combined report`). Never continue it
+on another account, key or environment, reset a counter, raise a ceiling or rotate accounts to finish.
 No paid-key probe runs without a written cost estimate on the owning ticket first; record the
 actual cost there afterward.
 For the app-launch gate, use the configured disposable eval accounts and their fixture reset
