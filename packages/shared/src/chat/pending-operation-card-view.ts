@@ -408,7 +408,7 @@ function offeredFieldRows<Node>(item: PreviewItem, card: PendingOperationCardAct
   if (card.status != null) return []
   const revision = card.revision
   return item.fields.filter(field => field.provenance === 'suggested').map(field => {
-    const name = labels.fieldLabels[field.field.split('/').at(-1)!] ?? field.field
+    const name = labels.fieldLabels[field.field.split('/').at(-1)!]!
     const disabled = card.busy || revision?.busy === true || revision?.stale === true
     return {
       id: `${item.itemId}:offer:${field.field}`, label: field.field.includes('/') ? `${field.entityName}: ${name}` : name,

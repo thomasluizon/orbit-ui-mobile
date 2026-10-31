@@ -507,6 +507,9 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       createMessageId: () => crypto.randomUUID(), stoppedMessage: t('shell.composer.queue.stopped'),
       clearActivity: () => { activeStepsRef.current = []; setActiveSteps([]) }, abort: () => controller.abort(),
     })
+    const acceptSelectedOffer = () => {
+      if (ownsAccount() && attempted.selectedOfferKey) useChatStore.getState().dismissOffer(attempted.selectedOfferKey)
+    }
     const { isCancelled, isHidden, stop } = reply
     stopReply.current = stop
     const ensureDraftMessage = () => {
@@ -540,10 +543,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
             useThrottleStore.getState().show(response.status, errorBody)
             return { kind: 'httpError', status: response.status, error: errorBody?.error ?? t('chat.sendError'), code: errorBody?.code ?? errorBody?.errorCode ?? null }
           }
-          if (ownsAccount()) {
-            if (attempted.selectedOfferKey) useChatStore.getState().dismissOffer(attempted.selectedOfferKey)
-            onAccepted?.()
-          }
+          if (ownsAccount()) onAccepted?.()
           return { kind: 'stream', chunks: streamTextChunks(response.body, armIdleTimer) }
         },
         callbacks: {
@@ -571,6 +571,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       if (isHidden() && outcome.kind !== 'final') return { kind: 'cancelled' }
 
       if (outcome.kind === 'final') {
+        acceptSelectedOffer()
         await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal.completion, attempted.messageCost, reply)
         finalReceived = reply.canComplete()
         return finalReceived ? { kind: 'final' } : { kind: 'cancelled' }

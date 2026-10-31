@@ -121,12 +121,12 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
       {item.fields.filter((field) => isPendingOperationEditableField(field)
         && !(item.placement?.selected === 'new_parent' && field.field === 'parent_habit_id')).map((field) => {
         const fieldName = field.field.split('/').at(-1)!
-        const label = labels.fieldLabels[fieldName] ?? fieldName
+        const label = labels.fieldLabels[fieldName]!
         const choices = item.fieldOptions?.find((entry) => entry.field === field.field && entry.field === 'parent_habit_id')
         if (choices) return <ParentChoice key={field.field} itemId={item.itemId} itemName={item.entityName} field={choices} labels={labels} disabled={busy}
           selectedValue={draft[field.field] === '' ? null : draft[field.field]} onSelect={(value) => { if (value === null || typeof value === 'string') onChange(field.field, value ?? '') }} />
         if (field.field === 'checklist_items' || field.field === 'reminder_times' || field.field === 'scheduled_reminders') return <ListFieldEditor key={field.field} field={field.field} value={draft[field.field] ?? '[]'} labels={labels} busy={busy} error={error} onChange={(value) => onChange(field.field, value)} />
-        if (field.proposedValue !== null && typeof field.proposedValue === 'object' && fieldName !== 'days') return <StructuredPreviewField key={field.field} field={field.field} value={draft[field.field] ?? JSON.stringify(field.proposedValue)} labels={labels} busy={busy} error={error} onChange={value => onChange(field.field, value)} />
+        if (field.proposedValue !== null && typeof field.proposedValue === 'object' && fieldName !== 'days') return <StructuredPreviewField key={field.field} field={field.field} proposedValue={field.proposedValue} value={draft[field.field] ?? JSON.stringify(field.proposedValue)} labels={labels} busy={busy} error={error} onChange={value => onChange(field.field, value)} />
         if (field.valueType === 'boolean') return <Switch key={field.field} label={label} checked={draft[field.field] === 'true'} disabled={busy} onChange={(value) => onChange(field.field, String(value))} />
         if (fieldName === 'days') {
           const days = (draft[field.field] ?? '').split(',').map((day) => day.trim())

@@ -1,3 +1,4 @@
+import { makeOfferedPreview } from '../test-support/astra-offer-fixtures'
 import { makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
@@ -1149,4 +1150,29 @@ describe('typed preview rows', () => {
       ['1', 'General habits', undefined],
     ])
   })
+})
+
+it('keeps each offered row editable and independently removable before approval', () => {
+  const operation = makeOfferedPreview()
+  const card = createCard()
+  const removeField = vi.fn()
+  card.revision = {
+    operation, canRevise: true, items: operation.items!, editingItem: undefined,
+    draft: {}, editedItemIds: [], busy: false, stale: false, canRefresh: false,
+    refresh: vi.fn(), rejected: false, error: undefined,
+    setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(),
+    saveEdit: vi.fn(), rejectItem: vi.fn(), rejectAll: vi.fn(), removeField,
+  }
+  const localized = buildPendingOperationCardLabels(operation, translateEnglish, value => value)
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+  const offered = record.frame!.items.filter(item => item.id.includes(':offer:'))
+  expect(offered).toHaveLength(2)
+  expect(offered.every(item => item.proposed && item.indented)).toBe(true)
+  const label = localized.fieldLabels.repeat_reminder!
+  record.buttons.find(button => button.label === `${localized.edit} ${label}`)!.onClick()
+  expect(card.revision.startEdit).toHaveBeenCalledWith('0')
+  record.buttons.find(button => button.label === `${localized.remove} ${label}`)!.onClick()
+  expect(removeField).toHaveBeenCalledWith('0', operation.items![0]!.fields[2])
+  expect(card.execute).not.toHaveBeenCalled()
 })

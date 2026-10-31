@@ -927,6 +927,23 @@ describe('web useChatComposer streaming send', () => {
     }
   })
 
+  it('retains a selected offer through a started event and a concurrency refusal', async () => {
+    useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] })
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+    let sending!: Promise<void>
+    await act(async () => { sending = result.current.sendMessage('Suggest a reminder', { selectedOfferKey: 'read:reminder' }); await Promise.resolve() })
+    const beforeStarted = [...useChatStore.getState().dismissedOfferKeys]
+    await act(async () => { stream.enqueue(frame('{"type":"started","turnId":"fe4a8c19-9c97-481a-882d-ed7dea936ec0","state":"running","replayed":false}')); await Promise.resolve() })
+    const afterStarted = [...useChatStore.getState().dismissedOfferKeys]
+    await act(async () => { stream.enqueue(frame('{"type":"error","status":429,"error":"Too many requests","code":"RATE_LIMITED"}')); stream.close(); await sending })
+    expect({ beforeStarted, afterStarted, afterRefusal: useChatStore.getState().dismissedOfferKeys }).toEqual({ beforeStarted: [], afterStarted: [], afterRefusal: [] })
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    await act(async () => { await result.current.sendMessage('Suggest a reminder', { selectedOfferKey: 'read:reminder' }) })
+    expect(useChatStore.getState().dismissedOfferKeys).toEqual(['read:reminder'])
+  })
+
   it('negotiates offers and sends the selected key only with that request', async () => {
     useChatStore.setState({ conversationId: null, dismissedOfferKeys: ['dismissed'] })
     mocks.fetch.mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse()))))

@@ -1,4 +1,4 @@
-import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
+import { SMALL_PILL_VISIBLE_MIN, SECONDARY_TEXT_SIZE } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
 import { StyleSheet, Text, View } from 'react-native'
 import type { AstraOfferProps } from '@orbit/shared/chat'
@@ -26,7 +26,7 @@ function ActiveAstraOffer(props: Readonly<AstraOfferProps>) {
       <PillButton size="sm" variant="ghost" minimumHeight={SMALL_PILL_VISIBLE_MIN} retainLeadingIcon leadingIcon={props.action.kind === 'openSurface' ? undefined : <AstraGlyph size={16} />} loading={offer.pending} accessibleName={props.action.label} disabled={offer.disabled} onClick={() => void offer.act()}>{props.action.label}</PillButton>
       <IconButton label={t('chat.offers.dismiss')} disabled={offer.dismissDisabled} onClick={() => void offer.dismiss()}><X size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     </View>
-    <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: 14 }}>{offer.failed ? t('chat.offers.failed') : offer.reason ? t(offer.reason) : ''}</Text>
+    <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontSize: SECONDARY_TEXT_SIZE }}>{offer.failed ? t('chat.offers.failed') : offer.reason ? t(offer.reason) : ''}</Text>
   </View> : null}<ReferralDrawer open={offer.referralsOpen} onClose={offer.closeReferrals} /></>
 }
 

@@ -1,5 +1,6 @@
+import { SECONDARY_TEXT_SIZE } from '@orbit/shared/theme'
 import { afterEach, expect, it, vi } from 'vitest'
-import { StyleSheet, View, type ViewStyle } from 'react-native'
+import { StyleSheet, View, type ViewStyle, type TextStyle } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { AstraOffer } from '@/components/chat/astra-offer'
 import { useChatStore } from '@/stores/chat-store'
@@ -27,6 +28,8 @@ it.each([320, 360, 384, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap
   let tree!: ReturnType<typeof create> & { toJSON: () => Host }
   await act(() => { tree = create(<View style={{ padding: 32 }}><AstraOffer action={{ ...astraOfferFixture, kind, surface: 'ai-settings', label }} onSendMessage={vi.fn()} /></View>) as typeof tree })
   try {
+    const status = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')[0]!
+    expect(StyleSheet.flatten(status.props.style as TextStyle).fontSize).toBe(SECONDARY_TEXT_SIZE)
     const geometry = measureProfileRow(measurable(tree.toJSON()), width, 1)
     const text = geometry.texts.find(entry => entry.label === label)!
     expect(text).toBeDefined()

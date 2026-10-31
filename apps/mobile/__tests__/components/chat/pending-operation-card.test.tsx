@@ -1644,6 +1644,35 @@ it.each(['en', 'pt-BR'])('shows the producer repeat reminder text in the preview
 
 describe('offered preview fields on Android', () => {
   beforeEach(() => { visibleLocale.actual = true; visibleLocale.language = 'en' })
+  it('clears optional active hours through their time controls before saving', async () => {
+    const operation = makeOfferedPreview()
+    const onRevise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
+    const { tree, handlers } = renderCard(operation, onRevise)
+    for (const field of ['active_start', 'active_end'] as const) {
+      if (field === 'active_start') await TestRenderer.act(() => press(tree, 'Edit Repeat reminder').props.onPress())
+      await TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: en.habits.form[field === 'active_start' ? 'repeatActiveStart' : 'repeatActiveEnd'] }).props.onChangeText(''))
+    }
+    await TestRenderer.act(() => press(tree, en.common.save).props.onPress())
+    expect(onRevise).toHaveBeenCalledWith(operation.id, { previewFingerprint: 'preview-one', items: [{ itemId: '0', edits: { repeat_reminder: { interval_minutes: 120 } } }] })
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    await TestRenderer.act(() => tree.unmount())
+  })
+  it('keeps a relative reminder numeric after clearing the input', async () => {
+    const operation = makeOfferedPreview()
+    const field = { ...operation.items![0]!.fields[2]!, field: 'relative_reminders', proposedValue: [{ minutes_before: 15 }] }
+    operation.items![0]!.fields = [field]
+    const onRevise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
+    const { tree, handlers } = renderCard(operation, onRevise)
+    await TestRenderer.act(() => press(tree, `Edit ${en.habits.form.reminder}`).props.onPress())
+    const input = () => tree.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.keyboardType === 'number-pad')[0]!
+    await TestRenderer.act(() => input().props.onChangeText(''))
+    expect(input()).toBeDefined()
+    await TestRenderer.act(() => input().props.onChangeText('30'))
+    await TestRenderer.act(() => press(tree, en.common.save).props.onPress())
+    expect(onRevise).toHaveBeenCalledWith(operation.id, { previewFingerprint: 'preview-one', items: [{ itemId: '0', edits: { relative_reminders: [{ minutes_before: 30 }] } }] })
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    await TestRenderer.act(() => tree.unmount())
+  })
   it('edits the typed repeat reminder without executing the operation', async () => {
     const operation = makeOfferedPreview()
     const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: { changes: operation.changes, items: operation.items, changeTargetCount: 1, previewFingerprint: 'preview-two' } } })

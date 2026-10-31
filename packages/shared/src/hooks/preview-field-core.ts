@@ -5,20 +5,20 @@ export interface PreviewFieldInput {
   kind: 'text' | 'number' | 'boolean' | 'time'
 }
 
-export function previewFieldInputs(value: string, field: string): PreviewFieldInput[] {
+export function previewFieldInputs(value: string, field: string, proposedValue?: unknown): PreviewFieldInput[] {
   const parsed: unknown = JSON.parse(value)
   const root = field.split('/').at(-1)!
   const source = root === 'repeat_reminder' && typeof parsed === 'object' && parsed !== null
     ? { active_start: '', active_end: '', start_at_utc: '', ...parsed } : parsed
-  function visit(current: unknown, path: (string | number)[], name: string): PreviewFieldInput[] {
-    if (Array.isArray(current)) return current.flatMap((entry, index) => visit(entry, [...path, index], `${name} ${index + 1}`))
+  function visit(current: unknown, proposed: unknown, path: (string | number)[], name: string): PreviewFieldInput[] {
+    if (Array.isArray(current)) return current.flatMap((entry, index) => visit(entry, Array.isArray(proposed) ? proposed[index] : undefined, [...path, index], name))
     if (current !== null && typeof current === 'object') return Object.entries(current)
-      .flatMap(([key, entry]) => visit(entry, [...path, key], key))
+      .flatMap(([key, entry]) => visit(entry, typeof proposed === 'object' && proposed !== null ? (proposed as Record<string, unknown>)[key] : undefined, [...path, key], key))
     return [{ path, name, value: typeof current === 'boolean' ? current : typeof current === 'string' || typeof current === 'number' ? String(current) : '',
-      kind: typeof current === 'boolean' ? 'boolean' : typeof current === 'number' || name === 'interval_minutes' ? 'number'
-        : ['active_start', 'active_end', 'time'].includes(name) ? 'time' : 'text' }]
+      kind: typeof proposed === 'boolean' ? 'boolean' : typeof proposed === 'number' ? 'number'
+        : ['active_start', 'active_end', 'time', 'due_time', 'due_end_time'].includes(name) ? 'time' : 'text' }]
   }
-  return visit(source, [], root)
+  return visit(source, proposedValue === undefined ? parsed : proposedValue, [], root)
 }
 
 export function changePreviewFieldInput(value: string, input: PreviewFieldInput, next: string | boolean): string {
@@ -34,4 +34,10 @@ export function changePreviewFieldInput(value: string, input: PreviewFieldInput,
     return updated
   }
   return JSON.stringify(replace(parsed, input.path))
+}
+
+export function previewFieldInputLabel(input: PreviewFieldInput, labels: Readonly<Record<string, string>>): string {
+  const position = input.path.filter(segment => typeof segment === 'number').at(-1)
+  const name = labels[input.name]!
+  return position === undefined ? name : `${name} ${position + 1}`
 }
