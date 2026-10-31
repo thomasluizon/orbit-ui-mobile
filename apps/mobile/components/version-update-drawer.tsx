@@ -88,6 +88,7 @@ interface VersionUpdateSheetProps {
   styles: ReturnType<typeof createStyles>
   onAction: () => void
   onLater: () => void
+  onDidPresent?: () => void
 }
 
 function VersionUpdateSheet({
@@ -98,13 +99,14 @@ function VersionUpdateSheet({
   styles,
   onAction,
   onLater,
+  onDidPresent,
 }: Readonly<VersionUpdateSheetProps>) {
   const { t } = useTranslation()
   const { sheetRef, closeSheet } = useSheetHost()
   if (!open) return null
 
   return (
-    <Sheet ref={sheetRef} open onClose={onLater} title={title} actions={
+    <Sheet ref={sheetRef} open onClose={onLater} onDidPresent={onDidPresent} title={title} actions={
       <View style={styles.buttons}><ActionRow>
         <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('versionUpdate.laterCta')}</PillButton>
         <PillButton size="sm" onClick={() => closeSheet(onAction)}>{actionLabel}</PillButton>
@@ -171,18 +173,17 @@ export function VersionUpdateDrawer() {
   const handleAndroidLater = () => setAndroidRestartDismissed(true)
   const androidReady = androidDownloaded || androidUpdateReady
   const androidSoftOpen = updateAvailable && !forceUpdate && snoozeLoaded && !isSnoozed && !dismissedForSession && !androidRequested
-  const androidSheet = androidReady ? (androidRestartDismissed ? null : 'ready') : (androidSoftOpen ? 'available' : null)
   const offeredCode = androidCheck && 'versionCode' in androidCheck.other ? androidCheck.other.versionCode : null
-  useEffect(() => {
-    if (Platform.OS !== 'android' || !androidSheet) return
+  const handleAndroidPresented = useCallback(() => {
     captureAndroidUpdateSheetShown({
-      sheet: androidSheet, available_version_code: offeredCode, installed_version_code: Number(nativeBuildVersion),
+      sheet: androidReady ? 'ready' : 'available', available_version_code: offeredCode, installed_version_code: Number(nativeBuildVersion),
     })
-  }, [androidSheet, offeredCode])
+  }, [androidReady, offeredCode])
 
   if (Platform.OS === 'android') {
     return <AndroidVersionUpdateSheet ready={androidReady} restartDismissed={androidRestartDismissed}
       softOpen={androidSoftOpen}
+      onDidPresent={handleAndroidPresented}
       styles={styles} install={installAndroidUpdate} request={() => setAndroidRequested(true)}
       later={snoozeUpdate} restartLater={handleAndroidLater} />
   }
@@ -202,13 +203,15 @@ export function VersionUpdateDrawer() {
   )
 }
 
-function AndroidVersionUpdateSheet({ ready, softOpen, restartDismissed, styles, install, request, later, restartLater }: Readonly<{
+function AndroidVersionUpdateSheet({ ready, softOpen, restartDismissed, styles, install, request, later, restartLater, onDidPresent }: Readonly<{
   ready: boolean; softOpen: boolean; restartDismissed: boolean
   styles: ReturnType<typeof createStyles>
   install: () => void; request: () => void; later: () => void; restartLater: () => void
+  onDidPresent: () => void
 }>) {
   const { t } = useTranslation()
   return <VersionUpdateSheet open={ready ? !restartDismissed : softOpen}
+    onDidPresent={onDidPresent}
     title={t(ready ? 'versionUpdate.readyTitle' : 'versionUpdate.title')}
     description={t(ready ? 'versionUpdate.readyDescription' : 'versionUpdate.description')}
     actionLabel={t(ready ? 'versionUpdate.restartCta' : 'versionUpdate.updateCta')}

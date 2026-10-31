@@ -15,43 +15,53 @@ export const posthog = key
   : null
 
 let analyticsEnabled = false
-let serverEnabled = false
+let serverEnabled: boolean | undefined
 let optedOut = false
 let persistedOptOut = false
-let preferenceReady = false
 let preferenceLoad: Promise<void> | null = null
 let preferenceVersion = 0
 let storageQueue = Promise.resolve()
 let accountId: string | null = null
 let gateQueue = Promise.resolve()
+let gateVersion = 0
+let gateReady = false
+let pendingAndroidUpdateCaptures: (() => void)[] = []
 
 export async function getAnalyticsOptOut(): Promise<boolean> {
   preferenceLoad ??= AsyncStorage.getItem(PREFERENCE_KEY).then((value) => {
     optedOut = value === 'true'
     persistedOptOut = optedOut
-    preferenceReady = true
   }).catch(() => {
     optedOut = true
     persistedOptOut = true
-    preferenceReady = true
   })
   await preferenceLoad
   return optedOut
 }
 
-export function applyPostHogGate(enabled: boolean): Promise<void> {
+export function applyPostHogGate(enabled: boolean | undefined): Promise<void> {
   serverEnabled = enabled
-  analyticsEnabled = preferenceReady && enabled && !optedOut
+  analyticsEnabled = false
+  gateReady = false
+  const version = ++gateVersion
   if (!posthog) return Promise.resolve()
   gateQueue = gateQueue.then(async () => {
     await getAnalyticsOptOut()
-    analyticsEnabled = serverEnabled && !optedOut
-    if (analyticsEnabled) {
+    if (version !== gateVersion) return
+    const allowed = serverEnabled === true && !optedOut
+    if (allowed) {
       await posthog.optIn()
-      if (accountId) posthog.identify(accountId)
     } else {
       await posthog.optOut()
     }
+    if (version !== gateVersion) return
+    analyticsEnabled = allowed
+    if (allowed && accountId) posthog.identify(accountId)
+    gateReady = serverEnabled !== undefined
+    if (!gateReady) return
+    const captures = pendingAndroidUpdateCaptures
+    pendingAndroidUpdateCaptures = []
+    if (allowed) for (const capture of captures) capture()
   })
   return gateQueue
 }
@@ -60,7 +70,6 @@ export async function setAnalyticsOptOut(next: boolean): Promise<void> {
   await getAnalyticsOptOut()
   const version = ++preferenceVersion
   optedOut = next
-  analyticsEnabled = serverEnabled && !next
   const gateUpdate = applyPostHogGate(serverEnabled)
   try {
     await gateUpdate
@@ -87,6 +96,7 @@ export function identifyPostHogUser(userId: string, previousUserId?: string | nu
 
 export function resetPostHogUser(): void {
   accountId = null
+  pendingAndroidUpdateCaptures = []
   if (!posthog) return
   posthog.reset()
   void applyPostHogGate(serverEnabled)
@@ -111,7 +121,7 @@ export function captureAndroidUpdateCheck(properties: {
   installed_version_code: number
   play_error_code: number | null
 }): void {
-  if (posthog && analyticsEnabled) void posthog.capture('android_update_checked', properties)
+  captureAndroidUpdateWhenReady(() => { void posthog?.capture('android_update_checked', properties) })
 }
 
 export function captureAndroidUpdateSheetShown(properties: {
@@ -119,5 +129,14 @@ export function captureAndroidUpdateSheetShown(properties: {
   available_version_code: number | null
   installed_version_code: number
 }): void {
-  if (posthog && analyticsEnabled) void posthog.capture('android_update_sheet_shown', properties)
+  captureAndroidUpdateWhenReady(() => { void posthog?.capture('android_update_sheet_shown', properties) })
+}
+
+function captureAndroidUpdateWhenReady(capture: () => void): void {
+  if (!posthog) return
+  if (!gateReady) {
+    pendingAndroidUpdateCaptures.push(capture)
+    return
+  }
+  if (analyticsEnabled) capture()
 }

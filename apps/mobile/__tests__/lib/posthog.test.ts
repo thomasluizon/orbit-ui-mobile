@@ -58,6 +58,63 @@ describe('mobile PostHog adapter', () => {
     expect(analytics.posthog!.capture).toHaveBeenCalledTimes(2)
   })
 
+  it('delivers the first update check and sheet after a delayed preference read', async () => {
+    vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
+    let resolvePreference!: (value: string | null) => void
+    storage.getItem.mockImplementation(() => new Promise((resolve) => { resolvePreference = resolve }))
+    const analytics = await import('@/lib/posthog')
+    const gate = analytics.applyPostHogGate(true)
+    const check = { outcome: 'success' as const, play_status: 2, available_version_code: 181,
+      installed_version_code: 178, play_error_code: null }
+    const sheet = { sheet: 'available' as const, available_version_code: 181, installed_version_code: 178 }
+    analytics.captureAndroidUpdateCheck(check)
+    analytics.captureAndroidUpdateSheetShown(sheet)
+    await vi.waitFor(() => expect(storage.getItem).toHaveBeenCalledOnce())
+    expect(analytics.posthog!.capture).not.toHaveBeenCalled()
+    resolvePreference(null)
+    await gate
+    expect(analytics.posthog!.capture).toHaveBeenNthCalledWith(1, 'android_update_checked', check)
+    expect(analytics.posthog!.capture).toHaveBeenNthCalledWith(2, 'android_update_sheet_shown', sheet)
+    await analytics.applyPostHogGate(true)
+    expect(analytics.posthog!.capture).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([true, false])('holds update events while config is pending, then resolves eligibility to %s', async (enabled) => {
+    vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
+    const analytics = await import('@/lib/posthog')
+    await analytics.applyPostHogGate(undefined)
+    analytics.captureAndroidUpdateCheck({ outcome: 'success', play_status: 2, available_version_code: 181,
+      installed_version_code: 178, play_error_code: null })
+    analytics.captureAndroidUpdateSheetShown({ sheet: 'available', available_version_code: 181, installed_version_code: 178 })
+    expect(analytics.posthog!.capture).not.toHaveBeenCalled()
+    await analytics.applyPostHogGate(enabled)
+    expect(analytics.posthog!.capture).toHaveBeenCalledTimes(enabled ? 2 : 0)
+    await analytics.applyPostHogGate(true)
+    expect(analytics.posthog!.capture).toHaveBeenCalledTimes(enabled ? 2 : 0)
+  })
+
+  it.each(['true', 'failure'])('drops pending update events when the preference is %s', async (preference) => {
+    vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
+    let resolvePreference!: (value: string | null) => void
+    let rejectPreference!: (error: Error) => void
+    storage.getItem.mockImplementation(() => new Promise((resolve, reject) => {
+      resolvePreference = resolve
+      rejectPreference = reject
+    }))
+    const analytics = await import('@/lib/posthog')
+    const gate = analytics.applyPostHogGate(true)
+    analytics.captureAndroidUpdateCheck({ outcome: 'success', play_status: 2, available_version_code: 181,
+      installed_version_code: 178, play_error_code: null })
+    analytics.captureAndroidUpdateSheetShown({ sheet: 'available', available_version_code: 181, installed_version_code: 178 })
+    await vi.waitFor(() => expect(storage.getItem).toHaveBeenCalledOnce())
+    if (preference === 'failure') rejectPreference(new Error('storage unavailable'))
+    else resolvePreference(preference)
+    await gate
+    expect(analytics.posthog!.capture).not.toHaveBeenCalled()
+    await analytics.setAnalyticsOptOut(false)
+    expect(analytics.posthog!.capture).not.toHaveBeenCalled()
+  })
+
   it('opts out and suppresses captures when the server flag is off', async () => {
     vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
     const analytics = await import('@/lib/posthog')

@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VersionUpdateDrawer } from '@/components/version-update-drawer'
 import * as Sentry from '@sentry/react-native'
 import { captureAndroidUpdateCheck, captureAndroidUpdateSheetShown } from '@/lib/posthog'
-import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { Sheet } from '@/components/ui/sheet'
+
+vi.unmock('@/components/ui/sheet')
 
 interface TestNode {
   type: unknown
@@ -29,8 +31,28 @@ const mocks = vi.hoisted(() => ({
   installUpdate: vi.fn(),
   getItem: vi.fn<() => Promise<string | null>>(),
   setItem: vi.fn(),
+  present: vi.fn<() => Promise<void>>(),
+  completeDismissal: () => {},
   resumeListeners: new Set<(state: string) => void>(),
   nativeListeners: new Map<string, Set<(event: unknown) => void>>(),
+}))
+
+vi.mock('@lodev09/react-native-true-sheet', () => ({
+  TrueSheet: class extends React.Component<{
+    children?: React.ReactNode; header?: React.ReactNode; footer?: React.ReactNode
+    onDidPresent?: () => void; onDidDismiss?: () => void
+  }> {
+    async present() {
+      await mocks.present()
+      this.props.onDidPresent?.()
+    }
+    dismiss() {
+      return new Promise<void>((resolve) => {
+        mocks.completeDismissal = () => { this.props.onDidDismiss?.(); resolve() }
+      })
+    }
+    render() { return <>{this.props.header}{this.props.children}{this.props.footer}</> }
+  },
 }))
 
 vi.mock('@/lib/posthog', () => ({
@@ -106,14 +128,14 @@ async function unmount() {
   queryClient.clear()
 }
 function sheetTitles() {
-  return tree?.root.findAll((node) => node.type === 'Sheet').map((node) => node.props.title)
+  return tree?.root.findAll((node) => node.type === Sheet).map((node) => node.props.title)
 }
 async function press(label: string) {
   const action = tree?.root.findAll((node) => typeof node.props.onClick === 'function' &&
     node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0).at(-1)
   if (!action) throw new Error(`Missing action: ${label}`)
   await TestRenderer.act(() => { action.props.onClick?.() })
-  await TestRenderer.act(() => { sheetTestControls.completeDismissal() })
+  await TestRenderer.act(() => { mocks.completeDismissal() })
 }
 
 beforeEach(() => {
@@ -140,15 +162,46 @@ beforeEach(() => {
     packageName: 'org.useorbit.app.staging',
     totalBytes: 100,
   }))
-  sheetTestControls.defer(true)
+  mocks.present.mockReset().mockResolvedValue(undefined)
+  mocks.completeDismissal = () => {}
 })
 afterEach(async () => {
   await unmount()
-  sheetTestControls.defer(false)
   vi.useRealTimers()
 })
 
 describe('Play update sheet selection', () => {
+  it('records the sheet only after native presentation completes', async () => {
+    let completePresentation!: () => void
+    mocks.present.mockImplementation(() => new Promise((resolve) => { completePresentation = resolve }))
+    await mount()
+    expect(mocks.present).toHaveBeenCalledOnce()
+    expect(captureAndroidUpdateSheetShown).not.toHaveBeenCalled()
+    await TestRenderer.act(() => completePresentation())
+    expect(captureAndroidUpdateSheetShown).toHaveBeenCalledExactlyOnceWith({
+      sheet: 'available', available_version_code: 141, installed_version_code: 140,
+    })
+  })
+  it('does not record another presentation when the offered version changes on the mounted sheet', async () => {
+    await mount()
+    mocks.offeredBuild = 142
+    await TestRenderer.act(() => {
+      for (const listener of mocks.resumeListeners) listener('active')
+    })
+    await flushQueries()
+    expect(captureAndroidUpdateCheck).toHaveBeenLastCalledWith(expect.objectContaining({ available_version_code: 142 }))
+    expect(mocks.present).toHaveBeenCalledOnce()
+    expect(captureAndroidUpdateSheetShown).toHaveBeenCalledExactlyOnceWith({
+      sheet: 'available', available_version_code: 141, installed_version_code: 140,
+    })
+  })
+  it('does not record a sheet when native presentation rejects', async () => {
+    mocks.present.mockRejectedValue(new Error('VIEW_NOT_FOUND'))
+    await mount()
+    expect(mocks.present).toHaveBeenCalledOnce()
+    expect(captureAndroidUpdateSheetShown).not.toHaveBeenCalled()
+    expect(sheetTitles()).toEqual([])
+  })
   it('records the Play result once per check and the sheet once per presentation', async () => {
     await mount()
     expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
@@ -272,7 +325,7 @@ describe('Play update sheet selection', () => {
     await press('versionUpdate.laterCta')
     const snoozedUntil = Date.now() + 24 * 60 * 60 * 1000
     expect(mocks.setItem).toHaveBeenCalledWith('orbit:version-update-snoozed-until', expect.any(String))
-    const storedSnooze = mocks.setItem.mock.calls[0]?.[1] as string
+    const storedSnooze = mocks.setItem.mock.calls.find(([key]) => key === 'orbit:version-update-snoozed-until')?.[1] as string
     expect(JSON.parse(storedSnooze)).toEqual({ versionCode: '141', until: snoozedUntil })
     mocks.getItem.mockResolvedValue(storedSnooze)
     await unmount()
