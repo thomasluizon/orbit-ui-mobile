@@ -29,7 +29,7 @@ export function useBulkActions({
   const bulkLog = useBulkLogHabits()
   const bulkSkip = useBulkSkipHabits()
   const bulkMove = useBulkMoveHabitParent()
-  const skippableHabitIds = Array.from(selectedHabitIds).filter(id => !habitsById.get(id)?.isGeneral)
+  const skippableHabitIds = Array.from(selectedHabitIds).filter(id => habitsById.get(id)?.isGeneral === false)
   const currentPermission = useRef({ selectedDateStr, completionReadOnly })
   useLayoutEffect(() => {
     currentPermission.current = { selectedDateStr, completionReadOnly }

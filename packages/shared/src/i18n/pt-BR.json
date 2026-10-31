@@ -712,7 +712,7 @@
     "bulkBar": {
       "log": "Registrar selecionados",
       "skip": "Pular selecionados",
-      "skipEligible": "{count, plural, one {# hábito selecionado pode ser pulado.} other {# hábitos selecionados podem ser pulados.}}",
+      "skipEligible": "{count, plural, =0 {# hábitos selecionados podem ser pulados.} one {# hábito selecionado pode ser pulado.} other {# hábitos selecionados podem ser pulados.}}",
       "delete": "Apagar selecionados",
       "partialFailure": "{count, plural, =0 {Não foi possível atualizar # linhas selecionadas.} one {Não foi possível atualizar # linha selecionada.} other {Não foi possível atualizar # linhas selecionadas.}}",
       "retryFailed": "Tentar de novo",
