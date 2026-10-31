@@ -54,7 +54,8 @@ export function createUseAstraOffer(adapters: {
     const visible = canShowAstraOffer(action, { conversationId: session.conversationId, supportsProactiveOffers: enabled }, session.dismissedOfferKeys)
     const reason = interaction?.isOnline === false ? 'chat.offline.title'
       : interaction?.isSending || props.unavailable ? 'blockFrame.status.acting'
-      : action?.kind !== 'openSurface' && (interaction?.atMessageLimit || interaction?.dailyBudgetReached) ? 'chat.offers.limit' : undefined
+      : action?.kind !== 'openSurface' && interaction?.dailyBudgetReached ? 'chat.dailyBudgetReached'
+      : action?.kind !== 'openSurface' && interaction?.atMessageLimit ? 'shell.composer.limit.exhausted' : undefined
     const dismissDisabled = pending || interaction?.isOnline === false
     const disabled = pending || Boolean(reason) || (action?.kind !== 'openSurface' && !onSendMessage)
     async function run(dismissOnly: boolean) {

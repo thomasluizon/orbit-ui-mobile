@@ -20,20 +20,20 @@ import { refreshGamification, refreshHabitMonth, refreshReadBlock } from '@/app/
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { chatPartSchema, habitMonthCardSchema, habitMonthReadBlockResponseSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
-const state = vi.hoisted(() => ({ isError: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
+const state = vi.hoisted(() => ({ isError: false, aiMessagesPeriod: 'day' as 'day' | 'week', habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('@/app/actions/chat', () => ({ dismissChatOffers: vi.fn(), refreshReadBlock: vi.fn(), refreshHabitMonth: vi.fn(), refreshGamification: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }), useHabitMetrics: () => ({}) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC' } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC', aiMessagesPeriod: state.aiMessagesPeriod } }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakQuery: { isPending: false } }) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false }) }))
 
 const total = { type: 'block' as const, kind: 'periodTotal' as const, block: focusedPeriodTotalFixture }
-function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, locale: 'en' | 'pt-BR' = 'en', onSendMessage?: Parameters<typeof ChatBlock>[0]['onSendMessage']) {
-  return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><ChatBlock part={part} onSendMessage={onSendMessage} onActionChipClick={vi.fn()} /></NextIntlClientProvider>)
+function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, locale: 'en' | 'pt-BR' = 'en', onSendMessage?: Parameters<typeof ChatBlock>[0]['onSendMessage'], interaction?: Parameters<typeof ChatBlock>[0]['interaction']) {
+  return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><ChatBlock part={part} onSendMessage={onSendMessage} interaction={interaction} onActionChipClick={vi.fn()} /></NextIntlClientProvider>)
 }
 beforeEach(() => { state.isError = false; vi.mocked(refreshReadBlock).mockReset(); vi.mocked(refreshGamification).mockReset(); vi.mocked(refreshHabitMonth).mockReset(); state.habits.clear(); state.mutate.mockReset(); state.push.mockReset() })
 
@@ -415,8 +415,21 @@ it.each(['en', 'pt-BR'] as const)('lets a live completion supersede the saved sk
 
 
 describe('read offers', () => {
-  beforeEach(() => { useChatStore.setState({ conversationId: offerConversationId, dismissedOfferKeys: [] }); vi.mocked(dismissChatOffers).mockReset().mockResolvedValue({ ok: true, data: null }) })
+  beforeEach(() => { state.aiMessagesPeriod = 'day'; useChatStore.setState({ conversationId: offerConversationId, dismissedOfferKeys: [] }); vi.mocked(dismissChatOffers).mockReset().mockResolvedValue({ ok: true, data: null }) })
   afterEach(() => { useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] }) })
+  it.each((['en', 'pt-BR'] as const).flatMap(locale => (['day', 'week'] as const).flatMap(period => [false, true].map(dailyBudgetReached => ({ locale, period, dailyBudgetReached })))))(
+    'shows the existing $period limit copy in $locale with daily budget $dailyBudgetReached', async ({ locale, period, dailyBudgetReached }) => {
+      state.aiMessagesPeriod = period
+      const messages = locale === 'en' ? en : pt
+      const send = vi.fn(async () => {})
+      mount({ kind: 'periodTotal', block: offeredReadFixture }, locale, send, { isOnline: true, isSending: false, atMessageLimit: true, dailyBudgetReached, allowance: 5, send: vi.fn() })
+      const reason = dailyBudgetReached ? messages.chat.dailyBudgetReached : period === 'week' ? messages.shell.composer.limit.exhaustedWeekly : messages.shell.composer.limit.exhausted
+      expect(screen.getByText(reason)).toHaveAttribute('role', 'status')
+      expect(screen.getByRole('button', { name: astraOfferFixture.label })).toBeDisabled()
+      expect(send).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByRole('button', { name: messages.chat.offers.dismiss }))
+      await waitFor(() => expect(screen.queryByRole('button', { name: astraOfferFixture.label })).not.toBeInTheDocument())
+    })
   it.each(['en', 'pt-BR'] as const)('renders and dismisses the supplied offer in %s', async locale => {
     const messages = locale === 'en' ? en : pt
     mount({ kind: 'periodTotal', block: offeredReadFixture }, locale, vi.fn())

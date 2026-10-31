@@ -76,8 +76,8 @@ describe('offer session actions', () => {
   it.each([
     { isOnline: false, reason: 'chat.offline.title', dismissDisabled: true },
     { isSending: true, reason: 'blockFrame.status.acting', dismissDisabled: false },
-    { atMessageLimit: true, reason: 'chat.offers.limit', dismissDisabled: false },
-    { dailyBudgetReached: true, reason: 'chat.offers.limit', dismissDisabled: false },
+    { atMessageLimit: true, reason: 'shell.composer.limit.exhausted', dismissDisabled: false },
+    { dailyBudgetReached: true, reason: 'chat.dailyBudgetReached', dismissDisabled: false },
   ])('keeps the correct action boundaries for $reason', async ({ reason, dismissDisabled, ...availability }) => {
     const interaction = { isOnline: true, isSending: false, atMessageLimit: false, dailyBudgetReached: false, ...availability }
     const context = setup({ interaction: { ...interaction, send: vi.fn(), allowance: 5, limitReason: '' } })

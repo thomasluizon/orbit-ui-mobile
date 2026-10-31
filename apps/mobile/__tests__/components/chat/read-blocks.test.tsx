@@ -23,7 +23,7 @@ import { API } from '@orbit/shared/api'
 import { motionDurations } from '@orbit/shared/theme'
 import { chatPartSchema, habitMonthCardSchema, readBlockResponseSchema, type ReadBlockResponse } from '@orbit/shared/types/chat'
 
-const state = vi.hoisted(() => ({ isError: false, locale: 'en', actualCopy: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
+const state = vi.hoisted(() => ({ isError: false, aiMessagesPeriod: 'day', locale: 'en', actualCopy: false, habits: new Map<string, NormalizedHabit>(), mutate: vi.fn(), push: vi.fn() }))
 vi.mock('react-i18next', async importOriginal => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ i18n: { language: state.locale }, t: (key: string, values?: Record<string, string | number>) => {
   if (!state.actualCopy) return key
   const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, state.locale === 'en' ? en : pt)
@@ -34,15 +34,15 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }), useHabitMetrics: () => ({}) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC' } }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC', aiMessagesPeriod: state.aiMessagesPeriod } }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakQuery: { isPending: false } }) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false }) }))
 
 const total = { kind: 'periodTotal' as const, block: focusedPeriodTotalFixture }
-async function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, onSendMessage?: Parameters<typeof ChatBlock>[0]['onSendMessage']) {
+async function mount(part: Parameters<typeof ChatBlock>[0]['part'] = total, onSendMessage?: Parameters<typeof ChatBlock>[0]['onSendMessage'], interaction?: Parameters<typeof ChatBlock>[0]['interaction']) {
   let tree!: GeometryTree
-  await act(() => { tree = create(<ChatBlock part={part} onSendMessage={onSendMessage} onActionChipClick={vi.fn()} />) as GeometryTree })
+  await act(() => { tree = create(<ChatBlock part={part} onSendMessage={onSendMessage} interaction={interaction} onActionChipClick={vi.fn()} />) as GeometryTree })
   return tree
 }
 async function press(tree: GeometryTree, label: string) {
@@ -473,8 +473,24 @@ it.each(['en', 'pt-BR'] as const)('lets a live completion supersede the saved sk
 
 
 describe('read offers on Android', () => {
-  beforeEach(() => { useChatStore.setState({ conversationId: offerConversationId, dismissedOfferKeys: [] }) })
+  beforeEach(() => { state.aiMessagesPeriod = 'day'; useChatStore.setState({ conversationId: offerConversationId, dismissedOfferKeys: [] }) })
   afterEach(() => { useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] }) })
+  it.each((['en', 'pt-BR'] as const).flatMap(locale => (['day', 'week'] as const).flatMap(period => [false, true].map(dailyBudgetReached => ({ locale, period, dailyBudgetReached })))))(
+    'shows the existing $period limit copy in $locale with daily budget $dailyBudgetReached', async ({ locale, period, dailyBudgetReached }) => {
+      state.locale = locale; state.actualCopy = true; state.aiMessagesPeriod = period
+      const messages = locale === 'en' ? en : pt
+      const send = vi.fn(async () => {})
+      const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture }, send, { isOnline: true, isSending: false, atMessageLimit: true, dailyBudgetReached, allowance: 5, send: vi.fn() })
+      try {
+        const reason = dailyBudgetReached ? messages.chat.dailyBudgetReached : period === 'week' ? messages.shell.composer.limit.exhaustedWeekly : messages.shell.composer.limit.exhausted
+        expect(renderedText(tree.toJSON())).toContain(reason)
+        const action = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === astraOfferFixture.label)[0]!
+        expect(action.props.accessibilityState).toMatchObject({ disabled: true })
+        expect(send).not.toHaveBeenCalled()
+        await press(tree, messages.chat.offers.dismiss)
+        expect(renderedText(tree.toJSON())).not.toContain(astraOfferFixture.label)
+      } finally { await act(() => tree.unmount()) }
+    })
   it.each(['preparePreview', 'continueChat'] as const)('sends %s once through the existing chat path', async kind => {
     const send = vi.fn(async () => {})
     const tree = await mount({ kind: 'periodTotal', block: { ...offeredReadFixture, read: { ...offeredReadFixture.read, nextAction: { ...astraOfferFixture, kind } } } }, send)

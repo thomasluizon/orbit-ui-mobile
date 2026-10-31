@@ -16,6 +16,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 vi.mock('@/hooks/use-astra-offer', () => ({ useAstraOffer: () => ({ visible: true, pending: false, failed: false, disabled: false, dismissDisabled: false, act: vi.fn(), dismiss: vi.fn() }) }))
 vi.mock('@/components/referral/referral-drawer', () => ({ ReferralDrawer: () => null }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined }) }))
 
 const cases = [320, 360, 384, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale => (['openSurface', 'continueChat'] as const).flatMap(kind => (['light', 'dark'] as const).map(theme => ({ width, locale, kind, theme })))))
 

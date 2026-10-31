@@ -1603,9 +1603,8 @@
     },
     "blockCopy": { "copy": "Copy", "copied": "Copied", "copyError": "Couldn't copy. Try again." },
     "offers": {
-      "dismiss": "Dismiss offer",
-      "failed": "Could not update this offer. Try again.",
-      "limit": "Your message limit has been reached."
+      "dismiss": "Dismiss suggestion",
+      "failed": "Could not update this suggestion. Try again."
     },
     "title": "Astra",
     "offline": {

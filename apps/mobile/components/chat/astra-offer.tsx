@@ -1,8 +1,8 @@
 import { SMALL_PILL_VISIBLE_MIN, SECONDARY_TEXT_SIZE } from '@orbit/shared/theme'
-import { useTranslation } from 'react-i18next'
 import { StyleSheet, Text, View } from 'react-native'
 import type { AstraOfferProps } from '@orbit/shared/chat'
 import { useAstraOffer } from '@/hooks/use-astra-offer'
+import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { PillButton } from '@/components/ui/pill-button'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
@@ -16,7 +16,7 @@ export function AstraOffer(props: Readonly<AstraOfferProps>) {
 }
 
 function ActiveAstraOffer(props: Readonly<AstraOfferProps>) {
-  const { t } = useTranslation()
+  const t = useAstraAllowanceCopy()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const offer = useAstraOffer(props)

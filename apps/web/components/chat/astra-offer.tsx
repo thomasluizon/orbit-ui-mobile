@@ -2,9 +2,9 @@
 
 import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 
-import { useTranslations } from 'next-intl'
 import type { AstraOfferProps } from '@orbit/shared/chat'
 import { useAstraOffer } from '@/hooks/use-astra-offer'
+import { useAstraAllowanceCopy } from '@/hooks/use-astra-allowance-copy'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { PillButton } from '@/components/ui/pill-button'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
@@ -16,7 +16,7 @@ export function AstraOffer(props: Readonly<AstraOfferProps>) {
 }
 
 function ActiveAstraOffer(props: Readonly<AstraOfferProps>) {
-  const t = useTranslations()
+  const t = useAstraAllowanceCopy()
   const offer = useAstraOffer(props)
   if (!props.action) return null
   return <>{offer.visible ? <div data-astra-offer="" className="flex min-w-0 flex-col gap-2">

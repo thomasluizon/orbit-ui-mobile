@@ -11,6 +11,26 @@ import { test } from './upgrade-fixtures'
 import { getShellConversationEntry } from './shell-conversation-entry'
 import { inspectFocusedControlRings } from './focus-indicators'
 
+function measureOfferLabel(button: HTMLElement) {
+  const bounds = button.getBoundingClientRect()
+  const style = getComputedStyle(button)
+  const left = bounds.left + button.clientLeft + parseFloat(style.paddingLeft)
+  const right = bounds.left + button.clientLeft + button.clientWidth - parseFloat(style.paddingRight)
+  const walker = document.createTreeWalker(button, NodeFilter.SHOW_TEXT)
+  const tops = new Set<number>()
+  let fits = true
+  while (walker.nextNode()) {
+    const range = document.createRange()
+    range.selectNodeContents(walker.currentNode)
+    for (const rect of range.getClientRects()) {
+      if (rect.width <= 0) continue
+      tops.add(Math.round(rect.top))
+      fits &&= rect.left >= left - 1 && rect.right <= right + 1
+    }
+  }
+  return { lines: tops.size, fits }
+}
+
 for (const width of [320, 360, 384, 412]) {
   for (const locale of ['en', 'pt-BR'] as const) {
     const messages = locale === 'en' ? en : pt
@@ -31,16 +51,7 @@ for (const width of [320, 360, 384, 412]) {
         const action = slot.getByRole('button', { name: label, exact: true })
         await expect(action).toBeVisible()
         await expect(slot.getByRole('button')).toHaveCount(2)
-        const geometry = await action.evaluate(button => {
-          const walker = document.createTreeWalker(button, NodeFilter.SHOW_TEXT)
-          const tops = new Set<number>()
-          while (walker.nextNode()) {
-            const range = document.createRange()
-            range.selectNodeContents(walker.currentNode)
-            for (const rect of range.getClientRects()) if (rect.width > 0) tops.add(Math.round(rect.top))
-          }
-          return { lines: tops.size, fits: button.scrollWidth <= button.clientWidth + 1 }
-        })
+        const geometry = await action.evaluate(measureOfferLabel)
         expect(geometry).toEqual({ lines: 1, fits: true })
         expect(await slot.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
         for (const button of [action, slot.getByRole('button', { name: messages.chat.offers.dismiss })]) {
@@ -49,6 +60,17 @@ for (const width of [320, 360, 384, 412]) {
           const focus = await inspectFocusedControlRings(page)
           expect(focus?.focusVisible).toBe(true)
           expect(focus?.indicators).toHaveLength(1)
+        }
+        const maxWidth = await slot.evaluate(element => {
+          const previous = element.style.maxWidth
+          element.style.maxWidth = '80px'
+          return previous
+        })
+        try {
+          const constrained = await action.evaluate(measureOfferLabel)
+          expect(constrained.lines > 1 || !constrained.fits).toBe(true)
+        } finally {
+          await slot.evaluate((element, previous) => { element.style.maxWidth = previous }, maxWidth)
         }
       })
     })

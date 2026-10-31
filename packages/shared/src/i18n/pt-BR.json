@@ -1604,8 +1604,7 @@
     "blockCopy": { "copy": "Copiar", "copied": "Copiado", "copyError": "Não consegui copiar. Tente de novo." },
     "offers": {
       "dismiss": "Dispensar sugestão",
-      "failed": "Não consegui atualizar a sugestão. Tente de novo.",
-      "limit": "Você atingiu seu limite de mensagens."
+      "failed": "Não consegui atualizar a sugestão. Tente de novo."
     },
     "title": "Astra",
     "offline": {

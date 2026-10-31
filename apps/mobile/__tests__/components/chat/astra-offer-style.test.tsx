@@ -11,6 +11,7 @@ import { i18n } from '@/lib/i18n'
 
 vi.unmock('react-i18next')
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined }) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 type Host = Parameters<typeof measureProfileRow>[0] & { props: { width?: number; height?: number } }
 function measurable(host: Host): Host {
