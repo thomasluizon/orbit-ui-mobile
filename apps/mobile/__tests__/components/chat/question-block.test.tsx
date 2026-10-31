@@ -7,6 +7,7 @@ import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { questionBlockFixture as block, questionAnswersFixture } from '@orbit/shared/test-support/chat-fixtures'
 import type { BlockAnswerInteraction, QuestionBlockProps } from '@orbit/shared/chat'
 import { questionBlockSchema } from '@orbit/shared/types/question-block'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { QuestionBlock } from '@/components/chat/question-block'
@@ -175,13 +176,32 @@ it('leaves supplied question text unclamped for large Android text', async () =>
   }
 })
 
-it.each([320, 412].flatMap(width => ['en', 'pt-BR'].flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits Android question rows at $width and scale $scale in $locale', async ({ width, locale, scale }) => {
+it.each([320, 360, 384, 412, 600, 1024, 1352].flatMap(width => ['en', 'pt-BR'].flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits Android question rows at $width and scale $scale in $locale', async ({ width, locale, scale }) => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: scale })
   await i18n.changeLanguage(locale)
   const label = locale === 'en' ? 'Making time for a routine after work and other responsibilities' : 'Encontrar tempo para uma rotina depois do trabalho e de outros compromissos'
   const supplied = { ...block, questions: block.questions.map(question => question.type === 'singleChoice' || question.type === 'multipleChoice' ? { ...question, options: question.options.map(option => ({ ...option, label: `${option.label}: ${label}` })) } : question) }
   await mount({ block: supplied })
+  const initial = measureProfileRow(tree.toJSON() as Parameters<typeof measureProfileRow>[0], width - 32, scale)
+  const frame = initial.boxes.find(box => box.testID === 'question-scale')!
+  const group = roles('radiogroup').find(node => node.props.testID === 'question-scale')!
+  const layoutEvent = { nativeEvent: { layout: { x: frame.left, y: frame.top, width: frame.width, height: frame.height } } }
+  await renderer.act(() => group.props.onLayout(layoutEvent))
   const layout = measureProfileRow(tree.toJSON() as Parameters<typeof measureProfileRow>[0], width - 32, scale)
+  const scaleRows = layout.controls.filter(control => /^[1-5]$/.test(control.accessibilityLabel ?? ''))
+  expect(scaleRows).toHaveLength(5)
+  for (const [index, row] of scaleRows.entries()) {
+    expect(row.width).toBeGreaterThanOrEqual(48)
+    expect(row.height).toBeGreaterThanOrEqual(48)
+    expect(row.width).toBeCloseTo(scaleRows[0]!.width, 1)
+    expect(row.left).toBeGreaterThanOrEqual(0)
+    expect(row.right).toBeLessThanOrEqual(width - 32 + 1)
+    for (const neighbour of scaleRows.slice(index + 1)) {
+      const horizontal = Math.max(0, neighbour.left - row.right, row.left - neighbour.right)
+      const vertical = Math.max(0, neighbour.top - row.bottom, row.top - neighbour.bottom)
+      expect(Number(Math.hypot(horizontal, vertical).toFixed(3))).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+    }
+  }
   const labels = supplied.questions.flatMap(question => question.type === 'singleChoice' || question.type === 'multipleChoice' ? question.options.map(option => option.label) : [])
   for (const label of labels) {
     const text = layout.texts.find(text => text.label === label)!

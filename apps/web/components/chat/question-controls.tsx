@@ -11,10 +11,10 @@ import { Slider } from '@/components/ui/slider'
 function QuestionScale({ question, answer, disabled, controller }: QuestionControlProps) {
   if (question.type !== 'scale') return null
   return <div className="flex min-w-0 flex-col gap-2">
-    <RadioGroup aria-label={question.prompt} aria-required="true" className="grid grid-cols-5">
+    <RadioGroup aria-label={question.prompt} aria-required="true" className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(var(--touch-min),1fr))]">
       {[1, 2, 3, 4, 5].map(number => <RadioItem key={number} selected={answer?.number === number} disabled={disabled} onSelect={() => controller.setAnswer(question, { number })}>
         <button type="button" role="radio" aria-label={String(number)} aria-checked={answer?.number === number} disabled={disabled}
-          className="orbit-selection-ring min-h-[var(--touch-min)] min-w-0 rounded-[var(--r-well)] border-0 bg-transparent p-2 text-base text-[var(--fg-1)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] aria-checked:bg-[var(--bg-well)] disabled:opacity-60">{number}</button>
+          className="orbit-selection-ring min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-[var(--r-well)] border-0 bg-transparent p-2 text-base text-[var(--fg-1)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] aria-checked:bg-[var(--bg-well)] disabled:opacity-60">{number}</button>
       </RadioItem>)}
     </RadioGroup>
     <div className="grid min-w-0 grid-cols-2 gap-4 text-sm text-[var(--fg-3)]"><span className="break-words">{question.lowLabel}</span><span className="break-words text-right">{question.highLabel}</span></div>

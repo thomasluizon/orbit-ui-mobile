@@ -102,6 +102,19 @@ describe('interaction clearance inspector in Chromium', () => {
       } finally { unmount() }
     })
 
+  it('inspects disjoint option inventories consecutively on the same page', async () => {
+    await withPage({ viewport: { width: 320, height: 915 } }, async page => {
+      await page.setContent(`<style>body { display:flex;gap:32px;padding:32px }
+        button { padding:16px;border:0;background:gray;outline:none }</style><button>First</button><button>Second</button>`)
+      const counts = { inspectedControls: 0, skippedSentinels: 0 }
+      for (const name of ['First', 'Second']) {
+        await inspectControls(page, page.getByRole('button', { name, exact: true }), 'sequential inventories', INTERACTION_FILL_CLEARANCE, counts)
+      }
+      expect(counts).toEqual({ inspectedControls: 2, skippedSentinels: 0 })
+      expect(await page.locator('[data-interaction-fill-probe]').count()).toBe(0)
+    })
+  })
+
   it('fails a stalled fixture compiler with a bounded error', async () => {
     await expect(compileFixture('await new Promise(resolve => setTimeout(resolve, 10_000)); process.stdout.write("late")', '', 250))
       .rejects.toThrow('Fixture compiler failed or exceeded 250ms')
@@ -146,6 +159,7 @@ describe('interaction clearance inspector in Chromium', () => {
       await page.setContent('<button>Blocked control</button><div style="position: fixed; inset: 0; background: white"></div>')
       await expect(inspectControls(page, page.locator('button'), '/settings, 412px, pt-BR', INTERACTION_FILL_CLEARANCE))
         .rejects.toThrow(/\/settings, 412px, pt-BR.*button\[Blocked control\].*hover/)
+      expect(await page.locator('[data-interaction-fill-probe]').count()).toBe(0)
     })
   }, 5000)
 

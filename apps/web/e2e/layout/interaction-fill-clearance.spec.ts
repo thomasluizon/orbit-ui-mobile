@@ -31,6 +31,7 @@ for (const width of [320, 360, 384, 412, 600, 1024, 1352]) {
             await expect(neighbour).toHaveAttribute('aria-checked', 'true')
             const row = screen.getByRole('radio', { name: label, exact: true })
             await inspectControls(page, row, `option rows, ${width}px, ${locale}, ${mode}`, INTERACTION_FILL_CLEARANCE)
+            await expect(page.locator('[data-interaction-fill-probe]')).toHaveCount(0)
             const bounds = (await row.boundingBox())!
             const next = (await neighbour.boundingBox())!
             expect(next.y - bounds.y - bounds.height).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
@@ -120,7 +121,6 @@ for (const width of [320, 412, 600, 1024, 1352]) {
             await inspectControls(page, controls, `${route}, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE, counts)
             if (route === '/calendar') {
               await page.getByRole('radio', { name: words.calendar.view.week, exact: true }).click()
-              await page.locator('[data-interaction-fill-probe]').evaluateAll((elements) => elements.forEach((element) => element.removeAttribute('data-interaction-fill-probe')))
               const headers = page.getByTestId('time-grid-col-header')
               await expect(headers).toHaveCount(7)
               await inspectControls(page, headers, `calendar week header, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE, counts)
