@@ -93,6 +93,32 @@ describe('mobile PostHog adapter', () => {
     expect(analytics.posthog!.capture).toHaveBeenCalledTimes(enabled ? 2 : 0)
   })
 
+  it('never replays update events captured under a known opt-out after opting in while config is pending', async () => {
+    vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
+    storage.getItem.mockResolvedValue('true')
+    const analytics = await import('@/lib/posthog')
+    await analytics.applyPostHogGate(undefined)
+    expect(await analytics.getAnalyticsOptOut()).toBe(true)
+    analytics.captureAndroidUpdateCheck({ outcome: 'success', play_status: 2, available_version_code: 181,
+      installed_version_code: 178, play_error_code: null })
+    analytics.captureAndroidUpdateSheetShown({ sheet: 'available', available_version_code: 181, installed_version_code: 178 })
+    await analytics.setAnalyticsOptOut(false)
+    await analytics.applyPostHogGate(true)
+    expect(analytics.posthog!.capture).not.toHaveBeenCalled()
+  })
+
+  it('discards events held before an opt out is chosen while config is pending', async () => {
+    vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
+    const analytics = await import('@/lib/posthog')
+    await analytics.applyPostHogGate(undefined)
+    analytics.captureAndroidUpdateCheck({ outcome: 'success', play_status: 2, available_version_code: 181,
+      installed_version_code: 178, play_error_code: null })
+    await analytics.setAnalyticsOptOut(true)
+    await analytics.setAnalyticsOptOut(false)
+    await analytics.applyPostHogGate(true)
+    expect(analytics.posthog!.capture).not.toHaveBeenCalled()
+  })
+
   it.each(['true', 'failure'])('drops pending update events when the preference is %s', async (preference) => {
     vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
     let resolvePreference!: (value: string | null) => void

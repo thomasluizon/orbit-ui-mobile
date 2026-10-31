@@ -19,6 +19,7 @@ let serverEnabled: boolean | undefined
 let optedOut = false
 let persistedOptOut = false
 let preferenceLoad: Promise<void> | null = null
+let preferenceResolved = false
 let preferenceVersion = 0
 let storageQueue = Promise.resolve()
 let accountId: string | null = null
@@ -31,9 +32,11 @@ export async function getAnalyticsOptOut(): Promise<boolean> {
   preferenceLoad ??= AsyncStorage.getItem(PREFERENCE_KEY).then((value) => {
     optedOut = value === 'true'
     persistedOptOut = optedOut
+    preferenceResolved = true
   }).catch(() => {
     optedOut = true
     persistedOptOut = true
+    preferenceResolved = true
   })
   await preferenceLoad
   return optedOut
@@ -47,6 +50,7 @@ export function applyPostHogGate(enabled: boolean | undefined): Promise<void> {
   if (!posthog) return Promise.resolve()
   gateQueue = gateQueue.then(async () => {
     await getAnalyticsOptOut()
+    if (optedOut) pendingAndroidUpdateCaptures = []
     if (version !== gateVersion) return
     const allowed = serverEnabled === true && !optedOut
     if (allowed) {
@@ -135,6 +139,7 @@ export function captureAndroidUpdateSheetShown(properties: {
 function captureAndroidUpdateWhenReady(capture: () => void): void {
   if (!posthog) return
   if (!gateReady) {
+    if (preferenceResolved && optedOut) return
     pendingAndroidUpdateCaptures.push(capture)
     return
   }
