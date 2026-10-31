@@ -417,7 +417,6 @@ export function CreateHabitModal({
     flushBufferedInputsRef.current()
 
     const subHabitValues = subHabits.map((entry) => entry.value)
-    if (!formHelpers.form.getValues('itemType')) { formHelpers.validateAll(); return }
     if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
 
     const error = formHelpers.validateAll({
@@ -662,6 +661,7 @@ export function CreateHabitModal({
           >
             {(proposedItemCount) => !isSubHabitMode ? (
               <SubHabitEditor
+                task={formHelpers.form.watch('itemType') === 'task'}
                 subHabits={subHabits}
                 proposedItemCount={proposedItemCount}
                 onUpdateSubHabit={updateSubHabitValue}

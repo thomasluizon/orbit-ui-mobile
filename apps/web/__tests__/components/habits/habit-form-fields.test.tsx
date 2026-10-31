@@ -305,7 +305,7 @@ describe('HabitFormFields', () => {
   ])('defines avoidance and explains slip logging in %s', (locale, expected) => {
     formLocale.language = locale
     renderForm(createFormHelpers({ isBadHabit: true }), undefined, true)
-    expect(screen.queryByText(expected)).toBeNull()
+    expect(screen.getByText(expected)).toBeVisible()
   })
 
   it('starts with type, title and editable date fields and closed details', () => {
@@ -541,7 +541,7 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('offset-reminders')).toBeDefined()
     expect(screen.getByText('scheduled-reminders')).toBeDefined()
     const scheduled = screen.getByText('scheduled-reminders')
-    expect(scheduled).toHaveAttribute('data-nested', 'true')
+    expect(screen.getByText('offset-reminders')).toContainElement(scheduled)
     expect(scheduled).toHaveAttribute('data-offset-count', '0')
     fireEvent.click(scheduled)
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('scheduledReminders', [{ when: 'day_before', time: '18:00' }], { shouldDirty: true })
@@ -713,11 +713,12 @@ it.each([
   { itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'] },
   { itemType: 'habit', isGeneral: true },
 ])('offers and saves Repeat every from the timing sheet for %j', (schedule) => {
-  const helpers = createFormHelpers({ title: 'Water', reminderEnabled: true, dueTime: '08:00', ...schedule })
+  const helpers = createFormHelpers({ title: 'Water', reminderEnabled: true, dueTime: '08:00', scheduledReminders: [{ when: 'same_day', time: '09:00' }], ...schedule })
   helpers.isGeneral = 'isGeneral' in schedule
   renderForm(helpers)
   fireEvent.click(screen.getByRole('button', { name: /habits.form.timingAndReminder/ }))
   fireEvent.click(screen.getByRole('radio', { name: 'habits.form.repeatEvery' }))
+  expect(helpers.form.getValues('scheduledReminders')).toEqual([])
   expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.testValues), [15], [], [], [])).toMatchObject({ repeatReminder: { intervalMinutes: 30, startAtUtc: expect.stringMatching(/Z$/) }, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
 })
 
@@ -769,4 +770,19 @@ it('preserves fixed reminder choices when their selected radio is pressed again'
   render(<RepeatReminderSection value={null} enabled general={false} onToggle={vi.fn()} onChange={onChange} />)
   fireEvent.click(screen.getByRole('radio', { name: 'habits.form.definedTimes' }))
   expect(onChange).not.toHaveBeenCalled()
+})
+
+
+it.each([
+  { itemType: 'task', offset: 0, hidden: true },
+  { itemType: 'task', offset: 1, hidden: false },
+  { itemType: 'habit', offset: 0, hidden: false },
+  { itemType: 'habit', offset: 1, hidden: false },
+])('retains the day-before choice for $itemType with start offset $offset', ({ itemType, offset, hidden }) => {
+  const date = new Date()
+  date.setUTCDate(date.getUTCDate() + offset)
+  const helpers = createFormHelpers({ itemType, frequencyUnit: itemType === 'habit' ? 'Day' : null, frequencyQuantity: 1, dueDate: date.toISOString().slice(0, 10), reminderEnabled: true })
+  renderForm(helpers)
+  fireEvent.click(screen.getByRole('button', { name: /habits.form.timingAndReminder/ }))
+  expect(screen.getByText('scheduled-reminders')).toHaveAttribute('data-hide-day-before', String(hidden))
 })

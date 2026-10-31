@@ -1,22 +1,15 @@
 import { IconButton } from '@/components/ui/icon-button'
-import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { useState, useMemo, type ReactNode } from 'react'
 import { X, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_REMINDER_PRESETS } from '@orbit/shared/utils'
 import { Select } from '@/components/ui/select'
-import { ReminderPermissionNotice } from './reminder-permission-notice'
-import { useReminderPermission } from '@/hooks/use-reminder-permission'
 
 interface ReminderSectionProps {
-  nested?: boolean
-  inline?: boolean
-  toggleLabel?: string
   reminderEnabled: boolean
   reminderTimes: number[]
   onReminderTimesChange: (times: number[]) => void
-  onToggleReminder: () => void
   reminderLabel: (minutes: number) => string
   t: ReturnType<typeof useTranslations>
   children?: ReactNode
@@ -25,9 +18,8 @@ interface ReminderSectionProps {
 }
 
 export function ReminderSection({
-  nested = false,
-  inline = false, toggleLabel, reminderEnabled, reminderTimes,
-  onReminderTimesChange, onToggleReminder, reminderLabel, t, children,
+  reminderEnabled, reminderTimes,
+  onReminderTimesChange, reminderLabel, t, children,
   scheduledReminderCount = 0, onValidationError,
 }: Readonly<ReminderSectionProps>) {
   const [showAddReminder, setShowAddReminder] = useState(false)
@@ -35,8 +27,6 @@ export function ReminderSection({
   const [customValue, setCustomValue] = useState<number | null>(null)
   const [customUnit, setCustomUnit] = useState<'min' | 'hours' | 'days'>('min')
   const [customDirection, setCustomDirection] = useState<'before' | 'after'>('before')
-  const permission = useReminderPermission(reminderEnabled, onToggleReminder)
-  const label = toggleLabel ?? t(inline ? 'habits.form.reminders' : 'habits.form.reminder')
 
   const reminderUnitOptions = useMemo(() => [
     { value: 'min', label: t('habits.form.reminderUnitMin') },
@@ -91,9 +81,7 @@ export function ReminderSection({
   }
 
   return (
-    <div className={inline ? "flex flex-col gap-3" : "flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]"}>
-      {!nested ? <ListRow placement={inline ? "column" : undefined} icon={inline ? undefined : 'bell'} title={label} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} /> : null}
-      <ReminderPermissionNotice visible={!nested && permission.showNotice} t={t} />
+    <div className="flex flex-col gap-3">
       {reminderEnabled && (
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">
@@ -167,16 +155,7 @@ export function ReminderSection({
                       label={t('habits.form.reminderDirection')}
                       onChange={(value) => setCustomDirection(value as 'before' | 'after')}
                     />
-                    {inline ? <PillButton variant="ghost" size="sm" iconOnly label={t('common.add')} onClick={addCustomReminder}><Plus size={20} aria-hidden="true" /></PillButton> : (
-                    <button
-                      type="button"
-                      aria-label={t('common.add')}
-                      className="habit-control-motion touch-target shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] active:scale-[0.96]"
-                      onClick={addCustomReminder}
-                    >
-                      <Plus size={16} strokeWidth={2.2} aria-hidden="true" />
-                    </button>
-                    )}
+                    <PillButton variant="ghost" size="sm" iconOnly label={t('common.add')} onClick={addCustomReminder}><Plus size={20} aria-hidden="true" /></PillButton>
                   </div>
                 )}
                 <button

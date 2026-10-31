@@ -1,11 +1,17 @@
 import React from "react";
+import { RepeatReminderSection } from "@/components/habits/habit-form-fields/repeat-reminder-section";
 import { StyleSheet, type ViewStyle } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAX_SCHEDULED_REMINDERS } from "@orbit/shared/validation";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
 import { createTokensV2 } from "@/lib/theme";
-import { ScheduledReminderSection } from "@/components/habits/habit-form-fields/scheduled-reminder-section";
+import { ScheduledReminderSection as ClockEditor } from "@/components/habits/habit-form-fields/scheduled-reminder-section";
 import { buildCreateHabitRequest, buildEmptyHabitFormValues } from "@orbit/shared/utils";
+
+function ScheduledReminderSection({ onToggleReminder, nested, ...props }: Parameters<typeof ClockEditor>[0] & { onToggleReminder: () => void; nested?: boolean }) {
+  const editor = <ClockEditor {...props} />
+  return nested ? editor : <RepeatReminderSection value={null} general={false} enabled={props.reminderEnabled} onToggle={onToggleReminder} onChange={vi.fn()}>{editor}</RepeatReminderSection>
+}
 
 const pushPermission = vi.hoisted(() => ({ status: "granted", includeTime: false, language: 'pt-BR', uses24HourClock: false }));
 vi.mock("@/hooks/use-push-notifications", () => ({

@@ -28,6 +28,21 @@ const repeatPhraseCases = [
 describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (owner) => {
   const { phraseInput, mutation, mount, submit } = setupHabitModalSubmit(owner)
 
+  if (owner === 'create') it('keeps task guidance and sub-item inputs type-aware through a type change', async () => {
+    formLocale.realController = true
+    await mount('task')
+    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.taskDescribe' }), { target: { value: '' } })
+    expect(screen.getByText('habits.form.taskCreateWhy')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.addSubTask' }))
+    expect(screen.getByRole('textbox', { name: 'habits.form.subTaskInputLabel:{"index":1}' })).toHaveAttribute('placeholder', 'habits.form.subTaskPlaceholder')
+    expect(screen.getByRole('button', { name: 'habits.form.removeSubTask' })).toBeVisible()
+    fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeHabit/ }))
+    expect(screen.getByText('habits.form.createWhy')).toBeVisible()
+    expect(screen.getByRole('textbox', { name: 'habits.form.subHabitInputLabel:{"index":1}' })).toHaveAttribute('placeholder', 'habits.form.subHabitPlaceholder')
+    expect(screen.getByRole('button', { name: 'habits.form.removeSubHabit' })).toBeVisible()
+  })
+
   it.each(['en', 'pt-BR'])('saves the entered cadence with an automatically filled Astra start in %s', async (locale) => {
     formLocale.realController = true
     formLocale.language = locale

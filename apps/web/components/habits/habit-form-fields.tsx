@@ -172,7 +172,7 @@ function SubHabitSection({
   if (!children) return null
   return (
     <section className="flex flex-col gap-2">
-      <FormSectionLabel>{t(task ? 'habits.form.subTasks' : 'habits.form.subHabits')}</FormSectionLabel>
+      <FormSectionLabel>{task ? t('habits.form.subTasks') : t('habits.form.subHabits')}</FormSectionLabel>
       <Proposed proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         {children}
       </Proposed>
@@ -190,7 +190,7 @@ function HabitAvoidanceFields({ formHelpers, controller, hasProAccess }: Readonl
     <section className="flex flex-col gap-4">
       <FormSectionLabel>{t('habits.form.avoidGroup')}</FormSectionLabel>
             {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Habit Create fBad controls this label under D42. */}
-            <ListRow placement="column" title={t('habits.form.habitTypeAvoid')} toggle={{ checked: isBadHabit, onChange: (checked) => form.setValue('isBadHabit', checked, { shouldDirty: true }) }} />
+            <ListRow placement="column" title={t('habits.form.habitTypeAvoid')} description={isBadHabit ? t('habits.form.habitTypeAvoidHint') : t('habits.form.habitTypeBuildHint')} toggle={{ checked: isBadHabit, onChange: (checked) => form.setValue('isBadHabit', checked, { shouldDirty: true }) }} />
 
 
             <SlipAlertEditor visible={isBadHabit} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} t={t} />

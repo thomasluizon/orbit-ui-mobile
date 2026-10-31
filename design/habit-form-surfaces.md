@@ -291,9 +291,10 @@ details. General hides the dated fields and retains a reachable frequency choice
 The Time and reminder row summarizes the selected time and enabled reminders. Its sheet contains
 exact time, an end time after an exact time exists, then one Remind me switch. At set times and
 Repeat every are radio choices. Dated items retain offset presets, custom offsets and absolute
-clock reminders in the first choice. Clock selection adds the reminder immediately through a field
-labelled Time / Horário; HH:MM remains a placeholder. Today hides the day-before choice without
-deleting an existing reminder. General retains its repeat-only reminder model. Repeat remains
+clock reminders in the first choice. The clock field keeps typing as a draft until blur or Enter; picker Done commits its selection.
+Each commit adds one reminder and resets the Time / Horário field; HH:MM remains a placeholder.
+Only a task due today hides the day-before choice, without deleting an existing reminder.
+A habit starting today retains the day-before choice for subsequent occurrences. General retains its repeat-only reminder model. Repeat remains
 available for every task and cadence. Its exclusive request contract, active window and account
 clock conversion stay with the existing reminder owners.
 

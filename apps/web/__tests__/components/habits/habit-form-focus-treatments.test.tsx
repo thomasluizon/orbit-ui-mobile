@@ -172,7 +172,6 @@ describe('habit form focus treatments', () => {
         reminderEnabled
         reminderTimes={[]}
         onReminderTimesChange={vi.fn()}
-        onToggleReminder={vi.fn()}
         reminderLabel={String}
         t={translate as Parameters<typeof ReminderSection>[0]['t']}
       />,

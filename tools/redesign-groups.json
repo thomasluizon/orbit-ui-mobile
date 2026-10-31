@@ -147,6 +147,7 @@
       "m-overlay-create-goal-from-habit-goal-deadline-field",
       "m-overlay-habit-form-fields-habit-date-field",
       "m-overlay-habit-form-fields-habit-emoji-selector",
+      "m-overlay-habit-form-fields-habit-timing-field",
       "m-overlay-habit-form-fields-scheduled-reminder-section",
       "m-overlay-habit-form-fields-tag-picker-field",
       "m-overlay-habits-create-habit-modal",
@@ -156,6 +157,7 @@
       "overlay-create-goal-from-habit-goal-deadline-field",
       "overlay-habit-form-fields-habit-date-field",
       "overlay-habit-form-fields-habit-emoji-selector",
+      "overlay-habit-form-fields-habit-timing-field",
       "overlay-habit-form-fields-scheduled-reminder-section",
       "overlay-habit-form-fields-tag-picker-field",
       "overlay-habits-create-habit-modal",
@@ -490,6 +492,8 @@
     "m-widget-orbit-widget": "D66 assigns the Android widget to its canvas document.",
     "overlay-app-layout": "Orbit Hoje is the representative owner for the authenticated shell shared across Hoje, Calendario, Progresso, and Perfil, as defined by DESIGN.md.",
     "overlay-shell-sidebar-account": "Orbit Hoje owns the shared wide sidebar; its account menu follows the account header and sign-out composition specified by ticket #1657.",
-    "route-turnstile-bridge": "Orbit Entrar owns the headless Turnstile bridge used by Android sign-in; it has no separate visible canvas."
+    "route-turnstile-bridge": "Orbit Entrar owns the headless Turnstile bridge used by Android sign-in; it has no separate visible canvas.",
+    "m-overlay-habit-form-fields-habit-timing-field": "Orbit Habit Create is the representative owner for the shared create and edit timing sheet approved by #1922; design/habit-form-surfaces.md records its clock, offset and repeat editors.",
+    "overlay-habit-form-fields-habit-timing-field": "Orbit Habit Create is the representative owner for the shared create and edit timing sheet approved by #1922; design/habit-form-surfaces.md records its clock, offset and repeat editors."
   }
 }

@@ -69,14 +69,17 @@ describe('repeat reminder compact surfaces', () => {
         expect([...focus.shadow.matchAll(/\b0px 0px 0px ([1-9]\d*)px/g)]).toHaveLength(1)
         const geometry = await page.evaluate(() => {
           const controls = [...document.querySelectorAll('#repeat-form [role="combobox"]')].map(element => element.getBoundingClientRect())
+          const choices = document.querySelector('#repeat-form [role="radiogroup"]')!.getBoundingClientRect()
           const next = [...document.querySelectorAll('[data-habit-row-meta-token]')].filter(element => /04:00/.test(element.textContent))
-          return { scrollWidth: document.documentElement.scrollWidth, clearance: controls[1]!.top - controls[0]!.bottom,
+          return { scrollWidth: document.documentElement.scrollWidth, clearance: controls[0]!.top - choices.bottom, choiceCount: document.querySelectorAll('#repeat-form [role="radiogroup"] [role="radio"]').length, intervalCount: controls.length,
             next: next.map(element => { const range = document.createRange(); range.selectNodeContents(element.firstChild!); const rect = element.getBoundingClientRect(); return { lines: range.getClientRects().length, left: rect.left, right: rect.right, overflow: getComputedStyle(element).textOverflow } }),
             controlsFit: controls.every(rect => rect.left >= 16 && rect.right <= innerWidth - 16),
           }
         })
         expect(geometry.scrollWidth).toBeLessThanOrEqual(width)
         expect(geometry.controlsFit).toBe(true)
+        expect(geometry.choiceCount).toBe(2)
+        expect(geometry.intervalCount).toBe(1)
         expect(geometry.clearance).toBeGreaterThanOrEqual(12)
         expect(geometry.next).toHaveLength(2)
         for (const next of geometry.next) { expect(next.right).toBeLessThanOrEqual(width - 16); expect(next.left).toBeGreaterThanOrEqual(16); expect(next.overflow).not.toBe('ellipsis'); expect(next.lines).toBe(1) }

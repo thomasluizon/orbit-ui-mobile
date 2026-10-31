@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { useTranslations } from 'next-intl'
 import {
   habitFormSchema,
+  habitFormSchemaForType,
   type HabitFormData,
 } from '@orbit/shared/validation'
 import {
@@ -84,7 +85,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   const [retiredCadenceTitle, setRetiredCadenceTitle] = useState<string | undefined>(() => readHabitRecurrencePhrase(initialData?.datePhrase ?? '') ? initialData?.title : undefined)
   const [validationFocusRequest, setValidationFocusRequest] = useState(0)
   const form = useForm<HabitFormInput, unknown, HabitFormData>({
-    resolver: zodResolver(habitFormSchema),
+    resolver: (values, context, options) => zodResolver(habitFormSchemaForType(values.itemType))(values, context, options),
     defaultValues: {
       itemType: 'task',
       title: '',
@@ -261,9 +262,9 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
       dateValidation.current?.()
       const values = form.getValues()
       const dateIssue = !values.isGeneral || values.dateIssue === 'errors.api.generalMismatchWithParent' ? values.dateIssue : null
-      const key = !values.itemType ? 'habits.form.typeRequired' : dateIssue ? dateIssue : !values.isGeneral && !values.dueDate ? 'habits.form.dateStale' : null
+      const key = dateIssue ? dateIssue : !values.isGeneral && !values.dueDate ? 'habits.form.dateStale' : null
       if (key) {
-        form.setError(!values.itemType ? 'itemType' : 'datePhrase', { message: key })
+        form.setError('datePhrase', { message: key })
         setValidationFocusRequest((request) => request + 1)
         return translate(key)
       }

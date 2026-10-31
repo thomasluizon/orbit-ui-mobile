@@ -1,4 +1,3 @@
-import { ListRow } from '@/components/ui/list-row'
 import { toTime24 } from '@orbit/shared/utils'
 
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -9,8 +8,6 @@ import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import { MAX_SCHEDULED_REMINDERS, validateScheduledReminders } from '@orbit/shared/validation'
 import { TimeField } from '@/components/ui/time-field'
 import type { Time24 } from '@orbit/shared/contracts/forms'
-import { ReminderPermissionNotice } from './reminder-permission-notice'
-import { useReminderPermission } from '@/hooks/use-reminder-permission'
 import { RadioGroup, RadioItem } from '@/components/ui/radio-group'
 
 function ReminderWhenOption({ label, selected, onSelect }: Readonly<{ label: string; selected: boolean; onSelect: () => void }>) {
@@ -26,29 +23,24 @@ function ReminderWhenOption({ label, selected, onSelect }: Readonly<{ label: str
 
 interface ScheduledReminderSectionProps {
   hideDayBefore?: boolean
-  inline?: boolean
   reminderEnabled: boolean
   scheduledReminders: Array<{ when: ScheduledReminderWhen; time: string }> | undefined
-  onToggleReminder: () => void
   onSetScheduledReminders: (reminders: Array<{ when: ScheduledReminderWhen; time: string }>) => void
   onValidationError: (message: string) => void
-  /** The timed reminder card owns the switch when this editor is nested inside it. */
-  nested?: boolean
   offsetReminderCount?: number
   t: ReturnType<typeof useTranslations>
 }
 
 export function ScheduledReminderSection({
   hideDayBefore = false,
-  inline = false, reminderEnabled, scheduledReminders,
-  onToggleReminder, onSetScheduledReminders, onValidationError, nested = false,
+  reminderEnabled, scheduledReminders,
+  onSetScheduledReminders, onValidationError,
   offsetReminderCount = 0, t,
 }: Readonly<ScheduledReminderSectionProps>) {
   const { displayTime } = useTimeFormat()
 
   const [when, setWhen] = useState<ScheduledReminderWhen>('same_day')
 
-  const permission = useReminderPermission(reminderEnabled, onToggleReminder)
 
   const atScheduledLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
   const atRelativeLimit = (scheduledReminders?.length ?? 0) + offsetReminderCount >= 15
@@ -84,10 +76,7 @@ export function ScheduledReminderSection({
   }
 
   return (
-    <div className={nested ? 'flex flex-col gap-2' : inline ? 'flex flex-col gap-3' : 'flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]'}>
-      {nested ? <p className="m-0 text-xs text-[var(--fg-3)]">{t('habits.form.scheduledReminderFixedTimes')}</p> : null}
-      {!nested && <ListRow placement={inline ? "column" : undefined} icon={'bell'} title={t('habits.form.scheduledReminder')} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} />}
-      {!nested && <ReminderPermissionNotice visible={permission.showNotice} t={t} />}
+    <div className="flex flex-col gap-2">
       {reminderEnabled && (
         <div className="flex flex-col gap-2">
           {(scheduledReminders?.length ?? 0) > 0 && (
@@ -121,6 +110,7 @@ export function ScheduledReminderSection({
 
                 <div className="flex flex-col gap-2">
                   <TimeField
+                    commitOnBlur
                     label={t('habits.form.scheduledReminderTime')}
                     placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
                     value={toTime24('')}

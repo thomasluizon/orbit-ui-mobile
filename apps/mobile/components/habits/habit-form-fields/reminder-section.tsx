@@ -1,8 +1,6 @@
 import { IconButton } from '@/components/ui/icon-button'
 import { useHabitFormInteraction } from './habit-form-interaction'
 import { Select } from '@/components/ui/select'
-import { ListRow } from '@/components/ui/list-row'
-import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PillButton } from "@/components/ui/pill-button";
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
@@ -12,18 +10,13 @@ import { X, Plus } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
-import { useReminderPermission } from "@/hooks/use-reminder-permission";
 import { type AppTokens, createSectionStyles } from "./styles";
 
 interface ReminderSectionProps {
-  nested?: boolean
-  inline?: boolean;
-  toggleLabel?: string;
   tokens: AppTokens;
   reminderEnabled: boolean;
   reminderTimes: number[];
   onReminderTimesChange: (times: number[]) => void;
-  onToggleReminder: () => void;
   reminderLabel: (minutes: number) => string;
   children?: ReactNode;
   scheduledReminderCount?: number;
@@ -32,13 +25,9 @@ interface ReminderSectionProps {
 
 export function ReminderSection({
   tokens,
-  nested = false,
-  inline = false,
-  toggleLabel,
   reminderEnabled,
   reminderTimes,
   onReminderTimesChange,
-  onToggleReminder,
   reminderLabel,
   children,
   scheduledReminderCount = 0,
@@ -52,8 +41,6 @@ export function ReminderSection({
   const [customValue, setCustomValue] = useState("");
   const [customUnit, setCustomUnit] = useState<"min" | "hours" | "days">("min");
   const [customDirection, setCustomDirection] = useState<"before" | "after">("before");
-  const permission = useReminderPermission(reminderEnabled, onToggleReminder);
-  const label = toggleLabel ?? t(inline ? "habits.form.reminders" : "habits.form.reminder");
 
   const availablePresets = useMemo(
     () => HABIT_REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
@@ -103,9 +90,7 @@ export function ReminderSection({
   }
 
   return (
-    <View style={inline ? { gap: 12 } : sectionStyles.container}>
-      {!nested ? <ListRow disabled={disabled} placement={inline ? "column" : undefined} icon={inline ? undefined : 'bell'} title={label} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} /> : null}
-      <ReminderPermissionNotice visible={!nested && permission.showNotice} tokens={tokens} onPress={permission.openSettings} />
+    <View style={{ gap: 12 }}>
       {reminderEnabled && (
         <View style={sectionStyles.body}>
           <View style={sectionStyles.chipsRow}>
@@ -182,21 +167,7 @@ export function ReminderSection({
                     { value: 'before', label: t('habits.form.reminderBefore') },
                     { value: 'after', label: t('habits.form.reminderAfter') },
                   ]} />
-                  {inline ? <PillButton disabled={disabled} variant="ghost" size="sm" iconOnly label={t("common.add")} onClick={addCustomReminder}><Plus size={20} color={tokens.fg1} /></PillButton> : (
-                  <Pressable disabled={disabled}
-                    style={({ pressed }) => [
-                      sectionStyles.customAddButton,
-                      { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary },
-                      pressed && { transform: [{ scale: 0.96 }] },
-                    ]}
-
-                    accessibilityRole="button"
-                    accessibilityLabel={t("common.add")}
-                    onPress={addCustomReminder}
-                  >
-                    <Plus size={16} color={tokens.fgOnPrimary} strokeWidth={2.2} />
-                  </Pressable>
-                  )}
+                  <PillButton disabled={disabled} variant="ghost" size="sm" iconOnly label={t("common.add")} onClick={addCustomReminder}><Plus size={20} color={tokens.fg1} /></PillButton>
                 </View>
               )}
               <Pressable disabled={disabled}

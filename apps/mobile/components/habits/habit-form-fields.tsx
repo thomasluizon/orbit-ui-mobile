@@ -189,7 +189,7 @@ function SubHabitSection({
   if (!children) return null
   return (
     <View style={{ gap: 8 }}>
-      <FormSectionLabel>{t(task ? 'habits.form.subTasks' : 'habits.form.subHabits')}</FormSectionLabel>
+      <FormSectionLabel>{task ? t('habits.form.subTasks') : t('habits.form.subHabits')}</FormSectionLabel>
       <Proposed proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         {children}
       </Proposed>
@@ -208,7 +208,7 @@ function HabitAvoidanceFields({ formHelpers, controller, hasProAccess, tokens, o
     <View style={{ gap: 16 }}>
       <FormSectionLabel>{t('habits.form.avoidGroup')}</FormSectionLabel>
             {/* eslint-disable-next-line local/max-button-words -- Orbit Habit Create draws the avoid-habit switch label. */}
-            <ListRow disabled={disabled} placement="column" title={t('habits.form.habitTypeAvoid')} toggle={{ checked: isBadHabit, onChange: guard((checked) => form.setValue('isBadHabit', checked, { shouldDirty: true })) }} />
+            <ListRow disabled={disabled} placement="column" title={t('habits.form.habitTypeAvoid')} description={isBadHabit ? t('habits.form.habitTypeAvoidHint') : t('habits.form.habitTypeBuildHint')} toggle={{ checked: isBadHabit, onChange: guard((checked) => form.setValue('isBadHabit', checked, { shouldDirty: true })) }} />
 
             <SlipAlertEditor visible={isBadHabit} tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} onUpgrade={onUpgrade} t={t} />
     </View>

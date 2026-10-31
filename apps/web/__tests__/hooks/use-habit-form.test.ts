@@ -294,3 +294,23 @@ describe('General repeat edit initialization', () => {
     }
   })
 })
+
+
+it.each([
+  ['title', 201, 'Title'],
+  ['description', 10001, 'Description'],
+  ['emoji', 33, 'Emoji'],
+] as const)('uses the selected item type in %s validation', async (field, length, noun) => {
+  const { result } = renderHook(() => useHabitForm({ initialData: { title: 'Read', dueDate: '2026-10-20' } }))
+  const helpers = () => result.current
+  for (const itemType of ['task', 'habit'] as const) {
+    act(() => {
+      helpers().chooseItemType(itemType)
+      helpers().form.setValue(field, 'x'.repeat(length))
+    })
+    const suffix = itemType === 'task' ? `task${noun}TooLong` : `${field}TooLong`
+    expect(helpers().validateAll()).toBe(`habits.form.${suffix}`)
+    await act(async () => { await helpers().form.trigger() })
+    expect(helpers().form.getFieldState(field).error?.message).toBe(`habits.form.${suffix}`)
+  }
+})

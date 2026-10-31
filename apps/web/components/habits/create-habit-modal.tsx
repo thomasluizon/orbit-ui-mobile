@@ -353,8 +353,6 @@ export function CreateHabitModal({
       const submittingAccount = getAccountGeneration()
 
       const subHabitValues = subHabits.map((entry) => entry.value)
-      const missingType = !formHelpers.form.getValues('itemType')
-      if (missingType) { formHelpers.validateAll(); return }
       if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
       const error = formHelpers.validateAll({
         reminderTimes,
@@ -578,6 +576,7 @@ export function CreateHabitModal({
           >
             {(proposedItemCount) => !isSubHabitMode ? (
               <SubHabitEditor
+                task={formHelpers.form.watch('itemType') === 'task'}
                 subHabits={subHabits}
                 proposedItemCount={proposedItemCount}
                 onUpdateSubHabit={updateSubHabitValue}

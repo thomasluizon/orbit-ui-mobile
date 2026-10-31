@@ -14,25 +14,31 @@ import {
   MAX_TAGS_PER_HABIT,
 } from './constants'
 
+function habitFormTextFields(task: boolean) {
+  return {
+    title: z
+      .string()
+      .trim()
+      .check(utf16Length('min', 1, 'habits.form.titleRequired'))
+      .check(utf16Length('max', MAX_HABIT_TITLE_LENGTH, task ? 'habits.form.taskTitleTooLong' : 'habits.form.titleTooLong')),
+    description: z
+      .string()
+      .check(utf16Length('max', MAX_HABIT_DESCRIPTION_LENGTH, task ? 'habits.form.taskDescriptionTooLong' : 'habits.form.descriptionTooLong'))
+      .optional()
+      .default(''),
+    emoji: z
+      .string()
+      .check(utf16Length('max', MAX_HABIT_EMOJI_LENGTH, task ? 'habits.form.taskEmojiTooLong' : 'habits.form.emojiTooLong'))
+      .optional()
+      .default(''),
+  }
+}
+
 export const habitFormSchema = z.object({
   itemType: z.enum(['task', 'habit']).nullable().optional(),
   datePhrase: z.string().optional(),
   dateIssue: z.string().optional(),
-  title: z
-    .string()
-    .trim()
-    .check(utf16Length('min', 1, 'habits.form.titleRequired'))
-    .check(utf16Length('max', MAX_HABIT_TITLE_LENGTH, 'habits.form.titleTooLong')),
-  description: z
-    .string()
-    .check(utf16Length('max', MAX_HABIT_DESCRIPTION_LENGTH, 'habits.form.descriptionTooLong'))
-    .optional()
-    .default(''),
-  emoji: z
-    .string()
-    .check(utf16Length('max', MAX_HABIT_EMOJI_LENGTH, 'habits.form.emojiTooLong'))
-    .optional()
-    .default(''),
+  ...habitFormTextFields(false),
   frequencyUnit: frequencyUnitSchema.nullable().optional(),
   frequencyQuantity: z.number().int().min(1).nullable().optional(),
   intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).optional(),
@@ -51,6 +57,12 @@ export const habitFormSchema = z.object({
   checklistItems: z.array(checklistItemSchema).default([]),
 })
 
+const taskHabitFormSchema = habitFormSchema.extend(habitFormTextFields(true))
+
+export function habitFormSchemaForType(itemType: 'task' | 'habit' | null | undefined): typeof habitFormSchema {
+  return itemType === 'task' ? taskHabitFormSchema : habitFormSchema
+}
+
 export type HabitFormData = z.infer<typeof habitFormSchema>
 
 /**
@@ -68,7 +80,8 @@ export function validateEndDate(dueDate: string, endDate: string): string | null
  * Validate that dueEndTime is after dueTime.
  */
 export function validateEndTime(dueTime: string, dueEndTime: string): string | null {
-  if (!dueTime || !dueEndTime) return null
+  if (!dueEndTime) return null
+  if (!dueTime) return 'habits.form.endTimeRequiresStart'
   if (dueEndTime <= dueTime) {
     return 'habits.form.endTimeBeforeStartTime'
   }
@@ -249,22 +262,29 @@ function validateTimes(data: HabitFormData): string | null {
   return validateEndTime(data.dueTime, data.dueEndTime)
 }
 
-/**
- * Run all habit form validations. Returns the first error i18n key or null.
- */
-export function validateHabitForm(data: HabitFormData): string | null {
+function validateHabitTextFields(data: HabitFormData): string | null {
   if (!data.title.trim()) {
     return 'habits.form.titleRequired'
   }
   if (data.title.trim().length > MAX_HABIT_TITLE_LENGTH) {
-    return 'habits.form.titleTooLong'
+    return data.itemType === 'task' ? 'habits.form.taskTitleTooLong' : 'habits.form.titleTooLong'
   }
 
   const descriptionErr = validateDescription(data.description)
-  if (descriptionErr) return descriptionErr
+  if (descriptionErr) return data.itemType === 'task' ? 'habits.form.taskDescriptionTooLong' : descriptionErr
 
   const emojiErr = validateEmoji(data.emoji)
-  if (emojiErr) return emojiErr
+  if (emojiErr) return data.itemType === 'task' ? 'habits.form.taskEmojiTooLong' : emojiErr
+
+  return null
+}
+
+/**
+ * Run all habit form validations. Returns the first error i18n key or null.
+ */
+export function validateHabitForm(data: HabitFormData): string | null {
+  const textError = validateHabitTextFields(data)
+  if (textError) return textError
 
   const checklistErr = validateChecklistItems(data.checklistItems)
   if (checklistErr) return checklistErr

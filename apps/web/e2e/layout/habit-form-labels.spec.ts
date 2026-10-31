@@ -10,13 +10,13 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 
 async function assertFieldEdges(disclosure: Locator, descriptionOwner: Locator) {
-  const timeLabel = disclosure.getByRole('heading', { name: messages.habits.form.checklist, exact: true })
+  const fieldLabel = disclosure.getByRole('heading', { name: messages.habits.form.endDate, exact: true })
   const descriptionLabel = descriptionOwner.locator('label').filter({ hasText: messages.habits.form.description })
-  await expect(timeLabel).toBeVisible()
+  await expect(fieldLabel).toBeVisible()
   await expect(descriptionLabel).toHaveCount(1)
   await expect(descriptionLabel).toBeVisible()
-  const edge = await timeLabel.evaluate((element) => element.getBoundingClientRect().left)
-  const color = await timeLabel.evaluate((element) => getComputedStyle(element).color)
+  const edge = await fieldLabel.evaluate((element) => element.getBoundingClientRect().left)
+  const color = await fieldLabel.evaluate((element) => getComputedStyle(element).color)
   const labels = [descriptionLabel, ...await disclosure.getByRole('heading', { level: 2 }).all()]
   expect(labels.length).toBeGreaterThanOrEqual(3)
   for (const label of labels) {

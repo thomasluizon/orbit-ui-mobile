@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
-import { ScheduledReminderSection } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
+import { ScheduledReminderSection as ClockEditor } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
 import { buildCreateHabitRequest, buildEmptyHabitFormValues } from '@orbit/shared/utils'
+import { RepeatReminderSection } from '@/components/habits/habit-form-fields/repeat-reminder-section'
 import { pressRadioKey } from '@/__tests__/support/radio-key'
 
 vi.mock('@/hooks/use-push-subscriptions', () => ({
@@ -10,7 +11,7 @@ vi.mock('@/hooks/use-push-subscriptions', () => ({
 }))
 
 const clockState = vi.hoisted(() => ({ language: 'pt-BR', uses24HourClock: false }))
-vi.mock('next-intl', () => ({ useLocale: () => clockState.language }))
+vi.mock('next-intl', () => ({ useLocale: () => clockState.language, useTranslations: () => (key: string) => key }))
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: clockState.uses24HourClock } }) }))
 
@@ -27,6 +28,11 @@ vi.mock('@/components/ui/time-field', () => ({
     <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} />
   ),
 }))
+
+function ScheduledReminderSection({ onToggleReminder, nested, ...props }: Parameters<typeof ClockEditor>[0] & { onToggleReminder: () => void; nested?: boolean }) {
+  const editor = <ClockEditor {...props} />
+  return nested ? editor : <RepeatReminderSection value={null} general={false} enabled={props.reminderEnabled} onToggle={onToggleReminder} onChange={vi.fn()}>{editor}</RepeatReminderSection>
+}
 
 const translate = (key: string, params?: Record<string, unknown>) =>
   params ? `${key}(${JSON.stringify(params)})` : key
@@ -163,7 +169,7 @@ describe('ScheduledReminderSection', () => {
 
   it('toggles scheduled reminders through the switch', () => {
     const props = renderSection({ reminderEnabled: false })
-    fireEvent.click(screen.getByRole('switch', { name: 'habits.form.scheduledReminder' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'habits.form.reminder' }))
     expect(props.onToggleReminder).toHaveBeenCalledTimes(1)
   })
 })

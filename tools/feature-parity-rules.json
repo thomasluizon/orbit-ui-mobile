@@ -578,6 +578,24 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "mobile:control:habits.form.anyTimeHint": {
+      "targets": [
+        "mobile:control:habits.form.exactTime"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "reason": "The optional Exact time field in the timing sheet retains the untimed choice by leaving or clearing the value; the redundant helper is omitted."
+    },
+    "mobile:control:habits.form.createWhy": {
+      "targets": [
+        "mobile:content:habits.form.createWhy"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/habit-create-actions.tsx"
+      ],
+      "reason": "The empty-title guidance remains the Create action hint and visible reason in HabitCreateActions; the shared guidance value now selects the task or habit copy once."
+    },
     "mobile:control:habits.form.descriptionPlaceholder": {
       "targets": [
         "mobile:control:habits.form.description"
@@ -589,6 +607,15 @@
         "mobile:control:habits.form.exactTime"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.endTimeRequiresStart": {
+      "targets": [
+        "mobile:control:habits.form.dueEndTime"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "reason": "The end-time field follows an exact time in the timing sheet. Shared validateEndTime rejects a missing start at submission; clearing the start clears the end, and native end-time edits use the form interaction guard."
     },
     "mobile:control:habits.form.habitTypeBuild": {
       "targets": [
@@ -613,6 +640,25 @@
         "mobile:control:habits.form.reminderCustom"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "mobile:control:habits.form.reminderKind": {
+      "targets": [
+        "mobile:control:habits.form.definedTimes",
+        "mobile:control:habits.form.repeatEvery"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "reason": "The timing sheet replaces the reminder-kind select with named At set times and Repeat every radio rows, retaining both models and their controls."
+    },
+    "mobile:control:habits.form.scheduledReminder": {
+      "targets": [
+        "mobile:control:habits.form.reminder"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "reason": "The timing sheet owns one Remind me switch for both clock and offset editors in RepeatReminderSection; neither nested editor duplicates the switch."
     },
     "mobile:control:habits.form.suggestTags": {
       "targets": [
@@ -1391,13 +1437,19 @@
       "targets": [
         "mobile:control:habits.form.habitTypeAvoidHint"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "owners": [
+        "apps/mobile/components/habits/habit-form-fields.tsx"
+      ],
+      "reason": "The Avoid control renders the active build or avoid description and retains slip logging and its alert editor."
     },
     "mobile:display:habits.form.habitTypeBuildHint": {
       "targets": [
-        "mobile:control:habits.form.habitTypeAvoidHint"
+        "mobile:control:habits.form.habitTypeBuildHint"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "owners": [
+        "apps/mobile/components/habits/habit-form-fields.tsx"
+      ],
+      "reason": "The Avoid control renders the active build or avoid description and retains slip logging and its alert editor."
     },
     "mobile:display:habits.form.scheduledReminderDayBefore": {
       "targets": [
@@ -1416,6 +1468,16 @@
         "mobile:control:habits.form.timesPerUnit"
       ],
       "reason": "The quantity caption is retained as the labelled mode radio control in the habit schedule editor."
+    },
+    "mobile:display:habits.form.typeRequired": {
+      "targets": [
+        "mobile:control:habits.form.typeTask",
+        "mobile:control:habits.form.typeHabit"
+      ],
+      "owners": [
+        "apps/mobile/components/habits/habit-form-fields/habit-type-field.tsx"
+      ],
+      "reason": "Create always selects Task and edit retains its stored type. Both type choices remain reachable, so the empty-choice error has no reachable state."
     },
     "mobile:display:onboarding.flow.complete.subtitle": {
       "targets": [
@@ -2339,6 +2401,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:control:habits.form.anyTimeHint": {
+      "targets": [
+        "web:control:habits.form.exactTime"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "reason": "The optional Exact time field in the timing sheet retains the untimed choice by leaving or clearing the value; the redundant helper is omitted."
+    },
     "web:control:habits.form.createDescription": {
       "targets": [
         "web:control:habits.form.newHabit"
@@ -2347,9 +2418,12 @@
     },
     "web:control:habits.form.createSubHabitDescription": {
       "targets": [
-        "web:content:habits.form.subHabits"
+        "web:display:habits.form.subHabits"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "owners": [
+        "apps/web/components/habits/habit-form-fields.tsx"
+      ],
+      "reason": "The Sub-habits heading and its editor retain the sub-item creation entry inside the Steps disclosure; tasks use the corresponding Subtasks heading."
     },
     "web:control:habits.form.dueTime": {
       "targets": [
@@ -2378,6 +2452,15 @@
       ],
       "reason": "The restored label reaches rendered output through its component or bound control."
     },
+    "web:control:habits.form.endTimeRequiresStart": {
+      "targets": [
+        "web:control:habits.form.dueEndTime"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "reason": "The end-time field follows an exact time in the timing sheet. Shared validateEndTime rejects a missing start at submission; clearing the start clears the end, and native end-time edits use the form interaction guard."
+    },
     "web:control:habits.form.habitTypeBuild": {
       "targets": [
         "web:control:habits.form.habitTypeAvoid"
@@ -2401,6 +2484,25 @@
         "web:control:habits.form.reminderCustom"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:habits.form.reminderKind": {
+      "targets": [
+        "web:control:habits.form.definedTimes",
+        "web:control:habits.form.repeatEvery"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "reason": "The timing sheet replaces the reminder-kind select with named At set times and Repeat every radio rows, retaining both models and their controls."
+    },
+    "web:control:habits.form.scheduledReminder": {
+      "targets": [
+        "web:control:habits.form.reminder"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx"
+      ],
+      "reason": "The timing sheet owns one Remind me switch for both clock and offset editors in RepeatReminderSection; neither nested editor duplicates the switch."
     },
     "web:control:habits.form.suggestTags": {
       "targets": [
@@ -3293,13 +3395,19 @@
       "targets": [
         "web:control:habits.form.habitTypeAvoidHint"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "owners": [
+        "apps/web/components/habits/habit-form-fields.tsx"
+      ],
+      "reason": "The Avoid control renders the active build or avoid description and retains slip logging and its alert editor."
     },
     "web:display:habits.form.habitTypeBuildHint": {
       "targets": [
-        "web:control:habits.form.habitTypeAvoidHint"
+        "web:control:habits.form.habitTypeBuildHint"
       ],
-      "reason": "The retained behavior has this source-backed label or entry in the redesign."
+      "owners": [
+        "apps/web/components/habits/habit-form-fields.tsx"
+      ],
+      "reason": "The Avoid control renders the active build or avoid description and retains slip logging and its alert editor."
     },
     "web:display:habits.form.scheduledReminderDayBefore": {
       "targets": [

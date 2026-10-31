@@ -79,7 +79,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
             await submit.click()
             const task = screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })
             await expect(task).toBeChecked()
-            await expect(screen.getByText(messages.habits.form.typeRequired, { exact: true })).toHaveCount(0)
+            await expect(screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })).toBeChecked()
             await task.click()
             await screen.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true }).fill('Read every Monday')
             const phrase = screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })

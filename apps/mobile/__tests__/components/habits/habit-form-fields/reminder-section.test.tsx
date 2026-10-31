@@ -1,10 +1,16 @@
 import { expectPressFill } from '../../../support/press-feedback'
 import React from "react";
+import { RepeatReminderSection } from "@/components/habits/habit-form-fields/repeat-reminder-section";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StyleSheet, type ViewStyle } from "react-native";
 import { HABIT_REMINDER_PRESETS, buildCreateHabitRequest, buildEmptyHabitFormValues } from "@orbit/shared/utils";
 import { createTokensV2, radius } from "@/lib/theme";
-import { ReminderSection } from "@/components/habits/habit-form-fields/reminder-section";
+import { ReminderSection as OffsetEditor } from "@/components/habits/habit-form-fields/reminder-section";
+
+function ReminderSection({ onToggleReminder, nested, ...props }: Parameters<typeof OffsetEditor>[0] & { onToggleReminder: () => void; nested?: boolean }) {
+  const editor = <OffsetEditor {...props} />
+  return nested ? editor : <RepeatReminderSection value={null} general={false} enabled={props.reminderEnabled} onToggle={onToggleReminder} onChange={vi.fn()}>{editor}</RepeatReminderSection>
+}
 
 const pushPermission = vi.hoisted(() => ({ status: "granted" }));
 vi.mock("@/hooks/use-push-notifications", () => ({
@@ -77,8 +83,6 @@ function renderSection(overrides: {
     tree = TestRenderer.create(
       <ReminderSection
         tokens={tokens}
-        inline={overrides.inline}
-        toggleLabel={overrides.toggleLabel}
         reminderEnabled={overrides.reminderEnabled ?? true}
         reminderTimes={overrides.reminderTimes ?? []}
         onReminderTimesChange={onReminderTimesChange}
@@ -266,9 +270,9 @@ describe("ReminderSection", () => {
     const confirm = buttons(tree).find(
       (node) => node.props.accessibilityLabel === "common.add",
     );
-    expect(confirm!.props.hitSlop).toBeUndefined();
+    expect(confirm!.props.hitSlop).toBe(2);
     const pressedAdd = StyleSheet.flatten((confirm!.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed: true }));
-    expect(pressedAdd).toMatchObject({ width: 48, height: 48, borderRadius: radius.full, overflow: "hidden", backgroundColor: tokens.primaryPressed });
+    expect(pressedAdd).toMatchObject({ minWidth: 44, minHeight: 44, borderRadius: radius.full, overflow: "hidden", backgroundColor: tokens.bgHover });
     (confirm!.props.style as (state: { pressed: boolean }) => unknown)({
       pressed: false,
     });
@@ -413,7 +417,7 @@ it('fills reminder removal, add, custom units, directions, and commit', () => {
     const style = control.props.style as (state: { pressed: boolean }) => ViewStyle[]
     expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ backgroundColor: tokens.bgHover, borderRadius: 12 })
   }
-  expectPressFill(tree, 'common.add', tokens.primaryPressed, radius.full);
+  expectPressFill(tree, 'common.add', tokens.bgHover, radius.full);
 });
 
 it('opens the unit select from the edited custom reminder on the first press', () => {
