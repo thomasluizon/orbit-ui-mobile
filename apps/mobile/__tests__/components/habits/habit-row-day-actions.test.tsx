@@ -25,6 +25,27 @@ vi.mock('@/lib/motion', async (importOriginal) => ({
 }))
 
 describe('mobile habit row on an old day', () => {
+  it.each([false, true])('offers Skip only for a scheduled row, isGeneral=%s', (isGeneral) => {
+    const onSkip = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<I18nextProvider i18n={i18n}>
+        <HabitRow habit={createMockHabit({ isGeneral, frequencyUnit: isGeneral ? null : 'Day' })}
+          actions={{ onSkip, onEdit: vi.fn() }} />
+      </I18nextProvider>)
+    })
+    TestRenderer.act(() => tree!.root.findByProps({ accessibilityLabel: i18n.t('habits.actions.more') }).props.onPress())
+    const skip = tree!.root.findAllByProps({ accessibilityRole: 'menuitem' })
+      .find((item: TestNode) => item.findByType('Text').props.children === i18n.t('habits.actions.skip'))
+    if (isGeneral) expect(skip).toBeUndefined()
+    else {
+      expect(skip).toBeDefined()
+      TestRenderer.act(() => skip!.props.onPress())
+      expect(onSkip).toHaveBeenCalledOnce()
+    }
+    TestRenderer.act(() => tree!.unmount())
+  })
+
   beforeEach(async () => {
     vi.setSystemTime(new Date('2026-04-11T12:00:00Z'))
     await i18n.changeLanguage('en')

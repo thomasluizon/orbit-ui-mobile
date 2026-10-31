@@ -1325,7 +1325,7 @@ export function HabitList({
           onReorder: options?.onReorder,
           onLog: () => { void handleDirectToggle(habit.id, 'log') },
           onUnlog: () => { void handleDirectToggle(habit.id, 'unlog') },
-          onSkip: !completionReadOnly && canLog ? () => { void skipFromRow(habit) } : undefined,
+          onSkip: !completionReadOnly && canLog && !habit.isGeneral ? () => { void skipFromRow(habit) } : undefined,
           onDuplicate: () => setHabitToDuplicate(habit),
           onEdit: () => {
             setHabitToEdit(habit)

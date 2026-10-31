@@ -50,12 +50,13 @@ function buildMenuItems(
   canSelect: boolean,
   canDrillInto: boolean,
   completionReadOnly: boolean,
+  isGeneral: boolean,
   state: HabitStatus,
 ): MenuItem[] {
   const items: MenuItem[] = []
   if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask' })
   if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.actions.moveUnder'), icon: 'arrows-move' })
-  if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
+  if (actions.onSkip && !completionReadOnly && !isGeneral) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
   if (actions.onReschedule && state === 'overdue' && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.rescheduleAstra'), icon: 'astra' })
   if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit'), icon: 'pencil' })
   if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate'), icon: 'copy' })
@@ -176,12 +177,12 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
-  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, completionReadOnly, state)
+  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, completionReadOnly, habit.isGeneral, state)
 
   return (
     <Menu.Root open={menuOpen} onOpenChange={setMenuOpen}><div className="flex items-center shrink-0" style={{ gap: 8 }}>
       <HabitRowCompletion {...props} />
-      {!selectMode && hasMenuActions && (
+      {!selectMode && hasMenuActions && menuItems.length > 0 && (
         <>
           <Menu.Trigger asChild><button
             ref={menuAnchorRef}
