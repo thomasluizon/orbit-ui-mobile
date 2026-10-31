@@ -6,9 +6,15 @@ export interface AgentOperationOutcome {
   target: string | null | undefined
   riskClass: AgentOperationResult['riskClass']
   status: AgentOperationResult['status']
+  errorCode?: string
   policyReason?: string
   pendingOperationId?: string
   access?: AgentOperationResult['access']
+}
+
+function policyDenialStatus(reason: string): AgentOperationResult['status'] {
+  return ['direct_user_flow_required', 'unsupported_by_policy', 'missing_tool_executor'].includes(reason)
+    ? 'UnsupportedByPolicy' : 'Denied'
 }
 
 /** Coalesces the API's operation and denial records into one visible outcome per operation. */
@@ -25,7 +31,7 @@ export function coalesceAgentOperationOutcomes(
     const pendingIdentity = operation.pendingOperationId
       ? { id: operation.pendingOperationId, pendingOperationId: operation.pendingOperationId }
       : { id: `${operation.operationId}:${index}` }
-    const identity = { ...pendingIdentity, ...(operation.access ? { access: operation.access } : {}) }
+    const identity = { ...pendingIdentity, ...(operation.errorCode ? { errorCode: operation.errorCode } : {}), ...(operation.access ? { access: operation.access } : {}) }
     if (denial) remainingDenials.delete(denial)
     if (denial && isDenied) {
       return {
@@ -33,7 +39,7 @@ export function coalesceAgentOperationOutcomes(
         source: denial.sourceName,
         target: null,
         riskClass: denial.riskClass,
-        status: 'UnsupportedByPolicy',
+        status: operation.status === 'UnsupportedByPolicy' ? operation.status : policyDenialStatus(denial.reason),
         policyReason: denial.reason,
       }
     }
@@ -55,7 +61,7 @@ export function coalesceAgentOperationOutcomes(
       source: denial.sourceName,
       target: null,
       riskClass: denial.riskClass,
-      status: 'UnsupportedByPolicy',
+      status: policyDenialStatus(denial.reason),
       policyReason: denial.reason,
     })
   }

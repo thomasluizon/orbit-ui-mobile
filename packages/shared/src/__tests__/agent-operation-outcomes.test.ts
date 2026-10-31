@@ -56,7 +56,7 @@ describe('coalesceAgentOperationOutcomes', () => {
       source: 'DeleteHabit',
       target: null,
       riskClass: 'High',
-      status: 'UnsupportedByPolicy',
+      status: 'Denied',
       policyReason: 'step_up_required',
     }])
   })
@@ -69,13 +69,13 @@ describe('coalesceAgentOperationOutcomes', () => {
     const denied = { ...operation, pendingOperationId: '11111111-1111-4111-8111-111111111111' }
     const failed = { ...operation, pendingOperationId: '22222222-2222-4222-8222-222222222222', status: 'Failed' as const }
     const outcomes = coalesceAgentOperationOutcomes([denied, failed], [{ ...denial, pendingOperationId: denied.pendingOperationId }])
-    expect(outcomes.map(outcome => outcome.status)).toEqual(['UnsupportedByPolicy', 'Failed'])
+    expect(outcomes.map(outcome => outcome.status)).toEqual(['Denied', 'Failed'])
     expect(new Set(outcomes.map(outcome => outcome.id)).size).toBe(2)
   })
 
   it('pairs identity-free policy denials once without replacing independent failures', () => {
     const outcomes = coalesceAgentOperationOutcomes([{ ...operation, status: 'Failed' }, operation], [denial])
-    expect(outcomes.map(outcome => outcome.status)).toEqual(['Failed', 'UnsupportedByPolicy'])
+    expect(outcomes.map(outcome => outcome.status)).toEqual(['Failed', 'Denied'])
   })
 
   it('keeps the latest failed state once when its own earlier denial is replayed', () => {

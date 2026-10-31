@@ -183,6 +183,7 @@ export function HabitDrill({
   return (
     <KeyboardAwareFlatList
       ref={drillListRef}
+      accessibilityLabel={t('habits.sectionLabel')}
       data={presentation.items}
       onLayout={reservation.onLayout}
       keyboardShouldPersistTaps="handled"

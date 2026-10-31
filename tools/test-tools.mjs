@@ -38,6 +38,7 @@ const LIB_DIR = join(TOOLS_DIR, "lib")
  */
 const CASE_MODULES = [
   ["desktop-bench/run.mjs", "desktop-bench"],
+  ["desktop-bench/acceptance.mjs", "desktop-acceptance"],
   ["lib/ci-budget.mjs", "ci-budget"],
   ["lib/github-read.mjs", "github-read"],
   ["select-artifact-attempts.mjs", "select-artifact-attempts"],

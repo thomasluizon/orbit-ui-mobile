@@ -1,0 +1,166 @@
+{
+  "source": "Desktop Installed Acceptance run 41133222024, Windows-X64, trees/hoje.json",
+  "nodes": [
+    {
+      "interactive": false,
+      "id": "0",
+      "IsControlElement": true,
+      "LocalizedControlType": "window",
+      "AutomationId": "",
+      "IsOffscreen": false,
+      "name": "<window or document title>",
+      "IsKeyboardFocusable": false,
+      "FrameworkId": "Win32",
+      "ClassName": "Tauri Window",
+      "selected": false,
+      "IsContentElement": true,
+      "IsEnabled": true,
+      "role": "Window",
+      "focused": true,
+      "BoundingRectangle": {
+        "Y": 1,
+        "Width": 1,
+        "Height": 1,
+        "X": 1
+      }
+    },
+    {
+      "interactive": false,
+      "id": "0/0",
+      "IsControlElement": true,
+      "LocalizedControlType": "pane",
+      "AutomationId": "",
+      "IsOffscreen": false,
+      "name": "",
+      "IsKeyboardFocusable": false,
+      "FrameworkId": "Win32",
+      "ClassName": "WRY_WEBVIEW",
+      "selected": false,
+      "IsContentElement": true,
+      "IsEnabled": true,
+      "role": "Pane",
+      "focused": true,
+      "BoundingRectangle": {
+        "Y": 1,
+        "Width": 1,
+        "Height": 1,
+        "X": 1
+      }
+    },
+    {
+      "interactive": false,
+      "id": "0/0/0",
+      "IsControlElement": false,
+      "LocalizedControlType": "pane",
+      "AutomationId": "",
+      "IsOffscreen": false,
+      "name": "",
+      "IsKeyboardFocusable": false,
+      "FrameworkId": "Win32",
+      "ClassName": "Chrome_WidgetWin_0",
+      "selected": false,
+      "IsContentElement": false,
+      "IsEnabled": true,
+      "role": "Pane",
+      "focused": true,
+      "BoundingRectangle": {
+        "Y": 1,
+        "Width": 1,
+        "Height": 1,
+        "X": 1
+      }
+    },
+    {
+      "interactive": false,
+      "id": "0/0/0/0",
+      "IsControlElement": true,
+      "LocalizedControlType": "pane",
+      "AutomationId": "",
+      "IsOffscreen": false,
+      "name": "<window or document title>",
+      "IsKeyboardFocusable": false,
+      "FrameworkId": "Win32",
+      "ClassName": "Chrome_WidgetWin_1",
+      "selected": false,
+      "IsContentElement": true,
+      "IsEnabled": true,
+      "role": "Pane",
+      "focused": true,
+      "BoundingRectangle": {
+        "Y": 1,
+        "Width": 1,
+        "Height": 1,
+        "X": 1
+      }
+    },
+    {
+      "interactive": false,
+      "id": "0/0/0/0/1",
+      "IsControlElement": true,
+      "LocalizedControlType": "region",
+      "AutomationId": "",
+      "IsOffscreen": false,
+      "name": "<window or document title>",
+      "IsKeyboardFocusable": false,
+      "FrameworkId": "Chrome",
+      "ClassName": "BrowserRootView",
+      "selected": false,
+      "IsContentElement": true,
+      "IsEnabled": true,
+      "role": "Pane",
+      "focused": false,
+      "BoundingRectangle": {
+        "Y": 1,
+        "Width": 1,
+        "Height": 1,
+        "X": 1
+      }
+    },
+    {
+      "interactive": false,
+      "id": "0/0/0/0/1/0",
+      "IsControlElement": true,
+      "LocalizedControlType": "region",
+      "AutomationId": "",
+      "IsOffscreen": false,
+      "name": "",
+      "IsKeyboardFocusable": false,
+      "FrameworkId": "Chrome",
+      "ClassName": "NonClientView",
+      "selected": false,
+      "IsContentElement": true,
+      "IsEnabled": true,
+      "role": "Pane",
+      "focused": false,
+      "BoundingRectangle": {
+        "Y": 1,
+        "Width": 1,
+        "Height": 1,
+        "X": 1
+      }
+    },
+    {
+      "interactive": true,
+      "id": "0/0/0/0/1/0/1",
+      "IsControlElement": true,
+      "LocalizedControlType": "region",
+      "AutomationId": "",
+      "IsOffscreen": false,
+      "name": "",
+      "IsKeyboardFocusable": true,
+      "FrameworkId": "Chrome",
+      "ClassName": "EmbeddedBrowserTabRootView",
+      "selected": false,
+      "IsContentElement": true,
+      "IsEnabled": true,
+      "role": "Pane",
+      "focused": false,
+      "BoundingRectangle": {
+        "Y": null,
+        "Width": null,
+        "Height": null,
+        "X": null
+      }
+    }
+  ]
+}

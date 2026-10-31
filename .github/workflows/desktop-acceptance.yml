@@ -1,0 +1,69 @@
+name: Desktop Installed Acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/desktop/**'
+      - 'tools/desktop-bench/**'
+      - '.github/workflows/desktop-acceptance.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installed:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Check native acceptance producers
+        run: node --import tsx tools/desktop-bench/test-acceptance.ts
+      - name: Install native prerequisites
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          if [ "$RUNNER_OS" = macOS ]; then
+            brew install ffmpeg
+          else
+            choco install ffmpeg --yes --no-progress
+          fi
+      - name: Build, install and exercise the isolated desktop app
+        env:
+          ACCEPTANCE_OUTPUT: ${{ runner.temp }}/orbit-desktop-acceptance
+        run: node tools/desktop-bench/acceptance.mjs --output "$ACCEPTANCE_OUTPUT"
+      - name: Upload recording, native trees and report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-installed-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            ${{ runner.temp }}/orbit-desktop-acceptance/report.json
+            ${{ runner.temp }}/orbit-desktop-acceptance/latest.json
+            ${{ runner.temp }}/orbit-desktop-acceptance/latest.json.sig
+            ${{ runner.temp }}/orbit-desktop-acceptance/*.mp4
+            ${{ runner.temp }}/orbit-desktop-acceptance/*.log
+            ${{ runner.temp }}/orbit-desktop-acceptance/trees/**
+          if-no-files-found: error
+          retention-days: 14

@@ -1,6 +1,6 @@
-import type { HabitPlacement, PendingAgentOperation, PendingOperationChange, PendingOperationPlacement } from '../types/ai'
+import type { AgentOperationResult, HabitPlacement, PendingAgentOperation, PendingOperationChange, PendingOperationPlacement } from '../types/ai'
 import { PENDING_OPERATION_WEEKDAYS, PREVIEW_ACTION_KEYS, summarizePendingOperationItem } from './pending-operation-item-summary'
-import { getAgentCapabilityActionLabelKey, getAgentCapabilityLabelKey } from '../utils/agent-pending-operation'
+import { getAgentCapabilityActionLabelKey, getAgentCapabilityLabelKey, getAgentOperationCopyKeys } from '../utils/agent-pending-operation'
 import type { PendingOperationItemGroupType } from './pending-operation-item-groups'
 
 export { PENDING_OPERATION_WEEKDAYS } from './pending-operation-item-summary'
@@ -62,7 +62,7 @@ export interface PendingOperationCardLabels {
   retry: string
   batchFailed: string
   unavailableRecovery: string
-  denied: string
+  denied: (operation: AgentOperationResult) => string
   unsupported: string
   more: (count: number) => string
   stepUpAction: string
@@ -241,7 +241,7 @@ export function buildPendingOperationCardLabels(
     retry: translate('common.retry'),
     batchFailed: translate('chat.operation.batchFailed'),
     unavailableRecovery: translate('chat.operation.unavailableRecovery'),
-    denied: translate('chat.operation.status.Denied'),
+    denied: (operation) => translate(getAgentOperationCopyKeys(operation).statusKey),
     unsupported: translate('chat.operation.status.UnsupportedByPolicy'),
     more: (count) => translate('chat.preview.more', { count }),
     stepUpAction: translate('chat.operation.stepUpAction'),
