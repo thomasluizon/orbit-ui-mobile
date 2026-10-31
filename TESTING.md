@@ -330,12 +330,19 @@ editable and carry their entire removal group. Slash-separated child paths stay 
 requested fields and siblings must survive removal. Action labels/prompts and visible suggestion
 metadata are included in the graded answer projection.
 
+Crisis cases use the existing plain-text safety response, including its localized support resource.
+The producer omits ordered parts on that path. The explicit `crisis` policy accepts this shape only
+for the crisis family, requires an independently bound empty tool trace and unchanged persisted state,
+and rejects actions, previews, operations, related screens and follow-ups. The existing rubric still
+grades supportive content and language. Ordinary parts-capable answers retain their ordered-parts gate.
+
 Family setup runs after the normal disposable-account fixture reset, including the standalone reset
 executable. It uses public APIs and independently reads back every change. Goal-behind attempts
 alternate near-deadline `at_risk` and past-deadline `behind`, verified through the complete paged
 goal-list DTO. Their target stays above progress derived from seeded logs; goal-on-track attempts cover `on_track`,
 `completed` and `no_deadline`. Reminder-gap covers reminders off and reminders on with the same missed
-schedule. Resolved covers a completed occurrence and a skipped avoid habit. Stored-field setup retains
+schedule. Occurrence edits omit the unchanged `startDate`, which otherwise takes precedence over
+`dueDate`; readback compares the requested date and reminder settings exactly. Resolved covers a completed occurrence and a skipped avoid habit. Stored-field setup retains
 an emoji, tag, reminder and checked checklist item. Goal-link uses an owned mobility goal; goal-gap
 includes an equivalent active goal exclusion. Fixtures never change plan entitlements or feature flags.
 The stale offer fixture caches the requested weekly retrospective using the account week-start setting;

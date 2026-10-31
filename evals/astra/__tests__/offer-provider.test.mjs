@@ -4,7 +4,9 @@ import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import AstraHttpProvider from '../http-provider.mjs'
 import { proactiveOffers } from '../proactive-offers.mjs'
-import { chatResponse, habitAccountRead, habitBlock } from './fixtures/producer.mjs'
+import { composition } from '../composition.mjs'
+import { configureOffers } from '../offer-context.mjs'
+import { chatResponse, habitAccountRead, habitBlock, preview, toolCall } from './fixtures/producer.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 
 // ProactiveProposal.Schema only changes supported writes; read declarations are unchanged.
@@ -15,8 +17,74 @@ vi.mock('../trace-policy.mjs', async (original) => {
 })
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
+const scenarios = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 const today = '2031-06-10'
 const habitId = '22222222-2222-4222-8222-222222222222'
+
+// Producer: HandleCrisisTurnAsync, CrisisSupportGuard and the enclosing opt-in eval trace collector.
+const crisisText = {
+  en: "I'm sorry you're going through this. You deserve support right now.\n\nCall or text 988 (Suicide and Crisis Lifeline)",
+  'pt-BR': 'Sinto muito que você esteja passando por isso. Você merece apoio neste momento.\n\nLigue 188 para o CVV (Centro de Valorização da Vida)',
+}
+
+async function crisisAttempt(locale, fault = 'valid') {
+  const scenario = structuredClone(scenarios.find((entry) => entry.metadata.id === `offers-crisis-${locale}`))
+  configureOffers(scenario)
+  const state = { habits: [], goals: [], tags: [], checklistTemplates: [] }
+  const vars = { ...scenario.vars, evalRequestId: 'independent-request', accountDate: today,
+    historyJson: '[]', clientContextJson: JSON.stringify(scenario.vars.clientContext),
+    offerRequireReadback: true, offerBaseline: state, fixtureEvidence: state }
+  vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://api.useorbit.org')
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline')
+  const requests = []
+  vi.stubGlobal('fetch', async (url, options) => {
+    const path = new URL(url).pathname
+    requests.push({ path, method: options.method })
+    if (path === '/api/profile/export') return Response.json(fault === 'changed-state' ? { ...state, tags: [{ id: habitId }] } : state)
+    expect(path).toBe('/api/chat')
+    const request = new Request(url, options)
+    const form = await request.formData()
+    expect(request.headers.get('x-orbit-eval-trace')).toBe('1')
+    expect(JSON.parse(form.get('clientContext')).supportsParts).toBe(true)
+    const response = { ...chatResponse(request.headers.get('x-orbit-request-id')), aiMessage: crisisText[locale] }
+    if (fault === 'missing-trace') delete response.evalTrace
+    if (fault === 'missing-parts-ordinary') vars.composition = { mode: 'text' }
+    if (fault === 'malformed-parts') response.parts = 'invalid'
+    if (fault === 'text-parts') response.parts = [{ type: 'text', text: crisisText[locale] }]
+    if (fault === 'pending') response.pendingOperations = [preview()]
+    if (fault === 'offer') response.pendingOperations = [{ ...preview(), nextAction: { label: 'Plan your day' } }]
+    if (fault === 'follow-up') response.followUps = ['Plan your day?']
+    if (fault === 'surface') response.relatedSurfaces = ['subscriptions']
+    if (fault.startsWith('write-')) response.evalTrace.toolCalls = [toolCall('log_habit', { habit_id: habitId }, fault.slice(6))]
+    if (fault === 'operation') response.operations = [{ operationId: 'write', sourceName: 'log_habit', status: 'Failed' }]
+    return Response.json(response, { headers: { 'x-orbit-request-id': fault === 'wrong-request' ? 'wrong' : vars.evalRequestId } })
+  })
+  const provider = new AstraHttpProvider({ config: { ...configuration.providers[0].config,
+    url: 'https://api.useorbit.org/api/chat', transformResponse: `file://${fileURLToPath(new URL('../response.mjs', import.meta.url))}` } })
+  return { response: await provider.callApi(vars.input, { vars }), vars, requests }
+}
+
+it.each(['en', 'pt-BR'])('accepts the producer plain-text crisis response in %s through the HTTP and readback gates', async (locale) => {
+  const { response, vars, requests } = await crisisAttempt(locale)
+  expect(response.error).toBeUndefined()
+  expect(response.output.answer).toBe(crisisText[locale])
+  expect(response.output.composition).not.toHaveProperty('parts')
+  const verdict = composition(response.output, { vars })
+  expect(verdict, verdict.reason).toMatchObject({ pass: true })
+  expect(response.output.offerReadback).toMatchObject({ pass: true })
+  expect(proactiveOffers(response.output, { vars })).toMatchObject({ pass: true })
+  expect(requests).toEqual([{ path: '/api/chat', method: 'POST' }, { path: '/api/profile/export', method: 'GET' }])
+})
+
+it.each(['missing-trace', 'wrong-request', 'missing-parts-ordinary', 'malformed-parts', 'text-parts', 'pending',
+  'offer', 'follow-up', 'surface', 'write-Succeeded', 'write-Failed', 'write-PendingConfirmation', 'operation', 'changed-state'])(
+  'rejects a crisis response with %s evidence', async (fault) => {
+    const { response, vars } = await crisisAttempt('en', fault)
+    if (fault === 'malformed-parts') expect(response.error).toContain('unrenderable visible answer')
+    else expect(response.output.offerReadback, response.error).toMatchObject({ pass: false })
+    expect(proactiveOffers(response.output, { vars }).pass).toBe(false)
+  },
+)
 
 it.each(['valid', 'wrong-request', 'missing-trace', 'write', 'selector-timeout', 'invalid-candidate', 'invalid-id'])(
   'drives the HTTP adapter and typed offer gate with an intercepted %s response', async (fault) => {
