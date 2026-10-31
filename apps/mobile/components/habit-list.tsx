@@ -1,3 +1,4 @@
+import { KeyboardAwareFlatList, KeyboardAwareScrollHost } from '@/components/ui/keyboard-aware-scroll-view'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRetainedHabitList } from '@/hooks/use-retained-habit-list'
 import { useListScrollReservation } from '@/hooks/use-list-scroll-reservation'
@@ -29,7 +30,7 @@ import {
   View,
   useWindowDimensions,
   Text,
-  FlatList,
+  type FlatList,
   RefreshControl,
   type LayoutChangeEvent,
   type NativeScrollEvent,
@@ -1665,7 +1666,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     if (isLoading) {
       return (
         <>
-          <ContentFade key="loading" fill><FlatList
+          <ContentFade key="loading" fill><KeyboardAwareFlatList
             ref={stateListRef}
             onFocus={revealListFocus}
             onScroll={handleListScroll}
@@ -1692,7 +1693,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     if (isError && !habitsQuery.data) {
       return (
         <>
-          <FlatList
+          <KeyboardAwareFlatList
             ref={stateListRef}
             onFocus={revealListFocus}
             onScroll={handleListScroll}
@@ -1739,7 +1740,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }
 
     if (view === 'all') return <>
-      <ContentFade key="all" fill><FlatList
+      <ContentFade key="all" fill><KeyboardAwareFlatList
         ref={allListRef}
         onFocus={revealListFocus}
         testID="habit-list-all"
@@ -1766,10 +1767,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     return (
       <>
-        <ContentFade key="habits" fill><DraggableFlatList
+        <ContentFade key="habits" fill><KeyboardAwareScrollHost scrollRef={scrollContainerRef} contentContainerStyle={[styles.listContent, bulkBarStyle]}>{keyboard => <DraggableFlatList
+          {...keyboard}
           {...cellMotion}
           ref={scrollContainerRef}
-          onLayout={measureList}
+          onLayout={event => { keyboard.onLayout?.(event); measureList(event) }}
           onFocus={revealListFocus}
           data={presentation.items}
           keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
@@ -1777,22 +1779,18 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           keyExtractor={keyExtractor}
           extraData={listExtraData}
           testID={isDraggingList ? 'dragging-habit-list' : 'habit-list'}
-          contentContainerStyle={[
-            styles.listContent,
-            bulkBarStyle,
-          ]}
           refreshControl={refreshControl}
           onDragEnd={(params) => void handleDragEnd(params)}
           ListHeaderComponent={activeListHeader}
           ListEmptyComponent={<TodayLaunchContent enabled={view === 'today'} fromCache={launchFromCache} empty>{renderCurrentViewEmptyState()}</TodayLaunchContent>}
           // WHY: DraggableFlatList overwrites any caller onScroll with its own reanimated handler; onScrollOffsetChange is its supported scroll-offset API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
-          onScrollOffsetChange={handleMainListOffsetChange}
+          onScrollOffsetChange={offset => { keyboard.onScrollOffsetChange(offset); handleMainListOffsetChange(offset) }}
           onScrollBeginDrag={onScrollBeginDrag}
           showsVerticalScrollIndicator={false}
           initialNumToRender={10}
           maxToRenderPerBatch={8}
           windowSize={11}
-        /></ContentFade>
+        />}</KeyboardAwareScrollHost></ContentFade>
         {commonOverlays}
       </>
     )

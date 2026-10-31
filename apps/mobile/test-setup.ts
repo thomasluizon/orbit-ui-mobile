@@ -1,8 +1,13 @@
-import { vi } from 'vitest'
+import { beforeEach, vi } from 'vitest'
 import React from 'react'
 import { guardTestNetwork } from '@orbit/shared/test-support/network-guard'
 
 guardTestNetwork()
+
+beforeEach(() => {
+  vi.stubGlobal('requestAnimationFrame', (callback: (timestamp: number) => void) => setTimeout(() => callback(performance.now()), 0))
+  vi.stubGlobal('cancelAnimationFrame', clearTimeout)
+})
 
 vi.mock('@/components/ui/icons', async (importOriginal) => {
   const icons = await importOriginal<typeof import('@/components/ui/icons')>()
