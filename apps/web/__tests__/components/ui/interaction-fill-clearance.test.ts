@@ -68,7 +68,7 @@ describe('interaction clearance inspector in Chromium', () => {
       </style><a href="#content">Keyboard entry</a><main id="content" style="margin-top: 160px">Content</main>${heldLoad ? '<img hidden src="https://fixture.test/held-load.svg">' : ''}`)
       if (heldLoad) {
         expect(fixtureLoadReleased, 'setContent must wait for the delayed fixture load').toBe(true)
-        expect(await page.locator('img').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true)
+        expect(await page.locator('img').evaluate(image => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0)).toBe(true)
       }
       await page.evaluate(() => {
         for (const event of ['pointerenter', 'pointerdown', 'focus']) document.querySelector('a')!.addEventListener(event, () => {
