@@ -87,7 +87,7 @@ describe('search result geometry in Chromium', () => {
     const messages = locale === 'en' ? en : ptBR
     const habits = [
       createMockHabit({ id: 'weekly', title: 'Weekly check coders board' }),
-      createMockHabit({ id: 'profile', title: 'Profile linkedin', frequencyUnit: null, isCompleted: true, completedOn: '2026-09-30' }),
+      createMockHabit({ id: 'profile', title: 'Profile linkedin', frequencyUnit: null, isCompleted: true, completedOn: '2026-09-30', searchMatches: [{ field: 'description', value: null }] }),
     ]
     mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: 2, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
     useShellStore.setState({ paletteOpen: surface === 'palette' })
@@ -102,6 +102,18 @@ describe('search result geometry in Chromium', () => {
       await page.evaluate((variables) => {
         for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
       }, resolveWebThemeVariables('orange', theme))
+      const metadata = page.getByRole('group', { name: messages.charts.bar.completed }).locator('[data-habit-row-meta-token]')
+      expect(await metadata.count(), 'completion and match labels have independent layout owners').toBe(2)
+      const tokens = await metadata.evaluateAll((elements) => elements.map((element) => {
+        const range = document.createRange()
+        range.selectNodeContents(element)
+        const bounds = element.getBoundingClientRect()
+        return { lines: range.getClientRects().length, textWidth: range.getBoundingClientRect().width, width: bounds.width }
+      }))
+      for (const token of tokens) {
+        expect(token.lines).toBe(1)
+        expect(token.textWidth).toBeLessThanOrEqual(token.width + 0.5)
+      }
       const measured = await page.evaluate((headingText) => {
         const heading = [...document.querySelectorAll('[cmdk-group-heading]')].find((element) => element.textContent === headingText)!
         const check = document.querySelector('[data-habit-check][data-status="done"]')!

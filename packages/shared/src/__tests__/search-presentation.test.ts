@@ -9,11 +9,36 @@ const parent = createMockHabit({ id: 'parent', title: 'Routine', hasSubHabits: t
 const collection = { topLevelHabits: [parent], habitsById: new Map([[parent.id, parent], [child.id, child]]), childrenByParent: new Map([[parent.id, [child.id]]]) }
 
 describe('search presentation', () => {
+  it('ranks unfinished overdue search tasks before upcoming results with the producer overdue flag false', () => {
+    const habits = [
+      createMockHabit({ id: 'upcoming', dueDate: '2026-11-01', scheduledDates: [], instances: [], isOverdue: false }),
+      createMockHabit({ id: 'task', frequencyUnit: null, dueDate: '2026-10-30', scheduledDates: [], instances: [], isOverdue: false }),
+      createMockHabit({ id: 'recurring', dueDate: '2026-10-29', scheduledDates: [], instances: [], isOverdue: false }),
+      createMockHabit({ id: 'today', dueDate: '2026-10-31', scheduledDates: [], instances: [], isOverdue: false }),
+    ]
+    const entries = buildSearchEntries({ ...collection, topLevelHabits: habits }, 'coders', null, '2026-10-31')
+    expect(entries.map(({ habit }) => habit.id)).toEqual(['today', 'task', 'recurring', 'upcoming'])
+    expect(buildSearchHabitStatus(habits[1]!, (key) => key, 'en', '2026-10-31')).toBeNull()
+  })
+
+  it('keeps logged bad tasks out of completed sections and labels them as slips', () => {
+    const habits = [
+      createMockHabit({ id: 'slip', frequencyUnit: null, isBadHabit: true, isCompleted: true, completedOn: '2026-09-30' }),
+      createMockHabit({ id: 'logged-slip', frequencyUnit: null, isBadHabit: true, isLoggedInRange: true }),
+      createMockHabit({ id: 'done', frequencyUnit: null, isCompleted: true, completedOn: '2026-09-30' }),
+    ]
+    const entries = buildSearchEntries({ ...collection, topLevelHabits: habits }, 'coders', null, '2026-10-31')
+    expect(buildSearchSections(entries).map(({ id, entries }) => [id, entries.map(({ habit }) => habit.id)])).toEqual([
+      ['habits', ['slip', 'logged-slip']], ['completed', ['done']],
+    ])
+    for (const habit of habits.slice(0, 2)) expect(buildSearchHabitStatus(habit, (key) => key, 'en', '2026-10-31')).toEqual({ kind: 'bad', label: 'habits.statusDot.bad' })
+  })
+
   it('puts actionable results before past results and preserves completed task page order', () => {
     const habits = [
       createMockHabit({ id: 'logged', isLoggedInRange: true }),
       createMockHabit({ id: 'skipped', isSkippedOnDate: true }),
-      createMockHabit({ id: 'past-task', frequencyUnit: null, dueDate: '2026-08-01' }),
+      createMockHabit({ id: 'overdue-task', frequencyUnit: null, dueDate: '2026-08-01', isOverdue: false }),
       createMockHabit({ id: 'general', isGeneral: true, frequencyUnit: null }),
       createMockHabit({ id: 'future', dueDate: '2026-11-01', scheduledDates: ['2026-11-01'] }),
       createMockHabit({ id: 'overdue', isOverdue: true }),
@@ -24,11 +49,11 @@ describe('search presentation', () => {
     ]
     const source = { ...collection, topLevelHabits: habits }
     const entries = buildSearchEntries(source, 'coders', null, '2026-10-31')
-    expect(entries.map(({ habit }) => habit.id)).toEqual(['today', 'overdue', 'future', 'general', 'logged', 'skipped', 'past-task', 'recent', 'older', 'unknown'])
+    expect(entries.map(({ habit }) => habit.id)).toEqual(['today', 'overdue-task', 'overdue', 'future', 'general', 'logged', 'skipped', 'recent', 'older', 'unknown'])
     expect(new Set(entries.map(({ habit }) => habit.id)).size).toBe(habits.length)
     const sections = buildSearchSections(entries)
     expect(sections.map(({ id, entries }) => [id, entries.map(({ habit }) => habit.id)])).toEqual([
-      ['habits', ['today', 'overdue', 'future', 'general', 'logged', 'skipped', 'past-task']],
+      ['habits', ['today', 'overdue-task', 'overdue', 'future', 'general', 'logged', 'skipped']],
       ['completed', ['recent', 'older', 'unknown']],
     ])
     expect(source.topLevelHabits).toBe(habits)
@@ -37,7 +62,7 @@ describe('search presentation', () => {
     expect(buildSearchSections([])).toEqual([])
   })
 
-  it.each(['en', 'pt-BR'])('labels completed, skipped and past items without inventing a completion date in %s', (locale) => {
+  it.each(['en', 'pt-BR'])('labels completed, skipped and slipped items without inventing a completion date in %s', (locale) => {
     const translate = (key: string, values?: Record<string, string | number | Date>) => {
       const messages = locale === 'en' ? en : ptBR
       const template = key.split('.').reduce<unknown>((value, part) => (value as Record<string, unknown>)[part], messages) as string
@@ -50,8 +75,9 @@ describe('search presentation', () => {
     expect(status({ isCompleted: true, completedOn: null })?.label).toBe(locale === 'en' ? 'Done' : 'Feito')
     expect(status({ isSkippedOnDate: true })).toEqual({ kind: 'skip', label: locale === 'en' ? 'Skipped' : 'Pulado' })
     expect(status({ isSkippedOnDate: true, isLoggedInRange: true })?.kind).toBe('done')
-    expect(status({ frequencyUnit: null, dueDate: '2026-08-01' })).toEqual({ kind: 'past', label: locale === 'en' ? 'Overdue' : 'Atrasado' })
+    expect(status({ frequencyUnit: null, dueDate: '2026-08-01' })).toBeNull()
     expect(status({ frequencyUnit: null, dueDate: '2026-08-01', isOverdue: true })).toBeNull()
+    expect(status({ frequencyUnit: null, isBadHabit: true, isCompleted: true, completedOn: '2026-09-30' })).toEqual({ kind: 'bad', label: locale === 'en' ? 'Slipped' : 'Deslize' })
     expect(status({ isGeneral: true, frequencyUnit: null })).toBeNull()
     expect(status({})).toBeNull()
   })

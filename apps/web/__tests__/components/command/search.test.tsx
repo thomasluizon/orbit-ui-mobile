@@ -58,6 +58,32 @@ afterEach(() => { Reflect.deleteProperty(navigator, 'onLine') })
 beforeEach(() => measureClampedPersonalText())
 
 describe('habit search', () => {
+  it.each([false, true].flatMap((searchPage) => ['en', 'pt-BR'].map((locale) => ({ searchPage, locale }))))('keeps logged bad tasks findable as slips outside completed results on searchPage=$searchPage in $locale', async ({ searchPage, locale }) => {
+    vi.useFakeTimers()
+    try {
+      const messages = locale === 'en' ? en : ptBR
+      mocks.query.mockReturnValue(result([
+        createMockHabit({ id: 'slip', title: 'Coders slip', frequencyUnit: null, isBadHabit: true, isCompleted: true, completedOn: '2026-09-30' }),
+        createMockHabit({ id: 'logged-slip', title: 'Coders logged slip', frequencyUnit: null, isBadHabit: true, isLoggedInRange: true }),
+        createMockHabit({ id: 'done', title: 'Coders done', frequencyUnit: null, isCompleted: true }),
+      ]))
+      mount(searchPage, locale)
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'coders' } })
+      await act(async () => { vi.advanceTimersByTime(301) })
+      const section = screen.getByRole('group', { name: messages.charts.bar.completed })
+      expect(within(section).getAllByRole('option')).toHaveLength(1)
+      expect(within(section).getByRole('option')).toHaveTextContent('Coders done')
+      for (const title of ['Coders slip', 'Coders logged slip']) {
+        const row = screen.getByRole('option', { name: new RegExp(title) })
+        expect(row).toHaveTextContent(messages.habits.statusDot.bad)
+        expect(row).not.toHaveTextContent(messages.habits.statusDot.done)
+        expect(row.querySelector('[data-habit-check][data-status="done"]')).toBeNull()
+        fireEvent.click(row)
+      }
+      expect(mocks.push).toHaveBeenLastCalledWith('/habits/logged-slip')
+    } finally { vi.useRealTimers() }
+  })
+
   it.each([false, true].flatMap((searchPage) => ['en', 'pt-BR'].map((locale) => ({ searchPage, locale }))))('shows completion sections and states on searchPage=$searchPage in $locale', async ({ searchPage, locale }) => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-31T01:00:00Z'))

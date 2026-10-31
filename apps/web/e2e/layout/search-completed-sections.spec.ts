@@ -43,6 +43,7 @@ for (const width of [320, 360, 384, 412, 1440]) {
           await expect(section.getByRole('option')).toHaveCount(1)
           await expect(section.getByRole('option')).toContainText('Profile linkedin')
           await expect(section.locator('[data-habit-check][data-status="done"]')).toBeVisible()
+          await expect(section.locator('[data-habit-row-meta-token]')).toHaveCount(2)
           const heading = surface.locator('[cmdk-group-heading]').filter({ hasText: messages.charts.bar.completed })
           await heading.evaluate((element) => element.setAttribute('data-layout-label', ''))
           await expectLabelsFit(page, surface)

@@ -71,7 +71,7 @@ function SearchHabitStatusLine({ status, color }: Readonly<{ status: SearchHabit
   if (!status) return null
   return <View style={styles.status}>
     {status.kind === 'done' ? <View importantForAccessibility="no-hide-descendants"><HabitCheck status="done" /></View> : null}
-    <Text style={[styles.match, { color }]}>{status.label}</Text>
+    <Text style={[styles.match, styles.statusLabel, { color }]}>{status.label}</Text>
   </View>
 }
 
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   well: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 20 }, content: { flex: 1, minWidth: 0, gap: 0 },
   initial: { fontFamily: 'Geist_500Medium', fontSize: 16 },
-  status: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  status: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }, statusLabel: { flexShrink: 0 },
   name: { fontFamily: 'Geist_400Regular', fontSize: 17 }, match: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
   body: { fontFamily: 'Geist_400Regular', fontSize: 14 }, empty: { alignItems: 'flex-start', padding: SPACING.s12, gap: 12 },
   loading: { flexDirection: 'row', alignItems: 'center', padding: SPACING.s12, gap: 12 }, dots: { flexDirection: 'row', gap: 4 }, dot: { width: 4, height: 4, borderRadius: radius.full },

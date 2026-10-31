@@ -184,6 +184,29 @@ afterEach(async () => {
 })
 
 describe('mobile search', () => {
+  it.each(['en', 'pt-BR'])('keeps logged bad tasks findable as slips outside completed results in %s', async (locale) => {
+    const messages = locale === 'en' ? en : ptBR
+    mocks.query.mockReturnValue(result([
+      createMockHabit({ id: 'slip', title: 'Coders slip', frequencyUnit: null, isBadHabit: true, isCompleted: true, completedOn: '2026-09-30' }),
+      createMockHabit({ id: 'logged-slip', title: 'Coders logged slip', frequencyUnit: null, isBadHabit: true, isLoggedInRange: true }),
+      createMockHabit({ id: 'done', title: 'Coders done', frequencyUnit: null, isCompleted: true }),
+    ]))
+    await mount(locale)
+    await type('coders')
+    const header = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityRole === 'header' && renderedText(node.props.children) === messages.charts.bar.completed)[0]!
+    const sectionRows = header.parent!.parent!.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'button')
+    expect(sectionRows).toHaveLength(1)
+    expect(sectionRows[0]!.props.accessibilityLabel).toContain('Coders done')
+    for (const title of ['Coders slip', 'Coders logged slip']) {
+      const row = tree.root.findAll((node) => String(node.type) === 'Pressable' && String(node.props.accessibilityLabel).includes(title))[0]!
+      expect(row.props.accessibilityLabel).toContain(messages.habits.statusDot.bad)
+      expect(row.props.accessibilityLabel).not.toContain(messages.habits.statusDot.done)
+      expect(row.findAll((node) => node.type === HabitCheck && node.props.status === 'done')).toHaveLength(0)
+      await pressLabel(String(row.props.accessibilityLabel))
+    }
+    expect(mocks.push).toHaveBeenLastCalledWith('/habits/logged-slip')
+  })
+
   it.each((['light', 'dark'] as const).flatMap((theme) => ['en', 'pt-BR'].map((locale) => ({ theme, locale }))))('shows completion sections, labels and completed-only pages in $theme in $locale', async ({ theme, locale }) => {
     mocks.theme = theme
     vi.setSystemTime(new Date('2026-10-31T01:00:00Z'))
@@ -215,6 +238,11 @@ describe('mobile search', () => {
     expect(horizontalBounds(header[0]!, 320)).toEqual({ left: 16, right: 304 })
     expect(StyleSheet.flatten(header[0]!.props.style)).toMatchObject({ fontSize: 12, padding: 12 })
     expect(rows[3]!.props.accessibilityLabel).toContain(monthAgo)
+    const statusLabel = rows[3]!.findAll((node) => String(node.type) === 'Text' && node.props.children === monthAgo)[0]!
+    expect(StyleSheet.flatten(statusLabel.parent!.parent!.props.style)).toMatchObject({ flexDirection: 'row', flexWrap: 'wrap', gap: 8 })
+    expect(StyleSheet.flatten(statusLabel.props.style)).toMatchObject({ flexShrink: 0 })
+    expect(statusLabel.props.numberOfLines).toBeUndefined()
+    expect(statusLabel.props.ellipsizeMode).toBeUndefined()
     expect(rows[3]!.findAll((node) => node.type === HabitCheck && node.props.status === 'done')).toHaveLength(1)
     const check = rows[3]!.findAll((node) => node.type === HabitCheck)[0]!
     expect(check.findAll((node) => node.type === Check)[0]!.props.color).toBe(createTokensV2('orange', theme).bg)

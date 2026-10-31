@@ -21,7 +21,7 @@ export interface SearchMatchLine {
 }
 
 export interface SearchHabitStatus {
-  kind: 'done' | 'skip' | 'past'
+  kind: 'done' | 'skip' | 'bad'
   label: string
 }
 
@@ -35,19 +35,18 @@ function isOneTimeTask(habit: NormalizedHabit): boolean {
   return getHabitTypeLabelKey(habit) === 'habits.form.typeTask'
 }
 
-function searchHabitState(habit: NormalizedHabit, today: string): SearchHabitStatus['kind'] | null {
-  if (habit.isCompleted || habit.isLoggedInRange) return 'done'
+function searchHabitState(habit: NormalizedHabit): SearchHabitStatus['kind'] | null {
+  if (habit.isCompleted || habit.isLoggedInRange) return habit.isBadHabit ? 'bad' : 'done'
   if (habit.isSkippedOnDate) return 'skip'
-  if (isOneTimeTask(habit) && habit.dueDate < today && !habit.isOverdue) return 'past'
   return null
 }
 
 function searchPriority(habit: NormalizedHabit, today: string): number {
-  if (isOneTimeTask(habit) && habit.isCompleted) return 5
-  if (searchHabitState(habit, today)) return 4
+  if (isOneTimeTask(habit) && habit.isCompleted && !habit.isBadHabit) return 5
+  if (searchHabitState(habit)) return 4
   if (habit.isGeneral) return 3
   if (hasHabitScheduleOnDate(habit, today)) return 0
-  return habit.isOverdue ? 1 : 2
+  return habit.dueDate < today ? 1 : 2
 }
 
 export function buildSearchEntries(
@@ -68,7 +67,7 @@ export function buildSearchSections(entries: readonly CommandHabitEntry[]): Sear
   const habits: SearchSection = { id: 'habits', headingKey: 'command.groups.search', entries: [] }
   const completed: SearchSection = { id: 'completed', headingKey: 'charts.bar.completed', entries: [] }
   for (const entry of entries) {
-    const section = isOneTimeTask(entry.habit) && entry.habit.isCompleted ? completed : habits
+    const section = isOneTimeTask(entry.habit) && entry.habit.isCompleted && !entry.habit.isBadHabit ? completed : habits
     section.entries.push(entry)
   }
   return [habits, completed].filter((section) => section.entries.length > 0)
@@ -80,10 +79,10 @@ export function buildSearchHabitStatus(
   locale: string,
   today: string,
 ): SearchHabitStatus | null {
-  const kind = searchHabitState(habit, today)
+  const kind = searchHabitState(habit)
   if (kind === null) return null
   if (kind === 'skip') return { kind, label: translate('habits.statusDot.skip') }
-  if (kind === 'past') return { kind, label: translate('habits.overdue') }
+  if (kind === 'bad') return { kind, label: translate('habits.statusDot.bad') }
   const completedOn = habit.completedOn ?? habit.instances.reduce<string | null>((latest, instance) =>
     instance.status === 'Completed' && instance.logId !== null && instance.date <= today && (latest === null || instance.date > latest)
       ? instance.date : latest, null)
