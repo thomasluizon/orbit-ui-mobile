@@ -85,7 +85,12 @@ function measureText(node: YogaNode, host: Host, style: TextStyle, fontScale: nu
 
 function layoutHost(host: Host, nodes: Map<string, YogaNode>, fontScale: number): YogaNode {
   const node = Yoga.Node.create(layoutConfig)
-  if (host.type === 'ScrollView') { node.setFlexGrow(1); node.setFlexShrink(1); node.setOverflow(Yoga.OVERFLOW_SCROLL) }
+  if (host.type === 'ScrollView') {
+    node.setFlexGrow(1)
+    node.setFlexShrink(1)
+    node.setOverflow(Yoga.OVERFLOW_SCROLL)
+    nodes.set('scroller', node)
+  }
   const declared = host.props.style
   const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
   applyDimensions(node, style)
@@ -155,7 +160,7 @@ describe('Native bottom tab layout', () => {
     const root = layoutHost(tree.toJSON(), nodes, 1)
     try {
       root.calculateLayout(width, 900, Yoga.DIRECTION_LTR)
-      const scroller = root.getChild(0)
+      const scroller = nodes.get('scroller')!
       const contentContainer = scroller.getChild(0)
       const content = nodes.get('onboarding-content')!
       const action = nodes.get('onboarding-action')!

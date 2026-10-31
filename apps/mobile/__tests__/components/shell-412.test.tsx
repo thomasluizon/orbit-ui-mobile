@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, View, type ViewStyle } from 'react-native'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { __emitKeyboardEvent, __focusHost, __getFocusedNativeTag, __setWindowDimensions } from '../../test-mocks/react-native'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { __emitKeyboardEvent, __resetTestHostConfig, __focusHost, __getFocusedNativeTag, __setWindowDimensions } from '../../test-mocks/react-native'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Composer } from '@/components/shell/composer'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
@@ -51,7 +51,10 @@ function LongScrollSurface() {
 }
 
 describe('Shell412 mobile', () => {
+  afterEach(() => { __resetTestHostConfig(); vi.unstubAllGlobals() })
   beforeEach(() => {
+    __resetTestHostConfig()
+    vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => { callback(0); return 0 })
     safeArea.top = 24
     safeArea.bottom = 24
     appearance.currentTheme = 'dark'

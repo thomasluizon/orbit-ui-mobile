@@ -31,7 +31,9 @@ export function useHabitListScrollAnchor() {
     }
     reserve(false)
     const stopObservingScroll = scroll(onScroll, { container: scroller, target: list })
-    const observer = new ResizeObserver(() => reserve(false))
+    const observer = new ResizeObserver(() => {
+      if (viewport !== scroller.clientHeight) reserve(false)
+    })
     observer.observe(scroller)
     return () => { stopObservingScroll(); observer.disconnect() }
   }, [])

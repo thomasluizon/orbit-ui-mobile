@@ -13,7 +13,6 @@ import {
   AccessibilityInfo,
   Pressable,
   Platform,
-  FlatList,
   type ListRenderItem,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,6 +23,7 @@ import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
 import { getChatCompletionText, resolveConversationSuggestions, chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, getChatReplyState } from "@orbit/shared/chat";
 import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { MessageBubble } from "@/components/message-bubble";
+import { KeyboardAwareFlatList, KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view';
 import { Composer } from "@/components/shell/composer";
 import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { PendingReply, type PendingReplyHandle } from "@/components/chat/pending-reply";
@@ -352,7 +352,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           <ShellContent style={{ flex: 1 }}><ChatEmptyState ref={chatAreaRef} styles={styles} browseAction={<Button buttonRef={browseEmptyRef} variant="ghost" onClick={() => openLibrary(browseEmptyRef)}>{t('chat.templates.browse')}</Button>} /></ShellContent>
         ) : (
           <View ref={chatAreaRef} style={{ flex: 1 }}>
-            <FlatList
+            <KeyboardAwareFlatList
               ref={flatListRef}
               data={messages}
               renderItem={renderMessage}
@@ -394,7 +394,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             paddingBottom: insets.bottom,
           }}
         >
-          <ShellContent><PendingPromptIdea hasDraft={!!composerProps.value} disabledReason={disabledReason} onSelect={selectIdea} /></ShellContent>
+          <KeyboardAwareSheetScrollView keyboardShouldPersistTaps="handled" style={{ flexGrow: 0 }}><ShellContent><PendingPromptIdea hasDraft={!!composerProps.value} disabledReason={disabledReason} onSelect={selectIdea} /></ShellContent>
           <Composer
             inputSelection={inputSelection}
             {...composerProps}
@@ -404,6 +404,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             onInputFocus={keyboardScroll.onComposerFocus}
             onInputBlur={keyboardScroll.onComposerBlur}
           />
+          </KeyboardAwareSheetScrollView>
         </View>
       </View>
 

@@ -37,13 +37,19 @@ beforeAll(async () => {
 }, 30_000)
 afterAll(async () => { await closeChrome(launch) })
 
-it.each(['no-preference', 'reduce'] as const)('anchors real HabitList bulk skips in the shell scroller, motion=%s', async (reducedMotion) => {
-  const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion })
+it.each([
+  { reducedMotion: 'no-preference', width: 412, height: 915, fontScale: 1 },
+  { reducedMotion: 'reduce', width: 412, height: 915, fontScale: 1 },
+  { reducedMotion: 'no-preference', width: 915, height: 412, fontScale: 2 },
+  { reducedMotion: 'reduce', width: 915, height: 412, fontScale: 2 },
+] as const)('anchors real HabitList bulk skips, motion=$reducedMotion at $width x $height and $fontScale text', async ({ reducedMotion, width, height, fontScale }) => {
+  const page = await browser.newPage({ viewport: { width, height }, reducedMotion })
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   try {
     await page.route('https://habit-list.test/', (route) => route.fulfill({ contentType: 'text/html', body: `<!doctype html><style>${stylesheet}</style><div id="root"></div>` }))
     await page.goto('https://habit-list.test/')
+    await page.evaluate((scale) => { document.documentElement.style.fontSize = `${scale * 100}%` }, fontScale)
     await page.addScriptTag({ content: script })
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 30, undefined, { timeout: 5000 })
       .catch(async (cause: unknown) => { throw new Error(JSON.stringify({ errors, body: await page.locator('body').innerText() }), { cause }) })
@@ -56,11 +62,14 @@ it.each(['no-preference', 'reduce'] as const)('anchors real HabitList bulk skips
       const offsets: number[] = []
       let departures = 0
       const start = performance.now()
+      let departureStarted: number | undefined
       const sample = () => {
         offsets.push(element.scrollTop)
         departures = Math.max(departures, element.querySelectorAll('[data-list-motion][inert] [data-testid="habit-row"]').length)
+        if (departures > 0) departureStarted ??= performance.now()
         const remaining = element.querySelectorAll('[data-testid="habit-row"]').length
-        if (performance.now() - start > 1000) done({ departures, offsets, remaining, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-habit-list]')!.style.minHeight })
+        const settled = remaining === 0 && departureStarted !== undefined && performance.now() - departureStarted > 1000
+        if (settled || performance.now() - start > 5000) done({ departures, offsets, remaining, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-habit-list]')!.style.minHeight })
         else requestAnimationFrame(sample)
       }
       requestAnimationFrame(sample)

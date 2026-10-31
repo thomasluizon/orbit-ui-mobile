@@ -1,6 +1,7 @@
 import { SPACING, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import type { ReactNode } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { KeyboardAwareScrollView, KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
+import { StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { SHELL_SCROLLER_CLEARANCE, useShellScrollerClearance } from './shell-scroller-clearance'
 import { ShellSideInsetsContext, useShellContentStyle } from './shell-side-insets'
@@ -24,23 +25,23 @@ export function FlowShell({ children, action, header, notice, mode = 'centered' 
 
   return (
     <ShellSideInsetsContext.Provider value={true}>
-    <SafeAreaView
+    <KeyboardAwareView style={styles.root}><SafeAreaView
       style={[styles.root, { backgroundColor: surfaces.screen.backgroundColor }]}
       edges={['top', 'bottom']}
       testID="flow-shell"
     >
       {header ? <View style={[styles.column, headerStyle]}>{header}</View> : null}
-      <ScrollView
+      <KeyboardAwareScrollView avoidKeyboard={false} containerStyle={[styles.scroller, styles.column]}
         style={[styles.scroller, styles.column]}
         contentContainerStyle={[styles.content, mode === 'centered' && styles.centered, contentStyle, { paddingBottom: clearance }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {children}
-      </ScrollView>
+      </KeyboardAwareScrollView>
       {notice ? <View style={[styles.notice, contentStyle]}>{notice}</View> : null}
       {action ? <View style={[styles.action, contentStyle]}>{action}</View> : null}
-    </SafeAreaView>
+    </SafeAreaView></KeyboardAwareView>
     </ShellSideInsetsContext.Provider>
   )
 }

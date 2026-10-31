@@ -9,6 +9,7 @@ import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { motionSprings, shouldDismissSheet, SHEET_BODY_INSETS } from '@orbit/shared/theme'
 import { Dialog } from '@base-ui/react/dialog'
 import { animate, motion, useDragControls, useMotionValue, type PanInfo, type HTMLMotionProps } from 'motion/react'
+import { needsKeyboardViewportResize, subscribeKeyboardViewport } from '@/hooks/use-keyboard-viewport'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useTranslations } from 'next-intl'
 import { X } from '@/components/ui/icons'
@@ -60,6 +61,7 @@ interface WebSheetProps extends SheetProps {
 export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTitle, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const { titleClamped, titleExpanded, onClampedChange, bodyRef, toggleTitle } = useSheetTitleDisclosure(title)
+  const viewportRef = useSheetKeyboardViewport(bodyRef, virtualizedBody)
   const onBodyFocus = useSheetBodyFocusVisibility(virtualizedBody)
   const [presented, setPresented] = useState(true)
   // WHY: A pointer-down menu can mount this sheet before its opening release. https://github.com/thomasluizon/orbit-tickets/issues/577
@@ -141,7 +143,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
     >
       <Dialog.Portal className="orbit-sheet-portal">
         <Dialog.Backdrop className="orbit-sheet-backdrop" {...pointerDismissalHandlers} />
-        <Dialog.Viewport className="orbit-sheet-viewport" {...pointerDismissalHandlers}>
+        <Dialog.Viewport ref={viewportRef} className="orbit-sheet-viewport" {...pointerDismissalHandlers}>
           <motion.div className="orbit-sheet-drag-frame" {...drag.frameProps}>
           <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus}>
             <div className="orbit-sheet-grabber-target" aria-hidden="true" onPointerDown={drag.start}><div className="orbit-sheet-grabber" /></div>
@@ -246,12 +248,40 @@ function revealSheetBodyFocus(body: HTMLDivElement) {
   const borderTop = Number.parseFloat(style.borderTopWidth) || 0
   const borderBottom = Number.parseFloat(style.borderBottomWidth) || 0
   const scrollbarHeight = Math.max(0, body.offsetHeight - body.clientHeight - borderTop - borderBottom)
-  const top = bodyBounds.top + borderTop
-  const bottom = bodyBounds.bottom - borderBottom - scrollbarHeight
+  const viewport = window.visualViewport && needsKeyboardViewportResize(window.visualViewport)
+    ? window.visualViewport
+    : null
+  const clearance = focused.matches('input, textarea, [contenteditable="true"]') ? 24 : 0
+  const footer = body.closest('[role="dialog"]')?.querySelector('footer')
+  const viewportBottom = viewport ? viewport.offsetTop + viewport.height - (footer?.getBoundingClientRect().height ?? 0) : Infinity
+  const top = Math.max(bodyBounds.top + borderTop, viewport?.offsetTop ?? 0) + clearance
+  const bottom = Math.min(bodyBounds.bottom - borderBottom - scrollbarHeight, viewportBottom) - clearance
   const delta = bounds.top < top || bounds.height > bottom - top
     ? bounds.top - top
     : Math.max(0, bounds.bottom - bottom)
-  body.scrollTop += delta < 0 ? Math.floor(delta) : Math.ceil(delta)
+  body.scrollTop = Math.max(0, body.scrollTop + (delta < 0 ? Math.floor(delta) : Math.ceil(delta)))
+}
+
+function useSheetKeyboardViewport(bodyRef: RefObject<HTMLDivElement | null>, virtualizedBody: boolean | undefined) {
+  return useCallback((element: HTMLDivElement | null) => {
+    const viewport = window.visualViewport
+    if (!viewport || !element) return
+    const update = () => {
+      const resize = needsKeyboardViewportResize(viewport)
+      element.style.top = resize ? `${viewport.offsetTop}px` : ''
+      element.style.height = resize ? `${viewport.height}px` : ''
+      element.style.bottom = resize ? 'auto' : ''
+      const panel = element.querySelector<HTMLElement>('[role="dialog"]')
+      if (panel) {
+        panel.style.maxHeight = resize ? `${viewport.height * 0.85}px` : ''
+      }
+      if (!virtualizedBody && bodyRef.current) {
+        revealSheetBodyFocus(bodyRef.current)
+      }
+    }
+    update()
+    return subscribeKeyboardViewport(viewport, update)
+  }, [bodyRef, virtualizedBody])
 }
 
 function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {
@@ -265,7 +295,10 @@ function useSheetBodyFocusVisibility(virtualizedBody: boolean | undefined) {
     revealSheetBodyFocus(body)
     let revealedScrollTop = body.scrollTop
     const observer = new ResizeObserver(() => {
-      if (body.scrollTop !== revealedScrollTop) { observer.disconnect(); return }
+      if (body.scrollTop !== revealedScrollTop) {
+        observer.disconnect()
+        return
+      }
       revealSheetBodyFocus(body)
       revealedScrollTop = body.scrollTop
     })
