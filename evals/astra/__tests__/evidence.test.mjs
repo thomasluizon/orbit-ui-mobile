@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeResults } from '../report.mjs'
@@ -63,7 +64,7 @@ it('records the corpus requested aim as typed offer evidence', () => {
 })
 
 it('redacts credential echoes even when a response-header identity is a UUID', () => {
-  const credential = '1a7acddb-c482-4acb-8adc-6539308afdb4'
+  const credential = randomUUID()
   vi.stubEnv('ORBIT_EVAL_TOKEN', credential)
   const output = parseResponse({ error: 'Unable to compose an answer.', errorCode: null }, '', {
     response: { status: 400, headers: { 'x-orbit-request-id': credential } },
