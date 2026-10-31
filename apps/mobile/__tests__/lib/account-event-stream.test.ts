@@ -1,3 +1,4 @@
+import { API_BASE } from '@/lib/api-base'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { openAccountEventStream } from '@/lib/account-event-stream'
 
@@ -23,7 +24,7 @@ it('replays with Last-Event-ID after refreshing an expired bearer token', async 
   await openAccountEventStream(new AbortController().signal, 'epoch.3')
   expect(mocks.refreshSession).toHaveBeenCalledWith()
   expect(mocks.expoFetch).toHaveBeenNthCalledWith(2,
-    'https://api.useorbit.org/api/events',
+    `${API_BASE}/api/events`,
     expect.objectContaining({ headers: {
       Authorization: 'Bearer fresh-token', 'Last-Event-ID': 'epoch.3',
     } }),

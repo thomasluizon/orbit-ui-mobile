@@ -110,6 +110,44 @@ describe("shared ui store", () => {
     expect(store.getState().activeCelebration?.payload).toEqual({ count: 1 });
   });
 
+  it('retains the completed day across reload and a later added habit', () => {
+    const store = createStoreHarness();
+    const date = '2026-04-06';
+    const habit = createMockHabit({ id: 'first', scheduledDates: [date], isLoggedInRange: true });
+    const habits = new Map([[habit.id, habit]]);
+    store.getState().checkAllDoneCelebration(habits, new Map(), date);
+    const restored = createStoreHarness();
+    restored.setState(migratePersistedUIState(getPersistedUIState(store.getState())));
+    habits.set('later', { ...habit, id: 'later', isLoggedInRange: false });
+    restored.getState().checkAllDoneCelebration(habits, new Map(), date);
+    habits.set('later', { ...habit, id: 'later' });
+    restored.getState().checkAllDoneCelebration(habits, new Map(), date);
+    expect(restored.getState().activeCelebration).toBeNull();
+    expect(restored.getState().allDoneCelebratedDate).toBe(date);
+  });
+
+  it('uses one panel when the final log also extends the daily streak', () => {
+    const store = createStoreHarness();
+    const date = '2026-04-06';
+    store.getState().showStreakMoment(5, 4, { date, intent: 'log', countsTowardStreak: true });
+    const habit = createMockHabit({ scheduledDates: [date], isLoggedInRange: true });
+    store.getState().checkAllDoneCelebration(new Map([[habit.id, habit]]), new Map(), date);
+    expect(store.getState().activeCelebration?.kind).toBe('all-done');
+    expect(store.getState().queuedCelebrations).toEqual([]);
+  });
+
+  it('celebrates a confirmed skip of the last pending habit', () => {
+    const store = createStoreHarness();
+    const date = '2026-04-06';
+    const habit = createMockHabit({ id: 'skipped', scheduledDates: ['2026-04-07'] });
+    const habits = new Map([[habit.id, habit]]);
+    store.getState().checkAllDoneCelebration(habits, new Map(), date, 'UTC');
+    expect(store.getState().activeCelebration).toBeNull();
+    store.getState().checkAllDoneCelebration(habits, new Map(), date, 'UTC', new Set([habit.id]));
+    expect(store.getState().activeCelebration?.kind).toBe('all-done');
+    expect(store.getState().activeCelebration?.payload).toEqual({ count: 1 });
+  });
+
   it("clears the last created habit id after the timeout", async () => {
     const store = createStoreHarness();
 
@@ -237,6 +275,7 @@ describe("shared ui store", () => {
       calendarShowRecurring: true,
       habitComposerCollapsed: false,
       todayComposerCollapsed: false,
+      allDoneCelebratedDate: "",
       dailyStreakMomentDate: "",
       setupChecklistDismissed: false,
     });

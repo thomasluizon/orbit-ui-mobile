@@ -1,0 +1,71 @@
+import { useRef, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { NextIntlClientProvider } from 'next-intl'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
+import { habitKeys, profileKeys } from '@orbit/shared/query'
+import en from '@orbit/shared/i18n/en.json'
+import { getAccountDay } from '@orbit/shared/utils'
+import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { bulkSkipResultSchema, type BulkSkipItemRequest } from '@orbit/shared/types/habit'
+import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
+import { ShellWide } from '@/components/shell/shell-wide'
+import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
+import { TodayProvider } from '@/app/(app)/today-provider'
+import { useBulkSkipHabits } from '@/hooks/use-habits'
+import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
+
+const date = getAccountDay(new Date(), 'UTC')
+let items = Array.from({ length: 30 }, (_, index) => makeHabitScheduleItem({
+  id: `skip-${index}`, title: `Habit ${index}`, position: index, dueDate: date, scheduledDates: [date],
+  children: [], hasSubHabits: false,
+}))
+const requests = items.map(({ id }) => ({ habitId: id, date }))
+const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+const profile = { ...profileFixture, language: 'en', timeZone: 'UTC' }
+client.setQueryData(profileKeys.detail(), profile)
+client.setQueryData(habitKeys.count(), items.length)
+
+globalThis.fetch = async (input) => {
+  const path = input instanceof Request ? input.url : input.toString()
+  const body = path.startsWith(API.habits.list) ? { items, totalCount: items.length, totalPages: 1, page: 1, pageSize: 200 }
+    : path === API.profile.get ? profile : null
+  if (body === null) throw new Error(`Unexpected fixture read: ${path}`)
+  return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } })
+}
+
+declare global {
+  interface Window {
+    skipScrollFixture: (path: string, options: { body: string }) => Promise<unknown>
+  }
+}
+window.skipScrollFixture = async (path, options) => {
+  if (path !== API.habits.bulkSkip) throw new Error(`Unexpected fixture write: ${path}`)
+  const input = JSON.parse(options.body) as { items: BulkSkipItemRequest[] }
+  items = []
+  await new Promise<void>((done) => setTimeout(done, 200))
+  return bulkSkipResultSchema.parse({ results: input.items.map(({ habitId }, index) => ({ index, status: 'Success', habitId, error: null })) })
+}
+
+function Fixture() {
+  const [selecting, setSelecting] = useState(true)
+  const list = useRef<HabitListHandle>(null)
+  const skip = useBulkSkipHabits()
+  return <ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }} header={<span>Today</span>}
+    tabBar={<BottomTabBar activeId="hoje" label="Navigation" onSelect={() => {}} items={[{ id: 'hoje', href: '/', label: 'Today' }]} />}
+    fab={selecting ? undefined : <button>Create</button>}
+    composer={selecting ? <button onClick={() => { void skip.mutateAsync(requests).then(() => {
+      list.current?.settleBulkHabitResolutions(requests.map(({ habitId }) => ({ habitId, mode: 'skip' })), date)
+      setSelecting(false)
+    }) }}>Skip selected</button> : undefined}
+    compactComposer={selecting ? undefined : <textarea aria-label="Draft" />}>
+    <div id="orbit-main" className="flex min-h-full flex-col">
+      <HabitList ref={list} view="today" filters={{ dateFrom: date, dateTo: date, includeOverdue: true }}
+        isSelectMode={selecting} selectedHabitIds={new Set(selecting ? requests.map(({ habitId }) => habitId) : [])} />
+    </div>
+  </ShellWide>
+}
+
+createRoot(document.getElementById('root')!).render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+  <QueryClientProvider client={client}><TodayProvider><Fixture /></TodayProvider></QueryClientProvider>
+</NextIntlClientProvider>)

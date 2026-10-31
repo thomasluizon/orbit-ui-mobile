@@ -153,6 +153,29 @@ it('keeps declared nested and union arguments while omitting unknown credential 
   expect(text).not.toMatch(/private-nested-(cookie|token)/)
 })
 
+it.each(['choice', 'question'])('retains draft-bound %s arguments without unknown credential fields', (form) => {
+  const input = { form, missing_input: 'habit_setup', draft_call_id: 'new-draft', missing_field: 'frequency_unit',
+    ...(form === 'choice' ? { question: 'How often?', options: [
+      { id: 'daily', label: 'Daily', description: null }, { id: 'weekly', label: 'Weekly', description: null },
+    ], multiSelect: false, allowFreeText: false } : { title: null, intro: null, progress: null,
+      questions: [{ id: 'frequency_unit', type: 'yesNo', prompt: 'Should this repeat?', allowFreeText: false }] }) }
+  const call = toolCall('ask', { input: { ...input, token: 'private-draft-token' } }, 'Succeeded', 'ask', { supportsParts: true })
+  const { evidence, text } = persist(outputFor([call]))
+  expect(evidence.toolCalls[0].arguments.input).toEqual(input)
+  expect(text).not.toContain('private-draft-token')
+})
+
+it('withholds malformed object values across declaration alternatives', () => {
+  const call = toolCall('ask', { input: { form: 'choice', missing_input: 'preference', question: 'Which option?',
+    options: ['private-malformed-option'], multiSelect: false, allowFreeText: false } }, 'Succeeded', 'ask', { supportsParts: true })
+  const output = outputFor([call])
+  output.answer = 'private-malformed-option'
+  const { evidence, text } = persist(output)
+  expect(evidence.toolCalls[0].arguments.input.options).toEqual([null])
+  expect(evidence.answer).toBe('[redacted]')
+  expect(text).not.toContain('private-malformed-option')
+})
+
 it('applies normalized sensitivity marks to ranking arguments and echoed result values', () => {
   const call = toolCall('get_habit_ranking', { relative_period: 'today' }, 'Succeeded', 'call-1', { supportsParts: true })
   Object.assign(call.arguments, { query_token: 'private-query-value', cursor: 'private-cursor-value', habit_ids: ['private-habit-value'] })
