@@ -2113,8 +2113,8 @@ describe('mobile habit hooks', () => {
       queryKey: habitKeys.summaryPrefix(),
     })
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
-    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
-    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   /** The server awards no XP for a bad habit, so the fixture must return zero. */
@@ -3807,5 +3807,91 @@ describe('useBulkMoveHabitParent', () => {
       { method: 'POST', body: JSON.stringify(request) }, expect.anything())
     mutation.onSuccess?.(response, request, undefined)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all })
+  })
+})
+
+
+describe('API-owned bad parent slips', () => {
+  beforeEach(() => {
+    mocks.runQueuedMutation.mockClear()
+    mocks.buildQueuedMutation.mockClear()
+    mocks.queryClient.invalidateQueries.mockClear()
+  })
+  it.each([
+    { name: 'first child', childId: 'first', intent: 'log' as const, before: 0, after: 0 },
+    { name: 'last child', childId: 'second', intent: 'log' as const, before: 0, after: 1 },
+    { name: 'undo child', childId: 'first', intent: 'unlog' as const, before: 1, after: 0 },
+  ])('refreshes parent reads after $name without queuing a parent write', async (scenario) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const date = '2026-09-12'
+    const parentLog = { id: 'parent-slip', date, value: 1, createdAtUtc: '2026-09-12T12:00:00Z' }
+    client.setQueryData(habitKeys.list({ dateFrom: date, dateTo: date }), [makeHabit({
+      id: 'parent', isBadHabit: true, isLoggedInRange: scenario.before > 0,
+      children: ['first', 'second'].map((id) => {
+        const slipped = scenario.intent === 'unlog' || (scenario.name === 'last child' && id === 'first')
+        return makeChild({ id, isBadHabit: true, isLoggedInRange: slipped,
+          instances: [{ date, status: slipped ? 'Completed' : 'Pending', logId: slipped ? `slip:${id}` : null }],
+        })
+      }),
+    })])
+    const readParentLogs = vi.fn(() => Promise.resolve(scenario.after ? [parentLog] : []))
+    const observer = new QueryObserver(client, {
+      queryKey: habitKeys.logs('parent'), queryFn: readParentLogs,
+      initialData: scenario.before ? [parentLog] : [], staleTime: Infinity,
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    const parentKeys = [habitKeys.detail('parent'), habitKeys.fullDetail('parent'), habitKeys.metrics('parent'), profileKeys.detail(), gamificationKeys.profile()]
+    for (const key of parentKeys) client.setQueryData(key, {})
+    mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
+    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, unknown>
+    const variables = { habitId: scenario.childId, date, intent: scenario.intent }
+    const response = { logId: 'child-log', isFirstCompletionToday: false, currentStreak: 0 }
+    mocks.runQueuedMutation.mockResolvedValueOnce(response)
+    try {
+      const context = await mutation.onMutate?.(variables)
+      const result = await mutation.mutationFn(variables)
+      mutation.onSettled?.(result, null, variables, context)
+      await vi.waitFor(() => expect(readParentLogs).toHaveBeenCalledTimes(1))
+      expect(client.getQueryData(habitKeys.logs('parent'))).toEqual(scenario.after ? [parentLog] : [])
+      for (const key of parentKeys) expect(client.getQueryState(key)?.isInvalidated).toBe(true)
+      expect(mocks.runQueuedMutation).toHaveBeenCalledTimes(1)
+      expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ targetEntityId: scenario.childId }) }))
+    } finally {
+      unsubscribe()
+      client.clear()
+    }
+  })
+
+  it('keeps queued child slips pending server reconciliation and pins their occurrence date', async () => {
+    seedHabitState([makeHabit({ id: 'parent', isBadHabit: true, children: [makeChild({ id: 'first', isBadHabit: true }), makeChild({ id: 'second', isBadHabit: true })] })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { timeZone: 'Pacific/Kiritimati' })
+    vi.setSystemTime(new Date('2026-09-12T23:00:00Z'))
+    const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+    for (const habitId of ['first', 'second']) {
+      const variables = { habitId, intent: 'log' as const }
+      const context = await mutation.onMutate?.(variables)
+      const result = await mutation.mutationFn(variables)
+      mutation.onSuccess?.(result, variables, context)
+      mutation.onSettled?.(result, null, variables, context)
+    }
+    expect(getHabitList()[0]?.isLoggedInRange).toBe(false)
+    expect(mocks.runQueuedMutation).toHaveBeenCalledTimes(2)
+    for (const [options] of mocks.runQueuedMutation.mock.calls) {
+      expect(options.mutation).toEqual(expect.objectContaining({ payload: { date: '2026-09-13' }, targetEntityId: expect.stringMatching(/^(first|second)$/) }))
+    }
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.details() })
+  })
+
+  it('refreshes parent reads after confirmed bulk logs and pins undated queued items', async () => {
+    seedHabitState([])
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+    const variables = [{ habitId: 'first' }, { habitId: 'second' }]
+    const context = await mutation.onMutate?.(variables)
+    mocks.runQueuedMutation.mockResolvedValueOnce({ results: variables.map(({ habitId }, index) => ({ index, habitId, status: 'Success', logId: 'child-log', error: null })) })
+    const result = await mutation.mutationFn(variables)
+    mutation.onSettled?.(result, null, variables, context)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.details() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.fullDetails() })
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ payload: { items: variables.map((item) => ({ ...item, date: '2026-09-12' })) } }) }))
   })
 })

@@ -12,6 +12,7 @@ import {
   updateCachedHabitDetails,
   invalidateBulkMoveParentQueries,
   invalidateHabitParentDetails,
+  invalidateDerivedHabitLogQueries,
   habitKeys, goalKeys, gamificationKeys, profileKeys,
   applyCachedHabitSkip, rollbackDatedHabitLists,
   updateHabitListsForDate, invalidateHabitDependents,
@@ -353,6 +354,7 @@ export function useLogHabit() {
 
     onSettled: (_response, error, { habitId }, context) => {
       if (error) return
+      invalidateDerivedHabitLogQueries(queryClient)
       if (!context?.retryAllDoneDate) {
         invalidateHabitDependents(queryClient, habitId)
         return
@@ -926,6 +928,7 @@ export function useBulkLogHabits() {
     },
 
     onSettled: () => {
+      invalidateDerivedHabitLogQueries(queryClient)
       invalidateHabitStructureQueries(queryClient)
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })

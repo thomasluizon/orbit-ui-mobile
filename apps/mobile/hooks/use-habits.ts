@@ -11,6 +11,7 @@ import {
   restoreCachedHabitDetails,
   updateCachedHabitDetails,
   invalidateHabitParentDetails,
+  invalidateDerivedHabitLogQueries,
   habitKeys,
   invalidateBulkMoveParentQueries,
   goalKeys,
@@ -283,7 +284,7 @@ export function useLogHabit() {
         scope: 'habits',
         endpoint: API.habits.log(habitId),
         method: 'POST',
-        payload: date ? { date } : undefined,
+        payload: { date: occurrenceDate },
         entityType: 'habit',
         targetEntityId: habitId,
         dedupeKey: `habit-toggle:${habitId}:${occurrenceDate}`,
@@ -498,6 +499,7 @@ export function useLogHabit() {
     },
 
     onSettled: (data, error, { habitId }, context) => {
+      if (!error && !isQueuedResult(data)) invalidateDerivedHabitLogQueries(queryClient)
       const today = !error && !isQueuedResult(data) ? context?.retryAllDoneDate : null
       finalizeHabitMutation(queryClient, data, error, {
         habitId, includeCount: false, includeLists: !today,
@@ -1430,7 +1432,9 @@ export function useBulkLogHabits(options: { suppressParentSettlement?: boolean }
     { previousLists: HabitListSnapshots; occurrenceDate: string; account: ReturnType<typeof captureHabitAccount> }
   >({
     mutationFn: async (input) => {
-      const { items, parentPromptContinuation } = normalizeParentPromptBulkInput(input)
+      const { items: requestedItems, parentPromptContinuation } = normalizeParentPromptBulkInput(input)
+      const occurrenceDate = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+      const items = requestedItems.map((item) => ({ ...item, date: item.date ?? occurrenceDate }))
       const results: BulkLogResult['results'] = []
       const streakResponses: BulkLogResult[] = []
       const ambiguousIds: string[] = []
@@ -1548,11 +1552,13 @@ export function useBulkLogHabits(options: { suppressParentSettlement?: boolean }
       })
     },
 
-    onSettled: (data, error) =>
+    onSettled: (data, error) => {
+      if (data?.hasConfirmedSuccess) invalidateDerivedHabitLogQueries(queryClient)
       finalizeHabitMutation(queryClient, data, error, {
         includeGoals: true,
         includeGamification: true,
-      }),
+      })
+    },
   })
 }
 

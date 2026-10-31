@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/query-core'
 import { createMockHabit, createMockHabitScheduleItem, createMockHabitScheduleChild } from './factories'
-import { habitKeys, type HabitListSnapshots } from '../query/keys'
+import { gamificationKeys, habitKeys, profileKeys, type HabitListSnapshots } from '../query/keys'
 import {
   applyCachedHabitSkip,
   checkTodayAllDoneOrDefer,
@@ -11,6 +11,7 @@ import {
   getCachedCalendarDayMap,
   getTodayHabitListAfterRefetch,
   invalidateHabitDependents,
+  invalidateDerivedHabitLogQueries,
   restoreCachedHabitDetails,
   invalidateBulkMoveParentQueries,
   restoreCachedHabitLists,
@@ -676,6 +677,23 @@ describe('cached calendar loading rows', () => {
     client.setQueryData(habitKeys.list({ dateFrom: date, dateTo: date, includeOverdue: true }), habits)
     client.setQueryData(habitKeys.list({ dateFrom: date, dateTo: date, completeDay: true, includeOverdue: true, search: 'Read' }), habits)
     expect(getCachedCalendarDayMap(client, date, date).has(date)).toBe(false)
+    client.clear()
+  })
+})
+
+
+describe('derived parent slip reads', () => {
+  it('invalidates every ancestor reader without requiring a cached child tree', () => {
+    const client = new QueryClient()
+    const parentKeys = ['parent', 'grandparent'].flatMap((id) => [
+      habitKeys.detail(id), habitKeys.fullDetail(id), habitKeys.logs(id), habitKeys.metrics(id),
+    ])
+    const keys = [...parentKeys, profileKeys.detail(), gamificationKeys.profile(), gamificationKeys.streak('UTC')]
+    for (const key of keys) client.setQueryData(key, {})
+    client.setQueryData(habitKeys.count(), 3)
+    invalidateDerivedHabitLogQueries(client)
+    for (const key of keys) expect(client.getQueryState(key)?.isInvalidated).toBe(true)
+    expect(client.getQueryState(habitKeys.count())?.isInvalidated).toBe(false)
     client.clear()
   })
 })
