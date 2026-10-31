@@ -9,10 +9,9 @@ import {
   useState,
   type ComponentProps,
 } from 'react'
-import { findNodeHandle, StyleSheet, type TextInput } from 'react-native'
+import { StyleSheet, type TextInput } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -28,8 +27,6 @@ export const BottomSheetAppTextInput = forwardRef<
   { focusBorder = true, isChangeDisabled, onBlur, onChangeText, onFocus, placeholderTextColor, style, value, ...props },
   ref,
 ) {
-  const localRef = useRef<Parameters<typeof findNodeHandle>[0]>(null)
-  const keyboardAware = useKeyboardAwareInputReveal()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -47,31 +44,14 @@ export const BottomSheetAppTextInput = forwardRef<
     }
   }, [value])
 
-  const assignRef = useCallback(
-    (node: TextInput | null) => {
-      localRef.current = node
-
-      if (typeof ref === 'function') {
-        ref(node)
-        return
-      }
-
-      if (ref) {
-        ref.current = node
-      }
-    },
-    [ref],
-  )
-
   const handleFocus = useCallback<
     NonNullable<BottomSheetAppTextInputProps['onFocus']>
   >(
     (event) => {
       setFocused(true)
-      keyboardAware?.revealInput(localRef.current)
       onFocus?.(event)
     },
-    [keyboardAware, onFocus],
+    [onFocus],
   )
 
   const handleBlur = useCallback<
@@ -101,7 +81,7 @@ export const BottomSheetAppTextInput = forwardRef<
 
   return (
     <TypedTextInput
-      ref={assignRef}
+      ref={ref}
       placeholderTextColor={placeholderTextColor ?? tokens.fg3}
       {...props}
       style={[styles.input, style, focused && focusBorder ? styles.inputFocused : null]}

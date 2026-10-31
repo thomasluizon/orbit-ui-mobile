@@ -39,6 +39,13 @@ export interface TagSelectionCoreState {
   tagValidationErrorKey: string | null
 }
 
+export function hasTagDraftChanges(
+  state: Pick<TagSelectionCoreState, 'showNewTag' | 'newTagName' | 'editingTagId' | 'editTagName'>,
+  initialName: string,
+): boolean {
+  return state.showNewTag ? state.newTagName.length > 0 : Boolean(state.editingTagId) && state.editTagName !== initialName
+}
+
 export type TagSelectionStateUpdater = (
   previous: TagSelectionCoreState,
 ) => TagSelectionCoreState

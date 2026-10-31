@@ -118,7 +118,7 @@ export function computeParentSettlementDecision(
   promptDate: string,
 ): ParentSettlementDecision {
   if (
-    !parent ||
+    !parent || parent.isBadHabit ||
     (!parent.isGeneral &&
       !parent.isOverdue &&
       !hasHabitScheduleOnDate(parent, promptDate))
@@ -184,6 +184,7 @@ export function computeParentPromptProgress(
   } = options
 
   function computeChild(child: NormalizedHabit): ParentPromptProgress {
+    if (child.isBadHabit) return { done: 0, total: 0, loggedDone: 0 }
     let done = 0
     let total = 0
     let loggedDone = 0

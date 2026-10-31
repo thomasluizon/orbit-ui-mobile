@@ -4,7 +4,7 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useHabitFormInteraction } from './habit-form-fields/habit-form-interaction'
 import { SPACING } from '@orbit/shared/theme'
 import { X } from '@/components/ui/icons'
-import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
+import { backendFormFieldFocusRequest, hasTagDraftChanges, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
@@ -332,6 +332,8 @@ export function HabitFormFields({
   onGoalCreated,
   reminderTimes,
   onReminderTimesChange,
+  onPendingChecklistItemChange,
+  pendingChecklistItem,
   onReminderEnabledChange,
   onSlipAlertEnabledChange,
   onSuggestionContextChange,
@@ -399,6 +401,16 @@ export function HabitFormFields({
   }
 
   const { tags: availableTags = [] } = useTags()
+  const initialTagName = availableTags.find(tag => tag.id === tags.editingTagId)?.name ?? ''
+  const tagEditorDirty = hasTagDraftChanges(tags, initialTagName)
+  const discardTagEditor = () => {
+    newTagErrors.clearBackendErrors()
+    editTagErrors.clearBackendErrors()
+    tags.setNewTagName('')
+    tags.setShowNewTag(false)
+    tags.cancelEditTag()
+  }
+
   const createTag = useCreateTag()
   const updateTag = useUpdateTag()
   const deleteTag = useDeleteTag()
@@ -592,7 +604,7 @@ export function HabitFormFields({
             <HabitTimingFields formHelpers={formHelpers} controller={controller} reminderTimes={reminderTimes} onReminderTimesChange={guard(onReminderTimesChange)} showError={showError} tokens={tokens} />
             <View style={{ gap: 8 }}>
               <FormSectionLabel>{t('habits.form.checklist')}</FormSectionLabel>
-              <HabitChecklist items={checklistItems} editable proposedItemCount={proposal.checklistItems} onItemsChange={controller.setChecklistItems} />
+              <HabitChecklist pendingItemText={pendingChecklistItem} onPendingItemChange={onPendingChecklistItemChange} items={checklistItems} editable proposedItemCount={proposal.checklistItems} onItemsChange={controller.setChecklistItems} />
               <ChecklistTemplates items={checklistItems} onLoad={controller.setChecklistItems} />
             </View>
             <SubHabitSection proposed={proposal.subHabits && !rendersGranularSubHabits} t={t}>
@@ -600,7 +612,7 @@ export function HabitFormFields({
             </SubHabitSection>
             <HabitAvoidanceFields formHelpers={formHelpers} controller={controller} hasProAccess={hasProAccess} tokens={tokens} onUpgrade={onUpgrade} />
             {parentField}
-            <View><TagPickerField suggestions={<TagSuggestions translateError={allowanceText} suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} onToggle={guard(tags.toggleTag)} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void deleteExistingTag(id)} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={disabled || createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={guard(tags.setNewTagName)} onCommit={() => void createNewTag()} onCancel={() => { newTagErrors.clearBackendErrors(); tags.setShowNewTag(false) }} styles={formStyles} tokens={tokens} /> : tags.editingTagId ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} value={tags.editTagName} disabled={disabled || updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={guard(tags.setEditTagName)} onCommit={() => void saveEditedTag()} onCancel={() => { editTagErrors.clearBackendErrors(); tags.cancelEditTag() }} styles={formStyles} tokens={tokens} /> : undefined} />{tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}</View>
+            <View><TagPickerField editorDirty={tagEditorDirty} onDiscardEditor={discardTagEditor} suggestions={<TagSuggestions translateError={allowanceText} suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={disabled || tagMutationPending} onToggle={guard(tags.toggleTag)} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void deleteExistingTag(id)} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={disabled || createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={guard(tags.setNewTagName)} onCommit={() => void createNewTag()} onCancel={discardTagEditor} styles={formStyles} tokens={tokens} /> : tags.editingTagId ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} initialValue={initialTagName} value={tags.editTagName} disabled={disabled || updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={guard(tags.setEditTagName)} onCommit={() => void saveEditedTag()} onCancel={discardTagEditor} styles={formStyles} tokens={tokens} /> : undefined} />{tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}</View>
             <View><GoalLinkingField habitId={habitId} onGoalCreated={guard(onGoalCreated ?? onToggleGoal)} selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={guard(onToggleGoal)} /></View>
             <EndDateEditor visible={showEndDate} value={endDate} onChange={guard((value) => setValue('endDate', value, { shouldDirty: true }))} t={t} />
           </Animated.View>

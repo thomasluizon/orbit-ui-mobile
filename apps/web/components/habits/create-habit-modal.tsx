@@ -150,6 +150,7 @@ export function CreateHabitModal({
   const activeView = useUIStore((s) => s.activeView)
 
   const { requestPermission: requestReminderPermission } = useReminderPermission(false, () => {})
+  const [pendingChecklistItem, setPendingChecklistItem] = useState('')
   const formHelpers = useHabitForm({
     initialData: {
       dueDate: initialDate ?? '',
@@ -191,7 +192,7 @@ export function CreateHabitModal({
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const isDirty = hasCreateHabitChanges(
-    formHelpers.form.formState.isDirty,
+    formHelpers.form.formState.isDirty || pendingChecklistItem.length > 0,
     tags.selectedTagIds,
     selectedGoalIds,
     subHabits,
@@ -257,6 +258,7 @@ export function CreateHabitModal({
       const { initialDate, initialTitle, initialSuggestion, parentHabit, activeView, formHelpers, tags } = resetOnOpenRef.current
       const fallbackDate = initialDate ?? ''
 
+      setPendingChecklistItem('')
       setEmojiFailure(null)
       setCreateBoundary(null)
       setReminderWasManuallyToggled(false)
@@ -550,6 +552,8 @@ export function CreateHabitModal({
       >
         <form id={formId} onSubmit={(event) => void handleSubmit(event)}>
           <HabitFormFields
+              pendingChecklistItem={pendingChecklistItem}
+              onPendingChecklistItemChange={setPendingChecklistItem}
             formHelpers={formHelpers}
             titleInputRef={titleInputRef}
             tags={tags}
