@@ -1,3 +1,5 @@
+import type { AgentOperationResult } from '../types/ai'
+
 const WRITE_CAPABILITY_IDS = new Set([
   'habits.write',
   'goals.write',
@@ -115,4 +117,25 @@ export function getAgentPolicyReasonKey(reason: string | null | undefined): stri
   return reason && LOCALIZED_POLICY_REASONS.has(reason)
     ? `chat.pendingOp.errors.${reason}`
     : null
+}
+
+const ACCOUNT_DENIAL_REASONS = new Set([
+  'PAY_GATE', 'HABIT_LIMIT_REACHED', 'NO_PERMISSION', 'HABIT_NOT_OWNED', 'UPGRADE_REQUIRED',
+  'account_deactivated', 'user_not_found',
+])
+const ACCOUNT_DENIAL_PREFIXES = ['plan_required:', 'feature_plan_required:', 'target_not_owned:']
+
+export function getAgentOperationCopyKeys(operation: Pick<AgentOperationResult, 'status' | 'policyReason' | 'errorCode'>): {
+  titleKey: string
+  statusKey: string
+} {
+  const reasonKey = getAgentPolicyReasonKey(operation.policyReason)
+  const accountDenied = ACCOUNT_DENIAL_REASONS.has(operation.policyReason ?? '')
+    || ACCOUNT_DENIAL_REASONS.has(operation.errorCode ?? '')
+    || ACCOUNT_DENIAL_PREFIXES.some(prefix => operation.policyReason?.startsWith(prefix))
+  const neutral = operation.status === 'Denied' && !accountDenied && !reasonKey
+  return {
+    titleKey: `chat.operation.outcome.${neutral ? 'changeNotMade' : operation.status}`,
+    statusKey: reasonKey ?? `chat.operation.status.${neutral ? 'changeNotMade' : operation.status}`,
+  }
 }

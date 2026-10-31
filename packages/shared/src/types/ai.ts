@@ -213,6 +213,7 @@ export const agentOperationResultSchema = z.object({
   pendingOperationId: z.string().nullable().optional(),
   payload: z.unknown().nullable().optional(),
   access: z.enum(['read', 'write']).optional(),
+  errorCode: z.string().nullable().optional(),
 })
 export type AgentOperationResult = z.infer<typeof agentOperationResultSchema>
 

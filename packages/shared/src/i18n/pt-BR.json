@@ -2172,6 +2172,7 @@
       "stepUpAction": "Confirmar identidade",
       "openProfile": "Abrir Perfil",
       "outcome": {
+        "changeNotMade": "Alteração não realizada",
         "PendingConfirmation": "Aguardando confirmação",
         "Denied": "Não disponível",
         "UnsupportedByPolicy": "Só no Perfil",
@@ -2179,6 +2180,7 @@
         "Failed": "Alguns itens não foram salvos"
       },
       "status": {
+        "changeNotMade": "A Astra não conseguiu fazer essa alteração.",
         "PendingConfirmation": "Nada mudou ainda",
         "Denied": "Esta conta não pode fazer isso",
         "UnsupportedByPolicy": "Gerencie isto no Perfil",
@@ -2251,7 +2253,7 @@
       "source": {
         "updateChecklistTemplate": "Editar modelo de checklist",
         "suggestBreakdown": "Dividir hábito em etapas",
-        "undoSkipHabit": "Desfazer hábito pulado",
+        "undoSkipHabit": "Desmarcar hábito como pulado",
         "unlogHabit": "Desfazer registro do hábito",
         "createHabit": "Criar hábito",
         "logHabit": "Registrar hábito",

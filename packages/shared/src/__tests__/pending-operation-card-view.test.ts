@@ -471,7 +471,7 @@ const labels: PendingOperationCardLabels = {
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
   confirmBody: () => 'Confirm the action', confirmNote: 'Review it', confirmTitle: () => 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
-  pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', retry: 'Try again', batchFailed: 'Ask Astra for failed items', unavailableRecovery: 'Ask Astra for a new preview', denied: 'Denied', unsupported: 'Profile only',
+  pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', retry: 'Try again', batchFailed: 'Ask Astra for failed items', unavailableRecovery: 'Ask Astra for a new preview', denied: () => 'Denied', unsupported: 'Profile only',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
   more: (count) => `and ${count} more`,
 }
@@ -1271,4 +1271,26 @@ it('revises placement through the displayed preview choice without executing it'
   choice.onSelect('new_parent')
   expect(card.revision.switchPlacement).toHaveBeenCalledExactlyOnceWith('0', 'new_parent')
   expect(card.execute).not.toHaveBeenCalled()
+})
+
+describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('denial copy in $locale', ({ locale, messages }) => {
+  it.each([
+    { reason: 'invalid_offer', account: false },
+    { reason: 'GENERAL_HABIT_HAS_FREQUENCY', account: false },
+    { reason: 'future_reason', account: false },
+    { reason: undefined, account: false },
+    { reason: 'HABIT_LIMIT_REACHED', account: true },
+    { reason: 'plan_required:pro', account: true },
+    { reason: 'feature_plan_required:HabitBreakdown:pro', account: true },
+    { reason: 'target_not_owned:update_habit:habit', account: true },
+  ])('renders the completed denial for $reason', ({ reason, account }) => {
+    const operation = makePendingAgentOperation()
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale)
+    const card = { ...createCard(), status: 'failed' as const, completedOperation: { ...makeAgentOperationResult('Denied', 1), policyReason: reason } }
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    const output = record.frame?.body
+    expect(output).toContain(account ? messages.chat.operation.status.Denied : messages.chat.operation.status.changeNotMade)
+    if (!account) expect(output).not.toContain(messages.chat.operation.status.Denied)
+  })
 })

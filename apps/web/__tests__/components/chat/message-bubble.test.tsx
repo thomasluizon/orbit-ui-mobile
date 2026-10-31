@@ -274,15 +274,15 @@ describe('MessageBubble', () => {
               sourceName: 'delete_habit',
               riskClass: 'Destructive',
               confirmationRequirement: 'FreshConfirmation',
-              reason: 'Fresh confirmation required',
+              reason: 'confirmation_required',
             },
           ],
         })}
       />,
     )
 
-    expect(screen.getByText('chat.operation.outcome.UnsupportedByPolicy')).toBeInTheDocument()
-    expect(screen.queryByText('Fresh confirmation required')).not.toBeInTheDocument()
+    expect(screen.getByText('chat.pendingOp.errors.confirmation_required')).toBeInTheDocument()
+    expect(screen.queryByText('confirmation_required')).not.toBeInTheDocument()
   })
 
   it('renders a related-surfaces footer that deep-links known surfaces', () => {
@@ -664,7 +664,7 @@ describe('MessageBubble', () => {
   it('shows a denied action and policy outcome in one block', () => {
     const operation = makeAgentOperationResult('Denied', 1)
     const message = makeHeldHabitMessage({ pendingOperations: [], actions: [makeActionResult({ type: 'CreateHabit', status: 'Failed' })], operations: [operation], policyDenials: [{
-      operationId: operation.operationId, sourceName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', reason: 'policy',
+      operationId: operation.operationId, sourceName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', reason: 'direct_user_flow_required',
     }] })
     const { container } = render(<MessageBubble message={message} />)
     expect(container.querySelectorAll('section[data-state]')).toHaveLength(1)
@@ -683,5 +683,20 @@ describe('MessageBubble', () => {
 it('renders the denied bulk create replay as an outcome instead of an unreadable reply', () => {
   render(<MessageBubble message={deniedBulkCreateReplyFixture} />)
   expect(screen.getByText('chat.operation.source.createHabits')).toBeInTheDocument()
+  expect(screen.queryByText('chat.unreadableReply')).not.toBeInTheDocument()
+})
+
+it.each([
+  { reason: 'invalid_offer', account: false },
+  { reason: 'GENERAL_HABIT_HAS_FREQUENCY', account: false },
+  { reason: 'unknown_reason', account: false },
+  { reason: undefined, account: false },
+  { reason: 'plan_required:pro', account: true },
+  { reason: 'HABIT_LIMIT_REACHED', account: true },
+  { reason: 'target_not_owned:update_habit:habit', account: true },
+])('uses reason-based denial copy in the bubble for $reason', ({ reason, account }) => {
+  render(<MessageBubble message={{ ...deniedBulkCreateReplyFixture, operations: [{ ...deniedBulkCreateReplyFixture.operations![0]!, policyReason: reason }] }} />)
+  expect(screen.getByText(account ? 'chat.operation.status.Denied' : 'chat.operation.status.changeNotMade')).toBeInTheDocument()
+  expect(screen.getByText(account ? 'chat.operation.outcome.Denied' : 'chat.operation.outcome.changeNotMade')).toBeInTheDocument()
   expect(screen.queryByText('chat.unreadableReply')).not.toBeInTheDocument()
 })

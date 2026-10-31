@@ -128,3 +128,10 @@ it('retains the denied bulk create from the offer replay without a target or pol
     { source: 'bulk_create_habits', status: 'Denied', policyReason: 'invalid_offer', target: null },
   ])
 })
+
+it.each(['write', undefined])('retains an unknown source without a target for access=%s', access => {
+  const operation = agentOperationResultSchema.parse({ ...deniedBulkCreateReplyFixture.operations![0]!, sourceName: 'future_write', access })
+  expect(selectMessageOperationBlocks({ ...deniedBulkCreateReplyFixture, operations: [operation] }).outcomes).toMatchObject([
+    { source: 'future_write', status: 'Denied', target: null },
+  ])
+})

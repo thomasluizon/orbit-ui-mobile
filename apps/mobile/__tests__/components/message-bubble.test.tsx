@@ -351,7 +351,7 @@ describe('MessageBubble write blocks (mobile)', () => {
   it('shows a denied action and policy outcome in one block', async () => {
     const operation = makeAgentOperationResult('Denied', 1)
     const message = makeHeldHabitMessage({ pendingOperations: [], actions: [makeActionResult({ type: 'CreateHabit', status: 'Failed' })], operations: [operation], policyDenials: [{
-      operationId: operation.operationId, sourceName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', reason: 'policy',
+      operationId: operation.operationId, sourceName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', reason: 'direct_user_flow_required',
     }] })
     let tree!: TestInstance
     await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} />) })
@@ -862,4 +862,22 @@ it('renders the denied bulk create replay as an outcome instead of an unreadable
   await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={deniedBulkCreateReplyFixture} />) })
   expect(renderedText(tree.root)).toContain('chat.operation.source.createHabits')
   expect(renderedText(tree.root)).not.toContain('chat.unreadableReply')
+})
+
+it.each([
+  { reason: 'invalid_offer', account: false },
+  { reason: 'GENERAL_HABIT_HAS_FREQUENCY', account: false },
+  { reason: 'unknown_reason', account: false },
+  { reason: undefined, account: false },
+  { reason: 'plan_required:pro', account: true },
+  { reason: 'HABIT_LIMIT_REACHED', account: true },
+  { reason: 'target_not_owned:update_habit:habit', account: true },
+])('uses reason-based denial copy in the bubble for $reason', async ({ reason, account }) => {
+  let tree!: TestInstance
+  const message = { ...deniedBulkCreateReplyFixture, operations: [{ ...deniedBulkCreateReplyFixture.operations![0]!, policyReason: reason }] }
+  await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={message} />) })
+  const output = renderedText(tree.root)
+  expect(output).toContain(account ? 'chat.operation.status.Denied' : 'chat.operation.status.changeNotMade')
+  expect(output).toContain(account ? 'chat.operation.outcome.Denied' : 'chat.operation.outcome.changeNotMade')
+  expect(output).not.toContain('chat.unreadableReply')
 })

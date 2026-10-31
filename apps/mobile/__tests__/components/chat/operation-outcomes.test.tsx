@@ -8,6 +8,7 @@ import {
   makeHeldHabitMessage,
 } from '@orbit/shared/test-support/chat-fixtures'
 import { OperationOutcomes } from '@/components/chat/operation-outcomes'
+import { agentOperationResultSchema } from '@orbit/shared/types/ai'
 import { selectMessageOperationBlocks } from '@orbit/shared/chat'
 import { renderedText } from '../../support/react-test-renderer'
 
@@ -45,7 +46,7 @@ describe('OperationOutcomes on mobile', () => {
     })
 
     const output = renderedText(tree.toJSON())
-    for (const status of ['Failed', 'Denied', 'UnsupportedByPolicy']) {
+    for (const status of ['Failed', 'UnsupportedByPolicy']) {
       expect(output).toContain(`chat.operation.outcome.${status}`)
       expect(output).toContain(`chat.operation.status.${status}`)
     }
@@ -79,4 +80,21 @@ describe('OperationOutcomes on mobile', () => {
     await act(() => tree.update(<></>))
   })
 
+})
+
+it.each([
+  { reason: 'invalid_offer', errorCode: undefined, account: false },
+  { reason: 'plan_required:pro', errorCode: undefined, account: true },
+  { reason: 'Habit limit reached', errorCode: 'PAY_GATE', account: true },
+])('renders a coalesced denial with $reason accurately', ({ reason, errorCode, account }) => {
+  const operation = agentOperationResultSchema.parse({ ...makeAgentOperationResult('Denied', 1), policyReason: reason, errorCode })
+  const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [operation], policyDenials: [{
+    operationId: operation.operationId, sourceName: operation.sourceName, riskClass: operation.riskClass,
+    confirmationRequirement: operation.confirmationRequirement, reason,
+  }] })).outcomes
+  let tree!: ReactTestRenderer
+  TestRenderer.act(() => { tree = TestRenderer.create(<OperationOutcomes outcomes={outcomes} />) })
+  const output = renderedText(tree.root)
+  expect(output).toContain(account ? 'chat.operation.status.Denied' : 'chat.operation.status.changeNotMade')
+  expect(output).not.toContain('chat.operation.openProfile')
 })

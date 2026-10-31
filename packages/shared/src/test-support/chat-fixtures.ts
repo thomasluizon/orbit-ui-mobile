@@ -62,7 +62,7 @@ export const agentPolicyDenialFixture: AgentPolicyDenial = {
   sourceName: 'account.manage',
   riskClass: 'High',
   confirmationRequirement: 'StepUp',
-  reason: 'Profile only',
+  reason: 'direct_user_flow_required',
 }
 
 export function makeActionResult(
