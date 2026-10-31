@@ -2,6 +2,8 @@ import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { profileSchema } from '@orbit/shared/types/profile'
+import { reorderHabitsRequestSchema } from '@orbit/shared/types/habit'
+import { z } from 'zod'
 import { applyReorderPositions } from '../../lib/habit-mutation-helpers'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
@@ -22,7 +24,7 @@ for (const width of [320, 360, 384, 412, 600, 768, 1280]) for (const mode of ['l
     const reordered = applyReorderPositions(items, order.map((index, position) => ({ habitId: `root-${index}`, position })))
     const profile = profileSchema.parse({ ...profileFixture, themePreference: mode, language: 'en', timeZone: 'UTC' })
     await setLayoutProfileSession(context, profile)
-    await setLayoutFixtureSession(context, [
+    const token = await setLayoutFixtureSession(context, [
       { path: API.profile.get, body: profile },
       { path: API.habits.count, body: { count: 6 } },
       { path: API.habits.list, body: { ...emptyHabitsPageFixture, items, totalCount: 5 },
@@ -79,6 +81,12 @@ for (const width of [320, 360, 384, 412, 600, 768, 1280]) for (const mode of ['l
     expect(await observations).toEqual([])
     const expected = ['Habit 0', 'Child', 'Habit 2', 'Habit 3', 'Habit 1', 'Habit 4']
     await expect.poll(() => rows.evaluateAll((elements) => elements.map((row) => row.getAttribute('data-habit-title')))).toEqual(expected)
+    const journal = await fetch('http://127.0.0.1:5099/_test/habit-mutations', { headers: { Authorization: `Bearer ${token}` } })
+    expect(journal.status).toBe(200)
+    const requests = z.array(z.object({ method: z.string(), path: z.string(), body: z.unknown() })).parse(await journal.json())
+      .filter((request) => request.method === 'PUT' && request.path === API.habits.reorder)
+    expect(requests).toHaveLength(1)
+    expect(reorderHabitsRequestSchema.parse(requests[0]!.body).positions).toEqual(order.map((index, position) => ({ habitId: `root-${index}`, position })))
     await expect.poll(() => rows.evaluateAll((elements) => elements.every((row, index) => index === 0 || row.getBoundingClientRect().top - elements[index - 1]!.getBoundingClientRect().bottom <= 13))).toBe(true)
     await page.reload()
     await expect.poll(() => rows.evaluateAll((elements) => elements.map((row) => row.getAttribute('data-habit-title')))).toEqual(expected)
