@@ -27,6 +27,59 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const scenario = (fixture) => structuredClone(corpus.find((entry) => entry.metadata.fixture === fixture))
+it('resets behind fixtures on the profile calendar day without replacing the original timezone', async () => {
+  vi.setSystemTime(new Date('2031-06-10T00:30:00Z'))
+  const test = structuredClone(corpus.find((entry) => entry.metadata.id === 'offers-goal-behind-en'))
+  Object.assign(test.vars, { offerFamily: 'goal-behind', offerVariant: 1 })
+  const source = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    const response = await source(url, options)
+    return new URL(url).pathname === '/api/profile'
+      ? Response.json({ ...await response.json(), timeZone: 'America/Sao_Paulo' }) : response
+  })
+  await resetFixture(test)
+  expect(test.vars.accountDate).toBe('2031-06-09')
+  expect(test.vars.fixtureEvidence.loggedState.date).toBe('2031-06-09')
+  expect(requests.some(({ path }) => path === 'profile/timezone')).toBe(false)
+})
+
+it.each(['en', 'pt-BR'])('reports the behind %s attempt incomplete outside its timezone window without chat', async (locale) => {
+  vi.setSystemTime(new Date('2031-06-10T10:30:00Z'))
+  vi.stubEnv('ORBIT_EVAL_OVERDUE_DATE', '2031-06-09')
+  const test = structuredClone(corpus.find((entry) => entry.metadata.id === `offers-goal-behind-${locale}`))
+  test.vars.offerFamily = 'goal-behind'
+  test.vars.offerVariant = 1
+  const source = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    const path = new URL(url).pathname.slice(5)
+    if (path.startsWith('goals/') && options.method === 'PUT') {
+      Object.assign(goals.find((goal) => goal.id === path.split('/')[1]), JSON.parse(options.body))
+      return new Response(null, { status: 204 })
+    }
+    if (path === 'goals' && options.method === 'GET') return Response.json({
+      items: goals.map((goal) => ({ ...goal, trackingStatus: 'at_risk' })),
+      page: 1, pageSize: 50, totalCount: goals.length, totalPages: 1,
+    })
+    const response = await source(url, options)
+    return new URL(url).pathname === '/api/profile'
+      ? Response.json({ ...await response.json(), timeZone: 'America/Sao_Paulo' }) : response
+  })
+  await expect(resetFixture(test)).rejects.toThrow('Goal-behind fixture is outside its local-date window.')
+  // The second independent attempt is the behind variant; the first attempt uses at_risk.
+  test.metadata.id = `behind-window-${locale}`
+  const first = await prepareAttempt({ test: structuredClone(test) })
+  expect(first.test.vars.preconditionFailure).toBeUndefined()
+  expect(first.test.vars.offerGoalTracking).toBe('at_risk')
+  requests.length = 0
+  const { test: prepared } = await prepareAttempt({ test: structuredClone(test) })
+  expect(prepared.vars.preconditionFailure).toBe('Goal-behind fixture is outside its local-date window.')
+  const response = await new AstraHttpProvider({ config: {} }).callApi(prepared.vars.input, { vars: prepared.vars })
+  expect(response.metadata.astraPreconditionFailure).toBe(true)
+  const attempts = Array.from({ length: 3 }, () => ({ testCase: prepared, response, error: response.error, success: false }))
+  expect(summarize(attempts, [prepared.metadata]).cases[0]).toMatchObject({ passed: 0, unavailable: 3, pass3: 'incomplete' })
+  expect(requests.every(({ path }) => ['health', 'auth/refresh', 'profile'].includes(path))).toBe(true)
+})
+
 it.each(['en', 'pt-BR'])('seeds and reads back existing checked checklist items in %s', async (locale) => {
   const test = scenario('pro')
   test.metadata.fixture = 'starting-step-checklist'

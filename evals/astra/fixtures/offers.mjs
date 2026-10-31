@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from 'node:util'
 import { publicApi } from './api.mjs'
 import { fixtureNames } from './names.mjs'
+import { advanceBehindDate, isBehindVariant, prepareBehindDeadline, restoreOfferTimeZone } from './offer-timezone.mjs'
 
 const offset = (date, days) => new Date(Date.parse(`${date}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10)
 const collections = ['habits', 'goals', 'tags', 'checklistTemplates']
@@ -42,10 +43,11 @@ async function goalVariant(api, vars, baseline, today) {
   if (!goal) throw new Error('Offer goal fixture requires an owned goal.')
   const family = vars.offerFamily
   const variant = vars.offerVariant
-  const deadline = family === 'goal-behind' ? offset(today, variant === 1 ? -1 : 3)
+  const deadline = isBehindVariant(vars) ? await prepareBehindDeadline(api, vars) : family === 'goal-behind' ? offset(today, 3)
     : variant === 2 ? null : offset(today, 30)
   const edits = { title: goal.title, description: goal.description, targetValue: 1000, unit: goal.unit, deadline }
   await api('PUT', `goals/${goal.id}`, edits)
+  if (isBehindVariant(vars)) await advanceBehindDate(api, vars, deadline)
   if (family === 'goal-on-track' && variant === 1) await api('PUT', `goals/${goal.id}/status`, { status: 'Completed' })
   const { payload: page } = await api('GET', 'goals')
   if (!Array.isArray(page?.items) || page.totalPages !== 1) throw new Error('Offer goal tracking requires a complete goal list.')
@@ -77,12 +79,20 @@ async function seedStored(api, baseline, names) {
 }
 
 export async function seedOfferFixture(test, today) {
+  try { await seedOfferState(test, today) } catch (error) {
+    await restoreOfferTimeZone(test.vars)
+    throw error
+  }
+}
+
+async function seedOfferState(test, today) {
   const vars = test.vars
   if (!vars.offerFamily) return
   const api = publicApi(vars.credentialKey)
   const baseline = await readOfferState(api)
   const names = fixtureNames(test.metadata.locale)
   if (['goal-behind', 'goal-on-track'].includes(vars.offerFamily)) await goalVariant(api, vars, baseline, today)
+  if (isBehindVariant(vars)) today = vars.accountDate
   if (vars.offerFamily === 'resolved') await seedResolved(api, baseline, today)
   if (vars.offerFamily === 'stored') await seedStored(api, baseline, names)
   if (vars.offerFamily === 'reminder-gap') {

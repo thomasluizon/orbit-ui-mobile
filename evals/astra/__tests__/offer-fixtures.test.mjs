@@ -1,12 +1,16 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { readOfferState, seedOfferFixture } from '../fixtures/offers.mjs'
 import { seedStaleRetrospective } from '../fixtures/reset.mjs'
+import AstraHttpProvider from '../http-provider.mjs'
 
-afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 const today = '2031-06-10'
 const ids = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222']
 
 function fixture(family, variant = 0, fault) {
+  vi.useFakeTimers().setSystemTime(new Date('2031-06-10T12:00:00Z'))
+  const profile = { timeZone: 'America/Sao_Paulo', hasGoogleConnection: variant === 1 }
+  const accountDate = () => new Intl.DateTimeFormat('en-CA', { timeZone: profile.timeZone }).format(new Date())
   const state = { habits: ids.map((id, index) => ({ id, title: ['Water', 'Walk'][index],
     description: null, frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: today, isBadHabit: false,
     reminderEnabled: true, reminderTimes: [30], logs: [], checklistItems: [], emoji: null, startDate: '2031-06-02' })),
@@ -23,7 +27,11 @@ function fixture(family, variant = 0, fault) {
       habits: state.habits.map((habit) => Object.fromEntries(['id', 'title', 'description', 'emoji', 'isBadHabit', 'isGeneral',
         'dueDate', 'endDate', 'frequencyUnit', 'frequencyQuantity', 'days', 'checklistItems', 'createdAtUtc', 'logs', 'intervalWeeks']
         .filter((key) => Object.hasOwn(habit, key)).map((key) => [key, habit[key]]))) })
-    if (path === 'profile') return Response.json({ hasGoogleConnection: variant === 1 })
+    if (path === 'profile') return Response.json(profile)
+    if (path === 'profile/timezone' && options.method === 'PUT') {
+      if (!(fault === 'restore' && body.timeZone === 'America/Sao_Paulo')) profile.timeZone = body.timeZone
+      return new Response(null, { status: 204 })
+    }
     if (path === 'config') return Response.json({ features: { calendar_integration: { enabled: variant !== 2 } } })
     if ((path === 'tags' || path === 'goals') && options.method === 'POST') {
       const collection = path === 'tags' ? state.tags : state.goals
@@ -33,13 +41,14 @@ function fixture(family, variant = 0, fault) {
     if (path === 'goals' && options.method === 'GET') {
       const items = state.goals.map((goal) => ({ ...goal, currentValue: 5,
         trackingStatus: fault === 'tracking' ? 'unknown' : goal.status === 'Completed' ? 'completed' : !goal.deadline ? 'no_deadline'
-          : goal.deadline < today ? 'behind' : goal.deadline === '2031-06-13' && 5 / goal.targetValue < 0.5 ? 'at_risk' : 'on_track' }))
+          : goal.deadline < accountDate() ? 'behind' : goal.deadline === '2031-06-13' && 5 / goal.targetValue < 0.5 ? 'at_risk' : 'on_track',
+        ...(fault === 'deadline' ? { deadline: '2031-06-09' } : {}) }))
       return Response.json({ items: fault === 'goal-items' ? null : items, page: 1, pageSize: 50, totalCount: items.length, totalPages: fault === 'goal-pages' ? 2 : 1 })
     }
     const [resource, id, operation] = path.split('/')
     if (resource === 'tags') return new Response(null, { status: 204 })
     // UpdateGoalCommand rejects a deadline before the account's current date.
-    if (resource === 'goals' && options.method === 'PUT' && !operation && body.deadline < today) {
+    if (resource === 'goals' && options.method === 'PUT' && !operation && body.deadline < accountDate()) {
       return new Response(null, { status: 400 })
     }
     const item = state[resource].find((entry) => entry.id === id)
@@ -59,7 +68,7 @@ function fixture(family, variant = 0, fault) {
     return new Response(null, { status: 204 })
   })
   const test = { metadata: { locale: 'en' }, vars: { credentialKey: 'ORBIT_EVAL_TOKEN', offerFamily: family, offerVariant: variant } }
-  return { test, state, requests }
+  return { test, state, requests, profile }
 }
 
 it.each([['goal-behind', 0], ['goal-behind', 2], ['goal-on-track', 0], ['goal-on-track', 1], ['goal-on-track', 2]])(
@@ -70,13 +79,66 @@ it.each([['goal-behind', 0], ['goal-behind', 2], ['goal-on-track', 0], ['goal-on
   },
 )
 
-it('keeps the behind attempt unavailable when the public API rejects its past deadline', async () => {
-  const { test, requests } = fixture('goal-behind', 1)
-  await expect(seedOfferFixture(test, today)).rejects.toThrow('Fixture API PUT failed with HTTP 400.')
-  expect(requests.find(({ method }) => method === 'PUT').body.deadline).toBe('2031-06-09')
-  expect(test.vars.offerGoalTracking).toBeUndefined()
-  expect(test.vars.offerBaseline).toBeUndefined()
+it.each([
+  ['2031-06-10T09:59:59.999Z', '2031-06-09', '2031-06-10'],
+  ['2031-06-10T11:00:00.000Z', '2031-06-10', '2031-06-11'],
+  ['2031-06-11T09:59:59.999Z', '2031-06-10', '2031-06-11'],
+])(
+  'seeds behind through accepted local-day writes at %s and restores after the attempt', async (instant, deadline, accountDate) => {
+    const { test, requests, profile } = fixture('goal-behind', 1)
+    vi.setSystemTime(new Date(instant))
+    await seedOfferFixture(test, '1999-01-01')
+    expect(test.vars.offerGoalTracking).toBe('behind')
+    expect(test.vars.offerBaseline.goals[0].deadline).toBe(deadline)
+    expect(test.vars.accountDate).toBe(accountDate)
+    const provider = new AstraHttpProvider({ config: {} })
+    provider.attempt = async () => {
+      expect(profile.timeZone).toBe('Pacific/Kiritimati')
+      return { output: 'completed' }
+    }
+    await expect(provider.callApi('', { vars: test.vars })).resolves.toEqual({ output: 'completed' })
+    expect(profile.timeZone).toBe('America/Sao_Paulo')
+    expect(requests.filter(({ path }) => path === 'profile/timezone').map(({ body }) => body.timeZone))
+      .toEqual(['Pacific/Pago_Pago', 'Pacific/Kiritimati', 'America/Sao_Paulo'])
+    expect(requests.at(-1)).toMatchObject({ path: 'profile', method: 'GET' })
+  },
+)
+
+it.each(['2031-06-10T10:00:00.000Z', '2031-06-10T10:59:59.999Z'])(
+  'leaves the behind fixture unavailable without writes outside its window at %s', async (instant) => {
+    const { test, requests, profile } = fixture('goal-behind', 1)
+    vi.setSystemTime(new Date(instant))
+    await expect(seedOfferFixture(test, today)).rejects.toThrow('Goal-behind fixture is outside its local-date window.')
+    expect(requests.every(({ method }) => method === 'GET')).toBe(true)
+    expect(profile.timeZone).toBe('America/Sao_Paulo')
+    expect(test.vars.offerRequireReadback).toBeUndefined()
+  },
+)
+
+it.each(['tracking', 'deadline'])('restores the original timezone after a %s readback failure', async (fault) => {
+  const { test, requests, profile } = fixture('goal-behind', 1, fault)
+  await expect(seedOfferFixture(test, today)).rejects.toThrow('Offer goal tracking readback failed.')
+  expect(profile.timeZone).toBe('America/Sao_Paulo')
+  expect(requests.at(-1)).toMatchObject({ path: 'profile', method: 'GET' })
   expect(test.vars.offerRequireReadback).toBeUndefined()
+})
+
+it('restores the original timezone when the provider attempt throws', async () => {
+  const { test, profile, requests } = fixture('goal-behind', 1)
+  await seedOfferFixture(test, today)
+  const provider = new AstraHttpProvider({ config: {} })
+  provider.attempt = async () => { throw new Error('Attempt failed.') }
+  await expect(provider.callApi('', { vars: test.vars })).rejects.toThrow('Attempt failed.')
+  expect(profile.timeZone).toBe('America/Sao_Paulo')
+  expect(requests.at(-1)).toMatchObject({ path: 'profile', method: 'GET' })
+})
+
+it('fails the attempt when restoring the timezone does not persist', async () => {
+  const { test } = fixture('goal-behind', 1, 'restore')
+  await seedOfferFixture(test, today)
+  const provider = new AstraHttpProvider({ config: {} })
+  provider.attempt = async () => ({ output: 'completed' })
+  await expect(provider.callApi('', { vars: test.vars })).rejects.toThrow('Profile timezone readback did not match the requested timezone.')
 })
 
 it.each([0, 1, 2])('seeds reminder and equivalent-goal exclusions %s', async (variant) => {

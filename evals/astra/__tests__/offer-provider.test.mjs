@@ -51,6 +51,10 @@ async function crisisAttempt(locale, fault = 'valid') {
     if (fault === 'missing-parts-ordinary') vars.composition = { mode: 'text' }
     if (fault === 'malformed-parts') response.parts = 'invalid'
     if (fault === 'text-parts') response.parts = [{ type: 'text', text: crisisText[locale] }]
+    if (fault.startsWith('legacy-card-')) {
+      response.habitList = structuredClone(habitBlock.block)
+      if (fault === 'legacy-card-empty') response.parts = []
+    }
     if (fault === 'pending') response.pendingOperations = [preview()]
     if (fault === 'offer') response.pendingOperations = [{ ...preview(), nextAction: { label: 'Plan your day' } }]
     if (fault === 'follow-up') response.followUps = ['Plan your day?']
@@ -74,6 +78,15 @@ it.each(['en', 'pt-BR'])('accepts the producer plain-text crisis response in %s 
   expect(response.output.offerReadback).toMatchObject({ pass: true })
   expect(proactiveOffers(response.output, { vars })).toMatchObject({ pass: true })
   expect(requests).toEqual([{ path: '/api/chat', method: 'POST' }, { path: '/api/profile/export', method: 'GET' }])
+})
+
+it.each(['absent', 'empty'])('rejects a client-renderable legacy card in a crisis HTTP response with %s parts', async (parts) => {
+  const { response, vars } = await crisisAttempt('en', `legacy-card-${parts}`)
+  expect(response.error).toBeUndefined()
+  expect.soft(composition(response.output, { vars }).pass).toBe(false)
+  expect.soft(proactiveOffers(response.output, { vars }).pass).toBe(false)
+  expect.soft(response.output.offerReadback.pass).toBe(false)
+  expect(response.output.composition.habitList).toEqual(habitBlock.block)
 })
 
 it.each(['missing-trace', 'wrong-request', 'missing-parts-ordinary', 'malformed-parts', 'text-parts', 'pending',

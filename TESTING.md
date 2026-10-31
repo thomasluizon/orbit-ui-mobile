@@ -333,15 +333,26 @@ metadata are included in the graded answer projection.
 Crisis cases use the existing plain-text safety response, including its localized support resource.
 The producer omits ordered parts on that path. The explicit `crisis` policy accepts this shape only
 for the crisis family, requires an independently bound empty tool trace and unchanged persisted state,
-and rejects actions, previews, operations, related screens and follow-ups. The existing rubric still
+and rejects actions, previews, operations, related screens, follow-ups and every legacy card the shared
+client renderer can display. Response evidence retains the shared response schema's fields, including
+legacy cards when ordered parts are absent or empty. Both crisis assertions use the same surface check.
+The existing rubric still
 grades supportive content and language. Ordinary parts-capable answers retain their ordered-parts gate.
 
 Family setup runs after the normal disposable-account fixture reset, including the standalone reset
 executable. It uses public APIs and independently reads back every change. Goal-behind attempts
 require near-deadline `at_risk` and past-deadline `behind`, verified through the complete paged
-goal-list DTO. Public goal creation and updates reject past deadlines, so the expired-deadline variant
-stops at fixture setup. Its offline replay enforces that failure; it does not certify `behind` coverage
-or waive that gate attempt. Their target stays above progress derived from seeded logs; goal-on-track attempts cover `on_track`,
+goal-list DTO. The `behind` variant retains the profile timezone through reset and derives fixture dates
+from that zone. It saves the original timezone, switches through the public profile API to
+`Pacific/Pago_Pago`, writes a deadline equal to that zone's today, then switches to `Pacific/Kiritimati`.
+The goal must read back with the exact deadline and `trackingStatus: "behind"`. Each timezone write
+requires profile readback; successful setters invalidate the API's cached account date. The one-day
+window runs from 11:00 UTC through 10:00 UTC the next day, excluding the latter endpoint. Outside that
+window the attempt is unavailable and its pass^3 result remains incomplete, with no chat request.
+Fixture failures restore the original timezone immediately; the provider also restores and verifies it
+after every attempt, including failed requests and exceptions. A restoration mismatch fails the attempt.
+The `at_risk` variant keeps its existing near-deadline setup.
+Their target stays above progress derived from seeded logs; goal-on-track attempts cover `on_track`,
 `completed` and `no_deadline`. Reminder-gap covers reminders off and reminders on with the same missed
 schedule. Occurrence edits omit the unchanged `startDate`, which otherwise takes precedence over
 `dueDate`; readback compares the requested date and reminder settings exactly. Resolved covers a completed

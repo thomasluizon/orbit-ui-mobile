@@ -9,6 +9,7 @@ import { brainDumpPreview } from './brain-dumps.mjs'
 import { approveBrainDump, brainDumpBaseline } from './brain-dump-approval.mjs'
 import { approveStartingStep } from './step-persistence.mjs'
 import { safeFailureMessage } from './credentials.mjs'
+import { restoreOfferTimeZone } from './fixtures/offer-timezone.mjs'
 
 export default class AstraHttpProvider {
   constructor(options) {
@@ -37,7 +38,8 @@ export default class AstraHttpProvider {
   }
 
   async callApi(prompt, context, options) {
-    return withLegacyProfileLanguage(context.vars, () => this.attempt(prompt, context, options))
+    try { return await withLegacyProfileLanguage(context.vars, () => this.attempt(prompt, context, options)) }
+    finally { await restoreOfferTimeZone(context.vars) }
   }
 
   async saveStartingStep(output, context) {

@@ -1,3 +1,7 @@
+import { tsImport } from 'tsx/esm/api'
+
+const { chatResponseSchema } = await tsImport('../../packages/shared/src/types/chat.ts', import.meta.url)
+
 export function extractTrace(response, responseRequestId) {
   const trace = response?.evalTrace
   const evidence = { timing: trace?.timing ?? null,
@@ -17,8 +21,7 @@ export function extractTrace(response, responseRequestId) {
   }
 }
 
-const compositionKeys = ['aiMessage', 'parts', 'actions', 'operations', 'pendingOperations', 'policyDenials',
-  'relatedSurfaces', 'followUps', 'followUpContext']
+const compositionKeys = Object.keys(chatResponseSchema.shape)
 
 export default function parseResponse(response, _text, context) {
   const httpStatus = context?.response?.status ?? 200

@@ -5,6 +5,7 @@ import { tsImport } from 'tsx/esm/api'
 import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
 import { dateOffset, requireEvalOrigin, resetFixture } from './fixtures/reset.mjs'
 import { seedOfferFixture } from './fixtures/offers.mjs'
+import { restoreOfferTimeZone } from './fixtures/offer-timezone.mjs'
 import { fixtureHabitTitles } from './fixtures/names.mjs'
 import { requireEvalAccess } from './fixtures/api.mjs'
 import { freshConversation, configureOffers } from './offer-context.mjs'
@@ -91,6 +92,7 @@ export async function beforeEach({ test }) {
     delete test.vars.offerExclusion
   }
   try { return await prepareAttempt(test) } catch (error) {
+    await restoreOfferTimeZone(test.vars)
     test.vars.preconditionFailure = safeFailureMessage(error)
     process.stderr.write(`Astra precondition unavailable for ${test.metadata.id}: ${test.vars.preconditionFailure}\n`)
     return { test }
@@ -100,7 +102,7 @@ export async function beforeEach({ test }) {
 async function prepareAttempt(test) {
   requireEvalOrigin()
   await refreshCredential(test.vars.credentialKey)
-  const today = new Date().toISOString().slice(0, 10)
+  let today = new Date().toISOString().slice(0, 10)
   test.vars.accountDate = today
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
   const windowKey = `${test.vars.credentialKey}:${test.metadata.id}:${today}`
@@ -108,7 +110,8 @@ async function prepareAttempt(test) {
   const retrospective = await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true,
     needsFreshWindow && !freshFreeWindows.has(windowKey))
   if (needsFreshWindow) freshFreeWindows.add(windowKey)
-  await seedOfferFixture(test, today)
+  await seedOfferFixture(test, test.vars.accountDate)
+  today = test.vars.accountDate
   test.vars.fixtureHabitTitles = fixtureHabitTitles(test.metadata.fixture, test.metadata.locale)
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
