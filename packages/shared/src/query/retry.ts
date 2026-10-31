@@ -1,3 +1,4 @@
+import { AI_PROVIDER_QUOTA_EXHAUSTED } from '../types/api'
 import { extractBackendErrorCode, extractBackendStatus, isPayGateError } from '../utils/error-utils'
 
 const RATE_LIMIT_RETRIES = 6
@@ -22,6 +23,7 @@ export function errorRetryAfter(error: unknown): number | null {
 }
 
 export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
+  if (extractBackendErrorCode(error) === AI_PROVIDER_QUOTA_EXHAUSTED) return false
   if (isPayGateError(error)) return false
   if (extractBackendErrorCode(error) === 'STALE_WEB_BUILD') return false
   const status = extractBackendStatus(error)

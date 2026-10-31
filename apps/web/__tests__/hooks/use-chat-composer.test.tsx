@@ -509,6 +509,18 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.fetch).toHaveBeenCalledTimes(1)
   })
 
+  it.each(['http', 'sse'] as const)('does not automatically resend provider quota exhaustion over %s', async transport => {
+    mocks.fetch.mockResolvedValue(transport === 'http'
+      ? Response.json({ error: 'Try again later', errorCode: 'AI_PROVIDER_QUOTA_EXHAUSTED' }, { status: 424 })
+      : sseResponse(frame('{"type":"delta","text":"Partial reply"}'), frame('{"type":"error","status":424,"error":"Try again later","code":"AI_PROVIDER_QUOTA_EXHAUSTED"}')))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Plan my morning') })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
+    expect(result.current.sendError).toBe('chat.sendError')
+    expect(useChatStore.getState().isTyping).toBe(false)
+    expect(useChatStore.getState().streamingMessageId).toBeNull()
+  })
+
   it.each([400, 409, 429])('does not automatically resend HTTP %s', async status => {
     mocks.fetch.mockResolvedValue(Response.json({ code: 'CHAT_TURN_KEY_CONFLICT', error: 'The turn key belongs to another payload.' }, { status }))
     const { result } = renderHook(() => useChatComposer())

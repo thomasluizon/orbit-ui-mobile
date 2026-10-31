@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { useTranslations } from 'next-intl'
 import { Command, CommandEmpty, CommandGroup, CommandList } from 'cmdk'
-import { buildSearchEntries, searchCommands, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
+import { buildSearchEntries, buildSearchSections, searchCommands, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
 import { useHabitSearch } from '@/hooks/use-habit-search'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { Searching } from '@/components/search/search-results'
@@ -61,7 +61,8 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
   const onActionError = () => showError(t('errors.updateHabit'))
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
-  const entries = buildSearchEntries(search.data, search.query, page)
+  const entries = buildSearchEntries(search.data, search.query, page, search.today)
+  const sections = buildSearchSections(entries)
   const pageLabel = page === 'log' ? t('command.page.log') : t('command.page.skip')
   const visibleEntries = !search.busy && !search.isError ? entries : []
   const firstCommand = page === null
@@ -97,7 +98,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
       {search.isSuccess && !search.busy && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}
       {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><IconButton label={t('common.retry')} onClick={() => void search.refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div>}
       <HabitSearchLoading show={search.showLoading} text={search.text} heading={t('command.groups.search')} />
-      {!search.busy && !search.isError && entries.length > 0 && <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS} data-command-group="habits"><CommandHabitItems disclose={page !== null} disabled={logHabit.isPending || skipHabit.isPending} entries={entries} query={search.query} onSelectHabit={(habit) => chooseHabit(habit.id)} /></CommandGroup>}
+      {!search.busy && !search.isError && sections.map((section) => <CommandGroup key={section.id} heading={t(section.headingKey)} className={GROUP_CLASS} data-command-group={section.id}><CommandHabitItems today={search.today} disclose={page !== null} disabled={logHabit.isPending || skipHabit.isPending} entries={section.entries} query={search.query} onSelectHabit={(habit) => chooseHabit(habit.id)} /></CommandGroup>)}
       {page === null && <CommandGroups query={search.text} navItems={navItems} onSelect={chooseCommand} onNavigate={run} createRefusal={createRefusal} />}
       <div className="flex gap-3"><ActionRow>
         {search.page > 1 && <IconButton label={t('habits.search.previous')} disabled={search.busy} onClick={() => search.setPage(search.page - 1)}><ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}

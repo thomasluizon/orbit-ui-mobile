@@ -795,7 +795,7 @@ export { buildCommandHabitList, type CommandHabitEntry } from './command-habit-l
 export * from './error-surface'
 export * from './proposed-tint-core'
 
-export { buildSearchEntries, buildSearchMatchLines, type SearchMatchLine } from './search-presentation'
+export { buildSearchEntries, buildSearchMatchLines, buildSearchSections, buildSearchHabitStatus, type SearchMatchLine, type SearchSection, type SearchHabitStatus } from './search-presentation'
 
 export { HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, resolveHabitCreateReturnPath, type HabitCreateRouteInput } from './habit-create-navigation'
 

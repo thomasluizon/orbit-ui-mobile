@@ -1,6 +1,6 @@
 import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
@@ -13,10 +13,11 @@ import { CommandMenu } from '@/components/command/command-menu'
 import SearchPage from '@/app/(app)/search/page'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
-const mocks = vi.hoisted(() => ({ showError: vi.fn(), pending: false, back: vi.fn(), push: vi.fn(), log: vi.fn(), skip: vi.fn(), query: vi.fn(), retry: vi.fn(), wide: false }))
+const mocks = vi.hoisted(() => ({ timeZone: 'UTC', showError: vi.fn(), pending: false, back: vi.fn(), push: vi.fn(), log: vi.fn(), skip: vi.fn(), query: vi.fn(), retry: vi.fn(), wide: false }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push, back: mocks.back }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsFilter) => mocks.query(filters) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: mocks.timeZone } }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }), useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }))
 
@@ -47,6 +48,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.pending = false
   mocks.wide = false
+  mocks.timeZone = 'UTC'
   Element.prototype.scrollIntoView = vi.fn()
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
   mocks.query.mockReturnValue(result([]))
@@ -56,6 +58,78 @@ afterEach(() => { Reflect.deleteProperty(navigator, 'onLine') })
 beforeEach(() => measureClampedPersonalText())
 
 describe('habit search', () => {
+  it.each([false, true].flatMap((searchPage) => ['en', 'pt-BR'].map((locale) => ({ searchPage, locale }))))('keeps logged bad tasks findable as slips outside completed results on searchPage=$searchPage in $locale', async ({ searchPage, locale }) => {
+    vi.useFakeTimers()
+    try {
+      const messages = locale === 'en' ? en : ptBR
+      mocks.query.mockReturnValue(result([
+        createMockHabit({ id: 'slip', title: 'Coders slip', frequencyUnit: null, isBadHabit: true, isCompleted: true, completedOn: '2026-09-30' }),
+        createMockHabit({ id: 'logged-slip', title: 'Coders logged slip', frequencyUnit: null, isBadHabit: true, isLoggedInRange: true }),
+        createMockHabit({ id: 'done', title: 'Coders done', frequencyUnit: null, isCompleted: true }),
+      ]))
+      mount(searchPage, locale)
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'coders' } })
+      await act(async () => { vi.advanceTimersByTime(301) })
+      const section = screen.getByRole('group', { name: messages.charts.bar.completed })
+      expect(within(section).getAllByRole('option')).toHaveLength(1)
+      expect(within(section).getByRole('option')).toHaveTextContent('Coders done')
+      for (const title of ['Coders slip', 'Coders logged slip']) {
+        const row = screen.getByRole('option', { name: new RegExp(title) })
+        expect(row).toHaveTextContent(messages.habits.statusDot.bad)
+        expect(row).not.toHaveTextContent(messages.habits.statusDot.done)
+        expect(row.querySelector('[data-habit-check][data-status="done"]')).toBeNull()
+        fireEvent.click(row)
+      }
+      expect(mocks.push).toHaveBeenLastCalledWith('/habits/logged-slip')
+    } finally { vi.useRealTimers() }
+  })
+
+  it.each([false, true].flatMap((searchPage) => ['en', 'pt-BR'].map((locale) => ({ searchPage, locale }))))('shows completion sections and states on searchPage=$searchPage in $locale', async ({ searchPage, locale }) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-31T01:00:00Z'))
+    mocks.timeZone = 'America/Los_Angeles'
+    try {
+      const messages = locale === 'en' ? en : ptBR
+      const response = createPaginatedSchema(habitScheduleItemSchema).parse({
+        items: [
+          { ...createMockHabit({ id: 'logged', title: 'Read coders', isLoggedInRange: true, instances: [{ date: '2026-10-30', status: 'Completed', logId: 'positive-log' }] }), children: [], linkedGoals: [] },
+          { ...createMockHabit({ id: 'skipped', title: 'Skip coders', isSkippedOnDate: true }), children: [], linkedGoals: [] },
+          { ...createMockHabit({ id: 'weekly', title: 'Weekly check coders board', dueDate: '2026-11-01', scheduledDates: ['2026-11-01'] }), children: [], linkedGoals: [] },
+          { ...createMockHabit({ id: 'profile', title: 'Profile linkedin', frequencyUnit: null, isCompleted: true, completedOn: '2026-09-30', position: 9 }), children: [], linkedGoals: [] },
+          { ...createMockHabit({ id: 'unknown', title: 'Older profile', frequencyUnit: null, isCompleted: true, completedOn: null, position: 0 }), children: [], linkedGoals: [] },
+        ], page: 1, pageSize: 20, totalCount: 22, totalPages: 2,
+      })
+      const firstPage = { ...result([]), data: normalizeHabitQueryData(response.items, response, 'response') }
+      const lastPage = { ...result([]), data: normalizeHabitQueryData(response.items.slice(-1), { ...response, page: 2 }, 'response') }
+      mocks.query.mockImplementation((filters: HabitsFilter) => filters.page === 2 ? lastPage : firstPage)
+      mount(searchPage, locale)
+      const input = screen.getByRole('combobox')
+      fireEvent.change(input, { target: { value: 'coders' } })
+      await act(async () => { vi.advanceTimersByTime(301) })
+      const options = screen.getAllByRole('option')
+      expect(options.map((option) => option.textContent)).toEqual([
+        expect.stringContaining('Weekly check coders board'), expect.stringContaining('Read coders'), expect.stringContaining('Skip coders'), expect.stringContaining('Profile linkedin'), expect.stringContaining('Older profile'),
+      ])
+      const section = screen.getByRole('group', { name: messages.charts.bar.completed })
+      expect(within(section).getAllByRole('option')).toEqual(options.slice(3))
+      expect(options[3]).toHaveTextContent(locale === 'en' ? 'Done 1 month ago' : 'Feito há 1 mês')
+      expect(options[3]!.querySelector('[data-habit-check][data-status="done"]')).not.toBeNull()
+      expect(options[2]).toHaveTextContent(messages.habits.statusDot.skip)
+      expect(options[1]).toHaveTextContent(locale === 'en' ? 'Done today' : 'Feito hoje')
+      expect(options[4]).toHaveTextContent(messages.habits.statusDot.done)
+      expect(options[4]).not.toHaveTextContent(/month|mês/)
+      for (let index = 0; index < 3; index++) fireEvent.keyDown(input, { key: 'ArrowDown' })
+      fireEvent.keyDown(input, { key: 'Enter' })
+      expect(mocks.push).toHaveBeenLastCalledWith('/habits/profile')
+      fireEvent.click(screen.getByRole('button', { name: messages.habits.search.next }))
+      const completedOnly = screen.getByRole('group', { name: messages.charts.bar.completed })
+      expect(within(completedOnly).getAllByRole('option')).toHaveLength(1)
+      fireEvent.click(within(completedOnly).getByRole('option'))
+      expect(mocks.push).toHaveBeenLastCalledWith('/habits/unknown')
+      expect(screen.getByRole('button', { name: messages.habits.search.previous })).toBeInTheDocument()
+    } finally { vi.useRealTimers() }
+  })
+
   it.each([412, 500, 840, 1440].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))('shows only habit search at $width in $locale', async ({ width, locale }) => {
     mocks.wide = width >= 1024
     const messages = locale === 'en' ? en : ptBR

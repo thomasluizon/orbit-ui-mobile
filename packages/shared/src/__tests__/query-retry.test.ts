@@ -4,6 +4,7 @@ import { createApiClientError } from '../utils/error-utils'
 
 describe('shouldRetryQuery', () => {
   it.each([
+    ...[424, 429, 500].map((status) => createApiClientError(status, { error: 'Try again later', errorCode: 'AI_PROVIDER_QUOTA_EXHAUSTED' }, 'Unavailable')),
     createApiClientError(401, { error: 'Unauthorized' }, 'Unauthorized'),
     createApiClientError(403, { error: 'Pro access required', errorCode: 'PAY_GATE' }, 'Forbidden'),
   ])('never retries a final response with status $status', (error) => {
@@ -96,4 +97,8 @@ it('never retries an action that requires a different web build', () => {
   const failure = createApiClientError(409, { errorCode: 'STALE_WEB_BUILD' }, 'App updated')
   expect(shouldRetryQuery(0, failure)).toBe(false)
   expect(shouldRetryQuery(0, createApiClientError(409, { errorCode: 'CONCURRENT_UPDATE_CONFLICT' }, 'Conflict'))).toBe(true)
+})
+
+it('does not infer provider quota exhaustion from message text or status alone', () => {
+  expect(shouldRetryQuery(0, createApiClientError(424, { error: 'AI_PROVIDER_QUOTA_EXHAUSTED' }, 'Unavailable'))).toBe(true)
 })

@@ -16,6 +16,13 @@ function setup() {
 }
 
 describe('sendChatStreamTurn', () => {
+  it.each([424, 429, 500])('does not resend a typed HTTP quota failure with status %s', async status => {
+    const { open, options } = setup()
+    open.mockResolvedValue({ kind: 'httpError', status, error: 'Try again later', code: 'AI_PROVIDER_QUOTA_EXHAUSTED' })
+    expect(await sendChatStreamTurn(options)).toMatchObject({ kind: 'httpError', code: 'AI_PROVIDER_QUOTA_EXHAUSTED' })
+    expect(open).toHaveBeenCalledOnce()
+  })
+
   it('resends an aborted body after parsing its acknowledgement and deltas', async () => {
     const { open, callbacks, options } = setup()
     async function* aborted() {

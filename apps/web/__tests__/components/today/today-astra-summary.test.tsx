@@ -1,5 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { createApiClientError } from '@orbit/shared/utils'
+import { createQueryClient } from '@/lib/query-client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createMockProfile, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import type { ProactiveItem } from '@orbit/shared/types'
 import { TodayAstra } from '@/components/today/today-astra'
@@ -7,6 +10,8 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
 const mocks = vi.hoisted(() => ({
+  realSummary: false,
+  fetchSummary: vi.fn(),
   profile: {} as ReturnType<typeof createMockProfile> | null,
   item: null as ProactiveItem | null,
   summary: null as string | null,
@@ -21,10 +26,15 @@ const mocks = vi.hoisted(() => ({
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
 vi.mock('@/hooks/use-proactive-item', () => ({ useProactiveItem: () => ({ item: mocks.item, openItem: mocks.openItem }) }))
-vi.mock('@/hooks/use-summary', () => ({ useSummary: (options: unknown) => {
-  mocks.query(options)
-  return { summary: mocks.summary, isLoading: mocks.isLoading, isFetching: mocks.isFetching, error: mocks.error, refetch: mocks.refetch }
-} }))
+vi.mock('@/lib/api-fetch', () => ({ fetchJson: (...args: unknown[]) => mocks.fetchSummary(...args) }))
+vi.mock('@/hooks/use-summary', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/hooks/use-summary')>()
+  return { useSummary: (options: Parameters<typeof original.useSummary>[0]) => {
+    if (mocks.realSummary) return original.useSummary(options)
+    mocks.query(options)
+    return { summary: mocks.summary, isLoading: mocks.isLoading, isFetching: mocks.isFetching, error: mocks.error, refetch: mocks.refetch }
+  } }
+})
 function mount(overrides: { isTodaySelected?: boolean; suppressed?: boolean } = {}) {
   return render(<TodayAstra today="2026-08-29" isTodaySelected suppressed={false} {...overrides} />)
 }
@@ -46,6 +56,8 @@ function configureSummaryState(state: string) {
 describe('Hoje single summary slot', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.realSummary = false
+    mocks.fetchSummary.mockReset()
     mocks.profile = createMockProfile({ hasProAccess: true, aiSummaryEnabled: true, language: 'pt-BR', timeZone: 'America/Sao_Paulo', lastCompletionDate: null })
     mocks.item = null
     mocks.summary = 'Seu dia começou com uma caminhada. Você ainda pode ler hoje.'
@@ -97,4 +109,38 @@ describe('Hoje single summary slot', () => {
       expect(container.querySelector('[data-today-astra-slot]')).toHaveAttribute('aria-busy', String(mocks.isLoading || mocks.isFetching))
     }
   })
+
+  afterEach(() => { vi.useRealTimers() })
+
+  it.each(['quota', 'transient'] as const)('settles a real Hoje %s request with the production retry defaults', async failure => {
+    vi.useFakeTimers()
+    mocks.realSummary = true
+    const client = createQueryClient()
+    const error = createApiClientError(failure === 'quota' ? 424 : 500, {
+      error: 'Try again later', ...(failure === 'quota' ? { errorCode: 'AI_PROVIDER_QUOTA_EXHAUSTED' } : {}),
+    }, 'Unavailable')
+    mocks.fetchSummary.mockRejectedValueOnce(error)
+    if (failure === 'quota') mocks.fetchSummary.mockRejectedValue(error)
+    else mocks.fetchSummary.mockResolvedValue({ summary: 'Your day is ready.', insight: '', fromCache: false })
+    const view = render(<QueryClientProvider client={client}><TodayAstra today="2026-08-29" isTodaySelected suppressed={false} /></QueryClientProvider>)
+    try {
+      expect(screen.getByRole('button', { name: 'summary.loading' })).toBeDisabled()
+      await act(async () => { await vi.advanceTimersByTimeAsync(failure === 'quota' ? 1 : 1001) })
+      if (failure === 'transient') {
+        expect(screen.getByRole('button', { name: 'Your day is ready.' })).toBeEnabled()
+        expect(mocks.fetchSummary).toHaveBeenCalledTimes(2)
+        return
+      }
+      expect(screen.getByRole('button', { name: 'summary.error' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'summary.error' })).toHaveAccessibleDescription('summary.retry')
+      expect(view.container.querySelector('[data-summary-skeleton]')).toBeNull()
+      await act(async () => { await vi.advanceTimersByTimeAsync(8000) })
+      expect(mocks.fetchSummary).toHaveBeenCalledTimes(1)
+      fireEvent.click(screen.getByRole('button', { name: 'summary.error' }))
+      await act(async () => { await vi.advanceTimersByTimeAsync(8000) })
+      expect(mocks.fetchSummary).toHaveBeenCalledTimes(2)
+      expect(screen.getByRole('button', { name: 'summary.error' })).toBeEnabled()
+    } finally { view.unmount(); client.clear() }
+  })
+
 })

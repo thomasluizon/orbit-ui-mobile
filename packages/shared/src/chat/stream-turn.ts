@@ -1,3 +1,4 @@
+import { AI_PROVIDER_QUOTA_EXHAUSTED } from '../types/api'
 import { consumeChatSseStream, type ChatStreamCallbacks, type ChatStreamOutcome } from './sse-stream'
 
 export interface PreparedChatTurn<Payload> {
@@ -32,6 +33,7 @@ async function readChatTurn<Payload>(options: ChatTurnOptions<Payload>, terminal
 
 function canResend(outcome: ChatTurnOutcome): boolean {
   if (isDailyBudgetRefusal(outcome)) return false
+  if ((outcome.kind === 'error' || outcome.kind === 'httpError') && outcome.code === AI_PROVIDER_QUOTA_EXHAUSTED) return false
   return outcome.kind === 'incomplete' ||
     (outcome.kind === 'httpError' && outcome.status >= 500 && outcome.status < 600)
 }

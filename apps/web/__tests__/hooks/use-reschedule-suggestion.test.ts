@@ -62,11 +62,11 @@ describe('useRescheduleSuggestion', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('preserves a deterministic error code and does not retry a 400', async () => {
+  it.each([{ status: 400, errorCode: 'HABIT_NOT_OVERDUE' }, { status: 424, errorCode: 'AI_PROVIDER_QUOTA_EXHAUSTED' }, { status: 500, errorCode: 'AI_PROVIDER_QUOTA_EXHAUSTED' }])('does not retry a final $errorCode response with status $status', async ({ status, errorCode }) => {
     mockFetch.mockResolvedValue({
       ok: false,
-      status: 400,
-      json: () => Promise.resolve({ error: 'This is not overdue.', errorCode: 'HABIT_NOT_OVERDUE' }),
+      status,
+      json: () => Promise.resolve({ error: 'This is not overdue.', errorCode }),
     })
 
     const { result } = renderHook(
@@ -76,11 +76,11 @@ describe('useRescheduleSuggestion', () => {
 
     expect(result.current.isLoading).toBe(true)
     await act(async () => {
-      await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 400 })
+      await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status })
     })
     await waitFor(() => expect(result.current.error).toBeTruthy())
     expect(result.current.suggestion).toBeNull()
-    expect(extractBackendErrorCode(result.current.error)).toBe('HABIT_NOT_OVERDUE')
+    expect(extractBackendErrorCode(result.current.error)).toBe(errorCode)
     expect(mockFetch).toHaveBeenCalledOnce()
   })
 

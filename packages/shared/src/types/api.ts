@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+export const AI_PROVIDER_QUOTA_EXHAUSTED = 'AI_PROVIDER_QUOTA_EXHAUSTED'
+
 export const validationErrorDetailSchema = z.object({
   code: z.string(),
   message: z.string(),
@@ -21,6 +23,7 @@ export type ValidationErrorDetails = z.infer<typeof validationErrorDetailsSchema
 
 export const apiErrorSchema = z.object({
   error: z.string(),
+  errorCode: z.string().nullable().optional(),
   errors: validationErrorsSchema.optional(),
   errorDetails: validationErrorDetailsSchema.optional(),
 })
