@@ -67,6 +67,13 @@ request, assign every entry to exactly one ticket or mark it out of scope with a
 each ticket's entries into its Scope and Affected modules / files. Cover both repos when relevant:
 `orbit-api` is a sibling repo with its own git history, branches, and PRs.
 
+**The scope matches the owner's words, in full.** A ticket for an owner order delivers the thing he
+named: "a desktop app on Windows and Mac" is a native app, not an installed web page. A cheaper
+variant is never a decision this skill takes. If the full version looks costly, plan it in full and
+name its costs; the smaller variant goes to phase A as a question, with the full version as the
+recommendation. Code standards 9 and 11 in `CLAUDE.md` choose how to build the requested scope,
+never how much of it to build.
+
 ## D. ONE approval gate
 
 Nothing exists in the ticket tracker yet, and nothing is created until the owner approves. This gate is the

@@ -304,9 +304,9 @@
     ".claude/skills/ticket/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "a4cb13a5cb9d9ee4",
-      "calibratedAt": "2026-10-17",
-      "verdict": "current: high effort, and it earns it: a ticket is the prompt (D2), so a shallow ticket is a shallow implementation, and the cost lands on whoever executes it."
+      "digest": "888e164367d656e2",
+      "calibratedAt": "2026-10-23",
+      "verdict": "current: high effort, and it earns it: a ticket is the prompt (D2), so a shallow ticket is a shallow implementation, and the cost lands on whoever executes it. The added scope rule (the ticket delivers the owner order in full) needs the same judgement, not more."
     },
     ".claude/skills/validate/SKILL.md": {
       "model": null,
