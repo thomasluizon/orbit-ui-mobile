@@ -5,6 +5,7 @@ import { parse } from 'yaml'
 import AstraHttpProvider from '../http-provider.mjs'
 import { proactiveOffers } from '../proactive-offers.mjs'
 import { chatResponse, habitAccountRead, habitBlock } from './fixtures/producer.mjs'
+import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 
 // ProactiveProposal.Schema only changes supported writes; read declarations are unchanged.
 vi.mock('../trace-policy.mjs', async (original) => {
@@ -66,3 +67,57 @@ it.each(['valid', 'wrong-request', 'missing-trace', 'write', 'selector-timeout',
     expect(requests.filter(({ method }) => method === 'POST')).toEqual([{ path: '/api/chat', method: 'POST' }])
   },
 )
+
+it('keeps the rendered main answer in the history sent to subsequent lifecycle turns', async () => {
+  offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline')
+  const clientContext = { platform: 'web', locale: 'en', supportsParts: true, supportsProactiveOffers: true,
+    supportsHabitListCard: true, supportsSkippedHabitRows: true, partKinds: ['habitList'], conversationId: habitId }
+  const state = { habits: [], goals: [], tags: [], checklistTemplates: [] }
+  const vars = { input: 'Do not offer that small step again. Show my day.', credentialKey: 'ORBIT_EVAL_TOKEN',
+    evalRequestId: 'independent-request', accountDate: today, clientContext, clientContextJson: JSON.stringify(clientContext),
+    historyJson: '[]', offerFamily: 'dismissal', offerRequireReadback: true, offerBaseline: structuredClone(state), fixtureEvidence: state,
+    setup: { input: 'Show my day.' }, issuedOffer: { action: { offerKey: `smallStep:account:${today}` } },
+    composition: { mode: 'data' }, expectations: { required: [{ name: 'query_habits' }] } }
+  let chats = 0
+  let firstHistory
+  vi.stubGlobal('fetch', async (url, options) => {
+    const path = new URL(url).pathname
+    if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
+    if (path === '/api/auth/refresh') return refreshResponse()
+    if (path === '/api/profile/export') return Response.json(state)
+    if (path === `/api/habits/${habitId}`) return Response.json(state.habits[0])
+    if (path === '/api/habits') {
+      state.habits.push({ id: habitId, title: 'Breathe', isBadHabit: false, logs: [], checklistItems: [] })
+      return Response.json({ id: habitId }, { status: 201 })
+    }
+    expect(path).toBe('/api/chat')
+    const request = new Request(url, options)
+    const form = await request.formData()
+    const requestId = request.headers.get('x-orbit-request-id')
+    const index = chats++
+    if (index === 1) firstHistory = JSON.parse(form.get('history'))
+    const response = chatResponse(requestId)
+    if (index > 0 && index < 12) {
+      response.aiMessage = 'Hello.'
+      response.parts = [{ type: 'text', text: 'Hello.' }]
+    } else {
+      response.aiMessage = null
+      response.evalTrace.toolCalls = [habitAccountRead(false, 'read', clientContext)]
+      response.parts = [{ ...habitBlock, block: { scope: 'today', items: state.habits.map((habit) => ({
+        id: habit.id, title: habit.title, emoji: null, depth: 0, isBadHabit: false, status: 'today',
+      })), totalCount: state.habits.length, read: { queryId: habitId, queryFamily: 'query_habits', scope: {},
+        revision: 'revision', completeness: 'complete', refreshToken: 'refresh', nextCursor: null, totalCount: state.habits.length,
+        recovery: null, ...(index === 14 ? { nextAction: { offerKey: `log:${habitId}:${today}`, kind: 'preparePreview',
+          label: 'Log this habit', prompt: 'Log Breathe today.', surface: null, entityId: habitId, date: today } } : {}),
+      } } }]
+    }
+    return Response.json(response, { headers: { 'x-orbit-request-id': requestId } })
+  })
+  const provider = new AstraHttpProvider({ config: { ...configuration.providers[0].config,
+    url: 'https://orbit-api-staging-uqu2.onrender.com/api/chat', transformResponse: `file://${fileURLToPath(new URL('../response.mjs', import.meta.url))}` } })
+  const response = await provider.callApi(vars.input, { vars })
+  expect(response.output.offerReadback.pass, response.output.offerReadback.reason).toBe(true)
+  expect(chats).toBe(15)
+  expect(firstHistory.at(-1)).toEqual({ role: 'assistant', content: response.output.answer })
+})

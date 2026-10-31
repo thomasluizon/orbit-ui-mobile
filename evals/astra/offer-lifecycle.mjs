@@ -15,8 +15,9 @@ async function verified(output, vars) {
   }
 }
 
-function continuation(vars, chat, evidence) {
-  let history = [...JSON.parse(vars.historyJson ?? '[]'), { role: 'user', content: vars.input }]
+function continuation(vars, chat, evidence, output) {
+  let history = [...JSON.parse(vars.historyJson ?? '[]'), { role: 'user', content: vars.input },
+    { role: 'assistant', content: output.answer }]
   return async (input, policy = {}, client = vars.clientContext, reload = false) => {
     await refreshCredential(vars.credentialKey)
     const clientContext = { ...client }
@@ -138,7 +139,7 @@ export async function completeOfferAttempt(output, vars, chat) {
   try {
     await verified(output, vars)
     if (!vars.offerBaseline || !isDeepStrictEqual(await readOfferState(api), vars.offerBaseline)) throw new Error('Offer turn changed persisted fields without approval.')
-    const turn = continuation(vars, chat, turns)
+    const turn = continuation(vars, chat, turns, output)
     let approval
     if (vars.offerFamily === 'dismissal') {
       if (offerActions(output.composition).some(({ action }) => action.offerKey === vars.issuedOffer?.action.offerKey)) throw new Error('Dismissed offer returned on the dismissal turn.')

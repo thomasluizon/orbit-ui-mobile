@@ -9,6 +9,11 @@ const habitRequestFields = ['title', 'description', 'frequencyUnit', 'frequencyQ
   'slipAlertEnabled', 'checklistItems', 'isGeneral', 'endDate', 'isFlexible', 'goalIds', 'emoji',
   'intervalWeeks', 'relativeReminders', 'startDate', 'tagIds', 'repeatReminder']
 
+function withoutReminderClock(habit) {
+  const { nextReminderAtUtc: _nextReminderAtUtc, children, ...fields } = habit
+  return { ...fields, ...(Array.isArray(children) ? { children: children.map(withoutReminderClock) } : {}) }
+}
+
 export async function readOfferState(api) {
   const { payload } = await api('GET', 'profile/export')
   if (!collections.every((field) => Array.isArray(payload?.[field]))) throw new Error('Offer readback lacks account collections.')
@@ -16,7 +21,7 @@ export async function readOfferState(api) {
   for (const [index, habit] of snapshot.habits.entries()) {
     const { payload: detail } = await api('GET', `habits/${habit.id}`)
     if (detail?.id !== habit.id) throw new Error('Offer detail readback identity mismatch.')
-    snapshot.habits[index] = { ...detail, ...habit }
+    snapshot.habits[index] = { ...withoutReminderClock(detail), ...habit }
   }
   return snapshot
 }

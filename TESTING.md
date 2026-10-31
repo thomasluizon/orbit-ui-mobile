@@ -344,8 +344,10 @@ Connected and locked states require an already connected or locked disposable ac
 APIs cannot synthesize Google OAuth consent or an entitlement. Offline HTTP replays cover all three
 availability states without inventing a connection in a live response.
 
-Lifecycle work finishes inside the provider before an attempt returns. Every offer turn compares
-independent exports and habit detail reads before and after to catch an unrequested persisted write. Preview cases remove a
+Lifecycle work finishes inside the provider before an attempt returns. Later turns retain the rendered
+main answer in their history. Every offer turn compares
+independent exports and habit detail reads before and after to catch an unrequested persisted write.
+Snapshots exclude the computed `nextReminderAtUtc` delivery clock while retaining reminder settings. Preview cases remove a
 suggested group, revise an unrelated emoji, verify preservation, reject and prove unchanged storage.
 Dismissal calls `POST /api/chat/offers/dismiss` with the actually issued key, checks the main reply,
 then eleven unrelated turns, a fresh history and a mobile context. A newly seeded due occurrence must

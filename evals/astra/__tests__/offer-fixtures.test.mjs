@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { seedOfferFixture } from '../fixtures/offers.mjs'
+import { readOfferState, seedOfferFixture } from '../fixtures/offers.mjs'
 import { seedStaleRetrospective } from '../fixtures/reset.mjs'
 
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
@@ -107,4 +107,21 @@ it.each([0, 1])('caches the requested weekly retrospective against account week 
   expect(paths).toEqual(['habits/retrospective?period=week&language=en', 'habits/retrospective?period=week&language=en'])
   await expect(seedStaleRetrospective(api, today, 'en', 'week', 2)).rejects.toThrow('Stale fixture')
   await expect(seedStaleRetrospective(api, today, 'en', 'week', undefined)).rejects.toThrow('week start')
+})
+
+it('compares persisted reminder settings while excluding the computed delivery clock', async () => {
+  let reads = 0
+  let reminderTimes = [30]
+  const exported = { habits: [{ id: ids[0], title: 'Water' }], goals: [], tags: [], checklistTemplates: [] }
+  const api = async (_method, path) => path === 'profile/export' ? { payload: exported } : { payload: {
+    id: ids[0], title: 'Water', reminderEnabled: true, reminderTimes,
+    nextReminderAtUtc: `2031-06-10T${String(8 + reads++).padStart(2, '0')}:00:00Z`,
+    children: [{ id: ids[1], title: 'Refill', reminderEnabled: false, nextReminderAtUtc: `2031-06-10T${String(8 + reads).padStart(2, '0')}:00:00Z` }],
+  } }
+  const original = await readOfferState(api)
+  expect(await readOfferState(api)).toEqual(original)
+  expect(original.habits[0]).not.toHaveProperty('nextReminderAtUtc')
+  expect(original.habits[0].children[0]).not.toHaveProperty('nextReminderAtUtc')
+  reminderTimes = [60]
+  expect(await readOfferState(api)).not.toEqual(original)
 })
