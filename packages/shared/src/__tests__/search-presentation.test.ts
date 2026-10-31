@@ -56,6 +56,18 @@ describe('search presentation', () => {
     expect(status({})).toBeNull()
   })
 
+  it('keeps completed General and flexible habits outside the completed task section', () => {
+    const habits = [
+      createMockHabit({ id: 'general', frequencyUnit: null, isGeneral: true, isCompleted: true }),
+      createMockHabit({ id: 'flexible', frequencyUnit: null, isFlexible: true, isCompleted: true }),
+      createMockHabit({ id: 'task', frequencyUnit: null, isCompleted: true }),
+    ]
+    const sections = buildSearchSections(habits.map((habit) => ({ habit, parentTitle: null })))
+    expect(sections.map(({ id, entries }) => [id, entries.map(({ habit }) => habit.id)])).toEqual([
+      ['habits', ['general', 'flexible']], ['completed', ['task']],
+    ])
+  })
+
   it('keeps parent search results but targets matching descendants in action pickers', () => {
     expect(buildSearchEntries(collection, 'walk', null)).toEqual([{ habit: parent, parentTitle: null }])
     for (const page of ['log', 'skip'] as const) expect(buildSearchEntries(collection, 'walk', page)).toEqual([{ habit: child, parentTitle: 'Routine' }])
