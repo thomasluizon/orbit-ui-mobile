@@ -1,9 +1,11 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { habitInitial, type CommandHabitEntry } from '@orbit/shared/utils'
+import { buildSearchHabitStatus, habitInitial, type CommandHabitEntry } from '@orbit/shared/utils'
 import { HabitMatchLine } from '@/components/search/habit-match-line'
+import { SearchHabitStatusLine } from '@/components/search/search-habit-status'
 import { CommandRow } from './command-row'
 
 export function commandHabitValue({ habit, parentTitle }: CommandHabitEntry): string {
@@ -26,16 +28,21 @@ interface CommandHabitItemsProps {
   disabled?: boolean
   query?: string
   entries: readonly CommandHabitEntry[]
+  today: string
   onSelectHabit: (habit: NormalizedHabit) => void
 }
 
 /** Renders the habit rows shared by the search/jump, log, and skip palette pages.
  *  Sub-habits show a "Parent · Child" label so they read distinctly in the flat list. */
-export function CommandHabitItems({ entries, onSelectHabit, disclose, query = '', disabled = false }: Readonly<CommandHabitItemsProps>) {
+export function CommandHabitItems({ entries, today, onSelectHabit, disclose, query = '', disabled = false }: Readonly<CommandHabitItemsProps>) {
+  const t = useTranslations()
+  const locale = useLocale()
   return (
     <>
       {entries.map((entry) => {
         const { habit, parentTitle } = entry
+        const status = buildSearchHabitStatus(habit, t, locale, today)
+        const label = parentTitle ? `${parentTitle} · ${habit.title}` : habit.title
         return (
           <CommandRow
             key={habit.id}
@@ -43,8 +50,9 @@ export function CommandHabitItems({ entries, onSelectHabit, disclose, query = ''
             disclose={disclose}
             disabled={disabled}
             leading={habitLeading(habit)}
-            description={<HabitMatchLine habit={habit} query={query} />}
-            label={parentTitle ? `${parentTitle} · ${habit.title}` : habit.title}
+            description={<><SearchHabitStatusLine status={status} /><HabitMatchLine habit={habit} query={query} /></>}
+            accessibleLabel={status ? `${label} ${status.label}` : undefined}
+            label={label}
             value={commandHabitValue(entry)}
             onSelect={() => onSelectHabit(habit)}
           />

@@ -121,6 +121,13 @@ const linkedGoalInfoSchema = z.object({
   title: z.string(),
 })
 
+const searchStateFieldsSchema = z.object({
+  completedOn: z.iso.date().nullish(),
+  isSkippedOnDate: z.boolean().nullish(),
+})
+
+type SearchStateFields = z.infer<typeof searchStateFieldsSchema>
+
 const baseHabitFieldsSchema = z.object({
   nextReminderAtUtc: z.iso.datetime({ offset: true }).nullish(),
   startDate: z.iso.date().optional(),
@@ -145,7 +152,7 @@ const baseHabitFieldsSchema = z.object({
   checklistItems: z.array(checklistItemSchema),
 })
 
-export const habitScheduleChildSchema: z.ZodType<ChildReminderFields & {
+export const habitScheduleChildSchema: z.ZodType<ChildReminderFields & SearchStateFields & {
   id: string
   createdAtUtc?: string
   startDate?: string
@@ -179,6 +186,7 @@ export const habitScheduleChildSchema: z.ZodType<ChildReminderFields & {
   searchMatches?: SearchMatchField[] | null
 }> = baseHabitFieldsSchema.extend({
   ...childReminderFieldsSchema.shape,
+  ...searchStateFieldsSchema.shape,
   createdAtUtc: z.string().optional(),
   scheduledDates: z.array(z.string()).optional(),
   isOverdue: z.boolean().optional(),
@@ -195,6 +203,7 @@ export const habitScheduleChildSchema: z.ZodType<ChildReminderFields & {
 export type HabitScheduleChild = z.infer<typeof habitScheduleChildSchema>
 
 export const habitScheduleItemSchema = baseHabitFieldsSchema.extend({
+  ...searchStateFieldsSchema.shape,
   createdAtUtc: z.string(),
   scheduledDates: z.array(z.string()),
   isOverdue: z.boolean(),
@@ -294,6 +303,7 @@ export const habitDetailSchema = baseHabitFieldsSchema.extend({
 export type HabitDetail = z.infer<typeof habitDetailSchema>
 
 export const normalizedHabitSchema = baseHabitFieldsSchema.extend({
+  ...searchStateFieldsSchema.shape,
   createdAtUtc: z.string(),
   createdAtUtcIsInherited: z.boolean().optional(),
   parentId: z.string().nullable(),

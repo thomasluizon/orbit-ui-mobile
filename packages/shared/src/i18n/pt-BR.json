@@ -586,6 +586,7 @@
       "scheduledOn": "agendado para {date}"
     },
     "search": {
+      "doneWhen": "Feito {when}",
       "matchTitle": "no nome",
       "matchDescription": "na descrição",
       "matchTag": "na tag",
