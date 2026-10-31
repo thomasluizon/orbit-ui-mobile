@@ -143,8 +143,8 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
   if (tree.denied) { report.paletteFocus = { skipped: tree.error }; return }
   const focus = []
   for (let index = 0; index < 2; index++) {
-    await native(handle.child.pid, 'down')
     const before = proxy.events().filter((event) => event.kind === 'focus').length
+    await native(handle.child.pid, 'down')
     proxy.send(`focus-${previous.selected + 1}`)
     const current = await waitFor(() => proxy.events().filter((event) => event.kind === 'focus')[before], 'palette result focus')
     const selectedTree = await dump(`palette-result-${index + 1}`)

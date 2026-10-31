@@ -112,7 +112,7 @@ static void key(pid_t processId, NSString *name) {
     usleep(250000);
     for (NSNumber *pressed in @[@YES, @NO]) {
         CGEventRef event = CGEventCreateKeyboardEvent(NULL, code.unsignedShortValue, pressed.boolValue);
-        if ([name isEqual:@"quit"] || [name isEqual:@"palette"]) CGEventSetFlags(event, kCGEventFlagMaskCommand);
+        CGEventSetFlags(event, ([name isEqual:@"quit"] || [name isEqual:@"palette"]) ? kCGEventFlagMaskCommand : 0);
         CGEventPost(kCGHIDEventTap, event);
         CFRelease(event);
     }

@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { JSDOM } from 'jsdom'
 import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus } from '../desktop-bench/acceptance-contract.mjs'
-import { T, REPO_ROOT, check, configure, failureCount, root } from './_harness.mjs'
+import { T, REPO_ROOT, check, configure, failureCount, root, stage } from './_harness.mjs'
 import { networkCases } from './desktop-acceptance-network.mjs'
 
 function rejects(label, operation) {
@@ -250,7 +250,96 @@ async function sessionProbeCases() {
   }
 }
 
+function macKeyboardEvents() {
+  const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-ax.m'), 'utf8')
+  const keyboard = source.slice(source.indexOf('static void key('), source.indexOf('int main('))
+  const fixture = stage('palette-keyboard.m', `#import <AppKit/AppKit.h>
+#import <ApplicationServices/ApplicationServices.h>
+static NSMutableArray *events;
+static NSString *command;
+static CGEventFlags inheritedFlags = kCGEventFlagMaskCommand | kCGEventFlagMaskShift;
+@interface PaletteApplication : NSObject
++ (instancetype)runningApplicationWithProcessIdentifier:(pid_t)pid;
+- (BOOL)activateWithOptions:(NSApplicationActivationOptions)options;
+@end
+@implementation PaletteApplication
++ (instancetype)runningApplicationWithProcessIdentifier:(pid_t)pid { return [self new]; }
+- (BOOL)activateWithOptions:(NSApplicationActivationOptions)options { return YES; }
+@end
+static CGEventRef inheritedKeyboardEvent(CGEventSourceRef source, CGKeyCode code, bool pressed) {
+    CGEventRef event = CGEventCreateKeyboardEvent(source, code, pressed);
+    CGEventSetFlags(event, inheritedFlags);
+    return event;
+}
+static void captureKey(CGEventTapLocation tap, CGEventRef event) {
+    inheritedFlags = CGEventGetFlags(event);
+    [events addObject:@{@"command": command, @"pressed": @((BOOL)(CGEventGetType(event) == kCGEventKeyDown)),
+        @"metaKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskCommand) != 0)),
+        @"shiftKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskShift) != 0)),
+        @"ctrlKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskControl) != 0)),
+        @"altKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskAlternate) != 0))}];
+}
+#define NSRunningApplication PaletteApplication
+#define CGEventCreateKeyboardEvent inheritedKeyboardEvent
+#define CGEventPost captureKey
+#define usleep(microseconds) ((void)0)
+${keyboard}
+int main(void) {
+    @autoreleasepool {
+        events = [NSMutableArray array];
+        for (NSString *operation in @[@"palette", @"down", @"down", @"home", @"escape", @"quit"]) {
+            command = operation;
+            key(1, operation);
+        }
+        NSData *encoded = [NSJSONSerialization dataWithJSONObject:events options:0 error:NULL];
+        fwrite(encoded.bytes, 1, encoded.length, stdout);
+        return 0;
+    }
+}`)
+  const executable = join(root, 'palette-keyboard')
+  const compilation = spawnSync('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', fixture, '-o', executable], { encoding: 'utf8', timeout: 30000 })
+  T('macOS keyboard producer compiles with event posting and application activation intercepted', compilation.status === 0, compilation.stderr)
+  const capture = spawnSync(executable, [], { encoding: 'utf8', timeout: 10000 })
+  T('macOS keyboard producer captures its real event flags without opening an app', capture.status === 0, capture.stderr)
+  const events = JSON.parse(capture.stdout)
+  T('macOS keyboard producer sets Command only for shortcuts and clears inherited modifiers on both key phases', events.length === 12 && events.every((event) =>
+    event.metaKey === ['palette', 'quit'].includes(event.command) && !event.shiftKey && !event.ctrlKey && !event.altKey), JSON.stringify(events))
+  return events
+}
+
+async function paletteTimingCases(dom, readState) {
+  const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
+  const traversal = source.slice(source.indexOf('  const focus = []'), source.indexOf('\n  report.paletteFocus = focus') + '\n  report.paletteFocus = focus'.length)
+  const input = dom.window.document.querySelector('[cmdk-input]')
+  const { flushSync } = await import('react-dom')
+  const key = (name) => flushSync(() => input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: name, bubbles: true })))
+  for (const timing of ['during-input', 'after-input']) {
+    key('Home')
+    const events = [{ kind: 'focus', ...readState() }]
+    const report = {}
+    const captures = []
+    const context = { previous: readState(), handle: { child: { pid: 321 } }, report,
+      proxy: {
+        events: () => events.slice(),
+        send: () => { if (timing === 'after-input') events.push({ kind: 'focus', ...readState() }) },
+      },
+      native: async () => { key('ArrowDown'); if (timing === 'during-input') events.push({ kind: 'focus', ...readState() }) },
+      waitFor: async (read, label) => { const value = read(); if (!value) throw new Error(`Timed out waiting for ${label}`); return value },
+      dump: async (surface) => { captures.push(surface) },
+      assertPaletteFocus: (previous, current) => T(`runner ${timing} validates each real cmdk destination in order`,
+        current.selected === previous.selected + 1 && current.inputFocused),
+    }
+    runInNewContext(`globalThis.traverse = async () => {${traversal}\n}`, context)
+    let failure
+    try { await context.traverse() } catch (error) { failure = error }
+    T(`runner retains focus delivered ${timing} without consuming a stale event or skipping either result`,
+      !failure && report.paletteFocus?.map((event) => event.selected).join(',') === '1,2' &&
+      captures.join(',') === 'palette-result-1,palette-result-2', failure?.message)
+  }
+}
+
 async function controlledPaletteCases() {
+  const nativeDown = process.platform === 'darwin' ? macKeyboardEvents().filter((event) => event.command === 'down' && event.pressed) : undefined
   const dom = new JSDOM('<div id="palette"></div>', { pretendToBeVisual: true })
   const properties = ['window', 'document', 'HTMLElement', 'Element', 'MutationObserver', 'getComputedStyle', 'ResizeObserver', 'requestAnimationFrame', 'cancelAnimationFrame']
   const previousGlobals = properties.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
@@ -291,7 +380,7 @@ async function controlledPaletteCases() {
     T('palette readiness reports the controlled initial selection from the real cmdk producer',
       previous.selected === 0 && previous.inputFocused && previous.results.join(',') === 'Habit 1,Habit 3,Habit 4', JSON.stringify(previous))
     for (const expected of [1, 2]) {
-      flushSync(() => input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true })))
+      flushSync(() => input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { ...nativeDown?.[expected - 1], key: 'ArrowDown', code: 'ArrowDown', bubbles: true })))
       const current = context.paletteState()
       T(`palette probe follows real ArrowDown to enabled result ${expected} without waiting for the wrong index`,
         current.selected === expected && current.selected === previous.selected + 1 && current.inputFocused, JSON.stringify({ previous, current }))
@@ -301,6 +390,7 @@ async function controlledPaletteCases() {
         current.activeDescendantId === items[expected + 1].id, JSON.stringify(current))
       previous = current
     }
+    await paletteTimingCases(dom, context.paletteState)
   } finally {
     flushSync(() => mount.unmount())
     await new Promise((resolve) => setImmediate(resolve))

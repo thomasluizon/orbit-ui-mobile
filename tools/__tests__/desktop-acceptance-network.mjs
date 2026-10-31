@@ -172,14 +172,14 @@ async function macResolverConfigurationCases() {
           if (operation === 'rmdir') directories.delete(operands.at(-1))
           if (operation === 'rm') {
             files.delete(operands.at(-1))
-            if (failurePoint === 'restore' && operands.at(-1).endsWith('github.com')) throw failure
+            if (failurePoint === 'restore' && operands.at(-1) === '/etc/resolver/github.com') throw failure
           }
           if (operation !== 'cp') return
           const [from, to] = operands.filter((operand) => operand !== '-p')
           files.set(to, files.get(from))
           if (hostnames.some((hostname) => to === `/etc/resolver/${hostname}`) && !from.includes('original-resolver-')) {
             configurations.push({ path: to, content: files.get(to), listening })
-            if (failurePoint === 'second-resolver' && to.endsWith('github.com')) throw failure
+            if (failurePoint === 'second-resolver' && to === '/etc/resolver/github.com') throw failure
           }
         },
       }
