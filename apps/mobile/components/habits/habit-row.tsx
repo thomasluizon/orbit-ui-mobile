@@ -62,6 +62,7 @@ function buildMenuItems(
   actions: HabitRowActions,
   isSelectMode: boolean,
   completionReadOnly: boolean,
+  isGeneral: boolean,
   isOverdue: boolean,
   hasSubHabits: boolean,
   t: (key: string) => string,
@@ -69,7 +70,7 @@ function buildMenuItems(
   const items: MenuItem[] = []
   if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask' })
   if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.actions.moveUnder'), icon: 'arrows-move' })
-  if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
+  if (actions.onSkip && !completionReadOnly && !isGeneral) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
   if (actions.onReschedule && isOverdue && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.rescheduleAstra'), icon: 'astra' })
   if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit'), icon: 'pencil' })
   if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate'), icon: 'copy' })
@@ -347,11 +348,12 @@ export const HabitRow = memo(function HabitRow({
   const emoji = habit.emoji
 
   const [menuVisible, setMenuVisible] = useState(false)
-  const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
   const menuItems = useMemo(
-    () => buildMenuItems(actions, isSelectMode, completionReadOnly, isOverdue, habit.hasSubHabits, t),
-    [actions, completionReadOnly, habit.hasSubHabits, isOverdue, isSelectMode, t],
+    () => buildMenuItems(actions, isSelectMode, completionReadOnly, habit.isGeneral, isOverdue, habit.hasSubHabits, t),
+    [actions, completionReadOnly, habit.isGeneral, habit.hasSubHabits, isOverdue, isSelectMode, t],
   )
+
+  const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode) && menuItems.length > 0
 
   const handlePress = resolveBodyPressAction(isSelectMode, actions)
   const activation = useHabitRowActivation(handlePress, isSelectMode ? undefined : actions.onLongPressCard)

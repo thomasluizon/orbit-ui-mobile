@@ -1,5 +1,5 @@
 import { TypedTextInput } from '@/components/ui/typed-text-input'
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { InsetFocusPressable } from './inset-focus-pressable'
 import {
@@ -129,8 +129,8 @@ function TimeColumn({
 
   function revealSelected(height: number) {
     if (selectedIndex < 0 || height <= 0) return
-    const contentHeight = values.length * ROW_HEIGHT + 8
-    const centeredOffset = 4 + selectedIndex * ROW_HEIGHT - height / 2 + ROW_HEIGHT / 2
+    const contentHeight = values.length * ROW_HEIGHT + Math.max(0, values.length - 1) * INTERACTION_FILL_CLEARANCE + SPACING.s8
+    const centeredOffset = SPACING.s4 + selectedIndex * (ROW_HEIGHT + INTERACTION_FILL_CLEARANCE) - height / 2 + ROW_HEIGHT / 2
     listRef.current?.scrollTo({
       y: Math.max(0, Math.min(centeredOffset, contentHeight - height)),
       animated: false,
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   columns: { flexDirection: 'row', gap: 8, height: COLUMN_HEIGHT, flexShrink: 1, minHeight: ROW_HEIGHT },
   column: { flex: 1 },
   columnScroll: { flex: 1 },
-  columnContent: { paddingVertical: SPACING.s4 },
+  columnContent: { paddingVertical: SPACING.s4, gap: INTERACTION_FILL_CLEARANCE },
   option: {
     borderWidth: 2,
     borderColor: 'transparent',

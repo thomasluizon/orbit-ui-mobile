@@ -114,15 +114,21 @@ async function inspectControl(page: Page, control: Locator, context: string, cle
 
 export async function inspectControls(page: Page, controls: Locator, context: string, clearance: number,
   counts = { inspectedControls: 0, skippedSentinels: 0 }) {
-  const inventory = await captureControlInventory(controls, context)
-  await runAction(context, 'mark control inventory', () => controls.evaluateAll((elements) => elements.forEach((element, index) => {
-    element.setAttribute('data-interaction-fill-probe', String(index))
-  })))
-  for (const entry of [...inventory.filter(control => control.title), ...inventory.filter(control => !control.title)]) {
-    const label = `${context}, control ${entry.index}`
-    const control = await resolveCapturedControl(page, controls, entry, label)
-    if (await inspectControl(page, control, label, clearance)) counts.inspectedControls++
-    else counts.skippedSentinels++
+  try {
+    const inventory = await captureControlInventory(controls, context)
+    await runAction(context, 'mark control inventory', () => controls.evaluateAll((elements) => elements.forEach((element, index) => {
+      element.setAttribute('data-interaction-fill-probe', String(index))
+    })))
+    for (const entry of [...inventory.filter(control => control.title), ...inventory.filter(control => !control.title)]) {
+      const label = `${context}, control ${entry.index}`
+      const control = await resolveCapturedControl(page, controls, entry, label)
+      if (await inspectControl(page, control, label, clearance)) counts.inspectedControls++
+      else counts.skippedSentinels++
+    }
+    return counts
+  } finally {
+    await runAction(context, 'clear control inventory', () => page.locator('[data-interaction-fill-probe]').evaluateAll((elements) => elements.forEach((element) => {
+      element.removeAttribute('data-interaction-fill-probe')
+    })))
   }
-  return counts
 }

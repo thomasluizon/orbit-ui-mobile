@@ -40,6 +40,18 @@ function renderBar(overrides: Partial<Parameters<typeof SelectionTray>[0]> = {})
 }
 
 describe('SelectionTray', () => {
+  it('omits Skip for an all-General selection', () => {
+    renderBar({ selectedCount: 2, skippableCount: 0 })
+    expect(screen.queryByRole('button', { name: 'habits.bulkBar.skip' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'habits.bulkBar.log' })).toBeEnabled()
+  })
+
+  it.each(['en', 'pt-BR'])('shows the eligible Skip count for a mixed selection in %s', (locale) => {
+    visibleLocale.language = locale
+    renderBar({ selectedCount: 3, skippableCount: 1 })
+    expect(screen.getByText(locale === 'en' ? '1 selected habit can be skipped.' : '1 hábito selecionado pode ser pulado.')).toBeInTheDocument()
+  })
+
   beforeEach(() => {
     document.body.innerHTML = ''
     visibleLocale.language = ''

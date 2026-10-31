@@ -633,7 +633,7 @@ export function HabitList({
   }, [habitsQuery.dataUpdatedAt, hasQueuedParentPrompt, selectedDateStr])
 
   const listContainerRef = useRef<HTMLDivElement>(null)
-  const anchorList = useHabitListScrollAnchor()
+  const anchorList = useHabitListScrollAnchor(drill.currentParentId)
   const { maxInlineDepth, measureRef } = useHabitInlineDepthLimit()
   const setListContainerRef = useCallback((element: HTMLDivElement | null) => {
     listContainerRef.current = element
@@ -750,6 +750,10 @@ export function HabitList({
       }
     }
 
+    restoreAfterDrag()
+  }
+
+  function restoreAfterDrag() {
     setIsDragging(false)
     setDragOverrideItems(null)
 
@@ -1060,9 +1064,8 @@ export function HabitList({
     }
   }
 
-  function startAddSubHabit(parentId: string) {
-    const parent = habitsById.get(parentId)
-    if (!parent) return
+  function startAddSubHabit(parent: NormalizedHabit) {
+    const parentId = parent.id
     if (!isOnline) { setRefusedSubHabitParentId(parentId); return }
     if (collapsedIds.has(parentId)) toggleExpand(parentId)
     setSubHabitParent(parent)
@@ -1177,14 +1180,14 @@ export function HabitList({
     checkAndPromptParentLog(habitId)
   }
 
-  async function handleDirectToggle(habitId: string, intent: 'log' | 'unlog') {
+  async function handleDirectToggle(habit: NormalizedHabit, intent: 'log' | 'unlog') {
     if (!profile) return
     const currentDate = new Date()
     const accountToday = formatAPIDateInTimeZone(currentDate, profile.timeZone)
     const boundary = getTodayBoundary(selectedDateStr, accountToday)
-    const habit = habitsById.get(habitId)
+    const habitId = habit.id
     if (boundary === 'read-only' || (!selectedDate && selectedDateStr !== accountToday) ||
-      (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, selectedDateStr, accountToday)))) return
+      (boundary === 'future' && !canLogHabitOnDate(habit, selectedDateStr, accountToday))) return
     const pendingHabitIds = pendingToggleHabitIdsRef.current
     if (pendingHabitIds.has(habitId)) return
 
@@ -1206,7 +1209,7 @@ export function HabitList({
       mutationSucceeded = true
       await habitsQuery.refetch()
     } catch {
-      if (!mutationSucceeded && intent === 'log') releaseOptimisticResolution(habitId, confirmedResolutions, habit?.parentId)
+      if (!mutationSucceeded && intent === 'log') releaseOptimisticResolution(habitId, confirmedResolutions, habit.parentId)
     } finally {
       confirmedResolutions.pending.delete(habitId)
       finishParentSettlement(confirmedResolutions)
@@ -1323,9 +1326,9 @@ export function HabitList({
         showLinkedGoalDot={hasLinkedGoal}
         actions={{
           onReorder: options?.onReorder,
-          onLog: () => { void handleDirectToggle(habit.id, 'log') },
-          onUnlog: () => { void handleDirectToggle(habit.id, 'unlog') },
-          onSkip: !completionReadOnly && canLog ? () => { void skipFromRow(habit) } : undefined,
+          onLog: () => { void handleDirectToggle(habit, 'log') },
+          onUnlog: () => { void handleDirectToggle(habit, 'unlog') },
+          onSkip: !completionReadOnly && canLog && !habit.isGeneral ? () => { void skipFromRow(habit) } : undefined,
           onDuplicate: () => setHabitToDuplicate(habit),
           onEdit: () => {
             setHabitToEdit(habit)
@@ -1343,7 +1346,7 @@ export function HabitList({
           onDelete: () => promptDelete(habit.id),
           onDetail: () => openDetail(habit),
           onDrillInto: () => void drill.drillInto(habit.id),
-          onAddSubHabit: () => startAddSubHabit(habit.id),
+          onAddSubHabit: () => startAddSubHabit(habit),
           onToggleExpand: () => options?.isDrillCard || depth >= maxInlineDepth ? void drill.drillInto(habit.id) : toggleExpand(habit.id),
           onToggleSelection: () => onToggleSelection?.(habit.id),
           onEnterSelectMode: () => onEnterSelectMode?.(habit.id),
@@ -1380,8 +1383,9 @@ export function HabitList({
       <Fragment key={item.id}>
         {sortable ? <SortableHabitItem id={item.id}>{row}</SortableHabitItem> : row}
         {childPanelId ? (
-          <MotionDisclosure id={childPanelId} expanded={!collapsedIds.has(item.id)}>
-            <ListPresence>{panel.filter((child) => child.parentId === item.id).map((child) => <ListMotionItem key={child.id} className="flex min-w-0 flex-col gap-2">{renderHabitTree(child, panel, sortable)}</ListMotionItem>)}</ListPresence>
+          <MotionDisclosure id={childPanelId} expanded={!collapsedIds.has(item.id)} positionMotion={!sortable}>
+            {sortable ? panel.filter((child) => child.parentId === item.id).map((child) => renderHabitTree(child, panel, sortable)) :
+              <ListPresence>{panel.filter((child) => child.parentId === item.id).map((child) => <ListMotionItem key={child.id} className="flex min-w-0 flex-col gap-2">{renderHabitTree(child, panel, sortable)}</ListMotionItem>)}</ListPresence>}
           </MotionDisclosure>
         ) : null}
       </Fragment>
@@ -1441,6 +1445,7 @@ export function HabitList({
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={restoreAfterDrag}
       >
         <SortableContext
           items={activeDragItems.map((item) => item.id)}
@@ -1449,7 +1454,8 @@ export function HabitList({
           <div className={isDragging ? 'is-dragging flex flex-col' : 'flex flex-col'} style={{ gap: 12 }}>
             {habits.length === 0 ? renderEmptyList() : null}
             <ListPresence>{(isDndEnabled ? activeDragPanels : dragPanels).map((panel) => (
-              <ListMotionItem key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} style={listViewPanelStyle}>
+              <ListMotionItem key={panel[0]?.id} className={HABIT_PANEL_CLASS_NAME} positionMotion={!isDndEnabled}
+                style={isDndEnabled ? { ...listViewPanelStyle, overflow: 'visible' } : listViewPanelStyle}>
                 {panel.filter((item) => item.depth === 0).map((item) => renderHabitTree(item, panel, isDndEnabled))}
               </ListMotionItem>
             ))}</ListPresence>

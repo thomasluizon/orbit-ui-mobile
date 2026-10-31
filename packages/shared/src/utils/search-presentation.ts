@@ -60,7 +60,8 @@ export function buildSearchEntries(
   if (query.length > 0 && page === null) return collection.topLevelHabits
     .map((habit) => ({ habit, parentTitle: null }))
     .sort((left, right) => searchPriority(left.habit, today) - searchPriority(right.habit, today))
-  return buildCommandHabitList(collection, query)
+  const entries = buildCommandHabitList(collection, query)
+  return page === 'skip' ? entries.filter(({ habit }) => !habit.isGeneral) : entries
 }
 
 export function buildSearchSections(entries: readonly CommandHabitEntry[]): SearchSection[] {

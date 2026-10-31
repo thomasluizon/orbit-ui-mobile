@@ -7,9 +7,9 @@ import { formatAPIDate } from './dates'
 import { fallbackChildOverdue } from './habit-normalization'
 import { isHabitLoggedOnDate } from './all-done'
 import {
-  createHabitVisibilityHelpers,
+  getChildrenFromIndex,
+  isCompletedOneTimeHabit,
   type HabitVisibilityOptions,
-  type HabitVisibilityView,
 } from './habit-visibility'
 
 export interface NormalizedDrillDetail {
@@ -64,11 +64,26 @@ function enrichDrillChild(
   }
 }
 
+export function getDrillParent(
+  parentId: string | null,
+  habitsById: ReadonlyMap<string, NormalizedHabit>,
+  fetchedParents: ReadonlyMap<string, NormalizedHabit>,
+  drillChildrenMap: ReadonlyMap<string, NormalizedHabit[]>,
+): NormalizedHabit | null {
+  if (!parentId) return null
+  const parent = habitsById.get(parentId) ?? fetchedParents.get(parentId)
+  if (parent) return parent
+  for (const children of drillChildrenMap.values()) {
+    const child = children.find((habit) => habit.id === parentId)
+    if (child) return child
+  }
+  return null
+}
+
 export function getVisibleDrillChildren(
   parentId: string,
   drillChildrenMap: ReadonlyMap<string, NormalizedHabit[]>,
   options: HabitVisibilityOptions,
-  view: HabitVisibilityView,
   today: string,
 ): NormalizedHabit[] {
   const isSelectedDateToday = !options.selectedDate || options.selectedDate === today
@@ -83,25 +98,21 @@ export function getVisibleDrillChildren(
     }
   }
 
-  return createHabitVisibilityHelpers({
-    ...options,
-    habitsById,
-    childrenByParent,
-  }).getVisibleChildren(parentId, view)
+  return getChildrenFromIndex(parentId, habitsById, childrenByParent)
+    .filter((child) => options.showCompleted || !isCompletedOneTimeHabit(child))
 }
 
 export function canRevealCompletedDrillChildren(
   parentId: string,
   drillChildrenMap: ReadonlyMap<string, NormalizedHabit[]>,
   options: HabitVisibilityOptions,
-  view: HabitVisibilityView,
   today: string,
 ): boolean {
   if (options.showCompleted) return false
   return getVisibleDrillChildren(parentId, drillChildrenMap, {
     ...options,
     showCompleted: true,
-  }, view, today).length > 0
+  }, today).length > 0
 }
 
 export function countCompletedDrillChildren(
@@ -174,7 +185,7 @@ export function normalizeDrillDetailChild(
     dueTime: child.dueTime ?? '',
     dueEndTime: child.dueEndTime ?? '',
     endDate: child.endDate ?? '',
-    position: child.position ?? 0,
+    position: child.position ?? null,
     checklistItems: child.checklistItems,
     startDate: child.startDate,
     schedule: child.schedule,
@@ -222,21 +233,13 @@ export function normalizeHabitDetailForDrill(
   parent.linkedGoals = detail.linkedGoals ?? []
 
   const childrenByParent = new Map<string, NormalizedHabit[]>()
-  const children = safeChildren.map((child) =>
-    normalizeDrillDetailChild(child, detail.id, today),
-  )
-  childrenByParent.set(detail.id, children)
-
-  for (const child of safeChildren) {
-    const grandChildren = child.children
-    if (grandChildren.length === 0) continue
-    childrenByParent.set(
-      child.id,
-      grandChildren.map((grandChild) =>
-        normalizeDrillDetailChild(grandChild, child.id, today),
-      ),
-    )
+  function indexChildren(parentId: string, children: HabitDetailChild[]) {
+    childrenByParent.set(parentId, children.map((child) => normalizeDrillDetailChild(child, parentId, today)))
+    for (const child of children) {
+      if (child.children.length > 0) indexChildren(child.id, child.children)
+    }
   }
+  indexChildren(detail.id, safeChildren)
 
   return {
     parent,

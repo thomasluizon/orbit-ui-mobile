@@ -13,6 +13,21 @@ const cases = (['sheet', 'anchored'] as const).flatMap((presentation) =>
     (['pointer', 'keyboard'] as const).map((activation) => ({ presentation, phase, activation }))))
 
 describe('HabitRow menu replacement', () => {
+  it.each([false, true])('offers Skip only for a scheduled row, isGeneral=%s', async (isGeneral) => {
+    const onSkip = vi.fn()
+    render(<HabitRow habit={createMockHabit({ isGeneral, frequencyUnit: isGeneral ? null : 'Day' })}
+      actions={{ onSkip, onEdit: vi.fn() }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    await screen.findByRole('menuitem', { name: 'common.edit' })
+    const skip = screen.queryByRole('menuitem', { name: 'habits.actions.skip' })
+    if (isGeneral) expect(skip).toBeNull()
+    else {
+      expect(skip).toBeVisible()
+      await userEvent.click(skip!)
+      await waitFor(() => expect(onSkip).toHaveBeenCalledOnce())
+    }
+  })
+
   it.each([false, true])('keeps the compact row menu visible after entrance with reduced motion %s', async (reduced) => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('prefers-reduced-motion') && reduced, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const onEdit = vi.fn()

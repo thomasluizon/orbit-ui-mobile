@@ -1,3 +1,4 @@
+import { withTimingCalls } from '@/test-mocks/react-native-reanimated'
 import { testI18n } from '@/__tests__/support/i18n'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { resetAccountQueries } from '@orbit/shared/query'
@@ -20,6 +21,7 @@ import { bulkLogResultSchema, bulkSkipResultSchema, habitScheduleItemSchema, ski
 import type { HabitScheduleItem, NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
+import DraggableFlatList from 'react-native-draggable-flatlist'
 import { MoveParentDialog } from '@/components/habit-list/move-parent-dialog'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { buildOptimisticHabit } from '@/lib/habit-mutation-helpers'
@@ -492,7 +494,7 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
 }))
 
 vi.mock('@/components/habits/create-habit-modal', () => ({
-  CreateHabitModal: ({ open }: { open: boolean }) => open ? React.createElement('CreateHabitModal', { testID: 'create-sub-habit' }) : null,
+  CreateHabitModal: ({ open, parentHabit }: { open: boolean; parentHabit?: NormalizedHabit }) => open ? React.createElement('CreateHabitModal', { testID: 'create-sub-habit', parentHabit }) : null,
 }))
 
 vi.mock('@/components/habits/reschedule-sheet', () => ({
@@ -590,7 +592,7 @@ function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
       selectedHabitIds,
       selectedDateStr: TODAY,
       completionReadOnly: false,
-      habitsById: new Map(),
+      habitsById: mockHabitsData.habitsById,
       habitListRef,
       onSuccess: vi.fn(),
       onPartialFailure: vi.fn(),
@@ -1005,18 +1007,55 @@ describe('HabitList', () => {
     client.clear()
   })
 
-  it('opens sub-habit creation for a free account from the habit list', () => {
+  it.each(['main', 'drill-row', 'drill-footer'])('opens sub-habit creation for a free account from %s', (surface) => {
     accountDate.hasProAccess = false
     try {
-      seedHabits([createMockHabit({ id: 'free-parent', title: 'Parent', scheduledDates: [TODAY] })])
+      const parent = createMockHabit({ id: 'free-parent', title: 'Parent', scheduledDates: [TODAY] })
+      seedHabits([parent])
+      const drillOnly = createMockHabit({ id: 'off-date', title: 'Off date', parentId: parent.id, dueDate: '2027-01-01', scheduledDates: [] })
+      if (surface !== 'main') {
+        mockDrillState.currentParent = surface === 'drill-footer' ? drillOnly : parent
+        mockDrillState.currentParentId = mockDrillState.currentParent.id
+        mockDrillState.drillStack = surface === 'drill-footer' ? [parent.id, drillOnly.id] : [parent.id]
+        mockDrillState.drillChildren = surface === 'drill-footer' ? [] : [drillOnly]
+        expect(mockHabitsData.habitsById.has(drillOnly.id)).toBe(false)
+      }
       let tree!: ReturnType<typeof TestRenderer.create>
       TestRenderer.act(() => { tree = createTestTree(<HabitList view="today" showCompleted={false} onCreatePress={vi.fn()} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />) })
       accountDate.push.mockClear()
-      const row = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)[0]!
-      TestRenderer.act(() => { row.props.actions.onAddSubHabit() })
+      let composition = tree
+      if (surface !== 'main') {
+        const list = tree.root.findByType('FlatList')
+        TestRenderer.act(() => { composition = createTestTree(<View>{surface === 'drill-footer' ? list.props.ListEmptyComponent : list.props.renderItem({ item: drillOnly, index: 0 })}</View>) })
+      }
+      TestRenderer.act(() => {
+        if (surface === 'drill-footer') {
+          composition.root.findAll((node: import('react-test-renderer').ReactTestInstance) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'habits.form.addSubHabit').length > 0)[0]!.props.onPress()
+        } else composition.root.findAllByType(HabitRow).filter(isInteractiveRow)[0]!.props.actions.onAddSubHabit()
+      })
       expect(tree.root.findAllByProps({ testID: 'create-sub-habit' }).length).toBeGreaterThan(0)
+      expect(tree.root.findAllByProps({ testID: 'create-sub-habit' })[0]!.props.parentHabit.id).toBe(surface === 'main' ? parent.id : drillOnly.id)
       expect(accountDate.push).not.toHaveBeenCalled()
     } finally { accountDate.hasProAccess = true }
+  })
+
+  it.each([['one-time', null, true], ['recurring', 'Day', false]] as const)('handles a drill-only %s child on the selected future date', async (_kind, frequencyUnit, permitted) => {
+    const parent = createMockHabit({ id: 'parent', hasSubHabits: true, scheduledDates: [TOMORROW] })
+    const child = createMockHabit({ id: 'off-date', parentId: parent.id, frequencyUnit, frequencyQuantity: frequencyUnit ? 1 : null, dueDate: '2027-01-01', scheduledDates: [] })
+    seedHabits([parent])
+    Object.assign(mockDrillState, { currentParent: parent, currentParentId: parent.id, drillStack: [parent.id], drillChildren: [child] })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList view="today" filters={{ dateFrom: TOMORROW, dateTo: TOMORROW }} selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} showCompleted={false} onCreatePress={vi.fn()} />) })
+    const list = tree.root.findByType('FlatList')
+    let composition!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { composition = createTestTree(list.props.renderItem({ item: list.props.data[0], index: 0 })) })
+    const row = composition.root.findAllByType(HabitRow).filter(isInteractiveRow)[0]!
+    expect(mockHabitsData.habitsById.has(child.id)).toBe(false)
+    const completion = composition.root.findAll((node: import('react-test-renderer').ReactTestInstance) => typeof node.type === 'string' && typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.includes('habits.logHabit'))[0]!
+    expect(completion.props.disabled).toBe(!permitted)
+    await TestRenderer.act(async () => { row.props.actions.onLog(); await Promise.resolve() })
+    if (permitted) expect(logMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: child.id, date: TOMORROW, intent: 'log' })
+    else expect(logMutateAsync).not.toHaveBeenCalled()
   })
 
   it.each([false, true])('scopes Hoje search with appended general habits, matching descendant=%s', (matchesDescendant) => {
@@ -3461,6 +3500,45 @@ describe('HabitList', () => {
     })
   })
 
+  it.each([
+    { draggedIndex: 0, from: 0, to: 2, order: ['drag-1', 'drag-2', 'drag-parent', 'drag-3'] },
+    { draggedIndex: 2, from: 2, to: 4, order: ['drag-parent', 'drag-2', 'drag-3', 'drag-1'] },
+  ])('saves the native placeholder order without extra motion when dropping row $draggedIndex', async ({ draggedIndex, from, to, order }) => {
+    const parent = createMockHabit({ id: 'drag-parent', title: 'Parent', position: 0, hasSubHabits: true })
+    const child = createMockHabit({ id: 'drag-child', title: 'Child', parentId: parent.id, position: 0 })
+    const siblings = [1, 2, 3].map((position) => createMockHabit({ id: `drag-${position}`, title: `Habit ${position}`, position }))
+    seedHabits([parent, child, ...siblings])
+    const element = <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = createTestTree(element) })
+    await TestRenderer.act(() => {
+      for (const row of tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) =>
+        String(node.type) === 'AnimatedView' && String(node.props.testID).startsWith('habit-motion-'))) {
+        row.props.onLayout({ nativeEvent: { layout: { height: 80 } } })
+      }
+    })
+    withTimingCalls.length = 0
+    await TestRenderer.act(() => {
+      const row = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)[draggedIndex]!
+      row.findAll((node: import('react-test-renderer').ReactTestInstance) =>
+        typeof node.props.onLongPress === 'function')[0]!.props.onLongPress()
+    })
+    const during = draggedIndex === 0 ? [parent.id, ...siblings.map((habit) => habit.id)] : [parent.id, child.id, ...siblings.map((habit) => habit.id)]
+    expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: import('react-test-renderer').ReactTestInstance) => (row.props.habit as NormalizedHabit).id)).toEqual(during)
+    expect(withTimingCalls.filter((call) => call.value === 0)).toEqual([])
+    const list = tree.root.findByType(DraggableFlatList)
+    const preview = [...list.props.data] as { id: string; parentId: string | null }[]
+    preview.splice(to, 0, preview.splice(from, 1)[0]!)
+    const previewRoots = preview.filter((item) => item.parentId === null).map((item) => item.id)
+    expect(previewRoots).toEqual(order)
+    await TestRenderer.act(async () => {
+      await list.props.onDragEnd({ from, to, data: preview })
+    })
+    expect(reorderMutateAsync).toHaveBeenCalledWith({ positions: previewRoots.map((habitId, position) => ({ habitId, position })) })
+    expect(tree.root.findAllByType(HabitRow).filter(isInteractiveRow).map((row: import('react-test-renderer').ReactTestInstance) => (row.props.habit as NormalizedHabit).id)).toEqual([parent.id, child.id, ...siblings.map((habit) => habit.id)])
+    expect(withTimingCalls.filter((call) => call.value === 0)).toEqual([])
+  })
+
   it('renders every row with calibrated render-window props while keeping reorder working', async () => {
     const habits = Array.from({ length: 12 }, (_, index) =>
       createMockHabit({
@@ -4843,11 +4921,16 @@ describe('HabitList', () => {
     bulkSkipMutateAsync.mockRejectedValueOnce(new Error('offline'))
     const actions = renderBulkActionsWithHabitList(new Set([childA.id, childB.id]))
 
+    expect(actions.current?.skippableCount).toBe(2)
     await TestRenderer.act(async () => {
       await expect(actions.current?.confirmBulkSkip()).rejects.toThrow('offline')
       await Promise.resolve()
     })
 
+    expect(bulkSkipMutateAsync).toHaveBeenCalledExactlyOnceWith([
+      { habitId: childA.id, date: TODAY },
+      { habitId: childB.id, date: TODAY },
+    ])
     expect(logMutateAsync).not.toHaveBeenCalled()
     expect(skipMutateAsync).not.toHaveBeenCalled()
   })

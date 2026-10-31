@@ -41,7 +41,8 @@ it.each(['expanded sidebar', 'collapsed sidebar', 'compact progress header', 'co
   const owner = view.container.querySelector<HTMLElement>(wide ? '[data-shell-sidebar]' : '[data-header-appearance-actions]')!
   const button = within(owner).getByRole('button', { name: 'settings.theme.switchToLight' })
   const bell = within(owner).getByRole('button', { name: 'notifications.bell' })
-  expect(button.compareDocumentPosition(bell) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  const [first, second] = placement === 'collapsed sidebar' ? [bell, button] : [button, bell]
+  expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   expect(button.querySelector('.tabler-icon-sun')).not.toBeNull()
   expect(button).toHaveAttribute('title', 'settings.theme.switchToLight')
   fireEvent.click(button)
