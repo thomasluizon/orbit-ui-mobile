@@ -9,6 +9,53 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { test } from './layout-test'
 import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
+import { openTodayListOptions } from './hydration-guard'
+
+function observeReorderRows(elements: Element[]) {
+  return new Promise<string[]>((resolve) => {
+    const failures = new Set<string>()
+    const started = performance.now()
+    const sample = () => {
+      try {
+        const list = elements[0]!.closest('[data-habit-list]')!
+        const rows = Array.from(list.querySelectorAll('[data-testid="habit-row"]'))
+        if (rows.length !== elements.length) failures.add('Rows disappeared while reordering')
+        const slots = rows.map((row) => {
+          const bounds = row.getBoundingClientRect()
+          const sortable = row.parentElement!.parentElement!
+          const transform = new DOMMatrixReadOnly(getComputedStyle(sortable).transform)
+          const title = row.getAttribute('data-habit-title')!
+          let top = bounds.top
+          let bottom = bounds.bottom
+          for (let ancestor: Element | null = row; ancestor; ancestor = ancestor.parentElement) {
+            const style = getComputedStyle(ancestor)
+            if (style.opacity !== '1' || style.visibility === 'hidden' || style.display === 'none') failures.add(`${title}: hidden`)
+            if (['hidden', 'clip'].includes(style.overflowY)) {
+              const clip = ancestor.getBoundingClientRect()
+              top = Math.max(top, clip.top)
+              bottom = Math.min(bottom, clip.bottom)
+            }
+            if (ancestor === list) break
+          }
+          if (bottom - top < 1) failures.add(`${title}: clipped`)
+          const scroller = row.closest<HTMLElement>('[data-shell-scroller]')!
+          const contentTop = bounds.top - scroller.getBoundingClientRect().top + scroller.scrollTop
+          if (contentTop + bounds.height < 0 || contentTop > scroller.scrollHeight) failures.add(`${title}: unreachable`)
+          return { top: bounds.top - transform.m42, bottom: bounds.bottom - transform.m42 }
+        })
+        for (let index = 1; index < slots.length; index++) {
+          if (slots[index]!.top - slots[index - 1]!.bottom > 13) failures.add('Row slots exceed the shared gap')
+        }
+        if (performance.now() - started >= 750) resolve([...failures])
+        else requestAnimationFrame(sample)
+      } catch (cause) {
+        failures.add(`Reorder sampler failed: ${cause instanceof Error ? cause.message : String(cause)}`)
+        resolve([...failures])
+      }
+    }
+    requestAnimationFrame(sample)
+  })
+}
 
 for (const width of [320, 360, 384, 412, 600, 768, 1280]) for (const mode of ['light', 'dark'] as const) {
   test(`Hoje reorder keeps visible rows and contiguous slots at ${width}px in ${mode}`, async ({ page, context }) => {
@@ -34,6 +81,11 @@ for (const width of [320, 360, 384, 412, 600, 768, 1280]) for (const mode of ['l
     const rows = page.getByTestId('habit-row')
     await expect(rows).toHaveCount(6)
     await page.evaluate(() => document.fonts.ready)
+    await openTodayListOptions(page, 'List options')
+    await expect(page.getByRole('menuitem', { name: 'Refresh', exact: true })).toBeEnabled()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('menu')).toBeHidden()
+    await expect(page.getByTestId('today-refetch-motion')).toHaveCSS('opacity', '1')
     const source = page.locator('[data-habit-title="Habit 1"]')
     const start = await source.locator('[data-habit-row-body]').boundingBox()
     const target = await page.locator('[data-habit-title="Habit 3"]').boundingBox()
@@ -41,41 +93,7 @@ for (const width of [320, 360, 384, 412, 600, 768, 1280]) for (const mode of ['l
     await page.mouse.move(start.x + 12, start.y + start.height / 2)
     await page.mouse.down()
     await page.mouse.move(start.x + 12, start.y + start.height / 2 + 8)
-    const observations = rows.evaluateAll((elements) => new Promise<string[]>((resolve) => {
-      const list = elements[0]!.closest('[data-habit-list]')!
-      const failures = new Set<string>()
-      const started = performance.now()
-      const sample = () => {
-        const slots = Array.from(list.querySelectorAll('[data-testid="habit-row"]')).map((row) => {
-          const bounds = row.getBoundingClientRect()
-          const sortable = row.closest('[data-sortable-habit]')!
-          const transform = new DOMMatrixReadOnly(getComputedStyle(sortable).transform)
-          const title = row.getAttribute('data-habit-title')!
-          let top = bounds.top
-          let bottom = bounds.bottom
-          for (let ancestor: Element | null = row; ancestor; ancestor = ancestor.parentElement) {
-            const style = getComputedStyle(ancestor)
-            if (style.opacity !== '1' || style.visibility === 'hidden' || style.display === 'none') failures.add(`${title}: hidden`)
-            if (['hidden', 'clip'].includes(style.overflowY)) {
-              const clip = ancestor.getBoundingClientRect()
-              top = Math.max(top, clip.top)
-              bottom = Math.min(bottom, clip.bottom)
-            }
-          }
-          if (bottom - top < 1) failures.add(`${title}: clipped`)
-          const scroller = row.closest<HTMLElement>('[data-shell-scroller]')!
-          const contentTop = bounds.top - scroller.getBoundingClientRect().top + scroller.scrollTop
-          if (contentTop + bounds.height < 0 || contentTop > scroller.scrollHeight) failures.add(`${title}: unreachable`)
-          return { top: bounds.top - transform.m42, bottom: bounds.bottom - transform.m42 }
-        })
-        for (let index = 1; index < slots.length; index++) {
-          if (slots[index]!.top - slots[index - 1]!.bottom > 13) failures.add('Row slots exceed the shared gap')
-        }
-        if (performance.now() - started >= 750) resolve([...failures])
-        else requestAnimationFrame(sample)
-      }
-      requestAnimationFrame(sample)
-    }))
+    const observations = rows.evaluateAll(observeReorderRows)
     await page.mouse.move(start.x + 12, target.y + target.height / 2, { steps: 20 })
     await page.mouse.up()
     expect(await observations).toEqual([])

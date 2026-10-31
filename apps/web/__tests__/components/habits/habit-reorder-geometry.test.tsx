@@ -75,7 +75,7 @@ it.each(cases)('keeps $title visible across a two-row drag at $width px in $mode
     if (title === 'Habit 0') await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 5, undefined, { timeout: 2000 })
     const end = await target.evaluate((row) => {
       const box = row.getBoundingClientRect()
-      const transform = new DOMMatrixReadOnly(getComputedStyle(row.closest('[data-sortable-habit]')!).transform)
+      const transform = new DOMMatrixReadOnly(getComputedStyle(row.parentElement!.parentElement!).transform)
       return { y: box.top - transform.m42, height: box.height }
     })
     await page.mouse.move(start.x + 12, end.y + end.height / 2, { steps: 20 })
