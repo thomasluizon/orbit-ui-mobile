@@ -1,9 +1,10 @@
 import { createRequire } from 'node:module'
 import { X509Certificate } from 'node:crypto'
+import { lookup } from 'node:dns/promises'
 import { readFile, writeFile, copyFile, readdir, stat, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
-import { execute, start, stop, waitFor } from './host.mjs'
+import { delay, execute, start, stop, waitFor } from './host.mjs'
 import { npmCli } from './build.mjs'
 
 const require = createRequire(import.meta.url)
@@ -148,10 +149,27 @@ export async function isolateOrigins(output) {
       trusted = true
       await execute('sudo', ['cp', replacement, hosts])
     }
-    await refreshResolver()
+    await waitForIsolatedOrigins(refreshResolver)
     return { key: await readFile(join(output, 'server.key')), cert: await readFile(join(output, 'server.pem')), restore }
   } catch (error) {
     await restore()
     throw error
+  }
+}
+
+export async function waitForIsolatedOrigins(refreshResolver, resolve = lookup) {
+  const deadline = Date.now() + 10000
+  while (true) {
+    await refreshResolver()
+    const resolutions = await Promise.all(['app-staging.useorbit.org', 'github.com'].map(async (hostname) =>
+      ({ hostname, addresses: await resolve(hostname, { all: true }) })))
+    const failures = resolutions.filter(({ addresses }) => !addresses.length ||
+      addresses.some(({ address }) => !['127.0.0.1', '::1'].includes(address)))
+    if (!failures.length) return
+    const remaining = deadline - Date.now()
+    if (remaining <= 0) {
+      throw new Error(`Origin isolation failed for ${failures.map(({ hostname, addresses }) => `${hostname}: ${JSON.stringify(addresses)}`).join('; ')}`)
+    }
+    await delay(Math.min(250, remaining))
   }
 }

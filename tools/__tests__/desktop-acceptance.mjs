@@ -6,6 +6,7 @@ import { createInterface } from 'node:readline'
 import { PassThrough } from 'node:stream'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { runInNewContext } from 'node:vm'
+import { JSDOM } from 'jsdom'
 import { assertAccessibleTree, assertCookieEvidence, assertPaletteFocus } from '../desktop-bench/acceptance-contract.mjs'
 import { T, REPO_ROOT, check, configure, failureCount, root } from './_harness.mjs'
 import { networkCases } from './desktop-acceptance-network.mjs'
@@ -249,6 +250,64 @@ async function sessionProbeCases() {
   }
 }
 
+async function controlledPaletteCases() {
+  const dom = new JSDOM('<div id="palette"></div>', { pretendToBeVisual: true })
+  const properties = ['window', 'document', 'HTMLElement', 'Element', 'MutationObserver', 'getComputedStyle', 'ResizeObserver', 'requestAnimationFrame', 'cancelAnimationFrame']
+  const previousGlobals = properties.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
+  for (const key of properties) {
+    const value = key === 'ResizeObserver' ? class { observe() {} unobserve() {} }
+      : typeof dom.window[key] === 'function' && ['getComputedStyle', 'requestAnimationFrame', 'cancelAnimationFrame'].includes(key)
+        ? dom.window[key].bind(dom.window) : dom.window[key]
+    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value })
+  }
+  dom.window.HTMLElement.prototype.scrollIntoView = () => {}
+  const { createElement, useState } = await import('react')
+  const { createRoot } = await import('react-dom/client')
+  const { flushSync } = await import('react-dom')
+  const { Command } = await import('cmdk')
+  const mount = createRoot(dom.window.document.getElementById('palette'))
+  function Palette() {
+    const [selected, setSelected] = useState('habit-1')
+    return createElement(Command, { shouldFilter: false, value: selected, onValueChange: setSelected, label: 'Search or run' },
+      createElement(Command.Input, { autoFocus: true, 'aria-label': 'Search or run' }),
+      createElement(Command.List, null, [1, 2, 3, 4].map((index) => createElement(Command.Item,
+        { key: index, value: `habit-${index}`, disabled: index === 2 }, `Habit ${index}`))))
+  }
+  const reports = []
+  const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-probe.js'), 'utf8')
+    .replace('run().catch', 'globalThis.screen = screen; globalThis.paletteState = paletteState; Promise.resolve().catch')
+  const context = { window: dom.window, document: dom.window.document, setTimeout,
+    fetch: async (url, options) => { reports.push(JSON.parse(options.body)) },
+  }
+  try {
+    flushSync(() => mount.render(createElement(Palette)))
+    const input = dom.window.document.querySelector('[cmdk-input]')
+    const items = [...dom.window.document.querySelectorAll('[cmdk-item]')]
+    T('the installed controlled cmdk producer selects its first item before publishing an active descendant',
+      items[0].getAttribute('aria-selected') === 'true' && input.getAttribute('aria-activedescendant') === null)
+    runInNewContext(source, context)
+    await context.screen('palette-ready')
+    let previous = reports.at(-1)
+    T('palette readiness reports the controlled initial selection from the real cmdk producer',
+      previous.selected === 0 && previous.inputFocused && previous.results.join(',') === 'Habit 1,Habit 3,Habit 4', JSON.stringify(previous))
+    for (const expected of [1, 2]) {
+      flushSync(() => input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true })))
+      const current = context.paletteState()
+      T(`palette probe follows real ArrowDown to enabled result ${expected} without waiting for the wrong index`,
+        current.selected === expected && current.selected === previous.selected + 1 && current.inputFocused, JSON.stringify({ previous, current }))
+      previous = current
+    }
+  } finally {
+    flushSync(() => mount.unmount())
+    await new Promise((resolve) => setImmediate(resolve))
+    dom.window.close()
+    for (const [key, descriptor] of previousGlobals) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor)
+      else delete globalThis[key]
+    }
+  }
+}
+
 export async function cases() {
   check('desktop-bench/acceptance.mjs', 'installed acceptance help is cwd safe', ['--help'], { status: 0, stdout: /Usage/ }, { cwd: root })
   check('desktop-bench/acceptance.mjs', 'installed acceptance rejects unknown flags before doing work', ['--unknown'], { status: 2 })
@@ -260,6 +319,7 @@ export async function cases() {
   await networkCases()
   await installedLaunchCases()
   await sessionProbeCases()
+  await controlledPaletteCases()
   const native = { denied: false, error: null, nodes: [
     { id: '0', role: 'Document', name: '', interactive: false, focused: false, selected: false },
     { id: '0/1', role: 'Edit', name: 'Search commands', interactive: true, focused: true, selected: false },

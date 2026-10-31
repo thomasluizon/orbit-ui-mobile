@@ -3,7 +3,6 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { lookup } from 'node:dns/promises'
 import { request as requestHttp } from 'node:http'
 import { buildHermeticWeb } from './runner.mjs'
 import { readFixtures } from './build.mjs'
@@ -189,12 +188,6 @@ export async function acceptance({ repository, output }) {
     const native = await nativeTool(output)
     const updates = await updateServer(repository, output, shell, report)
     isolation = await isolateOrigins(output)
-    for (const hostname of ['app-staging.useorbit.org', 'github.com']) {
-      const addresses = await lookup(hostname, { all: true })
-      if (!addresses.length || addresses.some((entry) => !['127.0.0.1', '::1'].includes(entry.address))) {
-        throw new Error(`Origin isolation failed for ${hostname}: ${JSON.stringify(addresses)}`)
-      }
-    }
     proxy = await startProxy({ probePath: join(directory, 'acceptance-probe.js'), port: proxyPort, upstreamPort: 3401, tls: isolation, route: updates.route, acceptance: true })
     const executable = await install(shell.installer, output)
     report.install = { source: shell.installer, executable, target: shell.target, version: '1.0.0', optionalFeatures: [] }

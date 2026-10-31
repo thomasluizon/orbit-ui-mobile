@@ -9,31 +9,28 @@ import { T, REPO_ROOT } from './_harness.mjs'
 const runnerSource = () => readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
 
 async function originCheckCases() {
-  const source = runnerSource().slice(runnerSource().indexOf('export async function acceptance')).replace('export ', '')
+  const platformSource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-platform.mjs'), 'utf8')
+  const source = platformSource.slice(platformSource.indexOf('export async function waitForIsolatedOrigins')).replace('export ', '')
   for (const addresses of [[], [{ address: '203.0.113.7', family: 4 }], [{ address: '127.0.0.1', family: 4 }],
     [{ address: '::1', family: 6 }], [{ address: '127.0.0.1', family: 4 }, { address: '::1', family: 6 }],
     [{ address: '127.0.0.1', family: 4 }, { address: '2001:db8::7', family: 6 }]]) {
     const isolated = addresses.length > 0 && addresses.every(({ address }) => ['127.0.0.1', '::1'].includes(address))
-    const reachedProxy = new Error('origin check completed')
+    let elapsed = 0
+    let completed = false
     let failure
-    const context = { join, windows: true, directory: 'bench', process: { platform: 'win32', arch: 'x64', stdout: { write() {} } },
-      mkdir: async () => {}, existsSync: () => false, assertFree: async () => {},
-      startRecording: async () => async () => {}, buildInstaller: async () => ({}), hermeticServices: async () => {},
-      nativeTool: async () => {}, updateServer: async () => ({ route() {} }),
-      isolateOrigins: async () => ({ restore: async () => {} }), lookup: async () => addresses,
-      startProxy: async () => { throw reachedProxy }, stopAll: async () => {}, rm: async () => {}, record: async () => {},
+    const context = { Date: { now: () => elapsed }, delay: async (milliseconds) => { elapsed += milliseconds },
     }
-    runInNewContext(`${source}\nglobalThis.acceptance = acceptance`, context)
-    try { await context.acceptance({ repository: 'repository', output: 'output' }) } catch (error) { failure = error }
+    runInNewContext(`${source}\nglobalThis.waitForIsolatedOrigins = waitForIsolatedOrigins`, context)
+    try { await context.waitForIsolatedOrigins(async () => {}, async () => addresses); completed = true } catch (error) { failure = error }
     T(`origin isolation ${isolated ? 'accepts' : 'rejects'} ${JSON.stringify(addresses)}`, isolated
-      ? failure === reachedProxy
-      : failure?.message.includes('Origin isolation failed for app-staging.useorbit.org') && failure.message.includes(JSON.stringify(addresses)))
+      ? completed && !failure
+      : !completed && failure?.message.includes('Origin isolation failed for app-staging.useorbit.org') && failure.message.includes(JSON.stringify(addresses)))
   }
 }
 
 async function hostsReplacementCases() {
   const platformSource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-platform.mjs'), 'utf8')
-  const source = platformSource.slice(platformSource.indexOf('export async function isolateOrigins')).replace('export ', '')
+  const source = platformSource.slice(platformSource.indexOf('export async function isolateOrigins')).replaceAll('export ', '')
   for (const windows of [false, true]) {
     for (const failAfterSwap of [false, true]) {
       const paths = windows ? win32 : { join }
@@ -46,6 +43,7 @@ async function hostsReplacementCases() {
       const copy = async (from, to) => { files.set(to, files.get(from)); calls.push(['copy', from, to]); if (to === hosts && from.endsWith('isolated-hosts')) swapped = files.get(to) }
       const context = { windows, join: paths.join, process: { env: { SystemRoot: 'system' } },
         X509Certificate: class { fingerprint = '00:11' },
+        lookup: async () => [{ address: '127.0.0.1', family: 4 }, { address: '::1', family: 6 }],
         readFile: async (path) => { if (failAfterSwap && path.endsWith('server.key')) throw failure; return files.get(path) ?? 'certificate' },
         writeFile: async (path, value) => { files.set(path, value) }, copyFile: copy,
         execute: async (command, argumentsList) => {
@@ -69,6 +67,54 @@ async function hostsReplacementCases() {
       T('cleanup removes the temporary certificate trust', calls.some(([command, ...argumentsList]) => windows
         ? command === 'certutil.exe' && argumentsList.join(',') === '-delstore,Root,0011'
         : command === 'sudo' && argumentsList.join(',') === 'security,delete-certificate,-Z,0011,/Library/Keychains/System.keychain'))
+    }
+  }
+}
+
+async function resolverReloadCases() {
+  const platformSource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-platform.mjs'), 'utf8')
+  const source = platformSource.slice(platformSource.indexOf('export async function isolateOrigins')).replaceAll('export ', '')
+  const publicAddresses = [{ address: '203.0.113.7', family: 4 }]
+  const loopbacks = [{ address: '127.0.0.1', family: 4 }, { address: '::1', family: 6 }]
+  for (const converges of [true, false]) {
+    let elapsed = 0
+    let attempts = 0
+    let refreshes = 0
+    let restored = false
+    let removedTrust = false
+    const resolved = []
+    const context = {
+      windows: false, join, process: { env: {} }, Date: { now: () => elapsed },
+      X509Certificate: class { fingerprint = '00:11' },
+      readFile: async () => 'certificate', writeFile: async () => {},
+      execute: async (command, argumentsList) => {
+        if (argumentsList[0] === 'dscacheutil') refreshes++
+        if (argumentsList[0] === 'cp' && argumentsList[1].endsWith('original-hosts')) restored = true
+        if (argumentsList[0] === 'security' && argumentsList[1] === 'delete-certificate') removedTrust = true
+      },
+      delay: async (milliseconds) => { elapsed += milliseconds },
+      lookup: async (hostname, options) => {
+        if (hostname === 'app-staging.useorbit.org') attempts++
+        resolved.push({ hostname, options, refreshes })
+        return converges && attempts >= 3 ? loopbacks : publicAddresses
+      },
+    }
+    runInNewContext(`${source}\nglobalThis.isolateOrigins = isolateOrigins`, context)
+    let isolation
+    let failure
+    try { isolation = await context.isolateOrigins('output') } catch (error) { failure = error }
+    if (converges) {
+      T('origin isolation waits for both hostnames to resolve only to loopback on the third attempt',
+        !failure && isolation && attempts === 3 && resolved.length === 6, failure?.message ?? JSON.stringify(resolved))
+      T('resolver reload is refreshed between attempts and every lookup requests all address families',
+        elapsed > 0 && resolved.every(({ options, refreshes }, index) => options.all === true && refreshes === Math.floor(index / 2) + 1))
+      await isolation?.restore()
+    } else {
+      T('origin isolation fails at its deadline with each hostname and the observed addresses',
+        !isolation && failure?.message.includes(`app-staging.useorbit.org: ${JSON.stringify(publicAddresses)}`) &&
+        failure.message.includes(`github.com: ${JSON.stringify(publicAddresses)}`) && elapsed >= 10000 && elapsed <= 10250,
+        failure?.message ?? `returned before isolation after ${attempts} lookups`)
+      T('origin isolation deadline still restores hosts and certificate trust', restored && removedTrust)
     }
   }
 }
@@ -157,6 +203,7 @@ async function proxyErrorCases() {
 export async function networkCases() {
   await originCheckCases()
   await hostsReplacementCases()
+  await resolverReloadCases()
   await standaloneStartupCases()
   await proxyErrorCases()
 }

@@ -45,8 +45,11 @@
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', code: 'KeyK', metaKey: /Mac/.test(navigator.platform), ctrlKey: !/Mac/.test(navigator.platform), bubbles: true }))
     }
     if (name === 'palette' || name === 'palette-ready') {
-      await until(() => document.querySelector('[cmdk-input]') === document.activeElement && document.querySelectorAll('[cmdk-item]').length >= 2, 'palette input and results')
-      await report('palette', paletteState())
+      const state = await until(() => {
+        const current = paletteState()
+        return current.inputFocused && current.results.length >= 3 && current.selected >= 0 && current
+      }, 'palette input and selection')
+      await report('palette', state)
       return
     }
     await report(name, name === 'palette' ? paletteState() : {})
@@ -54,7 +57,7 @@
   function paletteState() {
     const input = document.querySelector('[cmdk-input]')
     const results = [...document.querySelectorAll('[cmdk-item]:not([aria-disabled="true"])')]
-    const selected = results.findIndex((result) => result.id === input?.getAttribute('aria-activedescendant'))
+    const selected = results.findIndex((result) => result.getAttribute('aria-selected') === 'true')
     return { inputFocused: document.activeElement === input, selected, results: results.map((result) => result.getAttribute('aria-label') || result.textContent.trim()), inputName: input?.getAttribute('aria-label') }
   }
   async function update(expected) {
