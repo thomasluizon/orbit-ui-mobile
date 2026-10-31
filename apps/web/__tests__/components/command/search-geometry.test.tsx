@@ -43,10 +43,19 @@ async function expectMatchContrast(page: Awaited<ReturnType<Browser['newPage']>>
       const fragment = match.parentElement!.querySelector('[data-personal-text]')
       const layers = []
       for (let ancestor: Element | null = match; ancestor; ancestor = ancestor.parentElement) layers.unshift(getComputedStyle(ancestor).backgroundColor)
-      return { label: getComputedStyle(match).color, fragment: fragment ? getComputedStyle(fragment).color : null, layers, fontSize: getComputedStyle(match).fontSize }
+      const bounds = element.getBoundingClientRect()
+      const content = [...element.children].map((child) => child.getBoundingClientRect())
+      const clearance = {
+        top: Math.min(...content.map((child) => child.top - bounds.top)),
+        bottom: Math.min(...content.map((child) => bounds.bottom - child.bottom)),
+        left: Math.min(...content.map((child) => child.left - bounds.left)),
+        right: Math.min(...content.map((child) => bounds.right - child.right)),
+      }
+      return { clearance, label: getComputedStyle(match).color, fragment: fragment ? getComputedStyle(fragment).color : null, layers, fontSize: getComputedStyle(match).fontSize }
     }, labels)
     const evidence = JSON.stringify({ ...context, surface, index, state, measured })
     expect(measured.fontSize).toBe('12px')
+    for (const inset of Object.values(measured.clearance)) expect(inset, evidence).toBeGreaterThanOrEqual(12)
     expect(contrastOnSurface(measured.label, measured.layers), evidence).toBeGreaterThanOrEqual(4.5)
     if (measured.fragment) {
       expect(contrastOnSurface(measured.fragment, measured.layers), evidence).toBeGreaterThanOrEqual(4.5)
@@ -72,7 +81,7 @@ describe('search result geometry in Chromium', () => {
 
   it.each([412, 1352].flatMap((width) => ['en', 'pt-BR'].flatMap((locale) =>
     (['light', 'dark'] as const).flatMap((theme) => ['search', 'palette'].map((surface) => ({ width, locale, theme, surface }))),
-  )))('keeps match text readable on $surface in $theme at $width in $locale', async ({ width, locale, theme, surface }) => {
+  )))('keeps match text readable and padded on $surface in $theme at $width in $locale', async ({ width, locale, theme, surface }) => {
     mocks.wide = width >= WIDE_DESKTOP_BREAKPOINT
     const messages = locale === 'en' ? en : ptBR
     const habits = [
