@@ -92,7 +92,7 @@ describe('production scenario mutation scope', () => {
     for (const tool of catalog) expect(typeof tool.writes, tool.function.name).toBe('boolean')
   })
 
-  it.each(scenarios.filter((scenario) => !scenario.vars.refine).map((scenario) => [scenario.metadata.id, scenario.vars]))(
+  it.each(scenarios.filter((scenario) => !scenario.vars.refine && !scenario.metadata.family?.startsWith('offers-')).map((scenario) => [scenario.metadata.id, scenario.vars]))(
     '%s accepts its operations and rejects an extra valid write', async (id, vars) => {
       const retrospective = retrospectiveResponse(true)
       vars = JSON.parse(JSON.stringify(vars).replaceAll('{accountDate}', retrospective.dateTo)

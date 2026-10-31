@@ -19,7 +19,7 @@ export async function readRestartSnapshot(api) {
   return snapshot.toSorted((left, right) => left.habit.id.localeCompare(right.habit.id))
 }
 
-export async function seedRestart(api, account, today, titles, dailyHabit, dateOffset) {
+export async function seedRestart(api, account, today, titles, dailyHabit, dateOffset, nonDaily = false) {
   const ids = [account.habitId, account.secondHabitId]
   for (const title of titles.slice(2)) {
     const { payload } = await api('POST', 'habits', dailyHabit(title, dateOffset(today, -6)))
@@ -30,6 +30,7 @@ export async function seedRestart(api, account, today, titles, dailyHabit, dateO
     await api('PUT', `habits/${id}`, dailyHabit(titles[index], dateOffset(today, -6)))
     await api('POST', `habits/${id}/log`, { date: dateOffset(today, -6) })
     await api('PUT', `habits/${id}`, { ...dailyHabit(titles[index], index < 4 ? dateOffset(today, -2) : today),
+      frequencyQuantity: nonDaily && index < 4 ? 3 : 1,
       dueTime: index % 2 ? '18:00:00' : '08:00:00', dueEndTime: index % 2 ? '18:15:00' : '08:15:00',
       reminderEnabled: true, reminderTimes: [30],
       checklistItems: [{ text: titles[index], isChecked: false }], clearEndDate: true, clearParent: true })
@@ -38,7 +39,7 @@ export async function seedRestart(api, account, today, titles, dailyHabit, dateO
   for (const [index, id] of ids.entries()) {
     const entry = baseline.find(({ habit }) => habit.id === id)
     if (entry.habit.title !== titles[index] || entry.habit.dueDate !== (index < 4 ? dateOffset(today, -2) : today)
-      || entry.habit.frequencyUnit !== 'Day' || entry.habit.frequencyQuantity !== 1 || entry.habit.days.length !== 0
+      || entry.habit.frequencyUnit !== 'Day' || entry.habit.frequencyQuantity !== (nonDaily && index < 4 ? 3 : 1) || entry.habit.days.length !== 0
       || entry.habit.reminderEnabled !== true || !isDeepStrictEqual(entry.habit.reminderTimes, [30])
       || entry.habit.dueTime !== (index % 2 ? '18:00:00' : '08:00:00')
       || entry.habit.dueEndTime !== (index % 2 ? '18:15:00' : '08:15:00')

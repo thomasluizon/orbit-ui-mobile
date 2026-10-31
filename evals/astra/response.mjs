@@ -1,3 +1,7 @@
+import { tsImport } from 'tsx/esm/api'
+
+const { chatResponseSchema } = await tsImport('../../packages/shared/src/types/chat.ts', import.meta.url)
+
 export function extractTrace(response, responseRequestId) {
   const trace = response?.evalTrace
   const evidence = { timing: trace?.timing ?? null,
@@ -17,19 +21,20 @@ export function extractTrace(response, responseRequestId) {
   }
 }
 
-const compositionKeys = ['aiMessage', 'parts', 'actions', 'operations', 'pendingOperations', 'policyDenials',
-  'relatedSurfaces', 'followUps', 'followUpContext']
+const compositionKeys = Object.keys(chatResponseSchema.shape)
 
 export default function parseResponse(response, _text, context) {
   const httpStatus = context?.response?.status ?? 200
   const responseRequestId = context?.response?.headers?.['x-orbit-request-id']
   if (httpStatus === 403 || httpStatus === 400) {
     const expectedCode = httpStatus === 403 ? 'PAY_GATE' : 'CONTENT_MODERATION_REFUSED'
+    const httpError = { status: httpStatus, errorCode: response?.errorCode ?? null, error: response?.error ?? null,
+      ...(httpStatus === 400 ? { responseRequestId: responseRequestId ?? null } : {}) }
     if (response?.errorCode !== expectedCode || typeof response.error !== 'string' || !response.error.trim()) {
-      return { error: 'Astra returned an unexpected refusal.' }
+      return { error: 'Astra returned an unexpected refusal.', ...(httpStatus === 400 ? { output: { httpStatus, httpError } } : {}) }
     }
     return { answer: response.error, composition: { aiMessage: response.error }, httpStatus,
-      httpError: { status: httpStatus, errorCode: response.errorCode, error: response.error },
+      httpError,
       trace: { state: 'refused', responseRequestId, refusalCode: expectedCode } }
   }
   if (httpStatus !== 200) return { error: `Astra returned HTTP ${httpStatus}.` }

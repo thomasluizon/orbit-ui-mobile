@@ -11,7 +11,7 @@ import { summarize } from '../report.mjs'
 import { behavior } from '../assertions.mjs'
 import { toolCall } from './fixtures/producer.mjs'
 
-const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((file) => parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')))
+const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((file) => parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'), { merge: true }))
 let habits, goals, tags, templates, requests, pro, exhausted, capacity, email, unmetered
 beforeEach(() => {
   offlineCredentials()
@@ -27,6 +27,64 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const scenario = (fixture) => structuredClone(corpus.find((entry) => entry.metadata.fixture === fixture))
+it.each(['en', 'pt-BR'])('seeds missed non-daily offer occurrences and verifies their cadence in %s', async (locale) => {
+  const test = structuredClone(corpus.find((entry) => entry.metadata.id === `offers-missed-${locale}`))
+  test.metadata.fixture = 'restart-non-daily'
+  test.vars.accountDate = '2026-10-24'
+  await resetFixture(test)
+  const active = habits.filter((habit) => !habit.deleted)
+  expect(active).toHaveLength(6)
+  const overdue = active.filter((habit) => habit.dueDate < test.vars.accountDate)
+  expect(overdue).toHaveLength(4)
+  expect(overdue.every((habit) => habit.frequencyUnit === 'Day' && habit.frequencyQuantity === 3)).toBe(true)
+  expect(overdue.every((habit) => (Date.parse(`${test.vars.accountDate}T12:00:00Z`) - Date.parse(`${habit.dueDate}T12:00:00Z`)) / 86400000 % 3 !== 0)).toBe(true)
+  expect(active.every((habit) => habit.logs.length === 1)).toBe(true)
+  expect(test.vars.fixtureEvidence.habits).toHaveLength(6)
+  expect(requests.some(({ path }) => path.startsWith('chat'))).toBe(false)
+  const source = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    const response = await source(url, options)
+    if (options.method === 'GET' && /^\/api\/habits\/[^/]+$/u.test(new URL(url).pathname)) {
+      return Response.json({ ...await response.json(), frequencyQuantity: 1 })
+    }
+    return response
+  })
+  await expect(resetFixture(test)).rejects.toThrow('Restart fixture failed independent field or history verification.')
+})
+it('resets behind fixtures on the profile calendar day without replacing the original timezone', async () => {
+  vi.setSystemTime(new Date('2031-06-10T00:30:00Z'))
+  const test = structuredClone(corpus.find((entry) => entry.metadata.id === 'offers-goal-behind-en'))
+  Object.assign(test.vars, { offerFamily: 'goal-behind', offerVariant: 1 })
+  const source = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    const response = await source(url, options)
+    return new URL(url).pathname === '/api/profile'
+      ? Response.json({ ...await response.json(), timeZone: 'America/Sao_Paulo' }) : response
+  })
+  await resetFixture(test)
+  expect(test.vars.accountDate).toBe('2031-06-09')
+  expect(test.vars.fixtureEvidence.loggedState.date).toBe('2031-06-09')
+  expect(requests.some(({ path }) => path === 'profile/timezone')).toBe(false)
+})
+
+it.each(['en', 'pt-BR'])('GW resets the behind %s fixture during the former timezone gap without chat', async (locale) => {
+  vi.setSystemTime(new Date('2031-06-10T10:30:00Z'))
+  const test = structuredClone(corpus.find((entry) => entry.metadata.id === `offers-goal-behind-${locale}`))
+  Object.assign(test.vars, { offerFamily: 'goal-behind', offerVariant: 1 })
+  const source = globalThis.fetch
+  vi.stubGlobal('fetch', async (url, options) => {
+    const response = await source(url, options)
+    return new URL(url).pathname === '/api/profile'
+      ? Response.json({ ...await response.json(), timeZone: 'America/Sao_Paulo' }) : response
+  })
+  await expect(resetFixture(test)).resolves.toBeUndefined()
+  expect(test.vars.accountDate).toBe('2031-06-10')
+  expect(test.vars.fixtureEvidence.loggedState.date).toBe(test.vars.accountDate)
+  expect(test.vars.fixtureEvidence.habits).toHaveLength(2)
+  expect(goals).toHaveLength(1)
+  expect(requests.some(({ path }) => path === 'profile/timezone' || path.startsWith('chat'))).toBe(false)
+})
+
 it.each(['en', 'pt-BR'])('seeds and reads back existing checked checklist items in %s', async (locale) => {
   const test = scenario('pro')
   test.metadata.fixture = 'starting-step-checklist'
@@ -109,7 +167,7 @@ it.each([...new Set(corpus.map((entry) => entry.metadata.fixture))])('establishe
   else if (fixture === 'free-at-limit') expect(active).toHaveLength(capacity)
   else if (fixture === 'malicious-title') expect(active).toHaveLength(3)
   else if (fixture === 'hoje-next-step') expect(active).toHaveLength(12)
-  else if (fixture === 'restart') {
+  else if (fixture === 'restart' || fixture === 'restart-non-daily') {
     expect(active).toHaveLength(6)
     expect(test.vars.restartBaseline).toHaveLength(6)
     expect(active.filter((habit) => habit.dueDate < '2026-10-24')).toHaveLength(4)

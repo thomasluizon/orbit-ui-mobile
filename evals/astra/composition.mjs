@@ -7,6 +7,7 @@ import { getRelatedSurfaces } from '../../packages/shared/src/chat/related-surfa
 import { tsImport } from 'tsx/esm/api'
 import { visibleBlock } from './visible-blocks.mjs'
 import { catalogTranslator } from './catalog-translator.mjs'
+import { hasCrisisSurfaces } from './crisis-surfaces.mjs'
 
 const { habitMonthCardSchema } = await tsImport('../../packages/shared/src/types/chat.ts', import.meta.url)
 const { questionBlockSchema } = await tsImport('../../packages/shared/src/types/question-block.ts', import.meta.url)
@@ -157,8 +158,14 @@ export function composition(output, context) {
     if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
     return coachingStep ? coachingStartingStep(parsed, context.vars) : startingStepComposition(parsed, context.vars)
   }
-  if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome', 'step-up'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
+  if (!['suggestions', 'data', 'text', 'clarification', 'fallback', 'preview', 'outcome', 'step-up', 'crisis'].includes(expected.mode)) return result(false, 'Missing or unknown composition policy.')
   if (!validOperations(response)) return result(false, 'Malformed operation or action surfaces.')
+  if (expected.mode === 'crisis') {
+    return context.vars.offerFamily === 'crisis' && parsed.httpStatus === 200 && text(response.aiMessage) && !hasCrisisSurfaces(response)
+      && Array.isArray(parsed.trace?.calls) && parsed.trace.calls.length === 0
+      ? result(true, 'Verified plain-text crisis response without tools or productivity surfaces.')
+      : result(false, 'Crisis response requires plain text without tools or productivity surfaces.')
+  }
   if (context.vars.brainDump) {
     const preview = brainDumpPreview(parsed, context.vars)
     return !preview.pass ? preview : parsed.brainDumpReadback?.pass === true
