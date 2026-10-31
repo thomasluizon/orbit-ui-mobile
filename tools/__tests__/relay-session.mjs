@@ -1,11 +1,13 @@
 import { spawn, spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { setTimeout as wait } from "node:timers/promises"
 import { closeRelayTerminal, relaySession } from "../relay-session.mjs"
 import { adoptRelayRun, openSessionChain, readSessionChain, writeSessionChain } from "../lib/session-chain.mjs"
 import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, writeRunState } from "../lib/run-state.mjs"
 import { readHandoffRequest, recordHandoffRequest } from "../lib/handoff-prompt.mjs"
 import { T, realOrchestratorConfig, stageRepo, toolPath } from "./_harness.mjs"
+import { checkRelayStop } from "../../.claude/hooks/_lib/rules-relay.mjs"
 
 const usage = JSON.parse(readFileSync(new URL("./fixtures/session-usage.json", import.meta.url), "utf8"))
 const created = readFileSync(new URL("./fixtures/orca-relay-create.json", import.meta.url), "utf8")
@@ -162,7 +164,76 @@ if (args[1] === "close") writeFileSync(${JSON.stringify(log)}, JSON.stringify({ 
   T("relay-session: detached CLI closes exactly the finishing handle", observed?.args.join(" ") === "terminal close --terminal term_predecessor --json")
 }
 
+const fileWaiterCase = async () => {
+  const staged = fixture("file-waiters")
+  cpSync(toolPath("lib"), join(staged.checkout, "tools", "lib"), { recursive: true })
+  const waiterPath = join(staged.checkout, "tools", "wait-file.mjs")
+  cpSync(toolPath("wait-file.mjs"), waiterPath)
+  const file = join(staged.checkout, ".git", "DONE")
+  const trigger = join(staged.checkout, ".git", "finish-check")
+  const check = spawn(process.execPath, ["-e", `
+    const { existsSync, writeFileSync } = require("node:fs")
+    const timer = setInterval(() => {
+      if (!existsSync(${JSON.stringify(trigger)})) return
+      writeFileSync(${JSON.stringify(file)}, "done")
+      clearInterval(timer)
+    }, 10)
+  `], { detached: process.platform !== "win32", stdio: "ignore" })
+  const checkClosed = new Promise((resolve) => check.once("close", resolve))
+  const waiters = []
+  const startWaiter = (sessionId) => {
+    const environment = { ...process.env }
+    delete environment.CLAUDE_CODE_SESSION_ID
+    if (sessionId) environment.CLAUDE_CODE_SESSION_ID = sessionId
+    const child = spawn(process.execPath, [waiterPath, "--file", file, "--what", "detached gate", "--poll-seconds", "0.01"], {
+      cwd: staged.checkout, env: environment,
+    })
+    let stdout = ""
+    child.stdout.on("data", (chunk) => { stdout += chunk })
+    const closed = new Promise((resolve) => child.once("close", (status) => resolve({ status, stdout })))
+    waiters.push({ child, closed })
+    return child
+  }
+  try {
+    const current = startWaiter("predecessor")
+    const fallback = startWaiter(null)
+    const other = startWaiter("other-session")
+    let live = []
+    const deadline = Date.now() + 5000
+    while (Date.now() < deadline) {
+      live = readWakeSourceStates(staged.checkout).live
+      if (live.length === 3) break
+      await wait(10)
+    }
+    T("relay file waiter: real registrations are live", live.length === 3)
+    T("relay file waiter: explicit and run-state session ownership", live.find((source) => source.pid === current.pid)?.sessionId === "predecessor" && live.find((source) => source.pid === fallback.pid)?.sessionId === "predecessor")
+    const verdict = checkRelayStop({ enabled: true, thresholdTokens: 400000, measuredTokens: 400000,
+      state: readRunState(staged.checkout), sessionId: "predecessor", wakeSources: live })
+    T("relay file waiter: live waiters do not block hook drain", verdict?.begin === false)
+    const message = await failure({ repoRoot: staged.checkout, sessionId: "predecessor", execute: executeFor(staged.checkout), wait: async () => {}, confirmMilliseconds: 10 })
+    T("relay file waiter: live waiters do not block relay tool", message === null, String(message))
+    await Promise.race([Promise.all(waiters.slice(0, 2).map((entry) => entry.closed)), wait(2000)])
+    T("relay file waiter: relay stops this session's waiters", current.exitCode === 143 && fallback.exitCode === 143)
+    T("relay file waiter: only the other session's registration remains", readWakeSourceStates(staged.checkout).live.map((source) => source.pid).join() === String(other.pid))
+    T("relay file waiter: detached check remains running", check.exitCode === null && !existsSync(file))
+    if (message === null) {
+      const successor = startWaiter(readRunState(staged.checkout).sessionId)
+      const successorDeadline = Date.now() + 5000
+      while (Date.now() < successorDeadline && !readWakeSourceStates(staged.checkout).live.some((source) => source.pid === successor.pid)) await wait(10)
+      T("relay file waiter: successor registers before check completion", readWakeSourceStates(staged.checkout).live.some((source) => source.pid === successor.pid) && !existsSync(file))
+      writeFileSync(trigger, "finish")
+      const completed = await Promise.race([waiters.at(-1).closed, wait(5000)])
+      T("relay file waiter: successor wakes on the same completion file", completed?.status === 0 && JSON.parse(completed.stdout).file === file && JSON.parse(completed.stdout).found === true && successor.exitCode === 0)
+    }
+  } finally {
+    for (const { child } of waiters) child.kill("SIGKILL")
+    check.kill("SIGKILL")
+    await Promise.all([...waiters.map((entry) => entry.closed), checkClosed])
+  }
+}
+
 export const cases = async () => {
+  await fileWaiterCase()
   for (const [label, options, message] of [["below", { tokens: 399999 }, /below threshold/], ["young", { calls: 19 }, /at least 20/]]) {
     const staged = fixture(label, options)
     T(`relay-session: refuses ${label}`, message.test(await failure({ repoRoot: staged.checkout, sessionId: "predecessor" })))

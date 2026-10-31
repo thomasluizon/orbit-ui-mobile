@@ -53,6 +53,21 @@ function loadTurnstile(): Promise<TurnstileApi> {
   return turnstileLoad
 }
 
+function useChallengeVisibility() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [challengeVisible, setChallengeVisible] = useState(false)
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const observer = new ResizeObserver(() => {
+      setChallengeVisible(container.getBoundingClientRect().height > 0)
+    })
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
+  return { containerRef, challengeVisible }
+}
+
 export function TurnstileWidget({
   siteKey,
   resetKey,
@@ -74,7 +89,7 @@ export function TurnstileWidget({
   const appLocale = useLocale()
   // WHY: Cloudflare lists Orbit's pt-BR as pt-br https://developers.cloudflare.com/turnstile/reference/supported-languages/
   const challengeLanguage = (language ?? appLocale).toLowerCase()
-  const containerRef = useRef<HTMLDivElement>(null)
+  const { containerRef, challengeVisible } = useChallengeVisibility()
   const widgetIdRef = useRef<unknown>(null)
   const callbacksRef = useRef({ onToken, onStateChange })
   const [state, setState] = useState<WidgetState>('idle')
@@ -128,7 +143,7 @@ export function TurnstileWidget({
       if (widgetId != null) getTurnstile()?.remove(widgetId)
       widgetIdRef.current = null
     }
-  }, [siteKey, theme, challengeLanguage, attempt])
+  }, [containerRef, siteKey, theme, challengeLanguage, attempt])
 
   useEffect(() => {
     if (resetKey === 0) return
@@ -148,10 +163,12 @@ export function TurnstileWidget({
     }
   }
 
-  if (quiet) return <div ref={containerRef} />
+  const statusVisible = !quiet && (state === 'loading' || state === 'failed' || state === 'expired')
+  const position = challengeVisible || statusVisible ? undefined : 'absolute'
+  if (quiet) return <div ref={containerRef} style={{ position }} />
 
   return (
-    <div className="flex flex-col items-center text-sm text-[var(--fg-2)]" style={{ gap: 8 }}>
+    <div className="flex flex-col items-center text-sm text-[var(--fg-2)]" style={{ gap: 8, position }}>
       <div ref={containerRef} />
       <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
         {state === 'loading' ? t('auth.turnstileLoading') : ''}
