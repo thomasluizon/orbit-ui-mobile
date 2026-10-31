@@ -109,14 +109,14 @@ describe('mobile useRescheduleSuggestion', () => {
     expect(hook.error).toBe(error)
   })
 
-  it('preserves the API code and refuses retries for a deterministic 400', async () => {
-    const error = createApiClientError(400, { error: 'This is not overdue.', errorCode: 'HABIT_NOT_OVERDUE' }, 'Failed')
+  it.each([{ status: 400, errorCode: 'HABIT_NOT_OVERDUE' }, { status: 424, errorCode: 'AI_PROVIDER_QUOTA_EXHAUSTED' }, { status: 500, errorCode: 'AI_PROVIDER_QUOTA_EXHAUSTED' }])('does not retry a final $errorCode response with status $status', async ({ status, errorCode }) => {
+    const error = createApiClientError(status, { error: 'This is not overdue.', errorCode }, 'Failed')
     mocks.apiClient.mockRejectedValue(error)
     mocks.useQuery.mockReturnValue({ data: undefined, isLoading: false, error, refetch: vi.fn() })
     const result = useRescheduleSuggestion({ habitId: 'h-1', locale: 'en', enabled: true })
     await expect(lastQuery().queryFn({ signal: new AbortController().signal })).rejects.toBe(error)
     expect(mocks.apiClient).toHaveBeenCalledOnce()
-    expect(extractBackendErrorCode(result.error)).toBe('HABIT_NOT_OVERDUE')
+    expect(extractBackendErrorCode(result.error)).toBe(errorCode)
     expect(lastQuery().retry?.(0, error)).toBe(false)
   })
 
