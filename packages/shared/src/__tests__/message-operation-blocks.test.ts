@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { selectMessageOperationBlocks } from '../chat/message-operation-blocks'
-import { agentPolicyDenialFixture, failedReadOperationFixture, makeActionResult, makeAgentOperationResult, makeHeldHabitMessage } from '../test-support/chat-fixtures'
+import { deniedBulkCreateReplyFixture, agentPolicyDenialFixture, failedReadOperationFixture, makeActionResult, makeAgentOperationResult, makeHeldHabitMessage } from '../test-support/chat-fixtures'
 import { agentOperationResultSchema } from '../types/ai'
 import en from '../i18n/en.json'
 import pt from '../i18n/pt-BR.json'
@@ -44,9 +44,9 @@ describe('read operation failures', () => {
     expect(selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [operation] })).outcomes).toHaveLength(0)
   })
 
-  it('omits an unlabelled write row instead of showing a generic operation', () => {
+  it('retains a tag write without a target', () => {
     const operation = agentOperationResultSchema.parse({ ...failedReadOperationFixture, access: 'write', sourceName: 'assign_tags' })
-    expect(selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [operation] })).outcomes).toHaveLength(0)
+    expect(selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [operation] })).outcomes).toMatchObject([{ source: 'assign_tags', status: 'Failed' }])
   })
 })
 
@@ -121,4 +121,17 @@ describe('one block per write', () => {
     expect(blocks.actions).toHaveLength(0)
     expect(blocks.outcomes).toMatchObject([{ status: 'UnsupportedByPolicy' }])
   })
+})
+
+it('retains the denied bulk create from the offer replay without a target or policy denial', () => {
+  expect(selectMessageOperationBlocks(deniedBulkCreateReplyFixture).outcomes).toMatchObject([
+    { source: 'bulk_create_habits', status: 'Denied', policyReason: 'invalid_offer', target: null },
+  ])
+})
+
+it.each(['write', undefined])('retains an unknown source without a target for access=%s', access => {
+  const operation = agentOperationResultSchema.parse({ ...deniedBulkCreateReplyFixture.operations![0]!, sourceName: 'future_write', access })
+  expect(selectMessageOperationBlocks({ ...deniedBulkCreateReplyFixture, operations: [operation] }).outcomes).toMatchObject([
+    { source: 'future_write', status: 'Denied', target: null },
+  ])
 })

@@ -505,11 +505,11 @@ describe('PendingOperationCard', () => {
     expect(confirm).not.toHaveBeenCalled()
   })
 
-  it('does not mark a denied execution as done', async () => {
-    confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Denied' } } })
+  it.each([{ reason: 'invalid_offer', account: false }, { reason: 'plan_required:pro', account: true }])('does not mark a denied execution as done for $reason', async ({ reason, account }) => {
+    confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Denied', policyReason: reason } } })
     render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ riskClass: 'Low', confirmationRequirement: 'None' })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
-    await waitFor(() => expect(screen.getByText('chat.operation.status.Denied')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(account ? 'chat.operation.status.Denied' : 'chat.operation.status.changeNotMade')).toBeInTheDocument())
   })
 
   it('keeps the completed preview and opens its created habit', async () => {

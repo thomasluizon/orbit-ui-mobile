@@ -1170,18 +1170,18 @@ describe('PendingOperationCard (mobile)', () => {
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
   })
 
-  it('does not mark a denied execution as done', async () => {
+  it.each([{ reason: 'invalid_offer', account: false }, { reason: 'plan_required:pro', account: true }])('does not mark a denied execution as done for $reason', async ({ reason, account }) => {
     const { tree, handlers } = renderCard({ riskClass: 'Low', confirmationRequirement: 'None' })
     handlers.onConfirmExecute.mockResolvedValue({
       ok: true,
-      response: { operation: { status: 'Denied' } },
+      response: { operation: { status: 'Denied', policyReason: reason } },
     })
     await TestRenderer.act(async () => {
       press(tree, 'chat.operation.approve').props.onPress()
       await Promise.resolve()
     })
 
-    expect(renderedText(tree.toJSON())).toContain('chat.operation.status.Denied')
+    expect(renderedText(tree.toJSON())).toContain(account ? 'chat.operation.status.Denied' : 'chat.operation.status.changeNotMade')
     expect(renderedText(tree.toJSON())).not.toContain('status.failed')
     expect(renderedText(tree.toJSON())).not.toContain('status.done')
   })

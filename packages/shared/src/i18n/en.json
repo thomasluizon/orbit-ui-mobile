@@ -2172,6 +2172,7 @@
       "stepUpAction": "Confirm identity",
       "openProfile": "Open Profile",
       "outcome": {
+        "changeNotMade": "Change not made",
         "PendingConfirmation": "Awaiting confirmation",
         "Denied": "Not available",
         "UnsupportedByPolicy": "Profile only",
@@ -2179,6 +2180,7 @@
         "Failed": "Some items did not save"
       },
       "status": {
+        "changeNotMade": "Astra couldn't make that change.",
         "PendingConfirmation": "Nothing has changed yet",
         "Denied": "This account cannot do that",
         "UnsupportedByPolicy": "Manage this in Profile",
@@ -2249,6 +2251,10 @@
       },
       "confirmActionTitle": "{action}?",
       "source": {
+        "updateChecklistTemplate": "Update checklist template",
+        "suggestBreakdown": "Break down habit",
+        "undoSkipHabit": "Undo skip",
+        "unlogHabit": "Undo log",
         "createHabit": "Create habit",
         "logHabit": "Log habit",
         "updateHabit": "Update habit",

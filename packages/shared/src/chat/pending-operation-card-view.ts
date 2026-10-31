@@ -445,7 +445,7 @@ function previewBody<Node>(
 ): Node | undefined {
   if (card.status == null && card.hasRequiredChoices) return render.notice(labels.parentChoiceRequired)
   if (card.status !== 'failed') return undefined
-  if (card.completedOperation?.status === 'Denied') return render.notice(labels.denied)
+  if (card.completedOperation?.status === 'Denied') return render.notice(labels.denied(card.completedOperation))
   if (card.completedOperation?.status === 'UnsupportedByPolicy') return render.notice(labels.unsupported)
   if (card.canRetry) return render.notice(labels.failed)
   return render.notice(getPendingOperationItemResults(card.completedOperation)?.length
