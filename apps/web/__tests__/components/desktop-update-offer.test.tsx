@@ -14,6 +14,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { getQueryClient } from '@/lib/query-client'
 import { takeDesktopChatCheckpoint, writeDesktopChatCheckpoint } from '@/lib/desktop-chat-checkpoint'
 import { blockDesktopWebReload } from '@/lib/web-reload-state'
+import { desktopOffersSupported } from '@/lib/desktop-updates'
 import { holdAccount, retireHeldAccount } from '@/__tests__/support/account-change'
 
 vi.mock('@/lib/posthog', () => ({ identifyPostHogUser: vi.fn(), resetPostHogUser: vi.fn() }))
@@ -90,6 +91,11 @@ async function tick(milliseconds = 2000) {
 }
 async function click(name: string) { await act(async () => { fireEvent.click(screen.getByRole('button', { name })) }) }
 function actions() { return invoke.mock.calls.map(([, payload]) => payload.action) }
+
+it.each([undefined, false, 'true', 1, true])('requires the explicit native update capability: %s', supported => {
+  vi.stubGlobal('__ORBIT_DESKTOP_UPDATES__', supported)
+  expect(desktopOffersSupported()).toBe(supported === true)
+})
 
 it('checks on launch, focus and each minute and cleans up all checks on unmount', async () => {
   const application = mount()

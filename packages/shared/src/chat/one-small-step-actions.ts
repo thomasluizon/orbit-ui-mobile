@@ -3,7 +3,7 @@ import type { BlockAnswerInteraction } from './block-answer'
 import type { StateHook } from '../hooks/state-adapter'
 import type { OneSmallStepAction } from '../contracts/blocks/one-small-step'
 
-export type SendOneSmallStepMessage = (message: string, context?: Pick<ChatClientContext, 'previousStartingStep'>) => Promise<void>
+export type SendOneSmallStepMessage = (message: string, context?: Pick<ChatClientContext, 'previousStartingStep' | 'selectedOfferKey'>) => Promise<void>
 
 type ConversationAvailability = Pick<BlockAnswerInteraction, 'isOnline' | 'isSending' | 'atMessageLimit' | 'dailyBudgetReached'>
 interface OneSmallStepActions {

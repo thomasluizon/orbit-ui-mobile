@@ -67,6 +67,17 @@ describe.each([false, true])('habit row activation, selecting=%s', (selectMode) 
     expect(primary).toHaveBeenCalledOnce()
   })
 
+  it('names the programmatic row focus target without replacing its independent actions', () => {
+    const { body } = renderRow(selectMode)
+    const row = body.closest<HTMLElement>('[data-testid="habit-row"]')!
+    expect(row).toHaveRole('group')
+    expect(row).toHaveAccessibleName('Read')
+    row.focus()
+    expect(row).toHaveFocus()
+    expect(body).toHaveRole('button')
+    expect(body).toHaveAccessibleName(/Read/)
+  })
+
   it.each([false, true])('discards a press across focus loss, hidden=%s', async (hidden) => {
     const user = userEvent.setup()
     const { body, actions, primary } = renderRow(selectMode)

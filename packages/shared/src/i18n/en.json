@@ -1602,6 +1602,10 @@
       }
     },
     "blockCopy": { "copy": "Copy", "copied": "Copied", "copyError": "Couldn't copy. Try again." },
+    "offers": {
+      "dismiss": "Dismiss suggestion",
+      "failed": "Couldn't update this suggestion. Try again."
+    },
     "title": "Astra",
     "offline": {
       "title": "You’re offline"
@@ -2153,7 +2157,14 @@
         "scheduled_reminders": "Scheduled reminders",
         "delete": "Delete",
         "dismiss_import": "Dismiss import",
-        "run_sync": "Sync now"
+        "color": "Color",
+        "positions": "Order",
+        "run_sync": "Sync now",
+        "repeat_reminder": "Repeat reminder",
+        "interval_minutes": "Interval in minutes",
+        "start_at_utc": "First reminder",
+        "items": "Items",
+        "text": "Text"
       },
       "confirmTitle": "Approve this change?",
       "confirm": "Approve",
@@ -2161,6 +2172,7 @@
       "stepUpAction": "Confirm identity",
       "openProfile": "Open Profile",
       "outcome": {
+        "changeNotMade": "Change not made",
         "PendingConfirmation": "Awaiting confirmation",
         "Denied": "Not available",
         "UnsupportedByPolicy": "Profile only",
@@ -2168,6 +2180,7 @@
         "Failed": "Some items did not save"
       },
       "status": {
+        "changeNotMade": "Astra couldn't make that change.",
         "PendingConfirmation": "Nothing has changed yet",
         "Denied": "This account cannot do that",
         "UnsupportedByPolicy": "Manage this in Profile",
@@ -2238,6 +2251,10 @@
       },
       "confirmActionTitle": "{action}?",
       "source": {
+        "updateChecklistTemplate": "Update checklist template",
+        "suggestBreakdown": "Break down habit",
+        "undoSkipHabit": "Undo skip",
+        "unlogHabit": "Undo log",
         "createHabit": "Create habit",
         "logHabit": "Log habit",
         "updateHabit": "Update habit",

@@ -4,8 +4,10 @@ import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import AstraHttpProvider from '../http-provider.mjs'
 import { visibleBlock } from '../visible-blocks.mjs'
+import { visibleAnswer } from '../visible-answer.mjs'
 import { chatResponse, habitBlock } from './fixtures/producer.mjs'
 import { questionBlockFixture } from '../../../packages/shared/src/test-support/question-fixtures.ts'
+import { deniedBulkCreateReplyFixture, failedReadOperationFixture } from '../../../packages/shared/src/test-support/chat-fixtures.ts'
 
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8')).providers[0].config
 async function receive(extra, locale = 'pt-BR', supportsParts = true) {
@@ -55,8 +57,8 @@ it('excludes a succeeded read summary and hidden habit fields from the actual gr
   expect(output.answer).not.toContain('INVISIBLE_')
   expect(JSON.parse(output.answer)).not.toHaveProperty('operations')
 })
-it('omits an unlabelled failed read outcome as both clients do', async () => {
-  const { output } = await receive({ operations: [operation('Failed')], parts: [] })
+it('omits an explicitly read failed outcome as both clients do', async () => {
+  const { output } = await receive({ operations: [failedReadOperationFixture], parts: [] })
   const visible = JSON.parse(output.answer)
   expect(visible).not.toHaveProperty('outcomes')
   expect(output.answer).not.toContain('INVISIBLE_')
@@ -67,6 +69,20 @@ it('projects a failed write as the localized outcome both clients show', async (
   const visible = JSON.parse(output.answer)
   expect(visible.outcomes).toEqual([{ title: 'Alguns itens não foram salvos', label: 'Water', meta: 'Não foi salvo' }])
   expect(output.answer).not.toContain('INVISIBLE_')
+})
+it.each([
+  ['en', 'Create habits', 'Change not made', "Astra couldn't make that change.", 'Not available', 'This account cannot do that'],
+  ['pt-BR', 'Criar hábitos', 'Alteração não realizada', 'A Astra não conseguiu fazer essa alteração.', 'Não disponível', 'Esta conta não pode fazer isso'],
+])('projects neutral replay and account denial copy as both clients show in %s', (locale, label, title, meta, accountTitle, accountMeta) => {
+  const replay = { ...deniedBulkCreateReplyFixture, aiMessage: deniedBulkCreateReplyFixture.content }
+  const context = { supportsParts: true, locale }
+  const accountDenial = { ...replay, operations: replay.operations.map(operation => ({ ...operation, policyReason: 'HABIT_LIMIT_REACHED' })) }
+  expect(JSON.parse(visibleAnswer(accountDenial, context)).outcomes).toEqual([
+    { title: accountTitle, label, meta: accountMeta },
+  ])
+  const answer = JSON.parse(visibleAnswer(replay, context))
+  expect(answer.outcomes).toEqual([{ title, label, meta }])
+  expect(answer).not.toHaveProperty('notice')
 })
 it.each([
   ['en', 'Created Water'], ['pt-BR', 'Criou Water'],

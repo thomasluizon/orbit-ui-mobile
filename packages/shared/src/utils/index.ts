@@ -529,6 +529,7 @@ export {
   getAgentCapabilityLabelKey,
   getAgentOperationLabelKey,
   getAgentPolicyReasonKey,
+  getAgentOperationCopyKeys,
 } from './agent-pending-operation'
 export { coalesceAgentOperationOutcomes } from './agent-operation-outcomes'
 export type { AgentOperationOutcome } from './agent-operation-outcomes'

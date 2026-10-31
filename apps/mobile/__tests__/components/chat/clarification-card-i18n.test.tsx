@@ -7,6 +7,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import type { ClarificationRequest } from '@orbit/shared/types/chat'
 import { ClarificationCard } from '@/components/chat/clarification-card'
 
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.unmock('react-i18next')
 vi.mock('@/hooks/use-resolve-clarification', () => ({
   useResolveClarification: () => ({ isPending: false, mutateAsync: vi.fn() }),

@@ -46,6 +46,7 @@ const colorProxy = new Proxy<ColorRecord>(
   },
 )
 
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('react-i18next', async (importOriginal) => ({
   ...await importOriginal<typeof import('react-i18next')>(),
   useTranslation: () => ({

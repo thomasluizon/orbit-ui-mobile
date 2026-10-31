@@ -99,7 +99,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps>) {
 
         {!isUser && operations.pendingOperations.length > 0 && (
           <View style={styles.operationStack}>
-            {operations.pendingOperations.map(({ key, ...operation }, index) => <ConversationReveal key={key} animate={animateEntry} index={operationOffset + suggestions.length + operations.clarifications.length + index}><PendingOperationCard {...operation} /></ConversationReveal>)}
+            {operations.pendingOperations.map(({ key, ...operation }, index) => <ConversationReveal key={key} animate={animateEntry} index={operationOffset + suggestions.length + operations.clarifications.length + index}><PendingOperationCard {...operation} onSendMessage={props.onSendMessage} interaction={blockAnswerInteraction} /></ConversationReveal>)}
           </View>
         )}
 

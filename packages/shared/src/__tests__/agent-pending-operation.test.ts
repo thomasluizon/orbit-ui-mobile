@@ -1,3 +1,8 @@
+import { readFileSync } from 'node:fs'
+import { parse } from 'yaml'
+import { z } from 'zod'
+import en from '../i18n/en.json'
+import pt from '../i18n/pt-BR.json'
 import { describe, expect, it } from 'vitest'
 import {
   getAgentCapabilityLabelKey,
@@ -53,4 +58,22 @@ describe('getAgentPolicyReasonKey', () => {
     expect(getAgentPolicyReasonKey(null)).toBeNull()
     expect(getAgentPolicyReasonKey(undefined)).toBeNull()
   })
+})
+
+const catalogToolSchema = z.object({ writes: z.boolean(), function: z.object({ name: z.string() }) })
+const catalog = z.object({
+  tools: z.array(catalogToolSchema), legacyTools: z.array(catalogToolSchema),
+  postReadTools: z.array(catalogToolSchema), habitSetupTools: z.array(catalogToolSchema),
+}).parse(parse(readFileSync(new URL('../../../../evals/astra/catalog.yaml', import.meta.url), 'utf8')))
+const writeSources = [...new Set(Object.values(catalog).flat().filter(tool => tool.writes).map(tool => tool.function.name))]
+
+it.each(writeSources)('localizes the pinned write source %s in both languages', source => {
+  const key = getAgentOperationLabelKey(source)
+  expect(key, source).not.toBeNull()
+  for (const messages of [en, pt]) {
+    const label = key?.split('.').reduce<unknown>((current, segment) =>
+      current && typeof current === 'object' ? (current as Record<string, unknown>)[segment] : undefined, messages)
+    expect(label, `${source}: ${key}`).toBeTypeOf('string')
+    expect(label).not.toBe('')
+  }
 })

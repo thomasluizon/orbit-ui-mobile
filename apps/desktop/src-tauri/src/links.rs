@@ -113,4 +113,60 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn every_supported_route_reaches_the_configured_origin() {
+        let origin = Url::parse("https://app-staging.useorbit.org/").unwrap();
+        for path in [
+            "/",
+            "/calendar",
+            "/progress",
+            "/progress/achievements",
+            "/progress/goals",
+            "/progress/streak",
+            "/profile",
+            "/profile/account",
+            "/profile/astra",
+            "/profile/notifications",
+            "/profile/preferences",
+            "/notifications",
+            "/search",
+            "/support",
+            "/about",
+            "/upgrade",
+            "/wrapped",
+            "/habits/new",
+            "/habits/123E4567-E89B-12D3-A456-426614174000",
+        ] {
+            let link = format!("org.useorbit.desktop.staging://app{path}")
+                .parse()
+                .unwrap();
+            assert_eq!(
+                destination(&origin, "org.useorbit.desktop.staging", &link),
+                Some(origin.join(path).unwrap()),
+                "{path}"
+            );
+        }
+    }
+
+    #[test]
+    fn habit_links_require_exact_uuid_shape_without_encoded_separators() {
+        let origin = Url::parse("https://app.useorbit.org/").unwrap();
+        for identifier in [
+            "123e4567-e89b-12d3-a456-42661417400",
+            "123e4567-e89b-12d3-a456-4266141740000",
+            "123e4567_e89b-12d3-a456-426614174000",
+            "123e4567-e89b-12d3-a456-42661417400g",
+            "123e4567%2De89b-12d3-a456-426614174000",
+            "123e4567-e89b-12d3-a456-426614174000/edit",
+        ] {
+            let link = format!("org.useorbit.desktop://app/habits/{identifier}")
+                .parse()
+                .unwrap();
+            assert!(
+                destination(&origin, "org.useorbit.desktop", &link).is_none(),
+                "{identifier}"
+            );
+        }
+    }
 }

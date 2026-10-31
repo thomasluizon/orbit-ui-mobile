@@ -1,6 +1,7 @@
 import { oneSmallStepCardSchema, startingStepSchema } from '../contracts/blocks/one-small-step'
 import { questionAnswerSchema, questionBlockSchema } from './question-block'
 import { z } from 'zod'
+import { astraNextActionSchema } from './astra-offer'
 import { habitSuggestionsCardSchema } from './habit-suggestions'
 import { utf16Length } from '../validation/utf16-length'
 import { habitRankingCardSchema } from './habit-ranking'
@@ -46,6 +47,10 @@ export const chatClientContextSchema = z.object({
   entryPointIntent: z.literal('support').optional(),
   supportsMessageAllowance: z.boolean().optional(),
   supportsCompletedHabitsMetric: z.boolean().optional(),
+  supportsProactiveOffers: z.boolean().optional(),
+  conversationId: z.uuid().nullish(),
+  dismissedOfferKeys: z.array(z.string()).nullish(),
+  selectedOfferKey: z.string().nullish(),
 })
 
 export type ChatClientContext = z.infer<typeof chatClientContextSchema>
@@ -197,6 +202,7 @@ export const readBlockMetadataSchema = z.object({
   nextCursor: z.string().nullish(),
   totalCount: z.number().nullish(),
   recovery: z.string().nullish(),
+  nextAction: astraNextActionSchema.nullish().catch(null),
 })
 
 export type ReadBlockMetadata = z.infer<typeof readBlockMetadataSchema>

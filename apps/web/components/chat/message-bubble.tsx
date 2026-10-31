@@ -55,7 +55,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
 
         {!isUser && operations.pendingOperations.length > 0 && (
           <div className="flex w-full flex-col gap-4">
-            {operations.pendingOperations.map(({ key, ...operation }, index) => <ConversationReveal key={key} animate={animateEntry} index={operationOffset + suggestions.length + operations.clarifications.length + index}><PendingOperationCard {...operation} /></ConversationReveal>)}
+            {operations.pendingOperations.map(({ key, ...operation }, index) => <ConversationReveal key={key} animate={animateEntry} index={operationOffset + suggestions.length + operations.clarifications.length + index}><PendingOperationCard {...operation} onSendMessage={props.onSendMessage} interaction={blockAnswerInteraction} /></ConversationReveal>)}
           </div>
         )}
 

@@ -8,6 +8,7 @@ import {
   makeAgentOperationResult,
 } from '@orbit/shared/test-support/chat-fixtures'
 import { OperationOutcomes } from '@/components/chat/operation-outcomes'
+import { agentOperationResultSchema } from '@orbit/shared/types/ai'
 import { selectMessageOperationBlocks } from '@orbit/shared/chat'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 
@@ -51,7 +52,7 @@ describe('OperationOutcomes on web', () => {
     ], policyDenials: [denial] })).outcomes
     render(<OperationOutcomes outcomes={outcomes} />)
 
-    for (const status of ['Failed', 'Denied', 'UnsupportedByPolicy']) {
+    for (const status of ['Failed', 'UnsupportedByPolicy']) {
       expect(screen.getByText(`chat.operation.outcome.${status}`)).toBeInTheDocument()
       expect(screen.getByText(`chat.operation.status.${status}`)).toBeInTheDocument()
     }
@@ -83,4 +84,19 @@ describe('OperationOutcomes on web', () => {
     expect(document.querySelector('[data-personal-text-expanded]')).not.toBeNull()
   })
 
+})
+
+it.each([
+  { reason: 'invalid_offer', errorCode: undefined, account: false },
+  { reason: 'plan_required:pro', errorCode: undefined, account: true },
+  { reason: 'Habit limit reached', errorCode: 'PAY_GATE', account: true },
+])('renders a coalesced denial with $reason accurately', ({ reason, errorCode, account }) => {
+  const operation = agentOperationResultSchema.parse({ ...makeAgentOperationResult('Denied', 1), policyReason: reason, errorCode })
+  const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [operation], policyDenials: [{
+    operationId: operation.operationId, sourceName: operation.sourceName, riskClass: operation.riskClass,
+    confirmationRequirement: operation.confirmationRequirement, reason,
+  }] })).outcomes
+  render(<OperationOutcomes outcomes={outcomes} />)
+  expect(screen.getByText(account ? 'chat.operation.status.Denied' : 'chat.operation.status.changeNotMade')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'chat.operation.openProfile' })).not.toBeInTheDocument()
 })

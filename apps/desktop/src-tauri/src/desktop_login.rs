@@ -183,7 +183,7 @@ pub async fn commit_desktop_login(
     let (origin, ready) = {
         let mut guard = flow.lock().unwrap();
         let url = window.url().map_err(|_| "Cannot read desktop origin")?;
-        if window.label() != "main" || url.origin() != guard.origin.origin() {
+        if !crate::command_origin::allows(window.label(), &url, &guard.origin) {
             return Err("Invalid desktop origin");
         }
         if !guard.owns(&state)

@@ -150,6 +150,7 @@ export const API = {
   },
 
   chat: {
+    dismissOffers: '/api/chat/offers/dismiss',
     refineHabitSuggestion: '/api/chat/habit-suggestions/refine',
     previewHabitSuggestion: '/api/chat/habit-suggestions/preview',
     previewAllHabitSuggestions: '/api/chat/habit-suggestions/preview-all',

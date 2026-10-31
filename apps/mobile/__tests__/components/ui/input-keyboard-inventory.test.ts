@@ -61,6 +61,8 @@ function inventory(entries = ['app', 'components'].flatMap(directory => sourceFi
         uses.set(key, [...uses.get(key) ?? [], node])
       }
       if (ts.isIdentifier(node) && (ts.isJsxExpression(node.parent)
+        || ts.isSpreadAssignment(node.parent)
+        || ts.isJsxSpreadAttribute(node.parent)
         || ts.isCallExpression(node.parent) && (node.parent.expression === node || node.parent.arguments.includes(node))
         || ts.isPropertyAccessExpression(node.parent) && node.parent.expression === node
         || ts.isReturnStatement(node.parent)
@@ -110,6 +112,23 @@ describe('Mobile text input keyboard inventory', () => {
     const outside = inventory([[join(root, 'form.tsx'), wrapped.replaceAll('KeyboardAwareScrollView', 'View')]])
     expect(outside.inputs).toHaveLength(1)
     expect(outside.covered(outside.inputs[0]!)).toBe(false)
+  })
+
+  it.each([
+    ['object spread', '<Preview render={{ ...pendingOperationRenderers }} />'],
+    ['JSX attribute spread', '<Preview {...pendingOperationRenderers} />'],
+  ])('tracks renderer callers through %s', (_name, preview) => {
+    const renderers = 'const pendingOperationRenderers = { title: () => <Input /> };'
+    const wrapped = `${renderers} function Form() { return <KeyboardAwareScrollView>${preview}</KeyboardAwareScrollView> }`
+    const inside = inventory([[join(root, 'form.tsx'), wrapped]])
+    expect(inside.inputs).toHaveLength(1)
+    expect(inside.covered(inside.inputs[0]!)).toBe(true)
+    const outside = inventory([[join(root, 'form.tsx'), wrapped.replaceAll('KeyboardAwareScrollView', 'View')]])
+    expect(outside.inputs).toHaveLength(1)
+    expect(outside.covered(outside.inputs[0]!)).toBe(false)
+    const mixed = inventory([[join(root, 'form.tsx'), `${wrapped} function OtherForm() { return <View>${preview}</View> }`]])
+    expect(mixed.inputs).toHaveLength(1)
+    expect(mixed.covered(mixed.inputs[0]!)).toBe(false)
   })
 
   it('keeps adapter content and shell slots under their keyboard scroll hosts', () => {

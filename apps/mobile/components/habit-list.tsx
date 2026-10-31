@@ -1742,6 +1742,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     if (view === 'all') return <>
       <ContentFade key="all" fill><KeyboardAwareFlatList
         ref={allListRef}
+        accessibilityLabel={t('habits.sectionLabel')}
         onFocus={revealListFocus}
         testID="habit-list-all"
         onLayout={measureList}
@@ -1771,6 +1772,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           {...keyboard}
           {...cellMotion}
           ref={scrollContainerRef}
+          accessibilityLabel={t('habits.sectionLabel')}
           onLayout={event => { keyboard.onLayout?.(event); measureList(event) }}
           onFocus={revealListFocus}
           data={presentation.items}
