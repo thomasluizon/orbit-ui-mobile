@@ -5,6 +5,7 @@ import {
   addRecentCompletion,
   canRevealCompletedDrillChildren,
   countCompletedDrillChildren,
+  getDrillParent,
   getRecentlyCompletedIdsForDate,
   getVisibleDrillChildren,
   loadDrillChildren,
@@ -526,5 +527,31 @@ describe('mergeDrillChildrenMap', () => {
     expect(merged.get('parent-2')).toEqual([keptChild])
     expect(merged).not.toBe(previous)
     expect(previous.get('parent-1')).toEqual([previousChild])
+  })
+})
+
+describe('getDrillParent', () => {
+  const listed = createMockHabit({ id: 'listed', title: 'Listed parent' })
+  const fetched = createMockHabit({ id: 'fetched', title: 'Fetched parent' })
+  const nested = createMockHabit({ id: 'nested', title: 'Nested child', parentId: 'fetched' })
+  const habitsById = new Map([[listed.id, listed]])
+  const fetchedParents = new Map([[fetched.id, fetched]])
+  const drillChildrenMap = new Map<string, NormalizedHabit[]>([[fetched.id, [nested]]])
+
+  it('returns null at the drill root', () => {
+    expect(getDrillParent(null, habitsById, fetchedParents, drillChildrenMap)).toBeNull()
+  })
+
+  it('prefers the list habit, then the fetched parent', () => {
+    expect(getDrillParent('listed', habitsById, fetchedParents, drillChildrenMap)).toBe(listed)
+    expect(getDrillParent('fetched', habitsById, fetchedParents, drillChildrenMap)).toBe(fetched)
+  })
+
+  it('finds a parent that exists only among fetched drill children', () => {
+    expect(getDrillParent('nested', habitsById, fetchedParents, drillChildrenMap)).toBe(nested)
+  })
+
+  it('returns null for an unknown parent', () => {
+    expect(getDrillParent('missing', habitsById, fetchedParents, drillChildrenMap)).toBeNull()
   })
 })
