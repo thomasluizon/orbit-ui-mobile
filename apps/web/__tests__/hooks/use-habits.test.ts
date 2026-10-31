@@ -3141,8 +3141,10 @@ describe('API-owned bad parent slips', () => {
     const { result, unmount } = renderHook(() => useLogHabit(), { wrapper: createWrapper(client) })
     try {
       await act(() => result.current.mutateAsync({ habitId: scenario.childId, date, intent: scenario.intent }))
-      await waitFor(() => expect(readParentLogs).toHaveBeenCalledTimes(1))
-      expect(client.getQueryData(habitKeys.logs('parent'))).toEqual(scenario.after ? [parentLog] : [])
+      await waitFor(() => {
+        expect(readParentLogs).toHaveBeenCalledTimes(1)
+        expect(client.getQueryData(habitKeys.logs('parent'))).toEqual(scenario.after ? [parentLog] : [])
+      })
       for (const key of parentKeys) expect(client.getQueryState(key)?.isInvalidated).toBe(true)
       expect(vi.mocked(logHabit).mock.calls.at(-1)?.[0]).toBe(scenario.childId)
       expect(vi.mocked(logHabit).mock.calls.some(([id]) => id === 'parent')).toBe(false)

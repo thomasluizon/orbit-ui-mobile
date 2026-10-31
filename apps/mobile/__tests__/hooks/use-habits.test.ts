@@ -3822,7 +3822,7 @@ describe('API-owned bad parent slips', () => {
     { name: 'last child', childId: 'second', intent: 'log' as const, before: 0, after: 1 },
     { name: 'undo child', childId: 'first', intent: 'unlog' as const, before: 1, after: 0 },
   ])('refreshes parent reads after $name without queuing a parent write', async (scenario) => {
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
     const date = '2026-09-12'
     const parentLog = { id: 'parent-slip', date, value: 1, createdAtUtc: '2026-09-12T12:00:00Z' }
     client.setQueryData(habitKeys.list({ dateFrom: date, dateTo: date }), [makeHabit({
@@ -3851,8 +3851,10 @@ describe('API-owned bad parent slips', () => {
       const context = await mutation.onMutate?.(variables)
       const result = await mutation.mutationFn(variables)
       mutation.onSettled?.(result, null, variables, context)
-      await vi.waitFor(() => expect(readParentLogs).toHaveBeenCalledTimes(1))
-      expect(client.getQueryData(habitKeys.logs('parent'))).toEqual(scenario.after ? [parentLog] : [])
+      await vi.waitFor(() => {
+        expect(readParentLogs).toHaveBeenCalledTimes(1)
+        expect(client.getQueryData(habitKeys.logs('parent'))).toEqual(scenario.after ? [parentLog] : [])
+      })
       for (const key of parentKeys) expect(client.getQueryState(key)?.isInvalidated).toBe(true)
       expect(mocks.runQueuedMutation).toHaveBeenCalledTimes(1)
       expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ targetEntityId: scenario.childId }) }))
