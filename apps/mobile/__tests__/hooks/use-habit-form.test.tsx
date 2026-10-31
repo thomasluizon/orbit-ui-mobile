@@ -29,8 +29,9 @@ function act(callback: () => void): void {
 }
 
 describe('mobile useHabitForm', () => {
-  it('starts as a one-time habit with empty defaults', () => {
+  it('starts as a one-time task with empty defaults', () => {
     const form = renderHabitForm()
+    expect(form.current.form.getValues('itemType')).toBe('task')
     expect(form.current.isOneTime).toBe(true)
     expect(form.current.isRecurring).toBe(false)
     expect(form.current.isFlexible).toBe(false)

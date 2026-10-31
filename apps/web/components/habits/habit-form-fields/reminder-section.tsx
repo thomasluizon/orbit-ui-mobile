@@ -10,6 +10,7 @@ import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { useReminderPermission } from '@/hooks/use-reminder-permission'
 
 interface ReminderSectionProps {
+  nested?: boolean
   inline?: boolean
   toggleLabel?: string
   reminderEnabled: boolean
@@ -24,6 +25,7 @@ interface ReminderSectionProps {
 }
 
 export function ReminderSection({
+  nested = false,
   inline = false, toggleLabel, reminderEnabled, reminderTimes,
   onReminderTimesChange, onToggleReminder, reminderLabel, t, children,
   scheduledReminderCount = 0, onValidationError,
@@ -90,8 +92,8 @@ export function ReminderSection({
 
   return (
     <div className={inline ? "flex flex-col gap-3" : "flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]"}>
-      <ListRow placement={inline ? "column" : undefined} icon={inline ? undefined : 'bell'} title={label} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} />
-      <ReminderPermissionNotice visible={permission.showNotice} t={t} />
+      {!nested ? <ListRow placement={inline ? "column" : undefined} icon={inline ? undefined : 'bell'} title={label} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} /> : null}
+      <ReminderPermissionNotice visible={!nested && permission.showNotice} t={t} />
       {reminderEnabled && (
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">

@@ -13,6 +13,7 @@ describe('useHabitForm', () => {
     it('starts as one-time by default', () => {
       const { result } = renderHook(() => useHabitForm())
 
+      expect(result.current.form.getValues('itemType')).toBe('task')
       expect(result.current.isOneTime).toBe(true)
       expect(result.current.isRecurring).toBe(false)
       expect(result.current.isGeneral).toBe(false)

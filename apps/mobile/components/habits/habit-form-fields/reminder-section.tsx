@@ -16,6 +16,7 @@ import { useReminderPermission } from "@/hooks/use-reminder-permission";
 import { type AppTokens, createSectionStyles } from "./styles";
 
 interface ReminderSectionProps {
+  nested?: boolean
   inline?: boolean;
   toggleLabel?: string;
   tokens: AppTokens;
@@ -31,6 +32,7 @@ interface ReminderSectionProps {
 
 export function ReminderSection({
   tokens,
+  nested = false,
   inline = false,
   toggleLabel,
   reminderEnabled,
@@ -102,8 +104,8 @@ export function ReminderSection({
 
   return (
     <View style={inline ? { gap: 12 } : sectionStyles.container}>
-      <ListRow disabled={disabled} placement={inline ? "column" : undefined} icon={inline ? undefined : 'bell'} title={label} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} />
-      <ReminderPermissionNotice visible={permission.showNotice} tokens={tokens} onPress={permission.openSettings} />
+      {!nested ? <ListRow disabled={disabled} placement={inline ? "column" : undefined} icon={inline ? undefined : 'bell'} title={label} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} /> : null}
+      <ReminderPermissionNotice visible={!nested && permission.showNotice} tokens={tokens} onPress={permission.openSettings} />
       {reminderEnabled && (
         <View style={sectionStyles.body}>
           <View style={sectionStyles.chipsRow}>

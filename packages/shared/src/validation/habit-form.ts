@@ -1,4 +1,4 @@
-import { REPEAT_REMINDER_INTERVALS, supportsRepeatReminder } from '../utils/repeat-reminders'
+import { REPEAT_REMINDER_INTERVALS } from '../utils/repeat-reminders'
 import { z } from 'zod'
 import { utf16Length } from './utf16-length'
 import { repeatReminderOptionsSchema, frequencyUnitSchema, MAX_HABIT_INTERVAL_WEEKS, scheduledReminderTimeRequestSchema, checklistItemSchema } from '../types/habit'
@@ -308,7 +308,6 @@ function validateHabitReminders(data: HabitFormData): string | null {
 function validateRepeatReminder(data: HabitFormData): string | null {
   const repeat = data.repeatReminder
   if (!repeat) return null
-  if (!supportsRepeatReminder(data)) return 'habits.form.repeatDailyOnly'
   if (!REPEAT_REMINDER_INTERVALS.includes(repeat.intervalMinutes)
     || Boolean(repeat.activeStart) !== Boolean(repeat.activeEnd)
     || repeat.activeStart != null && (!repeat.activeStart || repeat.activeStart.slice(0, 5) === repeat.activeEnd?.slice(0, 5) || validateTime(repeat.activeStart.slice(0, 5)) !== null)

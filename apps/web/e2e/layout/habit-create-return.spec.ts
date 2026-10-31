@@ -72,7 +72,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
                 await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
                 await expect(page).toHaveURL(/\/habits\/new\?/)
               }
-              const type = page.getByRole('radio', { name: messages.habits.form.typeHabit, exact: true })
+              const type = page.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) })
               await type.click()
               await expect(type).toBeChecked()
               const field = page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })
@@ -101,7 +101,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
         test('preserves a dirty draft on browser Back until discard is confirmed', async ({ page }) => {
           await page.goto('/')
           await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
-          const field = page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })
+          const field = page.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true })
           await field.fill('Keep this draft')
           await waitForCreationGuard(page)
           await page.evaluate(() => history.back())
@@ -122,7 +122,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await page.emulateMedia({ reducedMotion: 'no-preference' })
           await page.goto('/')
           await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
-          const field = page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })
+          const field = page.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true })
           const keepEditing = page.getByRole('button', { name: messages.common.keepEditing, exact: true })
           const discard = page.getByRole('button', { name: messages.common.discardChangesAction, exact: true })
           await field.fill('Keep this closing draft')
@@ -153,7 +153,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
 
       test('returns a clean direct-open form on browser Back without confirmation', async ({ page }) => {
         await page.goto('/habits/new?from=%2F')
-        await expect(page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })).toHaveValue('')
+        await expect(page.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true })).toHaveValue('')
         await waitForCreationGuard(page)
         await page.evaluate(() => Reflect.set(window, 'habitCreateDocumentMarker', 'clean-create-document'))
         await Promise.all([

@@ -572,20 +572,19 @@ real. Two things change instead:
 ### Expressing repetition without the model leaking
 
 Creation and editing begin with two vertical RadioRow choices: `Tarefa única` / `One-time task`
-and `Hábito` / `Habit`. An unseeded create requires a deliberate choice. An edit or an explicit
-inherited type shows its actual selection. The focal title remains editable before that choice;
-validation focuses the type group and preserves every field. Title parsing and Astra replies cannot
+and `Hábito` / `Habit`. An unseeded create starts with Task selected (#1922). An edit or an explicit
+inherited type shows its actual selection. The focal title stays editable; switching type preserves the draft. Title parsing and Astra replies cannot
 overwrite a deliberate type. Raw schedule enum names never render.
 
 A task has no cadence corrections. Habit exposes fixed repetition, count-based repetition and
-`Sem data` / `No schedule`, with `Registre quando acontecer.` / `Log it whenever it happens.`.
+`Sem dia fixo` / `Anytime`, with a hint explaining repeated logs in General without a due date.
 The schedule group stays reachable in the undated branch. Tree constraints remain enforced, and
-General cannot gain reminders or avoidance settings. Switching modes preserves their drafts.
+General retains repeat reminders and excludes clock reminders and avoidance settings. Switching modes preserves their drafts.
 
 The compact growing name field uses the standard 54px minimum with matching mirror/input metrics. Description follows it immediately, before emoji, understanding and proposal content, with one owned 10,000-character field. Type stays first. RadioRow keeps its 52px minimum: one-line content is centred as a group, while wrapped labels grow with the glyph aligned to their first line (#1607).
 
 The editable date group precedes the single details disclosure. It has a persistent `Quando` /
-`When` label, the type-specific question, natural-language input with `In your own words` / `Escreva do seu jeito` and the existing calendar picker. The picker owns the selected date display; no ordinary selected-date sentence repeats it. Machine attribution, validation and recovery feedback remain.
+`When` label, natural-language input with `In your own words` / `Escreva do seu jeito` and the existing calendar picker. The picker owns the selected date display; no ordinary selected-date sentence repeats it. Machine attribution, validation and recovery feedback remain.
 The picker is labelled `Fazer em` / `Do on` for tasks and `Começar em` / `Starts on` for dated
 habits. New dates use account today after its timezone is known; a caller-selected day is an
 explicit prefill. Edit uses the task due date or persisted recurring start anchor, never the
@@ -621,8 +620,10 @@ the child undated with the existing parent mismatch guidance and block Submit. M
 changes, form reopening and context replacement never replay an old recurrence read. Unknown
 wording keeps date recovery and never guesses a cadence.
 
-Exact time, reminders, end date, checklist, sub-habits, tags, goals and avoidance
-controls retain their existing homes behind one disclosure. Read-only DateRow remains a valid
+Frequency and its corrections follow When for habits. One Time and reminder row opens a sheet
+with exact time, conditional end time, one reminder switch and the two reminder models. More details
+groups checklist and sub-items under Steps, avoidance and slip alerts under Avoid, tags, goals and
+parent under Organize, and end date under End. Description keeps its #1607 position below the title. Read-only DateRow remains a valid
 primitive elsewhere; editable form dates use DateField.
 
 Rows and detail place the complete, quiet type vocabulary beneath the full-width title, with no
@@ -2067,10 +2068,9 @@ Everything else, and specifically: the 65ch measure, the 2x gap rhythm, concentr
 
 ### Repeat reminder surfaces
 
-The habit reminder section offers Repeat every only for everyday daily, daily count and General
-schedules. It replaces relative and fixed-clock reminders. Existing Select, TimeField and ListRow
+The habit reminder sheet offers Repeat every for every task and habit schedule (#1922). It replaces relative and fixed-clock reminders. Existing Select, TimeField and ListRow
 controls own interval, start time and optional active hours, including an overnight window. All day
-is the default. An incompatible cadence clears the repeat choice from that draft. The existing sheet
+is the default. Cadence changes retain the repeat choice in that draft. The existing sheet
 footer owns Save and Cancel; no repeat-specific token or surface is introduced.
 
 Hoje rows keep the complete next-time phrase as a single metadata token in the canonical wrapping

@@ -123,6 +123,7 @@ describe('habit-form-state', () => {
 
   it('builds empty create values', () => {
     expect(buildEmptyHabitFormValues('2025-01-02')).toEqual({
+      itemType: 'task',
       title: '',
       description: '',
       emoji: '',

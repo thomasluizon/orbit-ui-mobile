@@ -2,7 +2,7 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { PillButton } from '@/components/ui/pill-button'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useMemo, useCallback, useId } from 'react'
-import { X, Plus, Trash2 } from '@/components/ui/icons'
+import { X, Smile, Trash2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_EMOJI_CATEGORIES, filterHabitEmojiCategories } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -51,7 +51,7 @@ function EmojiWell({ wellSize, proposed, selectedEmoji }: Readonly<Pick<HabitEmo
       outline: proposed ? '1px dashed var(--hairline-strong)' : undefined,
       outlineOffset: -1,
     }}>
-      {selectedEmoji || <Plus size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
+      {selectedEmoji || <Smile size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
     </span>
   )
 }

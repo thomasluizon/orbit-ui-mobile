@@ -84,7 +84,7 @@ describe('manual schedule creation', () => {
     fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '4' } })
     expect(helpers.validateAll()).toBeNull()
     expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
-    fireEvent.change(screen.getByLabelText('habits.form.describe'), { target: { value: 'Read books' } })
+    fireEvent.change(screen.getByLabelText(/habits.form.(?:taskDescribe|describe)/), { target: { value: 'Read books' } })
     expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 4, isFlexible: true })
     expect(ask).not.toHaveBeenCalled()
   })
@@ -109,7 +109,7 @@ describe('manual schedule creation', () => {
     expect(quantity).toHaveValue(1)
     expect((quantity as HTMLInputElement).style.color).toBe('var(--fg-3)')
     expect(screen.getByRole('button', { name: helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('textbox', { name: 'habits.form.describe' }).closest('[data-proposed]')).toBeNull()
+    expect(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ }).closest('[data-proposed]')).toBeNull()
     quantity.focus()
     if (edit === 'quantity') fireEvent.change(quantity, { target: { value: '2' } })
     else if (edit === 'unit') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitMonth' }))
@@ -216,8 +216,8 @@ describe('restored end-date control', () => {
 describe('restored type and editable date', () => {
   it('offers an explicit task choice before the title', () => {
     renderForm(createFormHelpers(), undefined, false)
-    const task = screen.getByRole('radio', { name: 'habits.form.typeTask' })
-    expect(task.compareDocumentPosition(screen.getByRole('textbox', { name: 'habits.form.describe' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const task = screen.getByRole('radio', { name: /^habits.form.typeTask/ })
+    expect(task.compareDocumentPosition(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
   it('offers the editable task date with details closed', () => {
     formLocale.realDates = true
@@ -235,20 +235,20 @@ describe('type and date owning form workflow', () => {
       return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} readPhraseLocally />
     }
     render(<QueryClientProvider client={new QueryClient()}><OwningForm /></QueryClientProvider>)
-    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'migrar chats do ChatGPT para o Claude' } })
-    act(() => { expect(helpers.validateAll()).toBe('habits.form.typeRequired') })
-    expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toHaveFocus()
-    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    fireEvent.change(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ }), { target: { value: 'migrar chats do ChatGPT para o Claude' } })
+    act(() => { expect(helpers.validateAll()).toBeNull() })
+    expect(screen.getByRole('radio', { name: /^habits.form.typeTask/ })).toBeChecked()
+    fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ }))
     vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
     try {
       fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value: 'dia 26' } })
       expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
       expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ title: 'migrar chats do ChatGPT para o Claude', dueDate: '2026-10-26' })
-      fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Read every Monday' } })
+      fireEvent.change(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ }), { target: { value: 'Read every Monday' } })
       expect(helpers.form.getValues('itemType')).toBe('task')
       expect(helpers.form.getValues('frequencyUnit')).toBeNull()
       expect(screen.queryByRole('button', { name: 'Monday' })).toBeNull()
-      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeHabit' }))
+      fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeHabit/ }))
       fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value: 'dia 28' } })
       fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
       fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
@@ -258,7 +258,7 @@ describe('type and date owning form workflow', () => {
       fireEvent.click(screen.getByRole('radio', { name: 'habits.form.every' }))
       expect(helpers.form.getValues('isGeneral')).toBe(false)
       expect(helpers.form.getValues('dueDate')).toBe('2026-10-28')
-      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+      fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ }))
       expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
       expect(helpers.form.getValues('datePhrase')).toBe('dia 26')
     } finally { vi.useRealTimers() }

@@ -10,7 +10,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 
 async function assertFieldEdges(disclosure: Locator, descriptionOwner: Locator) {
-  const timeLabel = disclosure.locator('label').filter({ hasText: messages.habits.form.exactTime }).first()
+  const timeLabel = disclosure.getByRole('heading', { name: messages.habits.form.checklist, exact: true })
   const descriptionLabel = descriptionOwner.locator('label').filter({ hasText: messages.habits.form.description })
   await expect(timeLabel).toBeVisible()
   await expect(descriptionLabel).toHaveCount(1)
@@ -51,7 +51,7 @@ async function assertDescriptionOrder(screen: Locator) {
   await expect(description).toHaveAttribute('maxlength', '10000')
   const descriptionOwner = description.locator('xpath=ancestor::div[@data-input-root]')
   await expect(descriptionOwner).toHaveCount(1)
-  const name = screen.getByRole('textbox', { name: messages.habits.form.describe, exact: true })
+  const name = screen.locator('[data-habit-phrase-field] textarea')
   expect(await descriptionOwner.evaluate((element) => element.getBoundingClientRect().left))
     .toBeCloseTo(await name.evaluate((element) => element.getBoundingClientRect().left), 1)
   expect(await descriptionOwner.evaluate((element, moreDetails) => {
@@ -85,6 +85,7 @@ for (const width of [412, 1352]) {
       await page.goto('/habits/new')
       const screen = page.locator('[data-habit-create-screen]')
       const descriptionOwner = await assertDescriptionOrder(screen)
+      await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) }).click()
       await screen.getByRole('button', { name: messages.habits.form.moreDetails }).click()
       const disclosure = screen.locator('.habit-form-disclosure[data-open="true"]')
       await disclosure.getByRole('switch', { name: messages.habits.form.habitTypeAvoid }).click()
@@ -93,7 +94,10 @@ for (const width of [412, 1352]) {
       await expect(disclosure.getByRole('heading', { name: messages.habits.form.subHabits })).toBeVisible()
       await assertFieldEdges(disclosure, descriptionOwner)
       await assertDescriptionOrder(screen)
-      await disclosure.getByRole('textbox', { name: messages.habits.form.exactTime, exact: true }).fill('08:00')
+      await screen.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) }).click()
+      const timing = page.getByRole('dialog', { name: messages.habits.form.timingAndReminder, exact: true })
+      await timing.getByRole('textbox', { name: messages.habits.form.exactTime, exact: true }).fill('08:00')
+      await timing.getByRole('button', { name: messages.common.done, exact: true }).click()
       await assertFieldEdges(disclosure, descriptionOwner)
     })
 

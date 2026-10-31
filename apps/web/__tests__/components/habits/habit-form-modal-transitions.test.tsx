@@ -17,7 +17,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     onTestFinished(() => errors.mockRestore())
     const view = await mount(type)
     const user = userEvent.setup()
-    const titleInput = () => screen.getByRole('textbox', { name: 'habits.form.describe' })
+    const titleInput = () => screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ })
     const initialTitle = locale === 'en' ? 'Read every Monday' : 'Ler toda segunda'
     const editedTitle = locale === 'en' ? 'Read every Tuesday' : 'Ler toda terça'
     await user.clear(titleInput())
@@ -78,7 +78,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
       await submit()
       expect(mutation()).not.toHaveBeenCalled()
       expect(phraseInput()).toHaveAttribute('aria-invalid', 'true')
-      expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read')
+      expect(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ })).toHaveValue('Read')
       mockProfileState.timeZone = 'America/Sao_Paulo'
       view.refresh()
       expect(screen.getByRole('button', { name: new RegExp(label) })).toHaveTextContent(formatLocaleDate('2026-10-20', 'en'))
@@ -105,7 +105,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date', 'requestAnimationFrame', 'cancelAnimationFrame'] })
     let ready = false
     const opening = mount('habit').then(() => { ready = true })
-    await screen.findByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : 'habits.editHabit' })
+    await screen.findByRole('dialog', { name: owner === 'create' ? 'habits.form.newTask' : 'habits.editHabit' })
     expect(ready).toBe(false)
     expect(screen.getByRole('button', { name: 'common.close' })).not.toHaveFocus()
     await act(async () => { vi.advanceTimersToNextFrame() })
@@ -151,7 +151,7 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
 
   it.each([false, true].flatMap((flexible) => [false, true].map((editAfterReturn) => ({ flexible, editAfterReturn }))))('saves the restored monthly draft after General, flexible=$flexible, edited=$editAfterReturn', async ({ flexible, editAfterReturn }) => {
     await mount('habit')
-    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Read every Monday' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ }), { target: { value: 'Read every Monday' } })
     if (owner === 'create') fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
     if (flexible) fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
     fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitMonth' }))
@@ -186,13 +186,13 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
   ))('saves the owned title for $locale after $transition', async ({ locale, transition }) => {
     formLocale.language = locale
     await mount(transition === 'title-before-type' ? null : transition === 'task-before-title' ? 'task' : 'habit')
-    if (transition === 'task-before-title') expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toBeChecked()
+    if (transition === 'task-before-title') expect(screen.getByRole('radio', { name: /^habits.form.typeTask/ })).toBeChecked()
     const title = locale === 'en' ? 'Read every Monday' : 'Ler toda segunda'
-    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: title } })
+    fireEvent.change(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ }), { target: { value: title } })
     if (transition === 'general') {
       fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
       fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
-    } else if (transition !== 'recurring' && transition !== 'task-before-title') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    } else if (transition !== 'recurring' && transition !== 'task-before-title') fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ }))
     await submit()
     await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
     const request = modalFeedback.create.mock.calls[0]![0]
@@ -209,18 +209,12 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
-  if (owner === 'create') it('keeps a missing type inline and saves the retained draft after selection', async () => {
+  if (owner === 'create') it('defaults to Task and saves without a type-selection step', async () => {
     await mount(null)
-    await submit()
-    expect(screen.getByText('habits.form.typeRequired')).toBeVisible()
-    expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toHaveFocus()
-    expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read')
-    expect(mutation()).not.toHaveBeenCalled()
-    expect(modalFeedback.showError).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
-    expect(screen.queryByText('habits.form.typeRequired')).toBeNull()
+    expect(screen.getByRole('radio', { name: /^habits.form.typeTask/ })).toBeChecked()
     await submit()
     await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    expect(screen.queryByText('habits.form.typeRequired')).toBeNull()
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
@@ -237,6 +231,6 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     }
     expect(mutation()).toHaveBeenCalledOnce()
     expect(closed).not.toHaveBeenCalled()
-    expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read')
+    expect(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ })).toHaveValue('Read')
   })
 })

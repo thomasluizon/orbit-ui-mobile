@@ -12,7 +12,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
       test('keeps the empty reason beneath and aligned with its submit', async ({ page }) => {
         await page.goto('/habits/new')
         const footer = page.locator('[data-habit-create-action]')
-        const submit = footer.getByRole('button', { name: messages.habits.createHabit, exact: true })
+        const submit = footer.getByRole('button', { name: messages.habits.createTask, exact: true })
         await expect(submit).toBeEnabled()
         const reasonId = await submit.getAttribute('aria-describedby')
         expect(reasonId).toBeTruthy()
@@ -39,7 +39,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           }
         }).toPass()
 
-        await page.getByRole('textbox', { name: messages.habits.form.describe, exact: true }).fill('Walk')
+        await page.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true }).fill('Walk')
         await expect(submit).toBeEnabled()
         await expect(submit).not.toHaveAttribute('aria-describedby')
         await expect(reason).toHaveCount(0)

@@ -1,12 +1,6 @@
-import type { HabitFormData } from '../validation/habit-form'
 import { getAccountDateTime } from './dates'
 
 export const REPEAT_REMINDER_INTERVALS: readonly number[] = [15, 20, 30, 45, ...Array.from({ length: 23 }, (_, index) => (index + 1) * 60)]
-
-export function supportsRepeatReminder(habit: Partial<Pick<HabitFormData, 'isGeneral' | 'isFlexible' | 'frequencyUnit' | 'frequencyQuantity' | 'days' | 'intervalWeeks'>>): boolean {
-  return (habit.intervalWeeks ?? 1) === 1 && ((habit.days ?? []).length === 0 || new Set(habit.days ?? []).size === 7)
-    && (habit.isGeneral || habit.frequencyUnit === 'Day' && (habit.isFlexible || habit.frequencyQuantity === 1))
-}
 
 export function repeatReminderClock(instant: string, timeZone?: string | null): string {
   const { minutes } = getAccountDateTime(new Date(instant), timeZone)

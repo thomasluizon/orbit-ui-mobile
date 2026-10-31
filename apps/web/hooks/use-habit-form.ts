@@ -86,6 +86,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   const form = useForm<HabitFormInput, unknown, HabitFormData>({
     resolver: zodResolver(habitFormSchema),
     defaultValues: {
+      itemType: 'task',
       title: '',
       description: '',
       emoji: '',

@@ -1,4 +1,3 @@
-import { IconButton } from '@/components/ui/icon-button'
 import { useHabitFormInteraction } from './habit-form-interaction'
 import { ListRow } from '@/components/ui/list-row'
 import { toTime24 } from '@orbit/shared/utils'
@@ -9,7 +8,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo } from "react";
 import { View, Text, } from "react-native";
-import { X, Plus } from '@/components/ui/icons';
+import { X } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
 import {
@@ -46,6 +45,7 @@ function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
 }
 
 interface ScheduledReminderSectionProps {
+  hideDayBefore?: boolean
   inline?: boolean;
   tokens: AppTokens;
   reminderEnabled: boolean;
@@ -64,6 +64,7 @@ interface ScheduledReminderSectionProps {
 
 export function ScheduledReminderSection({
   tokens,
+  hideDayBefore = false,
   inline = false,
   reminderEnabled,
   scheduledReminders,
@@ -77,26 +78,22 @@ export function ScheduledReminderSection({
   const { t } = useTranslation();
   const { displayTime } = useTimeFormat();
   const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
-  const [showForm, setShowForm] = useState(false);
+
   const [when, setWhen] = useState<ScheduledReminderWhen>("same_day");
-  const [time, setTime] = useState<Time24 | "">("");
+
   const permission = useReminderPermission(reminderEnabled, onToggleReminder);
 
   const atScheduledLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS;
   const atRelativeLimit = (scheduledReminders?.length ?? 0) + offsetReminderCount >= 15;
   const atLimit = atScheduledLimit || atRelativeLimit;
 
-  function addScheduledReminder() {
+  function addScheduledReminder(time: Time24) {
     if (atRelativeLimit) {
       onValidationError(t("habits.form.relativeReminderMax"));
       return;
     }
-    if (!time) {
-      onValidationError(t("habits.form.invalidScheduledReminderTime"));
-      return;
-    }
     const current = scheduledReminders ?? [];
-    const candidate = [...current, { when, time }];
+    const candidate = [...current, { when: hideDayBefore ? 'same_day' as const : when, time }];
     const validationErrorKey = validateScheduledReminders(candidate);
     if (validationErrorKey) {
       onValidationError(
@@ -105,8 +102,7 @@ export function ScheduledReminderSection({
       return;
     }
     onSetScheduledReminders(candidate);
-    setTime("");
-    setShowForm(false);
+
   }
 
   function removeScheduledReminder(index: number) {
@@ -154,38 +150,27 @@ export function ScheduledReminderSection({
             </View>
           )}
 
-          {!showForm && !atLimit && (
-            <IconButton label={t(nested ? 'habits.form.reminderAddTime' : 'habits.form.scheduledReminderAdd')} disabled={disabled} hitSlop={{ top: 4, bottom: 4 }} accessibilityRole="button" onPress={() => setShowForm(true)}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton>
-          )}
-
           {atLimit && (
             <Text style={sectionStyles.limitText}>
               {t(atRelativeLimit ? "habits.form.relativeReminderMax" : "habits.form.scheduledReminderMax")}
             </Text>
           )}
 
-          {showForm && (
+          {!atLimit && (
             <View style={sectionStyles.formBody}>
               <RadioGroup accessibilityLabel={t("habits.form.scheduledReminder")} style={sectionStyles.whenRow}>
-                <ReminderWhenOption label={t("habits.form.scheduledReminderDayBefore")} selected={when === "day_before"} onSelect={() => setWhen("day_before")} styles={sectionStyles} />
+                {!hideDayBefore ? <ReminderWhenOption label={t("habits.form.scheduledReminderDayBefore")} selected={when === "day_before"} onSelect={() => setWhen("day_before")} styles={sectionStyles} /> : null}
                 <ReminderWhenOption label={t("habits.form.scheduledReminderSameDay")} selected={when === "same_day"} onSelect={() => setWhen("same_day")} styles={sectionStyles} />
               </RadioGroup>
 
               <View style={sectionStyles.timeRow}>
                 <TimeField disabled={disabled}
-                  label={t("habits.form.scheduledReminderTimePlaceholder")}
-                  value={toTime24(time)}
-                  onChange={guard(setTime)}
-                  onClear={() => setTime("")}
+                  label={t("habits.form.scheduledReminderTime")}
+                  placeholder={t("habits.form.scheduledReminderTimePlaceholder")}
+                  value={toTime24('')}
+                  onChange={guard(addScheduledReminder)}
                 />
-                <View style={sectionStyles.timeControls}>
-                  {inline ? <IconButton label={t("common.add")} disabled={disabled || (!time)} onClick={addScheduledReminder}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton> : (
-                  <IconButton label={t("common.add")} disabled={disabled || !time} onPress={addScheduledReminder}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton>
-                  )}
-                  <Pressable disabled={disabled} style={({ pressed }) => [sectionStyles.timeCancelButton, pressed && { transform: [{ scale: 0.96 }] }]} accessibilityRole="button" accessibilityLabel={t("common.cancel")} onPress={() => { setShowForm(false); setTime(""); }}>
-                    <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-                  </Pressable>
-                </View>
+
               </View>
             </View>
           )}

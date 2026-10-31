@@ -126,8 +126,9 @@ interface CreateHabitModalProps {
 function resolveCreateSheetTitle(
   isSubHabitMode: boolean,
   t: (key: string) => string,
+  task: boolean,
 ): string {
-  return t(isSubHabitMode ? 'habits.createSubHabit' : 'habits.form.newHabit')
+  return t(isSubHabitMode ? 'habits.createSubHabit' : task ? 'habits.form.newTask' : 'habits.form.newHabit')
 }
 
 // react-doctor-disable-next-line no-giant-component -- form-modal shell already decomposed into create-habit-modal/* and HabitFormFields subcomponents; the remaining body is cohesive submit/suggest/reset orchestration, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -606,7 +607,7 @@ export function CreateHabitModal({
   const handleResolveSubHabitProposalReady = useCallback((resolve: () => void) => {
     resolveSubHabitProposalRef.current = resolve
   }, [])
-  const sheetTitle = resolveCreateSheetTitle(isSubHabitMode, t)
+  const sheetTitle = resolveCreateSheetTitle(isSubHabitMode, t, formHelpers.form.watch('itemType') === 'task')
   const lockedGeneral = parentHabit?.isGeneral ?? null
 
   return (
@@ -625,7 +626,7 @@ export function CreateHabitModal({
           <View accessibilityLiveRegion="polite" style={createBoundary ? { paddingBottom: 12 } : undefined}>
             <CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />
           </View>
-          <HabitCreateActions presentation={presentation} pending={isPending}
+          <HabitCreateActions task={formHelpers.form.watch('itemType') === 'task'} presentation={presentation} pending={isPending}
             empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
             onCancel={dismissGuard.requestDismiss} onSubmit={() => void handleSubmit()} />
         </>}
