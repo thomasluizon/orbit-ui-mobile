@@ -13,6 +13,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBR]] as const) {
     return String(new IntlMessageFormat(template, locale).format(values))
   }
   describe(`form decision copy in ${locale}`, () => {
+    it('uses missing-title guidance for both item types', () => {
+      expect(messages.habits.form.titleRequired).toBe(locale === 'en' ? 'Enter a title.' : 'Escreva um título.')
+    })
     it('labels a task and habit according to the selected type', () => {
       expect(buildHabitUnderstandingLabels(translate, 'task')).toMatchObject({ field: messages.habits.form.taskDescribe, placeholder: messages.habits.form.taskDescribePlaceholder })
       expect(buildHabitUnderstandingLabels(translate, 'habit')).toMatchObject({ field: messages.habits.form.describe, placeholder: messages.habits.form.describePlaceholder })

@@ -876,7 +876,7 @@
       "emojiCategoryTravel": "Travel",
       "emojiCategorySymbols": "Symbols",
       "emojiTooLong": "Shorten the habit emoji to 32 characters or fewer.",
-      "titleRequired": "Give the habit a title",
+      "titleRequired": "Enter a title.",
       "titleTooLong": "Shorten the habit title to 200 characters or fewer.",
       "descriptionTooLong": "Shorten the habit description to 10,000 characters or fewer.",
       "frequency": "Frequency",
