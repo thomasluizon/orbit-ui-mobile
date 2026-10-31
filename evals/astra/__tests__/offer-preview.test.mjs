@@ -86,6 +86,30 @@ it('removes slash-separated child groups without changing siblings or their requ
   expect(preservesOfferFields(before, after, ['exam:sub_habits/0/emoji'])).toBe(false)
 })
 
+it.each(['scalar', 'nested'])('rejects a retained %s suggestion through the removal lifecycle', async (shape) => {
+  const pending = proposal()
+  if (shape === 'nested') {
+    pending.items[0].fields = [
+      { ...pending.items[0].fields[0], field: 'sub_habits', proposedValue: [
+        { title: 'Mobility', frequency_unit: 'Day', emoji: '🧘' }, { title: 'Read', frequency_unit: 'Day' },
+      ] },
+      { ...pending.items[0].fields[1], field: 'sub_habits/0/emoji', proposedValue: '🧘', provenance: 'suggested',
+        removal: { offerKey: 'preview:child:emoji', field: 'sub_habits/0/emoji', fields: ['sub_habits/0/emoji'] } },
+    ]
+  }
+  const api = async (_method, _path, body) => {
+    expect(body.items[0].removeSuggestedFields).toEqual([shape === 'nested' ? 'sub_habits/0/emoji' : 'reminder_enabled'])
+    const revised = structuredClone(pending)
+    revised.items[0].fields = revised.items[0].fields.flatMap((field) => {
+      if (field.provenance !== 'suggested') return [field]
+      return shape === 'scalar' ? [{ ...field, provenance: 'requested', removal: null }] : []
+    })
+    return { payload: { isSuccess: true, error: null, pendingOperationId: pending.id,
+      preview: { items: revised.items, changes: null, changeTargetCount: 1, previewFingerprint: 'revised' }, cancelled: false } }
+  }
+  await expect(removeOfferGroup(api, pending, vars.clientContext)).rejects.toThrow('removal')
+})
+
 it('accepts unannotated requested-only previews but never partially annotated provenance', () => {
   const pending = preview('Read a book')
   const policy = { ...vars, offerFamily: 'ordinary-reading' }

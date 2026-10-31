@@ -57,16 +57,17 @@ export function sanitizeEvidence(value, withheld = new Set()) {
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, sanitizeEvidence(child, withheld)]))
 }
 
-function resultEvidence(result) {
+function resultEvidence(result, name) {
   if (!result || typeof result !== 'object') return null
   const scalar = (value) => ['string', 'number', 'boolean'].includes(typeof value) || value === null
   const payloadFields = ['status', 'item_count', 'habit_count', 'date_count', 'proposed_titles', 'dates', 'errorCode', 'error', 'arguments']
   return { success: typeof result.success === 'boolean' ? result.success : null,
     error: typeof result.error === 'string' ? result.error : null,
     payload: result.payload && typeof result.payload === 'object'
-      ? Object.fromEntries(payloadFields.filter((key) => Object.hasOwn(result.payload, key)
+      ? { ...Object.fromEntries(payloadFields.filter((key) => Object.hasOwn(result.payload, key)
         && (scalar(result.payload[key]) || (Array.isArray(result.payload[key]) && result.payload[key].every(scalar))))
-        .map((key) => [key, result.payload[key]])) : null }
+        .map((key) => [key, result.payload[key]])),
+      ...(name === 'suggest_habits' && Array.isArray(result.payload.drafts) ? { drafts: result.payload.drafts } : {}) } : null }
 }
 
 export function attemptEvidence(entry, attempt) {
@@ -80,7 +81,7 @@ export function attemptEvidence(entry, attempt) {
     return { name: call.name,
       arguments: observableArguments(call.arguments, declarations.length
         ? { anyOf: declarations.map((tool) => tool.function.parameters) } : undefined, sensitiveFields, withheld),
-      resultStatus: call.resultStatus, ...(declarations.length ? { result: resultEvidence(call.result) } : {}) }
+      resultStatus: call.resultStatus, ...(declarations.length ? { result: resultEvidence(call.result, call.name) } : {}) }
   })
   return sanitizeEvidence({ ...attempt,
     answer: output?.answer ?? null,

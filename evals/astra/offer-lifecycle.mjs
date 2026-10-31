@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import { structural, behavior, composition } from './assertions.mjs'
-import { offerActions, offerResult, proactiveOffers } from './proactive-offers.mjs'
+import { offerActions, offerResult, offerSafety, proactiveOffers } from './proactive-offers.mjs'
 import { publicApi } from './fixtures/api.mjs'
 import { readOfferState } from './fixtures/offers.mjs'
 import { refreshCredential, safeFailureMessage } from './credentials.mjs'
@@ -9,7 +9,7 @@ import { approveOfferTask, preservesOfferFields, rejectOfferPreview, removeOffer
 
 async function verified(output, vars) {
   const context = { vars: { ...vars, offerRequireReadback: false }, test: { vars } }
-  for (const grade of [structural, behavior, composition, proactiveOffers]) {
+  for (const grade of [structural, behavior, composition, vars.offerFamily ? proactiveOffers : offerSafety]) {
     const verdict = await grade(output, context)
     if (verdict.pass !== true || verdict.metadata?.unavailable || verdict.metadata?.skipped) throw new Error(verdict.reason)
   }
@@ -54,7 +54,9 @@ export async function checkSuppression(api, vars, turn) {
     description: null, frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: vars.accountDate })
   if (typeof created?.id !== 'string') throw new Error('Different-offer fixture lacks its identity.')
   const baseline = await readOfferState(api)
-  const different = await turn(vars.clientContext.locale === 'pt-BR' ? 'Liste meus hábitos de hoje.' : 'List my habits due today.', policy)
+  const different = await turn(vars.clientContext.locale === 'pt-BR' ? 'Liste meus hábitos de hoje.' : 'List my habits due today.', {
+    ...policy, fixtureEvidence: { ...vars.fixtureEvidence, ...baseline },
+  })
   const actions = offerActions(different.composition)
   if (actions.length !== 1 || actions[0].action.offerKey === issued.offerKey || !actions[0].action.offerKey.startsWith(`log:${created.id}:`)
     || !isDeepStrictEqual(await readOfferState(api), baseline)) throw new Error('A different eligible offer was suppressed or wrote data.')

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { writeResults } from '../report.mjs'
 import parseResponse from '../response.mjs'
 import { behavior } from '../assertions.mjs'
-import { chatResponse, toolCall, traceTiming } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, traceTiming, suggestionDraft } from './fixtures/producer.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { PostApiChatResponse } from '../../../packages/shared/src/types/__generated__/api.generated.ts'
 
@@ -39,6 +39,23 @@ it('preserves independent saved-step readback in the private attempt artifact', 
     { assertion: { metric: 'savedStep' }, pass: true, metadata: { savedStep } },
   ] } })
   expect(evidence.savedStep).toEqual(savedStep)
+})
+
+it('keeps issued suggestion drafts and typed targets while redacting draft credentials and e-mail', () => {
+  offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'private-draft-credential')
+  const draft = suggestionDraft({ existingHabitId: '22222222-2222-4222-8222-222222222222',
+    title: 'Read with person@example.invalid', reason: 'private-draft-credential',
+    checklistItems: ['Read one page', 'person@example.invalid', 'offline-refresh'] })
+  const call = toolCall('suggest_habits', { instruction: 'Suggest reading habits', language: 'en', count: 1 },
+    'Succeeded', 'suggest', { supportsParts: true })
+  call.result.payload = { language: 'en', drafts: [draft] }
+  const { evidence, text } = persist(outputFor([call]))
+  expect(evidence.toolCalls[0].result.payload).toEqual({ drafts: [{ ...draft,
+    id: '[redacted]', existingHabitId: '[redacted]', title: 'Read with [redacted]', reason: '[redacted]',
+    checklistItems: ['Read one page', '[redacted]', '[redacted]'],
+  }] })
+  expect(text).not.toMatch(/private-draft-credential|person@example.invalid|offline-refresh/)
 })
 
 it('retains sanitized brain dump approval and persisted schedule evidence', () => {

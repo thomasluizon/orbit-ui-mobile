@@ -14,14 +14,24 @@ function withoutRemovedChildren(value, itemId, field, removed) {
   return normalized
 }
 
+function removedValuesAbsent(item, removed) {
+  return item.fields.every((field) => removed.every((path) => {
+    const key = `${item.itemId}:${field.field}`
+    if (path === key) return field.provenance !== 'suggested' && field.proposedValue == null
+    if (!path.startsWith(`${key}/`)) return true
+    const value = path.slice(key.length + 1).split('/').reduce((parent, segment) => parent?.[segment], field.proposedValue)
+    return value == null
+  }))
+}
+
 export function preservesOfferFields(before, after, removed = [], edited = []) {
   if (!Array.isArray(after?.items) || after.items.length !== before.items.length) return false
   return before.items.every((item) => {
     const next = after.items.find((candidate) => candidate.itemId === item.itemId && candidate.entityId === item.entityId)
-    if (!next) return false
+    if (!next || !removedValuesAbsent(next, removed)) return false
     return item.fields.every((field) => {
       const updated = next.fields.find((candidate) => candidate.field === field.field)
-      if (removed.includes(`${item.itemId}:${field.field}`)) return !updated || updated.provenance !== 'suggested'
+      if (removed.includes(`${item.itemId}:${field.field}`)) return true
       if (edited.includes(`${item.itemId}:${field.field}`)) return Boolean(updated)
       return updated && isDeepStrictEqual(
         withoutRemovedChildren(updated.proposedValue, item.itemId, field.field, removed),
@@ -69,7 +79,7 @@ export async function removeOfferGroup(api, pending, clientContext) {
   const revised = await reviseOfferPreview(api, pending, pending.items.map((item) => ({ itemId: item.itemId,
     ...(item.itemId === target.item.itemId ? { removeSuggestedFields: [target.field.field] } : {}),
   })), clientContext)
-  if (!preservesOfferFields(pending, revised, removed)) throw new Error('Grouped removal changed a requested field or sibling.')
+  if (!preservesOfferFields(pending, revised, removed)) throw new Error('Grouped removal retained a rejected value or changed a requested field or sibling.')
   return { pending: revised, removed }
 }
 

@@ -68,7 +68,8 @@ it.each(['valid', 'wrong-request', 'missing-trace', 'write', 'selector-timeout',
   },
 )
 
-it('keeps the rendered main answer in the history sent to subsequent lifecycle turns', async () => {
+it.each(['valid', 'invalid-kind', 'invalid-date', 'invalid-target'])(
+  'validates HTTP continuation offers and keeps rendered history: %s', async (fault) => {
   offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'offline')
   const clientContext = { platform: 'web', locale: 'en', supportsParts: true, supportsProactiveOffers: true,
@@ -76,7 +77,7 @@ it('keeps the rendered main answer in the history sent to subsequent lifecycle t
   const state = { habits: [], goals: [], tags: [], checklistTemplates: [] }
   const vars = { input: 'Do not offer that small step again. Show my day.', credentialKey: 'ORBIT_EVAL_TOKEN',
     evalRequestId: 'independent-request', accountDate: today, clientContext, clientContextJson: JSON.stringify(clientContext),
-    historyJson: '[]', offerFamily: 'dismissal', offerRequireReadback: true, offerBaseline: structuredClone(state), fixtureEvidence: state,
+    historyJson: '[]', offerFamily: 'dismissal', offerRequireReadback: true, offerBaseline: structuredClone(state), fixtureEvidence: structuredClone(state),
     setup: { input: 'Show my day.' }, issuedOffer: { action: { offerKey: `smallStep:account:${today}` } },
     composition: { mode: 'data' }, expectations: { required: [{ name: 'query_habits' }] } }
   let chats = 0
@@ -111,13 +112,22 @@ it('keeps the rendered main answer in the history sent to subsequent lifecycle t
         recovery: null, ...(index === 14 ? { nextAction: { offerKey: `log:${habitId}:${today}`, kind: 'preparePreview',
           label: 'Log this habit', prompt: 'Log Breathe today.', surface: null, entityId: habitId, date: today } } : {}),
       } } }]
+      if (index === 14) {
+        const action = response.parts[0].block.read.nextAction
+        if (fault === 'invalid-kind') action.kind = 'continueChat'
+        if (fault === 'invalid-date') action.date = '2031-06-09'
+        if (fault === 'invalid-target') action.entityId = '33333333-3333-4333-8333-333333333333'
+        expect(action.offerKey).toBe(`log:${habitId}:${today}`)
+      }
     }
     return Response.json(response, { headers: { 'x-orbit-request-id': requestId } })
   })
   const provider = new AstraHttpProvider({ config: { ...configuration.providers[0].config,
     url: 'https://orbit-api-staging-uqu2.onrender.com/api/chat', transformResponse: `file://${fileURLToPath(new URL('../response.mjs', import.meta.url))}` } })
   const response = await provider.callApi(vars.input, { vars })
-  expect(response.output.offerReadback.pass, response.output.offerReadback.reason).toBe(true)
+  expect(response.output.offerReadback.pass, response.output.offerReadback.reason).toBe(fault === 'valid')
+  expect(proactiveOffers(response.output, { vars }).pass).toBe(fault === 'valid')
+  if (fault !== 'valid') expect(response.output.offerReadback.reason).toContain('Malformed, stale or ungrounded next action')
   expect(chats).toBe(15)
   expect(firstHistory.at(-1)).toEqual({ role: 'assistant', content: response.output.answer })
 })
