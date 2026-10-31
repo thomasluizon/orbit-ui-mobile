@@ -1,5 +1,5 @@
 import { redactCredentials } from './credentials.mjs'
-import { tools, legacyTools, postReadTools, habitSetupTools, offerTools, offerPostReadTools, normalizeField } from './trace-policy.mjs'
+import { tools, legacyTools, postReadTools, habitSetupTools, offerTools, offerPostReadTools, offerHabitSetupTools, normalizeField } from './trace-policy.mjs'
 
 function collectStrings(value, withheld) {
   if (typeof value === 'string' && value) withheld.add(value)
@@ -71,7 +71,7 @@ function resultEvidence(result) {
 
 export function attemptEvidence(entry, attempt) {
   const output = entry.response?.output
-  const catalog = entry.testCase.vars?.clientContext?.supportsParts === true ? [...tools, ...postReadTools, ...habitSetupTools, ...offerTools, ...offerPostReadTools] : legacyTools
+  const catalog = entry.testCase.vars?.clientContext?.supportsParts === true ? [...tools, ...postReadTools, ...habitSetupTools, ...offerTools, ...offerPostReadTools, ...offerHabitSetupTools] : legacyTools
   const withheld = new Set()
   const toolCalls = (output?.trace?.calls ?? []).map((call) => {
     const declarations = catalog.filter((candidate) => candidate.function.name === call.name)

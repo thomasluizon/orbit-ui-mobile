@@ -6,7 +6,7 @@ export { proactiveOffers } from './proactive-offers.mjs'
 import { assertions } from 'promptfoo'
 import { matchesArguments, matchesOperation, outcomeCalls } from './operation-matcher.mjs'
 import { tools, legacyTools, postReadTools, habitSetupTools, habitSetupBinding,
-  toolWrites, toolSensitiveFields, observableSchema, offerTools, offerPostReadTools } from './trace-policy.mjs'
+  toolWrites, toolSensitiveFields, observableSchema, offerTools, offerPostReadTools, offerHabitSetupTools } from './trace-policy.mjs'
 
 const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
@@ -18,6 +18,7 @@ const postReadCatalog = mergeCatalog(compositionCatalog, traceCatalog(postReadTo
 const offerCatalog = traceCatalog(offerTools)
 const offerContinuationCatalog = mergeCatalog(offerCatalog, traceCatalog(offerPostReadTools))
 const habitSetupCatalog = traceCatalog(habitSetupTools)
+const offerHabitSetupCatalog = traceCatalog(offerHabitSetupTools)
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const decode = (output) => typeof output === 'string' ? JSON.parse(output) : output
@@ -34,13 +35,13 @@ function bindDraftSchema(schema, draft) {
     : bindDraftSchema(value, draft)]))
 }
 
-function boundHabitSetupCatalog(drafts) {
-  const bound = structuredClone(habitSetupCatalog)
+function boundHabitSetupCatalog(drafts, offers = false) {
+  const bound = structuredClone(offers ? offerHabitSetupCatalog : habitSetupCatalog)
   for (const tool of bound) {
     const input = tool.function.parameters.properties.input
     input.anyOf = [...drafts.values()].flatMap((draft) => bindDraftSchema(input.anyOf, draft))
   }
-  return mergeCatalog(compositionCatalog, bound)
+  return mergeCatalog(offers ? offerCatalog : compositionCatalog, bound)
 }
 
 function recordHabitSetupDraft(call, drafts) {
@@ -133,7 +134,7 @@ export async function structural(output, context) {
       recordHabitSetupDraft(call, drafts)
       hasSuccessfulAccountRead ||= successfulAccountRead
       if (hasSuccessfulAccountRead) catalog = offers ? offerContinuationCatalog : postReadCatalog
-      else if (drafts.size) catalog = boundHabitSetupCatalog(drafts)
+      else if (drafts.size) catalog = boundHabitSetupCatalog(drafts, offers)
     }
   }
   return verdict

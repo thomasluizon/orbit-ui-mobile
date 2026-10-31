@@ -68,6 +68,33 @@ it('preserves requested fields, stored values and sibling identities on removal'
   expect(preservesOfferFields(before, after, removed)).toBe(false)
 })
 
+it('removes slash-separated child groups without changing siblings or their requested cadence', () => {
+  const before = proposal()
+  const item = before.items[0]
+  item.fields = [
+    { ...item.fields[0], field: 'sub_habits', proposedValue: [
+      { title: 'Mobility', frequency_unit: 'Day', emoji: '🧘' }, { title: 'Read', frequency_unit: 'Day' },
+    ] },
+    { ...item.fields[1], field: 'sub_habits/0/emoji', proposedValue: '🧘', provenance: 'suggested',
+      removal: { offerKey: 'preview:child:emoji', field: 'sub_habits/0/emoji', fields: ['sub_habits/0/emoji'] } },
+  ]
+  const after = structuredClone(before)
+  after.items[0].fields.pop()
+  delete after.items[0].fields[0].proposedValue[0].emoji
+  expect(preservesOfferFields(before, after, ['exam:sub_habits/0/emoji'])).toBe(true)
+  after.items[0].fields[0].proposedValue[1].title = 'Wrong sibling'
+  expect(preservesOfferFields(before, after, ['exam:sub_habits/0/emoji'])).toBe(false)
+})
+
+it('accepts unannotated requested-only previews but never partially annotated provenance', () => {
+  const pending = preview('Read a book')
+  const policy = { ...vars, offerFamily: 'ordinary-reading' }
+  const check = () => proactiveOffers({ composition: { parts: [], pendingOperations: [pending] }, trace: { calls: [] } }, { vars: policy })
+  expect(check().pass).toBe(true)
+  pending.items[0].fields[0].provenance = 'requested'
+  expect(check().pass).toBe(false)
+})
+
 it.each(['cancel', 'confirmable', 'changed', 'valid'])('independently verifies rejection: %s', async (fault) => {
   const baseline = { habits: [], goals: [], tags: [], checklistTemplates: [] }
   const api = async (_method, path) => path.endsWith('/revise')
@@ -87,7 +114,7 @@ it.each(['token', 'extra-write', 'wrong-field', 'valid'])('reads approved fields
   const api = async (_method, path) => {
     if (path.includes('/confirm')) return { payload: { pendingOperationId: pending.id, confirmationToken: fault === 'token' ? null : 'private-confirmation' } }
     if (path.endsWith('/execute')) { executed = true; return { status: 200 } }
-    if (path.startsWith('habits/')) return { payload: { title: fault === 'wrong-field' ? 'Wrong' : 'Take one breath', frequencyUnit: null } }
+    if (path.startsWith('habits/')) return { payload: { id: 'saved', title: fault === 'wrong-field' ? 'Wrong' : 'Take one breath', frequencyUnit: null } }
     return { payload: { ...baseline, habits: executed ? [{ id: 'saved', title: 'Take one breath', frequencyUnit: null },
       ...(fault === 'extra-write' ? [{ id: 'unapproved', title: 'Extra' }] : [])] : [] } }
   }

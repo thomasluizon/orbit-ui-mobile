@@ -120,16 +120,19 @@ async function seedComposition(api, account, today, fixture, names, exported) {
   await api('PUT', 'calendar/auto-sync', { enabled: false })
   if (fixture === 'composition-logged') await api('POST', `habits/${account.habitId}/log`, { date: today })
 }
-async function seedStaleRetrospective(api, today, locale) {
-  const path = `habits/retrospective?period=month&language=${encodeURIComponent(locale)}`
+export async function seedStaleRetrospective(api, today, locale, period = 'month', weekStartDay) {
+  if (period === 'week' && (!Number.isInteger(weekStartDay) || weekStartDay < 0 || weekStartDay > 6)) throw new Error('Weekly offer fixture lacks the account week start.')
+  const dateFrom = period === 'month' ? dateOffset(today, -29)
+    : dateOffset(today, -((new Date(`${today}T12:00:00Z`).getUTCDay() - weekStartDay + 7) % 7))
+  const path = `habits/retrospective?period=${period}&language=${encodeURIComponent(locale)}`
   await api('GET', path)
   const { payload } = await api('GET', path)
   const narrative = payload?.narrative
-  if (payload?.fromCache !== true || payload.period !== 'month'
-    || payload.dateFrom !== dateOffset(today, -29) || payload.dateTo !== today
+  if (payload?.fromCache !== true || payload.period !== period
+    || payload.dateFrom !== dateFrom || payload.dateTo !== today
     || !narrative || !['highlights', 'missed', 'trends', 'suggestion'].every((field) => typeof narrative[field] === 'string')
     || !Object.values(narrative).some((section) => typeof section === 'string' && section.trim())) {
-    throw new Error('Stale fixture could not verify a cached month retrospective narrative for the account dates.')
+    throw new Error(`Stale fixture could not verify a cached ${period} retrospective narrative for the account dates.`)
   }
   return payload
 }
@@ -258,7 +261,8 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   }
   if (fixture === 'free-at-limit') await fillCapacity(api, today)
   test.vars.fixtureEvidence = fixtureEvidence(await verifyFixture(api, account, fixture, today, titles), fixture, today, account)
-  if (fixture === 'composition-stale') return seedStaleRetrospective(api, today, test.metadata.locale ?? 'en')
+  if (fixture === 'composition-stale') return seedStaleRetrospective(api, today, test.metadata.locale ?? 'en',
+    test.vars.offerFamily === 'stale' ? 'week' : 'month', profile.weekStartDay)
 }
 
 export async function runReset(caseId) {

@@ -22,7 +22,7 @@ export function configureOffers(test) {
       .map((name) => ({ name, resultStatus: 'PendingConfirmation' }))
   }
   if (vars.setup) {
-    vars.setup.expectations ??= { allowed: ['get_day_summary', 'query_habits', 'query_goals'] }
+    vars.setup.expectations ??= { allowed: ['get_daily_summary', 'query_habits', 'query_goals'] }
     if (vars.setup.composition.mode === 'preview') {
       const allowed = ['query_habits', 'query_goals', 'list_tags', 'get_checklist_templates',
         'create_habit', 'create_sub_habit', 'bulk_create_habits', 'update_habit', 'bulk_update_habits']

@@ -1,5 +1,5 @@
 const previewTextFields = new Set(['title', 'name', 'emoji', 'description', 'frequency_unit', 'frequency_quantity',
-  'interval_weeks', 'due_date', 'date', 'due_time', 'end_date', 'due_end_time', 'deadline', 'expires_at_utc',
+  'interval_weeks', 'due_date', 'start_date', 'date', 'due_time', 'end_date', 'due_end_time', 'deadline', 'expires_at_utc',
   'is_general', 'is_flexible', 'is_bad_habit', 'reminder_enabled', 'enabled', 'slip_alert_enabled', 'is_completed',
   'is_read_only', 'release_other_account', 'uses_24_hour_clock', 'parent_habit_id', 'current_value', 'target_value',
   'unit', 'goal_type', 'status', 'note', 'subject', 'message', 'email', 'text', 'summary', 'color', 'action',

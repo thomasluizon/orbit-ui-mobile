@@ -3,6 +3,9 @@ import { freshConversation } from '../offer-context.mjs'
 import { proactiveOffers } from '../proactive-offers.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { preview, habitBlock } from './fixtures/producer.mjs'
+import { readFileSync } from 'node:fs'
+
+const contract = JSON.parse(readFileSync(new URL('./fixtures/offer-contract.json', import.meta.url), 'utf8'))
 
 const today = '2031-06-10'
 const habitId = '22222222-2222-4222-8222-222222222222'
@@ -62,6 +65,41 @@ it('accepts an owned due occurrence and rejects deliberately wrong actions', () 
     Object.assign(output.composition.parts[0].block.items[0], row)
     expect(proactiveOffers(output, { vars }).pass).toBe(false)
   }
+})
+
+it('checks the complete action contract captured from the producer OpenAPI', () => {
+  expect(Object.keys(action).sort()).toEqual(Object.keys(contract.AstraNextAction.properties).sort())
+  for (const key of contract.AstraNextAction.required) {
+    const output = sample()
+    delete output.composition.parts[0].block.read.nextAction[key]
+    expect(proactiveOffers(output, { vars }).pass).toBe(false)
+  }
+  for (const patch of [{ offerKey: 1 }, { offerKey: `log:${habitId}:2031-06-09` },
+    { kind: 'openSurface', surface: 'today', prompt: null }, { entityId: null }]) {
+    const output = sample()
+    Object.assign(output.composition.parts[0].block.read.nextAction, patch)
+    expect(proactiveOffers(output, { vars }).pass).toBe(false)
+  }
+})
+
+it('distinguishes an empty complete day from all completed and partial-page empty scopes', () => {
+  const output = sample()
+  output.composition.parts[0].kind = 'daySummary'
+  const block = output.composition.parts[0].block
+  Object.assign(block, { date: today, due: 0, done: 0, overdueCount: 0 })
+  block.read.nextAction = { ...action, offerKey: `smallStep:account:${today}`, entityId: null, kind: 'continueChat' }
+  const policy = { ...vars, offerFamily: 'empty' }
+  expect(proactiveOffers(output, { vars: policy }).pass).toBe(true)
+  Object.assign(block, { due: 2, done: 2 })
+  expect(proactiveOffers(output, { vars: policy }).pass).toBe(true)
+  block.done = 1
+  expect(proactiveOffers(output, { vars: policy }).pass).toBe(false)
+  block.done = 2
+  block.read.completeness = 'partial'
+  expect(proactiveOffers(output, { vars: policy }).pass).toBe(false)
+  block.read.completeness = 'complete'
+  block.date = '2031-06-09'
+  expect(proactiveOffers(output, { vars: policy }).pass).toBe(false)
 })
 
 it('rejects a missing action, multiple offers, unrequested execution and unsupported clients', () => {

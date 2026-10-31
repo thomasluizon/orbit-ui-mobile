@@ -17,7 +17,7 @@ export function visibleOffer(action) {
 }
 
 function validAction({ action, read, pending }, vars) {
-  const family = action.offerKey?.split(':')[0]
+  const family = typeof action.offerKey === 'string' ? action.offerKey.split(':')[0] : undefined
   if (!['log', 'skip', 'restart', 'reminder', 'reviewHabit', 'goalLink', 'goalTarget', 'smallStep', 'notion', 'notification', 'reuse', 'summary', 'calendar', 'aim', 'inspect'].includes(family)) return false
   if (!text(action.offerKey) || action.offerKey.length > 200 || !text(action.label)
     || !['openSurface', 'preparePreview', 'continueChat'].includes(action.kind)
@@ -25,10 +25,14 @@ function validAction({ action, read, pending }, vars) {
     || (action.date != null && !/^\d{4}-\d{2}-\d{2}$/u.test(action.date))) return false
   if (action.kind === 'openSurface' ? !text(action.surface) || action.prompt != null
     : !text(action.prompt) || action.surface != null) return false
+  const kind = ['summary', 'calendar', 'inspect'].includes(family) ? 'openSurface'
+    : ['reviewHabit', 'smallStep', 'notion', 'reuse', 'aim'].includes(family) ? 'continueChat' : 'preparePreview'
+  const key = `${family}:${action.entityId ?? action.surface ?? 'account'}${action.date ? `:${action.date}` : ''}`
+  if (action.kind !== kind || action.offerKey !== key) return false
   if (pending) return uuid(pending.id) && text(pending.previewFingerprint)
   return uuid(read?.queryId) && text(read.queryFamily) && read.scope !== null && typeof read.scope === 'object'
     && text(read.revision) && text(read.refreshToken) && read.completeness === 'complete' && read.recovery == null
-    && (!['log', 'skip', 'restart', 'smallStep'].includes(action.offerKey.split(':')[0]) || action.date != null)
+    && (!['log', 'restart', 'smallStep'].includes(action.offerKey.split(':')[0]) || action.date != null)
     && (action.offerKey.split(':')[0] !== 'log' || action.date === vars.accountDate)
 }
 
@@ -81,7 +85,8 @@ function groundedAction({ action, block }, vars) {
         || (block.date != null && block.date !== action.date)) return false
     }
     if (family === 'reminder' && habit.reminderEnabled) return false
-    if (family === 'skip' && action.date >= vars.accountDate) return false
+    if (family === 'skip' && (action.date != null && action.date >= vars.accountDate
+      || habit.dueDate < vars.accountDate && action.date == null)) return false
   }
   if (family === 'smallStep') {
     const emptyDay = block?.date === vars.accountDate && block.due === block.done && block.overdueCount === 0
@@ -111,18 +116,29 @@ function familyFailure(response, vars, actions) {
   if (families.some((family) => excluded.includes(family) || vars.offerExclusion?.includes(family))) return 'Excluded action was offered.'
   const repeat = fields.find((field) => field.field === 'repeat_reminder')?.proposedValue
   if (vars.offerFamily === 'repeat' && (!repeat || !Number.isInteger(repeat.interval_minutes)
-    || repeat.interval_minutes <= 0 || !text(repeat.active_start) || !text(repeat.active_end))) return 'Repeat reminder lacks its interval or active hours.'
-  if (vars.offerFamily === 'repeat' && (!has('repeat_reminder') || fields.some((field) => field.field === 'frequency_quantity' && Number(field.proposedValue) !== 1))) return 'Missing repeat suggestion or interval-derived target.'
+    || repeat.interval_minutes <= 0
+    || !((repeat.active_start == null && repeat.active_end == null)
+      || text(repeat.active_start) && text(repeat.active_end)))) return 'Repeat reminder lacks its interval or active hours.'
+  if (vars.offerFamily === 'repeat' && (!has('repeat_reminder') || fields.some((field) => field.field === 'frequency_quantity' && field.proposedValue != null && Number(field.proposedValue) !== 1))) return 'Missing repeat suggestion or interval-derived target.'
   if (['fixed-medication', 'ordinary-reading', 'unsupported-schedule'].includes(vars.offerFamily) && has('repeat_reminder')) return 'Ineligible repeat reminder.'
   if (vars.offerFamily === 'fixed-medication') {
     const times = fields.find((field) => field.field === 'scheduled_reminders')
-    if ((times?.provenance != null && times.provenance !== 'requested') || !Array.isArray(times.proposedValue)
+    if (!times || (times.provenance != null && times.provenance !== 'requested') || !Array.isArray(times.proposedValue)
+      || !times.proposedValue.every((entry) => typeof entry?.time === 'string')
       || !isDeepStrictEqual(times.proposedValue.map((entry) => entry.time.slice(0, 5)).sort(), ['08:00', '20:00'])) return 'Requested medication times changed.'
   }
   if (vars.offerFamily === 'bounded' && (!fields.some((field) => field.field === 'end_date' && field.proposedValue === vars.offerEndDate && (field.provenance == null || field.provenance === 'requested'))
-    || !fields.some((field) => field.field === 'due_date' && field.proposedValue === vars.offerStartDate))) return 'Requested inclusive boundary changed.'
+    || !fields.some((field) => ['due_date', 'start_date'].includes(field.field) && field.proposedValue === vars.offerStartDate))) return 'Requested inclusive boundary changed.'
   if (vars.offerFamily === 'root' && suggested.some((field) => field.field === 'parent_habit_id')) return 'Explicit root placement received a suggested parent.'
+  if (vars.offerFamily === 'parent' && !suggested.some((field) => field.field === 'parent_habit_id'
+    && vars.fixtureEvidence?.habits?.some((habit) => habit.id === field.proposedValue))) return 'Suggested parent is missing or unowned.'
+  if (vars.offerFamily === 'goal-link' && !suggested.some((field) => field.field === 'goal_ids'
+    && Array.isArray(field.proposedValue) && field.proposedValue.length > 0
+    && field.proposedValue.every((id) => vars.fixtureEvidence?.goals?.some((goal) => goal.id === id)))) return 'Suggested goal link is missing or unowned.'
+  if (vars.offerFamily === 'dated-reminder' && !suggested.some((field) => reminders.includes(field.field))) return 'Missing removable dated-task reminder.'
   if (vars.offerFamily === 'metadata' && (!has('emoji') || !suggested.some((field) => ['tag_ids', 'tag_names'].includes(field.field)))) return 'Missing separately removable metadata suggestions.'
+  if (vars.offerFamily === 'stale' && !(response.parts ?? []).some((part) => part.kind === 'periodInsight'
+    && part.block.read?.completeness === 'stale' && part.block.read.recovery === 'refresh')) return 'Missing retained stale recovery state.'
   if (vars.offerFamily === 'multi-block' && !isDeepStrictEqual((response.parts ?? []).filter((part) => part.type === 'block').map((part) => part.kind), ['habitList', 'goalList'])) return 'Compound block order changed.'
   return null
 }
@@ -137,6 +153,8 @@ export function proactiveOffers(output, context) {
   const enabled = vars.clientContext.supportsProactiveOffers === true
   if (actions.length > 1 || (!enabled && actions.length)) return offerResult(false, 'Unexpected or multiple unsolicited actions.')
   if (!actions.every((entry) => validAction(entry, vars) && groundedAction(entry, vars))) return offerResult(false, 'Malformed, stale or ungrounded next action.')
+  if (vars.composition.mode === 'data' && response.parts.some((part) => part.type === 'block'
+    && (!uuid(part.block?.read?.queryId) || !text(part.block.read.revision) || !text(part.block.read.refreshToken)))) return offerResult(false, 'Missing typed read identity or revision.')
   if ((response.followUps?.length ?? 0) || (response.followUpContext?.length ?? 0)) return offerResult(false, 'Proactive answer contains external follow-ups.')
   if (parsed.trace.calls.some((call) => toolWrites.get(call.name) === true && call.resultStatus === 'Succeeded')
     || (response.operations ?? []).some((operation) => toolWrites.get(operation.sourceName) === true && operation.status === 'Succeeded')) return offerResult(false, 'Unsolicited write executed.')

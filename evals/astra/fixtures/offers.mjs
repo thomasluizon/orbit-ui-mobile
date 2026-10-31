@@ -12,7 +12,13 @@ const habitRequestFields = ['title', 'description', 'frequencyUnit', 'frequencyQ
 export async function readOfferState(api) {
   const { payload } = await api('GET', 'profile/export')
   if (!collections.every((field) => Array.isArray(payload?.[field]))) throw new Error('Offer readback lacks account collections.')
-  return Object.fromEntries(collections.map((field) => [field, payload[field].toSorted((left, right) => left.id.localeCompare(right.id))]))
+  const snapshot = Object.fromEntries(collections.map((field) => [field, payload[field].toSorted((left, right) => left.id.localeCompare(right.id))]))
+  for (const [index, habit] of snapshot.habits.entries()) {
+    const { payload: detail } = await api('GET', `habits/${habit.id}`)
+    if (detail?.id !== habit.id) throw new Error('Offer detail readback identity mismatch.')
+    snapshot.habits[index] = { ...detail, ...habit }
+  }
+  return snapshot
 }
 
 async function changeHabit(api, id, edits) {

@@ -5,7 +5,7 @@ import { parse } from 'yaml'
 import AstraHttpProvider from './http-provider.mjs'
 import { behavior, composition, structural } from './assertions.mjs'
 import { publicApi } from './fixtures/api.mjs'
-import { offerActions } from './proactive-offers.mjs'
+import { offerActions, proactiveOffers } from './proactive-offers.mjs'
 import { readStartingHabits } from './step-persistence.mjs'
 
 function prepareStartingAction(test, block) {
@@ -52,6 +52,10 @@ export async function prepareCorrection(test) {
     throw new Error(`Correction setup failed${setup.caseId ? ` dependency ${setup.caseId}` : ''}: ${failures.map((check) => check.reason).join('; ')}`)
   }
   if (test.vars.offerFamily) {
+    const policy = { ...vars, offerFamily: setup.composition.mode === 'preview' ? 'repeat' : 'empty',
+      offerRequireReadback: false }
+    const offerCheck = proactiveOffers(response.output, { vars: policy })
+    if (!offerCheck.pass) throw new Error(`Offer setup failed: ${offerCheck.reason}`)
     const actions = offerActions(response.output.composition)
     if (test.vars.offerFamily !== 'preview-rejection' && actions.length !== 1) throw new Error('Offer setup requires exactly one issued action.')
     test.vars.issuedOffer = structuredClone(actions[0] ?? null)

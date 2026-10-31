@@ -71,6 +71,8 @@ var habitSetupBinding = new { draftCallId = "__draft_call_id__", missingField = 
 File.WriteAllText(args[0], JsonSerializer.Serialize(new {
     offerTools = await ExportTools(true, offers: true),
     offerPostReadTools = await ExportTools(true, afterAccountRead: true, offers: true),
+    offerHabitSetupTools = await ExportTools(true, draft: new HabitSetupDraft(
+        habitSetupBinding.draftCallId, "New habit draft", habitSetupBinding.missingField, Guid.Empty), offers: true),
     tools = await ExportTools(true), legacyTools = await ExportTools(false),
     postReadTools = await ExportTools(true, afterAccountRead: true), habitSetupBinding,
     habitSetupTools = await ExportTools(true, draft: new HabitSetupDraft(

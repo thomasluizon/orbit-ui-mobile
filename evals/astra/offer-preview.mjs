@@ -40,6 +40,13 @@ export async function reviseOfferPreview(api, pending, items, clientContext) {
     || !Array.isArray(payload.preview?.items) || typeof payload.preview.previewFingerprint !== 'string') {
     throw new Error('Offer revision did not return the same verifiable preview.')
   }
+  for (const item of items) {
+    const revised = payload.preview.items.find((candidate) => candidate.itemId === item.itemId)
+    if (!revised || !Object.entries(item.edits ?? {}).every(([key, value]) =>
+      revised.fields.some((field) => field.field === key && isDeepStrictEqual(field.proposedValue, value)))) {
+      throw new Error('Offer revision did not apply the requested edit.')
+    }
+  }
   return { ...pending, ...payload.preview }
 }
 

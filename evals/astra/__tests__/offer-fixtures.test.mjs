@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { seedOfferFixture } from '../fixtures/offers.mjs'
+import { seedStaleRetrospective } from '../fixtures/reset.mjs'
 
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 const today = '2031-06-10'
@@ -18,7 +19,10 @@ function fixture(family, variant = 0, fault) {
     const path = new URL(url).pathname.slice(5)
     const body = options.body ? JSON.parse(options.body) : undefined
     requests.push({ path, method: options.method, body })
-    if (path === 'profile/export') return Response.json(fault === 'collections' ? {} : state)
+    if (path === 'profile/export') return Response.json(fault === 'collections' ? {} : { ...state,
+      habits: state.habits.map((habit) => Object.fromEntries(['id', 'title', 'description', 'emoji', 'isBadHabit', 'isGeneral',
+        'dueDate', 'endDate', 'frequencyUnit', 'frequencyQuantity', 'days', 'checklistItems', 'createdAtUtc', 'logs', 'intervalWeeks']
+        .filter((key) => Object.hasOwn(habit, key)).map((key) => [key, habit[key]]))) })
     if (path === 'profile') return Response.json({ hasGoogleConnection: variant === 1 })
     if (path === 'config') return Response.json({ features: { calendar_integration: { enabled: variant !== 2 } } })
     if (path === 'tags' || path === 'goals') {
@@ -74,10 +78,13 @@ it.each([0, 1, 2])('uses actual disconnected, connected and locked calendar evid
 })
 
 it.each(['resolved', 'stored', 'goal-link', 'empty'])('establishes the %s family state with public requests', async (family) => {
-  const { test, requests } = fixture(family)
+  const { test, requests, state } = fixture(family)
+  if (family === 'empty') { state.habits = []; state.goals = [] }
   await seedOfferFixture(test, today)
   expect(test.vars.offerRequireReadback).toBe(true)
-  expect(requests.at(-1).path).toBe('profile/export')
+  const lastExport = requests.findLastIndex(({ path }) => path === 'profile/export')
+  expect(requests.slice(lastExport + 1).map(({ path, method }) => ({ path, method })))
+    .toEqual(state.habits.map((habit) => ({ path: `habits/${habit.id}`, method: 'GET' })))
   if (family === 'stored') expect(test.vars.offerBaseline.habits[0]).toMatchObject({ emoji: '💧', reminderEnabled: true, checklistItems: [{ text: 'Prepare water', isChecked: true }] })
   if (family === 'resolved') expect(test.vars.offerBaseline.habits[1]).toMatchObject({ isBadHabit: true, dueDate: '2031-06-11' })
   if (family === 'goal-link') expect(test.vars.offerBaseline.goals[0].title).toBe('Daily mobility')
@@ -89,3 +96,15 @@ it.each([['goal-behind', 'tracking'], ['stored', 'fields'], ['resolved', 'skip']
     await expect(seedOfferFixture(test, today)).rejects.toThrow(/readback|collections/u)
   },
 )
+
+it.each([0, 1])('caches the requested weekly retrospective against account week start %s', async (weekStart) => {
+  const from = weekStart === 0 ? '2031-06-08' : '2031-06-09'
+  const payload = { period: 'week', dateFrom: from, dateTo: today, fromCache: true,
+    narrative: { highlights: 'A saved week.', missed: '', trends: '', suggestion: '' } }
+  const paths = []
+  const api = async (_method, path) => { paths.push(path); return { payload } }
+  await expect(seedStaleRetrospective(api, today, 'en', 'week', weekStart)).resolves.toEqual(payload)
+  expect(paths).toEqual(['habits/retrospective?period=week&language=en', 'habits/retrospective?period=week&language=en'])
+  await expect(seedStaleRetrospective(api, today, 'en', 'week', 2)).rejects.toThrow('Stale fixture')
+  await expect(seedStaleRetrospective(api, today, 'en', 'week', undefined)).rejects.toThrow('week start')
+})

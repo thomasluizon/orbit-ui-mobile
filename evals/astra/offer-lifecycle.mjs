@@ -45,7 +45,7 @@ export async function checkSuppression(api, vars, turn) {
     }))
   }
   const input = vars.setup.input
-  const policy = { composition: { mode: 'data' }, expectations: { allowed: ['get_day_summary', 'query_habits'] } }
+  const policy = { composition: { mode: 'data' }, expectations: { allowed: ['get_daily_summary', 'query_habits'] } }
   check(await turn(input, policy, vars.clientContext, true))
   check(await turn(input, policy, { ...vars.clientContext, platform: 'mobile' }, true))
   if (!isDeepStrictEqual(await readOfferState(api), vars.offerBaseline)) throw new Error('Dismissal or unrelated turns changed account fields.')
@@ -92,7 +92,30 @@ export async function checkActionLifecycle(api, output, vars, turn) {
   if (!preservesOfferFields(pending, revised, [], revised.items.map((item) => `${item.itemId}:emoji`))) throw new Error('Lifecycle revision changed unapproved fields.')
   await rejectOfferPreview(api, revised, vars)
   const reproposed = await turn(save.message, policy)
-  return approveOfferTask(api, reproposed.composition.pendingOperations[0], vars, block.suggestion.step)
+  let approval = reproposed.composition.pendingOperations[0]
+  let suggestions = approval.items.flatMap((item) => item.fields).filter((field) => field.provenance === 'suggested').length
+  while (suggestions > 0) {
+    approval = (await removeOfferGroup(api, approval, vars.clientContext)).pending
+    const remaining = approval.items.flatMap((item) => item.fields).filter((field) => field.provenance === 'suggested').length
+    if (remaining >= suggestions) throw new Error('Approval retained a rejected suggestion.')
+    suggestions = remaining
+  }
+  return approveOfferTask(api, approval, vars, block.suggestion.step)
+}
+
+export async function checkReadScopes(api, vars, turn) {
+  const date = new Date(Date.parse(`${vars.accountDate}T12:00:00Z`) - 86400000).toISOString().slice(0, 10)
+  const locale = vars.clientContext.locale
+  const historical = await turn(locale === 'pt-BR' ? `Liste meus hábitos agendados em ${date}.` : `List my habits scheduled on ${date}.`, {
+    composition: { mode: 'data', kinds: ['habitList'] }, expectations: { required: [{ name: 'query_habits', arguments: { date } }] },
+  })
+  if (offerActions(historical.composition).some(({ action }) => ['log', 'skip', 'restart', 'smallStep'].includes(action.offerKey.split(':')[0]))) throw new Error('Historical scope received a current-day offer.')
+  const partial = await turn(locale === 'pt-BR' ? 'Liste meus hábitos de hoje, apenas o primeiro resultado, com limite 1.'
+    : 'List my habits today, only the first result with limit 1.', {
+    composition: { mode: 'data', blocks: [{ kind: 'habitList', completeness: 'partial' }] },
+    expectations: { required: [{ name: 'query_habits', arguments: { limit: 1 } }] },
+  })
+  if (offerActions(partial.composition).length || !isDeepStrictEqual(await readOfferState(api), vars.offerBaseline)) throw new Error('Partial scope offered an unsafe action or changed stored fields.')
 }
 
 async function checkEditablePreview(api, output, vars) {
@@ -124,6 +147,7 @@ export async function completeOfferAttempt(output, vars, chat) {
     if (vars.offerFamily === 'preview-rejection') await checkPreviewRejection(api, output, vars)
     if (vars.offerFamily === 'action-lifecycle') approval = await checkActionLifecycle(api, output, vars, turn)
     if (vars.composition.mode === 'preview' && vars.offerFamily !== 'preview-rejection') await checkEditablePreview(api, output, vars)
+    if (vars.offerFamily === 'due-log') await checkReadScopes(api, vars, turn)
     return { ...offerResult(true, 'Verified held fields, lifecycle and independent persisted readback.'), turns, approval }
   } catch (error) {
     return { ...offerResult(false, safeFailureMessage(error)), turns }
