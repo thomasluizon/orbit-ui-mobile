@@ -12,8 +12,20 @@ For an offline harness check, run `npm ci --prefix evals/astra --workspaces=fals
 `npm test --prefix evals/astra`. This uses local providers and intercepted HTTP requests;
 it does not start a server or spend model credits.
 
-For a requested live capability run, use the configured disposable eval accounts and their
-fixture reset executable. Never substitute a personal account. Enable the existing
+The paid live gate runs once, at app launch. Each failing case is rerun once; there is no
+other live run. A fix round never calls the provider: replay recorded real provider responses
+offline at the model-service port, following the `orbit-api`
+`tests/Orbit.Application.Tests/Fixtures/` pattern, or use a fake completion client.
+Eval traffic uses `AI__EvalApiKey`, the separate OpenAI key for the `Orbit Eval` project with a
+hard monthly limit. An eval account without that key fails closed and never falls back to the
+production key. The API enforces `AI__EvalDailyBudgetUsd`, a hard shared ceiling of 0.50 USD per
+UTC day per environment for all eval accounts together, including accounts with
+`astra_eval_unmetered`. A quota or ceiling stop ends the run. Never resume it on another account,
+key, environment or day, reset a counter, raise a ceiling or rotate accounts to finish.
+No paid-key probe runs without a written cost estimate on the owning ticket first; record the
+actual cost there afterward.
+For the app-launch gate, use the configured disposable eval accounts and their fixture reset
+executable. Never substitute a personal account. Enable the existing
 `astra_eval_trace` account flag through `/flag` only for disposable fixtures, record its
 previous state, and restore it after the run. The eval provider alone sends the opt-in
 header and a fresh independent request ID; ordinary app requests stay default-off.
@@ -25,8 +37,8 @@ Read `evals/astra/reports/summary.md`. Report each case's three-attempt outcome 
 failed behavior from incomplete tool evidence. Missing, mismatched, withheld or skipped
 evidence cannot approve launch. A held `PendingConfirmation` preview proves only a proposal, never a saved change.
 The model comparison was superseded by server-owned model selection; do not send a model
-override. Keep D147's server-owned `gpt-6-luna` low and existing per-user daily ceiling. Never reset
-message counters or spend, raise a backstop, or use unapproved accounts to finish a run.
+override. Keep D147's server-owned `gpt-6-luna` low and the configured per-account policy
+within the hard shared eval ceiling.
 Keep ORB-20 open through live capability verification after all carrying code is deployed
 to the API the gate runs against (staging, or production with the disposable eval accounts).
 Source adapter tests cannot replace that acceptance.
@@ -41,9 +53,9 @@ Do not attach raw promptfoo databases, responses, or traces to a pull request. T
 contains only case identifiers and counts. Record behavior failures on the work ticket;
 this skill does not authorize behavior changes, ticket writes, or outbound messages.
 
-Composition acceptance belongs to #26. Run its English and Portuguese real-pipeline gate after the
-API composition producer and #1620's paired consumers are deployed through the current `main`
-release workflow. Cover every #1617 family, block-only success, compound queries and legacy or
+Composition acceptance belongs to #26. The app-launch gate covers its English and Portuguese
+real-pipeline cases after the API composition producer and #1620's paired consumers are deployed
+through the current `main` release workflow. Cover every #1617 family, block-only success, compound queries and legacy or
 missing-kind clients. Missing or skipped composition assertions cannot approve broad activation
 of `astra_block_first`. Local rendering tests do not replace that evidence.
 

@@ -169,6 +169,23 @@ It pins promptfoo, uses its maintained HTTP provider, and sends multipart `messa
 comparison is absent; this harness cannot override that selection. D147 selects `gpt-6-luna`
 at low effort.
 
+### Live gate and spend rules
+
+The paid live gate runs once, at app launch. Each failing case is rerun once; there is no
+other live run. A fix round never calls the provider: it replays recorded real provider
+responses offline at the model-service port, following the `orbit-api`
+`tests/Orbit.Application.Tests/Fixtures/` pattern, or uses a fake completion client.
+
+Eval traffic uses `AI__EvalApiKey`, the separate OpenAI key for the `Orbit Eval` project
+with a hard monthly limit. An eval account without that key fails closed and never falls
+back to the production key. The API enforces `AI__EvalDailyBudgetUsd`, a hard shared ceiling
+of 0.50 USD per UTC day per environment for all eval accounts together. The per-account
+`astra_eval_unmetered` flag does not bypass this shared ceiling.
+A quota or ceiling stop ends the run. Never resume it on another account, key, environment
+or day, reset a counter, raise a ceiling or rotate accounts to finish. No paid-key probe
+runs without a written cost estimate on the owning ticket first; record the actual cost
+on that ticket afterward.
+
 Before a live run, regenerate the tool catalogs from a clean checkout of the evaluated API
 commit with `node evals/astra/generate-catalog.mjs <api-checkout>` from the repository root.
 The exporter uses the API's tool registrations, request builder and strict schema normalizer for both
@@ -190,7 +207,7 @@ replacement `PUT` routes: `habits/{id}`, `habits/{id}/checklist`, `tags/{id}/ass
 increment a reminder version and remain unretried, as do other `PUT` routes, `POST`, and `PATCH`.
 Each attempt retains its 15 second deadline; the three rate-limit waits have a separate budget.
 
-Before an eval run, use `/flag` to turn on the plain `astra_eval_unmetered`
+For the app-launch gate, use `/flag` to turn on the plain `astra_eval_unmetered`
 flag for `ORBIT_EVAL_TOKEN`, the main account, keeping global enablement off. Keep it off for
 `ORBIT_EVAL_FREE_TOKEN` (`free-at-limit`) and `ORBIT_EVAL_BUDGET_TOKEN` (`budget-exhausted`)
 so those accounts still prove the limits refuse. The flag resolves in staging and for production
@@ -227,7 +244,8 @@ through all hooks.
 The check requires npm registry access or a populated npm cache; it uses no Orbit or grader credentials.
 The Action has only `workflow_dispatch`; it never runs on a schedule, push, or pull request.
 Runs record real message usage and incur endpoint and rubric-grader charges. The main account's
-flag exempts its daily message, model-call and spend ceilings; the refusal accounts remain metered.
+flag exempts its per-account daily message, model-call and spend ceilings; the refusal accounts
+remain metered. All eval accounts remain subject to the shared eval ceiling.
 Use disposable eval accounts. Write scenarios require held previews; correction scenarios create
 a verified setup turn first. Most cases leave previews held. Starting-step save and brain dump
 cases approve their verified previews through the existing confirmation gateway. Restart cases
@@ -279,7 +297,7 @@ requires exactly one new one-time task with the step as title and no changes to 
 Checklist readback requires every existing item and checked state in order, with the new step appended
 once as unchecked and no other habit changes. Private attempt artifacts retain the sanitized `savedStep`
 readback from assertion metadata. Confirmation tokens and execution response bodies are never evidence.
-These offline tests do not replace the next capability gate on the matching staging API commit.
+These offline tests do not replace the app-launch gate on the matching API commit.
 
 Brain dump cases cover mixed tasks and habits, existing activity reuse and requested ideas in
 en and pt-BR. Each attempt uses the isolated fixture reset, snapshots stored habits before chat,
@@ -329,7 +347,7 @@ offer Calendar connection; a default create date does not establish eligibility.
 the Calendar check requires a matching requested `due_date` or `deadline` in the held preview.
 
 The producer is `orbit-api#1031`. Keep this harness merge held until that change is live on the
-production API and the coordinator's production run passes all three attempts of these cases.
+production API and the app-launch gate passes all three attempts of these cases.
 Regenerate the catalog against that production commit before running. The exporter captures
 `offerTools`, `offerPostReadTools` and bound `offerHabitSetupTools` through the producer's offer-enabled request builders, including
 `suggested_fields` and removal arguments. A missing offer catalog fails structural validation;
@@ -413,7 +431,7 @@ assertions, fixture requests and lifecycle ports with producer-derived responses
 purposefully wrong response for each path. Selector timeouts and invalid candidate IDs use intercepted
 responses with no action; they cannot satisfy a required eligible-action case. Historical and partial
 read replays must reject unsafe actions even when the prose sounds reasonable. These replays never
-call Orbit, start an app server, increase an AI ceiling or replace the coordinator's real pass^3 run.
+call Orbit, start an app server, increase an AI ceiling or replace the app-launch pass^3 gate.
 
 ### Environment and reproducible fixtures
 
@@ -465,8 +483,9 @@ from failed or interrupted refresh submissions. Credential validation, lock acqu
 failures before submission affect only that attempt; they allow later healthy accounts to refresh and
 earlier rotations to persist. A failed or uncertain submitted refresh blocks further refreshes from
 that file and prevents Action persistence, even if an earlier attempt rotated successfully. Recover a fresh session,
-replace the private file, and remove its markers before retrying. No token or server error body is logged. Concurrent callers in one process share the same in-flight account refresh; different accounts
-queue their rotations against the shared file. A private lock rejects rotation by another process;
+replace the private file, and remove its markers before any permitted attempt. A quota or ceiling
+stop still ends the run. No token or server error body is logged. Concurrent callers in one
+process share the same in-flight account refresh; different accounts queue their rotations against the shared file. A private lock rejects rotation by another process;
 run one serial job per file and account. A crash leaving a `.lock` file requires checking
 that the other process has stopped before removing that lock. If rotation succeeded remotely but
 local persistence failed, obtain a fresh session through the existing authentication flow.
@@ -488,15 +507,15 @@ readback verifies both occurrence dates and both histories. A reset failure stop
 
 Use only disposable accounts. The Pro selector needs active Pro or trial access, the Free selector
 needs Free access. Profile and usage evidence remain required for every account. An exhausted daily
-message allowance stops metered ordinary fixtures; the exempt main account can continue.
+message allowance stops the run; the main account's exemption never permits bypassing the shared eval ceiling.
 The budget selector verifies exhaustion or sends at most five remaining ordinary
 greetings through the public chat route, reading the profile after every request. A typed safety-budget
 refusal is followed by the same independent allowance readback. Missing progress, an unexpected refusal
-or a larger remaining allowance makes the case incomplete with its exact reason in each window and
-the merged report. No setup request opts into tracing.
+or a larger remaining allowance makes the case incomplete with its exact reason in the report.
+No setup request opts into tracing.
 The free fixture fills the actual root capacity through bulk creates and its verified
 `HABIT_LIMIT_REACHED` refusal, preserving those roots between attempts. It never changes capacity.
-Never reset message counters or spend, raise a ceiling, or rotate through unapproved accounts.
+Never reset message counters or spend, raise a ceiling, or rotate accounts to finish.
 Enable `astra_eval_trace` only for these accounts via the existing `/flag` procedure and restore
 its previous state after the run. Header alone or flag alone cannot enable tracing.
 
@@ -516,56 +535,49 @@ its previous state after the run. Header alone or flag alone cannot enable traci
 | `budget-exhausted` | Daily message allowance exhausted through at most five ordinary requests, independently verified from profile; an unavailable precondition stays incomplete |
 | `hoje-next-step` | UTC profile in the case language, English titles in both locales: Meals with Breakfast logged today, then pending Lunch at 12:00, Afternoon snack at 16:00 and Dinner at 19:00; Water with six pending Water - 710ml children. Registered root IDs are preserved; ordered children, times, parent links and completion history require independent readback |
 
-### Daily windows and combined report
+### Gate subsets and combined report
 
-The API resets the Free message allowance at midnight in the account's time zone, using its
-local date (`UserDateService.GetUserTodayAsync`, `User.GetAiMessagesUsedForQuota` and
-`AiAllowanceReset.GetResetsAtUtc` in orbit-api). Fixtures configure UTC, so their Free window
-starts at 00:00 UTC. The fresh-window check reads the profile before timezone setup and still
-requires zero messages used; if the account's time zone has changed, use its current profile
-`aiMessagesResetsAt` before scheduling `edge-free-limit-en`.
+Read each account's profile allowance before the app-launch gate. The Free message allowance
+uses the account's local date; fixtures configure UTC. Its fresh-window precondition requires
+zero messages used. An unavailable precondition leaves the case incomplete; it does not authorize
+waiting for another day or changing accounts to finish.
 
-The main account does not wait for a new daily window: `astra_eval_unmetered` bypasses its daily
-message, model-call and spend ceilings while preserving usage records. Ordinary cases record three
-messages; refine, medical correction and starting-step follow-up cases record six, including their setup turns. The Free
-and budget accounts remain metered and may still need a new daily window. Read their profile
-allowance before planning those cases; their message limit, model-call ceiling and spend backstop
-still apply. Leave `repeat: 3`, serial execution, no retries and caching disabled. Keep each case's
-three attempts in one window. Use the same accounts while their required plan access remains
-active; do not buy quota or add accounts. One run can include the full corpus when both metered
-fixtures are ready; subsets and combined reports remain available for metered-window constraints.
+The main account's `astra_eval_unmetered` flag bypasses only its per-account message, model-call
+and spend ceilings while preserving usage records. All accounts share the hard eval ceiling.
+Ordinary cases record three messages; refine, medical correction and starting-step follow-up cases
+record six, including setup turns. Leave `repeat: 3`, serial execution, no retries and caching disabled.
+Use the same configured accounts while their required plan access remains active.
 
-From `evals/astra`, select case IDs with the installed promptfoo metadata filter and preserve each
-sanitized summary before another run overwrites it:
+Within the single app-launch gate, select case IDs with the installed promptfoo metadata filter
+and preserve each sanitized subset summary before another invocation overwrites it:
 
 ```sh
 npx promptfoo eval --filter-metadata 'id=single-read-en,single-create-pt'
-mkdir -p reports/window-01
-cp reports/summary.json reports/window-01/summary.json
-cp reports/summary.md reports/window-01/summary.md
+mkdir -p reports/subset-01
+cp reports/summary.json reports/subset-01/summary.json
+cp reports/summary.md reports/subset-01/summary.md
 ```
 
 `--filter-metadata` uses substring alternatives separated by commas, not an exact-match regular
 expression; use full IDs and check the resulting case table. `--filter-pattern` matches case
-descriptions, not IDs. Each selected case still runs three times. Select disjoint subsets in later
-windows and save them as `window-02`, `window-03` and so on. Reset `single-read-en` before leaving
-an account idle across multiple days: public log undo accepts only the past seven days, and
-positive history beyond that window cannot be removed while preserving IDs. Composition analytics
-use two rolling three-day periods ending yesterday, inside this public write window.
+descriptions, not IDs. Each selected case still runs three times. Subsets partition the launch
+gate; they never authorize another live run or continuation after a quota or ceiling stop.
+Composition analytics use two rolling three-day periods ending yesterday, inside the public log window.
 
-Merge all sanitized window files against the complete checked-in corpus:
+Merge the sanitized subset files against the complete checked-in corpus:
 
 ```sh
-node merge-reports.mjs reports/window-01/summary.json reports/window-02/summary.json
+node merge-reports.mjs reports/subset-01/summary.json reports/subset-02/summary.json
 ```
 
-Supply every actual window explicitly. The command writes `reports/summary.md` and `summary.json`,
+Supply every actual subset explicitly. The command writes `reports/summary.md` and `summary.json`,
 returns nonzero for failure or incompleteness, and reports every family and locale. Missing cases
 remain incomplete. Overlapping IDs, foreign IDs, mismatched labels, wrong k or impossible counts
-are rejected. A failed window stays failed; to replace a rerun, explicitly omit its previous
-summary. Missing or skipped evidence cannot become a pass through merging. A selected-window pass
-is not full-corpus acceptance. Preserve one settled API/prompt/tool surface across the windows;
-if that surface changes, rerun the affected gate rather than combining incompatible behavior.
+are rejected. Preserve the initial failure evidence separately. For each failing case's single
+permitted rerun, explicitly omit its previous summary from the merge input. Missing or skipped
+evidence cannot become a pass through merging. A subset pass is not full-corpus acceptance.
+Keep one settled API/prompt/tool surface across the launch gate. A changed surface is validated
+offline in fix rounds and never authorizes an additional live run.
 
 For the manual Action, create the **astra-eval** environment in GitHub
 **Settings > Environments > New environment**. Under **astra-eval > Environment secrets**, add
@@ -580,13 +592,13 @@ Configure `ORBIT_EVAL_BASE_URL`, `ORBIT_EVAL_GRADER`, and `ORBIT_EVAL_SECRETS_TO
 permission to update an environment secret; repository Actions secrets write permission alone
 is insufficient. `OPENAI_API_KEY` is only needed if explicitly selecting an OpenAI API grader.
 Dispatch **Actions > Astra eval > Run workflow** with a comma-separated `case_ids` subset for the
-daily window. It creates a mode-600 temporary credentials file, persists only successful token
+app-launch gate. It creates a mode-600 temporary credentials file, persists only successful token
 rotations when no refresh failed, uploads sanitized summaries, then deletes local credentials and
 markers. Persistence still runs after unrelated eval failures. A failed or interrupted refresh or
-secret write requires session recovery before the next dispatch; never reuse the stale secret.
-Do not run local and Action jobs against the same sessions. Download each window artifact and merge
-locally as above. Successful resets, environment-secret persistence and a subsequent dispatched
-window using the rotated session prove configuration took effect. There is no automatic dispatch.
+secret write requires session recovery before any permitted dispatch; never reuse the stale secret.
+Do not run local and Action jobs against the same sessions. Download each subset artifact and merge
+locally as above. Successful resets, environment-secret persistence and a permitted subsequent
+subset using the rotated session prove configuration took effect. There is no automatic dispatch.
 
 ### Codex rubric grader
 
@@ -628,9 +640,10 @@ the median of case medians was 5533 ms and the `model_call` median was 4701 ms, 
 second call near 10234 ms. The slowest case median with one model call was 9003 ms (`single-read-en`);
 cases with two or three model calls reached 11938 ms (`composition-partial-pt-BR`) and 13771 ms
 (`grounding-missing-pt`). The budget sits above every measured case median with one model call and
-below the estimated median with a second call. Exactly 10000 ms fails. The coordinator records the
-current-build and forced-second-call live runs on the pull request. Fixture timings do not calibrate
-the budget. Live runs consume model allowance and belong to the coordinator.
+below the estimated median with a second call. Exactly 10000 ms fails. The app-launch gate records
+the current-build latency evidence on the owning ticket.
+Forced-second-call checks in fix rounds use recorded responses or a fake completion client offline.
+Fixture timings do not calibrate the budget. No additional live latency run is permitted.
 
 The corpus classifies `composition.mode: data` as read cases, together with legacy `fallback` cases
 that declare nonempty read-only `expectations.allowed` tools. Preview, clarification and refusal
@@ -649,9 +662,9 @@ and `other`. Missing, malformed or mismatched timing fails the budget. Exclusive
 sum to the turn total within 1 ms for floating point rounding. Repeated scopes, including a second
 model call, are summed by name within each turn before taking the three-run phase medians.
 The reports show total and per-phase medians in milliseconds; phase medians need not sum to the
-total median. Merged windows preserve and validate these results against the current budget;
-older read summaries without latency evidence must be rerun. No fixture setup or grader time enters
-the API turn measurement.
+total median. Merged subsets preserve and validate these results against the current budget;
+older read summaries without latency evidence remain incomplete unless the permitted failing-case
+rerun supplies it. No fixture setup or grader time enters the API turn measurement.
 
 Run the offline budget and report checks with
 `npm test --prefix evals/astra -- __tests__/latency.test.mjs __tests__/reports.test.mjs __tests__/trace.test.mjs`.
@@ -669,7 +682,7 @@ The file has mode 600 and survives a failed or incomplete gate even when promptf
 its requested output file. Summaries update after each attempt too; a later fixture or refresh failure
 preserves completed attempts and leaves unrun cases incomplete. Starting a run clears the prior reports.
 Reasons can contain private answer details: keep this file local and
-do not upload it. Copy it into each private window directory before the next run replaces it.
+do not upload it. Copy it into each private subset directory before the next run replaces it.
 Each family and locale also receives a pass^3 aggregate; any failing or incomplete case prevents its pass. The Action
 publishes these summaries and a job summary. It does not upload raw responses or a promptfoo
 database. Sharing and database writes are disabled in the configuration. For local runs, set
@@ -745,7 +758,7 @@ It claims refusal evidence, not tool execution. The existing budget case covers 
 message allowance; the separate monetary safety backstop remains a coverage gap.
 
 ORB-20 remains open through genuine live acceptance after all carrying Astra code is deployed
-to staging. The corpus does not cover every mutating tool, the all-habits icon request,
+to the API evaluated at app launch. The corpus does not cover every mutating tool, the all-habits icon request,
 interactive approval/edit/reject journeys, persisted readback, actual audio/image input,
 rendered phone/desktop UI or installed Android acceptance. Text shaped like speech tests only
 transcript interpretation. Source and offline tests cannot establish any of those live outcomes.
@@ -770,7 +783,7 @@ Portuguese prose must use a natural activity reference such as "seu almoço", wh
 English titles remain unchanged inside block rows. One data block and at most one short sentence
 can pass; no prose recap is required, and a block-only answer must still convey the recommendation.
 Both cases retain three attempts and family/locale pass^3 reporting. Offline checks prove fixture,
-assertion and rubric routing; semantic acceptance requires the coordinator's live gate.
+assertion and rubric routing; semantic acceptance requires the app-launch live gate.
 
 The composition assertion requires ordered parts for parts-capable clients. It validates known
 block payload projections and advertised capabilities, required families and subtypes, and
