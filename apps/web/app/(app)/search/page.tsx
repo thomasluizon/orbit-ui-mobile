@@ -8,7 +8,7 @@ import { ActionRow } from '@/components/ui/action-row'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Command, CommandList } from 'cmdk'
-import { buildHabitCreateHref, buildSearchEntries } from '@orbit/shared/utils'
+import { buildHabitCreateHref, buildSearchEntries, buildSearchSections } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
 import { CommandSearchField } from '@/components/command/command-menu-chrome'
 import { SearchEmpty, SearchResults, Searching } from '@/components/search/search-results'
@@ -47,7 +47,7 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
     return () => cancelAnimationFrame(frame)
   }, [inputModality, selectedValue])
   const [createRefusal, setCreateRefusal] = useAccountScopedState(false)
-  const entries = buildSearchEntries(search.data, search.query, null)
+  const entries = buildSearchEntries(search.data, search.query, null, search.today)
   const hasQuery = search.text.trim().length > 0
   function createHabit() {
     if (!isOnline) { setCreateRefusal(true); return }
@@ -63,7 +63,7 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
       {search.showLoading && <Searching />}
       {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><IconButton label={t('common.retry')} onClick={() => void search.refetch()}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton></div>}
       {!search.busy && !search.isError && (entries.length > 0
-        ? <SearchResults totalCount={search.data?.totalCount ?? 0} habits={entries.map(({ habit }) => habit)} query={search.query} onOpen={(id) => router.push(`/habits/${id}`)} />
+        ? <SearchResults today={search.today} totalCount={search.data?.totalCount ?? 0} sections={buildSearchSections(entries)} query={search.query} onOpen={(id) => router.push(`/habits/${id}`)} />
         : <SearchEmpty query={search.query} onCreate={createHabit} createRefusal={!isOnline && createRefusal} />)}
       <div className="flex gap-3"><ActionRow>
         {search.page > 1 && <IconButton label={t('habits.search.previous')} disabled={search.busy} onClick={() => search.setPage(search.page - 1)}><ChevronLeft size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>}

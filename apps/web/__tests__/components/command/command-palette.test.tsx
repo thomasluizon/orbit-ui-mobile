@@ -58,7 +58,7 @@ function buildQueryData(habits: NormalizedHabit[]): NormalizedHabitQueryData {
   }
 }
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'en',
   useTranslations: () => (key: string) =>
     key === 'command.groups.destinations' ? 'Destinations' : key,
 }))
@@ -72,6 +72,7 @@ vi.mock('@/hooks/use-is-client', () => ({
   useIsClient: () => true,
 }))
 
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'UTC' } }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => habitsQuery }))
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mockLogHabitMutate }),

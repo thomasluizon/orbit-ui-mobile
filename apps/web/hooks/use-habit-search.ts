@@ -3,8 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useAccountScopedState } from './use-session-reset'
 import { useSearchHabits } from './use-habit-queries'
+import { useProfile } from './use-profile'
+import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
 
 export function useHabitSearch() {
+  const { profile } = useProfile()
+  const today = formatAPIDateInTimeZone(new Date(), profile?.timeZone)
   /**
    * The typed text, the committed query and the page are the render source for the search box
    * and its results. `showLoading` stays a plain `useState`, because the effect below rewrites
@@ -32,5 +36,5 @@ export function useHabitSearch() {
     setPage(1)
   }
 
-  return { ...response, text, query, page, setPage, changeText, busy, showLoading: busy && showLoading }
+  return { ...response, today, text, query, page, setPage, changeText, busy, showLoading: busy && showLoading }
 }

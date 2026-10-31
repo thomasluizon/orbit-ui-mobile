@@ -22,8 +22,9 @@ vi.mock('@/components/command/command-menu', async (importOriginal) => {
   loaded.markMenuReady()
   return commandMenu
 })
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'UTC' } }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({
   useSearchHabits: () => {
     const habit = createMockHabit({ id: 'running', title: 'Run' })

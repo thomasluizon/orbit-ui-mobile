@@ -4,14 +4,15 @@ import { IconButton } from '@/components/ui/icon-button'
 
 import { PersonalText } from '@/components/ui/personal-text'
 import type { ReactNode } from 'react'
-import { useTranslations } from 'next-intl'
-import { CommandItem } from 'cmdk'
+import { useLocale, useTranslations } from 'next-intl'
+import { CommandGroup, CommandItem } from 'cmdk'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { habitInitial } from '@orbit/shared/utils'
+import { buildSearchHabitStatus, habitInitial, type SearchSection } from '@orbit/shared/utils'
 import { ChevronRight, X, Plus } from '@/components/ui/icons'
 
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { HabitMatchLine } from './habit-match-line'
+import { SearchHabitStatusLine } from './search-habit-status'
 
 export function Searching() {
   const t = useTranslations()
@@ -35,14 +36,23 @@ export function SearchEmpty({ query, onCreate, onClearSearch, createRefusal = fa
   </div>
 }
 
-export function SearchResults({ habits, query, onOpen, totalCount }: Readonly<{ habits: readonly NormalizedHabit[]; totalCount: number; query: string; onOpen: (id: string) => void }>) {
+export function SearchResults({ sections, today, query, onOpen, totalCount }: Readonly<{ sections: readonly SearchSection[]; today: string; totalCount: number; query: string; onOpen: (id: string) => void }>) {
   const t = useTranslations()
   return <div className="flex flex-col gap-4">
     <p className="px-1 font-mono text-[length:var(--fs-xs)] text-[var(--fg-3)]">{t('habits.search.count', { count: totalCount })}</p>
-    <div className="flex flex-col gap-2">{habits.map((habit) => <CommandItem key={habit.id} asChild value={habit.id} onSelect={() => onOpen(habit.id)}><button type="button" data-command-result="" className="group/habit-result flex-1 min-w-0 flex min-h-[var(--touch-min)] items-center gap-3 rounded-[var(--r-well)] bg-[var(--bg-card)] p-3 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] group-data-[input-modality=keyboard]/search:transition-none data-[selected=false]:hover:bg-[var(--bg-hover)] data-[selected=true]:bg-[var(--primary-dim)] data-[selected=true]:shadow-[inset_0_0_0_1.5px_var(--primary)] focus-visible:outline-2">
-      <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] text-xl">{habit.emoji || <span className="text-[16px] font-medium text-[var(--fg-2)]">{habitInitial(habit.title)}</span>}</span>
-      <span className="min-w-0 flex-1"><span className="sr-only">{t('habits.search.open', { name: habit.title })}</span>{' '}<PersonalText aria-hidden className="text-[length:var(--fs-md)] text-[var(--fg-1)]">{habit.title}</PersonalText><HabitMatchLine habit={habit} query={query} /></span>
-      <ChevronRight size={20} className="shrink-0 text-[var(--fg-3)]" aria-hidden />
-    </button></CommandItem>)}</div>
+    {sections.map((section) => <CommandGroup key={section.id} heading={section.id === 'completed' ? t(section.headingKey) : undefined} className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-3 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-[length:var(--fs-xs)] [&_[cmdk-group-heading]]:text-[var(--fg-3)]">
+      <div className="flex flex-col gap-2">{section.entries.map(({ habit }) => <SearchResultRow key={habit.id} habit={habit} today={today} query={query} onOpen={onOpen} />)}</div>
+    </CommandGroup>)}
   </div>
+}
+
+function SearchResultRow({ habit, today, query, onOpen }: Readonly<{ habit: NormalizedHabit; today: string; query: string; onOpen: (id: string) => void }>) {
+  const t = useTranslations()
+  const locale = useLocale()
+  const status = buildSearchHabitStatus(habit, t, locale, today)
+  return <CommandItem asChild value={habit.id} onSelect={() => onOpen(habit.id)}><button type="button" data-command-result="" className="group/habit-result flex-1 min-w-0 flex min-h-[var(--touch-min)] items-center gap-3 rounded-[var(--r-well)] bg-[var(--bg-card)] p-3 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] group-data-[input-modality=keyboard]/search:transition-none data-[selected=false]:hover:bg-[var(--bg-hover)] data-[selected=true]:bg-[var(--primary-dim)] data-[selected=true]:shadow-[inset_0_0_0_1.5px_var(--primary)] focus-visible:outline-2">
+      <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] text-xl">{habit.emoji || <span className="text-[16px] font-medium text-[var(--fg-2)]">{habitInitial(habit.title)}</span>}</span>
+      <span className="min-w-0 flex-1"><span className="sr-only">{t('habits.search.open', { name: habit.title })}</span>{' '}<PersonalText aria-hidden className="text-[length:var(--fs-md)] text-[var(--fg-1)]">{habit.title}</PersonalText><SearchHabitStatusLine status={status} /><HabitMatchLine habit={habit} query={query} /></span>
+      <ChevronRight size={20} className="shrink-0 text-[var(--fg-3)]" aria-hidden />
+    </button></CommandItem>
 }

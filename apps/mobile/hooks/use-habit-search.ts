@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useSearchHabits } from './use-habit-queries'
+import { useProfile } from './use-profile'
+import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
 
 export function useHabitSearch() {
+  const { profile } = useProfile()
+  const today = formatAPIDateInTimeZone(new Date(), profile?.timeZone)
   const [text, setText] = useState('')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
@@ -24,5 +28,5 @@ export function useHabitSearch() {
     setPage(1)
   }
 
-  return { ...response, text, query, page, setPage, changeText, busy, showLoading: busy && showLoading }
+  return { ...response, today, text, query, page, setPage, changeText, busy, showLoading: busy && showLoading }
 }
