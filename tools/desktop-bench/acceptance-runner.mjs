@@ -19,9 +19,10 @@ const record = (path, value) => writeFile(path, `${JSON.stringify(value, null, 2
 async function nativeTool(output) {
   const executable = join(output, 'accessibility')
   if (!windows) await execute('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', join(directory, 'acceptance-ax.m'), '-o', executable])
-  return async (pid, command) => {
+  return async (pid, command, menuCommandId) => {
     const reply = windows
-      ? await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', join(directory, 'acceptance-uia.ps1'), '-TargetProcessId', String(pid), '-Command', command])
+      ? await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', join(directory, 'acceptance-uia.ps1'), '-TargetProcessId', String(pid), '-Command', command,
+        ...(menuCommandId === undefined ? [] : ['-MenuCommandId', String(menuCommandId)])])
       : await execute(executable, [String(pid), command])
     return reply.trim() ? JSON.parse(reply) : null
   }
@@ -162,9 +163,24 @@ function installedLaunch(executable, output, name) {
 }
 
 async function quit(native, handle) {
-  await native(handle.child.pid, windows ? 'quit' : 'terminate')
+  if (windows) {
+    const menu = await native(handle.child.pid, 'menu')
+    const labels = await Promise.all(['en', 'pt-BR'].map(async (locale) =>
+      JSON.parse(await readFile(join(directory, '../../apps/desktop/locales', `${locale}.json`), 'utf8')).quitWindows))
+    const commands = menuCommands(menu.items).filter((item) => labels.includes(item.text.split('\t')[0]))
+    if (commands.length !== 1 || !commands[0].enabled || commands[0].id < 1 || commands[0].id > 65535) {
+      throw new Error(`Expected one enabled native Exit menu command: ${JSON.stringify(menu)}`)
+    }
+    await native(handle.child.pid, 'quit', commands[0].id)
+  } else await native(handle.child.pid, 'terminate')
   await waitFor(() => handle.child.exitCode !== null, 'clean installed app exit', 30000)
   await handle.done
+}
+
+function menuCommands(items, enabled = true) {
+  return items.flatMap((item) => item.children.length
+    ? menuCommands(item.children, enabled && item.enabled)
+    : [{ ...item, enabled: enabled && item.enabled }])
 }
 
 export async function acceptance({ repository, output }) {

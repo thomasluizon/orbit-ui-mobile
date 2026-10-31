@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { delay, execute, start, stop, waitFor } from './host.mjs'
 import { npmCli } from './build.mjs'
+import { startLoopbackDns } from './loopback-dns.mjs'
 
 const require = createRequire(import.meta.url)
 const windows = process.platform === 'win32'
@@ -109,10 +110,11 @@ export async function startRecording(output) {
 }
 
 export async function isolateOrigins(output) {
-  const hosts = windows ? join(process.env.SystemRoot, 'System32/drivers/etc/hosts') : '/etc/hosts'
-  const originalHosts = await readFile(hosts, 'utf8')
+  const hosts = windows ? join(process.env.SystemRoot, 'System32/drivers/etc/hosts') : null
+  const originalHosts = windows ? await readFile(hosts, 'utf8') : null
   const replacement = join(output, 'isolated-hosts')
-  await writeFile(replacement, `${originalHosts}\n127.0.0.1 app-staging.useorbit.org github.com\n::1 app-staging.useorbit.org github.com\n`)
+  if (windows) await writeFile(replacement, `${originalHosts}\n127.0.0.1 app-staging.useorbit.org github.com\n::1 app-staging.useorbit.org github.com\n`)
+  const resolver = windows ? null : macResolverIsolation(output)
   const openssl = async (...argumentsList) => execute('openssl', argumentsList, { cwd: output, log: join(output, 'tls.log') })
   await openssl('req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', 'root.key', '-out', 'root.pem', '-days', '1', '-subj', '/CN=Orbit Desktop VM Root')
   await openssl('req', '-newkey', 'rsa:2048', '-nodes', '-keyout', 'server.key', '-out', 'server.csr', '-subj', '/CN=app-staging.useorbit.org')
@@ -123,21 +125,24 @@ export async function isolateOrigins(output) {
   let trusted = false
   const refreshResolver = async () => {
     if (windows) await execute('ipconfig.exe', ['/flushdns'])
-    else {
-      await execute('sudo', ['dscacheutil', '-flushcache'])
-      await execute('sudo', ['killall', '-HUP', 'mDNSResponder'])
-    }
   }
   const restore = async () => {
-    const backup = join(output, 'original-hosts')
-    await writeFile(backup, originalHosts)
-    if (windows) await copyFile(backup, hosts)
-    else await execute('sudo', ['cp', backup, hosts])
-    await refreshResolver()
-    if (trusted) {
-      if (windows) await execute('certutil.exe', ['-delstore', 'Root', fingerprint])
-      else await execute('sudo', ['security', 'delete-certificate', '-Z', fingerprint, '/Library/Keychains/System.keychain'])
-    }
+    const failures = []
+    try {
+      if (windows) {
+        const backup = join(output, 'original-hosts')
+        await writeFile(backup, originalHosts)
+        await copyFile(backup, hosts)
+        await refreshResolver()
+      } else await resolver.restore()
+    } catch (error) { failures.push(error) }
+    try {
+      if (trusted) {
+        if (windows) await execute('certutil.exe', ['-delstore', 'Root', fingerprint])
+        else await execute('sudo', ['security', 'delete-certificate', '-Z', fingerprint, '/Library/Keychains/System.keychain'])
+      }
+    } catch (error) { failures.push(error) }
+    if (failures.length) throw new AggregateError(failures, 'Origin isolation cleanup failed')
   }
   try {
     if (windows) {
@@ -147,25 +152,22 @@ export async function isolateOrigins(output) {
     } else {
       await execute('sudo', ['security', 'add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain', root])
       trusted = true
-      await execute('sudo', ['cp', replacement, hosts])
+      await resolver.install()
     }
     await waitForIsolatedOrigins(refreshResolver)
     return { key: await readFile(join(output, 'server.key')), cert: await readFile(join(output, 'server.pem')), restore }
   } catch (error) {
-    try {
-      if (!windows) await recordResolverDiagnostics(output, error)
-    } catch (diagnosticError) {
-      throw new AggregateError([error, diagnosticError], error.message)
-    } finally {
-      await restore()
-    }
+    const failures = [error]
+    try { if (!windows) await recordResolverDiagnostics(output, error) } catch (diagnosticError) { failures.push(diagnosticError) }
+    try { await resolver?.record() } catch (diagnosticError) { failures.push(diagnosticError) }
+    try { await restore() } catch (restoreError) { failures.push(restoreError) }
+    if (failures.length > 1) throw new AggregateError(failures, error.message)
     throw error
   }
 }
 
 export async function waitForIsolatedOrigins(refreshResolver, resolve = lookup) {
   await refreshResolver()
-  // Hosts reload asynchronously; repeated cache purges restart queries while the VM settles (#1560).
   const deadline = Date.now() + 30000
   while (true) {
     const resolutions = await Promise.all(['app-staging.useorbit.org', 'github.com'].map(async (hostname) =>
@@ -183,8 +185,9 @@ export async function waitForIsolatedOrigins(refreshResolver, resolve = lookup) 
 
 async function recordResolverDiagnostics(output, failure) {
   const commands = [
-    ['hosts', 'tail', ['-n', '40', '/etc/hosts']],
-    ['hosts-metadata', 'ls', ['-le@', '/etc/hosts']],
+    ['resolvers', 'ls', ['-le@', '/etc/resolver']],
+    ['app-resolver', 'cat', ['/etc/resolver/app-staging.useorbit.org']],
+    ['github-resolver', 'cat', ['/etc/resolver/github.com']],
     ['dns', 'scutil', ['--dns']],
     ['host-query', 'dscacheutil', ['-q', 'host', '-a', 'name', 'app-staging.useorbit.org']],
     ['mdns', '/usr/bin/log', ['show', '--last', '2m', '--predicate', 'process == "mDNSResponder"']],
@@ -193,4 +196,40 @@ async function recordResolverDiagnostics(output, failure) {
   const captures = commands.map((command, index) => ({ ...command,
     error: results[index].status === 'rejected' ? results[index].reason.message : null }))
   await writeFile(join(output, 'origin-isolation-diagnostics.log'), `${JSON.stringify({ error: failure.message, commands: captures }, null, 2)}\n`)
+}
+
+function macResolverIsolation(output) {
+  const originals = []
+  let responder
+  let createdDirectory = false
+  const exists = async (path) => {
+    try { await stat(path); return true } catch (error) { if (error.code === 'ENOENT') return false; throw error }
+  }
+  return { async install() {
+    responder = await startLoopbackDns(output)
+    if (!await exists('/etc/resolver')) {
+      await execute('sudo', ['mkdir', '/etc/resolver'])
+      createdDirectory = true
+    }
+    for (const hostname of ['app-staging.useorbit.org', 'github.com']) {
+      const path = `/etc/resolver/${hostname}`
+      const backup = await exists(path) ? join(output, `original-resolver-${hostname}`) : null
+      if (backup) await execute('sudo', ['cp', '-p', path, backup])
+      const configuration = join(output, `resolver-${hostname}`)
+      await writeFile(configuration, `nameserver 127.0.0.1\nport ${responder.port}\n`)
+      originals.push({ path, backup })
+      await execute('sudo', ['cp', configuration, path])
+    }
+  }, async record() { await responder?.record() }, async restore() {
+    const failures = []
+    for (const { path, backup } of originals.toReversed()) {
+      try {
+        if (backup) await execute('sudo', ['cp', '-p', backup, path])
+        else await execute('sudo', ['rm', '-f', path])
+      } catch (error) { failures.push(error) }
+    }
+    try { if (createdDirectory) await execute('sudo', ['rmdir', '/etc/resolver']) } catch (error) { failures.push(error) }
+    try { await responder?.stop() } catch (error) { failures.push(error) }
+    if (failures.length) throw new AggregateError(failures, 'Per-domain resolver cleanup failed')
+  } }
 }

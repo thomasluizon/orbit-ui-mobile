@@ -349,6 +349,50 @@ function nativePaletteFocusCases() {
   }
 }
 
+async function installedQuitCases() {
+  const runnerSource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
+  const adapterSource = runnerSource.slice(runnerSource.indexOf('async function nativeTool'), runnerSource.indexOf('async function hermeticServices'))
+  let invocation
+  const adapterContext = { windows: true, join, directory: 'bench', execute: async (command, argumentsList) => {
+    invocation = { command, argumentsList }
+    return JSON.stringify({ sent: 'quit' })
+  } }
+  runInNewContext(`${adapterSource}\nglobalThis.nativeTool = nativeTool`, adapterContext)
+  const adapter = await adapterContext.nativeTool('output')
+  await adapter(321, 'quit', 73)
+  T('native adapter passes the selected menu command ID and owning process to PowerShell', invocation.command === 'powershell.exe' &&
+    invocation.argumentsList.slice(-6).join(',') === '-TargetProcessId,321,-Command,quit,-MenuCommandId,73')
+  const source = runnerSource.slice(runnerSource.indexOf('async function quit('), runnerSource.indexOf('export async function acceptance'))
+  for (const locale of ['en', 'pt-BR']) {
+    const labels = JSON.parse(readFileSync(join(REPO_ROOT, `apps/desktop/locales/${locale}.json`), 'utf8'))
+    for (const outcome of ['exit', 'still-running', 'crash', 'missing', 'disabled', 'duplicate', 'parent-disabled', 'invalid-id']) {
+      const calls = []
+      const item = { id: outcome === 'invalid-id' ? 0xffffffff : 73, text: `${labels.quitWindows}\tCtrl+Q`, enabled: outcome !== 'disabled', children: [] }
+      const menu = { items: [{ id: 0, text: labels.file, enabled: outcome !== 'parent-disabled', children: outcome === 'missing' ? [] : [item, ...(outcome === 'duplicate' ? [{ ...item, id: 81 }] : [])] }] }
+      let completed = false
+      let settled = false
+      const child = { pid: 321, exitCode: null }
+      const handle = { child, get done() { settled = true; return outcome === 'crash' ? Promise.reject(new Error('exit 1')) : Promise.resolve() } }
+      const context = { windows: true, readFile: async (path) => readFileSync(path, 'utf8'), join, directory: join(REPO_ROOT, 'tools/desktop-bench'),
+        native: async (pid, command, id) => {
+          calls.push({ pid, command, id })
+          if (command === 'menu') return menu
+          if (command === 'quit' && id === item.id && ['exit', 'crash'].includes(outcome)) child.exitCode = outcome === 'crash' ? 1 : 0
+        },
+        waitFor: async (read) => { if (!await read()) throw new Error('still running') },
+      }
+      runInNewContext(`${source}\nglobalThis.quit = quit`, context)
+      try { await context.quit(context.native, handle); completed = true } catch { /* The exit verdict is asserted below. */ }
+      T(`installed ${locale} quit ${outcome} invokes the unique enabled native Exit command and requires successful process completion`,
+        outcome === 'exit' ? completed && settled && calls.length === 2 && calls[1].id === item.id && calls[1].pid === child.pid
+          : !completed && (['missing', 'disabled', 'duplicate', 'parent-disabled', 'invalid-id'].includes(outcome) ? calls.length === 1 : outcome !== 'crash' || settled))
+    }
+  }
+  const native = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-uia.ps1'), 'utf8')
+  T('Windows quit dispatches a native menu command instead of sending Ctrl+Q to WebView2',
+    native.includes('PostMessage') && native.includes('GetMenu') && !native.includes("quit = '^q'"))
+}
+
 export async function cases() {
   check('desktop-bench/acceptance.mjs', 'installed acceptance help is cwd safe', ['--help'], { status: 0, stdout: /Usage/ }, { cwd: root })
   check('desktop-bench/acceptance.mjs', 'installed acceptance rejects unknown flags before doing work', ['--unknown'], { status: 2 })
@@ -358,6 +402,7 @@ export async function cases() {
   await httpsForwarderCases()
   await listenerStartupCases()
   await networkCases()
+  await installedQuitCases()
   await installedLaunchCases()
   await sessionProbeCases()
   await controlledPaletteCases()
