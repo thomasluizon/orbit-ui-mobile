@@ -1,6 +1,6 @@
 import { measureClampedPersonalText } from '@/__tests__/support/personal-text'
 import React from 'react'
-import { StyleSheet, type TextStyle } from 'react-native'
+import { StyleSheet, type TextStyle, type PressableProps } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { I18nextProvider } from 'react-i18next'
@@ -106,6 +106,10 @@ async function expectMatchContrast(row: import('react-test-renderer').ReactTestI
   for (const pressed of [false, true]) {
     await TestRenderer.act(() => pressed ? (row.props.onPressIn as () => void)() : (row.props.onPressOut as () => void)())
     matchStyle = StyleSheet.flatten(match.props.style) as TextStyle
+    const style = row.props.style as PressableProps['style']
+    const rowStyle = StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
+    expect(rowStyle.padding).toBe(12)
+    expect(rowStyle.overflow).toBe('hidden')
     const layers = backgroundLayers(match, pressed)
     expect(layers).toEqual([tokens.bg, pressed ? tokens.bgHover : tokens.bgCard])
     expect(contrastOnSurface(String(matchStyle.color), layers)).toBeGreaterThanOrEqual(4.5)

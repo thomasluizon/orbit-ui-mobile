@@ -31,7 +31,7 @@ describe('sidebar collapse', () => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
   })
 
-  it('keeps the toggle in the brand row beside the bell and first in the collapsed rail', () => {
+  it('keeps the bell before the toggle in both sidebar states', () => {
     const { container } = render(shell())
     const sidebar = container.querySelector<HTMLElement>('[data-shell-sidebar]')!
     const brand = sidebar.querySelector('[data-shell-brand-row]')
@@ -44,7 +44,7 @@ describe('sidebar collapse', () => {
     expect(within(sidebar).getAllByRole('button').slice(0, 3)).toEqual([screen.getByRole('button', { name: 'settings.theme.switchToLight' }), bell, toggle])
     toggle.focus()
     fireEvent.click(toggle)
-    expect(within(sidebar).getAllByRole('button').slice(0, 3)).toEqual([toggle, screen.getByRole('button', { name: 'settings.theme.switchToLight' }), bell])
+    expect(within(sidebar).getAllByRole('button').slice(0, 3)).toEqual([bell, toggle, screen.getByRole('button', { name: 'settings.theme.switchToLight' })])
     expect(toggle).toHaveFocus()
     expect(toggle).toHaveAttribute('title', 'shell.expandSidebar')
     expect(sidebar.querySelector('[data-shell-account]')).toHaveAttribute('title', 'Person, person@example.test')

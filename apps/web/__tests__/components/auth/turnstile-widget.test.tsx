@@ -8,6 +8,8 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLo
 afterEach(() => {
   delete (window as Window & { turnstile?: unknown }).turnstile
   appLocale.value = 'en'
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 it('renders the challenge in the language Orbit shows, not the browser language', async () => {
@@ -96,4 +98,44 @@ it('keeps onboarding verification managed and reports failure without extra copy
   expect(onStateChange).toHaveBeenCalledWith('failed')
   expect(screen.queryByRole('alert')).toBeNull()
   expect(screen.queryByText('auth.turnstileFailed')).toBeNull()
+})
+
+it.each([false, true])('removes the invisible widget from the form gap flow, quiet %s', async (quiet) => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'layout-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  const { container } = render(<form style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <input name="email" />
+    <TurnstileWidget siteKey="site-key" resetKey={0} quiet={quiet} onToken={vi.fn()} />
+    <button type="submit">Continue</button>
+  </form>)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const callbacks = renderWidget.mock.calls[0]![1] as { callback: (token: string) => void }
+  act(() => callbacks.callback('fresh-token'))
+  const widget = container.querySelector('form')!.children[1]!
+  expect(getComputedStyle(widget).position).toBe('absolute')
+})
+
+it.each([false, true])('restores visible challenge space and collapses it again, quiet %s', async (quiet) => {
+  let resize = () => {}
+  const disconnect = vi.fn()
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(callback: () => void) { resize = callback }
+    observe() {}
+    disconnect = disconnect
+  })
+  const renderWidget = vi.fn((..._args: unknown[]) => 'resizing-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  const { container, unmount } = render(<TurnstileWidget siteKey="site-key" resetKey={0} quiet={quiet} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const challenge = renderWidget.mock.calls[0]![0] as HTMLElement
+  let height = 160
+  vi.spyOn(challenge, 'getBoundingClientRect').mockImplementation(() => ({ height }) as DOMRect)
+  const callbacks = renderWidget.mock.calls[0]![1] as { callback: (token: string) => void }
+  act(() => { callbacks.callback('fresh-token'); resize() })
+  expect(getComputedStyle(container.firstElementChild!).position).toBe('static')
+  height = 0
+  act(() => resize())
+  expect(getComputedStyle(container.firstElementChild!).position).toBe('absolute')
+  unmount()
+  expect(disconnect).toHaveBeenCalledOnce()
 })
