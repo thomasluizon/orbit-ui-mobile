@@ -1523,7 +1523,10 @@ Live background Workflow runs and background subagents also hold the relay drain
 When no drain source remains, invoke `/handoff --relay --sleep`, then `node tools/relay-session.mjs`.
 Never run `/questions` or ask the owner during this transition. Record unresolved owner
 questions in the spec and run state. The tool verifies the pushed spec and prompt, stops this
-session's CI waiters and confirms a nominated successor from its run-state write. That
+session's CI and file waiters and confirms a nominated successor from its run-state write. CI and
+file waiters may remain live during the drain; neither blocks it. A local check detached with
+`setsid` keeps running when its waiter stops. Carry the check and its absolute completion file
+in the handoff; the successor starts a new file waiter on that same file. Successor
 adoption durably fences the predecessor before the reporting chain is finalized; reading
 the open chain reconciles interrupted finalization. The successor enters through `/sleep`, adopts the run with
 `adoptRelayRun`, and starts its first wakeup with `run-status.mjs` as usual. The open chain
@@ -1546,7 +1549,8 @@ When CI or review is the remaining work, start
 The worker launcher, Cloud receipt watcher, CI waiter, release waiter, file waiter and relay tool
 each register a live wake source. For a detached local check, start
 `node tools/wait-file.mjs --file <absolute completion file> --what <check label>` in the background.
-Use a fresh completion file for each check; a plain shell polling loop registers no wake source.
+Use a fresh completion file for each check and reuse that file when restarting its waiter after
+a relay; a plain shell polling loop registers no wake source.
 
 **The gate:** `.claude/hooks/require-wake-source.mjs` runs on `Stop` and refuses the stop when the
 run record says `--sleep` with tickets remaining and no registered wake source is a live process. So

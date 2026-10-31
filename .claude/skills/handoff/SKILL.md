@@ -30,10 +30,13 @@ It never invokes `/questions`, asks the owner anything, or ends the session befo
 is confirmed. This is the exception to the owner handoff's ending
 rule below. Every other inventory, spec, prompt, commit and push requirement still applies.
 
-For a detached local check that survives the relay, start
+For a local check detached with `setsid` to survive the relay, start
 `node tools/wait-file.mjs --file <absolute completion file> --what <check label>` as a background
-task. Use a fresh completion file for each check. Like the worker launcher, CI waiter and release
-waiter, it registers a wake source until it exits; a plain shell polling loop does not.
+task. Use a fresh completion file for each check. CI and file waiters may remain live during the
+drain; neither blocks it. The relay tool stops this session's waiters while the detached check
+keeps running. Record the check and its absolute completion file in the in-flight inventory;
+the successor starts a new file waiter on that same file. The waiter registers a wake source
+until it exits; a plain shell polling loop does not.
 
 Relay mode waits for every live background Workflow run and background subagent to finish before ending the session, with the hook and relay tool checking recorded launch and completion evidence and the owning process start identity.
 

@@ -2,7 +2,7 @@
 import { existsSync } from "node:fs"
 import { isAbsolute } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
-import { REPO_ROOT, clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
+import { REPO_ROOT, clearWakeSource, readRunState, registerWakeSource } from "./lib/run-state.mjs"
 
 const USAGE = `usage: wait-file.mjs --file <absolute path> [--what <label>] [--ceiling-minutes <n>] [--poll-seconds <n>]
 
@@ -55,7 +55,8 @@ const finish = (reason, code) => {
 process.once("exit", () => clearWakeSource(process.pid, REPO_ROOT))
 process.once("SIGINT", () => finish("SIGINT", 130))
 process.once("SIGTERM", () => finish("SIGTERM", 143))
-if (!registerWakeSource({ pid: process.pid, what: values["--what"] ?? file, startedAt: new Date().toISOString() }, REPO_ROOT)) {
+if (!registerWakeSource({ pid: process.pid, kind: "file-waiter", sessionId: process.env.CLAUDE_CODE_SESSION_ID ?? readRunState()?.sessionId,
+  what: values["--what"] ?? file, startedAt: new Date().toISOString() }, REPO_ROOT)) {
   finish("WAKE_REGISTRATION_FAILED", 1)
 }
 

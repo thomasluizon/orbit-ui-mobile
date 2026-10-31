@@ -134,7 +134,10 @@ Follow `/orchestrate`'s "Every turn under `--sleep` ends with a live wake source
 - With `relay.enabled: true` and `relay.pending: true`, launch nothing, including review batches.
   Wait for existing launchers and release watchers to finish; their exits wake this session.
   With neither live, follow `/handoff --relay --sleep` and run `node tools/relay-session.mjs`.
-  CI waiters may remain live during the drain; the relay tool stops this session's waiters.
+  CI and file waiters may remain live during the drain; neither blocks it. The relay tool stops
+  this session's waiters while a local check detached with `setsid` keeps running. Carry the check
+  and its absolute completion file in the handoff; the successor starts a new file waiter on that
+  same file.
   A failed relay keeps this session responsible and uses `--retry-wake` for its ten minute
   cooldown. Never invoke `/questions` or ask the owner during the relay.
 - When the owner says stop, clear `sleep` for this session and report. On queue exhaustion write

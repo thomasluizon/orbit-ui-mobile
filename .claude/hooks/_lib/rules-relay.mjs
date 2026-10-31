@@ -1,7 +1,9 @@
+import { isRelayWaiter } from "../../../tools/lib/run-state.mjs"
+
 const RETRY_MS = 10 * 60_000
 
 export const relayDrainSources = (wakeSources, orphaned = [], backgroundRuns = []) => [
-  ...wakeSources.filter((source) => !source.what?.startsWith("CI ") && source.what !== "Context relay retry"),
+  ...wakeSources.filter((source) => !isRelayWaiter(source) && source.what !== "Context relay retry"),
   ...orphaned,
   ...backgroundRuns,
 ]
