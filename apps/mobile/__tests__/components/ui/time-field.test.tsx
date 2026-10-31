@@ -3,6 +3,7 @@ import type { Time24 } from '@orbit/shared/contracts/forms'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
+import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import {
   __resetTestHostConfig,
   __setScrollToImpl,
@@ -335,8 +336,13 @@ await Promise.resolve()
       minutesScroll.props.onLayout({ nativeEvent: { layout: { height: 220 } } })
     })
 
-    expect(scrollTo).toHaveBeenCalledWith({ y: 940, animated: false })
-    expect(scrollTo).toHaveBeenCalledWith({ y: 2668, animated: false })
+    for (const [index, count] of [24, 60].entries()) {
+      const offset = count * TOUCH_TARGET_MIN + (count - 1) * INTERACTION_FILL_CLEARANCE + SPACING.s8 - 220
+      expect(scrollTo).toHaveBeenNthCalledWith(index + 1, { y: offset, animated: false })
+      const selectedTop = SPACING.s4 + (count - 1) * (TOUCH_TARGET_MIN + INTERACTION_FILL_CLEARANCE)
+      expect(selectedTop - offset).toBeGreaterThanOrEqual(0)
+      expect(selectedTop - offset + TOUCH_TARGET_MIN).toBeLessThanOrEqual(220)
+    }
   })
 
   it('renders a clear button when value is set and onClear is provided', async () => {

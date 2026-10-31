@@ -159,7 +159,6 @@ function SupportForm({
           focusRequest={subjectFocusRequest}
           accessibilityHint={[t('profile.support.subject'), t('common.required'), subjectError].filter(Boolean).join(' ')}
           onBlur={onSubjectBlur}
-          style={{ gap: 4 }}
         >
           {SUPPORT_SUBJECT_OPTIONS.map((option) => (
             sending ? (
