@@ -23,6 +23,8 @@ import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 
 interface HabitChecklistProps {
+  pendingItemText?: string
+  onPendingItemChange?: (text: string) => void
   items: ChecklistItem[]
   /** Interactive mode: user can toggle checkboxes */
   interactive?: boolean
@@ -224,6 +226,8 @@ export function HabitChecklist({
   editable = false,
   proposedItemCount = 0,
   onItemsChange,
+  onPendingItemChange,
+  pendingItemText,
   onToggle,
   onReset,
 }: Readonly<HabitChecklistProps>) {
@@ -234,7 +238,12 @@ export function HabitChecklist({
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const [newItemText, setNewItemText] = useState('')
+  const [itemDraft, setItemDraft] = useState('')
+  const newItemText = pendingItemText ?? itemDraft
+  const changeNewItemText = useCallback((value: string) => {
+    setItemDraft(value)
+    onPendingItemChange?.(value)
+  }, [onPendingItemChange, setItemDraft])
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const editableItemKeys = useChecklistItemKeys(items)
 
@@ -246,8 +255,8 @@ export function HabitChecklist({
     if (!text || atItemLimit) return
     const next = [...items, { text, isChecked: false }]
     onItemsChange?.(next)
-    setNewItemText('')
-  }, [atItemLimit, items, newItemText, onItemsChange])
+    changeNewItemText('')
+  }, [atItemLimit, items, newItemText, onItemsChange, changeNewItemText])
 
   const removeItem = useCallback(
     (index: number) => {
@@ -387,7 +396,7 @@ export function HabitChecklist({
       {editable && (
         <ChecklistAddRow
           value={newItemText}
-          onChangeText={guard(setNewItemText)}
+          onChangeText={guard(changeNewItemText)}
           onAdd={guard(addItem)}
           styles={styles}
           tokens={tokens}

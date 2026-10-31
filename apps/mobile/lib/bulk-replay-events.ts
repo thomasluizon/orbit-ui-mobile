@@ -4,6 +4,7 @@ import { captureError } from './sentry'
 import { z } from 'zod'
 
 export interface BulkReplaySuccess {
+  suppressParentSettlement?: boolean
   mutationId: string
   type: 'bulkLogHabits' | 'bulkSkipHabits'
   items: { habitId: string; date?: string }[]
@@ -25,6 +26,7 @@ interface AccountReplayState {
 const accounts = new Map<string, AccountReplayState>()
 
 const storedSuccessSchema = z.array(z.object({
+  suppressParentSettlement: z.boolean().optional(),
   mutationId: z.string(),
   type: z.enum(['bulkLogHabits', 'bulkSkipHabits']),
   items: z.array(z.object({ habitId: z.string(), date: z.string().optional() })),

@@ -177,7 +177,10 @@ for (const viewport of [{ width: 1100, height: 726 }, { width: 840, height: 726 
           const now = element.querySelector('[data-today="true"] > [role="img"]')!.getBoundingClientRect()
           return element.scrollTop > 0 && now.top >= viewport.top && now.top <= viewport.top + element.clientHeight / 3
         })).toBe(true)
-        await oversizedPane.evaluate((element) => element.parentNode!.removeChild(element))
+        await oversizedPane.evaluate((element) => {
+          document.documentElement.style.fontSize = '17px'
+          element.parentNode!.removeChild(element)
+        })
         await expect(pane).toHaveAttribute('data-pinning', 'pinned')
         await expect.poll(() => scroller.evaluate((element) => {
           const viewport = element.getBoundingClientRect()

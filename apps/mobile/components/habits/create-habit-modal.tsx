@@ -162,6 +162,7 @@ export function CreateHabitModal({
   const isSubHabitMode = !!parentHabit
   const activeView = useUIStore((s) => s.activeView)
 
+  const [pendingChecklistItem, setPendingChecklistItem] = useState('')
   const formHelpers = useHabitForm({
     initialData: {
       dueDate: initialDate ?? '',
@@ -229,7 +230,7 @@ export function CreateHabitModal({
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const isDirty = hasCreateHabitChanges({
-    formDirty: formHelpers.form.formState.isDirty,
+    formDirty: formHelpers.form.formState.isDirty || pendingChecklistItem.length > 0,
     selectedTagIds: tags.selectedTagIds,
     selectedGoalIds,
     subHabits,
@@ -294,6 +295,7 @@ export function CreateHabitModal({
       const { initialDate, initialTitle, initialSuggestion, parentHabit, activeView, formHelpers, tags } = resetOnOpenRef.current
       const fallbackDate = initialDate ?? ''
 
+      setPendingChecklistItem('')
       setEmojiFailure(null)
       setCreateBoundary(null)
       setReminderWasManuallyToggled(false)
@@ -632,6 +634,8 @@ export function CreateHabitModal({
         <View style={styles.scrollContent}>
           {recoveryMessage ? <Text style={{ color: tokens.fg2 }}>{recoveryMessage} {t('common.syncOrphanedDetail')}</Text> : null}
           <HabitFormFields
+              pendingChecklistItem={pendingChecklistItem}
+              onPendingChecklistItemChange={setPendingChecklistItem}
             formHelpers={formHelpers}
             tags={tags}
             selectedGoalIds={selectedGoalIds}

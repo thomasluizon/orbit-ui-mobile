@@ -38,6 +38,8 @@ import { Proposed } from '@/components/ui/proposed'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 interface HabitChecklistProps {
+  pendingItemText?: string
+  onPendingItemChange?: (text: string) => void
   items: ChecklistItem[]
   /** Interactive mode: user can toggle checkboxes */
   interactive?: boolean
@@ -55,12 +57,19 @@ export function HabitChecklist({
   editable = false,
   proposedItemCount = 0,
   onItemsChange,
+  onPendingItemChange,
+  pendingItemText,
   onToggle,
   onReset,
 }: Readonly<HabitChecklistProps>) {
   const t = useTranslations()
   const dndContextId = useId()
-  const [newItemText, setNewItemText] = useAccountScopedState('')
+  const [itemDraft, setItemDraft] = useAccountScopedState('')
+  const newItemText = pendingItemText ?? itemDraft
+  const changeNewItemText = useCallback((value: string) => {
+    setItemDraft(value)
+    onPendingItemChange?.(value)
+  }, [onPendingItemChange, setItemDraft])
   const sortableIds = useChecklistItemKeys(items)
 
   const dragAccessibility = useDragAccessibility(t, (id) => items[sortableIds.indexOf(String(id))]?.text)
@@ -91,8 +100,8 @@ export function HabitChecklist({
     if (!text || atItemLimit) return
     const next = [...items, { text, isChecked: false }]
     onItemsChange?.(next)
-    setNewItemText('')
-  }, [atItemLimit, items, newItemText, onItemsChange, setNewItemText])
+    changeNewItemText('')
+  }, [atItemLimit, items, newItemText, onItemsChange, changeNewItemText])
 
   const removeItem = useCallback(
     (index: number) => {
@@ -237,7 +246,7 @@ export function HabitChecklist({
         <div className="flex flex-col gap-2">
           <ChecklistAddRow
             value={newItemText}
-            onChangeText={setNewItemText}
+            onChangeText={changeNewItemText}
             onAdd={addItem}
             disabled={atItemLimit}
           />

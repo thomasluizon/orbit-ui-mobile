@@ -1,8 +1,11 @@
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useEffect, useRef, useId } from 'react'
 import { X } from '@/components/ui/icons'
 import { MAX_TAG_NAME_LENGTH } from '@orbit/shared/validation'
 
 interface TagEditorRowProps {
+  initialValue?: string
   error?: string
   focusRequest?: number
   value: string
@@ -18,6 +21,7 @@ interface TagEditorRowProps {
 
 export function TagEditorRow({
   value,
+  initialValue = '',
   error,
   focusRequest,
   placeholder,
@@ -29,11 +33,13 @@ export function TagEditorRow({
   onCommit,
   onCancel,
 }: Readonly<TagEditorRowProps>) {
+  const dismiss = useDismissGuard({ isDirty: value !== initialValue, onDismiss: onCancel })
+  const requestCancel = () => { if (!disabled) dismiss.requestDismiss() }
   const inputRef = useRef<HTMLInputElement>(null)
   useEffect(() => { if (focusRequest) inputRef.current?.focus() }, [focusRequest])
   const errorId = useId()
   return (
-    <div className="flex min-w-0 flex-col gap-2">
+    <><div className="flex min-w-0 flex-col gap-2">
     <div className="flex items-center gap-2">
       <input
         ref={inputRef}
@@ -73,12 +79,14 @@ export function TagEditorRow({
         aria-label={cancelAriaLabel}
         className="habit-control-motion touch-target shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
         disabled={disabled}
-        onClick={onCancel}
+        onClick={requestCancel}
       >
         <X size={16} strokeWidth={1.8} aria-hidden="true" />
       </button>
     </div>
     {error ? <p id={errorId} className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}
     </div>
+    <DiscardChangesSheet open={dismiss.showDiscardDialog} onKeepEditing={dismiss.cancelDismiss} onDiscard={dismiss.confirmDismiss} />
+    </>
   )
 }

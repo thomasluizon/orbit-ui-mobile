@@ -582,6 +582,22 @@ describe('mobile habit hooks', () => {
     }
   })
 
+  it.each(['log', 'skip'] as const)('keeps the selected parent boundary in queued bulk %s metadata', async (mode) => {
+    mocks.runQueuedMutation.mockResolvedValueOnce({ results: [{ index: 0, habitId: 'parent', status: 'Success', logId: null, error: null }] })
+    const mutation = (mode === 'log' ? useBulkLogHabits : useBulkSkipHabits)({ suppressParentSettlement: true }) as unknown as MutationConfig<unknown, { habitId: string; date: string }[], unknown>
+    const items = [{ habitId: 'parent', date: '2026-09-12' }]
+    await mutation.mutationFn(items)
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ suppressParentSettlement: true, payload: { items } }) }))
+  })
+
+  it.each(['log', 'skip'] as const)('persists the remaining selected ancestors with a queued parent %s batch', async (mode) => {
+    mocks.runQueuedMutation.mockResolvedValueOnce({ results: [{ index: 0, habitId: 'parent', status: 'Success', logId: null, error: null }] })
+    const mutation = (mode === 'log' ? useBulkLogHabits : useBulkSkipHabits)({ suppressParentSettlement: true }) as unknown as MutationConfig<unknown, { items: { habitId: string; date: string }[]; parentPromptContinuation: { habitId: string; date: string; mode: string }[] }, unknown>
+    const input = { items: [{ habitId: 'parent', date: '2026-09-12' }], parentPromptContinuation: [{ habitId: 'root', date: '2026-09-12', mode: mode === 'log' ? 'skip' : 'log' }] }
+    await mutation.mutationFn(input)
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ parentPromptContinuation: input.parentPromptContinuation, payload: { items: input.items } }) }))
+  })
+
   it('gives queued toggles a durable habit and occurrence date key', async () => {
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
@@ -3169,26 +3185,29 @@ describe('mobile habit hooks', () => {
     expect(getHabitList().find((habit) => habit.id === 'habit-1')?.isCompleted).toBe(false)
   })
 
-  it('restores only the rejected sibling after a mixed bulk skip result', async () => {
+  it.each([false, true])('restores only the rejected sibling after a mixed bulk skip result with continuation=%s', async (continuation) => {
     seedHabitState([
       makeHabit({
         id: 'parent',
         hasSubHabits: true,
         children: [
-          makeChild({ id: 'child-accepted', isCompleted: false }),
-          makeChild({ id: 'child-rejected', isCompleted: false }),
+          makeChild({ id: 'child-accepted', isCompleted: false, scheduledDates: [formatAPIDate(new Date())] }),
+          makeChild({ id: 'child-rejected', isCompleted: false, scheduledDates: [formatAPIDate(new Date())] }),
         ],
       }),
     ], 3)
-    const mutation = useBulkSkipHabits() as unknown as MutationConfig<
-      { results: { index: number; status: 'Success' | 'Failed'; habitId: string; error: string | null }[] },
-      { habitId: string; date?: string }[],
-      HabitSnapshotContext
-    >
-    const variables = [
+    const items = [
       { habitId: 'child-accepted' },
       { habitId: 'child-rejected' },
     ]
+    const variables = continuation ? {
+      items, parentPromptContinuation: [{ habitId: 'parent', date: formatAPIDate(new Date()), mode: 'log' as const }],
+    } : items
+    const mutation = useBulkSkipHabits() as unknown as MutationConfig<
+      { results: { index: number; status: 'Success' | 'Failed'; habitId: string; error: string | null }[] },
+      typeof variables,
+      HabitSnapshotContext
+    >
     const mixedResult = {
       results: [
         { index: 0, status: 'Success' as const, habitId: 'child-accepted', error: null },
@@ -3205,6 +3224,7 @@ describe('mobile habit hooks', () => {
     expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(false)
     expect(children?.find((habit) => habit.id === 'child-accepted')?.scheduledDates).not.toContain(formatAPIDate(new Date()))
     expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
+    expect(children?.find((habit) => habit.id === 'child-rejected')?.scheduledDates).toContain(formatAPIDate(new Date()))
   })
 
   it('restores the list when a bulk log fails', async () => {
