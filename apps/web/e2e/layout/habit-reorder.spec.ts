@@ -86,25 +86,43 @@ for (const width of [320, 360, 384, 412, 600, 768, 1280]) for (const mode of ['l
     await page.keyboard.press('Escape')
     await expect(page.getByRole('menu')).toBeHidden()
     await expect(page.getByTestId('today-refetch-motion')).toHaveCSS('opacity', '1')
+    await page.locator('[data-habit-title="Habit 3"]').evaluate((row) => row.scrollIntoView({ block: 'center', behavior: 'instant' }))
     const source = page.locator('[data-habit-title="Habit 1"]')
     const start = await source.locator('[data-habit-row-body]').boundingBox()
-    const target = await page.locator('[data-habit-title="Habit 3"]').boundingBox()
-    if (!start || !target) throw new Error('Missing reorder rows')
+    const sourceCenter = await source.evaluate((row) => {
+      const box = row.parentElement!.parentElement!.getBoundingClientRect()
+      return box.top + box.height / 2
+    })
+    if (!start) throw new Error('Missing reorder row')
     await page.mouse.move(start.x + 12, start.y + start.height / 2)
     await page.mouse.down()
     await page.mouse.move(start.x + 12, start.y + start.height / 2 + 8)
     const observations = rows.evaluateAll(observeReorderRows)
-    await page.mouse.move(start.x + 12, target.y + target.height / 2, { steps: 20 })
+    const targetCenter = await page.locator('[data-habit-title="Habit 3"]').evaluate((row) => {
+      const sortable = row.parentElement!.parentElement!
+      const box = sortable.getBoundingClientRect()
+      const transform = new DOMMatrixReadOnly(getComputedStyle(sortable).transform)
+      return box.top - transform.m42 + box.height / 2
+    })
+    await page.mouse.move(start.x + 12, start.y + start.height / 2 + targetCenter - sourceCenter, { steps: 20 })
+    const preview = await rows.evaluateAll(async (elements) => {
+      await new Promise(requestAnimationFrame)
+      return elements.filter((row) => row.getAttribute('data-depth') === '0').map((row) => {
+        const sortable = row.parentElement!.parentElement!
+        return { id: row.getAttribute('data-habit-id')!, top: sortable.getBoundingClientRect().top }
+      }).sort((first, second) => first.top - second.top).map((row) => row.id)
+    })
     await page.mouse.up()
     expect(await observations).toEqual([])
     const expected = ['Habit 0', 'Child', 'Habit 2', 'Habit 3', 'Habit 1', 'Habit 4']
-    await expect.poll(() => rows.evaluateAll((elements) => elements.map((row) => row.getAttribute('data-habit-title')))).toEqual(expected)
     const journal = await fetch('http://127.0.0.1:5099/_test/habit-mutations', { headers: { Authorization: `Bearer ${token}` } })
     expect(journal.status).toBe(200)
     const requests = z.array(z.object({ method: z.string(), path: z.string(), body: z.unknown() })).parse(await journal.json())
       .filter((request) => request.method === 'PUT' && request.path === API.habits.reorder)
     expect(requests).toHaveLength(1)
-    expect(reorderHabitsRequestSchema.parse(requests[0]!.body).positions).toEqual(order.map((index, position) => ({ habitId: `root-${index}`, position })))
+    expect(reorderHabitsRequestSchema.parse(requests[0]!.body).positions).toEqual(preview.map((habitId, position) => ({ habitId, position })))
+    expect(preview).toEqual(order.map((index) => `root-${index}`))
+    await expect.poll(() => rows.evaluateAll((elements) => elements.map((row) => row.getAttribute('data-habit-title')))).toEqual(expected)
     await expect.poll(() => rows.evaluateAll((elements) => elements.every((row, index) => index === 0 || row.getBoundingClientRect().top - elements[index - 1]!.getBoundingClientRect().bottom <= 13))).toBe(true)
     await page.reload()
     await expect.poll(() => rows.evaluateAll((elements) => elements.map((row) => row.getAttribute('data-habit-title')))).toEqual(expected)

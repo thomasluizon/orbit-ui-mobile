@@ -5,6 +5,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 let browser: Browser
@@ -37,7 +38,7 @@ beforeAll(async () => {
 }, 30_000)
 afterAll(async () => { await closeChrome(launch) })
 
-const cases = [412, 1280].flatMap((width) => (['light', 'dark'] as const).flatMap((mode) =>
+const cases = [320, 360, 384, 412, 600, 768, 1280].flatMap((width) => (['light', 'dark'] as const).flatMap((mode) =>
   ['Habit 1', 'Habit 0'].map((title) => ({ width, mode, title }))))
 
 it.each(cases)('keeps $title visible across a two-row drag at $width px in $mode', async ({ width, mode, title }) => {
@@ -48,14 +49,15 @@ it.each(cases)('keeps $title visible across a two-row drag at $width px in $mode
     const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
     await page.route('https://habit-list.test/', (route) => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html class="${mode}"><style>${stylesheet}:root{${variables}}</style><div id="root"></div>` }))
     await page.goto('https://habit-list.test/')
+    await loadAppFonts(page)
     await page.addScriptTag({ content: script })
     const rows = page.locator('[data-testid="habit-row"]')
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 6)
-    const source = page.locator(`[data-habit-title="${title}"] [data-habit-row-body]`)
+    const source = page.locator(`[data-habit-title="${title}"]`)
     const target = page.locator(`[data-habit-title="${title === 'Habit 0' ? 'Habit 2' : 'Habit 3'}"]`)
     const expected = title === 'Habit 0' ? ['Habit 1', 'Habit 2', 'Habit 0', 'Child', 'Habit 3', 'Habit 4']
       : ['Habit 0', 'Child', 'Habit 2', 'Habit 3', 'Habit 1', 'Habit 4']
-    let start = await source.boundingBox()
+    let start = await source.locator('[data-habit-row-body]').boundingBox()
     if (!start) throw new Error('Missing drag row')
     if (title === 'Habit 0') {
       await page.mouse.move(start.x + 12, start.y + start.height / 2)
@@ -66,33 +68,45 @@ it.each(cases)('keeps $title visible across a two-row drag at $width px in $mode
       await page.mouse.up()
       await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 6, undefined, { timeout: 1000 })
       expect(await page.evaluate(() => window.reorderRequests)).toEqual([])
-      start = await source.boundingBox()
+      start = await source.locator('[data-habit-row-body]').boundingBox()
       if (!start) throw new Error('Missing restored parent')
     }
+    const sourceCenter = await source.evaluate((row) => {
+      const box = row.parentElement!.parentElement!.getBoundingClientRect()
+      return box.top + box.height / 2
+    })
     await page.mouse.move(start.x + 12, start.y + start.height / 2)
     await page.mouse.down()
     await page.mouse.move(start.x + 12, start.y + start.height / 2 + 8)
     if (title === 'Habit 0') await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 5, undefined, { timeout: 2000 })
     const end = await target.evaluate((row) => {
-      const box = row.getBoundingClientRect()
-      const transform = new DOMMatrixReadOnly(getComputedStyle(row.parentElement!.parentElement!).transform)
-      return { y: box.top - transform.m42, height: box.height }
+      const sortable = row.parentElement!.parentElement!
+      const box = sortable.getBoundingClientRect()
+      const transform = new DOMMatrixReadOnly(getComputedStyle(sortable).transform)
+      return box.top - transform.m42 + box.height / 2
     })
-    await page.mouse.move(start.x + 12, end.y + end.height / 2, { steps: 20 })
-    const during = await rows.evaluateAll((elements) => elements.map((row) => {
-      const box = row.getBoundingClientRect()
-      const x = box.left + 20
-      const visible = [0.1, 0.5, 0.9].some((fraction) => {
-        const hit = document.elementFromPoint(x, box.top + box.height * fraction)
-        return hit !== null && row.contains(hit)
+    await page.mouse.move(start.x + 12, start.y + start.height / 2 + end - sourceCenter, { steps: 20 })
+    const during = await rows.evaluateAll(async (elements) => {
+      await new Promise(requestAnimationFrame)
+      return elements.map((row) => {
+        const sortable = row.parentElement!.parentElement!
+        const box = sortable.getBoundingClientRect()
+        const x = box.left + 20
+        const visible = [0.1, 0.5, 0.9].some((fraction) => {
+          const hit = document.elementFromPoint(x, box.top + box.height * fraction)
+          return hit !== null && row.contains(hit)
+        })
+        let opaque = true
+        for (let node: Element | null = row; node; node = node.parentElement) opaque &&= getComputedStyle(node).opacity === '1'
+        return { id: row.getAttribute('data-habit-id')!, title: row.getAttribute('data-habit-title'), top: box.top, bottom: box.bottom, visible: visible && opaque }
       })
-      let opaque = true
-      for (let node: Element | null = row; node; node = node.parentElement) opaque &&= getComputedStyle(node).opacity === '1'
-      return { title: row.getAttribute('data-habit-title'), top: box.top, bottom: box.bottom, visible: visible && opaque }
-    }))
+    })
     expect(during.filter((row) => !row.visible), JSON.stringify({ during, errors })).toEqual([])
+    const preview = during.filter((row) => row.id.startsWith('root-')).sort((first, second) => first.top - second.top)
     await page.mouse.up()
     await page.waitForFunction(() => window.reorderRequests.length === 1, undefined, { timeout: 2000 })
+    expect(await page.evaluate(() => window.reorderRequests[0]!.positions)).toEqual(preview.map((row, position) => ({ habitId: row.id, position })))
+    expect(preview.map((row) => row.title)).toEqual(expected.filter((title) => title !== 'Child'))
     await page.waitForFunction((titles) => [...document.querySelectorAll('[data-testid="habit-row"]')].map((row) => row.getAttribute('data-habit-title')).join(',') === titles.join(','), expected, { timeout: 2000 }).catch(async (cause: unknown) => {
       throw new Error(JSON.stringify({ expected, actual: await rows.evaluateAll((elements) => elements.map((row) => row.getAttribute('data-habit-title'))), requests: await page.evaluate(() => window.reorderRequests) }), { cause })
     })
