@@ -24,11 +24,11 @@ Finish the spec: an empty board and verified releases, driven to launch, in `## 
 
 ## In flight
 
-UI `main` `b646fcdfc`, API `main` `6b784aa3`, landing `main` `06ee66c`. Production web `ddafa8f52` (verified), production API `e64b0ea1` (verified, both migrations applied), Android Open 1.3.122 (181). Staging API and web are suspended until 1 Nov 00:00 UTC.
+UI `main` `b646fcdfc`, API `main` `6b784aa3`, landing `main` `06ee66c`. Production web `ddafa8f52` (verified), production API `4092542a` (verified; `e64b0ea1` migrations applied), Android Open 1.3.122 (181). Staging API and web are suspended until 1 Nov 00:00 UTC.
 
 | Item | Disposition |
 | --- | --- |
-| `orbit-api#1049` (`#1674` gate class M) | Merged as `4092542a` (approved, CI settled, probe 15 of 15). Production API release run 41248461907 was dispatched in the drain; its watcher may still run at adoption. Verify the deployed commit on `https://api.useorbit.org/health`, then the Render logs: no `AI round returned no assistant text` line after a read. Then the launch-only gate keeps its place in the order. |
+| `orbit-api#1049` (`#1674` gate class M) | Merged as `4092542a` (approved, CI settled, probe 15 of 15). Live on production API `4092542a` (run 41248461907 verified, no error log). Read the Render logs after the owner's next Astra turns: no `AI round returned no assistant text` line after a read. Then the launch-only gate keeps its place in the order. |
 | `orbit-api#1050` (`#1935`) | Merged as `e3c34d7c` (approved, CI settled). After the `orbit-api#1049` release is verified: the targeted apply from API `main` (`tf-apply-targeted.sh` with `-target=render_env_group.production_api -target=render_env_group.staging_api`, expected `Plan: 0 to add, 2 to change, 0 to destroy`), production API, then a desktop production release so the Windows build embeds `ORBIT_DESKTOP_WNS_OBJECT_ID`, then `#1861` Windows live acceptance. |
 | `orbit-api#1048` (`#1915`) | Merged as `6b784aa3` (approved, CI settled, no migration). Production API of API `main` after the `#1935` targeted apply (one release carries both), then `ui#2270`. |
 | `orbit-api#1044` (`#1923`) | Base merge `3b0a70cd` pushed (build and three test projects exit 0; body copy approved). CI waiter live. CI, Pullfrog, merge, production API. |
@@ -50,7 +50,7 @@ Inventory: open pull requests `ui#1989` (relay docs), `ui#2259`, `ui#2265`, `ui#
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
-2. Recreate the crons. Drive the in-flight items above; verify the `orbit-api#1049` release first (live defect), then the API merges and production API, the UI merges and production web, Android Open.
+2. Recreate the crons. Drive the in-flight items above; then the API merges and production API, the UI merges and production web, Android Open.
 3. Every Astra API release that changes tool declarations: regenerate its catalog (`REF=4d9561e59 bash gen-branch-ref.sh <name> <api worktree>` in `probe-truncation/`), run `bash probe-catalog.sh <name>` (15 calls, estimate in the script, at most 0.10 USD), and require every catalog, including offer plus ask, to complete. Then check the Render logs after the release.
 4. Verify the Orbit Staging App integrity link in Play Console through `claude-in-chrome` and close the question.
 5. Report AI spend with measured cost per call from the next daily `AI cost` line after a full UTC day on `e64b0ea1` (`#1916`).
