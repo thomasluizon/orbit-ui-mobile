@@ -126,12 +126,13 @@ export function buildChildrenIndex(
 export function normalizeHabitQueryData(
   items: HabitScheduleItem[],
   pagination?: Pick<PaginatedResponse<HabitScheduleItem>, 'totalCount' | 'totalPages' | 'page'>,
+  order: 'position' | 'response' = 'position',
 ): NormalizedHabitQueryData {
   const habitsById = normalizeHabits(items)
   const childrenByParent = buildChildrenIndex(habitsById)
   const topLevelHabits = Array.from(habitsById.values())
     .filter((habit) => habit.parentId === null)
-    .sort(sortNormalizedHabits)
+  if (order === 'position') topLevelHabits.sort(sortNormalizedHabits)
 
   return {
     habitsById,
