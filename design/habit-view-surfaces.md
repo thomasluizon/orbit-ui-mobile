@@ -28,6 +28,13 @@ and an intrinsic size reservation, retaining natural family height and keyboard 
 temporarily renders every panel while dragging so reorder measurements use the whole list.
 Android retains its virtualized FlatList owners.
 
+Sortable rows own positional motion on both platforms. Web sortable families and child
+disclosures remain unclipped and do not add layout or disclosure movement around dnd-kit
+transforms. Native draggable cells own translation while their row wrappers retain opacity
+feedback. The dragged web row keeps its half-opacity drag feedback while every other row stays
+fully opaque. Non-sortable lists retain positional motion. Dropping or cancelling a web drag
+restores the dragged parent's children and clears the temporary drag inventory.
+
 Move opens the scheduled inventory without date or view filters and the separate General inventory,
 loading every page through the existing habit queries. Both complete forests supply destination
 rows, current-parent context and cycle/depth checks. Completed one-time containers remain when an

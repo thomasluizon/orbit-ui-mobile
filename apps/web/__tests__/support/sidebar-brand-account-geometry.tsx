@@ -142,7 +142,7 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
             lockup: bounds(sidebar.querySelector('[data-asset="orbit-lockup"]')!),
             search: bounds(sidebar.querySelector('button:has(.tabler-icon-search)')!),
             trailingGlyph: bounds(toggle.querySelector('svg')!),
-            firstControlIsToggle: controls[0] === toggle,
+            firstControlIsBell: controls[0] === bell,
             afterNavigation: controls.slice(controls.indexOf(navigationEnd) + 1).map(element => element === create ? 'create' : element.hasAttribute('data-shell-account') ? 'account' : 'unexpected'),
             icons: [bell, toggle, theme].map(element => {
               const icon = element.querySelector('svg')!
@@ -172,9 +172,9 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
           expect(Math.abs(header.icons[index]!.centerY - control.centerY), 'glyph block centre').toBeLessThanOrEqual(0.5)
         }
         if (collapsed) {
-          expect(header.firstControlIsToggle).toBe(true)
+          expect(header.firstControlIsBell).toBe(true)
+          expect(header.toggle.top - header.bell.bottom).toBe(12)
           expect(header.theme.top - header.toggle.bottom).toBe(12)
-          expect(header.bell.top - header.theme.bottom).toBe(12)
           expect(header.toggle.centerX).toBe(header.sidebar.centerX)
           expect(header.bell.centerX).toBe(header.sidebar.centerX)
         } else {
@@ -183,7 +183,8 @@ export function sidebarBrandAccountGeometry(collapsed: boolean, registerLaunch: 
           expect(header.brand.height).toBeCloseTo(header.theme.height + 12 + header.bell.height, 1)
           expect(header.bell.top - header.theme.bottom).toBe(12)
           expect(header.bell.centerY).toBe(header.toggle.centerY)
-          expect(header.toggle.left - header.bell.right).toBe(12)
+          expect(Math.abs(header.bell.left - header.lockup.left), 'bell and lockup leading edges').toBeLessThanOrEqual(1)
+          expect(header.toggle.left - header.bell.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
           expect(header.theme.left - header.lockup.right).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
           expect.soft(Math.abs(header.lockup.left - header.search.left)).toBeLessThanOrEqual(1)
           expect(header.theme.left).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
