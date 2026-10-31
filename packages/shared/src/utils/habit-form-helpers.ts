@@ -215,6 +215,8 @@ export interface HabitFormCommonProps<FormHelpers, TagState, ChildNode> {
   onGoalCreated?: (goalId: string) => void
   reminderTimes: number[]
   onReminderTimesChange: (times: number[]) => void
+  pendingChecklistItem?: string
+  onPendingChecklistItemChange?: (text: string) => void
   onReminderEnabledChange?: (nextEnabled: boolean) => void
   onSlipAlertEnabledChange?: (nextEnabled: boolean) => void
   onSuggestionContextChange?: () => void
