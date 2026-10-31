@@ -20,6 +20,18 @@ const item: PendingOperationItem = {
 }
 
 describe('pending operation edits', () => {
+  it('keeps a repeat reminder object editable without replacing it with display copy', () => {
+    const proposedValue = { interval_minutes: 120, active_start: '08:00', active_end: '22:00' }
+    const offered: PendingOperationItem = { ...item, fields: [{
+      ...item.fields[0]!, field: 'repeat_reminder', valueType: 'text',
+      newValue: 'Every 2 hours', proposedValue, isEditable: true,
+    }] }
+    const draft = pendingOperationDraft(offered)
+    expect(JSON.parse(draft.repeat_reminder!)).toEqual(proposedValue)
+    expect(pendingOperationEdits(offered, { repeat_reminder: JSON.stringify({ ...proposedValue, interval_minutes: 180 }) }))
+      .toEqual({ repeat_reminder: { ...proposedValue, interval_minutes: 180 } })
+  })
+
   it('sends the API boolean and day array types from an edited preview', () => {
     const draft = pendingOperationDraft(item)
     expect(draft).toEqual({ reminder_enabled: 'true', days: 'Monday, Tuesday' })
