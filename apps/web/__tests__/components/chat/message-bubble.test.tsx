@@ -55,7 +55,7 @@ vi.mock('@/components/chat/goal-list-card', () => ({
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { useChatStore } from '@/stores/chat-store'
 import type { ChatMessage } from '@orbit/shared/types/chat'
-import { makeActionResult, makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldGoalMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { deniedBulkCreateReplyFixture, makeActionResult, makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldGoalMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   return {
@@ -678,4 +678,10 @@ describe('MessageBubble', () => {
     rerender(<MessageBubble message={makeHeldHabitMessage({ pendingOperations: [], operations: [makeAgentOperationResult('Succeeded', 1)] })} />)
     expect(container.querySelectorAll('section[data-state]')).toHaveLength(0)
   })
+})
+
+it('renders the denied bulk create replay as an outcome instead of an unreadable reply', () => {
+  render(<MessageBubble message={deniedBulkCreateReplyFixture} />)
+  expect(screen.getByText('chat.operation.source.createHabits')).toBeInTheDocument()
+  expect(screen.queryByText('chat.unreadableReply')).not.toBeInTheDocument()
 })

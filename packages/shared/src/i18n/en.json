@@ -2249,6 +2249,10 @@
       },
       "confirmActionTitle": "{action}?",
       "source": {
+        "updateChecklistTemplate": "Edit checklist template",
+        "suggestBreakdown": "Break down habit",
+        "undoSkipHabit": "Undo skipped habit",
+        "unlogHabit": "Undo habit log",
         "createHabit": "Create habit",
         "logHabit": "Log habit",
         "updateHabit": "Update habit",

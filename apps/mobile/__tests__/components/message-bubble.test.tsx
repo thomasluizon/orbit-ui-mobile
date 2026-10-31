@@ -8,7 +8,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { renderedText } from '../support/react-test-renderer'
-import { makeActionResult, makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldGoalMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { deniedBulkCreateReplyFixture, makeActionResult, makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldGoalMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 const realClarification = vi.hoisted(() => ({ current: false }))
@@ -855,4 +855,11 @@ describe('MessageBubble interactive blocks (mobile)', () => {
     })
     expect(tree.root.findAll((node) => node.type === 'BreakdownSuggestion')).toHaveLength(0)
   })
+})
+
+it('renders the denied bulk create replay as an outcome instead of an unreadable reply', async () => {
+  let tree!: TestInstance
+  await TestRenderer.act(() => { tree = TestRenderer.create(<MessageBubble message={deniedBulkCreateReplyFixture} />) })
+  expect(renderedText(tree.root)).toContain('chat.operation.source.createHabits')
+  expect(renderedText(tree.root)).not.toContain('chat.unreadableReply')
 })

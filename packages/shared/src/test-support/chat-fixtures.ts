@@ -370,3 +370,13 @@ export function makeOneSmallStepCard(language: 'en' | 'pt-BR' = 'en'): OneSmallS
     ],
   }
 }
+
+export const deniedBulkCreateReplyFixture: ChatMessage = {
+  id: 'denied-bulk-create', role: 'ai', content: '', timestamp: new Date('2026-10-31T12:00:00Z'),
+  parts: [], actions: [], pendingOperations: [], policyDenials: [],
+  operations: [{
+    operationId: 'bulk_create_habits', sourceName: 'bulk_create_habits', riskClass: 'Low',
+    confirmationRequirement: 'FreshConfirmation', status: 'Denied', summary: null,
+    targetId: null, targetName: null, policyReason: 'invalid_offer', pendingOperationId: null, payload: null,
+  }],
+}

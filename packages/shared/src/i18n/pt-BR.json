@@ -2249,6 +2249,10 @@
       },
       "confirmActionTitle": "{action}?",
       "source": {
+        "updateChecklistTemplate": "Editar modelo de checklist",
+        "suggestBreakdown": "Dividir hábito em etapas",
+        "undoSkipHabit": "Desfazer hábito pulado",
+        "unlogHabit": "Desfazer registro do hábito",
         "createHabit": "Criar hábito",
         "logHabit": "Registrar hábito",
         "updateHabit": "Atualizar hábito",
