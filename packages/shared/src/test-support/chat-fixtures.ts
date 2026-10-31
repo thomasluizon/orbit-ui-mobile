@@ -376,7 +376,7 @@ export const deniedBulkCreateReplyFixture: ChatMessage = {
   parts: [], actions: [], pendingOperations: [], policyDenials: [],
   operations: [{
     operationId: 'bulk_create_habits', sourceName: 'bulk_create_habits', riskClass: 'Low',
-    confirmationRequirement: 'FreshConfirmation', status: 'Denied', summary: null,
+    confirmationRequirement: 'None', status: 'Denied', summary: null,
     targetId: null, targetName: null, policyReason: 'invalid_offer', pendingOperationId: null, payload: null,
   }],
 }
