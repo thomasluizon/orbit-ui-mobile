@@ -25,6 +25,17 @@ next UTC day's window (`TESTING.md` `### Daily windows and combined report`). Ne
 on another account, key or environment, reset a counter, raise a ceiling or rotate accounts to finish.
 No paid-key probe runs without a written cost estimate on the owning ticket first; record the
 actual cost there afterward.
+
+Preserve each window's sanitized summaries and `attempts/` directory before another run overwrites
+them. Merge all window summary paths in chronological order with `node merge-reports.mjs` from
+`evals/astra`. A continuation replaces only incomplete case entries and retains completed companions.
+For the single permitted rerun of a failed case, keep its original window in the inputs and prefix
+the rerun window path with `--rerun`; that window must contain only previously failed cases.
+Continue an interrupted rerun in an ordinary later window without another declaration. Already
+passed cases and second reruns are rejected. The merged `sourceWindow` numbers refer to input path
+positions; `superseded` preserves prior evidence without counting its attempts toward pass^3.
+Follow `TESTING.md` `### Daily windows and combined report` for the exact commands.
+
 For the app-launch gate, use the configured disposable eval accounts and their fixture reset
 executable. Never substitute a personal account. Enable the existing
 `astra_eval_trace` account flag through `/flag` only for disposable fixtures, record its

@@ -105,6 +105,11 @@ export function writeReport(summary, directory = 'reports') {
     '|---|---|---|---|',
     ...summary.groups.map((entry) => `| ${entry.family} | ${entry.locale} | ${entry.passed}/${entry.cases} | ${entry.pass3} |`),
     '',
+    '| Replaced case | Final window | Superseded window | Superseded attempts passed (not counted) | Superseded verdict |',
+    '|---|---|---|---|---|',
+    ...summary.cases.flatMap((entry) => (entry.superseded ?? []).map((previous) =>
+      `| ${entry.id} | ${entry.sourceWindow} | ${previous.sourceWindow} | ${previous.passed}/${previous.attempts} | ${previous.pass3} |`)),
+    '',
     '| Read case | Median turn ms | Budget ms (exclusive) | Latency |',
     '|---|---|---|---|',
     ...summary.cases.filter((entry) => entry.latency).map((entry) =>

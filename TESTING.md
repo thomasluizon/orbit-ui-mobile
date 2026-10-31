@@ -567,12 +567,15 @@ npx promptfoo eval --filter-metadata 'id=single-read-en,single-create-pt'
 mkdir -p reports/window-01
 cp reports/summary.json reports/window-01/summary.json
 cp reports/summary.md reports/window-01/summary.md
+cp -R reports/attempts reports/window-01/attempts
 ```
 
 `--filter-metadata` uses substring alternatives separated by commas, not an exact-match regular
 expression; use full IDs and check the resulting case table. `--filter-pattern` matches case
-descriptions, not IDs. Each selected case still runs three times. Select disjoint case sets in
-later windows and save them as `window-02`, `window-03` and so on. Reset `single-read-en` before
+descriptions, not IDs. Each selected case still runs three times. In later windows select new cases
+and cases whose earlier window was interrupted or unrun; save them as `window-02`, `window-03` and
+so on. Continuation replaces that case's earlier entry, never a completed companion's result.
+Keep each summary and its attempt files together, including superseded attempts. Reset `single-read-en` before
 leaving an account idle across multiple days: public log undo accepts only the past seven days,
 and positive history beyond that window cannot be removed while preserving IDs. Composition
 analytics use two rolling three-day periods ending yesterday, inside this public write window.
@@ -583,12 +586,32 @@ Merge all sanitized window files against the complete checked-in corpus:
 node merge-reports.mjs reports/window-01/summary.json reports/window-02/summary.json
 ```
 
-Supply every actual window explicitly. The command writes `reports/summary.md` and `summary.json`,
+Supply every actual window explicitly in chronological order. The command writes `reports/summary.md` and `summary.json`,
 returns nonzero for failure or incompleteness, and reports every family and locale. Missing cases
-remain incomplete. Overlapping IDs, foreign IDs, mismatched labels, wrong k or impossible counts
-are rejected. Preserve the initial failure evidence separately. For each failing case's single
-permitted rerun, explicitly omit its previous summary from the merge input. Missing or skipped
-evidence cannot become a pass through merging. A window pass is not full-corpus acceptance.
+remain incomplete. A repeated ID replaces only an incomplete entry, unless explicitly declared as
+the failing case's single permitted rerun. Keep the original window in the input and prefix only the
+rerun summary path with `--rerun`:
+
+```sh
+node merge-reports.mjs reports/window-01/summary.json reports/window-02/summary.json --rerun reports/window-03/summary.json
+```
+
+Each entry in a declared rerun window must replace a previously failed case. Select only those
+failing IDs for that run. If that rerun is interrupted, continue its incomplete cases in a later
+ordinary window without another `--rerun`. A case cannot receive a second declared rerun, even if
+its first rerun fails or is interrupted. Entries for an already passed case, complete failures
+repeated without `--rerun`, duplicate IDs within one window, foreign IDs, mismatched labels, wrong k
+and impossible counts are rejected.
+
+The merged JSON records each selected result's `sourceWindow` as its one-based position among the
+input paths (`--rerun` itself does not count). Replaced entries retain their counts, verdicts,
+latency and precondition reasons under `superseded`, with their own `sourceWindow`. The Markdown
+replacement table shows the final and superseded windows and the superseded attempt counts.
+An interrupted entry with failed attempts is incomplete for continuation; `reportedPass3` retains
+its original verdict when this differs from the merged verdict.
+Use those window numbers to locate the preserved original attempt files; superseded attempts never
+contribute to the final pass^3 counts. Missing or skipped evidence cannot become a pass through
+merging, and a case without complete evidence remains incomplete. A window pass is not full-corpus acceptance.
 Keep one settled API/prompt/tool surface across the launch gate's windows. A changed surface is validated
 offline in fix rounds and never authorizes an additional live run.
 

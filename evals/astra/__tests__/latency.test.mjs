@@ -36,7 +36,7 @@ it.each([0, 1, 2, 3])('reports the completion state for %i successful fast attem
   const status = count === 3 ? 'pass' : 'incomplete'
   expect(summary.status).toBe(status)
   expect(summary.cases[0]).toMatchObject({ attempts: count, pass3: status, latency: { status } })
-  expect(mergeReports([summary], [descriptor]).cases[0]).toEqual(summary.cases[0])
+  expect(mergeReports([summary], [descriptor]).cases[0]).toEqual({ ...summary.cases[0], sourceWindow: 1 })
 })
 it.each([0, 1, 2])('keeps read latency incomplete with %i requests and blocked fixture setup', async (count) => {
   const provider = new AstraHttpProvider({ config: { url: 'https://astra.invalid/api/chat' } })
@@ -47,7 +47,7 @@ it.each([0, 1, 2])('keeps read latency incomplete with %i requests and blocked f
   expect(summary.status).toBe('incomplete')
   expect(summary.cases[0]).toMatchObject({ unavailable: 3 - count, pass3: 'incomplete',
     latency: { status: 'incomplete', totalMedianMilliseconds: null, phaseMediansMilliseconds: null } })
-  expect(mergeReports([summary], [descriptor]).cases[0]).toEqual(summary.cases[0])
+  expect(mergeReports([summary], [descriptor]).cases[0]).toEqual({ ...summary.cases[0], sourceWindow: 1 })
   const unsupported = structuredClone(summary)
   Object.assign(unsupported.cases[0], { passed: 3, unavailable: 0, missingComposition: 0, pass3: 'pass' })
   expect(() => mergeReports([unsupported], [descriptor])).toThrow()
