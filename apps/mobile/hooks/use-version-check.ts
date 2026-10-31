@@ -3,6 +3,7 @@ import { AppState, Platform } from 'react-native'
 import { nativeBuildVersion } from 'expo-application'
 import Constants from 'expo-constants'
 import { useQuery } from '@tanstack/react-query'
+import * as Sentry from '@sentry/react-native'
 import SpInAppUpdates, {
   IAUInstallStatus,
   IAUUpdateKind,
@@ -14,6 +15,7 @@ import { isVersionBelow } from '@orbit/shared/utils'
 import { getAppVersion } from '@/lib/app-version'
 import { getAppStoreLookup } from '@/lib/version-check'
 import { isAndroidUpdateDownloaded } from '@/modules/orbit-app-update'
+import { captureAndroidUpdateCheck } from '@/lib/posthog'
 
 const SIX_HOURS = 1000 * 60 * 60 * 6
 const ONE_DAY = 1000 * 60 * 60 * 24
@@ -47,21 +49,48 @@ function compareVersionCodes(offered: string, installed: string): -1 | 0 | 1 {
   return offeredCode > installedCode ? 1 : offeredCode < installedCode ? -1 : 0
 }
 
+async function checkAndroidUpdate(inAppUpdates: SpInAppUpdates): Promise<NeedsUpdateResponse | null> {
+  const installedCode = Number(nativeBuildVersion)
+  if (!Number.isSafeInteger(installedCode) || installedCode <= 0) return null
+  try {
+    const result = await inAppUpdates.checkNeedsUpdate({
+      curVersion: String(installedCode),
+      customVersionComparator: compareVersionCodes,
+    })
+    const extras = 'updateAvailability' in result.other ? result.other : null
+    captureAndroidUpdateCheck({
+      outcome: 'success',
+      play_status: extras?.updateAvailability ?? null,
+      available_version_code: extras?.versionCode ?? null,
+      installed_version_code: installedCode,
+      play_error_code: null,
+    })
+    return result
+  } catch (error) {
+    const codeMatch = error instanceof Error ? /Install Error\((-?\d+)\)/.exec(error.message) : null
+    const playErrorCode = codeMatch ? Number(codeMatch[1]) : null
+    Sentry.captureException(error, {
+      tags: { operation: 'android_update_check' },
+      extra: { installed_version_code: installedCode, play_error_code: playErrorCode },
+    })
+    captureAndroidUpdateCheck({
+      outcome: 'error', play_status: null, available_version_code: null,
+      installed_version_code: installedCode, play_error_code: playErrorCode,
+    })
+    return null
+  }
+}
+
 async function resolveVersionSources(bundleId: string | null, inAppUpdates: SpInAppUpdates | null): Promise<QueryResult> {
   if (inAppUpdates) {
     try {
-      const installedCode = Number(nativeBuildVersion)
       const [result, downloaded] = await Promise.all([
-        Number.isSafeInteger(installedCode) && installedCode > 0
-          ? inAppUpdates.checkNeedsUpdate({
-              curVersion: String(installedCode),
-              customVersionComparator: compareVersionCodes,
-            })
-          : Promise.resolve(null),
+        checkAndroidUpdate(inAppUpdates),
         isAndroidUpdateDownloaded(),
       ])
       return { androidCheck: result, androidDownloaded: downloaded, latestIosVersion: null, iosStoreUrl: null }
-    } catch {
+    } catch (error) {
+      Sentry.captureException(error, { tags: { operation: 'android_update_install_status' } })
       return { androidCheck: null, androidDownloaded: false, latestIosVersion: null, iosStoreUrl: null }
     }
   }

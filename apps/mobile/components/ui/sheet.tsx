@@ -52,6 +52,7 @@ export function useSheetHost() {
 
 interface MobileSheetProps extends SheetProps {
   initialFocus?: RefObject<View | null>
+  onDidPresent?: () => void
   onBackPress?: () => void
   /** The handle `useSheetHost` fills in, so the host can close through the native dismissal. */
   ref?: Ref<SheetHandle>
@@ -73,6 +74,7 @@ export function Sheet({
   onBackPress,
   virtualizedBody = false,
   initialFocus,
+  onDidPresent,
   children,
   ref,
 }: Readonly<MobileSheetProps>) {
@@ -222,6 +224,7 @@ export function Sheet({
       onDismissAttempt={handleDismissAttempt}
       onDidDismiss={handleDidDismiss}
       onDidPresent={() => {
+        onDidPresent?.()
         const target = initialFocus?.current
         if (!target) return
         target.setNativeProps({ hasTVPreferredFocus: true })
