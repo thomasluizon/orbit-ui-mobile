@@ -83,6 +83,21 @@ describe('useKeyboardShortcuts', () => {
     expect(mockTogglePalette).not.toHaveBeenCalled()
   })
 
+  it('closes the palette from the native menu while the palette owns modal focus', async () => {
+    paletteOpen = true
+    modalFocusOwnerOpen = true
+    render(<Harness />)
+    await act(async () => { await import('../../../desktop/src-tauri/src/palette.js') })
+    expect(mockTogglePalette).toHaveBeenCalledExactlyOnceWith()
+  })
+
+  it('stops handling native palette requests after the shortcut owner unmounts', async () => {
+    const view = render(<Harness />)
+    view.unmount()
+    await act(async () => { await import('../../../desktop/src-tauri/src/palette.js') })
+    expect(mockTogglePalette).not.toHaveBeenCalled()
+  })
+
   it('toggles the palette on Meta+K', () => {
     render(<Harness />)
     fireEvent.keyDown(document, { key: 'k', metaKey: true })

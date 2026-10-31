@@ -163,6 +163,23 @@ describe('CommandPalette', () => {
     expect(screen.getByRole('dialog', { name: 'command.title' })).toBeInTheDocument()
   })
 
+  it('names the focusable menu root and keeps keyboard selection in the input', async () => {
+    const user = userEvent.setup()
+    await renderPalette()
+    const input = screen.getByRole('combobox', { name: 'command.placeholder' })
+    const menu = input.closest<HTMLElement>('[cmdk-root]')!
+    expect(menu).toHaveAccessibleName('command.title')
+    expect(screen.getByRole('group', { name: 'command.title' })).toBe(menu)
+    expect(menu).toHaveAttribute('tabindex', '-1')
+    const previous = input.getAttribute('aria-activedescendant')
+    menu.focus()
+    expect(menu).toHaveFocus()
+    await user.keyboard('{ArrowDown}')
+    expect(input).toHaveFocus()
+    expect(input).not.toHaveAttribute('aria-activedescendant', previous)
+    expect(document.getElementById(input.getAttribute('aria-activedescendant')!)).toHaveAttribute('aria-selected', 'true')
+  })
+
   it('does not render the menu when the palette is closed', async () => {
     useShellStore.setState({ paletteOpen: false })
     await renderPalette()

@@ -629,6 +629,17 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 }
 
 describe('HabitList', () => {
+  it.each(['today', 'all', 'general'] as const)('names the %s list without merging row actions', (view) => {
+    seedHabits([createMockHabit({ id: 'named-row', title: 'Read', isGeneral: view === 'general', scheduledDates: [TODAY] })])
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList view={view} filters={{}} showCompleted onCreatePress={vi.fn()} />) })
+    const list = tree!.root.findAll((node: { type: unknown; props: { testID?: string } }) =>
+      typeof node.type === 'string' && node.props.testID === (view === 'all' ? 'habit-list-all' : 'habit-list'))[0]!
+    expect(list.props.accessibilityLabel).toBe('habits.sectionLabel')
+    expect(list.props.accessible).not.toBe(true)
+    expect(tree!.root.findAllByType(HabitRow).length).toBeGreaterThan(0)
+  })
+
   beforeEach(() => {
     moveInventoryStatus = { scheduled: 'ready', general: 'ready' }
     moveInventoryStreams = null

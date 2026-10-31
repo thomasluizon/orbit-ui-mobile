@@ -7,6 +7,7 @@ use tauri::Manager;
 mod auth;
 #[cfg(feature = "bench-loopback")]
 mod bench_viewport;
+mod command_origin;
 mod desktop_login;
 mod lifecycle;
 mod links;
@@ -28,8 +29,8 @@ fn main() {
     let context = context();
     let identifier = context.config().identifier.clone();
     let builder = tauri::Builder::default();
-    let window_state = tauri_plugin_window_state::Builder::new()
-        .with_state_flags(lifecycle::window_state_flags());
+    let window_state =
+        tauri_plugin_window_state::Builder::new().with_state_flags(lifecycle::window_state_flags());
     #[cfg(feature = "bench-loopback")]
     let window_state = window_state.skip_initial_state("main");
     #[cfg(target_os = "macos")]

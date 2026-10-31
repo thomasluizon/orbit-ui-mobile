@@ -1470,6 +1470,8 @@ export function HabitList({
       data-habit-list=""
       style={{ overflowAnchor: 'none' }}
       tabIndex={-1}
+      role="group"
+      aria-label={t('habits.sectionLabel')}
       className="min-w-0 px-screen-gutter"
     >
       <div id={reorderInstructionsId} className="sr-only">{t('dragAndDrop.habitInstructions')}</div>

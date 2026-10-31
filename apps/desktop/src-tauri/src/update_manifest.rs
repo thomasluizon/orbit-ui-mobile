@@ -63,7 +63,10 @@ mod tests {
 
     #[test]
     fn benchmark_identifier_requires_the_loopback_feature() {
-        assert_eq!(channel("org.useorbit.desktop.benchmark").is_ok(), cfg!(feature = "bench-loopback"));
+        assert_eq!(
+            channel("org.useorbit.desktop.benchmark").is_ok(),
+            cfg!(feature = "bench-loopback")
+        );
     }
 
     fn config(production: bool) -> Config {
@@ -97,6 +100,49 @@ mod tests {
         candidate = config(false);
         candidate.allow_downgrades = true;
         assert!(validate_config("staging", &candidate).is_err());
+    }
+
+    #[test]
+    fn every_tls_bypass_and_additional_endpoint_is_rejected() {
+        let bypasses: [fn(&mut Config); 3] = [
+            |candidate| candidate.dangerous_insecure_transport_protocol = true,
+            |candidate| candidate.dangerous_accept_invalid_certs = true,
+            |candidate| candidate.dangerous_accept_invalid_hostnames = true,
+        ];
+        for enable_bypass in bypasses {
+            let mut candidate = config(false);
+            enable_bypass(&mut candidate);
+            assert!(validate_config("staging", &candidate).is_err());
+        }
+        for endpoints in [
+            vec![],
+            vec!["http://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-staging/latest.json"],
+            vec!["https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-staging/latest.json?redirect=other"],
+            vec!["https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-staging/latest.json", "https://attacker.example/latest.json"],
+        ] {
+            let mut candidate = config(false);
+            candidate.endpoints = endpoints.iter().map(|url| url.parse().unwrap()).collect();
+            assert!(validate_config("staging", &candidate).is_err());
+        }
+    }
+
+    #[test]
+    fn artifact_queries_fragments_and_blank_signatures_are_rejected_on_every_target() {
+        for target in TARGETS {
+            for suffix in ["?download=1", "#package"] {
+                let mut candidate = manifest(false);
+                let original = candidate["platforms"][target]["url"].as_str().unwrap();
+                candidate["platforms"][target]["url"] =
+                    serde_json::json!(format!("{original}{suffix}"));
+                assert!(
+                    validate_manifest("staging", candidate).is_err(),
+                    "{target}{suffix}"
+                );
+            }
+            let mut candidate = manifest(false);
+            candidate["platforms"][target]["signature"] = serde_json::json!(" \n\t");
+            assert!(validate_manifest("staging", candidate).is_err(), "{target}");
+        }
     }
 
     fn manifest(production: bool) -> serde_json::Value {
