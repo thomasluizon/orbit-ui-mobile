@@ -9,7 +9,7 @@ const ids = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-22
 function fixture(family, variant = 0, fault) {
   const state = { habits: ids.map((id, index) => ({ id, title: ['Water', 'Walk'][index],
     description: null, frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: today, isBadHabit: false,
-    reminderEnabled: true, reminderTimes: [30], logs: [], checklistItems: [], emoji: null })),
+    reminderEnabled: true, reminderTimes: [30], logs: [], checklistItems: [], emoji: null, startDate: '2031-06-02' })),
   goals: [{ id: ids[0], title: 'Consistent hydration', description: null, unit: 'sessions', targetValue: 10, deadline: null, status: 'Active' }],
   tags: [], checklistTemplates: [] }
   const requests = []
@@ -45,7 +45,13 @@ function fixture(family, variant = 0, fault) {
     if (operation === 'log') item.logs.push({ date: today, value: 1 })
     if (operation === 'skip' && fault !== 'skip') item.dueDate = '2031-06-11'
     if (operation === 'status') item.status = body.status
-    if (options.method === 'PUT' && operation !== 'status' && fault !== 'fields') Object.assign(item, body)
+    if (options.method === 'PUT' && operation !== 'status' && fault !== 'fields') {
+      // Habit.ApplyRequiredUpdates keeps the occurrence when the unchanged startDate is supplied.
+      const dueDate = body.startDate != null ? item.dueDate : body.dueDate ?? item.dueDate
+      const previous = { ...item }
+      Object.assign(item, body, { dueDate })
+      if (['dueDate', 'reminderEnabled', 'reminderTimes'].includes(fault)) item[fault] = previous[fault]
+    }
     return new Response(null, { status: 204 })
   })
   const test = { metadata: { locale: 'en' }, vars: { credentialKey: 'ORBIT_EVAL_TOKEN', offerFamily: family, offerVariant: variant } }
@@ -65,11 +71,20 @@ it.each([0, 1, 2])('seeds reminder and equivalent-goal exclusions %s', async (va
   const reminders = fixture('reminder-gap', variant)
   await seedOfferFixture(reminders.test, today)
   expect(reminders.test.vars.offerBaseline.habits.every((habit) => habit.reminderEnabled === (variant === 1))).toBe(true)
+  for (const habit of reminders.test.vars.offerBaseline.habits) {
+    expect(habit).toMatchObject({ dueDate: '2031-06-04', startDate: '2031-06-02', reminderTimes: variant === 1 ? [30] : [] })
+  }
+  expect(reminders.requests.filter(({ method }) => method === 'PUT').every(({ body }) => !Object.hasOwn(body, 'startDate'))).toBe(true)
   expect(reminders.test.vars.offerExclusion).toEqual(variant === 1 ? ['reminder'] : undefined)
   const goals = fixture('goal-gap', variant)
   await seedOfferFixture(goals.test, today)
   expect(goals.test.vars.offerExclusion).toEqual(variant === 1 ? ['aim'] : undefined)
   expect(goals.requests.some(({ path, method }) => path === 'goals' && method === 'POST')).toBe(variant === 1)
+})
+
+it.each(['dueDate', 'reminderEnabled', 'reminderTimes'])('rejects reminder readback that did not persist %s', async (fault) => {
+  const { test } = fixture('reminder-gap', 0, fault)
+  await expect(seedOfferFixture(test, today)).rejects.toThrow('Offer fixture habit field readback failed.')
 })
 
 it.each([0, 1, 2])('uses actual disconnected, connected and locked calendar evidence %s', async (variant) => {

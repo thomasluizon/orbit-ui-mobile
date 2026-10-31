@@ -4,10 +4,11 @@ import { fixtureNames } from './names.mjs'
 
 const offset = (date, days) => new Date(Date.parse(`${date}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10)
 const collections = ['habits', 'goals', 'tags', 'checklistTemplates']
+// Omit unchanged startDate so dueDate edits move the occurrence and preserve the stored recurrence anchor.
 const habitRequestFields = ['title', 'description', 'frequencyUnit', 'frequencyQuantity', 'days', 'isBadHabit',
   'dueDate', 'dueTime', 'dueEndTime', 'reminderEnabled', 'reminderTimes', 'scheduledReminders',
   'slipAlertEnabled', 'checklistItems', 'isGeneral', 'endDate', 'isFlexible', 'goalIds', 'emoji',
-  'intervalWeeks', 'relativeReminders', 'startDate', 'tagIds', 'repeatReminder']
+  'intervalWeeks', 'relativeReminders', 'tagIds', 'repeatReminder']
 
 function withoutReminderClock(habit) {
   const { nextReminderAtUtc: _nextReminderAtUtc, children, ...fields } = habit
