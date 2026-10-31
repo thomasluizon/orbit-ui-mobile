@@ -2729,6 +2729,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 [data-prompt-idea="live"] [data-slot="prompt-idea-title"] { overflow-wrap: anywhere; }
 
 [data-shell="wide"] {
+  --keyboard-viewport-height: 100%;
   --shell-safe-left: var(--safe-left);
   --shell-safe-right: var(--safe-right);
 }

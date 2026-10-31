@@ -65,15 +65,36 @@ describe('Keyboard viewport', () => {
     expect(root.style.minHeight).toBe('')
   })
 
-  it('leaves CSS in charge when layout resizing already exposes the keyboard', () => {
+  it('leaves CSS in charge and reveals the field when both viewports shrink', () => {
+    let resizeCallback: ResizeObserverCallback | undefined
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: ResizeObserverCallback) { resizeCallback = callback }
+      observe() {}
+      disconnect() {}
+    })
     const { resize } = createViewport()
     render(<KeyboardForm />)
     const root = screen.getByTestId('keyboard-form')
+    const scroller = screen.getByTestId('fields')
+    const field = screen.getByRole('textbox', { name: 'Message' })
+    let fieldHeight = 54
+    Object.defineProperty(scroller, 'clientHeight', { get: () => document.documentElement.clientHeight - 100 })
+    vi.spyOn(scroller, 'getBoundingClientRect').mockImplementation(() => new DOMRect(0, 0, 360, scroller.clientHeight))
+    vi.spyOn(field, 'getBoundingClientRect').mockImplementation(() => new DOMRect(16, 580 - scroller.scrollTop, 328, fieldHeight))
+    act(() => field.focus())
     expect(root.style.height).toBe('')
     vi.spyOn(document.documentElement, 'clientHeight', 'get').mockReturnValue(420)
     act(() => resize(420))
     expect(root.style.height).toBe('')
     expect(root.style.minHeight).toBe('')
+    expect(root.style.getPropertyValue('--keyboard-viewport-height')).toBe('')
+    expect(field.getBoundingClientRect().bottom).toBeLessThanOrEqual(420 - 100 - 24)
+    fieldHeight = 96
+    fireEvent.change(field, { target: { value: 'A longer message' } })
+    act(() => resizeCallback?.([], {} as ResizeObserver))
+    expect(field.getBoundingClientRect().bottom).toBeLessThanOrEqual(420 - 100 - 24)
+    act(() => resize(740))
+    expect(root.style.height).toBe('')
   })
 
   it('clears a keyboard height when pinch zoom takes over', () => {

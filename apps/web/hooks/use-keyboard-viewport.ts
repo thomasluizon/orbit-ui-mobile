@@ -62,8 +62,10 @@ export function useKeyboardViewport(rootRef: RefObject<HTMLDivElement | null>) {
     const root = rootRef.current
     const viewport = window.visualViewport
     if (!root || !viewport) return
+    let fullViewportHeight = viewport.height
     const update = () => {
       const resize = needsKeyboardViewportResize(viewport)
+      fullViewportHeight = Math.max(fullViewportHeight, viewport.height)
       root.style.height = resize ? `${viewport.height}px` : ''
       root.style.minHeight = resize ? `${viewport.height}px` : ''
       if (resize) {
@@ -71,7 +73,9 @@ export function useKeyboardViewport(rootRef: RefObject<HTMLDivElement | null>) {
       } else {
         root.style.removeProperty('--keyboard-viewport-height')
       }
-      if (resize) revealField(root, viewport)
+      if (viewport.scale === 1 && (resize || viewport.height < fullViewportHeight)) {
+        revealField(root, viewport)
+      }
     }
     const observer = new ResizeObserver(update)
     const focus = (event: FocusEvent) => {
