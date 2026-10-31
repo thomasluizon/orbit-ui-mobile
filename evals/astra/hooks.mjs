@@ -4,8 +4,11 @@ import { randomUUID } from 'node:crypto'
 import { tsImport } from 'tsx/esm/api'
 import { apiOrigin, healthyApi, readCredentials, refreshCredential, safeFailureMessage } from './credentials.mjs'
 import { dateOffset, requireEvalOrigin, resetFixture } from './fixtures/reset.mjs'
+import { seedOfferFixture } from './fixtures/offers.mjs'
+import { restoreOfferTimeZone } from './fixtures/offer-timezone.mjs'
 import { fixtureHabitTitles } from './fixtures/names.mjs'
 import { requireEvalAccess } from './fixtures/api.mjs'
+import { freshConversation, configureOffers } from './offer-context.mjs'
 import { prepareCorrection } from './setup.mjs'
 import { describeCase } from './latency.mjs'
 import { descriptors } from './merge-reports.mjs'
@@ -17,6 +20,7 @@ let completedResults = []
 let selectedCases = []
 const accountAccess = new Map()
 const freshFreeWindows = new Set()
+const offerAttempts = new Map()
 
 function persistResults(results, expectedCases) {
   writeResults(results)
@@ -31,6 +35,7 @@ export async function beforeAll({ suite }) {
   selectedCases = suite.tests.map(describeCase)
   accountAccess.clear()
   freshFreeWindows.clear()
+  offerAttempts.clear()
   persistResults(completedResults, selectedCases)
   const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE']
   for (const key of new Set(required)) {
@@ -39,7 +44,11 @@ export async function beforeAll({ suite }) {
   apiOrigin()
   requireEvalOrigin()
   if (process.env.ORBIT_EVAL_OVERDUE_DATE && !/^\d{4}-\d{2}-\d{2}$/.test(process.env.ORBIT_EVAL_OVERDUE_DATE)) throw new Error('ORBIT_EVAL_OVERDUE_DATE must be an ISO calendar date.')
-  const { apiCommit } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
+  const { apiCommit, offerTools, offerPostReadTools, offerHabitSetupTools } = parse(readFileSync(new URL('./catalog.yaml', import.meta.url), 'utf8'))
+  if (suite.tests.some((test) => test.metadata?.family?.startsWith('offers-'))
+    && (!offerTools?.length || !offerPostReadTools?.length || !offerHabitSetupTools?.length)) {
+    throw new Error('Regenerate the proactive tool catalogs from the evaluated API before running offer cases.')
+  }
   const health = await healthyApi({ fresh: true })
   if (!/^[a-f0-9]{40}$/.test(apiCommit) || apiCommit !== health.commit) {
     throw new Error(`Astra catalog ${apiCommit} differs from API ${health.commit}. Regenerate from a clean API checkout at that commit with node evals/astra/generate-catalog.mjs <api-checkout>.`)
@@ -74,7 +83,16 @@ export async function beforeEach({ test }) {
   delete test.vars.preconditionFailure
   delete test.vars.fixtureEvidence
   delete test.vars.legacyProfileLanguage
+  freshConversation(test.vars)
+  configureOffers(test)
+  if (test.vars.offerFamily) {
+    const attempt = offerAttempts.get(test.metadata.id) ?? 0
+    test.vars.offerVariant = attempt % 3
+    offerAttempts.set(test.metadata.id, attempt + 1)
+    delete test.vars.offerExclusion
+  }
   try { return await prepareAttempt(test) } catch (error) {
+    await restoreOfferTimeZone(test.vars)
     test.vars.preconditionFailure = safeFailureMessage(error)
     process.stderr.write(`Astra precondition unavailable for ${test.metadata.id}: ${test.vars.preconditionFailure}\n`)
     return { test }
@@ -84,7 +102,7 @@ export async function beforeEach({ test }) {
 async function prepareAttempt(test) {
   requireEvalOrigin()
   await refreshCredential(test.vars.credentialKey)
-  const today = new Date().toISOString().slice(0, 10)
+  let today = new Date().toISOString().slice(0, 10)
   test.vars.accountDate = today
   process.env.ORBIT_EVAL_OVERDUE_DATE ??= dateOffset(today, -1)
   const windowKey = `${test.vars.credentialKey}:${test.metadata.id}:${today}`
@@ -92,6 +110,8 @@ async function prepareAttempt(test) {
   const retrospective = await resetFixture(test, today, accountAccess.get(test.vars.credentialKey) === true,
     needsFreshWindow && !freshFreeWindows.has(windowKey))
   if (needsFreshWindow) freshFreeWindows.add(windowKey)
+  await seedOfferFixture(test, test.vars.accountDate)
+  today = test.vars.accountDate
   test.vars.fixtureHabitTitles = fixtureHabitTitles(test.metadata.fixture, test.metadata.locale)
   const account = readCredentials()[test.vars.credentialKey]
   const substitutions = {
@@ -126,7 +146,7 @@ async function prepareAttempt(test) {
     return value
   }
   test.vars = substitute(test.vars)
-  if (test.metadata.fixture === 'composition-stale') {
+  if (test.metadata.fixture === 'composition-stale' && test.vars.expectations?.required?.[0]) {
     test.vars.expectations.required[0].result = { payload: retrospective }
   }
   test.vars.clientContext ??= buildChatClientContext({ platform: test.metadata.platform ?? 'web', locale: test.metadata.locale ?? 'en' })

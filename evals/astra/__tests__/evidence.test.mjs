@@ -1,11 +1,12 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeResults } from '../report.mjs'
 import parseResponse from '../response.mjs'
 import { behavior } from '../assertions.mjs'
-import { chatResponse, toolCall, traceTiming } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, traceTiming, suggestionDraft } from './fixtures/producer.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { PostApiChatResponse } from '../../../packages/shared/src/types/__generated__/api.generated.ts'
 
@@ -39,6 +40,53 @@ it('preserves independent saved-step readback in the private attempt artifact', 
     { assertion: { metric: 'savedStep' }, pass: true, metadata: { savedStep } },
   ] } })
   expect(evidence.savedStep).toEqual(savedStep)
+})
+
+it('persists sanitized HTTP 400 diagnostics and the response identity without accepting the answer', () => {
+  offlineCredentials()
+  const requestId = '1a7acddb-c482-4acb-8adc-6539308afdb4'
+  const output = parseResponse({ error: 'offline-refresh person@example.invalid', errorCode: 'AI_EMPTY_RESPONSE' }, '', {
+    response: { status: 400, headers: { 'x-orbit-request-id': requestId } },
+  })
+  const { evidence, text } = persist(output.output)
+  expect(evidence.httpError).toEqual({ status: 400, error: '[redacted] [redacted]',
+    errorCode: 'AI_EMPTY_RESPONSE', responseRequestId: requestId })
+  expect(evidence.pass).toBe(false)
+  expect(evidence.httpStatus).toBe(400)
+  expect(text).not.toMatch(/offline-refresh|person@example.invalid/)
+})
+
+it('records the corpus requested aim as typed offer evidence', () => {
+  const { evidence } = persist(outputFor(), { testCase: { metadata: { id: 'evidence' }, vars: {
+    offerFamily: 'ordinary-reading', requestedAim: 'Read twelve books', clientContext: { supportsParts: true },
+  } } })
+  expect(evidence.requestedAim).toBe('Read twelve books')
+})
+
+it('redacts credential echoes even when a response-header identity is a UUID', () => {
+  const credential = randomUUID()
+  vi.stubEnv('ORBIT_EVAL_TOKEN', credential)
+  const output = parseResponse({ error: 'Unable to compose an answer.', errorCode: null }, '', {
+    response: { status: 400, headers: { 'x-orbit-request-id': credential } },
+  })
+  expect(persist(output.output).evidence.httpError.responseRequestId).toBe('[redacted]')
+})
+
+it('keeps issued suggestion drafts and typed targets while redacting draft credentials and e-mail', () => {
+  offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'private-draft-credential')
+  const draft = suggestionDraft({ existingHabitId: '22222222-2222-4222-8222-222222222222',
+    title: 'Read with person@example.invalid', reason: 'private-draft-credential',
+    checklistItems: ['Read one page', 'person@example.invalid', 'offline-refresh'] })
+  const call = toolCall('suggest_habits', { instruction: 'Suggest reading habits', language: 'en', count: 1 },
+    'Succeeded', 'suggest', { supportsParts: true })
+  call.result.payload = { language: 'en', drafts: [draft] }
+  const { evidence, text } = persist(outputFor([call]))
+  expect(evidence.toolCalls[0].result.payload).toEqual({ drafts: [{ ...draft,
+    id: '[redacted]', existingHabitId: '[redacted]', title: 'Read with [redacted]', reason: '[redacted]',
+    checklistItems: ['Read one page', '[redacted]', '[redacted]'],
+  }] })
+  expect(text).not.toMatch(/private-draft-credential|person@example.invalid|offline-refresh/)
 })
 
 it('retains sanitized brain dump approval and persisted schedule evidence', () => {

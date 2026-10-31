@@ -43,6 +43,9 @@ defaultTest:
     - type: javascript
       value: file://assertions.mjs:savedStep
       metric: savedStep
+    - type: javascript
+      value: file://assertions.mjs:proactiveOffers
+      metric: proactiveOffers
     - type: llm-rubric
       transform: file://grading-input.mjs
       value: >-
