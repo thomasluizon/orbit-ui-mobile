@@ -189,10 +189,11 @@ replacement `PUT` routes: `habits/{id}`, `habits/{id}/checklist`, `tags/{id}/ass
 increment a reminder version and remain unretried, as do other `PUT` routes, `POST`, and `PATCH`.
 Each attempt retains its 15 second deadline; the three rate-limit waits have a separate budget.
 
-Before a staging run, use `/flag` to turn on the plain `astra_eval_unmetered`
+Before an eval run, use `/flag` to turn on the plain `astra_eval_unmetered`
 flag for `ORBIT_EVAL_TOKEN`, the main account, keeping global enablement off. Keep it off for
 `ORBIT_EVAL_FREE_TOKEN` (`free-at-limit`) and `ORBIT_EVAL_BUDGET_TOKEN` (`budget-exhausted`)
-so those accounts still prove the limits refuse. This flag resolves on only in staging.
+so those accounts still prove the limits refuse. The flag resolves in staging and for production
+eval accounts admitted by the API's `StagingEval:AccountIds` allowlist.
 The startup hook waits for `/health`, refreshes each selected account and reads its authenticated
 `/api/config` once; `features.astra_eval_unmetered.enabled` must be `true` for the main account
 and `false` for both refusal accounts before any case starts. A missing flag or policy mismatch
@@ -331,7 +332,8 @@ metadata are included in the graded answer projection.
 
 Family setup runs after the normal disposable-account fixture reset, including the standalone reset
 executable. It uses public APIs and independently reads back every change. Goal-behind attempts
-alternate near-deadline `at_risk` and past-deadline `behind`; goal-on-track attempts cover `on_track`,
+alternate near-deadline `at_risk` and past-deadline `behind`, verified through the complete paged
+goal-list DTO. Their target stays above progress derived from seeded logs; goal-on-track attempts cover `on_track`,
 `completed` and `no_deadline`. Reminder-gap covers reminders off and reminders on with the same missed
 schedule. Resolved covers a completed occurrence and a skipped avoid habit. Stored-field setup retains
 an emoji, tag, reminder and checked checklist item. Goal-link uses an owned mobility goal; goal-gap

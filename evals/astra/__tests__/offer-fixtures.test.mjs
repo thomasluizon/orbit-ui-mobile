@@ -25,20 +25,21 @@ function fixture(family, variant = 0, fault) {
         .filter((key) => Object.hasOwn(habit, key)).map((key) => [key, habit[key]]))) })
     if (path === 'profile') return Response.json({ hasGoogleConnection: variant === 1 })
     if (path === 'config') return Response.json({ features: { calendar_integration: { enabled: variant !== 2 } } })
-    if (path === 'tags' || path === 'goals') {
+    if ((path === 'tags' || path === 'goals') && options.method === 'POST') {
       const collection = path === 'tags' ? state.tags : state.goals
       collection.push({ id: ids[1], ...body })
       return Response.json({ id: ids[1] }, { status: 201 })
+    }
+    if (path === 'goals' && options.method === 'GET') {
+      const items = state.goals.map((goal) => ({ ...goal, currentValue: 5,
+        trackingStatus: fault === 'tracking' ? 'unknown' : goal.status === 'Completed' ? 'completed' : !goal.deadline ? 'no_deadline'
+          : goal.deadline < today ? 'behind' : goal.deadline === '2031-06-13' && 5 / goal.targetValue < 0.5 ? 'at_risk' : 'on_track' }))
+      return Response.json({ items: fault === 'goal-items' ? null : items, page: 1, pageSize: 50, totalCount: items.length, totalPages: fault === 'goal-pages' ? 2 : 1 })
     }
     const [resource, id, operation] = path.split('/')
     if (resource === 'tags') return new Response(null, { status: 204 })
     const item = state[resource].find((entry) => entry.id === id)
     if (options.method === 'GET') {
-      if (resource === 'goals') {
-        item.trackingStatus = item.status === 'Completed' ? 'completed' : !item.deadline ? 'no_deadline'
-          : item.deadline < today ? 'behind' : item.deadline === '2031-06-13' ? 'at_risk' : 'on_track'
-        if (fault === 'tracking') item.trackingStatus = 'unknown'
-      }
       return Response.json(item)
     }
     if (operation === 'log') item.logs.push({ date: today, value: 1 })
@@ -55,7 +56,7 @@ it.each([0, 1, 2])('seeds and reads back behind and safe goal variants %s', asyn
   for (const family of ['goal-behind', 'goal-on-track']) {
     const { test } = fixture(family, variant)
     await seedOfferFixture(test, today)
-    expect(test.vars.offerBaseline.goals[0].trackingStatus).toBe(family === 'goal-behind'
+    expect(test.vars.offerGoalTracking).toBe(family === 'goal-behind'
       ? variant === 1 ? 'behind' : 'at_risk' : ['on_track', 'completed', 'no_deadline'][variant])
   }
 })
@@ -90,10 +91,11 @@ it.each(['resolved', 'stored', 'goal-link', 'empty'])('establishes the %s family
   if (family === 'goal-link') expect(test.vars.offerBaseline.goals[0].title).toBe('Daily mobility')
 })
 
-it.each([['goal-behind', 'tracking'], ['stored', 'fields'], ['resolved', 'skip'], ['empty', 'collections']])(
+it.each([['goal-behind', 'tracking'], ['goal-behind', 'goal-items'], ['goal-behind', 'goal-pages'], ['stored', 'fields'], ['resolved', 'skip'], ['empty', 'collections']])(
   'rejects unproved %s setup with %s response', async (family, fault) => {
     const { test } = fixture(family, 0, fault)
-    await expect(seedOfferFixture(test, today)).rejects.toThrow(/readback|collections/u)
+    await expect(seedOfferFixture(test, today)).rejects.toThrow(['goal-items', 'goal-pages'].includes(fault)
+      ? 'complete goal list' : /readback|collections/u)
   },
 )
 

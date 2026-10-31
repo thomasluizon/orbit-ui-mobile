@@ -43,13 +43,16 @@ async function goalVariant(api, vars, baseline, today) {
   const variant = vars.offerVariant
   const deadline = family === 'goal-behind' ? offset(today, variant === 1 ? -1 : 3)
     : variant === 2 ? null : offset(today, 30)
-  const edits = { title: goal.title, description: goal.description, targetValue: 10, unit: goal.unit, deadline }
+  const edits = { title: goal.title, description: goal.description, targetValue: 1000, unit: goal.unit, deadline }
   await api('PUT', `goals/${goal.id}`, edits)
   if (family === 'goal-on-track' && variant === 1) await api('PUT', `goals/${goal.id}/status`, { status: 'Completed' })
-  const { payload } = await api('GET', `goals/${goal.id}`)
+  const { payload: page } = await api('GET', 'goals')
+  if (!Array.isArray(page?.items) || page.totalPages !== 1) throw new Error('Offer goal tracking requires a complete goal list.')
+  const payload = page.items.find((candidate) => candidate.id === goal.id)
   const status = family === 'goal-behind' ? variant === 1 ? 'behind' : 'at_risk'
     : variant === 1 ? 'completed' : variant === 2 ? 'no_deadline' : 'on_track'
-  if (payload?.id !== goal.id || payload.trackingStatus !== status || payload.deadline !== deadline) throw new Error('Offer goal tracking readback failed.')
+  if (payload?.id !== goal.id || payload.trackingStatus !== status || payload.deadline !== deadline || payload.targetValue !== 1000) throw new Error('Offer goal tracking readback failed.')
+  vars.offerGoalTracking = payload.trackingStatus
 }
 
 async function seedResolved(api, baseline, today) {
