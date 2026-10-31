@@ -452,6 +452,7 @@ static AXUIElementRef fixtureApplication(pid_t pid) {
         return (AXUIElementRef)CFBridgingRetain(@{@"AXRole": @"AXApplication", @"AXChildren": @[web, [NSMenuItem separatorItem]]});
     }
     if ([scenario isEqual:@"unnamed-menu"]) web[@"AXChildren"] = @[button, @{@"AXRole": @"AXMenuItem", @"AXEnabled": @YES, @"actions": @[@"AXPress"]}];
+    if ([scenario isEqual:@"disabled-unnamed-menu"]) web[@"AXChildren"] = @[button, @{@"AXRole": @"AXMenuItem", @"AXEnabled": @NO, @"actions": @[@"AXPress"]}];
     if ([scenario isEqual:@"no-web"]) {
         return (AXUIElementRef)CFBridgingRetain(@{@"AXRole": @"AXApplication", @"AXChildren": @[@{@"AXRole": @"AXGroup"}]});
     }
@@ -550,13 +551,21 @@ if (process.platform === 'darwin') {
       }
     })
   }
-  for (const scenario of ['unnamed-button', 'web-system-button', 'empty-focusable', 'empty-focused', 'empty-children', 'empty-generic', 'system-generic', 'system-no-description', 'unnamed-menu']) {
+  for (const scenario of ['unnamed-button', 'web-system-button', 'empty-focusable', 'empty-focused', 'empty-children', 'empty-generic', 'system-generic', 'system-no-description', 'unnamed-menu', 'disabled-unnamed-menu']) {
     test(`native AX semantics keep ${scenario} failing role and name acceptance`, () => {
       const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
       assert.equal(capture.status, 0, capture.stderr)
       const snapshot = JSON.parse(capture.stdout)
       assert.equal(snapshot.error, null)
       assert.throws(() => assertAccessibleTree(snapshot, 'darwin'), /role and name/)
+      if (scenario === 'disabled-unnamed-menu') {
+        const menu = snapshot.nodes.find(node => node.role === 'AXMenuItem')
+        assert.equal(menu.AXEnabled, false)
+        assert.equal(menu.name, '')
+        assert.equal(menu.focused, false)
+        assert.equal(menu.focusable, false)
+        assert.equal(menu.interactive, true)
+      }
     })
   }
   for (const scenario of ['scroll-children', 'scroll-contents', 'scroll-duplicate']) {

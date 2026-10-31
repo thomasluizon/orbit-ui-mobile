@@ -25,13 +25,13 @@ static BOOL focusable(AXUIElementRef element, NSDictionary *node) {
     return settable;
 }
 
-static BOOL interactive(NSDictionary *node, NSArray *children, NSArray *actions) {
+static BOOL interactive(NSDictionary *node, NSArray *children, NSArray *actions, BOOL webContent) {
     NSString *role = node[@"role"];
     BOOL empty = ![node[@"name"] length] && !children.count && ![node[@"focused"] boolValue] && ![node[@"focusable"] boolValue];
     // An empty, unfocusable group is structural even when AXPress is advertised (#1560).
     if (empty && [role isEqual:@"AXGroup"] && [node[@"AXSubrole"] isEqual:@"AXEmptyGroup"]) return NO;
     // AppKit separators are disabled blank menu items: https://developer.apple.com/documentation/appkit/nsmenuitem/isseparatoritem
-    if (empty && [role isEqual:@"AXMenuItem"] && [node[@"AXEnabled"] isEqual:@NO]) return NO;
+    if (!webContent && empty && [role isEqual:@"AXMenuItem"] && [node[@"AXEnabled"] isEqual:@NO]) return NO;
     NSArray *roles = @[@"AXButton", @"AXCheckBox", @"AXRadioButton", @"AXTextField", @"AXTextArea", @"AXComboBox", @"AXPopUpButton", @"AXLink", @"AXSlider", @"AXMenuItem", @"AXTab"];
     return [roles containsObject:role] || [actions containsObject:@"AXPress"];
 }
@@ -72,7 +72,7 @@ static void walk(AXUIElementRef element, NSString *path, NSMutableArray *nodes, 
     // AXContents exposes a scroll area's content separately from its controls: https://developer.apple.com/documentation/applicationservices/kaxcontentsattribute
     NSArray *contents = attribute(element, kAXContentsAttribute, node) ?: @[];
     children = [children arrayByAddingObjectsFromArray:contents];
-    node[@"interactive"] = @(interactive(node, children, actionNames));
+    node[@"interactive"] = @(interactive(node, children, actionNames, webContent));
     for (NSUInteger index = 0; index < children.count; index++) {
         walk((__bridge AXUIElementRef)children[index], [path stringByAppendingFormat:@"/%lu", (unsigned long)index], nodes, visited, webContent);
     }
