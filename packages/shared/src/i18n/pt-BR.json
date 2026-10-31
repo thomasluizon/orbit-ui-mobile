@@ -2159,7 +2159,7 @@
         "dismiss_import": "Dispensar importação",
         "run_sync": "Sincronizar agora",
         "repeat_reminder": "Repetir lembrete",
-        "interval_minutes": "Intervalo (minutos)",
+        "interval_minutes": "Intervalo em minutos",
         "start_at_utc": "Primeiro lembrete",
         "items": "Itens",
         "text": "Texto"

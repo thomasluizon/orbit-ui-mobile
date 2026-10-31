@@ -1604,7 +1604,7 @@
     "blockCopy": { "copy": "Copy", "copied": "Copied", "copyError": "Couldn't copy. Try again." },
     "offers": {
       "dismiss": "Dismiss suggestion",
-      "failed": "Could not update this suggestion. Try again."
+      "failed": "Couldn't update this suggestion. Try again."
     },
     "title": "Astra",
     "offline": {
@@ -2159,7 +2159,7 @@
         "dismiss_import": "Dismiss import",
         "run_sync": "Sync now",
         "repeat_reminder": "Repeat reminder",
-        "interval_minutes": "Interval (minutes)",
+        "interval_minutes": "Interval in minutes",
         "start_at_utc": "First reminder",
         "items": "Items",
         "text": "Text"
