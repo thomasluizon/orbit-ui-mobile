@@ -1642,7 +1642,7 @@ it.each(['en', 'pt-BR'])('shows the producer repeat reminder text in the preview
 })
 
 
-it.each(['en', 'pt-BR'])('keeps the producer label and accessible name for editable goal progress in %s', async locale => {
+it.each(['en', 'pt-BR'])('labels editable goal progress visibly and accessibly in %s', async locale => {
   visibleLocale.actual = true
   visibleLocale.language = locale
   const messages = locale === 'en' ? en : ptBR
@@ -1651,9 +1651,9 @@ it.each(['en', 'pt-BR'])('keeps the producer label and accessible name for edita
   const onRevise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
   const { tree, handlers } = renderCard(operation, onRevise)
   TestRenderer.act(() => press(tree, messages.chat.operation.edit).props.onPress())
-  const editor = tree.root.findAllByType(TextInput).find((node: ReactTestInstance) => node.props.accessibilityLabel === 'current_value')
+  const editor = tree.root.findAllByType(TextInput).find((node: ReactTestInstance) => node.props.accessibilityLabel === messages.goals.progress)
   expect(editor).toBeDefined()
-  expect(tree.root.findAllByType(Text).some((node: ReactTestInstance) => renderedText(node) === 'current_value')).toBe(true)
+  expect(tree.root.findAllByType(Text).some((node: ReactTestInstance) => renderedText(node) === messages.goals.progress)).toBe(true)
   expect(editor.props.value).toBe('100')
   TestRenderer.act(() => editor.props.onChangeText('110'))
   await TestRenderer.act(() => press(tree, messages.common.save).props.onPress())

@@ -1572,7 +1572,7 @@ it.each(['en', 'pt-BR'])('shows the producer repeat reminder text in the preview
 })
 
 
-it.each(['en', 'pt-BR'])('keeps the producer label and accessible name for editable goal progress in %s', async locale => {
+it.each(['en', 'pt-BR'])('labels editable goal progress visibly and accessibly in %s', async locale => {
   visibleLocale.actual = true
   visibleLocale.language = locale
   const messages = locale === 'en' ? en : ptBR
@@ -1582,9 +1582,9 @@ it.each(['en', 'pt-BR'])('keeps the producer label and accessible name for edita
   const onExecute = vi.fn()
   render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={onExecute} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
   fireEvent.click(screen.getByRole('button', { name: messages.chat.operation.edit }))
-  const editor = screen.getByRole('spinbutton', { name: 'current_value' })
-  expect(screen.getByText('current_value', { selector: 'label' })).toBeVisible()
-  expect(editor).toHaveAccessibleName('current_value')
+  const editor = screen.getByRole('spinbutton', { name: messages.goals.progress })
+  expect(screen.getByText(messages.goals.progress, { selector: 'label' })).toBeVisible()
+  expect(editor).toHaveAccessibleName(messages.goals.progress)
   expect(editor).toHaveValue(100)
   fireEvent.change(editor, { target: { value: '110' } })
   fireEvent.click(screen.getByRole('button', { name: messages.common.save }))

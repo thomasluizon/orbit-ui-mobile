@@ -2157,6 +2157,8 @@
         "scheduled_reminders": "Scheduled reminders",
         "delete": "Delete",
         "dismiss_import": "Dismiss import",
+        "color": "Color",
+        "positions": "Order",
         "run_sync": "Sync now",
         "repeat_reminder": "Repeat reminder",
         "interval_minutes": "Interval in minutes",

@@ -2157,6 +2157,8 @@
         "scheduled_reminders": "Lembretes agendados",
         "delete": "Apagar",
         "dismiss_import": "Dispensar importação",
+        "color": "Cor",
+        "positions": "Ordem",
         "run_sync": "Sincronizar agora",
         "repeat_reminder": "Repetir lembrete",
         "interval_minutes": "Intervalo em minutos",
