@@ -18,13 +18,14 @@ function measurable(host: Host): Host {
 }
 afterEach(async () => { __resetTestHostConfig(); useChatStore.setState({ conversationId: null, dismissedOfferKeys: [] }); await i18n.changeLanguage('en') })
 
-it.each([320, 360, 384, 412].flatMap(width => (['en', 'pt-BR'] as const).map(locale => ({ width, locale }))))('keeps the native offer whole at $width in $locale', async ({ width, locale }) => {
+it.each([320, 360, 384, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale => (['openSurface', 'continueChat'] as const).map(kind => ({ width, locale, kind })))))('keeps the native offer whole at $width in $locale for $kind', async ({ width, locale, kind }) => {
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   await i18n.changeLanguage(locale)
   useChatStore.setState({ conversationId: offerConversationId, dismissedOfferKeys: [] })
-  const label = locale === 'en' ? 'Review Astra settings' : 'Ver configurações da Astra'
+  const label = kind === 'openSurface' ? locale === 'en' ? 'Review Astra settings' : 'Ver configurações da Astra'
+    : locale === 'en' ? 'Use with a habit' : 'Usar em um hábito'
   let tree!: ReturnType<typeof create> & { toJSON: () => Host }
-  await act(() => { tree = create(<View style={{ padding: 32 }}><AstraOffer action={{ ...astraOfferFixture, kind: 'openSurface', surface: 'ai-settings', label }} /></View>) as typeof tree })
+  await act(() => { tree = create(<View style={{ padding: 32 }}><AstraOffer action={{ ...astraOfferFixture, kind, surface: 'ai-settings', label }} onSendMessage={vi.fn()} /></View>) as typeof tree })
   try {
     const geometry = measureProfileRow(measurable(tree.toJSON()), width, 1)
     const text = geometry.texts.find(entry => entry.label === label)!
