@@ -199,6 +199,7 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
     () => (
       <SelectionTray
         selectedCount={count}
+        skippableCount={view.selection.skippableCount}
         allSelected={view.selection.allSelected}
         onSelectAll={view.selection.selectAll}
         onDeselectAll={view.selection.deselectAll}
@@ -210,7 +211,7 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
         completionReadOnly={view.selection.completionReadOnly}
       />
     ),
-    buildSelectionRefreshKey(view.selectedHabitIds, view.selection.allSelected, view.selection.completionReadOnly),
+    `${buildSelectionRefreshKey(view.selectedHabitIds, view.selection.allSelected, view.selection.completionReadOnly)}:${view.selection.skippableCount}`,
   )
 
   return (

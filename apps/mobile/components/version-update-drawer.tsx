@@ -3,6 +3,8 @@ import { SPACING } from '@orbit/shared/theme'
 import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native'
+import { nativeBuildVersion } from 'expo-application'
+import { captureAndroidUpdateSheetShown } from '@/lib/posthog'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -18,6 +20,66 @@ import { useAppTheme } from '@/lib/use-app-theme'
 const SNOOZE_STORAGE_KEY = 'orbit:version-update-snoozed-until'
 const SNOOZE_DURATION_MS = 1000 * 60 * 60 * 24
 
+interface UpdateSnooze {
+  until: number
+  versionCode: string | null
+}
+
+function parseUpdateSnooze(value: string | null): UpdateSnooze | null {
+  if (!value) return null
+  if (Platform.OS !== 'android') {
+    const until = Number.parseInt(value, 10)
+    return Number.isFinite(until) ? { until, versionCode: null } : null
+  }
+  try {
+    const parsed: unknown = JSON.parse(value)
+    if (typeof parsed !== 'object' || parsed === null ||
+      !('until' in parsed) || typeof parsed.until !== 'number' || !Number.isFinite(parsed.until) ||
+      !('versionCode' in parsed) || typeof parsed.versionCode !== 'string') return null
+    return { until: parsed.until, versionCode: parsed.versionCode }
+  } catch {
+    return null
+  }
+}
+
+function useUpdateSnooze(offeredVersion: string | null) {
+  const versionCode = Platform.OS === 'android' ? offeredVersion : null
+  const [snooze, setSnooze] = useState<UpdateSnooze | null>(null)
+  const [snoozeLoaded, setSnoozeLoaded] = useState(false)
+  const [dismissedVersion, setDismissedVersion] = useState<string | null>()
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => clearInterval(interval)
+  }, [])
+  useEffect(() => {
+    let cancelled = false
+    AsyncStorage.getItem(SNOOZE_STORAGE_KEY).then((value) => {
+      if (cancelled) return
+      setSnooze(parseUpdateSnooze(value))
+      setSnoozeLoaded(true)
+    }).catch(() => {
+      if (!cancelled) setSnoozeLoaded(true)
+    })
+    return () => { cancelled = true }
+  }, [])
+  const dismissUpdate = useCallback(() => setDismissedVersion(versionCode), [versionCode])
+  const snoozeUpdate = useCallback(() => {
+    const next = { until: Date.now() + SNOOZE_DURATION_MS, versionCode }
+    setSnooze(next)
+    setDismissedVersion(versionCode)
+    const stored = Platform.OS === 'android' ? JSON.stringify(next) : String(next.until)
+    AsyncStorage.setItem(SNOOZE_STORAGE_KEY, stored).catch(() => {})
+  }, [versionCode])
+  return {
+    snoozeLoaded,
+    isSnoozed: snooze !== null && snooze.versionCode === versionCode && snooze.until > nowMs,
+    dismissedForSession: dismissedVersion !== undefined && dismissedVersion === versionCode,
+    dismissUpdate,
+    snoozeUpdate,
+  }
+}
+
 interface VersionUpdateSheetProps {
   open: boolean
   title: string
@@ -26,6 +88,7 @@ interface VersionUpdateSheetProps {
   styles: ReturnType<typeof createStyles>
   onAction: () => void
   onLater: () => void
+  onDidPresent?: () => void
 }
 
 function VersionUpdateSheet({
@@ -36,13 +99,14 @@ function VersionUpdateSheet({
   styles,
   onAction,
   onLater,
+  onDidPresent,
 }: Readonly<VersionUpdateSheetProps>) {
   const { t } = useTranslation()
   const { sheetRef, closeSheet } = useSheetHost()
   if (!open) return null
 
   return (
-    <Sheet ref={sheetRef} open onClose={onLater} title={title} actions={
+    <Sheet ref={sheetRef} open onClose={onLater} onDidPresent={onDidPresent} title={title} actions={
       <View style={styles.buttons}><ActionRow>
         <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('versionUpdate.laterCta')}</PillButton>
         <PillButton size="sm" onClick={() => closeSheet(onAction)}>{actionLabel}</PillButton>
@@ -66,40 +130,14 @@ export function VersionUpdateDrawer() {
     androidDownloaded,
     forceUpdate,
     iosStoreUrl,
+    latestVersion,
+    androidCheck,
   } = useVersionCheck()
 
   const androidImmediateStartedRef = useRef(false)
   const [androidRequested, setAndroidRequested] = useState(false)
-  const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null)
-  const [snoozeLoaded, setSnoozeLoaded] = useState(false)
-  const [dismissedForSession, setDismissedForSession] = useState(false)
   const [androidRestartDismissed, setAndroidRestartDismissed] = useState(false)
-  const [nowMs, setNowMs] = useState(() => Date.now())
-
-  useEffect(() => {
-    const interval = setInterval(() => setNowMs(Date.now()), 60_000)
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    AsyncStorage.getItem(SNOOZE_STORAGE_KEY)
-      .then((value) => {
-        if (cancelled) return
-        const parsed = value ? Number.parseInt(value, 10) : Number.NaN
-        setSnoozedUntil(Number.isFinite(parsed) ? parsed : null)
-        setSnoozeLoaded(true)
-      })
-      .catch(() => {
-        if (cancelled) return
-        setSnoozeLoaded(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const isSnoozed = snoozedUntil !== null && snoozedUntil > nowMs
+  const { snoozeLoaded, isSnoozed, dismissedForSession, dismissUpdate, snoozeUpdate } = useUpdateSnooze(latestVersion)
 
   const androidFlexibleActive =
     Platform.OS === 'android' &&
@@ -129,23 +167,25 @@ export function VersionUpdateDrawer() {
   const handleIosUpdate = useCallback(() => {
     if (!iosStoreUrl) return
     void Linking.openURL(iosStoreUrl).catch(() => {})
-    setDismissedForSession(true)
-  }, [iosStoreUrl])
-
-  const handleIosLater = useCallback(() => {
-    const until = Date.now() + SNOOZE_DURATION_MS
-    setSnoozedUntil(until)
-    setDismissedForSession(true)
-    AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
-  }, [])
+    dismissUpdate()
+  }, [iosStoreUrl, dismissUpdate])
 
   const handleAndroidLater = () => setAndroidRestartDismissed(true)
+  const androidReady = androidDownloaded || androidUpdateReady
+  const androidSoftOpen = updateAvailable && !forceUpdate && snoozeLoaded && !isSnoozed && !dismissedForSession && !androidRequested
+  const offeredCode = androidCheck && 'versionCode' in androidCheck.other ? androidCheck.other.versionCode : null
+  const handleAndroidPresented = useCallback(() => {
+    captureAndroidUpdateSheetShown({
+      sheet: androidReady ? 'ready' : 'available', available_version_code: offeredCode, installed_version_code: Number(nativeBuildVersion),
+    })
+  }, [androidReady, offeredCode])
 
   if (Platform.OS === 'android') {
-    return <AndroidVersionUpdateSheet ready={androidDownloaded || androidUpdateReady} restartDismissed={androidRestartDismissed}
-      softOpen={updateAvailable && !forceUpdate && snoozeLoaded && !isSnoozed && !dismissedForSession && !androidRequested}
+    return <AndroidVersionUpdateSheet ready={androidReady} restartDismissed={androidRestartDismissed}
+      softOpen={androidSoftOpen}
+      onDidPresent={handleAndroidPresented}
       styles={styles} install={installAndroidUpdate} request={() => setAndroidRequested(true)}
-      later={handleIosLater} restartLater={handleAndroidLater} />
+      later={snoozeUpdate} restartLater={handleAndroidLater} />
   }
 
   if (Platform.OS !== 'ios') return null
@@ -158,18 +198,20 @@ export function VersionUpdateDrawer() {
       actionLabel={t('versionUpdate.updateCta')}
       styles={styles}
       onAction={handleIosUpdate}
-      onLater={handleIosLater}
+      onLater={snoozeUpdate}
     />
   )
 }
 
-function AndroidVersionUpdateSheet({ ready, softOpen, restartDismissed, styles, install, request, later, restartLater }: Readonly<{
+function AndroidVersionUpdateSheet({ ready, softOpen, restartDismissed, styles, install, request, later, restartLater, onDidPresent }: Readonly<{
   ready: boolean; softOpen: boolean; restartDismissed: boolean
   styles: ReturnType<typeof createStyles>
   install: () => void; request: () => void; later: () => void; restartLater: () => void
+  onDidPresent: () => void
 }>) {
   const { t } = useTranslation()
   return <VersionUpdateSheet open={ready ? !restartDismissed : softOpen}
+    onDidPresent={onDidPresent}
     title={t(ready ? 'versionUpdate.readyTitle' : 'versionUpdate.title')}
     description={t(ready ? 'versionUpdate.readyDescription' : 'versionUpdate.description')}
     actionLabel={t(ready ? 'versionUpdate.restartCta' : 'versionUpdate.updateCta')}

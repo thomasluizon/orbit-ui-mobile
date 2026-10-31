@@ -188,7 +188,7 @@ function ActionRow({
     return {
       onLog: () => handlersRef.current.toggle(habitId, 'log'),
       onUnlog: () => handlersRef.current.toggle(habitId, 'unlog'),
-      onSkip: canSkip ? () => handlersRef.current.skip(latestRef.current.habit) : undefined,
+      onSkip: canSkip && !habit.isGeneral ? () => handlersRef.current.skip(latestRef.current.habit) : undefined,
       onReschedule: habit.isOverdue
         ? () => handlersRef.current.reschedule(latestRef.current.habit)
         : undefined,
@@ -206,7 +206,7 @@ function ActionRow({
         ? () => latestRef.current.onLongPressCard?.()
         : undefined,
     }
-  }, [canSkip, rowProps.drillInsteadOfExpand, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
+  }, [canSkip, rowProps.drillInsteadOfExpand, habit.isGeneral, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
 
   return <HabitRow {...rowProps} habit={habit} actions={actions} />
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import * as Primitive from '@radix-ui/react-radio-group'
+import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ComponentProps, type ReactElement } from 'react'
 
 type Registration = { busy?: boolean; disabled?: boolean; selected: boolean; onSelect?: () => void }
@@ -12,7 +13,7 @@ interface GroupContextValue {
 }
 const GroupContext = createContext<GroupContextValue | null>(null)
 
-export function RadioGroup({ children, onCommit, focusRequest, shouldFocus, ...props }: Readonly<ComponentProps<typeof Primitive.Root> & { onCommit?: () => void; focusRequest?: number; shouldFocus?: () => boolean }>) {
+export function RadioGroup({ children, className = 'grid min-w-0', style, onCommit, focusRequest, shouldFocus, ...props }: Readonly<ComponentProps<typeof Primitive.Root> & { onCommit?: () => void; focusRequest?: number; shouldFocus?: () => boolean }>) {
   const [selected, setSelected] = useState('')
   const [first, setFirst] = useState('')
   const navigationKey = useRef('')
@@ -44,7 +45,7 @@ export function RadioGroup({ children, onCommit, focusRequest, shouldFocus, ...p
     if (checked) onCommit?.()
     else pendingCommit.current = true
   } }}>
-    <Primitive.Root {...props} ref={groupRef} value={selected} tabIndex={-1} loop onKeyDown={(event) => { props.onKeyDown?.(event); navigationKey.current = event.key }} onPointerDownCapture={() => { navigationKey.current = '' }} onValueChange={(id) => {
+    <Primitive.Root {...props} className={className} style={{ gap: INTERACTION_FILL_CLEARANCE, ...style }} ref={groupRef} value={selected} tabIndex={-1} loop onKeyDown={(event) => { props.onKeyDown?.(event); navigationKey.current = event.key }} onPointerDownCapture={() => { navigationKey.current = '' }} onValueChange={(id) => {
       const item = handlers.current.get(id)
       if (!item || item.disabled || item.busy) return
       item.onSelect?.()

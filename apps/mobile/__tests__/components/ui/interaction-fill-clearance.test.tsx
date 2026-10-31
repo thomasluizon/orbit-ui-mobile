@@ -13,6 +13,9 @@ import { Chip } from '@/components/ui/chip'
 import { ActionRow } from '@/components/ui/action-row'
 import { SettingsGroup } from '@/components/ui/settings-group'
 import { CheckRow } from '@/components/ui/check-row'
+import { RadioGroup } from '@/components/ui/radio-group'
+import { RadioRow } from '@/components/ui/select-check'
+import { Proposed } from '@/components/ui/proposed'
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
@@ -46,7 +49,8 @@ vi.mock('@/hooks/use-habits', () => ({
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({ useRescheduleSuggestion: () => ({ suggestion: null }) }))
 vi.mock('@/app/(tabs)/use-today-date', () => ({ useCurrentDate: () => '2026-09-04' }))
-vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark', surfaces: { screen: { backgroundColor: '#09090B' } } }) }))
+const optionTheme = vi.hoisted<{ mode: 'light' | 'dark' }>(() => ({ mode: 'dark' }))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: optionTheme.mode, surfaces: { screen: { backgroundColor: '#09090B' } } }) }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
 vi.mock('@/components/habits/habit-detail-fields', () => ({ HabitDetailFields: () => null, HabitDetailSchedule: () => null }))
 
@@ -99,6 +103,44 @@ async function setInteraction(tree: GeometryTree, label: string, state: 'pressed
 }
 
 describe('Android interaction fill clearance', () => {
+  it.each([320, 360, 384, 412, 600, 1024, 1352].flatMap(width => (['light', 'dark'] as const).flatMap(mode =>
+    [en, ptBR].flatMap(messages => (['pressed', 'focused'] as const).map(state => ({ width, mode, messages, state }))))))(
+    'clears an option row beside a selected row at $width in $mode while $state', async ({ width, mode, messages, state }) => {
+      optionTheme.mode = mode
+      const words = messages.habits.form
+      let tree!: GeometryTree
+      await act(() => { tree = create(<View style={{ padding: 16, gap: 16 }}>
+        <RadioGroup accessibilityLabel={words.itemType}>
+          <RadioRow wrapLabel label={words.typeTask} onSelect={vi.fn()} />
+          <RadioRow wrapLabel label={words.typeHabit} selected onSelect={vi.fn()} />
+        </RadioGroup>
+        <RadioGroup accessibilityLabel={words.frequency}>
+          <Proposed keepMounted inset proposed={false} scope="row" label={words.frequency}>
+            <RadioRow label={words.timesPerUnit} onSelect={vi.fn()} />
+          </Proposed>
+          <RadioRow label={words.noSchedule} description={words.noScheduleHint} selected onSelect={vi.fn()} />
+        </RadioGroup>
+      </View>) as GeometryTree })
+      try {
+        for (const [label, neighbourLabel] of [[words.typeTask, words.typeHabit], [words.timesPerUnit, `${words.noSchedule}, ${words.noScheduleHint}`]]) {
+          await setInteraction(tree, label!, state)
+          const parts = measureInteractionFills(tree.toJSON(), width, state === 'pressed')
+          const row = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === label)!
+          const neighbour = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === neighbourLabel)!
+          const selected = tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === neighbourLabel)[0]!
+          expect(selected.props.accessibilityState).toMatchObject({ checked: true })
+          const fill = fillBox(parts, row)
+          const selectedFill = fillBox(parts, neighbour)
+          expect(selectedFill.top - fill.bottom).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+          expect(row.left).toBe(neighbour.left)
+          expect(row.width).toBe(neighbour.width)
+          expect(row.height).toBeGreaterThanOrEqual(52)
+          const title = measureProfileRow(tree.toJSON(), width, 1).texts.find(text => text.label === label)!
+          expect(title.clipped).toBe(false)
+        }
+      } finally { optionTheme.mode = 'dark'; await act(() => tree.unmount()) }
+    })
+
   it.each([320, 480, 840, 1100, 1440].flatMap(width => (['hovered', 'pressed', 'focused'] as const).map(state => ({ width, state }))))('centres every discovered icon within its paint at $width while $state', async ({ width, state }) => {
     let tree!: GeometryTree
     await act(() => { tree = create(<View style={{ gap: 16, padding: 16 }}>
