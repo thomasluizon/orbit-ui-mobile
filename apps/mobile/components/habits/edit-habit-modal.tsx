@@ -131,6 +131,7 @@ function EditHabitDraft({
   const [emojiFailure, setEmojiFailure] = useState<{ title: string; message: string; atLimit: boolean; habitId: string | null } | null>(null)
   const { showError, showSuccess, showInfo } = useAppToast()
 
+  const [pendingChecklistItem, setPendingChecklistItem] = useState('')
   const formHelpers = useHabitForm()
   const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
   const [suggestionRequests] = useState(createSuggestionRequestCoordinator)
@@ -190,7 +191,7 @@ function EditHabitDraft({
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const fieldsDirty = hasEditHabitChanges({
-    formDirty: formHelpers.form.formState.isDirty,
+    formDirty: formHelpers.form.formState.isDirty || pendingChecklistItem.length > 0,
     selectedTagIds: tags.selectedTagIds,
     selectedGoalIds,
     reminderTimes,
@@ -321,7 +322,7 @@ function EditHabitDraft({
           slipAlertEnabled: formHelpers.form.getValues('slipAlertEnabled'),
         }
       : prefill.formValues
-    if (habitChanged) { setEmojiFailure(null); formHelpers.clearBackendErrors() }
+    if (habitChanged) { setPendingChecklistItem(''); setEmojiFailure(null); formHelpers.clearBackendErrors() }
     formHelpers.resetModeDrafts()
     formHelpers.form.reset(formValues)
     setOriginalEndDate(prefill.originalEndDate)
@@ -552,6 +553,8 @@ function EditHabitDraft({
           >
             <HabitFormInteractionProvider disabled={detailFieldsPending || saving}>
             <HabitFormFields
+              pendingChecklistItem={pendingChecklistItem}
+              onPendingChecklistItemChange={setPendingChecklistItem}
               habitId={sessionHabitId ?? undefined}
               formHelpers={formHelpers}
               tags={trackedTags}
@@ -582,7 +585,7 @@ function EditHabitDraft({
       </Sheet>
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        message={uncertain ? t('habits.form.saveUncertain') : t(formHelpers.isOneTime ? 'habits.form.unsavedTask' : 'habits.form.unsavedHabit')}
+        message={uncertain ? t('habits.form.saveUncertain') : undefined}
         onKeepEditing={dismissGuard.cancelDismiss}
         onDiscard={dismissGuard.confirmDismiss}
       />

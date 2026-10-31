@@ -6,7 +6,8 @@ import type { HabitTag } from '@orbit/shared/types/habit'
 import { TagPickerField } from '@/components/habits/habit-form-fields/tag-picker-field'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string, values?: { name: string }) => key === 'common.showFullText' ? `Show full text: ${values!.name}` : key }))
-vi.mock('@/components/ui/sheet', () => ({
+vi.mock('@/components/ui/sheet', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/components/ui/sheet')>(),
   Sheet: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 
