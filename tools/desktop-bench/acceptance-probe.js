@@ -28,6 +28,13 @@
     location.assign('/')
   }
   async function screen(name) {
+    if (name === 'astra-close') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }))
+    if (name === 'astra-close' || name === 'astra-closed') {
+      await until(() => !document.querySelector('[data-shell-conversation]'), 'Astra dismissal')
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      await report('astra-closed')
+      return
+    }
     if (name === 'astra') {
       const input = await until(() => document.querySelector('[data-composer-input]:not([disabled])'), 'Astra composer')
       input.focus()

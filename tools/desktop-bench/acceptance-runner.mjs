@@ -127,6 +127,12 @@ async function inspectSurfaces(proxy, native, handle, output, report) {
   proxy.send('astra')
   await waitFor(() => proxy.read('astra'), 'Astra surface')
   const astraTree = await dump('astra')
+  if (astraTree.denied) proxy.send('astra-close')
+  else {
+    await native(handle.child.pid, 'escape')
+    proxy.send('astra-closed')
+  }
+  await waitFor(() => proxy.read('astra-closed'), 'Astra dismissal')
   if (astraTree.denied) proxy.send('palette')
   else {
     await native(handle.child.pid, 'palette')

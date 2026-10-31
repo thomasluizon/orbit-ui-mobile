@@ -297,6 +297,95 @@ test('native capture failures and unnamed page controls fail immediately during 
   }
 })
 
+test('surface inspection dismisses Astra and waits for its modal focus owner before the native palette shortcut', async () => {
+  const shortcuts = readFileSync(new URL('../../apps/web/hooks/use-keyboard-shortcuts.ts', import.meta.url), 'utf8')
+  const keydown = shortcuts.slice(shortcuts.indexOf('    function onKeyDown('), shortcuts.indexOf("    document.addEventListener('keydown'"))
+    .replace('event: KeyboardEvent', 'event')
+  for (const platform of ['win32', 'darwin']) {
+    for (const denied of platform === 'darwin' ? [false, true] : [false]) {
+      const context = inspectionContext(platform)
+      const commands: string[] = []
+      let modal = false
+      let closing = false
+      let dismissalReads = 0
+      let palette = false
+      let selected = 0
+      const keyboard = { paletteOpen: false, hasOpenModalFocusOwner: () => modal, togglePalette: () => { palette = !palette } }
+      runInNewContext(`${keydown}\nglobalThis.keydown = onKeyDown`, keyboard)
+      const openPalette = () => (keyboard as typeof keyboard & { keydown: (event: unknown) => void }).keydown({ ctrlKey: true, key: 'k', preventDefault() {} })
+      const results = ['Today', 'Astra', 'All']
+      const state = () => ({ inputFocused: true, inputName: 'Search commands', results, selected })
+      const events: { kind: string }[] = []
+      const native = async (_pid: number, command: string) => {
+        commands.push(command)
+        if (command === 'escape') { closing = modal; palette = false }
+        if (command === 'palette') openPalette()
+        if (command === 'down' && palette) selected++
+        if (command !== 'dump') return { sent: command }
+        if (denied) return { denied: true, error: 'AX API disabled', nodes: [] }
+        return { denied: false, error: null, nodes: [
+          { ...button, id: '0', role: platform === 'win32' ? 'Document' : 'AXWebArea', interactive: false },
+          { ...button, id: '0/0', role: platform === 'win32' ? 'Edit' : 'AXTextField', name: 'Search commands', focused: palette },
+          ...results.map((name, index) => ({ ...button, id: `0/${index + 1}`, name,
+            role: platform === 'win32' ? 'ListItem' : 'AXButton', selected: palette && selected === index })),
+        ] }
+      }
+      const proxy = {
+        send(command: string) {
+          commands.push(command)
+          if (command === 'astra') modal = true
+          if (command === 'astra-close') closing = true
+          if (command === 'palette') openPalette()
+          if (command.startsWith('focus-')) events.push({ kind: 'focus', ...state() })
+        },
+        read(surface: string) {
+          if (surface === 'astra') return modal && {}
+          if (surface === 'astra-closed' && closing && ++dismissalReads === 3) modal = false
+          if (surface === 'astra-closed') return !modal && {}
+          if (surface === 'palette') return palette && state()
+          return false
+        },
+        events: () => events,
+      }
+      const report = { accessibility: {}, paletteFocus: undefined as unknown }
+      await context.inspect(proxy, native, { child: { pid: 1 } }, 'output', report)
+      assert.equal(dismissalReads, 3)
+      assert.ok(commands.indexOf(denied ? 'astra-close' : 'escape') < commands.indexOf(denied ? 'palette' : 'palette-ready'))
+      if (denied) assert.equal((report.paletteFocus as { skipped: string }).skipped, 'AX API disabled')
+      else assert.equal((report.paletteFocus as unknown[]).length, 2)
+    }
+  }
+})
+
+test('the page probe waits for Astra removal before acknowledging dismissal', async () => {
+  const until = probeSource.slice(probeSource.indexOf('  async function until('), probeSource.indexOf('  async function emailSignIn('))
+  const screen = probeSource.slice(probeSource.indexOf('  async function screen('), probeSource.indexOf('  function paletteState('))
+  for (const command of ['astra-closed', 'astra-close']) {
+    let reads = 0
+    let frames = 0
+    const keys: string[] = []
+    const reports: string[] = []
+    const context = { Date, Error, delay: async () => {},
+      document: {
+        querySelector(selector: string) {
+          assert.equal(selector, '[data-shell-conversation]')
+          return ++reads < 3 ? {} : null
+        },
+        dispatchEvent(event: { key: string }) { keys.push(event.key) },
+      },
+      KeyboardEvent: class { key: string; constructor(_type: string, options: { key: string }) { this.key = options.key } },
+      requestAnimationFrame(callback: () => void) { frames++; callback() },
+      report: async (surface: string) => { reports.push(surface) },
+    }
+    runInNewContext(`${until}\n${screen}\nglobalThis.screen = screen`, context)
+    await (context as typeof context & { screen: (surface: string) => Promise<void> }).screen(command)
+    assert.equal(reads, 3)
+    assert.equal(frames, 2)
+    assert.deepEqual(keys, command === 'astra-close' ? ['Escape'] : [])
+    assert.deepEqual(reports, ['astra-closed'])
+  }
+})
+
 test('acceptance cleanup records failures without replacing the original acceptance error', async () => {
   const runner = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
   const finalization = runner.slice(runner.indexOf('  } catch (error) {\n    report.error = error.stack'), runner.lastIndexOf('\n}'))
