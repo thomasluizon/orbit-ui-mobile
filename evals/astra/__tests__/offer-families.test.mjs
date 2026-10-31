@@ -49,6 +49,34 @@ it.each(['emoji', 'tag_names'])('accepts a relevant removable %s suggestion with
   expect(proactiveOffers(output, { vars }).pass).toBe(false)
 })
 
+it('CAL binds Calendar offers to a requested draft date and rejects missing, default or changed dates', () => {
+  const pending = preview('Submit the form')
+  pending.nextAction = { offerKey: 'calendar:calendar-sync', kind: 'openSurface', surface: 'calendar-sync', label: 'Connect Google Calendar' }
+  pending.items[0].fields = [field('due_date', '2031-06-12', 'requested'), field('reminder_enabled', true, 'suggested')]
+  const vars = { offerFamily: 'dated-reminder', requestedDate: '2031-06-12',
+    clientContext: { supportsProactiveOffers: true }, composition: { mode: 'preview' } }
+  const output = { composition: { parts: [], pendingOperations: [pending] }, trace: { calls: [] } }
+  expect(proactiveOffers(output, { vars }).pass).toBe(true)
+  for (const patch of [{ requestedDate: undefined }, { requestedDate: '2031-06-13' }]) {
+    expect(proactiveOffers(output, { vars: { ...vars, ...patch } }).pass).toBe(false)
+  }
+  pending.items[0].fields[0].provenance = 'stored'
+  expect(proactiveOffers(output, { vars }).pass).toBe(false)
+  pending.items[0].fields.shift()
+  expect(proactiveOffers(output, { vars }).pass).toBe(false)
+})
+
+it('B accepts a removable child reminder group and still rejects a metadata-only setup', () => {
+  const pending = preview('Water')
+  pending.items[0].fields = [field('title', 'Water', 'requested'),
+    field('sub_habits/0/scheduled_reminders', [{ when: 'same_day', time: '09:00' }], 'suggested')]
+  const vars = { offerFamily: 'preview-rejection', clientContext: { supportsProactiveOffers: true }, composition: { mode: 'preview' } }
+  const output = { composition: { parts: [], pendingOperations: [pending] }, trace: { calls: [] } }
+  expect(proactiveOffers(output, { vars }).pass).toBe(true)
+  pending.items[0].fields[1] = field('sub_habits/0/emoji', '💧', 'suggested')
+  expect(proactiveOffers(output, { vars }).pass).toBe(false)
+})
+
 it.each([undefined, null, '', '  ', false])('rejects a preview aim action without a typed requested aim: %s', (requestedAim) => {
   const pending = preview('Read a book')
   pending.nextAction = { offerKey: 'aim:account', kind: 'continueChat', label: 'Plan this goal',

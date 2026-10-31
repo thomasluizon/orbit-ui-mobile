@@ -84,6 +84,7 @@ export function attemptEvidence(entry, attempt) {
       resultStatus: call.resultStatus, ...(declarations.length ? { result: resultEvidence(call.result, call.name) } : {}) }
   })
   const evidence = sanitizeEvidence({ ...attempt,
+    ...(entry.testCase.vars?.setupEvidence ? { setup: entry.testCase.vars.setupEvidence } : {}),
     ...(output?.httpError ? { httpError: output.httpError } : {}),
     ...(entry.testCase.vars?.offerFamily ? { requestedAim: entry.testCase.vars.requestedAim ?? null } : {}),
     answer: output?.answer ?? null,
@@ -108,6 +109,11 @@ export function attemptEvidence(entry, attempt) {
   if (typeof requestId === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(requestId)
     && redactCredentials(requestId) === requestId && !withheld.has(requestId)) {
     evidence.httpError.responseRequestId = requestId
+  }
+  const setupRequestId = entry.testCase.vars?.setupEvidence?.requestId
+  if (typeof setupRequestId === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(setupRequestId)
+    && redactCredentials(setupRequestId) === setupRequestId && !withheld.has(setupRequestId)) {
+    evidence.setup.requestId = setupRequestId
   }
   return evidence
 }

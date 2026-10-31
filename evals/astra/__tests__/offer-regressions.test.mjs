@@ -14,7 +14,7 @@ const recorded = JSON.parse(readFileSync(new URL('./fixtures/offer-read-outcomes
 function replay(attempt, expectations) {
   const calls = attempt.toolCalls.map((record, index) => {
     const { status, ...call } = toolCall(record.name, {}, record.resultStatus, `call-${index}`)
-    return { ...call, ...record, result: { ...call.result, ...record.result } }
+    return { ...call, ...record, id: call.id, result: { ...call.result, ...record.result, id: call.id } }
   })
   return behavior({ httpStatus: 200, trace: { state: 'available', requestId: 'replay', responseRequestId: 'replay', calls } },
     { vars: { evalRequestId: 'replay', expectations } })
@@ -53,3 +53,43 @@ it.each(['AI_EMPTY_RESPONSE', null])('retains an unexpected HTTP 400 diagnostic 
   expect(response).not.toHaveProperty('composition')
   expect(behavior(response.output, { vars: { evalRequestId: 'diagnostic-request', expectations: {} } }).pass).toBe(false)
 })
+
+// Producer: AgentOperationExecutor argument checks and ProcessUserChatCommand.Correction.SameArgumentTargets.
+it('Q accepts one same-target argument repair and rejects unrecovered, repeated or retargeted failures', () => {
+  const scenario = structuredClone(corpus.find((entry) => entry.metadata.id === 'offers-repeat-en'))
+  configureOffers(scenario)
+  const failed = { ...toolCall('create_habit', { title: 'Drink water', is_general: true, frequency_unit: 'Day' }, 'Failed'),
+    resultStatus: 'Failed' }
+  failed.result.error = 'GENERAL_HABIT_HAS_FREQUENCY: General habits cannot have a frequency.'
+  const repaired = { ...toolCall('create_habit', { title: 'Drink water', is_general: true, frequency_unit: null }, 'PendingConfirmation'),
+    resultStatus: 'PendingConfirmation' }
+  const grade = (toolCalls) => replay({ toolCalls }, scenario.vars.expectations)
+  const valid = grade([failed, repaired])
+  expect(valid, valid.reason).toMatchObject({ pass: true })
+  for (const calls of [[failed], [repaired, failed], [failed, { ...failed }, repaired],
+    [failed, { ...repaired, name: 'update_habit' }],
+    [failed, { ...repaired, arguments: { ...repaired.arguments, title: 'Walk' } }],
+    [failed, repaired, { ...repaired }],
+    [{ ...failed, result: { ...failed.result, success: true } }, repaired],
+    [{ ...failed, result: { ...failed.result, error: null } }, repaired]]) {
+    expect(grade(calls).pass).toBe(false)
+  }
+})
+
+it.each(['habit_id', 'goal_id', 'template_id', 'parent_habit_id', 'habit_ids', 'filter', 'action', 'habits', 'sub_habits', 'revised_items'])(
+  'Q preserves supplied repair target %s', (key) => {
+    const nested = ['habits', 'sub_habits', 'revised_items'].includes(key)
+    const original = nested ? [{ title: 'Water', habit_id: 'water' }] : key === 'habit_ids' ? ['water']
+      : key === 'filter' ? { tag: 'Water' } : 'water'
+    const changed = nested ? [{ title: 'Water', habit_id: 'walk' }] : key === 'habit_ids' ? ['walk']
+      : key === 'filter' ? { tag: 'Walk' } : 'walk'
+    const failed = { ...toolCall('create_habit', { title: 'Water', [key]: original }, 'Failed'), resultStatus: 'Failed' }
+    failed.result.error = 'Invalid argument.'
+    const repaired = { ...toolCall('create_habit', { title: 'Water', [key]: original }, 'PendingConfirmation'), resultStatus: 'PendingConfirmation' }
+    const expectations = { permittedMutations: [{ name: 'create_habit', resultStatus: 'PendingConfirmation' }] }
+    const valid = replay({ toolCalls: [failed, repaired] }, expectations)
+    expect(valid.pass, valid.reason).toBe(true)
+    repaired.arguments[key] = changed
+    expect(replay({ toolCalls: [failed, repaired] }, expectations).pass).toBe(false)
+  },
+)

@@ -4165,7 +4165,7 @@
     input: "Help me remember to drink water throughout the day."
     composition: {"mode": "preview", "previews": 1}
     expectations: &offers_write_tools {allowed: ["query_habits", "query_goals", "list_tags", "get_checklist_templates", "create_habit", "create_sub_habit", "bulk_create_habits", "update_habit", "bulk_update_habits", "create_goal", "link_goals_to_habit", "assign_tags", "revise_pending_changes"]}
-    rubric: "Answer in English. Offer editable/removable repeat_reminder interval and active hours on a supported schedule; no interval-derived daily target; nothing applied."
+    rubric: "Answer in English. Offer an editable/removable repeat_reminder on a supported schedule. Require an interval; active hours may be omitted for all-day reminders or supplied as a pair. No interval-derived daily target; nothing applied."
 - description: "proactive repeat in pt-BR"
   metadata: {"id": "offers-repeat-pt-BR", "category": "composition", "family": "offers-repeat", "locale": "pt-BR", "fixture": "empty"}
   vars:
@@ -4174,7 +4174,7 @@
     input: "Me ajude a lembrar de beber água ao longo do dia."
     composition: {"mode": "preview", "previews": 1}
     expectations: *offers_write_tools
-    rubric: "Answer in Brazilian Portuguese. Offer editable/removable repeat_reminder interval and active hours on a supported schedule; no interval-derived daily target; nothing applied."
+    rubric: "Answer in Brazilian Portuguese. Offer an editable/removable repeat_reminder on a supported schedule. Require an interval; active hours may be omitted for all-day reminders or supplied as a pair. No interval-derived daily target; nothing applied."
 - description: "proactive fixed-medication in en"
   metadata: {"id": "offers-fixed-medication-en", "category": "composition", "family": "offers-fixed-medication", "locale": "en", "fixture": "empty"}
   vars:
@@ -4235,18 +4235,20 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: {<<: *offers_en, conversationId: "5006c366-6549-587a-a525-97593efd0c77"}
     input: "Create Submit the form on {accountDateEn+2} at 14:00."
+    requestedDate: "{accountDate+2}"
     composition: {"mode": "preview", "previews": 1}
     expectations: *offers_write_tools
-    rubric: "Answer in English. Propose a fitting removable reminder. Removing it leaves the requested task, date and time intact."
+    rubric: "Answer in English. Propose a fitting removable reminder. Removing it leaves the requested task, date and time intact. A Calendar connection action is allowed only when the draft carries a requested date or deadline; a default create date does not qualify."
 - description: "proactive dated-reminder in pt-BR"
   metadata: {"id": "offers-dated-reminder-pt-BR", "category": "composition", "family": "offers-dated-reminder", "locale": "pt-BR", "fixture": "empty"}
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: {<<: *offers_pt, conversationId: "987f57c3-ff45-512e-b996-c2227d9e3b7d"}
     input: "Crie Enviar o formulário em {accountDatePtBR+2} às 14:00."
+    requestedDate: "{accountDate+2}"
     composition: {"mode": "preview", "previews": 1}
     expectations: *offers_write_tools
-    rubric: "Answer in Brazilian Portuguese. Propose a fitting removable reminder. Removing it leaves the requested task, date and time intact."
+    rubric: "Answer in Brazilian Portuguese. Propose a fitting removable reminder. Removing it leaves the requested task, date and time intact. A Calendar connection action is allowed only when the draft carries a requested date or deadline; a default create date does not qualify."
 - description: "proactive checklist in en"
   metadata: {"id": "offers-checklist-en", "category": "composition", "family": "offers-checklist", "locale": "en", "fixture": "empty"}
   vars:
@@ -4379,6 +4381,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: {<<: *offers_en, conversationId: "119b3432-f1a7-542b-a434-ba4f785d4a01"}
     input: "Create daily evening stretching from {accountDateEn+1} through {accountDateEn+7}."
+    requestedDate: "{accountDate+1}"
     composition: {"mode": "preview", "previews": 1}
     expectations: *offers_write_tools
     rubric: "Answer in English. Keep the supplied inclusive boundary and recurrence when editing/removing unrelated suggestions."
@@ -4388,6 +4391,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: {<<: *offers_pt, conversationId: "2eea4e08-4918-50ed-94bd-f561275fed55"}
     input: "Crie alongamento diário à noite de {accountDatePtBR+1} até {accountDatePtBR+7}."
+    requestedDate: "{accountDate+1}"
     composition: {"mode": "preview", "previews": 1}
     expectations: *offers_write_tools
     rubric: "Answer in Brazilian Portuguese. Keep the supplied inclusive boundary and recurrence when editing/removing unrelated suggestions."
@@ -4398,7 +4402,7 @@
     clientContext: {<<: *offers_en, conversationId: "2f1d4b91-2c6b-50af-be5f-de8544dafa9b"}
     input: "List my overdue habits."
     composition: {"mode": "data"}
-    rubric: "Answer in English. Offer exactly one grounded restart or skip action inside the block; use an actual occurrence date where known, no pending write."
+    rubric: "Answer in English. Offer exactly one grounded restart or skip action inside the block; no pending write. A restart is for today; a skip names its actual occurrence date when known. Dates and targets are verified by the typed assertion; do not require hidden action fields in the rendered answer."
 - description: "proactive missed in pt-BR"
   metadata: {"id": "offers-missed-pt-BR", "category": "composition", "family": "offers-missed", "locale": "pt-BR", "fixture": "restart"}
   vars:
@@ -4406,7 +4410,7 @@
     clientContext: {<<: *offers_pt, conversationId: "0bb35f39-a74a-51cc-b7e3-7181ab728ffa"}
     input: "Liste meus hábitos atrasados."
     composition: {"mode": "data"}
-    rubric: "Answer in Brazilian Portuguese. Offer exactly one grounded restart or skip action inside the block; use an actual occurrence date where known, no pending write."
+    rubric: "Answer in Brazilian Portuguese. Offer exactly one grounded restart or skip action inside the block; no pending write. A restart is for today; a skip names its actual occurrence date when known. Dates and targets are verified by the typed assertion; do not require hidden action fields in the rendered answer."
 - description: "proactive missed non-daily in en"
   metadata: {"id": "offers-missed-non-daily-en", "category": "composition", "family": "offers-missed", "locale": "en", "fixture": "restart-non-daily"}
   vars:
@@ -4414,7 +4418,7 @@
     clientContext: {<<: *offers_en, conversationId: "74e7ed63-dd08-4cf3-a4b5-600909509bba"}
     input: "List my overdue habits."
     composition: {"mode": "data"}
-    rubric: "Answer in English. Offer exactly one grounded restart or skip action inside the block; use an actual missed occurrence on the every-three-days schedule, which is not due today; no pending write."
+    rubric: "Answer in English. Offer exactly one grounded restart or skip action inside the block for the overdue every-three-days schedule, which is not due today; no pending write. A restart is for today; a skip names its actual occurrence date when known. Dates and targets are verified by the typed assertion; do not require hidden action fields in the rendered answer."
 - description: "proactive missed non-daily in pt-BR"
   metadata: {"id": "offers-missed-non-daily-pt-BR", "category": "composition", "family": "offers-missed", "locale": "pt-BR", "fixture": "restart-non-daily"}
   vars:
@@ -4422,7 +4426,7 @@
     clientContext: {<<: *offers_pt, conversationId: "6cdbd183-c6ac-4143-b5d1-927ad7d2b094"}
     input: "Liste meus hábitos atrasados."
     composition: {"mode": "data"}
-    rubric: "Answer in Brazilian Portuguese. Offer exactly one grounded restart or skip action inside the block; use an actual missed occurrence on the every-three-days schedule, which is not due today; no pending write."
+    rubric: "Answer in Brazilian Portuguese. Offer exactly one grounded restart or skip action inside the block for the overdue every-three-days schedule, which is not due today; no pending write. A restart is for today; a skip names its actual occurrence date when known. Dates and targets are verified by the typed assertion; do not require hidden action fields in the rendered answer."
 - description: "proactive due-log in en"
   metadata: {"id": "offers-due-log-en", "category": "composition", "family": "offers-due-log", "locale": "en", "fixture": "hoje-next-step"}
   vars:
@@ -4541,6 +4545,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: {<<: *offers_en, conversationId: "6467daec-f658-508f-9265-4d84c5629b89"}
     input: "Create a dentist appointment for {accountDateEn+2} at 10:00."
+    requestedDate: "{accountDate+2}"
     composition: {"mode": "preview", "previews": 1}
     expectations: *offers_write_tools
     rubric: "Answer in English. An available disconnected Calendar gets one connect action in the preview. Connected/locked variants exclude it; never sync automatically or upsell."
@@ -4550,6 +4555,7 @@
     credentialKey: ORBIT_EVAL_TOKEN
     clientContext: {<<: *offers_pt, conversationId: "a156a905-81f9-5e37-82be-8cfc35c5d99d"}
     input: "Crie uma consulta ao dentista em {accountDatePtBR+2} às 10:00."
+    requestedDate: "{accountDate+2}"
     composition: {"mode": "preview", "previews": 1}
     expectations: *offers_write_tools
     rubric: "Answer in Brazilian Portuguese. An available disconnected Calendar gets one connect action in the preview. Connected/locked variants exclude it; never sync automatically or upsell."
@@ -4576,7 +4582,7 @@
     clientContext: {<<: *offers_en, conversationId: "97136013-fc00-5c09-87cb-18bbf03ce99d"}
     input: "Do not offer that small step again in this conversation. Show my day."
     composition: {"mode": "data"}
-    rubric: "Answer in English. Dismiss the issued semantic key. The same offer stays absent after more than ten unrelated turns, reload and another device; a different eligible action may remain."
+    rubric: "Answer in English. Grade only this turn: no dismissed offer and no prose question about it; a different eligible action may remain."
     setup:
       input: "Show my day."
       clientContext: {<<: *offers_en, conversationId: "97136013-fc00-5c09-87cb-18bbf03ce99d"}
@@ -4588,7 +4594,7 @@
     clientContext: {<<: *offers_pt, conversationId: "e51b17bf-0a58-5e62-ac66-6573368cc8b7"}
     input: "Não ofereça esse passo pequeno de novo nesta conversa. Mostre meu dia."
     composition: {"mode": "data"}
-    rubric: "Answer in Brazilian Portuguese. Dismiss the issued semantic key. The same offer stays absent after more than ten unrelated turns, reload and another device; a different eligible action may remain."
+    rubric: "Answer in Brazilian Portuguese. Grade only this turn: no dismissed offer and no prose question about it; a different eligible action may remain."
     setup:
       input: "Mostre meu dia."
       clientContext: {<<: *offers_pt, conversationId: "e51b17bf-0a58-5e62-ac66-6573368cc8b7"}

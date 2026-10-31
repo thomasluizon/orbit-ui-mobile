@@ -12,11 +12,11 @@ afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 import { composition } from '../composition.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
 import { buildChatClientContext } from '../../../packages/shared/src/chat/client-context.ts'
-import { habitBlock, suggestionResponse, apiKeysStepUpResponse } from './fixtures/producer.mjs'
+import { habitBlock, preview, suggestionResponse, apiKeysStepUpResponse } from './fixtures/producer.mjs'
 
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
-const compositionCases = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
+const compositionCases = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 
 async function gradingPrompt(test, response, client = buildChatClientContext({ platform: 'mobile', locale: test.metadata.locale })) {
   const grader = { id: () => 'offline-policy-grader', callApi: vi.fn(async () => ({
@@ -162,4 +162,56 @@ it.each(['en', 'pt-BR'])('grades preserved medical wording without prescribing a
   expect(prompt).toContain("Preserve the person's own wording")
   expect(prompt).toContain('Reject a title that reverses or changes the medical instruction')
   expect(prompt).toContain('is_bad_habit=false')
+})
+
+it.each(['en', 'pt-BR'])('T grades restart for today and leaves occurrence binding to the typed check in %s', async (locale) => {
+  for (const family of ['missed', 'missed-non-daily']) {
+    const test = compositionCases.find((entry) => entry.metadata.id === `offers-${family}-${locale}`)
+    const response = structuredClone(habitBlock)
+    const target = '22222222-2222-4222-8222-222222222222'
+    response.block.read = { queryId: '33333333-3333-4333-8333-333333333333', queryFamily: 'query_habits', scope: {},
+      revision: 'revision', refreshToken: 'refresh', completeness: 'complete', recovery: null,
+      nextAction: { offerKey: `restart:${target}:2031-06-10`, entityId: target, kind: 'preparePreview',
+      date: '2031-06-10', label: 'Restart gently', prompt: 'Help me restart my overdue habits: just a few today and new dates for the rest.' } }
+    const prompt = await gradingPrompt(test, { parts: [response] })
+    expect(prompt).toContain('A restart is for today; a skip names its actual occurrence date when known.')
+    expect(prompt).toContain('Dates and targets are verified by the typed assertion; do not require hidden action fields in the rendered answer.')
+    expect(prompt).not.toContain('use an actual occurrence date where known')
+    expect(prompt).not.toContain('use an actual missed occurrence on the every-three-days schedule')
+    expect(prompt).not.toContain(target)
+  }
+})
+
+it.each(['en', 'pt-BR'])('DR grades only the dismissal reply while lifecycle checks own persistence in %s', async (locale) => {
+  const test = compositionCases.find((entry) => entry.metadata.id === `offers-dismissal-${locale}`)
+  const block = structuredClone(habitBlock)
+  block.block.items = []
+  const prompt = await gradingPrompt(test, { parts: [block] })
+  expect(prompt).toContain('Grade only this turn: no dismissed offer and no prose question about it; a different eligible action may remain.')
+  expect(prompt).not.toContain('The same offer stays absent after more than ten unrelated turns, reload and another device')
+})
+
+it.each(['en', 'pt-BR'])('AH grades all-day repeat intervals without requiring active hours in %s', async (locale) => {
+  const test = compositionCases.find((entry) => entry.metadata.id === `offers-repeat-${locale}`)
+  const pending = preview('Drink water')
+  pending.items[0].fields = [{ ...pending.items[0].fields[0], field: 'repeat_reminder',
+    proposedValue: { interval_minutes: 120 }, provenance: 'suggested',
+    removal: { offerKey: 'preview:repeat_reminder', field: 'repeat_reminder', fields: ['repeat_reminder'] } }]
+  const prompt = await gradingPrompt(test, { parts: [], pendingOperations: [pending] })
+  expect(prompt).toContain('Require an interval; active hours may be omitted for all-day reminders or supplied as a pair.')
+  expect(prompt).toContain('interval_minutes')
+  expect(prompt).not.toContain('interval and active hours on a supported schedule')
+})
+
+it.each(['en', 'pt-BR'])('CAL permits Calendar connection only on a draft with a requested date in %s', async (locale) => {
+  const test = compositionCases.find((entry) => entry.metadata.id === `offers-dated-reminder-${locale}`)
+  const pending = preview('Submit the form')
+  pending.items[0].fields.push({ ...pending.items[0].fields[0], field: 'due_date',
+    newValue: '2031-06-12', proposedValue: '2031-06-12', provenance: 'requested' })
+  pending.nextAction = { offerKey: 'calendar:calendar-sync', kind: 'openSurface', surface: 'calendar-sync',
+    label: 'Connect Google Calendar' }
+  const prompt = await gradingPrompt(test, { parts: [], pendingOperations: [pending] })
+  expect(prompt).toContain('A Calendar connection action is allowed only when the draft carries a requested date or deadline; a default create date does not qualify.')
+  expect(prompt).toContain('Connect Google Calendar')
+  expect(prompt).not.toContain('calendar:calendar-sync')
 })

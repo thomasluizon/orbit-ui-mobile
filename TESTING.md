@@ -317,6 +317,16 @@ Offer requests and their setup turns inherit capabilities, including every part 
 capability restriction. Prerequisite account reads must succeed; only catalog-classified writes enter
 the pending-mutation scope. An HTTP 400 retains its `errorCode`, `error` and response-header request
 identity in the sanitized attempt artifact, including unexpected errors that fail grading.
+One failed pre-confirmation argument check may be repaired by a later matching held preview in the
+same turn. The matcher preserves the producer's supplied target names, IDs, actions, filters and
+nested target order. A second failed write, a changed target or an unrecovered failure still fails;
+the failed call remains in the attempt evidence even when only its repair counts toward the mutation scope.
+The final-answer rubric grades the visible turn only. Restart actions refer to today while skip
+actions refer to their actual occurrence when known; typed checks bind hidden dates and targets.
+Repeat intervals are required, with active hours optional as a pair. A requested dated draft may
+offer Calendar connection; a default create date does not establish eligibility. The scenario's
+`vars.requestedDate` records the requested ISO date as typed context, outside the rendered answer;
+the Calendar check requires a matching requested `due_date` or `deadline` in the held preview.
 
 The producer is `orbit-api#1031`. Keep this harness merge held until that change is live on the
 production API and the coordinator's production run passes all three attempts of these cases.
@@ -357,11 +367,12 @@ executable. It uses public APIs and independently reads back every change. Goal-
 require near-deadline `at_risk` and past-deadline `behind`, verified through the complete paged
 goal-list DTO. The `behind` variant retains the profile timezone through reset and derives fixture dates
 from that zone. It saves the original timezone, switches through the public profile API to
-`Pacific/Pago_Pago`, writes a deadline equal to that zone's today, then switches to `Pacific/Kiritimati`.
+`Pacific/Pago_Pago` or `Pacific/Honolulu`, choosing from their actual dates at setup start so the
+deadline zone is exactly one local day behind `Pacific/Kiritimati`. It writes a deadline equal to
+the selected zone's today, then switches to `Pacific/Kiritimati`.
 The goal must read back with the exact deadline and `trackingStatus: "behind"`. Each timezone write
-requires profile readback; successful setters invalidate the API's cached account date. The one-day
-window runs from 11:00 UTC through 10:00 UTC the next day, excluding the latter endpoint. Outside that
-window the attempt is unavailable and its pass^3 result remains incomplete, with no chat request.
+requires profile readback; successful setters invalidate the API's cached account date. This setup
+works at every UTC hour without waiting for a window. A date change during setup fails the attempt.
 Fixture failures restore the original timezone immediately; the provider also restores and verifies it
 after every attempt, including failed requests and exceptions. A restoration mismatch fails the attempt.
 The `at_risk` variant keeps its existing near-deadline setup.
@@ -391,6 +402,11 @@ still receive a different eligible offer. Action-lifecycle selects the actually 
 one-small-step save action, revises, rejects, reproposes, approves through the confirmation gateway,
 and independently reads back approved fields and untouched account collections. Confirmation tokens
 stay in memory. Lifecycle failures are failed attempts, never skipped success.
+Preview-rejection setup requires a removable suggested reminder group, including a fixed, relative or
+nested child reminder; its lifecycle removes that group and does not depend on a repeat interval. The dedicated
+repeat cases retain their interval and paired-hours checks. Failed setup turns retain a sanitized
+`setup` object in the private attempt artifact with the rendered answer, tool outcomes and independent
+setup request UUID. Setup failures stay unavailable and cannot issue the case's chat request.
 
 Use `npm test --prefix evals/astra` for the offline suite. New offer tests must drive the hooks,
 assertions, fixture requests and lifecycle ports with producer-derived responses and include a

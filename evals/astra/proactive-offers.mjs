@@ -33,6 +33,8 @@ function validAction({ action, read, pending }, vars) {
   if (action.kind !== kind || action.offerKey !== key) return false
   if (pending) return uuid(pending.id) && text(pending.previewFingerprint)
     && (family !== 'aim' || text(vars.requestedAim))
+    && (family !== 'calendar' || text(vars.requestedDate) && pending.items?.some((item) => item.fields?.some((field) =>
+      ['due_date', 'deadline'].includes(field.field) && field.provenance === 'requested' && field.proposedValue === vars.requestedDate)))
   return uuid(read?.queryId) && text(read.queryFamily) && read.scope !== null && typeof read.scope === 'object'
     && text(read.revision) && text(read.refreshToken) && read.completeness === 'complete' && read.recovery == null
     && (!['log', 'restart', 'smallStep'].includes(action.offerKey.split(':')[0]) || action.date != null)
@@ -139,6 +141,7 @@ function familyFailure(response, vars, actions) {
     && Array.isArray(field.proposedValue) && field.proposedValue.length > 0
     && field.proposedValue.every((id) => vars.fixtureEvidence?.goals?.some((goal) => goal.id === id)))) return 'Suggested goal link is missing or unowned.'
   if (vars.offerFamily === 'dated-reminder' && !suggested.some((field) => reminders.includes(field.field))) return 'Missing removable dated-task reminder.'
+  if (vars.offerFamily === 'preview-rejection' && !suggested.some((field) => reminders.includes(field.field.split('/').at(-1)))) return 'Missing removable reminder group for rejection.'
   if (vars.offerFamily === 'metadata' && !suggested.some((field) => ['emoji', 'tag_ids', 'tag_names'].includes(field.field))) return 'Missing a removable metadata suggestion.'
   if (vars.offerFamily === 'stale' && !(response.parts ?? []).some((part) => part.kind === 'periodInsight'
     && part.block.read?.completeness === 'stale' && part.block.read.recovery === 'refresh')) return 'Missing retained stale recovery state.'

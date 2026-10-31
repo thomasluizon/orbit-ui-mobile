@@ -10,10 +10,11 @@ export function dateInTimeZone(timeZone, instant = new Date()) {
 }
 
 export function goalBehindDates(instant = new Date()) {
-  const deadline = dateInTimeZone('Pacific/Pago_Pago', instant)
   const today = dateInTimeZone('Pacific/Kiritimati', instant)
-  if (Date.parse(today) - Date.parse(deadline) !== 86400000) throw new Error('Goal-behind fixture is outside its local-date window.')
-  return { deadline, today }
+  const deadlineTimeZone = ['Pacific/Pago_Pago', 'Pacific/Honolulu'].find((zone) =>
+    Date.parse(today) - Date.parse(dateInTimeZone(zone, instant)) === 86400000)
+  if (!deadlineTimeZone) throw new Error('Goal-behind fixture lacks a one-day timezone transition.')
+  return { deadline: dateInTimeZone(deadlineTimeZone, instant), today, deadlineTimeZone }
 }
 
 async function setAndVerify(api, timeZone) {
@@ -26,9 +27,11 @@ async function setAndVerify(api, timeZone) {
 export async function prepareBehindDeadline(api, vars) {
   const { payload } = await api('GET', 'profile')
   dateInTimeZone(payload?.timeZone)
-  goalBehindDates()
+  const dates = goalBehindDates()
   vars.offerOriginalTimeZone = payload.timeZone
-  return setAndVerify(api, 'Pacific/Pago_Pago')
+  const deadline = await setAndVerify(api, dates.deadlineTimeZone)
+  if (deadline !== dates.deadline) throw new Error('Goal-behind fixture date changed during setup.')
+  return deadline
 }
 
 export async function advanceBehindDate(api, vars, deadline) {

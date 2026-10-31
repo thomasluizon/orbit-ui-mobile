@@ -81,6 +81,7 @@ async function requireAccountPolicies(tests) {
 
 export async function beforeEach({ test }) {
   delete test.vars.preconditionFailure
+  delete test.vars.setupEvidence
   delete test.vars.fixtureEvidence
   delete test.vars.legacyProfileLanguage
   freshConversation(test.vars)

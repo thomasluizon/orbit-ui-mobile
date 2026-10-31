@@ -7,6 +7,7 @@ import { behavior, composition, structural } from './assertions.mjs'
 import { publicApi } from './fixtures/api.mjs'
 import { offerActions, proactiveOffers } from './proactive-offers.mjs'
 import { readStartingHabits } from './step-persistence.mjs'
+import { attemptEvidence } from './evidence.mjs'
 
 function prepareStartingAction(test, block) {
   const vars = test.vars
@@ -32,6 +33,7 @@ function prepareStartingAction(test, block) {
 }
 
 export async function prepareCorrection(test) {
+  delete test.vars.setupEvidence
   const setup = test.vars.setup
   if (['saveTask', 'saveChecklistItem'].includes(test.vars.startingStepAction)) {
     test.vars.startingHabitBaseline = await readStartingHabits(test.vars.credentialKey)
@@ -44,6 +46,7 @@ export async function prepareCorrection(test) {
   const vars = { ...test.vars, refine: undefined, ...setup, evalRequestId: requestId, historyJson: '[]', offerFamily: undefined }
   vars.clientContextJson = JSON.stringify(vars.clientContext)
   const response = await provider.callApi(setup.input, { vars })
+  test.vars.setupEvidence = { ...attemptEvidence({ response, testCase: { vars } }, { pass: false, assertions: [] }), requestId }
   if (response.error || !response.output) throw new Error(`Correction setup${setup.caseId ? ` dependency ${setup.caseId}` : ''} returned no verifiable answer.`)
   const context = { vars, test }
   const checks = await Promise.all([structural(response.output, context), behavior(response.output, context), composition(response.output, context)])
@@ -52,7 +55,8 @@ export async function prepareCorrection(test) {
     throw new Error(`Correction setup failed${setup.caseId ? ` dependency ${setup.caseId}` : ''}: ${failures.map((check) => check.reason).join('; ')}`)
   }
   if (test.vars.offerFamily) {
-    const policy = { ...vars, offerFamily: setup.composition.mode === 'preview' ? 'repeat' : 'empty',
+    const previewFamily = test.vars.offerFamily === 'preview-rejection' ? 'preview-rejection' : 'repeat'
+    const policy = { ...vars, offerFamily: setup.composition.mode === 'preview' ? previewFamily : 'empty',
       offerRequireReadback: false }
     const offerCheck = proactiveOffers(response.output, { vars: policy })
     if (!offerCheck.pass) throw new Error(`Offer setup failed: ${offerCheck.reason}`)
@@ -75,6 +79,7 @@ export async function prepareCorrection(test) {
     const drafts = response.output.composition.parts.find((part) => part.kind === 'habitSuggestions').block.drafts
     test.vars.baselineDrafts = structuredClone(drafts)
     test.vars.refineDraft = structuredClone(drafts[0])
+    delete test.vars.setupEvidence
     return { test }
   }
   test.vars.baselinePreview = response.output.composition.pendingOperations
@@ -95,5 +100,6 @@ export async function prepareCorrection(test) {
     }
   }
   test.vars.historyJson = JSON.stringify([{ role: 'user', content: setup.input }, { role: 'assistant', content: response.output.answer }])
+  delete test.vars.setupEvidence
   return { test }
 }

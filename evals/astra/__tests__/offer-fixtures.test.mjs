@@ -115,14 +115,20 @@ it.each([
   },
 )
 
-it.each(['2031-06-10T10:00:00.000Z', '2031-06-10T10:59:59.999Z'])(
-  'leaves the behind fixture unavailable without writes outside its window at %s', async (instant) => {
+it.each(Array.from({ length: 24 }, (_, hour) => `2031-06-10T${String(hour).padStart(2, '0')}:30:00.000Z`))(
+  'GW seeds behind at every UTC hour and verifies restoration: %s', async (instant) => {
     const { test, requests, profile } = fixture('goal-behind', 1)
     vi.setSystemTime(new Date(instant))
-    await expect(seedOfferFixture(test, today)).rejects.toThrow('Goal-behind fixture is outside its local-date window.')
-    expect(requests.every(({ method }) => method === 'GET')).toBe(true)
+    await seedOfferFixture(test, today)
+    expect(test.vars.offerGoalTracking).toBe('behind')
+    const deadline = test.vars.offerBaseline.goals[0].deadline
+    expect(Date.parse(test.vars.accountDate) - Date.parse(deadline)).toBe(86400000)
+    expect(requests.find(({ path, method }) => path.startsWith('goals/') && method === 'PUT').body.deadline).toBe(deadline)
+    const provider = new AstraHttpProvider({ config: {} })
+    provider.attempt = async () => ({ output: 'completed' })
+    await provider.callApi('', { vars: test.vars })
     expect(profile.timeZone).toBe('America/Sao_Paulo')
-    expect(test.vars.offerRequireReadback).toBeUndefined()
+    expect(requests.at(-1)).toMatchObject({ path: 'profile', method: 'GET' })
   },
 )
 
