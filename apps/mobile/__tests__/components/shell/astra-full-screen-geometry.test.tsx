@@ -60,7 +60,7 @@ it.each([320, 412, 480, 840, 1100])('pins the full conversation over navigation 
       if (host.props.testID === 'shell-conversation') return 'layer'
       if (host.props.testID === 'shell-tab-bar') return 'tabs'
       if (host.props.testID === 'composer-idle') return 'composer'
-      if (host.type === 'ScrollView' && !host.props.horizontal) return 'thread'
+      if (host.type === 'ScrollView' && host.props.contentContainerStyle === empty.findAllByType('ScrollView')[0]!.props.contentContainerStyle) return 'thread'
       if (host.props.testID === 'empty-state') return 'empty'
       if (host.props.testID === 'empty-state-action') return 'action'
       if (host.type === 'Text' && host.children?.includes('aiDisclosure.notMedicalAdvice')) return 'disclosure'

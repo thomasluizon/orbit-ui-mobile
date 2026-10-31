@@ -1,3 +1,4 @@
+import { KeyboardAwareFlatList } from '@/components/ui/keyboard-aware-scroll-view'
 import { useRetainedHabitList } from '@/hooks/use-retained-habit-list'
 import { useListScrollReservation } from '@/hooks/use-list-scroll-reservation'
 import { usePrefersReducedMotion } from '@/lib/motion'
@@ -5,7 +6,7 @@ import { HabitListMotionRow } from '@/components/motion/habit-list-row'
 import { IconButton } from '@/components/ui/icon-button'
 import { useMemo, useState, type ReactElement, type ReactNode, type RefObject } from 'react'
 import {
-  FlatList,
+  type FlatList,
   Pressable,
   Text,
   View,
@@ -180,7 +181,7 @@ export function HabitDrill({
   )
 
   return (
-    <FlatList
+    <KeyboardAwareFlatList
       ref={drillListRef}
       data={presentation.items}
       onLayout={reservation.onLayout}

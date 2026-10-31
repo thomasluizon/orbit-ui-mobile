@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { buildHabitCreateHref, buildSearchEntries, searchCommands, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { PageHeader } from '@/components/ui/page-header'
+import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { Input } from '@/components/ui/input'
 
 import { Search, RefreshCw, ChevronLeft, ChevronRight } from '@/components/ui/icons'
@@ -56,10 +57,10 @@ export default function SearchScreen() {
   }
   return <View style={[styles.screen, { backgroundColor: tokens.bg }]}>
     <PageHeader title={t('habits.search.title')} onBack={back} backLabel={t('common.back')} />
-    <View style={[styles.field, styles.columnInset]}>
+    <KeyboardAwareSheetScrollView style={{ flexGrow: 0 }} contentContainerStyle={[styles.field, styles.columnInset]}>
       {commandPage !== null && <Text style={[styles.chip, { color: tokens.fg2, backgroundColor: tokens.bgWell, borderColor: tokens.hairline }]}>{t(commandPage === 'log' ? 'command.page.log' : 'command.page.skip')}</Text>}
       <View style={styles.input}><Input label={t('habits.search.title')} placeholder={t('habits.moveParent.searchPlaceholder')} value={search.text} onChange={search.changeText} trailing={<Search size={20} color={tokens.fg3} />} /></View>
-    </View>
+    </KeyboardAwareSheetScrollView>
     <ScrollView role="list" keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.list, styles.columnInset, { paddingBottom: clearance }]} accessibilityState={{ busy: search.busy }}>
       {search.showLoading && (search.text.trim() ? <Searching /> : <><Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg3 }]}>{t('command.groups.search')}</Text>{[0, 1, 2].map((index) => <Skeleton key={index} variant="habit-row" label={t('habits.search.searching')} />)}</>)}
       {search.isError && <View accessibilityRole="alert"><Text style={{ color: tokens.fg3 }}>{t('habits.search.loadError')}</Text><IconButton label={t('common.retry')} onClick={() => void search.refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton></View>}
