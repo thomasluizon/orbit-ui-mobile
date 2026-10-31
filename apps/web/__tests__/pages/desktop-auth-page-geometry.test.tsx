@@ -46,7 +46,7 @@ describe('desktop completion page geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each(cases)('keeps one focus indicator and whole labels at $width in $locale, $mode, failure $failed', async ({ width, locale, mode, failed }) => {
+  it.each(cases)('centres completion content with one focus indicator and whole labels at $width in $locale, $mode, failure $failed', async ({ width, locale, mode, failed }) => {
     const destination = new URL(`org.useorbit.desktop://auth/callback?state=${'a'.repeat(64)}&${failed ? 'error=authentication_failed' : `code=${'c'.repeat(64)}`}`)
     const result = await desktopAuthPage(destination, locale, mode)
     const document = new DOMParser().parseFromString(await new Response(result.body).text(), 'text/html')
@@ -59,6 +59,14 @@ describe('desktop completion page geometry in Chromium', () => {
       const geometry = await page.evaluate(() => {
         const action = document.querySelector('a')!
         const heading = document.querySelector('h1')!
+        const body = document.querySelector('p')!
+        const mark = document.querySelector('[data-asset="orbit-mark-accent"]')!
+        const panel = document.querySelector('[data-field-surface="responsive-card"]')!.getBoundingClientRect()
+        const panelCentre = panel.left + panel.width / 2
+        const centreOffsets = Object.fromEntries(Object.entries({ mark, heading, body, action }).map(([name, element]) => {
+          const bounds = element.getBoundingClientRect()
+          return [name, Math.abs(bounds.left + bounds.width / 2 - panelCentre)]
+        }))
         const style = getComputedStyle(action)
         const target = getComputedStyle(action, '::after')
         const actionText = document.createRange()
@@ -66,6 +74,9 @@ describe('desktop completion page geometry in Chromium', () => {
         const headingText = document.createRange()
         headingText.selectNodeContents(heading)
         return {
+          centreOffsets,
+          headingAlignment: getComputedStyle(heading).textAlign, bodyAlignment: getComputedStyle(body).textAlign,
+          actionBoxWidth: action.getBoundingClientRect().width, panelWidth: panel.width,
           focused: document.activeElement === action,
           outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth, boxShadow: style.boxShadow,
           headingLines: headingText.getClientRects().length, actionLines: actionText.getClientRects().length,
@@ -77,6 +88,12 @@ describe('desktop completion page geometry in Chromium', () => {
           marks: document.querySelectorAll('[data-asset="orbit-mark-accent"]').length,
         }
       })
+      for (const [element, offset] of Object.entries(geometry.centreOffsets)) {
+        expect(offset, `${element} horizontal centre`).toBeLessThanOrEqual(1)
+      }
+      expect(geometry.headingAlignment).toBe('center')
+      expect(geometry.bodyAlignment).toBe('center')
+      expect(geometry.actionBoxWidth).toBeLessThan(geometry.panelWidth / 2)
       expect(geometry.focused).toBe(true)
       expect(geometry.outlineStyle).toBe('solid')
       expect(geometry.outlineWidth).toBe('2px')

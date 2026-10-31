@@ -32,7 +32,7 @@ export const useUIStore = create<UIStoreState>()(
       ),
     {
       name: 'orbit-ui-store',
-      version: 8,
+      version: 9,
       storage: createJSONStorage<PersistedUIState>(() => AsyncStorage),
       migrate: migratePersistedUIState,
       partialize: getPersistedUIState,

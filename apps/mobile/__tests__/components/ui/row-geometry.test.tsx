@@ -40,6 +40,7 @@ vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({ BottomSheetAppTe
 vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => false, useProfile: () => ({ profile: createMockProfile() }) }))
+vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn().mockResolvedValue([]) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/hooks/use-tags', () => ({ useSuggestTags: () => ({ isPending: false, mutateAsync: vi.fn() }), useTags: () => ({ tags: [] }), useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useAssignTags: () => ({ isPending: false, mutateAsync: vi.fn() }) }))

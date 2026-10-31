@@ -1,21 +1,27 @@
 import { redactCredentials } from './credentials.mjs'
-import { tools, legacyTools, normalizeField } from './trace-policy.mjs'
+import { tools, legacyTools, postReadTools, habitSetupTools, normalizeField } from './trace-policy.mjs'
 
 function collectStrings(value, withheld) {
   if (typeof value === 'string' && value) withheld.add(value)
   else if (value && typeof value === 'object') Object.values(value).forEach((child) => collectStrings(child, withheld))
 }
 
+const schemaVariants = (schema) => schema.anyOf ? schema.anyOf.flatMap(schemaVariants) : [schema]
+
 function observableArguments(value, schema, sensitiveFields, withheld) {
-  if (!schema || (schema.type === 'object' && typeof value !== 'object')) {
+  const variants = schema ? schemaVariants(schema) : []
+  if (!schema || (variants.every((variant) => variant.type === 'object') && typeof value !== 'object')) {
     collectStrings(value, withheld)
     return null
   }
-  if (Array.isArray(value)) return value.map((child) => observableArguments(child, schema?.items, sensitiveFields, withheld))
+  if (Array.isArray(value)) {
+    const items = variants.flatMap((variant) => variant.items ? [variant.items] : [])
+    return value.map((child) => observableArguments(child, items.length ? { anyOf: items } : undefined, sensitiveFields, withheld))
+  }
   if (!value || typeof value !== 'object') return value
-  const properties = schema.properties ?? Object.assign({}, ...(schema.anyOf ?? []).map((variant) => variant.properties))
   return Object.fromEntries(Object.entries(value).flatMap(([key, child]) => {
-    const property = Object.hasOwn(properties, key) ? properties[key] : undefined
+    const matches = variants.flatMap((variant) => Object.hasOwn(variant.properties ?? {}, key) ? [variant.properties[key]] : [])
+    const property = matches.length ? { anyOf: matches } : undefined
     if (!property || sensitiveFields.has(normalizeField(key))) {
       collectStrings(child, withheld)
       return []
@@ -65,15 +71,16 @@ function resultEvidence(result) {
 
 export function attemptEvidence(entry, attempt) {
   const output = entry.response?.output
-  const catalog = entry.testCase.vars?.clientContext?.supportsParts === true ? tools : legacyTools
+  const catalog = entry.testCase.vars?.clientContext?.supportsParts === true ? [...tools, ...postReadTools, ...habitSetupTools] : legacyTools
   const withheld = new Set()
   const toolCalls = (output?.trace?.calls ?? []).map((call) => {
-    const tool = catalog.find((candidate) => candidate.function.name === call.name)
-    const sensitiveFields = new Set(tool?.sensitiveFields)
+    const declarations = catalog.filter((candidate) => candidate.function.name === call.name)
+    const sensitiveFields = new Set(declarations.flatMap((tool) => tool.sensitiveFields))
     collectMarkedValues(call.result, sensitiveFields, withheld)
     return { name: call.name,
-      arguments: observableArguments(call.arguments, tool?.function.parameters, sensitiveFields, withheld),
-      resultStatus: call.resultStatus, ...(tool ? { result: resultEvidence(call.result) } : {}) }
+      arguments: observableArguments(call.arguments, declarations.length
+        ? { anyOf: declarations.map((tool) => tool.function.parameters) } : undefined, sensitiveFields, withheld),
+      resultStatus: call.resultStatus, ...(declarations.length ? { result: resultEvidence(call.result) } : {}) }
   })
   return sanitizeEvidence({ ...attempt,
     answer: output?.answer ?? null,

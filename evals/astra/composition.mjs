@@ -1,6 +1,6 @@
 import { suggestionComposition, refineResult } from './suggestions.mjs'
 import { startingStepComposition } from './one-small-step.mjs'
-import { tools } from './trace-policy.mjs'
+import { toolWrites } from './trace-policy.mjs'
 import { brainDumpPreview } from './brain-dumps.mjs'
 import { isDeepStrictEqual } from 'node:util'
 import { getRelatedSurfaces } from '../../packages/shared/src/chat/related-surfaces.ts'
@@ -14,7 +14,7 @@ const { questionBlockSchema } = await tsImport('../../packages/shared/src/types/
 const object = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const text = (value) => typeof value === 'string' && value.trim().length > 0
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
-const readTools = new Set(tools.filter((tool) => tool.writes === false).map((tool) => tool.function.name))
+const readTools = new Set([...toolWrites].filter(([, writes]) => writes === false).map(([name]) => name))
 const shapes = {
   habitMonth: { dateFrom: 'string', dateTo: 'string', today: 'string', weekStartDay: 'number', calendar: 'object', surfaceId: 'string' },
   habitList: { scope: 'string', items: 'array' }, goalList: { items: 'array' },

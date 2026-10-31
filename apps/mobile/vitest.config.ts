@@ -14,6 +14,7 @@ export default defineConfig({
     },
   }],
   test: {
+    env: { EXPO_PUBLIC_API_BASE: 'https://mobile-tests.invalid' },
     environment: 'node',
     globals: true,
     setupFiles: ['./test-setup-expo-runtime.ts', './test-setup.ts'],

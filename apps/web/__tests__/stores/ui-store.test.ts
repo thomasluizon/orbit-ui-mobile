@@ -56,6 +56,38 @@ describe('ui store', () => {
     useUIStore.persist.setOptions({ name: 'orbit-ui-store' })
   })
 
+  it('persists one day completion per account through a later added habit and the next local day', async () => {
+    const date = '2026-09-12';
+    const habit = createMockHabit({ id: 'first', scheduledDates: [date], isLoggedInRange: true });
+    const habits = new Map([[habit.id, habit]]);
+    setUIAccountScope('completion-account');
+    await useUIStore.persist.rehydrate();
+    useUIStore.getState().checkAllDoneCelebration(habits, new Map(), date);
+    expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done');
+    useUIStore.getState().completeActiveCelebration();
+    setUIAccountScope('another-account');
+    await useUIStore.persist.rehydrate();
+    expect(useUIStore.getState().allDoneCelebratedDate).toBe('');
+    setUIAccountScope('completion-account');
+    await useUIStore.persist.rehydrate();
+    expect(useUIStore.getState().allDoneCelebratedDate).toBe(date);
+    habits.set('later', { ...habit, id: 'later', isLoggedInRange: false });
+    useUIStore.getState().checkAllDoneCelebration(habits, new Map(), date);
+    habits.set('later', { ...habit, id: 'later' });
+    useUIStore.getState().checkAllDoneCelebration(habits, new Map(), date);
+    expect(useUIStore.getState().activeCelebration).toBeNull();
+    const next = new Date(`${date}T12:00:00Z`);
+    next.setDate(next.getDate() + 1);
+    vi.setSystemTime(next);
+    const nextDate = next.toISOString().slice(0, 10);
+    const nextHabit = { ...habit, scheduledDates: [nextDate] };
+    useUIStore.getState().checkAllDoneCelebration(new Map([[habit.id, nextHabit]]), new Map(), nextDate, 'UTC');
+    expect(useUIStore.getState().activeCelebration?.kind).toBe('all-done');
+    useUIStore.persist.setOptions({ name: 'orbit-ui-store' });
+  });
+
+
+
 
   describe('filters', () => {
     it('starts with empty filters', () => {
