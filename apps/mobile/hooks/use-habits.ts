@@ -1,3 +1,4 @@
+import type { ParentPromptContinuation } from '@orbit/shared/types/sync'
 import { checkCompletionAfterSkip, settleBulkSkippedHabits } from '@orbit/shared/query/skip-completion'
 import { randomUUID } from 'expo-crypto'
 import type { HabitDetailSnapshots, HabitDetailUpdates, HabitListSnapshots } from '@orbit/shared/query'
@@ -1412,17 +1413,24 @@ export function useBulkDeleteHabits() {
   })
 }
 
-export function useBulkLogHabits() {
+type ParentPromptBulkInput<T> = T[] | { items: T[]; parentPromptContinuation: ParentPromptContinuation }
+
+function normalizeParentPromptBulkInput<T>(input: ParentPromptBulkInput<T>): { items: T[]; parentPromptContinuation?: ParentPromptContinuation } {
+  return Array.isArray(input) ? { items: input } : input
+}
+
+export function useBulkLogHabits(options: { suppressParentSettlement?: boolean } = {}) {
   const queryClient = useQueryClient()
   const { checkAllDoneCelebration, showStreakMoment } = useUIStore.getState()
 
   return useMutation<
     BulkLogMutationOutcome,
     Error,
-    BulkLogItemRequest[],
+    ParentPromptBulkInput<BulkLogItemRequest>,
     { previousLists: HabitListSnapshots; occurrenceDate: string; account: ReturnType<typeof captureHabitAccount> }
   >({
-    mutationFn: async (items) => {
+    mutationFn: async (input) => {
+      const { items, parentPromptContinuation } = normalizeParentPromptBulkInput(input)
       const results: BulkLogResult['results'] = []
       const streakResponses: BulkLogResult[] = []
       const ambiguousIds: string[] = []
@@ -1435,6 +1443,8 @@ export function useBulkLogHabits() {
           const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
             type: 'bulkLogHabits',
             scope: 'habits',
+            suppressParentSettlement: options.suppressParentSettlement,
+            parentPromptContinuation,
             endpoint: API.habits.bulkLog,
             method: 'POST',
             payload: { items: chunk },
@@ -1469,7 +1479,8 @@ export function useBulkLogHabits() {
       return { results, streakResponses, ambiguousIds, offlineFailureIds, hasConfirmedSuccess, queuedIds }
     },
 
-    onMutate: async (items) => {
+    onMutate: async (input) => {
+      const { items } = normalizeParentPromptBulkInput(input)
       const occurrenceDate = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
       const account = captureHabitAccount()
 
@@ -1494,7 +1505,8 @@ export function useBulkLogHabits() {
       }
     },
 
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, input, context) => {
+      const { items: variables } = normalizeParentPromptBulkInput(input)
       const profileRefresh = data.hasConfirmedSuccess
         ? queryClient.invalidateQueries({ queryKey: profileKeys.all }) : null
       const failedIds = new Set(
@@ -1544,16 +1556,17 @@ export function useBulkLogHabits() {
   })
 }
 
-export function useBulkSkipHabits() {
+export function useBulkSkipHabits(options: { suppressParentSettlement?: boolean } = {}) {
   const queryClient = useQueryClient()
 
   return useMutation<
     BulkSkipMutationOutcome,
     Error,
-    BulkSkipItemRequest[],
+    ParentPromptBulkInput<BulkSkipItemRequest>,
     { previousLists: HabitListSnapshots; occurrenceDate: string; account: ReturnType<typeof captureHabitAccount> }
   >({
-    mutationFn: async (items) => {
+    mutationFn: async (input) => {
+      const { items, parentPromptContinuation } = normalizeParentPromptBulkInput(input)
       const results: BulkSkipResult['results'] = []
       const ambiguousIds: string[] = []
       const offlineFailureIds: string[] = []
@@ -1564,6 +1577,8 @@ export function useBulkSkipHabits() {
           const response = await performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
             type: 'bulkSkipHabits',
             scope: 'habits',
+            suppressParentSettlement: options.suppressParentSettlement,
+            parentPromptContinuation,
             endpoint: API.habits.bulkSkip,
             method: 'POST',
             payload: { items: chunk },
@@ -1592,7 +1607,8 @@ export function useBulkSkipHabits() {
       return { results, ambiguousIds, offlineFailureIds, queuedIds }
     },
 
-    onMutate: async (items) => {
+    onMutate: async (input) => {
+      const { items } = normalizeParentPromptBulkInput(input)
       const account = captureHabitAccount()
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
@@ -1611,8 +1627,9 @@ export function useBulkSkipHabits() {
       }
     },
 
-    onSuccess: (data, items, context) => {
+    onSuccess: (data, input, context) => {
       if (!context.account.stillCurrent()) return
+      const { items } = normalizeParentPromptBulkInput(input)
       const acceptedIds = new Set(data.results.filter((entry) => entry.status === 'Success').map((entry) => entry.habitId))
       const failedIds = new Set(items.filter((item) => !acceptedIds.has(item.habitId)).map((item) => item.habitId))
       for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
