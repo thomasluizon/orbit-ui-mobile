@@ -2931,6 +2931,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .content-fade { animation: content-crossfade var(--dur-press) var(--ease-standard); }
 
 .habit-row-group[hidden] { display: none; }
+.habit-row-group:has(> div:empty) { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   [data-motion-disclosure] > div { height: auto !important; opacity: 1 !important; }

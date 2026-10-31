@@ -48,6 +48,7 @@ function isActiveView(value: unknown): value is ActiveView {
 }
 
 export interface PersistedUIState {
+  allDoneCelebratedDate: string;
   dailyStreakMomentDate: string;
   setupChecklistDismissed: boolean;
   activeFilters: HabitsFilter;
@@ -66,6 +67,7 @@ export function migratePersistedUIState(
     : {};
   delete activeFilters.search;
   return {
+    allDoneCelebratedDate: typeof state.allDoneCelebratedDate === "string" ? state.allDoneCelebratedDate : "",
     dailyStreakMomentDate: typeof state.dailyStreakMomentDate === "string" ? state.dailyStreakMomentDate : "",
     setupChecklistDismissed: state.setupChecklistDismissed === true,
     habitComposerCollapsed: state.habitComposerCollapsed === true,
@@ -122,6 +124,7 @@ export interface UIStoreState {
     childrenByParent: Map<string, string[]>,
     date: string,
     timeZone?: string | null,
+    confirmedSkippedIds?: ReadonlySet<string>,
   ) => void;
 
   isSelectMode: boolean;
@@ -168,6 +171,7 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   const activeFilters = { ...state.activeFilters };
   delete activeFilters.search;
   return {
+    allDoneCelebratedDate: state.allDoneCelebratedDate,
     dailyStreakMomentDate: state.dailyStreakMomentDate,
     activeFilters,
     activeView: state.activeView,
@@ -326,16 +330,23 @@ export function createUIStoreState(
       goalCompletedCelebration: null,
     }),
 
-    checkAllDoneCelebration: (habitsById, childrenByParent, date, timeZone) => {
-      const { allDoneCelebratedDate, enqueueCelebration } = get();
+    checkAllDoneCelebration: (habitsById, childrenByParent, date, timeZone, confirmedSkippedIds) => {
+      const { allDoneCelebratedDate } = get();
       const today = getAccountDay(new Date(), timeZone);
 
       if (date !== today) return;
       if (allDoneCelebratedDate === today) return;
-      const { allDone, count } = getAllDoneOnDate(habitsById, childrenByParent, today);
+      const { allDone, count } = getAllDoneOnDate(habitsById, childrenByParent, today, confirmedSkippedIds);
       if (allDone) {
-        set({ allDoneCelebratedDate: today });
-        enqueueCelebration("all-done", { count });
+        set((state) => {
+          const withoutDaily = clearCelebrationKind(state, "daily-streak", {});
+          const next = { ...state, ...withoutDaily };
+          return {
+            ...withoutDaily,
+            ...enqueueCelebrationItem(next, createCelebrationItem("all-done", { count }, nextCelebrationSequence())),
+            allDoneCelebratedDate: today,
+          };
+        });
       }
     },
 
