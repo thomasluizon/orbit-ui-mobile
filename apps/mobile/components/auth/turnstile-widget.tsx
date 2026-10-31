@@ -60,7 +60,8 @@ export function TurnstileWidget({
   }
 
   return (
-    <View style={{ alignItems: 'center', alignSelf: 'stretch', gap: 8 }}>
+    <View style={{ alignItems: 'center', alignSelf: 'stretch', gap: 8,
+      ...(state === 'solved' ? { position: 'absolute', height: 0, overflow: 'hidden' } as const : {}) }}>
       <WebView
         key={`${resetKey}-${attempt}`}
         source={{ uri: bridgeUrl }}
