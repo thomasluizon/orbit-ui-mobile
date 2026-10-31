@@ -492,7 +492,7 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
 }))
 
 vi.mock('@/components/habits/create-habit-modal', () => ({
-  CreateHabitModal: ({ open }: { open: boolean }) => open ? React.createElement('CreateHabitModal', { testID: 'create-sub-habit' }) : null,
+  CreateHabitModal: ({ open, parentHabit }: { open: boolean; parentHabit?: NormalizedHabit }) => open ? React.createElement('CreateHabitModal', { testID: 'create-sub-habit', parentHabit }) : null,
 }))
 
 vi.mock('@/components/habits/reschedule-sheet', () => ({
@@ -1005,18 +1005,55 @@ describe('HabitList', () => {
     client.clear()
   })
 
-  it('opens sub-habit creation for a free account from the habit list', () => {
+  it.each(['main', 'drill-row', 'drill-footer'])('opens sub-habit creation for a free account from %s', (surface) => {
     accountDate.hasProAccess = false
     try {
-      seedHabits([createMockHabit({ id: 'free-parent', title: 'Parent', scheduledDates: [TODAY] })])
+      const parent = createMockHabit({ id: 'free-parent', title: 'Parent', scheduledDates: [TODAY] })
+      seedHabits([parent])
+      const drillOnly = createMockHabit({ id: 'off-date', title: 'Off date', parentId: parent.id, dueDate: '2027-01-01', scheduledDates: [] })
+      if (surface !== 'main') {
+        mockDrillState.currentParent = surface === 'drill-footer' ? drillOnly : parent
+        mockDrillState.currentParentId = mockDrillState.currentParent.id
+        mockDrillState.drillStack = surface === 'drill-footer' ? [parent.id, drillOnly.id] : [parent.id]
+        mockDrillState.drillChildren = surface === 'drill-footer' ? [] : [drillOnly]
+        expect(mockHabitsData.habitsById.has(drillOnly.id)).toBe(false)
+      }
       let tree!: ReturnType<typeof TestRenderer.create>
       TestRenderer.act(() => { tree = createTestTree(<HabitList view="today" showCompleted={false} onCreatePress={vi.fn()} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />) })
       accountDate.push.mockClear()
-      const row = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)[0]!
-      TestRenderer.act(() => { row.props.actions.onAddSubHabit() })
+      let composition = tree
+      if (surface !== 'main') {
+        const list = tree.root.findByType('FlatList')
+        TestRenderer.act(() => { composition = createTestTree(<View>{surface === 'drill-footer' ? list.props.ListEmptyComponent : list.props.renderItem({ item: drillOnly, index: 0 })}</View>) })
+      }
+      TestRenderer.act(() => {
+        if (surface === 'drill-footer') {
+          composition.root.findAll((node: import('react-test-renderer').ReactTestInstance) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'habits.form.addSubHabit').length > 0)[0]!.props.onPress()
+        } else composition.root.findAllByType(HabitRow).filter(isInteractiveRow)[0]!.props.actions.onAddSubHabit()
+      })
       expect(tree.root.findAllByProps({ testID: 'create-sub-habit' }).length).toBeGreaterThan(0)
+      expect(tree.root.findAllByProps({ testID: 'create-sub-habit' })[0]!.props.parentHabit.id).toBe(surface === 'main' ? parent.id : drillOnly.id)
       expect(accountDate.push).not.toHaveBeenCalled()
     } finally { accountDate.hasProAccess = true }
+  })
+
+  it.each([['one-time', null, true], ['recurring', 'Day', false]] as const)('handles a drill-only %s child on the selected future date', async (_kind, frequencyUnit, permitted) => {
+    const parent = createMockHabit({ id: 'parent', hasSubHabits: true, scheduledDates: [TOMORROW] })
+    const child = createMockHabit({ id: 'off-date', parentId: parent.id, frequencyUnit, frequencyQuantity: frequencyUnit ? 1 : null, dueDate: '2027-01-01', scheduledDates: [] })
+    seedHabits([parent])
+    Object.assign(mockDrillState, { currentParent: parent, currentParentId: parent.id, drillStack: [parent.id], drillChildren: [child] })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = createTestTree(<HabitList view="today" filters={{ dateFrom: TOMORROW, dateTo: TOMORROW }} selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} showCompleted={false} onCreatePress={vi.fn()} />) })
+    const list = tree.root.findByType('FlatList')
+    let composition!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { composition = createTestTree(list.props.renderItem({ item: list.props.data[0], index: 0 })) })
+    const row = composition.root.findAllByType(HabitRow).filter(isInteractiveRow)[0]!
+    expect(mockHabitsData.habitsById.has(child.id)).toBe(false)
+    const completion = composition.root.findAll((node: import('react-test-renderer').ReactTestInstance) => typeof node.type === 'string' && typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.includes('habits.logHabit'))[0]!
+    expect(completion.props.disabled).toBe(!permitted)
+    await TestRenderer.act(async () => { row.props.actions.onLog(); await Promise.resolve() })
+    if (permitted) expect(logMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: child.id, date: TOMORROW, intent: 'log' })
+    else expect(logMutateAsync).not.toHaveBeenCalled()
   })
 
   it.each([false, true])('scopes Hoje search with appended general habits, matching descendant=%s', (matchesDescendant) => {

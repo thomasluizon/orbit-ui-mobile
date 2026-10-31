@@ -48,7 +48,7 @@ interface HabitDrillProps {
     hasSubHabits: boolean,
     options?: { isDrillCard?: boolean },
   ) => ReactNode
-  onAddSubHabit: (parentId: string) => void
+  onAddSubHabit: (parent: NormalizedHabit) => void
   onShowCompleted?: () => void
 }
 
@@ -147,13 +147,13 @@ export function HabitDrill({
     </>
   )
 
-  const addRow = drill.currentParentId ? (
+  const addRow = drill.currentParent ? (
     <ListRow
       compact={false}
       icon="plus"
       title={t('habits.form.addSubHabit')}
       chevron={false}
-      onClick={() => onAddSubHabit(drill.currentParentId!)}
+      onClick={() => onAddSubHabit(drill.currentParent!)}
     />
   ) : null
 

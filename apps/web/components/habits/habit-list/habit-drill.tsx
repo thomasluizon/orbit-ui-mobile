@@ -26,7 +26,7 @@ interface HabitDrillProps {
     hasSubHabits: boolean,
     options?: { isDrillCard?: boolean; isDraggingList?: boolean },
   ) => ReactNode
-  onAddSubHabit: (parentId: string) => void
+  onAddSubHabit: (parent: NormalizedHabit) => void
   subHabitRefusal?: boolean
   onShowCompleted?: () => void
 }
@@ -60,20 +60,20 @@ export function HabitDrill({
   onShowCompleted,
 }: Readonly<HabitDrillProps>) {
   const [clamped, setClamped] = useState(false)
-  const addRow = drill.currentParentId ? (
+  const addRow = drill.currentParent ? (
     <ListRow
       compact={false}
       icon="plus"
       title={t('habits.form.addSubHabit')}
       chevron={false}
-      onClick={() => onAddSubHabit(drill.currentParentId!)}
+      onClick={() => onAddSubHabit(drill.currentParent!)}
     />
   ) : null
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div className="flex min-w-0 flex-col gap-2">
-        <div data-habit-drill-header="" className="flex min-w-0 items-center gap-2" style={{ padding: "var(--orbit-space-8) var(--orbit-space-16) var(--orbit-space-0)" }}>
+        <div data-habit-drill-header="" className="flex min-w-0 items-center gap-3" style={{ padding: "var(--orbit-space-8) var(--orbit-space-16) var(--orbit-space-0)" }}>
           <button
             type="button"
             aria-label={t('common.back')}
@@ -87,7 +87,7 @@ export function HabitDrill({
           >
             <ArrowLeft size={20} strokeWidth={1.8} aria-hidden="true" />
           </button>
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex min-w-0 flex-1 flex-col">
             <h2
               className="min-w-0"
               style={{

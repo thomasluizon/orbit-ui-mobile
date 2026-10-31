@@ -411,7 +411,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
 })
 
 vi.mock('@/components/habits/create-habit-modal', () => ({
-  CreateHabitModal: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="Create habit" /> : null,
+  CreateHabitModal: ({ open, parentHabit }: { open: boolean; parentHabit?: NormalizedHabit }) => open ? <div role="dialog" aria-label="Create habit" data-parent-id={parentHabit?.id} /> : null,
 }))
 
 vi.mock('@/components/habits/reschedule-sheet', () => ({
@@ -1805,19 +1805,44 @@ describe('HabitList', () => {
     expect(within(row).getByRole('button', { name: 'habits.actions.more' })).toBeEnabled()
   })
 
-  it('opens sub-habit creation for a free account from the habit list', async () => {
+  it.each(['main', 'drill-row', 'drill-footer'])('opens sub-habit creation for a free account from %s', async (surface) => {
     accountDate.hasProAccess = false
     try {
       const habit = createMockHabit({ id: 'free-parent', title: 'Parent', scheduledDates: [TODAY] })
       mockHabitsData.habitsById.set(habit.id, habit)
       mockHabitsData.topLevelHabits = [habit]
       mockHabitsData.totalCount = 1
+      const drillOnly = createMockHabit({ id: 'off-date', title: 'Off date', parentId: habit.id, dueDate: '2027-01-01', scheduledDates: [] })
+      if (surface !== 'main') {
+        mockDrillState.currentParent = surface === 'drill-footer' ? drillOnly : habit
+        mockDrillState.currentParentId = mockDrillState.currentParent.id
+        mockDrillState.drillStack = surface === 'drill-footer' ? [habit.id, drillOnly.id] : [habit.id]
+        mockDrillState.drillChildren = surface === 'drill-footer' ? [] : [drillOnly]
+        expect(mockHabitsData.habitsById.has(drillOnly.id)).toBe(false)
+      }
       renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
       routerPush.mockClear()
-      fireEvent.click(screen.getByTestId('add-sub-free-parent'))
+      fireEvent.click(surface === 'drill-footer'
+        ? screen.getByRole('button', { name: 'habits.form.addSubHabit' })
+        : screen.getByTestId(`add-sub-${surface === 'main' ? habit.id : drillOnly.id}`))
       expect(await screen.findByRole('dialog', { name: 'Create habit' })).toBeVisible()
+      expect(screen.getByRole('dialog', { name: 'Create habit' })).toHaveAttribute('data-parent-id', surface === 'main' ? habit.id : drillOnly.id)
       expect(routerPush).not.toHaveBeenCalled()
     } finally { accountDate.hasProAccess = true }
+  })
+
+  it.each([['one-time', null, true], ['recurring', 'Day', false]] as const)('handles a drill-only %s child on the selected future date', async (_kind, frequencyUnit, permitted) => {
+    const parent = createMockHabit({ id: 'parent', hasSubHabits: true, scheduledDates: [TOMORROW] })
+    const child = createMockHabit({ id: 'off-date', parentId: parent.id, frequencyUnit, frequencyQuantity: frequencyUnit ? 1 : null, dueDate: '2027-01-01', scheduledDates: [] })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.topLevelHabits = [parent]
+    Object.assign(mockDrillState, { currentParent: parent, currentParentId: parent.id, drillStack: [parent.id], drillChildren: [child] })
+    renderWithProviders(<HabitList view="today" filters={{ dateFrom: TOMORROW, dateTo: TOMORROW }} selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} />)
+    expect(mockHabitsData.habitsById.has(child.id)).toBe(false)
+    expect(screen.getByTestId(`habit-card-${child.id}`)).toHaveAttribute('data-can-log', permitted ? 'yes' : 'no')
+    await act(async () => { fireEvent.click(screen.getByTestId(`log-${child.id}`)) })
+    if (permitted) expect(logHabitMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: child.id, date: TOMORROW, intent: 'log' })
+    else expect(logHabitMutateAsync).not.toHaveBeenCalled()
   })
 
   it('explains an offline sub-habit request beside the parent row', () => {

@@ -93,7 +93,7 @@ export function createStyles(tokens: AppTokens) {
     drillHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 12,
       paddingHorizontal: SPACING.s0,
       paddingTop: SPACING.s8,
     },
@@ -111,7 +111,7 @@ export function createStyles(tokens: AppTokens) {
       backgroundColor: tokens.bgHover,
       transform: [{ scale: 0.96 }],
     },
-    drillHeading: { flex: 1, minWidth: 0, gap: 8 },
+    drillHeading: { flex: 1, minWidth: 0 },
     drillSkeletons: {
       gap: 12,
     },

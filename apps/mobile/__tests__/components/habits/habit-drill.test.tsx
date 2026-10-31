@@ -72,7 +72,7 @@ it.each(['scroll', 'header'] as const)('keeps drill %s scoped to the current par
   let row = back.parent!
   while (String(row.type) !== 'View') row = row.parent!
   if (check === 'header') {
-    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', gap: 8 })
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', gap: 12 })
     expect(row.findAll((node) => node.props.accessibilityRole === 'header').length).toBeGreaterThan(0)
   }
   await act(() => tree.unmount())

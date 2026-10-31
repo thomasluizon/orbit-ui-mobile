@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test'
+import { createTranslator } from 'next-intl'
 import { API } from '@orbit/shared/api'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -37,6 +38,7 @@ for (const width of [320, 412, 1352]) {
     test.describe(`sub-habit drill at ${width} in ${locale}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
       test('opens at the top with clear back fill and every date', async ({ page, context }) => {
+        const t = createTranslator({ locale, messages: words })
         await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         await context.route((url) => url.pathname === API.habits.get(parent.id), (route) => route.fulfill({ json: detail }))
         await page.goto(`/?date=${day}`)
@@ -60,11 +62,11 @@ for (const width of [320, 412, 1352]) {
         }
         for (const item of [children[0]!, children[1]!, children[3]!]) await expect(habitRow(page, item.title)).toBeVisible()
         await expect(habitRow(page, children[2]!.title)).toHaveCount(0)
-        await expect(header).toContainText(words.habits.drillProgress.replace('{done}', '1').replace('{total}', '3'))
+        await expect(header).toContainText(t('habits.drillProgress', { done: 1, total: 3 }))
         await openTodayListOptions(page, words.habits.listOptions)
         await page.getByRole('menuitem', { name: words.habits.showCompletedMenu, exact: true }).click()
         await expect(habitRow(page, children[2]!.title)).toBeVisible()
-        await expect(header).toContainText(words.habits.drillProgress.replace('{done}', '1').replace('{total}', '4'))
+        await expect(header).toContainText(t('habits.drillProgress', { done: 1, total: 4 }))
       })
     })
   }
