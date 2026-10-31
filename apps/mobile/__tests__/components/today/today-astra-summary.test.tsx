@@ -1,5 +1,8 @@
+import { QueryClientProvider } from '@tanstack/react-query'
+import { createApiClientError } from '@orbit/shared/utils'
+import { queryClient } from '@/lib/query-client'
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { StyleSheet } from 'react-native'
 import { createMockProfile, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import type { ProactiveItem } from '@orbit/shared/types'
@@ -8,6 +11,8 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
 const mocks = vi.hoisted(() => ({
+  realSummary: false,
+  fetchSummary: vi.fn(),
   profile: {} as ReturnType<typeof createMockProfile> | null,
   item: null as ProactiveItem | null,
   summary: null as string | null,
@@ -23,15 +28,20 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.upgrade, navigate: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
 vi.mock('@/hooks/use-proactive-item', () => ({ useProactiveItem: () => ({ item: mocks.item, openItem: mocks.openItem }) }))
-vi.mock('@/hooks/use-summary', () => ({ useSummary: (options: unknown) => {
-  mocks.query(options)
-  return { summary: mocks.summary, isLoading: mocks.isLoading, isFetching: mocks.isFetching, error: mocks.error, refetch: mocks.refetch }
-} }))
+vi.mock('@/lib/api-client', () => ({ apiClient: (...args: unknown[]) => mocks.fetchSummary(...args) }))
+vi.mock('@/hooks/use-summary', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/hooks/use-summary')>()
+  return { useSummary: (options: Parameters<typeof original.useSummary>[0]) => {
+    if (mocks.realSummary) return original.useSummary(options)
+    mocks.query(options)
+    return { summary: mocks.summary, isLoading: mocks.isLoading, isFetching: mocks.isFetching, error: mocks.error, refetch: mocks.refetch }
+  } }
+})
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 type Tree = import('react-test-renderer').ReactTestRenderer & { unmount: () => void }
 async function mount(overrides: { isTodaySelected?: boolean; suppressed?: boolean } = {}) {
   let tree!: Tree
-  await TestRenderer.act(() => { tree = TestRenderer.create(<TodayAstra today="2026-08-29" isTodaySelected suppressed={false} {...overrides} />) as Tree })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<TodayAstra today="2026-08-29" isTodaySelected suppressed={false} {...overrides} />) })
   return tree
 }
 function slot(tree: Tree) {
@@ -58,6 +68,8 @@ function configureSummaryState(state: string) {
 describe('Hoje single summary slot', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.realSummary = false
+    mocks.fetchSummary.mockReset()
     mocks.profile = createMockProfile({ hasProAccess: true, aiSummaryEnabled: true, language: 'pt-BR', timeZone: 'America/Sao_Paulo', lastCompletionDate: null })
     mocks.item = null
     mocks.summary = 'Seu dia começou com uma caminhada. Você ainda pode ler hoje.'
@@ -109,4 +121,41 @@ describe('Hoje single summary slot', () => {
     }
     await TestRenderer.act(() => tree.unmount())
   })
+
+  afterEach(() => { vi.useRealTimers() })
+
+  it.each(['quota', 'transient'] as const)('settles a real Hoje %s request with the production retry defaults', async failure => {
+    vi.useFakeTimers()
+    mocks.realSummary = true
+    queryClient.clear()
+    const error = createApiClientError(failure === 'quota' ? 424 : 500, {
+      error: 'Try again later', ...(failure === 'quota' ? { errorCode: 'AI_PROVIDER_QUOTA_EXHAUSTED' } : {}),
+    }, 'Unavailable')
+    mocks.fetchSummary.mockRejectedValueOnce(error)
+    if (failure === 'quota') mocks.fetchSummary.mockRejectedValue(error)
+    else mocks.fetchSummary.mockResolvedValue({ summary: 'Your day is ready.', insight: '', fromCache: false })
+    let tree!: Tree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}><TodayAstra today="2026-08-29" isTodaySelected suppressed={false} /></QueryClientProvider>) })
+    try {
+      expect(slot(tree)[0]!.props.accessibilityLabel).toBe('summary.loading')
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(failure === 'quota' ? 1 : 1001) })
+      if (failure === 'transient') {
+        expect(slot(tree)[0]!.props.accessibilityLabel).toBe('Your day is ready.')
+        expect(mocks.fetchSummary).toHaveBeenCalledTimes(2)
+        return
+      }
+      expect(slot(tree)[0]!.props.accessibilityLabel).toBe('summary.error')
+      expect(slot(tree)[0]!.props.accessibilityHint).toBe('summary.retry')
+      expect(slot(tree)[0]!.props.accessibilityState).toEqual({ busy: false, disabled: false })
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'summary-skeleton')).toHaveLength(0)
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(8000) })
+      expect(mocks.fetchSummary).toHaveBeenCalledTimes(1)
+      await press(tree)
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(8000) })
+      expect(mocks.fetchSummary).toHaveBeenCalledTimes(2)
+      expect(slot(tree)[0]!.props.accessibilityLabel).toBe('summary.error')
+      expect(slot(tree)[0]!.props.accessibilityState).toEqual({ busy: false, disabled: false })
+    } finally { await TestRenderer.act(() => tree.unmount()); queryClient.clear() }
+  })
+
 })
