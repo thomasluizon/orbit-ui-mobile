@@ -226,6 +226,19 @@ describe('mobile useDrillNavigation', () => {
     expect(holder.current.completedCount).toBe(0)
   })
 
+  it('uses the cached nested parent title when that parent is absent from the date list', async () => {
+    mocks.apiClient.mockResolvedValue(makeDetail({ children: [makeChild({
+      id: 'branch', title: 'Branch', children: [makeChild({ id: 'leaf', title: 'Leaf' })],
+    })] }))
+    const { holder } = renderDrill()
+    await actAsync(() => holder.current.drillInto('p1'))
+    await actAsync(() => holder.current.drillInto('branch'))
+    expect(holder.current.currentParent).toMatchObject({ id: 'branch', title: 'Branch' })
+    expect(holder.current.drillChildren.map((child) => child.id)).toEqual(['leaf'])
+    TestRenderer.act(() => holder.current.drillBack())
+    expect(holder.current.currentParent?.id).toBe('p1')
+  })
+
   it('hides completed one-time children and keeps logged recurring children', async () => {
     const date = '2026-07-13'
     const children = [

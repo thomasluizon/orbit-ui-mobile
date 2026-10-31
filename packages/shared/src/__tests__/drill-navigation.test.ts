@@ -110,7 +110,7 @@ describe('drill navigation utils', () => {
     expect(normalized.dueTime).toBe('')
     expect(normalized.dueEndTime).toBe('')
     expect(normalized.endDate).toBe('')
-    expect(normalized.position).toBe(0)
+    expect(normalized.position).toBeNull()
     expect(normalized.isOverdue).toBe(true)
     expect(normalized.hasSubHabits).toBe(true)
   })
@@ -208,6 +208,20 @@ describe('drill navigation utils', () => {
 })
 
 describe('getVisibleDrillChildren', () => {
+  it('keeps unpositioned children after the person ordered children', () => {
+    const date = '2025-01-02'
+    const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
+      makeDetailChild({ id: 'ordered', position: 1 }),
+      makeDetailChild({ id: 'unpositioned', position: null }),
+    ] }), date)
+    const options = {
+      habitsById: new Map<string, NormalizedHabit>(), childrenByParent: new Map<string, string[]>(),
+      selectedDate: date, searchQuery: '', showCompleted: false, recentlyCompletedIds: new Set<string>(),
+    }
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, options, date)
+      .map((child) => child.id)).toEqual(['ordered', 'unpositioned'])
+  })
+
   it.each(['today', 'all', 'general'] as const)('lists all dates and undated children in person order from %s', () => {
     const date = '2025-01-02'
     const detail = normalizeHabitDetailForDrill(makeDetail({ children: [

@@ -633,7 +633,7 @@ export function HabitList({
   }, [habitsQuery.dataUpdatedAt, hasQueuedParentPrompt, selectedDateStr])
 
   const listContainerRef = useRef<HTMLDivElement>(null)
-  const anchorList = useHabitListScrollAnchor()
+  const anchorList = useHabitListScrollAnchor(drill.currentParentId)
   const { maxInlineDepth, measureRef } = useHabitInlineDepthLimit()
   const setListContainerRef = useCallback((element: HTMLDivElement | null) => {
     listContainerRef.current = element

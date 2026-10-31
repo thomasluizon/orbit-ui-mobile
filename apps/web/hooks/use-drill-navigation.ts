@@ -9,6 +9,7 @@ import {
   countCompletedDrillChildren,
   canRevealCompletedDrillChildren,
   getVisibleDrillChildren,
+  getDrillParent,
   loadDrillChildren,
   mergeDrillChildrenMap,
 } from '@orbit/shared/utils/drill-navigation'
@@ -70,7 +71,7 @@ export function useDrillNavigation(
   const [drillChildrenMap, setDrillChildrenMap] = useAccountScopedState(
     () => new Map<string, NormalizedHabit[]>(),
   )
-  const [drillParentInfo, setDrillParentInfo] = useAccountScopedState<NormalizedHabit | null>(null)
+  const [drillParentInfo, setDrillParentInfo] = useAccountScopedState(() => new Map<string, NormalizedHabit>())
   const [drillLoading, setDrillLoading] = useAccountScopedState(false)
   const [drillError, setDrillError] = useAccountScopedState('')
 
@@ -79,7 +80,7 @@ export function useDrillNavigation(
     setDrillView(view)
     setDrillStack([])
     setDrillChildrenMap(new Map())
-    setDrillParentInfo(null)
+    setDrillParentInfo(new Map())
     setDrillLoading(false)
     setDrillError('')
   }
@@ -101,9 +102,8 @@ export function useDrillNavigation(
   }, [queryClient, view])
 
   const currentParent = useMemo(() => {
-    if (!currentParentId) return null
-    return habitsById.get(currentParentId) ?? drillParentInfo
-  }, [currentParentId, habitsById, drillParentInfo])
+    return getDrillParent(currentParentId, habitsById, drillParentInfo, drillChildrenMap)
+  }, [currentParentId, habitsById, drillParentInfo, drillChildrenMap])
 
   const drillChildren = useMemo(
     () => currentParentId
@@ -142,7 +142,7 @@ export function useDrillNavigation(
           retryDelay: queryRetryDelay,
         }), todayStr)
         if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return
-        setDrillParentInfo(normalized.parent)
+        setDrillParentInfo((parents) => new Map(parents).set(normalized.parent.id, normalized.parent))
         setDrillChildrenMap((prev) =>
           mergeDrillChildrenMap(prev, normalized.childrenByParent),
         )
@@ -191,7 +191,7 @@ export function useDrillNavigation(
     setDrillLoading(false)
     setDrillStack([])
     setDrillChildrenMap(new Map())
-    setDrillParentInfo(null)
+    setDrillParentInfo(new Map())
   }, [setDrillChildrenMap, setDrillLoading, setDrillParentInfo, setDrillStack])
 
   const refreshCurrent = useCallback(async () => {

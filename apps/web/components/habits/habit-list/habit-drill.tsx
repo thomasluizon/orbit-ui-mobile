@@ -73,8 +73,21 @@ export function HabitDrill({
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div className="flex min-w-0 flex-col gap-2">
-        <div className="flex min-w-0 flex-col" style={{ gap: 12, padding: "var(--orbit-space-8) var(--orbit-space-16) var(--orbit-space-0)" }}>
-          <div className="min-w-0 w-full">
+        <div data-habit-drill-header="" className="flex min-w-0 items-center gap-2" style={{ padding: "var(--orbit-space-8) var(--orbit-space-16) var(--orbit-space-0)" }}>
+          <button
+            type="button"
+            aria-label={t('common.back')}
+            className="flex shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+            style={{
+              width: TOUCH_TARGET_MIN,
+              height: TOUCH_TARGET_MIN,
+              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+            }}
+            onClick={drill.drillBack}
+          >
+            <ArrowLeft size={20} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
             <h2
               className="min-w-0"
               style={{
@@ -89,34 +102,18 @@ export function HabitDrill({
               <PersonalText onClampedChange={setClamped}>{drill.currentParent?.title ?? ''}</PersonalText>
             </h2>
             <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            aria-label={t('common.back')}
-            className="flex shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
-            style={{
-              width: TOUCH_TARGET_MIN,
-              height: TOUCH_TARGET_MIN,
-              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-            }}
-            onClick={drill.drillBack}
-          >
-            <ArrowLeft size={20} strokeWidth={1.8} aria-hidden="true" />
-          </button>
-            <p
-              style={{
-                margin: SPACING.s0,
-                color: 'var(--fg-3)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                fontVariantNumeric: 'tabular-nums',
-                letterSpacing: '0.02em',
-              }}
-            >
-              {t('habits.drillProgress', {
-                done: drill.completedCount,
-                total: drill.drillChildren.length,
-              })}
-            </p>
+              <p
+                style={{
+                  margin: SPACING.s0,
+                  color: 'var(--fg-3)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 12,
+                  fontVariantNumeric: 'tabular-nums',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {t('habits.drillProgress', { done: drill.completedCount, total: drill.drillChildren.length })}
+              </p>
               <PersonalTextDetails iconOnly clamped={clamped}>{drill.currentParent?.title ?? ''}</PersonalTextDetails>
             </div>
           </div>

@@ -64,6 +64,22 @@ function enrichDrillChild(
   }
 }
 
+export function getDrillParent(
+  parentId: string | null,
+  habitsById: ReadonlyMap<string, NormalizedHabit>,
+  fetchedParents: ReadonlyMap<string, NormalizedHabit>,
+  drillChildrenMap: ReadonlyMap<string, NormalizedHabit[]>,
+): NormalizedHabit | null {
+  if (!parentId) return null
+  const parent = habitsById.get(parentId) ?? fetchedParents.get(parentId)
+  if (parent) return parent
+  for (const children of drillChildrenMap.values()) {
+    const child = children.find((habit) => habit.id === parentId)
+    if (child) return child
+  }
+  return null
+}
+
 export function getVisibleDrillChildren(
   parentId: string,
   drillChildrenMap: ReadonlyMap<string, NormalizedHabit[]>,
@@ -169,7 +185,7 @@ export function normalizeDrillDetailChild(
     dueTime: child.dueTime ?? '',
     dueEndTime: child.dueEndTime ?? '',
     endDate: child.endDate ?? '',
-    position: child.position ?? 0,
+    position: child.position ?? null,
     checklistItems: child.checklistItems,
     startDate: child.startDate,
     schedule: child.schedule,
