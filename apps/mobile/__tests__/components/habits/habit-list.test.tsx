@@ -592,7 +592,7 @@ function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
       selectedHabitIds,
       selectedDateStr: TODAY,
       completionReadOnly: false,
-      habitsById: new Map(),
+      habitsById: mockHabitsData.habitsById,
       habitListRef,
       onSuccess: vi.fn(),
       onPartialFailure: vi.fn(),
@@ -4884,11 +4884,16 @@ describe('HabitList', () => {
     bulkSkipMutateAsync.mockRejectedValueOnce(new Error('offline'))
     const actions = renderBulkActionsWithHabitList(new Set([childA.id, childB.id]))
 
+    expect(actions.current?.skippableCount).toBe(2)
     await TestRenderer.act(async () => {
       await expect(actions.current?.confirmBulkSkip()).rejects.toThrow('offline')
       await Promise.resolve()
     })
 
+    expect(bulkSkipMutateAsync).toHaveBeenCalledExactlyOnceWith([
+      { habitId: childA.id, date: TODAY },
+      { habitId: childB.id, date: TODAY },
+    ])
     expect(logMutateAsync).not.toHaveBeenCalled()
     expect(skipMutateAsync).not.toHaveBeenCalled()
   })

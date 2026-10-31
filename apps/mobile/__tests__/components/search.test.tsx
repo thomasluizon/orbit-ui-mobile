@@ -155,6 +155,19 @@ function horizontalBounds(element: import('react-test-renderer').ReactTestInstan
   } finally { root.freeRecursive() }
 }
 
+it('excludes General habits only from the Skip page', async () => {
+  mocks.query.mockReturnValue(result([
+    createMockHabit({ id: 'general', title: 'Undated routine', isGeneral: true, frequencyUnit: null }),
+    createMockHabit({ id: 'daily', title: 'Daily walk' }),
+  ]))
+  await mount()
+  expect(text()).toContain('Undated routine')
+  await pressLabel('Skip a habit')
+  expect(text()).not.toContain('Undated routine')
+  await pressLabel('Daily walk')
+  expect(mocks.skip).toHaveBeenCalledWith({ habitId: 'daily' }, expect.any(Object))
+})
+
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()

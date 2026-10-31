@@ -251,6 +251,7 @@ function TodayScreenContent() {
         <View style={styles.selectionTray}>
           <SelectionTray
             count={selection.selectedCount}
+            skippableCount={selection.skippableCount}
             allSelected={selection.allSelected}
             onSelectAll={selection.handleSelectAll}
             onDeselectAll={selection.handleDeselectAll}

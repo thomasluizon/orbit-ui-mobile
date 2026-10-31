@@ -106,6 +106,19 @@ async function actionEvent(
 }
 
 describe('SelectionTray', () => {
+  it('omits Skip for an all-General selection', async () => {
+    const { tree } = await renderBar({ count: 2, skippableCount: 0 })
+    expect(tree.root.findAll(node => node.props.accessibilityLabel === 'Skip selected')).toHaveLength(0)
+    expect(findButtonByLabel(tree, 'Log selected').props.disabled).toBe(false)
+  })
+
+  it.each(['en', 'pt-BR'])('shows the eligible Skip count for a mixed selection in %s', async (locale) => {
+    visibleLocale.language = locale
+    const { tree } = await renderBar({ count: 3, skippableCount: 1 })
+    expect(flattenRenderedText(tree.toJSON())).toContain(locale === 'en'
+      ? '1 selected habit can be skipped.' : '1 hábito selecionado pode ser pulado.')
+  })
+
   beforeEach(() => {
     visibleLocale.language = 'en'
     interactionState.mode = 'dark'
