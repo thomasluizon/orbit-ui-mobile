@@ -3,10 +3,11 @@
 import { useCallback } from 'react'
 import { scroll } from 'motion/react'
 
-export function useHabitListScrollAnchor() {
+export function useHabitListScrollAnchor(parentId: string | null = null) {
   return useCallback((list: HTMLDivElement | null) => {
     const scroller = list?.closest<HTMLElement>('[data-shell-scroller]')
     if (!list || !scroller) return
+    if (parentId) scroller.scrollTop = 0
     let offset = scroller.scrollTop
     let viewport = scroller.clientHeight
     let minimumHeight = 0
@@ -36,5 +37,5 @@ export function useHabitListScrollAnchor() {
     })
     observer.observe(scroller)
     return () => { stopObservingScroll(); observer.disconnect() }
-  }, [])
+  }, [parentId])
 }
