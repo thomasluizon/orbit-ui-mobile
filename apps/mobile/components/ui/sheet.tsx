@@ -20,6 +20,7 @@ import { AppToast } from '@/components/ui/app-toast'
 
 const MAX_HEIGHT_RATIO = 0.85
 const SCROLL_EDGE_PEEK = 24
+// WHY: A dimmed backdrop captures outside taps instead of passing them to the underlying form. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/android/src/main/java/com/lodev09/truesheet/core/TrueSheetDimView.kt#L24-L27
 const TRUE_SHEET_DIMMED = true
 
 export interface SheetHandle {
@@ -105,12 +106,16 @@ export function Sheet({
   const sheetRef = useRef<TrueSheet>(null)
   const exitActionRef = useRef<(() => void) | null>(null)
   const onCloseRef = useRef(onClose)
+  const closeCompletedRef = useRef(false)
+  const presentationPendingRef = useRef(false)
 
   useEffect(() => {
     onCloseRef.current = onClose
   }, [onClose])
 
   const handleDidDismiss = useCallback(() => {
+    if (closeCompletedRef.current) return
+    closeCompletedRef.current = true
     unregisterOpenOverlay(sheetId)
     const exitAction = exitActionRef.current
     exitActionRef.current = null
@@ -129,22 +134,31 @@ export function Sheet({
   useEffect(() => {
     let active = true
     void getPrefersReducedMotion().then((reduceMotion) => {
-      if (active) return sheetRef.current?.present(0, !reduceMotion)
+      if (!active || closeCompletedRef.current) return
+      const presentation = sheetRef.current?.present(0, !reduceMotion)
+      if (!presentation) return
+      presentationPendingRef.current = true
+      return presentation.finally(() => { presentationPendingRef.current = false })
     }).catch(() => {
-      // WHY: A rejected presentation leaves no native sheet to keep mounted. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/src/TrueSheet.tsx#L374-L394
+      // WHY: A rejected presentation leaves no native sheet to keep mounted. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/src/TrueSheet.tsx#L473-L518
       handleDidDismiss()
     })
     return () => { active = false }
   }, [handleDidDismiss])
 
   const requestClose = useCallback((exitAction?: () => void, onRejected?: () => void) => {
+    if (closeCompletedRef.current) return
     exitActionRef.current = exitAction ?? null
-    void sheetRef.current?.dismiss(!reducedMotion).catch(() => {
-      // WHY: A rejected dismissal leaves the native sheet visible. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/src/TrueSheet.tsx#L404-L410
+    const presentationWasPending = presentationPendingRef.current
+    // WHY: Cancelling a lazy presentation resolves dismiss() without onDidDismiss; both completions share one latch. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/src/TrueSheet.tsx#L524-L558
+    void sheetRef.current?.dismiss(!reducedMotion).then(() => {
+      if (presentationWasPending) handleDidDismiss()
+    }, () => {
+      // WHY: A rejected dismissal leaves the native sheet visible. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/src/TrueSheet.tsx#L554-L558
       exitActionRef.current = null
       onRejected?.()
     })
-  }, [reducedMotion])
+  }, [reducedMotion, handleDidDismiss])
 
   const handle = useMemo<SheetHandle>(() => ({ requestClose }), [requestClose])
 
@@ -175,6 +189,7 @@ export function Sheet({
 
   const showSheetToast = topOverlayId === sheetId && currentToast !== null
   const footer = renderSheetFooter(actions, showSheetToast, sheetId, styles, setFooterHeight)
+  // WHY: Native padding owns the footer inset, so the measured child height needs no inset subtraction. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/common/cpp/react/renderer/components/TrueSheetSpec/TrueSheetFooterViewShadowNode.cpp#L36-L56
   const reservedFooterHeight = footer ? footerHeight : 0
   const maxBodyHeight = Math.max(0, height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK - headerHeight - bottomInset)
   const maxScrollHeight = Math.max(0, maxBodyHeight - reservedFooterHeight)
@@ -184,6 +199,7 @@ export function Sheet({
       ref={sheetRef}
       backgroundStyle={{ backgroundColor: tokens.bgSheet }}
       cornerRadius={28}
+      // WHY: The last detent sets the expanded height, so a second stop would let short content expand into blank space. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/android/src/main/java/com/lodev09/truesheet/TrueSheetViewController.kt#L1095-L1114
       detents={['auto']}
       dimmed={TRUE_SHEET_DIMMED}
       dismissible={onClose != null && onBackPress == null}
@@ -226,6 +242,7 @@ export function Sheet({
             testID="sheet-body-scroll"
             style={{ maxHeight: maxScrollHeight }}
             contentContainerStyle={[bodyStyle, boundedBody ? { maxHeight: maxScrollHeight } : null]}
+            // WHY: The native footer adds safe-area padding outside the measured child, so focus clearance reserves both heights. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/src/TrueSheet.tsx#L706-L720
             keyboardVerticalOffset={footer ? footerHeight + bottomInset : undefined}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}

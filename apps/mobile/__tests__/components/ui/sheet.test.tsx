@@ -70,19 +70,25 @@ vi.mock('@/components/habits/create-habit-modal/sub-habit-editor', () => ({ SubH
 
 const { present, dismiss, didDismiss } = vi.hoisted(() => {
   const handlers: { current: (() => void) | null } = { current: null }
+  const dismissal: { current: (() => void) | null } = { current: null }
+  const waitForDismissal = () => new Promise<void>(resolve => { dismissal.current = resolve })
   return {
     present: vi.fn(() => Promise.resolve()),
-    dismiss: vi.fn(() => Promise.resolve()),
+    dismiss: vi.fn(waitForDismissal),
     didDismiss: {
+      wait: waitForDismissal,
       register(handler: (() => void) | undefined) {
         handlers.current = handler ?? null
       },
       /** Stands in for the native dismissal completing. */
       complete() {
         handlers.current?.()
+        dismissal.current?.()
+        dismissal.current = null
       },
       reset() {
         handlers.current = null
+        dismissal.current = null
       },
     },
   }
@@ -439,7 +445,7 @@ describe('Sheet (mobile)', () => {
     present.mockReset()
     present.mockResolvedValue(undefined)
     dismiss.mockReset()
-    dismiss.mockResolvedValue(undefined)
+    dismiss.mockImplementation(didDismiss.wait)
     didDismiss.reset()
     __resetTestHostConfig()
   })
@@ -802,7 +808,7 @@ describe('Sheet close path (mobile)', () => {
     present.mockReset()
     present.mockResolvedValue(undefined)
     dismiss.mockReset()
-    dismiss.mockResolvedValue(undefined)
+    dismiss.mockImplementation(didDismiss.wait)
     didDismiss.reset()
   })
 
@@ -841,9 +847,11 @@ describe('Sheet close path (mobile)', () => {
     }
   })
 
-  it('reports close only once the native dismissal completes', async () => {
+  it.each([false, true])('reports close only once native dismissal completes with presentation pending=%s', async presentationPending => {
     const onClose = vi.fn()
     let handle: SheetHandle | null = null
+    let completePresentation: (() => void) | undefined
+    if (presentationPending) present.mockReturnValueOnce(new Promise<void>(resolve => { completePresentation = resolve }))
 
     function Host() {
       const { sheetRef, closeSheet } = useSheetHost()
@@ -869,6 +877,7 @@ describe('Sheet close path (mobile)', () => {
     expect(onClose).not.toHaveBeenCalled()
 
     await TestRenderer.act(async () => {
+      completePresentation?.()
       didDismiss.complete()
       await Promise.resolve()
     })
