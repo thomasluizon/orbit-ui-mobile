@@ -97,6 +97,10 @@ and proxy. The release build uses the same staging prepare and package commands 
 
 The job generates an ephemeral root certificate and Tauri key. It maps the shell's exact web and
 update hosts to loopback, trusts the root in the VM's system store, and checks DNS before launching.
+The resolver is refreshed once after replacing hosts, then both names are polled without further
+cache purges for up to 30 seconds. macOS failures capture the hosts tail, permissions and extended
+attributes, resolver configuration, host lookup and two minutes of daemon logs before restoring
+hosts. The `origin-isolation-*.log` artifacts include command failures alongside the isolation error.
 On macOS a separate listener uses passwordless `sudo` to bind loopback port 443, then clears its
 supplementary groups and drops to the runner's user and group before accepting connections. It
 forwards the encrypted stream to the user's TLS proxy on port 3443. Binding that listener is the
@@ -127,8 +131,10 @@ requires capture output, a nonempty MP4 and successful full decoding. Device enu
 logs accompany the video. Setup before the recording tool is available is outside the recording.
 
 Platform readers dump the real AX or UI Automation tree and require web content, interactive
-controls, semantic roles and nonempty names. Palette arrows must retain input focus and expose the
-next selected result in both the DOM and platform tree. An exact macOS access denial is recorded as
+controls, semantic roles and nonempty names. Palette arrows must retain DOM input focus and expose the
+next selected result in both the DOM and platform tree. Platform focus may be on the input or its
+selected active descendant inside the controlled listbox, matched by captured automation identifiers.
+An exact macOS access denial is recorded as
 a skip, with Windows still required. These are structural checks; a person's spoken screen reader
 pass remains separate. Reports, native trees, capture and diagnostic logs upload even on failure.
 Keys, session fixtures and build packages are excluded from the artifact paths. Cleanup stops owned

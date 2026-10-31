@@ -152,15 +152,22 @@ export async function isolateOrigins(output) {
     await waitForIsolatedOrigins(refreshResolver)
     return { key: await readFile(join(output, 'server.key')), cert: await readFile(join(output, 'server.pem')), restore }
   } catch (error) {
-    await restore()
+    try {
+      if (!windows) await recordResolverDiagnostics(output, error)
+    } catch (diagnosticError) {
+      throw new AggregateError([error, diagnosticError], error.message)
+    } finally {
+      await restore()
+    }
     throw error
   }
 }
 
 export async function waitForIsolatedOrigins(refreshResolver, resolve = lookup) {
-  const deadline = Date.now() + 10000
+  await refreshResolver()
+  // Hosts reload asynchronously; repeated cache purges restart queries while the VM settles (#1560).
+  const deadline = Date.now() + 30000
   while (true) {
-    await refreshResolver()
     const resolutions = await Promise.all(['app-staging.useorbit.org', 'github.com'].map(async (hostname) =>
       ({ hostname, addresses: await resolve(hostname, { all: true }) })))
     const failures = resolutions.filter(({ addresses }) => !addresses.length ||
@@ -172,4 +179,18 @@ export async function waitForIsolatedOrigins(refreshResolver, resolve = lookup) 
     }
     await delay(Math.min(250, remaining))
   }
+}
+
+async function recordResolverDiagnostics(output, failure) {
+  const commands = [
+    ['hosts', 'tail', ['-n', '40', '/etc/hosts']],
+    ['hosts-metadata', 'ls', ['-le@', '/etc/hosts']],
+    ['dns', 'scutil', ['--dns']],
+    ['host-query', 'dscacheutil', ['-q', 'host', '-a', 'name', 'app-staging.useorbit.org']],
+    ['mdns', '/usr/bin/log', ['show', '--last', '2m', '--predicate', 'process == "mDNSResponder"']],
+  ].map(([name, command, argumentsList]) => ({ command, argumentsList, log: join(output, `origin-isolation-${name}.log`) }))
+  const results = await Promise.allSettled(commands.map(({ command, argumentsList, log }) => execute(command, argumentsList, { log })))
+  const captures = commands.map((command, index) => ({ ...command,
+    error: results[index].status === 'rejected' ? results[index].reason.message : null }))
+  await writeFile(join(output, 'origin-isolation-diagnostics.log'), `${JSON.stringify({ error: failure.message, commands: captures }, null, 2)}\n`)
 }

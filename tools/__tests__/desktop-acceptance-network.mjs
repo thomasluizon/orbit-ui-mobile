@@ -76,27 +76,37 @@ async function resolverReloadCases() {
   const source = platformSource.slice(platformSource.indexOf('export async function isolateOrigins')).replaceAll('export ', '')
   const publicAddresses = [{ address: '203.0.113.7', family: 4 }]
   const loopbacks = [{ address: '127.0.0.1', family: 4 }, { address: '::1', family: 6 }]
-  for (const converges of [true, false]) {
+  for (const settleAfter of [1500, 12000, Infinity]) {
+    const converges = Number.isFinite(settleAfter)
     let elapsed = 0
+    let refreshedAt = 0
     let attempts = 0
     let refreshes = 0
     let restored = false
     let removedTrust = false
     const resolved = []
+    const diagnostics = []
+    const files = new Map()
+    const logFailure = new Error('unified log capture denied')
     const context = {
       windows: false, join, process: { env: {} }, Date: { now: () => elapsed },
       X509Certificate: class { fingerprint = '00:11' },
-      readFile: async () => 'certificate', writeFile: async () => {},
-      execute: async (command, argumentsList) => {
-        if (argumentsList[0] === 'dscacheutil') refreshes++
+      readFile: async () => 'certificate', writeFile: async (path, content) => { files.set(path, content) },
+      execute: async (command, argumentsList, options) => {
+        if (argumentsList[0] === 'dscacheutil') { refreshes++; refreshedAt = elapsed }
         if (argumentsList[0] === 'cp' && argumentsList[1].endsWith('original-hosts')) restored = true
         if (argumentsList[0] === 'security' && argumentsList[1] === 'delete-certificate') removedTrust = true
+        if (options?.log.includes('origin-isolation-')) {
+          diagnostics.push({ command, argumentsList, log: options.log, restored })
+          files.set(options.log, `captured ${command}`)
+          if (command === '/usr/bin/log') throw logFailure
+        }
       },
       delay: async (milliseconds) => { elapsed += milliseconds },
       lookup: async (hostname, options) => {
         if (hostname === 'app-staging.useorbit.org') attempts++
         resolved.push({ hostname, options, refreshes })
-        return converges && attempts >= 3 ? loopbacks : publicAddresses
+        return elapsed - refreshedAt >= settleAfter ? loopbacks : publicAddresses
       },
     }
     runInNewContext(`${source}\nglobalThis.isolateOrigins = isolateOrigins`, context)
@@ -104,16 +114,33 @@ async function resolverReloadCases() {
     let failure
     try { isolation = await context.isolateOrigins('output') } catch (error) { failure = error }
     if (converges) {
-      T('origin isolation waits for both hostnames to resolve only to loopback on the third attempt',
-        !failure && isolation && attempts === 3 && resolved.length === 6, failure?.message ?? JSON.stringify(resolved))
-      T('resolver reload is refreshed between attempts and every lookup requests all address families',
-        elapsed > 0 && resolved.every(({ options, refreshes }, index) => options.all === true && refreshes === Math.floor(index / 2) + 1))
+      T(`origin isolation lets the resolver settle after ${settleAfter} ms without refreshing between polls`,
+        !failure && isolation && elapsed === settleAfter && attempts === settleAfter / 250 + 1 && resolved.length === attempts * 2,
+        failure?.message ?? JSON.stringify(resolved))
+      T('every lookup requests all address families after one resolver refresh',
+        resolved.every(({ options, refreshes }) => options.all === true && refreshes === 1))
+      T('successful origin isolation does not collect failure diagnostics', diagnostics.length === 0)
       await isolation?.restore()
     } else {
       T('origin isolation fails at its deadline with each hostname and the observed addresses',
         !isolation && failure?.message.includes(`app-staging.useorbit.org: ${JSON.stringify(publicAddresses)}`) &&
-        failure.message.includes(`github.com: ${JSON.stringify(publicAddresses)}`) && elapsed >= 10000 && elapsed <= 10250,
+        failure.message.includes(`github.com: ${JSON.stringify(publicAddresses)}`) && elapsed >= 30000 && elapsed <= 30250,
         failure?.message ?? `returned before isolation after ${attempts} lookups`)
+      T('failed origin isolation keeps the resolver quiet until hosts restoration',
+        refreshes === 2 && resolved.every(({ refreshes }) => refreshes === 1))
+      const expectedCommands = [
+        ['tail', ['-n', '40', '/etc/hosts']], ['ls', ['-le@', '/etc/hosts']], ['scutil', ['--dns']],
+        ['dscacheutil', ['-q', 'host', '-a', 'name', 'app-staging.useorbit.org']],
+        ['/usr/bin/log', ['show', '--last', '2m', '--predicate', 'process == "mDNSResponder"']],
+      ]
+      T('failed origin isolation captures hosts, permissions, resolvers, lookup and recent daemon logs before restoring hosts',
+        JSON.stringify(diagnostics.map(({ command, argumentsList }) => [command, argumentsList])) === JSON.stringify(expectedCommands) &&
+        diagnostics.every(({ restored, log }) => !restored && log.endsWith('.log') && files.has(log)))
+      const summary = JSON.parse(files.get(join('output', 'origin-isolation-diagnostics.log')) ?? 'null')
+      T('a diagnostic command failure is recorded without hiding isolation failure or skipping other captures',
+        summary?.error === failure?.message && summary?.commands.length === 5 &&
+        summary.commands.filter(({ error }) => error !== null).length === 1 &&
+        summary.commands.at(-1).error.includes(logFailure.message))
       T('origin isolation deadline still restores hosts and certificate trust', restored && removedTrust)
     }
   }
