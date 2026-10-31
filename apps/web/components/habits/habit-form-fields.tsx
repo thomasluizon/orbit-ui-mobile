@@ -8,7 +8,7 @@ import { AstraGlyph } from '@/components/ui/astra-glyph'
 
 import { X } from '@/components/ui/icons'
 
-import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
+import { backendFormFieldFocusRequest, hasTagDraftChanges, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 
 import { useCallback, useEffect, useState, useId, useMemo, useRef, type ReactNode, type RefObject } from 'react'
@@ -311,6 +311,8 @@ export function HabitFormFields({
   onGoalCreated,
   reminderTimes,
   onReminderTimesChange,
+  onPendingChecklistItemChange,
+  pendingChecklistItem,
   onReminderEnabledChange,
   onSlipAlertEnabledChange,
   onSuggestionContextChange,
@@ -376,6 +378,16 @@ export function HabitFormFields({
   })
 
   const { tags: availableTags = [] } = useTags()
+  const initialTagName = availableTags.find(tag => tag.id === tags.editingTagId)?.name ?? ''
+  const tagEditorDirty = hasTagDraftChanges(tags, initialTagName)
+  const discardTagEditor = () => {
+    newTagErrors.clearBackendErrors()
+    editTagErrors.clearBackendErrors()
+    tags.setNewTagName('')
+    tags.setShowNewTag(false)
+    tags.cancelEditTag()
+  }
+
   const createTag = useCreateTag()
   const updateTag = useUpdateTag()
   const deleteTag = useDeleteTag()
@@ -592,6 +604,7 @@ export function HabitFormFields({
             <section className="flex flex-col gap-2">
               <FormSectionLabel>{t('habits.form.checklist')}</FormSectionLabel>
               <HabitChecklist
+                pendingItemText={pendingChecklistItem} onPendingItemChange={onPendingChecklistItemChange}
                 items={checklistItems}
                 editable
                 proposedItemCount={proposal.checklistItems}
@@ -610,7 +623,7 @@ export function HabitFormFields({
             <HabitAvoidanceFields formHelpers={formHelpers} controller={controller} hasProAccess={hasProAccess} />
             {parentField}
             <section>
-              <TagPickerField suggestions={<TagSuggestions translateError={allowanceText} suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void deleteExistingTag(id)} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? (
+              <TagPickerField editorDirty={tagEditorDirty} onDiscardEditor={discardTagEditor} suggestions={<TagSuggestions translateError={allowanceText} suggestions={tagSuggestions} atLimit={tags.atTagLimit} disabled={tagMutationPending} />} tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void deleteExistingTag(id)} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? (
                 <TagEditorRow
                   error={newTagErrors.fieldErrors.name}
                   focusRequest={newTagErrors.focusRequest}
@@ -622,20 +635,20 @@ export function HabitFormFields({
                   actionLabel={t('common.add')}
                   onChange={tags.setNewTagName}
                   onCommit={() => void createNewTag()}
-                  onCancel={() => { newTagErrors.clearBackendErrors(); tags.setShowNewTag(false) }}
+                  onCancel={discardTagEditor}
                 />
               ) : tags.editingTagId ? (
                 <TagEditorRow
                   error={editTagErrors.fieldErrors.name}
                   focusRequest={editTagErrors.focusRequest}
-                  value={tags.editTagName}
+                  initialValue={initialTagName} value={tags.editTagName}
                   disabled={updateTag.isPending}
                   inputAriaLabel={t('habits.form.tagName')}
                   cancelAriaLabel={t('common.cancel')}
                   actionLabel={t('common.save')}
                   onChange={tags.setEditTagName}
                   onCommit={() => void saveEditedTag()}
-                  onCancel={() => { editTagErrors.clearBackendErrors(); tags.cancelEditTag() }}
+                  onCancel={discardTagEditor}
                 />
               ) : undefined} />
               {tags.atTagLimit ? <p className="text-sm text-[var(--fg-3)]">{t('habits.form.tagLimit')}</p> : null}

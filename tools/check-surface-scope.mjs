@@ -951,7 +951,7 @@ function openingSurfaces(opening, sourceFile, state, openings) {
 function measureOpeningSurfaces(opening, sourceFile, state, openings) {
   const surfaces = new Set()
   for (const attribute of opening.attributes.properties) {
-    if (!ts.isJsxAttribute(attribute) || !["className", "style", "backgroundColor", "background"].includes(propertyName(attribute.name))) continue
+    if (!ts.isJsxAttribute(attribute) || !["className", "style", "backgroundStyle", "backgroundColor", "background"].includes(propertyName(attribute.name))) continue
     for (const surface of expressionSurfaces(attribute, sourceFile, state)) surfaces.add(surface)
     if (attribute.initializer && ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
       for (const surface of localExpressionSurfaces(attribute.initializer.expression, sourceFile, state)) surfaces.add(surface)

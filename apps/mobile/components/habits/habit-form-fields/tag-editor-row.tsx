@@ -1,3 +1,5 @@
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useEffect, useRef } from 'react'
 import { useHabitFormInteraction } from './habit-form-interaction'
 import type { TextInput } from 'react-native'
@@ -9,6 +11,7 @@ import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-i
 import { type AppTokens, createStyles } from "./styles";
 
 interface TagEditorRowProps {
+  initialValue?: string
   error?: string
   focusRequest?: number
   value: string;
@@ -26,6 +29,7 @@ interface TagEditorRowProps {
 
 export function TagEditorRow({
   value,
+  initialValue = '',
   error,
   focusRequest,
   placeholder,
@@ -40,10 +44,12 @@ export function TagEditorRow({
   tokens,
 }: Readonly<TagEditorRowProps>) {
   const { isDisabled } = useHabitFormInteraction()
+  const dismiss = useDismissGuard({ isDirty: value !== initialValue, onDismiss: onCancel })
+  const requestCancel = () => { if (!disabled) dismiss.requestDismiss() }
   const inputRef = useRef<TextInput>(null)
   useEffect(() => { if (focusRequest) inputRef.current?.focus() }, [focusRequest])
   return (
-    <View style={styles.tagEditor}>
+    <><View style={styles.tagEditor}>
     <View style={styles.tagFormRow}>
       <BottomSheetAppTextInput
         isChangeDisabled={isDisabled}
@@ -83,12 +89,14 @@ export function TagEditorRow({
         accessibilityRole="button"
         accessibilityLabel={cancelAriaLabel}
         disabled={disabled}
-        onPress={onCancel}
+        onPress={requestCancel}
       >
         <X size={16} color={tokens.fg3} strokeWidth={1.8} />
       </Pressable>
     </View>
     {error ? <Text style={[styles.fieldError, styles.tagEditorError]}>{error}</Text> : null}
     </View>
+    <DiscardChangesSheet open={dismiss.showDiscardDialog} onKeepEditing={dismiss.cancelDismiss} onDiscard={dismiss.confirmDismiss} />
+    </>
   );
 }

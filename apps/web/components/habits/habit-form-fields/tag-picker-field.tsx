@@ -11,9 +11,13 @@ import type { HabitTag } from '@orbit/shared/types/habit'
 import { useTranslations } from 'next-intl'
 import { Pencil, Trash2, Plus } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 
 interface TagPickerFieldProps {
+  editorDirty?: boolean
+  onDiscardEditor?: () => void
   tags: HabitTag[]
   selectedIds: string[]
   atLimit: boolean
@@ -78,9 +82,14 @@ function TagPickerList({ tags, selectedIds, atLimit, disabled, editor, suggestio
   )
 }
 
-export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, suggestions, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerFieldProps>) {
+export function TagPickerField({ editorDirty = false, onDiscardEditor, tags, selectedIds, atLimit, disabled, editor, suggestions, onToggle, onCreate, onEdit, onDelete, editLabel, deleteLabel }: Readonly<TagPickerFieldProps>) {
   const t = useTranslations()
   const [open, setOpen] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
+  const finishClose = () => { setOpen(false); onDiscardEditor?.() }
+  const dismiss = useDismissGuard({ isDirty: editorDirty, onDismiss: () => closeSheet(finishClose) })
+  const requestDismiss = () => { if (!disabled) dismiss.requestDismiss() }
+
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds])
   const selectedTags = tags.filter((tag) => selectedSet.has(tag.id))
 
@@ -88,8 +97,9 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, s
     <>
       <ListRow title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} placement="column" onClick={() => setOpen(true)} />
       <TagPreview tags={selectedTags} moreLabel={t('habits.form.moreSelected', { count: Math.max(0, selectedTags.length - 3) })} />
-      {open ? <Sheet open virtualizedBody={tags.length >= 21} title={t('habits.form.tags')} onClose={() => setOpen(false)}>
+      {open ? <Sheet ref={sheetRef} open virtualizedBody={tags.length >= 21} title={t('habits.form.tags')} onClose={!disabled && dismiss.canDismiss ? finishClose : undefined} onAttemptDismiss={requestDismiss}>
         <TagPickerList tags={tags} selectedIds={selectedSet} atLimit={atLimit} disabled={disabled} editor={editor} suggestions={suggestions} onToggle={onToggle} onCreate={onCreate} onEdit={onEdit} onDelete={onDelete} editLabel={editLabel} deleteLabel={deleteLabel} />
+      <DiscardChangesSheet open={dismiss.showDiscardDialog} onKeepEditing={dismiss.cancelDismiss} onDiscard={dismiss.confirmDismiss} />
       </Sheet> : null}
     </>
   )

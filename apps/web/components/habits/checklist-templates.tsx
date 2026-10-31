@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
@@ -16,6 +16,8 @@ import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 interface ChecklistTemplatesProps {
@@ -34,6 +36,15 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   const [clampedTemplates, setClampedTemplates] = useState<Record<string, boolean>>({})
   const [showSave, setShowSave] = useAccountScopedState(false)
   const [templateName, setTemplateName] = useAccountScopedState('')
+  const dismissActionRef = useRef<() => void>(() => {})
+  const finishClose = () => { setOpen(false); setShowSave(false); setTemplateName('') }
+  const dismiss = useDismissGuard({ isDirty: showSave && templateName.length > 0, onDismiss: () => dismissActionRef.current() })
+  const requestDismiss = (action = () => closeSheet(finishClose)) => {
+    if (createTemplate.isPending) return
+    dismissActionRef.current = action
+    dismiss.requestDismiss()
+  }
+  const cancelEditor = () => requestDismiss(() => { setTemplateName(''); setShowSave(false) })
 
   const handleSave = useCallback(() => {
     const name = templateName.trim()
@@ -53,18 +64,14 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
     )
   }, [createTemplate, items, setShowSave, setTemplateName, showError, t, templateName])
 
-  const handleLoad = useCallback(
-    (id: string) => {
-      const tmpl = templates.find((entry) => entry.id === id)
-      if (tmpl) {
-        closeSheet(() => {
-          setOpen(false)
-          onLoad(applyChecklistTemplate(tmpl))
-        })
-      }
-    },
-    [closeSheet, onLoad, setOpen, templates],
-  )
+  function handleLoad(id: string) {
+    const template = templates.find((entry) => entry.id === id)
+    if (!template) return
+    requestDismiss(() => closeSheet(() => {
+      finishClose()
+      onLoad(applyChecklistTemplate(template))
+    }))
+  }
 
   const handleDelete = useCallback(
     (id: string) => {
@@ -89,7 +96,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
         />
       </div>
       {open ? (
-        <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
+        <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={!createTemplate.isPending && dismiss.canDismiss ? finishClose : undefined} onAttemptDismiss={() => requestDismiss()}>
           <div className="flex flex-col" style={{ gap: 4 }}>
             {templates.length > 0 && items.length > 0 && !showSave ? (
               <ListRow
@@ -132,7 +139,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           <button
             type="button"
             className="habit-control-motion shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]"
-            onClick={() => setShowSave(false)}
+            onClick={cancelEditor}
             aria-label={t('common.close')}
           >
             <X size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -155,16 +162,24 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
               </div>
             ))}
             {templates.length === 0 && !showSave ? (
-              <div className="flex flex-col items-center py-8 text-center" style={{ gap: 12 }}>
-                <p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noTemplates')}</p>
-                <p className="text-sm text-[var(--fg-3)]">{t('habits.form.noTemplatesDescription')}</p>
-                <button type="button" className="chip mt-2" disabled={items.length === 0} onClick={() => setShowSave(true)}>{t('habits.form.saveCurrentList')}</button>
-                {items.length === 0 ? <p className="text-xs text-[var(--fg-3)]">{t('habits.form.saveCurrentListDisabled')}</p> : null}
-              </div>
+              <ChecklistTemplatesEmptyState canSave={items.length > 0} onSave={() => setShowSave(true)} />
             ) : null}
           </div>
+          <DiscardChangesSheet open={dismiss.showDiscardDialog} onKeepEditing={dismiss.cancelDismiss} onDiscard={dismiss.confirmDismiss} />
         </Sheet>
       ) : null}
     </>
+  )
+}
+
+function ChecklistTemplatesEmptyState({ canSave, onSave }: Readonly<{ canSave: boolean; onSave: () => void }>) {
+  const t = useTranslations()
+  return (
+    <div className="flex flex-col items-center py-8 text-center" style={{ gap: 12 }}>
+      <p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noTemplates')}</p>
+      <p className="text-sm text-[var(--fg-3)]">{t('habits.form.noTemplatesDescription')}</p>
+      <button type="button" className="chip mt-2" disabled={!canSave} onClick={onSave}>{t('habits.form.saveCurrentList')}</button>
+      {!canSave ? <p className="text-xs text-[var(--fg-3)]">{t('habits.form.saveCurrentListDisabled')}</p> : null}
+    </div>
   )
 }

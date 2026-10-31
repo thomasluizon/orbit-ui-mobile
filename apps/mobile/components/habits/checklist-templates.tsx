@@ -2,7 +2,7 @@ import { useHabitFormInteraction } from './habit-form-fields/habit-form-interact
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   StyleSheet,
   Text,
@@ -26,6 +26,8 @@ import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -77,6 +79,15 @@ export function ChecklistTemplates({
   const [clampedTemplates, setClampedTemplates] = useState<Record<string, boolean>>({})
   const [showSave, setShowSave] = useState(false)
   const [templateName, setTemplateName] = useState('')
+  const dismissActionRef = useRef<() => void>(() => {})
+  const finishClose = () => { setOpen(false); setShowSave(false); setTemplateName('') }
+  const dismiss = useDismissGuard({ isDirty: showSave && templateName.length > 0, onDismiss: () => dismissActionRef.current() })
+  const requestDismiss = (action = () => closeSheet(finishClose)) => {
+    if (createTemplate.isPending) return
+    dismissActionRef.current = action
+    dismiss.requestDismiss()
+  }
+  const cancelEditor = () => requestDismiss(() => { setTemplateName(''); setShowSave(false) })
 
   const handleSave = useCallback(() => {
     const name = templateName.trim()
@@ -96,14 +107,14 @@ export function ChecklistTemplates({
     )
   }, [createTemplate, isDisabled, items, showError, t, templateName])
 
-  const handleLoad = useCallback((id: string) => {
+  function handleLoad(id: string) {
     const template = templates.find((entry) => entry.id === id)
     if (isDisabled() || !template) return
-    closeSheet(() => {
-      setOpen(false)
+    requestDismiss(() => closeSheet(() => {
+      finishClose()
       onLoad(applyChecklistTemplate(template))
-    })
-  }, [closeSheet, isDisabled, onLoad, templates])
+    }))
+  }
 
   const handleDelete = useCallback((id: string) => {
     if (isDisabled()) return
@@ -127,7 +138,7 @@ export function ChecklistTemplates({
         />
       </View>
       {open ? (
-        <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
+        <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={!createTemplate.isPending && dismiss.canDismiss ? finishClose : undefined} onAttemptDismiss={() => requestDismiss()}>
           <View style={styles.container}>
             {templates.length > 0 && items.length > 0 && !showSave ? (
               <ListRow
@@ -172,10 +183,7 @@ export function ChecklistTemplates({
               styles.closeButton,
               pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
             ]}
-            onPress={() => {
-              setTemplateName('')
-              setShowSave(false)
-            }}
+            onPress={cancelEditor}
             accessibilityRole="button"
             accessibilityLabel={t('common.close')}
           >
@@ -200,6 +208,7 @@ export function ChecklistTemplates({
             ))}
             {templates.length === 0 && !showSave ? <ChecklistTemplatesEmptyState canSave={items.length > 0} onSave={() => setShowSave(true)} styles={styles} translate={t} /> : null}
           </View>
+          <DiscardChangesSheet open={dismiss.showDiscardDialog} onKeepEditing={dismiss.cancelDismiss} onDiscard={dismiss.confirmDismiss} />
         </Sheet>
       ) : null}
     </>

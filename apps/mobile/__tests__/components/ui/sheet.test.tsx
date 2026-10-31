@@ -70,19 +70,25 @@ vi.mock('@/components/habits/create-habit-modal/sub-habit-editor', () => ({ SubH
 
 const { present, dismiss, didDismiss } = vi.hoisted(() => {
   const handlers: { current: (() => void) | null } = { current: null }
+  const dismissal: { current: (() => void) | null } = { current: null }
+  const waitForDismissal = () => new Promise<void>(resolve => { dismissal.current = resolve })
   return {
     present: vi.fn(() => Promise.resolve()),
-    dismiss: vi.fn(() => Promise.resolve()),
+    dismiss: vi.fn(waitForDismissal),
     didDismiss: {
+      wait: waitForDismissal,
       register(handler: (() => void) | undefined) {
         handlers.current = handler ?? null
       },
       /** Stands in for the native dismissal completing. */
       complete() {
         handlers.current?.()
+        dismissal.current?.()
+        dismissal.current = null
       },
       reset() {
         handlers.current = null
+        dismissal.current = null
       },
     },
   }
@@ -234,7 +240,7 @@ describe('Sheet (mobile)', () => {
     expect(dismiss).toHaveBeenCalledOnce()
     const nativeSheet = tree.root.findByType(TrueSheet)
     expect(nativeSheet.props.dismissible).toBe(false)
-    TestRenderer.act(() => { expect(nativeSheet.props.onBackPress()).toBe(true) })
+    TestRenderer.act(() => { nativeSheet.props.onDismissAttempt({ nativeEvent: null }); expect(nativeSheet.props.onDismissAttempt).toBeTypeOf('function') })
     expect(onBackPress).toHaveBeenCalledOnce()
     expect(onClose).not.toHaveBeenCalled()
     TestRenderer.act(() => didDismiss.complete())
@@ -403,7 +409,7 @@ describe('Sheet (mobile)', () => {
       tree = TestRenderer.create(<Sheet open title="Title" onClose={vi.fn()}><Text>Content</Text></Sheet>)
       await Promise.resolve()
     })
-    expect(tree.root.findByType(TrueSheet).props).toMatchObject({ maxContentWidth: 740, anchor: 'center' })
+    expect(tree.root.findByType(TrueSheet).props).toMatchObject({ maxContentWidth: 740, placement: 'center' })
     await TestRenderer.act(() => tree.unmount())
   })
 
@@ -439,7 +445,7 @@ describe('Sheet (mobile)', () => {
     present.mockReset()
     present.mockResolvedValue(undefined)
     dismiss.mockReset()
-    dismiss.mockResolvedValue(undefined)
+    dismiss.mockImplementation(didDismiss.wait)
     didDismiss.reset()
     __resetTestHostConfig()
   })
@@ -506,7 +512,9 @@ describe('Sheet (mobile)', () => {
       .find((node: { props: { nestedScrollEnabled?: boolean } }) => node.props.nestedScrollEnabled)
     expect(bodyScroller).toBeDefined()
     const nativeSheet = tree.root.findByType(TrueSheet)
-    expect(nativeSheet.props.scrollable).toBe(false)
+    expect(nativeSheet.props).not.toHaveProperty('scrollable')
+    expect(nativeSheet.props.scrollableRef).toBeUndefined()
+    expect(nativeSheet.props.footerOptions).toEqual({ position: 'absolute' })
     expect(nativeSheet.props.maxContentHeight).toBeCloseTo(892 * 0.85 - 24)
     expect(nativeSheet.props.maxContentWidth).toBe(740)
     expect(nativeSheet.props.insetAdjustment).toBe('automatic')
@@ -521,7 +529,7 @@ describe('Sheet (mobile)', () => {
 
     expect(tree.root.findAllByType('ScrollView')).toHaveLength(0)
     expect(tree.root.findByProps({ testID: 'sheet-virtualized-body' })).toBeDefined()
-    expect(tree.root.findByType(TrueSheet).props.scrollable).toBe(false)
+    expect(tree.root.findByType(TrueSheet).props.scrollableRef).toBeUndefined()
   })
 
   it.each([0, 76])('reveals a focused lower input above a %i-high footer through the sheet body scroller', async (footerHeight) => {
@@ -557,7 +565,7 @@ describe('Sheet (mobile)', () => {
       vi.advanceTimersByTime(60)
     })
 
-    expect(scrollTo).toHaveBeenCalledWith({ y: 298 + footerHeight, animated: true })
+    expect(scrollTo).toHaveBeenCalledWith({ y: 298 + (footerHeight ? footerHeight + safeArea.bottom : 0), animated: true })
   })
 
   it.each([0, 24])('reserves the measured footer above a %i bottom inset and uses its full height for the keyboard', async (bottomInset) => {
@@ -570,12 +578,12 @@ describe('Sheet (mobile)', () => {
     const footer = tree!.root.findByType(TrueSheet).props.footer
     TestRenderer.act(() => footer.props.onLayout({ nativeEvent: { layout: { height: 76 } } }))
     const scroller = tree!.root.findByType(KeyboardAwareSheetScrollView)
-    expect(tree!.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(76 - bottomInset)
+    expect(tree!.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(76)
     expect(scroller.findAllByProps({ testID: 'sheet-footer-space' })).toHaveLength(0)
-    expect(scroller.props.keyboardVerticalOffset).toBe(76)
+    expect(scroller.props.keyboardVerticalOffset).toBe(76 + bottomInset)
     TestRenderer.act(() => footer.props.onLayout({ nativeEvent: { layout: { height: 112 } } }))
-    expect(tree!.root.findByType(KeyboardAwareSheetScrollView).props.keyboardVerticalOffset).toBe(112)
-    expect(tree!.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(112 - bottomInset)
+    expect(tree!.root.findByType(KeyboardAwareSheetScrollView).props.keyboardVerticalOffset).toBe(112 + bottomInset)
+    expect(tree!.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(112)
     TestRenderer.act(() => tree!.unmount())
   })
 
@@ -643,7 +651,8 @@ describe('Sheet (mobile)', () => {
 
     const nativeSheet = tree!.root.findByType(TrueSheet)
     expect(nativeSheet.props.dismissible).toBe(false)
-    expect(nativeSheet.props.onBackPress()).toBe(true)
+    expect(nativeSheet.props.onDismissAttempt).toBeTypeOf('function')
+    TestRenderer.act(() => nativeSheet.props.onDismissAttempt({ nativeEvent: null }))
     expect(onAttemptDismiss).toHaveBeenCalledTimes(1)
     expect(nativeSheet.props.header).toBeDefined()
     const close = nativeSheet.props.header.props.children.flat().find((child: { props?: { accessibilityLabel?: string } } | null) => child?.props?.accessibilityLabel === 'common.close')
@@ -668,7 +677,7 @@ describe('Sheet (mobile)', () => {
       })
 
       const nativeSheet = tree!.root.findByType(TrueSheet)
-      expect(nativeSheet.props.onBackPress()).toBe(true)
+      expect(nativeSheet.props.onDismissAttempt).toBeTypeOf('function')
       expect(dismiss).not.toHaveBeenCalled()
     },
   )
@@ -707,18 +716,18 @@ describe('Sheet (mobile)', () => {
     expect(contentStyle.flex).toBeUndefined()
     expect(contentStyle.flexGrow).toBeUndefined()
     const actions = nativeSheet.props.footer.props.children[1]
-    expect(StyleSheet.flatten(nativeSheet.props.footer.props.style)).toMatchObject({ paddingBottom: 24 })
+    expect(StyleSheet.flatten(nativeSheet.props.footer.props.style)).not.toHaveProperty('paddingBottom')
     expect(StyleSheet.flatten(actions.props.style)).toMatchObject({ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24 })
     expect(nativeSheet.props.footer.props.onLayout).toBeTypeOf('function')
     await TestRenderer.act(() => {
       nativeSheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: 112 } } })
     })
-    expect(tree.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(112 - 24)
+    expect(tree.root.findByProps({ testID: 'sheet-footer-space' }).props.style.height).toBe(112)
     await TestRenderer.act(() => {
       nativeSheet.props.header.props.onLayout({ nativeEvent: { layout: { height: 56 } } })
     })
     const measuredScroller = tree.root.findAllByType('ScrollView')[0]
-    expect(measuredScroller.props.style.maxHeight).toBeCloseTo(892 * 0.85 - 24 - 56 - 24 - (112 - 24))
+    expect(measuredScroller.props.style.maxHeight).toBeCloseTo(892 * 0.85 - 24 - 56 - 24 - 112)
   })
 
   it.each([false, true])('separates footer actions with space only with virtualizedBody=%s', async (virtualizedBody) => {
@@ -760,7 +769,7 @@ describe('Sheet (mobile)', () => {
 
     const footer = tree.root.findByType(TrueSheet).props.footer
     expect(footer).toBeDefined()
-    expect(StyleSheet.flatten(footer.props.style)).toMatchObject({ paddingBottom: 24 })
+    expect(StyleSheet.flatten(footer.props.style)).not.toHaveProperty('paddingBottom')
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -799,7 +808,7 @@ describe('Sheet close path (mobile)', () => {
     present.mockReset()
     present.mockResolvedValue(undefined)
     dismiss.mockReset()
-    dismiss.mockResolvedValue(undefined)
+    dismiss.mockImplementation(didDismiss.wait)
     didDismiss.reset()
   })
 
@@ -838,9 +847,11 @@ describe('Sheet close path (mobile)', () => {
     }
   })
 
-  it('reports close only once the native dismissal completes', async () => {
+  it.each([false, true])('reports close only once native dismissal completes with presentation pending=%s', async presentationPending => {
     const onClose = vi.fn()
     let handle: SheetHandle | null = null
+    let completePresentation: (() => void) | undefined
+    if (presentationPending) present.mockReturnValueOnce(new Promise<void>(resolve => { completePresentation = resolve }))
 
     function Host() {
       const { sheetRef, closeSheet } = useSheetHost()
@@ -866,6 +877,7 @@ describe('Sheet close path (mobile)', () => {
     expect(onClose).not.toHaveBeenCalled()
 
     await TestRenderer.act(async () => {
+      completePresentation?.()
       didDismiss.complete()
       await Promise.resolve()
     })
