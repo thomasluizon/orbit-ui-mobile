@@ -8,7 +8,8 @@ import { astraOfferDestination, canShowAstraOffer } from '../chat/astra-offer'
 import { readBlockMetadataSchema } from '../types/chat'
 import { pendingAgentOperationSchema, revisePendingOperationRequestSchema } from '../types/ai'
 import { astraOfferFixture, makeOfferedPreview, offeredReadFixture, offerConversationId } from '../test-support/astra-offer-fixtures'
-import { pendingOperationDraft, pendingOperationEdits, pendingOperationRevisionRequest } from '../hooks/pending-operation-revision-core'
+import { makePendingWriteSummaryOperation, pendingWriteSummaryCases } from '../test-support/chat-fixtures'
+import { applyPendingOperationRevisionPreview, createPendingOperationRevisionState, isPendingOperationEditableField, pendingOperationDraft, pendingOperationEdits, pendingOperationRevisionRequest } from '../hooks/pending-operation-revision-core'
 import { changePreviewFieldInput, previewFieldInputs, previewFieldInputLabel } from '../hooks/preview-field-core'
 const { PostApiChatOffersDismissBody } = await vi.importActual<{ PostApiChatOffersDismissBody: z.ZodObject }>('../types/__generated__/api.generated')
 import { dismissConversationOffersRequestSchema } from '../types/astra-offer'
@@ -117,6 +118,13 @@ it('uses one item position for repeated inputs without exposing field paths', ()
   expect(previewFieldInputLabel(repeat.find(input => input.name === 'interval_minutes')!, { interval_minutes: en.chat.operation.field.interval_minutes })).toBe(en.chat.operation.field.interval_minutes)
 })
 
+it('retains producer field names for structured inputs absent from the label map', () => {
+  const tags = previewFieldInputs('["Water","Read"]', 'tag_names')
+  expect(tags.map(input => previewFieldInputLabel(input, {}))).toEqual(['tag_names 1', 'tag_names 2'])
+  const repeat = previewFieldInputs('{"interval_minutes":120}', 'repeat_reminder')
+  expect(previewFieldInputLabel(repeat.find(input => input.name === 'interval_minutes')!, {})).toBe('interval_minutes')
+})
+
 it('retains nested boolean and nullable draft values while editing only the selected path', () => {
   const proposed = [{ text: 'Read', is_checked: false, relative_reminders: [{ when: null, time: '08:00' }] }]
   const value = JSON.stringify(proposed)
@@ -126,4 +134,50 @@ it('retains nested boolean and nullable draft values while editing only the sele
   expect(inputs.find(input => input.name === 'when')).toMatchObject({ value: '', kind: 'text' })
   expect(inputs.find(input => input.name === 'time')).toMatchObject({ value: '08:00', kind: 'time' })
   expect(() => changePreviewFieldInput('null', checked, true)).toThrow('Invalid preview path')
+})
+
+it.each(['', 'Infinity', 'not a number'])('rejects an invalid numeric preview draft: %s', value => {
+  const numeric = makePendingWriteSummaryOperation(pendingWriteSummaryCases.find(scenario => scenario.name === 'set goal progress')!).items![0]!
+  expect(() => pendingOperationEdits(numeric, { current_value: value })).toThrow('Invalid number')
+  expect(pendingOperationEdits(numeric, { current_value: '110' })).toEqual({ current_value: 110 })
+})
+
+it('requires complete typed lists and retains nested day and boolean edits', () => {
+  const item = makeOfferedPreview().items![0]!
+  const days = { ...item.fields[0]!, field: 'sub_habits/0/days', proposedValue: ['Monday', 'Tuesday'] }
+  const enabled = { ...item.fields[1]!, field: 'sub_habits/0/reminder_enabled' }
+  const nested = { ...item, fields: [days, enabled] }
+  expect(pendingOperationDraft(nested)).toEqual({ [days.field]: 'Monday, Tuesday', [enabled.field]: 'true' })
+  expect(pendingOperationEdits(nested, { [days.field]: 'Friday', [enabled.field]: 'false' })).toEqual({
+    [days.field]: ['Friday'], [enabled.field]: false,
+  })
+  for (const proposedValue of [undefined, 'shortened summary', null]) {
+    expect(isPendingOperationEditableField({ ...days, field: 'sub_habits/0/checklist_items', proposedValue })).toBe(false)
+  }
+  expect(isPendingOperationEditableField({ ...days, field: 'sub_habits/0/checklist_items', proposedValue: [] })).toBe(true)
+  expect(isPendingOperationEditableField({ ...enabled, isEditable: false })).toBe(false)
+  expect(isPendingOperationEditableField({ ...enabled, valueType: 'action' })).toBe(false)
+})
+
+it('removes only the selected offered fields while retaining sibling items', () => {
+  const operation = makeOfferedPreview()
+  const item = operation.items![0]!
+  const sibling = { ...item, itemId: '1' }
+  const request = pendingOperationRevisionRequest(operation.previewFingerprint!, [item, sibling], undefined, undefined,
+    { itemId: item.itemId, fields: item.fields[2]!.removal!.fields! })
+  expect(request).toEqual({ previewFingerprint: operation.previewFingerprint, items: [
+    { itemId: '0', removeSuggestedFields: ['reminder_enabled', 'repeat_reminder'] }, { itemId: '1' },
+  ] })
+})
+
+it('invalidates a preview offer and its previous authorization when accepting a revision', () => {
+  const operation = { ...makeOfferedPreview(), nextAction: astraOfferFixture }
+  const state = createPendingOperationRevisionState(operation)
+  const updated = applyPendingOperationRevisionPreview(state, {
+    changes: operation.changes!, items: operation.items, changeTargetCount: 1, previewFingerprint: 'preview-two',
+  })
+  expect(updated.operation.nextAction).toBeNull()
+  expect(updated.operation.previewFingerprint).toBe('preview-two')
+  expect(updated.authorizationVersion).toBe(state.authorizationVersion + 1)
+  expect(operation.nextAction).toEqual(astraOfferFixture)
 })

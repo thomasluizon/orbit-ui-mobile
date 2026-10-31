@@ -38,6 +38,6 @@ export function changePreviewFieldInput(value: string, input: PreviewFieldInput,
 
 export function previewFieldInputLabel(input: PreviewFieldInput, labels: Readonly<Record<string, string>>): string {
   const position = input.path.filter(segment => typeof segment === 'number').at(-1)
-  const name = labels[input.name]!
+  const name = labels[input.name] ?? input.name
   return position === undefined ? name : `${name} ${position + 1}`
 }

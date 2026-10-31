@@ -10,7 +10,7 @@ export function StructuredPreviewField({ field, value, proposedValue, labels, bu
   onChange: (value: string) => void
 }>) {
   return <fieldset className="flex min-w-0 flex-col gap-3">
-    <legend className="text-sm text-[var(--fg-2)]">{labels.fieldLabels[field.split('/').at(-1)!]}</legend>
+    <legend className="text-sm text-[var(--fg-2)]">{labels.fieldLabels[field.split('/').at(-1)!] ?? field}</legend>
     {previewFieldInputs(value, field, proposedValue).map(input => {
       const key = JSON.stringify(input.path)
       const name = previewFieldInputLabel(input, labels.fieldLabels)

@@ -111,7 +111,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
       {item.fields.filter((field) => isPendingOperationEditableField(field)
         && !(item.placement?.selected === 'new_parent' && field.field === 'parent_habit_id')).map((field) => {
         const fieldName = field.field.split('/').at(-1)!
-        const label = labels.fieldLabels[fieldName]!
+        const label = labels.fieldLabels[fieldName] ?? field.field
         const choices = item.fieldOptions?.find((entry) => entry.field === field.field && entry.field === 'parent_habit_id')
         if (choices) return <ParentChoice key={field.field} itemId={item.itemId} itemName={item.entityName} field={choices} labels={labels} disabled={busy}
           selectedValue={draft[field.field] === '' ? null : draft[field.field]} onSelect={(value) => { if (value === null || typeof value === 'string') onChange(field.field, value ?? '') }} />

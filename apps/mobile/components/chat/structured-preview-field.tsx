@@ -16,7 +16,7 @@ export function StructuredPreviewField({ field, value, proposedValue, labels, bu
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return <View style={{ minWidth: 0, gap: 12 }}>
-    <Text style={{ color: tokens.fg2, fontSize: SECONDARY_TEXT_SIZE }}>{labels.fieldLabels[field.split('/').at(-1)!]}</Text>
+    <Text style={{ color: tokens.fg2, fontSize: SECONDARY_TEXT_SIZE }}>{labels.fieldLabels[field.split('/').at(-1)!] ?? field}</Text>
     {previewFieldInputs(value, field, proposedValue).map(input => {
       const key = JSON.stringify(input.path)
       const name = previewFieldInputLabel(input, labels.fieldLabels)

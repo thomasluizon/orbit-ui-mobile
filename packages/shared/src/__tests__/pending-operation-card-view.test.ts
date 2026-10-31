@@ -1,5 +1,5 @@
-import { makeOfferedPreview } from '../test-support/astra-offer-fixtures'
-import { makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
+import { astraOfferFixture, makeOfferedPreview } from '../test-support/astra-offer-fixtures'
+import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -12,7 +12,7 @@ import {
   type PendingOperationFrame,
   type PendingOperationVerificationProps,
 } from '../chat/pending-operation-card-view'
-import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from '../chat/pending-operation-card'
+import { buildPendingOperationCardLabels, formatPreviewMeta, type PendingOperationCardLabels } from '../chat/pending-operation-card'
 import { pendingOperationSubHabits } from '../chat/pending-operation-sub-habits'
 import { pendingAgentOperationSchema } from '../types/ai'
 import en from '../i18n/en.json'
@@ -1174,5 +1174,64 @@ it('keeps each offered row editable and independently removable before approval'
   expect(card.revision.startEdit).toHaveBeenCalledWith('0')
   record.buttons.find(button => button.label === `${localized.remove} ${label}`)!.onClick()
   expect(removeField).toHaveBeenCalledWith('0', operation.items![0]!.fields[2])
+  expect(card.execute).not.toHaveBeenCalled()
+})
+
+it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('retains localized preview choices and counted controls in $locale', ({ locale, messages }) => {
+  const operation = makePlacementPreview()
+  const placement = operation.items![0]!.placement!
+  const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale)
+  expect({
+    group: localized.placementGroup('Water'),
+    option: localized.placementOption('checklist_item', placement.destinationName),
+    recommendation: localized.placementRecommendation(placement),
+    rejected: localized.rejected(2), more: localized.more(3), open: localized.openNamed('Water'),
+  }).toEqual(locale === 'en' ? {
+    group: 'Placement for Water', option: 'Checklist item in Morning routine',
+    recommendation: 'Astra suggests: Checklist item in Morning routine. You already keep 4 checklist items here.',
+    rejected: 'The 2 changes were rejected. Nothing was saved.', more: 'and 3 more', open: 'Open details: Water',
+  } : {
+    group: 'Onde colocar Water', option: 'Item do checklist de Morning routine',
+    recommendation: 'Astra sugere: Item do checklist de Morning routine. Você já tem 4 itens no checklist aqui.',
+    rejected: 'As 2 mudanças foram rejeitadas. Nada foi salvo.', more: 'e mais 3', open: 'Abrir detalhes: Water',
+  })
+  expect(formatPreviewMeta('Every day · at 08:00')).toBe('Every\u00a0day · at\u00a008:00')
+})
+
+it.each([false, true])('passes the preview offer through the frame with busy=%s', busy => {
+  const operation = { ...makeOfferedPreview(), nextAction: astraOfferFixture }
+  const { record, render } = createRenderers()
+  const offer = vi.fn(() => 'preview-offer')
+  renderPendingOperationCard({ card: { ...createCard(), busy }, labels, render: { ...render, offer }, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+  expect(offer).toHaveBeenCalledExactlyOnceWith(astraOfferFixture, busy)
+  expect(record.frame?.body).toBe('preview-offer')
+})
+
+it.each(['done', 'failed'] as const)('withholds offers and offered field controls after a %s outcome', status => {
+  const operation = { ...makeOfferedPreview(), nextAction: astraOfferFixture }
+  const { record, render } = createRenderers()
+  const offer = vi.fn(() => 'preview-offer')
+  renderPendingOperationCard({ card: { ...createCard(), status }, labels, render: { ...render, offer }, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+  expect(offer).not.toHaveBeenCalled()
+  expect(record.frame?.items.some(item => item.id.includes(':offer:'))).toBe(false)
+})
+
+it('revises placement through the displayed preview choice without executing it', () => {
+  const operation = makePlacementPreview()
+  const card = createCard()
+  card.revision = {
+    operation, canRevise: true, items: operation.items!, editingItem: undefined,
+    draft: {}, editedItemIds: [], busy: false, stale: false, canRefresh: false,
+    refresh: vi.fn(), rejected: false, error: undefined,
+    setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(), switchPlacement: vi.fn(),
+    saveEdit: vi.fn(), rejectItem: vi.fn(), rejectAll: vi.fn(),
+  }
+  const { render } = createRenderers()
+  const placementChoice = vi.fn<PendingOperationCardRenderers<string>['placementChoice']>(() => 'placement-choice')
+  renderPendingOperationCard({ card, labels, render: { ...render, placementChoice }, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+  const choice = placementChoice.mock.calls[0]![0]
+  expect(choice).toMatchObject({ itemId: '0', placement: operation.items![0]!.placement, busy: false, disabled: false })
+  choice.onSelect('new_parent')
+  expect(card.revision.switchPlacement).toHaveBeenCalledExactlyOnceWith('0', 'new_parent')
   expect(card.execute).not.toHaveBeenCalled()
 })

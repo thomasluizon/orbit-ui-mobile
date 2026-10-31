@@ -1572,6 +1572,28 @@ it.each(['en', 'pt-BR'])('shows the producer repeat reminder text in the preview
 })
 
 
+it.each(['en', 'pt-BR'])('keeps the producer label and accessible name for editable goal progress in %s', async locale => {
+  visibleLocale.actual = true
+  visibleLocale.language = locale
+  const messages = locale === 'en' ? en : ptBR
+  const operation = { ...makePendingWriteSummaryOperation(pendingWriteSummaryCases.find(scenario => scenario.name === 'set goal progress')!),
+    displayName: 'update_goal_progress', actionKey: 'updateGoalProgress', previewFingerprint: 'goal-preview' }
+  const onRevise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
+  const onExecute = vi.fn()
+  render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={onExecute} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+  fireEvent.click(screen.getByRole('button', { name: messages.chat.operation.edit }))
+  const editor = screen.getByRole('spinbutton', { name: 'current_value' })
+  expect(screen.getByText('current_value', { selector: 'label' })).toBeVisible()
+  expect(editor).toHaveAccessibleName('current_value')
+  expect(editor).toHaveValue(100)
+  fireEvent.change(editor, { target: { value: '110' } })
+  fireEvent.click(screen.getByRole('button', { name: messages.common.save }))
+  await waitFor(() => expect(onRevise).toHaveBeenCalledExactlyOnceWith(operation.id, {
+    previewFingerprint: 'goal-preview', items: [{ itemId: operation.items![0]!.itemId, edits: { current_value: 110 } }],
+  }))
+  expect(onExecute).not.toHaveBeenCalled()
+})
+
 describe('offered preview fields', () => {
   beforeEach(() => { visibleLocale.actual = true; visibleLocale.language = 'en' })
   it('clears optional active hours through their time controls before saving', async () => {
