@@ -97,7 +97,7 @@ it.each(cases)('keeps $title visible across a two-row drag at $width px in $mode
           return hit !== null && row.contains(hit)
         })
         let opaque = true
-        for (let node: Element | null = row; node; node = node.parentElement) opaque &&= getComputedStyle(node).opacity === '1'
+        for (let node: Element | null = row; node; node = node.parentElement) opaque &&= getComputedStyle(node).opacity === '1' || (node.hasAttribute('data-sortable-dragging') && getComputedStyle(node).opacity === '0.5')
         return { id: row.getAttribute('data-habit-id')!, title: row.getAttribute('data-habit-title'), top: box.top, bottom: box.bottom, visible: visible && opaque }
       })
     })

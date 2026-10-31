@@ -28,13 +28,13 @@ export function SortableHabitItem({
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: 1,
+    opacity: isItemDragging ? 0.5 : 1,
     position: 'relative' as const,
     zIndex: isItemDragging ? 1 : 'auto',
   }
 
   return (
-    <div ref={setNodeRef} data-sortable-habit={id} className="rounded-[20px]" style={style} {...rowListeners}>
+    <div ref={setNodeRef} data-sortable-habit={id} data-sortable-dragging={isItemDragging || undefined} className="rounded-[20px]" style={style} {...rowListeners}>
       {children}
     </div>
   )

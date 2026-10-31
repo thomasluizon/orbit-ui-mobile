@@ -29,7 +29,8 @@ function observeReorderRows(elements: Element[]) {
           let bottom = bounds.bottom
           for (let ancestor: Element | null = row; ancestor; ancestor = ancestor.parentElement) {
             const style = getComputedStyle(ancestor)
-            if (style.opacity !== '1' || style.visibility === 'hidden' || style.display === 'none') failures.add(`${title}: hidden`)
+            const dragFeedback = ancestor.hasAttribute('data-sortable-dragging') && style.opacity === '0.5'
+            if ((style.opacity !== '1' && !dragFeedback) || style.visibility === 'hidden' || style.display === 'none') failures.add(`${title}: hidden`)
             if (['hidden', 'clip'].includes(style.overflowY)) {
               const clip = ancestor.getBoundingClientRect()
               top = Math.max(top, clip.top)
