@@ -291,7 +291,8 @@ describe('habit form identifiers across retained real owners', () => {
     const childId = nested.title.id
     await user.type(nested.title, 'Read every day')
     await user.click(within(child).getByRole('radio', { name: `${words.habits.form.typeHabit}${words.habits.form.typeHabitHint}` }))
-    await user.click(within(child).getByRole('radio', { name: `${words.habits.form.noSchedule}${words.habits.form.noScheduleHint}` }))
+    await user.click(within(child).getByRole('radio', { name: `${words.habits.form.typeTask}${words.habits.form.typeTaskHint}` }))
+    await user.click(within(child).getByRole('radio', { name: words.habits.form.noSchedule }))
     await user.click(within(child).getByRole('radio', { name: `${words.habits.form.typeTask}${words.habits.form.typeTaskHint}` }))
     view.rerender(root)
     expect(phrase(child).title.id).toBe(childId)

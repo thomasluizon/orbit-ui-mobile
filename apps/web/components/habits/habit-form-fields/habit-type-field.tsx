@@ -15,8 +15,8 @@ export function HabitTypeField({ formHelpers, lockedGeneral, onChange }: Readonl
       <div className="flex min-w-0 flex-col gap-2">
         <span className="form-label">{t('habits.form.itemType')}</span>
         <RadioGroup aria-label={t('habits.form.itemType')} focusRequest={recurrenceMismatch ? formHelpers.validationFocusRequest : undefined} aria-required="true">
-          <RadioRow wrapLabel label={t('habits.form.typeTask')} description={t('habits.form.typeTaskHint')} selected={itemType === 'task'} {...(lockedGeneral === true ? { disabled: true as const, reason: t('common.locked') } : { disabled: false as const })} onSelect={() => choose('task')} />
-          <RadioRow wrapLabel label={t('habits.form.typeHabit')} description={t('habits.form.typeHabitHint')} selected={itemType === 'habit'} disabled={false} onSelect={() => choose('habit')} />
+          <RadioRow wrapLabel label={t('habits.form.typeTask')} description={t('habits.form.typeTaskHint')} selected={itemType === 'task'} disabled={false} onSelect={() => choose('task')} />
+          <RadioRow wrapLabel label={t('habits.form.typeHabit')} description={t('habits.form.typeHabitHint')} selected={itemType === 'habit'} {...(lockedGeneral === true ? { disabled: true as const, reason: t('common.locked') } : { disabled: false as const })} onSelect={() => choose('habit')} />
         </RadioGroup>
       </div>
   )

@@ -76,9 +76,9 @@ describe('interaction clearance inspector in Chromium', () => {
           const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
           await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet} *, *::before, *::after { transition: none !important }</style>${container.innerHTML}</html>`)
           await loadAppFonts(page)
-          for (const label of [words.typeTask, words.timesPerUnit]) {
+          for (const label of [words.typeTask, words.every]) {
             const row = page.getByRole('radio', { name: label, exact: true })
-            const next = page.getByRole('radio', { name: label === words.typeTask ? words.typeHabit : `${words.noSchedule} ${words.noScheduleHint}`, exact: true })
+            const next = page.getByRole('radio', { name: label === words.typeTask ? words.typeHabit : words.timesPerUnit, exact: true })
             expect(await next.getAttribute('aria-checked')).toBe('true')
             for (const state of ['hover', 'press', 'focus'] as const) {
               await reachOptionState(page, row, state)

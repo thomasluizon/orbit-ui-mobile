@@ -161,8 +161,9 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     fireEvent.click(screen.getByRole('button', { name: /habits.form.endDate/ }))
     fireEvent.click(document.querySelector<HTMLButtonElement>('button[data-day="2026-10-22"]')!)
     await waitFor(() => expect(screen.queryByRole('grid')).toBeNull())
-    fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
-    fireEvent.click(screen.getByRole('radio', { name: flexible ? 'habits.form.timesPerUnit' : 'habits.form.every' }))
+    fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ }))
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.noSchedule' }))
+    fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeHabit/ }))
     if (editAfterReturn) {
       fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitYear' }))
       fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '4' } })
@@ -191,7 +192,8 @@ describe.each(['create', 'edit'] as const)('actual %s modal submit feedback', (o
     fireEvent.change(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ }), { target: { value: title } })
     if (transition === 'general') {
       fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
-      fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
+      fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ }))
+      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.noSchedule' }))
     } else if (transition !== 'recurring' && transition !== 'task-before-title') fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ }))
     await submit()
     await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
