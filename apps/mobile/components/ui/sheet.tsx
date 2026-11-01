@@ -23,6 +23,10 @@ const SCROLL_EDGE_PEEK = 24
 // WHY: A dimmed backdrop captures outside taps instead of passing them to the underlying form. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/android/src/main/java/com/lodev09/truesheet/core/TrueSheetDimView.kt#L24-L27
 const TRUE_SHEET_DIMMED = true
 
+export function dismissAllSheets(): Promise<void> {
+  return TrueSheet.dismissAll()
+}
+
 export interface SheetHandle {
   /**
    * Dismisses the native sheet and runs `exitAction` once the dismissal

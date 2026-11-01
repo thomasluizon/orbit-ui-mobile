@@ -444,13 +444,10 @@ export function HabitFormFields({
           rows={1}
           maxLength={10000}
         />
-      <HabitDateField generalLocked={lockedGeneral === true} formHelpers={formHelpers} onRecurrence={controller.setRecurrence} />
+      <HabitDateField onChange={() => { onSuggestionContextChange?.(); controller.clearProposal() }} lockedGeneral={lockedGeneral} formHelpers={formHelpers} onRecurrence={controller.setRecurrence} />
 
             <HabitScheduleFields
               hidden={itemType === 'task'}
-              general={formHelpers.isGeneral}
-              generalLocked={lockedGeneral === false}
-              onGeneral={() => { onSuggestionContextChange?.(); controller.clearProposal(); setGeneral() }}
               proposed={proposal.setup}
               unit={frequencyUnit ?? null}
               quantity={watch('frequencyQuantity') ?? null}

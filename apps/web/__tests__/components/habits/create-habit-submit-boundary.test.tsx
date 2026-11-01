@@ -237,7 +237,7 @@ describe('nested habit submit ownership through the goal picker', () => {
     const child = await screen.findByRole('dialog', { name: messages.habits.form.newTask })
     await user.click(within(child).getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) }))
     await user.type(within(child).getByLabelText(messages.habits.form.taskDescribe), 'Collect a book')
-    await user.type(within(child).getByLabelText(messages.habits.form.datePhrase), '2030-01-15')
+    await user.type(within(child).getByRole('textbox', { name: messages.habits.form.datePhrase }), '2030-01-15')
     const submit = within(child).getByRole('button', { name: messages.habits.createTask }) as HTMLButtonElement
     const title = within(child).getByLabelText(messages.habits.form.taskDescribe) as HTMLTextAreaElement
     expect(submit.form).toBe(title.form)

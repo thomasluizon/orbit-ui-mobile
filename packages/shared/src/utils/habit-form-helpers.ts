@@ -254,9 +254,6 @@ export interface HabitUnderstandingLabels {
 
 export interface HabitScheduleFieldsProps {
   hidden?: boolean
-  general?: boolean
-  generalLocked?: boolean
-  onGeneral?: () => void
   proposed?: boolean
   unit: FrequencyUnit | null
   quantity: number | null

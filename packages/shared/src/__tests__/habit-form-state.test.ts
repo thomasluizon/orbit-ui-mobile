@@ -193,6 +193,7 @@ describe('habit-form-state', () => {
     )
 
     expect(state.formValues.dueDate).toBe('2025-01-26')
+    expect(state.formValues.datePhrase).toBe('')
     expect(state.formValues.dueTime).toBe('08:30')
     expect(state.formValues.dueEndTime).toBe('09:00')
     expect(state.formValues.emoji).toBe('📚')

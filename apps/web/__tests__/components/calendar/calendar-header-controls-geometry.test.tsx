@@ -597,7 +597,7 @@ describe('Calendar header geometry in Chromium', () => {
   })
 
   it('wraps multiword labels between words while retaining one segmented row', async () => {
-    const { container } = render(<div className="p-4"><SegmentedControl fullWidth label="Views" value="all" onChange={vi.fn()} options={[{ value: 'all', label: 'All habits' }, { value: 'general', label: 'General habits' }]} /></div>)
+    const { container } = render(<div className="p-4"><SegmentedControl fullWidth label="Views" value="all" onChange={vi.fn()} options={[{ value: 'all', label: 'All habits' }, { value: 'general', label: 'Undated tasks' }]} /></div>)
     const page = await harness.browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
       await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)

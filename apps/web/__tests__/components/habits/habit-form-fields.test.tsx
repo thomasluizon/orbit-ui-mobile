@@ -309,7 +309,7 @@ describe('HabitFormFields', () => {
   })
 
   it('starts with type, title and editable date fields and closed details', () => {
-    renderForm()
+    renderForm(createFormHelpers({ itemType: 'task' }))
     expect(screen.getByLabelText(/habits.form.(?:taskDescribe|describe)/)).toBeDefined()
     expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toBeDefined()
     expect(screen.queryByText('habits.form.oneTimeTask')).toBeNull()
@@ -711,7 +711,7 @@ it.each([
   { itemType: 'habit', frequencyUnit: 'Week', frequencyQuantity: 1 },
   { itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 2 },
   { itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'] },
-  { itemType: 'habit', isGeneral: true },
+  { itemType: 'task', isGeneral: true },
 ])('offers and saves Repeat every from the timing sheet for %j', (schedule) => {
   const helpers = createFormHelpers({ title: 'Water', reminderEnabled: true, dueTime: '08:00', scheduledReminders: [{ when: 'same_day', time: '09:00' }], ...schedule })
   helpers.isGeneral = 'isGeneral' in schedule
@@ -727,7 +727,7 @@ it('explains both item types and exposes habit frequency before opening details'
   expect(screen.getByText('habits.form.typeTaskHint')).toBeVisible()
   expect(screen.getByText('habits.form.typeHabitHint')).toBeVisible()
   expect(screen.getByRole('radiogroup', { name: 'habits.form.frequency' })).toBeVisible()
-  expect(screen.getByRole('radio', { name: /habits.form.noSchedule/ })).toBeVisible()
+  expect(screen.queryByRole('radio', { name: /habits.form.noSchedule/ })).toBeNull()
 })
 
 it('keeps the type-driven decision order and conditional end time in the owning form', () => {

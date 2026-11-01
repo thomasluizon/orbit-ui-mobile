@@ -11,7 +11,7 @@ const navigation = vi.hoisted(() => ({ pathname: '/', width: 600, push: vi.fn() 
 vi.mock('next/navigation', () => ({
   usePathname: () => navigation.pathname,
   useParams: () => ({}),
-  useRouter: () => ({ push: navigation.push }),
+  useRouter: () => ({ push: navigation.push, replace: vi.fn() }),
 }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => navigation.width >= 1024 }))

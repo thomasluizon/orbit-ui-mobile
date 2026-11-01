@@ -60,7 +60,7 @@ vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }
 vi.mock('next/navigation', () => ({
   usePathname: () => mocks.pathname,
   useParams: () => mocks.params,
-  useRouter: () => ({ push: mocks.push }),
+  useRouter: () => ({ push: mocks.push, replace: vi.fn() }),
 }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => () => mocks.push('/profile') }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide, useIsDesktop: () => mocks.wide }))

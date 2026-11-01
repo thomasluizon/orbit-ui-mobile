@@ -2223,11 +2223,11 @@ describe('HabitList', () => {
     expect(screen.getByRole('button', { name: 'habits.seeUpcoming' })).toHaveAttribute('data-variant', 'ghost')
   })
 
-  it('shows all-done above an unfinished anytime habit with a 24 gap', async () => {
+  it('shows all-done above an unfinished undated task with a 24 gap', async () => {
     useActualHabitVisibility = true
     accountHabitCount.count = 2
     const due = createMockHabit({ id: 'due', title: 'Due habit', scheduledDates: [TODAY], isLoggedInRange: true })
-    const anytime = createMockHabit({ id: 'anytime', title: 'Anytime habit', isGeneral: true })
+    const anytime = createMockHabit({ id: 'anytime', title: 'Undated task', isGeneral: true })
     mockHabitsData.habitsById = new Map([[due.id, due], [anytime.id, anytime]])
     mockHabitsData.topLevelHabits = [due, anytime]
     mockHabitsData.totalCount = 2
@@ -2235,8 +2235,8 @@ describe('HabitList', () => {
     const { container } = renderWithProviders(<HabitList filters={defaultFilters} view="today" showCompleted={false} />)
 
     expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
-    expect(screen.getByText(personalText('Anytime habit'))).toBeInTheDocument()
-    expect(screen.getByText('habits.allDoneToday').compareDocumentPosition(screen.getByText(personalText('Anytime habit'))) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByText(personalText('Undated task'))).toBeInTheDocument()
+    expect(screen.getByText('habits.allDoneToday').compareDocumentPosition(screen.getByText(personalText('Undated task'))) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const cssPath = resolve('app/globals.css')
     const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
     const launch = launchChrome()

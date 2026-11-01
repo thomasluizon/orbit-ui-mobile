@@ -3,6 +3,7 @@ import { settleAnimations } from './settle-animations'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import en from '@orbit/shared/i18n/en.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
@@ -98,6 +99,62 @@ for (const { width, mode } of [412, 1280].flatMap((width) =>
       for (const item of await listMenu.getByRole('menuitem').all()) {
         await expect(item).toHaveCSS('height', width === 412 ? '56px' : '48px')
       }
+    })
+  })
+}
+
+for (const locale of ['en', 'pt-BR'] as const) {
+  test.describe(`habit overflow in short landscape with enlarged ${locale} text`, () => {
+    test.use({ appLocale: locale, viewport: { width: 915, height: 412 } })
+
+    test('scrolls every management action into pointer and keyboard reach', async ({ page, context }) => {
+      const words = locale === 'en' ? en : ptBr
+      const profile = profileSchema.parse({ ...profileFixture, language: locale })
+      await setLayoutProfileSession(context, profile)
+      await setLayoutFixtureSession(context, [
+        { path: API.profile.get, body: profile },
+        { path: API.habits.list, body: habitsPage },
+      ])
+      await page.goto('/?date=2026-09-03')
+      await openTodayListOptions(page, words.habits.listOptions)
+      await page.getByRole('menuitem', { name: words.habits.refresh, exact: true }).click()
+      const row = page.locator('[data-habit-title="Beber água"]')
+      await expect(row).toBeVisible()
+      await page.locator('html').evaluate((root) => { root.style.fontSize = '200%' })
+      await row.locator('[data-habit-row-control="menu"]').click()
+      const menu = page.getByRole('menu', { name: habit.title })
+      await expect(menu).toBeVisible()
+      await menu.evaluate(settleAnimations)
+      const bounds = (await menu.boundingBox())!
+      expect(bounds.y).toBeGreaterThanOrEqual(8)
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(404)
+      expect(await menu.evaluate((panel) => panel.scrollHeight > panel.clientHeight)).toBe(true)
+      const items = menu.getByRole('menuitem')
+      await expect(items).toHaveText([
+        words.habits.actions.addSubHabit, words.habits.actions.moveUnder, words.habits.actions.skip,
+        words.common.edit, words.habits.actions.duplicate, words.common.select, words.habits.actions.delete,
+      ])
+      for (const item of await items.all()) {
+        await item.scrollIntoViewIfNeeded()
+        await item.hover()
+        const reachable = await item.evaluate((element) => {
+          const rectangle = element.getBoundingClientRect()
+          const hit = document.elementFromPoint(rectangle.x + rectangle.width / 2, rectangle.y + rectangle.height / 2)
+          return rectangle.top >= 8 && rectangle.bottom <= innerHeight - 8 && (hit === element || element.contains(hit))
+        })
+        expect(reachable).toBe(true)
+      }
+      await page.mouse.move(0, 0)
+      for (const [index, item] of (await items.all()).entries()) {
+        await page.keyboard.press(index === 0 ? 'Home' : 'ArrowDown')
+        await expect(item).toBeFocused()
+        const rectangle = (await item.boundingBox())!
+        expect(rectangle.y).toBeGreaterThanOrEqual(8)
+        expect(rectangle.y + rectangle.height).toBeLessThanOrEqual(404)
+      }
+      await menu.getByRole('menuitem', { name: words.common.select, exact: true }).click()
+      await expect(page.getByTestId('bulk-action-bar')).toBeVisible()
+      await expect(menu).toHaveCount(0)
     })
   })
 }

@@ -60,6 +60,7 @@ function Fixture() {
     tabBar={<BottomTabBar activeId="hoje" label="Navigation" onSelect={() => {}} items={[{ id: 'hoje', href: '/', label: 'Today' }]} />}
     fab={selecting || fabHidden ? undefined : <button>Create</button>}
     composer={selecting ? <SelectionTray selectedCount={view.selectedHabitIds.size} allSelected={view.selection.allSelected}
+      skippableCount={view.selection.skippableCount}
       onSelectAll={view.selection.selectAll} onDeselectAll={view.selection.deselectAll} onBulkLog={() => {}}
       onBulkMove={() => {}} onBulkDelete={() => {}} onCancel={view.toggleSelectMode}
       onBulkSkip={() => { void view.selection.confirmBulkSkip() }} /> : undefined}

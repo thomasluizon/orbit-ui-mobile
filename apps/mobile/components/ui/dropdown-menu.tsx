@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useId, useMemo, useRef, type Reac
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
 import * as Primitive from '@rn-primitives/dropdown-menu'
 import { useComposedRefs } from '@rn-primitives/hooks'
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { Check } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -69,7 +69,8 @@ export function Content({ items = [], onSelect, title, shortTitle, titleMode, pr
 function AnchoredContent({ items, title, align, onSelect }: Readonly<{ items: readonly MenuItem[]; title?: string; align: 'start' | 'end'; onSelect: (id: string) => void }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { width } = useWindowDimensions()
+  const { width, height } = useWindowDimensions()
+  const screen = Dimensions.get('screen')
   const preset = useResolvedMotionPreset('menu')
   const entering = useMemo(() => new Keyframe({
     0: { opacity: 0, transform: [{ translateY: -preset.shift }, { scale: preset.scaleFrom }] },
@@ -85,9 +86,11 @@ function AnchoredContent({ items, title, align, onSelect }: Readonly<{ items: re
   useEffect(() => { register(overlayId); return () => unregister(overlayId) }, [overlayId, register, unregister])
   return <Portal><View key={overlayId} collapsable={false} style={StyleSheet.absoluteFill} pointerEvents="box-none" accessibilityViewIsModal>
     <Primitive.Overlay accessibilityElementsHidden importantForAccessibility="no" style={[StyleSheet.absoluteFill, styles.catcher]} />
-    <Primitive.Content accessibilityLabel={title} accessibilityRole="menu" align={align} sideOffset={8} insets={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ width: Math.min(PANEL_WIDTH, width - 16) }}>
+    <Primitive.Content accessibilityLabel={title} accessibilityRole="menu" align={align} sideOffset={8} insets={{ top: 8, bottom: Math.max(0, screen.height - height) + 8, left: 8, right: Math.max(0, screen.width - width) + 8 }} style={{ width: Math.min(PANEL_WIDTH, width - 16) }}>
       <Reanimated.View entering={entering} exiting={exiting} style={[styles.panel, { backgroundColor: tokens.bgSheet }]}>
-        <MenuItems items={items} sheetPresentation={false} onActivate={onSelect} />
+        <ScrollView style={{ maxHeight: Math.max(0, height - 32), flexGrow: 0 }} keyboardShouldPersistTaps="handled">
+          <MenuItems items={items} sheetPresentation={false} onActivate={onSelect} />
+        </ScrollView>
       </Reanimated.View>
     </Primitive.Content>
   </View></Portal>

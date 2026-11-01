@@ -641,16 +641,6 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
-    "mobile:control:habits.form.reminderKind": {
-      "targets": [
-        "mobile:control:habits.form.definedTimes",
-        "mobile:control:habits.form.repeatEvery"
-      ],
-      "owners": [
-        "apps/mobile/components/habits/habit-form-fields/repeat-reminder-section.tsx"
-      ],
-      "reason": "The timing sheet replaces the reminder-kind select with named At set times and Repeat every radio rows, retaining both models and their controls."
-    },
     "mobile:control:habits.form.scheduledReminder": {
       "targets": [
         "mobile:control:habits.form.reminder"
@@ -2484,16 +2474,6 @@
         "web:control:habits.form.reminderCustom"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
-    },
-    "web:control:habits.form.reminderKind": {
-      "targets": [
-        "web:control:habits.form.definedTimes",
-        "web:control:habits.form.repeatEvery"
-      ],
-      "owners": [
-        "apps/web/components/habits/habit-form-fields/repeat-reminder-section.tsx"
-      ],
-      "reason": "The timing sheet replaces the reminder-kind select with named At set times and Repeat every radio rows, retaining both models and their controls."
     },
     "web:control:habits.form.scheduledReminder": {
       "targets": [
@@ -4794,6 +4774,16 @@
       "citation": "DESIGN.md",
       "rule": "The streak figure and plural day unit replace the separate current-streak label.",
       "reason": "Only the repeated label is removed; the current streak stays visible in CompactFigure."
+    },
+    "mobile:control:habits.form.noScheduleHint": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "General items are undated one-time tasks under Task date choices; Habit frequency offers only Every and Times per, without the repeating General hint.",
+      "reason": "The owner moved General to Task date choices and removed its repeating hint from Habit frequency: https://github.com/thomasluizon/orbit-tickets/issues/1922#issuecomment-6559404698"
+    },
+    "web:control:habits.form.noScheduleHint": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "General items are undated one-time tasks under Task date choices; Habit frequency offers only Every and Times per, without the repeating General hint.",
+      "reason": "The owner moved General to Task date choices and removed its repeating hint from Habit frequency: https://github.com/thomasluizon/orbit-tickets/issues/1922#issuecomment-6559404698"
     }
   },
   "tickets": {

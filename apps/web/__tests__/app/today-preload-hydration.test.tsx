@@ -6,7 +6,7 @@ import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import { act } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
-import { habitKeys } from '@orbit/shared/query'
+import { getTodayHabitList, habitKeys } from '@orbit/shared/query'
 import type { HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 import { buildTodayFilters } from '@/app/(app)/today-model'
 import type { TodayInitialHabits } from '@/app/(app)/today-initial-data'
@@ -117,6 +117,14 @@ function TodayHydrationSurface({
   )
 }
 
+function ResettableTodayHydrationSurface(props: Readonly<{
+  initialToday: string
+  initialHabits: TodayInitialHabits
+}>) {
+  const todayResetVersion = useUIStore((state) => state.todayResetVersion)
+  return <TodayHydrationSurface key={todayResetVersion} {...props} />
+}
+
 function createTree(
   queryClient: QueryClient,
   initialToday: string,
@@ -126,7 +134,7 @@ function createTree(
     <QueryClientProvider client={queryClient}>
       <TestIntlProvider locale="en" messages={en}>
         <TodayProvider>
-          <TodayHydrationSurface
+          <ResettableTodayHydrationSurface
             initialToday={initialToday}
             initialHabits={initialHabits}
           />
@@ -218,6 +226,50 @@ describe('Today preload hydration', () => {
     expect(hydrated.container).not.toHaveTextContent('Unfiltered seed')
     expect(fetchMock.mock.calls[0]?.[0]).toContain('frequencyUnit=Month')
     await act(async () => hydrated.root.unmount())
+  })
+
+  it.each([0, 2])('preserves a newer %i-item list and count across Hoje resets', async (count) => {
+    const today = '2026-08-29'
+    const original = makeHabit({ title: 'Original habit' })
+    const currentItems = count === 0 ? [] : [original, makeHabit({ id: 'habit-2', title: 'Added habit' })]
+    const listKey = todayQueryKey(today, true)
+    const countKey = habitKeys.listTotalCount(buildTodayFilters({
+      dateStr: today,
+      isTodayDate: true,
+      searchQuery: '',
+      selectedFrequency: null,
+      selectedTagIds: [],
+      showGeneralOnToday: false,
+    }))
+    const hydrated = await hydrateAcrossDays({
+      serverNow: new Date(`${today}T12:00:00`),
+      browserNow: new Date(`${today}T12:00:00`),
+      initialToday: today,
+      initialHabits: { queryKey: listKey, items: [original], totalCount: 1 },
+    })
+
+    try {
+      expect(hydrated.queryClient.getQueryData(countKey)).toBe(1)
+      expect(getTodayHabitList(hydrated.queryClient, today)).toEqual([original])
+      await act(async () => {
+        hydrated.queryClient.setQueryData(listKey, currentItems)
+        hydrated.queryClient.setQueryData(countKey, count)
+        await vi.advanceTimersByTimeAsync(1)
+      })
+
+      for (let activation = 0; activation < 2; activation += 1) {
+        await act(async () => { useUIStore.getState().resetToday() })
+        expect(hydrated.queryClient.getQueryData(listKey)).toEqual(currentItems)
+        expect(hydrated.queryClient.getQueryData(countKey)).toBe(count)
+        expect(getTodayHabitList(hydrated.queryClient, today)).toEqual(currentItems)
+        if (count > 0) expect(hydrated.container).toHaveTextContent('Original habit, Added habit')
+        else expect(hydrated.container).toHaveTextContent(en.habits.noHabitsBody)
+      }
+      expect(hydrated.recoverableError).not.toHaveBeenCalled()
+      expect(fetchMock).not.toHaveBeenCalled()
+    } finally {
+      await act(async () => hydrated.root.unmount())
+    }
   })
 
   it('recovers an unsuccessful filtered query by returning to all frequencies', async () => {

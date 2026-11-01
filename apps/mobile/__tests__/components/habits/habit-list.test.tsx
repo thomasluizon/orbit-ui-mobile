@@ -2061,10 +2061,10 @@ describe('HabitList', () => {
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
   })
 
-  it('shows all-done above an unfinished anytime habit with a 24 gap', () => {
+  it('shows all-done above an unfinished undated task with a 24 gap', () => {
     useActualHabitVisibility = true
     const due = createMockHabit({ id: 'due', title: 'Due habit', scheduledDates: [TODAY], isLoggedInRange: true })
-    const anytime = createMockHabit({ id: 'anytime', title: 'Anytime habit', isGeneral: true })
+    const anytime = createMockHabit({ id: 'anytime', title: 'Undated task', isGeneral: true })
     seedHabits([due, anytime])
     mockHabitsData.totalCount = 2
     let tree: import('react-test-renderer').ReactTestRenderer

@@ -11,6 +11,7 @@ import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-i
 import { Input } from '@/components/ui/input'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet } from '@/components/ui/sheet'
+import { RadioRow } from '@/components/ui/select-check'
 
 vi.unmock('@/components/ui/sheet')
 vi.mock('@lodev09/react-native-true-sheet', async () => import('@/__tests__/support/native-sheet-double'))
@@ -49,13 +50,13 @@ function allByType<T extends React.ElementType>(type: T) {
   return tree.root.findAll(node => node.type === type) as unknown as { props: React.ComponentProps<T>; instance: TrueSheet }[]
 }
 
-async function renderEditor() {
+async function renderEditor(general = false) {
   const onClose = vi.fn()
   const client = new QueryClient()
   client.setQueryData(goalKeys.lists(), [])
   await act(() => {
     tree = create(<QueryClientProvider client={client}><EditHabitModal open onClose={onClose}
-      habit={createMockHabit({ title: 'Exercise', frequencyUnit: 'Day', checklistItems: [] })} /></QueryClientProvider>)
+      habit={createMockHabit({ title: 'Exercise', frequencyUnit: general ? null : 'Day', frequencyQuantity: general ? null : 1, isGeneral: general, dueDate: general ? '' : '2026-10-20', checklistItems: [] })} /></QueryClientProvider>)
   })
   return onClose
 }
@@ -77,6 +78,25 @@ async function attempt(path: typeof paths[number]) {
 }
 
 describe('Edit habit dismissal through the native sheet', () => {
+  it.each([...paths, 'backdrop'] as const)('closes an unchanged undated task through %s', async path => {
+    const onClose = await renderEditor(true)
+    expect(allByType(RadioRow).find(node => node.props.label === 'habits.form.typeTask')!.props.selected).toBe(true)
+    expect(allByType(RadioRow).find(node => node.props.label === 'habits.form.noSchedule')!.props.selected).toBe(true)
+    if (path === 'backdrop') await act(() => allByType(TrueSheet)[0]!.instance.attempt(path))
+    else await attempt(path)
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(allByType(Sheet).map(node => node.props.title)).not.toContain('common.discardChangesTitle')
+  })
+
+  it('asks before discarding a deliberate switch to No date', async () => {
+    const onClose = await renderEditor()
+    await act(() => allByType(RadioRow).find(node => node.props.label === 'habits.form.typeTask')!.props.onSelect!())
+    await act(() => allByType(RadioRow).find(node => node.props.label === 'habits.form.noSchedule')!.props.onSelect!())
+    await attempt('close icon')
+    expect(allByType(Sheet).map(node => node.props.title)).toContain('common.discardChangesTitle')
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it.each(paths)('asks before discarding an added checklist item through %s', async path => {
     const onClose = await renderEditor()
     await addChecklistItem()
