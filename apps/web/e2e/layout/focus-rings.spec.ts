@@ -129,7 +129,11 @@ for (const width of [412, 1280] as const) {
       await page.getByRole('button', { name: messages.habits.form.moreDetails }).click()
       const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
       await expect(disclosure).toBeVisible()
-      const time = disclosure.getByRole('textbox', { name: messages.habits.form.exactTime })
+      await inspectTabStops(page, `create expanded form ${width}px`)
+      await page.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) }).click()
+      const timing = page.getByRole('dialog', { name: messages.habits.form.timingAndReminder, exact: true })
+      await expect(timing).toBeVisible()
+      const time = timing.getByRole('textbox', { name: messages.habits.form.exactTime, exact: true })
       await expect(time).toBeVisible()
       await time.focus()
       await page.keyboard.press('Shift+Tab')
@@ -137,37 +141,49 @@ for (const width of [412, 1280] as const) {
       await expect(time).toBeFocused()
       await expectOneRing(page, `create exact time ${width}px`, 0)
       await expectOneFieldIndicator(page, time, 'input[data-hour-cycle]', `create time ${width}px`)
-      await inspectTabStops(page, `create expanded form ${width}px`)
+      await inspectTabStops(page, `create timing sheet ${width}px`)
     })
 
-    test('sub-habit input and remove action each have one ring', async ({ page, context }) => {
-      const profile = profileSchema.parse({
-        ...profileFixture,
-        plan: 'pro',
-        hasProAccess: true,
-        aiMessagesLimit: 50,
+    for (const itemType of ['task', 'habit'] as const) {
+      const subItem = itemType === 'task' ? 'subtask' : 'sub-habit'
+      test(`${subItem} input and remove action each have one ring`, async ({ page, context }) => {
+        const profile = profileSchema.parse({
+          ...profileFixture,
+          plan: 'pro',
+          hasProAccess: true,
+          aiMessagesLimit: 50,
+        })
+        await setLayoutProfileSession(context, profile)
+        await openCreateForm(page)
+        await expect(page.locator('[data-habit-phrase-field] textarea')).toBeVisible()
+        const screen = page.locator('[data-habit-create-screen]')
+        const typeLabel = itemType === 'task' ? messages.habits.form.typeTask : messages.habits.form.typeHabit
+        const type = screen.getByRole('radiogroup', { name: messages.habits.form.itemType, exact: true }).getByRole('radio', { name: new RegExp(typeLabel) })
+        if (itemType === 'habit') await type.click()
+        await expect(type).toBeChecked()
+        await page.getByRole('button', { name: messages.habits.form.moreDetails }).click()
+        const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
+        await expect(disclosure).toBeVisible()
+        const steps = disclosure.getByRole('heading', { name: messages.habits.form.steps, exact: true }).locator('..')
+        const addLabel = itemType === 'task' ? messages.habits.form.addSubTask : messages.habits.form.addSubHabit
+        const inputLabel = itemType === 'task' ? messages.habits.form.subTaskInputLabel : messages.habits.form.subHabitInputLabel
+        const removeLabel = itemType === 'task' ? messages.habits.form.removeSubTask : messages.habits.form.removeSubHabit
+        await steps.getByRole('button', { name: addLabel, exact: true }).click()
+        const input = steps.getByRole('textbox', { name: inputLabel.replace('{index}', '1'), exact: true })
+        await expect(input).toBeVisible()
+        await input.focus()
+        await page.keyboard.press('Shift+Tab')
+        await page.keyboard.press('Tab')
+        await expect(input).toBeFocused()
+        await expectOneRing(page, `${subItem} input ${width}px`, 0)
+        await page.keyboard.press('Tab')
+        await expect(steps.getByRole('button', { name: removeLabel, exact: true })).toBeFocused()
+        await expectOneRing(page, `${subItem} remove ${width}px`, 1)
+        await expectOneFieldIndicator(page, input, '[data-focus-perimeter]', `${subItem} row ${width}px`)
+        await page.emulateMedia({ forcedColors: 'active' })
+        await expectOneFieldIndicator(page, input, '[data-focus-perimeter]', `${subItem} row forced colors ${width}px`, { forcedColors: true })
       })
-      await setLayoutProfileSession(context, profile)
-      await openCreateForm(page)
-      await expect(page.locator('[data-habit-phrase-field] textarea')).toBeVisible()
-      await page.getByRole('button', { name: messages.habits.form.moreDetails }).click()
-      const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
-      await expect(disclosure).toBeVisible()
-      await disclosure.getByRole('button', { name: messages.habits.form.addSubHabit }).click()
-      const input = disclosure.getByRole('textbox', { name: messages.habits.form.subHabitInputLabel.replace('{index}', '1') })
-      await expect(input).toBeVisible()
-      await input.focus()
-      await page.keyboard.press('Shift+Tab')
-      await page.keyboard.press('Tab')
-      await expect(input).toBeFocused()
-      await expectOneRing(page, `sub-habit input ${width}px`, 0)
-      await page.keyboard.press('Tab')
-      await expect(disclosure.getByRole('button', { name: messages.habits.form.removeSubHabit })).toBeFocused()
-      await expectOneRing(page, `sub-habit remove ${width}px`, 1)
-      await expectOneFieldIndicator(page, input, '[data-focus-perimeter]', `sub-habit row ${width}px`)
-      await page.emulateMedia({ forcedColors: 'active' })
-      await expectOneFieldIndicator(page, input, '[data-focus-perimeter]', `sub-habit row forced colors ${width}px`, { forcedColors: true })
-    })
+    }
 
     test('fields draw one indicator in forced colors', async ({ page }) => {
       await page.emulateMedia({ forcedColors: 'active' })
@@ -188,10 +204,10 @@ for (const width of [412, 1280] as const) {
       const phrase = page.locator('[data-habit-phrase-field] textarea')
       await expect(phrase).toBeVisible()
       await expectOneFieldIndicator(page, phrase, '[data-habit-phrase-field]', `create phrase forced colors ${width}px`, { forcedColors: true, includeDescendants: true })
-      await page.getByRole('button', { name: messages.habits.form.moreDetails }).click()
-      const disclosure = page.locator('.habit-form-disclosure[data-open="true"]')
-      await expect(disclosure).toBeVisible()
-      const time = disclosure.getByRole('textbox', { name: messages.habits.form.exactTime })
+      await page.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) }).click()
+      const timing = page.getByRole('dialog', { name: messages.habits.form.timingAndReminder, exact: true })
+      await expect(timing).toBeVisible()
+      const time = timing.getByRole('textbox', { name: messages.habits.form.exactTime, exact: true })
       await expectOneFieldIndicator(page, time, 'input[data-hour-cycle]', `create time forced colors ${width}px`, { forcedColors: true })
     })
   })

@@ -29,7 +29,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
 
         await createSmokeHabit(page, 'Smoke first habit')
 
-        await expect(page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })).toBeHidden()
+        await expect(page.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true })).toBeHidden()
       })
     })
   }
