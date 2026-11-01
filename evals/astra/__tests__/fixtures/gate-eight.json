@@ -99,7 +99,7 @@
               "days": null
             }
           ],
-          "orbit_write_complete": false
+          "orbit_read_complete": false
         },
         "resultStatus": "Succeeded"
       }
@@ -116,7 +116,7 @@
           "language": "pt-BR",
           "title": "Caminhar",
           "suggested_sub_habits": [],
-          "orbit_write_complete": false
+          "orbit_read_complete": false
         },
         "resultStatus": "Failed"
       }

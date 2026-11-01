@@ -161,3 +161,24 @@ it('records the full API source commit and refuses a dirty checkout without repl
     rmSync(directory, { recursive: true, force: true })
   }
 })
+
+// Producer: the exported composition and legacy declarations control which completion arguments exist.
+it.each(['en', 'pt-BR'])('uses the current starting-step completion declaration in %s', async (language) => {
+  const arguments_ = { one_small_step: true, language, title: 'Walk',
+    suggested_sub_habits: [{ title: 'Put on shoes' }] }
+  for (const supportsParts of [false, true]) {
+    const clientContext = { supportsParts }
+    const call = toolCall('suggest_breakdown', arguments_, 'Succeeded', 'step', clientContext)
+    expect(call.arguments).not.toHaveProperty('orbit_write_complete')
+    if (supportsParts) expect(call.arguments).toHaveProperty('orbit_read_complete', false)
+    else expect(call.arguments).not.toHaveProperty('orbit_read_complete')
+    const valid = await validateTrace(call.name, call.arguments, clientContext)
+    expect(valid.pass, valid.reason).toBe(true)
+    const complete = toolCall('suggest_breakdown', arguments_, 'Succeeded', 'step', clientContext, true)
+    if (supportsParts) expect(complete.arguments).toHaveProperty('orbit_read_complete', true)
+    else expect(complete.arguments).not.toHaveProperty('orbit_read_complete')
+    expect((await validateTrace(complete.name, complete.arguments, clientContext)).pass).toBe(true)
+    const stale = { ...call.arguments, orbit_write_complete: false }
+    expect((await validateTrace(call.name, stale, clientContext)).pass).toBe(false)
+  }
+})

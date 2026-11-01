@@ -3766,8 +3766,6 @@
         - name: query_habits
           argumentsAnyOf: *todayHabitArguments
         - name: bulk_reschedule_habits
-          arguments:
-            orbit_write_complete: true
           resultStatus: PendingConfirmation
       allowed:
         - query_habits
@@ -3820,8 +3818,6 @@
         - name: query_habits
           argumentsAnyOf: *todayHabitArguments
         - name: bulk_reschedule_habits
-          arguments:
-            orbit_write_complete: true
           resultStatus: PendingConfirmation
       allowed:
         - query_habits
@@ -3874,8 +3870,6 @@
         - name: query_habits
           argumentsAnyOf: *todayHabitArguments
         - name: bulk_reschedule_habits
-          arguments:
-            orbit_write_complete: true
           resultStatus: PendingConfirmation
       allowed:
         - query_habits
@@ -3929,8 +3923,6 @@
         - name: query_habits
           argumentsAnyOf: *todayHabitArguments
         - name: bulk_reschedule_habits
-          arguments:
-            orbit_write_complete: true
           resultStatus: PendingConfirmation
       allowed:
         - query_habits
@@ -3983,8 +3975,6 @@
         - name: query_habits
           argumentsAnyOf: *todayHabitArguments
         - name: bulk_reschedule_habits
-          arguments:
-            orbit_write_complete: true
           resultStatus: PendingConfirmation
       allowed:
         - query_habits
@@ -4037,8 +4027,6 @@
         - name: query_habits
           argumentsAnyOf: *todayHabitArguments
         - name: bulk_reschedule_habits
-          arguments:
-            orbit_write_complete: true
           resultStatus: PendingConfirmation
       allowed:
         - query_habits
@@ -4091,8 +4079,6 @@
         - name: query_habits
           argumentsAnyOf: *todayHabitArguments
         - name: bulk_reschedule_habits
-          arguments:
-            orbit_write_complete: true
           resultStatus: PendingConfirmation
       allowed:
         - query_habits
@@ -4146,8 +4132,6 @@
         - name: query_habits
           argumentsAnyOf: *todayHabitArguments
         - name: bulk_reschedule_habits
-          arguments:
-            orbit_write_complete: true
           resultStatus: PendingConfirmation
       allowed:
         - query_habits

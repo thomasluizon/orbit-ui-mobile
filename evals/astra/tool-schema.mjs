@@ -33,3 +33,6 @@ export function schemaVariants(schema, root = schema, visited = new Set()) {
 
 export const nullableSchema = (schema, root = schema) => schemaVariants(schema, root)
   .some((variant) => variant.type === 'null' || (Array.isArray(variant.type) && variant.type.includes('null')))
+
+export const completionControls = (schema) => ['orbit_read_complete', 'orbit_write_complete']
+  .filter((name) => Object.hasOwn(resolveSchema(schema)?.properties ?? {}, name))

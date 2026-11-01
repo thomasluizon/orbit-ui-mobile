@@ -140,8 +140,9 @@ it('exempts only the bound selected starting-step suggestion from the unsolicite
   const output = decoded([toolCall('suggest_breakdown', { one_small_step: true, language: 'en' })])
   output.composition = { parts: [], operations: [{ sourceName: 'suggest_breakdown', status: 'Succeeded' }] }
   expect(offerSafety(output, { vars }).pass).toBe(true)
-  for (const context of [{ ...vars, issuedOffer: undefined }, { ...vars, clientContext: { ...vars.clientContext, selectedOfferKey: undefined } }]) {
-    expect(offerSafety(output, { vars: context }).pass).toBe(false)
+  for (const context of [{ ...vars, issuedOffer: undefined }, { ...vars, clientContext: { ...vars.clientContext, selectedOfferKey: undefined } },
+    { ...vars, clientContext: { ...vars.clientContext, selectedOfferKey: 'smallStep:account:2031-06-11' } }]) {
+    expect(offerSafety(output, { vars: context })).toMatchObject({ pass: false, reason: 'Unsolicited write executed.' })
   }
   output.composition.operations.push({ sourceName: 'create_habit', status: 'Succeeded' })
   expect(offerSafety(output, { vars }).pass).toBe(false)

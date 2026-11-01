@@ -117,7 +117,7 @@ function unchangedPreview(pending, baseline, correction) {
 }
 
 function coachingStartingStep(parsed, vars) {
-  const calls = parsed.trace.calls.filter((call) => !(readTools.has(call.name)
+  const calls = parsed.trace.calls.filter((call) => !(call.name !== 'suggest_breakdown' && readTools.has(call.name)
     && vars.expectations?.allowed?.includes(call.name) && call.resultStatus === 'Succeeded'
     && call.result?.success === true && call.result.error === null))
   return startingStepComposition({ ...parsed, trace: { ...parsed.trace, calls } },

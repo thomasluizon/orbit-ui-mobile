@@ -30,7 +30,7 @@ export function startingResponse(locale = 'en', requestId = 'request', suppliedS
   ]
   if (supportsContext) actions[0].previousStep = structuredClone(suggestion)
   const call = toolCall('suggest_breakdown', { one_small_step: true, language: locale,
-    title: suggestion.goal, suggested_sub_habits: [{ title: suggestion.step }] }, 'Succeeded', 'call-1', { supportsParts: true })
+    title: suggestion.goal, suggested_sub_habits: [{ title: suggestion.step }] }, 'Succeeded', 'call-1', { supportsParts: true }, true)
   call.result.payload = suggestion
   return { ...chatResponse(requestId, [call]), aiMessage: null,
     parts: [{ type: 'block', kind: 'oneSmallStep', block: { suggestion, actions } }] }

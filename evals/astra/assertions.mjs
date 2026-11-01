@@ -146,10 +146,13 @@ export async function structural(output, context) {
 
 function checkMutationScope(calls, expectations) {
   const scope = [...expectations.required ?? [], ...expectations.permittedMutations ?? []]
+  const optionalNames = new Set((expectations.permittedMutations ?? []).flatMap((operation) =>
+    (operation.anyOf ?? [operation]).map(({ name }) => name)))
   for (const call of calls) {
     const writes = toolWrites.get(call.name)
     if (typeof writes !== 'boolean') return result(false, `Tool lacks a catalog write classification: ${call.name}`)
-    if (writes && !failedBeforeDispatch(call)) {
+    // Optional argument and count constraints survive a producer's write-to-read reclassification.
+    if ((writes || optionalNames.has(call.name)) && !failedBeforeDispatch(call)) {
       const index = scope.findIndex((operation) => matchesOperation(call, operation))
       if (index < 0) return result(false, `Mutation outside the declared operation scope: ${call.name}`)
       scope.splice(index, 1)

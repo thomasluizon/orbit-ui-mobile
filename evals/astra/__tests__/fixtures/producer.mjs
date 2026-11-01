@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
-import { nullableSchema, resolveSchema, schemaVariants } from '../../tool-schema.mjs'
+import { completionControls, nullableSchema, resolveSchema, schemaVariants } from '../../tool-schema.mjs'
 
 const { tools, legacyTools, postReadTools } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
 const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
 
 // StrictToolSchema requires nullable properties; composition reads require completion; traces omit marked fields.
-function strictArguments(schema, supplied, root = schema) {
+function strictArguments(schema, supplied, root = schema, complete = false) {
   if (!supplied || typeof supplied !== 'object') return supplied
   const variants = schemaVariants(schema, root).filter((variant) => variant.type !== 'null')
   // Default only an unambiguous shape; form unions are supplied by the fixture.
@@ -16,8 +16,7 @@ function strictArguments(schema, supplied, root = schema) {
   const defaults = Object.fromEntries(Object.entries(properties)
     .filter(([, property]) => nullableSchema(property, root))
     .map(([name]) => [name, null]))
-  if (properties.orbit_read_complete) defaults.orbit_read_complete = false
-  if (properties.orbit_write_complete) defaults.orbit_write_complete = false
+  for (const name of completionControls(resolved)) defaults[name] = complete
   return { ...defaults, ...Object.fromEntries(Object.entries(supplied)
     .map(([name, value]) => [name, strictArguments(properties[name], value, root)])) }
 }
@@ -32,12 +31,13 @@ function omitSensitiveFields(value, sensitiveFields) {
 }
 
 // Contract: orbit-api 5e376417, ChatResponse, ChatEvalTrace and AiToolCallResult.
-export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1', clientContext = {}) {
+export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1', clientContext = {}, complete = false) {
   const catalog = clientContext.supportsParts === true ? [...tools, ...postReadTools] : legacyTools
   const tool = catalog.find((entry) => entry.function.name === name)
+  const schema = tool?.function.parameters
   const sensitiveFields = new Set(tool?.sensitiveFields)
   return {
-    id, name, arguments: omitSensitiveFields(strictArguments(tool?.function.parameters, arguments_), sensitiveFields), status,
+    id, name, arguments: omitSensitiveFields(strictArguments(schema, arguments_, schema, complete), sensitiveFields), status,
     result: omitSensitiveFields({
       name, id, success: status === 'Succeeded' || status === 'PendingConfirmation',
       entityId: null,
