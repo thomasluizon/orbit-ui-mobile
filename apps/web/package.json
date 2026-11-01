@@ -67,6 +67,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "@vitest/coverage-v8": "^4.1.12",
     "chrome-launcher": "^1.2.2",
+    "devtools-protocol": "0.0.1727723",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.4.2",
     "eslint-plugin-sonarjs": "^4.1.0",
@@ -78,6 +79,7 @@
     "tsx": "^4.20.6",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.63.0",
-    "vitest": "^4.1.12"
+    "vitest": "^4.1.12",
+    "webpack": "^5.112.2"
   }
 }

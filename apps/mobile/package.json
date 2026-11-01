@@ -114,6 +114,7 @@
   "devDependencies": {
     "@expo-google-fonts/roboto": "^0.4.3",
     "@formatjs/icu-messageformat-parser": "^2.11.4",
+    "@react-native/metro-config": "0.88.1",
     "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^24.5.2",
     "@types/react": "~19.3.0",
