@@ -1,3 +1,4 @@
+import { conversationHistory } from '@/lib/conversation-history'
 import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
 import { makeOneSmallStepCard, questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
@@ -55,6 +56,7 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 
+vi.mock('@/lib/conversation-history', () => ({ conversationHistory: { latest: vi.fn(() => Promise.resolve(false)), isReady: vi.fn(() => true), prepareSend: vi.fn(() => Promise.resolve(true)) } }))
 vi.mock('next-intl', async (importOriginal) => ({
   ...await importOriginal<typeof import('next-intl')>(),
   useTranslations: () => mocks.translate ?? ((key: string, params?: Record<string, unknown>) =>
@@ -279,6 +281,33 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
 }
 
 describe('web useChatComposer streaming send', () => {
+
+  it('retains the returned conversation id on every later turn with legacy history', async () => {
+    const conversationId = '00000000-0000-4000-8000-000000000010'
+    mocks.fetch.mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse({ conversationId })))))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Review my routine') })
+    expect(useChatStore.getState().serverConversationId).toBe(conversationId)
+    await act(async () => { await result.current.sendMessage('Continue with the same image') })
+    const payload = mocks.fetch.mock.calls[1]![1]!.body as FormData
+    expect(JSON.parse(payload.get('clientContext') as string).conversationId).toBe(conversationId)
+    expect(JSON.parse(payload.get('history') as string).length).toBeGreaterThan(0)
+  })
+
+  it('loads the latest server identity before the first request is sent', async () => {
+    const conversationId = '00000000-0000-4000-8000-000000000011'
+    useChatStore.setState({ conversationLoaded: false })
+    vi.mocked(conversationHistory.isReady).mockReturnValueOnce(false)
+    vi.mocked(conversationHistory.prepareSend).mockImplementationOnce(() => {
+      useChatStore.setState({ conversationLoaded: true, conversationId, serverConversationId: conversationId })
+      return Promise.resolve(true)
+    })
+    mocks.fetch.mockImplementation(() => Promise.resolve(sseResponse(finalFrame(makeChatResponse()))))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('Review my routine') })
+    const payload = mocks.fetch.mock.calls[0]![1]!.body as FormData
+    expect(JSON.parse(payload.get('clientContext') as string).conversationId).toBe(conversationId)
+  })
 
   it.each(allowanceRefusals.flatMap(refusal => ['http', 'sse'].flatMap(transport => ['message', 'choice', 'question'].map(submission => ({ ...refusal, transport, submission })))))('shows the $period allowance refusal in $locale over $transport for $submission without retry', async ({ period, locale, limit, body, transport, submission }) => {
     mocks.locale = locale
@@ -1241,7 +1270,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.getQueryData.mockReset()
     mocks.queryClient.setQueryData.mockClear()
-    useChatStore.setState({ queuedPrompts: [], queuePaused: false, queueReady: false, replyActive: false, replyRevision: 0, messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: false, contextualSuggestion: null })
+    useChatStore.setState({ conversationLoaded: true, conversationBusy: false, serverConversationId: null, queuedPrompts: [], queuePaused: false, queueReady: false, replyActive: false, replyRevision: 0, messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: false, contextualSuggestion: null })
     useUIStore.getState().setAstraConversationOpen(false)
     useUIStore.getState().setCalendarHasError(false)
     globalThis.localStorage.clear()

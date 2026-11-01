@@ -1,5 +1,9 @@
 'use client'
 
+import { ConversationDeleteAction } from './conversation-delete-action'
+import { useConversationHistory } from '@/hooks/use-conversation-history'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+
 import { ConversationReveal } from './conversation-motion'
 
 import { IconButton } from '@/components/ui/icon-button'
@@ -8,7 +12,7 @@ import { SPACING } from '@orbit/shared/theme'
 
 import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence } from 'motion/react'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { useTranslations } from 'next-intl'
@@ -120,8 +124,19 @@ function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
   </div>
 }
 
+function ConversationHistoryFeedback({ failed, busy, onRetry }: Readonly<{ failed: boolean; busy: boolean; onRetry: () => void }>) {
+  const t = useTranslations()
+  return <>
+    {failed ? <ErrorState message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} aria-hidden="true" /></IconButton>} /> : null}
+    <span role="status" aria-live="polite" className="sr-only">{busy ? t('common.loading') : ''}</span>
+  </>
+}
+
 export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatController; notice?: ReactNode }>) {
   const t = useTranslations()
+  const history = useConversationHistory()
+  const historyBusy = useChatStore(state => state.conversationBusy)
+  const beforeOrder = useChatStore(state => state.conversationBeforeOrder)
   const navigate = useChatNavigation()
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const close = useCallback(() => setAstraConversationOpen(false), [setAstraConversationOpen])
@@ -147,6 +162,14 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     verifyStepUpForBubble,
     composerProps,
   } = chat
+  const prependPosition = useRef<{ height: number; offset: number } | null>(null)
+  useLayoutEffect(() => {
+    const feed = chatContainerRef.current
+    const position = prependPosition.current
+    if (!feed || !position) return
+    feed.scrollTop = position.offset + feed.scrollHeight - position.height
+    prependPosition.current = null
+  }, [chatContainerRef, messages])
   const proactiveEntryId = useChatStore((state) => state.proactiveEntryId)
   const threadContentRef = useRef<HTMLDivElement>(null)
   const registerChatContainer = useCallback((element: HTMLDivElement | null) => {
@@ -303,6 +326,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           titleVisual={<AstraGlyph size={16} />}
           titleIsBrandName
           action={<>
+            <ConversationDeleteAction onDelete={history.requestDelete} isSending={chat.isSending} operationBusy={isPendingOperationBusy} />
             <button ref={browseHeaderRef} type="button" aria-label={t('chat.templates.browse')} className={APP_BAR_CONTROL_CLASS} onClick={() => openLibrary(browseHeaderRef)}><Lightbulb size={20} strokeWidth={2} aria-hidden="true" /></button>
             <button
               type="button"
@@ -315,12 +339,18 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           </>}
         />
       </div>
+        <ConversationHistoryFeedback failed={history.failed !== null} busy={historyBusy} onRetry={history.retry} />
       <span role="status" aria-live="polite" className="sr-only">{announcingWork ? t('chat.trace.working') : ''}</span>
 
       <div
         ref={registerChatContainer}
         onScroll={(event) => {
           const feed = event.currentTarget
+          if (feed.scrollTop <= 0 && beforeOrder !== null && !historyBusy && !prependPosition.current) {
+            threadScroll.stopFollowing()
+            prependPosition.current = { height: feed.scrollHeight, offset: feed.scrollTop }
+            void history.loadEarlier().then(changed => { if (!changed) prependPosition.current = null })
+          }
           threadScroll.recordScroll(feed.scrollTop, feed.scrollHeight - feed.clientHeight)
           setPendingVisible(feed.scrollHeight - feed.clientHeight - feed.scrollTop < 40)
         }}
@@ -346,7 +376,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             <AstraGlyph size={24} />
           </span> : null}
           <div className="flex min-w-0 w-full flex-col gap-4">
-          {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={getChatCompletionText(msg, { ready: t('chat.replyReady'), unreadable: t('chat.unreadableReply') })} complete={(!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
+          {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={getChatCompletionText(msg, { ready: t('chat.replyReady'), unreadable: t('chat.unreadableReply') })} complete={!msg.restored && (!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
           <MessageBubble
             senderLabelId={`${senderIdPrefix}-${msg.id}`}
             message={msg}
@@ -354,7 +384,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             laterMessages={messages.slice(index + 1)}
             blockAnswerInteraction={blockAnswerInteraction}
             onSendMessage={sendMessage}
-            animateEntry={!initialMessageIds.has(msg.id)}
+            animateEntry={!msg.restored && !initialMessageIds.has(msg.id)}
             isStreaming={msg.id === streamingMessageId}
             onBreakdownConfirmed={handleBreakdownConfirmed}
             onActionChipClick={handleActionChipClick}
@@ -401,6 +431,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
       </div>
       <AnimatePresence initial={false}>{libraryOpen && PromptLibrary ? <PromptLibrary key="prompt-library" onBack={returnToConversation} onSelect={selectIdea} suggestions={composerProps.suggestions} hasProAccess={chat.hasProAccess} hasGoogleConnection={chat.hasGoogleConnection} disabledReason={disabledReason} /> : null}</AnimatePresence>
       {libraryOpen && !PromptLibrary && libraryLoadFailed ? <PromptLibraryLoadFailure onBack={returnToConversation} onRetry={() => setLibraryLoadAttempt(attempt => attempt + 1)} /> : null}
+      <ConfirmSheet open={history.confirmationOpen} title={t('chat.conversation.deleteTitle')} message={t('chat.conversation.deleteBody')} confirmLabel={t('chat.conversation.delete')} destructive onCancel={history.cancelDelete} onConfirm={() => { void history.confirmDelete() }} />
     </div>
     </ChatCardOperationContext.Provider>
   )

@@ -228,6 +228,10 @@ function handleCatchAll(method: string, pathname: string, res: ServerResponse): 
     sendJson(res, 200, { token, refreshToken: token })
     return
   }
+  if (method === 'GET' && pathname === '/api/chat/conversations/latest') {
+    sendJson(res, 404, { error: 'Conversation unavailable', errorCode: 'CONVERSATION_NOT_FOUND' })
+    return
+  }
   if (method === 'GET') {
     sendJson(res, 200, {})
     return

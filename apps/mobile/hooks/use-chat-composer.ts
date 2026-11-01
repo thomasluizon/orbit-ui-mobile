@@ -1,3 +1,5 @@
+import { isChatReplyActive, prepareConversationSend, resolveChatRequestContext } from '@orbit/shared/chat'
+import { conversationHistory } from '@/lib/conversation-history'
 import { createAstraAllowanceTranslator ,
   buildRecentChatHistory,
   getFriendlyErrorMessage,
@@ -517,6 +519,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         await reply.waitForReveal(firstReveal);
         if (!reply.isHidden()) threadScroll.holdPosition();
       }
+      if (!reply.isCancelled() && response.conversationId) useChatStore.setState({ conversationId: response.conversationId, serverConversationId: response.conversationId })
       if (!reply.isHidden()) {
         setIsTyping(false);
         activeStepsRef.current = [];
@@ -749,9 +752,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
   const sendMessage = useCallback(
     async (content?: string, requestContext?: 'followUp' | Pick<ChatClientContext, 'previousStartingStep' | 'selectedOfferKey'>, contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
-      const { messageOrigin, previousStartingStep, selectedOfferKey }: Pick<ChatClientContext, 'messageOrigin' | 'previousStartingStep' | 'selectedOfferKey'> =
-        typeof requestContext === 'object' ? requestContext : { messageOrigin: requestContext };
-      const sendsComposerDraft = content === undefined && messageOrigin !== 'followUp';
+      const { messageOrigin, previousStartingStep, selectedOfferKey, sendsComposerDraft } = resolveChatRequestContext(content, requestContext)
       const typedContent = content?.trim() ?? input.trim();
       const messageContent = selectedTextFile && sendsComposerDraft
         ? buildChatMessageWithFileContent({
@@ -760,7 +761,6 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
             fileContent: selectedTextFile.content,
           })
         : typedContent;
-      const sendState = useChatStore.getState();
       if (!hasComposerContent(typedContent, sendsComposerDraft ? attachments : [])) return;
       if (!isOnline) {
         setSendError(t("shell.composer.offline.reason"));
@@ -779,6 +779,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         return;
       }
 
+      const ready = prepareConversationSend(conversationHistory, useUIStore.getState(), () => setSendError(t('common.error')))
+      if (ready !== true && !await ready) return
+
       const attempted: AttemptedSend = {
         content: messageContent,
         draftContent: sendsComposerDraft ? input : typedContent,
@@ -794,7 +797,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
         contextualRequest,
       };
 
-      if (sendState.replyActive || sendState.isTyping || sendState.streamingMessageId !== null) {
+      const sendState = useChatStore.getState()
+      if (isChatReplyActive(sendState)) {
         queueAttempt(attempted, sendsComposerDraft)
         return
       }

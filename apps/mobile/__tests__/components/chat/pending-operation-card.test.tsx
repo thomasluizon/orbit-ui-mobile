@@ -97,6 +97,16 @@ beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.ac
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  it.each(['approved', 'edited', 'expired'] as const)('renders a restored %s preview read-only without an execution claim', recordedOutcome => {
+    const handlers = { onConfirmExecute: vi.fn(), onPrepareStepUp: vi.fn(), onVerifyStepUp: vi.fn() }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<PendingOperationCard pendingOperation={makePendingAgentOperation(preview)} savedState={{ recordedOutcome }} onRevise={vi.fn()} {...handlers} />) })
+    expect(renderedText(tree!.toJSON())).toContain(recordedOutcome === 'edited' ? 'chat.operation.edited' : `chat.conversation.${recordedOutcome}`)
+    expect(tree!.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && /chat\.operation\.(approve|edit|reject|refresh)/.test(node.props.accessibilityLabel ?? ''))).toHaveLength(0)
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree!.unmount())
+  })
+
   it.each(['en', 'pt-BR'])('revises a task date with the calendar before approval in %s', async locale => {
     visibleLocale.actual = true
     visibleLocale.language = locale

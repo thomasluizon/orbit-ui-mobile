@@ -84,6 +84,14 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it.each(['approved', 'edited', 'expired'] as const)('renders a restored %s preview read-only without an execution claim', recordedOutcome => {
+    render(<PendingOperationCard pendingOperation={preview} savedState={{ recordedOutcome }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByText(recordedOutcome === 'edited' ? 'chat.operation.edited' : `chat.conversation.${recordedOutcome}`)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /chat\.operation\.(approve|edit|reject|refresh)/ })).not.toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+    expect(revise).not.toHaveBeenCalled()
+  })
+
   it.each(['en', 'pt-BR'])('revises a task date with the calendar before approval in %s', async locale => {
     visibleLocale.actual = true
     visibleLocale.language = locale

@@ -22,6 +22,7 @@ export interface PendingOperationCardLabels {
   empty: string
   cancel: string
   edit: string
+  recordedOutcome?: { approved: string; edited: string; expired: string }
   edited: string
   editTitle: string
   reject: string
@@ -163,6 +164,7 @@ export function buildPendingOperationCardLabels(
     cancel: translate('common.cancel'),
     edit: translate('chat.operation.edit'),
     edited: translate('chat.operation.edited'),
+    recordedOutcome: { approved: translate('chat.conversation.approved'), edited: translate('chat.operation.edited'), expired: translate('chat.conversation.expired') },
     editTitle: translate('chat.operation.editTitle'),
     reject: translate('chat.operation.reject'),
     remove: translate('chat.operation.remove'),

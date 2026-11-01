@@ -134,3 +134,8 @@ export const connectionKeys = {
   all: ['connections'] as const,
   notion: () => [...connectionKeys.all, 'notion'] as const,
 }
+
+export const conversationKeys = {
+  all: ['conversations'] as const,
+  page: (generation: number, conversationId?: string, beforeOrder?: number | string) => [...conversationKeys.all, generation, conversationId, beforeOrder] as const,
+}

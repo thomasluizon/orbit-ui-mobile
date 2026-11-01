@@ -132,7 +132,7 @@ function currentOperationState(props: MessageBubbleProps, operationId: string): 
   const saved = props.message.pendingOperationStates?.[operationId]
   const current = props.laterMessages?.flatMap(message => message.operations ?? [])
     .filter(operation => operation.pendingOperationId === operationId && operation.status !== 'PendingConfirmation').at(-1)
-  return current ? { ...saved, ...pendingOperationExecutionPatch({ ok: current.status === 'Succeeded', response: { operation: current } }) } : saved
+  return current ? { ...saved, recordedOutcome: undefined, ...pendingOperationExecutionPatch({ ok: current.status === 'Succeeded', response: { operation: current } }) } : saved
 }
 
 export function getMessageBubbleOperations(props: MessageBubbleProps, transitionMessage: ChatStoreState['transitionMessage']) {

@@ -152,3 +152,6 @@ export * from './habit-suggestion-controller'
 export * from './habit-suggestion-view'
 export * from './one-small-step-actions'
 export { createUseAstraOffer, canShowAstraOffer, astraOfferDestination, type AstraOfferProps, type AstraOfferState } from './astra-offer'
+
+export * from './conversation-history'
+export * from './conversation-history-hook'
