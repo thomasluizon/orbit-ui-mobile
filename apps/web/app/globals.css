@@ -609,6 +609,7 @@ select[aria-hidden="true"] {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--orbit-space-8);
+  scroll-padding-block: var(--orbit-space-8);
   border-radius: 20px;
   background: var(--bg-sheet);
   box-shadow: var(--shadow-2), inset 0 0 0 1px var(--hairline);
