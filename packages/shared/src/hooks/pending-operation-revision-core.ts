@@ -63,11 +63,32 @@ export function changePendingOperationRevisionDraft(
   } }
 }
 
+function omitDraftPath(value: unknown, [key, ...rest]: readonly string[]): unknown {
+  if (Array.isArray(value)) return value.map((entry: unknown, index) => String(index) === key ? omitDraftPath(entry, rest) : entry)
+  if (typeof value !== 'object' || value === null) return value
+  const record = { ...value } as Record<string, unknown>
+  if (rest.length) record[key!] = omitDraftPath(record[key!], rest)
+  else delete record[key!]
+  return record
+}
+
+function rebaseRemovedDraftFields(draft: Readonly<Record<string, string>>, removed: readonly string[]): Readonly<Record<string, string>> {
+  return Object.fromEntries(Object.entries(draft)
+    .filter(([field]) => !removed.some(path => field === path || field.startsWith(`${path}/`)))
+    .map(([field, value]) => {
+      const nested = removed.filter(path => path.startsWith(`${field}/`))
+      if (!nested.length) return [field, value]
+      const parsed: unknown = JSON.parse(value)
+      return [field, JSON.stringify(nested.reduce((current, path) => omitDraftPath(current, path.slice(field.length + 1).split('/')), parsed))]
+    }))
+}
+
 export function applyPendingOperationRevisionPreview(
   current: PendingOperationRevisionState,
   preview: PendingOperationChangePreview,
   editedItemId?: string,
   selected: readonly PendingOperationItem[] = current.operation.items ?? [],
+  removal?: { itemId: string; fields: readonly string[] },
 ): PendingOperationRevisionState {
   const items = preview.items ?? []
   const itemIds = new Set(items.map((item) => item.itemId))
@@ -77,7 +98,9 @@ export function applyPendingOperationRevisionPreview(
     operation: { ...current.operation, ...preview, nextAction: null },
     authorizationVersion: current.authorizationVersion + 1,
     originalItemIds: (current.operation.items ?? []).flatMap((item, index) => selectedIds.has(item.itemId) ? [current.originalItemIds[index]!] : []),
-    drafts: Object.fromEntries(Object.entries(current.drafts).filter(([id]) => id !== editedItemId && itemIds.has(id))),
+    drafts: Object.fromEntries(Object.entries(current.drafts)
+      .filter(([id]) => id !== editedItemId && itemIds.has(id))
+      .map(([id, draft]) => [id, removal?.itemId === id ? rebaseRemovedDraftFields(draft, removal.fields) : draft])),
     editedItemIds: [...new Set([...current.editedItemIds, ...(editedItemId ? [editedItemId] : [])])]
       .filter((id) => itemIds.has(id)),
     editingItemId: editedItemId || !current.editingItemId || !itemIds.has(current.editingItemId)

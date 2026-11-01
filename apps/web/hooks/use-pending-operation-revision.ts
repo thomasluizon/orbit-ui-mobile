@@ -68,9 +68,9 @@ export function usePendingOperationRevision(
         return true
       } else if (response.result.preview) {
         const preview = response.result.preview
-        const next = applyPendingOperationRevisionPreview(synchronized, preview, edits?.itemId, selected)
+        const next = applyPendingOperationRevisionPreview(synchronized, preview, edits?.itemId, selected, removal)
         setRevision((current) => current.operation.previewFingerprint === requestFingerprint
-          ? applyPendingOperationRevisionPreview(current, preview, edits?.itemId, selected) : current)
+          ? applyPendingOperationRevisionPreview(current, preview, edits?.itemId, selected, removal) : current)
         setStaleFingerprint(undefined)
         setRefreshUnavailableFingerprint(undefined)
         onSettled?.({ operation: next.operation, editedItemIds: [...next.editedItemIds], originalItemIds: [...next.originalItemIds], stale: false, refreshUnavailable: false, status: undefined, completedOperation: undefined, canRetry: false })

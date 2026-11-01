@@ -1,6 +1,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { Dimensions, StyleSheet, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native'
 import { HabitRow } from '@/components/habits/habit-row'
 import { TodayDateControl } from '@/components/today/today-date-control'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
@@ -59,6 +60,53 @@ const cases = (['sheet', 'anchored'] as const).flatMap((presentation) =>
   (['open', 'exiting', 'reopened'] as const).map((phase) => ({ presentation, phase })))
 
 describe('redesign menu ownership on Android', () => {
+  it.each([1, 2].flatMap((fontScale) => [412, 900].map((screenHeight) => ({ fontScale, screenHeight }))))('bounds and scrolls every habit action in a short landscape window at font scale $fontScale on a $screenHeight screen', async ({ fontScale, screenHeight }) => {
+    __setWindowDimensions({ width: 915, height: 412, scale: 1, fontScale })
+    const screenDimensions = vi.spyOn(Dimensions, 'get').mockReturnValue({ width: 1280, height: screenHeight, scale: 1, fontScale })
+    const actions = {
+      onAddSubHabit: vi.fn(), onMoveParent: vi.fn(), onSkip: vi.fn(), onReschedule: vi.fn(),
+      onEdit: vi.fn(), onDuplicate: vi.fn(), onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn(),
+    }
+    const expectedLabels = ['habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
+      'habits.actions.rescheduleAstra', 'common.edit', 'habits.actions.duplicate', 'common.select',
+      'habits.actions.openSubHabits', 'habits.actions.delete']
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<><PortalHost />
+      <HabitRow habit={createMockHabit({ title: 'Read', isOverdue: true, isGeneral: false, hasSubHabits: true })}
+        hasChildren actions={actions} />
+    </>) })
+    try {
+      for (const [index, handler] of Object.values(actions).entries()) {
+        const more = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.actions.more')[0]!
+        await TestRenderer.act(() => (more.props.onPress as () => void)())
+        const panel = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'menu')[0]!
+        const layout = panel.props.onLayout as (event: Pick<LayoutChangeEvent, 'nativeEvent'>) => void
+        await TestRenderer.act(() => layout({ nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 396 } } }))
+        const position = StyleSheet.flatten(panel.props.style as StyleProp<ViewStyle>)
+        expect(position.top).toBe(8)
+        expect(position.left).toBe(8)
+        const scrollers = tree.root.findAllByType('ScrollView')
+        expect(scrollers).toHaveLength(1)
+        const scroller = scrollers[0]!
+        expect(StyleSheet.flatten(scroller.props.style as StyleProp<ViewStyle>).maxHeight).toBe(380)
+        const rows = scroller.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'menuitem')
+        expect(rows.map((row) => row.findAll((node) => String(node.type) === 'Text')[0]!.props.children)).toEqual(expectedLabels)
+        for (const row of rows) {
+          const label = row.findAll((node) => String(node.type) === 'Text')[0]!
+          expect(label.props.numberOfLines).toBe(fontScale === 2 ? undefined : 1)
+          expect(label.props.maxFontSizeMultiplier).toBeUndefined()
+        }
+        await TestRenderer.act(() => (rows[index]!.props.onPress as () => void)())
+        expect(handler).toHaveBeenCalledOnce()
+        expect(tree.root.findAllByType('ScrollView')).toHaveLength(0)
+      }
+      expect(Object.values(actions).every((handler) => handler.mock.calls.length === 1)).toBe(true)
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+      screenDimensions.mockRestore()
+    }
+  })
+
   it.each(cases)('replaces the $phase $presentation controls menu with a row and back', async ({ presentation, phase }) => {
     __setWindowDimensions({ width: presentation === 'sheet' ? 412 : 1280, height: 915, scale: 1, fontScale: 1 })
     let tree!: RenderedTree

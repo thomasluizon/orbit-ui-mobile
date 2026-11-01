@@ -1,6 +1,6 @@
 import { restoreConversationPage } from '../chat/conversation-history'
 import { makeRevisedConversationPage, storedOperationId } from '../test-support/conversation-fixtures'
-import { astraOfferFixture, makeOfferedPreview } from '../test-support/astra-offer-fixtures'
+import { astraOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
 import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
@@ -11,6 +11,7 @@ import {
   type PendingOperationCardRenderers,
   type PendingOperationButtonSpec,
   type PendingOperationConfirmSheetProps,
+  type PendingOperationEditSheetProps,
   type PendingOperationFrame,
   type PendingOperationVerificationProps,
 } from '../chat/pending-operation-card-view'
@@ -29,6 +30,33 @@ function translateMessages(messages: typeof en, key: string, values?: Record<str
 
 const translateEnglish = (key: string, values?: Record<string, string | number>) => translateMessages(en, key, values)
 const compareStrings = (left: string, right: string) => left.localeCompare(right)
+
+describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('suggested task preview in $locale', ({ locale, messages }) => {
+  function preview() {
+    const operation = makeOfferedTaskPreview()
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), value => value, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    return record.frame!
+  }
+
+  it('keeps wire booleans, JSON and field keys out of suggested values', () => {
+    const text = preview().items.map(row => `${row.label} ${row.meta}`).join(' ')
+    expect(text).not.toMatch(/True|False|\[\{|reminder_enabled|scheduled_reminders/)
+  })
+
+  it('shows the suggested icon and reminder only in the named item', () => {
+    const frame = preview()
+    expect(frame.items).toHaveLength(1)
+    expect(frame.items[0]).toMatchObject({ label: 'Virada no Terraço Itália', icon: '🎆',
+      meta: locale === 'en' ? 'Dec 31, 2026 · at 20:30 · Remind me the same day at 19:30'
+        : '31 de dez. de 2026 · às 20:30 · Lembrar no mesmo dia às 19:30' })
+  })
+
+  it('names the one-time create as a task', () => {
+    expect(preview().title).toBe(messages.habits.form.newTask)
+  })
+})
 
 it('projects every supplied child schedule input without losing typed values', () => {
   const child = { title: 'Scheduled child', frequency_unit: 'Day', frequency_quantity: 1,
@@ -618,6 +646,7 @@ function createRenderers() {
     confirm?: PendingOperationConfirmSheetProps
     verification?: PendingOperationVerificationProps
     stepUp?: { onAction: () => void }
+    editSheet?: PendingOperationEditSheetProps
   } = { buttons: [] }
   const render: PendingOperationCardRenderers<string> = {
     blockFrame: (props) => { record.frame = props; return 'frame' },
@@ -627,7 +656,7 @@ function createRenderers() {
     verification: (props) => { record.verification = props; return 'verification' },
     placementChoice: () => 'placement-choice',
     parentChoice: () => 'parent-choice',
-    editSheet: () => 'edit-sheet',
+    editSheet: (props) => { record.editSheet = props; return 'edit-sheet' },
     removeItem: (label, _disabled, onClick) => { record.buttons.push({ label, onClick }); return label },
     notice: (message) => message,
     fragment: (...children) => children.filter(Boolean).join('|'),
@@ -1191,7 +1220,7 @@ describe('typed preview rows', () => {
   })
 })
 
-it('keeps each offered row editable and independently removable before approval', () => {
+it('keeps suggested fields editable and removable through the full editor', () => {
   const operation = makeOfferedPreview()
   const card = createCard()
   const removeField = vi.fn()
@@ -1205,14 +1234,44 @@ it('keeps each offered row editable and independently removable before approval'
   const localized = buildPendingOperationCardLabels(operation, translateEnglish, value => value)
   const { record, render } = createRenderers()
   renderPendingOperationCard({ card, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
-  const offered = record.frame!.items.filter(item => item.id.includes(':offer:'))
-  expect(offered).toHaveLength(2)
-  expect(offered.every(item => item.proposed && item.indented)).toBe(true)
+  expect(record.frame!.items).toHaveLength(1)
   const label = localized.fieldLabels.repeat_reminder!
-  record.buttons.find(button => button.label === `${localized.edit} ${label}`)!.onClick()
+  record.buttons.find(button => button.label === localized.edit)!.onClick()
   expect(card.revision.startEdit).toHaveBeenCalledWith('0')
-  record.buttons.find(button => button.label === `${localized.remove} ${label}`)!.onClick()
+  card.revision.editingItem = operation.items![0]!
+  renderPendingOperationCard({ card, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+  expect(record.editSheet?.fieldRemovals).toHaveLength(1)
+  expect(record.editSheet?.fieldRemovals?.[0]).toMatchObject({ field: 'repeat_reminder', label: `${localized.remove} ${label}`, disabled: false })
+  record.editSheet!.fieldRemovals![0]!.onRemove()
   expect(removeField).toHaveBeenCalledWith('0', operation.items![0]!.fields[2])
+  expect(card.execute).not.toHaveBeenCalled()
+})
+
+it.each(['ready', 'busy', 'stale', 'done', 'unavailable'] as const)('keeps grouped task removals in the editor with state %s', state => {
+  const operation = makeOfferedTaskPreview()
+  const card = createCard()
+  const removeField = vi.fn().mockResolvedValue(true)
+  card.status = state === 'done' ? 'done' : undefined
+  card.revision = {
+    operation, canRevise: state !== 'unavailable', items: operation.items!, editingItem: operation.items![0]!,
+    draft: {}, editedItemIds: [], busy: state === 'busy', stale: state === 'stale', canRefresh: false,
+    refresh: vi.fn(), rejected: false, error: undefined,
+    setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(),
+    saveEdit: vi.fn(), rejectItem: vi.fn(), rejectAll: vi.fn(), removeField,
+  }
+  const localized = buildPendingOperationCardLabels(operation, translateEnglish, value => value)
+  const { record, render } = createRenderers()
+  renderPendingOperationCard({ card, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+  const removals = record.editSheet!.fieldRemovals!
+  expect(removals.map(removal => [removal.field, removal.label, removal.disabled])).toEqual(
+    state === 'done' || state === 'unavailable' ? [] : [
+      ['emoji', 'Remove Icon', state !== 'ready'],
+      ['scheduled_reminders', 'Remove Scheduled reminders', state !== 'ready'],
+    ])
+  if (state === 'ready') {
+    removals[0]!.onRemove()
+    expect(removeField).toHaveBeenCalledExactlyOnceWith('0', operation.items![0]!.fields.find(field => field.field === 'emoji'))
+  }
   expect(card.execute).not.toHaveBeenCalled()
 })
 

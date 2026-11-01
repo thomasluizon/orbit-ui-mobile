@@ -71,6 +71,7 @@ export interface PendingOperationEditSheetProps {
   onChange: (field: string, value: string) => void
   onClose: () => void
   onSave: () => Promise<boolean>
+  fieldRemovals?: readonly { field: string; label: string; disabled: boolean; onRemove: () => void }[]
 }
 
 interface PendingOperationFrameBase<Node> {
@@ -370,7 +371,7 @@ function previewRows<Node>(
         ? itemControl(item, items.length, revision, card, labels, render, status, result?.habitId)
         : completedTargetControl(result?.habitId ?? (items.length === 1 ? card.completedOperation?.targetId ?? item.entityId : item.entityId), item.entityName, card, labels, render, status),
     }
-    return [parent, ...offeredFieldRows(item, card, labels, render), ...(item.placement?.selected === 'checklist_item' ? [] : pendingOperationSubHabits(item.fields)).map((child, childIndex) => ({
+    return [parent, ...(item.placement?.selected === 'checklist_item' ? [] : pendingOperationSubHabits(item.fields)).map((child, childIndex) => ({
       id: `${item.itemId}-child-${childIndex}`, label: child.title,
       icon: child.fields.find((field) => field.field === 'emoji')?.newValue ?? undefined,
       meta: labels.summarize(child.fields, 'createHabit'), indented: true,
@@ -405,21 +406,21 @@ function placementSummary(item: PreviewItem, operation: PendingAgentOperation, l
   return placement.selected === 'checklist_item' || !summary ? selected : `${selected} · ${summary}`
 }
 
-function offeredFieldRows<Node>(item: PreviewItem, card: PendingOperationCardActions, labels: PendingOperationCardLabels, render: PendingOperationCardRenderers<Node>): PendingOperationFrame<Node>['items'] {
-  if (card.status != null) return []
+function suggestedFieldRemovals(item: PreviewItem, card: PendingOperationCardActions, labels: PendingOperationCardLabels): PendingOperationEditSheetProps['fieldRemovals'] {
   const revision = card.revision
-  return item.fields.filter(field => field.provenance === 'suggested').map(field => {
-    const name = labels.fieldLabels[field.field.split('/').at(-1)!] ?? field.field
-    const disabled = card.busy || revision?.busy === true || revision?.stale === true
-    return {
-      id: `${item.itemId}:offer:${field.field}`, label: field.field.includes('/') ? `${field.entityName}: ${name}` : name,
-      meta: field.newValue ?? '', status: undefined, irreversible: false, proposed: true,
-      wrapLabel: true, wrapMeta: true, indented: true,
-      control: revision?.canRevise ? render.fragment(
-        render.button({ label: `${labels.edit} ${name}`, icon: 'edit', disabled, onClick: () => revision.startEdit(item.itemId) }),
-        field.removal && revision.removeField ? render.removeItem(`${labels.remove} ${name}`, disabled, () => { void revision.removeField!(item.itemId, field) }) : undefined,
-      ) : undefined,
-    }
+  if (card.status != null || !revision?.canRevise || !revision.removeField) return []
+  const groups = new Map<string, PendingOperationChange>()
+  for (const field of item.fields) {
+    if (field.provenance !== 'suggested' || !field.removal || !isPendingOperationEditableField(field)) continue
+    const key = JSON.stringify([...(field.removal.fields?.length ? field.removal.fields : [field.removal.field])].sort((first, second) => first.localeCompare(second)))
+    const existing = groups.get(key)
+    if (!existing || existing.field.split('/').at(-1) === 'reminder_enabled') groups.set(key, field)
+  }
+  return [...groups.values()].flatMap(field => {
+    const name = labels.fieldLabels[field.field.split('/').at(-1)!]
+    return name ? [{ field: field.field, label: `${labels.remove} ${name}`,
+      disabled: card.busy || revision.busy || revision.stale,
+      onRemove: () => { void revision.removeField!(item.itemId, field) } }] : []
   })
 }
 
@@ -567,6 +568,7 @@ export function renderPendingOperationCard<Node>({
         onChange: revision.setDraftField,
         onClose: revision.closeEdit,
         onSave: revision.saveEdit,
+        fieldRemovals: suggestedFieldRemovals(revision.editingItem, card, labels),
       })
     : null
   return render.fragment(render.rejected(''), blockFrame, confirmSheet, verification, editSheet,

@@ -1,6 +1,6 @@
 import { restoreConversationPage } from '@orbit/shared/chat'
 import { makeRevisedConversationPage, storedOperationId } from '@orbit/shared/test-support/conversation-fixtures'
-import { makeOfferedPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
+import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
 import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { IntlMessageFormat } from 'intl-messageformat'
@@ -1672,11 +1672,76 @@ it.each(['en', 'pt-BR'])('labels editable goal progress visibly and accessibly i
 
 describe('offered preview fields', () => {
   beforeEach(() => { visibleLocale.actual = true; visibleLocale.language = 'en' })
+  it.each(['en', 'pt-BR'])('keeps a child reminder removed when saving the open Edit draft in %s', async locale => {
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const operation = makeOfferedChildPreview()
+    const revised = makeOfferedChildPreview(0)
+    const onRevise = vi.fn().mockResolvedValueOnce({ ok: true, result: { isSuccess: true, error: null,
+      pendingOperationId: operation.id, cancelled: false, preview: { ...revised, previewFingerprint: 'preview-two' } } })
+      .mockResolvedValue({ ok: false, error: 'network_error' })
+    render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: messages.chat.operation.edit }))
+    fireEvent.change(screen.getByRole('textbox', { name: `${messages.chat.operation.field.title} 1` }), { target: { value: 'Read slowly' } })
+    const removals = within(screen.getByRole('dialog')).getAllByRole('button', { name: `${messages.chat.operation.remove} ${messages.chat.operation.field.scheduled_reminders}` })
+    expect(removals).toHaveLength(2)
+    fireEvent.click(removals[0]!)
+    await waitFor(() => expect(onRevise).toHaveBeenCalledExactlyOnceWith(operation.id, {
+      previewFingerprint: 'preview-one', items: [{ itemId: '0', removeSuggestedFields: ['sub_habits/0/reminder_enabled', 'sub_habits/0/scheduled_reminders'] }],
+    }))
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('button', { name: messages.common.save })).toBeEnabled())
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: messages.common.save }))
+    await waitFor(() => expect(onRevise).toHaveBeenLastCalledWith(operation.id, {
+      previewFingerprint: 'preview-two', items: [{ itemId: '0', edits: { sub_habits: [
+        { title: 'Read slowly' }, { title: 'Stretch', reminder_enabled: true, scheduled_reminders: [{ time: '20:00', when: 'same_day' }] },
+      ] } }],
+    }))
+    expect(confirm).not.toHaveBeenCalled()
+  })
+  it.each(['en', 'pt-BR'])('shows the suggested task once and removes its reminder through Edit in %s', async locale => {
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const operation = makeOfferedTaskPreview()
+    const items = operation.items!.map(item => ({ ...item, fields: item.fields.filter(field => !['reminder_enabled', 'scheduled_reminders'].includes(field.field)) }))
+    const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false,
+      preview: { changes: items[0]!.fields, items, changeTargetCount: 1, previewFingerprint: 'preview-two' } } })
+    render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(document.querySelectorAll('[data-preview-item-meta]')).toHaveLength(1)
+    expect(screen.getByText(messages.habits.form.newTask)).toBeVisible()
+    expect(screen.getByText('🎆')).toBeVisible()
+    const summary = document.querySelector('[data-preview-item-meta]')!.textContent!.replace(/\u00a0/g, ' ')
+    expect(summary).toContain(locale === 'en' ? 'Dec 31, 2026' : '31 de dez. de 2026')
+    expect(summary).toContain('8:30 PM')
+    expect(summary).toContain(locale === 'en' ? 'Remind me the same day at 7:30 PM' : 'Lembrar no mesmo dia às 7:30 PM')
+    expect(document.body.textContent).not.toMatch(/True|False|\[\{|reminder_enabled|scheduled_reminders/)
+    fireEvent.click(screen.getByRole('button', { name: messages.chat.operation.edit }))
+    expect(within(screen.getByRole('dialog')).queryByRole('button', { name: `${messages.chat.operation.remove} ${messages.chat.operation.field.reminder_enabled}` })).not.toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: `${messages.chat.operation.remove} ${messages.chat.operation.field.scheduled_reminders}` }))
+    await waitFor(() => expect(onRevise).toHaveBeenCalledExactlyOnceWith(operation.id, {
+      previewFingerprint: 'preview-one', items: [{ itemId: '0', removeSuggestedFields: ['reminder_enabled', 'scheduled_reminders'] }],
+    }))
+    expect(document.querySelector('[data-preview-item-meta]')!.textContent).not.toMatch(/7:30/)
+    expect(screen.getByText('🎆')).toBeVisible()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+  it('retains the suggested reminder and its removal control after a failed revision', async () => {
+    const operation = makeOfferedTaskPreview()
+    const onRevise = vi.fn().mockResolvedValue({ ok: false, error: 'network_error' })
+    render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: en.chat.operation.edit }))
+    const removal = () => within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove Scheduled reminders' })
+    fireEvent.click(removal())
+    await waitFor(() => expect(onRevise).toHaveBeenCalledOnce())
+    await waitFor(() => expect(removal()).toBeEnabled())
+    expect(document.querySelector('[data-preview-item-meta]')).toHaveTextContent('7:30')
+    expect(screen.getByText('🎆')).toBeVisible()
+    expect(confirm).not.toHaveBeenCalled()
+  })
   it('clears optional active hours through their time controls before saving', async () => {
     const operation = makeOfferedPreview()
     const onRevise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
     render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Repeat reminder' }))
+    fireEvent.click(screen.getByRole('button', { name: en.chat.operation.edit }))
     const times = ['active_start', 'active_end'] as const
     for (const field of times) fireEvent.change(screen.getByRole('textbox', { name: en.habits.form[field === 'active_start' ? 'repeatActiveStart' : 'repeatActiveEnd'] }), { target: { value: '' } })
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: en.common.save }))
@@ -1688,7 +1753,7 @@ describe('offered preview fields', () => {
     operation.items![0]!.fields = [field]
     const onRevise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
     render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    fireEvent.click(screen.getByRole('button', { name: `Edit ${en.habits.form.reminder}` }))
+    fireEvent.click(screen.getByRole('button', { name: en.chat.operation.edit }))
     fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '' } })
     fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '30' } })
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: en.common.save }))
@@ -1699,8 +1764,8 @@ describe('offered preview fields', () => {
     const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: { changes: operation.changes, items: operation.items, changeTargetCount: 1, previewFingerprint: 'preview-two' } } })
     const execute = vi.fn()
     render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={execute} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    expect(screen.getByText('Every 2 hours')).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Repeat reminder' }))
+    expect(document.querySelector('[data-preview-item-meta]')).toHaveTextContent('Every 2 hours')
+    fireEvent.click(screen.getByRole('button', { name: en.chat.operation.edit }))
     fireEvent.change(screen.getByRole('spinbutton', { name: en.chat.operation.field.interval_minutes }), { target: { value: '180' } })
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: en.common.save }))
     await waitFor(() => expect(onRevise).toHaveBeenCalledWith(operation.id, { previewFingerprint: 'preview-one', items: [{ itemId: '0', edits: { repeat_reminder: { interval_minutes: 180, active_start: '08:00', active_end: '22:00' } } }] }))
@@ -1712,7 +1777,8 @@ describe('offered preview fields', () => {
     const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id, cancelled: false, preview: { changes: items[0]!.fields, items, changeTargetCount: 1, previewFingerprint: 'preview-two' } } })
     const execute = vi.fn()
     render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={execute} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Repeat reminder' }))
+    fireEvent.click(screen.getByRole('button', { name: en.chat.operation.edit }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove Repeat reminder' }))
     await waitFor(() => expect(screen.queryByText('Every 2 hours')).not.toBeInTheDocument())
     expect(onRevise).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: 'preview-one', items: [{ itemId: '0', removeSuggestedFields: ['reminder_enabled', 'repeat_reminder'] }] })
     expect(screen.getByText('Water')).toBeVisible()
