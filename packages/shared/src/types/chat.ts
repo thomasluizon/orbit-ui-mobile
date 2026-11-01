@@ -674,6 +674,7 @@ export const chatResponseSchema = z.object({
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   ...replyCardFieldsShape,
   messageAllowanceConsumed: z.boolean().nullish(),
+  conversationId: z.uuid().nullish(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>
