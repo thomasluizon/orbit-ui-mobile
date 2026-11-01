@@ -14,7 +14,7 @@ export function RadioOptionFixture({ locale }: Readonly<{ locale: 'en' | 'pt-BR'
         <RadioRow label={words.typeTask} wrapLabel />
         <RadioRow label={words.typeHabit} wrapLabel selected />
       </RadioGroup>
-      <HabitScheduleFields unit={null} quantity={null} flexible={false} general disabled={false} onChange={() => {}} onModeChange={() => {}} />
+      <HabitScheduleFields unit="Day" quantity={1} flexible disabled={false} onChange={() => {}} onModeChange={() => {}} />
     </main>
   </NextIntlClientProvider>
 }

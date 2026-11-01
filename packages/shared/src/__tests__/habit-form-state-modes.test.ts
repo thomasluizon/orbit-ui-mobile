@@ -28,6 +28,12 @@ describe('applyHabitFormMode', () => {
 })
 
 describe('scheduled reminder cloning', () => {
+  it('prefills General edits and children as tasks without a date', () => {
+    const habit = createMockHabit({ isGeneral: true, frequencyUnit: null, frequencyQuantity: null, dueDate: '', startDate: undefined })
+    expect(buildEditHabitFormState(habit).formValues).toMatchObject({ itemType: 'task', isGeneral: true, dueDate: '' })
+    expect(buildParentHabitFormState(habit, '2026-10-20').formValues).toMatchObject({ itemType: 'task', isGeneral: true, dueDate: '' })
+  })
+
   it('deep-copies scheduled reminders into parent prefill state', () => {
     const reminders = [{ when: 'day_before' as const, time: '08:00' }]
     const state = buildParentHabitFormState(createMockHabit({ scheduledReminders: reminders }))

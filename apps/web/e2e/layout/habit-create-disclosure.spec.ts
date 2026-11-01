@@ -111,9 +111,11 @@ for (const locale of ['pt-BR', 'en'] as const) {
             await expect(screen.getByRole('button', { name: messages.habits.form.acceptDate, exact: true })).toHaveCount(0)
             await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) }).click()
             const frequency = screen.getByRole('radiogroup', { name: messages.habits.form.frequency, exact: true })
-            await frequency.getByRole('radio', { name: new RegExp(messages.habits.form.noSchedule) }).click()
-            await expect(screen.locator('[data-habit-date-field]')).toHaveCount(0)
-            await frequency.getByRole('radio', { name: messages.habits.form.every, exact: true }).click()
+            await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) }).click()
+            await screen.getByRole('radio', { name: messages.habits.form.noSchedule, exact: true }).click()
+            await expect(phrase).toHaveCount(0)
+            await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) }).click()
+            await expect(frequency.getByRole('radio')).toHaveCount(2)
             await expect(screen.getByRole('button', { name: new RegExp(messages.habits.form.habitStartDate) })).toBeVisible()
             const geometry = await screen.evaluate((element) => ({
               scroll: document.documentElement.scrollWidth,
