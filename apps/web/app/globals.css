@@ -605,7 +605,11 @@ select[aria-hidden="true"] {
   z-index: var(--z-index-dropdown);
   min-width: 240px;
   max-width: 320px;
+  max-height: var(--radix-dropdown-menu-content-available-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--orbit-space-8);
+  scroll-padding-block: var(--orbit-space-8);
   border-radius: 20px;
   background: var(--bg-sheet);
   box-shadow: var(--shadow-2), inset 0 0 0 1px var(--hairline);

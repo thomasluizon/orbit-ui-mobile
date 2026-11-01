@@ -1,4 +1,5 @@
 import { makeRestartPlanPreview, makeTypedHabitsPreview, makeExistingHabitPreview, makeParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeOfferedTaskPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle, type TextStyle } from 'react-native'
@@ -81,6 +82,25 @@ function expectTrailingLines(bounds: ReturnType<ReturnType<typeof Yoga.Node.crea
 afterEach(async () => { vi.useRealTimers(); __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }); await i18n.changeLanguage('en'); vi.clearAllMocks() })
 
 describe('Pending preview geometry on Android', () => {
+  it.each([320, 1280].flatMap(width => locales.flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits the suggested task once at $width in $locale with text scale $scale', async ({ width, locale, scale }) => {
+    __setWindowDimensions({ width, height: 1800, scale: 1, fontScale: scale })
+    await i18n.changeLanguage(locale)
+    const tree = render(<PendingOperationCard pendingOperation={makeOfferedTaskPreview()} {...handlers} />)
+    try {
+      const summaries = tree.root.findAllByProps({ testID: 'preview-item-meta' }).filter((node: { type: unknown }) => typeof node.type === 'string')
+      expect(summaries).toHaveLength(1)
+      expect(renderedText(summaries[0]!.props.children).replace(/\u00a0/g, ' ')).toBe(locale === 'en'
+        ? 'Dec 31, 2026 · at 20:30 · Remind me the same day at 19:30'
+        : '31 de dez. de 2026 · às 20:30 · Lembrar no mesmo dia às 19:30')
+      const measured = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, scale)
+      const summary = measured.texts.find(text => text.label.includes('19:30'))!
+      expect(summary).toBeDefined()
+      expect(summary.clipped).toBe(false)
+      expect(summary.left).toBeGreaterThanOrEqual(16)
+      expect(summary.right).toBeLessThanOrEqual(Math.min(width, 740) - 32 - 16)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([320, 1352].flatMap(width => locales.flatMap(locale => [1, 2].map(scale => ({ width, locale, scale })))))('fits typed preview groups at $width in $locale with text scale $scale', async ({ width, locale, scale }) => {
     __setWindowDimensions({ width, height: 1800, scale: 1, fontScale: scale })
     await i18n.changeLanguage(locale)

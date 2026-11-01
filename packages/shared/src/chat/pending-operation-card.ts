@@ -108,6 +108,11 @@ function pendingOperationTitle(
   translate: (key: string, values?: Record<string, string | number>) => string,
 ): string {
   const count = operation.changeTargetCount ?? operation.items?.length ?? 1
+  const item = operation.items?.[0]
+  if (createsHabits && count === 1 && (item?.habitType === 'Task'
+    || (item?.fields ?? operation.changes ?? []).some(field => field.field === 'frequency_unit' && field.newValue === 'OneTime'))) {
+    return translate('habits.form.newTask')
+  }
   if (createsHabits) return translate('chat.operation.newHabits', { count })
   if (['updateHabit', 'updateHabits'].includes(operation.actionKey ?? '') && operation.items?.length === 1) {
     return translate('chat.operation.editHabit', { name: operation.items[0]!.entityName })
