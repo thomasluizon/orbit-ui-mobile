@@ -17,6 +17,7 @@ import { ReminderSection } from './reminder-section'
 import { ScheduledReminderSection } from './scheduled-reminder-section'
 
 interface HabitTimingFieldProps {
+  disabled: boolean
   formHelpers: HabitFormHelpers
   controller: ReturnType<typeof createHabitFormController>
   reminderTimes: number[]
@@ -42,7 +43,7 @@ function FixedReminderEditors({ general, dueTime, enabled, offsets, clockCount, 
   return <ReminderSection  reminderEnabled={enabled} reminderTimes={offsets} onReminderTimesChange={onOffsetsChange} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} scheduledReminderCount={clockCount} onValidationError={onError} t={t}>{children}</ReminderSection>
 }
 
-export function HabitTimingField({ formHelpers, controller, reminderTimes, onReminderTimesChange, showError }: Readonly<HabitTimingFieldProps>) {
+export function HabitTimingField({ disabled, formHelpers, controller, reminderTimes, onReminderTimesChange, showError }: Readonly<HabitTimingFieldProps>) {
   const t = useTranslations()
   const { profile } = useProfile()
   const { displayTime } = useTimeFormat()
@@ -64,7 +65,7 @@ export function HabitTimingField({ formHelpers, controller, reminderTimes, onRem
     {/* eslint-disable-next-line local/max-button-words -- #1922 explicitly approves this timing-sheet entry label. */}
     <ListRow icon="bell" title={t('habits.form.timingAndReminder')} description={summary} placement="column" onClick={() => setOpen(true)} />
     {open ? <Sheet ref={sheetRef} open title={t('habits.form.timingAndReminder')} onClose={() => setOpen(false)} actions={<PillButton size="sm" onClick={() => closeSheet()}>{t('common.done')}</PillButton>}>
-      <div className="flex min-w-0 flex-col gap-6">
+      <fieldset disabled={disabled} className="m-0 flex min-w-0 flex-col gap-6 border-0 p-0">
         {!isGeneral ? <div className="flex min-w-0 flex-col gap-4">
           <TimeField label={t('habits.form.exactTime')} value={toTime24(dueTime)} onChange={controller.setDueTime} onClear={controller.clearDueTime} />
           {dueTime ? <TimeField label={t('habits.form.dueEndTime')} value={toTime24(dueEndTime)} error={endTimeError ? t(endTimeError) : undefined} onChange={(value) => form.setValue('dueEndTime', value, { shouldDirty: true })} onClear={() => form.setValue('dueEndTime', '', { shouldDirty: true })} /> : null}
@@ -76,7 +77,7 @@ export function HabitTimingField({ formHelpers, controller, reminderTimes, onRem
         }}>
           <FixedReminderEditors general={isGeneral} dueTime={dueTime} enabled={reminderEnabled} offsets={reminderTimes} clockCount={scheduledReminders.length} onOffsetsChange={onReminderTimesChange} onError={showError}>{clockReminders}</FixedReminderEditors>
         </RepeatReminderSection>
-      </div>
+      </fieldset>
     </Sheet> : null}
   </>
 }

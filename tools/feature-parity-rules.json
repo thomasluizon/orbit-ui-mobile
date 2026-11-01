@@ -3765,6 +3765,11 @@
     }
   },
   "removals": {
+    "mobile:display:habits.bulkBar.skipEligible": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "General habits never offer Skip; dated habits keep Skip",
+      "reason": "The owner removed Skip from General habits in thomasluizon/orbit-tickets#1920, including its General-only selection caption. Dated habits retain Skip."
+    },
     "mobile:control:dates.goToToday": {
       "citation": ".claude/specs/orbit-prod-release.md",
       "rule": "Remove the Hoje jump pill; the centred date label returns to today across the app",
@@ -4165,6 +4170,11 @@
       "citation": "DESIGN.md",
       "rule": "**The narrow conversation beside a destination.** Astra replaces the content column on wide web.",
       "reason": "The full conversation replaces the narrow panel and its size controls."
+    },
+    "web:display:habits.bulkBar.skipEligible": {
+      "citation": ".claude/specs/orbit-prod-release.md",
+      "rule": "General habits never offer Skip; dated habits keep Skip",
+      "reason": "The owner removed Skip from General habits in thomasluizon/orbit-tickets#1920, including its General-only selection caption. Dated habits retain Skip."
     },
     "web:control:dates.goToToday": {
       "citation": ".claude/specs/orbit-prod-release.md",

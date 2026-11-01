@@ -517,6 +517,7 @@ function EditHabitDraft({
             }`}
           >
             <HabitFormFields
+              disabled={detailFieldsPending || saving}
               pendingChecklistItem={pendingChecklistItem}
               onPendingChecklistItemChange={setPendingChecklistItem}
               habitId={sessionHabitId ?? undefined}

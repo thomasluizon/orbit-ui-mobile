@@ -202,8 +202,21 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
     mount(<HabitCreation />, locale)
     await expect(createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke failure')).rejects.toThrow()
     expect(mocks.create).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('textbox', { name: (locale === 'en' ? en : ptBR).habits.form.describe })).toHaveValue('Smoke failure')
-    expect(screen.getByRole('radio', { name: (locale === 'en' ? en : ptBR).habits.form.typeTask })).toHaveAttribute('aria-checked', 'true')
+    const words = (locale === 'en' ? en : ptBR).habits.form
+    expect(screen.getByRole('textbox', { name: words.taskDescribe })).toHaveValue('Smoke failure')
+    expect(screen.getByRole('radio', { name: `${words.typeTask}${words.typeTaskHint}` })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('selects Habit and submits its repeating schedule through the same adapter', async () => {
+    useUIStore.getState().setTodayFabHidden(false)
+    mount(<HabitCreation />, locale)
+    await createSmokeHabit(new SmokeDomPage() as unknown as Page, 'Smoke repeating habit', 'habit')
+    expect(mocks.create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      title: 'Smoke repeating habit', frequencyUnit: 'Day', frequencyQuantity: 1,
+    }))
+    expect(mocks.create.mock.calls[0]?.[0]).not.toHaveProperty('dueDate')
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(mocks.suggestion).not.toHaveBeenCalled()
   })
 
   it.each([false, true])('creates from the real zero-habit Today state without a FAB, wide=%s', async (wide) => {

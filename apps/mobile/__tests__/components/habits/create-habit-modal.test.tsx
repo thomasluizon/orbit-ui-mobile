@@ -42,7 +42,7 @@ const mockReplace = vi.fn()
 const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
   (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
 ))
-const mockFormStatus = vi.hoisted(() => ({ dirty: false }))
+const mockFormStatus = vi.hoisted((): { dirty: boolean; itemType: 'task' | 'habit' } => ({ dirty: false, itemType: 'task' }))
 const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
 const mockLocale = vi.hoisted(() => ({ value: 'en' }))
 const mockFocus = vi.hoisted(() => ({ value: true }))
@@ -125,9 +125,10 @@ vi.mock('@/hooks/use-habit-form', () => ({
     form: {
       control: { values: {} },
       reset: mockFormReset,
+      watch: (field: string) => field === 'itemType' ? mockFormStatus.itemType : undefined,
       setValue: mockSetValue,
       getValues: (field?: string) => {
-        if (field === 'itemType') return 'habit'
+        if (field === 'itemType') return mockFormStatus.itemType
         const values = mockGetValues(field)
         if (field && values && typeof values === 'object' && !Array.isArray(values)) return (values as Record<string, unknown>)[field]
         return values
@@ -299,6 +300,7 @@ describe('CreateHabitModal (mobile)', () => {
     mockView.value = 'today'
     mockFocus.value = true
     mockFormStatus.dirty = false
+    mockFormStatus.itemType = 'task'
     mockProfileState.hasProAccess = true
     mockLocale.value = 'en'
     mockCreateMutateAsync.mockReset()
@@ -424,12 +426,12 @@ describe('CreateHabitModal (mobile)', () => {
     ).toHaveLength(0)
   })
 
-  it('renders the sheet titled habits.form.newHabit when open', () => {
+  it('renders the default Task sheet title when open', () => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
     expect(
       tree.root.findAll((node: any) => node.type === 'Sheet'),
     ).toHaveLength(1)
-    expect(tree.root.findAll((node: { type: unknown }) => node.type === 'Sheet')[0].props.title).toBe('habits.form.newHabit')
+    expect(tree.root.findAll((node: { type: unknown }) => node.type === 'Sheet')[0].props.title).toBe('habits.form.newTask')
   })
 
   it('shows orphan recovery context when supplied', () => {
@@ -473,7 +475,7 @@ describe('CreateHabitModal (mobile)', () => {
         node.findAll(
           (child: any) =>
             child.type === 'Text' &&
-            ['common.create', 'habits.createHabit'].includes(child.props.children),
+            ['common.create', 'habits.createTask'].includes(child.props.children),
         ).length > 0,
     )[0]
 
@@ -483,17 +485,17 @@ describe('CreateHabitModal (mobile)', () => {
   ])('pins Cancel and Create in the %s sheet footer, never in the scrolling body', (_mode, parentHabit) => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} parentHabit={parentHabit} />)
 
-    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', parentHabit ? 'common.create' : 'habits.createHabit'])
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', parentHabit ? 'common.create' : 'habits.createTask'])
     expectSmallSheetActions(tree.root)
     expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain('common.cancel')
-    expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain(parentHabit ? 'common.create' : 'habits.createHabit')
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).not.toContain(parentHabit ? 'common.create' : 'habits.createTask')
   })
 
-  it('names the new habit and keeps its empty submit action available', () => {
+  it('names the default Task and keeps its empty submit action available', () => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
     expect(findSubmit(tree.root).props.disabled).not.toBe(true)
-    expect(tree.root.findAll((node: { type: unknown }) => node.type === 'Sheet')[0].props.title).toBe('habits.form.newHabit')
-    expect(hasText(tree.root, 'habits.form.createWhy')).toBe(true)
+    expect(tree.root.findAll((node: { type: unknown }) => node.type === 'Sheet')[0].props.title).toBe('habits.form.newTask')
+    expect(hasText(tree.root, 'habits.form.taskCreateWhy')).toBe(true)
     expect(hasText(tree.root, 'habits.form.createDescription')).toBe(false)
   })
 
@@ -592,6 +594,7 @@ describe('CreateHabitModal (mobile)', () => {
     })
 
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    mockFormStatus.itemType = 'habit'
     const formFields = tree.root.findAll(
       (node: any) => node.type === 'HabitFormFields',
     )[0]

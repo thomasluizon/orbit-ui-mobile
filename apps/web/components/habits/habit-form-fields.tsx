@@ -63,6 +63,7 @@ import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced
 
 interface HabitFormFieldsProps extends HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode> {
   titleInputRef?: RefObject<HTMLInputElement | null>
+  disabled?: boolean
 }
 
 function renderSubHabitChildren(
@@ -201,6 +202,7 @@ function HabitAvoidanceFields({ formHelpers, controller, hasProAccess }: Readonl
 
 export function HabitFormFields({
   formHelpers,
+  disabled = false,
   habitId,
   tags,
   selectedGoalIds,
@@ -469,7 +471,7 @@ export function HabitFormFields({
       />
 
 
-            <HabitTimingField formHelpers={formHelpers} controller={controller} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} showError={showError} />
+            <HabitTimingField disabled={disabled} formHelpers={formHelpers} controller={controller} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} showError={showError} />
 
       <div className="flex flex-col" style={{ gap: 12 }}>
         <ListRow

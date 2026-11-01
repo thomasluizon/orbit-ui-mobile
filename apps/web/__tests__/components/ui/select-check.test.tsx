@@ -13,6 +13,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { createSmokeHabit } from '@/e2e/support/smoke-adapters'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>) {
   const [value, setValue] = useState('first')
@@ -243,6 +246,38 @@ describe('RadioRow secondary text contrast', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each((['en', 'pt-BR'] as const).flatMap(locale => (['task', 'habit'] as const).map(itemType => ({ locale, itemType }))))('drives exact smoke type selectors with styled descriptions in $locale for $itemType', async ({ locale, itemType }) => {
+    const messages = locale === 'en' ? en : ptBR
+    const words = messages.habits.form
+    const { container } = render(<>
+      <div data-habit-list>List</div><button id="create">{messages.nav.createHabit}</button>
+      <form><RadioGroup aria-label={words.itemType}>
+        <RadioRow label={words.typeTask} description={words.typeTaskHint} wrapLabel selected onSelect={vi.fn()} />
+        <RadioRow label={words.typeHabit} description={words.typeHabitHint} wrapLabel onSelect={vi.fn()} />
+      </RadioGroup><label htmlFor="title">{words.taskDescribe}</label><textarea id="title" /><button type="submit">{messages.habits.createTask}</button></form>
+    </>)
+    const page = await browser.newPage({ viewport: { width: 412, height: 900 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.evaluate(({ title, submit, selected }) => {
+        const form = document.querySelector('form')!
+        document.querySelector('#create')!.addEventListener('click', (event) => { (event.currentTarget as HTMLElement).hidden = true })
+        document.querySelectorAll('[role="radio"]').forEach((radio, index) => radio.addEventListener('click', () => {
+          form.dataset.selected = index === 0 ? 'task' : 'habit'
+          document.querySelector('label')!.textContent = title
+          document.querySelector('[type="submit"]')!.textContent = submit
+        }))
+        form.addEventListener('submit', (event) => { event.preventDefault(); form.dataset.submitted = selected; form.hidden = true })
+      }, { title: itemType === 'task' ? words.taskDescribe : words.describe, submit: itemType === 'task' ? messages.habits.createTask : messages.habits.createHabit, selected: itemType })
+      const typeLabel = itemType === 'task' ? words.typeTask : words.typeHabit
+      const typeHint = itemType === 'task' ? words.typeTaskHint : words.typeHabitHint
+      expect(await page.getByRole('radio', { name: `${typeLabel} ${typeHint}`, exact: true }).count()).toBe(1)
+      await createSmokeHabit(page, 'Read', itemType)
+      expect(await page.locator('form').getAttribute('data-selected')).toBe(itemType)
+      expect(await page.locator('form').getAttribute('data-submitted')).toBe(itemType)
+    } finally { await page.close() }
+  })
 
   it.each([320, 412, 1352].flatMap(width => [1, 2].flatMap(scale => (['dark', 'light'] as const).map(mode => ({ width, scale, mode })))))('balances real form choices at $width, scale $scale, $mode', async ({ width, scale, mode }) => {
     const { container } = render(<div>{['Task', 'Tarefa', 'Habit', 'Hábito', 'A recurring habit with a long readable choice that grows naturally across multiple lines'].map(label => <RadioRow key={label} label={label} wrapLabel selected onSelect={vi.fn()} />)}<RadioRow label="Disabled" wrapLabel disabled reasonScope="group" selected /></div>)
