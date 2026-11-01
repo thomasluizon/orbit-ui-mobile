@@ -1,11 +1,11 @@
+import * as ReactNative from 'react-native'
 import React from 'react'
-import { createRequire, Module } from 'node:module'
+import { createRequire } from 'node:module'
 import { act, create } from 'react-test-renderer'
 import type { ReactTestInstance } from 'react-test-renderer'
 import { Pressable, StyleSheet } from 'react-native'
 import type { ViewStyle } from 'react-native'
-import * as ReactNative from 'react-native'
-import type { HoverGesture, GestureStateChangeEvent } from 'react-native-gesture-handler'
+import type { LegacyHoverGesture as HoverGesture, GestureStateChangeEvent } from 'react-native-gesture-handler'
 import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTranslator } from 'next-intl'
@@ -29,27 +29,12 @@ vi.mock('react-i18next', () => ({
 }))
 
 const loadGestureModule = createRequire(import.meta.url)
-const { HoverGesture: InstalledHoverGesture } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/hoverGesture') as { HoverGesture: new () => HoverGesture }
-const { findHandler } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/handlersRegistry') as { findHandler: (tag: number) => HoverGesture | undefined }
-const { State } = loadGestureModule('react-native-gesture-handler/lib/commonjs/State') as typeof import('react-native-gesture-handler/lib/typescript/State')
-const { PointerType } = loadGestureModule('react-native-gesture-handler/lib/commonjs/PointerType') as typeof import('react-native-gesture-handler/lib/typescript/PointerType')
+const { HoverGesture: InstalledHoverGesture } = await vi.importActual<{ HoverGesture: new () => HoverGesture }>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/handlers/gestures/hoverGesture.js'))
+const { findHandler } = await vi.importActual<{ findHandler: (tag: number) => HoverGesture | undefined }>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/handlers/handlersRegistry.js'))
+const { State } = await vi.importActual<typeof import('react-native-gesture-handler/lib/typescript/State')>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/State.js'))
+const { PointerType } = await vi.importActual<typeof import('react-native-gesture-handler/lib/typescript/PointerType')>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/PointerType.js'))
 
-function loadInstalledReceiver() {
-  const nativePath = loadGestureModule.resolve('react-native')
-  const previous = loadGestureModule.cache[nativePath]
-  const nativeModule = new Module(nativePath)
-  nativeModule.exports = ReactNative
-  loadGestureModule.cache[nativePath] = nativeModule
-  try {
-    return loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/eventReceiver') as {
-      onGestureHandlerEvent: (event: GestureStateChangeEvent) => void
-    }
-  } finally {
-    if (previous) loadGestureModule.cache[nativePath] = previous
-    else delete loadGestureModule.cache[nativePath]
-  }
-}
-const { onGestureHandlerEvent } = loadInstalledReceiver()
+const { onGestureHandlerEvent } = await vi.importActual<{ onGestureHandlerEvent: (event: GestureStateChangeEvent) => void }>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/handlers/gestures/eventReceiver.js'))
 
 type HoverOwner = ReactTestInstance & { readonly parent: HoverOwner | null }
 

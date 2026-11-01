@@ -125,6 +125,7 @@ export function mapPlayErrorKey(error: { code?: ErrorCode }): string | null {
     case ErrorCode.NetworkError:
     case ErrorCode.ServiceError:
     case ErrorCode.ServiceDisconnected:
+    case ErrorCode.NotPrepared:
       return 'upgrade.playError.serviceUnavailable'
     default:
       return 'upgrade.playError.unavailable'

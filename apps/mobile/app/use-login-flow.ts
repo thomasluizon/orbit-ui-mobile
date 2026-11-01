@@ -142,7 +142,8 @@ export function useLoginFlow(isAuthCallback = false) {
   useEffect(() => {
     if (isAuthCallback || (queryEmail === undefined && queryCode === undefined)) return
     if (!readLoginEmailLink(queryEmail, queryCode)) { attemptScope.invalidate(); pendingAutoCode.current = null }
-    navigation.dispatch((state) => ({
+    const state = navigation.getState()
+    navigation.dispatch({
       type: 'RESET',
       payload: {
         ...state,
@@ -150,7 +151,7 @@ export function useLoginFlow(isAuthCallback = false) {
           ? { ...route, path: undefined, params: { ...route.params, email: undefined, code: undefined } }
           : route),
       },
-    }))
+    })
   }, [attemptScope, isAuthCallback, navigation, queryEmail, queryCode])
 
   useEffect(() => {

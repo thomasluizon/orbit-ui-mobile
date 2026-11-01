@@ -15,7 +15,7 @@ const environment = {
   GITHUB_REF: "refs/heads/main", GITHUB_SHA: SOURCE, EXPECTED_SOURCE_SHA: SOURCE, SENTRY_AUTH_TOKEN: token,
 }
 const childResult = (stdout) => ({ status: 0, stdout, stderr: SENTINEL, error: null, timedOut: false, overflowed: false })
-const processResult = async (file) => childResult(file === "git" ? `${SOURCE}\n` : "sentry-cli 3.6.0\n")
+const processResult = async (file) => childResult(file === "git" ? `${SOURCE}\n` : "sentry-cli 3.8.0\n")
 const organizationToken = (org = "thomasluizon", url = "https://sentry.io", extra = {}) =>
   `sntrys_${Buffer.from(JSON.stringify({ org, url, ...extra })).toString("base64")}_${Buffer.alloc(32, 1).toString("base64").replace(/=+$/, "")}`
 
@@ -84,7 +84,7 @@ async function candidateCases() {
       && result.report.outcome === (matches ? "current_target_reads_observed" : "native_target_differs_from_candidate")
       && result.report.native_upload === "native_upload_unverified"
       && result.calls.every(([, request]) => request.method === "GET" && request.redirect === "manual"
-        && request.headers.Authorization === `Bearer ${credential}` && request.headers["User-Agent"] === "sentry-cli/3.6.0")
+        && request.headers.Authorization === `Bearer ${credential}` && request.headers["User-Agent"] === "sentry-cli/3.8.0")
       && !result.output.includes(SENTINEL) && !result.output.includes(credential))
   }
   for (const org of ["thomasluizon", "orbit-ai-habit-tracker"]) {
@@ -193,8 +193,8 @@ for (const field of ["url", "organization", "project", "authToken"]) {
   })
 }
 for (const [name, path, condition] of [
-  ["CLI", "node_modules/@sentry/react-native/node_modules/@sentry/cli", 'lock.packages[CLI]?.version !== "3.6.0"'],
-  ["SDK", "node_modules/@sentry/react-native", 'lock.packages["node_modules/@sentry/react-native"]?.version !== "8.17.2"'],
+  ["CLI", "node_modules/@sentry/react-native/node_modules/@sentry/cli", 'lock.packages[CLI]?.version !== "3.8.0"'],
+  ["SDK", "node_modules/@sentry/react-native", 'lock.packages["node_modules/@sentry/react-native"]?.version !== "8.28.0"'],
 ]) {
   guard(`locked native ${name}`, [condition, "false"], async (subject) => {
     const lock = JSON.parse(readFileSync(join(REPO_ROOT, "package-lock.json"), "utf8"))
@@ -268,7 +268,7 @@ guard("token encoding and secret size", ["secretBytes.length !== 32", "false"], 
 })
 guard("checkout pin verified independently", ["source.stdout.trim() !== env.GITHUB_SHA", "false"], async (subject) =>
   (await execute(subject, { runProcess: async (file) => file === "git" ? childResult("b".repeat(40)) : processResult(file) })).report.outcome === "checkout_source_mismatch")
-guard("native version checked, no top-level CLI", ['version.stdout.trim() !== "sentry-cli 3.6.0"', "false"], async (subject) =>
+guard("native version checked, no top-level CLI", ['version.stdout.trim() !== "sentry-cli 3.8.0"', "false"], async (subject) =>
   (await execute(subject, { runProcess: async (file) => file === "git" ? processResult(file) : childResult("sentry-cli 2.58.6") })).report.outcome === "native_cli_unverified")
 guard("subprocess exit checked", ["version.status !== 0", "false"], async (subject) =>
   (await execute(subject, { runProcess: async (file) => ({ ...await processResult(file), status: file === "git" ? 0 : 1 }) })).report.outcome === "native_cli_unverified")
@@ -414,9 +414,9 @@ guard("error comparison is exact rather than arbitrary detail echo", ['evidence.
     ? new Response(JSON.stringify({ detail: "The requested resource does not exist" }), { status: 404 }) : null })
   return result.report.requests[1].error_evidence.classification === "resource_does_not_exist_detail" && !result.output.includes("The requested resource does not exist")
 })
-guard("native-compatible user agent", ['"User-Agent": "sentry-cli/3.6.0"', '"User-Agent": "other"'], async (subject) => {
+guard("native-compatible user agent", ['"User-Agent": "sentry-cli/3.8.0"', '"User-Agent": "other"'], async (subject) => {
   const result = await execute(subject)
-  return result.calls.every(([, options]) => options.headers["User-Agent"] === "sentry-cli/3.6.0")
+  return result.calls.every(([, options]) => options.headers["User-Agent"] === "sentry-cli/3.8.0")
 })
 guard("every child stays isolated from credential and metadata", ['const childEnvironment = { PATH: env.PATH }', 'const childEnvironment = { ...env }'], async (subject) => {
   const credential = organizationToken("thomasluizon", "https://sentry.io", { iat: 1, region_url: "https://de.sentry.io" })
@@ -572,7 +572,7 @@ function outputStreamCases(source, stageModule) {
     const options = `{
       root: ${JSON.stringify(REPO_ROOT)}, env: ${JSON.stringify({ ...environment, SENTRY_AUTH_TOKEN: credential })},
       runProcess: async (file) => ({
-        status: 0, stdout: file === "git" ? ${JSON.stringify(SOURCE)} : "sentry-cli 3.6.0", stderr: ${JSON.stringify(SENTINEL)}
+        status: 0, stdout: file === "git" ? ${JSON.stringify(SOURCE)} : "sentry-cli 3.8.0", stderr: ${JSON.stringify(SENTINEL)}
       }),
       fetchImpl: async (url) => new Response(JSON.stringify(url === "https://sentry.io/api/0/"
         ? { version: ${JSON.stringify(SENTINEL)}, auth: { scopes: ["org:ci", ${JSON.stringify(SENTINEL)}] }, user: null }
@@ -719,8 +719,8 @@ export const cases = async () => {
     const result = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: credential } })
     T("android-sentry: source-confirmed credential target is accepted without payload output", result.status === 0 && !result.output.includes(credential))
   }
-  // CLI 3.6.0 config.rs:218-227 trims every trailing slash before validating the root URL.
-  // https://github.com/getsentry/sentry-cli/blob/3.6.0/src/config.rs#L218
+  // CLI 3.8.0 config.rs:308-319 trims every trailing slash before validating the root URL.
+  // https://github.com/getsentry/sentry-cli/blob/3.8.0/src/config.rs#L309
   for (const url of ["https://sentry.io//", "https://sentry.io/////"]) {
     const credential = organizationToken("orbit-ai-habit-tracker", url)
     const result = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: credential } })
@@ -787,7 +787,7 @@ export const cases = async () => {
   await workflowCases()
   const cli = join(REPO_ROOT, "node_modules/@sentry/react-native/node_modules/@sentry/cli/bin/sentry-cli")
   const actual = spawnSync(process.execPath, [cli, "--version"], { env: { PATH: process.env.PATH }, encoding: "utf8", timeout: 5000 })
-  T("android-sentry: actual nested native version is pinned without auth or info operations", actual.status === 0 && actual.stdout.trim() === "sentry-cli 3.6.0")
+  T("android-sentry: actual nested native version is pinned without auth or info operations", actual.status === 0 && actual.stdout.trim() === "sentry-cli 3.8.0")
 }
 
 async function workflowCases() {

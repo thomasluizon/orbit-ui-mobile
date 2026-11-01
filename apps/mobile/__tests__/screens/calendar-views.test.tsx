@@ -35,8 +35,9 @@ import { StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { useUIStore } from '@/stores/ui-store';
 import CalendarScreen from "@/app/(tabs)/calendar";
 import TabLayout from '@/app/(tabs)/_layout'
-import { StackRouter } from 'expo-router/build/react-navigation/routers/StackRouter'
-import { TabRouter } from 'expo-router/build/react-navigation/routers/TabRouter'
+import { stackFixture as StackRouter, tabFixture as TabRouter } from '@/test-support/navigation-fixture'
+
+
 
 import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch';
@@ -1017,9 +1018,9 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<TabLayout />); })
     expect(state.tabBackBehavior).toBe('history')
     const tabRouter = TabRouter({ initialRouteName: 'calendar', backBehavior: 'history' })
-    const tabs = tabRouter.getInitialState({ routeNames: state.tabRouteNames, routeParamList: {}, routeGetIdList: {} })
+    const tabs = tabRouter.getInitialState({ routeNames: state.tabRouteNames, routeGetIdList: {} })
     const stackRouter = StackRouter({ initialRouteName: '(tabs)' })
-    const stackOptions = { routeNames: ['(tabs)', 'upgrade', 'habits/[id]', 'notifications', 'search'], routeParamList: {}, routeGetIdList: {} }
+    const stackOptions = { routeNames: ['(tabs)', 'upgrade', 'habits/[id]', 'notifications', 'search'], routeGetIdList: {} }
     let stack = stackRouter.getInitialState(stackOptions)
     const calendarRouteKey = tabs.routes[tabs.index]!.key
     const renderRoutes = () => <View>{stack.routes.map((route) => route.name === '(tabs)' ?

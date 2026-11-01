@@ -21,7 +21,7 @@ export class File extends Blob {
 
   create() {}
 
-  write() {}
+  async write() {}
 
   copy(destination: File | Directory, options?: { overwrite?: boolean }) {
     if (expoFileSystemMock.nextCopyError) {

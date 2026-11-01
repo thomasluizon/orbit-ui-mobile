@@ -67,7 +67,7 @@ jobs:
           exit 1
 
       - name: Run median TBT and script budget gates
-        run: npx lhci autorun --config apps/web/lighthouserc.json
+        run: node apps/web/perf/run-lighthouse.mjs
 
       - name: Report authed Today LCP
         if: always()

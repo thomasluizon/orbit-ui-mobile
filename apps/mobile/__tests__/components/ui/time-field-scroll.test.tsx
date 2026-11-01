@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
-import { Gesture } from 'react-native-gesture-handler'
+import { PointerType, State, type NativeGesture, type TapGesture } from 'react-native-gesture-handler'
+import { SingleGestureName } from '../../../test-mocks/react-native-gesture-handler'
 import { __resetTestHostConfig, __setScrollToImpl, __setWindowDimensions } from '../../../test-mocks/react-native'
 import { TimeField } from '@/components/ui/time-field'
 
@@ -24,6 +25,15 @@ vi.mock('@lodev09/react-native-true-sheet', () => ({
 const TestRenderer = require('react-test-renderer')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+function dispatchTap(tap: TapGesture, state: State, oldState: State) {
+  tap.detectorCallbacks.jsEventHandler!({
+    handlerTag: tap.handlerTag,
+    state,
+    oldState,
+    handlerData: { numberOfPointers: 1, pointerType: PointerType.TOUCH, x: 0, y: 0, absoluteX: 0, absoluteY: 0 },
+  })
+}
 
 interface Host {
   type: string
@@ -123,29 +133,32 @@ describe('TimeField scroll ownership in the native Sheet', () => {
     const { tree, onChange } = await mountPicker(hourCycle)
     try {
       const detectors = tree.root.findAllByType('GestureDetector')
-      const nativeGestures = detectors.map((node: { props: { gesture: ReturnType<typeof Gesture.Native> } }) => node.props.gesture)
-        .filter((gesture: ReturnType<typeof Gesture.Native>) => gesture.handlerName === 'NativeViewGestureHandler')
+      const nativeGestures = detectors.map((node: { props: { gesture: NativeGesture } }) => node.props.gesture)
+        .filter((gesture: NativeGesture) => gesture.type === SingleGestureName.Native)
       expect(nativeGestures).toHaveLength(hourCycle === 'h23' ? 2 : 3)
       for (const nativeGesture of nativeGestures) {
-        const optionDetectors = detectors.filter((node: { props: { gesture: ReturnType<typeof Gesture.Tap> } }) => node.props.gesture.config.simultaneousWith?.includes(nativeGesture))
+        const optionDetectors = detectors.filter((node: { props: { gesture: TapGesture } }) => node.props.gesture.type === SingleGestureName.Tap
+          && node.props.gesture.gestureRelations.simultaneousHandlers.includes(nativeGesture.handlerTag))
         expect(optionDetectors.length).toBeGreaterThan(0)
         for (const detector of optionDetectors) {
-          const tap = detector.props.gesture as ReturnType<typeof Gesture.Tap>
+          const tap = detector.props.gesture as TapGesture
           expect(tap.config).toMatchObject({ maxDist: 8, maxDurationMs: 2 ** 31 - 1, runOnJS: true })
+          expect(tap.gestureRelations.simultaneousHandlers).toContain(nativeGesture.handlerTag)
+          expect(nativeGesture.gestureRelations.simultaneousHandlers).toContain(tap.handlerTag)
         }
         const detector = optionDetectors.find((node: { findByType: (type: string) => { props: { accessibilityState: { checked: boolean } } } }) => !node.findByType('Pressable').props.accessibilityState.checked)
-        const tap = detector.props.gesture as ReturnType<typeof Gesture.Tap>
+        const tap = detector.props.gesture as TapGesture
         TestRenderer.act(() => {
-          tap.handlers.onBegin!(undefined as never)
-          tap.handlers.onEnd!(undefined as never, false)
-          tap.handlers.onFinalize!(undefined as never, false)
+          dispatchTap(tap, State.BEGAN, State.UNDETERMINED)
+          dispatchTap(tap, State.ACTIVE, State.BEGAN)
+          dispatchTap(tap, State.CANCELLED, State.ACTIVE)
         })
         expect(detector.findByType('Pressable').props.accessibilityState.checked).toBe(false)
         expect(onChange).not.toHaveBeenCalled()
         TestRenderer.act(() => {
-          tap.handlers.onBegin!(undefined as never)
-          tap.handlers.onEnd!(undefined as never, true)
-          tap.handlers.onFinalize!(undefined as never, true)
+          dispatchTap(tap, State.BEGAN, State.UNDETERMINED)
+          dispatchTap(tap, State.ACTIVE, State.BEGAN)
+          dispatchTap(tap, State.END, State.ACTIVE)
         })
         expect(detector.findByType('Pressable').props.accessibilityState.checked).toBe(true)
         expect(onChange).not.toHaveBeenCalled()
@@ -188,7 +201,7 @@ describe('TimeField scroll ownership in the native Sheet', () => {
         const nativeDetector = children(gestureRoot!)[0]!
         expect(nativeDetector.type).toBe('GestureDetector')
         expect(nativeDetector.props.gesture).toMatchObject({
-          handlerName: 'NativeViewGestureHandler',
+          type: 'NativeViewGestureHandler',
           config: { shouldActivateOnStart: true, disallowInterruption: true, shouldCancelWhenOutside: false },
         })
         const scrollNode = nodes.get(scrollHost)!

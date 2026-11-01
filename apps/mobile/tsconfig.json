@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "customConditions": ["react-native-legacy-deep-imports"],
     "lib": [
       "ES2022"
     ],

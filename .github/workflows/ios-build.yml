@@ -32,7 +32,7 @@ concurrency:
 jobs:
   compile:
     name: iOS simulator compile
-    runs-on: macos-15
+    runs-on: macos-26
     # The slowest sampled successful run took 39m27s; allow cold builds and cache I/O over 20m of headroom.
     timeout-minutes: 60
     env:
@@ -49,7 +49,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Select Xcode
         run: |
-          sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+          sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
           xcodebuild -version
       - uses: actions/setup-node@v7
         env:
@@ -67,9 +67,9 @@ jobs:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: macos-15-${{ runner.arch }}-xcode-26.3-ios-release-ccache-v1-${{ hashFiles('package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', '.github/workflows/ios-build.yml') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: macos-26-${{ runner.arch }}-xcode-26.6-ios-release-ccache-v1-${{ hashFiles('package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', '.github/workflows/ios-build.yml') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            macos-15-${{ runner.arch }}-xcode-26.3-ios-release-ccache-v1-${{ hashFiles('package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', '.github/workflows/ios-build.yml') }}-
+            macos-26-${{ runner.arch }}-xcode-26.6-ios-release-ccache-v1-${{ hashFiles('package-lock.json', 'apps/mobile/app.json', 'apps/mobile/app.config.js', 'apps/mobile/plugins/**', 'apps/mobile/modules/**', '.github/workflows/ios-build.yml') }}-
       - name: Reset compiler cache statistics
         run: ccache --zero-stats
       - name: Test the compiled widget state and session adapter
