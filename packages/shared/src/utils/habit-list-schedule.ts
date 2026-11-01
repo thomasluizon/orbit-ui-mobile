@@ -17,12 +17,12 @@ export function mergeHabitListSchedule(items: HabitScheduleItem[], schedule: Hab
     const facts = scheduleById.get(row.id)
     return {
       ...row,
+      isSkippedOnDate: facts?.isSkippedOnDate,
       ...(facts ? {
         isOverdue: facts.isOverdue,
         scheduledDates: facts.scheduledDates,
         instances: facts.instances,
         isLoggedInRange: facts.isLoggedInRange,
-        isSkippedOnDate: facts.isSkippedOnDate,
         isCompleted: facts.isCompleted,
         flexibleTarget: facts.flexibleTarget,
         flexibleCompleted: facts.flexibleCompleted,
