@@ -80,7 +80,10 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: mocks.firstUsePermission }) }))
-vi.mock('@lodev09/react-native-true-sheet', () => ({ TrueSheet: { dismissAll: vi.fn(async () => {}) } }))
+vi.mock('@/components/ui/sheet', async () => ({
+  ...await import('@/__tests__/support/sheet-double'),
+  dismissAllSheets: vi.fn(async () => {}),
+}))
 
 vi.mock('@/hooks/use-summary', () => ({ useSummary: vi.fn() }))
 

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useRouter } from 'expo-router'
-import { TrueSheet } from '@lodev09/react-native-true-sheet'
+import { dismissAllSheets } from '@/components/ui/sheet'
 import { useTranslation } from 'react-i18next'
 import { resolveShellChrome, DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
@@ -30,7 +30,7 @@ export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pat
         if (!notFound && pathname === '/') router.setParams({ date: undefined })
         else router.navigate('/(tabs)')
       }
-      if (useUIStore.getState().openOverlayIds.length > 0) void TrueSheet.dismissAll().then(resetToday)
+      if (useUIStore.getState().openOverlayIds.length > 0) void dismissAllSheets().then(resetToday)
       else resetToday()
       return
     }

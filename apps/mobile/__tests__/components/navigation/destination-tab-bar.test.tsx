@@ -4,7 +4,10 @@ import { useUIStore } from '@/stores/ui-store'
 import { press, renderNavigation } from '../ui/navigation-render'
 const mocks = vi.hoisted(() => ({ navigate: vi.fn(), setParams: vi.fn(), dismissAll: vi.fn(async () => {}) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: mocks.navigate, setParams: mocks.setParams }) }))
-vi.mock('@lodev09/react-native-true-sheet', () => ({ TrueSheet: { dismissAll: mocks.dismissAll } }))
+vi.mock('@/components/ui/sheet', async () => ({
+  ...await import('@/__tests__/support/sheet-double'),
+  dismissAllSheets: mocks.dismissAll,
+}))
 
 describe('DestinationTabBar', () => {
   it('keeps Today selected on the pushed inbox', () => {

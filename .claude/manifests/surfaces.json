@@ -17383,6 +17383,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-navigation-destination-tab-bar",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/navigation/destination-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/navigation/destination-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-navigation-destination-tab-bar",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/navigation/destination-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/navigation/destination-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-navigation-destination-tab-bar",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/navigation/destination-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/navigation/destination-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-navigation-destination-tab-bar",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/navigation/destination-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/navigation/destination-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-navigation-notification-detail-modal",
       "platform": "mobile",
       "kind": "overlay",
