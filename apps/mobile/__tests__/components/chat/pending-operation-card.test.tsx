@@ -1,4 +1,4 @@
-import { makeOfferedPreview, makeOfferedTaskPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
+import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
 import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { IntlMessageFormat } from 'intl-messageformat'
@@ -1719,6 +1719,32 @@ it.each(['en', 'pt-BR'])('labels editable goal progress visibly and accessibly i
 
 describe('offered preview fields on Android', () => {
   beforeEach(() => { visibleLocale.actual = true; visibleLocale.language = 'en' })
+  it.each(['en', 'pt-BR'])('keeps a child reminder removed when saving the open Edit draft in %s', async locale => {
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const operation = makeOfferedChildPreview()
+    const revised = makeOfferedChildPreview(0)
+    const onRevise = vi.fn().mockResolvedValueOnce({ ok: true, result: { isSuccess: true, error: null,
+      pendingOperationId: operation.id, cancelled: false, preview: { ...revised, previewFingerprint: 'preview-two' } } })
+      .mockResolvedValue({ ok: false, error: 'network_error' })
+    const { tree, handlers } = renderCard(operation, onRevise)
+    await TestRenderer.act(() => press(tree, messages.chat.operation.edit).props.onPress())
+    await TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: `${messages.chat.operation.field.title} 1` }).props.onChangeText('Read slowly'))
+    const removals = tree.root.findAllByType(Pressable).filter((node: ReactTestInstance) => node.props.accessibilityLabel === `${messages.chat.operation.remove} ${messages.chat.operation.field.scheduled_reminders}`)
+    expect(removals).toHaveLength(2)
+    await TestRenderer.act(() => removals[0]!.props.onPress())
+    expect(onRevise).toHaveBeenCalledExactlyOnceWith(operation.id, {
+      previewFingerprint: 'preview-one', items: [{ itemId: '0', removeSuggestedFields: ['sub_habits/0/reminder_enabled', 'sub_habits/0/scheduled_reminders'] }],
+    })
+    await TestRenderer.act(() => press(tree, messages.common.save).props.onPress())
+    expect(onRevise).toHaveBeenLastCalledWith(operation.id, {
+      previewFingerprint: 'preview-two', items: [{ itemId: '0', edits: { sub_habits: [
+        { title: 'Read slowly' }, { title: 'Stretch', reminder_enabled: true, scheduled_reminders: [{ time: '20:00', when: 'same_day' }] },
+      ] } }],
+    })
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    await TestRenderer.act(() => tree.unmount())
+  })
   it.each(['en', 'pt-BR'])('shows the suggested task once and removes its reminder through Edit in %s', async locale => {
     visibleLocale.language = locale
     const messages = locale === 'en' ? en : ptBR
@@ -1735,6 +1761,7 @@ describe('offered preview fields on Android', () => {
     expect(renderedText(summaries[0])).toContain('8:30 PM')
     expect(renderedText(summaries[0])).toContain(locale === 'en' ? 'Remind me the same day at 7:30 PM' : 'Lembrar no mesmo dia às 7:30 PM')
     await TestRenderer.act(() => press(tree, messages.chat.operation.edit).props.onPress())
+    expect(tree.root.findAllByType(Pressable).filter((node: ReactTestInstance) => node.props.accessibilityLabel === `${messages.chat.operation.remove} ${messages.chat.operation.field.reminder_enabled}`)).toHaveLength(0)
     await TestRenderer.act(() => tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityLabel === `${messages.chat.operation.remove} ${messages.chat.operation.field.scheduled_reminders}`)!.props.onPress())
     expect(onRevise).toHaveBeenCalledExactlyOnceWith(operation.id, {
       previewFingerprint: 'preview-one', items: [{ itemId: '0', removeSuggestedFields: ['reminder_enabled', 'scheduled_reminders'] }],

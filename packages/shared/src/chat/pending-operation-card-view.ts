@@ -411,8 +411,9 @@ function suggestedFieldRemovals(item: PreviewItem, card: PendingOperationCardAct
   const groups = new Map<string, PendingOperationChange>()
   for (const field of item.fields) {
     if (field.provenance !== 'suggested' || !field.removal || !isPendingOperationEditableField(field)) continue
-    const key = field.removal.field
-    if (!groups.has(key) || field.field === key) groups.set(key, field)
+    const key = JSON.stringify([...(field.removal.fields?.length ? field.removal.fields : [field.removal.field])].sort((first, second) => first.localeCompare(second)))
+    const existing = groups.get(key)
+    if (!existing || existing.field.split('/').at(-1) === 'reminder_enabled') groups.set(key, field)
   }
   return [...groups.values()].flatMap(field => {
     const name = labels.fieldLabels[field.field.split('/').at(-1)!]
