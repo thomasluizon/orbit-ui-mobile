@@ -13,7 +13,7 @@ beforeAll(() => {
       bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
       define: { 'process.env.NODE_ENV': '"production"' } });
     process.stdout.write(result.outputFiles[0].text);
-  `]).toString()
+  `], { maxBuffer: 8 * 1024 * 1024 }).toString()
 })
 afterAll(async () => { await closeChrome(launch) })
 

@@ -10,6 +10,8 @@ import { CalendarGrid as CalendarGridComponent } from '@/app/(tabs)/calendar/_co
 import { CalendarRangeView } from '@/app/(tabs)/calendar/_components/calendar-range-view'
 import { i18n } from '@/lib/i18n'
 import { useCurrentDate } from '@/app/(tabs)/use-today-date'
+import { PointerType, State, type PanGesture } from 'react-native-gesture-handler'
+import { useHorizontalSwipe } from '@/hooks/use-horizontal-swipe'
 
 const todaySource = vi.hoisted(() => ({ value: '2026-09-11' }))
 
@@ -58,6 +60,31 @@ function gridDay(dateStr: string, completedCount = 0, totalCount = 1): CalendarM
   }
 }
 
+function SwipeCalendarGrid({ onSwipeLeft, onSwipeRight, isLoading }: Readonly<{
+  onSwipeLeft: () => void
+  onSwipeRight: () => void
+  isLoading: boolean
+}>) {
+  const swipeGesture = useHorizontalSwipe({ onSwipeLeft, onSwipeRight })
+  return <CalendarGrid gridDays={[gridDay('2026-09-11')]} weekdayHeaders={[]} selectedDay={null}
+    onSelectDay={vi.fn()} language="en" t={(key) => key} tokens={createTokensV2('purple', 'dark')}
+    swipeGesture={swipeGesture} isLoading={isLoading} />
+}
+
+function dispatchSwipe(gesture: PanGesture, translationX: number, translationY = 0, velocityX = 300, startX = 100) {
+  gesture.detectorCallbacks.jsEventHandler!({
+    handlerTag: gesture.handlerTag,
+    state: State.END,
+    oldState: State.ACTIVE,
+    handlerData: {
+      numberOfPointers: 1, pointerType: PointerType.TOUCH,
+      x: 0, y: 0, absoluteX: startX + translationX, absoluteY: 0,
+      translationX, translationY, velocityX, velocityY: 0, changeX: 0, changeY: 0,
+      stylusData: { tiltX: 0, tiltY: 0, azimuthAngle: 0, altitudeAngle: 0, pressure: 0 },
+    },
+  })
+}
+
 describe('CalendarGrid (mobile)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -66,6 +93,28 @@ describe('CalendarGrid (mobile)', () => {
   })
 
   afterEach(() => vi.useRealTimers())
+
+  it.each([false, true])('pages in both directions with the installed pan hook (loading=%s)', (isLoading) => {
+    const onSwipeLeft = vi.fn()
+    const onSwipeRight = vi.fn()
+    let tree!: TestTree
+    TestRenderer.act(() => { tree = TestRenderer.create(<SwipeCalendarGrid onSwipeLeft={onSwipeLeft} onSwipeRight={onSwipeRight} isLoading={isLoading} />) })
+    const gesture = tree.root.findAll((node) => node.type === 'GestureDetector')[0]!.props.gesture as PanGesture
+    expect(gesture.type).toBe('PanGestureHandler')
+    expect(gesture.config).toMatchObject({ activeOffsetXStart: -50, activeOffsetXEnd: 50, failOffsetYStart: -50, failOffsetYEnd: 50 })
+    TestRenderer.act(() => {
+      dispatchSwipe(gesture, -50)
+      dispatchSwipe(gesture, -60, 60)
+      dispatchSwipe(gesture, -60, 0, 199)
+      dispatchSwipe(gesture, -60, 0, 300, 24)
+      dispatchSwipe(gesture, -60, 0, 300, 388)
+    })
+    expect(onSwipeLeft).not.toHaveBeenCalled()
+    expect(onSwipeRight).not.toHaveBeenCalled()
+    TestRenderer.act(() => { dispatchSwipe(gesture, -60); dispatchSwipe(gesture, 60) })
+    expect(onSwipeLeft).toHaveBeenCalledOnce()
+    expect(onSwipeRight).toHaveBeenCalledOnce()
+  })
 
   it.each([320, 339, 340, 360, 363, 363.5, 364, 365, 412, 600, 840, 1100, 1352].flatMap((width) => [false, true].flatMap((isLoading) =>
     (['month', 'range'] as const).map((view) => ({ width, isLoading, view })),

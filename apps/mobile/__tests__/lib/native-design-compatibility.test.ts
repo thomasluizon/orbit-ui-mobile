@@ -20,6 +20,9 @@ const callers = [
 const lock = JSON.parse(read('../../package-lock.json')) as {
   packages: Record<string, { version?: string }>
 }
+const legacyPackages = Object.fromEntries(Object.entries(unionPackages).map(([path, version]) => [path, { version }]))
+const require = createRequire(import.meta.url)
+const currentConfig = require('../../app.config.js')() as { runtimeVersion: string; updates: { enabled: boolean } }
 
 function requireNativePackages(packages: typeof lock.packages) {
   for (const [path, version] of Object.entries(unionPackages)) {
@@ -97,19 +100,26 @@ function requireThemeKeys(source: string) {
   }
 }
 
-const iosOnlyPlugins = new Set(['./plugins/with-ios-widget', './plugins/with-ios-scene'])
+const iosOnlyPlugins = new Set(['./plugins/with-ios-widget'])
 
 describe('native union accepts both widget callers', () => {
-  it('resolves every audited native package to the shared version', () => {
-    requireNativePackages(lock.packages)
+  it('enables the billing library BuildConfig used by its Android logger', () => {
+    const billingGradle = readFileSync(require.resolve('expo-iap/android/build.gradle'), 'utf8')
+    expect(billingGradle).toMatch(/buildFeatures\s*\{\s*buildConfig\s*=\s*true\s*\}/)
+  })
+  it('keeps the SDK 58 binary separate from the audited native union runtime', () => {
+    requireNativePackages(legacyPackages)
+    expect(() => requireNativePackages(lock.packages)).toThrow('Native version mismatch')
+    expect(currentConfig.runtimeVersion).toBe('orbit-sdk-58')
+    expect(currentConfig.updates.enabled).toBe(false)
   })
   it('rejects a dropped native package', () => {
-    const packages = { ...lock.packages }
+    const packages = { ...legacyPackages }
     delete packages['node_modules/expo-linear-gradient']
     expect(() => requireNativePackages(packages)).toThrow('expo-linear-gradient')
   })
   it('rejects a changed native package version', () => {
-    const packages = { ...lock.packages, 'node_modules/react-native': { version: 'incompatible' } }
+    const packages = { ...legacyPackages, 'node_modules/react-native': { version: 'incompatible' } }
     expect(() => requireNativePackages(packages)).toThrow('react-native')
   })
   it('matches audited Android bridges, registrations and config plugin sources', () => {
@@ -121,6 +131,10 @@ describe('native union accepts both widget callers', () => {
         expect(registration.platforms.filter((platform) => platform !== 'apple')).toEqual(['android'])
         expect(registration.android).toEqual({ modules: ['org.useorbit.app.widget.OrbitWidgetModule'] })
         expect(Object.keys(registration).sort((left, right) => left.localeCompare(right))).toEqual(['android', 'apple', 'platforms'])
+      } else if (path === 'apps/mobile/modules/orbit-app-update/android/build.gradle') {
+        const publication = "\ngroup = 'org.useorbit.app.update'\nversion = '1.0.0'\n"
+        expect(contents.toString()).toContain(publication)
+        expect(createHash('sha256').update(contents.toString().replace(publication, '')).digest('hex'), path).toBe(hash)
       } else {
         expect(createHash('sha256').update(contents).digest('hex'), path).toBe(hash)
       }
@@ -129,7 +143,11 @@ describe('native union accepts both widget callers', () => {
   it('registers the audited config plugins', () => {
     const require = createRequire(import.meta.url)
     const config = require('../../app.config.js')() as { plugins: (string | [string, unknown])[] }
-    expect(config.plugins.map(plugin => Array.isArray(plugin) ? plugin[0] : plugin).filter(plugin => !iosOnlyPlugins.has(plugin))).toEqual(unionPlugins)
+    expect(config.plugins.map(plugin => Array.isArray(plugin) ? plugin[0] : plugin).filter(plugin => !iosOnlyPlugins.has(plugin))).toEqual([
+      ...unionPlugins.slice(0, -2),
+      'expo-font', 'expo-secure-store', 'expo-splash-screen', 'expo-status-bar', 'expo-web-browser',
+      ...unionPlugins.slice(-2),
+    ])
   })
   for (const [design, path] of callers) {
     it(`accepts every ${design} widget call with its real argument count`, () => {

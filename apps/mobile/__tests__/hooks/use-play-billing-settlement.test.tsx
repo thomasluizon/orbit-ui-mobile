@@ -6,6 +6,8 @@ import { profileKeys } from '@orbit/shared/query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { useStoreBillingConnection as useStoreBilling } from '@/hooks/use-play-billing'
 import { setAccountId } from '@/lib/account-scope'
+import type { Purchase } from 'expo-iap'
+import { createPlayPurchase } from '../fixtures/store-purchases'
 
 const TestRenderer = require('react-test-renderer')
 const { act } = TestRenderer
@@ -16,7 +18,7 @@ const mocks = vi.hoisted(() => ({
   getAvailablePurchases: vi.fn(),
   fetchProducts: vi.fn(),
   requestPurchase: vi.fn(),
-  onPurchaseSuccess: null as ((purchase: unknown) => void) | null,
+  onPurchaseSuccess: null as ((purchase: Purchase) => void) | null,
 }))
 
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
@@ -27,7 +29,7 @@ vi.mock('expo-iap', async (importOriginal) => ({
   ...await importOriginal<typeof import('expo-iap')>(),
   finishTransaction: mocks.finishTransaction,
   getAvailablePurchases: mocks.getAvailablePurchases,
-  useIAP: (options: { onPurchaseSuccess: (purchase: unknown) => void }) => {
+  useIAP: (options: { onPurchaseSuccess: (purchase: Purchase) => void }) => {
     mocks.onPurchaseSuccess = options.onPurchaseSuccess
     return { connected: true, subscriptions: [], fetchProducts: mocks.fetchProducts, requestPurchase: mocks.requestPurchase }
   },
@@ -57,7 +59,7 @@ describe('Play entitlement settlement', () => {
   it.each(['purchase', 'restore'] as const)('keeps %s pending while offline and notifies only after the resumed profile read succeeds', async (operation) => {
     const free = createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: false })
     const pro = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false })
-    const purchase = { productId: 'orbit_pro', purchaseToken: 'owned-token' }
+    const purchase = createPlayPurchase({ purchaseToken: 'owned-token' })
     let release!: () => void
     const fetchProfile = vi.fn(() => new Promise<typeof pro>((resolve) => { release = () => resolve(pro) }))
     mocks.apiClient.mockImplementation((endpoint: string) => endpoint === API.profile.get ? fetchProfile() : Promise.resolve({}))

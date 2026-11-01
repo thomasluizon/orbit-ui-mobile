@@ -18,7 +18,7 @@ interface BrowserStub {
 }
 
 const require = createRequire(import.meta.url)
-const warmHermeticToday = require('../../perf/lhci-hermetic-auth.cjs') as (
+const warmHermeticToday = require('../../perf/warm-hermetic-auth.cjs') as (
   browser: BrowserStub,
   context: { url?: string },
 ) => Promise<void>
@@ -33,7 +33,7 @@ function createPage(html: string): PageStub {
   }
 }
 
-describe('LHCI hermetic auth warmup', () => {
+describe('Lighthouse hermetic auth warmup', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
@@ -55,7 +55,7 @@ describe('LHCI hermetic auth warmup', () => {
     expect(page.goto).toHaveBeenCalledTimes(4)
     expect(page.close).toHaveBeenCalledTimes(4)
     expect(log).toHaveBeenCalledWith(
-      '[lhci] warmup complete: 4/4 authenticated responses contained the Today empty state in server markup',
+      '[lighthouse] warmup complete: 4/4 authenticated responses contained the Today empty state in server markup',
     )
   })
 
@@ -77,7 +77,7 @@ describe('LHCI hermetic auth warmup', () => {
     expect(failedPage.close).toHaveBeenCalledOnce()
     expect(passingPage.close).toHaveBeenCalledTimes(3)
     expect(log).toHaveBeenCalledWith(
-      '[lhci] warmup complete: 3/4 authenticated responses contained the Today empty state in server markup',
+      '[lighthouse] warmup complete: 3/4 authenticated responses contained the Today empty state in server markup',
     )
   })
 })

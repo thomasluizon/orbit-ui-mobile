@@ -7,6 +7,7 @@ export enum ErrorCode {
   NetworkError = 'network-error',
   ServiceError = 'service-error',
   ServiceDisconnected = 'service-disconnected',
+  NotPrepared = 'not-prepared',
 }
 
 export async function finishTransaction(): Promise<void> {}

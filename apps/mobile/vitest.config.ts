@@ -20,7 +20,7 @@ export default defineConfig({
     setupFiles: ['./test-setup-expo-runtime.ts', './test-setup.ts'],
     server: {
       deps: {
-        inline: ['@tabler/icons-react-native', /@rn-primitives\//],
+        inline: ['@tabler/icons-react-native', /@rn-primitives\//, /react-native-gesture-handler/],
       },
     },
     projects: [
@@ -166,7 +166,7 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/netinfo.ts'),
       },
       {
-        find: 'react-native-gesture-handler',
+        find: /^react-native-gesture-handler$/,
         replacement: path.resolve(__dirname, './test-mocks/react-native-gesture-handler.ts'),
       },
       {

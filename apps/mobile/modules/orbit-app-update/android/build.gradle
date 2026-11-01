@@ -3,6 +3,9 @@ plugins {
   id 'expo-module-gradle-plugin'
 }
 
+group = 'org.useorbit.app.update'
+version = '1.0.0'
+
 android {
   namespace "org.useorbit.app.update"
   defaultConfig {

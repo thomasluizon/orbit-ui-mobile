@@ -103,7 +103,13 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Use the repository npm version
+        run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
+
       - run: npm ci
+
+      - name: Validate the dependency tree
+        run: npm ls --all
 
       - name: Test CI workflow behavior
         run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { uuid } from 'expo-modules-core'
+import { uuid } from 'expo'
 import {
   isValidReferralCode as isValidReferralCodeShared,
   isValidVerificationCode as isValidVerificationCodeShared,

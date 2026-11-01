@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { StackActions, StackRouter, TabRouter } from 'expo-router/build/react-navigation/routers'
+import { stackFixture as StackRouter, tabFixture as TabRouter } from '@/test-support/navigation-fixture'
+import { StackActions } from 'expo-router/build/react-navigation/routers/index'
 import { getBackDestination } from '@/lib/back-destination'
 
-const options = { routeNames: ['(tabs)', 'profile/astra', 'upgrade', 'about'], routeParamList: {}, routeGetIdList: {} }
+const options = { routeNames: ['(tabs)', 'profile/astra', 'upgrade', 'about'], routeGetIdList: {} }
 
 function createStack(initialRouteName: string, next: string) {
   const router = StackRouter({ initialRouteName })
@@ -11,7 +12,7 @@ function createStack(initialRouteName: string, next: string) {
 
 describe('mobile back destination', () => {
   it('uses the selected tab underneath the pushed page', () => {
-    const tabs = TabRouter({ initialRouteName: 'calendar' }).getInitialState({ routeNames: ['index', 'calendar', 'profile'], routeParamList: {}, routeGetIdList: {} })
+    const tabs = TabRouter({ initialRouteName: 'calendar' }).getInitialState({ routeNames: ['index', 'calendar', 'profile'], routeGetIdList: {} })
     const stack = createStack('(tabs)', 'upgrade')
     stack.routes[0] = { ...stack.routes[0]!, state: tabs }
     expect(getBackDestination(stack)).toBe('/calendar')
@@ -24,7 +25,7 @@ describe('mobile back destination', () => {
   })
 
   it('does not use tab history as a stack pop destination', () => {
-    const tabs = TabRouter({ initialRouteName: 'profile' }).getInitialState({ routeNames: ['index', 'calendar', 'profile'], routeParamList: {}, routeGetIdList: {} })
+    const tabs = TabRouter({ initialRouteName: 'profile' }).getInitialState({ routeNames: ['index', 'calendar', 'profile'], routeGetIdList: {} })
     expect(getBackDestination(tabs)).toBeUndefined()
   })
 

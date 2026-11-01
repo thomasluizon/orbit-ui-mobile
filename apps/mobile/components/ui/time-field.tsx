@@ -1,6 +1,6 @@
 import { TypedTextInput } from '@/components/ui/typed-text-input'
 import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { InsetFocusPressable } from './inset-focus-pressable'
 import {
   Pressable,
@@ -12,7 +12,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Gesture, GestureDetector, GestureHandlerRootView, type NativeGesture } from 'react-native-gesture-handler'
+import { GestureDetector, GestureHandlerRootView, useNativeGesture, useTapGesture, type NativeGesture } from 'react-native-gesture-handler'
 import type { TimeFieldProps } from '@orbit/shared/contracts/forms'
 import {
   DAY_PERIODS,
@@ -77,14 +77,15 @@ function TimeOption({
   tokens: Tokens
 }>) {
   const [touchPressed, setTouchPressed] = useState(false)
-  const tapGesture = Gesture.Tap()
-    .maxDistance(8)
-    .maxDuration(2 ** 31 - 1)
-    .simultaneousWithExternalGesture(scrollGesture)
-    .runOnJS(true)
-    .onBegin(() => setTouchPressed(true))
-    .onEnd((_event, success) => { if (success && !selected) onSelect() })
-    .onFinalize(() => setTouchPressed(false))
+  const tapGesture = useTapGesture({
+    maxDistance: 8,
+    maxDuration: 2 ** 31 - 1,
+    simultaneousWith: scrollGesture,
+    runOnJS: true,
+    onBegin: () => setTouchPressed(true),
+    onDeactivate: (event) => { if (!event.canceled && !selected) onSelect() },
+    onFinalize: () => setTouchPressed(false),
+  })
   return (
     <GestureDetector gesture={tapGesture}><RadioItem selected={selected} onSelect={onSelect}>
       <InsetFocusPressable selectionRingWidth={2}
@@ -118,11 +119,12 @@ function TimeColumn({
   tokens,
   onSelect,
 }: Readonly<TimeColumnProps>) {
-  const scrollGesture = useMemo(() => Gesture.Native()
-    .shouldActivateOnStart(true)
-    .disallowInterruption(true)
-    .shouldCancelWhenOutside(false)
-    .runOnJS(true), [])
+  const scrollGesture = useNativeGesture({
+    shouldActivateOnStart: true,
+    disallowInterruption: true,
+    shouldCancelWhenOutside: false,
+    runOnJS: true,
+  })
   const listRef = useRef<ScrollView>(null)
   const viewportHeightRef = useRef(0)
   const selectedIndex = values.indexOf(selected)

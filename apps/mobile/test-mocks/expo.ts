@@ -5,6 +5,7 @@
  * under Vitest.
  */
 export {
+  uuid,
   EventEmitter,
   SharedObject,
   SharedRef,

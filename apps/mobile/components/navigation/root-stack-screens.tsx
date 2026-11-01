@@ -35,6 +35,7 @@ export function RootStackScreens({
       }}
     >
       <Stack.Protected
+        redirectTo={isAuthenticated ? '/(tabs)' : '/login'}
         guard={shouldExposeOnboardingRoute(
           captureBuildEnabled,
           isAuthenticated,
@@ -44,7 +45,7 @@ export function RootStackScreens({
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
 
-      <Stack.Protected guard={!isAuthenticated || allowErrorLogin}>
+      <Stack.Protected guard={!isAuthenticated || allowErrorLogin} redirectTo="/(tabs)">
         <Stack.Screen
           name="login"
           options={{
@@ -54,7 +55,7 @@ export function RootStackScreens({
         />
       </Stack.Protected>
 
-      <Stack.Protected guard={isAuthenticated}>
+      <Stack.Protected guard={isAuthenticated} redirectTo="/login">
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="progress/streak" />
         <Stack.Screen name="progress/goals" />

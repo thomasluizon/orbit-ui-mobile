@@ -2,8 +2,9 @@ import React, { useSyncExternalStore, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Text } from 'react-native'
 import type { NavigationState } from 'expo-router/react-navigation'
-import type { CommonActions } from 'expo-router/build/react-navigation/routers'
-import { StackRouter } from 'expo-router/build/react-navigation/routers/StackRouter'
+import type { CommonActions } from 'expo-router/build/react-navigation/routers/index'
+import { stackFixture as StackRouter } from '@/test-support/navigation-fixture'
+
 import { QueryClientProvider } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -30,7 +31,7 @@ const routeState = vi.hoisted(() => ({
   contextEntry: false,
   replace: vi.fn(),
   setParams: vi.fn<(params: Record<string, string | undefined>) => void>(),
-  dispatch: vi.fn<(update: (state: NavigationState) => CommonActions.Action) => void>(),
+  dispatch: vi.fn<(update: CommonActions.Action) => void>(),
   navigationState: undefined as NavigationState | undefined,
   pathname: '/wrapped',
   segments: ['wrapped'],
@@ -73,7 +74,10 @@ vi.mock('expo-router', () => {
       ? { code: routeState.pathname.slice(3) }
       : Object.fromEntries(new URL(routeState.pathname, 'https://orbit.test').searchParams),
     usePathname: () => routeState.pathname,
-    useNavigation: () => navigation,
+    useNavigation: () => ({ ...navigation, getState: () => {
+      const url = new URL(routeState.pathname, 'https://orbit.test')
+      return StackRouter({}).getRehydratedState({ routes: [{ name: 'login', path: url.pathname + url.search, params: Object.fromEntries(url.searchParams) }] }, { routeNames: ['login'], routeGetIdList: {} })
+    } }),
     useRouter: () => ({ push: createState.push, replace: routeState.replace, setParams: routeState.setParams }),
     useSegments: () => routeState.segments,
   }
@@ -247,12 +251,12 @@ beforeEach(async () => {
   routeState.replace.mockReset()
   routeState.setParams.mockReset()
   routeState.navigationState = undefined
-  routeState.dispatch.mockReset().mockImplementation((update) => {
+  routeState.dispatch.mockReset().mockImplementation((action) => {
     const url = new URL(routeState.pathname, 'https://orbit.test')
     const stack = StackRouter({})
-    const options = { routeNames: ['login'], routeParamList: {}, routeGetIdList: {} }
+    const options = { routeNames: ['login'], routeGetIdList: {} }
     const state = stack.getRehydratedState({ routes: [{ name: 'login', path: url.pathname + url.search, params: Object.fromEntries(url.searchParams) }] }, options)
-    const nextState = stack.getStateForAction(state, update(state), options)
+    const nextState = stack.getStateForAction(state, action, options)
     if (!nextState) throw new Error('Navigation action was not handled')
     const rehydrated = stack.getRehydratedState(nextState, options)
     routeState.navigationState = rehydrated

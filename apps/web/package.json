@@ -13,7 +13,7 @@
     "test:smoke": "playwright test --project=smoke",
     "test:layout": "playwright test --project=layout",
     "pretest:layout": "node ../../tools/check-hermetic-web-build.mjs",
-    "perf": "cd ../.. && lhci autorun --config apps/web/lighthouserc.json && node apps/web/perf/report-lcp.mjs",
+    "perf": "cd ../.. && node apps/web/perf/run-lighthouse.mjs && node apps/web/perf/report-lcp.mjs",
     "clean": "rm -rf .next"
   },
   "dependencies": {
@@ -54,7 +54,6 @@
   },
   "devDependencies": {
     "@expo-google-fonts/geist": "^0.4.2",
-    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@testing-library/dom": "^10.4.1",
@@ -67,16 +66,20 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "@vitest/coverage-v8": "^4.1.12",
+    "chrome-launcher": "^1.2.2",
+    "devtools-protocol": "0.0.1727723",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.4.2",
     "eslint-plugin-sonarjs": "^4.1.0",
     "jsdom": "^29.1.1",
-    "puppeteer-core": "^25.3.0",
+    "lighthouse": "13.6.0",
+    "puppeteer-core": "^25.16.0",
     "react-test-renderer": "^19.2.7",
     "tailwindcss": "^4.3.2",
     "tsx": "^4.20.6",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.63.0",
-    "vitest": "^4.1.12"
+    "vitest": "^4.1.12",
+    "webpack": "^5.112.2"
   }
 }
