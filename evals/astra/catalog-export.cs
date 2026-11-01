@@ -31,9 +31,9 @@ var intent = Boundary<IAiIntentService>.Create((method, arguments) =>
     captured = (AiToolRequest)arguments![0]!;
     return Task.FromResult(Result.Success(new AiResponse()));
 });
-var prompts = Boundary<ISystemPromptBuilder>.Create((method, _) => method.Name is "BuildStatic" or "BuildDynamic"
+var prompts = Boundary<ISystemPromptBuilder>.Create((method, _) => method.Name is "BuildStatic" or "BuildDynamic" or "BuildAccountContext" or "BuildTurnContext"
     ? "" : throw new InvalidOperationException(method.Name));
-var catalog = Boundary<IAgentCatalogService>.Create((method, _) => method.Name is "BuildStaticSupplement" or "BuildDynamicSupplement"
+var catalog = Boundary<IAgentCatalogService>.Create((method, _) => method.Name is "BuildStaticSupplement" or "BuildDynamicSupplement" or "BuildClientHints"
     ? "" : throw new InvalidOperationException(method.Name));
 var pending = Boundary<IPendingAgentOperationStore>.Create((method, _) => method.Name == "GetAwaiting"
     ? Array.Empty<PendingAgentOperationExecution>() : throw new InvalidOperationException(method.Name));
