@@ -1299,7 +1299,7 @@ export function HabitList({
     const state = deriveRowState(habit, recentlyCompleted)
     const meta = buildMetaTokens(habit, progress)
     const { canLog, dateStatusKey, completionReadOnly, completionReasonKey, completionStatusUnavailable } = buildHabitRowDateModel(habit, selectedDateStr, todayStr)
-    if (dateStatusKey) meta.push(t(dateStatusKey))
+    if (dateStatusKey) meta.push({ kind: 'date-status', label: t(dateStatusKey) })
     const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
     return (
       <Fragment key={habit.id}>

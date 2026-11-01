@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { makeMonthlyChildDaySchedule } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -15,6 +17,8 @@ vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'or
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: Record<string, string | number>) => {
   const messages = locale.value === 'en' ? en : ptBR
   if (key === 'habits.nextReminder') return messages.habits.nextReminder.replace('{time}', String(values?.time))
+  if (key === 'habits.statusDot.skip') return messages.habits.statusDot.skip
+  if (key === 'calendar.dayCell.notScheduled') return messages.calendar.dayCell.notScheduled
   if (key === 'habits.form.typeHabit') return messages.habits.form.typeHabit
   if (key === 'habits.rowTypeTask') return messages.habits.rowTypeTask
   if (key === 'habits.form.checklist') return messages.habits.form.checklist
@@ -30,6 +34,22 @@ vi.mock('@/lib/motion', async (importOriginal) => ({
 afterEach(() => { __resetTestHostConfig(); locale.value = 'en'; theme.value = 'dark' })
 
 describe('integrated native row metadata', () => {
+  it('keeps the Portuguese not-due status inside a child card at 200 percent text', () => {
+    locale.value = 'pt-BR'
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+    const schedule = makeMonthlyChildDaySchedule()
+    schedule.children[0]!.isSkippedOnDate = false
+    const habit = normalizeHabitQueryData([schedule]).habitsById.get('child-1')!
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} depth={1} selectedDate={new Date('2026-11-01T12:00:00')} today="2026-11-01" />) })
+    const geometry = measureInteractionFills(tree!.toJSON(), 288, false, 2)
+    const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
+    const status = geometry.find((part) => part.host.type === 'Text' && part.host.children?.includes(ptBR.calendar.dayCell.notScheduled))!
+    expect(status.right).toBeLessThanOrEqual(row.right)
+    expect(status.bottom).toBeLessThanOrEqual(row.bottom)
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('preserves actual checklist values across schedules and completion states', () => {
     const schedules: Partial<NormalizedHabit>[] = [{ frequencyUnit: null }, { isGeneral: true }, { isFlexible: true, frequencyUnit: 'Week' }, { frequencyUnit: 'Day' }]
     for (const schedule of schedules) for (const flags of [{ isCompleted: true }, { isOverdue: true }, { isBadHabit: true }, {}]) {
@@ -114,7 +134,7 @@ describe('integrated native row metadata', () => {
       theme.value = mode
       locale.value = language
       __setWindowDimensions({ width, height: 892, scale: 1, fontScale: scale })
-      const habit = createMockHabit({ title: 'Read pages', description: 'Read before breakfast.', checklistItems: Array.from({ length: 50 }, () => ({ text: 'Page', isChecked: true })) })
+      const habit = createMockHabit({ scheduledDates: [formatAPIDate(new Date())], title: 'Read pages', description: 'Read before breakfast.', checklistItems: Array.from({ length: 50 }, () => ({ text: 'Page', isChecked: true })) })
       let tree: ReturnType<typeof TestRenderer.create>
       TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} depth={depth} structuralColumn hasChildren childrenDone={1} childrenTotal={3} actions={{ onEdit: vi.fn(), onToggleExpand: vi.fn() }} />) })
       const initial = measureInteractionFills(tree!.toJSON(), width - 32, false, scale)

@@ -641,18 +641,18 @@ describe('HabitList', () => {
       let tree!: ReturnType<typeof TestRenderer.create>
       TestRenderer.act(() => { tree = createTestTree(<HabitList view={view} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} />) })
       const rows = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)
-      const child = rows.find((row) => row.props.habit.id === 'child-1')
+      const child = rows.find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'child-1')
       if (view === 'today') expect(child).toBeUndefined()
       else {
         expect(flattenRenderedText(child)).toContain(skipped ? 'habits.statusDot.skip' : 'calendar.dayCell.notScheduled')
         const glyph = child!.findAllByProps({ testID: 'unavailable-status-dot' })[0]!
         expect(StyleSheet.flatten(glyph.props.style)).toMatchObject({ width: 28, height: 28, borderWidth: 0 })
-        const toggle = child!.findAll((node) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).includes('habits.logHabit'))[0]!
+        const toggle = child!.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).includes('habits.logHabit'))[0]!
         expect(toggle.props.accessibilityState.disabled).toBe(true)
         TestRenderer.act(() => toggle.props.onPress())
         expect(logMutateAsync).not.toHaveBeenCalled()
       }
-      expect(rows.find((row) => row.props.habit.id === 'child-2')!.props.habit.isLoggedInRange).toBe(true)
+      expect(rows.find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'child-2')!.props.habit.isLoggedInRange).toBe(true)
     },
   )
 

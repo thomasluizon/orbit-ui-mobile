@@ -12,6 +12,7 @@ export type HabitRowMetaPart =
   | { kind: 'overdue' }
   | { kind: 'bad' }
   | { kind: 'future'; label: string }
+  | { kind: 'date-status'; label: string }
   | { kind: 'type'; label: string }
   | { kind: 'next'; label: string }
   | { kind: 'checklist'; label: string; done: number; total: number }
@@ -89,7 +90,7 @@ export function HabitRowMetaStrip({ metaParts, metaColor, tokens, largeText = fa
   return (
     <View testID="habit-row-meta" accessible={false} importantForAccessibility="no-hide-descendants"
       style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4, minWidth: 0 }}>
-      {visibleMeta.map((part, i) => <View key={metaKeys[i]} testID="habit-row-meta-token" onLayout={(event) => onTokenWidth?.(metaKeys[i]!, event.nativeEvent.layout.width)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+      {visibleMeta.map((part, i) => <View key={metaKeys[i]} testID="habit-row-meta-token" onLayout={(event) => onTokenWidth?.(metaKeys[i]!, event.nativeEvent.layout.width)} style={[{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 }, typeof part !== 'string' && part.kind === 'date-status' ? { maxWidth: '100%' } : undefined]}>
         <HabitRowMetaToken part={part} metaColor={metaColor} tokens={tokens} largeText={largeText} onWrap={() => onTokenWidth?.(metaKeys[i]!, Infinity)} />
         {i < visibleMeta.length - 1 ? <Text style={[styles.meta, { color: metaColor }]}>·</Text> : null}
       </View>)}
@@ -116,6 +117,6 @@ function HabitRowMetaToken({ part, metaColor, tokens, largeText, onWrap }: Reado
   const label = typeof part === 'string' || 'label' in part ? habitRowMetaPartName(part) : stateLabel
   const stateColor = kind === 'overdue' ? tokens.statusOverdueText : tokens.statusBadText
   return <Text testID={kind === 'type' ? 'habit-row-type' : undefined}
-    onTextLayout={kind === 'next' ? (event) => { if (event.nativeEvent.lines.length > 1) onWrap() } : undefined}
-    style={[styles.meta, { color: metaColor }, kind === 'overdue' || kind === 'bad' ? { color: stateColor, fontFamily: 'Geist_500Medium' } : null]}>{label}</Text>
+    onTextLayout={kind === 'next' || kind === 'date-status' ? (event) => { if (event.nativeEvent.lines.length > 1) onWrap() } : undefined}
+    style={[styles.meta, { color: metaColor }, kind === 'date-status' ? { flexShrink: 1 } : null, kind === 'overdue' || kind === 'bad' ? { color: stateColor, fontFamily: 'Geist_500Medium' } : null]}>{label}</Text>
 }

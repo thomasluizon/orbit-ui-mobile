@@ -326,7 +326,7 @@ export const HabitRow = memo(function HabitRow({
     t,
     locale,
   })
-  if (dateStatusKey) metaParts.push(t(dateStatusKey))
+  if (dateStatusKey) metaParts.push({ kind: 'date-status', label: t(dateStatusKey) })
   if (habit.nextReminderAtUtc) metaParts.push({ kind: 'next', label: t('habits.nextReminder', { time: displayClock(habit.nextReminderAtUtc) }) })
   const { onContentWidth, onTokenWidth, narrow } = useHabitRowMetadataFit(metaParts)
   const supportingMeta = largeText || depthBoundary || narrow

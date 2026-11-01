@@ -84,6 +84,7 @@ export function buildHabitRowAccessibilityLabel({
   if (dotState) parts.push(t(`habits.statusDot.${dotState}` as const))
   for (const part of metaParts) {
     if (typeof part === 'string') parts.push(part)
+    else if (part.kind === 'date-status') parts.push(part.label)
     else if (part.kind === 'checklist') parts.push(part.label)
     else if (part.kind === 'overdue' && dotState !== 'overdue') parts.push(t('habits.overdue'))
     else if (part.kind === 'bad' && dotState !== 'bad') parts.push(t('habits.statusDot.bad'))

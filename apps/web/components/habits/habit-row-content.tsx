@@ -11,6 +11,7 @@ export type HabitRowMetaToken =
   | { kind: 'overdue'; label: string }
   | { kind: 'bad'; label: string }
   | { kind: 'future'; label: string }
+  | { kind: 'date-status'; label: string }
   | { kind: 'type'; label: string }
   | { kind: 'checklist'; label: string; done: number; total: number }
 
@@ -109,7 +110,7 @@ export function MetaStrip({ tokens, largeText = false }: Readonly<MetaStripProps
       }}
     >
       {tokens.map((token, i) => (
-        <span key={metaTokenKey(token, i)} data-habit-row-meta-token="" className="inline-flex shrink-0 items-center gap-[4px] whitespace-nowrap">
+        <span key={metaTokenKey(token, i)} data-habit-row-meta-token="" className={`inline-flex items-center gap-[4px] ${largeText && typeof token !== 'string' && token.kind === 'date-status' ? 'min-w-0 max-w-full shrink whitespace-normal' : 'shrink-0 whitespace-nowrap'}`}>
           {renderMetaToken(token, largeText)}
           {i < tokens.length - 1 && <span>·</span>}
         </span>
