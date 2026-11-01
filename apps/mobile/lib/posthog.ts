@@ -119,7 +119,7 @@ export function capturePurchase(event: 'purchase_started' | 'purchase_verified',
 }
 
 export function captureAndroidUpdateCheck(properties: {
-  outcome: 'success' | 'error'
+  outcome: 'success' | 'service_unavailable' | 'error'
   play_status: number | null
   available_version_code: number | null
   installed_version_code: number

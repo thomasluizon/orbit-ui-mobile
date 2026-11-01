@@ -35,12 +35,17 @@ describe('mobile PostHog adapter', () => {
     expect(client.reset).toHaveBeenCalledOnce()
   })
 
-  it('gates Android update diagnostics through the analytics preference', async () => {
+  it.each([
+    { outcome: 'success', play_status: 2, available_version_code: 181, play_error_code: null },
+    { outcome: 'error', play_status: null, available_version_code: null, play_error_code: -100 },
+    { outcome: 'service_unavailable', play_status: null, available_version_code: null, play_error_code: null },
+    { outcome: 'service_unavailable', play_status: null, available_version_code: null, play_error_code: -3 },
+    { outcome: 'service_unavailable', play_status: null, available_version_code: null, play_error_code: -9 },
+  ] as const)('gates Android update diagnostics through the analytics preference for $outcome, code $play_error_code', async (result) => {
     vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
     const analytics = await import('@/lib/posthog')
     const check = {
-      outcome: 'success' as const, play_status: 2, available_version_code: 181,
-      installed_version_code: 178, play_error_code: null,
+      ...result, installed_version_code: 178,
     }
     const sheet = { sheet: 'available' as const, available_version_code: 181, installed_version_code: 178 }
     await analytics.applyPostHogGate(false)

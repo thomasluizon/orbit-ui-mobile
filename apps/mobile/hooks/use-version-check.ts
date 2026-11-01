@@ -69,12 +69,16 @@ async function checkAndroidUpdate(inAppUpdates: SpInAppUpdates): Promise<NeedsUp
   } catch (error) {
     const codeMatch = error instanceof Error ? /Install Error\((-?\d+)\)/.exec(error.message) : null
     const playErrorCode = codeMatch ? Number(codeMatch[1]) : null
-    Sentry.captureException(error, {
-      tags: { operation: 'android_update_check' },
-      extra: { installed_version_code: installedCode, play_error_code: playErrorCode },
-    })
+    const serviceUnavailable = playErrorCode === -3 || playErrorCode === -9 ||
+      (error instanceof Error && error.message.endsWith(': Failed to bind to the service.'))
+    if (!serviceUnavailable) {
+      Sentry.captureException(error, {
+        tags: { operation: 'android_update_check' },
+        extra: { installed_version_code: installedCode, play_error_code: playErrorCode },
+      })
+    }
     captureAndroidUpdateCheck({
-      outcome: 'error', play_status: null, available_version_code: null,
+      outcome: serviceUnavailable ? 'service_unavailable' : 'error', play_status: null, available_version_code: null,
       installed_version_code: installedCode, play_error_code: playErrorCode,
     })
     return null
