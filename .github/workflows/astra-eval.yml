@@ -69,7 +69,7 @@ jobs:
           printf '%s\n' "$ORBIT_EVAL_CREDENTIALS_JSON" > "$ORBIT_EVAL_CREDENTIALS_FILE"
           chmod 600 "$ORBIT_EVAL_CREDENTIALS_FILE"
           rm -f "$ORBIT_EVAL_CREDENTIALS_FILE.rotated" "$ORBIT_EVAL_CREDENTIALS_FILE.refresh-failed"
-      - name: Evaluate selected cases with three attempts
+      - name: Evaluate selected cases with the configured attempts
         run: npx promptfoo eval --filter-metadata "id=$ORBIT_EVAL_CASE_IDS"
       - name: Persist rotated credentials for the next window
         if: always()

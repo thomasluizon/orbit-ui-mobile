@@ -80,7 +80,7 @@ These tests do not parse Turbo's report fields.
 | Stryker mutation | `packages/shared` | `npm run mutation -w @orbit/shared` (`stryker run`) | that the shared unit tests actually kill mutants (effectiveness, not coverage percent) |
 | Harness hook parity | `.claude/hooks` | `node .claude/hooks/test-hooks.mjs` (no deps) | that the three session hooks (git-guardrails, forbid-ef-migration-raw-index, forbid-raw-linear-mutation) block and allow exactly as their `_lib` rules specify, and that no agent's frontmatter carries a fails-open `Bash(...)` specifier |
 | Harness tools execution | `tools/` | `node tools/test-tools.mjs` (run `npm ci` first) | that every script in `tools/` actually RUNS: the `CONVENTIONS.md` CLI contract (`--help` exits 0, invalid input refused before any work) plus each tool's real decision paths, orca stubbed and hermetic. Fails when a new tool arrives with no coverage |
-| Astra capability eval | `evals/astra` | `cd evals/astra && npx promptfoo eval` | on-demand requests to the real chat endpoint, with three attempts per case and request-bound tool evidence in a pass^3 launch report |
+| Astra capability eval | `evals/astra` | `cd evals/astra && npx promptfoo eval` | on-demand requests to the real chat endpoint, with one attempt per case and request-bound tool evidence in a pass^k launch report |
 | Desktop configuration and native context | `apps/desktop` | `npm run test -w @orbit/desktop`, then `cargo test --locked` in `src-tauri` | Installed Tauri schema, generated context and native browser handoff policy; native bundles compile in `desktop-build.yml` on macOS and Windows, without launching the app |
 | Installed desktop VM acceptance | GitHub macOS and Windows VMs | `desktop-acceptance.yml` | Recorded release installer, email BFF cookies, Hoje, Astra, native clean quit, signed updater acceptance and refusal, platform accessibility trees and palette traversal; no deployed services. See `tools/desktop-bench/README.md`. This job is a desktop acceptance exception to local unit-only verification. |
 | Astra harness unit and behavior | `evals/astra` | `npm test --prefix evals/astra` | Vitest drives the real promptfoo CLI with offline providers, intercepts HTTP without a server, and proves that deliberately wrong tool arguments fail |
@@ -171,7 +171,8 @@ at low effort.
 
 ### Live gate and spend rules
 
-The paid live gate runs once, at app launch. Each failing case is rerun once; there is no
+The app-launch live gate runs once, with one attempt per case and a 2 USD spend ceiling for the run.
+Each failing case is rerun once; there is no
 other live run. A fix round never calls the provider: it replays recorded real provider
 responses offline at the model-service port, following the `orbit-api`
 `tests/Orbit.Application.Tests/Fixtures/` pattern, or uses a fake completion client.
@@ -320,14 +321,15 @@ schedule, treating selected weekdays as a set while rejecting duplicates. Schedu
 require the selected title, habit type and checklist to stay unchanged. The semantic grader receives
 the original selected draft and instruction to check meaning beyond those deterministic constraints.
 Replacing the selected draft must preserve every sibling and its order. The assertions do not invent
-tool evidence for the refine request. Each attempt records two messages, so each refine case's
-three attempts record six messages even with the main account's exemption. Harness tests exercise
+tool evidence for the refine request. Each refine case records two messages at `k=1`, including
+setup, even with the main account's exemption. Harness tests exercise
 this flow offline; never treat their passing result as evidence from a live model run.
 
 ### Proactive offer gate
 
-The `offers-*` families add 60 bilingual cases to the composition corpus. Each case retains three
-independent attempts and its family/locale pass^3 result. A fresh conversation UUID replaces every
+The `offers-*` families add 60 bilingual cases to the composition corpus. Each case runs the
+configured `k` attempts and retains its family/locale pass^k result.
+The app-launch gate uses `k=1`. A fresh conversation UUID replaces every
 case seed before setup; setup, revisions, selection,
 reload and device changes keep that attempt's UUID. Request trace UUIDs remain independently generated
 for each HTTP turn. No seed conversation ID reaches the API.
@@ -348,7 +350,7 @@ offer Calendar connection; a default create date does not establish eligibility.
 the Calendar check requires a matching requested `due_date` or `deadline` in the held preview.
 
 The producer is `orbit-api#1031`. Keep this harness merge held until that change is live on the
-production API and the app-launch gate passes all three attempts of these cases.
+production API and the app-launch gate passes every configured attempt of these cases.
 Regenerate the catalog against that production commit before running. The exporter captures
 `offerTools`, `offerPostReadTools` and bound `offerHabitSetupTools` through the producer's offer-enabled request builders, including
 `suggested_fields` and removal arguments. A missing offer catalog fails structural validation;
@@ -432,7 +434,7 @@ assertions, fixture requests and lifecycle ports with producer-derived responses
 purposefully wrong response for each path. Selector timeouts and invalid candidate IDs use intercepted
 responses with no action; they cannot satisfy a required eligible-action case. Historical and partial
 read replays must reject unsafe actions even when the prose sounds reasonable. These replays never
-call Orbit, start an app server, increase an AI ceiling or replace the app-launch pass^3 gate.
+call Orbit, start an app server, increase an AI ceiling or replace the app-launch pass^k gate.
 
 ### Environment and reproducible fixtures
 
@@ -548,13 +550,15 @@ the case incomplete until that account's next daily window.
 
 The main account's `astra_eval_unmetered` flag bypasses only its per-account message, model-call
 and spend ceilings while preserving usage records. All accounts share the hard eval ceiling.
-Ordinary cases record three messages; refine, medical correction and starting-step follow-up cases
-record six, including setup turns. Leave `repeat: 3`, serial execution, no retries and caching disabled.
-Keep each case's three attempts in one window. Use the same configured accounts while their
+Ordinary cases record one message; refine, medical correction and starting-step follow-up cases
+record two, including setup turns. `evaluateOptions.repeat: 1` in `promptfooconfig.yaml` is the
+single source of truth for `k`, exported by `attempts.mjs` as `ATTEMPTS_PER_CASE`. Keep serial
+execution, no retries and caching disabled. Keep each case's configured attempts in one window.
+Use the same configured accounts while their
 required plan access remains active; do not buy quota or add accounts.
 
-The hard eval ceiling is per UTC day, and one full gate costs more than one day's ceiling, so the
-one app-launch gate runs as daily windows. When the ceiling stops a run, that UTC day's window
+The hard API eval ceiling is per UTC day. The app-launch gate can use daily windows within
+that ceiling and its 2 USD run ceiling. When the ceiling stops a run, that UTC day's window
 ends; the gate continues in the next UTC day's window with only the cases that have no complete
 result yet. A later window never reruns a case that already has a complete result, except the
 single permitted rerun of a failing case.
@@ -572,7 +576,8 @@ cp -R reports/attempts reports/window-01/attempts
 
 `--filter-metadata` uses substring alternatives separated by commas, not an exact-match regular
 expression; use full IDs and check the resulting case table. `--filter-pattern` matches case
-descriptions, not IDs. Each selected case still runs three times. In later windows select new cases
+descriptions, not IDs. Each selected case still runs the configured `k` attempts (one for the
+app-launch gate). In later windows select new cases
 and cases whose earlier window was interrupted or unrun; save them as `window-02`, `window-03` and
 so on. Continuation replaces that case's earlier entry, never a completed companion's result.
 Keep each summary and its attempt files together, including superseded attempts. Reset `single-read-en` before
@@ -600,7 +605,8 @@ Each entry in a declared rerun window must replace a previously failed case. Sel
 failing IDs for that run. If that rerun is interrupted, continue its incomplete cases in a later
 ordinary window without another `--rerun`. A case cannot receive a second declared rerun, even if
 its first rerun fails or is interrupted. Entries for an already passed case, complete failures
-repeated without `--rerun`, duplicate IDs within one window, foreign IDs, mismatched labels, wrong k
+repeated without `--rerun`, duplicate IDs within one window, foreign IDs, mismatched labels,
+a `k` that differs from `evaluateOptions.repeat`
 and impossible counts are rejected.
 
 The merged JSON records each selected result's `sourceWindow` as its one-based position among the
@@ -610,7 +616,7 @@ replacement table shows the final and superseded windows and the superseded atte
 An interrupted entry with a failed attempt is a failure, not an incomplete case: only its single
 declared rerun replaces it.
 Use those window numbers to locate the preserved original attempt files; superseded attempts never
-contribute to the final pass^3 counts. Missing or skipped evidence cannot become a pass through
+contribute to the final pass^k counts. Missing or skipped evidence cannot become a pass through
 merging, and a case without complete evidence remains incomplete. A window pass is not full-corpus acceptance.
 Keep one settled API/prompt/tool surface across the launch gate's windows. A changed surface is validated
 offline in fix rounds and never authorizes an additional live run.
@@ -669,23 +675,19 @@ budget refusal. The corpus does not infer a successful mutation from a plausible
 
 ### Read latency budget
 
-Read cases also require the median API turn time across their three attempts to be strictly below
-`READ_LATENCY_BUDGET_MILLISECONDS` in `evals/astra/latency.mjs`, set to 10000 ms. The #26 gate 6
-failing-case rerun on staging API `43886600` measured 31 read cases with three attempts each:
-the median of case medians was 5533 ms and the `model_call` median was 4701 ms, putting an added
-second call near 10234 ms. The slowest case median with one model call was 9003 ms (`single-read-en`);
-cases with two or three model calls reached 11938 ms (`composition-partial-pt-BR`) and 13771 ms
-(`grounding-missing-pt`). The budget sits above every measured case median with one model call and
-below the estimated median with a second call. Exactly 10000 ms fails. The app-launch gate records
-the current-build latency evidence on the owning ticket.
+Read cases also require the median API turn time across their `k` completed requests to be strictly below
+`READ_LATENCY_BUDGET_MILLISECONDS` in `evals/astra/latency.mjs`, set to 10000 ms. The
+budget separates a read completed in one model call from the added cost of a second model call.
+Exactly 10000 ms fails. With `k=1`, the sole request's time is its median. The app-launch gate
+records the current-build latency evidence on the owning ticket.
 Forced-second-call checks in fix rounds use recorded responses or a fake completion client offline.
 Fixture timings do not calibrate the budget. No additional live latency run is permitted.
 
 The corpus classifies `composition.mode: data` as read cases, together with legacy `fallback` cases
 that declare nonempty read-only `expectations.allowed` tools. Preview, clarification and refusal
 cases retain their existing assertions. Each read case must still pass every capability assertion;
-a slow outlier alone does not fail latency when the three-run median is below the budget.
-Fewer than three completed requests or a fixture-precondition failure leaves latency incomplete,
+the median must be below the budget.
+Any count other than exactly `k` completed requests, or a fixture-precondition failure, leaves latency incomplete,
 with no median or budget verdict. Precondition failures send no chat request and contribute no
 timing sample. Invalid timing from a request that ran remains a failure, even alongside an unrun
 attempt or a blocked precondition. Real capability failures also retain their failure verdict.
@@ -696,7 +698,7 @@ The input is request-bound `evalTrace.timing` from the API timing producer in #1
 `moderation`, `context_load`, `prompt_build`, `model_call`, `tool_call`, `save`, `composition`, `budget`
 and `other`. Missing, malformed or mismatched timing fails the budget. Exclusive phase times must
 sum to the turn total within 1 ms for floating point rounding. Repeated scopes, including a second
-model call, are summed by name within each turn before taking the three-run phase medians.
+model call, are summed by name within each turn before taking the phase medians across `k` requests.
 The reports show total and per-phase medians in milliseconds; phase medians need not sum to the
 total median. Merged windows preserve and validate these results against the current budget;
 older read summaries without latency evidence remain incomplete unless the permitted failing-case
@@ -707,9 +709,12 @@ Run the offline budget and report checks with
 
 ### Assertions, trace evidence, and the launch decision
 
-Every case runs three times with caching and HTTP retries disabled. A case passes `pass^3`
-only when all three attempts pass all assertions with complete required evidence.
+Every case runs `k` times with caching and HTTP retries disabled; the app-launch gate uses `k=1`.
+A case passes `pass^k` only when it has exactly `k` attempts and every attempt passes all assertions
+with complete required evidence. Zero or extra attempts are incomplete. Each failing case may be
+rerun once, and fix rounds replay recorded responses offline.
 `reports/summary.json` and `reports/summary.md` contain case IDs, family and locale labels, counts,
+the configured `k`, count-independent `allAttemptsPass` verdicts for cases and groups,
 and sanitized read latency medians and verdicts.
 After each graded attempt, the harness atomically replaces private `reports/results.json` with each attempt's
 case ID, one-based repeat ordinal within that case, pass state, HTTP status, failure reason, and every
@@ -719,7 +724,7 @@ its requested output file. Summaries update after each attempt too; a later fixt
 preserves completed attempts and leaves unrun cases incomplete. Starting a run clears the prior reports.
 Reasons can contain private answer details: keep this file local and
 do not upload it. Copy it into each private window directory before the next run replaces it.
-Each family and locale also receives a pass^3 aggregate; any failing or incomplete case prevents its pass. The Action
+Each family and locale also receives a pass^k aggregate; any failing or incomplete case prevents its pass. The Action
 publishes these summaries and a job summary. It does not upload raw responses or a promptfoo
 database. Sharing and database writes are disabled in the configuration. For local runs, set
 `PROMPTFOO_DISABLE_TELEMETRY=1`, `PROMPTFOO_DISABLE_SHARING=1`, and point
@@ -818,7 +823,7 @@ later meals or completed Breakfast. Merely listing a later meal as pending is va
 Portuguese prose must use a natural activity reference such as "seu almoço", while stored
 English titles remain unchanged inside block rows. One data block and at most one short sentence
 can pass; no prose recap is required, and a block-only answer must still convey the recommendation.
-Both cases retain three attempts and family/locale pass^3 reporting. Offline checks prove fixture,
+Both cases retain the configured `k` attempts and family/locale pass^k reporting. Offline checks prove fixture,
 assertion and rubric routing; semantic acceptance requires the app-launch live gate.
 
 The composition assertion requires ordered parts for parts-capable clients. It validates known

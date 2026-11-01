@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
@@ -292,26 +293,33 @@ describe('tool evidence', () => {
   })
 })
 
-describe('pass^3 gate', () => {
-  it('requires three successful attempts for every case', () => {
-    expect(summarize([attempt('a'), attempt('a'), attempt('a')], ['a']).status).toBe('pass')
-    expect(summarize([attempt('a'), attempt('a'), attempt('a', false)], ['a']).status).toBe('fail')
+describe('pass^k gate', () => {
+  it('requires every configured attempt to succeed for every case', () => {
+    const results = Array.from({ length: ATTEMPTS_PER_CASE }, () => attempt('a'))
+    expect(summarize(results, ['a']).status).toBe('pass')
+    results[0] = attempt('a', false)
+    expect(summarize(results, ['a']).status).toBe('fail')
   })
   it('never counts skipped tool evidence as a launch pass', () => {
-    const summary = summarize([attempt('a', true, true), attempt('a'), attempt('a')], ['a'])
+    const results = Array.from({ length: ATTEMPTS_PER_CASE }, () => attempt('a'))
+    results[0] = attempt('a', true, true)
+    const summary = summarize(results, ['a'])
     expect(summary.status).toBe('incomplete')
-    expect(summary.cases[0]).toMatchObject({ pass3: 'incomplete', skipped: 1 })
+    expect(summary.cases[0]).toMatchObject({ allAttemptsPass: 'incomplete', skipped: 1 })
   })
   it('reports unavailable evidence as incomplete and preserves independent rubric failures', () => {
     const unavailable = attempt('a', false)
     unavailable.gradingResult.componentResults = [{ pass: false, metadata: { unavailable: true } }]
-    expect(summarize([unavailable, attempt('a'), attempt('a')], ['a']).status).toBe('incomplete')
+    const results = Array.from({ length: ATTEMPTS_PER_CASE }, () => attempt('a'))
+    results[0] = unavailable
+    expect(summarize(results, ['a']).status).toBe('incomplete')
     unavailable.gradingResult.componentResults.push({ pass: false })
-    expect(summarize([unavailable, attempt('a'), attempt('a')], ['a']).status).toBe('fail')
+    expect(summarize(results, ['a']).status).toBe('fail')
   })
   it('detects missing, extra, or absent cases', () => {
-    expect(summarize([attempt('a'), attempt('a')], ['a']).status).toBe('incomplete')
-    expect(summarize(Array.from({ length: 4 }, () => attempt('a')), ['a']).status).toBe('incomplete')
+    expect(summarize(Array.from({ length: ATTEMPTS_PER_CASE - 1 }, () => attempt('a')), ['a']).status).toBe('incomplete')
+    expect(summarize(Array.from({ length: ATTEMPTS_PER_CASE + 1 }, () => attempt('a')), ['a']).status).toBe('incomplete')
+    expect(summarize([attempt('foreign')], ['a']).status).toBe('incomplete')
     expect(summarize([], ['a']).status).toBe('incomplete')
     expect(summarize([], []).status).toBe('incomplete')
   })

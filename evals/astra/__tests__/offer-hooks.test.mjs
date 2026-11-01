@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
@@ -42,7 +43,7 @@ it.each(['en', 'pt-BR'])('prepares the shared client kinds for %s offer requests
   expect(setup.vars.setup.clientContext.partKinds).toEqual(test.vars.clientContext.partKinds)
 })
 
-it('keeps all supplied cases, resolves their YAML contexts and configures three attempts', () => {
+it('keeps all supplied cases, resolves their YAML contexts and configures the configured attempts', () => {
   const cases = corpus.filter((entry) => entry.metadata.family.startsWith('offers-'))
   expect(cases).toHaveLength(60)
   expect(new Set(cases.map((entry) => entry.metadata.family)).size).toBe(29)
@@ -50,7 +51,7 @@ it('keeps all supplied cases, resolves their YAML contexts and configures three 
   expect(cases.every((entry) => !Object.hasOwn(entry.vars.clientContext, '<<'))).toBe(true)
   for (const entry of cases) expect(cases.some((other) => other.metadata.family === entry.metadata.family && other.metadata.locale !== entry.metadata.locale)).toBe(true)
   const config = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
-  expect(config.evaluateOptions.repeat).toBe(3)
+  expect(config.evaluateOptions.repeat).toBe(ATTEMPTS_PER_CASE)
   expect(config.defaultTest.assert.some((assertion) => assertion.metric === 'proactiveOffers')).toBe(true)
 })
 
@@ -97,7 +98,7 @@ it.each(['valid', 'wrong-trace', 'wrong-offer', 'dismiss-failed', 'fixture-faile
             recovery: null, nextAction: action },
         } }] }, { headers: { 'x-orbit-request-id': fault === 'wrong-trace' ? 'wrong' : id } })
     })
-    for (let attempt = 0; attempt < (fault === 'valid' ? 3 : 1); attempt++) {
+    for (let attempt = 0; attempt < (fault === 'valid' ? ATTEMPTS_PER_CASE + 1 : 1); attempt++) {
       const { test } = await beforeEach({ test: structuredClone(source) })
       if (fault === 'valid') {
         expect(test.vars.preconditionFailure).toBeUndefined()
@@ -112,9 +113,9 @@ it.each(['valid', 'wrong-trace', 'wrong-offer', 'dismiss-failed', 'fixture-faile
       }
     }
     if (fault === 'valid') {
-      expect(new Set(conversations).size).toBe(3)
-      expect(new Set(requestIds).size).toBe(3)
-      expect(dismissed).toBe(3)
+      expect(new Set(conversations).size).toBe(ATTEMPTS_PER_CASE + 1)
+      expect(new Set(requestIds).size).toBe(ATTEMPTS_PER_CASE + 1)
+      expect(dismissed).toBe(ATTEMPTS_PER_CASE + 1)
     } else if (fault !== 'dismiss-failed') expect(dismissed).toBe(0)
   },
 )

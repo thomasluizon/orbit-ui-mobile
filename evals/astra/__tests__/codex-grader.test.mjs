@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -122,10 +123,10 @@ it.each([false, true])('keeps exhausted rubric evidence unavailable with product
   const testCase = { metadata: { id: 'grader-outage' } }
   result.componentResults.push({ assertion: { metric: 'composition' }, pass: !productFailure,
     reason: productFailure ? 'Wrong habit.' : 'Composition matched.' })
-  const attempts = Array.from({ length: 3 }, () => ({ testCase, success: result.pass, gradingResult: result }))
+  const attempts = Array.from({ length: ATTEMPTS_PER_CASE }, () => ({ testCase, success: result.pass, gradingResult: result }))
   const summary = summarize(attempts, [testCase.metadata])
-  expect(summary.cases[0]).toMatchObject({ unavailable: 3, passed: 0,
-    pass3: 'incomplete',
+  expect(summary.cases[0]).toMatchObject({ unavailable: ATTEMPTS_PER_CASE, passed: 0,
+    allAttemptsPass: 'incomplete',
     unavailableReasons: ['Codex rubric grading failed: process exited with code 1.'] })
   expect(summarize(attempts, [{ ...testCase.metadata, readLatency: true }]).status).toBe('incomplete')
   const productAttempt = { testCase, success: false, gradingResult: { componentResults: [

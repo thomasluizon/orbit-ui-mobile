@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
 import { describeCase, validateLatencySummary } from './latency.mjs'
 import { aggregate, writeReport } from './report.mjs'
+import { ATTEMPTS_PER_CASE } from './attempts.mjs'
 
 export const descriptors = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
   parse(readFileSync(new URL(path, import.meta.url), 'utf8')).map(describeCase))
@@ -12,23 +13,23 @@ function windowEntry(entry, descriptor) {
   if (!descriptor) throw new Error('Unexpected case across windows.')
   if (entry.family !== (descriptor.family ?? 'legacy') || entry.locale !== (descriptor.locale ?? 'unspecified')) throw new Error('Window labels disagree with the corpus.')
   for (const field of ['attempts', 'passed', 'skipped', 'unavailable', 'missingComposition']) {
-    if (!Number.isInteger(entry[field]) || entry[field] < 0 || entry[field] > 3) throw new Error('Invalid window attempt counts.')
+    if (!Number.isInteger(entry[field]) || entry[field] < 0 || entry[field] > ATTEMPTS_PER_CASE) throw new Error('Invalid window attempt counts.')
   }
-  if (entry.passed > entry.attempts || !['pass', 'fail', 'incomplete'].includes(entry.pass3)) throw new Error('Invalid window verdict.')
-  const complete = entry.attempts === 3 && !entry.skipped && !entry.unavailable && !entry.missingComposition
-  if (entry.pass3 === 'pass' && (!complete || entry.passed !== 3)) throw new Error('Window claims a pass without complete evidence.')
+  if (entry.passed > entry.attempts || !['pass', 'fail', 'incomplete'].includes(entry.allAttemptsPass)) throw new Error('Invalid window verdict.')
+  const complete = entry.attempts === ATTEMPTS_PER_CASE && !entry.skipped && !entry.unavailable && !entry.missingComposition
+  if (entry.allAttemptsPass === 'pass' && (!complete || entry.passed !== ATTEMPTS_PER_CASE)) throw new Error('Window claims a pass without complete evidence.')
   if (entry.unavailableReasons != null && (!Array.isArray(entry.unavailableReasons)
     || entry.unavailableReasons.some((reason) => typeof reason !== 'string'))) throw new Error('Invalid window precondition reasons.')
   if (descriptor.readLatency) {
     validateLatencySummary(entry.latency)
-    if (entry.latency.status !== 'pass' && entry.pass3 === 'pass') throw new Error('Window claims a pass without passing latency evidence.')
+    if (entry.latency.status !== 'pass' && entry.allAttemptsPass === 'pass') throw new Error('Window claims a pass without passing latency evidence.')
   }
-  const pass3 = entry.pass3 === 'fail' ? 'fail'
-    : !complete || (descriptor.readLatency && entry.latency.status === 'incomplete') ? 'incomplete' : entry.pass3
+  const allAttemptsPass = entry.allAttemptsPass === 'fail' ? 'fail'
+    : !complete || (descriptor.readLatency && entry.latency.status === 'incomplete') ? 'incomplete' : entry.allAttemptsPass
   return { id: entry.id, family: entry.family, locale: entry.locale, attempts: entry.attempts,
     passed: entry.passed, ...(descriptor.readLatency ? { latency: entry.latency } : {}), unavailableReasons: entry.unavailableReasons ?? [],
     skipped: entry.skipped, unavailable: entry.unavailable, missingComposition: entry.missingComposition,
-    pass3 }
+    allAttemptsPass }
 }
 
 export function mergeReports(windows, expected = descriptors, { rerunWindows = [] } = {}) {
@@ -37,7 +38,7 @@ export function mergeReports(windows, expected = descriptors, { rerunWindows = [
   }
   const collected = new Map()
   for (const [index, window] of windows.entries()) {
-    if (window.k !== 3 || !Array.isArray(window.cases)) throw new Error('Window must contain a pass^3 summary.')
+    if (window.k !== ATTEMPTS_PER_CASE || !Array.isArray(window.cases)) throw new Error(`Window must contain a summary with k=${ATTEMPTS_PER_CASE}.`)
     const seen = new Set()
     const rerun = rerunWindows.includes(index + 1)
     for (const entry of window.cases) {
@@ -45,10 +46,10 @@ export function mergeReports(windows, expected = descriptors, { rerunWindows = [
       seen.add(entry.id)
       const current = windowEntry(entry, expected.find(({ id }) => id === entry.id))
       const previous = collected.get(entry.id)
-      if (previous?.pass3 === 'pass') throw new Error(`Case ${entry.id} already passed in window ${previous.sourceWindow}.`)
+      if (previous?.allAttemptsPass === 'pass') throw new Error(`Case ${entry.id} already passed in window ${previous.sourceWindow}.`)
       if (rerun && previous?.rerun) throw new Error(`Case ${entry.id} already used its permitted rerun.`)
-      if (rerun && previous?.pass3 !== 'fail') throw new Error(`Declared rerun requires a previous failed case: ${entry.id}.`)
-      if (previous?.pass3 === 'fail' && !rerun) throw new Error(`Case ${entry.id} failed; declare its permitted rerun with --rerun.`)
+      if (rerun && previous?.allAttemptsPass !== 'fail') throw new Error(`Declared rerun requires a previous failed case: ${entry.id}.`)
+      if (previous?.allAttemptsPass === 'fail' && !rerun) throw new Error(`Case ${entry.id} failed; declare its permitted rerun with --rerun.`)
       const { superseded = [], ...previousEvidence } = previous ?? {}
       collected.set(entry.id, { ...current, sourceWindow: index + 1,
         ...(rerun || previous?.rerun ? { rerun: true } : {}),
@@ -56,7 +57,7 @@ export function mergeReports(windows, expected = descriptors, { rerunWindows = [
     }
   }
   return aggregate(expected.map(({ id, family = 'legacy', locale = 'unspecified' }) => collected.get(id)
-    ?? { id, family, locale, attempts: 0, passed: 0, skipped: 0, unavailable: 0, missingComposition: 0, pass3: 'incomplete' }))
+    ?? { id, family, locale, attempts: 0, passed: 0, skipped: 0, unavailable: 0, missingComposition: 0, allAttemptsPass: 'incomplete' }))
 }
 
 export function mergeReportFiles(argumentsList, expected = descriptors) {

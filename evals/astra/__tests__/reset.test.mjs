@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { fixtureFetch, retrospectiveResponse } from './fixtures/public-api.mjs'
 import { readFileSync } from 'node:fs'
@@ -129,8 +130,8 @@ it.each(['uncached', 'missing-flag', 'empty-narrative', 'wrong-period', 'wrong-f
     const provider = new AstraHttpProvider({ config: { url: `${process.env.ORBIT_EVAL_BASE_URL}/api/chat` } })
     const response = await provider.callApi(test.vars.input, { vars: test.vars })
     expect(response.metadata.astraPreconditionFailure).toBe(true)
-    const attempts = Array.from({ length: 3 }, () => ({ testCase: test, response, error: response.error, success: false }))
-    expect(summarize(attempts, [test.metadata]).cases[0]).toMatchObject({ pass3: 'incomplete', unavailable: 3 })
+    const attempts = Array.from({ length: ATTEMPTS_PER_CASE }, () => ({ testCase: test, response, error: response.error, success: false }))
+    expect(summarize(attempts, [test.metadata]).cases[0]).toMatchObject({ allAttemptsPass: 'incomplete', unavailable: ATTEMPTS_PER_CASE })
     expect(requests.some(({ path }) => path === 'chat')).toBe(false)
   },
 )
@@ -566,7 +567,7 @@ it('marks the Free capacity case incomplete before chat when its daily window is
     .callApi(test.vars.input, { vars: test.vars })
   expect(response.metadata.astraPreconditionFailure).toBe(true)
   expect(summarize([{ testCase: test, response, error: response.error, success: false }], [test.metadata]).cases[0])
-    .toMatchObject({ pass3: 'incomplete', unavailable: 1 })
+    .toMatchObject({ allAttemptsPass: 'incomplete', unavailable: 1 })
   expect(requests.some(({ path }) => path === 'chat')).toBe(false)
 })
 
@@ -647,7 +648,7 @@ it('preserves weekday positions when comparing the seeded cached metrics', async
   expect(behavior(output, { vars: test.vars }).pass).toBe(false)
 })
 
-it('requires a fresh Free window once and permits the case to consume its three attempts', async () => {
+it('requires a fresh Free window once and permits calls until its message allowance is exhausted', async () => {
   pro = false; unmetered = false
   vi.stubEnv('ORBIT_EVAL_GRADER', 'offline')
   const source = scenario('free-at-limit')
@@ -681,7 +682,7 @@ it('isolates every repeat before fixture writes and restores completed and skipp
     pending = 0
     return Response.json({ cancelledCount })
   })
-  for (let repeat = 0; repeat < 3; repeat++) {
+  for (let repeat = 0; repeat < ATTEMPTS_PER_CASE + 1; repeat++) {
     const start = requests.length
     const { test } = await prepareAttempt({ test: structuredClone(source) })
     expect(test.vars.preconditionFailure).toBeUndefined()
@@ -722,7 +723,7 @@ it.each(['403', 'nonzero', 'malformed-delete', 'malformed-get', 'transport', 'ex
       .callApi('Read my habits', { vars: test.vars })
     expect(response.metadata.astraPreconditionFailure).toBe(true)
     expect(summarize([{ testCase: test, response, error: response.error, success: false }], [test.metadata]).cases[0])
-      .toMatchObject({ pass3: 'incomplete', unavailable: 1, passed: 0 })
+      .toMatchObject({ allAttemptsPass: 'incomplete', unavailable: 1, passed: 0 })
     expect(requests.every(({ path }) => ['health', 'auth/refresh', 'profile'].includes(path))).toBe(true)
   },
 )

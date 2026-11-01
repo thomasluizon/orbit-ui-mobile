@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { deferredCreationCall } from './fixtures/producer.mjs'
 import { approveBrainDump } from '../brain-dump-approval.mjs'
@@ -128,7 +129,7 @@ it.each(brainDumpCases)('isolates each $metadata.id attempt before setup', async
   const state = { habits: [], goals: [], tags: [], templates: [], requests: [], pro: true, exhausted: false,
     capacity: 100, email: 'thomaslrgregorio+orbit-eval-pro@gmail.com' }
   vi.stubGlobal('fetch', fixtureFetch(() => state))
-  for (let repeat = 0; repeat < 3; repeat++) {
+  for (let repeat = 0; repeat < ATTEMPTS_PER_CASE + 1; repeat++) {
     state.requests.length = 0
     const { test } = await prepareAttempt({ test: parse(stringify(source)) })
     expect(test.vars.preconditionFailure).toBeUndefined()

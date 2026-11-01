@@ -1,6 +1,6 @@
 ---
 name: astra-eval
-description: Run or extend the on-demand Astra prompt-to-behavior eval corpus and interpret its pass^3 launch report. Use for Astra capability checks, not UI tests or API behavior fixes.
+description: Run or extend the on-demand Astra prompt-to-behavior eval corpus and interpret its pass^k launch report. Use for Astra capability checks, not UI tests or API behavior fixes.
 ---
 
 # Astra eval
@@ -12,7 +12,9 @@ For an offline harness check, run `npm ci --prefix evals/astra --workspaces=fals
 `npm test --prefix evals/astra`. This uses local providers and intercepted HTTP requests;
 it does not start a server or spend model credits.
 
-The paid live gate runs once, at app launch. Each failing case is rerun once; there is no
+The app-launch live gate runs once, with one attempt per case and a 2 USD run spend ceiling.
+`evaluateOptions.repeat` in `evals/astra/promptfooconfig.yaml` defines `k`; reports retain `k`
+and use `allAttemptsPass` for case and family/locale verdicts. Each failing case is rerun once; there is no
 other live run. A fix round never calls the provider: replay recorded real provider responses
 offline at the model-service port, following the `orbit-api`
 `tests/Orbit.Application.Tests/Fixtures/` pattern, or use a fake completion client.
@@ -33,7 +35,7 @@ For the single permitted rerun of a failed case, keep its original window in the
 the rerun window path with `--rerun`; that window must contain only previously failed cases.
 Continue an interrupted rerun in an ordinary later window without another declaration. Already
 passed cases and second reruns are rejected. The merged `sourceWindow` numbers refer to input path
-positions; `superseded` preserves prior evidence without counting its attempts toward pass^3.
+positions; `superseded` preserves prior evidence without counting its attempts toward pass^k.
 Follow `TESTING.md` `### Daily windows and combined report` for the exact commands.
 
 For the app-launch gate, use the configured disposable eval accounts and their fixture reset
@@ -45,7 +47,7 @@ Confirm the named environment and credentials are configured without displaying 
 `cd evals/astra && npx promptfoo eval`. The same run is available through the `Astra eval`
 workflow's manual dispatch. Do not add a schedule or automatic trigger.
 
-Read `evals/astra/reports/summary.md`. Report each case's three-attempt outcome and distinguish
+Read `evals/astra/reports/summary.md`. Report each case's configured-attempt outcome and distinguish
 failed behavior from incomplete tool evidence. Missing, mismatched, withheld or skipped
 evidence cannot approve launch. A held `PendingConfirmation` preview proves only a proposal, never a saved change.
 The model comparison was superseded by server-owned model selection; do not send a model
@@ -59,7 +61,7 @@ When adding a case, keep exact ID and enum assertions, tolerant text matching, a
 compound tool requirements. Bulk cases require one bulk call and forbid single-item calls.
 Grade only the final rendered answer projection with `llm-rubric`; it includes visible blocks and
 preview fields, excludes traces and execution payloads, and accepts block-only replies. Verify the fixture reset can recreate the case
-before each of the three attempts. Run the offline tests after changing the corpus or assertions.
+before each configured attempt. Run the offline tests after changing the corpus or assertions.
 
 Do not attach raw promptfoo databases, responses, or traces to a pull request. The summary
 contains only case identifiers and counts. Record behavior failures on the work ticket;
@@ -75,7 +77,7 @@ The composition corpus is `evals/astra/composition-scenarios.yaml`. Each case de
 locale, client capabilities and composition policy. Supported clients require ordered parts;
 legacy and missing-kind cases require readable fallbacks. Keep the structural composition check
 and semantic rubric together: the rubric catches paraphrased repetition of figures. Reports must
-include three complete attempts per case and aggregate pass^3 by family and locale.
+include exactly the configured `k` complete attempts per case and aggregate pass^k by family and locale.
 
 Medical correction cases first issue the original request through the same HTTP provider, verify
 its trace and preview, then submit the correction with that actual answer as history. Each attempt

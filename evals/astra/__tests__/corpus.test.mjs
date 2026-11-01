@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
@@ -43,7 +44,7 @@ it.each(corpus.filter((entry) => entry.metadata.family.startsWith('suggestions')
     }
   },
 )
-it('runs every composition family in both languages with three attempts', () => {
+it('runs every composition family in both languages with the configured attempts', () => {
   const families = ['habits-schedules', 'logs-history', 'metrics', 'streaks', 'rankings', 'totals', 'comparisons',
     'goals', 'calendar-sync', 'notifications', 'tags', 'checklist-templates', 'profile-settings', 'subscription-plan',
     'referrals', 'api-keys', 'achievements-level', 'retrospectives-recaps', 'writes-outcomes', 'choice', 'pickList',
@@ -52,7 +53,7 @@ it('runs every composition family in both languages with three attempts', () => 
     'medical-correction', 'avoid-form', 'existing-parents', 'suggestions', 'suggestions-duplicate', 'suggestions-refine',
     'restart-preview', 'restart-approve', 'restart-reject', 'restart-preference', 'hoje-next-step']
   expect(configuration.tests).toContain('file://composition-scenarios.yaml')
-  expect(configuration.evaluateOptions.repeat).toBe(3)
+  expect(configuration.evaluateOptions.repeat).toBe(ATTEMPTS_PER_CASE)
   expect(new Set(corpus.map((entry) => entry.metadata.id)).size).toBe(corpus.length)
   for (const family of families) {
     for (const locale of ['en', 'pt-BR']) {
@@ -101,11 +102,11 @@ it.each(['en', 'pt-BR'])('keeps disconnected calendar recovery separate from cac
   expect(entry.vars.composition.blocks).toEqual([{ kind: 'calendar', completeness: 'partial', recovery: 'reconnect' }])
   expect(entry.metadata.fixture).not.toBe('composition-stale')
 })
-it('reports pass^3 for each family and locale and carries a failure into its group', () => {
+it('reports pass^k for each family and locale and carries a failure into its group', () => {
   const descriptors = [{ id: 'en', family: 'habits', locale: 'en' }, { id: 'pt', family: 'habits', locale: 'pt-BR' }]
-  const attempts = descriptors.flatMap((metadata) => Array.from({ length: 3 }, () => ({ testCase: { metadata }, success: true,
+  const attempts = descriptors.flatMap((metadata) => Array.from({ length: ATTEMPTS_PER_CASE }, () => ({ testCase: { metadata }, success: true,
     gradingResult: { componentResults: [{ pass: true, assertion: { metric: 'composition' } }] } })))
-  expect(summarize(attempts, descriptors).groups).toEqual(descriptors.map(({ family, locale }) => ({ family, locale, cases: 1, passed: 1, pass3: 'pass' })))
+  expect(summarize(attempts, descriptors).groups).toEqual(descriptors.map(({ family, locale }) => ({ family, locale, cases: 1, passed: 1, allAttemptsPass: 'pass' })))
   attempts[5].success = false
-  expect(summarize(attempts, descriptors).groups[1].pass3).toBe('fail')
+  expect(summarize(attempts, descriptors).groups[1].allAttemptsPass).toBe('fail')
 })

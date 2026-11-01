@@ -2,6 +2,7 @@ import { chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { summarizeLatency } from './latency.mjs'
 import { attemptEvidence } from './evidence.mjs'
 import { groundingEvidence } from './grading-input.mjs'
+import { ATTEMPTS_PER_CASE } from './attempts.mjs'
 
 const unavailableAssertion = (assertion) => assertion.metadata?.unavailable === true || assertion.metadata?.graderError === true
 
@@ -67,24 +68,24 @@ export function summarize(results, expectedCases) {
           .map((assertion) => assertion.reason).filter((reason) => typeof reason === 'string')))]
     const latency = readLatency ? summarizeLatency(attempts.filter((entry) => !graderUnavailable(entry))) : undefined
     const status = failed || latency?.status === 'fail' ? 'fail'
-      : attempts.length !== 3 || skipped || unavailable || missingComposition || latency?.status === 'incomplete' ? 'incomplete' : 'pass'
-    return { id, family, locale, ...(latency ? { latency } : {}), unavailableReasons, missingComposition, attempts: attempts.length, passed, skipped, unavailable, pass3: status }
+      : attempts.length !== ATTEMPTS_PER_CASE || passed !== ATTEMPTS_PER_CASE || skipped || unavailable || missingComposition || latency?.status === 'incomplete' ? 'incomplete' : 'pass'
+    return { id, family, locale, ...(latency ? { latency } : {}), unavailableReasons, missingComposition, attempts: attempts.length, passed, skipped, unavailable, allAttemptsPass: status }
   })
   const unexpected = results.some((entry) => !descriptors.some((expected) => expected.id === entry.testCase.metadata.id))
   return aggregate(cases, unexpected)
 }
 
 export function aggregate(cases, unexpected = false) {
-  const status = cases.some((entry) => entry.pass3 === 'fail') ? 'fail'
-    : unexpected || !cases.length || cases.some((entry) => entry.pass3 === 'incomplete') ? 'incomplete' : 'pass'
+  const status = cases.some((entry) => entry.allAttemptsPass === 'fail') ? 'fail'
+    : unexpected || !cases.length || cases.some((entry) => entry.allAttemptsPass === 'incomplete') ? 'incomplete' : 'pass'
   const groups = [...new Set(cases.map((entry) => `${entry.family}/${entry.locale}`))].map((key) => {
     const members = cases.filter((entry) => `${entry.family}/${entry.locale}` === key)
     return { family: members[0].family, locale: members[0].locale, cases: members.length,
-      passed: members.filter((entry) => entry.pass3 === 'pass').length,
-      pass3: members.some((entry) => entry.pass3 === 'fail') ? 'fail'
-        : members.some((entry) => entry.pass3 === 'incomplete') ? 'incomplete' : 'pass' }
+      passed: members.filter((entry) => entry.allAttemptsPass === 'pass').length,
+      allAttemptsPass: members.some((entry) => entry.allAttemptsPass === 'fail') ? 'fail'
+        : members.some((entry) => entry.allAttemptsPass === 'incomplete') ? 'incomplete' : 'pass' }
   })
-  return { status, k: 3, cases, groups }
+  return { status, k: ATTEMPTS_PER_CASE, cases, groups }
 }
 
 export function writeReport(summary, directory = 'reports') {
@@ -92,23 +93,24 @@ export function writeReport(summary, directory = 'reports') {
   const markdown = [
     `Astra launch gate: ${summary.gateStatus ?? summary.status}`,
     `Selected cases: ${summary.status}`,
+    `Attempts per case (k): ${summary.k}`,
     '',
-    '| Case | Family | Locale | Attempts passed | Evidence skipped | Evidence unavailable | Composition missing | pass^3 | Attempts |',
+    '| Case | Family | Locale | Attempts passed | Evidence skipped | Evidence unavailable | Composition missing | pass^k | Attempts |',
     '|---|---|---|---|---|---|---|---|---|',
     ...summary.cases.map((entry) => {
-      const evidence = entry.pass3 === 'fail' ? Array.from({ length: entry.attempts }, (_, index) =>
+      const evidence = entry.allAttemptsPass === 'fail' ? Array.from({ length: entry.attempts }, (_, index) =>
         `[r${index + 1}](${evidencePath(entry.id, index + 1)})`).join(', ') : ''
-      return `| ${entry.id} | ${entry.family} | ${entry.locale} | ${entry.passed}/${entry.attempts} | ${entry.skipped} | ${entry.unavailable} | ${entry.missingComposition} | ${entry.pass3} | ${evidence} |`
+      return `| ${entry.id} | ${entry.family} | ${entry.locale} | ${entry.passed}/${entry.attempts} | ${entry.skipped} | ${entry.unavailable} | ${entry.missingComposition} | ${entry.allAttemptsPass} | ${evidence} |`
     }),
     '',
-    '| Family | Locale | Cases passing pass^3 | pass^3 |',
+    '| Family | Locale | Cases passing pass^k | pass^k |',
     '|---|---|---|---|',
-    ...summary.groups.map((entry) => `| ${entry.family} | ${entry.locale} | ${entry.passed}/${entry.cases} | ${entry.pass3} |`),
+    ...summary.groups.map((entry) => `| ${entry.family} | ${entry.locale} | ${entry.passed}/${entry.cases} | ${entry.allAttemptsPass} |`),
     '',
     '| Replaced case | Final window | Superseded window | Superseded attempts passed (not counted) | Superseded verdict |',
     '|---|---|---|---|---|',
     ...summary.cases.flatMap((entry) => (entry.superseded ?? []).map((previous) =>
-      `| ${entry.id} | ${entry.sourceWindow} | ${previous.sourceWindow} | ${previous.passed}/${previous.attempts} | ${previous.pass3} |`)),
+      `| ${entry.id} | ${entry.sourceWindow} | ${previous.sourceWindow} | ${previous.passed}/${previous.attempts} | ${previous.allAttemptsPass} |`)),
     '',
     '| Read case | Median turn ms | Budget ms (exclusive) | Latency |',
     '|---|---|---|---|',
