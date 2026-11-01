@@ -90,6 +90,7 @@ export function TodayPageClient({
   const todayResetVersion = useUIStore((state) => state.todayResetVersion)
   const [seedAccountGeneration] = useState(accountGeneration)
   const preloadedProfile = accountGeneration === seedAccountGeneration ? initialProfile ?? undefined : undefined
+  const accountHeldInitialHabits = accountGeneration === seedAccountGeneration ? initialHabits : null
   const { profile, isError, refetch } = useProfile({
     initialData: preloadedProfile,
   })
@@ -106,7 +107,7 @@ export function TodayPageClient({
           </div>
         </div>
   }
-  return <TodayPageContent key={todayResetVersion} initialToday={initialToday} initialHabits={initialHabits} preloadedProfile={preloadedProfile} />
+  return <TodayPageContent key={todayResetVersion} initialToday={initialToday} initialHabits={accountHeldInitialHabits} preloadedProfile={preloadedProfile} />
 }
 
 function TodayPageContent({ initialToday, initialHabits, preloadedProfile }: Readonly<{
