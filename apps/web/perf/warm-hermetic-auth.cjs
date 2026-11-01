@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-require-imports -- LHCI require()s this file as a CommonJS puppeteerScript module, so require/module.exports are mandatory here */
+/* eslint-disable @typescript-eslint/no-require-imports -- The hermetic session producer is CommonJS, so this authentication adapter uses require/module.exports */
 const { mintHermeticJwt, HERMETIC_SESSION_EXPIRES } = require('../test-support/hermetic/hermetic-session.cjs')
 const en = require('../../../packages/shared/src/i18n/en.json')
 
@@ -20,18 +20,18 @@ function sessionCookie(name, token) {
 
 /**
  * Auth cookies enable audits; logged warmup avoids cold-start bias without failing the gate.
- * @param {import('puppeteer-core').Browser} browser Chrome launched by LHCI.
- * @param {{url: string}} context The URL LHCI is about to audit.
+ * @param {import('puppeteer-core').Browser} browser Chrome shared with Lighthouse.
+ * @param {{url: string}} context The URL Lighthouse is about to audit.
  * @returns {Promise<void>}
  */
 module.exports = async (browser, context) => {
   const token = mintHermeticJwt()
   await browser.setCookie(sessionCookie('auth_token', token), sessionCookie('refresh_token', token))
-  console.log('[lhci] hermetic auth cookies injected (auth_token + refresh_token)')
+  console.log('[lighthouse] hermetic auth cookies injected (auth_token + refresh_token)')
 
   const url = context && context.url
   if (!url) {
-    console.log('[lhci] WARMUP SKIPPED: LHCI passed no url, so run 1 will be a cold start')
+    console.log('[lighthouse] WARMUP SKIPPED: Lighthouse passed no url, so run 1 will be a cold start')
     return
   }
   let serverRenderedCount = 0
@@ -46,11 +46,11 @@ module.exports = async (browser, context) => {
       const serverRendered = html.includes(TODAY_EMPTY_STATE_MARKUP)
       if (serverRendered) serverRenderedCount++
       console.log(
-        `[lhci] warmup ${navigation}/${WARMUP_NAVIGATION_COUNT} to ${url} completed in ${Date.now() - startedAt} ms; Today preload ${serverRendered ? 'present in server markup' : 'MISSING from server markup'}`,
+        `[lighthouse] warmup ${navigation}/${WARMUP_NAVIGATION_COUNT} to ${url} completed in ${Date.now() - startedAt} ms; Today preload ${serverRendered ? 'present in server markup' : 'MISSING from server markup'}`,
       )
     } catch (error) {
       console.log(
-        `[lhci] WARMUP ${navigation}/${WARMUP_NAVIGATION_COUNT} FAILED after ${Date.now() - startedAt} ms: ${error.message}`,
+        `[lighthouse] WARMUP ${navigation}/${WARMUP_NAVIGATION_COUNT} FAILED after ${Date.now() - startedAt} ms: ${error.message}`,
       )
     } finally {
       if (page) await page.close().catch(() => {})
@@ -58,6 +58,6 @@ module.exports = async (browser, context) => {
   }
 
   console.log(
-    `[lhci] warmup complete: ${serverRenderedCount}/${WARMUP_NAVIGATION_COUNT} authenticated responses contained the Today empty state in server markup`,
+    `[lighthouse] warmup complete: ${serverRenderedCount}/${WARMUP_NAVIGATION_COUNT} authenticated responses contained the Today empty state in server markup`,
   )
 }

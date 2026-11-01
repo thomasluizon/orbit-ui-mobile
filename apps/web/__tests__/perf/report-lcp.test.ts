@@ -34,11 +34,11 @@ describe('authed Today LCP report', () => {
     )
   })
 
-  it('keeps LCP out of the enforced LHCI assertions', () => {
+  it('keeps LCP out of the enforced Lighthouse assertions', () => {
     const config = JSON.parse(
-      fs.readFileSync(path.join(repositoryRoot, 'apps/web/lighthouserc.json'), 'utf8'),
+      fs.readFileSync(path.join(repositoryRoot, 'apps/web/perf/config.json'), 'utf8'),
     )
 
-    expect(config.ci.assert.assertions['largest-contentful-paint']).toBeUndefined()
+    expect(config.budgets['largest-contentful-paint']).toBeUndefined()
   })
 })
