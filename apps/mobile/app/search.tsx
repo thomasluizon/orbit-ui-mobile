@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { buildHabitCreateHref, buildSearchEntries, searchCommands, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
+import { buildHabitCreateHref, buildSearchEntries, buildSearchSections, searchCommands, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { PageHeader } from '@/components/ui/page-header'
 import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
@@ -36,8 +36,9 @@ export default function SearchScreen() {
   const onActionError = () => showError(t('errors.updateHabit'))
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
-  const habits = buildSearchEntries(search.data, search.query, commandPage).map(({ habit }) => habit)
-  const hideCreate = !!search.query && habits.length === 0 && !search.busy
+  const entries = buildSearchEntries(search.data, search.query, commandPage, search.today)
+  const sections = buildSearchSections(entries)
+  const hideCreate = !!search.query && entries.length === 0 && !search.busy
   const commands = searchCommands(search.text, commandPage, t).filter((command) => !hideCreate || command.id !== 'create')
   function back() {
     if (commandPage) { setCommandPage(null); search.changeText('') }
@@ -65,12 +66,15 @@ export default function SearchScreen() {
       {search.showLoading && (search.text.trim() ? <Searching /> : <><Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg3 }]}>{t('command.groups.search')}</Text>{[0, 1, 2].map((index) => <Skeleton key={index} variant="habit-row" label={t('habits.search.searching')} />)}</>)}
       {search.isError && <View accessibilityRole="alert"><Text style={{ color: tokens.fg3 }}>{t('habits.search.loadError')}</Text><IconButton label={t('common.retry')} onClick={() => void search.refetch()}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton></View>}
       {!search.busy && !search.isError && <>
-        {habits.length > 0 && (search.query && !commandPage
+        {entries.length > 0 && (search.query && !commandPage
           ? <Text style={[styles.count, { color: tokens.fg3 }]}>{t('habits.search.count', { count: search.data?.totalCount ?? 0 })}</Text>
           : <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg3 }]}>{t('command.groups.search')}</Text>)}
-        {habits.map((habit) => <SearchResult key={habit.id} habit={habit} disabled={logHabit.isPending || skipHabit.isPending} query={search.query} onOpen={() => selectHabit(habit.id)} actionLabel={commandPage ? habit.title : undefined} />)}
-        {habits.length === 0 && (commandPage || !search.query) && commands.length === 0 && <Text style={{ color: tokens.fg3 }}>{t('command.empty')}</Text>}
-        {habits.length === 0 && search.query.length > 0 && commandPage === null && <SearchEmpty query={search.query} onCreate={() => createHabit(search.query)} />}
+        {sections.map((section) => <View key={section.id} style={styles.section}>
+          {section.id === 'completed' && <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg3 }]}>{t(section.headingKey)}</Text>}
+          {section.entries.map(({ habit }) => <SearchResult key={habit.id} today={search.today} habit={habit} disabled={logHabit.isPending || skipHabit.isPending} query={search.query} onOpen={() => selectHabit(habit.id)} actionLabel={commandPage ? habit.title : undefined} />)}
+        </View>)}
+        {entries.length === 0 && (commandPage || !search.query) && commands.length === 0 && <Text style={{ color: tokens.fg3 }}>{t('command.empty')}</Text>}
+        {entries.length === 0 && search.query.length > 0 && commandPage === null && <SearchEmpty query={search.query} onCreate={() => createHabit(search.query)} />}
       </>}
       {!commandPage && <CommandGroups hideCreate={hideCreate} query={search.text} onSelect={selectCommand} />}
       <View style={styles.pagination}><ActionRow>
@@ -85,5 +89,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH }, columnInset: { alignSelf: 'center', width: '100%', maxWidth: 620, paddingHorizontal: SPACING.s16 }, field: { paddingVertical: SPACING.s16, gap: 8, flexDirection: 'row', alignItems: 'center' }, input: { flex: 1, minWidth: 0 },
   list: { paddingTop: SPACING.s16, gap: 8, minHeight: 400 }, count: { fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: SPACING.s4 },
   heading: { fontFamily: 'GeistMono_400Regular', fontSize: 12, textTransform: 'uppercase', padding: SPACING.s12 },
+  section: { gap: 8, paddingBottom: SPACING.s8 },
   chip: { padding: SPACING.s8, borderRadius: radius.sm, borderWidth: 1, fontFamily: 'Geist_500Medium', fontSize: 12 }, pagination: { flexDirection: 'row', gap: 12 },
 })

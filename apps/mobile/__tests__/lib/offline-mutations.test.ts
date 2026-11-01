@@ -309,6 +309,49 @@ describe('offline mutations', () => {
     cancelScheduledFlush()
   })
 
+  it.each([
+    { name: 'first child', habitId: 'first', before: 0, after: 0 },
+    { name: 'last child', habitId: 'second', before: 0, after: 1 },
+    { name: 'undo child', habitId: 'first', before: 1, after: 0 },
+  ])('reconciles the API parent slip after replaying $name on a later day', async (scenario) => {
+    const date = '2026-09-12'
+    const parentSlip = { id: 'parent-slip', date, value: 1, createdAtUtc: '2026-09-12T09:00:00Z' }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const readParentLogs = vi.fn(() => Promise.resolve(scenario.after ? [parentSlip] : []))
+    const observer = new QueryObserver(client, {
+      queryKey: habitKeys.logs('parent'), queryFn: readParentLogs,
+      initialData: scenario.before ? [parentSlip] : [], staleTime: Infinity,
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    mocks.invalidateQueries.mockImplementation((filters) => client.invalidateQueries(filters))
+    try {
+      const result = await performQueuedApiMutation({
+        type: 'logHabit', scope: 'habits', endpoint: API.habits.log(scenario.habitId), method: 'POST',
+        payload: { date }, entityType: 'habit', targetEntityId: scenario.habitId,
+        dedupeKey: `habit-toggle:${scenario.habitId}:${date}`,
+      })
+      expect(result).toMatchObject({ queued: true })
+      expect(mocks.apiClient).not.toHaveBeenCalled()
+      expect(readParentLogs).not.toHaveBeenCalled()
+      const mutation = mocks.queued[0]!
+      vi.setSystemTime(new Date('2026-09-13T09:00:00Z'))
+      mocks.setOnline(true)
+      mocks.apiClient.mockResolvedValueOnce({ logId: 'child-log', isFirstCompletionToday: false, currentStreak: 0 })
+      await flushQueuedMutations()
+      expect(mocks.apiClient).toHaveBeenCalledExactlyOnceWith(API.habits.log(scenario.habitId),
+        expect.objectContaining({ body: JSON.stringify({ date }), idempotencyKey: mutation.id }), expect.anything())
+      expect(readParentLogs).toHaveBeenCalledTimes(1)
+      expect(client.getQueryData(habitKeys.logs('parent'))).toEqual(scenario.after ? [parentSlip] : [])
+      expect(mocks.queued).toHaveLength(0)
+      expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all })
+      expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    } finally {
+      unsubscribe()
+      client.clear()
+      mocks.invalidateQueries.mockImplementation(() => Promise.resolve())
+    }
+  })
+
   it('queues a deterministic mutation while offline instead of throwing a network error', async () => {
     const mutation = buildQueuedMutation({
       type: 'createHabit',

@@ -48,7 +48,7 @@ interface HabitDrillProps {
     hasSubHabits: boolean,
     options?: { isDrillCard?: boolean },
   ) => ReactNode
-  onAddSubHabit: (parentId: string) => void
+  onAddSubHabit: (parent: NormalizedHabit) => void
   onShowCompleted?: () => void
 }
 
@@ -110,12 +110,7 @@ export function HabitDrill({
     <>
       {listHeaderComponent}
       <View style={styles.drillControls}>
-        <View style={[styles.drillHeader, { flexDirection: 'column', alignItems: 'stretch' }]}>
-          <View style={[styles.drillHeading, { flex: 0 }]}>
-            <PersonalText onClampedChange={setClamped} accessibilityRole="header" style={styles.drillTitle}>
-              {drill.currentParent?.title ?? ''}
-            </PersonalText>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <View style={styles.drillHeader}>
           <Pressable
             onPress={drill.drillBack}
             accessibilityRole="button"
@@ -127,12 +122,14 @@ export function HabitDrill({
           >
             <ArrowLeft size={20} color={tokens.fg1} strokeWidth={1.8} />
           </Pressable>
-            <Text style={styles.drillProgress}>
-              {t('habits.drillProgress', {
-                done: drill.completedCount,
-                total: drill.drillChildren.length,
-              })}
-            </Text>
+          <View style={styles.drillHeading}>
+            <PersonalText onClampedChange={setClamped} accessibilityRole="header" style={styles.drillTitle}>
+              {drill.currentParent?.title ?? ''}
+            </PersonalText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <Text style={styles.drillProgress}>
+                {t('habits.drillProgress', { done: drill.completedCount, total: drill.drillChildren.length })}
+              </Text>
               <PersonalTextDetails iconOnly clamped={clamped}>{drill.currentParent?.title ?? ''}</PersonalTextDetails>
             </View>
           </View>
@@ -150,13 +147,13 @@ export function HabitDrill({
     </>
   )
 
-  const addRow = drill.currentParentId ? (
+  const addRow = drill.currentParent ? (
     <ListRow
       compact={false}
       icon="plus"
       title={t('habits.form.addSubHabit')}
       chevron={false}
-      onClick={() => onAddSubHabit(drill.currentParentId!)}
+      onClick={() => onAddSubHabit(drill.currentParent!)}
     />
   ) : null
 
@@ -182,6 +179,7 @@ export function HabitDrill({
 
   return (
     <KeyboardAwareFlatList
+      key={drill.currentParentId}
       ref={drillListRef}
       accessibilityLabel={t('habits.sectionLabel')}
       data={presentation.items}

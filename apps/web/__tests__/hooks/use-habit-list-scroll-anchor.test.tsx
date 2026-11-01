@@ -7,8 +7,8 @@ import { motionDurations } from '@orbit/shared/theme'
 vi.mock('@/hooks/use-viewport-match', () => ({ useViewportMatch: () => false }))
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
-function List({ ids }: Readonly<{ ids: string[] }>) {
-  const ref = useHabitListScrollAnchor()
+function List({ ids, parentId = null }: Readonly<{ ids: string[]; parentId?: string | null }>) {
+  const ref = useHabitListScrollAnchor(parentId)
   return <div data-shell-scroller=""><div ref={ref} data-habit-list="" style={{ overflowAnchor: 'none' }}>
     <ListPresence>{ids.map((id) => <ListMotionItem key={id}><button>{id}</button></ListMotionItem>)}</ListPresence>
   </div></div>
@@ -61,4 +61,22 @@ it('cancels a departing row when undo restores it during the fade', async () => 
   view.rerender(<List ids={['first']} />)
   await act(() => vi.advanceTimersByTime(motionDurations.fast))
   expect(view.getByRole('button', { name: 'first' })).not.toHaveAttribute('inert')
+})
+
+it('starts each drill parent at the top without preserving the previous list offset', async () => {
+  vi.useFakeTimers()
+  const view = render(<List ids={['parent']} />)
+  const scroller = view.container.querySelector<HTMLElement>('[data-shell-scroller]')!
+  scroller.scrollTop = 650
+  fireEvent.scroll(scroller)
+  await act(() => vi.advanceTimersByTime(100))
+  view.rerender(<List ids={['child']} parentId="parent" />)
+  expect(scroller.scrollTop).toBe(0)
+  scroller.scrollTop = 240
+  fireEvent.scroll(scroller)
+  await act(() => vi.advanceTimersByTime(100))
+  view.rerender(<List ids={['child', 'another-child']} parentId="parent" />)
+  expect(scroller.scrollTop).toBe(240)
+  view.rerender(<List ids={['grandchild']} parentId="child" />)
+  expect(scroller.scrollTop).toBe(0)
 })

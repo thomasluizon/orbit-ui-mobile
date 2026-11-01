@@ -146,7 +146,7 @@ interface HabitListProps {
 }
 
 interface RowActionHandlers {
-  toggle: (habitId: string, intent: 'log' | 'unlog') => void
+  toggle: (habit: NormalizedHabit, intent: 'log' | 'unlog') => void
   skip: (habit: NormalizedHabit) => void
   reschedule: (habit: NormalizedHabit) => void
   expand: (habitId: string) => void
@@ -154,7 +154,7 @@ interface RowActionHandlers {
   duplicate: (habit: NormalizedHabit) => void
   edit: (habit: NormalizedHabit, isDrillCard: boolean) => void
   move: (habitId: string) => void
-  addChild: (habitId: string) => void
+  addChild: (habit: NormalizedHabit) => void
   drill: (habitId: string) => void
   enterSelectMode: (habitId: string) => void
   toggleSelection: (habitId: string) => void
@@ -186,9 +186,9 @@ function ActionRow({
   const actions = useMemo(() => {
     const habitId = habit.id
     return {
-      onLog: () => handlersRef.current.toggle(habitId, 'log'),
-      onUnlog: () => handlersRef.current.toggle(habitId, 'unlog'),
-      onSkip: canSkip ? () => handlersRef.current.skip(latestRef.current.habit) : undefined,
+      onLog: () => handlersRef.current.toggle(latestRef.current.habit, 'log'),
+      onUnlog: () => handlersRef.current.toggle(latestRef.current.habit, 'unlog'),
+      onSkip: canSkip && !habit.isGeneral ? () => handlersRef.current.skip(latestRef.current.habit) : undefined,
       onReschedule: habit.isOverdue
         ? () => handlersRef.current.reschedule(latestRef.current.habit)
         : undefined,
@@ -197,7 +197,7 @@ function ActionRow({
       onDuplicate: () => handlersRef.current.duplicate(latestRef.current.habit),
       onEdit: () => handlersRef.current.edit(latestRef.current.habit, isDrillCard),
       onMoveParent: () => handlersRef.current.move(habitId),
-      onAddSubHabit: () => handlersRef.current.addChild(habitId),
+      onAddSubHabit: () => handlersRef.current.addChild(latestRef.current.habit),
       onDrillInto: hasSubHabits ? () => handlersRef.current.drill(habitId) : undefined,
       onEnterSelectMode: () => handlersRef.current.enterSelectMode(habitId),
       onDetail: () => handlersRef.current.detail(latestRef.current.habit),
@@ -206,7 +206,7 @@ function ActionRow({
         ? () => latestRef.current.onLongPressCard?.()
         : undefined,
     }
-  }, [canSkip, rowProps.drillInsteadOfExpand, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
+  }, [canSkip, rowProps.drillInsteadOfExpand, habit.isGeneral, habit.id, habit.isOverdue, handlersRef, hasLongPress, hasSubHabits, isDrillCard])
 
   return <HabitRow {...rowProps} habit={habit} actions={actions} />
 }
@@ -1182,14 +1182,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [checkAndPromptParentLog, markRecentlyCompleted],
     )
 
-    async function handleDirectToggle(habitId: string, intent: 'log' | 'unlog') {
+    async function handleDirectToggle(habit: NormalizedHabit, intent: 'log' | 'unlog') {
       if (!profile) return
       const currentDate = new Date()
       const accountToday = formatAPIDateInTimeZone(currentDate, accountTimeZone)
       const boundary = getTodayBoundary(selectedDateStr, accountToday)
-      const habit = habitsById.get(habitId)
+      const habitId = habit.id
       if (boundary === 'read-only' || (!selectedDate && selectedDateStr !== accountToday) ||
-        (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, selectedDateStr, accountToday)))) return
+        (boundary === 'future' && !canLogHabitOnDate(habit, selectedDateStr, accountToday))) return
       const toggleKey = `${habitId}:${selectedDateStr}`
       const pendingToggleKeys = pendingToggleKeysRef.current
       if (pendingToggleKeys.has(toggleKey)) return
@@ -1214,7 +1214,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         mutationSucceeded = true
         await refetch()
       } catch {
-        if (!mutationSucceeded && intent === 'log') releaseOptimisticResolution(habitId, confirmedResolutions, habit?.parentId)
+        if (!mutationSucceeded && intent === 'log') releaseOptimisticResolution(habitId, confirmedResolutions, habit.parentId)
       } finally {
         confirmedResolutions.pending.delete(habitId)
         finishParentSettlement(confirmedResolutions)
@@ -1283,9 +1283,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const confirmMoveParent = () => executeMoveParent(() => moveOperation.current === moveState.operation)
 
     const startAddSubHabit = useCallback(
-      (parentId: string) => {
-        const parentHabitCandidate = habitsById.get(parentId)
-        if (!parentHabitCandidate) return
+      (parentHabitCandidate: NormalizedHabit) => {
+        const parentId = parentHabitCandidate.id
 
         if (collapsedIds.has(parentId)) {
           toggleExpand(parentId)
@@ -1296,7 +1295,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       },
       [
         collapsedIds,
-        habitsById,
         toggleExpand,
       ],
     )
@@ -1417,7 +1415,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const rowActionHandlers: RowActionHandlers = {
-      toggle: (habitId, intent) => { void handleDirectToggle(habitId, intent) },
+      toggle: (habit, intent) => { void handleDirectToggle(habit, intent) },
       skip: (habit) => { void skipHabit(habit) },
       reschedule: (habit) => {
         setHabitToReschedule(habit)
@@ -1653,7 +1651,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             onListScroll={handleListScroll}
             onFocus={revealListFocus}
             onScrollBeginDrag={onScrollBeginDrag}
-            bulkBarStyle={bulkBarStyle}
+            bulkBarStyle={{ paddingBottom: bulkBarStyle.paddingBottom }}
             renderHabitCard={renderHabitCard}
             onAddSubHabit={startAddSubHabit}
             onShowCompleted={onShowCompleted}

@@ -17,8 +17,9 @@ vi.mock('@/components/command/command-palette-dialog', async (importOriginal) =>
   await new Promise<void>((_resolve, reject) => { chunk.reject = reject })
   return importOriginal<typeof import('@/components/command/command-palette-dialog')>()
 })
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'UTC' } }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({
   useSearchHabits: () => {
     const habit = createMockHabit({ id: 'running', title: 'Run' })

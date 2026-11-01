@@ -14,7 +14,7 @@ import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitSched
 
 
 import { makeEnrichedHabitDetail, makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { createMockProfile, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 
 const mockFetch = vi.fn()
 
@@ -816,7 +816,7 @@ describe('useLogHabit', () => {
     expect(mockShowError).not.toHaveBeenCalled()
   })
 
-  it('reconciles habit data without refetching response-backed or AI summary families', async () => {
+  it('reconciles habit and derived parent reads without refetching the habit count', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-x',
@@ -841,8 +841,8 @@ describe('useLogHabit', () => {
       queryKey: habitKeys.summaryPrefix(),
     })
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('passes date to logHabit action', async () => {
@@ -1521,7 +1521,7 @@ describe('useLogHabit onSuccess', () => {
     expect(
       queryClient.getQueryData<{ totalXp: number }>(gamificationKeys.profile())?.totalXp,
     ).toBe(100)
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('banks server XP and refreshes the profile when the cached habit type is stale', async () => {
@@ -2441,6 +2441,36 @@ describe('useBulkLogHabits', () => {
       .toEqual(action === 'unlog' ? null : expect.objectContaining({ kind: 'elapsed' }))
   })
 
+  it.each([false, true])('leaves an implicit single log date to the server with a cached profile: %s', async (cachedProfile) => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockReset().mockResolvedValue({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 })
+    const queryClient = createQueryClient()
+    if (cachedProfile) queryClient.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'Pacific/Kiritimati' }))
+    const { result, unmount } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    try {
+      await act(() => result.current.mutateAsync({ habitId: 'h-1', intent: 'log' }))
+      expect(logHabit).toHaveBeenCalledExactlyOnceWith('h-1', undefined, 'account-a')
+    } finally {
+      unmount()
+      queryClient.clear()
+    }
+  })
+
+  it.each([false, true])('leaves implicit bulk log dates to the server with a cached profile: %s', async (cachedProfile) => {
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockReset().mockResolvedValue({ results: [] })
+    const queryClient = createQueryClient()
+    if (cachedProfile) queryClient.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'Pacific/Kiritimati' }))
+    const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+    try {
+      await act(() => result.current.mutateAsync([{ habitId: 'h-1' }, { habitId: 'h-2', date: '2026-09-10' }]))
+      expect(bulkLogHabits).toHaveBeenCalledExactlyOnceWith([{ habitId: 'h-1' }, { habitId: 'h-2', date: '2026-09-10' }], 'account-a')
+    } finally {
+      unmount()
+      queryClient.clear()
+    }
+  })
+
   it('calls bulkLogHabits action', async () => {
     const { useBulkLogHabits } = await import('@/hooks/use-habits')
     const { bulkLogHabits } = await import('@/lib/actions/habits')
@@ -3106,5 +3136,68 @@ describe('useBulkMoveHabitParent', () => {
     expect(bulkMoveHabitParent).toHaveBeenCalledExactlyOnceWith(request, 'account-a')
     expect(invalidate).toHaveBeenCalledWith({ queryKey: habitKeys.all })
     queryClient.clear()
+  })
+})
+
+
+describe('API-owned bad parent slips', () => {
+  it.each([
+    { name: 'first child', childId: 'first', intent: 'log' as const, before: 0, after: 0 },
+    { name: 'last child', childId: 'second', intent: 'log' as const, before: 0, after: 1 },
+    { name: 'undo child', childId: 'first', intent: 'unlog' as const, before: 1, after: 0 },
+  ])('refreshes parent reads after $name without logging the parent from the client', async (scenario) => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'child-log', isFirstCompletionToday: false, currentStreak: 0 })
+    const client = createQueryClient()
+    const date = '2025-01-15'
+    const parentLog = { id: 'parent-slip', date, value: 1, createdAtUtc: '2025-01-15T12:00:00Z' }
+    client.setQueryData(habitKeys.list({ dateFrom: date, dateTo: date }), [makeScheduleItem({
+      id: 'parent', isBadHabit: true, isLoggedInRange: scenario.before > 0,
+      children: ['first', 'second'].map((id) => {
+        const slipped = scenario.intent === 'unlog' || (scenario.name === 'last child' && id === 'first')
+        return makeScheduleChild({ id, isBadHabit: true, isLoggedInRange: slipped,
+          instances: [{ date, status: slipped ? 'Completed' : 'Pending', logId: slipped ? `slip:${id}` : null }],
+        })
+      }),
+    })])
+    const readParentLogs = vi.fn(() => Promise.resolve(scenario.after ? [parentLog] : []))
+    const observer = new QueryObserver(client, {
+      queryKey: habitKeys.logs('parent'), queryFn: readParentLogs,
+      initialData: scenario.before ? [parentLog] : [], staleTime: Infinity,
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    const parentKeys = [habitKeys.detail('parent'), habitKeys.fullDetail('parent'), habitKeys.metrics('parent'), profileKeys.detail(), gamificationKeys.profile()]
+    for (const key of parentKeys) client.setQueryData(key, {})
+    const { result, unmount } = renderHook(() => useLogHabit(), { wrapper: createWrapper(client) })
+    try {
+      await act(() => result.current.mutateAsync({ habitId: scenario.childId, date, intent: scenario.intent }))
+      await waitFor(() => {
+        expect(readParentLogs).toHaveBeenCalledTimes(1)
+        expect(client.getQueryData(habitKeys.logs('parent'))).toEqual(scenario.after ? [parentLog] : [])
+      })
+      for (const key of parentKeys) expect(client.getQueryState(key)?.isInvalidated).toBe(true)
+      expect(vi.mocked(logHabit).mock.calls.at(-1)?.[0]).toBe(scenario.childId)
+      expect(vi.mocked(logHabit).mock.calls.some(([id]) => id === 'parent')).toBe(false)
+    } finally {
+      unmount()
+      unsubscribe()
+      client.clear()
+    }
+  })
+
+  it('invalidates parent detail and log reads after a bulk child log', async () => {
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [{ index: 0, status: 'Success', habitId: 'child', logId: 'child-log', error: null }] })
+    const client = createQueryClient()
+    const parentKeys = [habitKeys.detail('parent'), habitKeys.logs('parent'), habitKeys.metrics('parent')]
+    for (const key of parentKeys) client.setQueryData(key, {})
+    const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(client) })
+    try {
+      await act(() => result.current.mutateAsync([{ habitId: 'child', date: '2025-01-15' }]))
+      for (const key of parentKeys) expect(client.getQueryState(key)?.isInvalidated).toBe(true)
+    } finally {
+      unmount()
+      client.clear()
+    }
   })
 })

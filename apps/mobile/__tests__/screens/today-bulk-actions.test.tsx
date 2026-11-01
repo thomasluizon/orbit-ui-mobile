@@ -1,6 +1,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { habitKeys } from '@orbit/shared/query'
 import TodayScreen from '@/app/(tabs)/index'
 vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: vi.fn(async () => {}) }) }))
@@ -33,6 +34,7 @@ const mocks = vi.hoisted(() => ({
   bulkBarProps: null as ComponentProps | null,
   modalProps: null as ComponentProps | null,
   execute: vi.fn(),
+  habitsById: new Map<string, NormalizedHabit>(),
   queryClient: null as import('@tanstack/react-query').QueryClient | null,
   invalidateQueries: vi.fn(async () => {}),
   OfflineMutationPreflightError: class OfflineMutationPreflightError extends Error {},
@@ -153,7 +155,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
   return {
     ...actual,
     EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
-    useHabits: () => ({ data: { habitsById: new Map<string, NormalizedHabit>() } }),
+    useHabits: () => ({ data: { habitsById: mocks.habitsById } }),
   }
 })
 
@@ -261,7 +263,7 @@ function successfulExecution(options: unknown) {
 
 async function renderToday(): Promise<void> {
   await TestRenderer.act(async () => {
-    mountedTrees.push(TestRenderer.create(<TodayScreen />) as unknown as RenderedTree)
+    mountedTrees.push(TestRenderer.create(<TodayScreen />))
     await Promise.resolve()
   })
 }
@@ -296,6 +298,8 @@ describe('Hoje production bulk action path', () => {
     mocks.store.clearSelection = mocks.clearSelection
     mocks.clearSelection.mockReset()
     mocks.store.selectedHabitIds = new Set(['habit-1'])
+    const habit = createMockHabit({ id: 'habit-1', dueDate: '2026-04-08', scheduledDates: ['2026-04-08'] })
+    mocks.habitsById = new Map([[habit.id, habit]])
   })
 
   it('clears a permanent skip rejection through the Today selection owner without Retry', async () => {
@@ -432,11 +436,16 @@ describe('Hoje production bulk action path', () => {
   it('keeps every online path successful and clears selection after each action', async () => {
     await renderToday()
 
+    expect(mocks.bulkBarProps?.skippableCount).toBe(1)
     await press(mocks.bulkBarProps?.onLog)
     await press(mocks.bulkBarProps?.onSkip)
     await press(mocks.bulkBarProps?.onDelete)
     await press(mocks.modalProps?.onConfirmBulkDelete)
 
+    expect(mocks.execute).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'bulkSkipHabits',
+      payload: { items: [{ habitId: 'habit-1', date: '2026-04-08' }] },
+    }))
     expect(mocks.settleBulkHabitResolutions).toHaveBeenNthCalledWith(1, [
       { habitId: 'habit-1', mode: 'log' },
     ], '2026-04-08')

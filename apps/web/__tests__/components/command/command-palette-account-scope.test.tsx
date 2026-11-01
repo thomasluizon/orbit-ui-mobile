@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   skipHabit: vi.fn(),
 }))
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', () => ({ useLocale: () => 'en',
   useTranslations: () => (key: string) => key,
 }))
 vi.mock('next/navigation', () => ({
@@ -23,6 +23,7 @@ vi.mock('@/stores/ui-store', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/stores/ui-store')>(),
   setUIAccountScope: vi.fn(),
 }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'UTC' } }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => habitsQuery }))
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mocks.logHabit, isPending: false }),

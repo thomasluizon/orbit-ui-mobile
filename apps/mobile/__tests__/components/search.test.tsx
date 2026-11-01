@@ -17,17 +17,19 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Check, Circle } from '@/components/ui/icons'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 import { createTokensV2 } from '@/lib/theme'
+import { HabitCheck } from '@/components/habits/habit-check'
 import { i18n } from '@/lib/i18n'
 
 vi.unmock('react-i18next')
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
-const mocks = vi.hoisted(() => ({ theme: 'dark', query: vi.fn(), showError: vi.fn(), pending: false, push: vi.fn(), back: vi.fn(), log: vi.fn(), skip: vi.fn(), retry: vi.fn() }))
+const mocks = vi.hoisted(() => ({ timeZone: 'UTC', theme: 'dark', query: vi.fn(), showError: vi.fn(), pending: false, push: vi.fn(), back: vi.fn(), log: vi.fn(), skip: vi.fn(), retry: vi.fn() }))
 vi.mock('@/lib/use-app-theme', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/lib/use-app-theme')>()
   return { useAppTheme: () => ({ ...original.useAppTheme(), currentTheme: mocks.theme }) }
 })
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push, back: mocks.back }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsFilter) => mocks.query(filters) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: mocks.timeZone } }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }), useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
@@ -155,11 +157,25 @@ function horizontalBounds(element: import('react-test-renderer').ReactTestInstan
   } finally { root.freeRecursive() }
 }
 
+it('excludes General habits only from the Skip page', async () => {
+  mocks.query.mockReturnValue(result([
+    createMockHabit({ id: 'general', title: 'Undated routine', isGeneral: true, frequencyUnit: null }),
+    createMockHabit({ id: 'daily', title: 'Daily walk' }),
+  ]))
+  await mount()
+  expect(text()).toContain('Undated routine')
+  await pressLabel('Skip a habit')
+  expect(text()).not.toContain('Undated routine')
+  await pressLabel('Daily walk')
+  expect(mocks.skip).toHaveBeenCalledWith({ habitId: 'daily' }, expect.any(Object))
+})
+
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
   mocks.pending = false
   mocks.theme = 'dark'
+  mocks.timeZone = 'UTC'
   mocks.query.mockReturnValue(result([]))
 })
 afterEach(async () => {
@@ -168,6 +184,85 @@ afterEach(async () => {
 })
 
 describe('mobile search', () => {
+  it.each(['en', 'pt-BR'])('keeps logged bad tasks findable as slips outside completed results in %s', async (locale) => {
+    const messages = locale === 'en' ? en : ptBR
+    mocks.query.mockReturnValue(result([
+      createMockHabit({ id: 'slip', title: 'Coders slip', frequencyUnit: null, isBadHabit: true, isCompleted: true, completedOn: '2026-09-30' }),
+      createMockHabit({ id: 'logged-slip', title: 'Coders logged slip', frequencyUnit: null, isBadHabit: true, isLoggedInRange: true }),
+      createMockHabit({ id: 'done', title: 'Coders done', frequencyUnit: null, isCompleted: true }),
+    ]))
+    await mount(locale)
+    await type('coders')
+    const header = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityRole === 'header' && renderedText(node.props.children) === messages.charts.bar.completed)[0]!
+    const sectionRows = header.parent!.parent!.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'button')
+    expect(sectionRows).toHaveLength(1)
+    expect(sectionRows[0]!.props.accessibilityLabel).toContain('Coders done')
+    for (const title of ['Coders slip', 'Coders logged slip']) {
+      const row = tree.root.findAll((node) => String(node.type) === 'Pressable' && String(node.props.accessibilityLabel).includes(title))[0]!
+      expect(row.props.accessibilityLabel).toContain(messages.habits.statusDot.bad)
+      expect(row.props.accessibilityLabel).not.toContain(messages.habits.statusDot.done)
+      expect(row.findAll((node) => node.type === HabitCheck && node.props.status === 'done')).toHaveLength(0)
+      await pressLabel(String(row.props.accessibilityLabel))
+    }
+    expect(mocks.push).toHaveBeenLastCalledWith('/habits/logged-slip')
+  })
+
+  it.each((['light', 'dark'] as const).flatMap((theme) => ['en', 'pt-BR'].map((locale) => ({ theme, locale }))))('shows completion sections, labels and completed-only pages in $theme in $locale', async ({ theme, locale }) => {
+    mocks.theme = theme
+    vi.setSystemTime(new Date('2026-10-31T01:00:00Z'))
+    mocks.timeZone = 'America/Los_Angeles'
+    const messages = locale === 'en' ? en : ptBR
+    const response = createPaginatedSchema(habitScheduleItemSchema).parse({
+      items: [
+        { ...createMockHabit({ id: 'logged', title: 'Read coders', isLoggedInRange: true, instances: [{ date: '2026-10-30', status: 'Completed', logId: 'positive-log' }] }), children: [], linkedGoals: [] },
+        { ...createMockHabit({ id: 'skipped', title: 'Skip coders', isSkippedOnDate: true }), children: [], linkedGoals: [] },
+        { ...createMockHabit({ id: 'weekly', title: 'Weekly check coders board', dueDate: '2026-11-01', scheduledDates: ['2026-11-01'] }), children: [], linkedGoals: [] },
+        { ...createMockHabit({ id: 'profile', title: 'Profile linkedin', frequencyUnit: null, isCompleted: true, completedOn: '2026-09-30', position: 9 }), children: [], linkedGoals: [] },
+        { ...createMockHabit({ id: 'unknown', title: 'Older profile', frequencyUnit: null, isCompleted: true, completedOn: null, position: 0 }), children: [], linkedGoals: [] },
+      ], page: 1, pageSize: 20, totalCount: 22, totalPages: 2,
+    })
+    const firstPage = { ...result([]), data: normalizeHabitQueryData(response.items, response, 'response') }
+    const lastPage = { ...result([]), data: normalizeHabitQueryData(response.items.slice(-1), { ...response, page: 2 }, 'response') }
+    mocks.query.mockImplementation((filters: HabitsFilter) => filters.page === 2 ? lastPage : firstPage)
+    await mount(locale)
+    await type('coders')
+    const rows = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'button')
+    const monthAgo = locale === 'en' ? 'Done 1 month ago' : 'Feito há 1 mês'
+    expect(rows.map((row) => row.props.accessibilityLabel)).toEqual([
+      expect.stringContaining('Weekly check coders board'), expect.stringContaining('Read coders'), expect.stringContaining('Skip coders'), expect.stringContaining('Profile linkedin'), expect.stringContaining('Older profile'),
+    ])
+    const header = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityRole === 'header' && renderedText(node.props.children) === messages.charts.bar.completed)
+    expect(header).toHaveLength(1)
+    expect(header[0]!.props.numberOfLines).toBeUndefined()
+    expect(header[0]!.props.ellipsizeMode).toBeUndefined()
+    expect(horizontalBounds(header[0]!, 320)).toEqual({ left: 16, right: 304 })
+    expect(StyleSheet.flatten(header[0]!.props.style)).toMatchObject({ fontSize: 12, padding: 12 })
+    expect(rows[3]!.props.accessibilityLabel).toContain(monthAgo)
+    const statusLabel = rows[3]!.findAll((node) => String(node.type) === 'Text' && node.props.children === monthAgo)[0]!
+    expect(StyleSheet.flatten(statusLabel.parent!.parent!.props.style)).toMatchObject({ flexDirection: 'row', flexWrap: 'wrap', gap: 8 })
+    expect(StyleSheet.flatten(statusLabel.props.style)).toMatchObject({ flexShrink: 0 })
+    expect(statusLabel.props.numberOfLines).toBeUndefined()
+    expect(statusLabel.props.ellipsizeMode).toBeUndefined()
+    expect(rows[3]!.findAll((node) => node.type === HabitCheck && node.props.status === 'done')).toHaveLength(1)
+    const check = rows[3]!.findAll((node) => node.type === HabitCheck)[0]!
+    expect(check.findAll((node) => node.type === Check)[0]!.props.color).toBe(createTokensV2('orange', theme).bg)
+    const pressedStyle = rows[3]!.props.style as (state: { pressed: boolean }) => object
+    expect(StyleSheet.flatten(pressedStyle({ pressed: true }))).toMatchObject({ padding: 12, overflow: 'hidden' })
+    expect(rows[2]!.props.accessibilityLabel).toContain(messages.habits.statusDot.skip)
+    expect(rows[1]!.props.accessibilityLabel).toContain(locale === 'en' ? 'Done today' : 'Feito hoje')
+    expect(rows[4]!.props.accessibilityLabel).toContain(messages.habits.statusDot.done)
+    expect(rows[4]!.props.accessibilityLabel).not.toMatch(/month|mês/)
+    await pressLabel(String(rows[3]!.props.accessibilityLabel))
+    expect(mocks.push).toHaveBeenLastCalledWith('/habits/profile')
+    await pressText(messages.habits.search.next)
+    expect(mocks.query).toHaveBeenLastCalledWith({ search: 'coders', page: 2, pageSize: 20 })
+    const completedOnly = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'button')
+    expect(completedOnly).toHaveLength(1)
+    expect(text()).toContain(messages.charts.bar.completed)
+    await pressLabel(String(completedOnly[0]!.props.accessibilityLabel))
+    expect(mocks.push).toHaveBeenLastCalledWith('/habits/unknown')
+  })
+
   it.each((['light', 'dark'] as const).flatMap((theme) => ['en', 'pt-BR'].map((locale) => ({ theme, locale }))))('keeps match text readable on resting and pressed rows in $theme in $locale', async ({ theme, locale }) => {
     mocks.theme = theme
     const messages = locale === 'en' ? en : ptBR

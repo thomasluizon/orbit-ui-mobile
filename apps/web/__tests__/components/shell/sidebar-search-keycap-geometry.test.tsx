@@ -18,6 +18,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn() }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => true }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'UTC' } }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => ({
   data: normalizeHabitQueryData([makeHabitScheduleItem()]),
   isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn(),

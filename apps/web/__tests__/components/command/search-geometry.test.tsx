@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({ wide: false, query: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), back: vi.fn() }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => mocks.query() }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'UTC' } }) }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: vi.fn(), isPending: false }), useSkipHabit: () => ({ mutate: vi.fn(), isPending: false }) }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
 
@@ -78,6 +79,66 @@ describe('search result geometry in Chromium', () => {
     vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['en', 'pt-BR'].flatMap((locale) => (['light', 'dark'] as const).flatMap((theme) =>
+    ['search', 'palette'].map((surface) => ({ locale, theme, surface, width: surface === 'search' ? 320 : 1352 })),
+  )))('keeps the completed heading, status and check readable on $surface in $theme in $locale', async ({ locale, theme, surface, width }) => {
+    mocks.wide = width >= WIDE_DESKTOP_BREAKPOINT
+    const messages = locale === 'en' ? en : ptBR
+    const habits = [
+      createMockHabit({ id: 'weekly', title: 'Weekly check coders board' }),
+      createMockHabit({ id: 'profile', title: 'Profile linkedin', frequencyUnit: null, isCompleted: true, completedOn: '2026-09-30', searchMatches: [{ field: 'description', value: null }] }),
+    ]
+    mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: 2, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
+    useShellStore.setState({ paletteOpen: surface === 'palette' })
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>{surface === 'search' ? <SearchPage /> : <CommandPalette navItems={[]} onCreateHabit={vi.fn()} />}</NextIntlClientProvider>)
+    fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'coders' } })
+    await screen.findByRole('group', { name: messages.charts.bar.completed })
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))) })
+    const markup = surface === 'palette' ? screen.getByRole('dialog').outerHTML : container.innerHTML
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${markup}`)
+      await page.evaluate((variables) => {
+        for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+      }, resolveWebThemeVariables('orange', theme))
+      const metadata = page.getByRole('group', { name: messages.charts.bar.completed }).locator('[data-habit-row-meta-token]')
+      expect(await metadata.count(), 'completion and match labels have independent layout owners').toBe(2)
+      const tokens = await metadata.evaluateAll((elements) => elements.map((element) => {
+        const range = document.createRange()
+        range.selectNodeContents(element)
+        const bounds = element.getBoundingClientRect()
+        return { lines: range.getClientRects().length, textWidth: range.getBoundingClientRect().width, width: bounds.width }
+      }))
+      for (const token of tokens) {
+        expect(token.lines).toBe(1)
+        expect(token.textWidth).toBeLessThanOrEqual(token.width + 0.5)
+      }
+      const measured = await page.evaluate((headingText) => {
+        const heading = [...document.querySelectorAll('[cmdk-group-heading]')].find((element) => element.textContent === headingText)!
+        const check = document.querySelector('[data-habit-check][data-status="done"]')!
+        check.getBoundingClientRect()
+        for (const animation of check.getAnimations()) animation.finish()
+        const label = check.parentElement!.parentElement!.lastElementChild!
+        const measureText = (element: Element) => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const bounds = element.getBoundingClientRect()
+          return { lines: range.getClientRects().length, textWidth: range.getBoundingClientRect().width, width: bounds.width }
+        }
+        return {
+          heading: measureText(heading), label: measureText(label),
+          fill: getComputedStyle(check).backgroundColor,
+          glyph: getComputedStyle(check.querySelector('svg')!).stroke,
+        }
+      }, messages.charts.bar.completed)
+      for (const bounds of [measured.heading, measured.label]) {
+        expect(bounds.lines).toBe(1)
+        expect(bounds.textWidth).toBeLessThanOrEqual(bounds.width + 0.5)
+      }
+      expect(contrastOnSurface(measured.glyph, [measured.fill]), JSON.stringify(measured)).toBeGreaterThanOrEqual(3)
+    } finally { await page.close() }
+  })
 
   it.each([412, 1352].flatMap((width) => ['en', 'pt-BR'].flatMap((locale) =>
     (['light', 'dark'] as const).flatMap((theme) => ['search', 'palette'].map((surface) => ({ width, locale, theme, surface }))),

@@ -586,6 +586,7 @@
       "scheduledOn": "scheduled {date}"
     },
     "search": {
+      "doneWhen": "Done {when}",
       "matchTitle": "in the name",
       "matchDescription": "in the description",
       "matchTag": "in the tag",
@@ -713,6 +714,7 @@
     "bulkBar": {
       "log": "Log selected",
       "skip": "Skip selected",
+      "skipEligible": "{count, plural, one {# selected habit can be skipped.} other {# selected habits can be skipped.}}",
       "delete": "Delete selected",
       "partialFailure": "{count, plural, one {# selected row could not be updated.} other {# selected rows could not be updated.}}",
       "retryFailed": "Retry failed only",

@@ -33,6 +33,7 @@ const SELECT_ALL_BUTTON_STYLE = {
 /** Selection actions rendered in the shell's pinned composer position. */
 export interface SelectionTrayProps {
   selectedCount: number
+  skippableCount?: number
   allSelected: boolean
   onSelectAll: () => void
   onDeselectAll: () => void
@@ -85,6 +86,7 @@ function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reas
 
 export function SelectionTray({
   selectedCount,
+  skippableCount = selectedCount,
   allSelected,
   onSelectAll,
   onDeselectAll,
@@ -176,14 +178,14 @@ export function SelectionTray({
           disabled={nothingSelected || completionReadOnly}
           reason={completionReason}
         />
-        <BulkBtn
+        {skippableCount > 0 || nothingSelected ? <BulkBtn
           icon={FastForward}
           label={t('habits.bulkBar.skip')}
           iconColor="var(--fg-3)"
           onClick={onBulkSkip}
-          disabled={nothingSelected || completionReadOnly}
+          disabled={skippableCount === 0 || completionReadOnly}
           reason={completionReason}
-        />
+        /> : null}
         <BulkBtn
           icon={ArrowsMove}
           label={t('habits.bulkBar.move')}
@@ -208,6 +210,7 @@ export function SelectionTray({
           onClick={onCancel}
         />
       </div>
+      {skippableCount > 0 && skippableCount < selectedCount ? <p className="t-secondary text-pretty" style={{ margin: 0, color: 'var(--fg-2)' }}>{t('habits.bulkBar.skipEligible', { count: skippableCount })}</p> : null}
       {moveLimitReason ? <p id={moveLimitId} className="t-secondary text-pretty" style={{ margin: 0, color: 'var(--fg-2)' }}>{moveLimitReason}</p> : null}
     </motion.div>
   )
