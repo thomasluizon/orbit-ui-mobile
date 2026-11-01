@@ -4,7 +4,8 @@ import React from 'react'
 import { Platform } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { ErrorCode } from 'expo-iap'
+import { ErrorCode, type Purchase } from 'expo-iap'
+import { createApplePurchase, createPlayPurchase } from '../fixtures/store-purchases'
 
 import {
   extractStoreOffers,
@@ -20,7 +21,7 @@ const mountedViews: { unmount: () => void }[] = []
 const mocks = vi.hoisted(() => {
   const state = {
     iapOptions: null as {
-      onPurchaseSuccess?: (purchase: unknown) => void
+      onPurchaseSuccess?: (purchase: Purchase) => void
       onPurchaseError?: (error: unknown) => void
       onError?: (error: Error) => void
     } | null,
@@ -55,6 +56,7 @@ vi.mock('expo-iap', () => ({
     NetworkError: 'network-error',
     ServiceError: 'service-error',
     ServiceDisconnected: 'service-disconnected',
+    NotPrepared: 'not-prepared',
   },
   finishTransaction: mocks.finishTransaction,
   getAvailablePurchases: mocks.getAvailablePurchases,
@@ -511,7 +513,7 @@ describe('useStoreBilling', () => {
     expect(mocks.requestPurchase).toHaveBeenCalledOnce()
     let release!: () => void
     mocks.apiClient.mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve({}) }))
-    const firstPurchase = { productId: 'orbit_pro', purchaseToken: 'tok_a' }
+    const firstPurchase = createPlayPurchase({ purchaseToken: 'tok_a' })
     await TestRenderer.act(async () => {
       mocks.state.iapOptions?.onPurchaseSuccess?.(firstPurchase)
       await new Promise((resolve) => setTimeout(resolve, 0))
@@ -550,7 +552,7 @@ describe('useStoreBilling', () => {
 
   it('verifies, invalidates entitlement, and finishes a successful purchase', async () => {
     renderUsePlayBilling()
-    const purchase = { productId: 'orbit_pro', purchaseToken: 'tok_123' }
+    const purchase = createPlayPurchase({ purchaseToken: 'tok_123' })
 
     mocks.state.iapOptions?.onPurchaseSuccess?.(purchase)
     await flushAsync()
@@ -567,7 +569,7 @@ describe('useStoreBilling', () => {
   })
 
   it('restores an owned purchase: verifies, finishes, and invalidates entitlement', async () => {
-    const purchase = { productId: 'orbit_pro', purchaseToken: 'tok_restore' }
+    const purchase = createPlayPurchase({ purchaseToken: 'tok_restore' })
     mocks.getAvailablePurchases.mockResolvedValue([purchase])
     const result = renderUsePlayBilling()
 
@@ -589,7 +591,7 @@ describe('useStoreBilling', () => {
   })
 
   it('settles restored entitlement before notifying the onboarding host', async () => {
-    mocks.getAvailablePurchases.mockResolvedValue([{ productId: 'orbit_pro', purchaseToken: 'tok_restore' }])
+    mocks.getAvailablePurchases.mockResolvedValue([createPlayPurchase({ purchaseToken: 'tok_restore' })])
     const onPurchased = vi.fn()
     const result = renderUsePlayBilling({ onPurchased })
     await TestRenderer.act(async () => { await result.restorePurchases() })
@@ -602,7 +604,7 @@ describe('useStoreBilling', () => {
     mocks.fetchQuery.mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve }))
     const onPurchased = vi.fn()
     renderUsePlayBilling({ onPurchased })
-    mocks.state.iapOptions?.onPurchaseSuccess?.({ productId: 'orbit_pro', purchaseToken: 'tok_success' })
+    mocks.state.iapOptions?.onPurchaseSuccess?.(createPlayPurchase({ purchaseToken: 'tok_success' }))
     await flushAsync()
     expect(onPurchased).not.toHaveBeenCalled()
     release()
@@ -622,12 +624,33 @@ describe('useStoreBilling', () => {
     expect(onPurchased).not.toHaveBeenCalled()
   })
 
+  it.each(['rejection', 'listener'] as const)('keeps the service error when an unprepared Play client reports through %s', async (delivery) => {
+    mocks.state.subscriptions = [{ id: 'orbit_pro', subscriptionOffers: [{ basePlanIdAndroid: 'monthly', offerTokenAndroid: 'tok_m', displayPrice: '$9.99' }] }]
+    const error = { code: ErrorCode.NotPrepared, message: 'Billing client is not prepared' }
+    if (delivery === 'rejection') mocks.requestPurchase.mockRejectedValueOnce(error)
+    const onPurchased = vi.fn()
+    const hook = renderUsePlayBillingLive({ onPurchased })
+    await TestRenderer.act(async () => {
+      expect(await hook.current.purchase('monthly')).toBe(delivery === 'listener')
+    })
+    if (delivery === 'listener') {
+      await TestRenderer.act(() => { mocks.state.iapOptions?.onPurchaseError?.(error) })
+    }
+    expect(hook.current.isProcessing).toBe(false)
+    expect(hook.current.errorKey).toBe('upgrade.playError.serviceUnavailable')
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(mocks.finishTransaction).not.toHaveBeenCalled()
+    expect(onPurchased).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { expect(await hook.current.purchase('monthly')).toBe(true) })
+    expect(mocks.requestPurchase).toHaveBeenCalledTimes(2)
+  })
+
   it('drops old account purchase settlement after verification', async () => {
     let release!: () => void
     mocks.apiClient.mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve }))
     const onPurchased = vi.fn()
     renderUsePlayBilling({ onPurchased })
-    mocks.state.iapOptions?.onPurchaseSuccess?.({ productId: 'orbit_pro', purchaseToken: 'tok_old' })
+    mocks.state.iapOptions?.onPurchaseSuccess?.(createPlayPurchase({ purchaseToken: 'tok_old' }))
     advanceAccountGeneration()
     release()
     await flushAsync()
@@ -650,8 +673,8 @@ describe('useStoreBilling', () => {
   })
 
   it('restores the remaining owned purchases even when one verify fails', async () => {
-    const bad = { productId: 'orbit_pro', purchaseToken: 'tok_bad' }
-    const good = { productId: 'orbit_pro', purchaseToken: 'tok_good' }
+    const bad = createPlayPurchase({ purchaseToken: 'tok_bad' })
+    const good = createPlayPurchase({ purchaseToken: 'tok_good' })
     mocks.getAvailablePurchases.mockResolvedValue([bad, good])
     mocks.apiClient.mockImplementation((_endpoint: string, options: { body: string }) => {
       const body = JSON.parse(options.body) as { purchaseToken: string }
@@ -703,7 +726,7 @@ describe('useStoreBilling', () => {
 
   it('leaves failed Apple verification unfinished and retries at the next connection', async () => {
     Platform.OS = 'ios'
-    const purchase = { id: 'monthly-transaction', productId: 'orbit.monthly' }
+    const purchase = createApplePurchase({ id: 'monthly-transaction', transactionId: 'monthly-transaction' })
     mocks.getPendingTransactionsIOS.mockResolvedValue([purchase])
     mocks.apiClient.mockRejectedValueOnce(new Error('network'))
     const first = renderUsePlayBillingLive()
@@ -740,7 +763,7 @@ describe('useStoreBilling', () => {
 
   it('restores Apple subscriptions only after sync and verification', async () => {
     Platform.OS = 'ios'
-    const purchase = { id: 'yearly-transaction', productId: 'orbit.yearly' }
+    const purchase = createApplePurchase({ id: 'yearly-transaction', transactionId: 'yearly-transaction', productId: 'orbit.yearly' })
     mocks.getAvailablePurchases.mockResolvedValue([purchase])
     const hook = renderUsePlayBillingLive()
     await flushAsync()
