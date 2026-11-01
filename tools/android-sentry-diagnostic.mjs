@@ -44,7 +44,7 @@ function assertConfiguration(root) {
   const plugin = app.expo.plugins.find((entry) => Array.isArray(entry) && entry[0] === "@sentry/react-native/expo")?.[1]
   const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"))
   if (plugin?.url !== `${HOST}/` || plugin.organization !== ORGANIZATION || plugin.project !== PROJECT || plugin.authToken
-    || lock.packages[CLI]?.version !== "3.6.0" || lock.packages["node_modules/@sentry/react-native"]?.version !== "8.17.2") {
+    || lock.packages[CLI]?.version !== "3.8.0" || lock.packages["node_modules/@sentry/react-native"]?.version !== "8.28.0") {
     throw new Error("configuration_mismatch")
   }
 }
@@ -56,7 +56,7 @@ function matchesShape(value, shape) {
     && Object.entries(shape).every(([key, type]) => Object.hasOwn(value, key) && matchesShape(value[key], type))
 }
 
-// Mirrors CLI 3.6.0's org_auth_token.rs and config.rs; decoded material never leaves this function.
+// Mirrors CLI 3.8.0's org_auth_token.rs and config.rs; decoded material never leaves this function.
 function targetSelection(token, env) {
   if (env.SENTRY_PROJECT !== undefined && env.SENTRY_PROJECT !== PROJECT) throw new Error("native_override_mismatch")
   if (/^(sntryu_)?[0-9a-fA-F]{64}$/.test(token)) {
@@ -175,10 +175,10 @@ async function probe(url, token, totalSignal, fetchImpl, kind) {
   const supplementary = url === AUTH ? { auth_evidence: authEvidence(null) } : {}
   try {
     signal.throwIfAborted()
-    // https://github.com/getsentry/sentry-cli/blob/3.6.0/src/api/mod.rs#L1318-L1328
+    // https://github.com/getsentry/sentry-cli/blob/3.8.0/src/api/mod.rs#L1299-L1309
     const response = await fetchImpl(url, {
       method: "GET", redirect: "manual", signal,
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "User-Agent": "sentry-cli/3.6.0" },
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "User-Agent": "sentry-cli/3.8.0" },
     })
     const status = response.status
     const outcome = httpOutcome(status)
@@ -260,8 +260,8 @@ export async function runDiagnostic({ env = process.env, root = ROOT, fetchImpl 
     const version = await runProcess(process.execPath, [join(root, CLI, "bin/sentry-cli"), "--version"], {
       cwd: root, env: childEnvironment, timeoutMs: PROCESS_TIMEOUT, maxBuffer: OUTPUT_LIMIT,
     })
-    if (version.error || version.timedOut || version.overflowed || version.status !== 0 || version.stdout.trim() !== "sentry-cli 3.6.0") throw new Error("native_cli_unverified")
-    report.native_cli = "3.6.0"
+    if (version.error || version.timedOut || version.overflowed || version.status !== 0 || version.stdout.trim() !== "sentry-cli 3.8.0") throw new Error("native_cli_unverified")
+    report.native_cli = "3.8.0"
     await collectReads(report, token, totalSignal, fetchImpl)
     report.current_target_reads = report.requests.length === 3 && report.requests.every(healthyRead)
       ? "route_access_observed" : report.requests.length === 1 ? "uncollected" : "unavailable"
