@@ -49,6 +49,14 @@ function compareVersionCodes(offered: string, installed: string): -1 | 0 | 1 {
   return offeredCode > installedCode ? 1 : offeredCode < installedCode ? -1 : 0
 }
 
+function classifyAndroidUpdateError(error: unknown) {
+  const codeMatch = error instanceof Error ? /Install Error\((-?\d+)\)/.exec(error.message) : null
+  const playErrorCode = codeMatch ? Number(codeMatch[1]) : null
+  const serviceUnavailable = playErrorCode === -3 || playErrorCode === -9 ||
+    (error instanceof Error && error.message.endsWith(': Failed to bind to the service.'))
+  return { playErrorCode, serviceUnavailable }
+}
+
 async function checkAndroidUpdate(inAppUpdates: SpInAppUpdates): Promise<NeedsUpdateResponse | null> {
   const installedCode = Number(nativeBuildVersion)
   if (!Number.isSafeInteger(installedCode) || installedCode <= 0) return null
@@ -67,10 +75,7 @@ async function checkAndroidUpdate(inAppUpdates: SpInAppUpdates): Promise<NeedsUp
     })
     return result
   } catch (error) {
-    const codeMatch = error instanceof Error ? /Install Error\((-?\d+)\)/.exec(error.message) : null
-    const playErrorCode = codeMatch ? Number(codeMatch[1]) : null
-    const serviceUnavailable = playErrorCode === -3 || playErrorCode === -9 ||
-      (error instanceof Error && error.message.endsWith(': Failed to bind to the service.'))
+    const { playErrorCode, serviceUnavailable } = classifyAndroidUpdateError(error)
     if (!serviceUnavailable) {
       Sentry.captureException(error, {
         tags: { operation: 'android_update_check' },
@@ -94,7 +99,9 @@ async function resolveVersionSources(bundleId: string | null, inAppUpdates: SpIn
       ])
       return { androidCheck: result, androidDownloaded: downloaded, latestIosVersion: null, iosStoreUrl: null }
     } catch (error) {
-      Sentry.captureException(error, { tags: { operation: 'android_update_install_status' } })
+      if (!classifyAndroidUpdateError(error).serviceUnavailable) {
+        Sentry.captureException(error, { tags: { operation: 'android_update_install_status' } })
+      }
       return { androidCheck: null, androidDownloaded: false, latestIosVersion: null, iosStoreUrl: null }
     }
   }

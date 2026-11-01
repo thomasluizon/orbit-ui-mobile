@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as Sentry from '@sentry/react-native'
 const storage = vi.hoisted(() => ({
   getItem: vi.fn<(key: string) => Promise<string | null>>(),
   setItem: vi.fn<(key: string, value: string) => Promise<void>>(),
@@ -33,6 +34,32 @@ describe('mobile PostHog adapter', () => {
     expect(client.identify).toHaveBeenCalledWith('4fb5053e-819d-4b49-9ce2-945e988469bf')
     expect(client.capture).toHaveBeenCalledExactlyOnceWith('habit_logged')
     expect(client.reset).toHaveBeenCalledOnce()
+  })
+
+  it('gates screen captures through the analytics preference', async () => {
+    vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
+    const analytics = await import('@/lib/posthog')
+    await analytics.applyPostHogGate(false)
+    analytics.captureScreen('habits')
+    expect(analytics.posthog!.screen).not.toHaveBeenCalled()
+    await analytics.applyPostHogGate(true)
+    analytics.captureScreen('habits')
+    expect(analytics.posthog!.screen).toHaveBeenCalledExactlyOnceWith('habits')
+    await analytics.setAnalyticsOptOut(true)
+    analytics.captureScreen('habits')
+    expect(analytics.posthog!.screen).toHaveBeenCalledOnce()
+  })
+
+  it('reports a rejected screen capture to Sentry once', async () => {
+    vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
+    const analytics = await import('@/lib/posthog')
+    await analytics.applyPostHogGate(true)
+    const error = new Error('Screen capture failed')
+    vi.mocked(analytics.posthog!.screen).mockRejectedValueOnce(error)
+    analytics.captureScreen('habits')
+    await vi.waitFor(() => expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(error, {
+      tags: { operation: 'posthog_screen' },
+    }))
   })
 
   it.each([
