@@ -127,6 +127,10 @@ describe('native union accepts both widget callers', () => {
         expect(registration.platforms.filter((platform) => platform !== 'apple')).toEqual(['android'])
         expect(registration.android).toEqual({ modules: ['org.useorbit.app.widget.OrbitWidgetModule'] })
         expect(Object.keys(registration).sort((left, right) => left.localeCompare(right))).toEqual(['android', 'apple', 'platforms'])
+      } else if (path === 'apps/mobile/modules/orbit-app-update/android/build.gradle') {
+        const publication = "\ngroup = 'org.useorbit.app.update'\nversion = '1.0.0'\n"
+        expect(contents.toString()).toContain(publication)
+        expect(createHash('sha256').update(contents.toString().replace(publication, '')).digest('hex'), path).toBe(hash)
       } else {
         expect(createHash('sha256').update(contents).digest('hex'), path).toBe(hash)
       }
