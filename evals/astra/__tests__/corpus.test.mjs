@@ -107,6 +107,6 @@ it('reports pass^k for each family and locale and carries a failure into its gro
   const attempts = descriptors.flatMap((metadata) => Array.from({ length: ATTEMPTS_PER_CASE }, () => ({ testCase: { metadata }, success: true,
     gradingResult: { componentResults: [{ pass: true, assertion: { metric: 'composition' } }] } })))
   expect(summarize(attempts, descriptors).groups).toEqual(descriptors.map(({ family, locale }) => ({ family, locale, cases: 1, passed: 1, allAttemptsPass: 'pass' })))
-  attempts[5].success = false
+  attempts.find((entry) => entry.testCase.metadata.id === descriptors[1].id).success = false
   expect(summarize(attempts, descriptors).groups[1].allAttemptsPass).toBe('fail')
 })

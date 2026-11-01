@@ -132,7 +132,7 @@ it.each([false, true])('keeps exhausted rubric evidence unavailable with product
   const productAttempt = { testCase, success: false, gradingResult: { componentResults: [
     { assertion: { metric: 'composition' }, pass: false, reason: 'Wrong habit.' },
   ] } }
-  expect(summarize([attempts[0], productAttempt, attempts[2]], [testCase.metadata]).status).toBe('fail')
+  expect(summarize([...attempts, productAttempt], [testCase.metadata]).status).toBe('fail')
   writeResults(attempts, directory)
   const evidence = JSON.parse(readFileSync(join(directory, 'attempts/grader-outage-r1.json'), 'utf8'))
   expect(evidence).toMatchObject({ pass: false, unavailable: true, assertions: [{ metric: 'finalAnswer', pass: false, unavailable: true }, {}] })
