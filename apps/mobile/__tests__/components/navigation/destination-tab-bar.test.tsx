@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { useUIStore } from '@/stores/ui-store'
 import { press, renderNavigation } from '../ui/navigation-render'
-const mocks = vi.hoisted(() => ({ navigate: vi.fn() }))
-vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: mocks.navigate }) }))
+const mocks = vi.hoisted(() => ({ navigate: vi.fn(), setParams: vi.fn(), dismissAll: vi.fn(async () => {}) }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: mocks.navigate, setParams: mocks.setParams }) }))
+vi.mock('@lodev09/react-native-true-sheet', () => ({ TrueSheet: { dismissAll: mocks.dismissAll } }))
 
 describe('DestinationTabBar', () => {
   it('keeps Today selected on the pushed inbox', () => {
@@ -90,12 +91,36 @@ it('closes Astra when reselecting the current destination', () => {
   } finally { tree.unmount() }
 })
 
+it.each(['/', '/calendar'])('finishes native sheet dismissal before resetting Hoje from %s', async (pathname) => {
+  const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
+  let finishDismissal!: () => void
+  const dismissal = new Promise<void>((resolve) => { finishDismissal = resolve })
+  mocks.dismissAll.mockReturnValueOnce(dismissal)
+  mocks.navigate.mockClear()
+  mocks.setParams.mockClear()
+  useUIStore.setState({ activeView: 'all', openOverlayIds: ['sheet:today-menu'] })
+  const version = useUIStore.getState().todayResetVersion
+  const tree = renderNavigation(<DestinationTabBar pathname={pathname} />)
+  try {
+    press(tree.hosts().find((node) => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === 'nav.today')!)
+    expect(useUIStore.getState().todayResetVersion).toBe(version)
+    expect(useUIStore.getState().activeView).toBe('all')
+    expect(mocks.navigate).not.toHaveBeenCalled()
+    expect(mocks.setParams).not.toHaveBeenCalled()
+    await renderer.act(async () => { finishDismissal(); await dismissal })
+    expect(useUIStore.getState().todayResetVersion).toBe(version + 1)
+    expect(useUIStore.getState().activeView).toBe('today')
+    if (pathname === '/') expect(mocks.setParams).toHaveBeenCalledExactlyOnceWith({ date: undefined })
+    else expect(mocks.navigate).toHaveBeenCalledExactlyOnceWith('/(tabs)')
+  } finally { tree.unmount(); useUIStore.setState({ openOverlayIds: [] }) }
+})
 
-it.each(['all', 'general'] as const)('retains the saved %s view when returning to Hoje', (view) => {
+
+it.each(['all', 'general'] as const)('resets the saved %s view when returning to Hoje', (view) => {
   useUIStore.getState().setActiveView(view)
   const tree = renderNavigation(<DestinationTabBar pathname="/calendar" />)
   try {
     press(tree.hosts().find((node) => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === 'nav.today')!)
-    expect(useUIStore.getState().activeView).toBe(view)
+    expect(useUIStore.getState().activeView).toBe('today')
   } finally { tree.unmount() }
 })

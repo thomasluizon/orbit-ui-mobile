@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useRouter } from 'expo-router'
+import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { useTranslation } from 'react-i18next'
 import { resolveShellChrome, DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
@@ -22,13 +23,20 @@ export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pat
   )
 
   const handleTab = (id: string) => {
+    if (id === 'hoje') {
+      const resetToday = () => {
+        scrollToTop?.(id)
+        useUIStore.getState().resetToday()
+        if (!notFound && pathname === '/') router.setParams({ date: undefined })
+        else router.navigate('/(tabs)')
+      }
+      if (useUIStore.getState().openOverlayIds.length > 0) void TrueSheet.dismissAll().then(resetToday)
+      else resetToday()
+      return
+    }
     useUIStore.getState().setAstraConversationOpen(false)
     if (!notFound && id === active && pathname === ROOT_PATHS[id]) {
       scrollToTop?.(id)
-      return
-    }
-    if (id === 'hoje') {
-      router.navigate('/(tabs)')
       return
     }
     if (id === 'calendario') router.navigate('/calendar')
