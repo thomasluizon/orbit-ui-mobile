@@ -255,7 +255,8 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     }
     form.setValue('itemType', type, { shouldDirty: true })
     form.clearErrors('itemType')
-    dateTypeChange.current?.()
+    if (type === 'habit' && readHabitRecurrencePhrase(phrase)) dateTypeChange.current?.()
+    else dateValidation.current?.()
   }, [form, modeDrafts, setOneTime, setRecurring, setFlexible, setGeneral])
 
   const formatTimeInput = useCallback((value: string) => formatHabitTimeInput(value), [])

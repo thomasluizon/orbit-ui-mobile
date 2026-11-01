@@ -234,7 +234,7 @@ describe('i18n locale parity', () => {
         if (otherMeanings.has(key)) continue
         if (key === 'habits.form.typeTask' && value === task) continue
         expect(value, `${locale}: ${key}`).not.toMatch(internal)
-        if (key !== 'habits.form.noScheduleHint' && key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral' && key !== 'chat.preview.itemGroup.General') {
+        if (key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral' && key !== 'chat.preview.itemGroup.General') {
           expect(value, `${locale}: ${key}`).not.toMatch(general)
         }
       }

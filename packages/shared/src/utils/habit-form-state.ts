@@ -141,9 +141,10 @@ export function buildParentHabitFormState(
   parent: NormalizedHabit,
   initialDate?: string | null,
 ): HabitFormStateSnapshot {
+  const mode = resolveHabitFormMode(parent)
   return {
     formValues: {
-      itemType: parent.isGeneral || resolveHabitFormMode(parent) === 'oneTime' ? 'task' : 'habit',
+      itemType: mode === 'general' || mode === 'oneTime' ? 'task' : 'habit',
       title: '',
       description: '',
       emoji: parent.emoji ?? '',
@@ -154,7 +155,7 @@ export function buildParentHabitFormState(
       isBadHabit: parent.isBadHabit,
       isGeneral: parent.isGeneral,
       isFlexible: parent.isFlexible,
-      dueDate: parent.isGeneral ? '' : initialDate ?? parent.dueDate,
+      dueDate: mode === 'general' ? '' : initialDate ?? parent.dueDate,
       dueTime: toTime24(parent.dueTime),
       dueEndTime: toTime24(parent.dueEndTime),
       endDate: parent.endDate ?? '',
@@ -164,7 +165,7 @@ export function buildParentHabitFormState(
       slipAlertEnabled: parent.slipAlertEnabled,
       checklistItems: [],
     },
-    mode: resolveHabitFormMode(parent),
+    mode,
     reminderTimes: editableReminders(parent).reminderTimes,
     selectedGoalIds: parent.linkedGoals?.map((goal) => goal.id) ?? [],
     selectedTagIds: parent.tags.map((tag) => tag.id),
@@ -175,9 +176,10 @@ export function buildEditHabitFormState(
   habit: NormalizedHabit,
   detail?: HabitDetail | null,
 ): EditHabitFormStateSnapshot {
+  const mode = resolveHabitFormMode(habit)
   return {
     formValues: {
-      itemType: habit.isGeneral || resolveHabitFormMode(habit) === 'oneTime' ? 'task' : 'habit',
+      itemType: mode === 'general' || mode === 'oneTime' ? 'task' : 'habit',
       title: habit.title,
       description: habit.description ?? '',
       emoji: detail?.emoji ?? habit.emoji ?? '',
@@ -188,7 +190,7 @@ export function buildEditHabitFormState(
       isBadHabit: habit.isBadHabit,
       isGeneral: habit.isGeneral,
       isFlexible: habit.isFlexible,
-      dueDate: habit.isGeneral ? '' : resolveHabitFormMode(habit) === 'oneTime'
+      dueDate: mode === 'general' ? '' : mode === 'oneTime'
         ? detail?.dueDate ?? habit.dueDate
         : detail?.startDate ?? getHabitDisplayStartDate(habit).slice(0, 10),
       dueTime: toTime24(detail?.dueTime ?? habit.dueTime),
@@ -200,7 +202,7 @@ export function buildEditHabitFormState(
       slipAlertEnabled: habit.slipAlertEnabled,
       checklistItems: [...habit.checklistItems],
     },
-    mode: resolveHabitFormMode(habit),
+    mode,
     originalEndDate: detail?.endDate ?? '',
     reminderTimes: editableReminders(habit, detail).reminderTimes,
     selectedGoalIds: habit.linkedGoals?.map((goal) => goal.id) ?? [],
