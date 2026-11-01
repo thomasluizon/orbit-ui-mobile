@@ -220,19 +220,60 @@ describe('Play update sheet selection', () => {
     expect(captureAndroidUpdateCheck).toHaveBeenCalledTimes(2)
     expect(captureAndroidUpdateSheetShown).toHaveBeenCalledOnce()
   })
-  it('reports a failed Play check with its install error code once without retrying', async () => {
-    mocks.checkNeedsUpdate.mockRejectedValue(new Error('Install Error(-9): The Play Store app is either not installed or not the official version.'))
+  it('records concurrent Play service bind failures without reporting either to Sentry or retrying', async () => {
+    const error = new Error('m9.E: Failed to bind to the service.')
+    mocks.checkNeedsUpdate.mockRejectedValue(error)
+    mocks.readDownloaded.mockRejectedValue(error)
     await mount()
-    expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ message: expect.stringContaining('Install Error(-9)') }),
-      expect.objectContaining({ extra: { installed_version_code: 140, play_error_code: -9 } }),
-    )
+    expect(Sentry.captureException).not.toHaveBeenCalled()
     expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
-      outcome: 'error', play_status: null, available_version_code: null,
-      installed_version_code: 140, play_error_code: -9,
+      outcome: 'service_unavailable', play_status: null, available_version_code: null,
+      installed_version_code: 140, play_error_code: null,
     })
     await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
     expect(mocks.checkNeedsUpdate).toHaveBeenCalledOnce()
+    expect(mocks.readDownloaded).toHaveBeenCalledOnce()
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledOnce()
+    expect(Sentry.captureException).not.toHaveBeenCalled()
+    expect(sheetTitles()).toEqual([])
+    expect(captureAndroidUpdateSheetShown).not.toHaveBeenCalled()
+  })
+  it.each([
+    [-3, 'The API is not available on this device.'],
+    [-9, 'The Play Store app is either not installed or not the official version.'],
+  ] as const)('records unavailable Play service code %s without reporting it to Sentry or retrying', async (code, message) => {
+    const error = new Error(`com.google.android.play.core.install.InstallException: Install Error(${code}): ${message}`)
+    mocks.checkNeedsUpdate.mockRejectedValue(error)
+    mocks.readDownloaded.mockRejectedValue(error)
+    await mount()
+    expect(Sentry.captureException).not.toHaveBeenCalled()
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'service_unavailable', play_status: null, available_version_code: null,
+      installed_version_code: 140, play_error_code: code,
+    })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(mocks.checkNeedsUpdate).toHaveBeenCalledOnce()
+    expect(mocks.readDownloaded).toHaveBeenCalledOnce()
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledOnce()
+    expect(Sentry.captureException).not.toHaveBeenCalled()
+    expect(sheetTitles()).toEqual([])
+    expect(captureAndroidUpdateSheetShown).not.toHaveBeenCalled()
+  })
+  it.each([-2, -4, -5, -6, -7, -10, -100, -90, null])('reports unexpected Play failure code %s once without retrying', async (code) => {
+    const message = code === null ? 'Unexpected Play failure' : `Install Error(${code}): unexpected failure`
+    mocks.checkNeedsUpdate.mockRejectedValue(new Error(message))
+    await mount()
+    expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: `sp-react-native-in-app-updates checkNeedsUpdate error: Error: ${message}` }),
+      { tags: { operation: 'android_update_check' }, extra: { installed_version_code: 140, play_error_code: code } },
+    )
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'error', play_status: null, available_version_code: null,
+      installed_version_code: 140, play_error_code: code,
+    })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(mocks.checkNeedsUpdate).toHaveBeenCalledOnce()
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledOnce()
     expect(Sentry.captureException).toHaveBeenCalledOnce()
     expect(sheetTitles()).toEqual([])
     expect(captureAndroidUpdateSheetShown).not.toHaveBeenCalled()
@@ -349,8 +390,30 @@ describe('Play update sheet selection', () => {
     expect(mocks.startUpdate).not.toHaveBeenCalled()
   })
   it('shows no store sheet if Play install status cannot be read', async () => {
-    mocks.readDownloaded.mockRejectedValue(new Error('Play unavailable'))
+    const error = new Error('Unexpected Play failure')
+    mocks.readDownloaded.mockRejectedValue(error)
     await mount()
+    expect(sheetTitles()).toEqual([])
+    expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(error, {
+      tags: { operation: 'android_update_install_status' },
+    })
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'success', play_status: 2, available_version_code: 141,
+      installed_version_code: 140, play_error_code: null,
+    })
+  })
+  it.each([
+    'm9.E: Failed to bind to the service.',
+    'com.google.android.play.core.install.InstallException: Install Error(-3): The API is not available on this device.',
+    'com.google.android.play.core.install.InstallException: Install Error(-9): The Play Store app is either not installed or not the official version.',
+  ])('does not report an unavailable install-status service to Sentry: %s', async (message) => {
+    mocks.readDownloaded.mockRejectedValue(new Error(message))
+    await mount()
+    expect(Sentry.captureException).not.toHaveBeenCalled()
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'success', play_status: 2, available_version_code: 141,
+      installed_version_code: 140, play_error_code: null,
+    })
     expect(sheetTitles()).toEqual([])
   })
   it.each(['', 'unknown', '1.3.81', '0'])('never uses the version name when the build code is %s', async (build) => {
