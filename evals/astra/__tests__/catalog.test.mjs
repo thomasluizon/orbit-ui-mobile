@@ -27,7 +27,7 @@ const placedHabit = ['create_habit', { title: 'Read', frequency_unit: 'Day', fre
   parent_habit_id: '11111111-1111-4111-8111-111111111111', placement: 'sub_habit' }]
 // Producer: orbit-api src/Orbit.Application/Chat/Tools/Implementations/GetHabitMonthTool.cs:18-35
 // src/Orbit.Application/Habits/Queries/RetrospectivePeriodRange.cs:14-18 and Chat/TerminalReadDirective.cs:19-33.
-const habitMonth = ['get_habit_month', { relative_period: 'this_month', language: 'en', orbit_read_complete: true }]
+const habitMonth = ['get_habit_month', { window: 'month', relative_period: 'this_month', language: 'en', orbit_read_complete: true }]
 
 async function validateTrace(name, arguments_, clientContext) {
   const call = { ...toolCall(name, {}), arguments: arguments_ }

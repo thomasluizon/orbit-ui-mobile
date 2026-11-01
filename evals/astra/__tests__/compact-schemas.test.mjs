@@ -17,7 +17,7 @@ vi.mock('../trace-policy.mjs', async (importOriginal) => {
       variant.properties.draft_call_id = { $ref: '#/$defs/setupDraftCallId' }
     }
     root.$defs.setupInput = root.properties.input
-    root.$defs.setupUnion = { anyOf: [{ $ref: '#/$defs/setupInput' }] }
+    root.$defs.setupUnion = { anyOf: [{ $ref: '#/$defs/setupInput' }, { type: 'null' }] }
     root.properties.input = { $ref: '#/$defs/setupUnion' }
     return tool
   })
@@ -38,16 +38,18 @@ it('fills strict nullable references throughout recursive habit arguments', () =
 it('retains referenced object and array arguments in evidence without retaining unknown secrets', () => {
   const call = toolCall('bulk_create_habits', { habits: [{ title: 'Read', frequency_unit: 'Day',
     repeat_reminder: { interval_minutes: 60, cookie: 'private-reminder' },
+    checklist_items: [{ text: 'Read one page', is_checked: false, token: 'private-step' }],
     sub_habits: [{ title: 'Open book', frequency_unit: 'Day', cookie: 'private-child' }] }] },
   'PendingConfirmation', 'create', clientContext)
   const entry = { testCase: { vars: { clientContext } }, response: { output: {
-    answer: 'private-reminder private-child', trace: { calls: [call] },
+    answer: 'private-reminder private-child private-step', trace: { calls: [call] },
   } } }
   const evidence = attemptEvidence(entry, { assertions: [] })
   expect(evidence.toolCalls[0].arguments.habits[0]).toMatchObject({ title: 'Read',
-    repeat_reminder: { interval_minutes: 60 }, sub_habits: [{ title: 'Open book' }] })
-  expect(evidence.answer).toBe('[redacted] [redacted]')
-  expect(JSON.stringify(evidence)).not.toMatch(/private-reminder|private-child|cookie/)
+    repeat_reminder: { interval_minutes: 60 }, checklist_items: [{ text: 'Read one page', is_checked: false }],
+    sub_habits: [{ title: 'Open book' }] })
+  expect(evidence.answer).toBe('[redacted] [redacted] [redacted]')
+  expect(JSON.stringify(evidence)).not.toMatch(/private-reminder|private-child|private-step|cookie|token/)
 })
 
 it.each(['choice', 'question'])('binds a referenced setup %s to the exact draft and field', async (form) => {
