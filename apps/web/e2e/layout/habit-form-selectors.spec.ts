@@ -1,13 +1,37 @@
 import { expect } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { API } from '@orbit/shared/api'
 import { test } from './upgrade-fixtures'
+import { setLayoutFixtureSession } from './profile-session'
+import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 
 for (const locale of ['en', 'pt-BR'] as const) {
-  for (const width of [360, 412, 1280]) {
+  for (const width of [320, 360, 384, 412, 1280]) {
     for (const theme of ['light', 'dark'] as const) {
       test.describe(`form decisions ${locale} ${width}px ${theme}`, () => {
         test.use({ appLocale: locale, viewport: { width, height: 1000 }, layoutProfile: { themePreference: theme } })
+        test('opens an undated task from General without repetition controls', async ({ page, context }) => {
+          const messages = locale === 'en' ? en : ptBR
+          await setLayoutFixtureSession(context, [{ path: API.habits.list, body: emptyHabitsPageFixture }])
+          await page.goto('/')
+          await page.getByRole('radiogroup', { name: messages.habits.viewsLabel }).getByRole('radio', { name: messages.habits.viewGeneral, exact: true }).click()
+          await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
+          const screen = page.locator('[data-habit-create-screen]')
+          await expect(page.getByRole('heading', { name: messages.habits.form.newTask, exact: true })).toBeVisible()
+          await expect(screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })).toBeChecked()
+          const noDate = screen.getByRole('radio', { name: messages.habits.form.noSchedule, exact: true })
+          await expect(noDate).toBeChecked()
+          await expect(screen.getByRole('radiogroup', { name: messages.habits.form.frequency, exact: true })).toHaveCount(0)
+          await expect(screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })).toHaveCount(0)
+          const bounds = (await noDate.boundingBox())!
+          expect(bounds.x).toBeGreaterThanOrEqual(0)
+          expect(bounds.x + bounds.width).toBeLessThanOrEqual(width)
+          expect(bounds.height).toBeGreaterThanOrEqual(48)
+          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+          await expect(page.getByRole('button', { name: messages.habits.createTask, exact: true })).toBeVisible()
+        })
+
         test('keeps decisions ordered and timing inside its named sheet', async ({ page }) => {
           const messages = locale === 'en' ? en : ptBR
           await page.goto('/habits/new')
@@ -22,9 +46,30 @@ for (const locale of ['en', 'pt-BR'] as const) {
           const descriptionHeight = (await description.boundingBox())!.height
           await description.fill('First line\nSecond line\nThird line\nFourth line')
           await expect(async () => expect((await description.boundingBox())!.height).toBeGreaterThan(descriptionHeight)).toPass()
+          const noDate = screen.getByRole('radio', { name: messages.habits.form.noSchedule, exact: true })
+          const dated = screen.getByRole('radio', { name: messages.habits.form.taskDate, exact: true })
+          await expect(dated).toBeChecked()
+          await noDate.click()
+          await expect(noDate).toBeChecked()
+          await expect(screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })).toBeChecked()
+          await expect(screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })).toHaveCount(0)
+          const noDateBounds = (await noDate.boundingBox())!
+          expect(noDateBounds.x).toBeGreaterThanOrEqual(0)
+          expect(noDateBounds.x + noDateBounds.width).toBeLessThanOrEqual(width)
+          expect(noDateBounds.height).toBeGreaterThanOrEqual(48)
+          const labelFits = await noDate.locator('[data-slot="list-row-title"]').evaluate(element => {
+            const style = getComputedStyle(element)
+            return element.scrollWidth <= element.clientWidth && element.getBoundingClientRect().height <= parseFloat(style.lineHeight) + 1
+          })
+          expect(labelFits).toBe(true)
+          await dated.click()
+          await expect(dated).toBeChecked()
+          await expect(screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })).toBeVisible()
           await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) }).click()
           const when = screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })
           const frequency = screen.getByRole('radiogroup', { name: messages.habits.form.frequency, exact: true })
+          await expect(frequency.getByRole('radio')).toHaveCount(2)
+          await expect(noDate).toHaveCount(0)
           const timing = screen.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) })
           const whenBox = (await when.boundingBox())!
           const frequencyBox = (await frequency.boundingBox())!

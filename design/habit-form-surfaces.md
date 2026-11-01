@@ -7,8 +7,8 @@
 | Create and edit composition | `components/habits/create-habit-modal.tsx`, `edit-habit-modal.tsx` | Task selected on create, persisted edit prefill, inherited General locks, retained drafts and unsaved-change guard |
 | Name and description | `habit-form-fields.tsx`, `habit-form-fields/habit-understanding.tsx` | Standard 54px growing name, equal mirror/input metrics, then one full description before all conditional content (#1607) |
 | Type | `habit-form-fields/habit-type-field.tsx` | Two vertical RadioRow choices before the focal title, visible validation and group focus |
-| Date | `habit-form-fields/habit-date-field.tsx` | When input, type-specific question and editable date before More details; General hides only the date group |
-| Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed, count-based and Anytime choices with a reachable return and tree locks |
+| Date | `habit-form-fields/habit-date-field.tsx` | When input and editable date before More details; tasks choose Do on or No date, and No date hides the phrase and picker |
+| Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed and count-based Habit choices; undated tasks remain in the Task date group with tree locks |
 | Date interpretation | Shared `date-phrase-parser.ts`, `date-interpretation-session.ts`, `habit-date-editor.ts`; app `use-date-interpretation.ts` | Offline calendar arithmetic, automatic debounced interpretation, editable draft date, in-field Astra provenance, stale rejection and terminal allowance refresh |
 | Recurrence intent | Shared `habit-recurrence-phrase.ts`, `habit-phrase-parser.ts`, `habit-date-editor.ts`, `habit-form-helpers.ts`; paired date/type fields and form hooks | Bilingual daily, weekly count and weekday wording writes the existing schedule for a deliberately selected dated Habit; a single Task weekday selects its next occurrence; explicit Task repetition keeps one inline recovery toward the existing Habit choice |
 | Type readback | `habit-row-content.tsx`, `habit-detail-screen.tsx` | Whole quiet vocabulary beneath the full-width title; original controls and counts retained |
@@ -78,7 +78,7 @@ The comparison sources are pre-promotion web `dfc321dc1^` and Android release so
 
 | Baseline capability | Disposition in both mirrors |
 |---|---|
-| Four schedule handlers | Restored with explicit Task/Habit and three Habit schedule choices |
+| Four schedule handlers | Task date choices own dated and General tasks; Habit owns fixed and count-based schedules |
 | Editable date | Restored outside details, with account-local default and distinct due/start semantics |
 | Clear selected end date | Retained explicit clear control and clearEndDate update contract |
 | Title and emoji, manual and suggested | Retained; explicit type cannot be overwritten by cadence-looking text or late suggestion |
@@ -182,7 +182,7 @@ form-size or invocation rule requiring an edit; the owning contradictions are in
 | Previous section or action | Final paired owner and boundary |
 |---|---|
 | Inline title rename and emoji picker | One named type-aware pencil opens `edit-habit-modal.tsx`; title/emoji are draft fields in `habit-form-fields.tsx` |
-| Task/Habit, fixed/count/General, weekdays, quantity, interval and tree constraints | Existing complete editor and shared mode drafts; no inline schedule writer |
+| Task/Habit, dated/undated tasks, fixed/count habits, weekdays, quantity, interval and tree constraints | Existing complete editor and shared mode drafts; no inline schedule writer |
 | Editable start/due date, local phrase, picker and explicit Astra proposal | Existing date editor; accepted proposals update the draft; Save owns persistence |
 | Exact/end time, relative offsets and absolute/scheduled reminders | Existing form reminder owners; local until Save |
 | End date and description clears | Full update carries clearEndDate and the explicit empty description |
@@ -307,3 +307,33 @@ the screen title role. The empty emoji well uses the smile glyph.
 Owning web and Android Vitest cases cover these decisions through the real form and request
 builders. Hermetic phone and desktop layout cases are submitted for CI. Installed Android rendering
 and whole-page visual inspection remain coordinator-owned acceptance boundaries.
+
+
+## Undated task date choice (#1922)
+
+General is a one-time task without a date. Create starts as a dated Task, except when opened
+from Geral, where Task and No date are selected together. In When,
+Do on / Fazer em retains the phrase and calendar; No date / Sem data saves through the existing
+General request path, with no dueDate, startDate or cadence fields. General edit and child prefill
+select Task and No date with an empty date. Habit frequency offers only Every and Times per.
+The previous repeating hint is removed. The existing Task hint describes completion once.
+Edit hydration supplies an empty date phrase before applying its mode, so an unchanged undated
+task closes directly. Deliberately choosing No date still requires discard confirmation.
+
+Visible references use undated task / tarefa sem data and No date / Sem data. The primary
+navigation label stays General / Geral.
+
+Dated Task, undated Task, fixed Habit and count-based Habit drafts remain independent. Returning
+to a type restores its last date choice or cadence. A General parent locks children to an undated
+Task; a dated parent disables No date. Repeat every remains available in the timing sheet for
+General, and existing reminder prefill and request ownership stay intact.
+
+The field order remains Type, title, Description, When, Habit frequency, Time and reminder,
+then More details. Description stays directly after the title under #1607. The title remains the
+focal input; the date decision reuses the existing vertical RadioRow controls and tokens.
+
+Web and Android tests submit the actual create/edit owners, cover General prefill and conversion,
+and retain date-context cancellation and schedule draft restoration. The hermetic layout cases
+cover No date and returning to a date in both locales and themes at compact and desktop widths.
+The layout workflow owns execution. API #1940 must reach production before consumer publication;
+Android Open delivery and Play acceptance remain coordinator-owned acceptance steps.

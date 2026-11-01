@@ -122,7 +122,10 @@ async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
     selectedHabit = next
     await act(() => { tree.update(element(true)); return Promise.resolve() })
   }
-  return { onSaved, onClose, tree, changeHabit, setOpen: async (open: boolean) => { await act(() => { tree.update(element(open)); return Promise.resolve() }) }, title: tree.root.findAll((node) => (node.type as unknown) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!, submit: tree.root.findAll((node) => (node.type as unknown) === 'Pressable').find((node) => node.findAll((child) => (child.type as unknown) === 'Text').some((text) => text.props.children === label))! }
+  const titleLabel = mode === 'edit' && (selectedHabit.isGeneral || selectedHabit.frequencyUnit === null) ? 'habits.form.taskDescribe' : 'habits.form.describe'
+  const title = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === titleLabel)[0]!
+  expect(title).toBeDefined()
+  return { onSaved, onClose, tree, changeHabit, setOpen: async (open: boolean) => { await act(() => { tree.update(element(open)); return Promise.resolve() }) }, title, submit: tree.root.findAll((node) => (node.type as unknown) === 'Pressable').find((node) => node.findAll((child) => (child.type as unknown) === 'Text').some((text) => text.props.children === label))! }
 }
 
 async function changeTitle(title: ReactTestInstance, value: string) {
@@ -259,7 +262,8 @@ describe('controlled full editor checklist', () => {
     await settleMutation()
     if (replacement === 'habit') await changeHabit(createMockHabit({ id: '22222222-2222-4222-8222-222222222222', isGeneral: true, frequencyUnit: null }))
     else await act(() => { advanceAccountGeneration(); return Promise.resolve() })
-    const nextTitle = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!
+    const nextTitle = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.taskDescribe')[0]!
+    expect(nextTitle).toBeDefined()
     await changeTitle(nextTitle, 'Replacement draft')
     await act(() => { finish(); return Promise.resolve() })
     await settleMutation()

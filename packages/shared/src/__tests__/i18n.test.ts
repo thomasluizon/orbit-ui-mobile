@@ -187,6 +187,25 @@ describe('i18n locale parity', () => {
   const enFlat = flatten(en as JsonValue)
   const ptFlat = flatten(ptBR as JsonValue)
 
+  it.each([
+    { locale: 'en', catalog: en, tasks: 'Undated tasks', task: 'Undated task', noDate: 'No date', tab: 'General' },
+    { locale: 'pt-BR', catalog: ptBR, tasks: 'Tarefas sem data', task: 'Tarefa sem data', noDate: 'Sem data', tab: 'Geral' },
+  ])('names undated tasks consistently while retaining the navigation label in $locale', ({ catalog, tasks, task, noDate, tab }) => {
+    expect(catalog.habits.viewGeneral).toBe(tab)
+    expect(catalog.habits.form.noSchedule).toBe(noDate)
+    expect(catalog.chat.preview.itemGroup.General).toBe(tasks)
+    expect(catalog.chat.preview.summary.anytime).toBe(noDate)
+    expect(catalog.chat.operation.field.is_general).toBe(noDate)
+    expect(catalog.onboarding.flow.done.generalPending).toBe(task)
+    for (const message of [catalog.settings.homeScreen.showGeneral, catalog.settings.homeScreen.showGeneralDesc]) {
+      expect(message.toLowerCase()).toContain(tasks.toLowerCase())
+    }
+    expect(catalog.habits.emptyGeneral.toLowerCase()).toContain(task.toLowerCase())
+    for (const [key, value] of flatten(catalog)) {
+      expect(value, key).not.toMatch(/sem dia fixo|sem dia certo|general habits?|hábitos? gera(?:l|is)/i)
+    }
+  })
+
   it.each([['en', enFlat], ['pt-BR', ptFlat]])('uses instructions or format examples for every %s placeholder', (_locale, catalog) => {
     const violations = [...catalog].filter(([key, value]) => /placeholder$/i.test(key) && !isInstructionOrFormatExample(value))
     expect(violations).toEqual([])
@@ -234,7 +253,7 @@ describe('i18n locale parity', () => {
         if (otherMeanings.has(key)) continue
         if (key === 'habits.form.typeTask' && value === task) continue
         expect(value, `${locale}: ${key}`).not.toMatch(internal)
-        if (key !== 'habits.form.noScheduleHint' && key !== 'habits.viewGeneral' && key !== 'habits.emptyGeneral' && key !== 'chat.preview.itemGroup.General') {
+        if (key !== 'habits.viewGeneral') {
           expect(value, `${locale}: ${key}`).not.toMatch(general)
         }
       }

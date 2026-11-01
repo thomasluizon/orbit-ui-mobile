@@ -576,10 +576,11 @@ and `Hábito` / `Habit`. An unseeded create starts with Task selected (#1922). A
 inherited type shows its actual selection. The focal title stays editable; switching type preserves the draft. Title parsing and Astra replies cannot
 overwrite a deliberate type. Raw schedule enum names never render.
 
-A task has no cadence corrections. Habit exposes fixed repetition, count-based repetition and
-`Sem dia fixo` / `Anytime`, with a hint explaining repeated logs in General without a due date.
-The schedule group stays reachable in the undated branch. Tree constraints remain enforced, and
-General retains repeat reminders and excludes clock reminders and avoidance settings. Switching modes preserves their drafts.
+A task has no cadence corrections. When offers `Fazer em` / `Do on` and `Sem data` / `No date`.
+An undated task lives in General and completes once; creation from Geral selects Task and No date.
+Habit exposes only fixed repetition and count-based repetition. Tree constraints remain enforced,
+and the undated branch retains repeat reminders and excludes clock reminders and avoidance settings.
+Switching modes preserves their drafts. Unchanged edit hydration leaves the form clean.
 
 The compact growing name field uses the standard 54px minimum with matching mirror/input metrics. Description follows it immediately, before emoji, understanding and proposal content, with one owned 10,000-character field. Type stays first. RadioRow keeps its 52px minimum: one-line content is centred as a group, while wrapped labels grow with the glyph aligned to their first line (#1607).
 

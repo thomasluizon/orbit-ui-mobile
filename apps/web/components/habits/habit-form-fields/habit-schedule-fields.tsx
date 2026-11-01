@@ -9,7 +9,7 @@ import { RadioGroup } from '@/components/ui/radio-group'
 import { FormSectionLabel } from './form-section-label'
 import { RadioRow } from '@/components/ui/select-check'
 
-export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChange, onModeChange, proposed = false, hidden = false, general = false, generalLocked = false, onGeneral }: Readonly<HabitScheduleFieldsProps>) {
+export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChange, onModeChange, proposed = false, hidden = false }: Readonly<HabitScheduleFieldsProps>) {
   const t = useTranslations()
   const availability = disabled ? { disabled: true as const, reason: t('common.locked') } : { disabled: false as const }
   const invalid = Boolean(unit) && (quantity === null || !Number.isInteger(quantity) || quantity < 1)
@@ -27,9 +27,7 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
         <Proposed keepMounted inset proposed={proposed && flexible} scope="row" label={t('habits.detail.proposed')}>
           <RadioRow proposed={proposed && flexible} label={t('habits.form.timesPerUnit')} selected={flexible} {...availability} onSelect={() => { if (!disabled) onModeChange(true) }} />
         </Proposed>
-        <RadioRow label={t('habits.form.noSchedule')} description={t('habits.form.noScheduleHint')} selected={general} {...(generalLocked || disabled ? { disabled: true as const, reason: t('common.locked') } : { disabled: false as const })} onSelect={onGeneral} />
       </RadioGroup>
-      {!general ? <>
       <Proposed keepMounted inset proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         <Input
           proposed={proposed}
@@ -55,7 +53,6 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
           ))}
         </RadioGroup>
       </div>
-      </> : null}
       {flexible && unit && quantity !== null && !invalid ? <span className="text-sm leading-[1.5] text-[var(--fg-3)]">{t('habits.form.flexibleDescription', { n: quantity, unit })}</span> : null}
     </section>
   )

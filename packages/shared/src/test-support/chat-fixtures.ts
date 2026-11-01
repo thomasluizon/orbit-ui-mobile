@@ -215,7 +215,7 @@ export const partialScheduleSummaryCases = [
   ], english: 'Choose any day → Keep fixed days', portuguese: 'Escolher qualquer dia → Manter dias fixos' },
   { name: 'change general tracking without a schedule', fields: [
     { field: 'is_general', oldValue: 'true', newValue: 'False', proposedValue: false },
-  ], english: 'Anytime → Follow a schedule', portuguese: 'Sem dia fixo → Seguir um horário' },
+  ], english: 'No date → Follow a schedule', portuguese: 'Sem data → Seguir um horário' },
   { name: 'change cadence and habit polarity together', fields: [
     { field: 'frequency_unit', oldValue: 'Week', newValue: 'Day', proposedValue: 'Day' },
     { field: 'frequency_quantity', oldValue: '1', newValue: '1', proposedValue: 1 },

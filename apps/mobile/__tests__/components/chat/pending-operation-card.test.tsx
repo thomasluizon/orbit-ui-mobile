@@ -1,5 +1,6 @@
 import { makeOfferedPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { formatLocaleDate } from '@orbit/shared/utils'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -18,6 +19,8 @@ import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 import { __resetTestHostConfig, __setFocusImpl, __setTouchMode, __focusHost, __getFocusedNativeTag } from '../../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
+
+vi.unmock('@/components/ui/date-field')
 
 function renderedText(node: unknown): string {
   return collectRenderedText(node).replace(/\u00a0/g, ' ')
@@ -81,19 +84,67 @@ function press(tree: any, label: string) {
   )[0]
 }
 
+function previewDateTrigger(tree: ReactTestRenderer, label: string) {
+  return tree.root.findAllByType(Pressable).find(node => typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.startsWith(`${label},`))!
+}
+
+function selectPreviewDate(tree: ReactTestRenderer, label: string, date: string) {
+  TestRenderer.act(() => (previewDateTrigger(tree, label).props.onPress as () => void)())
+  TestRenderer.act(() => press(tree, formatLocaleDate(date, visibleLocale.language, { month: 'long', day: 'numeric', year: 'numeric' })).props.onPress())
+}
+
 beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.actual = false; visibleLocale.language = 'en' })
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  it.each(['en', 'pt-BR'])('revises a task date with the calendar before approval in %s', async locale => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const operation = makeDatedTaskPreview()
+    const revised = makeDatedTaskPreview('due_date', '2026-11-05')
+    revised.previewFingerprint = 'date-revised'
+    const revise = vi.fn().mockResolvedValue({ ok: true, result: { cancelled: false, preview: revised } })
+    const { tree, handlers } = renderCard(operation, revise)
+    handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(['Success']) })
+    TestRenderer.act(() => tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityLabel === messages.chat.preview.edit)!.props.onPress())
+    expect(renderedText(previewDateTrigger(tree, messages.chat.operation.field.due_date))).toContain(formatLocaleDate('2026-11-04', locale))
+    selectPreviewDate(tree, messages.chat.operation.field.due_date, '2026-11-05')
+    await TestRenderer.act(() => press(tree, messages.common.save).props.onPress())
+    expect(revise).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [{ itemId: '0', edits: { due_date: '2026-11-05' } }] })
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityLabel === messages.chat.preview.edit)!.props.onPress())
+    expect(renderedText(previewDateTrigger(tree, messages.chat.operation.field.due_date))).toContain(formatLocaleDate('2026-11-05', locale))
+    await TestRenderer.act(() => press(tree, messages.common.cancel).props.onPress())
+    await TestRenderer.act(() => press(tree, translateVisible('chat.operation.approveCount.createHabits', { count: 1 })).props.onPress())
+    expect(handlers.onConfirmExecute).toHaveBeenCalledExactlyOnceWith(operation.id)
+  })
+
+  it.each(['date', 'start_date', 'end_date', 'deadline'])('edits the typed %s date and only offers optional clears', async field => {
+    visibleLocale.actual = true
+    const operation = makeDatedTaskPreview(field)
+    const label = field === 'start_date' ? en.habits.form.startDate : field === 'deadline' ? en.goals.form.deadline : translateVisible(`chat.operation.field.${field}`)
+    const revise = vi.fn().mockResolvedValue({ ok: false, error: 'invalid_revision' })
+    const { tree } = renderCard(operation, revise)
+    TestRenderer.act(() => press(tree, en.chat.preview.edit).props.onPress())
+    selectPreviewDate(tree, label, '2026-11-05')
+    const clear = press(tree, field === 'end_date' ? en.habits.form.removeEndDate : en.goals.form.removeDeadline)
+    if (field === 'end_date' || field === 'deadline') TestRenderer.act(() => clear.props.onPress())
+    else expect(clear).toBeUndefined()
+    await TestRenderer.act(() => press(tree, en.common.save).props.onPress())
+    expect(revise).toHaveBeenCalledWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [{ itemId: '0', edits: { [field]: clear ? null : '2026-11-05' } }] })
+    expect(tree.root.findAllByType(Text).filter((node: ReactTestInstance) => node.props.accessibilityRole === 'alert').every((node: ReactTestInstance) => renderedText(node) === en.chat.operation.invalid)).toBe(true)
+  })
+
   it.each(['en', 'pt-BR'])('groups mixed preview items once in %s', locale => {
     visibleLocale.actual = true
     visibleLocale.language = locale
     const { tree } = renderCard(makeTypedHabitsPreview(), vi.fn())
     const body = tree.root.findByProps({ testID: 'block-frame-body' })
     const headings = body.findAllByType(Text).filter((node: ReactTestInstance) => node.props.accessibilityRole === 'header')
-    expect(headings.map((node: ReactTestInstance) => renderedText(node))).toEqual(locale === 'en' ? ['Tasks', 'Habits', 'General habits'] : ['Tarefas', 'Hábitos', 'Hábitos gerais'])
+    expect(headings.map((node: ReactTestInstance) => renderedText(node))).toEqual(locale === 'en' ? ['Tasks', 'Habits', 'Undated tasks'] : ['Tarefas', 'Hábitos', 'Tarefas sem data'])
     const text = renderedText(body)
-    const ordered = ['Tasks', 'Habit 3', 'Habit 5', 'Habits', 'Habit 2', 'Habit 4', 'General habits', 'Habit 1'].map(label => locale === 'en' ? label : ({ Tasks: 'Tarefas', Habits: 'Hábitos', 'General habits': 'Hábitos gerais' }[label] ?? label))
+    const ordered = ['Tasks', 'Habit 3', 'Habit 5', 'Habits', 'Habit 2', 'Habit 4', 'Undated tasks', 'Habit 1'].map(label => locale === 'en' ? label : ({ Tasks: 'Tarefas', Habits: 'Hábitos', 'Undated tasks': 'Tarefas sem data' }[label] ?? label))
     expect(ordered.map(label => text.indexOf(label))).toEqual(ordered.map(label => text.indexOf(label)).sort((first, second) => first - second))
     expect(tree.root.findAllByType(ScrollView).filter((node: ReactTestInstance) => node.props.testID === 'block-frame-body')).toHaveLength(1)
     expect(tree.root.findAllByType(Pressable).filter((node: ReactTestInstance) => node.props.accessibilityLabel === translateVisible('chat.operation.approveCount.createHabits', { count: 5 }))).toHaveLength(1)
@@ -132,8 +183,9 @@ describe('PendingOperationCard (mobile)', () => {
     TestRenderer.act(() => press(tree, en.chat.preview.edit).props.onPress())
     const reused = tree.root.findAllByType(Pressable).find((node: ReactTestInstance) => node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'Dentista')!
     TestRenderer.act(() => reused.props.onPress())
-    expect(tree.root.findByProps({ accessibilityLabel: en.chat.operation.field.due_date }).props.value).toBe('2026-11-04')
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: en.chat.operation.field.due_date }).props.onChangeText('2026-11-05'))
+    TestRenderer.act(() => press(tree, `${en.chat.operation.field.due_date}, Date 11/04/2026`).props.onPress())
+    expect(press(tree, 'November 4, 2026').props.accessibilityState.selected).toBe(true)
+    TestRenderer.act(() => press(tree, 'November 5, 2026').props.onPress())
     await TestRenderer.act(() => press(tree, en.common.save).props.onPress())
     expect(revise).toHaveBeenCalledWith(operation.id, {
       previewFingerprint: operation.previewFingerprint,
@@ -502,7 +554,7 @@ describe('PendingOperationCard (mobile)', () => {
       : new Promise<PendingOperationRevisionResponse>((resolve) => { resolveRevision = resolve }))
     const { tree, handlers } = renderCard(preview, revise)
     TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-27'))
+    selectPreviewDate(tree, 'chat.operation.field.date', '2026-09-27')
     await TestRenderer.act(async () => {
       press(tree, 'common.save').props.onPress()
       await Promise.resolve()
@@ -571,11 +623,11 @@ describe('PendingOperationCard (mobile)', () => {
   it('replaces a same-ID preview and clears an unsaved draft when its fingerprint changes', () => {
     const { tree, handlers } = renderCard(preview, vi.fn())
     TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-30'))
+    selectPreviewDate(tree, 'chat.operation.field.date', '2026-09-30')
     TestRenderer.act(() => tree.update(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...preview, items: [secondItem], changeTargetCount: 1, previewFingerprint: 'preview-other' })} onRevise={vi.fn()} {...handlers} />))
     expect(renderedText(tree.toJSON())).not.toContain('Run')
     expect(renderedText(tree.toJSON())).toContain('Read')
-    expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.field.date' })).toHaveLength(0)
+    expect(previewDateTrigger(tree, 'chat.operation.field.date')).toBeUndefined()
   })
 
   it('closes confirmation and blocks its old handler when the preview changes', async () => {
@@ -652,7 +704,7 @@ describe('PendingOperationCard (mobile)', () => {
     const revise = vi.fn().mockResolvedValue({ ok: false, error: 'stale', stale: true })
     const { tree } = renderCard(preview, revise)
     TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-27'))
+    selectPreviewDate(tree, 'chat.operation.field.date', '2026-09-27')
     sheetTestControls.defer(true)
     await TestRenderer.act(async () => {
       press(tree, 'common.save').props.onPress()
@@ -660,7 +712,7 @@ describe('PendingOperationCard (mobile)', () => {
     })
     TestRenderer.act(() => sheetTestControls.rejectDismissal())
 
-    expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.field.date' })).toHaveLength(0)
+    expect(previewDateTrigger(tree, 'chat.operation.field.date')).toBeUndefined()
   })
 
   it('keeps a pending verification response from replacing the stale native dismissal', async () => {
@@ -686,10 +738,10 @@ describe('PendingOperationCard (mobile)', () => {
   it('keeps a draft when the editor switches to another item and back', () => {
     const { tree } = renderCard(preview, vi.fn())
     TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-30'))
+    selectPreviewDate(tree, 'chat.operation.field.date', '2026-09-30')
     TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'radio', accessibilityLabel: 'Read' }).props.onPress())
     TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'radio', accessibilityLabel: 'Run' }).props.onPress())
-    expect(tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.value).toBe('2026-09-30')
+    expect(renderedText(previewDateTrigger(tree, 'chat.operation.field.date'))).toContain('09/30/2026')
     expect(tree.root.findAllByProps({ accessibilityLabel: 'common.search' })).toHaveLength(0)
   })
 
@@ -728,12 +780,12 @@ describe('PendingOperationCard (mobile)', () => {
     expect(read!.props.accessibilityState).toMatchObject({ checked: false })
     expect(focused).toHaveBeenCalledWith(expect.objectContaining({ accessibilityRole: 'radio', accessibilityLabel: 'Run' }))
     TestRenderer.act(() => focusHost(tree, run!))
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-30'))
+    selectPreviewDate(tree, 'chat.operation.field.date', '2026-09-30')
     TestRenderer.act(() => focusHost(tree, read!))
     expect(read!.props.accessibilityState).toMatchObject({ checked: true })
     expect(run!.props.accessibilityState).toMatchObject({ checked: false })
     TestRenderer.act(run!.props.onPress)
-    expect(tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.value).toBe('2026-09-30')
+    expect(renderedText(previewDateTrigger(tree, 'chat.operation.field.date'))).toContain('09/30/2026')
     expect(revise).not.toHaveBeenCalled()
     TestRenderer.act(() => press(tree, 'common.cancel').props.onPress())
     expect(tree.root.findAllByProps({ accessibilityRole: 'radiogroup' })).toHaveLength(0)
@@ -772,7 +824,7 @@ describe('PendingOperationCard (mobile)', () => {
     const { tree } = renderCard(preview, revise, undefined, undefined, true)
     TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
     TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'radio', accessibilityLabel: 'Read' }).props.onPress())
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-30'))
+    selectPreviewDate(tree, 'chat.operation.field.date', '2026-09-30')
     TestRenderer.act(() => press(tree, 'common.save').props.onPress())
     expect(revise).toHaveBeenCalledWith('pending-1', {
       previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1' }, { itemId: 'habit-2', edits: { date: '2026-09-30' } }],
@@ -789,10 +841,11 @@ describe('PendingOperationCard (mobile)', () => {
     expect(rows[0]!.props.accessibilityState).toMatchObject({ checked: false })
     expect(rows[1]!.props.accessibilityState).toMatchObject({ checked: true })
     expect(press(tree, 'common.cancel').props.disabled).toBe(true)
+    expect(previewDateTrigger(tree, 'chat.operation.field.date').props.disabled).toBe(true)
     await TestRenderer.act(async () => { finishRevision({ ok: false, error: 'invalid_revision' }); await Promise.resolve() })
     expect(itemRadios(group)[1]!.props.accessibilityState).toMatchObject({ checked: true })
     expect(itemRadios(group)[1]!.props.onPress).toBeTypeOf('function')
-    expect(tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.value).toBe('2026-09-30')
+    expect(renderedText(previewDateTrigger(tree, 'chat.operation.field.date'))).toContain('09/30/2026')
   })
 
   it('shows one boolean editor label inside the switch and preserves its draft while saving', async () => {
@@ -1615,7 +1668,7 @@ describe('restart plan preview', () => {
     const summaries = () => items.map(item => tree.root.find((node: ReactTestInstance) => typeof node.props.testID === 'string' && node.props.testID.startsWith(`block-frame-item-${item.itemId}-`))).map(row => row.findAllByType(Text).map((node: ReactTestInstance) => renderedText(node)))
     summaries().forEach((texts, index) => expect(texts).toContain(expected[index]))
     TestRenderer.act(() => press(tree, messages.chat.operation.edit).props.onPress())
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: messages.chat.operation.field.due_date }).props.onChangeText('2026-10-30'))
+    selectPreviewDate(tree, messages.chat.operation.field.due_date, '2026-10-30')
     await TestRenderer.act(async () => { press(tree, messages.common.save).props.onPress(); await Promise.resolve() })
     expect(onRevise).toHaveBeenCalledWith(operation.id, {
       previewFingerprint: operation.previewFingerprint,

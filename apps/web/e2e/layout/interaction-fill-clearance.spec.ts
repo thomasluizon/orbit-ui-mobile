@@ -23,13 +23,17 @@ for (const width of [320, 360, 384, 412, 600, 1024, 1352]) {
           const habit = type.getByRole('radio', { name: new RegExp(words.typeHabit) })
           await habit.click()
           const frequency = screen.getByRole('radiogroup', { name: words.frequency, exact: true })
-          const anytime = frequency.getByRole('radio', { name: new RegExp(words.noSchedule) })
-          await anytime.click()
+          const timesPer = frequency.getByRole('radio', { name: words.timesPerUnit, exact: true })
+          const task = type.getByRole('radio', { name: new RegExp(words.typeTask) })
+          const dates = screen.getByRole('radiogroup', { name: words.datePhrase, exact: true })
+          const noDate = dates.getByRole('radio', { name: words.noSchedule, exact: true })
           await page.evaluate(() => document.fonts.ready)
-          for (const [row, neighbour] of [
-            [frequency.getByRole('radio', { name: words.timesPerUnit, exact: true }), anytime],
-            [type.getByRole('radio', { name: new RegExp(words.typeTask) }), habit],
+          for (const [select, row, neighbour] of [
+            [() => timesPer.click(), frequency.getByRole('radio', { name: words.every, exact: true }), timesPer],
+            [() => habit.click(), task, habit],
+            [async () => { await task.click(); await noDate.click() }, dates.getByRole('radio', { name: words.taskDate, exact: true }), noDate],
           ] as const) {
+            await select()
             await expect(neighbour).toHaveAttribute('aria-checked', 'true')
             await inspectControls(page, row, `option rows, ${width}px, ${locale}, ${mode}`, INTERACTION_FILL_CLEARANCE)
             await expect(page.locator('[data-interaction-fill-probe]')).toHaveCount(0)

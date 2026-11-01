@@ -11,11 +11,11 @@ import { DestinationShell } from '@/components/shell/destination-shell'
 import { useUIStore } from '@/stores/ui-store'
 import { useShellStore } from '@/stores/shell-store'
 
-const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn(), wide: true }))
+const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn(), replace: vi.fn(), wide: true }))
 vi.mock('next/navigation', () => ({
   usePathname: () => navigation.pathname,
   useParams: () => ({}),
-  useRouter: () => ({ push: navigation.push }),
+  useRouter: () => ({ push: navigation.push, replace: navigation.replace }),
 }))
 vi.mock('next/link', () => ({ default: ({ href, onClick, onNavigate, children, ...props }: {
   href: string; onClick?: MouseEventHandler<HTMLAnchorElement>; onNavigate?: (event: { preventDefault: () => void }) => void; children: ReactNode
@@ -63,6 +63,7 @@ beforeEach(() => {
   navigation.pathname = '/'
   navigation.wide = true
   navigation.push.mockReset().mockImplementation((pathname: string) => { navigation.pathname = pathname })
+  navigation.replace.mockReset().mockImplementation((pathname: string) => { navigation.pathname = pathname })
   useUIStore.setState({ astraConversationOpen: false })
   useShellStore.setState({ paletteOpen: false })
   vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
@@ -130,6 +131,7 @@ it.each([
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
   expect(screen.queryByRole('dialog', { name: 'Astra' })).toBeNull()
   if (role === 'link') expect(control).toHaveAttribute('href', pathname)
+  if (pathname === '/') expect(navigation.replace).toHaveBeenCalledWith(pathname)
   if (pathname !== '/') expect(navigation.push).toHaveBeenCalledWith(pathname)
   view.rerender(<App />)
   expect(screen.getByRole('heading', { name: pathname })).toBeVisible()

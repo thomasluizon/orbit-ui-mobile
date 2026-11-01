@@ -116,13 +116,13 @@ describe('Android interaction fill clearance', () => {
         </RadioGroup>
         <RadioGroup accessibilityLabel={words.frequency}>
           <Proposed keepMounted inset proposed={false} scope="row" label={words.frequency}>
-            <RadioRow label={words.timesPerUnit} onSelect={vi.fn()} />
+            <RadioRow label={words.every} onSelect={vi.fn()} />
           </Proposed>
-          <RadioRow label={words.noSchedule} description={words.noScheduleHint} selected onSelect={vi.fn()} />
+          <RadioRow label={words.timesPerUnit} selected onSelect={vi.fn()} />
         </RadioGroup>
       </View>) as GeometryTree })
       try {
-        for (const [label, neighbourLabel] of [[words.typeTask, words.typeHabit], [words.timesPerUnit, `${words.noSchedule}, ${words.noScheduleHint}`]]) {
+        for (const [label, neighbourLabel] of [[words.typeTask, words.typeHabit], [words.every, words.timesPerUnit]]) {
           await setInteraction(tree, label!, state)
           const parts = measureInteractionFills(tree.toJSON(), width, state === 'pressed')
           const row = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === label)!

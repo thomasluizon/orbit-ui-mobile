@@ -272,12 +272,15 @@ describe('General repeat edit initialization', () => {
     const prefill = buildEditHabitFormState(habit)
     const { result } = renderHook(() => useHabitForm())
     const helpers = () => result.current
+    expect(helpers().form.formState.isDirty).toBe(false)
     act(() => {
       helpers().resetModeDrafts()
       helpers().form.reset(prefill.formValues)
       applyHabitFormMode(prefill.mode, helpers())
     })
     expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    expect(helpers().form.formState.isDirty).toBe(false)
+    expect(helpers().form.formState.dirtyFields).toEqual({})
     act(() => {
       helpers().form.setValue('title', 'Water renamed')
       if (removeReminder) helpers().form.setValue('reminderEnabled', false)
@@ -293,6 +296,20 @@ describe('General repeat edit initialization', () => {
       expect(request.clearRepeatReminder).toBeUndefined()
     }
   })
+})
+
+it('counts a deliberate switch to No date as an edit', () => {
+  const prefill = buildEditHabitFormState(createMockHabit({ frequencyUnit: null, frequencyQuantity: null }))
+  const { result } = renderHook(() => useHabitForm())
+  expect(result.current.form.formState.isDirty).toBe(false)
+  act(() => {
+    result.current.form.reset(prefill.formValues)
+    applyHabitFormMode(prefill.mode, result.current)
+  })
+  expect(result.current.form.formState.isDirty).toBe(false)
+  act(() => result.current.setGeneral())
+  expect(result.current.form.getValues('isGeneral')).toBe(true)
+  expect(result.current.form.formState.isDirty).toBe(true)
 })
 
 
