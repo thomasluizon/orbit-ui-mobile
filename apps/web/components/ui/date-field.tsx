@@ -30,6 +30,7 @@ interface DateFieldProps {
   label?: string
   focusRequest?: number
   appearance?: 'normal' | 'proposed'
+  disabled?: boolean
 }
 
 function dateValueClassName(displayValue: string, appearance: DateFieldProps['appearance']): string | undefined {
@@ -44,6 +45,7 @@ export function DateField({
   label,
   focusRequest,
   appearance = 'normal',
+  disabled = false,
 }: Readonly<DateFieldProps>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -166,6 +168,7 @@ export function DateField({
       <button
         ref={triggerRef}
         type="button"
+        disabled={disabled}
         aria-label={label ? `${label}, ${selectionLabel}` : selectionLabel}
         aria-expanded={isOpen}
         aria-haspopup="dialog"

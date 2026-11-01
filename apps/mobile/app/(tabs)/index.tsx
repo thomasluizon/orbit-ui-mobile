@@ -87,6 +87,7 @@ function TodayViewHeader({ search, activeView, onChangeView, today, focused, isT
 export default function TodayScreen() {
   const { t } = useTranslation()
   const { profile, isError, refetch } = useProfile()
+  const todayResetVersion = useUIStore((state) => state.todayResetVersion)
   const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
   useEffect(() => () => setTodayFabHidden(true, true), [setTodayFabHidden])
   useEffect(() => {
@@ -112,7 +113,7 @@ export default function TodayScreen() {
           </View>
         </View></>
   }
-  return <TodayScreenContent />
+  return <TodayScreenContent key={todayResetVersion} />
 }
 
 function TodayScreenContent() {
