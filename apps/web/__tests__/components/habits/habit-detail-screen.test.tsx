@@ -1815,11 +1815,17 @@ describe('HabitDetailScreen', () => {
         const bounds = await page.locator('[data-habit-id="child-1"] [data-habit-row-meta-token]').evaluateAll((tokens) => tokens.map((token) => {
           const card = token.closest('[data-testid="habit-row"]')!.getBoundingClientRect()
           const box = token.getBoundingClientRect()
-          return { right: card.right - box.right, bottom: card.bottom - box.bottom }
+          const range = document.createRange()
+          range.selectNodeContents(token)
+          const text = range.getBoundingClientRect()
+          return { right: card.right - box.right, bottom: card.bottom - box.bottom, textRight: box.right - text.right, textBottom: box.bottom - text.bottom }
         }))
+        expect(bounds).toHaveLength(2)
         for (const token of bounds) {
           expect(token.right).toBeGreaterThanOrEqual(0)
           expect(token.bottom).toBeGreaterThanOrEqual(0)
+          expect(token.textRight).toBeGreaterThanOrEqual(0)
+          expect(token.textBottom).toBeGreaterThanOrEqual(0)
         }
       } finally {
         document.documentElement.style.removeProperty('font-size')

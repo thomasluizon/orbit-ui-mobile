@@ -8,6 +8,7 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { StyleSheet } from 'react-native'
 
 vi.unmock('@/components/ui/icons')
 const TestRenderer = require('react-test-renderer')
@@ -57,19 +58,30 @@ describe('integrated native row metadata', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('keeps the Portuguese not-due status inside a child card at 200 percent text', () => {
+  it.each([2, 2.5])('keeps the Portuguese not-due token and its text inside a child card at %s text', (scale) => {
     locale.value = 'pt-BR'
-    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: scale })
     const schedule = makeMonthlyChildDaySchedule()
     schedule.children[0]!.isSkippedOnDate = false
     const habit = normalizeHabitQueryData([schedule]).habitsById.get('child-1')!
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} depth={1} selectedDate={new Date('2026-11-01T12:00:00')} today="2026-11-01" />) })
-    const geometry = measureInteractionFills(tree!.toJSON(), 288, false, 2)
+    const geometry = measureInteractionFills(tree!.toJSON(), 288, false, scale)
     const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
     const status = geometry.find((part) => part.host.type === 'Text' && part.host.children?.includes(ptBR.calendar.dayCell.notScheduled))!
+    const text = tree!.root.findAllByType('Text').find((node: import('react-test-renderer').ReactTestInstance) => node.props.children === ptBR.calendar.dayCell.notScheduled)!
+    const tokenView = tree!.root.findAllByType('View').find((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === 'habit-row-meta-token' && node.findAllByType('Text').some((part: import('react-test-renderer').ReactTestInstance) => part.props.children === ptBR.calendar.dayCell.notScheduled))!
+    expect(StyleSheet.flatten(tokenView.props.style)).toMatchObject({ minWidth: 0, maxWidth: '100%', flexShrink: 1 })
+    expect(StyleSheet.flatten(text.props.style)).toMatchObject({ minWidth: 0, flexShrink: 1 })
+    expect(text.props.numberOfLines).toBeUndefined()
+    expect(status.left).toBeGreaterThanOrEqual(row.left)
     expect(status.right).toBeLessThanOrEqual(row.right)
     expect(status.bottom).toBeLessThanOrEqual(row.bottom)
+    for (const token of geometry.filter((part) => part.host.props.testID === 'habit-row-meta-token')) {
+      expect(token.left).toBeGreaterThanOrEqual(row.left)
+      expect(token.right).toBeLessThanOrEqual(row.right)
+      expect(token.bottom).toBeLessThanOrEqual(row.bottom)
+    }
     TestRenderer.act(() => tree.unmount())
   })
 

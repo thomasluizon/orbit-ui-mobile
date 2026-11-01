@@ -9,7 +9,7 @@ afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.resto
 
 function List({ ids, parentId = null }: Readonly<{ ids: string[]; parentId?: string | null }>) {
   const ref = useHabitListScrollAnchor(parentId)
-  return <div data-shell-scroller=""><div ref={ref} data-habit-list="" style={{ overflowAnchor: 'none' }}>
+  return <div data-shell-scroller="" style={{ position: 'relative', paddingTop: 0 }}><div ref={ref} data-habit-list="" style={{ overflowAnchor: 'none' }}>
     <ListPresence>{ids.map((id) => <ListMotionItem key={id}><button>{id}</button></ListMotionItem>)}</ListPresence>
   </div></div>
 }

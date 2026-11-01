@@ -94,9 +94,11 @@ export function TitleText({ title, size, color, expanded }: Readonly<TitleTextPr
 interface MetaStripProps {
   tokens: HabitRowMetaToken[]
   largeText?: boolean
+  supportingLine?: boolean
 }
 
-export function MetaStrip({ tokens, largeText = false }: Readonly<MetaStripProps>) {
+export function MetaStrip({ tokens, largeText = false, supportingLine = false }: Readonly<MetaStripProps>) {
+  const wrapDateStatus = largeText || supportingLine
   return (
     <span
       data-habit-row-meta=""
@@ -110,8 +112,8 @@ export function MetaStrip({ tokens, largeText = false }: Readonly<MetaStripProps
       }}
     >
       {tokens.map((token, i) => (
-        <span key={metaTokenKey(token, i)} data-habit-row-meta-token="" className={`inline-flex items-center gap-[4px] ${largeText && typeof token !== 'string' && token.kind === 'date-status' ? 'min-w-0 max-w-full shrink whitespace-normal' : 'shrink-0 whitespace-nowrap'}`}>
-          {renderMetaToken(token, largeText)}
+        <span key={metaTokenKey(token, i)} data-habit-row-meta-token="" className={`inline-flex items-center gap-[4px] ${wrapDateStatus && typeof token !== 'string' && token.kind === 'date-status' ? 'min-w-0 max-w-full shrink whitespace-normal' : 'shrink-0 whitespace-nowrap'}`}>
+          {renderMetaToken(token, largeText, wrapDateStatus)}
           {i < tokens.length - 1 && <span>·</span>}
         </span>
       ))}
@@ -124,7 +126,7 @@ function metaTokenKey(token: HabitRowMetaToken, index: number): string {
   return `${token.kind}:${index}`
 }
 
-function renderMetaToken(token: HabitRowMetaToken, largeText: boolean): ReactNode {
+function renderMetaToken(token: HabitRowMetaToken, largeText: boolean, wrapDateStatus: boolean): ReactNode {
   if (typeof token === 'string') return token
   if (token.kind === 'type') return <span data-habit-row-type="">{token.label}</span>
   if (token.kind === 'checklist') return <span data-habit-row-checklist="" className="inline-flex shrink-0 items-center gap-[4px] whitespace-nowrap">
@@ -136,5 +138,7 @@ function renderMetaToken(token: HabitRowMetaToken, largeText: boolean): ReactNod
     : token.kind === 'bad'
       ? 'var(--status-bad-text)'
       : undefined
-  return <span data-habit-row-meta-state={token.kind} style={color ? { color, fontWeight: 500 } : {}}>{token.label}</span>
+  return <span data-habit-row-meta-state={token.kind}
+    className={wrapDateStatus && token.kind === 'date-status' ? 'min-w-0 [overflow-wrap:anywhere]' : undefined}
+    style={color ? { color, fontWeight: 500 } : {}}>{token.label}</span>
 }
