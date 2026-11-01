@@ -1,5 +1,6 @@
 import { makeOfferedPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { formatLocaleDate } from '@orbit/shared/utils'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -56,6 +57,15 @@ vi.mock('@/components/ui/otp-input', () => ({
     <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} />,
 }))
 
+function previewDateTrigger(label: string) {
+  return screen.getByRole('button', { name: new RegExp(`^${label},`) })
+}
+
+function selectPreviewDate(label: string, date: string) {
+  fireEvent.click(previewDateTrigger(label))
+  fireEvent.click(screen.getByRole('button', { name: formatLocaleDate(date, visibleLocale.language, { month: 'long', day: 'numeric', year: 'numeric' }) }))
+}
+
 const confirm = vi.fn()
 const prepareStepUp = vi.fn()
 const verifyStepUp = vi.fn()
@@ -74,6 +84,48 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it.each(['en', 'pt-BR'])('revises a task date with the calendar before approval in %s', async locale => {
+    visibleLocale.actual = true
+    visibleLocale.language = locale
+    const messages = locale === 'en' ? en : ptBR
+    const operation = makeDatedTaskPreview()
+    const revised = makeDatedTaskPreview('due_date', '2026-11-05')
+    revised.previewFingerprint = 'date-revised'
+    revise.mockResolvedValue({ ok: true, result: { cancelled: false, preview: revised } })
+    confirm.mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(['Success']) })
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: messages.chat.preview.edit }))
+    expect(previewDateTrigger(messages.chat.operation.field.due_date)).toHaveTextContent(formatLocaleDate('2026-11-04', locale))
+    selectPreviewDate(messages.chat.operation.field.due_date, '2026-11-05')
+    fireEvent.click(screen.getByRole('button', { name: messages.common.save }))
+    await waitFor(() => expect(revise).toHaveBeenCalledExactlyOnceWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [{ itemId: '0', edits: { due_date: '2026-11-05' } }] }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(confirm).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: messages.chat.preview.edit }))
+    expect(previewDateTrigger(messages.chat.operation.field.due_date)).toHaveTextContent(formatLocaleDate('2026-11-05', locale))
+    fireEvent.click(screen.getByRole('button', { name: messages.common.cancel }))
+    fireEvent.click(screen.getByRole('button', { name: translateVisible('chat.operation.approveCount.createHabits', { count: 1 }) }))
+    await waitFor(() => expect(confirm).toHaveBeenCalledExactlyOnceWith(operation.id))
+  })
+
+  it.each(['date', 'start_date', 'end_date', 'deadline'])('edits the typed %s date and only offers optional clears', async field => {
+    visibleLocale.actual = true
+    const operation = makeDatedTaskPreview(field)
+    const label = field === 'start_date' ? en.habits.form.startDate : field === 'deadline' ? en.goals.form.deadline : translateVisible(`chat.operation.field.${field}`)
+    revise.mockResolvedValue({ ok: false, error: 'invalid_revision' })
+    render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: en.chat.preview.edit }))
+    selectPreviewDate(label, '2026-11-05')
+    const clear = screen.queryByRole('button', { name: field === 'end_date' ? en.habits.form.removeEndDate : en.goals.form.removeDeadline })
+    if (field === 'end_date' || field === 'deadline') {
+      fireEvent.click(clear!)
+      expect(previewDateTrigger(label)).toHaveFocus()
+    } else expect(clear).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    await waitFor(() => expect(revise).toHaveBeenCalledWith(operation.id, { previewFingerprint: operation.previewFingerprint, items: [{ itemId: '0', edits: { [field]: clear ? null : '2026-11-05' } }] }))
+    expect((await screen.findAllByRole('alert')).every(alert => alert.textContent === en.chat.operation.invalid)).toBe(true)
+  })
+
   it.each(['en', 'pt-BR'])('groups mixed preview items once in %s', locale => {
     visibleLocale.actual = true
     visibleLocale.language = locale
@@ -117,8 +169,9 @@ describe('PendingOperationCard', () => {
     expect(screen.getByText('Nov 4, 2026')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: en.chat.preview.edit }))
     fireEvent.click(screen.getByRole('radio', { name: 'Dentista' }))
-    expect(screen.getByRole('textbox', { name: en.chat.operation.field.due_date })).toHaveValue('2026-11-04')
-    fireEvent.change(screen.getByRole('textbox', { name: en.chat.operation.field.due_date }), { target: { value: '2026-11-05' } })
+    fireEvent.click(screen.getByRole('button', { name: `${en.chat.operation.field.due_date}, Date 11/04/2026` }))
+    expect(screen.getByRole('button', { name: 'November 4, 2026' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'November 5, 2026' }))
     fireEvent.click(screen.getByRole('button', { name: en.common.save }))
     await waitFor(() => expect(revise).toHaveBeenCalledWith(operation.id, {
       previewFingerprint: operation.previewFingerprint,
@@ -603,7 +656,7 @@ describe('PendingOperationCard', () => {
       : new Promise<PendingOperationRevisionResponse>((resolve) => { resolveRevision = resolve }))
     render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)
-    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.date' }), { target: { value: '2026-09-27' } })
+    selectPreviewDate('chat.operation.field.date', '2026-09-27')
     fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
     await waitFor(() => expect(revise).toHaveBeenCalledWith('pending-1', {
       previewFingerprint: 'preview-1',
@@ -666,14 +719,14 @@ describe('PendingOperationCard', () => {
   it('replaces a same-ID preview and drops its unsaved edit when the fingerprint changes', () => {
     const { rerender } = render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)
-    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.date' }), { target: { value: '2026-09-30' } })
+    selectPreviewDate('chat.operation.field.date', '2026-09-30')
 
     const replacement = makePendingAgentOperation({ ...preview, previewFingerprint: 'preview-other', items: [secondItem], changeTargetCount: 1 })
     rerender(<PendingOperationCard pendingOperation={replacement} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
 
     expect(screen.queryByText('Run')).not.toBeInTheDocument()
     expect(screen.getByText('Read')).toBeInTheDocument()
-    expect(screen.queryByRole('textbox', { name: 'chat.operation.field.date' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^chat.operation.field.date,/ })).not.toBeInTheDocument()
   })
 
   it('closes confirmation and blocks its old handler when the preview changes', () => {
@@ -782,10 +835,10 @@ describe('PendingOperationCard', () => {
   it('keeps an unsaved edit when switching items', () => {
     render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)
-    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.date' }), { target: { value: '2026-09-30' } })
+    selectPreviewDate('chat.operation.field.date', '2026-09-30')
     fireEvent.click(screen.getByRole('radio', { name: 'Read' }))
     fireEvent.click(screen.getByRole('radio', { name: 'Run' }))
-    expect(screen.getByRole('textbox', { name: 'chat.operation.field.date' })).toHaveValue('2026-09-30')
+    expect(previewDateTrigger('chat.operation.field.date')).toHaveTextContent('09/30/2026')
     expect(screen.queryByRole('textbox', { name: 'common.search' })).not.toBeInTheDocument()
   })
 
@@ -806,7 +859,7 @@ describe('PendingOperationCard', () => {
     const read = within(group).getByRole('radio', { name: 'Read' })
     expect(run).toHaveAttribute('tabindex', '0')
     expect(read).toHaveAttribute('tabindex', '-1')
-    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.date' }), { target: { value: '2026-09-30' } })
+    selectPreviewDate('chat.operation.field.date', '2026-09-30')
     run.focus()
     await user.keyboard('{ArrowDown}')
     expect(read).toHaveFocus()
@@ -823,9 +876,9 @@ describe('PendingOperationCard', () => {
     expect(read).toHaveFocus()
     await user.keyboard('{ArrowLeft}')
     expect(run).toHaveFocus()
-    expect(screen.getByRole('textbox', { name: 'chat.operation.field.date' })).toHaveValue('2026-09-30')
+    expect(previewDateTrigger('chat.operation.field.date')).toHaveTextContent('09/30/2026')
     await user.tab()
-    expect(screen.getByRole('textbox', { name: 'chat.operation.field.date' })).toHaveFocus()
+    expect(previewDateTrigger('chat.operation.field.date')).toHaveFocus()
     expect(revise).not.toHaveBeenCalled()
     await user.click(read)
     expect(read).toHaveAttribute('aria-checked', 'true')
@@ -865,7 +918,7 @@ describe('PendingOperationCard', () => {
     render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)
     fireEvent.click(screen.getByRole('radio', { name: 'Read' }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.date' }), { target: { value: '2026-09-30' } })
+    selectPreviewDate('chat.operation.field.date', '2026-09-30')
     fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
     expect(revise).toHaveBeenCalledWith('pending-1', {
       previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1' }, { itemId: 'habit-2', edits: { date: '2026-09-30' } }],
@@ -883,9 +936,10 @@ describe('PendingOperationCard', () => {
     expect(rows[0]).toHaveAttribute('aria-checked', 'false')
     expect(rows[1]).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('button', { name: 'common.cancel' })).toBeDisabled()
+    expect(previewDateTrigger('chat.operation.field.date')).toBeDisabled()
     await act(async () => finishRevision({ ok: false, error: 'invalid_revision' }))
     expect(within(group).getByRole('radio', { name: 'Read' })).toHaveAttribute('tabindex', '0')
-    expect(screen.getByRole('textbox', { name: 'chat.operation.field.date' })).toHaveValue('2026-09-30')
+    expect(previewDateTrigger('chat.operation.field.date')).toHaveTextContent('09/30/2026')
   })
 
   it('offers search only above the established record filter threshold', () => {
@@ -1546,7 +1600,7 @@ describe('restart plan preview', () => {
     const expected = locale === 'en' ? ['Today', 'Today', '10/26 → Today', '10/27 → 10/29/26', 'Today → 11/4/26'] : ['Hoje', 'Hoje', '26/10 → Hoje', '27/10 → 29/10/26', 'Hoje → 04/11/26']
     expect(Array.from(container.querySelectorAll('[data-preview-item-meta]'), row => row.textContent.replace(/\u00a0/g, ' '))).toEqual(expected)
     fireEvent.click(screen.getByRole('button', { name: messages.chat.operation.edit }))
-    fireEvent.change(screen.getByLabelText(messages.chat.operation.field.due_date), { target: { value: '2026-10-30' } })
+    selectPreviewDate(messages.chat.operation.field.due_date, '2026-10-30')
     fireEvent.click(screen.getByRole('button', { name: messages.common.save }))
     await waitFor(() => expect(onRevise).toHaveBeenCalledWith(operation.id, {
       previewFingerprint: operation.previewFingerprint,
