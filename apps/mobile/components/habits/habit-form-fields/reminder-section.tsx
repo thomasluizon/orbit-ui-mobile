@@ -167,7 +167,9 @@ export function ReminderSection({
                     { value: 'before', label: t('habits.form.reminderBefore') },
                     { value: 'after', label: t('habits.form.reminderAfter') },
                   ]} />
-                  <PillButton disabled={disabled} variant="ghost" size="sm" iconOnly label={t("common.add")} onClick={addCustomReminder}><Plus size={20} color={tokens.fg1} /></PillButton>
+                  <View style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}>
+                    <PillButton disabled={disabled} variant="ghost" size="sm" iconOnly label={t("common.add")} onClick={addCustomReminder}><Plus size={20} color={tokens.fg1} /></PillButton>
+                  </View>
                 </View>
               )}
               <Pressable disabled={disabled}

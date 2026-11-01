@@ -17,7 +17,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
         const reasonId = await submit.getAttribute('aria-describedby')
         expect(reasonId).toBeTruthy()
         const reason = page.locator(`[id="${reasonId}"]`)
-        await expect(reason).toHaveText(messages.habits.form.createWhy)
+        await expect(reason).toHaveText(messages.habits.form.taskCreateWhy)
         await page.evaluate(() => document.fonts.ready)
         await expect(async () => {
           const buttonBox = await submit.boundingBox()

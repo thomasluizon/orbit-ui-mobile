@@ -30,11 +30,11 @@ async function expectVisibleFieldInsets(page: Page, messages: Messages, scope?: 
     const field = element as HTMLInputElement | HTMLTextAreaElement
     const selector = ['[data-composer-input]', '[cmdk-input]', '[data-habit-phrase-field] textarea'].find(candidate => field.matches(candidate))
     const label = field.getAttribute('aria-label') ?? Array.from(field.labels ?? []).map(label => label.textContent.trim()).join(' ')
-    return { selector, label }
+    return { selector, label, markup: field.outerHTML }
   }))
   expect(identities.length).toBeGreaterThan(0)
-  for (const { selector, label } of identities) {
-    expect(selector || label, 'a stable attribute or accessible name for every field').toBeTruthy()
+  for (const { selector, label, markup } of identities) {
+    expect(selector || label, `a stable attribute or accessible name for every field: ${markup}`).toBeTruthy()
     const field = (selector ? (scope ?? page).locator(selector) : (scope ?? page).getByLabel(label, { exact: true })).and(fields).filter({ visible: true })
     await expect(field).toHaveCount(1)
     const expected = await field.evaluate((element, registry) => registry.find(rule => element.matches(rule.selector))?.padding, rules)
@@ -150,6 +150,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await endTime.fill('09:00')
         await expectVisibleFieldInsets(page, messages, timing)
         await timing.getByRole('button', { name: messages.common.done, exact: true }).click()
+        await expect(timing).toHaveCount(0)
         await screen.getByPlaceholder(messages.habits.form.checklistPlaceholder).fill('M')
         await screen.getByPlaceholder(messages.habits.form.checklistPlaceholder).press('Enter')
         await expectVisibleFieldInsets(page, messages)

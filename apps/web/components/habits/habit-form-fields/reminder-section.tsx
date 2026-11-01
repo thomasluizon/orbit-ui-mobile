@@ -155,7 +155,9 @@ export function ReminderSection({
                       label={t('habits.form.reminderDirection')}
                       onChange={(value) => setCustomDirection(value as 'before' | 'after')}
                     />
-                    <PillButton variant="ghost" size="sm" iconOnly label={t('common.add')} onClick={addCustomReminder}><Plus size={20} aria-hidden="true" /></PillButton>
+                    <div className="flex min-h-12 min-w-12 items-center justify-center [&_button]:scroll-m-1">
+                      <PillButton variant="ghost" size="sm" iconOnly label={t('common.add')} onClick={addCustomReminder}><Plus size={20} aria-hidden="true" /></PillButton>
+                    </div>
                   </div>
                 )}
                 <button

@@ -271,6 +271,14 @@ describe("ReminderSection", () => {
       (node) => node.props.accessibilityLabel === "common.add",
     );
     expect(confirm!.props.hitSlop).toBe(2);
+    const hitAreaParents = tree.root.findAll((node) => {
+      if (node.type !== 'View' || !node.findAll((child) => child === confirm).length) return false;
+      const bounds = StyleSheet.flatten(node.props.style) as ViewStyle | undefined;
+      return typeof bounds?.minWidth === 'number' && bounds.minWidth >= 48
+        && typeof bounds.minHeight === 'number' && bounds.minHeight >= 48
+        && bounds.alignItems === 'center' && bounds.justifyContent === 'center';
+    });
+    expect(hitAreaParents).toHaveLength(1);
     const pressedAdd = StyleSheet.flatten((confirm!.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed: true }));
     expect(pressedAdd).toMatchObject({ minWidth: 44, minHeight: 44, borderRadius: radius.full, overflow: "hidden", backgroundColor: tokens.bgHover });
     (confirm!.props.style as (state: { pressed: boolean }) => unknown)({

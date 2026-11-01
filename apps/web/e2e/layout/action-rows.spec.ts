@@ -145,7 +145,7 @@ for (const width of [412, 1352]) {
               const submit = column.locator('[data-shell-pinned-slot] [data-habit-create-action] .orbit-pill-action')
               await expect(submit).toBeVisible()
               await expect(submit).toBeEnabled()
-              await expect(submit).toHaveAccessibleDescription(messages.habits.form.createWhy)
+              await expect(submit).toHaveAccessibleDescription(messages.habits.form.taskCreateWhy)
               await expect(page.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })).toBeChecked()
               await expect(page.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) })).not.toBeChecked()
               await expect(submit).toHaveAttribute('data-size', 'md')
