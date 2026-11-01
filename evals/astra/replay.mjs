@@ -51,12 +51,16 @@ export async function replayAttempt(attempt, descriptor, recorded) {
     notes.push('Pre-read/post-read ask declaration union.')
   }
   const behavior = assertions.find((assertion) => assertion.metric === 'toolBehavior')
-  if (behavior?.pass === false && behavior.reason.startsWith('Mutation outside the declared operation scope:')) {
+  const completedGoal = test.vars.offerFamily === 'goal-on-track' && test.vars.offerState === 'completed'
+  if (behavior && (completedGoal || behavior.pass === false && behavior.reason.startsWith('Mutation outside the declared operation scope:'))) {
     const verdict = toolBehavior(attempt.toolCalls, test.vars.expectations)
     Object.assign(behavior, { pass: verdict.pass, reason: verdict.reason })
-    notes.push(`Outcome scope: ${verdict.reason}`)
+    notes.push(completedGoal
+      ? `Completed-goal coverage: ${verdict.reason} An active-only query cannot prove completed-goal exclusion; the revised case needs fresh evidence.`
+      : `Outcome scope: ${verdict.reason}`)
   }
   let after = before
+  if (completedGoal && behavior?.pass === false) after = 'fail'
   if (before === 'fail' && assertions.length && assertions.every((assertion) => assertion.pass)) after = 'pass'
   if (recorded.latency?.status === 'fail') { after = 'fail'; notes.push('The recorded read latency still exceeds its budget.') }
   const population = restartPopulation(attempt, test.vars)

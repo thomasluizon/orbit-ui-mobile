@@ -65,3 +65,16 @@ it('never turns a formerly passing schema into a pass after an invalid declarati
   const source = window([attempt])
   await expect(replayWindow(source, `${directory}/output`)).rejects.toThrow('previously passing')
 })
+
+it('removes a false completed-goal pass when the saved main query only read active goals', async () => {
+  const attempt = { caseId: 'offers-goal-on-track-completed-en', repeat: 1, pass: true,
+    toolCalls: [{ name: 'query_goals', arguments: { status: null, include_completed: false }, resultStatus: 'Succeeded',
+      result: { success: true, error: null, payload: {} } }],
+    assertions: [{ metric: 'toolBehavior', pass: true, reason: 'No tools required.' }] }
+  const source = window([attempt])
+  await expect(replayWindow(source, `${directory}/output`)).rejects.toThrow('previously passing')
+  const audit = JSON.parse(readFileSync(`${directory}/output/replay.json`, 'utf8'))
+  expect(audit.regressions).toHaveLength(1)
+  expect(audit.results[0]).toMatchObject({ before: 'pass', after: 'fail' })
+  expect(audit.results[0].notes.join(' ')).toContain('An active-only query cannot prove completed-goal exclusion')
+})

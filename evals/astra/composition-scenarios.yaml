@@ -4167,7 +4167,7 @@
     input: "Help me remember to drink water throughout the day."
     composition: {"mode": "preview", "previews": 1}
     expectations: &offers_write_tools {allowed: ["query_habits", "query_goals", "list_tags", "get_checklist_templates", "create_habit", "create_sub_habit", "bulk_create_habits", "update_habit", "bulk_update_habits", "create_goal", "link_goals_to_habit", "assign_tags", "revise_pending_changes"]}
-    rubric: "Answer in English. Offer an editable/removable repeat_reminder on a supported schedule. Require an interval; active hours may be omitted for all-day reminders or supplied as a pair. No interval-derived daily target; nothing applied."
+    rubric: "Answer in English. Offer an editable/removable repeat_reminder on a supported schedule. Require an interval; active hours may be omitted for all-day reminders or supplied as a pair. No interval-derived daily target; nothing applied. If the proposal is General (Sem data), it is a one-time task with no date: logging completes it permanently and stops reminders until unlogged. Never promise a daily reset or repeated completion."
 - description: "proactive repeat in pt-BR"
   metadata: {"id": "offers-repeat-pt-BR", "category": "composition", "family": "offers-repeat", "locale": "pt-BR", "fixture": "empty"}
   vars:
@@ -4176,7 +4176,7 @@
     input: "Me ajude a lembrar de beber água ao longo do dia."
     composition: {"mode": "preview", "previews": 1}
     expectations: *offers_write_tools
-    rubric: "Answer in Brazilian Portuguese. Offer an editable/removable repeat_reminder on a supported schedule. Require an interval; active hours may be omitted for all-day reminders or supplied as a pair. No interval-derived daily target; nothing applied."
+    rubric: "Answer in Brazilian Portuguese. Offer an editable/removable repeat_reminder on a supported schedule. Require an interval; active hours may be omitted for all-day reminders or supplied as a pair. No interval-derived daily target; nothing applied. If the proposal is General (Sem data), it is a one-time task with no date: logging completes it permanently and stops reminders until unlogged. Never promise a daily reset or repeated completion."
 - description: "proactive fixed-medication in en"
   metadata: {"id": "offers-fixed-medication-en", "category": "composition", "family": "offers-fixed-medication", "locale": "en", "fixture": "empty"}
   vars:
@@ -4512,9 +4512,15 @@
     credentialKey: ORBIT_EVAL_TOKEN
     offerState: completed
     clientContext: {<<: *offers_en, conversationId: "eba8a74e-7750-5054-b8f9-69416a9f29fb"}
-    input: "Show my goals and their progress."
-    composition: {"mode": "data"}
-    rubric: "Answer in English. With the completed fixture, exclude behind-goal actions and preserve the typed progress."
+    input: "Show my completed goals and their progress."
+    composition: {"mode": "data", "kinds": ["goalList"]}
+    expectations:
+      allowed: [query_goals]
+      required:
+        - name: query_goals
+          argumentsAnyOf: [{status: Completed}, {status: {optional: null}, include_completed: true}]
+          resultStatus: Succeeded
+    rubric: "Answer in English. Show the seeded completed goal in its typed goalList, exclude behind-goal actions and preserve the typed progress. An empty active-goal list does not exercise this exclusion."
 - description: "proactive goal-on-track in en"
   metadata: {"id": "offers-goal-on-track-no-deadline-en", "category": "composition", "family": "offers-goal-on-track", "locale": "en", "fixture": "composition"}
   vars:
@@ -4539,9 +4545,15 @@
     credentialKey: ORBIT_EVAL_TOKEN
     offerState: completed
     clientContext: {<<: *offers_pt, conversationId: "236495d9-c5ad-5aab-abea-90517cc31d1a"}
-    input: "Mostre minhas metas e o progresso delas."
-    composition: {"mode": "data"}
-    rubric: "Answer in Brazilian Portuguese. With the completed fixture, exclude behind-goal actions and preserve the typed progress."
+    input: "Mostre minhas metas concluídas e o progresso delas."
+    composition: {"mode": "data", "kinds": ["goalList"]}
+    expectations:
+      allowed: [query_goals]
+      required:
+        - name: query_goals
+          argumentsAnyOf: [{status: Completed}, {status: {optional: null}, include_completed: true}]
+          resultStatus: Succeeded
+    rubric: "Answer in Brazilian Portuguese. Show the seeded completed goal in its typed goalList, exclude behind-goal actions and preserve the typed progress. An empty active-goal list does not exercise this exclusion."
 - description: "proactive goal-on-track in pt-BR"
   metadata: {"id": "offers-goal-on-track-no-deadline-pt-BR", "category": "composition", "family": "offers-goal-on-track", "locale": "pt-BR", "fixture": "composition"}
   vars:

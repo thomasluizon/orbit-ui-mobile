@@ -345,6 +345,13 @@ at the configured `k`, runs the per-case hook with intercepted public API calls,
 tracking and offer exclusions in both locales. Behind cases retain the timezone transition and
 restoration checks at every UTC hour.
 
+The completed-goal cases explicitly request completed goals. They require a successful
+`query_goals` with `status=Completed` or `include_completed=true` without an active-only status
+filter, plus the seeded completed goal in both the tool result and the displayed `goalList`.
+An empty active-goal list cannot prove the exclusion of behind-goal actions. Recorded attempts
+that only queried active goals lose that coverage pass during offline replay; the audit retains
+the reason and exits nonzero for a formerly passing case.
+
 A fresh conversation UUID replaces every
 case seed before setup; setup, revisions, selection,
 reload and device changes keep that attempt's UUID. Request trace UUIDs remain independently generated
@@ -442,11 +449,28 @@ still receive a different eligible offer. Action-lifecycle selects the actually 
 one-small-step save action, revises, rejects, reproposes, approves through the confirmation gateway,
 and independently reads back approved fields and untouched account collections. Confirmation tokens
 stay in memory. Lifecycle failures are failed attempts, never skipped success.
+Before approval, every proposed task field must have a verified detail-readback mapping.
+Root placement compares the producer's `parent_habit_id: null` with persisted `parentHabitId: null`.
+Readback normalizes one-time frequency storage, zero-second clock formats, checklist flags,
+reminder field casing and association order. An explicit repeat-reminder start instant must match;
+the server-assigned default instant is not a proposed value. Reuse and child-tree fields are
+unsupported by this single-new-task approval flow and fail before confirmation or execution,
+as do unknown fields and unknown nested reminder or checklist fields.
 Preview-rejection setup requires a removable suggested reminder group, including a fixed, relative or
 nested child reminder; its lifecycle removes that group and does not depend on a repeat interval. The dedicated
 repeat cases retain their interval and paired-hours checks. Failed setup turns retain a sanitized
 `setup` object in the private attempt artifact with the rendered answer, tool outcomes and independent
 setup request UUID. Setup failures stay unavailable and cannot issue the case's chat request.
+
+General (`Geral`, `Sem data`, `is_general=true`, `isGeneral=true`, `Schedule: 3`) is a one-time
+task with no date. Logging completes it permanently; a second log must receive the completed
+one-time error, and unlogging reopens it. Reads use stored `isCompleted` across day boundaries.
+Repeat reminders stop after completion until unlogged; their interval creates neither recurrence
+nor a daily target. The shared rubric applies these rules to both locales and every client mode;
+the repeat-offer cases state them explicitly. Historical response recordings and the generated
+catalog remain evidence of their producer rather than being rewritten to resemble a newer API.
+The overdue fixture restores its start date to `ORBIT_EVAL_OVERDUE_DATE` (yesterday by default)
+while preserving the stable habit IDs; the history anchor used by other fixtures must not replace it.
 
 Use `npm test --prefix evals/astra` for the offline suite. New offer tests must drive the hooks,
 assertions, fixture requests and lifecycle ports with producer-derived responses and include a

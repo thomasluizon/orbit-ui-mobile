@@ -956,7 +956,7 @@
       "savedStep": null,
       "renderError": null,
       "graderRationale": null,
-      "requestId": "5935c900-c693-47b3-b2e1-ee3b133330e4"
+      "requestId": "22222222-2222-4222-8222-222222222222"
     },
     "toolCalls": []
   },
@@ -1168,7 +1168,7 @@
       "savedStep": null,
       "renderError": null,
       "graderRationale": null,
-      "requestId": "47695ac0-3da0-49db-85ec-e0d46fe4d3ca"
+      "requestId": "11111111-1111-4111-8111-111111111111"
     },
     "toolCalls": []
   },
@@ -1181,7 +1181,7 @@
       "status": 400,
       "errorCode": "AI_UNAVAILABLE",
       "error": "Astra is not answering right now. Try again in a moment.",
-      "responseRequestId": "c02aa471-588e-4479-9d69-ecb77558cbaf"
+      "responseRequestId": "33333333-3333-4333-8333-333333333333"
     },
     "toolCalls": []
   },

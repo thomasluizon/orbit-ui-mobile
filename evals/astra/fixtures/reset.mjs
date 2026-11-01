@@ -90,7 +90,7 @@ async function restoreHabits(api, exported, account, fixture, today, titles) {
   for (const [id, title] of [[account.habitId, titles[0]], [account.secondHabitId, titles[1]]]) {
     const start = fixture === 'overdue' ? process.env.ORBIT_EVAL_OVERDUE_DATE
       : fixture.startsWith('composition') ? dateOffset(today, -6) : today
-    await api('PUT', `habits/${id}`, { ...dailyHabit(title, start), startDate: dateOffset(today, -6),
+    await api('PUT', `habits/${id}`, { ...dailyHabit(title, start), startDate: fixture === 'overdue' ? start : dateOffset(today, -6),
       clearEndDate: true, clearParent: true, clearRepeatReminder: true, emoji: null })
     const history = exported.habits.find((habit) => habit.id === id)?.logs
     if (!Array.isArray(history)) throw new Error('Fixture export lacks stable habit history.')

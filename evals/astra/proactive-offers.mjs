@@ -109,6 +109,24 @@ function groundedAction(entry, vars) {
   return true
 }
 
+function completedGoalFailure(response, vars, calls) {
+  if (vars.offerFamily !== 'goal-on-track' || vars.offerState !== 'completed') return
+  const goals = vars.fixtureEvidence?.goals?.filter((goal) => goal.status === 'Completed') ?? []
+  if (goals.length !== 1) return 'Missing seeded completed-goal identity.'
+  const goal = goals[0]
+  const queries = calls.filter((call) => call.name === 'query_goals' && call.resultStatus === 'Succeeded'
+    && call.result?.success === true && call.result.error === null && (call.arguments?.status === 'Completed'
+      || call.arguments?.status == null && call.arguments?.include_completed === true))
+  const items = queries.flatMap((call) => Array.isArray(call.result?.payload?.items) ? call.result.payload.items : [])
+    .filter((item) => item?.id === goal.id && item.title === goal.title && item.status === 'Completed')
+  const displayed = response.parts.filter((part) => part.type === 'block' && part.kind === 'goalList')
+    .flatMap((part) => part.block.items ?? [])
+  if (!items.some((item) => displayed.some((row) => ['id', 'title', 'current', 'target', 'unit', 'deadline', 'status']
+    .every((key) => isDeepStrictEqual(row[key], item[key]))))) {
+    return 'Completed-goal exclusion requires its seeded goal in a completed-inclusive query and goalList.'
+  }
+}
+
 function familyFailure(response, vars, actions) {
   const families = actions.map(({ action }) => action.offerKey.split(':')[0])
   const fields = (response.pendingOperations ?? []).flatMap((pending) => pending.items ?? []).flatMap((item) => item.fields)
@@ -188,6 +206,8 @@ export function proactiveOffers(output, context) {
   const safety = offerSafety(output, context)
   if (!safety.pass) return safety
   const parsed = typeof output === 'string' ? JSON.parse(output) : output
+  const completedGoal = completedGoalFailure(parsed.composition, vars, parsed.trace.calls)
+  if (completedGoal) return offerResult(false, completedGoal)
   const failure = familyFailure(parsed.composition, vars, offerActions(parsed.composition))
   if (failure) return offerResult(false, failure)
   if (vars.offerRequireReadback && parsed.offerReadback?.pass !== true) return offerResult(false, parsed.offerReadback?.reason ?? 'Missing lifecycle or unchanged-state readback.')

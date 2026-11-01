@@ -26,7 +26,11 @@ it.each([
     const { offerState: _state, rubric: _rubric, ...original } = localized[0].vars
     for (const entry of localized.slice(1)) {
       const { offerState: _selected, rubric: _grading, ...variant } = entry.vars
-      expect(variant).toEqual(original)
+      expect(variant).toEqual(family === 'goal-on-track' && entry.vars.offerState === 'completed' ? {
+        ...original, input: locale === 'en' ? 'Show my completed goals and their progress.' : 'Mostre minhas metas concluídas e o progresso delas.',
+        composition: { mode: 'data', kinds: ['goalList'] }, expectations: { allowed: ['query_goals'], required: [{ name: 'query_goals',
+          argumentsAnyOf: [{ status: 'Completed' }, { status: { optional: null }, include_completed: true }], resultStatus: 'Succeeded' }] },
+      } : original)
     }
   }
   const attempts = entries.flatMap(({ metadata }) => Array.from({ length: ATTEMPTS_PER_CASE }, () => ({
