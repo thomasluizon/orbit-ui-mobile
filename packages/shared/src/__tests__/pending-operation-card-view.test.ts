@@ -1170,7 +1170,7 @@ describe('typed preview rows', () => {
     renderPendingOperationCard({ pendingOperation: operation, card: { ...createCard(), status: 'done', completedOperation: completed }, labels, render, onVerifyStepUp: vi.fn() })
     expect(record.frame?.items.map(item => [item.id, item.status, item.groupHeading])).toEqual([
       ['2', 'done', 'Tasks'], ['4', 'failed', undefined],
-      ['1', 'failed', 'Habits'], ['3', 'done', undefined], ['0', 'done', 'General habits'],
+      ['1', 'failed', 'Habits'], ['3', 'done', undefined], ['0', 'done', 'Undated tasks'],
     ])
     expect(record.frame?.count).toBe(5)
   })
@@ -1184,7 +1184,7 @@ describe('typed preview rows', () => {
     expect(record.frame?.items.map(item => [item.id, item.groupHeading, item.indented])).toEqual([
       ['0', undefined, undefined], ['3', 'Tasks', undefined], ['2', 'Habits', undefined],
       ['2-child-0', undefined, true], ['2-child-1', undefined, true], ['2-child-2', undefined, true],
-      ['1', 'General habits', undefined],
+      ['1', 'Undated tasks', undefined],
     ])
   })
 })

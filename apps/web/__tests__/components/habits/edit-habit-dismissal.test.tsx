@@ -35,12 +35,12 @@ vi.mock('@/hooks/use-checklist-templates', () => ({
 }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ data: [], isLoading: false }), useCreateGoal: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 
-function renderEditor() {
+function renderEditor(general = false) {
   const onOpenChange = vi.fn()
   const client = new QueryClient()
   client.setQueryData(goalKeys.lists(), [])
   render(<QueryClientProvider client={client}><EditHabitModal open onOpenChange={onOpenChange}
-    habit={createMockHabit({ title: 'Exercise', frequencyUnit: 'Day', checklistItems: [] })} /></QueryClientProvider>)
+    habit={createMockHabit({ title: 'Exercise', frequencyUnit: general ? null : 'Day', frequencyQuantity: general ? null : 1, isGeneral: general, dueDate: general ? '' : '2026-10-20', checklistItems: [] })} /></QueryClientProvider>)
   return onOpenChange
 }
 
@@ -61,6 +61,24 @@ async function attempt(path: typeof paths[number]) {
 }
 
 describe('Edit habit dismissal through the web sheet', () => {
+  it.each(paths)('closes an unchanged undated task through %s', async path => {
+    const onOpenChange = renderEditor(true)
+    expect(screen.getByRole('radio', { name: /^habits.form.typeTask/ })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'habits.form.noSchedule' })).toBeChecked()
+    await attempt(path)
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
+    expect(screen.queryByRole('dialog', { name: 'common.discardChangesTitle' })).not.toBeInTheDocument()
+  })
+
+  it('asks before discarding a deliberate switch to No date', async () => {
+    const onOpenChange = renderEditor()
+    await userEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ }))
+    await userEvent.click(screen.getByRole('radio', { name: 'habits.form.noSchedule' }))
+    await attempt('close icon')
+    expect(await screen.findByRole('dialog', { name: 'common.discardChangesTitle' })).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
   it.each(paths)('asks before discarding an added checklist item through %s', async path => {
     const onOpenChange = renderEditor()
     await addChecklistItem()

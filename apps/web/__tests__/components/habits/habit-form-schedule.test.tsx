@@ -232,7 +232,7 @@ describe('restored type and editable date', () => {
 })
 
 describe('type and date owning form workflow', () => {
-  it('requires a type, preserves drafts, creates the requested date locally and restores General', () => {
+  it('preserves dated and undated task drafts alongside habit schedules', () => {
     let helpers!: HabitFormHelpers
     function OwningForm() {
       helpers = useHabitForm({ initialData: { dueDate: '2026-10-20' } })
@@ -255,14 +255,17 @@ describe('type and date owning form workflow', () => {
       fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeHabit/ }))
       fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value: 'dia 28' } })
       fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
-      fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
+      fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ }))
+      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.noSchedule' }))
       expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ isGeneral: true })
       expect(screen.queryByRole('textbox', { name: 'habits.form.datePhrase' })).toBeNull()
       expect(screen.queryByRole('switch', { name: 'habits.form.habitTypeAvoid' })).toBeNull()
-      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.every' }))
+      fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeHabit/ }))
       expect(helpers.form.getValues('isGeneral')).toBe(false)
       expect(helpers.form.getValues('dueDate')).toBe('2026-10-28')
       fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ }))
+      expect(helpers.form.getValues()).toMatchObject({ isGeneral: true, dueDate: '' })
+      fireEvent.click(screen.getByRole('radio', { name: 'habits.form.taskDate' }))
       expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
       expect(helpers.form.getValues('datePhrase')).toBe('dia 26')
     } finally { vi.useRealTimers() }
