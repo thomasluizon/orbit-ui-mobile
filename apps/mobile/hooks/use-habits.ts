@@ -3,6 +3,7 @@ import { checkCompletionAfterSkip, settleBulkSkippedHabits } from '@orbit/shared
 import { randomUUID } from 'expo-crypto'
 import type { HabitDetailSnapshots, HabitDetailUpdates, HabitListSnapshots } from '@orbit/shared/query'
 import {
+  onlineManager,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
@@ -270,13 +271,14 @@ async function resolveHabitLogDate(
   queryClient: ReturnType<typeof useQueryClient>,
   occurrenceTime: Date,
 ): Promise<string | undefined> {
+  const cachedProfile = queryClient.getQueryData<Profile>(profileKeys.detail())
+  if (cachedProfile) return getAccountDay(occurrenceTime, cachedProfile.timeZone)
+  if (!onlineManager.isOnline() || queryClient.getQueryState(profileKeys.detail())?.fetchStatus === 'paused') {
+    return undefined
+  }
   try {
-    const profile = queryClient.getQueryData<Profile>(profileKeys.detail()) ?? await queryClient.ensureQueryData<Profile>({
-      queryKey: profileKeys.detail(),
-      queryFn: fetchProfile,
-      networkMode: 'always',
-      retry: false,
-    })
+    const profile = await fetchProfile()
+    queryClient.setQueryData(profileKeys.detail(), profile)
     return getAccountDay(occurrenceTime, profile.timeZone)
   } catch {
     /** #1928: without a resolved profile, leave the account day to the server. */

@@ -2,7 +2,7 @@ import { makeEnrichedHabitDetail } from '@orbit/shared/test-support/habit-detail
 import { Switch } from '@/components/ui/switch'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { onlineManager, QueryClient, QueryObserver } from '@tanstack/query-core'
+import { MutationObserver, onlineManager, QueryClient, QueryObserver } from '@tanstack/query-core'
 import { QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { createMockGoal, createMockProfile, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
@@ -37,6 +37,7 @@ import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { cancelQueuedSkipForUndo } from '@/lib/offline-mutations'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { apiClient } from '@/lib/api-client'
+import { fetchProfile } from '@/hooks/use-profile'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 
 const TestRenderer = require('react-test-renderer')
@@ -103,7 +104,6 @@ const mocks = vi.hoisted(() => {
     prefix.every((value, index) => JSON.stringify(key[index]) === JSON.stringify(value))
 
   const queryClient = {
-    ensureQueryData: vi.fn(() => Promise.reject(new TypeError('Network request failed'))),
     setQueryDefaults: vi.fn(),
     cancelQueries: vi.fn(async () => {}),
     getQueryCache: () => ({ findAll: () => [], subscribe: vi.fn() }),
@@ -234,7 +234,6 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
     useMutation: (...parameters: Parameters<typeof actual.useMutation>) => mocks.useRealQueryHooks
       ? actual.useMutation(...parameters) : mocks.useMutation(parameters[0]),
     focusManager: { setEventListener: () => {} },
-    onlineManager: { setEventListener: () => {} },
     QueryClient: class {
       getDefaultOptions() {
         return {}
@@ -3946,7 +3945,6 @@ describe('mobile log request account day', () => {
   })
 
   it.each(['single', 'bulk'] as const)('omits an unknown account day when the profile cannot resolve for a %s log', async (mode) => {
-    onlineManager.setOnline(false)
     vi.mocked(apiClient).mockRejectedValueOnce(new TypeError('Network request failed'))
     if (mode === 'single') {
       const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
@@ -3964,6 +3962,7 @@ describe('mobile log request account day', () => {
   })
 
   it.each(['single', 'bulk'] as const)('keeps the known account day pinned when an offline %s log executes the next day', async (mode) => {
+    onlineManager.setOnline(false)
     client.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'UTC' }))
     if (mode === 'single') {
       const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
@@ -3982,5 +3981,92 @@ describe('mobile log request account day', () => {
       { method: 'POST', body: JSON.stringify(mode === 'single' ? { date: '2026-09-12' }
         : { items: [{ habitId: 'habit-1', date: '2026-09-12' }] }) }, expect.anything())
     if (mode === 'single') expect((queued!.mutation as QueuedMutation).dedupeKey).toBe('habit-toggle:habit-1:2026-09-12')
+  })
+
+  it.each(['single', 'bulk'] as const)('admits an undated %s log to the queue after reconnect with an already-paused profile', async (mode) => {
+    client.mount()
+    onlineManager.setOnline(false)
+    vi.mocked(apiClient).mockResolvedValue(createMockProfile({ timeZone: 'UTC' }))
+    const profileObserver = new QueryObserver(client, {
+      queryKey: profileKeys.detail(),
+      queryFn: fetchProfile,
+    })
+    const unsubscribeProfile = profileObserver.subscribe(() => {})
+    const { observer, pending } = mode === 'single' ? (() => {
+      const observer = new MutationObserver(client, useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>)
+      return { observer, pending: observer.mutate({ habitId: 'habit-1', intent: 'log' }) }
+    })() : (() => {
+      const observer = new MutationObserver(client, useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string; date?: string }[], unknown>)
+      return { observer, pending: observer.mutate([{ habitId: 'habit-1' }, { habitId: 'habit-2', date: '2026-09-10' }]) }
+    })()
+    const unsubscribeMutation = observer.subscribe(() => {})
+    try {
+      expect(client.getQueryData(profileKeys.detail())).toBeUndefined()
+      expect(profileObserver.getCurrentResult().fetchStatus).toBe('paused')
+      await vi.waitFor(() => expect(observer.getCurrentResult().isPaused).toBe(true))
+      expect(mocks.runQueuedMutation).not.toHaveBeenCalled()
+      expect(apiClient).not.toHaveBeenCalled()
+
+      onlineManager.setOnline(true)
+
+      await vi.waitFor(() => expect(mocks.runQueuedMutation).toHaveBeenCalledOnce())
+      const request = mocks.runQueuedMutation.mock.calls[0]?.[0].mutation as QueuedMutation
+      expect(request.payload).toEqual(mode === 'single' ? {}
+        : { items: [{ habitId: 'habit-1' }, { habitId: 'habit-2', date: '2026-09-10' }] })
+      if (mode === 'single') expect(request.dedupeKey).toBe('habit-toggle:habit-1:2026-09-13')
+      await pending
+      await vi.waitFor(() => expect(profileObserver.getCurrentResult().fetchStatus).toBe('idle'))
+      expect(client.getQueryData(profileKeys.detail())).toMatchObject({ timeZone: 'UTC' })
+      expect(observer.getCurrentResult().isSuccess).toBe(true)
+    } finally {
+      unsubscribeMutation()
+      unsubscribeProfile()
+      client.unmount()
+      await client.cancelQueries()
+      await pending
+    }
+  })
+
+  it.each(['single', 'bulk'] as const)('omits an unknown account day without requesting a profile for an offline %s log', async (mode) => {
+    onlineManager.setOnline(false)
+    if (mode === 'single') {
+      const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+      await mutation.mutationFn({ habitId: 'habit-1', intent: 'log' })
+    } else {
+      const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string; date?: string }[], unknown>
+      await mutation.mutationFn([{ habitId: 'habit-1' }, { habitId: 'habit-2', date: '2026-09-10' }])
+    }
+    expect(mocks.runQueuedMutation).toHaveBeenCalledOnce()
+    const request = mocks.runQueuedMutation.mock.calls[0]?.[0].mutation as QueuedMutation
+    expect(request.payload).toEqual(mode === 'single' ? {}
+      : { items: [{ habitId: 'habit-1' }, { habitId: 'habit-2', date: '2026-09-10' }] })
+    expect(apiClient).not.toHaveBeenCalled()
+  })
+
+  it.each(['single', 'bulk'] as const)('resolves the account day independently of a fetching profile for an undated %s log', async (mode) => {
+    vi.mocked(apiClient).mockImplementationOnce(() => new Promise(() => {}))
+      .mockResolvedValueOnce(createMockProfile({ timeZone: 'UTC' }))
+    const profileObserver = new QueryObserver(client, { queryKey: profileKeys.detail(), queryFn: fetchProfile })
+    const unsubscribeProfile = profileObserver.subscribe(() => {})
+    const pending = mode === 'single'
+      ? (useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>)
+        .mutationFn({ habitId: 'habit-1', intent: 'log' })
+      : (useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>)
+        .mutationFn([{ habitId: 'habit-1' }])
+    try {
+      expect(profileObserver.getCurrentResult().fetchStatus).toBe('fetching')
+      await vi.waitFor(() => expect(mocks.runQueuedMutation).toHaveBeenCalledOnce())
+      await pending
+      expect(mocks.runQueuedMutation.mock.calls[0]?.[0].mutation).toMatchObject({
+        payload: mode === 'single' ? { date: '2026-09-12' } : { items: [{ habitId: 'habit-1', date: '2026-09-12' }] },
+      })
+      expect(client.getQueryData(profileKeys.detail())).toMatchObject({ timeZone: 'UTC' })
+      expect(apiClient).toHaveBeenCalledTimes(2)
+      for (const [endpoint] of vi.mocked(apiClient).mock.calls) expect(endpoint).toBe(API.profile.get)
+    } finally {
+      unsubscribeProfile()
+      await client.cancelQueries()
+      await pending
+    }
   })
 })

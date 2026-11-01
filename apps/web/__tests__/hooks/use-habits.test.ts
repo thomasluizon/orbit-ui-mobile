@@ -14,7 +14,7 @@ import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitSched
 
 
 import { makeEnrichedHabitDetail, makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { createMockProfile, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 
 const mockFetch = vi.fn()
 
@@ -2439,6 +2439,36 @@ describe('useBulkLogHabits', () => {
     await waitFor(() => expect(result.current.profile.data?.lastCompletionDate).toBe(dateAfter))
     expect(getReturningInterval(result.current.profile.data?.lastCompletionDate, 'UTC'))
       .toEqual(action === 'unlog' ? null : expect.objectContaining({ kind: 'elapsed' }))
+  })
+
+  it.each([false, true])('leaves an implicit single log date to the server with a cached profile: %s', async (cachedProfile) => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockReset().mockResolvedValue({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 })
+    const queryClient = createQueryClient()
+    if (cachedProfile) queryClient.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'Pacific/Kiritimati' }))
+    const { result, unmount } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+    try {
+      await act(() => result.current.mutateAsync({ habitId: 'h-1', intent: 'log' }))
+      expect(logHabit).toHaveBeenCalledExactlyOnceWith('h-1', undefined, 'account-a')
+    } finally {
+      unmount()
+      queryClient.clear()
+    }
+  })
+
+  it.each([false, true])('leaves implicit bulk log dates to the server with a cached profile: %s', async (cachedProfile) => {
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockReset().mockResolvedValue({ results: [] })
+    const queryClient = createQueryClient()
+    if (cachedProfile) queryClient.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'Pacific/Kiritimati' }))
+    const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+    try {
+      await act(() => result.current.mutateAsync([{ habitId: 'h-1' }, { habitId: 'h-2', date: '2026-09-10' }]))
+      expect(bulkLogHabits).toHaveBeenCalledExactlyOnceWith([{ habitId: 'h-1' }, { habitId: 'h-2', date: '2026-09-10' }], 'account-a')
+    } finally {
+      unmount()
+      queryClient.clear()
+    }
   })
 
   it('calls bulkLogHabits action', async () => {
