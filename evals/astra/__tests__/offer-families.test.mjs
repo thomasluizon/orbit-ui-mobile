@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { proactiveOffers } from '../proactive-offers.mjs'
+import { proactiveOffers, proactiveOfferSetup } from '../proactive-offers.mjs'
 import { preview } from './fixtures/producer.mjs'
 
 const owned = '22222222-2222-4222-8222-222222222222'
@@ -72,9 +72,9 @@ it('B accepts a removable child reminder group and still rejects a metadata-only
     field('sub_habits/0/scheduled_reminders', [{ when: 'same_day', time: '09:00' }], 'suggested')]
   const vars = { offerFamily: 'preview-rejection', clientContext: { supportsProactiveOffers: true }, composition: { mode: 'preview' } }
   const output = { composition: { parts: [], pendingOperations: [pending] }, trace: { calls: [] } }
-  expect(proactiveOffers(output, { vars }).pass).toBe(true)
+  expect(proactiveOfferSetup(output, { vars }).pass).toBe(true)
   pending.items[0].fields[1] = field('sub_habits/0/emoji', '💧', 'suggested')
-  expect(proactiveOffers(output, { vars }).pass).toBe(false)
+  expect(proactiveOfferSetup(output, { vars }).pass).toBe(false)
 })
 
 it.each([undefined, null, '', '  ', false])('rejects a preview aim action without a typed requested aim: %s', (requestedAim) => {

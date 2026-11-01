@@ -5,7 +5,7 @@ import { parse } from 'yaml'
 import AstraHttpProvider from './http-provider.mjs'
 import { behavior, composition, structural } from './assertions.mjs'
 import { publicApi } from './fixtures/api.mjs'
-import { offerActions, proactiveOffers } from './proactive-offers.mjs'
+import { offerActions, proactiveOfferSetup } from './proactive-offers.mjs'
 import { readStartingHabits } from './step-persistence.mjs'
 import { attemptEvidence } from './evidence.mjs'
 
@@ -58,7 +58,7 @@ export async function prepareCorrection(test) {
     const previewFamily = test.vars.offerFamily === 'preview-rejection' ? 'preview-rejection' : 'repeat'
     const policy = { ...vars, offerFamily: setup.composition.mode === 'preview' ? previewFamily : 'empty',
       offerRequireReadback: false }
-    const offerCheck = proactiveOffers(response.output, { vars: policy })
+    const offerCheck = proactiveOfferSetup(response.output, { vars: policy })
     if (!offerCheck.pass) throw new Error(`Offer setup failed: ${offerCheck.reason}`)
     const actions = offerActions(response.output.composition)
     if (test.vars.offerFamily !== 'preview-rejection' && actions.length !== 1) throw new Error('Offer setup requires exactly one issued action.')

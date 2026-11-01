@@ -141,7 +141,6 @@ function familyFailure(response, vars, actions) {
     && Array.isArray(field.proposedValue) && field.proposedValue.length > 0
     && field.proposedValue.every((id) => vars.fixtureEvidence?.goals?.some((goal) => goal.id === id)))) return 'Suggested goal link is missing or unowned.'
   if (vars.offerFamily === 'dated-reminder' && !suggested.some((field) => reminders.includes(field.field))) return 'Missing removable dated-task reminder.'
-  if (vars.offerFamily === 'preview-rejection' && !suggested.some((field) => reminders.includes(field.field.split('/').at(-1)))) return 'Missing removable reminder group for rejection.'
   if (vars.offerFamily === 'metadata' && !suggested.some((field) => ['emoji', 'tag_ids', 'tag_names'].includes(field.field))) return 'Missing a removable metadata suggestion.'
   if (vars.offerFamily === 'stale' && !(response.parts ?? []).some((part) => part.kind === 'periodInsight'
     && part.block.read?.completeness === 'stale' && part.block.read.recovery === 'refresh')) return 'Missing retained stale recovery state.'
@@ -186,4 +185,13 @@ export function proactiveOffers(output, context) {
   if (failure) return offerResult(false, failure)
   if (vars.offerRequireReadback && parsed.offerReadback?.pass !== true) return offerResult(false, parsed.offerReadback?.reason ?? 'Missing lifecycle or unchanged-state readback.')
   return offerResult(true, 'Typed actions, provenance, removal groups and persisted state matched.')
+}
+
+export function proactiveOfferSetup(output, context) {
+  const verdict = proactiveOffers(output, context)
+  if (!verdict.pass || context.vars.offerFamily !== 'preview-rejection') return verdict
+  const parsed = typeof output === 'string' ? JSON.parse(output) : output
+  const fields = (parsed.composition.pendingOperations ?? []).flatMap((pending) => pending.items ?? []).flatMap((item) => item.fields)
+  return fields.some((field) => field.provenance === 'suggested' && reminders.includes(field.field.split('/').at(-1)))
+    ? verdict : offerResult(false, 'Missing removable reminder group for rejection.')
 }

@@ -382,6 +382,9 @@ Requested-only previews without suggestion metadata retain the producer's existi
 editable and carry their entire removal group. Slash-separated child paths stay local to their child;
 requested fields and siblings must survive removal. Action labels/prompts and visible suggestion
 metadata are included in the graded answer projection.
+Preview-rejection cases require a removable reminder group only on the setup turn. The main turn
+must remove that original group, preserve requested and stored fields, apply the requested leaf emoji,
+and keep the group removed through a later unrelated revision and cancellation readback.
 Preview aim actions require a nonempty `vars.requestedAim` authored from the aim expressed by the
 scenario request. The attempt records this nullable string separately from the answer. No title,
 message pattern or selector judgement supplies missing intent. The ordinary-reading cases express
