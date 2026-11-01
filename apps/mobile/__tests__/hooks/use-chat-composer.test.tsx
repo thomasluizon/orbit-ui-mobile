@@ -6,7 +6,7 @@ import React from 'react'
 import Animated from 'react-native-reanimated'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { buildChatClientContext, buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
+import { buildChatClientContext, buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS, createConversationHistory } from '@orbit/shared/chat'
 import { createMockHabit, createMockProfile, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { goalKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import { chatResponseSchema, type ChatMessage, type ChatResponse } from '@orbit/shared/types/chat'
@@ -22,7 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { prepareChatRequest } from '@orbit/shared/stores'
 import { useChatComposer } from '@/hooks/use-chat-composer'
-import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
+import { getAccountGeneration, advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import RootLayout from '@/app/_layout'
@@ -404,6 +404,54 @@ function inputHosts(tree: ReturnType<typeof TestRenderer.create>) {
 }
 
 describe('mobile useChatComposer', () => {
+
+  it('rejects an account switch after history preparation completes before the composer resumes', async () => {
+    useChatStore.setState({ conversationLoaded: false })
+    const history = createConversationHistory({
+      getState: useChatStore.getState, setState: useChatStore.setState, getAccountGeneration,
+      read: () => Promise.resolve(null), remove: () => Promise.resolve(),
+    })
+    vi.mocked(conversationHistory.isReady).mockReturnValueOnce(false)
+    vi.mocked(conversationHistory.prepareSend).mockImplementationOnce(() => {
+      const prepared = history.prepareSend()
+      void prepared.then(() => {
+        advanceAccountGeneration()
+        useChatStore.setState({ messages: [], queuedPrompts: [] })
+        useChatStore.getState().setDraft('Account B draft')
+      })
+      return prepared
+    })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    TestRenderer.act(() => composer.current.setInput('Account A private request'))
+    await TestRenderer.act(async () => { await composer.current.sendMessage() })
+    expect(mocks.openChatStream).not.toHaveBeenCalled()
+    expect(useChatStore.getState()).toMatchObject({ draft: 'Account B draft', messages: [], queuedPrompts: [] })
+  })
+
+  it.each([false, true])('keeps newer typing while preparing history with an active reply %s', async activeReply => {
+    let finish!: (ready: boolean) => void
+    vi.mocked(conversationHistory.isReady).mockReturnValueOnce(false)
+    vi.mocked(conversationHistory.prepareSend).mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    TestRenderer.act(() => composer.current.setInput('First request'))
+    let sending!: Promise<void>
+    TestRenderer.act(() => { sending = composer.current.sendMessage() })
+    TestRenderer.act(() => {
+      composer.current.setInput('A newer draft typed while restoring')
+      if (activeReply) useChatStore.getState().beginReply()
+    })
+    await TestRenderer.act(async () => { finish(true); await sending })
+    expect(composer.current.input).toBe('A newer draft typed while restoring')
+    if (activeReply) {
+      expect(useChatStore.getState().queuedPrompts[0]?.content).toBe('First request')
+      expect(mocks.openChatStream).not.toHaveBeenCalled()
+    } else {
+      const payload = mocks.openChatStream.mock.calls[0]![0] as { get: (key: string) => string }
+      expect(payload.get('message')).toBe('First request')
+    }
+  })
 
   it('retains the returned conversation id on every later turn with legacy history', async () => {
     const conversationId = '00000000-0000-4000-8000-000000000010'

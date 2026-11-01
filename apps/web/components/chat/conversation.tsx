@@ -93,7 +93,7 @@ function TurnAnnouncement({ content, complete, messageId, claimAnnouncement }: R
     })
     return () => { mounted = false }
   }, [complete, content, messageId, claimAnnouncement])
-  return <span aria-live="polite" className="sr-only">{announcement}</span>
+  return <span data-testid="astra-turn-announcement" aria-live="polite" className="sr-only">{announcement}</span>
 }
 
 function moveBetweenTurns(event: KeyboardEvent, feed: HTMLDivElement | null) {

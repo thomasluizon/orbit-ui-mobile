@@ -513,13 +513,7 @@ export function renderPendingOperationCard<Node>({
 }): Node | null {
   const revision = card.revision
   if (card.recordedOutcome && labels.recordedOutcome) {
-    const label = labels.recordedOutcome[card.recordedOutcome]
-    const rows = previewRows(pendingOperation, { ...card, status: 'done', revision: undefined }, labels, render)
-    return render.blockFrame({
-      state: 'resting', title: labels.name, wrapTitle: true,
-      items: (rows ?? []).map(row => ({ ...row, status: undefined, proposed: false, control: undefined, rename: undefined, editable: false })),
-      body: render.notice(label), actions: undefined, irreversibleLabel: labels.irreversible, confirmNote: '',
-    })
+    return render.notice(labels.recordedOutcome[card.recordedOutcome])
   }
   if (card.dismissed || revision?.rejected) return render.fragment(render.rejected(labels.rejected(targetCount(pendingOperation))))
 

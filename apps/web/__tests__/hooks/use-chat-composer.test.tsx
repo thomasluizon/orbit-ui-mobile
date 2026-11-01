@@ -1,3 +1,4 @@
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { conversationHistory } from '@/lib/conversation-history'
 import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
@@ -6,7 +7,7 @@ import { describe, expect, it, vi, beforeEach, afterEach, onTestFinished } from 
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import userEvent from '@testing-library/user-event'
-import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
+import { CHAT_STREAM_IDLE_TIMEOUT_MS, createConversationHistory } from '@orbit/shared/chat'
 import { createMockHabit, createMockProfile, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { buildComposerChips } from '@orbit/shared/chat'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
@@ -281,6 +282,53 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
 }
 
 describe('web useChatComposer streaming send', () => {
+
+  it('rejects an account switch after history preparation completes before the composer resumes', async () => {
+    act(() => useAuthStore.getState().setAuth({ userId: 'account-a', name: 'A', email: 'a@example.test' }))
+    useChatStore.setState({ conversationLoaded: false })
+    const history = createConversationHistory({
+      getState: useChatStore.getState, setState: useChatStore.setState, getAccountGeneration,
+      read: async () => null, remove: async () => {},
+    })
+    vi.mocked(conversationHistory.isReady).mockReturnValueOnce(false)
+    vi.mocked(conversationHistory.prepareSend).mockImplementationOnce(() => {
+      const prepared = history.prepareSend()
+      void prepared.then(() => {
+        useAuthStore.getState().setAuth({ userId: 'account-b', name: 'B', email: 'b@example.test' })
+        useChatStore.getState().setDraft('Account B draft')
+      })
+      return prepared
+    })
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    act(() => result.current.setInput('Account A private request'))
+    await act(async () => { await result.current.sendMessage() })
+    expect(mocks.fetch).not.toHaveBeenCalled()
+    expect(useChatStore.getState()).toMatchObject({ draft: 'Account B draft', messages: [], queuedPrompts: [] })
+  })
+
+  it.each([false, true])('keeps newer typing while preparing history with an active reply %s', async activeReply => {
+    let finish!: (ready: boolean) => void
+    vi.mocked(conversationHistory.isReady).mockReturnValueOnce(false)
+    vi.mocked(conversationHistory.prepareSend).mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    act(() => result.current.setInput('First request'))
+    let sending!: Promise<void>
+    act(() => { sending = result.current.sendMessage() })
+    act(() => {
+      result.current.setInput('A newer draft typed while restoring')
+      if (activeReply) useChatStore.getState().beginReply()
+    })
+    await act(async () => { finish(true); await sending })
+    expect(result.current.input).toBe('A newer draft typed while restoring')
+    if (activeReply) {
+      expect(useChatStore.getState().queuedPrompts[0]?.content).toBe('First request')
+      expect(mocks.fetch).not.toHaveBeenCalled()
+    } else {
+      expect((mocks.fetch.mock.calls[0]![1]!.body as FormData).get('message')).toBe('First request')
+    }
+  })
 
   it('retains the returned conversation id on every later turn with legacy history', async () => {
     const conversationId = '00000000-0000-4000-8000-000000000010'

@@ -92,7 +92,7 @@ function TurnAnnouncement({ content, complete, messageId, claimAnnouncement }: R
     });
     return () => { mounted = false; };
   }, [complete, content, messageId, claimAnnouncement]);
-  return <Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcement}</Text>;
+  return <Text testID="astra-turn-announcement" accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcement}</Text>;
 }
 
 function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{

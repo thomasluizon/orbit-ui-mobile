@@ -2994,7 +2994,7 @@
       "intro": "Guardamos seus dados só pelo tempo necessário para oferecer o serviço:",
       "account": "Dados da conta: guardados enquanto sua conta estiver ativa.",
       "sessions": "Sessões de autenticação e tokens de push: guardados enquanto estão ativos e removidos quando você sai, quando o token expira ou quando o aparelho deixa de receber notificações.",
-      "ai": "As conversas com a Astra não têm prazo de expiração. Guardamos o texto e as imagens privadas até você apagar a conversa, usar Recomeçar ou excluir sua conta. As imagens nunca são públicas.",
+      "ai": "Guardamos suas conversas com a Astra, incluindo as imagens que você envia, até você apagar a conversa, usar Recomeçar ou apagar sua conta. As imagens nunca são públicas.",
       "reminderHistory": "Registros de lembretes enviados, alertas de deslize e congelamentos de sequência: guardados por 90 dias a partir da data do registro.",
       "syncRecords": "Registros apagados mantidos para sincronização offline: guardados por 31 dias antes da remoção permanente.",
       "calendarSuggestions": "Sugestões de importação do Google Agenda que você não aceita: guardadas por 14 dias.",
@@ -3022,7 +3022,7 @@
     },
     "export": {
       "title": "Seu direito de exportar os dados",
-      "body": "Você pode baixar uma cópia dos seus dados do Orbit em um arquivo JSON pelo Perfil, conforme o direito à portabilidade previsto no art. 18 da LGPD. O arquivo inclui hábitos, registros, metas, tags, configurações e as conversas com a Astra que ainda estão armazenadas: texto, partes das respostas, resumos das ferramentas, resultados das propostas, identificadores das conversas, ordem de exibição e nomes dos arquivos de imagem. O conteúdo das imagens e as chaves do armazenamento privado não são incluídos."
+      "body": "Você pode baixar uma cópia dos seus dados do Orbit em um arquivo JSON pelo Perfil, conforme o direito à portabilidade previsto no art. 18 da LGPD. O arquivo inclui seus hábitos, registros, metas, tags, configurações e as conversas salvas com a Astra: suas mensagens, as respostas da Astra e as mudanças que você aprovou. As imagens que você enviou aparecem só pelo nome do arquivo."
     },
     "deletion": {
       "title": "Apagar os seus dados",
