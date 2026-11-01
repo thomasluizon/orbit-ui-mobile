@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as Sentry from '@sentry/react-native'
 const storage = vi.hoisted(() => ({
   getItem: vi.fn<(key: string) => Promise<string | null>>(),
   setItem: vi.fn<(key: string, value: string) => Promise<void>>(),
@@ -35,12 +36,43 @@ describe('mobile PostHog adapter', () => {
     expect(client.reset).toHaveBeenCalledOnce()
   })
 
-  it('gates Android update diagnostics through the analytics preference', async () => {
+  it('gates screen captures through the analytics preference', async () => {
+    vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
+    const analytics = await import('@/lib/posthog')
+    await analytics.applyPostHogGate(false)
+    analytics.captureScreen('habits')
+    expect(analytics.posthog!.screen).not.toHaveBeenCalled()
+    await analytics.applyPostHogGate(true)
+    analytics.captureScreen('habits')
+    expect(analytics.posthog!.screen).toHaveBeenCalledExactlyOnceWith('habits')
+    await analytics.setAnalyticsOptOut(true)
+    analytics.captureScreen('habits')
+    expect(analytics.posthog!.screen).toHaveBeenCalledOnce()
+  })
+
+  it('reports a rejected screen capture to Sentry once', async () => {
+    vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
+    const analytics = await import('@/lib/posthog')
+    await analytics.applyPostHogGate(true)
+    const error = new Error('Screen capture failed')
+    vi.mocked(analytics.posthog!.screen).mockRejectedValueOnce(error)
+    analytics.captureScreen('habits')
+    await vi.waitFor(() => expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(error, {
+      tags: { operation: 'posthog_screen' },
+    }))
+  })
+
+  it.each([
+    { outcome: 'success', play_status: 2, available_version_code: 181, play_error_code: null },
+    { outcome: 'error', play_status: null, available_version_code: null, play_error_code: -100 },
+    { outcome: 'service_unavailable', play_status: null, available_version_code: null, play_error_code: null },
+    { outcome: 'service_unavailable', play_status: null, available_version_code: null, play_error_code: -3 },
+    { outcome: 'service_unavailable', play_status: null, available_version_code: null, play_error_code: -9 },
+  ] as const)('gates Android update diagnostics through the analytics preference for $outcome, code $play_error_code', async (result) => {
     vi.stubEnv('EXPO_PUBLIC_POSTHOG_KEY', 'project-key')
     const analytics = await import('@/lib/posthog')
     const check = {
-      outcome: 'success' as const, play_status: 2, available_version_code: 181,
-      installed_version_code: 178, play_error_code: null,
+      ...result, installed_version_code: 178,
     }
     const sheet = { sheet: 'available' as const, available_version_code: 181, installed_version_code: 178 }
     await analytics.applyPostHogGate(false)

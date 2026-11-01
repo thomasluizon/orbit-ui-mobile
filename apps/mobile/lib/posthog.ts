@@ -1,5 +1,6 @@
 import { PostHog } from 'posthog-react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Sentry from '@sentry/react-native'
 
 const key = process.env.EXPO_PUBLIC_POSTHOG_KEY
 const PREFERENCE_KEY = 'analytics-opt-out'
@@ -107,25 +108,29 @@ export function resetPostHogUser(): void {
 }
 
 export function captureHabitLogged(): void {
-  if (posthog && analyticsEnabled) void posthog.capture('habit_logged')
+  if (posthog && analyticsEnabled) posthog.capture('habit_logged')
 }
 
 export function captureScreen(name: string): void {
-  if (posthog && analyticsEnabled) void posthog.screen(name)
+  if (posthog && analyticsEnabled) {
+    posthog.screen(name).catch((error: unknown) => {
+      Sentry.captureException(error, { tags: { operation: 'posthog_screen' } })
+    })
+  }
 }
 
 export function capturePurchase(event: 'purchase_started' | 'purchase_verified', store: 'play' | 'app_store'): void {
-  if (posthog && analyticsEnabled) void posthog.capture(event, { store })
+  if (posthog && analyticsEnabled) posthog.capture(event, { store })
 }
 
 export function captureAndroidUpdateCheck(properties: {
-  outcome: 'success' | 'error'
+  outcome: 'success' | 'service_unavailable' | 'error'
   play_status: number | null
   available_version_code: number | null
   installed_version_code: number
   play_error_code: number | null
 }): void {
-  captureAndroidUpdateWhenReady(() => { void posthog?.capture('android_update_checked', properties) })
+  captureAndroidUpdateWhenReady(() => { posthog?.capture('android_update_checked', properties) })
 }
 
 export function captureAndroidUpdateSheetShown(properties: {
@@ -133,7 +138,7 @@ export function captureAndroidUpdateSheetShown(properties: {
   available_version_code: number | null
   installed_version_code: number
 }): void {
-  captureAndroidUpdateWhenReady(() => { void posthog?.capture('android_update_sheet_shown', properties) })
+  captureAndroidUpdateWhenReady(() => { posthog?.capture('android_update_sheet_shown', properties) })
 }
 
 function captureAndroidUpdateWhenReady(capture: () => void): void {
