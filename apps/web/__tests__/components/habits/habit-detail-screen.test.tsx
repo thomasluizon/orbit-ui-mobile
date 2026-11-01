@@ -19,6 +19,7 @@ import {
   makeHabitDetail as makeDetail,
   makeEnrichedHabitDetail,
   makeHabitScheduleItem,
+  makeMonthlyChildDaySchedule,
   makeTaggedNestedHabitScheduleItem,
   makeHabitDetailScopedChild as makeScopedChild,
   makeHabitDetailScopedParent as makeScopedParent,
@@ -1740,6 +1741,29 @@ describe('HabitDetailScreen', () => {
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.rescheduleWriteError')
     expect(screen.getByRole('group', { name: 'habits.form.proposedByAstra' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'habits.detail.rescheduleAccept' })).toBeInTheDocument()
+  })
+
+  it.each([true, false])('shows a present monthly child as unavailable with skipped=%s', (skipped) => {
+    const date = '2026-08-28'
+    const schedule = makeMonthlyChildDaySchedule(date, '2026-09-28')
+    schedule.children[0]!.isSkippedOnDate = skipped
+    mocks.detail = { ...makeDetail(), frequencyUnit: 'Month', days: [], children: schedule.children }
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    mocks.logs = []
+    mocks.realChildRows = true
+    const { container } = render(<HabitDetailScreen habitId="habit-1" date={date} />)
+    const rows = within(screen.getByTestId('detail-children')).getAllByTestId('habit-row')
+    const skippedRow = rows[0]!
+    expect(within(skippedRow.querySelector('[data-habit-row-meta]')!).getByText(skipped ? 'habits.statusDot.skip' : 'calendar.dayCell.notScheduled')).toBeVisible()
+    expect(skippedRow.querySelector('[data-status="empty"]')).toBeNull()
+    expect(skippedRow.querySelector('[data-status="unavailable"]')).toBeInTheDocument()
+    const toggle = within(skippedRow).getByTestId('habit-status-toggle')
+    expect(toggle).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(toggle)
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(rows[1]!.querySelector('[data-status="done"]')).toBeInTheDocument()
+    fireEvent.click(container.querySelector('[data-habit-detail-header-row] button[data-logged]')!)
+    expect(mocks.log).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', date }))
   })
 
   it('composes integrated metadata from the detail child list records', () => {

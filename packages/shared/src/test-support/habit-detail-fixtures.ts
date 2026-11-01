@@ -69,6 +69,20 @@ export function makeHabitScheduleItem(overrides: Partial<HabitScheduleItem> = {}
   }
 }
 
+export function makeMonthlyChildDaySchedule(date = '2026-11-01', nextDate = '2026-12-01'): HabitScheduleItem {
+  const parent = makeHabitScheduleItem({ frequencyUnit: 'Month', days: [], scheduledDates: [date], dueDate: date })
+  const child = parent.children[0]!
+  return {
+    ...parent,
+    children: [
+      { ...child, frequencyUnit: 'Month', days: [], dueDate: nextDate, scheduledDates: [], instances: [], isSkippedOnDate: true, isLoggedInRange: false },
+      { ...child, id: 'child-2', title: 'Logged expenses', frequencyUnit: 'Month', days: [], dueDate: nextDate,
+        scheduledDates: [], isSkippedOnDate: false, isLoggedInRange: true,
+        instances: [{ date, status: 'Completed', logId: 'positive-log' }] },
+    ],
+  }
+}
+
 export function makeTaggedNestedHabitScheduleItem(): HabitScheduleItem {
   const item = makeHabitScheduleItem()
   return {

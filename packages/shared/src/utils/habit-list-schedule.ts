@@ -22,6 +22,7 @@ export function mergeHabitListSchedule(items: HabitScheduleItem[], schedule: Hab
         scheduledDates: facts.scheduledDates,
         instances: facts.instances,
         isLoggedInRange: facts.isLoggedInRange,
+        isSkippedOnDate: facts.isSkippedOnDate,
         isCompleted: facts.isCompleted,
         flexibleTarget: facts.flexibleTarget,
         flexibleCompleted: facts.flexibleCompleted,

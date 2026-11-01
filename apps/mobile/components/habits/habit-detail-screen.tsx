@@ -580,10 +580,11 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     const scopedChild = getAvailableHabitDetailScopedChild(
       habitsQuery.data?.habitsById.get(child.id), habitsQuery.isError, habitsQuery.isLoading,
     )
+    const model = buildHabitDetailChildDateModel(child, scopedChild, dateStr, todayStr, sourceChild)
     return {
-      ...buildHabitDetailChildDateModel(child, scopedChild, dateStr, todayStr, sourceChild),
-      completionReason: getHabitDetailChildCompletionReason(scopedChild, completionReason, childUnavailableReason),
-      completionStatusUnavailable: scopedChild === undefined,
+      ...model,
+      completionReason: model.dateStatusKey ? t(model.dateStatusKey) : getHabitDetailChildCompletionReason(scopedChild, completionReason, childUnavailableReason),
+      completionStatusUnavailable: scopedChild === undefined || model.dateStatusKey !== undefined,
     }
   })
   const subHabitCreation = <ListRow placement="column" icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} onClick={() => setCreateOpen(true)} />
@@ -610,7 +611,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       {children.length > 0 ? <Surface>
         <SectionTitle color={tokens.fg1}>{t('habits.detail.inside')}</SectionTitle>
         <DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} />
-        <View testID="detail-children" accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View>
+        <View testID="detail-children" accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, dateStatusKey, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={dateStatusKey ? undefined : childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View>
         {subHabitCreation}
       </Surface> : subHabitCreation}
         {strip ? <View testID="habit-detail-strip-section" onLayout={(event) => setStripWidth(event.nativeEvent.layout.width)} style={styles.stripSection}><Text ref={stripLabelRef} style={[styles.stripLabel, { color: tokens.fg3 }]}>{t('habits.detail.lastThirtyDays')}</Text><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={habitStripCellSize(stripWidth)} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} tokens={tokens} /></View> : null}

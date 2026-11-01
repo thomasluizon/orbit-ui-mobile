@@ -806,7 +806,7 @@ export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'
 
 export { formatWeekdaySchedule } from './weekday-schedule'
 
-export { resolveHabitAccessibleStatus } from './habit-row-status'
+export { resolveHabitAccessibleStatus, buildHabitRowDateModel } from './habit-row-status'
 
 export { proactiveActionLabelKey, getProactiveActionReason, getTodayAstraLine, getTodayAstraSlot } from './proactive'
 export { buildHabitViewFilters, type HabitViewFiltersInput } from './habit-view-filters'

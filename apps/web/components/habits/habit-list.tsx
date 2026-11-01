@@ -18,6 +18,7 @@ import {
   filterHabitViewRoots,
   formatHabitDateBucketLabel,
   canLogHabitOnDate,
+  buildHabitRowDateModel,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   computeHabitCardStatus,
@@ -1297,9 +1298,8 @@ export function HabitList({
     const recentlyCompleted = recentlyCompletedIds.has(habit.id)
     const state = deriveRowState(habit, recentlyCompleted)
     const meta = buildMetaTokens(habit, progress)
-    const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
-    const boundary = getTodayBoundary(selectedDateStr, todayStr)
-    const completionReadOnly = boundary === 'read-only' || (boundary === 'future' && !canLog)
+    const { canLog, dateStatusKey, completionReadOnly, completionReasonKey, completionStatusUnavailable } = buildHabitRowDateModel(habit, selectedDateStr, todayStr)
+    if (dateStatusKey) meta.push(t(dateStatusKey))
     const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
     return (
       <Fragment key={habit.id}>
@@ -1312,7 +1312,8 @@ export function HabitList({
         meta={meta}
         canLog={canLog}
         completionReadOnly={completionReadOnly}
-        completionReason={boundary === 'read-only' ? t('habits.todayBoundary.readOnly') : boundary === 'future' ? t('habits.todayBoundary.future') : undefined}
+        completionStatusUnavailable={completionStatusUnavailable}
+        completionReason={completionReasonKey ? t(completionReasonKey) : undefined}
         streak={habit.currentStreak}
         child={isChild}
         depth={depth}

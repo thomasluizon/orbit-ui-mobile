@@ -36,6 +36,7 @@ import {
   makeHabitDetail,
   makeEnrichedHabitDetail,
   makeHabitScheduleItem,
+  makeMonthlyChildDaySchedule,
   makeTaggedNestedHabitScheduleItem,
   makeHabitDetailScopedParent,
   makeLoggedGeneralHabitDetailChild,
@@ -1187,6 +1188,22 @@ describe('habit detail flow model', () => {
     expect(unscoped.completed).toBe(false)
     expect(unscoped.habit.isCompleted).toBe(false)
     expect(unscoped.canLog).toBe(false)
+  })
+
+  it.each([true, false])('makes a present monthly child read-only when not due with skipped=%s', (skipped) => {
+    const schedule = makeMonthlyChildDaySchedule()
+    schedule.children[0]!.isSkippedOnDate = skipped
+    const { habitsById } = normalizeHabitQueryData([schedule])
+    const child = habitsById.get('child-1')!
+    const model = buildHabitDetailChildDateModel(child, child, '2026-11-01', '2026-11-01')
+    expect(model.completed).toBe(false)
+    expect(model.canLog).toBe(false)
+    expect(model.completionReadOnly).toBe(true)
+    expect(model).toMatchObject({ dateStatusKey: skipped ? 'habits.statusDot.skip' : 'calendar.dayCell.notScheduled' })
+    const logged = habitsById.get('child-2')!
+    expect(buildHabitDetailChildDateModel(logged, logged, '2026-11-01', '2026-11-01').completed).toBe(true)
+    const parent = habitsById.get('habit-1')!
+    expect(buildHabitDetailChildDateModel(parent, parent, '2026-11-01', '2026-11-01').canLog).toBe(true)
   })
 
   it('marks only pre-cutoff days unavailable in the overlapping month', () => {

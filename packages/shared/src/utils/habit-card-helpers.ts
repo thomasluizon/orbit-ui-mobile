@@ -102,11 +102,12 @@ export function computeHabitFrequencyLabel(
 export function canLogHabitOnDate(
   habit: Pick<
     NormalizedHabit,
-    'frequencyUnit' | 'isFlexible' | 'isOverdue' | 'scheduledDates' | 'instances' | 'dueDate'
+    'frequencyUnit' | 'isFlexible' | 'isOverdue' | 'scheduledDates' | 'instances' | 'dueDate' | 'isSkippedOnDate'
   >,
   date: string,
   today: string,
 ): boolean {
+  if (habit.isSkippedOnDate) return false
   const isRecurringOrFlexible = habit.frequencyUnit != null
   if (date > today && isRecurringOrFlexible) return false
   if (!isWithinOverdueWindow(date, today)) return false

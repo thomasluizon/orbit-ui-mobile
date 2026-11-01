@@ -4,15 +4,13 @@ import { memo, useCallback, useMemo, useState, type ReactNode } from 'react'
 import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle, type LayoutChangeEvent } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
-  canLogHabitOnDate,
+  buildHabitRowDateModel,
   computeHabitCardStatus,
   formatAPIDate,
-  getTodayBoundary,
   isHabitDoneForRange,
   resolveHabitAccessibleStatus,
   getHabitInlineDepthLimit,
   stripInlineMarkdown,
-  type TodayBoundary,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitRowBase } from '@orbit/shared/contracts/lists'
@@ -213,15 +211,6 @@ function resolveBodyPressAction(
   return selectMode ? actions.onToggleSelection : actions.onDetail
 }
 
-function resolveBoundaryCompletionReason(
-  boundary: TodayBoundary,
-  t: (key: string) => string,
-): string | undefined {
-  if (boundary === 'read-only') return t('habits.todayBoundary.readOnly')
-  if (boundary === 'future') return t('habits.todayBoundary.future')
-  return undefined
-}
-
 function useBodyPressFeedback(
   tokens: ReturnType<typeof createTokensV2>,
 ) {
@@ -289,7 +278,7 @@ export const HabitRow = memo(function HabitRow({
   isExpanded = false,
   completionReadOnly: completionReadOnlyOverride,
   completionReason: completionReasonOverride,
-  completionStatusUnavailable = false,
+  completionStatusUnavailable: completionStatusUnavailableOverride = false,
   childrenDone = 0,
   childrenTotal = 0,
   actions = EMPTY_HABIT_ROW_ACTIONS,
@@ -321,10 +310,11 @@ export const HabitRow = memo(function HabitRow({
   )
 
   const isOverdue = status === 'overdue'
-  const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
-  const boundary = getTodayBoundary(selectedDateStr, todayStr)
-  const completionReadOnly = completionReadOnlyOverride ?? (boundary === 'read-only' || (boundary === 'future' && !canLog))
-  const completionReason = completionReasonOverride ?? resolveBoundaryCompletionReason(boundary, t)
+  const dateModel = buildHabitRowDateModel(habit, selectedDateStr, todayStr)
+  const { canLog, dateStatusKey } = dateModel
+  const completionStatusUnavailable = completionStatusUnavailableOverride || dateModel.completionStatusUnavailable
+  const completionReadOnly = dateModel.completionStatusUnavailable || (completionReadOnlyOverride ?? dateModel.completionReadOnly)
+  const completionReason = completionReasonOverride ?? translateCompletionReason(dateModel.completionReasonKey, t)
 
   const metaParts = buildHabitRowMetaParts({
     habit,
@@ -336,6 +326,7 @@ export const HabitRow = memo(function HabitRow({
     t,
     locale,
   })
+  if (dateStatusKey) metaParts.push(t(dateStatusKey))
   if (habit.nextReminderAtUtc) metaParts.push({ kind: 'next', label: t('habits.nextReminder', { time: displayClock(habit.nextReminderAtUtc) }) })
   const { onContentWidth, onTokenWidth, narrow } = useHabitRowMetadataFit(metaParts)
   const supportingMeta = largeText || depthBoundary || narrow
@@ -543,4 +534,8 @@ function habitRowBodyLayout(depth: number, supportingMeta: boolean): ViewStyle {
     paddingRight: supportingMeta ? SPACING.s0 : SPACING.s4,
     alignItems: supportingMeta ? 'flex-start' : 'center',
   }
+}
+
+function translateCompletionReason(key: ReturnType<typeof buildHabitRowDateModel>['completionReasonKey'], t: ReturnType<typeof useTranslation>['t']): string | undefined {
+  return key ? t(key) : undefined
 }
