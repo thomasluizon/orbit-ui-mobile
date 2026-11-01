@@ -18,6 +18,7 @@ import type { TodayInitialHabits } from './today-initial-data'
 import type { Profile } from '@orbit/shared/types/profile'
 import { PreloadedProfileContext, useProfile } from '@/hooks/use-profile'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { useUIStore } from '@/stores/ui-store'
 import { ErrorState } from '@/components/ui/error-state'
 
 import { Skeleton } from '@/components/ui/skeleton'
@@ -86,8 +87,10 @@ export function TodayPageClient({
 }: Readonly<TodayPageClientProps>) {
   const t = useTranslations()
   const accountGeneration = useAccountGeneration()
+  const todayResetVersion = useUIStore((state) => state.todayResetVersion)
   const [seedAccountGeneration] = useState(accountGeneration)
   const preloadedProfile = accountGeneration === seedAccountGeneration ? initialProfile ?? undefined : undefined
+  const accountHeldInitialHabits = accountGeneration === seedAccountGeneration ? initialHabits : null
   const { profile, isError, refetch } = useProfile({
     initialData: preloadedProfile,
   })
@@ -104,7 +107,7 @@ export function TodayPageClient({
           </div>
         </div>
   }
-  return <TodayPageContent initialToday={initialToday} initialHabits={initialHabits} preloadedProfile={preloadedProfile} />
+  return <TodayPageContent key={todayResetVersion} initialToday={initialToday} initialHabits={accountHeldInitialHabits} preloadedProfile={preloadedProfile} />
 }
 
 function TodayPageContent({ initialToday, initialHabits, preloadedProfile }: Readonly<{

@@ -289,6 +289,7 @@
     ],
     "Orbit Sobreposicoes": [
       "m-overlay-components-offline-notice",
+      "m-overlay-navigation-destination-tab-bar",
       "overlay-navigation-bottom-tab-bar",
       "m-overlay-ui-confirm-sheet",
       "m-overlay-ui-date-field",
@@ -488,7 +489,8 @@
     "overlay-ui-dropdown-menu-content": "The shared lazy menu content owns the overlay behavior rendered by Today controls and habit actions, whose surfaces belong to Orbit Hoje.",
     "m-overlay-progress-progress-content": "apps/mobile/components/progress/progress-content.tsx is the live body of the Progresso tab, reached from apps/mobile/app/(tabs)/progress.tsx. It reads as an overlay only because it imports ConfirmSheet directly, which is a listed overlay base.",
     "overlay-components-progress-content": "apps/web/app/(app)/progress/_components/progress-content.tsx is the live body of the /progress route, reached from apps/web/app/(app)/progress/page.tsx. It reads as an overlay only because it imports ConfirmSheet directly, which is a listed overlay base.",
-    "m-overlay-habits-goal-linking-field": "Orbit Habit Detail is the representative owner for the shared goal-linking field; Orbit Habit Create also draws it in the creation flow.",
+    "m-overlay-navigation-destination-tab-bar": "apps/mobile/components/navigation/destination-tab-bar.tsx is the Android tab bar, mirrored by the web overlay-navigation-bottom-tab-bar in this group. It reads as an overlay only because it imports dismissAllSheets from apps/mobile/components/ui/sheet.tsx, a listed overlay base, to close open sheets before the Hoje reset.",
+    "m-overlay-habits-goal-linking-field":"Orbit Habit Detail is the representative owner for the shared goal-linking field; Orbit Habit Create also draws it in the creation flow.",
     "m-widget-orbit-widget": "D66 assigns the Android widget to its canvas document.",
     "overlay-app-layout": "Orbit Hoje is the representative owner for the authenticated shell shared across Hoje, Calendario, Progresso, and Perfil, as defined by DESIGN.md.",
     "overlay-shell-sidebar-account": "Orbit Hoje owns the shared wide sidebar; its account menu follows the account header and sign-out composition specified by ticket #1657.",

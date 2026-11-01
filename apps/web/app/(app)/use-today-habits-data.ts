@@ -103,8 +103,9 @@ export function useTodayHabitsData({
   const initialItems = matchingInitialHabits?.items
   const initialTotalCount = matchingInitialHabits?.totalCount
   useEffect(() => {
-    if (initialTotalCount !== undefined) {
-      queryClient.setQueryData(habitKeys.listTotalCount(filters), initialTotalCount)
+    const countKey = habitKeys.listTotalCount(filters)
+    if (initialTotalCount !== undefined && queryClient.getQueryData<number>(countKey) === undefined) {
+      queryClient.setQueryData(countKey, initialTotalCount)
     }
   }, [filters, initialTotalCount, queryClient])
   const habitsQuery = useHabits(filters, initialItems, queryOptions)
