@@ -1,4 +1,3 @@
-import { useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { NextIntlClientProvider } from 'next-intl'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -8,12 +7,12 @@ import en from '@orbit/shared/i18n/en.json'
 import { getAccountDay } from '@orbit/shared/utils'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { bulkSkipResultSchema, type BulkSkipItemRequest } from '@orbit/shared/types/habit'
-import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { TodayProvider } from '@/app/(app)/today-provider'
-import { useBulkSkipHabits } from '@/hooks/use-habits'
+import { useTodayPage } from '@/app/(app)/use-today-page'
+import { TodayHeaderRegion, TodayHabitsPanel } from '@/app/(app)/today-page-view'
 import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
 
 const date = getAccountDay(new Date(), 'UTC')
@@ -21,7 +20,6 @@ let items = Array.from({ length: 30 }, (_, index) => makeHabitScheduleItem({
   id: `skip-${index}`, title: `Habit ${index}`, position: index, dueDate: date, scheduledDates: [date],
   children: [], hasSubHabits: false,
 }))
-const requests = items.map(({ id }) => ({ habitId: id, date }))
 const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 const profile = { ...profileFixture, language: 'en', timeZone: 'UTC' }
 client.setQueryData(profileKeys.detail(), profile)
@@ -48,23 +46,19 @@ window.skipScrollFixture = async (path, options) => {
 }
 
 function Fixture() {
-  const [selecting, setSelecting] = useState(true)
-  const list = useRef<HabitListHandle>(null)
-  const skip = useBulkSkipHabits()
+  const view = useTodayPage(date, null)
   return <ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }} header={<span>Today</span>}
     tabBar={<BottomTabBar activeId="hoje" label="Navigation" onSelect={() => {}} items={[{ id: 'hoje', href: '/', label: 'Today' }]} />}
-    fab={selecting ? undefined : <button>Create</button>}
-    composer={selecting ? <SelectionTray selectedCount={requests.length} allSelected
-      onSelectAll={() => {}} onDeselectAll={() => {}} onBulkLog={() => {}}
-      onBulkMove={() => {}} onBulkDelete={() => {}} onCancel={() => {}}
-      onBulkSkip={() => { void skip.mutateAsync(requests).then(() => {
-        list.current?.settleBulkHabitResolutions(requests.map(({ habitId }) => ({ habitId, mode: 'skip' })), date)
-        setSelecting(false)
-      }) }} /> : undefined}
-    compactComposer={selecting ? undefined : <textarea aria-label="Draft" />}>
+    fab={view.isSelectMode ? undefined : <button>Create</button>}
+    composer={view.isSelectMode ? <SelectionTray selectedCount={view.selectedHabitIds.size} allSelected={view.selection.allSelected}
+      skippableCount={view.selection.skippableCount}
+      onSelectAll={view.selection.selectAll} onDeselectAll={view.selection.deselectAll}
+      onBulkLog={() => {}} onBulkMove={() => {}} onBulkDelete={() => {}} onCancel={view.toggleSelectMode}
+      onBulkSkip={() => { void view.selection.confirmBulkSkip() }} /> : undefined}
+    compactComposer={view.isSelectMode ? undefined : <textarea aria-label="Draft" />}>
     <div id="orbit-main" className="flex min-h-full flex-col">
-      <HabitList ref={list} view="today" filters={{ dateFrom: date, dateTo: date, includeOverdue: true }}
-        isSelectMode={selecting} selectedHabitIds={new Set(selecting ? requests.map(({ habitId }) => habitId) : [])} />
+      <TodayHeaderRegion view={view} />
+      <TodayHabitsPanel view={view} />
     </div>
   </ShellWide>
 }
