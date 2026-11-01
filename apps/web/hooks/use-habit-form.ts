@@ -238,12 +238,16 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     if (!form.getValues('repeatReminder')) form.setValue('reminderEnabled', false)
     form.setValue('scheduledReminders', [])
     if (draft) for (const [field, value] of Object.entries(draft)) form.setValue(field as keyof HabitFormInput, value, { shouldDirty: true })
+    form.setValue('dueDate', '', { shouldDirty: true })
+    form.setValue('datePhrase', '', { shouldDirty: true })
+    form.setValue('dateIssue', '')
+    form.clearErrors('datePhrase')
   }, [form, modeDrafts])
 
   const chooseItemType = useCallback((type: 'task' | 'habit') => {
     const phrase = form.getValues('datePhrase') ?? ''
     const date = form.getValues('dueDate') ?? ''
-    if (type === 'task') setOneTime()
+    if (type === 'task') applyHabitFormMode(modeDrafts.taskMode, { setOneTime, setRecurring, setFlexible, setGeneral })
     else applyHabitFormMode(modeDrafts.habitMode, { setOneTime, setRecurring, setFlexible, setGeneral })
     if (type === 'habit' && readHabitRecurrencePhrase(phrase)) {
       form.setValue('datePhrase', phrase, { shouldDirty: true })

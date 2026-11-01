@@ -1589,7 +1589,7 @@ it('restores Task and General through the native owning form and real request bu
     await TestRenderer.act(() => host('habits.form.typeHabit, habits.form.typeHabitHint', 'radio').props.onPress())
     await TestRenderer.act(() => input('habits.form.datePhrase').props.onChangeText('dia 28'))
     await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
-    const general = tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.noSchedule, habits.form.noScheduleHint')[0]!
+    const general = tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.noSchedule')[0]!
     await TestRenderer.act(() => general.props.onPress())
     expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: true, isBadHabit: false, reminderEnabled: false })
     expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ isGeneral: true })
@@ -1930,8 +1930,8 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
   const action = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && (matchesFormLabel(node.props.accessibilityLabel, label) || (!node.props.accessibilityLabel && node.findAll((child: UnderstandingTestNode) => child.type === 'Text' && matchesFormLabel(child.props.children, label)).length > 0)))[0]!
   const captions = (text: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === text)
   const mutation = () => owner === 'create' ? modalFeedback.create : modalFeedback.update
-  async function mount(type: 'task' | 'habit' | null) {
-    const habit = createMockHabit({ title: 'Read', frequencyUnit: type === 'habit' ? 'Day' : null, dueDate: '2026-10-20', startDate: '2026-10-20' })
+  async function mount(type: 'task' | 'habit' | null, general = false) {
+    const habit = createMockHabit({ title: 'Read', frequencyUnit: type === 'habit' ? 'Day' : null, dueDate: general ? '' : '2026-10-20', startDate: general ? undefined : '2026-10-20', isGeneral: general })
     const client = new QueryClient()
     const modal = () => <QueryClientProvider client={client}><FocusProvenanceView>{owner === 'create'
         ? <CreateHabitModal open onClose={closed} initialTitle="Read" />
@@ -1947,6 +1947,61 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
   async function submit() {
     await TestRenderer.act(() => action(owner === 'create' ? formTitleLabel(tree) === 'habits.form.taskDescribe' ? 'habits.createTask' : 'habits.createHabit' : 'common.save').props.onPress())
   }
+
+  const dateChoice = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === label)[0]!
+
+  it.each(['en', 'pt-BR'])('saves an undated task from the native date choice in %s', async (locale) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    await mount('task')
+    expect(dateChoice('habits.form.noSchedule')).toBeDefined()
+    await TestRenderer.act(() => dateChoice('habits.form.noSchedule').props.onPress())
+    expect(dateChoice('habits.form.typeTask, habits.form.typeTaskHint').props.accessibilityState.checked).toBe(true)
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = owner === 'create' ? mutation().mock.calls[0]![0] : mutation().mock.calls[0]![0].data
+    expect(request).toMatchObject({ title: 'Read', isGeneral: true })
+    for (const field of ['dueDate', 'startDate', 'frequencyUnit', 'frequencyQuantity']) expect(request).not.toHaveProperty(field)
+  })
+
+  it('returns from no date to a dated native task', async () => {
+    formLocale.realController = true
+    await mount('task')
+    expect(dateChoice('habits.form.noSchedule')).toBeDefined()
+    await TestRenderer.act(() => dateChoice('habits.form.noSchedule').props.onPress())
+    await TestRenderer.act(() => dateChoice('habits.form.taskDate').props.onPress())
+    await TestRenderer.act(() => phraseInput().props.onChangeText('tomorrow'))
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = owner === 'create' ? mutation().mock.calls[0]![0] : mutation().mock.calls[0]![0].data
+    expect(request).toMatchObject({ dueDate: '2026-10-21' })
+    expect(request.isGeneral ?? false).toBe(false)
+    expect(request.frequencyUnit).toBeUndefined()
+  })
+
+  it('offers exactly two native habit frequencies', async () => {
+    formLocale.realController = true
+    await mount('habit')
+    const group = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'habits.form.frequency')[0]!
+    expect(group.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio')).toHaveLength(2)
+    expect(dateChoice('habits.form.noSchedule')).toBeUndefined()
+  })
+
+  if (owner === 'edit') it.each(['unchanged', 'dated', 'habit'] as const)('opens General as an undated native task and saves %s', async (transition) => {
+    formLocale.realController = true
+    await mount(null, true)
+    expect(dateChoice('habits.form.typeTask, habits.form.typeTaskHint').props.accessibilityState.checked).toBe(true)
+    expect(dateChoice('habits.form.noSchedule').props.accessibilityState.checked).toBe(true)
+    if (transition === 'dated') await TestRenderer.act(() => dateChoice('habits.form.taskDate').props.onPress())
+    if (transition === 'habit') await TestRenderer.act(() => dateChoice('habits.form.typeHabit, habits.form.typeHabitHint').props.onPress())
+    if (transition !== 'unchanged') await TestRenderer.act(() => phraseInput().props.onChangeText('tomorrow'))
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = mutation().mock.calls[0]![0].data
+    expect(request.isGeneral).toBe(transition === 'unchanged')
+    if (transition === 'dated') expect(request.dueDate).toBe('2026-10-21')
+    if (transition === 'habit') expect(request).toMatchObject({ startDate: '2026-10-21', frequencyUnit: 'Day', frequencyQuantity: 1 })
+  })
 
   if (owner === 'create') it('keeps native task guidance and sub-item inputs type-aware through a type change', async () => {
     formLocale.realController = true

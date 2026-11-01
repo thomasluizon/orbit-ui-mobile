@@ -463,13 +463,10 @@ export function HabitFormFields({
         value={title}
       >
         <Input disabled={disabled} label={t('habits.form.description')} error={descriptionFailure} focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)} value={description} onChange={guard((value) => setValue('description', value, { shouldDirty: true }))} multiline rows={1} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} />
-      <HabitDateField generalLocked={lockedGeneral === true} formHelpers={formHelpers} onRecurrence={controller.setRecurrence} />
+      <HabitDateField onChange={() => { onSuggestionContextChange?.(); controller.clearProposal() }} lockedGeneral={lockedGeneral} formHelpers={formHelpers} onRecurrence={controller.setRecurrence} />
 
             <HabitScheduleFields
               hidden={itemType === 'task'}
-              general={formHelpers.isGeneral}
-              generalLocked={lockedGeneral === false}
-              onGeneral={guard(() => { onSuggestionContextChange?.(); controller.clearProposal(); setGeneral() })}
               proposed={proposal.setup}
               unit={frequencyUnit ?? null}
               quantity={watchedQuantity ?? null}
