@@ -3022,7 +3022,7 @@
     },
     "export": {
       "title": "Your Right to Export Your Data",
-      "body": "You can download a copy of your Orbit data as a JSON file from Profile, in line with your data-portability rights under LGPD Art. 18. It includes your habits, logs, goals, tags, settings, and saved Astra conversations: your messages, Astra's replies, and the changes you approved. Images you sent are listed by file name only."
+      "body": "You can download a copy of your Orbit data as a JSON file from Profile, in line with your data-portability rights under LGPD Art. 18. It includes your habits, logs, goals, tags, settings, and saved Astra conversations: your messages, Astra's replies, what Astra checked or changed, and what you decided on each suggestion. Images you sent are listed by file name only."
     },
     "deletion": {
       "title": "Data Deletion",

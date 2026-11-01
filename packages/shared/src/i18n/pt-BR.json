@@ -3022,7 +3022,7 @@
     },
     "export": {
       "title": "Seu direito de exportar os dados",
-      "body": "Você pode baixar uma cópia dos seus dados do Orbit em um arquivo JSON pelo Perfil, conforme o direito à portabilidade previsto no art. 18 da LGPD. O arquivo inclui seus hábitos, registros, metas, tags, configurações e as conversas salvas com a Astra: suas mensagens, as respostas da Astra e as mudanças que você aprovou. As imagens que você enviou aparecem só pelo nome do arquivo."
+      "body": "Você pode baixar uma cópia dos seus dados do Orbit em um arquivo JSON pelo Perfil, conforme o direito à portabilidade previsto no art. 18 da LGPD. O arquivo inclui seus hábitos, registros, metas, tags, configurações e as conversas salvas com a Astra: suas mensagens, as respostas da Astra, o que ela consultou ou alterou e o que você decidiu em cada sugestão. As imagens que você enviou aparecem só pelo nome do arquivo."
     },
     "deletion": {
       "title": "Apagar os seus dados",
