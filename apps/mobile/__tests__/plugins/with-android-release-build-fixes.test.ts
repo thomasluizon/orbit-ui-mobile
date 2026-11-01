@@ -6,8 +6,47 @@ import {
   type ExportedConfigWithProps,
 } from '@expo/config-plugins'
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath, URL } from 'node:url'
 
 import withAndroidReleaseBuildFixes from '../../plugins/with-android-release-build-fixes'
+
+const appTemplate = readFileSync(fileURLToPath(new URL('../fixtures/android-release-sdk58/app-build.gradle.fixture', import.meta.url)), 'utf8')
+
+async function resolveAppGradle(contents: string, language: 'groovy' | 'kt' = 'groovy'): Promise<string> {
+  const config = withAndroidReleaseBuildFixes({ name: 'Orbit', slug: 'orbit' }) as ExportedConfig
+  const gradleMod = config.mods?.android?.appBuildGradle
+  if (!gradleMod) throw new Error('plugin registered no appBuildGradle mod')
+  const modConfig: ExportedConfigWithProps<AndroidConfig.Paths.GradleProjectFile> = {
+    ...config,
+    modResults: { contents, language, path: 'android/app/build.gradle' },
+    modRequest: {
+      projectRoot: '.', platformProjectRoot: '.', modName: 'appBuildGradle',
+      platform: 'android', introspect: false,
+    },
+    modRawConfig: config,
+  }
+  return (await gradleMod(modConfig)).modResults.contents
+}
+
+describe('withAndroidReleaseBuildFixes CMake anchors', () => {
+  it('applies app staging once to the generated SDK template', async () => {
+    const pristine = appTemplate.replace(/    if \(project\.hasProperty\("orbit\.cmakeBuildStagingDirectory"\)\) \{[\s\S]*?\n    }\n/, '')
+    expect(pristine).not.toContain('orbit.cmakeBuildStagingDirectory')
+    const once = await resolveAppGradle(pristine)
+    expect(once).toContain('buildStagingDirectory = file(project.property("orbit.cmakeBuildStagingDirectory"))')
+    expect(await resolveAppGradle(once)).toBe(once)
+  })
+
+  it('rejects a missing android anchor and unsupported app Gradle language', async () => {
+    await expect(resolveAppGradle('dependencies {}')).rejects.toThrow('android block')
+    await expect(resolveAppGradle(appTemplate, 'kt')).rejects.toThrow('Groovy app build.gradle')
+  })
+
+  it('rejects a missing Expo plugin anchor even if the other root policies already exist', async () => {
+    await expect(resolveRootGradle('// orbit-android-shared-ndk-version\n// orbit-android-okhttp-version\nallprojects {}')).rejects.toThrow('CMake staging before expo-root-project')
+  })
+})
 
 type PropertiesItem = AndroidConfig.Properties.PropertiesItem
 type ResourceXML = AndroidConfig.Resources.ResourceXML

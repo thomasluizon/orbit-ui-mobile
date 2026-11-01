@@ -24,8 +24,8 @@ const rootBuildGradlePath = path.join(androidDir, "build.gradle");
 const buildGradlePath = path.join(appDir, "build.gradle");
 const androidManifestPath = path.join(appDir, "src", "main", "AndroidManifest.xml");
 
-function findBraceBlock(source, startRegex, fromIndex = 0) {
-  const searchTarget = source.slice(fromIndex);
+function findBraceBlock(source, startRegex, fromIndex = 0, toIndex = source.length) {
+  const searchTarget = source.slice(fromIndex, toIndex);
   const match = searchTarget.match(startRegex);
 
   if (!match || typeof match.index !== "number") {
@@ -41,7 +41,7 @@ function findBraceBlock(source, startRegex, fromIndex = 0) {
 
   let depth = 0;
 
-  for (let index = openBraceIndex; index < source.length; index += 1) {
+  for (let index = openBraceIndex; index < toIndex; index += 1) {
     const character = source[index];
 
     if (character === "{") {
@@ -75,31 +75,53 @@ function upsertGradleProperty(source, key, value) {
   return `${normalizedSource}${nextLine}\n`;
 }
 
+function failAnchor(anchor) {
+  console.error(`Could not verify ${anchor}`);
+  process.exit(1);
+}
+
+function requireBlock(source, pattern, anchor, parent) {
+  const block = findBraceBlock(
+    source, pattern, parent ? parent.openBraceIndex + 1 : 0, parent ? parent.end - 1 : source.length
+  );
+  if (!block) failAnchor(anchor);
+  return block;
+}
+
+function replaceBlock(source, block, content) {
+  return `${source.slice(0, block.start)}${content}${source.slice(block.end)}`;
+}
+
+function signingBlocks(source) {
+  const android = requireBlock(source, /^[ \t]*android\s*\{/m, "android block in app/build.gradle");
+  const configs = requireBlock(source, /^[ \t]*signingConfigs\s*\{/m, "signingConfigs block in app/build.gradle", android);
+  const types = requireBlock(source, /^[ \t]*buildTypes\s*\{/m, "buildTypes block in app/build.gradle", android);
+  const release = requireBlock(source, /^[ \t]*release\s*\{/m, "release buildType in app/build.gradle", types);
+  return { configs, release };
+}
+
+function verifyReleaseSigning(source) {
+  const { configs, release } = signingBlocks(source);
+  requireBlock(source, /^[ \t]*release\s*\{/m, "signingConfigs release entry in app/build.gradle", configs);
+  if (!/^[ \t]*signingConfig\s*(?:=\s*)?signingConfigs\s*\.\s*release\b/m.test(release.content) ||
+      /\bsigningConfigs\s*\.\s*debug\b/.test(release.content)) {
+    failAnchor("release signingConfig must reference signingConfigs.release without signingConfigs.debug");
+  }
+}
+
 function ensureAndroidAppLinkAutoVerify(source) {
   const appLinkDataTagPattern =
     /<data\b(?=[^>]*android:scheme="https")(?=[^>]*android:pathPrefix="\/auth-callback")[^>]*\/>/;
-  const appLinkDataTagMatch = source.match(appLinkDataTagPattern);
+  const intentFilter = [...source.matchAll(/<intent-filter\b[^>]*>[\s\S]*?<\/intent-filter>/g)]
+    .find((match) => appLinkDataTagPattern.test(match[0]));
+  if (!intentFilter) failAnchor("auth-callback App Link intent-filter in AndroidManifest.xml");
 
-  if (!appLinkDataTagMatch || typeof appLinkDataTagMatch.index !== "number") {
-    return source;
-  }
-
-  const intentFilterStart = source.lastIndexOf("<intent-filter", appLinkDataTagMatch.index);
-  if (intentFilterStart === -1) {
-    return source;
-  }
-
-  const intentFilterTagEnd = source.indexOf(">", intentFilterStart);
-  if (intentFilterTagEnd === -1 || intentFilterTagEnd > appLinkDataTagMatch.index) {
-    return source;
-  }
-
-  const intentFilterTag = source.slice(intentFilterStart, intentFilterTagEnd);
-  if (intentFilterTag.includes("android:autoVerify=")) {
-    return source;
-  }
-
-  return `${source.slice(0, intentFilterTagEnd)} android:autoVerify="true"${source.slice(intentFilterTagEnd)}`;
+  const updatedFilter = intentFilter[0].replace(/<intent-filter\b[^>]*>/, (tag) =>
+    /android:autoVerify="[^"]*"/.test(tag)
+      ? tag.replace(/android:autoVerify="[^"]*"/, 'android:autoVerify="true"')
+      : tag.replace(/>$/, ' android:autoVerify="true">')
+  );
+  return source.replace(intentFilter[0], updatedFilter);
 }
 
 if (
@@ -138,9 +160,9 @@ let gradleProperties = fs.readFileSync(gradlePropertiesPath, "utf8");
 let androidManifest = fs.readFileSync(androidManifestPath, "utf8");
 
 if (!rootBuildGradle.includes("asyncStorageLocalRepo")) {
-  const repositoriesAnchor = "allprojects {\n  repositories {";
+  const repositoriesAnchor = /\ballprojects\s*\{\s*repositories\s*\{/;
 
-  if (!rootBuildGradle.includes(repositoriesAnchor)) {
+  if (!repositoriesAnchor.test(rootBuildGradle)) {
     console.error("Could not find allprojects repositories block in android/build.gradle");
     process.exit(1);
   }
@@ -155,11 +177,13 @@ const stableExpoEntryFileLine = '    entryFile = file("${projectRoot}/index.js")
 
 if (buildGradle.includes(generatedExpoEntryFileLine)) {
   buildGradle = buildGradle.replace(generatedExpoEntryFileLine, stableExpoEntryFileLine);
+} else if (!buildGradle.includes(stableExpoEntryFileLine)) {
+  failAnchor("entryFile anchor in app/build.gradle");
 }
 
 if (!buildGradle.includes("keystore.properties")) {
-  const marker = "\nandroid {";
-  if (!buildGradle.includes(marker)) {
+  const marker = /^[ \t]*android\s*\{/m;
+  if (!marker.test(buildGradle)) {
     console.error("Could not find android block marker in build.gradle for keystore injection");
     process.exit(1);
   }
@@ -177,13 +201,8 @@ android {`;
   buildGradle = buildGradle.replace(marker, keystoreInjection);
 }
 
-if (!buildGradle.includes("signingConfigs.release")) {
-  const signingConfigsBlock = findBraceBlock(buildGradle, /signingConfigs\s*\{/);
-
-  if (!signingConfigsBlock) {
-    console.error("Could not find signingConfigs.debug block in build.gradle");
-    process.exit(1);
-  }
+const { configs: signingConfigsBlock } = signingBlocks(buildGradle);
+if (!findBraceBlock(buildGradle, /^[ \t]*release\s*\{/m, signingConfigsBlock.openBraceIndex + 1, signingConfigsBlock.end - 1)) {
 
   const releaseSigningConfig = `
         release {
@@ -197,31 +216,15 @@ if (!buildGradle.includes("signingConfigs.release")) {
   buildGradle = `${buildGradle.slice(0, signingConfigsBlock.start)}${expandedSigningConfigs}${buildGradle.slice(signingConfigsBlock.end)}`;
 }
 
-const buildTypesBlock = findBraceBlock(buildGradle, /buildTypes\s*\{/);
-if (!buildTypesBlock) {
-  console.error("Could not find buildTypes block in build.gradle");
-  process.exit(1);
-}
+const { release: releaseBuildTypeBlock } = signingBlocks(buildGradle);
+const debugSigningConfig = /^([ \t]*)signingConfig\s*(?:=\s*)?signingConfigs\s*\.\s*debug\b/gm;
+const updatedReleaseBuildType = releaseBuildTypeBlock.content.replace(
+  debugSigningConfig,
+  "$1signingConfig = signingConfigs.release"
+);
+buildGradle = replaceBlock(buildGradle, releaseBuildTypeBlock, updatedReleaseBuildType);
+verifyReleaseSigning(buildGradle);
 
-const releaseBuildTypeBlock = findBraceBlock(buildGradle, /release\s*\{/, buildTypesBlock.openBraceIndex);
-if (!releaseBuildTypeBlock) {
-  console.error("Could not find release buildType block in build.gradle");
-  process.exit(1);
-}
-
-if (releaseBuildTypeBlock.content.includes("signingConfig signingConfigs.debug")) {
-  const updatedReleaseBuildTypeBlock = releaseBuildTypeBlock.content.replace(
-    "signingConfig signingConfigs.debug",
-    "signingConfig signingConfigs.release"
-  );
-
-  buildGradle = `${buildGradle.slice(0, releaseBuildTypeBlock.start)}${updatedReleaseBuildTypeBlock}${buildGradle.slice(releaseBuildTypeBlock.end)}`;
-}
-
-// org.gradle.jvmargs is owned by plugins/with-android-release-build-fixes.js. This
-// script runs after prebuild, so upserting the property here overwrote that plugin's
-// -Xmx6144m/2048m back down to -Xmx4g/1024m on every CI release — the heap R8 and the
-// KSP worker need. The Kotlin daemon is sized separately and stays here.
 gradleProperties = upsertGradleProperty(
   gradleProperties,
   "kotlin.daemon.jvmargs",
@@ -231,6 +234,7 @@ gradleProperties = upsertGradleProperty(gradleProperties, "org.gradle.workers.ma
 androidManifest = ensureAndroidAppLinkAutoVerify(androidManifest);
 
 fs.writeFileSync(buildGradlePath, buildGradle);
+verifyReleaseSigning(fs.readFileSync(buildGradlePath, "utf8"));
 fs.writeFileSync(rootBuildGradlePath, rootBuildGradle);
 fs.writeFileSync(gradlePropertiesPath, gradleProperties);
 fs.writeFileSync(androidManifestPath, androidManifest);
