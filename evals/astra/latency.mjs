@@ -34,7 +34,8 @@ function phaseTotals(timing) {
 export function summarizeLatency(attempts) {
   const withoutTiming = (status, reason) => ({ budgetMilliseconds: READ_LATENCY_BUDGET_MILLISECONDS,
     totalMedianMilliseconds: null, phaseMediansMilliseconds: null, status, reason })
-  const requested = attempts.filter((entry) => entry.response?.metadata?.astraPreconditionFailure !== true)
+  const requested = attempts.filter((entry) => entry.response?.metadata?.astraPreconditionFailure !== true
+    && entry.response?.output?.unavailable !== true)
   const timings = requested.map((entry) => {
     const trace = entry.response?.output?.trace
     const requestId = entry.testCase.vars?.evalRequestId

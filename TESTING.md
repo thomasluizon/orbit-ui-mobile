@@ -832,6 +832,9 @@ final-answer failure remains a failure even when evidence is also unavailable. L
 evidence can never approve the gate.
 An HTTP 400 with `AI_UNAVAILABLE` is incomplete provider evidence, preserving its typed error
 and request identity. It cannot satisfy either a moderation refusal or a tool assertion.
+It supplies no latency sample, so missing timing on that response leaves latency incomplete.
+A later passing daily window can complete the case without consuming its permitted failure rerun.
+Malformed timing on an available response and independent capability failures still fail.
 
 The trace does not mark model rounds. After a successful typed read, `ask` arguments may
 match either the initial or continued producer declaration, including the proactive-offer

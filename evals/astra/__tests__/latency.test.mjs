@@ -7,7 +7,7 @@ import parseResponse from '../response.mjs'
 import { summarize, writeReport } from '../report.mjs'
 import { mergeReports } from '../merge-reports.mjs'
 import { afterAll } from '../hooks.mjs'
-import { describeCase, READ_LATENCY_BUDGET_MILLISECONDS } from '../latency.mjs'
+import { describeCase, READ_LATENCY_BUDGET_MILLISECONDS, summarizeLatency } from '../latency.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
 import { chatResponse } from './fixtures/producer.mjs'
 
@@ -56,12 +56,25 @@ it.each(Array.from({ length: ATTEMPTS_PER_CASE }, (_, index) => index))('keeps r
 })
 it.each(['missing timing', 'capability failure'])('preserves a real %s alongside an unrun attempt', (failure) => {
   const results = attempts(Array(ATTEMPTS_PER_CASE + 1).fill(faster))
+  results.at(-1).success = false
+  results.at(-1).response.output = { unavailable: true }
   if (failure === 'missing timing') delete results[0].response.output.trace.timing
   else {
     results[0].success = false
     results[0].gradingResult.componentResults[0].pass = false
   }
   expect(summarize(results, [descriptor]).status).toBe('fail')
+})
+it.each(['missing', 'malformed', 'slow'])('takes no latency sample from an unavailable response with %s timing', (state) => {
+  const results = attempts(Array(ATTEMPTS_PER_CASE).fill(aboveBudget))
+  for (const entry of results) {
+    entry.success = false
+    entry.response.output.unavailable = true
+    if (state === 'missing') delete entry.response.output.trace.timing
+    if (state === 'malformed') entry.response.output.trace.timing.phases = []
+  }
+  expect(summarizeLatency(results)).toMatchObject({ status: 'incomplete',
+    totalMedianMilliseconds: null, phaseMediansMilliseconds: null })
 })
 it('asserts the configured median, sums repeated phases before taking medians, and reports it', () => {
   const summary = summarize(attempts(Array(ATTEMPTS_PER_CASE).fill(belowBudget)), [descriptor])

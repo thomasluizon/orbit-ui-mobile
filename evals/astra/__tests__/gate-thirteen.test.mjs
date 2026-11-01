@@ -4,13 +4,16 @@ import { parse } from 'yaml'
 import { structural, behavior } from '../assertions.mjs'
 import parseResponse from '../response.mjs'
 import { summarize } from '../report.mjs'
+import { describeCase } from '../latency.mjs'
+import { mergeReports } from '../merge-reports.mjs'
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { publicApi } from '../fixtures/api.mjs'
 import { resetFixture } from '../fixtures/reset.mjs'
 import { fixtureFetch } from './fixtures/public-api.mjs'
 import { completeOfferAttempt } from '../offer-lifecycle.mjs'
 import { configureOffers } from '../offer-context.mjs'
 import { offerSafety } from '../proactive-offers.mjs'
-import { chatResponse, habitAccountRead, toolCall } from './fixtures/producer.mjs'
+import { chatResponse, habitAccountRead, toolCall, turnTiming } from './fixtures/producer.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 
 const recorded = JSON.parse(readFileSync(new URL('./fixtures/gate-thirteen.json', import.meta.url), 'utf8'))
@@ -69,11 +72,27 @@ it('does not charge failed, non-dispatched creates against a held create scope',
 
 it('records AI_UNAVAILABLE as incomplete evidence through the report boundary', () => {
   const row = recorded.find((entry) => entry.httpError)
+  const testCase = structuredClone(corpus.find((entry) => entry.metadata.id === row.caseId))
+  const descriptor = describeCase(testCase)
+  expect(descriptor.readLatency).toBe(true)
   const response = parseResponse(row.httpError, '', { response: { status: 400,
     headers: { 'x-orbit-request-id': row.httpError.responseRequestId } } })
   const summary = summarize([{ success: false, response, error: response.error,
-    testCase: { metadata: { id: row.caseId } } }], [row.caseId])
-  expect(summary.cases[0]).toMatchObject({ allAttemptsPass: 'incomplete', unavailable: 1 })
+    testCase }], [descriptor])
+  const completed = decoded([])
+  completed.trace.timing = turnTiming()
+  const passing = summarize(Array.from({ length: ATTEMPTS_PER_CASE }, () => ({ success: true,
+    testCase: { ...testCase, vars: { ...testCase.vars, evalRequestId: 'request' } },
+    response: { output: completed },
+    gradingResult: { componentResults: [{ pass: true, assertion: { metric: 'composition' } }] },
+  })), [descriptor])
+  expect(passing.status).toBe('pass')
+  const continuation = () => mergeReports([summary, passing], [descriptor])
+  expect(continuation).not.toThrow()
+  expect(continuation().cases[0]).toMatchObject({ allAttemptsPass: 'pass', sourceWindow: 2,
+    superseded: [{ allAttemptsPass: 'incomplete', unavailable: 1 }] })
+  expect(summary.cases[0]).toMatchObject({ allAttemptsPass: 'incomplete', unavailable: 1,
+    latency: { status: 'incomplete', totalMedianMilliseconds: null, phaseMediansMilliseconds: null } })
 })
 
 it('retains route and typed code on a non-retryable preview conflict', async () => {
