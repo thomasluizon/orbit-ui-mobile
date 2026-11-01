@@ -7,7 +7,33 @@ function collectStrings(value, withheld) {
   else if (value && typeof value === 'object') Object.values(value).forEach((child) => collectStrings(child, withheld))
 }
 
-function observableArguments(value, schemas, sensitiveFields, withheld) {
+function bulkCreateItemSchemas(catalog) {
+  return catalog.filter((tool) => tool.function.name === 'bulk_create_habits').flatMap((tool) => {
+    const root = tool.function.parameters
+    return schemaVariants(root, root).flatMap((schema) => schemaVariants(schema.properties?.habits, root))
+      .flatMap((schema) => schemaVariants(schema.items, root))
+      .filter((schema) => schema.type === 'object' && schema.properties)
+      .map((schema) => ({ schema, root }))
+  })
+}
+
+function observableEncodedArguments(value, schemas, sensitiveFields, withheld) {
+  let decoded
+  try {
+    decoded = JSON.parse(value)
+  } catch {
+    collectStrings(value, withheld)
+    return null
+  }
+  if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded) || !schemas.length) {
+    collectStrings(value, withheld)
+    collectStrings(decoded, withheld)
+    return null
+  }
+  return observableArguments(decoded, schemas, sensitiveFields, withheld)
+}
+
+function observableArguments(value, schemas, sensitiveFields, withheld, encodedItemSchemas) {
   const variants = schemas.flatMap(({ schema, root }) => schemaVariants(schema, root).map((schema) => ({ schema, root })))
   if (!variants.length || (variants.every(({ schema }) => [schema.type].flat()
     .every((type) => ['object', 'array', 'null'].includes(type))) && typeof value !== 'object')) {
@@ -16,7 +42,7 @@ function observableArguments(value, schemas, sensitiveFields, withheld) {
   }
   if (Array.isArray(value)) {
     const items = variants.flatMap(({ schema, root }) => schema.items ? [{ schema: schema.items, root }] : [])
-    return value.map((child) => observableArguments(child, items, sensitiveFields, withheld))
+    return value.map((child) => observableArguments(child, items, sensitiveFields, withheld, encodedItemSchemas))
   }
   if (!value || typeof value !== 'object') return value
   return Object.fromEntries(Object.entries(value).flatMap(([key, child]) => {
@@ -26,7 +52,9 @@ function observableArguments(value, schemas, sensitiveFields, withheld) {
       collectStrings(child, withheld)
       return []
     }
-    return [[key, observableArguments(child, matches, sensitiveFields, withheld)]]
+    return [[key, key === 'arguments' && typeof child === 'string' && encodedItemSchemas
+      ? observableEncodedArguments(child, encodedItemSchemas, sensitiveFields, withheld)
+      : observableArguments(child, matches, sensitiveFields, withheld, encodedItemSchemas)]]
   }))
 }
 
@@ -77,11 +105,13 @@ export function attemptEvidence(entry, attempt) {
   const toolCalls = (output?.trace?.calls ?? []).map((call) => {
     const declarations = catalog.filter((candidate) => candidate.function.name === call.name)
     const sensitiveFields = new Set(declarations.flatMap((tool) => tool.sensitiveFields))
+    const encodedItemSchemas = call.name === 'ask' && call.arguments?.input?.form === 'pickList'
+      ? (call.arguments.input.action === 'create_habits' ? bulkCreateItemSchemas(catalog) : []) : undefined
     collectMarkedValues(call.result, sensitiveFields, withheld)
     return { name: call.name,
       arguments: observableArguments(call.arguments, declarations.map((tool) => ({
         schema: tool.function.parameters, root: tool.function.parameters,
-      })), sensitiveFields, withheld),
+      })), sensitiveFields, withheld, encodedItemSchemas),
       resultStatus: call.resultStatus, ...(declarations.length ? { result: resultEvidence(call.result, call.name) } : {}) }
   })
   const evidence = sanitizeEvidence({ ...attempt,

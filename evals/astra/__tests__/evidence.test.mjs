@@ -200,6 +200,49 @@ it('keeps declared nested and union arguments while omitting unknown credential 
   expect(text).not.toContain('private-nested-cookie')
 })
 
+it('projects string-encoded create items and redacts withheld values from answer and grader echoes', () => {
+  const call = toolCall('ask', { input: { form: 'pickList', missing_input: 'bulk_selection', title: 'Choose habits',
+    action: 'create_habits', items: [{ id: 'water', label: 'Water', arguments: JSON.stringify({
+      title: 'Water', cookie: 'offline-private-cookie', unknown: 'offline-private-unknown',
+      checklist_items: [{ text: 'One glass', token: 'offline-private-token' }],
+    }) }] } }, 'Succeeded', 'ask', { supportsParts: true })
+  const output = outputFor([call])
+  output.answer = 'offline-private-cookie offline-private-token offline-private-unknown'
+  const { evidence, text } = persist(output, { gradingResult: { componentResults: [
+    { assertion: { metric: 'finalAnswer' }, pass: false, reason: output.answer },
+  ] } })
+  expect(evidence.toolCalls[0].arguments.input.items[0].arguments).toEqual({ title: 'Water',
+    checklist_items: [{ text: 'One glass' }] })
+  expect(evidence.answer).toBe('[redacted] [redacted] [redacted]')
+  expect(evidence.graderRationale).toBe(evidence.answer)
+  expect(evidence.assertions[0].reason).toBe(evidence.answer)
+  expect(text).not.toMatch(/cookie|token|offline-private-unknown/)
+})
+
+it.each(['invalid-json', 'null', '[]', '42', '"encoded-scalar"'])(
+  'withholds create item arguments that do not decode to an object: %s', (arguments_) => {
+    const call = toolCall('ask', { input: { form: 'pickList', missing_input: 'bulk_selection', title: 'Choose habits',
+      action: 'create_habits', items: [{ id: 'water', label: 'Water', arguments: arguments_ }] } },
+    'Succeeded', 'ask', { supportsParts: true })
+    const output = outputFor([call])
+    output.answer = arguments_
+    const { evidence } = persist(output)
+    expect(evidence.toolCalls[0].arguments.input.items[0].arguments).toBeNull()
+    expect(evidence.answer).toBe('[redacted]')
+  })
+
+it('withholds encoded item arguments without a matching create action schema', () => {
+  const arguments_ = JSON.stringify({ title: 'Water', cookie: 'offline-private-cookie' })
+  const call = toolCall('ask', { input: { form: 'pickList', missing_input: 'bulk_selection', title: 'Choose habits',
+    action: 'log_habits', items: [{ id: 'water', label: 'Water', arguments: arguments_ }] } },
+  'Succeeded', 'ask', { supportsParts: true })
+  const output = outputFor([call])
+  output.answer = arguments_
+  const { evidence } = persist(output)
+  expect(evidence.toolCalls[0].arguments.input.items[0].arguments).toBeNull()
+  expect(evidence.answer).toBe('[redacted]')
+})
+
 it.each(['choice', 'question'])('retains draft-bound %s arguments without unknown credential fields', (form) => {
   const input = { form, missing_input: 'habit_setup', draft_call_id: 'new-draft', missing_field: 'frequency_unit',
     ...(form === 'choice' ? { question: 'How often?', options: [
