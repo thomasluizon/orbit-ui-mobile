@@ -29,7 +29,7 @@ export function useDataExport() {
       const fileName = `orbit-data-export-${new Date().toISOString().slice(0, 10)}.json`
       const file = new File(Paths.cache, fileName)
       file.create({ overwrite: true })
-      file.write(JSON.stringify(data, null, 2))
+      await file.write(JSON.stringify(data, null, 2))
       await Sharing.shareAsync(file.uri, {
         dialogTitle: t('dataExport.shareTitle'),
         mimeType: 'application/json',

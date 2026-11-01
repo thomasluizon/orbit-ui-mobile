@@ -12,7 +12,6 @@ function withLocalPlugins(plugins) {
     './plugins/with-android-release-build-fixes',
     './plugins/with-react-native-imperative-focus',
     './plugins/with-ios-widget',
-    './plugins/with-ios-scene',
   ]) {
     if (!nextPlugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === pluginPath)) {
       nextPlugins.push(pluginPath)
@@ -21,8 +20,8 @@ function withLocalPlugins(plugins) {
   return nextPlugins
 }
 
-module.exports = () => {
-  const baseConfig = appJson.expo ?? {};
+module.exports = ({ config } = { config: appJson.expo }) => {
+  const baseConfig = config;
   const appVersion = process.env.ORBIT_APP_VERSION;
   if (appVersion !== undefined && (!/^\d+\.\d+\.\d+$/.test(appVersion) || appVersion !== appVersion.trim())) {
     throw new Error('Invalid ORBIT_APP_VERSION; expected x.y.z');

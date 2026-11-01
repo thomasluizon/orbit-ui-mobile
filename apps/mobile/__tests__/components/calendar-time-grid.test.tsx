@@ -1,6 +1,6 @@
 import React from "react";
 import { createRequire, Module } from 'node:module';
-import type { HoverGesture, GestureStateChangeEvent } from 'react-native-gesture-handler';
+import type { LegacyHoverGesture as HoverGesture, GestureStateChangeEvent } from 'react-native-gesture-handler';
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable';
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { StyleSheet } from "react-native";

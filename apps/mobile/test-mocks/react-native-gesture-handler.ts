@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react'
 import { createRequire } from 'node:module'
-import type { NativeGesture as NativeGestureType, TapGesture as TapGestureType, HoverGesture as HoverGestureType } from 'react-native-gesture-handler'
+import type { LegacyTapGesture as TapGestureType, LegacyHoverGesture as HoverGestureType } from 'react-native-gesture-handler'
+
+type NativeGestureType = ReturnType<typeof import('react-native-gesture-handler').Gesture.Native>
 
 const loadGestureModule = createRequire(import.meta.url)
 const { NativeGesture } = loadGestureModule('react-native-gesture-handler/lib/commonjs/handlers/gestures/nativeGesture') as { NativeGesture: new () => NativeGestureType }

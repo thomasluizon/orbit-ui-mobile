@@ -1,6 +1,6 @@
 import React from 'react'
 import { createRequire, Module } from 'node:module'
-import type { GestureStateChangeEvent, HoverGesture } from 'react-native-gesture-handler'
+import type { GestureStateChangeEvent, LegacyHoverGesture as HoverGesture } from 'react-native-gesture-handler'
 import * as ReactNative from 'react-native'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AccessibilityInfo, Animated, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'

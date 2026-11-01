@@ -12,11 +12,6 @@
       "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/84b3535b-5957-42b7-bda3-4ed9dfde3734"
     },
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#09090B"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "org.useorbit.app",
@@ -225,7 +220,19 @@
           "project": "orbit-mobile"
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#09090B"
+        }
+      ],
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

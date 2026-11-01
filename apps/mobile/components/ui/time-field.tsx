@@ -12,7 +12,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Gesture, GestureDetector, GestureHandlerRootView, type NativeGesture } from 'react-native-gesture-handler'
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import type { TimeFieldProps } from '@orbit/shared/contracts/forms'
 import {
   DAY_PERIODS,
@@ -73,7 +73,7 @@ function TimeOption({
   formattedValue: string
   onSelect: () => void
   selected: boolean
-  scrollGesture: NativeGesture
+  scrollGesture: ReturnType<typeof Gesture.Native>
   tokens: Tokens
 }>) {
   const [touchPressed, setTouchPressed] = useState(false)
