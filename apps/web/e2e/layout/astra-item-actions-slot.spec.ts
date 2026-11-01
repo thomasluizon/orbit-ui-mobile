@@ -4,6 +4,7 @@ import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { makeCreateHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeOfferedTaskPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
 import { chatStreamEventSchema } from '@orbit/shared/types/chat'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
@@ -72,6 +73,55 @@ for (const width of [320, 412, 1352]) {
         await expect(labelControl).toBeFocused()
         await expect(titleInput).toHaveCount(0)
         await expect(action).toBeVisible()
+      })
+    })
+  }
+}
+
+for (const width of [320, 1280]) {
+  for (const locale of ['en', 'pt-BR'] as const) {
+    const messages = locale === 'en' ? en : pt
+    const preview = makeOfferedTaskPreview()
+    preview.expiresAtUtc = '2099-01-01T00:00:00Z'
+    const name = preview.items![0]!.entityName
+    const event = chatStreamEventSchema.parse({ type: 'final', response: { aiMessage: '', actions: [], pendingOperations: [preview] } })
+
+    test.describe(`Astra suggested task at ${width} in ${locale}`, () => {
+      test.use({ appLocale: locale, viewport: { width, height: 915 }, layoutProfile: { uses24HourClock: true } })
+
+      test('shows one task, icon and reminder within the preview bounds', async ({ page, context }) => {
+        await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(event)}\n\n` }))
+        await page.goto('/')
+        await getShellConversationEntry(page, width, messages).click()
+        const conversation = page.locator('[data-shell-conversation="overlay"]')
+        await conversation.locator('[data-composer-input]').fill(name)
+        await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()
+        const card = conversation.locator('[data-conversation-block]').filter({ has: page.getByRole('heading', { name: messages.habits.form.newTask, exact: true }) })
+        await expect(card).toBeVisible()
+        await expect(card.locator('[data-preview-item-meta]')).toHaveCount(1)
+        await expect(card.getByRole('group', { name: messages.chat.preview.proposed, exact: true })).toHaveCount(1)
+        await expect(card.getByText('🎆', { exact: true })).toHaveCount(1)
+        const summary = card.locator('[data-preview-item-meta]')
+        await expect(summary).toHaveText(locale === 'en'
+          ? 'Dec 31, 2026 · at 20:30 · Remind me the same day at 19:30'
+          : '31 de dez. de 2026 · às 20:30 · Lembrar no mesmo dia às 19:30')
+        await expect(card).not.toContainText(/True|False|\[\{|reminder_enabled|scheduled_reminders/)
+        await page.evaluate(() => document.fonts.ready)
+        const geometry = await summary.evaluate(meta => {
+          const range = document.createRange()
+          range.selectNodeContents(meta)
+          const bounds = meta.getBoundingClientRect()
+          const fragments = Array.from(range.getClientRects())
+          const card = meta.closest('[data-conversation-block]')!
+          const cardBounds = card.getBoundingClientRect()
+          return { cardLeft: cardBounds.left, cardRight: cardBounds.right, overflow: card.scrollWidth > card.clientWidth,
+            clipped: fragments.some(rect => rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.bottom > bounds.bottom + 1) }
+        })
+        expect(geometry.cardLeft).toBeGreaterThanOrEqual(0)
+        expect(geometry.cardRight).toBeLessThanOrEqual(width)
+        expect(geometry.overflow).toBe(false)
+        expect(geometry.clipped).toBe(false)
+        await expect(card.getByRole('button', { name: messages.chat.operation.edit, exact: true })).toBeVisible()
       })
     })
   }

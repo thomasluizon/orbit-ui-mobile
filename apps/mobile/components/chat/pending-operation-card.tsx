@@ -93,12 +93,14 @@ function RemoveItemButton({ label, disabled, onClick }: Readonly<{ label: string
   ><X accessible={false} color={tokens.fg2} size={20} strokeWidth={1.5} /></Pressable>
 }
 
-function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, error, onSelectItem, onChange, onClose, onSave }: Readonly<PendingOperationEditSheetProps>) {
+function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, error, onSelectItem, onChange, onClose, onSave, fieldRemovals }: Readonly<PendingOperationEditSheetProps>) {
   const { sheetRef, closeSheet } = useSheetHost()
   const [query, setQuery] = useState('')
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const editableItems = items.filter((entry) => entry.fields.some(isPendingOperationEditableField))
+  const editableFields = item.fields.filter((field) => isPendingOperationEditableField(field)
+    && !(item.placement?.selected === 'new_parent' && field.field === 'parent_habit_id'))
   const showSearch = editableItems.length > PENDING_OPERATION_ITEM_SEARCH_THRESHOLD
   useEffect(() => { if (stale) closeSheet(onClose, onClose) }, [stale, closeSheet, onClose])
   const save = async () => { if (await onSave()) closeSheet(onClose) }
@@ -118,8 +120,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
         busy
           ? <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} busy reason={labels.acting} />
           : <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} onSelect={() => onSelectItem(entry.itemId)} />)}</RadioGroup></View> : null}
-      {item.fields.filter((field) => isPendingOperationEditableField(field)
-        && !(item.placement?.selected === 'new_parent' && field.field === 'parent_habit_id')).map((field) => {
+      {editableFields.map((field) => {
         const fieldName = field.field.split('/').at(-1)!
         const label = labels.fieldLabels[fieldName] ?? field.field
         const choices = item.fieldOptions?.find((entry) => entry.field === field.field && entry.field === 'parent_habit_id')
@@ -142,6 +143,13 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
           kind={field.valueType === 'number' ? 'number' : undefined}
           error={error ? labels.invalid : undefined}
         />
+      }).map((editor, index) => {
+        const field = editableFields[index]!
+        const removal = fieldRemovals?.find(entry => entry.field === field.field)
+        return removal ? <View key={field.field} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>{editor}</View>
+          <IconButton label={removal.label} disabled={removal.disabled} onClick={removal.onRemove}><X size={20} accessible={false} /></IconButton>
+        </View> : editor
       })}
       {error && item.fields.every((field) => field.valueType === 'action' || field.valueType === 'boolean' || field.field === 'days') ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText }}>{labels.invalid}</Text> : null}
     </View>

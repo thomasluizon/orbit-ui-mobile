@@ -29,3 +29,26 @@ export function makeOfferedPreview(): PendingAgentOperation {
     items: [{ itemId: '0', entityId: null, entityName: 'Water', stateFingerprint: 'state-one', fields: [requested, enabled, field] }],
   }))
 }
+
+export function makeOfferedTaskPreview(): PendingAgentOperation {
+  const operation = makeOfferedPreview()
+  const entityName = 'Virada no Terraço Itália'
+  const requested = operation.items![0]!.fields[0]!
+  const suggested = operation.items![0]!.fields[2]!
+  const reminderFields = ['reminder_enabled', 'scheduled_reminders']
+  const fields: PendingOperationChange[] = [
+    { ...requested, newValue: entityName, proposedValue: entityName },
+    { ...requested, field: 'frequency_unit', newValue: 'OneTime', proposedValue: 'OneTime' },
+    { ...requested, field: 'due_date', newValue: '2026-12-31', proposedValue: '2026-12-31', valueType: 'date' },
+    { ...requested, field: 'due_time', newValue: '20:30', proposedValue: '20:30', valueType: 'time' },
+    { ...suggested, field: 'emoji', newValue: '🎆', proposedValue: '🎆', valueType: 'text',
+      removal: { offerKey: 'preview:emoji', field: 'emoji', fields: ['emoji'] } },
+    { ...suggested, field: 'reminder_enabled', newValue: 'True', proposedValue: true, valueType: 'boolean',
+      removal: { offerKey: 'preview:reminder', field: 'scheduled_reminders', fields: reminderFields } },
+    { ...suggested, field: 'scheduled_reminders', newValue: '[{"time":"19:30","when":"same_day"}]',
+      proposedValue: [{ time: '19:30', when: 'same_day' }], valueType: 'list',
+      removal: { offerKey: 'preview:reminder', field: 'scheduled_reminders', fields: reminderFields } },
+  ].map(field => ({ ...field, entityName }))
+  return pendingAgentOperationSchema.parse({ ...operation, capabilityId: 'habits.write', riskClass: 'Low', displayName: 'create_habit', changes: fields,
+    items: [{ ...operation.items![0]!, entityName, fields }] })
+}
