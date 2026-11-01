@@ -48,7 +48,7 @@ export default class AstraHttpProvider {
       for (const grade of [structural, behavior, composition]) {
         const check = await grade(output, gradingContext)
         if (check.pass !== true || check.metadata?.unavailable) return { pass: false, score: 0,
-          reason: `Saved-step approval blocked: ${check.reason}` }
+          reason: `Saved-step approval blocked: ${check.reason}`, metadata: check.metadata }
       }
       return await approveStartingStep(output, context.vars)
     } catch (error) { return { pass: false, score: 0,

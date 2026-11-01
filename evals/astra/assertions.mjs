@@ -63,7 +63,7 @@ function recordHabitSetupDraft(call, drafts) {
 export function savedStep(output, context) {
   if (!['saveTask', 'saveChecklistItem'].includes(context.vars.startingStepAction)) return result(true, 'No saved-step approval requested.')
   const verdict = decode(output)?.savedStepReadback
-  return verdict?.pass === true ? verdict : result(false, verdict?.reason ?? 'Missing saved-step approval readback.')
+  return verdict?.pass === true ? verdict : result(false, verdict?.reason ?? 'Missing saved-step approval readback.', verdict?.metadata)
 }
 
 function traceBoundary(output, context) {

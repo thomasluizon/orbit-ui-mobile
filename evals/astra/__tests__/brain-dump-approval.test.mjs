@@ -8,6 +8,8 @@ import { fixtureFetch } from './fixtures/public-api.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { beforeEach as prepareAttempt } from '../hooks.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
+import { composition } from '../composition.mjs'
+import { structural } from '../assertions.mjs'
 import { parse, stringify } from 'yaml'
 import { readFileSync } from 'node:fs'
 
@@ -101,6 +103,15 @@ it('never confirms an invalid preview', async () => {
   const { test, output, baseline, requests } = approvalApi(brainDumpCases[0])
   const verdict = await approveBrainDump(output, test.vars, baseline, { pass: false, score: 0, reason: 'Invalid preview.' })
   expect(verdict.pass).toBe(false)
+  expect(requests.map(({ method }) => method)).toEqual(['DELETE', 'GET'])
+})
+
+it('retains unavailable preview verification through approval and composition', async () => {
+  const { test, output, baseline, requests } = approvalApi(brainDumpCases[0])
+  output.trace.state = 'unavailable'
+  const previewVerdict = await structural(output, { vars: test.vars })
+  output.brainDumpReadback = await approveBrainDump(output, test.vars, baseline, previewVerdict)
+  expect(composition(output, { vars: test.vars })).toMatchObject({ pass: false, metadata: { unavailable: true } })
   expect(requests.map(({ method }) => method)).toEqual(['DELETE', 'GET'])
 })
 

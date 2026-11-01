@@ -143,10 +143,13 @@ export function attemptEvidence(entry, attempt) {
       && redactCredentials(value) === value && !withheld.has(value)) evidence.trace[field] = value
   }
   for (const [index, turn] of (output?.offerReadback?.turns ?? []).entries()) {
-    for (const field of ['requestId', 'responseRequestId']) {
-      const value = turn.trace?.[field]
-      if (typeof value === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(value)
-        && redactCredentials(value) === value && !withheld.has(value)) evidence.offerReadback.turns[index].trace[field] = value
+    const recorded = evidence.offerReadback.turns[index]
+    for (const [source, target] of [[turn, recorded], [turn.trace, recorded.trace], [turn.httpError, recorded.httpError]]) {
+      for (const field of ['requestId', 'responseRequestId']) {
+        const value = source?.[field]
+        if (typeof value === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(value)
+          && redactCredentials(value) === value && !withheld.has(value)) target[field] = value
+      }
     }
   }
   const requestId = output?.httpError?.responseRequestId

@@ -14,7 +14,9 @@ async function verified(output, vars, evidence = []) {
   for (const grade of [structural, behavior, composition, vars.offerFamily ? proactiveOffers : offerSafety]) {
     const verdict = await grade(output, context)
     evidence.push(sanitizeEvidence({ metric: grade.name, ...verdict }))
-    if (verdict.pass !== true || verdict.metadata?.unavailable || verdict.metadata?.skipped) throw new Error(verdict.reason)
+    if (verdict.pass !== true || verdict.metadata?.unavailable || verdict.metadata?.skipped) {
+      throw Object.assign(new Error(verdict.reason), { metadata: verdict.metadata })
+    }
   }
 }
 
@@ -32,9 +34,14 @@ function continuation(vars, chat, evidence, output) {
       requestId: next.evalRequestId, conversationId: clientContext.conversationId,
       platform: clientContext.platform, reloaded: reload, assertions: [],
       reason: response.error ?? null,
+      httpStatus: response.output?.httpStatus ?? null,
+      ...(response.output?.unavailable === true ? { unavailable: true } : {}),
       groundingEvidence: groundingEvidence(response.output ?? {}, next),
     })
     evidence.push(recorded)
+    if (response.output?.unavailable === true) {
+      throw Object.assign(new Error(response.error ?? 'Astra response evidence is unavailable.'), { metadata: { unavailable: true } })
+    }
     if (response.error || !response.output) throw new Error(response.error ?? 'Missing offer continuation response.')
     await verified(response.output, next, recorded.assertions)
     history = [...(reload ? [] : history), { role: 'user', content: input }, { role: 'assistant', content: response.output.answer }]
@@ -166,6 +173,6 @@ export async function completeOfferAttempt(output, vars, chat) {
     if (vars.offerFamily === 'due-log') await checkReadScopes(api, vars, turn)
     return { ...offerResult(true, 'Verified held fields, lifecycle and independent persisted readback.'), turns, approval }
   } catch (error) {
-    return { ...offerResult(false, safeFailureMessage(error)), turns }
+    return { ...offerResult(false, safeFailureMessage(error), error.metadata), turns }
   }
 }

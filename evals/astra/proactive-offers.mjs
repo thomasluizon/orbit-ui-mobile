@@ -3,7 +3,7 @@ import { toolWrites } from './trace-policy.mjs'
 import { hasCrisisSurfaces } from './crisis-surfaces.mjs'
 import { groundedMissedAction } from './missed-offers.mjs'
 
-export const offerResult = (pass, reason) => ({ pass, score: pass ? 1 : 0, reason })
+export const offerResult = (pass, reason, metadata) => ({ pass, score: pass ? 1 : 0, reason, ...(metadata ? { metadata } : {}) })
 const text = (value) => typeof value === 'string' && value.trim().length > 0
 const uuid = (value) => typeof value === 'string' && /^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/iu.test(value)
 const reminders = ['reminder_enabled', 'reminder_times', 'scheduled_reminders', 'relative_reminders', 'repeat_reminder']
@@ -210,7 +210,8 @@ export function proactiveOffers(output, context) {
   if (completedGoal) return offerResult(false, completedGoal)
   const failure = familyFailure(parsed.composition, vars, offerActions(parsed.composition))
   if (failure) return offerResult(false, failure)
-  if (vars.offerRequireReadback && parsed.offerReadback?.pass !== true) return offerResult(false, parsed.offerReadback?.reason ?? 'Missing lifecycle or unchanged-state readback.')
+  if (vars.offerRequireReadback && parsed.offerReadback?.pass !== true) return offerResult(false,
+    parsed.offerReadback?.reason ?? 'Missing lifecycle or unchanged-state readback.', parsed.offerReadback?.metadata)
   return offerResult(true, 'Typed actions, provenance, removal groups and persisted state matched.')
 }
 

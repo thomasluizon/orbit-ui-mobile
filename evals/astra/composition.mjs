@@ -169,7 +169,7 @@ export function composition(output, context) {
   if (context.vars.brainDump) {
     const preview = brainDumpPreview(parsed, context.vars)
     return !preview.pass ? preview : parsed.brainDumpReadback?.pass === true
-      ? parsed.brainDumpReadback : result(false, parsed.brainDumpReadback?.reason ?? 'Missing brain dump approval readback.')
+      ? parsed.brainDumpReadback : result(false, parsed.brainDumpReadback?.reason ?? 'Missing brain dump approval readback.', parsed.brainDumpReadback?.metadata)
   }
   if (expected.mode === 'suggestions') return suggestionComposition(response, context.vars)
   if ((response.followUps?.length ?? 0) > 2 || (response.followUpContext?.length ?? 0) > 2
