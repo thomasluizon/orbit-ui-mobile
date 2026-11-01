@@ -7,6 +7,7 @@ import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
 import { hasOpenModalFocusOwner, hasOpenOverlay } from '@/lib/overlay-stack'
+import { useShellScroller } from '@/components/shell/shell-scroller-context'
 
 const CHORD_TIMEOUT_MS = 1200
 
@@ -21,7 +22,8 @@ export function useKeyboardShortcuts(enabled = true): void {
   const router = useRouter()
   const togglePalette = useShellStore((state) => state.togglePalette)
   const paletteOpen = useShellStore((state) => state.paletteOpen)
-  const setActiveView = useUIStore((state) => state.setActiveView)
+  const resetToday = useUIStore((state) => state.resetToday)
+  const scroller = useShellScroller()
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const chordArmed = useRef(false)
   const chordTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -39,7 +41,10 @@ export function useKeyboardShortcuts(enabled = true): void {
 
     function navigate(path: string, view?: 'today') {
       requestHabitCreateNavigation(() => {
-        if (view) setActiveView(view)
+        if (view) {
+          resetToday()
+          scroller?.scrollTo({ top: 0, behavior: 'instant' })
+        }
         setRouteTransitionIntent('instant')
         router.push(path)
       })
@@ -99,5 +104,5 @@ export function useKeyboardShortcuts(enabled = true): void {
       document.removeEventListener('keydown', onKeyDown)
       clearChord()
     }
-  }, [enabled, paletteOpen, router, togglePalette, setActiveView, setAstraConversationOpen])
+  }, [enabled, paletteOpen, router, togglePalette, resetToday, scroller, setAstraConversationOpen])
 }

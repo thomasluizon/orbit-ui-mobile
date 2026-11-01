@@ -76,6 +76,23 @@ describe("shared ui store", () => {
     });
   });
 
+  it('resets shared Hoje state on every activation without persisting the reset version', () => {
+    const store = createStoreHarness();
+    for (let activation = 1; activation <= 2; activation++) {
+      store.setState({ activeView: 'all', activeFilters: { frequencyUnit: 'Week', search: 'needle' },
+        isSelectMode: true, selectedHabitIds: new Set(['habit']), manuallySelectedIds: new Set(['habit']),
+        showCreateModal: true, astraConversationOpen: true, calendarShowRecurring: false });
+      store.getState().resetToday();
+      expect(store.getState()).toMatchObject({ todayResetVersion: activation, activeView: 'today',
+        activeFilters: {}, isSelectMode: false, showCreateModal: false, astraConversationOpen: false,
+        calendarShowRecurring: false });
+      expect(store.getState().activeFilters).toEqual({});
+      expect(store.getState().selectedHabitIds.size).toBe(0);
+      expect(store.getState().manuallySelectedIds.size).toBe(0);
+      expect(getPersistedUIState(store.getState())).not.toHaveProperty('todayResetVersion');
+    }
+  });
+
   it("toggles cascaded selection and clears it when toggled again", () => {
     const store = createStoreHarness();
     const { toggleSelectMode, toggleSelectionCascade } = store.getState();
