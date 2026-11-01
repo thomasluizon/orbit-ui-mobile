@@ -71,7 +71,7 @@ it.each(([
       if (activation === 'pointer') await item.scrollIntoViewIfNeeded()
       else {
         await page.keyboard.press(index === 0 ? 'Home' : 'ArrowDown')
-        expect(await item.evaluate((element) => document.activeElement === element)).toBe(true)
+        await expect.poll(() => item.evaluate((element) => document.activeElement === element)).toBe(true)
       }
       const reachable = await item.evaluate((element) => {
         const bounds = element.getBoundingClientRect()
@@ -84,7 +84,7 @@ it.each(([
     if (activation === 'pointer') await select.click({ timeout: 3000 })
     else {
       await page.keyboard.press('ArrowUp')
-      expect(await select.evaluate((element) => document.activeElement === element)).toBe(true)
+      await expect.poll(() => select.evaluate((element) => document.activeElement === element)).toBe(true)
       await page.keyboard.press('Enter')
     }
     await page.getByRole('button', { name: 'Select all', exact: true }).click()
