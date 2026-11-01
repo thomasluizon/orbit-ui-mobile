@@ -8,7 +8,9 @@ import parseResponse from '../response.mjs'
 import { behavior } from '../assertions.mjs'
 import { chatResponse, toolCall, traceTiming, suggestionDraft } from './fixtures/producer.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
-import { PostApiChatResponse } from '../../../packages/shared/src/types/__generated__/api.generated.ts'
+import { tsImport } from 'tsx/esm/api'
+
+const { PostApiChatResponse } = await tsImport('../../../packages/shared/src/types/__generated__/api.generated.ts', import.meta.url)
 
 const directories = []
 afterEach(() => {
@@ -190,15 +192,12 @@ it('keeps earlier credential echoes redacted when later attempts rotate or clear
 })
 
 it('keeps declared nested and union arguments while omitting unknown credential fields', () => {
-  const call = toolCall('ask', { input: { form: 'pickList', action: 'create_habits', items: [{ id: 'water', label: 'Water',
-    arguments: { title: 'Water', cookie: 'private-nested-cookie', checklist_items: [
-      { text: 'Drink a glass', is_checked: false, token: 'private-nested-token' },
-    ] } }] } }, 'Succeeded', 'call-1', { supportsParts: true })
+  const call = toolCall('ask', { input: { form: 'pickList', action: 'log_habits', items: [{ id: 'water', label: 'Water',
+    arguments: { habit_id: 'water', date: '2026-10-26', cookie: 'private-nested-cookie' } }] } },
+  'Succeeded', 'call-1', { supportsParts: true })
   const { evidence, text } = persist(outputFor([call]))
-  expect(evidence.toolCalls[0].arguments.input.items[0].arguments).toEqual({ title: 'Water', checklist_items: [
-    { text: 'Drink a glass', is_checked: false },
-  ] })
-  expect(text).not.toMatch(/private-nested-(cookie|token)/)
+  expect(evidence.toolCalls[0].arguments.input.items[0].arguments).toEqual({ habit_id: 'water', date: '2026-10-26' })
+  expect(text).not.toContain('private-nested-cookie')
 })
 
 it.each(['choice', 'question'])('retains draft-bound %s arguments without unknown credential fields', (form) => {

@@ -6,6 +6,7 @@ import parseResponse from '../response.mjs'
 import { summarize } from '../report.mjs'
 import { toolCall, capacityFailureCall } from './fixtures/producer.mjs'
 import { retrospectiveResponse } from './fixtures/public-api.mjs'
+import { nullableSchema, schemaVariants } from '../tool-schema.mjs'
 
 const { tools: catalog } = parse(readFileSync(new URL('../catalog.yaml', import.meta.url), 'utf8'))
 const scenarios = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) => parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')))
@@ -39,11 +40,13 @@ function exampleArguments(expected) {
   return expected
 }
 
-function schemaArguments(schema) {
+function schemaArguments(schema, root = schema) {
+  if (nullableSchema(schema, root)) return null
+  schema = schemaVariants(schema, root)[0]
   if (schema.enum) return schema.enum.find((value) => value !== null)
   const type = Array.isArray(schema.type) ? schema.type[0] : schema.type
-  if (type === 'object') return Object.fromEntries((schema.required ?? []).map((name) => [name, schemaArguments(schema.properties[name])]))
-  if (type === 'array') return Array.from({ length: schema.minItems ?? 1 }, () => schemaArguments(schema.items))
+  if (type === 'object') return Object.fromEntries((schema.required ?? []).map((name) => [name, schemaArguments(schema.properties[name], root)]))
+  if (type === 'array') return Array.from({ length: schema.minItems ?? 1 }, () => schemaArguments(schema.items, root))
   return type === 'string' ? 'first' : type === 'boolean' ? true : 1
 }
 

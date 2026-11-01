@@ -7,8 +7,10 @@ import { assertions } from 'promptfoo'
 import { matchesArguments, matchesOperation, outcomeCalls } from './operation-matcher.mjs'
 import { tools, legacyTools, postReadTools, habitSetupTools, habitSetupBinding,
   toolWrites, toolSensitiveFields, observableSchema, offerTools, offerPostReadTools, offerHabitSetupTools } from './trace-policy.mjs'
+import { resolveSchema } from './tool-schema.mjs'
 
 const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
+  description: tool.function.description ?? undefined,
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
 } }))
 const compositionCatalog = traceCatalog(tools)
@@ -26,20 +28,21 @@ const decode = (output) => typeof output === 'string' ? JSON.parse(output) : out
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const statuses = new Set(['Succeeded', 'Failed', 'PendingConfirmation', 'Denied', 'UnsupportedByPolicy', 'NotExecuted'])
 
-function bindDraftSchema(schema, draft) {
-  if (Array.isArray(schema)) return schema.map((entry) => bindDraftSchema(entry, draft))
+function bindDraftSchema(schema, draft, root) {
+  if (Array.isArray(schema)) return schema.map((entry) => bindDraftSchema(entry, draft, root))
+  schema = resolveSchema(schema, root)
   if (!isObject(schema)) return schema
   return Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, key === 'enum'
     ? value.map((entry) => entry === habitSetupBinding.draftCallId ? draft.callId
       : entry === habitSetupBinding.missingField ? draft.missingField : entry)
-    : bindDraftSchema(value, draft)]))
+    : bindDraftSchema(value, draft, root)]))
 }
 
 function boundHabitSetupCatalog(drafts, offers = false) {
   const bound = structuredClone(offers ? offerHabitSetupCatalog : habitSetupCatalog)
   for (const tool of bound) {
-    const input = tool.function.parameters.properties.input
-    input.anyOf = [...drafts.values()].flatMap((draft) => bindDraftSchema(input.anyOf, draft))
+    const root = tool.function.parameters
+    root.properties.input = { anyOf: [...drafts.values()].map((draft) => bindDraftSchema(root.properties.input, draft, root)) }
   }
   return mergeCatalog(offers ? offerCatalog : compositionCatalog, bound)
 }
@@ -116,6 +119,10 @@ export async function structural(output, context) {
   const drafts = new Map()
   let verdict = result(true, 'No tool calls to validate.')
   for (const call of trace.calls) {
+    // ProcessUserChatCommand.Ask.cs enforces a typed read or bound missing-field draft before ask.
+    if (supportsParts && call.name === 'ask' && !hasSuccessfulAccountRead && !drafts.size) {
+      return result(false, 'ask requires a typed account read or a bound missing-field draft.')
+    }
     verdict = await assertions.runAssertion({
       assertion: { type: 'is-valid-openai-tools-call' },
       provider: { config: { tools: catalog } },

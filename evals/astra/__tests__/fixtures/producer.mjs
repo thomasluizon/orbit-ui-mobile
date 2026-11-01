@@ -1,20 +1,25 @@
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
+import { nullableSchema, resolveSchema, schemaVariants } from '../../tool-schema.mjs'
 
 const { tools, legacyTools, postReadTools } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
 const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
 
 // StrictToolSchema requires nullable properties; composition reads require completion; traces omit marked fields.
-function strictArguments(schema, supplied) {
-  if (Array.isArray(supplied)) return supplied.map((entry) => strictArguments(schema?.items, entry))
+function strictArguments(schema, supplied, root = schema) {
   if (!supplied || typeof supplied !== 'object') return supplied
-  const defaults = Object.fromEntries(Object.entries(schema?.properties ?? {})
-    .filter(([, property]) => Array.isArray(property.type) && property.type.includes('null'))
+  const variants = schemaVariants(schema, root).filter((variant) => variant.type !== 'null')
+  // Default only an unambiguous shape; form unions are supplied by the fixture.
+  const resolved = variants.length === 1 ? variants[0] : resolveSchema(schema, root)
+  if (Array.isArray(supplied)) return supplied.map((entry) => strictArguments(resolved?.items, entry, root))
+  const properties = resolved?.properties ?? {}
+  const defaults = Object.fromEntries(Object.entries(properties)
+    .filter(([, property]) => nullableSchema(property, root))
     .map(([name]) => [name, null]))
-  if (schema?.properties?.orbit_read_complete) defaults.orbit_read_complete = false
-  if (schema?.properties?.orbit_write_complete) defaults.orbit_write_complete = false
+  if (properties.orbit_read_complete) defaults.orbit_read_complete = false
+  if (properties.orbit_write_complete) defaults.orbit_write_complete = false
   return { ...defaults, ...Object.fromEntries(Object.entries(supplied)
-    .map(([name, value]) => [name, strictArguments(schema?.properties?.[name], value)])) }
+    .map(([name, value]) => [name, strictArguments(properties[name], value, root)])) }
 }
 
 // Producer: ProcessUserChatCommand.EvalTrace.cs applies schema marks to arguments and result envelopes.

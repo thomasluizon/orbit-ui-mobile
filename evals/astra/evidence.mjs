@@ -1,32 +1,32 @@
 import { redactCredentials } from './credentials.mjs'
 import { tools, legacyTools, postReadTools, habitSetupTools, offerTools, offerPostReadTools, offerHabitSetupTools, normalizeField } from './trace-policy.mjs'
+import { schemaVariants } from './tool-schema.mjs'
 
 function collectStrings(value, withheld) {
   if (typeof value === 'string' && value) withheld.add(value)
   else if (value && typeof value === 'object') Object.values(value).forEach((child) => collectStrings(child, withheld))
 }
 
-const schemaVariants = (schema) => schema.anyOf ? schema.anyOf.flatMap(schemaVariants) : [schema]
-
-function observableArguments(value, schema, sensitiveFields, withheld) {
-  const variants = schema ? schemaVariants(schema) : []
-  if (!schema || (variants.every((variant) => variant.type === 'object') && typeof value !== 'object')) {
+function observableArguments(value, schemas, sensitiveFields, withheld) {
+  const variants = schemas.flatMap(({ schema, root }) => schemaVariants(schema, root).map((schema) => ({ schema, root })))
+  if (!variants.length || (variants.every(({ schema }) => [schema.type].flat()
+    .every((type) => ['object', 'array', 'null'].includes(type))) && typeof value !== 'object')) {
     collectStrings(value, withheld)
     return null
   }
   if (Array.isArray(value)) {
-    const items = variants.flatMap((variant) => variant.items ? [variant.items] : [])
-    return value.map((child) => observableArguments(child, items.length ? { anyOf: items } : undefined, sensitiveFields, withheld))
+    const items = variants.flatMap(({ schema, root }) => schema.items ? [{ schema: schema.items, root }] : [])
+    return value.map((child) => observableArguments(child, items, sensitiveFields, withheld))
   }
   if (!value || typeof value !== 'object') return value
   return Object.fromEntries(Object.entries(value).flatMap(([key, child]) => {
-    const matches = variants.flatMap((variant) => Object.hasOwn(variant.properties ?? {}, key) ? [variant.properties[key]] : [])
-    const property = matches.length ? { anyOf: matches } : undefined
-    if (!property || sensitiveFields.has(normalizeField(key))) {
+    const matches = variants.flatMap(({ schema, root }) => Object.hasOwn(schema.properties ?? {}, key)
+      ? [{ schema: schema.properties[key], root }] : [])
+    if (!matches.length || sensitiveFields.has(normalizeField(key))) {
       collectStrings(child, withheld)
       return []
     }
-    return [[key, observableArguments(child, property, sensitiveFields, withheld)]]
+    return [[key, observableArguments(child, matches, sensitiveFields, withheld)]]
   }))
 }
 
@@ -79,8 +79,9 @@ export function attemptEvidence(entry, attempt) {
     const sensitiveFields = new Set(declarations.flatMap((tool) => tool.sensitiveFields))
     collectMarkedValues(call.result, sensitiveFields, withheld)
     return { name: call.name,
-      arguments: observableArguments(call.arguments, declarations.length
-        ? { anyOf: declarations.map((tool) => tool.function.parameters) } : undefined, sensitiveFields, withheld),
+      arguments: observableArguments(call.arguments, declarations.map((tool) => ({
+        schema: tool.function.parameters, root: tool.function.parameters,
+      })), sensitiveFields, withheld),
       resultStatus: call.resultStatus, ...(declarations.length ? { result: resultEvidence(call.result, call.name) } : {}) }
   })
   const evidence = sanitizeEvidence({ ...attempt,
