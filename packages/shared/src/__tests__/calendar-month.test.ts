@@ -6,6 +6,7 @@ import { createMockHabitScheduleChild, createMockHabitScheduleItem } from './fac
 import type { CalendarMonthResponse, HabitScheduleChild } from '../types/habit'
 import { formatAPIDate } from '../utils/dates'
 import { formatCalendarSpanEnds, resolveCalendarMonthDisplayState } from '../utils/calendar-month-state'
+import { makeMonthlyChildDaySchedule } from '../test-support/habit-detail-fixtures'
 
 function entry(status: CalendarDayEntry['status'], habitId = 'h'): CalendarDayEntry {
   return { habitId, title: 't', status, isBadHabit: false, dueTime: null, isOneTime: false }
@@ -25,6 +26,19 @@ function sampleMonth(): Map<string, CalendarDayEntry[]> {
 }
 
 describe('buildCalendarMonthModel', () => {
+  it('omits a skipped monthly child from calendar day rows while retaining positive child logs', () => {
+    const date = '2026-11-01'
+    const parent = makeMonthlyChildDaySchedule()
+    parent.scheduledDates = []
+    const calendar = {
+      habits: [parent],
+      logs: {
+        'child-1': [{ id: 'skip-log', date, value: 0, createdAtUtc: `${date}T12:00:00Z` }],
+        'child-2': [{ id: 'positive-log', date, value: 1, createdAtUtc: `${date}T12:00:00Z` }],
+      },
+    }
+    expect(buildCalendarDayMap(calendar, { from: date, to: date }).get(date)?.map((row) => row.habitId)).toEqual(['child-2'])
+  })
   it('computes statistics from only the current month', () => {
     const dayMap = sampleMonth()
     dayMap.set(key(new Date(2026, 4, 31)), [entry('completed')])

@@ -11,6 +11,7 @@ import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geom
 import { FlatList, LayoutAnimation, StyleSheet, View, type ViewStyle, type HostInstance } from 'react-native'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
+import { makeMonthlyChildDaySchedule } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate, createApiClientError, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -631,6 +632,30 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 }
 
 describe('HabitList', () => {
+  it.each((['today', 'all'] as const).flatMap((view) => [true, false].map((skipped) => ({ view, skipped }))))(
+    'uses the selected-date child status in $view with skipped=$skipped', ({ view, skipped }) => {
+      useActualHabitVisibility = true
+      const schedule = makeMonthlyChildDaySchedule(TODAY, '2026-10-12')
+      schedule.children[0]!.isSkippedOnDate = skipped
+      Object.assign(mockHabitsData, normalizeHabitQueryData([schedule]))
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { tree = createTestTree(<HabitList view={view} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} />) })
+      const rows = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)
+      const child = rows.find((row) => row.props.habit.id === 'child-1')
+      if (view === 'today') expect(child).toBeUndefined()
+      else {
+        expect(flattenRenderedText(child)).toContain(skipped ? 'habits.statusDot.skip' : 'calendar.dayCell.notScheduled')
+        const glyph = child!.findAllByProps({ testID: 'unavailable-status-dot' })[0]!
+        expect(StyleSheet.flatten(glyph.props.style)).toMatchObject({ width: 28, height: 28, borderWidth: 0 })
+        const toggle = child!.findAll((node) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).includes('habits.logHabit'))[0]!
+        expect(toggle.props.accessibilityState.disabled).toBe(true)
+        TestRenderer.act(() => toggle.props.onPress())
+        expect(logMutateAsync).not.toHaveBeenCalled()
+      }
+      expect(rows.find((row) => row.props.habit.id === 'child-2')!.props.habit.isLoggedInRange).toBe(true)
+    },
+  )
+
   it.each(['today', 'all', 'general'] as const)('names the %s list without merging row actions', (view) => {
     seedHabits([createMockHabit({ id: 'named-row', title: 'Read', isGeneral: view === 'general', scheduledDates: [TODAY] })])
     let tree: ReturnType<typeof TestRenderer.create>
@@ -1609,7 +1634,7 @@ describe('HabitList', () => {
   it('blocks an account-old completion before it enters the offline queue', () => {
     vi.setSystemTime(new Date('2026-09-11T10:30:00Z'))
     accountDate.timeZone = 'Pacific/Kiritimati'
-    const habit = createMockHabit({ id: 'account-window', title: 'Read' })
+    const habit = createMockHabit({ id: 'account-window', title: 'Read', scheduledDates: ['2026-09-04'] })
     seedHabits([habit])
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
