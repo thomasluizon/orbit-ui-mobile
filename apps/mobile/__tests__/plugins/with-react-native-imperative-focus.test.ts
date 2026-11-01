@@ -110,7 +110,7 @@ import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsDefaults
 `,
 )
 
-async function resolveMainApplication(contents: string): Promise<string> {
+async function resolveMainApplication(contents: string, language: 'kt' | 'java' = 'kt'): Promise<string> {
   const config = withReactNativeImperativeFocus({ name: 'Orbit', slug: 'orbit' }) as ExportedConfig
   const mainApplicationMod = config.mods?.android?.mainApplication
 
@@ -120,7 +120,7 @@ async function resolveMainApplication(contents: string): Promise<string> {
 
   const modResults: ApplicationProjectFile = {
     contents,
-    language: 'kt',
+    language,
     path: 'android/app/src/main/java/org/useorbit/app/MainApplication.kt',
   }
   const modConfig: ExportedConfigWithProps<ApplicationProjectFile> = {
@@ -145,6 +145,9 @@ function importLineCount(contents: string, importLine: string): number {
 }
 
 describe('withReactNativeImperativeFocus', () => {
+  it('rejects an unsupported application language instead of skipping the required override', async () => {
+    await expect(resolveMainApplication(PRISTINE_MAIN_APPLICATION_TEMPLATE, 'java')).rejects.toThrow('Kotlin MainApplication')
+  })
   it('preserves the release provider and enables only imperative focus after React Native initializes', async () => {
     const mainApplication = await resolveMainApplication(MAIN_APPLICATION_TEMPLATE)
     const loadReactNativeIndex = mainApplication.indexOf('loadReactNative(this)')

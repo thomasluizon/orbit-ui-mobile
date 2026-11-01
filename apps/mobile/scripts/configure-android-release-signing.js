@@ -103,7 +103,7 @@ function signingBlocks(source) {
 function verifyReleaseSigning(source) {
   const { configs, release } = signingBlocks(source);
   requireBlock(source, /^[ \t]*release\s*\{/m, "signingConfigs release entry in app/build.gradle", configs);
-  if (!/\bsigningConfig\s*(?:=\s*)?signingConfigs\s*\.\s*release\b/.test(release.content) ||
+  if (!/^[ \t]*signingConfig\s*(?:=\s*)?signingConfigs\s*\.\s*release\b/m.test(release.content) ||
       /\bsigningConfigs\s*\.\s*debug\b/.test(release.content)) {
     failAnchor("release signingConfig must reference signingConfigs.release without signingConfigs.debug");
   }
@@ -217,10 +217,10 @@ if (!findBraceBlock(buildGradle, /^[ \t]*release\s*\{/m, signingConfigsBlock.ope
 }
 
 const { release: releaseBuildTypeBlock } = signingBlocks(buildGradle);
-const debugSigningConfig = /\bsigningConfig\s*(?:=\s*)?signingConfigs\s*\.\s*debug\b/g;
+const debugSigningConfig = /^([ \t]*)signingConfig\s*(?:=\s*)?signingConfigs\s*\.\s*debug\b/gm;
 const updatedReleaseBuildType = releaseBuildTypeBlock.content.replace(
   debugSigningConfig,
-  "signingConfig = signingConfigs.release"
+  "$1signingConfig = signingConfigs.release"
 );
 buildGradle = replaceBlock(buildGradle, releaseBuildTypeBlock, updatedReleaseBuildType);
 verifyReleaseSigning(buildGradle);

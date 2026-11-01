@@ -53,7 +53,9 @@ function hasImportLine(contents, importLine) {
 // alike, so it lives outside the release-build plugin.
 function withReactNativeImperativeFocus(config) {
   return withMainApplication(config, (mod) => {
-    if (mod.modResults.language !== 'kt') return mod
+    if (mod.modResults.language !== 'kt') {
+      throw new Error('The imperative focus policy requires a Kotlin MainApplication.')
+    }
 
     if (!mod.modResults.contents.includes(FEATURE_FLAGS_IMPORT_ANCHOR)) {
       throw new Error('MainApplication.kt is missing the React Native import anchor')

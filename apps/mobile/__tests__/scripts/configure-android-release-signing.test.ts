@@ -85,6 +85,7 @@ describe('Android release signing configuration', () => {
 
   it.each([
     ['release signingConfig', template.replace(/(release\s*\{[\s\S]*?)signingConfig = signingConfigs.debug/, '$1signingConfig = signingConfigs.other')],
+    ['release signingConfig', template.replace(/(release\s*\{[\s\S]*?)signingConfig = signingConfigs.debug/, '$1// signingConfig = signingConfigs.debug')],
     ['entryFile', template.replace("require('expo/scripts/resolveAppEntry')", "require('unknown-entry')")],
     ['signingConfigs', template.replace('    signingConfigs {', '    otherConfigs {')],
     ['buildTypes', template.replace('    buildTypes {', '    otherTypes {')],
