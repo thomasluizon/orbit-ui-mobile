@@ -34,6 +34,29 @@ vi.mock('@/lib/motion', async (importOriginal) => ({
 afterEach(() => { __resetTestHostConfig(); locale.value = 'en'; theme.value = 'dark' })
 
 describe('integrated native row metadata', () => {
+  it.each([true, false])('applies unavailable completion only inside a day scope, skipped=%s', (skipped) => {
+    const schedule = makeMonthlyChildDaySchedule()
+    schedule.children[0]!.isSkippedOnDate = skipped
+    const habit = normalizeHabitQueryData([schedule]).habitsById.get('child-1')!
+    const onLog = vi.fn()
+    const date = new Date('2026-11-01T12:00:00')
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} selectedDate={date} today="2026-11-01" actions={{ onLog }} />) })
+    const status = skipped ? en.habits.statusDot.skip : en.calendar.dayCell.notScheduled
+    expect(JSON.stringify(tree!.toJSON())).toContain(status)
+    const check = () => tree!.root.findAllByType('Pressable').find((node: import('react-test-renderer').ReactTestInstance) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).includes(`: ${habit.title}`))!
+    expect(check().props.disabled).toBe(true)
+    TestRenderer.act(() => check().props.onPress())
+    expect(onLog).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.update(<HabitRow habit={habit} today="2026-11-01" actions={{ onLog }} />))
+    expect(JSON.stringify(tree!.toJSON())).not.toContain(status)
+    expect(tree!.root.findAllByProps({ testID: 'habit-check' }).length).toBeGreaterThan(0)
+    expect(check().props.disabled).toBe(false)
+    TestRenderer.act(() => check().props.onPress())
+    expect(onLog).toHaveBeenCalledOnce()
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('keeps the Portuguese not-due status inside a child card at 200 percent text', () => {
     locale.value = 'pt-BR'
     __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })

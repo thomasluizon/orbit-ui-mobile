@@ -4802,14 +4802,9 @@ describe('HabitList', () => {
   })
 
   it('renders the status dot disabled for a non-loggable row and interactive for a loggable one', () => {
-    const nonLoggable = createMockHabit({
-      id: 'non-loggable',
-      title: 'Daily yoga',
-      frequencyUnit: 'Day',
-      scheduledDates: [],
-      isOverdue: false,
-      isCompleted: false,
-    })
+    const schedule = makeMonthlyChildDaySchedule(TODAY, TOMORROW)
+    schedule.children[0]!.isSkippedOnDate = false
+    const nonLoggable = normalizeHabitQueryData([schedule]).habitsById.get('child-1')!
     const loggable = createMockHabit({
       id: 'loggable',
       title: 'Pay rent',
@@ -4822,10 +4817,10 @@ describe('HabitList', () => {
     let loggableTree: any
     TestRenderer.act(() => {
       nonLoggableTree = createTestTree(
-        <HabitRow habit={nonLoggable} actions={{ onLog }} />,
+        <HabitRow habit={nonLoggable} selectedDate={new Date(`${TODAY}T12:00:00`)} today={TODAY} actions={{ onLog }} />,
       )
       loggableTree = createTestTree(
-        <HabitRow habit={loggable} actions={{ onLog }} />,
+        <HabitRow habit={loggable} selectedDate={new Date(`${TODAY}T12:00:00`)} today={TODAY} actions={{ onLog }} />,
       )
     })
 
@@ -5974,7 +5969,7 @@ describe('HabitList', () => {
       await TestRenderer.act(() => tree.unmount())
     })
 
-    it('retains every bulk departing row and the scrolled viewport through removal', async () => {
+    it('retains every bulk departing row through an immediate viewport resize and removal', async () => {
       vi.useFakeTimers()
       seedHabits(['first', 'second', 'third'].map((id) => createMockHabit({ id, scheduledDates: [TODAY] })))
       const content = <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
@@ -5984,16 +5979,17 @@ describe('HabitList', () => {
       TestRenderer.act(() => {
         list.props.onLayout({ nativeEvent: { layout: { width: 412, height: 300, x: 0, y: 0 } } })
         list.props.onScrollOffsetChange(650)
+        list.props.onLayout({ nativeEvent: { layout: { width: 412, height: 400, x: 0, y: 0 } } })
       })
       seedHabits([])
       await TestRenderer.act(() => { tree!.update(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
       const leaving = tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) =>
         typeof node.type === 'string' && node.props['data-phase'] === 'exit')
       expect(leaving).toHaveLength(3)
-      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(950)
+      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(1050)
       await TestRenderer.act(() => { vi.advanceTimersByTime(300) })
       expect(tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) => typeof node.type === 'string' && node.props['data-phase'] === 'exit')).toHaveLength(0)
-      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(950)
+      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(1050)
       expect(rootListScroll.scrollToOffset).not.toHaveBeenCalled()
     })
 

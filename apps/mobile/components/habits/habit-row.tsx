@@ -264,6 +264,16 @@ function useHabitRowMetadataFit(metaParts: HabitRowMetaPart[]) {
   return { onContentWidth, onTokenWidth, narrow: keys.some((key) => (measurements.widths[key] ?? 0) > measurements.contentWidth) }
 }
 
+function getHabitRowDates(selectedDate: Date | undefined, today: string | undefined) {
+  const todayStr = today ?? formatAPIDate(new Date())
+  const scopedDate = selectedDate ? formatAPIDate(selectedDate) : undefined
+  return {
+    todayStr,
+    selectedDateStr: scopedDate ?? todayStr,
+    scopedDate,
+  }
+}
+
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal component; the flags are independent render inputs from the parent list, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitRow = memo(function HabitRow({
   habit,
@@ -300,8 +310,7 @@ export const HabitRow = memo(function HabitRow({
   const { displayTime, displayReminderClock: displayClock } = useTimeFormat()
 
   const isChild = depth > 0
-  const todayStr = today ?? formatAPIDate(new Date())
-  const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
+  const { todayStr, selectedDateStr, scopedDate } = getHabitRowDates(selectedDate, today)
 
   const isDoneForRange = isHabitDoneForRange(habit)
   const status = useMemo(
@@ -310,7 +319,7 @@ export const HabitRow = memo(function HabitRow({
   )
 
   const isOverdue = status === 'overdue'
-  const dateModel = buildHabitRowDateModel(habit, selectedDateStr, todayStr)
+  const dateModel = buildHabitRowDateModel(habit, scopedDate, todayStr)
   const { canLog, dateStatusKey } = dateModel
   const completionStatusUnavailable = completionStatusUnavailableOverride || dateModel.completionStatusUnavailable
   const completionReadOnly = dateModel.completionStatusUnavailable || (completionReadOnlyOverride ?? dateModel.completionReadOnly)
@@ -339,10 +348,7 @@ export const HabitRow = memo(function HabitRow({
   const emoji = habit.emoji
 
   const [menuVisible, setMenuVisible] = useState(false)
-  const menuItems = useMemo(
-    () => buildMenuItems(actions, isSelectMode, completionReadOnly, habit.isGeneral, isOverdue, habit.hasSubHabits, t),
-    [actions, completionReadOnly, habit.isGeneral, habit.hasSubHabits, isOverdue, isSelectMode, t],
-  )
+  const menuItems = buildMenuItems(actions, isSelectMode, completionReadOnly, habit.isGeneral, isOverdue, habit.hasSubHabits, t)
 
   const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode) && menuItems.length > 0
 

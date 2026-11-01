@@ -27,14 +27,13 @@ export function useHabitListScrollAnchor(parentId: string | null = null) {
     const onScroll = () => {
       const sameViewport = viewport === scroller.clientHeight
       if (sameViewport && offset === scroller.scrollTop) return
-      if (sameViewport) offset = scroller.scrollTop
+      const maximumOffset = scroller.scrollHeight - scroller.clientHeight
+      if (sameViewport || offset <= maximumOffset || scroller.scrollTop < maximumOffset) offset = scroller.scrollTop
       reserve(sameViewport)
     }
     reserve(false)
     const stopObservingScroll = scroll(onScroll, { container: scroller, target: list })
-    const observer = new ResizeObserver(() => {
-      if (viewport !== scroller.clientHeight) reserve(false)
-    })
+    const observer = new ResizeObserver(onScroll)
     observer.observe(scroller)
     return () => { stopObservingScroll(); observer.disconnect() }
   }, [parentId])

@@ -24,18 +24,24 @@ it('keeps a pending scroll through initial observation and subsequent viewport r
     disconnect() {}
   })
   let viewportHeight = 740
+  let scrollHeight = 5000
   vi.spyOn(Element.prototype, 'clientHeight', 'get').mockImplementation(() => viewportHeight)
+  vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockImplementation(() => scrollHeight)
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
     return new DOMRect(0, this.hasAttribute('data-habit-list') ? -this.parentElement!.scrollTop : 0, 412, viewportHeight)
   })
   const view = render(<List ids={['first']} />)
   const scroller = view.container.querySelector<HTMLElement>('[data-shell-scroller]')!
   scroller.scrollTop = 650
+  fireEvent.scroll(scroller)
+  viewportHeight = 800
   act(() => callbacks.forEach(callback => callback([], {} as ResizeObserver)))
   expect(scroller.scrollTop).toBe(650)
   fireEvent.scroll(scroller)
   await act(() => vi.advanceTimersByTime(100))
-  viewportHeight = 800
+  scrollHeight = 950
+  viewportHeight = 860
+  scroller.scrollTop = scrollHeight - viewportHeight
   act(() => callbacks.forEach(callback => callback([], {} as ResizeObserver)))
   expect(scroller.scrollTop).toBe(650)
   scroller.scrollTop = 0

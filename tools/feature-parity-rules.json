@@ -3437,6 +3437,26 @@
       ],
       "reason": "The quantity caption is retained as the labelled mode radio control in the habit schedule editor."
     },
+    "web:display:habits.todayBoundary.future": {
+      "targets": [
+        "web:content:habits.todayBoundary.future"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-row-trailing.tsx",
+        "apps/web/components/habits/habit-row-check-circle.tsx"
+      ],
+      "reason": "HabitList translates buildHabitRowDateModel.completionReasonKey; HabitRow passes the same future and read-only captions to its parent ring or leaf check explanation."
+    },
+    "web:display:habits.todayBoundary.readOnly": {
+      "targets": [
+        "web:content:habits.todayBoundary.readOnly"
+      ],
+      "owners": [
+        "apps/web/components/habits/habit-row-trailing.tsx",
+        "apps/web/components/habits/habit-row-check-circle.tsx"
+      ],
+      "reason": "HabitList translates buildHabitRowDateModel.completionReasonKey; HabitRow passes the same future and read-only captions to its parent ring or leaf check explanation."
+    },
     "web:display:onboarding.flow.complete.subtitle": {
       "targets": [
         "web:control:onboarding.flow.done.seeDay"

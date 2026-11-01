@@ -9,6 +9,27 @@ import { createHabitVisibilityHelpers } from '../utils/habit-visibility'
 const date = '2026-11-01'
 
 describe('habit row date availability', () => {
+  it('retains the check when no schedule after the viewed day is known', () => {
+    const habit = createMockHabit({ scheduledDates: [], instances: [] })
+    expect(buildHabitRowDateModel(habit, date, date)).toMatchObject({
+      dateStatusKey: undefined, completionStatusUnavailable: false, completionReadOnly: false,
+    })
+  })
+
+  it('keeps an old scheduled day loggable after the next occurrence moves forward', () => {
+    const habit = createMockHabit({ dueDate: '2026-12-01', scheduledDates: [date] })
+    expect(buildHabitRowDateModel(habit, date, '2026-11-07')).toMatchObject({
+      canLog: true, dateStatusKey: undefined, completionStatusUnavailable: false, completionReadOnly: false,
+    })
+  })
+
+  it('does not apply date availability outside a day scope', () => {
+    const query = normalizeHabitQueryData([makeMonthlyChildDaySchedule()])
+    expect(buildHabitRowDateModel(query.habitsById.get('child-1')!, undefined, date)).toMatchObject({
+      dateStatusKey: undefined, completionStatusUnavailable: false, completionReadOnly: false,
+    })
+  })
+
   it('keeps skipped children out of Hoje and exposes their status in Todos', () => {
     const query = normalizeHabitQueryData([makeMonthlyChildDaySchedule()])
     const visibility = createHabitVisibilityHelpers({ ...query, selectedDate: date, searchQuery: '', showCompleted: true, recentlyCompletedIds: new Set() })

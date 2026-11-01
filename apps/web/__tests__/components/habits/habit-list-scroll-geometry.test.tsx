@@ -53,6 +53,9 @@ it.each([
     await page.addScriptTag({ content: script })
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 30, undefined, { timeout: 5000 })
       .catch(async (cause: unknown) => { throw new Error(JSON.stringify({ errors, body: await page.locator('body').innerText() }), { cause }) })
+    await page.locator('[data-testid="habit-row"]').first().locator('[data-habit-row-control="menu"]').click({ timeout: 3000 })
+    await page.getByRole('menuitem', { name: 'Select', exact: true }).press('Enter')
+    await page.getByRole('button', { name: 'Select all', exact: true }).click({ timeout: 3000 })
     const before = await page.locator('[data-shell-scroller]').evaluate((element) => {
       element.scrollTop = 650
       return { offset: element.scrollTop, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-habit-list]')!.style.minHeight }

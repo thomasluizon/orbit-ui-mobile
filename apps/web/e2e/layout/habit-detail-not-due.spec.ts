@@ -39,13 +39,14 @@ for (const width of [320, 412, 1352]) {
               await expect(meta.getByText(reason, { exact: true })).toBeVisible()
               await expect(row.locator('[data-habit-check]')).toHaveAttribute('data-status', 'unavailable')
               await expect(row.getByTestId('habit-status-toggle')).toHaveAttribute('aria-disabled', 'true')
-              const bounds = await meta.evaluate((element) => {
-                const card = element.closest('[data-testid="habit-row"]')!.getBoundingClientRect()
-                return [...element.querySelectorAll('[data-habit-row-meta-token]')].map((token) => {
+              const bounds = await row.evaluate((element) => {
+                const card = element.getBoundingClientRect()
+                return [...element.querySelectorAll('[data-habit-row-meta] [data-habit-row-meta-token]')].map((token) => {
                   const box = token.getBoundingClientRect()
                   return { left: box.left - card.left, right: card.right - box.right, bottom: card.bottom - box.bottom }
                 })
               })
+              expect(bounds.length).toBeGreaterThan(0)
               for (const token of bounds) {
                 expect(token.left).toBeGreaterThanOrEqual(0)
                 expect(token.right).toBeGreaterThanOrEqual(0)

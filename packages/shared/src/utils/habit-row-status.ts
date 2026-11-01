@@ -12,20 +12,20 @@ function getHabitRowDateStatusKey(
 ): 'habits.statusDot.skip' | 'calendar.dayCell.notScheduled' | undefined {
   if (isHabitSkippedOnDate(habit, date)) return 'habits.statusDot.skip'
   if (!habit.isCompleted && !habit.isLoggedInRange && !canLogHabitOnDate(habit, date, today)
-    && !hasHabitScheduleOnDate(habit, date)) return 'calendar.dayCell.notScheduled'
+    && !hasHabitScheduleOnDate(habit, date) && habit.dueDate > date) return 'calendar.dayCell.notScheduled'
   return undefined
 }
 
-export function buildHabitRowDateModel(habit: NormalizedHabit, date: string, today: string): {
+export function buildHabitRowDateModel(habit: NormalizedHabit, date: string | undefined, today: string): {
   canLog: boolean
   dateStatusKey: ReturnType<typeof getHabitRowDateStatusKey>
   completionReasonKey: ReturnType<typeof getHabitRowDateStatusKey> | 'habits.todayBoundary.readOnly' | 'habits.todayBoundary.future'
   completionStatusUnavailable: boolean
   completionReadOnly: boolean
 } {
-  const canLog = canLogHabitOnDate(habit, date, today)
-  const dateStatusKey = getHabitRowDateStatusKey(habit, date, today)
-  const boundary = getTodayBoundary(date, today)
+  const canLog = date === undefined || canLogHabitOnDate(habit, date, today)
+  const dateStatusKey = date === undefined ? undefined : getHabitRowDateStatusKey(habit, date, today)
+  const boundary = date === undefined ? null : getTodayBoundary(date, today)
   const completionReasonKey = dateStatusKey
     ?? (boundary === 'read-only' ? 'habits.todayBoundary.readOnly' : boundary === 'future' ? 'habits.todayBoundary.future' : undefined)
   return {
