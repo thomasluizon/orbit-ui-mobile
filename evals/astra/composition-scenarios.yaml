@@ -32,7 +32,8 @@
       the completed Breakfast. Showing later meals as pending rows is valid and does not
       recommend them as next. Accept a single data block with at most one short sentence,
       including a block-only answer if it conveys the recommendation. Do not require a
-      prose recap or repetition of the displayed schedule.
+      prose recap. The external sentence must not repeat any block fact, including a time,
+      completion or pending status, even by paraphrase.
 - description: hoje-next-step in pt-BR
   metadata:
     id: composition-hoje-next-step-pt-BR
@@ -70,7 +71,8 @@
       Showing later meals as pending rows is valid and does not recommend them as next.
       Accept a single data block with at most one short sentence, including a block-only
       answer if it conveys the recommendation. Do not require a prose recap or repetition
-      of the displayed schedule.
+      of the displayed schedule. The external sentence must not repeat any block fact,
+      including a time, completion or pending status, even by paraphrase.
 - description: habits-schedules in en
   metadata:
     id: composition-habits-schedules-en
@@ -4762,7 +4764,7 @@
     clientContext: {<<: *offers_en, conversationId: "eade47ed-5933-5fe3-809f-50265d57ee9b", selectedOfferKey: "smallStep:account:{accountDate}"}
     input: "Help me take the offered small step."
     composition: {"mode": "one-small-step"}
-    rubric: "Answer in English. Select the issued action through selectedOfferKey, revalidate source/date/revision, then use the existing workflow. Rejection leaves data unchanged; approval writes only approved fields."
+    rubric: "Answer in English. For the selected offer, call suggest_breakdown with one_small_step=true and the matching language, without a prerequisite read or a write preview. Show exactly one concrete starting step in its typed block. Offer-key binding and source/date/revision validation belong to the structural lifecycle checks, not visible prose. Save, revise, reject and approve only through the existing workflow; rejection leaves data unchanged and approval writes only approved fields."
     setup:
       input: "Show my day."
       clientContext: {<<: *offers_en, conversationId: "eade47ed-5933-5fe3-809f-50265d57ee9b"}
@@ -4774,7 +4776,7 @@
     clientContext: {<<: *offers_pt, conversationId: "88c5c504-3a77-5818-9533-9ad5d647a021", selectedOfferKey: "smallStep:account:{accountDate}"}
     input: "Me ajude a dar o passo pequeno oferecido."
     composition: {"mode": "one-small-step"}
-    rubric: "Answer in Brazilian Portuguese. Select the issued action through selectedOfferKey, revalidate source/date/revision, then use the existing workflow. Rejection leaves data unchanged; approval writes only approved fields."
+    rubric: "Answer in Brazilian Portuguese. For the selected offer, call suggest_breakdown with one_small_step=true and the matching language, without a prerequisite read or a write preview. Show exactly one concrete starting step in its typed block. Offer-key binding and source/date/revision validation belong to the structural lifecycle checks, not visible prose. Save, revise, reject and approve only through the existing workflow; rejection leaves data unchanged and approval writes only approved fields."
     setup:
       input: "Mostre meu dia."
       clientContext: {<<: *offers_pt, conversationId: "88c5c504-3a77-5818-9533-9ad5d647a021"}

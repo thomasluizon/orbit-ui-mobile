@@ -28,6 +28,11 @@ export function configureOffers(test) {
       locale: test.metadata.locale ?? 'en' }), ...turn.clientContext }
   }
   vars.expectations ??= {}
+  if (vars.offerFamily === 'action-lifecycle') {
+    vars.expectations = { required: [{ name: 'suggest_breakdown',
+      arguments: { one_small_step: true, language: test.metadata.locale }, resultStatus: 'Succeeded' }],
+    allowed: ['suggest_breakdown'], counts: { suggest_breakdown: 1 } }
+  }
   if (vars.composition.mode === 'preview' && !vars.expectations.required) {
     vars.expectations.permittedMutations = pendingWrites(vars.expectations.allowed ?? [])
   }

@@ -55,7 +55,7 @@ it.each(['AI_EMPTY_RESPONSE', null])('retains an unexpected HTTP 400 diagnostic 
 })
 
 // Producer: AgentOperationExecutor argument checks and ProcessUserChatCommand.Correction.SameArgumentTargets.
-it('Q accepts one same-target argument repair and rejects unrecovered, repeated or retargeted failures', () => {
+it('accepts same-target argument repairs and rejects unrecovered, repeated previews or retargeted failures', () => {
   const scenario = structuredClone(corpus.find((entry) => entry.metadata.id === 'offers-repeat-en'))
   configureOffers(scenario)
   const failed = { ...toolCall('create_habit', { title: 'Drink water', is_general: true, frequency_unit: 'Day' }, 'Failed'),
@@ -66,7 +66,8 @@ it('Q accepts one same-target argument repair and rejects unrecovered, repeated 
   const grade = (toolCalls) => replay({ toolCalls }, scenario.vars.expectations)
   const valid = grade([failed, repaired])
   expect(valid, valid.reason).toMatchObject({ pass: true })
-  for (const calls of [[failed], [repaired, failed], [failed, { ...failed }, repaired],
+  expect(grade([failed, { ...failed }, repaired]).pass).toBe(true)
+  for (const calls of [[failed], [repaired, failed],
     [failed, { ...repaired, name: 'update_habit' }],
     [failed, { ...repaired, arguments: { ...repaired.arguments, title: 'Walk' } }],
     [failed, repaired, { ...repaired }],

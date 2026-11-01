@@ -100,6 +100,6 @@ export async function prepareCorrection(test) {
     }
   }
   test.vars.historyJson = JSON.stringify([{ role: 'user', content: setup.input }, { role: 'assistant', content: response.output.answer }])
-  delete test.vars.setupEvidence
+  if (!test.vars.offerFamily) delete test.vars.setupEvidence
   return { test }
 }

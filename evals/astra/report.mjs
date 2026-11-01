@@ -7,6 +7,7 @@ import { ATTEMPTS_PER_CASE } from './attempts.mjs'
 const unavailableAssertion = (assertion) => assertion.metadata?.unavailable === true || assertion.metadata?.graderError === true
 
 const graderUnavailable = (entry) => entry.gradingResult?.componentResults?.some((assertion) => assertion.metadata?.graderError === true)
+const providerUnavailable = (entry) => entry.response?.output?.unavailable === true
 
 const evidencePath = (caseId, repeat) => `attempts/${encodeURIComponent(caseId)}-r${repeat}.json`
 
@@ -26,8 +27,8 @@ export function writeResults(results, directory = 'reports') {
     const caseId = entry.testCase.metadata.id
     const repeat = (repeats.get(caseId) ?? 0) + 1
     repeats.set(caseId, repeat)
-    const attempt = { caseId, repeat, pass: entry.success === true && !graderUnavailable(entry),
-      ...(graderUnavailable(entry) ? { unavailable: true } : {}),
+    const attempt = { caseId, repeat, pass: entry.success === true && !graderUnavailable(entry) && !providerUnavailable(entry),
+      ...(graderUnavailable(entry) || providerUnavailable(entry) ? { unavailable: true } : {}),
       httpStatus: entry.response?.output?.httpStatus ?? entry.response?.metadata?.astraHttpStatus ?? entry.response?.metadata?.http?.status ?? null,
       reason: entry.error ?? entry.response?.error ?? entry.response?.output?.error ?? entry.gradingResult?.reason ?? null,
       assertions: (entry.gradingResult?.componentResults ?? []).map((assertion, index) => ({
@@ -49,19 +50,19 @@ export function summarize(results, expectedCases) {
   const descriptors = expectedCases.map((entry) => typeof entry === 'string' ? { id: entry } : entry)
   const cases = descriptors.map(({ id, family = 'legacy', locale = 'unspecified', readLatency = false }) => {
     const attempts = results.filter((entry) => entry.testCase.metadata.id === id)
-    const passed = attempts.filter((entry) => entry.success === true && !entry.gradingResult?.componentResults
+    const passed = attempts.filter((entry) => entry.success === true && !providerUnavailable(entry) && !entry.gradingResult?.componentResults
       ?.some(unavailableAssertion) && entry.response?.metadata?.astraPreconditionFailure !== true).length
     const skipped = attempts.filter((entry) => entry.gradingResult?.componentResults
       ?.some((assertion) => assertion.metadata?.skipped === true)).length
-    const unavailable = attempts.filter((entry) => entry.response?.metadata?.astraPreconditionFailure === true || entry.gradingResult?.componentResults
+    const unavailable = attempts.filter((entry) => providerUnavailable(entry) || entry.response?.metadata?.astraPreconditionFailure === true || entry.gradingResult?.componentResults
       ?.some(unavailableAssertion)).length
-    const failed = attempts.some((entry) => entry.success !== true && !graderUnavailable(entry) && entry.response?.metadata?.astraPreconditionFailure !== true
+    const failed = attempts.some((entry) => entry.success !== true && !providerUnavailable(entry) && !graderUnavailable(entry) && entry.response?.metadata?.astraPreconditionFailure !== true
       && (!entry.gradingResult?.componentResults?.some(unavailableAssertion)
         || entry.gradingResult.componentResults.some((assertion) => assertion.pass === false && !unavailableAssertion(assertion))))
     const missingComposition = attempts.filter((entry) => !entry.gradingResult?.componentResults
       ?.some((assertion) => assertion.assertion?.metric === 'composition' && typeof assertion.pass === 'boolean')).length
-    const unavailableReasons = [...new Set(attempts.flatMap((entry) =>
-      entry.response?.metadata?.astraPreconditionFailure === true
+    const unavailableReasons = [...new Set(attempts.flatMap((entry) => providerUnavailable(entry)
+      ? [entry.response.error ?? 'Astra response evidence is unavailable.'] : entry.response?.metadata?.astraPreconditionFailure === true
         && typeof entry.response.metadata.astraPreconditionReason === 'string'
         ? [entry.response.metadata.astraPreconditionReason]
         : (entry.gradingResult?.componentResults ?? []).filter(unavailableAssertion)

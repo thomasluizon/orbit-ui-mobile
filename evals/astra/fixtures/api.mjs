@@ -66,7 +66,11 @@ export function publicApi(credentialKey) {
       try { payload = text ? JSON.parse(text) : null } catch {
         throw fixtureFailure(method, path, `non-JSON body (HTTP ${response.status})`)
       }
-      if (!response.ok && !acceptedStatuses.includes(response.status) && !accepted.includes(payload?.errorCode)) throw new Error(`Fixture API ${method} failed with HTTP ${response.status}.`)
+      if (!response.ok && !acceptedStatuses.includes(response.status) && !accepted.includes(payload?.errorCode)) {
+        const errorCode = typeof payload?.errorCode === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/u.test(payload.errorCode)
+          ? payload.errorCode : 'none'
+        throw fixtureFailure(method, path, `HTTP ${response.status} (errorCode: ${errorCode})`)
+      }
       return { status: response.status, payload }
     }
   }

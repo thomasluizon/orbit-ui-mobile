@@ -35,6 +35,13 @@ export async function seedRestart(api, account, today, titles, dailyHabit, dateO
       reminderEnabled: true, reminderTimes: [30],
       checklistItems: [{ text: titles[index], isChecked: false }], clearEndDate: true, clearParent: true })
   }
+  const { payload: due } = await api('GET', `habits?dateFrom=${today}&dateTo=${today}&includeOverdue=true&isCompleted=false&page=1&pageSize=50`)
+  if (due?.totalCount !== ids.length || !Array.isArray(due.items) || due.items.length !== ids.length
+    || new Set(due.items.map((habit) => habit.id)).size !== ids.length
+    || due.items.some((habit) => !ids.includes(habit.id) || habit.isCompleted !== false
+      || habit.isLoggedInRange !== false || habit.isSkippedOnDate !== false)) {
+    throw new Error('Restart fixture needs all six unfinished habits due today or overdue.')
+  }
   const baseline = await readRestartSnapshot(api)
   for (const [index, id] of ids.entries()) {
     const entry = baseline.find(({ habit }) => habit.id === id)

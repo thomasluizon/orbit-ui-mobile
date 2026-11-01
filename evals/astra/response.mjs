@@ -30,6 +30,10 @@ export default function parseResponse(response, _text, context) {
     const expectedCode = httpStatus === 403 ? 'PAY_GATE' : 'CONTENT_MODERATION_REFUSED'
     const httpError = { status: httpStatus, errorCode: response?.errorCode ?? null, error: response?.error ?? null,
       ...(httpStatus === 400 ? { responseRequestId: responseRequestId ?? null } : {}) }
+    if (httpStatus === 400 && response?.errorCode === 'AI_UNAVAILABLE') {
+      return { error: 'Astra response evidence is unavailable (AI_UNAVAILABLE).',
+        output: { httpStatus, httpError, unavailable: true } }
+    }
     if (response?.errorCode !== expectedCode || typeof response.error !== 'string' || !response.error.trim()) {
       return { error: 'Astra returned an unexpected refusal.', ...(httpStatus === 400 ? { output: { httpStatus, httpError } } : {}) }
     }

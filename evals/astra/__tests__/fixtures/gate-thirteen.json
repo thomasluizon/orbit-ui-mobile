@@ -1,0 +1,1587 @@
+[
+  {
+    "caseId": "ambiguity-en",
+    "pass": false,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": false,
+        "reason": "Call to \"ask\" does not match schema: [{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/0/additionalProperties\",\"keyword\":\"additionalProperties\",\"params\":{\"additionalProperty\":\"draft_call_id\"},\"message\":\"must NOT have additional properties\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/1/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"title\"},\"message\":\"must have required property 'title'\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/2/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"questions\"},\"message\":\"must have required property 'questions'\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf\",\"keyword\":\"anyOf\",\"params\":{},\"message\":\"must match a schema in anyOf\"}]"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": true,
+        "reason": "Required tools, arguments and results matched."
+      },
+      {
+        "metric": "composition",
+        "pass": true,
+        "reason": "Composition structure and negotiated capabilities matched."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": true,
+        "reason": "No proactive-offer policy requested."
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": true,
+        "reason": "Exactly one choice block asks in English which habit and what change the user wants. Water and Walk are grounded titles; no schedule or mutation is invented."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "arguments": {
+          "orbit_read_complete": false,
+          "for_selection": true,
+          "relative_period": null,
+          "search": null,
+          "date": null,
+          "include_overdue": null,
+          "is_general": null,
+          "is_completed": false,
+          "is_bad_habit": null,
+          "frequency": null,
+          "tag": null,
+          "include_sub_habits": true,
+          "include_metrics": false,
+          "offset": 0,
+          "limit": 50
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "ask",
+        "arguments": {
+          "orbit_read_complete": false,
+          "input": {
+            "form": "choice",
+            "missing_input": "record_selection",
+            "question": "Which habit would you like to change, and what would you like to change?",
+            "options": [
+              {
+                "id": "[redacted]",
+                "label": "Water",
+                "description": null
+              },
+              {
+                "id": "[redacted]",
+                "label": "Walk",
+                "description": null
+              }
+            ],
+            "multiSelect": false,
+            "allowFreeText": true,
+            "draft_call_id": null,
+            "missing_field": null
+          }
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": null
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "ambiguity-pt",
+    "pass": false,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": false,
+        "reason": "Call to \"ask\" does not match schema: [{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/0/additionalProperties\",\"keyword\":\"additionalProperties\",\"params\":{\"additionalProperty\":\"draft_call_id\"},\"message\":\"must NOT have additional properties\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/1/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"title\"},\"message\":\"must have required property 'title'\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/2/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"questions\"},\"message\":\"must have required property 'questions'\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf\",\"keyword\":\"anyOf\",\"params\":{},\"message\":\"must match a schema in anyOf\"}]"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": true,
+        "reason": "Required tools, arguments and results matched."
+      },
+      {
+        "metric": "composition",
+        "pass": true,
+        "reason": "Composition structure and negotiated capabilities matched."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": true,
+        "reason": "No proactive-offer policy requested."
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": true,
+        "reason": "The answer contains exactly one choice block in Brazilian Portuguese asking which Caminhada the user means, without choosing either habit or claiming completion."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "arguments": {
+          "orbit_read_complete": false,
+          "for_selection": true,
+          "relative_period": "today",
+          "search": "Caminhada",
+          "date": null,
+          "include_overdue": true,
+          "is_general": null,
+          "is_completed": null,
+          "is_bad_habit": null,
+          "frequency": null,
+          "tag": null,
+          "include_sub_habits": true,
+          "include_metrics": false,
+          "offset": 0,
+          "limit": 50
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "ask",
+        "arguments": {
+          "orbit_read_complete": false,
+          "input": {
+            "form": "choice",
+            "missing_input": "record_selection",
+            "question": "Qual Caminhada você quer marcar como feita?",
+            "options": [
+              {
+                "id": "[redacted]",
+                "label": "Caminhada 1",
+                "description": "Primeiro hábito"
+              },
+              {
+                "id": "[redacted]",
+                "label": "Caminhada 2",
+                "description": "Segundo hábito"
+              }
+            ],
+            "multiSelect": false,
+            "allowFreeText": false,
+            "draft_call_id": null,
+            "missing_field": null
+          }
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": null
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "composition-choice-en",
+    "pass": false,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": false,
+        "reason": "Call to \"ask\" does not match schema: [{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/0/additionalProperties\",\"keyword\":\"additionalProperties\",\"params\":{\"additionalProperty\":\"draft_call_id\"},\"message\":\"must NOT have additional properties\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/1/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"title\"},\"message\":\"must have required property 'title'\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/2/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"questions\"},\"message\":\"must have required property 'questions'\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf\",\"keyword\":\"anyOf\",\"params\":{},\"message\":\"must match a schema in anyOf\"}]"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": true,
+        "reason": "Required tools, arguments and results matched."
+      },
+      {
+        "metric": "composition",
+        "pass": true,
+        "reason": "Composition structure and negotiated capabilities matched."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": true,
+        "reason": "No proactive-offer policy requested."
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": true,
+        "reason": "The English choice block uses the grounded habit titles Water and Walk, with no unsupported facts or redundant prose."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "arguments": {
+          "orbit_read_complete": false,
+          "for_selection": true,
+          "relative_period": null,
+          "search": null,
+          "date": null,
+          "include_overdue": null,
+          "is_general": null,
+          "is_completed": false,
+          "is_bad_habit": null,
+          "frequency": null,
+          "tag": null,
+          "include_sub_habits": true,
+          "include_metrics": false,
+          "offset": 0,
+          "limit": 50
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "ask",
+        "arguments": {
+          "orbit_read_complete": false,
+          "input": {
+            "form": "choice",
+            "missing_input": "record_selection",
+            "question": "Which habit would you like to change?",
+            "options": [
+              {
+                "id": "[redacted]",
+                "label": "Water",
+                "description": null
+              },
+              {
+                "id": "[redacted]",
+                "label": "Walk",
+                "description": null
+              }
+            ],
+            "multiSelect": false,
+            "allowFreeText": true,
+            "draft_call_id": null,
+            "missing_field": null
+          }
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": null
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "composition-choice-pt-BR",
+    "pass": false,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": false,
+        "reason": "Call to \"ask\" does not match schema: [{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/0/additionalProperties\",\"keyword\":\"additionalProperties\",\"params\":{\"additionalProperty\":\"draft_call_id\"},\"message\":\"must NOT have additional properties\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/1/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"title\"},\"message\":\"must have required property 'title'\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/2/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"questions\"},\"message\":\"must have required property 'questions'\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf\",\"keyword\":\"anyOf\",\"params\":{},\"message\":\"must match a schema in anyOf\"}]"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": true,
+        "reason": "Required tools, arguments and results matched."
+      },
+      {
+        "metric": "composition",
+        "pass": true,
+        "reason": "Composition structure and negotiated capabilities matched."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": true,
+        "reason": "No proactive-offer policy requested."
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": true,
+        "reason": "O bloco está em português brasileiro, usa apenas os títulos de hábitos comprovados e não acrescenta fatos ou texto redundante."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "arguments": {
+          "orbit_read_complete": false,
+          "for_selection": true,
+          "relative_period": null,
+          "search": null,
+          "date": null,
+          "include_overdue": null,
+          "is_general": null,
+          "is_completed": false,
+          "is_bad_habit": null,
+          "frequency": null,
+          "tag": null,
+          "include_sub_habits": true,
+          "include_metrics": false,
+          "offset": 0,
+          "limit": 50
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "ask",
+        "arguments": {
+          "orbit_read_complete": false,
+          "input": {
+            "form": "choice",
+            "missing_input": "record_selection",
+            "question": "Qual hábito você quer mudar e o que gostaria de mudar nele?",
+            "options": [
+              {
+                "id": "[redacted]",
+                "label": "Beber água",
+                "description": null
+              },
+              {
+                "id": "[redacted]",
+                "label": "Caminhada",
+                "description": null
+              }
+            ],
+            "multiSelect": false,
+            "allowFreeText": true,
+            "draft_call_id": null,
+            "missing_field": null
+          }
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": null
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "composition-pickList-en",
+    "pass": false,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": false,
+        "reason": "Call to \"ask\" does not match schema: [{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/0/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"question\"},\"message\":\"must have required property 'question'\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/1/additionalProperties\",\"keyword\":\"additionalProperties\",\"params\":{\"additionalProperty\":\"draft_call_id\"},\"message\":\"must NOT have additional properties\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/2/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"questions\"},\"message\":\"must have required property 'questions'\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf\",\"keyword\":\"anyOf\",\"params\":{},\"message\":\"must match a schema in anyOf\"}]"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": true,
+        "reason": "Required tools, arguments and results matched."
+      },
+      {
+        "metric": "composition",
+        "pass": true,
+        "reason": "Composition structure and negotiated capabilities matched."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": true,
+        "reason": "No proactive-offer policy requested."
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": true,
+        "reason": "The English pick-list shows the grounded Water candidate as due today, without unsupported claims or duplicate prose."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "arguments": {
+          "orbit_read_complete": false,
+          "for_selection": true,
+          "relative_period": null,
+          "search": null,
+          "date": "2026-11-01",
+          "include_overdue": true,
+          "is_general": null,
+          "is_completed": false,
+          "is_bad_habit": null,
+          "frequency": null,
+          "tag": null,
+          "include_sub_habits": true,
+          "include_metrics": false,
+          "offset": 0,
+          "limit": 50
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "ask",
+        "arguments": {
+          "orbit_read_complete": false,
+          "input": {
+            "form": "pickList",
+            "missing_input": "bulk_selection",
+            "title": "Which habit would you like to complete?",
+            "action": "log_habits",
+            "items": [
+              {
+                "id": "[redacted]",
+                "label": "Water",
+                "detail": "Due today",
+                "arguments": {
+                  "habit_id": "[redacted]",
+                  "date": "2026-11-01"
+                }
+              }
+            ],
+            "draft_call_id": null,
+            "missing_field": null
+          }
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": null
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "composition-pickList-pt-BR",
+    "pass": false,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": false,
+        "reason": "Call to \"ask\" does not match schema: [{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/0/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"question\"},\"message\":\"must have required property 'question'\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/1/additionalProperties\",\"keyword\":\"additionalProperties\",\"params\":{\"additionalProperty\":\"draft_call_id\"},\"message\":\"must NOT have additional properties\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf/2/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"questions\"},\"message\":\"must have required property 'questions'\"},{\"instancePath\":\"/input\",\"schemaPath\":\"#/properties/input/anyOf\",\"keyword\":\"anyOf\",\"params\":{},\"message\":\"must match a schema in anyOf\"}]"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": true,
+        "reason": "Required tools, arguments and results matched."
+      },
+      {
+        "metric": "composition",
+        "pass": true,
+        "reason": "Composition structure and negotiated capabilities matched."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": true,
+        "reason": "No proactive-offer policy requested."
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": true,
+        "reason": "O bloco usa português, apresenta apenas o hábito fundamentado como pendente e não acrescenta texto redundante."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "arguments": {
+          "orbit_read_complete": false,
+          "for_selection": true,
+          "relative_period": "today",
+          "search": null,
+          "date": null,
+          "include_overdue": true,
+          "is_general": null,
+          "is_completed": false,
+          "is_bad_habit": null,
+          "frequency": null,
+          "tag": null,
+          "include_sub_habits": true,
+          "include_metrics": false,
+          "offset": 0,
+          "limit": 50
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "ask",
+        "arguments": {
+          "orbit_read_complete": false,
+          "input": {
+            "form": "pickList",
+            "missing_input": "bulk_selection",
+            "title": "Quais hábitos você quer concluir hoje?",
+            "action": "log_habits",
+            "items": [
+              {
+                "id": "[redacted]",
+                "label": "Beber água",
+                "detail": "Pendente hoje",
+                "arguments": {
+                  "habit_id": "[redacted]",
+                  "date": "2026-11-01"
+                }
+              }
+            ],
+            "draft_call_id": null,
+            "missing_field": null
+          }
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": null
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-parent-en",
+    "pass": false,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": true,
+        "reason": "Assertion passed"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": false,
+        "reason": "Mutation outside the declared operation scope: create_habit"
+      },
+      {
+        "metric": "composition",
+        "pass": false,
+        "reason": "Missing batch preview."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": false,
+        "reason": "Suggested parent is missing or unowned."
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": false,
+        "reason": "The answer lacks a preview suggesting the owned bedtime parent, \"Before Bed\", using its real ID."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "create_habit",
+        "arguments": {
+          "orbit_write_complete": true,
+          "orbit_dismissed_offer_keys": [],
+          "suggested_fields": [
+            "emoji",
+            "frequency_unit",
+            "frequency_quantity",
+            "is_general",
+            "is_bad_habit",
+            "is_flexible",
+            "reminder_enabled",
+            "reminder_times",
+            "scheduled_reminders",
+            "checklist_items",
+            "tag_names",
+            "tag_ids",
+            "goal_ids",
+            "parent_habit_id"
+          ],
+          "title": "Take magnesium",
+          "description": null,
+          "emoji": "💊",
+          "frequency_unit": "Day",
+          "frequency_quantity": 1,
+          "interval_weeks": null,
+          "days": null,
+          "due_date": null,
+          "end_date": null,
+          "due_time": null,
+          "due_end_time": null,
+          "is_bad_habit": false,
+          "is_general": false,
+          "is_flexible": false,
+          "checklist_items": null,
+          "start_date": null,
+          "placement": null,
+          "reminder_enabled": false,
+          "reminder_times": [],
+          "scheduled_reminders": null,
+          "relative_reminders": null,
+          "repeat_reminder": null,
+          "slip_alert_enabled": null,
+          "tag_names": null,
+          "habit_id": null,
+          "tag_ids": null,
+          "goal_ids": null,
+          "parent_habit_id": null,
+          "sub_habits": null
+        },
+        "resultStatus": "Failed",
+        "result": {
+          "success": false,
+          "error": "Invalid suggested_fields entry \"is_bad_habit\": use a supported field name with a value.",
+          "payload": null
+        }
+      },
+      {
+        "name": "create_habit",
+        "arguments": {
+          "orbit_write_complete": true,
+          "orbit_dismissed_offer_keys": [],
+          "suggested_fields": [
+            "emoji",
+            "frequency_unit",
+            "frequency_quantity",
+            "is_general",
+            "is_flexible",
+            "reminder_enabled",
+            "reminder_times",
+            "scheduled_reminders",
+            "checklist_items",
+            "tag_names",
+            "tag_ids",
+            "goal_ids",
+            "parent_habit_id"
+          ],
+          "title": "Take magnesium",
+          "description": null,
+          "emoji": "💊",
+          "frequency_unit": "Day",
+          "frequency_quantity": 1,
+          "interval_weeks": null,
+          "days": null,
+          "due_date": null,
+          "end_date": null,
+          "due_time": null,
+          "due_end_time": null,
+          "is_bad_habit": false,
+          "is_general": false,
+          "is_flexible": false,
+          "checklist_items": null,
+          "start_date": null,
+          "placement": null,
+          "reminder_enabled": false,
+          "reminder_times": [],
+          "scheduled_reminders": null,
+          "relative_reminders": null,
+          "repeat_reminder": null,
+          "slip_alert_enabled": null,
+          "tag_names": null,
+          "habit_id": null,
+          "tag_ids": null,
+          "goal_ids": null,
+          "parent_habit_id": null,
+          "sub_habits": null
+        },
+        "resultStatus": "Failed",
+        "result": {
+          "success": false,
+          "error": "Invalid suggested_fields entry reminder_times: use a supported field name with a value.",
+          "payload": null
+        }
+      }
+    ],
+    "offerReadback": {
+      "pass": false,
+      "score": 0,
+      "reason": "Mutation outside the declared operation scope: create_habit",
+      "turns": []
+    }
+  },
+  {
+    "caseId": "offers-preview-rejection-en",
+    "pass": false,
+    "httpStatus": null,
+    "assertions": [],
+    "setup": {
+      "pass": false,
+      "assertions": [],
+      "answer": "{\"outcomes\":[{\"title\":\"Some items did not save\",\"label\":\"Create habit\",\"meta\":\"Did not save\"}],\"parts\":[]}",
+      "composition": [],
+      "toolCalls": [
+        {
+          "name": "create_habit",
+          "arguments": {
+            "orbit_write_complete": true,
+            "orbit_dismissed_offer_keys": [],
+            "suggested_fields": [
+              "emoji",
+              "frequency_unit",
+              "frequency_quantity",
+              "is_general",
+              "repeat_reminder"
+            ],
+            "title": "Drink water throughout the day",
+            "description": null,
+            "emoji": "💧",
+            "frequency_unit": null,
+            "frequency_quantity": null,
+            "interval_weeks": null,
+            "days": null,
+            "due_date": "2026-11-01",
+            "end_date": null,
+            "due_time": null,
+            "due_end_time": null,
+            "is_bad_habit": false,
+            "is_general": true,
+            "is_flexible": false,
+            "checklist_items": null,
+            "start_date": null,
+            "placement": null,
+            "reminder_enabled": true,
+            "reminder_times": [],
+            "scheduled_reminders": null,
+            "relative_reminders": null,
+            "repeat_reminder": {
+              "interval_minutes": 60,
+              "active_start": null,
+              "active_end": null,
+              "start_at_utc": null
+            },
+            "slip_alert_enabled": null,
+            "tag_names": null,
+            "habit_id": null,
+            "tag_ids": null,
+            "goal_ids": null,
+            "parent_habit_id": null,
+            "sub_habits": null
+          },
+          "resultStatus": "Failed",
+          "result": {
+            "success": false,
+            "error": "Invalid suggested_fields entry frequency_unit: use a supported field name with a value.",
+            "payload": null
+          }
+        },
+        {
+          "name": "create_habit",
+          "arguments": {
+            "orbit_write_complete": true,
+            "orbit_dismissed_offer_keys": [],
+            "suggested_fields": [
+              "emoji",
+              "is_general",
+              "repeat_reminder",
+              "reminder_enabled",
+              "reminder_times"
+            ],
+            "title": "Drink water throughout the day",
+            "description": null,
+            "emoji": "💧",
+            "frequency_unit": null,
+            "frequency_quantity": null,
+            "interval_weeks": null,
+            "days": null,
+            "due_date": "2026-11-01",
+            "end_date": null,
+            "due_time": null,
+            "due_end_time": null,
+            "is_bad_habit": false,
+            "is_general": true,
+            "is_flexible": false,
+            "checklist_items": null,
+            "start_date": null,
+            "placement": null,
+            "reminder_enabled": true,
+            "reminder_times": [],
+            "scheduled_reminders": null,
+            "relative_reminders": null,
+            "repeat_reminder": {
+              "interval_minutes": 60,
+              "active_start": null,
+              "active_end": null,
+              "start_at_utc": null
+            },
+            "slip_alert_enabled": null,
+            "tag_names": null,
+            "habit_id": null,
+            "tag_ids": null,
+            "goal_ids": null,
+            "parent_habit_id": null,
+            "sub_habits": null
+          },
+          "resultStatus": "Failed",
+          "result": {
+            "success": false,
+            "error": "Invalid suggested_fields entry reminder_times: use a supported field name with a value.",
+            "payload": null
+          }
+        }
+      ],
+      "timing": {
+        "totalMilliseconds": 8848.061058,
+        "phases": [
+          {
+            "name": "moderation",
+            "milliseconds": 241.96702399999998,
+            "elapsedMilliseconds": 247.493854
+          },
+          {
+            "name": "context_load",
+            "milliseconds": 5.52683,
+            "elapsedMilliseconds": 11.05366
+          },
+          {
+            "name": "context_load",
+            "milliseconds": 0.018101,
+            "elapsedMilliseconds": 0.018101
+          },
+          {
+            "name": "prompt_build",
+            "milliseconds": 8.92678,
+            "elapsedMilliseconds": 8.92678
+          },
+          {
+            "name": "budget",
+            "milliseconds": 2.032853,
+            "elapsedMilliseconds": 2.032853
+          },
+          {
+            "name": "budget",
+            "milliseconds": 29.55913,
+            "elapsedMilliseconds": 29.55913
+          },
+          {
+            "name": "model_call",
+            "milliseconds": 3602.125689,
+            "elapsedMilliseconds": 3602.125689
+          },
+          {
+            "name": "budget",
+            "milliseconds": 5.867771,
+            "elapsedMilliseconds": 5.867771
+          },
+          {
+            "name": "tool_call",
+            "milliseconds": 9.175269,
+            "elapsedMilliseconds": 9.175269
+          },
+          {
+            "name": "budget",
+            "milliseconds": 1.748011,
+            "elapsedMilliseconds": 1.748011
+          },
+          {
+            "name": "budget",
+            "milliseconds": 29.967242,
+            "elapsedMilliseconds": 29.967242
+          },
+          {
+            "name": "model_call",
+            "milliseconds": 4848.622349,
+            "elapsedMilliseconds": 4848.622349
+          },
+          {
+            "name": "budget",
+            "milliseconds": 4.462665,
+            "elapsedMilliseconds": 4.462665
+          },
+          {
+            "name": "tool_call",
+            "milliseconds": 0.447743,
+            "elapsedMilliseconds": 0.447743
+          },
+          {
+            "name": "save",
+            "milliseconds": 10.331326,
+            "elapsedMilliseconds": 10.331326
+          },
+          {
+            "name": "composition",
+            "milliseconds": 0.1343,
+            "elapsedMilliseconds": 0.1343
+          },
+          {
+            "name": "other",
+            "milliseconds": 47.14797500000001,
+            "elapsedMilliseconds": 47.14797500000001
+          }
+        ]
+      },
+      "savedStep": null,
+      "renderError": null,
+      "graderRationale": null,
+      "requestId": "5935c900-c693-47b3-b2e1-ee3b133330e4"
+    },
+    "toolCalls": []
+  },
+  {
+    "caseId": "offers-preview-rejection-pt-BR",
+    "pass": false,
+    "httpStatus": null,
+    "assertions": [],
+    "setup": {
+      "pass": false,
+      "assertions": [],
+      "answer": "{\"outcomes\":[{\"title\":\"Alguns itens não foram salvos\",\"label\":\"Criar hábito\",\"meta\":\"Não foi salvo\"}],\"parts\":[]}",
+      "composition": [],
+      "toolCalls": [
+        {
+          "name": "create_habit",
+          "arguments": {
+            "orbit_write_complete": true,
+            "orbit_dismissed_offer_keys": [],
+            "suggested_fields": [
+              "emoji",
+              "frequency_unit",
+              "frequency_quantity",
+              "is_general",
+              "reminder_enabled",
+              "reminder_times"
+            ],
+            "title": "Beber água ao longo do dia",
+            "description": null,
+            "emoji": "💧",
+            "frequency_unit": null,
+            "frequency_quantity": null,
+            "interval_weeks": null,
+            "days": null,
+            "due_date": null,
+            "end_date": null,
+            "due_time": null,
+            "due_end_time": null,
+            "is_bad_habit": null,
+            "is_general": true,
+            "is_flexible": null,
+            "checklist_items": null,
+            "start_date": null,
+            "placement": null,
+            "reminder_enabled": true,
+            "reminder_times": [],
+            "scheduled_reminders": null,
+            "relative_reminders": null,
+            "repeat_reminder": null,
+            "slip_alert_enabled": null,
+            "tag_names": null,
+            "habit_id": null,
+            "tag_ids": null,
+            "goal_ids": null,
+            "parent_habit_id": null,
+            "sub_habits": null
+          },
+          "resultStatus": "Failed",
+          "result": {
+            "success": false,
+            "error": "Invalid suggested_fields entry frequency_unit: use a supported field name with a value.",
+            "payload": null
+          }
+        },
+        {
+          "name": "create_habit",
+          "arguments": {
+            "orbit_write_complete": true,
+            "orbit_dismissed_offer_keys": [],
+            "suggested_fields": [
+              "emoji",
+              "is_general",
+              "reminder_enabled",
+              "reminder_times"
+            ],
+            "title": "Beber água ao longo do dia",
+            "description": null,
+            "emoji": "💧",
+            "frequency_unit": null,
+            "frequency_quantity": null,
+            "interval_weeks": null,
+            "days": null,
+            "due_date": null,
+            "end_date": null,
+            "due_time": null,
+            "due_end_time": null,
+            "is_bad_habit": null,
+            "is_general": true,
+            "is_flexible": null,
+            "checklist_items": null,
+            "start_date": null,
+            "placement": null,
+            "reminder_enabled": true,
+            "reminder_times": [],
+            "scheduled_reminders": null,
+            "relative_reminders": null,
+            "repeat_reminder": {
+              "interval_minutes": 60,
+              "active_start": null,
+              "active_end": null,
+              "start_at_utc": null
+            },
+            "slip_alert_enabled": null,
+            "tag_names": null,
+            "habit_id": null,
+            "tag_ids": null,
+            "goal_ids": null,
+            "parent_habit_id": null,
+            "sub_habits": null
+          },
+          "resultStatus": "Failed",
+          "result": {
+            "success": false,
+            "error": "Invalid suggested_fields entry reminder_times: use a supported field name with a value.",
+            "payload": null
+          }
+        }
+      ],
+      "timing": {
+        "totalMilliseconds": 8711.032086,
+        "phases": [
+          {
+            "name": "moderation",
+            "milliseconds": 110.5146075,
+            "elapsedMilliseconds": 117.120679
+          },
+          {
+            "name": "context_load",
+            "milliseconds": 6.6060715,
+            "elapsedMilliseconds": 13.212143
+          },
+          {
+            "name": "context_load",
+            "milliseconds": 0.017291,
+            "elapsedMilliseconds": 0.017291
+          },
+          {
+            "name": "prompt_build",
+            "milliseconds": 22.565596,
+            "elapsedMilliseconds": 22.565596
+          },
+          {
+            "name": "budget",
+            "milliseconds": 208.218073,
+            "elapsedMilliseconds": 208.218073
+          },
+          {
+            "name": "budget",
+            "milliseconds": 21.067942,
+            "elapsedMilliseconds": 21.067942
+          },
+          {
+            "name": "model_call",
+            "milliseconds": 3932.040597,
+            "elapsedMilliseconds": 3932.040597
+          },
+          {
+            "name": "budget",
+            "milliseconds": 6.679932,
+            "elapsedMilliseconds": 6.679932
+          },
+          {
+            "name": "tool_call",
+            "milliseconds": 6.072456,
+            "elapsedMilliseconds": 6.072456
+          },
+          {
+            "name": "budget",
+            "milliseconds": 1.926505,
+            "elapsedMilliseconds": 1.926505
+          },
+          {
+            "name": "budget",
+            "milliseconds": 28.058208,
+            "elapsedMilliseconds": 28.058208
+          },
+          {
+            "name": "model_call",
+            "milliseconds": 4291.489813,
+            "elapsedMilliseconds": 4291.489813
+          },
+          {
+            "name": "budget",
+            "milliseconds": 15.073272,
+            "elapsedMilliseconds": 15.073272
+          },
+          {
+            "name": "tool_call",
+            "milliseconds": 0.436393,
+            "elapsedMilliseconds": 0.436393
+          },
+          {
+            "name": "save",
+            "milliseconds": 11.829659,
+            "elapsedMilliseconds": 11.829659
+          },
+          {
+            "name": "composition",
+            "milliseconds": 0.121899,
+            "elapsedMilliseconds": 0.121899
+          },
+          {
+            "name": "other",
+            "milliseconds": 48.31377100000001,
+            "elapsedMilliseconds": 48.31377100000001
+          }
+        ]
+      },
+      "savedStep": null,
+      "renderError": null,
+      "graderRationale": null,
+      "requestId": "47695ac0-3da0-49db-85ec-e0d46fe4d3ca"
+    },
+    "toolCalls": []
+  },
+  {
+    "caseId": "offers-goal-gap-equivalent-goal-en",
+    "pass": false,
+    "httpStatus": 400,
+    "assertions": [],
+    "httpError": {
+      "status": 400,
+      "errorCode": "AI_UNAVAILABLE",
+      "error": "Astra is not answering right now. Try again in a moment.",
+      "responseRequestId": "c02aa471-588e-4479-9d69-ecb77558cbaf"
+    },
+    "toolCalls": []
+  },
+  {
+    "caseId": "offers-due-log-pt-BR",
+    "pass": false,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": true,
+        "reason": "Assertion passed"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": true,
+        "reason": "Required tools, arguments and results matched."
+      },
+      {
+        "metric": "composition",
+        "pass": true,
+        "reason": "Composition structure and negotiated capabilities matched."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": false,
+        "reason": "ask requires a typed account read or a bound missing-field draft."
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": true,
+        "reason": "The block uses grounded titles, counts, and completion status, with generated labels in Brazilian Portuguese. Meals is eligible for logging on 01/11/2026. No prose duplicates block content."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "arguments": {
+          "orbit_read_complete": true,
+          "orbit_dismissed_offer_keys": [],
+          "for_selection": false,
+          "relative_period": "today",
+          "search": null,
+          "date": null,
+          "include_overdue": true,
+          "is_general": null,
+          "is_completed": null,
+          "is_bad_habit": null,
+          "frequency": null,
+          "tag": null,
+          "include_sub_habits": true,
+          "include_metrics": false,
+          "offset": 0,
+          "limit": 50
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ],
+    "offerReadback": {
+      "pass": false,
+      "score": 0,
+      "reason": "ask requires a typed account read or a bound missing-field draft.",
+      "turns": [
+        {
+          "requestId": "[redacted]",
+          "conversationId": "[redacted]",
+          "platform": "web",
+          "reloaded": false,
+          "actions": []
+        }
+      ]
+    }
+  },
+  {
+    "caseId": "offers-children-en",
+    "pass": false,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": true,
+        "reason": "Assertion passed"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": true,
+        "reason": "Required tools, arguments and results matched."
+      },
+      {
+        "metric": "composition",
+        "pass": true,
+        "reason": "Composition structure and negotiated capabilities matched."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": false,
+        "reason": "Fixture API POST failed with HTTP 409."
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": true,
+        "reason": "The pending proposal is grounded, preserves independent child habits and their cadences, and uses slash-separated suggestion paths. English text contains no duplicated prose or claim that changes were saved."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "bulk_create_habits",
+        "arguments": {
+          "orbit_write_complete": true,
+          "orbit_dismissed_offer_keys": [],
+          "parent_habit_id": null,
+          "habits": [
+            {
+              "suggested_fields": [
+                "frequency_unit",
+                "frequency_quantity",
+                "is_general"
+              ],
+              "title": "Daily Wellness Routine",
+              "description": null,
+              "emoji": "🌿",
+              "frequency_unit": "Day",
+              "frequency_quantity": 1,
+              "interval_weeks": null,
+              "days": null,
+              "due_date": "2026-11-01",
+              "end_date": null,
+              "due_time": null,
+              "due_end_time": null,
+              "is_bad_habit": false,
+              "is_general": false,
+              "is_flexible": false,
+              "checklist_items": null,
+              "start_date": null,
+              "placement": null,
+              "reminder_enabled": null,
+              "reminder_times": null,
+              "scheduled_reminders": null,
+              "relative_reminders": null,
+              "repeat_reminder": null,
+              "slip_alert_enabled": null,
+              "tag_names": null,
+              "habit_id": null,
+              "tag_ids": null,
+              "goal_ids": null,
+              "parent_habit_id": null,
+              "sub_habits": [
+                {
+                  "suggested_fields": [
+                    "frequency_unit",
+                    "frequency_quantity",
+                    "is_general"
+                  ],
+                  "title": "Mobility",
+                  "description": null,
+                  "emoji": "🤸",
+                  "frequency_unit": "Day",
+                  "frequency_quantity": 1,
+                  "interval_weeks": null,
+                  "days": null,
+                  "due_date": "2026-11-01",
+                  "end_date": null,
+                  "due_time": null,
+                  "due_end_time": null,
+                  "is_bad_habit": false,
+                  "is_general": false,
+                  "is_flexible": false,
+                  "checklist_items": null,
+                  "start_date": null,
+                  "placement": null,
+                  "reminder_enabled": null,
+                  "reminder_times": null,
+                  "scheduled_reminders": null,
+                  "relative_reminders": null,
+                  "repeat_reminder": null,
+                  "slip_alert_enabled": null,
+                  "tag_names": null,
+                  "habit_id": null,
+                  "tag_ids": null,
+                  "goal_ids": null,
+                  "parent_habit_id": null,
+                  "sub_habits": null
+                },
+                {
+                  "suggested_fields": [
+                    "frequency_unit",
+                    "frequency_quantity",
+                    "is_general"
+                  ],
+                  "title": "Reading",
+                  "description": null,
+                  "emoji": "📖",
+                  "frequency_unit": "Day",
+                  "frequency_quantity": 1,
+                  "interval_weeks": null,
+                  "days": null,
+                  "due_date": "2026-11-01",
+                  "end_date": null,
+                  "due_time": null,
+                  "due_end_time": null,
+                  "is_bad_habit": false,
+                  "is_general": false,
+                  "is_flexible": false,
+                  "checklist_items": null,
+                  "start_date": null,
+                  "placement": null,
+                  "reminder_enabled": null,
+                  "reminder_times": null,
+                  "scheduled_reminders": null,
+                  "relative_reminders": null,
+                  "repeat_reminder": null,
+                  "slip_alert_enabled": null,
+                  "tag_names": null,
+                  "habit_id": null,
+                  "tag_ids": null,
+                  "goal_ids": null,
+                  "parent_habit_id": null,
+                  "sub_habits": null
+                }
+              ]
+            }
+          ]
+        },
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation",
+            "item_count": 1,
+            "habit_count": null,
+            "date_count": null,
+            "proposed_titles": [
+              "Daily wellness routine"
+            ],
+            "dates": null
+          }
+        }
+      }
+    ],
+    "offerReadback": {
+      "pass": false,
+      "score": 0,
+      "reason": "Fixture API POST failed with HTTP 409.",
+      "turns": []
+    }
+  },
+  {
+    "caseId": "offers-action-lifecycle-en",
+    "pass": false,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": true,
+        "reason": "Assertion passed"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": false,
+        "reason": "Mutation outside the declared operation scope: suggest_breakdown"
+      },
+      {
+        "metric": "composition",
+        "pass": true,
+        "reason": "One starting step and its server actions match the tool evidence."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": false,
+        "reason": "Unsolicited write executed."
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": false,
+        "reason": "The answer offers a generic small step instead of resolving the issued action through selectedOfferKey with source, date, and revision validation."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "suggest_breakdown",
+        "arguments": {
+          "orbit_write_complete": false,
+          "orbit_dismissed_offer_keys": [],
+          "one_small_step": true,
+          "language": "en",
+          "title": "Choose one small step I can take today",
+          "suggested_sub_habits": [
+            {
+              "title": "Take one slow breath and notice one thing you can do next",
+              "description": null,
+              "frequency_unit": null,
+              "frequency_quantity": null,
+              "days": null
+            }
+          ]
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ],
+    "offerReadback": {
+      "pass": false,
+      "score": 0,
+      "reason": "Mutation outside the declared operation scope: suggest_breakdown",
+      "turns": []
+    }
+  },
+  {
+    "caseId": "offers-action-lifecycle-pt-BR",
+    "pass": false,
+    "httpStatus": 200,
+    "assertions": [
+      {
+        "metric": "toolStructure",
+        "pass": true,
+        "reason": "Assertion passed"
+      },
+      {
+        "metric": "toolBehavior",
+        "pass": false,
+        "reason": "Mutation outside the declared operation scope: suggest_breakdown"
+      },
+      {
+        "metric": "composition",
+        "pass": true,
+        "reason": "One starting step and its server actions match the tool evidence."
+      },
+      {
+        "metric": "savedStep",
+        "pass": true,
+        "reason": "No saved-step approval requested."
+      },
+      {
+        "metric": "proactiveOffers",
+        "pass": false,
+        "reason": "Unsolicited write executed."
+      },
+      {
+        "metric": "finalAnswer",
+        "pass": true,
+        "reason": "O bloco está em português brasileiro e reproduz o passo confirmado por suggest_breakdown, sem inventar hábitos, repetir fatos em prosa ou alegar alterações salvas."
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "suggest_breakdown",
+        "arguments": {
+          "orbit_write_complete": false,
+          "orbit_dismissed_offer_keys": [],
+          "one_small_step": true,
+          "language": "pt-BR",
+          "title": "Começar o dia",
+          "suggested_sub_habits": [
+            {
+              "title": "Abrir a janela e respirar fundo uma vez",
+              "description": null,
+              "frequency_unit": null,
+              "frequency_quantity": null,
+              "days": null
+            }
+          ]
+        },
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ],
+    "offerReadback": {
+      "pass": false,
+      "score": 0,
+      "reason": "Mutation outside the declared operation scope: suggest_breakdown",
+      "turns": []
+    }
+  }
+]

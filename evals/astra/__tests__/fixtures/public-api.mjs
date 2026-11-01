@@ -62,6 +62,15 @@ export function fixtureFetch(getState) {
     if (['profile/timezone', 'profile/language', 'calendar/selected-calendars', 'calendar/auto-sync'].includes(path)) return new Response(null, { status: 204 })
     if (path === 'notifications' && method === 'GET') return Response.json({ items: [], unreadCount: 0, totalCount: 0, sourceRevision: 'empty' })
     if (path === 'notifications/all' && method === 'DELETE') return new Response(null, { status: 204 })
+    // Producer: GetHabitScheduleQuery and HabitScheduleFilters return the unfinished dated population.
+    if (path === 'habits' && method === 'GET') {
+      const date = new URL(url).searchParams.get('dateTo')
+      const items = habits.filter((habit) => !habit.deleted && !habit.isCompleted && habit.dueDate <= date)
+        .map((habit) => ({ ...habit, isCompleted: false,
+          isLoggedInRange: habit.logs.some((log) => log.date === date && log.value > 0),
+          isSkippedOnDate: habit.logs.some((log) => log.date === date && log.value === 0) }))
+      return Response.json({ items, page: 1, pageSize: 50, totalCount: items.length, totalPages: 1 })
+    }
     if (path === 'habits' && method === 'POST') {
       const habit = exportedHabit(body)
       habits.push(habit)

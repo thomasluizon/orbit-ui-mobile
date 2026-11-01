@@ -6,11 +6,14 @@ import { publicApi } from './fixtures/api.mjs'
 import { readOfferState } from './fixtures/offers.mjs'
 import { refreshCredential, safeFailureMessage } from './credentials.mjs'
 import { approveOfferTask, preservesOfferFields, rejectOfferPreview, removeOfferGroup, reviseOfferPreview } from './offer-preview.mjs'
+import { attemptEvidence, sanitizeEvidence } from './evidence.mjs'
+import { groundingEvidence } from './grading-input.mjs'
 
-async function verified(output, vars) {
+async function verified(output, vars, evidence = []) {
   const context = { vars: { ...vars, offerRequireReadback: false }, test: { vars } }
   for (const grade of [structural, behavior, composition, vars.offerFamily ? proactiveOffers : offerSafety]) {
     const verdict = await grade(output, context)
+    evidence.push(sanitizeEvidence({ metric: grade.name, ...verdict }))
     if (verdict.pass !== true || verdict.metadata?.unavailable || verdict.metadata?.skipped) throw new Error(verdict.reason)
   }
 }
@@ -25,11 +28,17 @@ function continuation(vars, chat, evidence, output) {
     const next = { ...vars, ...policy, input, clientContext, evalRequestId: randomUUID(),
       offerFamily: undefined, historyJson: JSON.stringify(reload ? [] : history), clientContextJson: JSON.stringify(clientContext) }
     const response = await chat(input, { vars: next })
+    const recorded = attemptEvidence({ response, testCase: { vars: next } }, {
+      requestId: next.evalRequestId, conversationId: clientContext.conversationId,
+      platform: clientContext.platform, reloaded: reload, assertions: [],
+      reason: response.error ?? null,
+      groundingEvidence: groundingEvidence(response.output ?? {}, next),
+    })
+    evidence.push(recorded)
     if (response.error || !response.output) throw new Error(response.error ?? 'Missing offer continuation response.')
-    await verified(response.output, next)
+    await verified(response.output, next, recorded.assertions)
     history = [...(reload ? [] : history), { role: 'user', content: input }, { role: 'assistant', content: response.output.answer }]
-    evidence.push({ requestId: next.evalRequestId, conversationId: clientContext.conversationId,
-      platform: clientContext.platform, reloaded: reload, actions: offerActions(response.output.composition).map(({ action }) => action) })
+    recorded.actions = sanitizeEvidence(offerActions(response.output.composition).map(({ action }) => action))
     return response.output
   }
 }

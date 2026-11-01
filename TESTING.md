@@ -354,10 +354,10 @@ Offer requests and their setup turns inherit capabilities, including every part 
 capability restriction. Prerequisite account reads must succeed; only catalog-classified writes enter
 the pending-mutation scope. An HTTP 400 retains its `errorCode`, `error` and response-header request
 identity in the sanitized attempt artifact, including unexpected errors that fail grading.
-One failed pre-confirmation argument check may be repaired by a later matching held preview in the
-same turn. The matcher preserves the producer's supplied target names, IDs, actions, filters and
-nested target order. A second failed write, a changed target or an unrecovered failure still fails;
-the failed call remains in the attempt evidence even when only its repair counts toward the mutation scope.
+Failed create argument checks may be repaired by a later matching held preview in the same turn.
+The matcher preserves the producer's supplied target names, IDs, actions, filters and nested target
+order. A changed target, an unrecovered failure or duplicate held previews still fail; every failed
+call remains in the attempt evidence even when only its repair consumes the mutation scope.
 The final-answer rubric grades the visible turn only. Restart actions refer to today while skip
 actions refer to their actual occurrence when known; typed checks bind hidden dates and targets.
 Repeat intervals are required, with active hours optional as a pair. A requested dated draft may
@@ -465,6 +465,10 @@ The `offers-missed-non-daily-en` and `offers-missed-non-daily-pt-BR` cases use `
 the four missed habits recur every three days from two days before today, making them overdue and
 not due today. This exercises the overdue-status path as well. Both fixtures verify the exact cadence,
 occurrence cursor, settings and history through independent public API reads.
+Resetting stable roots also restores their start date, so a previous future-dated proposal
+cannot carry into the next case. Before a restart attempt, a dated public habit read with
+`includeOverdue=true` and `isCompleted=false` must return all six distinct fixture IDs,
+with no logged or skipped item. A mismatch makes the precondition incomplete before chat.
 The tool grader requires the remaining-work read, every page before the write, and one held
 `bulk_reschedule_habits` call with complete per-habit `revised_items`. A smaller set stays today
 and the rest falls within seven days. The response contains only the `rescheduleHabits` preview.
@@ -802,6 +806,36 @@ retains sanitized evidence without claiming that every sensitive field is presen
 Unavailable evidence makes the summary incomplete and exits nonzero. A real behavior or
 final-answer failure remains a failure even when evidence is also unavailable. Legacy skipped
 evidence can never approve the gate.
+An HTTP 400 with `AI_UNAVAILABLE` is incomplete provider evidence, preserving its typed error
+and request identity. It cannot satisfy either a moderation refusal or a tool assertion.
+
+The trace does not mark model rounds. After a successful typed read, `ask` arguments may
+match either the initial or continued producer declaration, including the proactive-offer
+catalogs. The typed-read or bound-draft prerequisite still applies. Invalid forms report the
+selected choice, pickList or question branch instead of a different branch's required fields.
+
+Failed creates with `success=false`, a null payload and an error do not consume mutation scope.
+Only a later successful held create for the same targets can recover their outcome. Without
+that preview the attempt still fails, and every failed call remains in its evidence. Duplicate
+previews, unallowed tools and successful unsolicited writes continue to fail. A selected
+small-step offer explicitly permits one successful `suggest_breakdown` with `one_small_step=true`
+in the person's language; subsequent saves still require the existing approval and readback.
+
+Offer continuation evidence is captured before verification, including failing turns. Each
+turn retains its arguments, statuses, result projection, answer and assertion verdicts. Only
+valid request UUIDs retain their identity; account identifiers and private fields remain
+sanitized. Successful offer setup evidence is retained as well. Fixture HTTP failures name
+the method, sanitized route and typed `errorCode` when available. Preview revisions with a
+fingerprint conflict are not replayed automatically: they are not idempotent replacements.
+
+For an offline assertion audit, run `node evals/astra/replay.mjs <source-window> <separate-output>`.
+The source window must contain `summary.json` and one saved attempt per case. The audit reads
+every attempt and writes a before/after table and JSON outside the source directory. It never
+calls the chat provider or rubric judge. It replays available argument schemas and changed
+outcome scopes, retaining other verdicts explicitly. Older projections omit identities, full
+compositions and some tool results; missing continuation or fixture evidence cannot become a
+pass. A reset fix requires a fresh attempt. Recorded latency failures remain failures, and any
+previously passing schema that regresses stops the audit. This report is not a launch gate.
 
 Successful reads require `Succeeded` and `result.success: true`. Current write cases require
 `PendingConfirmation`, `result.success: true` and `result.payload.status: awaiting_confirmation`.

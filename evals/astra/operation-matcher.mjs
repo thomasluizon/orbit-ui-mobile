@@ -54,17 +54,20 @@ function sameArgumentTargets(original, candidate, name) {
   })
 }
 
+export const failedBeforeDispatch = (call) => ['create_habit', 'create_sub_habit', 'bulk_create_habits'].includes(call.name)
+  && call.resultStatus === 'Failed' && call.result?.success === false && call.result.payload === null
+  && typeof call.result.error === 'string' && call.result.error.trim().length > 0
+
 function withoutRepairedFailure(calls, scope) {
-  const failures = calls.filter((call) => toolWrites.get(call.name) === true && call.resultStatus === 'Failed')
-  if (failures.length !== 1) return calls
-  const failed = failures[0]
-  if (failed.result?.success !== false || typeof failed.result.error !== 'string' || !failed.result.error.trim()) return calls
-  const repairs = calls.slice(calls.indexOf(failed) + 1).filter((candidate) => candidate.name === failed.name
-    && candidate.resultStatus === 'PendingConfirmation' && candidate.result?.success === true
-    && candidate.result.error === null && candidate.result.payload?.status === 'awaiting_confirmation'
-    && sameArgumentTargets(failed.arguments, candidate.arguments, failed.name)
-    && scope.some((operation) => operation.resultStatus !== 'Failed' && matchesOperation(candidate, operation)))
-  return repairs.length === 1 ? calls.filter((call) => call !== failed) : calls
+  return calls.filter((failed, index) => {
+    if (!failedBeforeDispatch(failed)) return true
+    const repairs = calls.slice(index + 1).filter((candidate) => candidate.name === failed.name
+      && candidate.resultStatus === 'PendingConfirmation' && candidate.result?.success === true
+      && candidate.result.error === null && candidate.result.payload?.status === 'awaiting_confirmation'
+      && sameArgumentTargets(failed.arguments, candidate.arguments, failed.name)
+      && scope.some((operation) => operation.resultStatus !== 'Failed' && matchesOperation(candidate, operation)))
+    return repairs.length !== 1
+  })
 }
 
 export function outcomeCalls(calls, expectations) {

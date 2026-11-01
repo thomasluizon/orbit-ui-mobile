@@ -119,6 +119,7 @@ export function attemptEvidence(entry, attempt) {
     ...(output?.httpError ? { httpError: output.httpError } : {}),
     ...(entry.testCase.vars?.offerFamily ? { requestedAim: entry.testCase.vars.requestedAim ?? null } : {}),
     answer: output?.answer ?? null,
+    ...(output?.trace ? { trace: { state: output.trace.state } } : {}),
     composition: (output?.composition?.parts ?? []).filter((part) => part?.type === 'block')
       .map((part) => ({ kind: part.kind, subtype: part.block?.kind ?? null })),
     toolCalls,
@@ -136,6 +137,18 @@ export function attemptEvidence(entry, attempt) {
     graderRationale: attempt.assertions.filter((assertion) => assertion.metric === 'finalAnswer')
       .map((assertion) => assertion.reason).join('\n') || entry.gradingResult?.reason || null,
   }, withheld)
+  for (const field of ['requestId', 'responseRequestId']) {
+    const value = output?.trace?.[field]
+    if (typeof value === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(value)
+      && redactCredentials(value) === value && !withheld.has(value)) evidence.trace[field] = value
+  }
+  for (const [index, turn] of (output?.offerReadback?.turns ?? []).entries()) {
+    for (const field of ['requestId', 'responseRequestId']) {
+      const value = turn.trace?.[field]
+      if (typeof value === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(value)
+        && redactCredentials(value) === value && !withheld.has(value)) evidence.offerReadback.turns[index].trace[field] = value
+    }
+  }
   const requestId = output?.httpError?.responseRequestId
   if (typeof requestId === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(requestId)
     && redactCredentials(requestId) === requestId && !withheld.has(requestId)) {
