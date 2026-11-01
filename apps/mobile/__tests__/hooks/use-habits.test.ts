@@ -9,7 +9,7 @@ import { createMockGoal, createMockProfile, createMockRetrospectiveMetrics } fro
 import { createApiClientError } from '@orbit/shared'
 import { buildCalendarDayMap, buildChildrenIndex, buildHabitHistoryMonth, formatAPIDate, getAccountDay, getAllDoneOnDate, hasHabitScheduleOnDate, isHabitCompletedOnDate, normalizeHabits } from '@orbit/shared/utils'
 import enMessages from '@orbit/shared/i18n/en.json'
-import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
+import { gamificationKeys, habitKeys, goalKeys, profileKeys, resetAccountQueries, tagKeys } from '@orbit/shared/query'
 import type { CalendarMonthResponse, ChecklistItem, CreateHabitRequest, HabitDetail, HabitScheduleChild, HabitScheduleItem, LogHabitResponse, UpdateHabitRequest } from '@orbit/shared/types/habit'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { Goal } from '@orbit/shared/types/goal'
@@ -34,6 +34,7 @@ import {
 } from '@/hooks/use-habits'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { setAccountId } from '@/lib/account-scope'
 import { cancelQueuedSkipForUndo } from '@/lib/offline-mutations'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { apiClient } from '@/lib/api-client'
@@ -3959,6 +3960,81 @@ describe('mobile log request account day', () => {
     if (mode === 'single') expect(request.dedupeKey).toBe('habit-toggle:habit-1:2026-09-13')
     expect(JSON.stringify(request.payload)).not.toContain('2026-09-13')
     expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.profile.get)
+  })
+
+  it.each([
+    { mode: 'single', profileOutcome: 'resolves' },
+    { mode: 'bulk', profileOutcome: 'resolves' },
+    { mode: 'single', profileOutcome: 'rejects' },
+    { mode: 'bulk', profileOutcome: 'rejects' },
+  ] as const)('stops an undated $mode log when its originating account changes before the profile $profileOutcome', async ({ mode, profileOutcome }) => {
+    setAccountId('account-a')
+    const profileA = createMockProfile({ timeZone: 'UTC' })
+    const profileB = createMockProfile({ timeZone: 'Pacific/Kiritimati' })
+    let settleProfile: (() => void) | undefined
+    vi.mocked(apiClient).mockImplementationOnce(() => new Promise((resolve, reject) => {
+      settleProfile = () => profileOutcome === 'resolves'
+        ? resolve(profileA) : reject(new TypeError('Network request failed'))
+    }))
+    const key = habitKeys.list({})
+    client.setQueryData(key, [makeHabit({ id: 'habit-1' })])
+    const accountBHabits = [makeHabit({ id: 'account-b-habit' })]
+    mocks.showError.mockClear()
+    mocks.showInfo.mockClear()
+    mocks.useRealQueryHooks = true
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    let singleLog!: ReturnType<typeof useLogHabit>
+    let bulkLog!: ReturnType<typeof useBulkLogHabits>
+    function Probe() {
+      singleLog = useLogHabit()
+      bulkLog = useBulkLogHabits()
+      return null
+    }
+    let renderer: { unmount: () => void } | undefined
+    let pending: Promise<unknown> | undefined
+    try {
+      await TestRenderer.act(() => {
+        renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe)))
+      })
+      await TestRenderer.act(() => {
+        pending = (mode === 'single'
+          ? singleLog.mutateAsync({ habitId: 'habit-1', intent: 'log' })
+          : bulkLog.mutateAsync([{ habitId: 'habit-1' }, { habitId: 'habit-2', date: '2026-09-10' }]))
+          .catch((error: unknown) => error)
+      })
+      await vi.waitFor(() => expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.profile.get))
+      await TestRenderer.act(async () => {
+        advanceAccountGeneration()
+        setAccountId(null)
+        await resetAccountQueries(client, 'signed-out')
+        advanceAccountGeneration()
+        setAccountId('account-b')
+        await resetAccountQueries(client, 'signed-in')
+        client.setQueryData(profileKeys.detail(), profileB)
+        client.setQueryData(key, accountBHabits)
+      })
+      let outcome: unknown
+      await TestRenderer.act(async () => {
+        settleProfile!()
+        outcome = await pending
+      })
+      expect(client.getQueryData(profileKeys.detail())).toEqual(profileB)
+      expect(client.getQueryData(key)).toEqual(accountBHabits)
+      expect(mocks.runQueuedMutation).not.toHaveBeenCalled()
+      expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.profile.get)
+      expect(mocks.showError).not.toHaveBeenCalled()
+      expect(mocks.showInfo).not.toHaveBeenCalled()
+      expect(outcome).toEqual(new Error('Account changed'))
+    } finally {
+      await TestRenderer.act(async () => {
+        settleProfile?.()
+        await pending
+        renderer?.unmount()
+      })
+      mocks.useRealQueryHooks = false
+      setAccountId(null)
+      vi.unstubAllGlobals()
+    }
   })
 
   it.each(['single', 'bulk'] as const)('keeps the known account day pinned when an offline %s log executes the next day', async (mode) => {
