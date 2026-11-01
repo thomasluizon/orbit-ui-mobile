@@ -2,6 +2,14 @@ import { agentExecuteOperationResponseSchema, pendingAgentOperationSchema, type 
 
 const emptyId = '00000000-0000-0000-0000-000000000000'
 
+export function makeDatedTaskPreview(field = 'due_date', value: string | null = '2026-11-04'): PendingAgentOperation {
+  const operation = makeCreateHabitsPreview(1)
+  const item = operation.items![0]!
+  return pendingAgentOperationSchema.parse({ ...operation, items: [{ ...item, habitType: 'Task',
+    fields: [...item.fields, { ...item.fields[0]!, field, valueType: 'date', newValue: value, proposedValue: value }],
+  }] })
+}
+
 export function makeRestartPlanPreview(): PendingAgentOperation {
   const operation = makeExistingHabitPreview('📖', 'rescheduleHabits')
   const dates = [
