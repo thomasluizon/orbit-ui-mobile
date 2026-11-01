@@ -57,6 +57,7 @@ export interface AutoManagedReminderEnabledInput {
 
 export function buildEmptyHabitFormValues(initialDate?: string | null): HabitFormData {
   return {
+    itemType: 'task',
     title: '',
     description: '',
     emoji: '',

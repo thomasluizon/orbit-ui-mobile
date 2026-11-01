@@ -51,7 +51,7 @@ const cellWords: DayCellWords = {
 function ReminderTargets() {
   const t = useTranslations()
   return <>
-    <ReminderSection reminderEnabled reminderTimes={[15]} onReminderTimesChange={() => {}} onToggleReminder={() => {}} reminderLabel={String} t={t} />
+    <ReminderSection reminderEnabled reminderTimes={[15]} onReminderTimesChange={() => {}} reminderLabel={String} t={t} />
     <HabitChecklist items={[{ text: 'Beber água', isChecked: false }]} editable onItemsChange={() => {}} />
   </>
 }
@@ -204,7 +204,7 @@ describe('interaction fill parity in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([412, 1280])('paints the custom reminder commit as a full round target at %spx', async (width) => {
+  it.each([412, 1280])('paints the custom reminder commit with the shared pill target at %spx', async (width) => {
     const controls = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC"><ReminderTargets /></NextIntlClientProvider>)
     fireEvent.click(within(controls.container).getByRole('button', { name: ptBr.habits.form.reminderAdd }))
     fireEvent.click(within(controls.container).getByRole('button', { name: ptBr.habits.form.reminderCustom }))
@@ -222,12 +222,21 @@ describe('interaction fill parity in Chromium', () => {
       const geometry = await button.evaluate((element) => {
         const bounds = element.getBoundingClientRect()
         const style = getComputedStyle(element)
-        return { width: bounds.width, height: bounds.height, radius: style.borderTopLeftRadius, background: style.backgroundColor }
+        const probe = document.createElement('span')
+        probe.style.backgroundColor = 'var(--bg-hover)'
+        document.body.append(probe)
+        const expectedBackground = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return { width: bounds.width, height: bounds.height, radius: style.borderTopLeftRadius, background: style.backgroundColor, expectedBackground }
       })
-      expect(geometry.width).toBeGreaterThanOrEqual(48)
-      expect(geometry.height).toBeGreaterThanOrEqual(48)
-      expect(Math.min(Number.parseFloat(geometry.radius), geometry.width / 2, geometry.height / 2), geometry.radius).toBe(24)
-      expect(geometry.background).toBe('rgb(183, 78, 18)')
+      expect(geometry.width).toBe(44)
+      expect(geometry.height).toBe(44)
+      expect(Math.min(Number.parseFloat(geometry.radius), geometry.width / 2, geometry.height / 2), geometry.radius).toBe(22)
+      expect(geometry.background).toBe(geometry.expectedBackground)
+      const target = await button.evaluate(readExpandedControlGeometry)
+      expect(target.width).toBeGreaterThanOrEqual(48)
+      expect(target.height).toBeGreaterThanOrEqual(48)
+      expect(target.edgeHits).toEqual([true, true, true, true])
     } finally { await page.close() }
   })
 

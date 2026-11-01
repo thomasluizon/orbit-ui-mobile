@@ -8,6 +8,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { RepeatReminderSection } from '@/components/habits/habit-form-fields/repeat-reminder-section'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import type { HabitFormProposal } from '@orbit/shared/utils'
@@ -126,7 +127,7 @@ describe('HabitFormFields', () => {
     await user.keyboard('{Enter} ')
     fireEvent.click(busy)
     expect(onSuggestEmoji).toHaveBeenCalledOnce()
-    const phrase = screen.getByRole('textbox', { name: 'habits.form.describe' })
+    const phrase = screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ })
     if (moveFocus) await user.click(phrase)
     await act(async () => { complete(SETUP_PROPOSAL); await pending })
     emojiOptions.isEmojiSuggesting = false
@@ -179,7 +180,7 @@ describe('HabitFormFields', () => {
     expect(regionId).toBeTruthy()
     const region = document.getElementById(regionId!)!
     expect(region).toBeInTheDocument()
-    expect(within(region).getByRole('heading', { name: 'habits.form.reminders' })).toBeInTheDocument()
+    expect(within(region).getByRole('heading', { name: 'habits.form.steps' })).toBeInTheDocument()
 
     fireEvent.click(disclosure)
     expect(disclosure).toHaveAttribute('aria-expanded', 'false')
@@ -201,8 +202,7 @@ describe('HabitFormFields', () => {
   it('keeps the timed reminder toggle label distinct from its section heading', () => {
     formLocale.realReminders = true
     renderForm(createFormHelpers({ dueTime: '08:00' }), undefined, true)
-    expect(screen.getAllByText('habits.form.reminders')).toHaveLength(1)
-    expect(screen.getByRole('heading', { name: 'habits.form.reminders' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /habits.form.timingAndReminder/ }))
     expect(screen.getByRole('switch', { name: 'habits.form.reminder' })).toBeInTheDocument()
   })
 
@@ -253,14 +253,14 @@ describe('HabitFormFields', () => {
   it('keeps a chosen emoji through clearing, parsing and losing the understood schedule', async () => {
     let formHelpers!: HabitFormHelpers
     function CreateFormHarness({ isSuggesting = false }: { isSuggesting?: boolean }) {
-      formHelpers = useHabitForm()
+      formHelpers = useHabitForm({ initialData: { itemType: 'habit' } })
       return <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} isSuggesting={isSuggesting} readPhraseLocally />
     }
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const buildForm = (isSuggesting = false) => <QueryClientProvider client={queryClient}><CreateFormHarness isSuggesting={isSuggesting} /></QueryClientProvider>
     const view = render(buildForm())
     expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeInTheDocument()
-    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Run every day' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ }), { target: { value: 'Run every day' } })
     await waitFor(() => expect(screen.getByRole('region', { name: 'habits.form.understood' })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
     fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🌱' }))
@@ -271,9 +271,9 @@ describe('HabitFormFields', () => {
       expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeInTheDocument()
       expect(formHelpers.form.getValues('emoji')).toBe('🌱')
     }
-    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: '' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ }), { target: { value: '' } })
     expectHidden()
-    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Run every day' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ }), { target: { value: 'Run every day' } })
     view.rerender(buildForm(true))
     expectHidden()
     view.rerender(buildForm())
@@ -305,12 +305,12 @@ describe('HabitFormFields', () => {
   ])('defines avoidance and explains slip logging in %s', (locale, expected) => {
     formLocale.language = locale
     renderForm(createFormHelpers({ isBadHabit: true }), undefined, true)
-    expect(screen.getByText(expected)).toBeInTheDocument()
+    expect(screen.getByText(expected)).toBeVisible()
   })
 
   it('starts with type, title and editable date fields and closed details', () => {
     renderForm()
-    expect(screen.getByLabelText('habits.form.describe')).toBeDefined()
+    expect(screen.getByLabelText(/habits.form.(?:taskDescribe|describe)/)).toBeDefined()
     expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toBeDefined()
     expect(screen.queryByText('habits.form.oneTimeTask')).toBeNull()
     expect(screen.queryByText('habits.form.recurring')).toBeNull()
@@ -534,21 +534,23 @@ describe('HabitFormFields', () => {
   })
 
   it('nests fixed clock reminders under the offset reminder switch for a timed habit', () => {
-    const formHelpers = createFormHelpers({ title: 'Run', dueTime: '08:00' })
+    const formHelpers = createFormHelpers({ title: 'Run', reminderEnabled: true, dueTime: '08:00' })
     renderForm(formHelpers, undefined, true)
+    fireEvent.click(screen.getByRole('button', { name: /habits.form.timingAndReminder/ }))
 
     expect(screen.getByText('offset-reminders')).toBeDefined()
     expect(screen.getByText('scheduled-reminders')).toBeDefined()
     const scheduled = screen.getByText('scheduled-reminders')
-    expect(scheduled).toHaveAttribute('data-nested', 'true')
+    expect(screen.getByText('offset-reminders')).toContainElement(scheduled)
     expect(scheduled).toHaveAttribute('data-offset-count', '0')
     fireEvent.click(scheduled)
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('scheduledReminders', [{ when: 'day_before', time: '18:00' }], { shouldDirty: true })
   })
 
   it('preserves a prefilled end time when the exact time changes', () => {
-    const formHelpers = createFormHelpers({ title: 'Run', dueTime: '08:00', dueEndTime: '09:00' })
+    const formHelpers = createFormHelpers({ title: 'Run', reminderEnabled: true, dueTime: '08:00', dueEndTime: '09:00' })
     renderForm(formHelpers, undefined, true)
+    fireEvent.click(screen.getByRole('button', { name: /habits.form.timingAndReminder/ }))
 
     fireEvent.change(screen.getByLabelText('habits.form.exactTime'), { target: { value: '10:00' } })
 
@@ -611,7 +613,7 @@ describe('HabitFormFields', () => {
     await waitFor(() => expect(onSuggestSetup).toHaveBeenCalledOnce())
     expect(screen.queryByRole('button', { name: 'habits.form.askAstra' })).toBeNull()
 
-    fireEvent.change(screen.getByLabelText('habits.form.describe'), {
+    fireEvent.change(screen.getByLabelText(/habits.form.(?:taskDescribe|describe)/), {
       target: { value: 'Build a calmer routine' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
@@ -704,31 +706,83 @@ it('focuses the visible description failure without opening details', () => {
 })
 
 
-it('offers Repeat every on daily habits inside the owning form', () => {
-  renderForm(createFormHelpers({ frequencyUnit: 'Day', frequencyQuantity: 1, itemType: 'habit' }), undefined, true)
-  expect(screen.getByRole('combobox', { name: 'habits.form.reminderKind' })).toBeInTheDocument()
-})
-
-
-it('saves the repeat contract from the actual form choice and replaces fixed reminders', async () => {
-  const helpers = createFormHelpers({ title: 'Water', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, reminderEnabled: true, dueTime: '08:00', scheduledReminders: [{ when: 'same_day', time: '09:00' }] })
-  renderForm(helpers, undefined, true)
-  const user = userEvent.setup()
-  screen.getByRole('combobox', { name: 'habits.form.reminderKind' }).focus()
-  await user.keyboard('{Enter}')
-  expect(await screen.findByRole('option', { name: 'habits.form.repeatEvery' })).toBeInTheDocument()
-  await user.keyboard('{End}{Enter}')
-  const request = buildCreateHabitRequest(habitFormSchema.parse(helpers.testValues), [15], [], [], [])
-  expect(request).toMatchObject({ repeatReminder: { intervalMinutes: 30, startAtUtc: expect.stringMatching(/Z$/) }, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
-})
 it.each([
-  [{ frequencyUnit: 'Week', frequencyQuantity: 1 }, false],
-  [{ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'] }, false],
-  [{ frequencyUnit: 'Day', frequencyQuantity: 4, isFlexible: true }, true],
-  [{ isGeneral: true }, true],
-] as const)('limits the repeat choice to everyday schedules %j', (schedule, expected) => {
-  const helpers = createFormHelpers({ title: 'Water', ...schedule })
+  { itemType: 'task' },
+  { itemType: 'habit', frequencyUnit: 'Week', frequencyQuantity: 1 },
+  { itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 2 },
+  { itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'] },
+  { itemType: 'habit', isGeneral: true },
+])('offers and saves Repeat every from the timing sheet for %j', (schedule) => {
+  const helpers = createFormHelpers({ title: 'Water', reminderEnabled: true, dueTime: '08:00', scheduledReminders: [{ when: 'same_day', time: '09:00' }], ...schedule })
   helpers.isGeneral = 'isGeneral' in schedule
-  renderForm(helpers, undefined, true)
-  expect(screen.queryByRole('combobox', { name: 'habits.form.reminderKind' }) !== null).toBe(expected)
+  renderForm(helpers)
+  fireEvent.click(screen.getByRole('button', { name: /habits.form.timingAndReminder/ }))
+  fireEvent.click(screen.getByRole('radio', { name: 'habits.form.repeatEvery' }))
+  expect(helpers.form.getValues('scheduledReminders')).toEqual([])
+  expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.testValues), [15], [], [], [])).toMatchObject({ repeatReminder: { intervalMinutes: 30, startAtUtc: expect.stringMatching(/Z$/) }, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
+})
+
+it('explains both item types and exposes habit frequency before opening details', () => {
+  renderForm(createFormHelpers({ itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1 }))
+  expect(screen.getByText('habits.form.typeTaskHint')).toBeVisible()
+  expect(screen.getByText('habits.form.typeHabitHint')).toBeVisible()
+  expect(screen.getByRole('radiogroup', { name: 'habits.form.frequency' })).toBeVisible()
+  expect(screen.getByRole('radio', { name: /habits.form.noSchedule/ })).toBeVisible()
+})
+
+it('keeps the type-driven decision order and conditional end time in the owning form', () => {
+  formLocale.realController = true
+  function OwningForm() {
+    const helpers = useHabitForm()
+    return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+  }
+  const client = new QueryClient()
+  render(<QueryClientProvider client={client}><OwningForm /></QueryClientProvider>)
+  expect(screen.getByRole('radio', { name: /^habits.form.typeTask/ })).toBeChecked()
+  const title = screen.getByRole('textbox', { name: 'habits.form.taskDescribe' })
+  const description = screen.getByRole('textbox', { name: 'habits.form.description' })
+  const when = screen.getByRole('textbox', { name: 'habits.form.datePhrase' })
+  const timing = screen.getByRole('button', { name: /habits.form.timingAndReminder/ })
+  expect(description).toHaveAttribute('rows', '1')
+  for (const [first, second] of [[title, description], [description, when], [when, timing]]) {
+    expect(first!.compareDocumentPosition(second!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  }
+  expect(screen.queryByRole('radiogroup', { name: 'habits.form.frequency' })).toBeNull()
+  fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeHabit/ }))
+  expect(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ })).toBeVisible()
+  const frequency = screen.getByRole('radiogroup', { name: 'habits.form.frequency' })
+  expect(when.compareDocumentPosition(frequency) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(frequency.compareDocumentPosition(timing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  fireEvent.click(timing)
+  expect(screen.queryByRole('textbox', { name: 'habits.form.dueEndTime' })).toBeNull()
+  fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.exactTime' }), { target: { value: '08:00' } })
+  expect(screen.getByRole('textbox', { name: 'habits.form.dueEndTime' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'common.done' }))
+  fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+  for (const group of ['steps', 'avoidGroup', 'organize', 'ending']) {
+    expect(screen.getByRole('heading', { name: `habits.form.${group}` })).toBeVisible()
+  }
+})
+
+
+it('preserves fixed reminder choices when their selected radio is pressed again', () => {
+  const onChange = vi.fn()
+  render(<RepeatReminderSection value={null} enabled general={false} onToggle={vi.fn()} onChange={onChange} />)
+  fireEvent.click(screen.getByRole('radio', { name: 'habits.form.definedTimes' }))
+  expect(onChange).not.toHaveBeenCalled()
+})
+
+
+it.each([
+  { itemType: 'task', offset: 0, hidden: true },
+  { itemType: 'task', offset: 1, hidden: false },
+  { itemType: 'habit', offset: 0, hidden: false },
+  { itemType: 'habit', offset: 1, hidden: false },
+])('retains the day-before choice for $itemType with start offset $offset', ({ itemType, offset, hidden }) => {
+  const date = new Date()
+  date.setUTCDate(date.getUTCDate() + offset)
+  const helpers = createFormHelpers({ itemType, frequencyUnit: itemType === 'habit' ? 'Day' : null, frequencyQuantity: 1, dueDate: date.toISOString().slice(0, 10), reminderEnabled: true })
+  renderForm(helpers)
+  fireEvent.click(screen.getByRole('button', { name: /habits.form.timingAndReminder/ }))
+  expect(screen.getByText('scheduled-reminders')).toHaveAttribute('data-hide-day-before', String(hidden))
 })

@@ -33,7 +33,7 @@ function HabitCreateScreenFrame({ fromConversation, leaving, leaveGuard: LeaveGu
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return <KeyboardAwareView style={styles.root}><Shell412 nav={false} safeAreaTop
-    header={<AppBar title={props.title ?? ''} onBack={() => props.onAttemptDismiss?.()} backLabel={t('common.back')} />}
+    header={<AppBar titleVariant="screen" title={props.title ?? ''} onBack={() => props.onAttemptDismiss?.()} backLabel={t('common.back')} />}
     action={<View style={[styles.action, width >= 640 && styles.wideAction]}>{props.actions}</View>}>
     <KeyboardAwareScrollView avoidKeyboard={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
     {fromConversation ? <View style={styles.origin}><Text style={[styles.originText, { color: tokens.fg2 }]}>{t('habits.form.fromConversation')}</Text></View> : null}

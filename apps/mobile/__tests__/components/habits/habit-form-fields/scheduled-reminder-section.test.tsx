@@ -1,11 +1,17 @@
 import React from "react";
+import { RepeatReminderSection } from "@/components/habits/habit-form-fields/repeat-reminder-section";
 import { StyleSheet, type ViewStyle } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAX_SCHEDULED_REMINDERS } from "@orbit/shared/validation";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
 import { createTokensV2 } from "@/lib/theme";
-import { ScheduledReminderSection } from "@/components/habits/habit-form-fields/scheduled-reminder-section";
+import { ScheduledReminderSection as ClockEditor } from "@/components/habits/habit-form-fields/scheduled-reminder-section";
 import { buildCreateHabitRequest, buildEmptyHabitFormValues } from "@orbit/shared/utils";
+
+function ScheduledReminderSection({ onToggleReminder, nested, ...props }: Parameters<typeof ClockEditor>[0] & { onToggleReminder: () => void; nested?: boolean }) {
+  const editor = <ClockEditor {...props} />
+  return nested ? editor : <RepeatReminderSection value={null} general={false} enabled={props.reminderEnabled} onToggle={onToggleReminder} onChange={vi.fn()}>{editor}</RepeatReminderSection>
+}
 
 const pushPermission = vi.hoisted(() => ({ status: "granted", includeTime: false, language: 'pt-BR', uses24HourClock: false }));
 vi.mock("@/hooks/use-push-notifications", () => ({
@@ -61,6 +67,7 @@ function render(overrides: {
   reminderEnabled?: boolean;
   scheduledReminders?: Reminder[] | undefined;
   nested?: boolean;
+  hideDayBefore?: boolean;
   onSetScheduledReminders?: (reminders: Reminder[]) => void;
   onValidationError?: (message: string) => void;
 }) {
@@ -77,6 +84,7 @@ function render(overrides: {
         onSetScheduledReminders={onSetScheduledReminders}
         onValidationError={onValidationError}
         nested={overrides.nested}
+        hideDayBefore={overrides.hideDayBefore}
       />,
     );
   });
@@ -188,119 +196,34 @@ describe("ScheduledReminderSection", () => {
     ]);
   });
 
-  it("rejects adding a reminder with no time selected", () => {
-    const { tree, onValidationError, onSetScheduledReminders } = render({
-      scheduledReminders: [],
-    });
-    const reveal = buttons(tree).find(
-      (node) => node.props.accessibilityLabel === "habits.form.scheduledReminderAdd",
-    )!;
-    (reveal.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
-    });
-    (reveal.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
-    press(reveal);
-    const add = buttons(tree).find(
-      (node) => node.props.accessibilityLabel === "common.add" && node.props.disabled === true,
-    );
-    (add!.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
-    });
-    (add!.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
-    press(add!);
-    expect(onValidationError).toHaveBeenCalledWith(
-      "habits.form.invalidScheduledReminderTime",
-    );
-    expect(onSetScheduledReminders).not.toHaveBeenCalled();
-  });
+  it('adds a picked time with a visible label and no orphan actions', () => {
+    const { tree, onSetScheduledReminders } = render({ scheduledReminders: [] })
+    const picker = tree.root.findAll((node) => node.type === 'TimeField')[0]!
+    expect(picker.props.label).toBe('habits.form.scheduledReminderTime')
+    expect(picker.props.placeholder).toBe('habits.form.scheduledReminderTimePlaceholder')
+    expect(buttonWithLabel(tree, 'common.add')).toBeUndefined()
+    expect(buttonWithLabel(tree, 'common.cancel')).toBeUndefined()
+    TestRenderer.act(() => (picker.props as { onChange: (value: string) => void }).onChange('09:00'))
+    expect(onSetScheduledReminders).toHaveBeenCalledWith([{ when: 'same_day', time: '09:00' }])
+  })
 
-  it("adds a valid same-day reminder and resets the form", () => {
-    const { tree, onSetScheduledReminders } = render({
-      scheduledReminders: undefined,
-    });
-    press(buttons(tree).find((node) => node.props.accessibilityLabel === "habits.form.scheduledReminderAdd")!);
-    const picker = tree.root.findAll((node) => node.type === "TimeField")[0]!;
-    TestRenderer.act(() => {
-      (picker.props as { onClear: () => void }).onClear();
-      (picker.props as { onChange: (value: string) => void }).onChange("09:00");
-    });
-    const radios = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio');
-    expect(tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup')).toHaveLength(1);
-    expect(radios.map((node) => node.props.accessibilityState)).toEqual([{ checked: false }, { checked: true }]);
-    const [dayBefore, sameDay] = radios;
-    press(dayBefore!);
-    expect(dayBefore!.props.accessibilityState).toEqual({ checked: true });
-    expect(sameDay!.props.accessibilityState).toEqual({ checked: false });
-    press(sameDay!);
-    const add = buttons(tree).find(
-      (node) => node.props.accessibilityLabel === "common.add" && node.props.disabled === false,
-    );
-    (add!.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
-    });
-    (add!.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
-    expect(add!.props.accessibilityLabel).toBe("common.add");
-    expect(add!.findAll((node) => node.type === "Text")).toHaveLength(0);
-    press(add!);
-    expect(onSetScheduledReminders).toHaveBeenCalledWith([
-      { when: "same_day", time: "09:00" },
-    ]);
-  });
+  it('rejects duplicate and invalid times on selection', () => {
+    const { tree, onValidationError, onSetScheduledReminders } = render({ scheduledReminders: [{ when: 'same_day', time: '09:00' }] })
+    const picker = tree.root.findAll((node) => node.type === 'TimeField')[0]!
+    TestRenderer.act(() => (picker.props as { onChange: (value: string) => void }).onChange('09:00'))
+    expect(onValidationError).toHaveBeenLastCalledWith('habits.form.duplicateScheduledReminder')
+    TestRenderer.act(() => (picker.props as { onChange: (value: string) => void }).onChange('25:61'))
+    expect(onValidationError).toHaveBeenLastCalledWith('habits.form.invalidScheduledReminderTime')
+    expect(onSetScheduledReminders).not.toHaveBeenCalled()
+  })
 
-  it("reports a duplicate scheduled reminder from validation", () => {
-    const { tree, onValidationError, onSetScheduledReminders } = render({
-      scheduledReminders: [{ when: "same_day", time: "09:00" }],
-    });
-    press(buttons(tree).find((node) => node.props.accessibilityLabel === "habits.form.scheduledReminderAdd")!);
-    const picker = tree.root.findAll((node) => node.type === "TimeField")[0]!;
-    TestRenderer.act(() => {
-      (picker.props as { onChange: (value: string) => void }).onChange("09:00");
-    });
-    press(
-      buttons(tree).find(
-        (node) =>
-          node.props.accessibilityLabel === "common.add" && node.props.disabled === false,
-      )!,
-    );
-    expect(onValidationError).toHaveBeenCalledWith(
-      "habits.form.duplicateScheduledReminder",
-    );
-    expect(onSetScheduledReminders).not.toHaveBeenCalled();
-  });
-
-  it("cancels a pending scheduled reminder and clears its time", () => {
-    const { tree, onSetScheduledReminders } = render({
-      scheduledReminders: [],
-    });
-    press(buttons(tree).find((node) => node.props.accessibilityLabel === "habits.form.scheduledReminderAdd")!);
-    const picker = tree.root.findAll((node) => node.type === "TimeField")[0]!;
-    TestRenderer.act(() => {
-      (picker.props as { onChange: (value: string) => void }).onChange("17:30");
-    });
-    const cancel = buttonWithLabel(tree, "common.cancel")!;
-    (cancel.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
-    });
-    (cancel.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
-    press(cancel);
-    expect(tree.root.findAll((node) => node.type === "TimeField")).toHaveLength(
-      0,
-    );
-    press(buttons(tree).find((node) => node.props.accessibilityLabel === "habits.form.scheduledReminderAdd")!);
-    const reopenedPicker = tree.root.findAll(
-      (node) => node.type === "TimeField",
-    )[0]!;
-    expect(reopenedPicker.props.value).toBe("");
-    expect(onSetScheduledReminders).not.toHaveBeenCalled();
-  });
+  it('hides day-before for today without removing stored clocks', () => {
+    const { tree, onSetScheduledReminders } = render({ hideDayBefore: true, scheduledReminders: [{ when: 'day_before', time: '20:00' }] })
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.scheduledReminderDayBefore')).toHaveLength(0)
+    const picker = tree.root.findAll((node) => node.type === 'TimeField')[0]!
+    TestRenderer.act(() => (picker.props as { onChange: (value: string) => void }).onChange('09:00'))
+    expect(onSetScheduledReminders).toHaveBeenCalledWith([{ when: 'day_before', time: '20:00' }, { when: 'same_day', time: '09:00' }])
+  })
 
   it("shows the max notice and hides the add button at the reminder limit", () => {
     const full: Reminder[] = Array.from(
@@ -316,14 +239,11 @@ describe("ScheduledReminderSection", () => {
 
   it('adds a day-before time to the relative request', () => {
     const { tree, onSetScheduledReminders } = render({ scheduledReminders: [], nested: true })
-    press(buttons(tree).find((node) =>
-      node.props.accessibilityLabel === 'habits.form.reminderAddTime')!)
     press(tree.root.findAll((node) => node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.scheduledReminderDayBefore')[0]!)
     const picker = tree.root.findAll((node) => node.type === 'TimeField')[0]!
     TestRenderer.act(() => {
       ;(picker.props as { onChange: (value: string) => void }).onChange('18:00')
     })
-    press(buttons(tree).find((node) => node.props.accessibilityLabel === "common.add" && node.props.disabled === false)!)
     expect(onSetScheduledReminders).toHaveBeenCalledWith([{ when: 'day_before', time: '18:00' }])
     const form = {
       ...buildEmptyHabitFormValues('2025-03-10'),

@@ -5,7 +5,7 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo, useCallback } from "react";
 import { View, Text, } from "react-native";
-import { Plus, Trash2, X } from "@/components/ui/icons";
+import { Smile, Trash2, X } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import {
   HABIT_EMOJI_CATEGORIES,
@@ -120,7 +120,7 @@ export function HabitEmojiSelector({
                 {selectedEmoji ? (
                   <Text style={[styles.emojiWellText, proposed ? { color: tokens.fg3 } : null, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
                 ) : (
-                  <Plus size={20} color={tokens.fg3} strokeWidth={1.8} />
+                  <Smile size={20} color={tokens.fg3} strokeWidth={1.8} />
                 )}
               </View>
             )}

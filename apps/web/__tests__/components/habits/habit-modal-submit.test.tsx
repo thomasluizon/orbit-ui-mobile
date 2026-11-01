@@ -107,8 +107,8 @@ async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
   </QueryClientProvider>
   let view!: ReturnType<typeof render>
   await act(async () => { view = render(element(true)) })
-  if (mode === 'create') await act(async () => fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeHabit' })))
-  return { onSaved, onClose, setOpen: async (open: boolean) => { await act(async () => view.rerender(element(open))) }, title: screen.getByRole('textbox', { name: 'habits.form.describe' }), submit: screen.getByRole('button', { name: mode === 'create' ? 'habits.createHabit' : 'common.save' }) }
+  if (mode === 'create') await act(async () => fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeHabit/ })))
+  return { onSaved, onClose, setOpen: async (open: boolean) => { await act(async () => view.rerender(element(open))) }, title: screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ }), submit: screen.getByRole('button', { name: mode === 'create' ? /habits.create(?:Habit|Task)/ : 'common.save' }) }
 }
 
 describe('offline habit editor', () => {
@@ -196,7 +196,7 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     expect(currentForm.backendFocusRequest).toBeGreaterThan(0)
     await setOpen(false)
     await setOpen(true)
-    const nextTitle = screen.getByRole('textbox', { name: 'habits.form.describe' })
+    const nextTitle = screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ })
     expect(nextTitle).toHaveValue(habit.title)
     expect(nextTitle).not.toHaveAttribute('aria-invalid', 'true')
     expect(screen.queryByText(messages.join('\n'))).not.toBeInTheDocument()
@@ -225,7 +225,7 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     await act(async () => fireEvent.click(submit))
     await waitFor(() => expect(submit).toHaveAttribute('aria-busy', 'true'))
     expect(submit).toBeDisabled()
-    expect(submit).toHaveTextContent(mode === 'create' ? 'habits.createHabit' : 'common.save')
+    expect(submit).toHaveTextContent(mode === 'create' ? /habits.create(?:Habit|Task)/ : 'common.save')
     expect(submit.querySelector('svg')).not.toBeNull()
     await act(async () => fireEvent.click(submit))
     expect(mutation).toHaveBeenCalledTimes(1)
@@ -299,7 +299,7 @@ describe('submitted editor suggestion ownership', () => {
       })
       expect(currentForm.form.getValues()).toEqual(draft)
       expect(screen.getAllByRole('textbox', { name: 'habits.form.checklistItemLabel' }).map((input) => (input as HTMLInputElement).value)).toEqual(['Pack a bag', 'Read a chapter'])
-      expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Practice reading')
+      expect(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ })).toHaveValue('Practice reading')
       expect(currentFields.emojiSuggestionError).toBeUndefined()
       expect(currentFields.emojiSuggestionLimitReached).toBeFalsy()
       expect(showSuccess).not.toHaveBeenCalled()
@@ -392,9 +392,9 @@ describe('mounted habit form identifiers', () => {
     const user = userEvent.setup()
     for (const owner of owners) {
       const title = owner.querySelector<HTMLTextAreaElement>('textarea')!
-      const label = within(owner).getByText('habits.form.describe', { selector: 'label' }) as HTMLLabelElement
+      const label = within(owner).getByText(/habits.form.(?:taskDescribe|describe)/, { selector: 'label' }) as HTMLLabelElement
       expect(label.control).toBe(title)
-      expect(title).toHaveAccessibleName('habits.form.describe')
+      expect(title).toHaveAccessibleName(/habits.form.(?:taskDescribe|describe)/)
       await user.click(label)
       expect(title).toHaveFocus()
     }
@@ -405,9 +405,9 @@ describe('mounted habit form identifiers', () => {
     const user = userEvent.setup()
     for (const owner of owners) {
       const title = owner.querySelector<HTMLTextAreaElement>('textarea')!
-      await user.click(within(owner).getByRole('radio', { name: 'habits.form.typeTask' }))
+      await user.click(within(owner).getByRole('radio', { name: /^habits.form.typeTask/ }))
       await user.clear(title)
-      await user.click(within(owner).getByRole('button', { name: owner === owners[0] || secondMode === 'create' ? 'habits.createHabit' : 'common.save' }))
+      await user.click(within(owner).getByRole('button', { name: owner === owners[0] || secondMode === 'create' ? /habits.create(?:Habit|Task)/ : 'common.save' }))
       await waitFor(() => expect(title).toHaveAttribute('aria-invalid', 'true'))
       const error = document.getElementById(title.getAttribute('aria-describedby') ?? '')
       expect(error).toHaveTextContent('habits.form.titleRequired')
@@ -416,24 +416,25 @@ describe('mounted habit form identifiers', () => {
     expect(mutation).not.toHaveBeenCalled()
   })
 
-  it('keeps simultaneous required-type errors attached as another owner recovers', async () => {
+  it('keeps simultaneous required-title errors attached as another owner recovers', async () => {
     const owners = await renderOwners('create')
-    for (const owner of owners) {
-      await act(async () => fireEvent.click(within(owner).getByRole('button', { name: 'habits.createHabit' })))
+    const user = userEvent.setup()
+    const titles = owners.map(owner => owner.querySelector<HTMLTextAreaElement>('textarea')!)
+    for (const [index, owner] of owners.entries()) {
+      await user.clear(titles[index]!)
+      await user.click(within(owner).getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
     }
-    const groups = owners.map((owner) => within(owner).getByRole('radiogroup'))
-    const errorIds = groups.map((group) => group.getAttribute('aria-describedby'))
-    for (const [index, group] of groups.entries()) {
-      expect(group).toHaveAttribute('aria-invalid', 'true')
-      const error = document.getElementById(errorIds[index] ?? '')
-      expect(error).toHaveTextContent('habits.form.typeRequired')
-      expect(owners[index]).toContainElement(error)
+    const errorIds = titles.map(title => title.getAttribute('aria-describedby'))
+    for (const [index, title] of titles.entries()) {
+      expect(title).toHaveAttribute('aria-invalid', 'true')
+      expect(document.getElementById(errorIds[index] ?? '')).toHaveTextContent('habits.form.titleRequired')
     }
-    await act(async () => fireEvent.click(within(owners[0]).getByRole('radio', { name: 'habits.form.typeHabit' })))
-    expect(groups[0]).not.toHaveAttribute('aria-describedby')
-    expect(groups[1]).toHaveAttribute('aria-describedby', errorIds[1])
-    expect(document.getElementById(errorIds[1] ?? '')).toHaveTextContent('habits.form.typeRequired')
-    expect(mutation).not.toHaveBeenCalled()
+    await user.type(titles[0]!, 'Recovered')
+    await user.click(within(owners[0]).getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
+    expect(titles[0]).not.toHaveAttribute('aria-describedby')
+    expect(titles[1]).toHaveAttribute('aria-describedby', errorIds[1])
+    expect(document.getElementById(errorIds[1] ?? '')).toHaveTextContent('habits.form.titleRequired')
+    expect(mutation).toHaveBeenCalledOnce()
   })
 })
 
@@ -667,7 +668,7 @@ it('opens the same real complete editor through the list row menu and stages a p
   render(<QueryClientProvider client={client}><HabitList filters={{}} view="all" /></QueryClientProvider>)
   fireEvent.pointerDown(screen.getAllByRole('button', { name: 'habits.actions.more' })[0]!, { button: 0, ctrlKey: false })
   fireEvent.click(await screen.findByRole('menuitem', { name: 'common.edit' }))
-  expect(await screen.findByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read')
+  expect(await screen.findByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ })).toHaveValue('Read')
   expect(screen.getAllByRole('textbox', { name: 'habits.form.checklistItemLabel' })).toHaveLength(2)
   await chooseEditorParent()
   expect(mutation).not.toHaveBeenCalled()

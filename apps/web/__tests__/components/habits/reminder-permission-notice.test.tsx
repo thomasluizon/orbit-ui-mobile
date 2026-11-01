@@ -9,6 +9,7 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
+import { RepeatReminderSection } from '@/components/habits/habit-form-fields/repeat-reminder-section'
 import { ScheduledReminderSection } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
 
 vi.mock('@/hooks/use-push-subscriptions', () => ({
@@ -21,15 +22,16 @@ vi.mock('@/hooks/use-push-notification-preferences', () => ({
   subscribeToPushNotifications: vi.fn(),
 }))
 
-vi.mock('next-intl', () => ({ useLocale: () => 'en' }))
+vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => permissionTranslate }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
 
 const t = ((key: string) => key) as Parameters<typeof ReminderSection>[0]['t']
+let permissionTranslate = t
 
 describe('reminder permission notice', () => {
   it('keeps an unsaved offset reminder open while settings open in another tab', () => {
     vi.stubGlobal('Notification', { permission: 'denied' })
-    render(<ReminderSection reminderEnabled reminderTimes={[15]} onReminderTimesChange={vi.fn()} onToggleReminder={vi.fn()} reminderLabel={() => '15 min'} t={t} />)
+    render(<RepeatReminderSection enabled value={null} general={false} onToggle={vi.fn()} onChange={vi.fn()}><ReminderSection reminderEnabled reminderTimes={[15]} onReminderTimesChange={vi.fn()} reminderLabel={() => '15 min'} t={t} /></RepeatReminderSection>)
     expect(screen.getByRole('switch', { name: 'habits.form.reminder' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('status')).toHaveTextContent('habits.form.reminderPermissionNeeded')
     expect(screen.getByRole('link', { name: 'habits.form.reminderPermissionNeeded' })).toHaveAttribute('target', '_blank')
@@ -44,8 +46,8 @@ describe('reminder permission notice', () => {
 
   it('shows the same settings path for a scheduled reminder', () => {
     vi.stubGlobal('Notification', { permission: 'denied' })
-    render(<ScheduledReminderSection reminderEnabled scheduledReminders={[]} onToggleReminder={vi.fn()} onSetScheduledReminders={vi.fn()} onValidationError={vi.fn()} t={t} />)
-    expect(screen.getByRole('switch', { name: 'habits.form.scheduledReminder' })).toHaveAttribute('aria-checked', 'true')
+    render(<RepeatReminderSection enabled value={null} general={false} onToggle={vi.fn()} onChange={vi.fn()}><ScheduledReminderSection reminderEnabled scheduledReminders={[]} onSetScheduledReminders={vi.fn()} onValidationError={vi.fn()} t={t} /></RepeatReminderSection>)
+    expect(screen.getByRole('switch', { name: 'habits.form.reminder' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('link', { name: 'habits.form.reminderPermissionNeeded' })).toHaveAttribute('target', '_blank')
     const notice = screen.getByRole('status')
     const control = within(notice).getByRole('link')
@@ -57,16 +59,16 @@ describe('reminder permission notice', () => {
   })
   it('retains one polite live region as permission changes without a second announcement node', () => {
     vi.stubGlobal('Notification', { permission: 'denied' })
-    const props = { reminderTimes: [15], onReminderTimesChange: vi.fn(), onToggleReminder: vi.fn(), reminderLabel: () => '15 min', t }
-    const { rerender } = render(<ReminderSection {...props} reminderEnabled={false} />)
+    const props = { reminderTimes: [15], onReminderTimesChange: vi.fn(), reminderLabel: () => '15 min', t }
+    const { rerender } = render(<RepeatReminderSection enabled={false} value={null} general={false} onToggle={vi.fn()} onChange={vi.fn()}><ReminderSection {...props} reminderEnabled={false} /></RepeatReminderSection>)
     const notice = screen.getByRole('status')
     expect(notice).toBeEmptyDOMElement()
-    rerender(<ReminderSection {...props} reminderEnabled />)
+    rerender(<RepeatReminderSection enabled value={null} general={false} onToggle={vi.fn()} onChange={vi.fn()}><ReminderSection {...props} reminderEnabled /></RepeatReminderSection>)
     expect(screen.getByRole('status')).toBe(notice)
     expect(notice).toHaveAttribute('aria-live', 'polite')
     expect(notice).toHaveAttribute('aria-atomic', 'true')
     expect(within(notice).getAllByRole('link')).toHaveLength(1)
-    rerender(<ReminderSection {...props} reminderEnabled={false} />)
+    rerender(<RepeatReminderSection enabled={false} value={null} general={false} onToggle={vi.fn()} onChange={vi.fn()}><ReminderSection {...props} reminderEnabled={false} /></RepeatReminderSection>)
     expect(screen.getByRole('status')).toBe(notice)
     expect(screen.queryByRole('link')).toBeNull()
   })
@@ -101,9 +103,10 @@ describe('reminder permission notice hover geometry', () => {
     const messages = locale === 'en' ? en : ptBr
     const translate = ((key: string) => key === 'habits.form.reminderPermissionNeeded'
       ? messages.habits.form.reminderPermissionNeeded : key) as typeof t
-    const { container, unmount } = render(editor === 'relative'
-      ? <ReminderSection inline reminderEnabled reminderTimes={[15]} onReminderTimesChange={vi.fn()} onToggleReminder={vi.fn()} reminderLabel={() => '15 min'} t={translate} />
-      : <ScheduledReminderSection inline reminderEnabled scheduledReminders={[]} onToggleReminder={vi.fn()} onSetScheduledReminders={vi.fn()} onValidationError={vi.fn()} t={translate} />)
+    permissionTranslate = translate
+    const { container, unmount } = render(<RepeatReminderSection enabled value={null} general={false} onToggle={vi.fn()} onChange={vi.fn()}>{editor === 'relative'
+      ? <ReminderSection reminderEnabled reminderTimes={[15]} onReminderTimesChange={vi.fn()} reminderLabel={() => '15 min'} t={translate} />
+      : <ScheduledReminderSection reminderEnabled scheduledReminders={[]} onSetScheduledReminders={vi.fn()} onValidationError={vi.fn()} t={translate} />}</RepeatReminderSection>)
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value};`).join('')

@@ -353,8 +353,6 @@ export function CreateHabitModal({
       const submittingAccount = getAccountGeneration()
 
       const subHabitValues = subHabits.map((entry) => entry.value)
-      const missingType = !formHelpers.form.getValues('itemType')
-      if (missingType) { formHelpers.validateAll(); return }
       if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
       const error = formHelpers.validateAll({
         reminderTimes,
@@ -529,7 +527,7 @@ export function CreateHabitModal({
         presentation={presentation}
         fromConversation={fromConversation}
         leaving={leaveAction !== null}
-        actionRefreshKey={`${isPending}:${isOnline}:${watchedTitle.trim().length === 0}:${createBoundary}`}
+        actionRefreshKey={`${isPending}:${isOnline}:${watchedTitle.trim().length === 0}:${createBoundary}:${formHelpers.form.watch('itemType')}`}
         onReturn={() => onOpenChange(false)}
         onNavigate={(action) => {
           pendingNavigation.current = action
@@ -539,12 +537,12 @@ export function CreateHabitModal({
         open
         onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
         onAttemptDismiss={dismissGuard.requestDismiss}
-        title={isSubHabitMode ? t('habits.createSubHabit') : t('habits.form.newHabit')}
+        title={isSubHabitMode ? t('habits.createSubHabit') : t(formHelpers.form.watch('itemType') === 'task' ? 'habits.form.newTask' : 'habits.form.newHabit')}
         actions={<>
           <div role="status" className={createBoundary ? 'pb-3' : undefined}>
             <CreateBoundaryNotice boundary={createBoundary} onUpgrade={navigateToUpgrade} />
           </div>
-          <HabitCreateActions presentation={presentation} pending={isPending}
+          <HabitCreateActions task={formHelpers.form.watch('itemType') === 'task'} presentation={presentation} pending={isPending}
             empty={watchedTitle.trim().length === 0} subHabit={isSubHabitMode}
             onCancel={dismissGuard.requestDismiss} online={isOnline} formId={formId} />
         </>}
@@ -578,6 +576,7 @@ export function CreateHabitModal({
           >
             {(proposedItemCount) => !isSubHabitMode ? (
               <SubHabitEditor
+                task={formHelpers.form.watch('itemType') === 'task'}
                 subHabits={subHabits}
                 proposedItemCount={proposedItemCount}
                 onUpdateSubHabit={updateSubHabitValue}

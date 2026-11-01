@@ -68,7 +68,7 @@ export function HabitUnderstanding({
   const emojiErrorId = `habit-emoji-error-${id}`
   const { emojiProposed, selectEmoji, requestEmoji } = useEmojiProposal(onSuggestEmoji, onEmojiSelect)
   const hasValue = value.trim().length > 0
-  const showPreview = hasValue && !isSuggestionDisabled && Boolean(sentence)
+  const showPreview = showSchedule && hasValue && !isSuggestionDisabled && Boolean(sentence)
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
   const emojiControl = (
