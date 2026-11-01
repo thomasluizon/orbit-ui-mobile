@@ -187,6 +187,7 @@ interface TimeEntryProps {
   onClear?: () => void
   onFocus: () => void
   onOpenPicker: () => void
+  onSubmit?: () => void
   placeholder?: string
   selectTimeLabel: string
   tokens: Tokens
@@ -207,6 +208,7 @@ function TimeEntry({
   onClear,
   onFocus,
   onOpenPicker,
+  onSubmit,
   placeholder,
   selectTimeLabel,
   tokens,
@@ -237,6 +239,7 @@ function TimeEntry({
           accessibilityState={{ disabled }}
           onFocus={onFocus}
           onBlur={onBlur}
+          onSubmitEditing={onSubmit}
           style={[styles.input, { color: tokens.fg1 }]}
         />
         <Pressable
@@ -279,6 +282,7 @@ export function TimeField({
   onChange,
   onClear,
   commitTypedClearOnBlur = false,
+  commitOnBlur = false,
   placeholder,
   accessibilityLabel,
   hourCycle,
@@ -298,6 +302,7 @@ export function TimeField({
   const [focused, setFocused] = useState(false)
   const [inputDraft, setInputDraft] = useState<{ text: string; hourCycle: 'h23' | 'h12' } | null>(null)
   const previousHourCycle = useRef(resolvedHourCycle)
+  const pendingCommit = useRef(false)
   if (inputDraft && inputDraft.hourCycle !== resolvedHourCycle) {
     const reconciledDraft = reconcileTimeFieldInput(inputDraft.text, inputDraft.hourCycle, resolvedHourCycle)
     setInputDraft({ text: reconciledDraft.draft, hourCycle: resolvedHourCycle })
@@ -308,8 +313,8 @@ export function TimeField({
     if (previousHourCycle.current === resolvedHourCycle) return
     previousHourCycle.current = resolvedHourCycle
     const parsed = parseTypedTimeFieldValue(inputValue, resolvedHourCycle)
-    if (!disabled && parsed && parsed !== value) onChange(parsed)
-  }, [resolvedHourCycle, inputValue, value, onChange, disabled])
+    if (!disabled && !commitOnBlur && parsed && parsed !== value) onChange(parsed)
+  }, [resolvedHourCycle, inputValue, value, onChange, disabled, commitOnBlur])
   const [open, setOpen] = useState(false)
   const [pickerDraft, setPickerDraft] = useState({ hour24: 9, minute: 0 })
   const { sheetRef, closeSheet } = useSheetHost()
@@ -320,11 +325,20 @@ export function TimeField({
   function handleChange(displayValue: string) {
     const change = changeTimeFieldInput(displayValue, inputValue, resolvedHourCycle)
     setInputDraft({ text: change.draft, hourCycle: resolvedHourCycle })
+    pendingCommit.current = true
     if (change.clear) {
       if (!commitTypedClearOnBlur) onClear?.()
       return
     }
-    if (change.parsed) onChange(change.parsed)
+    if (!commitOnBlur && change.parsed) onChange(change.parsed)
+  }
+
+  function finishTyping() {
+    const parsed = parseTypedTimeFieldValue(inputValue, resolvedHourCycle)
+    if (!disabled && commitOnBlur && pendingCommit.current && parsed) onChange(parsed)
+    pendingCommit.current = false
+    if (!disabled && commitTypedClearOnBlur && inputDraft?.text === '') onClear?.()
+    setInputDraft(null)
   }
 
   function openPicker() {
@@ -336,6 +350,8 @@ export function TimeField({
   function applyDraft() {
     closeSheet(() => {
       setOpen(false)
+      pendingCommit.current = false
+      setInputDraft(null)
       onChange(commitTimeFieldPickerDraft(pickerDraft))
     })
   }
@@ -353,9 +369,9 @@ export function TimeField({
         label={resolvedLabel}
         onBlur={() => {
           setFocused(false)
-          if (commitTypedClearOnBlur && inputDraft?.text === '') onClear?.()
-          setInputDraft(null)
+          finishTyping()
         }}
+        onSubmit={commitOnBlur ? finishTyping : undefined}
         onChange={handleChange}
         onClear={onClear}
         onFocus={() => {

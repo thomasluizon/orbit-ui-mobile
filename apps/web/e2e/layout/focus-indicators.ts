@@ -256,6 +256,7 @@ export async function inspectControlAccentRings(target: Locator) {
 }
 
 export async function inspectFocusedControlRings(page: Page) {
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
   const focused = page.locator(':focus')
   if (await focused.count() !== 1) return null
   const state = await focused.evaluate((element) => ({ focused: element.tagName.toLowerCase(), focusVisible: element.matches(':focus-visible') }))

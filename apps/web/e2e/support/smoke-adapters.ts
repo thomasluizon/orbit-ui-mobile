@@ -2,9 +2,14 @@ import { expect, type Locator, type Page } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
-function localizedRole(root: Page | Locator, role: Parameters<Page['getByRole']>[0], english: string, portuguese: string): Locator {
+function localizedRole(root: Page | Locator, role: Parameters<Page['getByRole']>[0], english: string | RegExp, portuguese: string | RegExp): Locator {
   return root.getByRole(role, { name: english, exact: true })
     .or(root.getByRole(role, { name: portuguese, exact: true }))
+}
+
+function describedTypeName(label: string, hint: string): RegExp {
+  const parts = [label, hint].map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  return new RegExp(`^${parts.join('\\s*')}$`)
 }
 
 async function handleSmokePrompts(page: Page): Promise<void> {
@@ -23,17 +28,23 @@ export async function expectAppNavigation(page: Page): Promise<void> {
   await expect(localizedRole(page, 'navigation', en.nav.mainNavigation, ptBR.nav.mainNavigation)).toBeVisible()
 }
 
-export async function createSmokeHabit(page: Page, title: string): Promise<void> {
+export async function createSmokeHabit(page: Page, title: string, itemType: 'task' | 'habit' = 'task'): Promise<void> {
   await handleSmokePrompts(page)
   const create = localizedRole(page, 'button', en.nav.createHabit, ptBR.nav.createHabit)
   const emptyCreate = localizedRole(page, 'button', en.habits.createManually, ptBR.habits.createManually)
   await expect(page.locator('[data-habit-list]')).toBeVisible({ timeout: 30_000 })
   await create.or(emptyCreate).first().click()
-  const titleInput = localizedRole(page, 'textbox', en.habits.form.describe, ptBR.habits.form.describe)
+  await localizedRole(page, 'radio',
+    describedTypeName(itemType === 'task' ? en.habits.form.typeTask : en.habits.form.typeHabit, itemType === 'task' ? en.habits.form.typeTaskHint : en.habits.form.typeHabitHint),
+    describedTypeName(itemType === 'task' ? ptBR.habits.form.typeTask : ptBR.habits.form.typeHabit, itemType === 'task' ? ptBR.habits.form.typeTaskHint : ptBR.habits.form.typeHabitHint)).click()
+  const titleInput = localizedRole(page, 'textbox',
+    itemType === 'task' ? en.habits.form.taskDescribe : en.habits.form.describe,
+    itemType === 'task' ? ptBR.habits.form.taskDescribe : ptBR.habits.form.describe)
   await expect(titleInput).toBeVisible()
-  await localizedRole(page, 'radio', en.habits.form.typeTask, ptBR.habits.form.typeTask).click()
   await titleInput.fill(title)
-  const submit = localizedRole(page, 'button', en.habits.createHabit, ptBR.habits.createHabit)
+  const submit = localizedRole(page, 'button',
+    itemType === 'task' ? en.habits.createTask : en.habits.createHabit,
+    itemType === 'task' ? ptBR.habits.createTask : ptBR.habits.createHabit)
   await expect(submit).toBeEnabled()
   await submit.click()
   await expect(titleInput).toBeHidden()

@@ -258,14 +258,14 @@ vi.mock('@/hooks/use-reminder-permission', () => ({
 }))
 vi.mock('@/components/habits/habit-form-fields/reminder-section', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/habits/habit-form-fields/reminder-section')>()
-  const mockSection = ({ children, onReminderTimesChange, onToggleReminder }: { children?: React.ReactNode; onReminderTimesChange: (offsets: number[]) => void; onToggleReminder: () => void }) => <div data-testid="offset-reminders"><button type="button" onClick={() => onReminderTimesChange([30])}>set-offset</button><button type="button" onClick={onToggleReminder}>toggle-offsets</button>{children}</div>
+  const mockSection = ({ children, onReminderTimesChange }: { children?: React.ReactNode; onReminderTimesChange: (offsets: number[]) => void }) => <div data-testid="offset-reminders"><button type="button" onClick={() => onReminderTimesChange([30])}>set-offset</button>{children}</div>
   return {
     ReminderSection: (props: React.ComponentProps<typeof actual.ReminderSection>) => mocks.realReminderSections ? <actual.ReminderSection {...props} /> : mockSection(props),
   }
 })
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/habits/habit-form-fields/scheduled-reminder-section')>()
-  const mockSection = ({ onSetScheduledReminders, onToggleReminder }: { onSetScheduledReminders: (scheduled: { when: 'same_day'; time: string }[]) => void; onToggleReminder: () => void }) => <div data-testid="scheduled-reminders"><button type="button" onClick={() => onSetScheduledReminders([{ when: 'same_day', time: '08:00' }])}>set-scheduled</button><button type="button" onClick={() => onSetScheduledReminders([])}>remove-scheduled</button><button type="button" onClick={onToggleReminder}>toggle-scheduled</button></div>
+  const mockSection = ({ onSetScheduledReminders }: { onSetScheduledReminders: (scheduled: { when: 'same_day'; time: string }[]) => void }) => <div data-testid="scheduled-reminders"><button type="button" onClick={() => onSetScheduledReminders([{ when: 'same_day', time: '08:00' }])}>set-scheduled</button><button type="button" onClick={() => onSetScheduledReminders([])}>remove-scheduled</button></div>
   return {
     ScheduledReminderSection: (props: React.ComponentProps<typeof actual.ScheduledReminderSection>) => mocks.realReminderSections ? <actual.ScheduledReminderSection {...props} /> : mockSection(props),
   }

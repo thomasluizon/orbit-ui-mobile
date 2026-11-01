@@ -15,6 +15,7 @@ export interface SubHabitEntry {
 }
 
 interface SubHabitEditorProps {
+  task?: boolean
   subHabits: SubHabitEntry[]
   proposedItemCount?: number
   onUpdateSubHabit: (id: string, value: string) => void
@@ -34,6 +35,7 @@ interface SubHabitEditorProps {
 }
 
 export function SubHabitEditor({
+  task = false,
   subHabits,
   proposedItemCount = 0,
   onUpdateSubHabit,
@@ -59,11 +61,9 @@ export function SubHabitEditor({
               <BottomSheetAppTextInput
                 value={entry.value}
                 maxLength={MAX_HABIT_TITLE_LENGTH}
-                placeholder={t('habits.form.subHabitPlaceholder')}
+                placeholder={task ? t('habits.form.subTaskPlaceholder') : t('habits.form.subHabitPlaceholder')}
                 placeholderTextColor={tokens.fg3}
-                accessibilityLabel={t('habits.form.subHabitInputLabel', {
-                  index: index + 1,
-                })}
+                accessibilityLabel={task ? t('habits.form.subTaskInputLabel', { index: index + 1 }) : t('habits.form.subHabitInputLabel', { index: index + 1 })}
                 style={styles.subHabitInput}
                 focusBorder={false}
                 onFocus={() => setFocusedId(entry.id)}
@@ -83,7 +83,7 @@ export function SubHabitEditor({
                   right: 6,
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={t('habits.form.removeSubHabit')}
+                accessibilityLabel={task ? t('habits.form.removeSubTask') : t('habits.form.removeSubHabit')}
               >
                 <Trash2 size={16} color={tokens.fg3} strokeWidth={1.8} />
               </Pressable>
@@ -92,7 +92,7 @@ export function SubHabitEditor({
           ))}
         </View>
       ) : null}
-      <IconButton label={t('habits.form.addSubHabit')} disabled={subHabits.length >= MAX_SUB_HABITS} onPress={onAddSubHabit}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton>
+      <IconButton label={task ? t('habits.form.addSubTask') : t('habits.form.addSubHabit')} disabled={subHabits.length >= MAX_SUB_HABITS} onPress={onAddSubHabit}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton>
     </View>
   )
 }

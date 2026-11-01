@@ -86,6 +86,7 @@ export {
   IconPencil as PencilLine,
   IconPlayerPlay as Play,
   IconPlus as Plus,
+  IconMoodSmile as Smile,
   IconReceipt as Receipt,
   IconRefresh as RefreshCw,
   IconRepeat as Repeat,
