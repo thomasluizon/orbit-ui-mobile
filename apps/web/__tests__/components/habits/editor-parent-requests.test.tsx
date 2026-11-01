@@ -126,7 +126,7 @@ it.each([false, true])('journals complete editor writes and retries against fres
     view.rerender(element(true))
     expect(field()).toHaveTextContent('habits.moveParent.toRoot')
     await choose()
-    fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.describe' }), { target: { value: 'Read together' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ }), { target: { value: 'Read together' } })
     expect(transport.attempted).toEqual([])
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'common.save' })))
     await waitFor(() => expect(onSaved).toHaveBeenCalledOnce())

@@ -21,6 +21,10 @@ function Captions({ error, errorId, hint, hintId }: Readonly<{ error?: string; e
   return <>{error ? <span id={errorId} role="alert" className="text-xs text-[var(--status-bad-text)]">{error}</span> : null}{hint ? <span id={hintId} className="text-xs text-[var(--fg-2)]">{hint}</span> : null}</>
 }
 
+function multilineControlStyle(rows: number | undefined, proposed: boolean | undefined, mono: boolean | undefined) {
+  return { ...CONTROL_STYLE, minHeight: 54, color: proposed ? 'var(--fg-3)' : CONTROL_STYLE.color, fieldSizing: rows === 1 ? 'content' as const : undefined, fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)' }
+}
+
 function Control({ props, controlId, descriptionId }: Readonly<{ props: InputProps; controlId: string; descriptionId: string | undefined }>) {
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
   const multiline = props.multiline === true
@@ -45,7 +49,7 @@ function Control({ props, controlId, descriptionId }: Readonly<{ props: InputPro
     onBlur: props.onBlur,
     className: 'block resize-none placeholder:text-[var(--fg-3)]',
   } as const
-  if (multiline) return <><TypedTextarea proposed={props.proposed} {...shared} ref={(control) => { inputRef.current = control }} rows={props.rows} style={{ ...CONTROL_STYLE, color: props.proposed ? 'var(--fg-3)' : CONTROL_STYLE.color, minHeight: 54, fontFamily: props.mono ? 'var(--font-mono)' : 'var(--font-sans)' }} /><Marks value={props.value} marks={marks} label={marksLabel} /></>
+  if (multiline) return <><TypedTextarea proposed={props.proposed} {...shared} ref={(control) => { inputRef.current = control }} rows={props.rows} style={multilineControlStyle(props.rows, props.proposed, props.mono)} /><Marks value={props.value} marks={marks} label={marksLabel} /></>
   return <div className="flex items-center"><input {...shared} ref={(control) => { inputRef.current = control }} type={props.kind ?? 'text'} onKeyDown={(event) => { if (event.key === 'Escape' && props.onCancel) { event.preventDefault(); event.stopPropagation(); props.onCancel() } if (!event.nativeEvent.isComposing && event.key === 'Enter' && props.onSubmit) { event.preventDefault(); props.onSubmit() } }} style={{ ...CONTROL_STYLE, color: props.proposed ? 'var(--fg-3)' : CONTROL_STYLE.color, minHeight: 54, fontFamily: props.mono ? 'var(--font-mono)' : 'var(--font-sans)' }} />{props.trailing ? <span className="shrink-0 pr-4">{props.trailing}</span> : null}</div>
 }
 

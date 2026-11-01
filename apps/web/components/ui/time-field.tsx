@@ -114,6 +114,7 @@ interface TimeEntryProps {
   onClear?: () => void
   onFocus: () => void
   onOpenPicker: () => void
+  onSubmit?: () => void
   open: boolean
   placeholder?: string
   selectTimeLabel: string
@@ -124,7 +125,7 @@ function TimeEntry(props: Readonly<TimeEntryProps>) {
   const {
     canClear, clearLabel, descriptionId, disabled, error, hint, inputId, inputValue,
     label, onBlur, onChange, onClear, onFocus, onOpenPicker, open, placeholder,
-    selectTimeLabel, usesNumericKeyboard,
+    selectTimeLabel, usesNumericKeyboard, onSubmit,
   } = props
   return (
     <>
@@ -137,6 +138,7 @@ function TimeEntry(props: Readonly<TimeEntryProps>) {
           onChange={onChange}
           onFocus={onFocus}
           onBlur={onBlur}
+          onKeyDown={(event) => { if (event.key === 'Enter' && onSubmit) { event.preventDefault(); onSubmit() } }}
           disabled={disabled}
           placeholder={placeholder}
           inputMode={usesNumericKeyboard ? 'numeric' : 'text'}
@@ -186,6 +188,7 @@ export function TimeField({
   onChange,
   onClear,
   commitTypedClearOnBlur = false,
+  commitOnBlur = false,
   placeholder,
   ariaLabel,
   hourCycle,
@@ -206,6 +209,7 @@ export function TimeField({
   const presentedValue = presentTimeFieldValue(value, resolvedHourCycle)
   const [inputDraft, setInputDraft] = useState<{ text: string; hourCycle: 'h23' | 'h12' } | null>(null)
   const previousHourCycle = useRef(resolvedHourCycle)
+  const pendingCommit = useRef(false)
   if (inputDraft && inputDraft.hourCycle !== resolvedHourCycle) {
     const reconciledDraft = reconcileTimeFieldInput(inputDraft.text, inputDraft.hourCycle, resolvedHourCycle)
     setInputDraft({ text: reconciledDraft.draft, hourCycle: resolvedHourCycle })
@@ -216,8 +220,8 @@ export function TimeField({
     if (previousHourCycle.current === resolvedHourCycle) return
     previousHourCycle.current = resolvedHourCycle
     const parsed = parseTypedTimeFieldValue(inputValue, resolvedHourCycle)
-    if (!disabled && parsed && parsed !== value) onChange(parsed)
-  }, [resolvedHourCycle, inputValue, value, onChange, disabled])
+    if (!disabled && !commitOnBlur && parsed && parsed !== value) onChange(parsed)
+  }, [resolvedHourCycle, inputValue, value, onChange, disabled, commitOnBlur])
   const [open, setOpen] = useState(false)
   const [pickerDraft, setPickerDraft] = useState({ hour24: 9, minute: 0 })
   const { sheetRef, closeSheet } = useSheetHost()
@@ -228,11 +232,20 @@ export function TimeField({
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const change = changeTimeFieldInput(event.target.value, inputValue, resolvedHourCycle)
     setInputDraft({ text: change.draft, hourCycle: resolvedHourCycle })
+    pendingCommit.current = true
     if (change.clear) {
       if (!commitTypedClearOnBlur) onClear?.()
       return
     }
-    if (change.parsed) onChange(change.parsed)
+    if (!commitOnBlur && change.parsed) onChange(change.parsed)
+  }
+
+  function finishTyping() {
+    const parsed = parseTypedTimeFieldValue(inputValue, resolvedHourCycle)
+    if (!disabled && commitOnBlur && pendingCommit.current && parsed) onChange(parsed)
+    pendingCommit.current = false
+    if (!disabled && commitTypedClearOnBlur && inputDraft?.text === '') onClear?.()
+    setInputDraft(null)
   }
 
   function openPicker() {
@@ -244,6 +257,8 @@ export function TimeField({
   function applyDraft() {
     closeSheet(() => {
       setOpen(false)
+      pendingCommit.current = false
+      setInputDraft(null)
       onChange(commitTimeFieldPickerDraft(pickerDraft))
     })
   }
@@ -260,10 +275,8 @@ export function TimeField({
         inputId={inputId}
         inputValue={inputValue}
         label={resolvedLabel}
-        onBlur={() => {
-          if (commitTypedClearOnBlur && inputDraft?.text === '') onClear?.()
-          setInputDraft(null)
-        }}
+        onBlur={finishTyping}
+        onSubmit={commitOnBlur ? finishTyping : undefined}
         onChange={handleChange}
         onClear={onClear}
         onFocus={() => setInputDraft({ text: presentedValue, hourCycle: resolvedHourCycle })}

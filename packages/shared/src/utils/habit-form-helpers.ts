@@ -630,10 +630,11 @@ type UnderstandingTranslator = (
 
 export function buildHabitUnderstandingLabels(
   translate: UnderstandingTranslator,
+  itemType?: HabitFormData['itemType'],
 ): HabitUnderstandingLabels {
   return {
-    field: translate('habits.form.describe'),
-    placeholder: translate('habits.form.describePlaceholder'),
+    field: translate(itemType === 'task' ? 'habits.form.taskDescribe' : 'habits.form.describe'),
+    placeholder: translate(itemType === 'task' ? 'habits.form.taskDescribePlaceholder' : 'habits.form.describePlaceholder'),
     understood: translate('habits.form.understood'),
     unresolved: translate('habits.form.unresolved'),
     days: translate('habits.form.activeDays'),

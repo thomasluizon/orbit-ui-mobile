@@ -62,7 +62,7 @@ async function expectWayfindingFocus(page: Page, target: Locator) {
 }
 
 async function expectHabitCreateControls(page: Page, forcedColors = false) {
-  await page.getByRole('heading', { name: ptBR.habits.form.newHabit, exact: true }).focus()
+  await page.getByRole('heading', { name: ptBR.habits.form.newTask, exact: true }).focus()
   const visited = new Set<number>()
   for (let index = 0; index < 100; index += 1) {
     await page.keyboard.press('Tab')
@@ -87,7 +87,7 @@ async function expectHabitCreateControls(page: Page, forcedColors = false) {
 
 async function inspectTitles(page: Page) {
   for (const [path, title, entry] of [
-    ['/habits/new?from=%2F', ptBR.habits.form.newHabit, '/'],
+    ['/habits/new?from=%2F', ptBR.habits.form.newTask, '/'],
     ['/profile/account', ptBR.profile.submenus.account, '/profile'],
   ] as const) {
     await inspectDestinationHeading(page, path, title, async (heading) => {

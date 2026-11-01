@@ -130,7 +130,7 @@ vi.mock('@/components/habits/habit-form-fields/reminder-section', async (importO
 
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: false }) }))
 
-vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: (props: { onSetScheduledReminders: (items: { when: string; time: string }[]) => void; nested?: boolean; offsetReminderCount?: number }) => <button type="button" data-nested={String(props.nested)} data-offset-count={props.offsetReminderCount} onClick={() => props.onSetScheduledReminders([{ when: 'day_before', time: '18:00' }])}>scheduled-reminders</button> }))
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: (props: { onSetScheduledReminders: (items: { when: string; time: string }[]) => void; hideDayBefore?: boolean; offsetReminderCount?: number }) => <button type="button" data-hide-day-before={String(props.hideDayBefore)} data-offset-count={props.offsetReminderCount} onClick={() => props.onSetScheduledReminders([{ when: 'day_before', time: '18:00' }])}>scheduled-reminders</button> }))
 
 vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ SlipAlertSection: () => <div>slip-alert</div> }))
 
@@ -237,7 +237,7 @@ export function setupHabitModalSubmit(owner: 'create' | 'edit') {
 
   const phraseInput = () => screen.getByRole('textbox', { name: 'habits.form.datePhrase' })
 
-  const submitButton = () => screen.getByRole('button', { name: owner === 'create' ? 'habits.createHabit' : 'common.save' })
+  const submitButton = () => screen.getByRole('button', { name: owner === 'create' ? /habits.create(?:Habit|Task)/ : 'common.save' })
 
   const mutation = () => owner === 'create' ? modalFeedback.create : modalFeedback.update
 
@@ -248,10 +248,14 @@ export function setupHabitModalSubmit(owner: 'create' | 'edit') {
       ? <CreateHabitModal open onOpenChange={closed} initialTitle="Read" initialDate={initialDate} />
       : <EditHabitModal open onOpenChange={closed} habit={habit} />}</QueryClientProvider>
     const view = render(modal())
-    await waitFor(() => expect(screen.getByRole('textbox', { name: 'habits.form.describe' })).toHaveValue('Read'))
-    const dialog = screen.getByRole('dialog', { name: owner === 'create' ? 'habits.form.newHabit' : type === 'habit' ? 'habits.editHabit' : 'habits.editTask' })
+    await waitFor(() => expect(screen.getByRole('textbox', { name: /habits.form.(?:taskDescribe|describe)/ })).toHaveValue('Read'))
+    const dialog = screen.getByRole('dialog', { name: owner === 'create' ? 'habits.form.newTask' : type === 'habit' ? 'habits.editHabit' : 'habits.editTask' })
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'common.close' })).toHaveFocus())
-    if (type) fireEvent.click(screen.getByRole('radio', { name: type === 'task' ? 'habits.form.typeTask' : 'habits.form.typeHabit' }))
+    if (type) fireEvent.click(screen.getByRole('radio', { name: type === 'task' ? /^habits.form.typeTask/ : /^habits.form.typeHabit/ }))
+    if (owner === 'create') {
+      expect(screen.getByRole('dialog', { name: type === 'habit' ? 'habits.form.newHabit' : 'habits.form.newTask' })).toBeInTheDocument()
+      expect(submitButton()).toHaveTextContent(type === 'habit' ? 'habits.createHabit' : 'habits.createTask')
+    }
     return { refresh: () => view.rerender(modal()) }
   }
 

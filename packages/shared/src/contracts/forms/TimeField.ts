@@ -10,6 +10,7 @@ export type TimeFieldProps = {
   onChange: (value: Time24) => void
   onClear?: () => void
   commitTypedClearOnBlur?: boolean
+  commitOnBlur?: boolean
   hourCycle?: 'h23' | 'h12'
   id?: string
   placeholder?: string

@@ -19,17 +19,18 @@ for (const width of [320, 360, 384, 412, 600, 1024, 1352]) {
           const words = (locale === 'en' ? en : ptBR).habits.form
           await page.goto('/habits/new')
           const screen = page.locator('[data-habit-create-screen]')
-          await screen.getByRole('radio', { name: words.typeHabit, exact: true }).click()
-          await screen.getByRole('button', { name: words.moreDetails, exact: true }).click()
-          const noSchedule = screen.getByRole('radio', { name: new RegExp(words.noSchedule) })
-          await noSchedule.click()
+          const type = screen.getByRole('radiogroup', { name: words.itemType, exact: true })
+          const habit = type.getByRole('radio', { name: new RegExp(words.typeHabit) })
+          await habit.click()
+          const frequency = screen.getByRole('radiogroup', { name: words.frequency, exact: true })
+          const anytime = frequency.getByRole('radio', { name: new RegExp(words.noSchedule) })
+          await anytime.click()
           await page.evaluate(() => document.fonts.ready)
-          for (const [label, neighbour] of [
-            [words.timesPerUnit, noSchedule],
-            [words.typeTask, screen.getByRole('radio', { name: words.typeHabit, exact: true })],
+          for (const [row, neighbour] of [
+            [frequency.getByRole('radio', { name: words.timesPerUnit, exact: true }), anytime],
+            [type.getByRole('radio', { name: new RegExp(words.typeTask) }), habit],
           ] as const) {
             await expect(neighbour).toHaveAttribute('aria-checked', 'true')
-            const row = screen.getByRole('radio', { name: label, exact: true })
             await inspectControls(page, row, `option rows, ${width}px, ${locale}, ${mode}`, INTERACTION_FILL_CLEARANCE)
             await expect(page.locator('[data-interaction-fill-probe]')).toHaveCount(0)
             const bounds = (await row.boundingBox())!

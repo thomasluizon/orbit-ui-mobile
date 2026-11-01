@@ -8,6 +8,7 @@ import { buildHabitFrequencyUnits, type HabitScheduleFieldsProps } from '@orbit/
 import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
 import { RadioGroup } from '@/components/ui/radio-group'
+import { FormSectionLabel } from './form-section-label'
 import { RadioRow } from '@/components/ui/select-check'
 
 function scheduleAvailability(locked: boolean | undefined, pending: boolean, reason: string) {
@@ -29,6 +30,7 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
   if (hidden) return null
   return (
     <View style={styles.container}>
+      <FormSectionLabel>{t('habits.form.frequency')}</FormSectionLabel>
       <RadioGroup accessibilityLabel={t('habits.form.frequency')}>
         <Proposed keepMounted inset proposed={proposed && (Boolean(unit) && !flexible)} scope="row" label={t('habits.detail.proposed')}>
           <RadioRow proposed={proposed && (Boolean(unit) && !flexible)} label={t('habits.form.every')} selected={Boolean(unit) && !flexible} {...availability} onSelect={() => { if (!locked) onModeChange(false) }} />

@@ -7747,6 +7747,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-habit-form-fields-habit-timing-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-habit-timing-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-habit-timing-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-habit-timing-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-habit-form-fields-repeat-reminder-section",
       "platform": "web",
       "kind": "overlay",
@@ -16801,6 +16853,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/habits/habit-form-fields/habit-emoji-selector.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-habit-timing-field",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-habit-timing-field",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-habit-timing-field",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-habit-timing-field",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx"
       ],
       "state": "default",
       "theme": "dark",

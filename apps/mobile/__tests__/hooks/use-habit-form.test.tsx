@@ -29,8 +29,9 @@ function act(callback: () => void): void {
 }
 
 describe('mobile useHabitForm', () => {
-  it('starts as a one-time habit with empty defaults', () => {
+  it('starts as a one-time task with empty defaults', () => {
     const form = renderHabitForm()
+    expect(form.current.form.getValues('itemType')).toBe('task')
     expect(form.current.isOneTime).toBe(true)
     expect(form.current.isRecurring).toBe(false)
     expect(form.current.isFlexible).toBe(false)
@@ -214,4 +215,24 @@ describe('General repeat edit initialization', () => {
       expect(request.clearRepeatReminder).toBeUndefined()
     }
   })
+})
+
+
+it.each([
+  ['title', 201, 'Title'],
+  ['description', 10001, 'Description'],
+  ['emoji', 33, 'Emoji'],
+] as const)('uses the selected item type in %s validation', async (field, length, noun) => {
+  const holder = renderHabitForm({ initialData: { title: 'Read', dueDate: '2026-10-20' } })
+  const helpers = () => holder.current
+  for (const itemType of ['task', 'habit'] as const) {
+    TestRenderer.act(() => {
+      helpers().chooseItemType(itemType)
+      helpers().form.setValue(field, 'x'.repeat(length))
+    })
+    const suffix = itemType === 'task' ? `task${noun}TooLong` : `${field}TooLong`
+    expect(helpers().validateAll()).toBe(`habits.form.${suffix}`)
+    await TestRenderer.act(async () => { await helpers().form.trigger() })
+    expect(helpers().form.getFieldState(field).error?.message).toBe(`habits.form.${suffix}`)
+  }
 })

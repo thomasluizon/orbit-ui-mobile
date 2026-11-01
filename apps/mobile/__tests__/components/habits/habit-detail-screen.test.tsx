@@ -421,14 +421,14 @@ vi.mock('@/hooks/use-reminder-permission', () => ({
 }))
 vi.mock('@/components/habits/habit-form-fields/reminder-section', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/habits/habit-form-fields/reminder-section')>()
-  const mockSection = ({ children, onReminderTimesChange, onToggleReminder }: { children?: React.ReactNode; onReminderTimesChange: (offsets: number[]) => void; onToggleReminder: () => void }) => React.createElement('ReminderSection', { testID: 'offset-reminders', onReminderTimesChange, onToggleReminder }, children)
+  const mockSection = ({ children, onReminderTimesChange }: { children?: React.ReactNode; onReminderTimesChange: (offsets: number[]) => void }) => React.createElement('ReminderSection', { testID: 'offset-reminders', onReminderTimesChange }, children)
   return {
     ReminderSection: (props: React.ComponentProps<typeof actual.ReminderSection>) => mocks.realReminderSections ? <actual.ReminderSection {...props} /> : mockSection(props),
   }
 })
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/habits/habit-form-fields/scheduled-reminder-section')>()
-  const mockSection = ({ onSetScheduledReminders, onToggleReminder }: { onSetScheduledReminders: (scheduled: { when: 'same_day'; time: string }[]) => void; onToggleReminder: () => void }) => React.createElement('ScheduledReminderSection', { testID: 'scheduled-reminders', onSetScheduledReminders, onRemoveScheduledReminders: () => onSetScheduledReminders([]), onToggleReminder })
+  const mockSection = ({ onSetScheduledReminders }: { onSetScheduledReminders: (scheduled: { when: 'same_day'; time: string }[]) => void }) => React.createElement('ScheduledReminderSection', { testID: 'scheduled-reminders', onSetScheduledReminders, onRemoveScheduledReminders: () => onSetScheduledReminders([]) })
   return {
     ScheduledReminderSection: (props: React.ComponentProps<typeof actual.ScheduledReminderSection>) => mocks.realReminderSections ? <actual.ScheduledReminderSection {...props} /> : mockSection(props),
   }
