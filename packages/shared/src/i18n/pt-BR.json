@@ -50,8 +50,8 @@
     },
     "homeScreen": {
       "title": "Tela inicial",
-      "showGeneral": "Ver hábitos sem dia fixo",
-      "showGeneralDesc": "Hábitos sem dia fixo também aparecem no Hoje."
+      "showGeneral": "Ver tarefas sem data",
+      "showGeneralDesc": "Tarefas sem data também aparecem no Hoje."
     },
     "clock": {
       "title": "Relógio",
@@ -617,7 +617,7 @@
     "viewToday": "Hoje",
     "viewAll": "Todos",
     "viewGeneral": "Geral",
-    "emptyGeneral": "Nenhum hábito geral",
+    "emptyGeneral": "Nenhuma tarefa sem data",
     "sectionLabel": "Hábitos",
     "frequencyFilter": "Filtrar por frequência",
     "closeSearch": "Fechar busca",
@@ -2009,7 +2009,7 @@
       "itemGroup": {
         "Task": "Tarefas",
         "Habit": "Hábitos",
-        "General": "Hábitos gerais"
+        "General": "Tarefas sem data"
       },
       "proposed": "Proposto pela Astra",
       "notSet": "Não definido",
@@ -2025,7 +2025,7 @@
         "buildHabit": "Fortalecer este hábito",
         "habitToAvoid": "Hábito a evitar",
         "reduceHabit": "Reduzir este hábito",
-        "anytime": "Sem dia fixo",
+        "anytime": "Sem data",
         "onSchedule": "Seguir um horário",
         "anyDay": "Escolher qualquer dia",
         "fixedDays": "Manter dias fixos",
@@ -2160,7 +2160,7 @@
         "end_date": "Data de término",
         "due_time": "Horário",
         "is_bad_habit": "Hábito ruim",
-        "is_general": "Sem dia fixo",
+        "is_general": "Sem data",
         "is_flexible": "Qualquer dia",
         "checklist_items": "Itens da lista",
         "sub_habits": "Sub-hábitos",
@@ -3211,7 +3211,7 @@
         "seeDay": "Ver dia",
         "signIn": "Entrar",
         "notTodayPending": "hoje não",
-        "generalPending": "Sem dia fixo",
+        "generalPending": "Tarefa sem data",
         "pending": "pendente"
       },
       "meetAstra": {
@@ -3579,8 +3579,8 @@
       "skipOneTime": "Hábitos de uma vez só não podem ser pulados.",
       "logNotAllowed": "Não dá para registrar esse hábito agora.",
       "selfParent": "Um hábito não pode ser sub-hábito de si mesmo.",
-      "generalMismatchWithParent": "O item e o principal precisam estar ambos com data ou ambos sem data.",
-      "generalMismatchWithChildren": "Iguale a opção 'sem dia fixo' dos sub-hábitos antes de mudar este hábito.",
+      "generalMismatchWithParent": "O item e o hábito principal precisam ter a mesma opção: com data ou sem data.",
+      "generalMismatchWithChildren": "O item e os sub-hábitos precisam ter a mesma opção: com data ou sem data.",
       "calendarNotConnected": "Conecte o Google Agenda primeiro.",
       "calendarReconnect": "Sua conexão com o Google Agenda expirou. Reconecte para continuar.",
       "calendarFetchFailed": "Não foi possível carregar seus eventos. Tente de novo.",

@@ -311,11 +311,17 @@ and whole-page visual inspection remain coordinator-owned acceptance boundaries.
 
 ## Undated task date choice (#1922)
 
-General is a one-time task without a date. Create still starts as a dated Task. In When,
+General is a one-time task without a date. Create starts as a dated Task, except when opened
+from Geral, where Task and No date are selected together. In When,
 Do on / Fazer em retains the phrase and calendar; No date / Sem data saves through the existing
 General request path, with no dueDate, startDate or cadence fields. General edit and child prefill
 select Task and No date with an empty date. Habit frequency offers only Every and Times per.
 The previous repeating hint is removed. The existing Task hint describes completion once.
+Edit hydration supplies an empty date phrase before applying its mode, so an unchanged undated
+task closes directly. Deliberately choosing No date still requires discard confirmation.
+
+Visible references use undated task / tarefa sem data and No date / Sem data. The primary
+navigation label stays General / Geral.
 
 Dated Task, undated Task, fixed Habit and count-based Habit drafts remain independent. Returning
 to a type restores its last date choice or cadence. A General parent locks children to an undated

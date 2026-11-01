@@ -32,6 +32,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import { habitFormSchema } from '@orbit/shared/validation'
+import { useUIStore } from '@/stores/ui-store'
 
 const renderer = require('react-test-renderer')
 const mountedTrees = new Set<ReturnType<typeof renderer.create>>()
@@ -1926,6 +1927,7 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     formLocale.realDates = false
     formLocale.realDateCopy = false
     formLocale.language = 'en'
+    useUIStore.setState({ activeView: 'today' })
   })
   const input = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && matchesFormLabel(node.props.accessibilityLabel, label))[0]!
   const phraseInput = () => input('habits.form.datePhrase')
@@ -1951,6 +1953,21 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
   }
 
   const dateChoice = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === label)[0]!
+
+  if (owner === 'create') it.each(['en', 'pt-BR'])('opens from General as an undated native task in %s', async (locale) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    useUIStore.setState({ activeView: 'general' })
+    await mount(null)
+    expect(dateChoice('habits.form.typeTask, habits.form.typeTaskHint').props.accessibilityState.checked).toBe(true)
+    expect(dateChoice('habits.form.noSchedule').props.accessibilityState.checked).toBe(true)
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'habits.form.frequency')).toHaveLength(0)
+    expect(phraseInput()).toBeUndefined()
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    expect(mutation().mock.calls[0]![0]).toMatchObject({ title: 'Read', isGeneral: true })
+    for (const field of ['dueDate', 'startDate', 'frequencyUnit', 'frequencyQuantity']) expect(mutation().mock.calls[0]![0]).not.toHaveProperty(field)
+  })
 
   it.each(['en', 'pt-BR'])('saves an undated task from the native date choice in %s', async (locale) => {
     formLocale.realController = true

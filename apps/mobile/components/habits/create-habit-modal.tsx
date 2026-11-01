@@ -328,7 +328,6 @@ export function CreateHabitModal({
         setReminderWasManuallyToggled(true)
       } else if (activeView === 'general') {
         formHelpers.setGeneral()
-        formHelpers.form.setValue('itemType', 'habit')
       }
 
       setInitialTagIdsSnapshot(

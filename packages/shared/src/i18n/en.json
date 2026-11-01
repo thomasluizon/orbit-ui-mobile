@@ -50,8 +50,8 @@
     },
     "homeScreen": {
       "title": "Home Screen",
-      "showGeneral": "Show anytime habits",
-      "showGeneralDesc": "Anytime habits also appear in your Today list."
+      "showGeneral": "Show undated tasks",
+      "showGeneralDesc": "Undated tasks also appear in Today."
     },
     "clock": {
       "title": "Clock",
@@ -617,7 +617,7 @@
     "viewToday": "Today",
     "viewAll": "All",
     "viewGeneral": "General",
-    "emptyGeneral": "No general habits yet",
+    "emptyGeneral": "No undated tasks yet",
     "sectionLabel": "Habits",
     "frequencyFilter": "Filter by frequency",
     "closeSearch": "Close search",
@@ -2009,7 +2009,7 @@
       "itemGroup": {
         "Task": "Tasks",
         "Habit": "Habits",
-        "General": "General habits"
+        "General": "Undated tasks"
       },
       "proposed": "Proposed by Astra",
       "notSet": "Not set",
@@ -2025,7 +2025,7 @@
         "buildHabit": "Build this habit",
         "habitToAvoid": "Habit to avoid",
         "reduceHabit": "Reduce this habit",
-        "anytime": "Anytime",
+        "anytime": "No date",
         "onSchedule": "Follow a schedule",
         "anyDay": "Choose any day",
         "fixedDays": "Keep fixed days",
@@ -2160,7 +2160,7 @@
         "end_date": "End date",
         "due_time": "Due time",
         "is_bad_habit": "Bad habit",
-        "is_general": "Anytime",
+        "is_general": "No date",
         "is_flexible": "Any day",
         "checklist_items": "Checklist items",
         "sub_habits": "Sub-habits",
@@ -3211,7 +3211,7 @@
         "seeDay": "See day",
         "signIn": "Sign in",
         "notTodayPending": "not today",
-        "generalPending": "Anytime",
+        "generalPending": "Undated task",
         "pending": "pending"
       },
       "meetAstra": {
@@ -3579,8 +3579,8 @@
       "skipOneTime": "This habit only happens once and cannot be skipped.",
       "logNotAllowed": "You can't log this habit right now.",
       "selfParent": "A habit can't be its own sub-habit.",
-      "generalMismatchWithParent": "The item and its parent must both have a date or both have no date.",
-      "generalMismatchWithChildren": "Match each sub-habit's 'anytime' setting before changing this habit.",
+      "generalMismatchWithParent": "The item and its parent habit must both have a date or both have no date.",
+      "generalMismatchWithChildren": "The item and its sub-habits must all have a date or all have no date.",
       "calendarNotConnected": "Connect Google Calendar first.",
       "calendarReconnect": "Your Google Calendar connection expired. Reconnect to continue.",
       "calendarFetchFailed": "Couldn't load your calendar events. Please try again.",

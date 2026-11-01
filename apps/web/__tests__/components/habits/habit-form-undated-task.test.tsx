@@ -1,14 +1,32 @@
 import { setupHabitModalSubmit, formLocale, createTags, modalFeedback } from '@/__tests__/support/habit-form-fields'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { useHabitForm } from '@/hooks/use-habit-form'
+import { useUIStore } from '@/stores/ui-store'
+
+afterEach(async () => { await act(() => useUIStore.setState({ activeView: 'today' })) })
 
 describe.each(['create', 'edit'] as const)('%s task date choices', (owner) => {
   const { mount, submit, mutation } = setupHabitModalSubmit(owner)
+
+  if (owner === 'create') it.each(['en', 'pt-BR'])('opens from General as an undated task in %s', async (locale) => {
+    formLocale.language = locale
+    formLocale.realController = true
+    useUIStore.setState({ activeView: 'general' })
+    await mount(null)
+    expect(screen.getByRole('radio', { name: /^habits.form.typeTask/ })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'habits.form.noSchedule' })).toBeChecked()
+    expect(screen.queryByRole('radiogroup', { name: 'habits.form.frequency' })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'habits.form.datePhrase' })).toBeNull()
+    await submit()
+    await waitFor(() => expect(mutation()).toHaveBeenCalledOnce())
+    expect(mutation().mock.calls[0]![0]).toMatchObject({ title: 'Read', isGeneral: true })
+    for (const field of ['dueDate', 'startDate', 'frequencyUnit', 'frequencyQuantity']) expect(mutation().mock.calls[0]![0]).not.toHaveProperty(field)
+  })
 
   it.each(['en', 'pt-BR'])('saves a task without a date in %s', async (locale) => {
     formLocale.language = locale

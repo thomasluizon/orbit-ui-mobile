@@ -180,6 +180,7 @@ export function buildEditHabitFormState(
   return {
     formValues: {
       itemType: mode === 'general' || mode === 'oneTime' ? 'task' : 'habit',
+      datePhrase: '',
       title: habit.title,
       description: habit.description ?? '',
       emoji: detail?.emoji ?? habit.emoji ?? '',
