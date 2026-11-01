@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from 'node:util'
 import { publicApi } from './api.mjs'
 import { fixtureNames } from './names.mjs'
-import { advanceBehindDate, isBehindVariant, prepareBehindDeadline, restoreOfferTimeZone } from './offer-timezone.mjs'
+import { advanceBehindDate, isBehindState, prepareBehindDeadline, restoreOfferTimeZone } from './offer-timezone.mjs'
 import { readCredentials } from '../credentials.mjs'
 
 const offset = (date, days) => new Date(Date.parse(`${date}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10)
@@ -39,23 +39,21 @@ async function changeHabit(api, id, edits) {
   if (!Object.entries(edits).every(([field, value]) => isDeepStrictEqual(restored?.[field], value))) throw new Error('Offer fixture habit field readback failed.')
 }
 
-async function goalVariant(api, vars, baseline, today) {
+async function seedGoalState(api, vars, baseline, today) {
   const goal = baseline.goals[0]
   if (!goal) throw new Error('Offer goal fixture requires an owned goal.')
   const family = vars.offerFamily
-  const variant = vars.offerVariant
-  const deadline = isBehindVariant(vars) ? await prepareBehindDeadline(api, vars) : family === 'goal-behind' ? offset(today, 3)
-    : variant === 2 ? null : offset(today, 30)
+  const state = vars.offerState
+  const deadline = isBehindState(vars) ? await prepareBehindDeadline(api, vars) : family === 'goal-behind' ? offset(today, 3)
+    : state === 'no_deadline' ? null : offset(today, 30)
   const edits = { title: goal.title, description: goal.description, targetValue: 1000, unit: goal.unit, deadline }
   await api('PUT', `goals/${goal.id}`, edits)
-  if (isBehindVariant(vars)) await advanceBehindDate(api, vars, deadline)
-  if (family === 'goal-on-track' && variant === 1) await api('PUT', `goals/${goal.id}/status`, { status: 'Completed' })
+  if (isBehindState(vars)) await advanceBehindDate(api, vars, deadline)
+  if (family === 'goal-on-track' && state === 'completed') await api('PUT', `goals/${goal.id}/status`, { status: 'Completed' })
   const { payload: page } = await api('GET', 'goals')
   if (!Array.isArray(page?.items) || page.totalPages !== 1) throw new Error('Offer goal tracking requires a complete goal list.')
   const payload = page.items.find((candidate) => candidate.id === goal.id)
-  const status = family === 'goal-behind' ? variant === 1 ? 'behind' : 'at_risk'
-    : variant === 1 ? 'completed' : variant === 2 ? 'no_deadline' : 'on_track'
-  if (payload?.id !== goal.id || payload.trackingStatus !== status || payload.deadline !== deadline || payload.targetValue !== 1000) throw new Error('Offer goal tracking readback failed.')
+  if (payload?.id !== goal.id || payload.trackingStatus !== state || payload.deadline !== deadline || payload.targetValue !== 1000) throw new Error('Offer goal tracking readback failed.')
   vars.offerGoalTracking = payload.trackingStatus
 }
 
@@ -103,17 +101,17 @@ async function seedOfferState(test, today) {
     if (!Number.isInteger(profile?.weekStartDay) || profile.weekStartDay < 0 || profile.weekStartDay > 6) throw new Error('Missed offer fixture lacks the account week start.')
     vars.offerWeekStartDay = profile.weekStartDay
   }
-  if (['goal-behind', 'goal-on-track'].includes(vars.offerFamily)) await goalVariant(api, vars, baseline, today)
-  if (isBehindVariant(vars)) today = vars.accountDate
+  if (['goal-behind', 'goal-on-track'].includes(vars.offerFamily)) await seedGoalState(api, vars, baseline, today)
+  if (isBehindState(vars)) today = vars.accountDate
   if (vars.offerFamily === 'resolved') await seedResolved(api, baseline, today)
   if (vars.offerFamily === 'stored') await seedStored(api, baseline, names, vars)
   if (vars.offerFamily === 'reminder-gap') {
-    const enabled = vars.offerVariant === 1
+    const enabled = vars.offerState === 'reminders_on'
     for (const habit of baseline.habits) await changeHabit(api, habit.id, { reminderEnabled: enabled,
       dueDate: offset(today, -6), reminderTimes: enabled ? [30] : [] })
     if (enabled) vars.offerExclusion = ['reminder']
   }
-  if (vars.offerFamily === 'goal-gap' && vars.offerVariant === 1) {
+  if (vars.offerFamily === 'goal-gap' && vars.offerState === 'equivalent_goal') {
     await api('POST', 'goals', { title: test.metadata.locale === 'pt-BR' ? 'Correr cinco quilômetros' : 'Run five kilometers',
       description: null, targetValue: 5, unit: 'km', type: 'Standard', habitIds: [] })
     vars.offerExclusion = ['aim']

@@ -9,7 +9,7 @@ import { exhaustAllowance } from './allowance.mjs'
 import { seedRestart } from './restart.mjs'
 import { configureOffers, freshConversation } from '../offer-context.mjs'
 import { seedOfferFixture } from './offers.mjs'
-import { dateInTimeZone, goalBehindDates, isBehindVariant } from './offer-timezone.mjs'
+import { dateInTimeZone, goalBehindDates, isBehindState } from './offer-timezone.mjs'
 import { seedHojeNextStep } from './hoje-next-step.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
@@ -198,7 +198,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   if (typeof profile?.email !== 'string' || !/^thomaslrgregorio\+orbit-eval-[a-z0-9-]+@gmail\.com$/.test(profile.email)) {
     throw new Error('Fixture reset requires a known eval origin and a disposable eval account.')
   }
-  if (isBehindVariant(test.vars)) {
+  if (isBehindState(test.vars)) {
     goalBehindDates()
     today = dateInTimeZone(profile.timeZone)
     test.vars.accountDate = today
@@ -210,7 +210,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   if (requireFreshFreeWindow && (profile.hasProAccess || profile.aiMessagesUsed !== 0)) {
     throw new Error('Fixture needs a fresh Free daily window with zero Astra messages used.')
   }
-  if (!isBehindVariant(test.vars)) await api('PUT', 'profile/timezone', { timeZone: 'UTC' })
+  if (!isBehindState(test.vars)) await api('PUT', 'profile/timezone', { timeZone: 'UTC' })
   await api('PUT', 'profile/language', { language: test.metadata.locale ?? 'en' })
   if (fixture === 'budget-exhausted') {
     await exhaustAllowance(api, profile, test.metadata.locale)

@@ -20,7 +20,6 @@ let completedResults = []
 let selectedCases = []
 const accountAccess = new Map()
 const freshFreeWindows = new Set()
-const offerAttempts = new Map()
 
 function persistResults(results, expectedCases) {
   writeResults(results)
@@ -35,7 +34,6 @@ export async function beforeAll({ suite }) {
   selectedCases = suite.tests.map(describeCase)
   accountAccess.clear()
   freshFreeWindows.clear()
-  offerAttempts.clear()
   persistResults(completedResults, selectedCases)
   const required = ['ORBIT_EVAL_BASE_URL', 'ORBIT_EVAL_GRADER', 'ORBIT_EVAL_CREDENTIALS_FILE']
   for (const key of new Set(required)) {
@@ -86,12 +84,7 @@ export async function beforeEach({ test }) {
   delete test.vars.legacyProfileLanguage
   freshConversation(test.vars)
   configureOffers(test)
-  if (test.vars.offerFamily) {
-    const attempt = offerAttempts.get(test.metadata.id) ?? 0
-    test.vars.offerVariant = attempt % 3
-    offerAttempts.set(test.metadata.id, attempt + 1)
-    delete test.vars.offerExclusion
-  }
+  if (test.vars.offerFamily) delete test.vars.offerExclusion
   try { return await prepareAttempt(test) } catch (error) {
     await restoreOfferTimeZone(test.vars)
     test.vars.preconditionFailure = safeFailureMessage(error)

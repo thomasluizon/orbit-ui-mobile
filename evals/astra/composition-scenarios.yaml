@@ -4463,34 +4463,92 @@
   metadata: {"id": "offers-goal-behind-en", "category": "composition", "family": "offers-goal-behind", "locale": "en", "fixture": "composition"}
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
+    offerState: at_risk
     clientContext: {<<: *offers_en, conversationId: "97e85bc1-e5fd-5e15-a581-6887029f8232"}
     input: "Show my goals and their progress."
     composition: {"mode": "data"}
-    rubric: "Answer in English. With the behind/at_risk fixture, offer one link-habit or target-adjustment action. No invented projection and no immediate write."
+    rubric: "Answer in English. With the at_risk fixture, offer one link-habit or target-adjustment action. No invented projection and no immediate write."
+- description: "proactive goal-behind in en"
+  metadata: {"id": "offers-goal-behind-behind-en", "category": "composition", "family": "offers-goal-behind", "locale": "en", "fixture": "composition"}
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    offerState: behind
+    clientContext: {<<: *offers_en, conversationId: "97e85bc1-e5fd-5e15-a581-6887029f8232"}
+    input: "Show my goals and their progress."
+    composition: {"mode": "data"}
+    rubric: "Answer in English. With the behind fixture, offer one link-habit or target-adjustment action. No invented projection and no immediate write."
 - description: "proactive goal-behind in pt-BR"
   metadata: {"id": "offers-goal-behind-pt-BR", "category": "composition", "family": "offers-goal-behind", "locale": "pt-BR", "fixture": "composition"}
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
+    offerState: at_risk
     clientContext: {<<: *offers_pt, conversationId: "a6229aae-f7e4-5ad7-bb41-61b761138395"}
     input: "Mostre minhas metas e o progresso delas."
     composition: {"mode": "data"}
-    rubric: "Answer in Brazilian Portuguese. With the behind/at_risk fixture, offer one link-habit or target-adjustment action. No invented projection and no immediate write."
+    rubric: "Answer in Brazilian Portuguese. With the at_risk fixture, offer one link-habit or target-adjustment action. No invented projection and no immediate write."
+- description: "proactive goal-behind in pt-BR"
+  metadata: {"id": "offers-goal-behind-behind-pt-BR", "category": "composition", "family": "offers-goal-behind", "locale": "pt-BR", "fixture": "composition"}
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    offerState: behind
+    clientContext: {<<: *offers_pt, conversationId: "a6229aae-f7e4-5ad7-bb41-61b761138395"}
+    input: "Mostre minhas metas e o progresso delas."
+    composition: {"mode": "data"}
+    rubric: "Answer in Brazilian Portuguese. With the behind fixture, offer one link-habit or target-adjustment action. No invented projection and no immediate write."
 - description: "proactive goal-on-track in en"
   metadata: {"id": "offers-goal-on-track-en", "category": "composition", "family": "offers-goal-on-track", "locale": "en", "fixture": "composition"}
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
+    offerState: on_track
     clientContext: {<<: *offers_en, conversationId: "eba8a74e-7750-5054-b8f9-69416a9f29fb"}
     input: "Show my goals and their progress."
     composition: {"mode": "data"}
-    rubric: "Answer in English. With on-track/completed/no-evidence variants, exclude behind-goal actions and preserve the typed progress."
+    rubric: "Answer in English. With the on_track fixture, exclude behind-goal actions and preserve the typed progress."
+- description: "proactive goal-on-track in en"
+  metadata: {"id": "offers-goal-on-track-completed-en", "category": "composition", "family": "offers-goal-on-track", "locale": "en", "fixture": "composition"}
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    offerState: completed
+    clientContext: {<<: *offers_en, conversationId: "eba8a74e-7750-5054-b8f9-69416a9f29fb"}
+    input: "Show my goals and their progress."
+    composition: {"mode": "data"}
+    rubric: "Answer in English. With the completed fixture, exclude behind-goal actions and preserve the typed progress."
+- description: "proactive goal-on-track in en"
+  metadata: {"id": "offers-goal-on-track-no-deadline-en", "category": "composition", "family": "offers-goal-on-track", "locale": "en", "fixture": "composition"}
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    offerState: no_deadline
+    clientContext: {<<: *offers_en, conversationId: "eba8a74e-7750-5054-b8f9-69416a9f29fb"}
+    input: "Show my goals and their progress."
+    composition: {"mode": "data"}
+    rubric: "Answer in English. With the no_deadline fixture, exclude behind-goal actions and preserve the typed progress."
 - description: "proactive goal-on-track in pt-BR"
   metadata: {"id": "offers-goal-on-track-pt-BR", "category": "composition", "family": "offers-goal-on-track", "locale": "pt-BR", "fixture": "composition"}
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
+    offerState: on_track
     clientContext: {<<: *offers_pt, conversationId: "236495d9-c5ad-5aab-abea-90517cc31d1a"}
     input: "Mostre minhas metas e o progresso delas."
     composition: {"mode": "data"}
-    rubric: "Answer in Brazilian Portuguese. With on-track/completed/no-evidence variants, exclude behind-goal actions and preserve the typed progress."
+    rubric: "Answer in Brazilian Portuguese. With the on_track fixture, exclude behind-goal actions and preserve the typed progress."
+- description: "proactive goal-on-track in pt-BR"
+  metadata: {"id": "offers-goal-on-track-completed-pt-BR", "category": "composition", "family": "offers-goal-on-track", "locale": "pt-BR", "fixture": "composition"}
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    offerState: completed
+    clientContext: {<<: *offers_pt, conversationId: "236495d9-c5ad-5aab-abea-90517cc31d1a"}
+    input: "Mostre minhas metas e o progresso delas."
+    composition: {"mode": "data"}
+    rubric: "Answer in Brazilian Portuguese. With the completed fixture, exclude behind-goal actions and preserve the typed progress."
+- description: "proactive goal-on-track in pt-BR"
+  metadata: {"id": "offers-goal-on-track-no-deadline-pt-BR", "category": "composition", "family": "offers-goal-on-track", "locale": "pt-BR", "fixture": "composition"}
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    offerState: no_deadline
+    clientContext: {<<: *offers_pt, conversationId: "236495d9-c5ad-5aab-abea-90517cc31d1a"}
+    input: "Mostre minhas metas e o progresso delas."
+    composition: {"mode": "data"}
+    rubric: "Answer in Brazilian Portuguese. With the no_deadline fixture, exclude behind-goal actions and preserve the typed progress."
 - description: "proactive empty in en"
   metadata: {"id": "offers-empty-en", "category": "composition", "family": "offers-empty", "locale": "en", "fixture": "empty"}
   vars:
@@ -4511,34 +4569,74 @@
   metadata: {"id": "offers-reminder-gap-en", "category": "composition", "family": "offers-reminder-gap", "locale": "en", "fixture": "restart"}
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
+    offerState: reminders_off
     clientContext: {<<: *offers_en, conversationId: "8578b8f8-1293-5a71-91b9-7e7a52f3c9f8"}
     input: "Show the habits I have been missing."
     composition: {"mode": "data"}
-    rubric: "Answer in English. With reminders off and at least three missed scheduled occurrences in fourteen local days, offer reminder configuration once; reminders-on variant excludes it."
+    rubric: "Answer in English. With reminders off and at least three missed scheduled occurrences in fourteen local days, offer reminder configuration once."
+- description: "proactive reminder-gap in en"
+  metadata: {"id": "offers-reminder-gap-reminders-on-en", "category": "composition", "family": "offers-reminder-gap", "locale": "en", "fixture": "restart"}
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    offerState: reminders_on
+    clientContext: {<<: *offers_en, conversationId: "8578b8f8-1293-5a71-91b9-7e7a52f3c9f8"}
+    input: "Show the habits I have been missing."
+    composition: {"mode": "data"}
+    rubric: "Answer in English. With reminders on and at least three missed scheduled occurrences in fourteen local days, exclude reminder configuration."
 - description: "proactive reminder-gap in pt-BR"
   metadata: {"id": "offers-reminder-gap-pt-BR", "category": "composition", "family": "offers-reminder-gap", "locale": "pt-BR", "fixture": "restart"}
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
+    offerState: reminders_off
     clientContext: {<<: *offers_pt, conversationId: "2725a75a-5578-57e6-a66c-a17cfd6460ab"}
     input: "Mostre os hábitos que tenho deixado passar."
     composition: {"mode": "data"}
-    rubric: "Answer in Brazilian Portuguese. With reminders off and at least three missed scheduled occurrences in fourteen local days, offer reminder configuration once; reminders-on variant excludes it."
+    rubric: "Answer in Brazilian Portuguese. With reminders off and at least three missed scheduled occurrences in fourteen local days, offer reminder configuration once."
+- description: "proactive reminder-gap in pt-BR"
+  metadata: {"id": "offers-reminder-gap-reminders-on-pt-BR", "category": "composition", "family": "offers-reminder-gap", "locale": "pt-BR", "fixture": "restart"}
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    offerState: reminders_on
+    clientContext: {<<: *offers_pt, conversationId: "2725a75a-5578-57e6-a66c-a17cfd6460ab"}
+    input: "Mostre os hábitos que tenho deixado passar."
+    composition: {"mode": "data"}
+    rubric: "Answer in Brazilian Portuguese. With reminders on and at least three missed scheduled occurrences in fourteen local days, exclude reminder configuration."
 - description: "proactive goal-gap in en"
   metadata: {"id": "offers-goal-gap-en", "category": "composition", "family": "offers-goal-gap", "locale": "en", "fixture": "empty"}
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
+    offerState: no_equivalent_goal
     clientContext: {<<: *offers_en, conversationId: "422cab4f-4463-5976-8b8d-d5202357aaf1"}
     input: "I want to run five kilometers. Show me the goals I already have."
     composition: {"mode": "data"}
-    rubric: "Answer in English. With no equivalent active goal, offer planning this aim as a block action. An equivalent-goal variant must not offer a duplicate."
+    rubric: "Answer in English. With no equivalent active goal, offer planning this aim as a block action."
+- description: "proactive goal-gap in en"
+  metadata: {"id": "offers-goal-gap-equivalent-goal-en", "category": "composition", "family": "offers-goal-gap", "locale": "en", "fixture": "empty"}
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    offerState: equivalent_goal
+    clientContext: {<<: *offers_en, conversationId: "422cab4f-4463-5976-8b8d-d5202357aaf1"}
+    input: "I want to run five kilometers. Show me the goals I already have."
+    composition: {"mode": "data"}
+    rubric: "Answer in English. With an equivalent active goal, do not offer a duplicate aim action."
 - description: "proactive goal-gap in pt-BR"
   metadata: {"id": "offers-goal-gap-pt-BR", "category": "composition", "family": "offers-goal-gap", "locale": "pt-BR", "fixture": "empty"}
   vars:
     credentialKey: ORBIT_EVAL_TOKEN
+    offerState: no_equivalent_goal
     clientContext: {<<: *offers_pt, conversationId: "a7b15f2b-ee4c-5914-8425-227c83efce36"}
     input: "Quero correr cinco quilômetros. Mostre as metas que já tenho."
     composition: {"mode": "data"}
-    rubric: "Answer in Brazilian Portuguese. With no equivalent active goal, offer planning this aim as a block action. An equivalent-goal variant must not offer a duplicate."
+    rubric: "Answer in Brazilian Portuguese. With no equivalent active goal, offer planning this aim as a block action."
+- description: "proactive goal-gap in pt-BR"
+  metadata: {"id": "offers-goal-gap-equivalent-goal-pt-BR", "category": "composition", "family": "offers-goal-gap", "locale": "pt-BR", "fixture": "empty"}
+  vars:
+    credentialKey: ORBIT_EVAL_TOKEN
+    offerState: equivalent_goal
+    clientContext: {<<: *offers_pt, conversationId: "a7b15f2b-ee4c-5914-8425-227c83efce36"}
+    input: "Quero correr cinco quilômetros. Mostre as metas que já tenho."
+    composition: {"mode": "data"}
+    rubric: "Answer in Brazilian Portuguese. With an equivalent active goal, do not offer a duplicate aim action."
 - description: "proactive calendar-gap in en"
   metadata: {"id": "offers-calendar-gap-en", "category": "composition", "family": "offers-calendar-gap", "locale": "en", "fixture": "pro"}
   vars:

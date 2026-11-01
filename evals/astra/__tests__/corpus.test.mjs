@@ -7,6 +7,36 @@ const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', impor
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
 const textOccurrenceCount = /\b(?:appear(?:s)?|occur(?:s)?|mention(?:ed)?|repeat(?:ed)?)\b[^.;]*\b(?:(?:exactly|only) once|once|one (?:time|occurrence)|twice)\b/i
+it('includes every scenario identity in the launch corpus', () => {
+  expect(corpus).toHaveLength(184)
+  expect(scenarios).toHaveLength(21)
+  expect(new Set([...corpus, ...scenarios].map((entry) => entry.metadata.id)).size).toBe(205)
+})
+it.each([
+  ['goal-behind', ['at_risk', 'behind']],
+  ['goal-on-track', ['on_track', 'completed', 'no_deadline']],
+  ['reminder-gap', ['reminders_off', 'reminders_on']],
+  ['goal-gap', ['no_equivalent_goal', 'equivalent_goal']],
+])('reports every explicit %s state in both locales', (family, states) => {
+  const entries = corpus.filter((entry) => entry.metadata.family === `offers-${family}`)
+  for (const locale of ['en', 'pt-BR']) {
+    const localized = entries.filter((entry) => entry.metadata.locale === locale)
+    expect(localized.map((entry) => entry.vars.offerState)).toEqual(states)
+    expect(localized[0].metadata.id).toBe(`offers-${family}-${locale}`)
+    const { offerState: _state, rubric: _rubric, ...original } = localized[0].vars
+    for (const entry of localized.slice(1)) {
+      const { offerState: _selected, rubric: _grading, ...variant } = entry.vars
+      expect(variant).toEqual(original)
+    }
+  }
+  const attempts = entries.flatMap(({ metadata }) => Array.from({ length: ATTEMPTS_PER_CASE }, () => ({
+    testCase: { metadata }, success: true,
+    gradingResult: { componentResults: [{ pass: true, assertion: { metric: 'composition' } }] },
+  })))
+  expect(summarize(attempts, entries.map((entry) => entry.metadata)).groups).toEqual(['en', 'pt-BR'].map((locale) => ({
+    family: `offers-${family}`, locale, cases: states.length, passed: states.length, allAttemptsPass: 'pass',
+  })))
+})
 it.each([
   'The stored title Water appears verbatim exactly once in the preview.',
   'The stored title Beber água appears verbatim exactly once in the preview.',

@@ -55,7 +55,7 @@ it.each(['en', 'pt-BR'])('seeds missed non-daily offer occurrences and verifies 
 it('resets behind fixtures on the profile calendar day without replacing the original timezone', async () => {
   vi.setSystemTime(new Date('2031-06-10T00:30:00Z'))
   const test = structuredClone(corpus.find((entry) => entry.metadata.id === 'offers-goal-behind-en'))
-  Object.assign(test.vars, { offerFamily: 'goal-behind', offerVariant: 1 })
+  Object.assign(test.vars, { offerFamily: 'goal-behind', offerState: 'behind' })
   const source = globalThis.fetch
   vi.stubGlobal('fetch', async (url, options) => {
     const response = await source(url, options)
@@ -71,7 +71,7 @@ it('resets behind fixtures on the profile calendar day without replacing the ori
 it.each(['en', 'pt-BR'])('GW resets the behind %s fixture during the former timezone gap without chat', async (locale) => {
   vi.setSystemTime(new Date('2031-06-10T10:30:00Z'))
   const test = structuredClone(corpus.find((entry) => entry.metadata.id === `offers-goal-behind-${locale}`))
-  Object.assign(test.vars, { offerFamily: 'goal-behind', offerVariant: 1 })
+  Object.assign(test.vars, { offerFamily: 'goal-behind', offerState: 'behind' })
   const source = globalThis.fetch
   vi.stubGlobal('fetch', async (url, options) => {
     const response = await source(url, options)

@@ -45,7 +45,7 @@ it.each(['en', 'pt-BR'])('prepares the shared client kinds for %s offer requests
 
 it('keeps all supplied cases, resolves their YAML contexts and configures the configured attempts', () => {
   const cases = corpus.filter((entry) => entry.metadata.family.startsWith('offers-'))
-  expect(cases).toHaveLength(60)
+  expect(cases).toHaveLength(70)
   expect(new Set(cases.map((entry) => entry.metadata.family)).size).toBe(29)
   expect(cases.every((entry) => entry.vars.clientContext.locale === entry.metadata.locale)).toBe(true)
   expect(cases.every((entry) => !Object.hasOwn(entry.vars.clientContext, '<<'))).toBe(true)

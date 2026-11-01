@@ -1,6 +1,6 @@
 import { publicApi } from './api.mjs'
 
-export const isBehindVariant = (vars) => vars.offerFamily === 'goal-behind' && vars.offerVariant === 1
+export const isBehindState = (vars) => vars.offerFamily === 'goal-behind' && vars.offerState === 'behind'
 
 export function dateInTimeZone(timeZone, instant = new Date()) {
   if (typeof timeZone !== 'string' || !timeZone.trim()) throw new Error('Offer fixture requires a restorable profile timezone.')

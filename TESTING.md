@@ -327,9 +327,25 @@ this flow offline; never treat their passing result as evidence from a live mode
 
 ### Proactive offer gate
 
-The `offers-*` families add 60 bilingual cases to the composition corpus. Each case runs the
-configured `k` attempts and retains its family/locale pass^k result.
-The app-launch gate uses `k=1`. A fresh conversation UUID replaces every
+The `offers-*` families add 70 bilingual cases to the composition corpus, bringing it to 184 cases
+and the full launch corpus to 205. Each case runs the configured `k` attempts and retains its
+family/locale pass^k result.
+The app-launch gate uses `k=1`. Fixture selection is explicit in `vars.offerState` and stays the
+same on retries. Each state has its own case identity in both locales:
+
+| Offer family | States |
+|---|---|
+| `goal-behind` | `at_risk`, `behind` |
+| `goal-on-track` | `on_track`, `completed`, `no_deadline` |
+| `reminder-gap` | `reminders_off`, `reminders_on` (excludes reminder offers) |
+| `goal-gap` | `no_equivalent_goal`, `equivalent_goal` (excludes duplicate aim offers) |
+
+The original case IDs retain the first state in each row. The scheduling control loads the corpus
+at the configured `k`, runs the per-case hook with intercepted public API calls, and checks goal
+tracking and offer exclusions in both locales. Behind cases retain the timezone transition and
+restoration checks at every UTC hour.
+
+A fresh conversation UUID replaces every
 case seed before setup; setup, revisions, selection,
 reload and device changes keep that attempt's UUID. Request trace UUIDs remain independently generated
 for each HTTP turn. No seed conversation ID reaches the API.
