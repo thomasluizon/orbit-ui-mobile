@@ -35,8 +35,12 @@ var prompts = Boundary<ISystemPromptBuilder>.Create((method, _) => method.Name i
     ? "" : throw new InvalidOperationException(method.Name));
 var catalog = Boundary<IAgentCatalogService>.Create((method, _) => method.Name is "BuildStaticSupplement" or "BuildDynamicSupplement" or "BuildClientHints"
     ? "" : throw new InvalidOperationException(method.Name));
-var pending = Boundary<IPendingAgentOperationStore>.Create((method, _) => method.Name == "GetAwaiting"
-    ? Array.Empty<PendingAgentOperationExecution>() : throw new InvalidOperationException(method.Name));
+var pending = Boundary<IPendingAgentOperationStore>.Create((method, _) => method.Name switch
+{
+    "GetAwaiting" => Array.Empty<PendingAgentOperationExecution>(),
+    "GetLastConversationPreviewsAsync" => Task.FromResult<IReadOnlyList<PendingAgentOperationPreview>>([]),
+    _ => throw new InvalidOperationException(method.Name),
+});
 var payGate = Boundary<IPayGateService>.Create((method, _) => method.Name == "TryConsumeAiMessage"
     ? Task.FromResult(Result.Success()) : throw new InvalidOperationException(method.Name));
 var previewer = Boundary<IPendingOperationChangePreviewer>.Create((method, _) => throw new InvalidOperationException(method.Name));

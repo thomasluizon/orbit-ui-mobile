@@ -1,6 +1,6 @@
 # Generated through the API request and continuation builders, StrictToolSchema and eval trace sensitivity collector.
 # Regenerate with node evals/astra/generate-catalog.mjs <api-checkout>.
-apiCommit: 1a9c6aed182cef751d4aecf52cebe31b52e55542
+apiCommit: 5010febf11630a0beb7210116807bb103c52dc14
 offerTools:
   - type: function
     writes: false
@@ -649,7 +649,8 @@ offerTools:
                   - "null"
                 description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
                   time. A deadline-only item uses the event date with due_end_time at the event, never another
-                  preparation's start date. Otherwise defaults to today.
+                  preparation's start date. Use requested account-local dates from words or images, including implied
+                  holidays and weekdays. Default to today only without a date signal.
               end_date:
                 type:
                   - string
@@ -660,7 +661,8 @@ offerTools:
                 type:
                   - string
                   - "null"
-                description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
+                description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
+                  are accepted as HH:mm:ss.
               due_end_time:
                 type:
                   - string
@@ -680,7 +682,7 @@ offerTools:
                 type:
                   - boolean
                   - "null"
-                description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
+                description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
               is_flexible:
                 type:
                   - boolean
@@ -786,11 +788,10 @@ offerTools:
                 type:
                   - object
                   - "null"
-                description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-                  schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the
-                  local day after completion or skip, and always respect the end date. General follows its own
-                  completion state. When no daily target was requested, use General with no frequency, and do not derive
-                  a target from the reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders.
+                description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+                  overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+                  Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+                  recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
                 properties:
                   interval_minutes:
                     type: integer
@@ -1560,26 +1561,27 @@ offerTools:
         A Task is one-time: frequency_unit=OneTime in create tools, stored as null, with due_date and requested
         due_time. A dated event or single dated instruction is a Task unless repetition was requested. A Habit has Day,
         Week, Month or Year and a positive frequency_quantity. Daily weekdays require Day/1; is_flexible tracks a
-        quantity within a window and cannot have weekdays. General items have no schedule, recurrence or avoid type.
-        end_date is inclusive and only recurring items use it. A preparation that starts N days or hours before an event
-        and continues until it is a Day/1 Habit: set due_date to the first local date and inclusive end_date to the
-        event date. start_date is only the recurrence anchor and never replaces due_date. Keep a single dated action as
-        a Task. For an activity lasting until a collection or other deadline, put its ending clock time in due_end_time,
-        not due_time; omit due_time when its start was not specified. Never leave temporary preparation recurring
-        indefinitely. Before submitting a create call, check each preparation against its own referenced event's local
-        date and time. In a preparation list, each offset governs the action written immediately after it, up to the
-        next offset or the next action without an offset. This applies to 3 days before, 24 hours before, 3 dias antes
-        and 24 horas antes, even without punctuation between actions. Never make an offset its own item or move it to
-        another action. Keep the person's own verb, such as stop, don't go, parar com or não ir, rather than a synonym;
-        normalize only spelling and casing. A restriction starting N days or hours before an event continues through the
-        event day. A 24-hour restriction is a bounded daily commitment, not a single action on its first day. For an
-        event on local date D at time T, that restriction uses frequency_unit=Day, frequency_quantity=1, due_date=D-1,
-        end_date=D (inclusive). Subtract other offsets independently from that event's local date and time. A
-        deadline-only instruction such as fast until the collection or jejum até a coleta uses frequency_unit=OneTime,
-        due_date=D, due_end_time=T; leave due_time absent or null when no start time was supplied. Do not copy a
-        preceding preparation's start date into a deadline-only item. Keep the event itself OneTime with its own
-        due_date and due_time. Check every restriction has its event end_date and every deadline-only item has its event
-        date and supplied ending time before submitting the complete preview.
+        quantity within a window and cannot have weekdays. General is a one-time task with no date (is_general=true).
+        Log completes; unlog reopens. No recurrence or avoid type. end_date is inclusive and only recurring items use
+        it. A preparation that starts N days or hours before an event and continues until it is a Day/1 Habit: set
+        due_date to the first local date and inclusive end_date to the event date. start_date is only the recurrence
+        anchor and never replaces due_date. Keep a single dated action as a Task. For an activity lasting until a
+        collection or other deadline, put its ending clock time in due_end_time, not due_time; omit due_time when its
+        start was not specified. Never leave temporary preparation recurring indefinitely. Before submitting a create
+        call, check each preparation against its own referenced event's local date and time. In a preparation list, each
+        offset governs the action written immediately after it, up to the next offset or the next action without an
+        offset. This applies to 3 days before, 24 hours before, 3 dias antes and 24 horas antes, even without
+        punctuation between actions. Never make an offset its own item or move it to another action. Keep the person's
+        own verb, such as stop, don't go, parar com or não ir, rather than a synonym; normalize only spelling and
+        casing. A restriction starting N days or hours before an event continues through the event day. A 24-hour
+        restriction is a bounded daily commitment, not a single action on its first day. For an event on local date D at
+        time T, that restriction uses frequency_unit=Day, frequency_quantity=1, due_date=D-1, end_date=D (inclusive).
+        Subtract other offsets independently from that event's local date and time. A deadline-only instruction such as
+        fast until the collection or jejum até a coleta uses frequency_unit=OneTime, due_date=D, due_end_time=T; leave
+        due_time absent or null when no start time was supplied. Do not copy a preceding preparation's start date into a
+        deadline-only item. Keep the event itself OneTime with its own due_date and due_time. Check every restriction
+        has its event end_date and every deadline-only item has its event date and supplied ending time before
+        submitting the complete preview.
 
 
         Use is_bad_habit=true only for ongoing reduction or slip tracking, named for the behaviour itself: Fumar, Tomar
@@ -1893,12 +1895,11 @@ offerTools:
                 type:
                   - object
                   - "null"
-                description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-                  schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the
-                  local day after completion or skip, and always respect the end date. General follows its own
-                  completion state. When no daily target was requested, use General with no frequency, and do not derive
-                  a target from the reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders.
-                  Use clear_fields to clear repeat_reminder.
+                description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+                  overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+                  Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+                  recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders.
+                  Use clear_fields to clear repeat_reminder."
                 properties:
                   interval_minutes:
                     type: integer
@@ -2165,9 +2166,11 @@ offerTools:
       name: create_habit
       description: "Use frequency_unit: OneTime for one-time tasks; null leaves recurrence unspecified and may require
         clarification. Create habits or dated tasks with tags, goals, checklists and children inline. Single dated
-        events are one-time, even when a weekday is named. Separate dated extras from recurring classes. Dated children
-        inherit parent frequency without its weekdays; use OneTime for a one-time child. Preserve requested weekdays.
-        Use checklist_items for steps done together and sub_habits for independent tracking."
+        events are one-time, even when a weekday is named. Put dates and times named or implied by the message or image
+        in due_date and due_time as requested fields; default to today only without a date signal. Separate dated extras
+        from recurring classes. Dated children inherit parent frequency without its weekdays; use OneTime for a one-time
+        child. Preserve requested weekdays. Use checklist_items for steps done together and sub_habits for independent
+        tracking."
       strict: true
       parameters:
         type: object
@@ -2226,21 +2229,20 @@ offerTools:
               - $ref: "#/$defs/shared6"
               - type: "null"
           due_time:
-            type:
-              - string
-              - "null"
-            description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
-          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared7"
               - type: "null"
-          is_bad_habit:
+          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared8"
               - type: "null"
-          is_general:
+          is_bad_habit:
             anyOf:
               - $ref: "#/$defs/shared9"
+              - type: "null"
+          is_general:
+            anyOf:
+              - $ref: "#/$defs/shared10"
               - type: "null"
           is_flexible:
             type:
@@ -2249,15 +2251,15 @@ offerTools:
             description: Window-based tracking. Requires frequency_unit.
           checklist_items:
             anyOf:
-              - $ref: "#/$defs/shared11"
+              - $ref: "#/$defs/shared12"
               - type: "null"
           start_date:
             anyOf:
-              - $ref: "#/$defs/shared12"
+              - $ref: "#/$defs/shared13"
               - type: "null"
           placement:
             anyOf:
-              - $ref: "#/$defs/shared13"
+              - $ref: "#/$defs/shared14"
               - type: "null"
           reminder_enabled:
             type:
@@ -2271,15 +2273,15 @@ offerTools:
               type: integer
           scheduled_reminders:
             anyOf:
-              - $ref: "#/$defs/shared15"
+              - $ref: "#/$defs/shared16"
               - type: "null"
           relative_reminders:
             anyOf:
-              - $ref: "#/$defs/shared17"
+              - $ref: "#/$defs/shared18"
               - type: "null"
           repeat_reminder:
             anyOf:
-              - $ref: "#/$defs/shared21"
+              - $ref: "#/$defs/shared22"
               - type: "null"
           slip_alert_enabled:
             type:
@@ -2293,7 +2295,7 @@ offerTools:
               type: string
           habit_id:
             anyOf:
-              - $ref: "#/$defs/shared22"
+              - $ref: "#/$defs/shared23"
               - type: "null"
           tag_ids:
             type:
@@ -2309,7 +2311,7 @@ offerTools:
               type: string
           parent_habit_id:
             anyOf:
-              - $ref: "#/$defs/shared23"
+              - $ref: "#/$defs/shared24"
               - type: "null"
           sub_habits:
             type:
@@ -2398,21 +2400,20 @@ offerTools:
                   - $ref: "#/$defs/shared6"
                   - type: "null"
               due_time:
-                type:
-                  - string
-                  - "null"
-                description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
-              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared7"
                   - type: "null"
-              is_bad_habit:
+              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared8"
                   - type: "null"
-              is_general:
+              is_bad_habit:
                 anyOf:
                   - $ref: "#/$defs/shared9"
+                  - type: "null"
+              is_general:
+                anyOf:
+                  - $ref: "#/$defs/shared10"
                   - type: "null"
               is_flexible:
                 type:
@@ -2421,15 +2422,15 @@ offerTools:
                 description: Window-based tracking. Requires frequency_unit.
               checklist_items:
                 anyOf:
-                  - $ref: "#/$defs/shared11"
+                  - $ref: "#/$defs/shared12"
                   - type: "null"
               start_date:
                 anyOf:
-                  - $ref: "#/$defs/shared12"
+                  - $ref: "#/$defs/shared13"
                   - type: "null"
               placement:
                 anyOf:
-                  - $ref: "#/$defs/shared13"
+                  - $ref: "#/$defs/shared14"
                   - type: "null"
               reminder_enabled:
                 type:
@@ -2443,15 +2444,15 @@ offerTools:
                   type: integer
               scheduled_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared15"
+                  - $ref: "#/$defs/shared16"
                   - type: "null"
               relative_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared17"
+                  - $ref: "#/$defs/shared18"
                   - type: "null"
               repeat_reminder:
                 anyOf:
-                  - $ref: "#/$defs/shared21"
+                  - $ref: "#/$defs/shared22"
                   - type: "null"
               slip_alert_enabled:
                 type:
@@ -2465,7 +2466,7 @@ offerTools:
                   type: string
               habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared22"
+                  - $ref: "#/$defs/shared23"
                   - type: "null"
               tag_ids:
                 type:
@@ -2481,7 +2482,7 @@ offerTools:
                   type: string
               parent_habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared23"
+                  - $ref: "#/$defs/shared24"
                   - type: "null"
               sub_habits:
                 type:
@@ -2565,7 +2566,8 @@ offerTools:
             type: string
             description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
               time. A deadline-only item uses the event date with due_end_time at the event, never another preparation's
-              start date. Otherwise defaults to today.
+              start date. Use requested account-local dates from words or images, including implied holidays and
+              weekdays. Default to today only without a date signal.
           shared6:
             type:
               - string
@@ -2573,6 +2575,10 @@ offerTools:
             description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
               that event's date with Day/1, never null. Omit or null for OneTime events and deadline-only items.
           shared7:
+            type: string
+            description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
+              are accepted as HH:mm:ss.
+          shared8:
             type:
               - string
               - "null"
@@ -2580,14 +2586,14 @@ offerTools:
               item that ends at an event uses that event's clock time, with due_date on the event date. A restriction
               starting before the event keeps its own start due_date and its inclusive end_date on the event. Leave
               due_time absent or null when no start time was supplied; do not drop a supplied collection deadline.
-          shared8:
+          shared9:
             type: boolean
             description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
               temporary medical commitment.
-          shared9:
-            type: boolean
-            description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
           shared10:
+            type: boolean
+            description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
+          shared11:
             type: object
             properties:
               text:
@@ -2601,16 +2607,16 @@ offerTools:
               - text
               - is_checked
             additionalProperties: false
-          shared11:
+          shared12:
             type: array
             description: Atomic sub-steps done together in one execution.
             items:
-              $ref: "#/$defs/shared10"
-          shared12:
+              $ref: "#/$defs/shared11"
+          shared13:
             type: string
             description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
               approval preview.
-          shared13:
+          shared14:
             type: string
             enum:
               - sub_habit
@@ -2618,7 +2624,7 @@ offerTools:
               - new_parent
             description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
               recommendation. Preserve every other proposal field when switching.
-          shared14:
+          shared15:
             type: object
             properties:
               when:
@@ -2633,12 +2639,12 @@ offerTools:
               - when
               - time
             additionalProperties: false
-          shared15:
+          shared16:
             type: array
             description: Absolute-time reminders for habits WITHOUT a due_time
             items:
-              $ref: "#/$defs/shared14"
-          shared16:
+              $ref: "#/$defs/shared15"
+          shared17:
             type: object
             properties:
               minutes_before:
@@ -2662,13 +2668,13 @@ offerTools:
               - when
               - time
             additionalProperties: false
-          shared17:
+          shared18:
             type: array
             description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
               array clears them."
             items:
-              $ref: "#/$defs/shared16"
-          shared18:
+              $ref: "#/$defs/shared17"
+          shared19:
             type: integer
             enum:
               - 15
@@ -2698,25 +2704,24 @@ offerTools:
               - 1260
               - 1320
               - 1380
-          shared19:
-            type: string
-            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared20:
             type: string
-            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared21:
+            type: string
+            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+          shared22:
             type: object
-            description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-              schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the local
-              day after completion or skip, and always respect the end date. General follows its own completion state.
-              When no daily target was requested, use General with no frequency, and do not derive a target from the
-              reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders.
+            description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+              overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+              Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+              recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
             properties:
               interval_minutes:
-                $ref: "#/$defs/shared18"
+                $ref: "#/$defs/shared19"
               active_start:
                 anyOf:
-                  - $ref: "#/$defs/shared19"
+                  - $ref: "#/$defs/shared20"
                   - type: "null"
               active_end:
                 type:
@@ -2725,7 +2730,7 @@ offerTools:
                 description: Optional local HH:mm, paired with active_start.
               start_at_utc:
                 anyOf:
-                  - $ref: "#/$defs/shared20"
+                  - $ref: "#/$defs/shared21"
                   - type: "null"
             required:
               - interval_minutes
@@ -2733,12 +2738,12 @@ offerTools:
               - active_end
               - start_at_utc
             additionalProperties: false
-          shared22:
+          shared23:
             type: string
             description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
               stored title verbatim; supply only requested changes and leave other fields null. Null means a new
               activity.
-          shared23:
+          shared24:
             type: string
             description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
               turn them into description text.
@@ -2808,21 +2813,20 @@ offerTools:
               - $ref: "#/$defs/shared6"
               - type: "null"
           due_time:
-            type:
-              - string
-              - "null"
-            description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
-          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared7"
               - type: "null"
-          is_bad_habit:
+          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared8"
               - type: "null"
-          is_general:
+          is_bad_habit:
             anyOf:
               - $ref: "#/$defs/shared9"
+              - type: "null"
+          is_general:
+            anyOf:
+              - $ref: "#/$defs/shared10"
               - type: "null"
           is_flexible:
             type:
@@ -2831,15 +2835,15 @@ offerTools:
             description: Window-based tracking. Requires frequency_unit.
           checklist_items:
             anyOf:
-              - $ref: "#/$defs/shared11"
+              - $ref: "#/$defs/shared12"
               - type: "null"
           start_date:
             anyOf:
-              - $ref: "#/$defs/shared12"
+              - $ref: "#/$defs/shared13"
               - type: "null"
           placement:
             anyOf:
-              - $ref: "#/$defs/shared13"
+              - $ref: "#/$defs/shared14"
               - type: "null"
           reminder_enabled:
             type:
@@ -2853,15 +2857,15 @@ offerTools:
               type: integer
           scheduled_reminders:
             anyOf:
-              - $ref: "#/$defs/shared15"
+              - $ref: "#/$defs/shared16"
               - type: "null"
           relative_reminders:
             anyOf:
-              - $ref: "#/$defs/shared17"
+              - $ref: "#/$defs/shared18"
               - type: "null"
           repeat_reminder:
             anyOf:
-              - $ref: "#/$defs/shared21"
+              - $ref: "#/$defs/shared22"
               - type: "null"
           slip_alert_enabled:
             type:
@@ -2875,7 +2879,7 @@ offerTools:
               type: string
           habit_id:
             anyOf:
-              - $ref: "#/$defs/shared22"
+              - $ref: "#/$defs/shared23"
               - type: "null"
           tag_ids:
             type:
@@ -2890,7 +2894,7 @@ offerTools:
             items:
               type: string
           parent_habit_id:
-            $ref: "#/$defs/shared23"
+            $ref: "#/$defs/shared24"
           sub_habits:
             type:
               - array
@@ -2978,21 +2982,20 @@ offerTools:
                   - $ref: "#/$defs/shared6"
                   - type: "null"
               due_time:
-                type:
-                  - string
-                  - "null"
-                description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
-              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared7"
                   - type: "null"
-              is_bad_habit:
+              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared8"
                   - type: "null"
-              is_general:
+              is_bad_habit:
                 anyOf:
                   - $ref: "#/$defs/shared9"
+                  - type: "null"
+              is_general:
+                anyOf:
+                  - $ref: "#/$defs/shared10"
                   - type: "null"
               is_flexible:
                 type:
@@ -3001,15 +3004,15 @@ offerTools:
                 description: Window-based tracking. Requires frequency_unit.
               checklist_items:
                 anyOf:
-                  - $ref: "#/$defs/shared11"
+                  - $ref: "#/$defs/shared12"
                   - type: "null"
               start_date:
                 anyOf:
-                  - $ref: "#/$defs/shared12"
+                  - $ref: "#/$defs/shared13"
                   - type: "null"
               placement:
                 anyOf:
-                  - $ref: "#/$defs/shared13"
+                  - $ref: "#/$defs/shared14"
                   - type: "null"
               reminder_enabled:
                 type:
@@ -3023,15 +3026,15 @@ offerTools:
                   type: integer
               scheduled_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared15"
+                  - $ref: "#/$defs/shared16"
                   - type: "null"
               relative_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared17"
+                  - $ref: "#/$defs/shared18"
                   - type: "null"
               repeat_reminder:
                 anyOf:
-                  - $ref: "#/$defs/shared21"
+                  - $ref: "#/$defs/shared22"
                   - type: "null"
               slip_alert_enabled:
                 type:
@@ -3045,7 +3048,7 @@ offerTools:
                   type: string
               habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared22"
+                  - $ref: "#/$defs/shared23"
                   - type: "null"
               tag_ids:
                 type:
@@ -3061,7 +3064,7 @@ offerTools:
                   type: string
               parent_habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared23"
+                  - $ref: "#/$defs/shared24"
                   - type: "null"
               sub_habits:
                 type:
@@ -3145,7 +3148,8 @@ offerTools:
             type: string
             description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
               time. A deadline-only item uses the event date with due_end_time at the event, never another preparation's
-              start date. Otherwise defaults to today.
+              start date. Use requested account-local dates from words or images, including implied holidays and
+              weekdays. Default to today only without a date signal.
           shared6:
             type:
               - string
@@ -3153,6 +3157,10 @@ offerTools:
             description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
               that event's date with Day/1, never null. Omit or null for OneTime events and deadline-only items.
           shared7:
+            type: string
+            description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
+              are accepted as HH:mm:ss.
+          shared8:
             type:
               - string
               - "null"
@@ -3160,14 +3168,14 @@ offerTools:
               item that ends at an event uses that event's clock time, with due_date on the event date. A restriction
               starting before the event keeps its own start due_date and its inclusive end_date on the event. Leave
               due_time absent or null when no start time was supplied; do not drop a supplied collection deadline.
-          shared8:
+          shared9:
             type: boolean
             description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
               temporary medical commitment.
-          shared9:
-            type: boolean
-            description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
           shared10:
+            type: boolean
+            description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
+          shared11:
             type: object
             properties:
               text:
@@ -3181,16 +3189,16 @@ offerTools:
               - text
               - is_checked
             additionalProperties: false
-          shared11:
+          shared12:
             type: array
             description: Atomic sub-steps done together in one execution.
             items:
-              $ref: "#/$defs/shared10"
-          shared12:
+              $ref: "#/$defs/shared11"
+          shared13:
             type: string
             description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
               approval preview.
-          shared13:
+          shared14:
             type: string
             enum:
               - sub_habit
@@ -3198,7 +3206,7 @@ offerTools:
               - new_parent
             description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
               recommendation. Preserve every other proposal field when switching.
-          shared14:
+          shared15:
             type: object
             properties:
               when:
@@ -3213,12 +3221,12 @@ offerTools:
               - when
               - time
             additionalProperties: false
-          shared15:
+          shared16:
             type: array
             description: Absolute-time reminders for habits WITHOUT a due_time
             items:
-              $ref: "#/$defs/shared14"
-          shared16:
+              $ref: "#/$defs/shared15"
+          shared17:
             type: object
             properties:
               minutes_before:
@@ -3242,13 +3250,13 @@ offerTools:
               - when
               - time
             additionalProperties: false
-          shared17:
+          shared18:
             type: array
             description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
               array clears them."
             items:
-              $ref: "#/$defs/shared16"
-          shared18:
+              $ref: "#/$defs/shared17"
+          shared19:
             type: integer
             enum:
               - 15
@@ -3278,25 +3286,24 @@ offerTools:
               - 1260
               - 1320
               - 1380
-          shared19:
-            type: string
-            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared20:
             type: string
-            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared21:
+            type: string
+            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+          shared22:
             type: object
-            description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-              schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the local
-              day after completion or skip, and always respect the end date. General follows its own completion state.
-              When no daily target was requested, use General with no frequency, and do not derive a target from the
-              reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders.
+            description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+              overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+              Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+              recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
             properties:
               interval_minutes:
-                $ref: "#/$defs/shared18"
+                $ref: "#/$defs/shared19"
               active_start:
                 anyOf:
-                  - $ref: "#/$defs/shared19"
+                  - $ref: "#/$defs/shared20"
                   - type: "null"
               active_end:
                 type:
@@ -3305,7 +3312,7 @@ offerTools:
                 description: Optional local HH:mm, paired with active_start.
               start_at_utc:
                 anyOf:
-                  - $ref: "#/$defs/shared20"
+                  - $ref: "#/$defs/shared21"
                   - type: "null"
             required:
               - interval_minutes
@@ -3313,12 +3320,12 @@ offerTools:
               - active_end
               - start_at_utc
             additionalProperties: false
-          shared22:
+          shared23:
             type: string
             description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
               stored title verbatim; supply only requested changes and leave other fields null. Null means a new
               activity.
-          shared23:
+          shared24:
             type: string
             description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
               turn them into description text.
@@ -3527,10 +3534,10 @@ offerTools:
         or schedule math. Use only mechanics, screens, fields and steps explicitly documented in markdown or
         app_surfaces. related_surfaces lists destinations, not editing instructions. app_surfaces comes from the same
         catalog as list_app_surfaces_v2; use only its documented destinations and steps. Never infer a habit edit screen
-        or creation workflow from a related destination. When the requested detail is absent, say that the explanation
-        does not cover it; do not invent navigation or settings. Answer in the person's language. Use at most three
-        short steps, one complete sentence per line, at most 180 characters per line. Do not join steps into a
-        paragraph.
+        or creation workflow from a related destination. Say that the explanation does not cover the requested detail
+        only when no step in markdown or app_surfaces answers the question; do not invent navigation or settings. Answer
+        in the person's language. Use at most three short steps, one complete sentence per line, at most 180 characters
+        per line. Do not join steps into a paragraph.
       strict: true
       parameters:
         type: object
@@ -5084,10 +5091,10 @@ offerTools:
     sensitiveFields: []
     function:
       name: query_goals
-      description: Read goals and their progress, deadlines and linked habits. Call before answering goal questions; indexes
-        do not ground replies. This result completely answers a goal-progress request; no habit analytics or habit
-        calendar read is needed. Goal progress is the goal's current value against its target in this result. For a
-        goal-progress request, call query_goals alone with orbit_read_complete=true.
+      description: Read goals, progress, deadlines and linked habits before answering goal questions; indexes do not ground
+        replies. For goals or progress, set include_completed=true unless only active goals or a specific status is
+        requested. Progress is current value against target. For goal progress, call only query_goals with
+        orbit_read_complete=true; no habit analytics or calendar read is needed.
       strict: true
       parameters:
         type: object
@@ -5224,7 +5231,7 @@ offerTools:
             type:
               - boolean
               - "null"
-            description: Filter timeless habits; null includes both.
+            description: "General: a one-time task with no date. Null includes both."
           is_completed:
             type:
               - boolean
@@ -5620,41 +5627,31 @@ offerTools:
           - date
         additionalProperties: false
   - type: function
-    writes: true
+    writes: false
     sensitiveFields: []
     function:
       name: suggest_breakdown
-      description: "Suggest sub-habits without creating them. When the person cannot get themselves to do an activity, is
-        stuck starting it, or asks for one concrete first step, call suggest_breakdown with one_small_step=true even if
-        they do not say start. When a read request also states an aim, answer only the requested read. An aim alone does
-        not request a write or suggest_breakdown. The server offers a goal action on the read block when appropriate;
-        wait for the person to select it before planning the aim. Set language to en or pt-BR matching their message,
-        title to the activity and suggested_sub_habits to exactly one concrete starting action. Never return an empty
-        array. For a smaller refinement, use structured previousStartingStep as the baseline, keep its goal and return a
-        proper part of its step or its first physical action, taking strictly less time and effort. A paraphrase or a
-        different action of equal or greater effort is not smaller. For a smaller refinement, use the typed
-        previousStartingStep.goal and previousStartingStep.step to compare effort before choosing the action. Keep the
-        same activity and return only the first preparatory physical motion, stopping before the previous action is
-        completed. When the previous step is already one short action, reduce it to contact or positioning and stop
-        there. Picking up material can take as much effort as opening it. Tapping material to open it still completes
-        the previous action. For opening study material, use a motion such as resting one fingertip on its closed cover:
-        'Rest one finger on the closed cover' / 'Encostar um dedo na capa fechada'. Do not append opening, reading or
-        another action to that motion. Apply this comparison in both en and pt-BR. If previousStartingStep.step already
-        consists of a single touch or contact, another touch, tap or finger placement is equal effort and is not
-        smaller. Reduce to looking at the same object without touching or moving it. Compare with the actual typed
-        previous step. Do not repeat contact as a refinement of contact. The server returns oneSmallStep with smaller
-        and save actions. Emit no prose or lists alongside it. Suggestions never save anything. Only an explicit save
-        request uses create_habit for a Task or update_checklist, with item_to_add containing only the step, resolving
-        the owned habit first. The server preserves all stored checklist items. Both require the existing approval
-        preview."
+      description: Suggest sub-habits without creating them. Call once per request; never repeat identical arguments. When the
+        person cannot get themselves to do an activity, is stuck starting it, or asks for one concrete first step, call
+        suggest_breakdown with one_small_step=true even if they do not say start. When a read request also states an
+        aim, answer only the requested read. An aim alone does not request a write or suggest_breakdown. The server
+        offers a goal action on the read block when appropriate; wait for the person to select it before planning the
+        aim. Set language to en or pt-BR matching their message, title to the activity and suggested_sub_habits to
+        exactly one concrete starting action. Never return an empty array. For a smaller refinement, use structured
+        previousStartingStep as the baseline, keep its goal and return a proper part of its step or its first physical
+        action, taking strictly less time and effort. A paraphrase or a different action of equal or greater effort is
+        not smaller. The server returns oneSmallStep with smaller and save actions. Emit no prose or lists alongside it.
+        Suggestions never save anything. Only an explicit save request uses create_habit for a Task or update_checklist,
+        with item_to_add containing only the step, resolving the owned habit first. The server preserves all stored
+        checklist items. Both require the existing approval preview.
       strict: true
       parameters:
         type: object
         properties:
-          orbit_write_complete:
+          orbit_read_complete:
             type: boolean
-            description: True only when every requested mutation has its matching write call in this round; a read status never
-              fulfills a write. False when a lookup or dependent action is still needed.
+            description: True when all reads in this round fully answer the request, including compound reads and readable fallback
+              text; false for prerequisite lookups or any remaining read or write.
           orbit_dismissed_offer_keys:
             type:
               - array
@@ -5732,7 +5729,7 @@ offerTools:
                 - days
               additionalProperties: false
         required:
-          - orbit_write_complete
+          - orbit_read_complete
           - orbit_dismissed_offer_keys
           - one_small_step
           - language
@@ -5844,8 +5841,8 @@ offerTools:
     sensitiveFields: []
     function:
       name: unlog_habit
-      description: Undo a habit completion for a specific date (defaults to today). Removes one completion without creating a
-        log. Fails if no completion exists for that date. Use log_habit to mark it again.
+      description: Undo one habit completion. Completed General tasks use their latest completion; other schedules use the
+        specified date or today. Fails if no completion exists. Use log_habit to mark it again.
       strict: true
       parameters:
         type: object
@@ -5869,7 +5866,7 @@ offerTools:
             type:
               - string
               - "null"
-            description: ISO date (YYYY-MM-DD) of the completion to undo. Defaults to today.
+            description: ISO date (YYYY-MM-DD). Defaults to today for dated schedules; ignored for completed General tasks.
         required:
           - orbit_write_complete
           - orbit_dismissed_offer_keys
@@ -6164,26 +6161,27 @@ offerTools:
         A Task is one-time: frequency_unit=OneTime in create tools, stored as null, with due_date and requested
         due_time. A dated event or single dated instruction is a Task unless repetition was requested. A Habit has Day,
         Week, Month or Year and a positive frequency_quantity. Daily weekdays require Day/1; is_flexible tracks a
-        quantity within a window and cannot have weekdays. General items have no schedule, recurrence or avoid type.
-        end_date is inclusive and only recurring items use it. A preparation that starts N days or hours before an event
-        and continues until it is a Day/1 Habit: set due_date to the first local date and inclusive end_date to the
-        event date. start_date is only the recurrence anchor and never replaces due_date. Keep a single dated action as
-        a Task. For an activity lasting until a collection or other deadline, put its ending clock time in due_end_time,
-        not due_time; omit due_time when its start was not specified. Never leave temporary preparation recurring
-        indefinitely. Before submitting a create call, check each preparation against its own referenced event's local
-        date and time. In a preparation list, each offset governs the action written immediately after it, up to the
-        next offset or the next action without an offset. This applies to 3 days before, 24 hours before, 3 dias antes
-        and 24 horas antes, even without punctuation between actions. Never make an offset its own item or move it to
-        another action. Keep the person's own verb, such as stop, don't go, parar com or não ir, rather than a synonym;
-        normalize only spelling and casing. A restriction starting N days or hours before an event continues through the
-        event day. A 24-hour restriction is a bounded daily commitment, not a single action on its first day. For an
-        event on local date D at time T, that restriction uses frequency_unit=Day, frequency_quantity=1, due_date=D-1,
-        end_date=D (inclusive). Subtract other offsets independently from that event's local date and time. A
-        deadline-only instruction such as fast until the collection or jejum até a coleta uses frequency_unit=OneTime,
-        due_date=D, due_end_time=T; leave due_time absent or null when no start time was supplied. Do not copy a
-        preceding preparation's start date into a deadline-only item. Keep the event itself OneTime with its own
-        due_date and due_time. Check every restriction has its event end_date and every deadline-only item has its event
-        date and supplied ending time before submitting the complete preview.
+        quantity within a window and cannot have weekdays. General is a one-time task with no date (is_general=true).
+        Log completes; unlog reopens. No recurrence or avoid type. end_date is inclusive and only recurring items use
+        it. A preparation that starts N days or hours before an event and continues until it is a Day/1 Habit: set
+        due_date to the first local date and inclusive end_date to the event date. start_date is only the recurrence
+        anchor and never replaces due_date. Keep a single dated action as a Task. For an activity lasting until a
+        collection or other deadline, put its ending clock time in due_end_time, not due_time; omit due_time when its
+        start was not specified. Never leave temporary preparation recurring indefinitely. Before submitting a create
+        call, check each preparation against its own referenced event's local date and time. In a preparation list, each
+        offset governs the action written immediately after it, up to the next offset or the next action without an
+        offset. This applies to 3 days before, 24 hours before, 3 dias antes and 24 horas antes, even without
+        punctuation between actions. Never make an offset its own item or move it to another action. Keep the person's
+        own verb, such as stop, don't go, parar com or não ir, rather than a synonym; normalize only spelling and
+        casing. A restriction starting N days or hours before an event continues through the event day. A 24-hour
+        restriction is a bounded daily commitment, not a single action on its first day. For an event on local date D at
+        time T, that restriction uses frequency_unit=Day, frequency_quantity=1, due_date=D-1, end_date=D (inclusive).
+        Subtract other offsets independently from that event's local date and time. A deadline-only instruction such as
+        fast until the collection or jejum até a coleta uses frequency_unit=OneTime, due_date=D, due_end_time=T; leave
+        due_time absent or null when no start time was supplied. Do not copy a preceding preparation's start date into a
+        deadline-only item. Keep the event itself OneTime with its own due_date and due_time. Check every restriction
+        has its event end_date and every deadline-only item has its event date and supplied ending time before
+        submitting the complete preview.
 
 
         Use is_bad_habit=true only for ongoing reduction or slip tracking, named for the behaviour itself: Fumar, Tomar
@@ -6417,7 +6415,7 @@ offerTools:
             type:
               - boolean
               - "null"
-            description: General habit without a schedule. Children must match their parent.
+            description: A one-time task with no date. Children must match their parent.
           slip_alert_enabled:
             type:
               - boolean
@@ -6457,12 +6455,11 @@ offerTools:
             type:
               - object
               - "null"
-            description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-              schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the local
-              day after completion or skip, and always respect the end date. General follows its own completion state.
-              When no daily target was requested, use General with no frequency, and do not derive a target from the
-              reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders. Use clear_fields to
-              clear repeat_reminder.
+            description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+              overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+              Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+              recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders. Use
+              clear_fields to clear repeat_reminder."
             properties:
               interval_minutes:
                 type: integer
@@ -8189,7 +8186,8 @@ tools:
                   - "null"
                 description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
                   time. A deadline-only item uses the event date with due_end_time at the event, never another
-                  preparation's start date. Otherwise defaults to today.
+                  preparation's start date. Use requested account-local dates from words or images, including implied
+                  holidays and weekdays. Default to today only without a date signal.
               end_date:
                 type:
                   - string
@@ -8200,7 +8198,8 @@ tools:
                 type:
                   - string
                   - "null"
-                description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
+                description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
+                  are accepted as HH:mm:ss.
               due_end_time:
                 type:
                   - string
@@ -8220,7 +8219,7 @@ tools:
                 type:
                   - boolean
                   - "null"
-                description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
+                description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
               is_flexible:
                 type:
                   - boolean
@@ -8326,11 +8325,10 @@ tools:
                 type:
                   - object
                   - "null"
-                description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-                  schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the
-                  local day after completion or skip, and always respect the end date. General follows its own
-                  completion state. When no daily target was requested, use General with no frequency, and do not derive
-                  a target from the reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders.
+                description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+                  overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+                  Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+                  recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
                 properties:
                   interval_minutes:
                     type: integer
@@ -9054,26 +9052,27 @@ tools:
         A Task is one-time: frequency_unit=OneTime in create tools, stored as null, with due_date and requested
         due_time. A dated event or single dated instruction is a Task unless repetition was requested. A Habit has Day,
         Week, Month or Year and a positive frequency_quantity. Daily weekdays require Day/1; is_flexible tracks a
-        quantity within a window and cannot have weekdays. General items have no schedule, recurrence or avoid type.
-        end_date is inclusive and only recurring items use it. A preparation that starts N days or hours before an event
-        and continues until it is a Day/1 Habit: set due_date to the first local date and inclusive end_date to the
-        event date. start_date is only the recurrence anchor and never replaces due_date. Keep a single dated action as
-        a Task. For an activity lasting until a collection or other deadline, put its ending clock time in due_end_time,
-        not due_time; omit due_time when its start was not specified. Never leave temporary preparation recurring
-        indefinitely. Before submitting a create call, check each preparation against its own referenced event's local
-        date and time. In a preparation list, each offset governs the action written immediately after it, up to the
-        next offset or the next action without an offset. This applies to 3 days before, 24 hours before, 3 dias antes
-        and 24 horas antes, even without punctuation between actions. Never make an offset its own item or move it to
-        another action. Keep the person's own verb, such as stop, don't go, parar com or não ir, rather than a synonym;
-        normalize only spelling and casing. A restriction starting N days or hours before an event continues through the
-        event day. A 24-hour restriction is a bounded daily commitment, not a single action on its first day. For an
-        event on local date D at time T, that restriction uses frequency_unit=Day, frequency_quantity=1, due_date=D-1,
-        end_date=D (inclusive). Subtract other offsets independently from that event's local date and time. A
-        deadline-only instruction such as fast until the collection or jejum até a coleta uses frequency_unit=OneTime,
-        due_date=D, due_end_time=T; leave due_time absent or null when no start time was supplied. Do not copy a
-        preceding preparation's start date into a deadline-only item. Keep the event itself OneTime with its own
-        due_date and due_time. Check every restriction has its event end_date and every deadline-only item has its event
-        date and supplied ending time before submitting the complete preview.
+        quantity within a window and cannot have weekdays. General is a one-time task with no date (is_general=true).
+        Log completes; unlog reopens. No recurrence or avoid type. end_date is inclusive and only recurring items use
+        it. A preparation that starts N days or hours before an event and continues until it is a Day/1 Habit: set
+        due_date to the first local date and inclusive end_date to the event date. start_date is only the recurrence
+        anchor and never replaces due_date. Keep a single dated action as a Task. For an activity lasting until a
+        collection or other deadline, put its ending clock time in due_end_time, not due_time; omit due_time when its
+        start was not specified. Never leave temporary preparation recurring indefinitely. Before submitting a create
+        call, check each preparation against its own referenced event's local date and time. In a preparation list, each
+        offset governs the action written immediately after it, up to the next offset or the next action without an
+        offset. This applies to 3 days before, 24 hours before, 3 dias antes and 24 horas antes, even without
+        punctuation between actions. Never make an offset its own item or move it to another action. Keep the person's
+        own verb, such as stop, don't go, parar com or não ir, rather than a synonym; normalize only spelling and
+        casing. A restriction starting N days or hours before an event continues through the event day. A 24-hour
+        restriction is a bounded daily commitment, not a single action on its first day. For an event on local date D at
+        time T, that restriction uses frequency_unit=Day, frequency_quantity=1, due_date=D-1, end_date=D (inclusive).
+        Subtract other offsets independently from that event's local date and time. A deadline-only instruction such as
+        fast until the collection or jejum até a coleta uses frequency_unit=OneTime, due_date=D, due_end_time=T; leave
+        due_time absent or null when no start time was supplied. Do not copy a preceding preparation's start date into a
+        deadline-only item. Keep the event itself OneTime with its own due_date and due_time. Check every restriction
+        has its event end_date and every deadline-only item has its event date and supplied ending time before
+        submitting the complete preview.
 
 
         Use is_bad_habit=true only for ongoing reduction or slip tracking, named for the behaviour itself: Fumar, Tomar
@@ -9371,12 +9370,11 @@ tools:
                 type:
                   - object
                   - "null"
-                description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-                  schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the
-                  local day after completion or skip, and always respect the end date. General follows its own
-                  completion state. When no daily target was requested, use General with no frequency, and do not derive
-                  a target from the reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders.
-                  Use clear_fields to clear repeat_reminder.
+                description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+                  overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+                  Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+                  recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders.
+                  Use clear_fields to clear repeat_reminder."
                 properties:
                   interval_minutes:
                     type: integer
@@ -9605,9 +9603,11 @@ tools:
       name: create_habit
       description: "Use frequency_unit: OneTime for one-time tasks; null leaves recurrence unspecified and may require
         clarification. Create habits or dated tasks with tags, goals, checklists and children inline. Single dated
-        events are one-time, even when a weekday is named. Separate dated extras from recurring classes. Dated children
-        inherit parent frequency without its weekdays; use OneTime for a one-time child. Preserve requested weekdays.
-        Use checklist_items for steps done together and sub_habits for independent tracking."
+        events are one-time, even when a weekday is named. Put dates and times named or implied by the message or image
+        in due_date and due_time as requested fields; default to today only without a date signal. Separate dated extras
+        from recurring classes. Dated children inherit parent frequency without its weekdays; use OneTime for a one-time
+        child. Preserve requested weekdays. Use checklist_items for steps done together and sub_habits for independent
+        tracking."
       strict: true
       parameters:
         type: object
@@ -9654,21 +9654,20 @@ tools:
               - $ref: "#/$defs/shared5"
               - type: "null"
           due_time:
-            type:
-              - string
-              - "null"
-            description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
-          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared6"
               - type: "null"
-          is_bad_habit:
+          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared7"
               - type: "null"
-          is_general:
+          is_bad_habit:
             anyOf:
               - $ref: "#/$defs/shared8"
+              - type: "null"
+          is_general:
+            anyOf:
+              - $ref: "#/$defs/shared9"
               - type: "null"
           is_flexible:
             type:
@@ -9677,15 +9676,15 @@ tools:
             description: Window-based tracking. Requires frequency_unit.
           checklist_items:
             anyOf:
-              - $ref: "#/$defs/shared10"
+              - $ref: "#/$defs/shared11"
               - type: "null"
           start_date:
             anyOf:
-              - $ref: "#/$defs/shared11"
+              - $ref: "#/$defs/shared12"
               - type: "null"
           placement:
             anyOf:
-              - $ref: "#/$defs/shared12"
+              - $ref: "#/$defs/shared13"
               - type: "null"
           reminder_enabled:
             type:
@@ -9699,15 +9698,15 @@ tools:
               type: integer
           scheduled_reminders:
             anyOf:
-              - $ref: "#/$defs/shared14"
+              - $ref: "#/$defs/shared15"
               - type: "null"
           relative_reminders:
             anyOf:
-              - $ref: "#/$defs/shared16"
+              - $ref: "#/$defs/shared17"
               - type: "null"
           repeat_reminder:
             anyOf:
-              - $ref: "#/$defs/shared20"
+              - $ref: "#/$defs/shared21"
               - type: "null"
           slip_alert_enabled:
             type:
@@ -9721,7 +9720,7 @@ tools:
               type: string
           habit_id:
             anyOf:
-              - $ref: "#/$defs/shared21"
+              - $ref: "#/$defs/shared22"
               - type: "null"
           tag_ids:
             type:
@@ -9737,7 +9736,7 @@ tools:
               type: string
           parent_habit_id:
             anyOf:
-              - $ref: "#/$defs/shared22"
+              - $ref: "#/$defs/shared23"
               - type: "null"
           sub_habits:
             type:
@@ -9820,21 +9819,20 @@ tools:
                   - $ref: "#/$defs/shared5"
                   - type: "null"
               due_time:
-                type:
-                  - string
-                  - "null"
-                description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
-              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared6"
                   - type: "null"
-              is_bad_habit:
+              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared7"
                   - type: "null"
-              is_general:
+              is_bad_habit:
                 anyOf:
                   - $ref: "#/$defs/shared8"
+                  - type: "null"
+              is_general:
+                anyOf:
+                  - $ref: "#/$defs/shared9"
                   - type: "null"
               is_flexible:
                 type:
@@ -9843,15 +9841,15 @@ tools:
                 description: Window-based tracking. Requires frequency_unit.
               checklist_items:
                 anyOf:
-                  - $ref: "#/$defs/shared10"
+                  - $ref: "#/$defs/shared11"
                   - type: "null"
               start_date:
                 anyOf:
-                  - $ref: "#/$defs/shared11"
+                  - $ref: "#/$defs/shared12"
                   - type: "null"
               placement:
                 anyOf:
-                  - $ref: "#/$defs/shared12"
+                  - $ref: "#/$defs/shared13"
                   - type: "null"
               reminder_enabled:
                 type:
@@ -9865,15 +9863,15 @@ tools:
                   type: integer
               scheduled_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared14"
+                  - $ref: "#/$defs/shared15"
                   - type: "null"
               relative_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared16"
+                  - $ref: "#/$defs/shared17"
                   - type: "null"
               repeat_reminder:
                 anyOf:
-                  - $ref: "#/$defs/shared20"
+                  - $ref: "#/$defs/shared21"
                   - type: "null"
               slip_alert_enabled:
                 type:
@@ -9887,7 +9885,7 @@ tools:
                   type: string
               habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared21"
+                  - $ref: "#/$defs/shared22"
                   - type: "null"
               tag_ids:
                 type:
@@ -9903,7 +9901,7 @@ tools:
                   type: string
               parent_habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared22"
+                  - $ref: "#/$defs/shared23"
                   - type: "null"
               sub_habits:
                 type:
@@ -9980,7 +9978,8 @@ tools:
             type: string
             description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
               time. A deadline-only item uses the event date with due_end_time at the event, never another preparation's
-              start date. Otherwise defaults to today.
+              start date. Use requested account-local dates from words or images, including implied holidays and
+              weekdays. Default to today only without a date signal.
           shared5:
             type:
               - string
@@ -9988,6 +9987,10 @@ tools:
             description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
               that event's date with Day/1, never null. Omit or null for OneTime events and deadline-only items.
           shared6:
+            type: string
+            description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
+              are accepted as HH:mm:ss.
+          shared7:
             type:
               - string
               - "null"
@@ -9995,14 +9998,14 @@ tools:
               item that ends at an event uses that event's clock time, with due_date on the event date. A restriction
               starting before the event keeps its own start due_date and its inclusive end_date on the event. Leave
               due_time absent or null when no start time was supplied; do not drop a supplied collection deadline.
-          shared7:
+          shared8:
             type: boolean
             description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
               temporary medical commitment.
-          shared8:
-            type: boolean
-            description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
           shared9:
+            type: boolean
+            description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
+          shared10:
             type: object
             properties:
               text:
@@ -10016,16 +10019,16 @@ tools:
               - text
               - is_checked
             additionalProperties: false
-          shared10:
+          shared11:
             type: array
             description: Atomic sub-steps done together in one execution.
             items:
-              $ref: "#/$defs/shared9"
-          shared11:
+              $ref: "#/$defs/shared10"
+          shared12:
             type: string
             description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
               approval preview.
-          shared12:
+          shared13:
             type: string
             enum:
               - sub_habit
@@ -10033,7 +10036,7 @@ tools:
               - new_parent
             description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
               recommendation. Preserve every other proposal field when switching.
-          shared13:
+          shared14:
             type: object
             properties:
               when:
@@ -10048,12 +10051,12 @@ tools:
               - when
               - time
             additionalProperties: false
-          shared14:
+          shared15:
             type: array
             description: Absolute-time reminders for habits WITHOUT a due_time
             items:
-              $ref: "#/$defs/shared13"
-          shared15:
+              $ref: "#/$defs/shared14"
+          shared16:
             type: object
             properties:
               minutes_before:
@@ -10077,13 +10080,13 @@ tools:
               - when
               - time
             additionalProperties: false
-          shared16:
+          shared17:
             type: array
             description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
               array clears them."
             items:
-              $ref: "#/$defs/shared15"
-          shared17:
+              $ref: "#/$defs/shared16"
+          shared18:
             type: integer
             enum:
               - 15
@@ -10113,25 +10116,24 @@ tools:
               - 1260
               - 1320
               - 1380
-          shared18:
-            type: string
-            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared19:
             type: string
-            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared20:
+            type: string
+            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+          shared21:
             type: object
-            description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-              schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the local
-              day after completion or skip, and always respect the end date. General follows its own completion state.
-              When no daily target was requested, use General with no frequency, and do not derive a target from the
-              reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders.
+            description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+              overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+              Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+              recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
             properties:
               interval_minutes:
-                $ref: "#/$defs/shared17"
+                $ref: "#/$defs/shared18"
               active_start:
                 anyOf:
-                  - $ref: "#/$defs/shared18"
+                  - $ref: "#/$defs/shared19"
                   - type: "null"
               active_end:
                 type:
@@ -10140,7 +10142,7 @@ tools:
                 description: Optional local HH:mm, paired with active_start.
               start_at_utc:
                 anyOf:
-                  - $ref: "#/$defs/shared19"
+                  - $ref: "#/$defs/shared20"
                   - type: "null"
             required:
               - interval_minutes
@@ -10148,12 +10150,12 @@ tools:
               - active_end
               - start_at_utc
             additionalProperties: false
-          shared21:
+          shared22:
             type: string
             description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
               stored title verbatim; supply only requested changes and leave other fields null. Null means a new
               activity.
-          shared22:
+          shared23:
             type: string
             description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
               turn them into description text.
@@ -10211,21 +10213,20 @@ tools:
               - $ref: "#/$defs/shared5"
               - type: "null"
           due_time:
-            type:
-              - string
-              - "null"
-            description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
-          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared6"
               - type: "null"
-          is_bad_habit:
+          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared7"
               - type: "null"
-          is_general:
+          is_bad_habit:
             anyOf:
               - $ref: "#/$defs/shared8"
+              - type: "null"
+          is_general:
+            anyOf:
+              - $ref: "#/$defs/shared9"
               - type: "null"
           is_flexible:
             type:
@@ -10234,15 +10235,15 @@ tools:
             description: Window-based tracking. Requires frequency_unit.
           checklist_items:
             anyOf:
-              - $ref: "#/$defs/shared10"
+              - $ref: "#/$defs/shared11"
               - type: "null"
           start_date:
             anyOf:
-              - $ref: "#/$defs/shared11"
+              - $ref: "#/$defs/shared12"
               - type: "null"
           placement:
             anyOf:
-              - $ref: "#/$defs/shared12"
+              - $ref: "#/$defs/shared13"
               - type: "null"
           reminder_enabled:
             type:
@@ -10256,15 +10257,15 @@ tools:
               type: integer
           scheduled_reminders:
             anyOf:
-              - $ref: "#/$defs/shared14"
+              - $ref: "#/$defs/shared15"
               - type: "null"
           relative_reminders:
             anyOf:
-              - $ref: "#/$defs/shared16"
+              - $ref: "#/$defs/shared17"
               - type: "null"
           repeat_reminder:
             anyOf:
-              - $ref: "#/$defs/shared20"
+              - $ref: "#/$defs/shared21"
               - type: "null"
           slip_alert_enabled:
             type:
@@ -10278,7 +10279,7 @@ tools:
               type: string
           habit_id:
             anyOf:
-              - $ref: "#/$defs/shared21"
+              - $ref: "#/$defs/shared22"
               - type: "null"
           tag_ids:
             type:
@@ -10293,7 +10294,7 @@ tools:
             items:
               type: string
           parent_habit_id:
-            $ref: "#/$defs/shared22"
+            $ref: "#/$defs/shared23"
           sub_habits:
             type:
               - array
@@ -10375,21 +10376,20 @@ tools:
                   - $ref: "#/$defs/shared5"
                   - type: "null"
               due_time:
-                type:
-                  - string
-                  - "null"
-                description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
-              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared6"
                   - type: "null"
-              is_bad_habit:
+              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared7"
                   - type: "null"
-              is_general:
+              is_bad_habit:
                 anyOf:
                   - $ref: "#/$defs/shared8"
+                  - type: "null"
+              is_general:
+                anyOf:
+                  - $ref: "#/$defs/shared9"
                   - type: "null"
               is_flexible:
                 type:
@@ -10398,15 +10398,15 @@ tools:
                 description: Window-based tracking. Requires frequency_unit.
               checklist_items:
                 anyOf:
-                  - $ref: "#/$defs/shared10"
+                  - $ref: "#/$defs/shared11"
                   - type: "null"
               start_date:
                 anyOf:
-                  - $ref: "#/$defs/shared11"
+                  - $ref: "#/$defs/shared12"
                   - type: "null"
               placement:
                 anyOf:
-                  - $ref: "#/$defs/shared12"
+                  - $ref: "#/$defs/shared13"
                   - type: "null"
               reminder_enabled:
                 type:
@@ -10420,15 +10420,15 @@ tools:
                   type: integer
               scheduled_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared14"
+                  - $ref: "#/$defs/shared15"
                   - type: "null"
               relative_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared16"
+                  - $ref: "#/$defs/shared17"
                   - type: "null"
               repeat_reminder:
                 anyOf:
-                  - $ref: "#/$defs/shared20"
+                  - $ref: "#/$defs/shared21"
                   - type: "null"
               slip_alert_enabled:
                 type:
@@ -10442,7 +10442,7 @@ tools:
                   type: string
               habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared21"
+                  - $ref: "#/$defs/shared22"
                   - type: "null"
               tag_ids:
                 type:
@@ -10458,7 +10458,7 @@ tools:
                   type: string
               parent_habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared22"
+                  - $ref: "#/$defs/shared23"
                   - type: "null"
               sub_habits:
                 type:
@@ -10535,7 +10535,8 @@ tools:
             type: string
             description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
               time. A deadline-only item uses the event date with due_end_time at the event, never another preparation's
-              start date. Otherwise defaults to today.
+              start date. Use requested account-local dates from words or images, including implied holidays and
+              weekdays. Default to today only without a date signal.
           shared5:
             type:
               - string
@@ -10543,6 +10544,10 @@ tools:
             description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
               that event's date with Day/1, never null. Omit or null for OneTime events and deadline-only items.
           shared6:
+            type: string
+            description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
+              are accepted as HH:mm:ss.
+          shared7:
             type:
               - string
               - "null"
@@ -10550,14 +10555,14 @@ tools:
               item that ends at an event uses that event's clock time, with due_date on the event date. A restriction
               starting before the event keeps its own start due_date and its inclusive end_date on the event. Leave
               due_time absent or null when no start time was supplied; do not drop a supplied collection deadline.
-          shared7:
+          shared8:
             type: boolean
             description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
               temporary medical commitment.
-          shared8:
-            type: boolean
-            description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
           shared9:
+            type: boolean
+            description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
+          shared10:
             type: object
             properties:
               text:
@@ -10571,16 +10576,16 @@ tools:
               - text
               - is_checked
             additionalProperties: false
-          shared10:
+          shared11:
             type: array
             description: Atomic sub-steps done together in one execution.
             items:
-              $ref: "#/$defs/shared9"
-          shared11:
+              $ref: "#/$defs/shared10"
+          shared12:
             type: string
             description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
               approval preview.
-          shared12:
+          shared13:
             type: string
             enum:
               - sub_habit
@@ -10588,7 +10593,7 @@ tools:
               - new_parent
             description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
               recommendation. Preserve every other proposal field when switching.
-          shared13:
+          shared14:
             type: object
             properties:
               when:
@@ -10603,12 +10608,12 @@ tools:
               - when
               - time
             additionalProperties: false
-          shared14:
+          shared15:
             type: array
             description: Absolute-time reminders for habits WITHOUT a due_time
             items:
-              $ref: "#/$defs/shared13"
-          shared15:
+              $ref: "#/$defs/shared14"
+          shared16:
             type: object
             properties:
               minutes_before:
@@ -10632,13 +10637,13 @@ tools:
               - when
               - time
             additionalProperties: false
-          shared16:
+          shared17:
             type: array
             description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
               array clears them."
             items:
-              $ref: "#/$defs/shared15"
-          shared17:
+              $ref: "#/$defs/shared16"
+          shared18:
             type: integer
             enum:
               - 15
@@ -10668,25 +10673,24 @@ tools:
               - 1260
               - 1320
               - 1380
-          shared18:
-            type: string
-            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared19:
             type: string
-            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared20:
+            type: string
+            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+          shared21:
             type: object
-            description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-              schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the local
-              day after completion or skip, and always respect the end date. General follows its own completion state.
-              When no daily target was requested, use General with no frequency, and do not derive a target from the
-              reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders.
+            description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+              overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+              Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+              recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
             properties:
               interval_minutes:
-                $ref: "#/$defs/shared17"
+                $ref: "#/$defs/shared18"
               active_start:
                 anyOf:
-                  - $ref: "#/$defs/shared18"
+                  - $ref: "#/$defs/shared19"
                   - type: "null"
               active_end:
                 type:
@@ -10695,7 +10699,7 @@ tools:
                 description: Optional local HH:mm, paired with active_start.
               start_at_utc:
                 anyOf:
-                  - $ref: "#/$defs/shared19"
+                  - $ref: "#/$defs/shared20"
                   - type: "null"
             required:
               - interval_minutes
@@ -10703,12 +10707,12 @@ tools:
               - active_end
               - start_at_utc
             additionalProperties: false
-          shared21:
+          shared22:
             type: string
             description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
               stored title verbatim; supply only requested changes and leave other fields null. Null means a new
               activity.
-          shared22:
+          shared23:
             type: string
             description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
               turn them into description text.
@@ -10863,10 +10867,10 @@ tools:
         or schedule math. Use only mechanics, screens, fields and steps explicitly documented in markdown or
         app_surfaces. related_surfaces lists destinations, not editing instructions. app_surfaces comes from the same
         catalog as list_app_surfaces_v2; use only its documented destinations and steps. Never infer a habit edit screen
-        or creation workflow from a related destination. When the requested detail is absent, say that the explanation
-        does not cover it; do not invent navigation or settings. Answer in the person's language. Use at most three
-        short steps, one complete sentence per line, at most 180 characters per line. Do not join steps into a
-        paragraph.
+        or creation workflow from a related destination. Say that the explanation does not cover the requested detail
+        only when no step in markdown or app_surfaces answers the question; do not invent navigation or settings. Answer
+        in the person's language. Use at most three short steps, one complete sentence per line, at most 180 characters
+        per line. Do not join steps into a paragraph.
       strict: true
       parameters:
         type: object
@@ -12159,10 +12163,10 @@ tools:
     sensitiveFields: []
     function:
       name: query_goals
-      description: Read goals and their progress, deadlines and linked habits. Call before answering goal questions; indexes
-        do not ground replies. This result completely answers a goal-progress request; no habit analytics or habit
-        calendar read is needed. Goal progress is the goal's current value against its target in this result. For a
-        goal-progress request, call query_goals alone with orbit_read_complete=true.
+      description: Read goals, progress, deadlines and linked habits before answering goal questions; indexes do not ground
+        replies. For goals or progress, set include_completed=true unless only active goals or a specific status is
+        requested. Progress is current value against target. For goal progress, call only query_goals with
+        orbit_read_complete=true; no habit analytics or calendar read is needed.
       strict: true
       parameters:
         type: object
@@ -12282,7 +12286,7 @@ tools:
             type:
               - boolean
               - "null"
-            description: Filter timeless habits; null includes both.
+            description: "General: a one-time task with no date. Null includes both."
           is_completed:
             type:
               - boolean
@@ -12596,41 +12600,31 @@ tools:
           - date
         additionalProperties: false
   - type: function
-    writes: true
+    writes: false
     sensitiveFields: []
     function:
       name: suggest_breakdown
-      description: "Suggest sub-habits without creating them. When the person cannot get themselves to do an activity, is
-        stuck starting it, or asks for one concrete first step, call suggest_breakdown with one_small_step=true even if
-        they do not say start. When a read request also states an aim, answer only the requested read. An aim alone does
-        not request a write or suggest_breakdown. The server offers a goal action on the read block when appropriate;
-        wait for the person to select it before planning the aim. Set language to en or pt-BR matching their message,
-        title to the activity and suggested_sub_habits to exactly one concrete starting action. Never return an empty
-        array. For a smaller refinement, use structured previousStartingStep as the baseline, keep its goal and return a
-        proper part of its step or its first physical action, taking strictly less time and effort. A paraphrase or a
-        different action of equal or greater effort is not smaller. For a smaller refinement, use the typed
-        previousStartingStep.goal and previousStartingStep.step to compare effort before choosing the action. Keep the
-        same activity and return only the first preparatory physical motion, stopping before the previous action is
-        completed. When the previous step is already one short action, reduce it to contact or positioning and stop
-        there. Picking up material can take as much effort as opening it. Tapping material to open it still completes
-        the previous action. For opening study material, use a motion such as resting one fingertip on its closed cover:
-        'Rest one finger on the closed cover' / 'Encostar um dedo na capa fechada'. Do not append opening, reading or
-        another action to that motion. Apply this comparison in both en and pt-BR. If previousStartingStep.step already
-        consists of a single touch or contact, another touch, tap or finger placement is equal effort and is not
-        smaller. Reduce to looking at the same object without touching or moving it. Compare with the actual typed
-        previous step. Do not repeat contact as a refinement of contact. The server returns oneSmallStep with smaller
-        and save actions. Emit no prose or lists alongside it. Suggestions never save anything. Only an explicit save
-        request uses create_habit for a Task or update_checklist, with item_to_add containing only the step, resolving
-        the owned habit first. The server preserves all stored checklist items. Both require the existing approval
-        preview."
+      description: Suggest sub-habits without creating them. Call once per request; never repeat identical arguments. When the
+        person cannot get themselves to do an activity, is stuck starting it, or asks for one concrete first step, call
+        suggest_breakdown with one_small_step=true even if they do not say start. When a read request also states an
+        aim, answer only the requested read. An aim alone does not request a write or suggest_breakdown. The server
+        offers a goal action on the read block when appropriate; wait for the person to select it before planning the
+        aim. Set language to en or pt-BR matching their message, title to the activity and suggested_sub_habits to
+        exactly one concrete starting action. Never return an empty array. For a smaller refinement, use structured
+        previousStartingStep as the baseline, keep its goal and return a proper part of its step or its first physical
+        action, taking strictly less time and effort. A paraphrase or a different action of equal or greater effort is
+        not smaller. The server returns oneSmallStep with smaller and save actions. Emit no prose or lists alongside it.
+        Suggestions never save anything. Only an explicit save request uses create_habit for a Task or update_checklist,
+        with item_to_add containing only the step, resolving the owned habit first. The server preserves all stored
+        checklist items. Both require the existing approval preview.
       strict: true
       parameters:
         type: object
         properties:
-          orbit_write_complete:
+          orbit_read_complete:
             type: boolean
-            description: True only when every requested mutation has its matching write call in this round; a read status never
-              fulfills a write. False when a lookup or dependent action is still needed.
+            description: True when all reads in this round fully answer the request, including compound reads and readable fallback
+              text; false for prerequisite lookups or any remaining read or write.
           one_small_step:
             type:
               - boolean
@@ -12700,7 +12694,7 @@ tools:
                 - days
               additionalProperties: false
         required:
-          - orbit_write_complete
+          - orbit_read_complete
           - one_small_step
           - language
           - title
@@ -12793,8 +12787,8 @@ tools:
     sensitiveFields: []
     function:
       name: unlog_habit
-      description: Undo a habit completion for a specific date (defaults to today). Removes one completion without creating a
-        log. Fails if no completion exists for that date. Use log_habit to mark it again.
+      description: Undo one habit completion. Completed General tasks use their latest completion; other schedules use the
+        specified date or today. Fails if no completion exists. Use log_habit to mark it again.
       strict: true
       parameters:
         type: object
@@ -12810,7 +12804,7 @@ tools:
             type:
               - string
               - "null"
-            description: ISO date (YYYY-MM-DD) of the completion to undo. Defaults to today.
+            description: ISO date (YYYY-MM-DD). Defaults to today for dated schedules; ignored for completed General tasks.
         required:
           - orbit_write_complete
           - habit_id
@@ -13041,26 +13035,27 @@ tools:
         A Task is one-time: frequency_unit=OneTime in create tools, stored as null, with due_date and requested
         due_time. A dated event or single dated instruction is a Task unless repetition was requested. A Habit has Day,
         Week, Month or Year and a positive frequency_quantity. Daily weekdays require Day/1; is_flexible tracks a
-        quantity within a window and cannot have weekdays. General items have no schedule, recurrence or avoid type.
-        end_date is inclusive and only recurring items use it. A preparation that starts N days or hours before an event
-        and continues until it is a Day/1 Habit: set due_date to the first local date and inclusive end_date to the
-        event date. start_date is only the recurrence anchor and never replaces due_date. Keep a single dated action as
-        a Task. For an activity lasting until a collection or other deadline, put its ending clock time in due_end_time,
-        not due_time; omit due_time when its start was not specified. Never leave temporary preparation recurring
-        indefinitely. Before submitting a create call, check each preparation against its own referenced event's local
-        date and time. In a preparation list, each offset governs the action written immediately after it, up to the
-        next offset or the next action without an offset. This applies to 3 days before, 24 hours before, 3 dias antes
-        and 24 horas antes, even without punctuation between actions. Never make an offset its own item or move it to
-        another action. Keep the person's own verb, such as stop, don't go, parar com or não ir, rather than a synonym;
-        normalize only spelling and casing. A restriction starting N days or hours before an event continues through the
-        event day. A 24-hour restriction is a bounded daily commitment, not a single action on its first day. For an
-        event on local date D at time T, that restriction uses frequency_unit=Day, frequency_quantity=1, due_date=D-1,
-        end_date=D (inclusive). Subtract other offsets independently from that event's local date and time. A
-        deadline-only instruction such as fast until the collection or jejum até a coleta uses frequency_unit=OneTime,
-        due_date=D, due_end_time=T; leave due_time absent or null when no start time was supplied. Do not copy a
-        preceding preparation's start date into a deadline-only item. Keep the event itself OneTime with its own
-        due_date and due_time. Check every restriction has its event end_date and every deadline-only item has its event
-        date and supplied ending time before submitting the complete preview.
+        quantity within a window and cannot have weekdays. General is a one-time task with no date (is_general=true).
+        Log completes; unlog reopens. No recurrence or avoid type. end_date is inclusive and only recurring items use
+        it. A preparation that starts N days or hours before an event and continues until it is a Day/1 Habit: set
+        due_date to the first local date and inclusive end_date to the event date. start_date is only the recurrence
+        anchor and never replaces due_date. Keep a single dated action as a Task. For an activity lasting until a
+        collection or other deadline, put its ending clock time in due_end_time, not due_time; omit due_time when its
+        start was not specified. Never leave temporary preparation recurring indefinitely. Before submitting a create
+        call, check each preparation against its own referenced event's local date and time. In a preparation list, each
+        offset governs the action written immediately after it, up to the next offset or the next action without an
+        offset. This applies to 3 days before, 24 hours before, 3 dias antes and 24 horas antes, even without
+        punctuation between actions. Never make an offset its own item or move it to another action. Keep the person's
+        own verb, such as stop, don't go, parar com or não ir, rather than a synonym; normalize only spelling and
+        casing. A restriction starting N days or hours before an event continues through the event day. A 24-hour
+        restriction is a bounded daily commitment, not a single action on its first day. For an event on local date D at
+        time T, that restriction uses frequency_unit=Day, frequency_quantity=1, due_date=D-1, end_date=D (inclusive).
+        Subtract other offsets independently from that event's local date and time. A deadline-only instruction such as
+        fast until the collection or jejum até a coleta uses frequency_unit=OneTime, due_date=D, due_end_time=T; leave
+        due_time absent or null when no start time was supplied. Do not copy a preceding preparation's start date into a
+        deadline-only item. Keep the event itself OneTime with its own due_date and due_time. Check every restriction
+        has its event end_date and every deadline-only item has its event date and supplied ending time before
+        submitting the complete preview.
 
 
         Use is_bad_habit=true only for ongoing reduction or slip tracking, named for the behaviour itself: Fumar, Tomar
@@ -13278,7 +13273,7 @@ tools:
             type:
               - boolean
               - "null"
-            description: General habit without a schedule. Children must match their parent.
+            description: A one-time task with no date. Children must match their parent.
           slip_alert_enabled:
             type:
               - boolean
@@ -13318,12 +13313,11 @@ tools:
             type:
               - object
               - "null"
-            description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-              schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the local
-              day after completion or skip, and always respect the end date. General follows its own completion state.
-              When no daily target was requested, use General with no frequency, and do not derive a target from the
-              reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders. Use clear_fields to
-              clear repeat_reminder.
+            description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+              overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+              Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+              recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders. Use
+              clear_fields to clear repeat_reminder."
             properties:
               interval_minutes:
                 type: integer
@@ -13783,7 +13777,8 @@ legacyTools:
                   - "null"
                 description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
                   time. A deadline-only item uses the event date with due_end_time at the event, never another
-                  preparation's start date. Otherwise defaults to today.
+                  preparation's start date. Use requested account-local dates from words or images, including implied
+                  holidays and weekdays. Default to today only without a date signal.
               end_date:
                 type:
                   - string
@@ -13794,7 +13789,8 @@ legacyTools:
                 type:
                   - string
                   - "null"
-                description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
+                description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
+                  are accepted as HH:mm:ss.
               due_end_time:
                 type:
                   - string
@@ -13814,7 +13810,7 @@ legacyTools:
                 type:
                   - boolean
                   - "null"
-                description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
+                description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
               is_flexible:
                 type:
                   - boolean
@@ -13920,11 +13916,10 @@ legacyTools:
                 type:
                   - object
                   - "null"
-                description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-                  schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the
-                  local day after completion or skip, and always respect the end date. General follows its own
-                  completion state. When no daily target was requested, use General with no frequency, and do not derive
-                  a target from the reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders.
+                description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+                  overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+                  Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+                  recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
                 properties:
                   interval_minutes:
                     type: integer
@@ -14648,26 +14643,27 @@ legacyTools:
         A Task is one-time: frequency_unit=OneTime in create tools, stored as null, with due_date and requested
         due_time. A dated event or single dated instruction is a Task unless repetition was requested. A Habit has Day,
         Week, Month or Year and a positive frequency_quantity. Daily weekdays require Day/1; is_flexible tracks a
-        quantity within a window and cannot have weekdays. General items have no schedule, recurrence or avoid type.
-        end_date is inclusive and only recurring items use it. A preparation that starts N days or hours before an event
-        and continues until it is a Day/1 Habit: set due_date to the first local date and inclusive end_date to the
-        event date. start_date is only the recurrence anchor and never replaces due_date. Keep a single dated action as
-        a Task. For an activity lasting until a collection or other deadline, put its ending clock time in due_end_time,
-        not due_time; omit due_time when its start was not specified. Never leave temporary preparation recurring
-        indefinitely. Before submitting a create call, check each preparation against its own referenced event's local
-        date and time. In a preparation list, each offset governs the action written immediately after it, up to the
-        next offset or the next action without an offset. This applies to 3 days before, 24 hours before, 3 dias antes
-        and 24 horas antes, even without punctuation between actions. Never make an offset its own item or move it to
-        another action. Keep the person's own verb, such as stop, don't go, parar com or não ir, rather than a synonym;
-        normalize only spelling and casing. A restriction starting N days or hours before an event continues through the
-        event day. A 24-hour restriction is a bounded daily commitment, not a single action on its first day. For an
-        event on local date D at time T, that restriction uses frequency_unit=Day, frequency_quantity=1, due_date=D-1,
-        end_date=D (inclusive). Subtract other offsets independently from that event's local date and time. A
-        deadline-only instruction such as fast until the collection or jejum até a coleta uses frequency_unit=OneTime,
-        due_date=D, due_end_time=T; leave due_time absent or null when no start time was supplied. Do not copy a
-        preceding preparation's start date into a deadline-only item. Keep the event itself OneTime with its own
-        due_date and due_time. Check every restriction has its event end_date and every deadline-only item has its event
-        date and supplied ending time before submitting the complete preview.
+        quantity within a window and cannot have weekdays. General is a one-time task with no date (is_general=true).
+        Log completes; unlog reopens. No recurrence or avoid type. end_date is inclusive and only recurring items use
+        it. A preparation that starts N days or hours before an event and continues until it is a Day/1 Habit: set
+        due_date to the first local date and inclusive end_date to the event date. start_date is only the recurrence
+        anchor and never replaces due_date. Keep a single dated action as a Task. For an activity lasting until a
+        collection or other deadline, put its ending clock time in due_end_time, not due_time; omit due_time when its
+        start was not specified. Never leave temporary preparation recurring indefinitely. Before submitting a create
+        call, check each preparation against its own referenced event's local date and time. In a preparation list, each
+        offset governs the action written immediately after it, up to the next offset or the next action without an
+        offset. This applies to 3 days before, 24 hours before, 3 dias antes and 24 horas antes, even without
+        punctuation between actions. Never make an offset its own item or move it to another action. Keep the person's
+        own verb, such as stop, don't go, parar com or não ir, rather than a synonym; normalize only spelling and
+        casing. A restriction starting N days or hours before an event continues through the event day. A 24-hour
+        restriction is a bounded daily commitment, not a single action on its first day. For an event on local date D at
+        time T, that restriction uses frequency_unit=Day, frequency_quantity=1, due_date=D-1, end_date=D (inclusive).
+        Subtract other offsets independently from that event's local date and time. A deadline-only instruction such as
+        fast until the collection or jejum até a coleta uses frequency_unit=OneTime, due_date=D, due_end_time=T; leave
+        due_time absent or null when no start time was supplied. Do not copy a preceding preparation's start date into a
+        deadline-only item. Keep the event itself OneTime with its own due_date and due_time. Check every restriction
+        has its event end_date and every deadline-only item has its event date and supplied ending time before
+        submitting the complete preview.
 
 
         Use is_bad_habit=true only for ongoing reduction or slip tracking, named for the behaviour itself: Fumar, Tomar
@@ -14965,12 +14961,11 @@ legacyTools:
                 type:
                   - object
                   - "null"
-                description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-                  schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the
-                  local day after completion or skip, and always respect the end date. General follows its own
-                  completion state. When no daily target was requested, use General with no frequency, and do not derive
-                  a target from the reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders.
-                  Use clear_fields to clear repeat_reminder.
+                description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+                  overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+                  Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+                  recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders.
+                  Use clear_fields to clear repeat_reminder."
                 properties:
                   interval_minutes:
                     type: integer
@@ -15199,9 +15194,11 @@ legacyTools:
       name: create_habit
       description: "Use frequency_unit: OneTime for one-time tasks; null leaves recurrence unspecified and may require
         clarification. Create habits or dated tasks with tags, goals, checklists and children inline. Single dated
-        events are one-time, even when a weekday is named. Separate dated extras from recurring classes. Dated children
-        inherit parent frequency without its weekdays; use OneTime for a one-time child. Preserve requested weekdays.
-        Use checklist_items for steps done together and sub_habits for independent tracking."
+        events are one-time, even when a weekday is named. Put dates and times named or implied by the message or image
+        in due_date and due_time as requested fields; default to today only without a date signal. Separate dated extras
+        from recurring classes. Dated children inherit parent frequency without its weekdays; use OneTime for a one-time
+        child. Preserve requested weekdays. Use checklist_items for steps done together and sub_habits for independent
+        tracking."
       strict: true
       parameters:
         type: object
@@ -15248,21 +15245,20 @@ legacyTools:
               - $ref: "#/$defs/shared5"
               - type: "null"
           due_time:
-            type:
-              - string
-              - "null"
-            description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
-          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared6"
               - type: "null"
-          is_bad_habit:
+          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared7"
               - type: "null"
-          is_general:
+          is_bad_habit:
             anyOf:
               - $ref: "#/$defs/shared8"
+              - type: "null"
+          is_general:
+            anyOf:
+              - $ref: "#/$defs/shared9"
               - type: "null"
           is_flexible:
             type:
@@ -15271,15 +15267,15 @@ legacyTools:
             description: Window-based tracking. Requires frequency_unit.
           checklist_items:
             anyOf:
-              - $ref: "#/$defs/shared10"
+              - $ref: "#/$defs/shared11"
               - type: "null"
           start_date:
             anyOf:
-              - $ref: "#/$defs/shared11"
+              - $ref: "#/$defs/shared12"
               - type: "null"
           placement:
             anyOf:
-              - $ref: "#/$defs/shared12"
+              - $ref: "#/$defs/shared13"
               - type: "null"
           reminder_enabled:
             type:
@@ -15293,15 +15289,15 @@ legacyTools:
               type: integer
           scheduled_reminders:
             anyOf:
-              - $ref: "#/$defs/shared14"
+              - $ref: "#/$defs/shared15"
               - type: "null"
           relative_reminders:
             anyOf:
-              - $ref: "#/$defs/shared16"
+              - $ref: "#/$defs/shared17"
               - type: "null"
           repeat_reminder:
             anyOf:
-              - $ref: "#/$defs/shared20"
+              - $ref: "#/$defs/shared21"
               - type: "null"
           slip_alert_enabled:
             type:
@@ -15315,7 +15311,7 @@ legacyTools:
               type: string
           habit_id:
             anyOf:
-              - $ref: "#/$defs/shared21"
+              - $ref: "#/$defs/shared22"
               - type: "null"
           tag_ids:
             type:
@@ -15331,7 +15327,7 @@ legacyTools:
               type: string
           parent_habit_id:
             anyOf:
-              - $ref: "#/$defs/shared22"
+              - $ref: "#/$defs/shared23"
               - type: "null"
           sub_habits:
             type:
@@ -15414,21 +15410,20 @@ legacyTools:
                   - $ref: "#/$defs/shared5"
                   - type: "null"
               due_time:
-                type:
-                  - string
-                  - "null"
-                description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
-              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared6"
                   - type: "null"
-              is_bad_habit:
+              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared7"
                   - type: "null"
-              is_general:
+              is_bad_habit:
                 anyOf:
                   - $ref: "#/$defs/shared8"
+                  - type: "null"
+              is_general:
+                anyOf:
+                  - $ref: "#/$defs/shared9"
                   - type: "null"
               is_flexible:
                 type:
@@ -15437,15 +15432,15 @@ legacyTools:
                 description: Window-based tracking. Requires frequency_unit.
               checklist_items:
                 anyOf:
-                  - $ref: "#/$defs/shared10"
+                  - $ref: "#/$defs/shared11"
                   - type: "null"
               start_date:
                 anyOf:
-                  - $ref: "#/$defs/shared11"
+                  - $ref: "#/$defs/shared12"
                   - type: "null"
               placement:
                 anyOf:
-                  - $ref: "#/$defs/shared12"
+                  - $ref: "#/$defs/shared13"
                   - type: "null"
               reminder_enabled:
                 type:
@@ -15459,15 +15454,15 @@ legacyTools:
                   type: integer
               scheduled_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared14"
+                  - $ref: "#/$defs/shared15"
                   - type: "null"
               relative_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared16"
+                  - $ref: "#/$defs/shared17"
                   - type: "null"
               repeat_reminder:
                 anyOf:
-                  - $ref: "#/$defs/shared20"
+                  - $ref: "#/$defs/shared21"
                   - type: "null"
               slip_alert_enabled:
                 type:
@@ -15481,7 +15476,7 @@ legacyTools:
                   type: string
               habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared21"
+                  - $ref: "#/$defs/shared22"
                   - type: "null"
               tag_ids:
                 type:
@@ -15497,7 +15492,7 @@ legacyTools:
                   type: string
               parent_habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared22"
+                  - $ref: "#/$defs/shared23"
                   - type: "null"
               sub_habits:
                 type:
@@ -15574,7 +15569,8 @@ legacyTools:
             type: string
             description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
               time. A deadline-only item uses the event date with due_end_time at the event, never another preparation's
-              start date. Otherwise defaults to today.
+              start date. Use requested account-local dates from words or images, including implied holidays and
+              weekdays. Default to today only without a date signal.
           shared5:
             type:
               - string
@@ -15582,6 +15578,10 @@ legacyTools:
             description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
               that event's date with Day/1, never null. Omit or null for OneTime events and deadline-only items.
           shared6:
+            type: string
+            description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
+              are accepted as HH:mm:ss.
+          shared7:
             type:
               - string
               - "null"
@@ -15589,14 +15589,14 @@ legacyTools:
               item that ends at an event uses that event's clock time, with due_date on the event date. A restriction
               starting before the event keeps its own start due_date and its inclusive end_date on the event. Leave
               due_time absent or null when no start time was supplied; do not drop a supplied collection deadline.
-          shared7:
+          shared8:
             type: boolean
             description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
               temporary medical commitment.
-          shared8:
-            type: boolean
-            description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
           shared9:
+            type: boolean
+            description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
+          shared10:
             type: object
             properties:
               text:
@@ -15610,16 +15610,16 @@ legacyTools:
               - text
               - is_checked
             additionalProperties: false
-          shared10:
+          shared11:
             type: array
             description: Atomic sub-steps done together in one execution.
             items:
-              $ref: "#/$defs/shared9"
-          shared11:
+              $ref: "#/$defs/shared10"
+          shared12:
             type: string
             description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
               approval preview.
-          shared12:
+          shared13:
             type: string
             enum:
               - sub_habit
@@ -15627,7 +15627,7 @@ legacyTools:
               - new_parent
             description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
               recommendation. Preserve every other proposal field when switching.
-          shared13:
+          shared14:
             type: object
             properties:
               when:
@@ -15642,12 +15642,12 @@ legacyTools:
               - when
               - time
             additionalProperties: false
-          shared14:
+          shared15:
             type: array
             description: Absolute-time reminders for habits WITHOUT a due_time
             items:
-              $ref: "#/$defs/shared13"
-          shared15:
+              $ref: "#/$defs/shared14"
+          shared16:
             type: object
             properties:
               minutes_before:
@@ -15671,13 +15671,13 @@ legacyTools:
               - when
               - time
             additionalProperties: false
-          shared16:
+          shared17:
             type: array
             description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
               array clears them."
             items:
-              $ref: "#/$defs/shared15"
-          shared17:
+              $ref: "#/$defs/shared16"
+          shared18:
             type: integer
             enum:
               - 15
@@ -15707,25 +15707,24 @@ legacyTools:
               - 1260
               - 1320
               - 1380
-          shared18:
-            type: string
-            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared19:
             type: string
-            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared20:
+            type: string
+            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+          shared21:
             type: object
-            description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-              schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the local
-              day after completion or skip, and always respect the end date. General follows its own completion state.
-              When no daily target was requested, use General with no frequency, and do not derive a target from the
-              reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders.
+            description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+              overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+              Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+              recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
             properties:
               interval_minutes:
-                $ref: "#/$defs/shared17"
+                $ref: "#/$defs/shared18"
               active_start:
                 anyOf:
-                  - $ref: "#/$defs/shared18"
+                  - $ref: "#/$defs/shared19"
                   - type: "null"
               active_end:
                 type:
@@ -15734,7 +15733,7 @@ legacyTools:
                 description: Optional local HH:mm, paired with active_start.
               start_at_utc:
                 anyOf:
-                  - $ref: "#/$defs/shared19"
+                  - $ref: "#/$defs/shared20"
                   - type: "null"
             required:
               - interval_minutes
@@ -15742,12 +15741,12 @@ legacyTools:
               - active_end
               - start_at_utc
             additionalProperties: false
-          shared21:
+          shared22:
             type: string
             description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
               stored title verbatim; supply only requested changes and leave other fields null. Null means a new
               activity.
-          shared22:
+          shared23:
             type: string
             description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
               turn them into description text.
@@ -15805,21 +15804,20 @@ legacyTools:
               - $ref: "#/$defs/shared5"
               - type: "null"
           due_time:
-            type:
-              - string
-              - "null"
-            description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
-          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared6"
               - type: "null"
-          is_bad_habit:
+          due_end_time:
             anyOf:
               - $ref: "#/$defs/shared7"
               - type: "null"
-          is_general:
+          is_bad_habit:
             anyOf:
               - $ref: "#/$defs/shared8"
+              - type: "null"
+          is_general:
+            anyOf:
+              - $ref: "#/$defs/shared9"
               - type: "null"
           is_flexible:
             type:
@@ -15828,15 +15826,15 @@ legacyTools:
             description: Window-based tracking. Requires frequency_unit.
           checklist_items:
             anyOf:
-              - $ref: "#/$defs/shared10"
+              - $ref: "#/$defs/shared11"
               - type: "null"
           start_date:
             anyOf:
-              - $ref: "#/$defs/shared11"
+              - $ref: "#/$defs/shared12"
               - type: "null"
           placement:
             anyOf:
-              - $ref: "#/$defs/shared12"
+              - $ref: "#/$defs/shared13"
               - type: "null"
           reminder_enabled:
             type:
@@ -15850,15 +15848,15 @@ legacyTools:
               type: integer
           scheduled_reminders:
             anyOf:
-              - $ref: "#/$defs/shared14"
+              - $ref: "#/$defs/shared15"
               - type: "null"
           relative_reminders:
             anyOf:
-              - $ref: "#/$defs/shared16"
+              - $ref: "#/$defs/shared17"
               - type: "null"
           repeat_reminder:
             anyOf:
-              - $ref: "#/$defs/shared20"
+              - $ref: "#/$defs/shared21"
               - type: "null"
           slip_alert_enabled:
             type:
@@ -15872,7 +15870,7 @@ legacyTools:
               type: string
           habit_id:
             anyOf:
-              - $ref: "#/$defs/shared21"
+              - $ref: "#/$defs/shared22"
               - type: "null"
           tag_ids:
             type:
@@ -15887,7 +15885,7 @@ legacyTools:
             items:
               type: string
           parent_habit_id:
-            $ref: "#/$defs/shared22"
+            $ref: "#/$defs/shared23"
           sub_habits:
             type:
               - array
@@ -15969,21 +15967,20 @@ legacyTools:
                   - $ref: "#/$defs/shared5"
                   - type: "null"
               due_time:
-                type:
-                  - string
-                  - "null"
-                description: HH:mm. Suggestion times with zero seconds are accepted as HH:mm:ss.
-              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared6"
                   - type: "null"
-              is_bad_habit:
+              due_end_time:
                 anyOf:
                   - $ref: "#/$defs/shared7"
                   - type: "null"
-              is_general:
+              is_bad_habit:
                 anyOf:
                   - $ref: "#/$defs/shared8"
+                  - type: "null"
+              is_general:
+                anyOf:
+                  - $ref: "#/$defs/shared9"
                   - type: "null"
               is_flexible:
                 type:
@@ -15992,15 +15989,15 @@ legacyTools:
                 description: Window-based tracking. Requires frequency_unit.
               checklist_items:
                 anyOf:
-                  - $ref: "#/$defs/shared10"
+                  - $ref: "#/$defs/shared11"
                   - type: "null"
               start_date:
                 anyOf:
-                  - $ref: "#/$defs/shared11"
+                  - $ref: "#/$defs/shared12"
                   - type: "null"
               placement:
                 anyOf:
-                  - $ref: "#/$defs/shared12"
+                  - $ref: "#/$defs/shared13"
                   - type: "null"
               reminder_enabled:
                 type:
@@ -16014,15 +16011,15 @@ legacyTools:
                   type: integer
               scheduled_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared14"
+                  - $ref: "#/$defs/shared15"
                   - type: "null"
               relative_reminders:
                 anyOf:
-                  - $ref: "#/$defs/shared16"
+                  - $ref: "#/$defs/shared17"
                   - type: "null"
               repeat_reminder:
                 anyOf:
-                  - $ref: "#/$defs/shared20"
+                  - $ref: "#/$defs/shared21"
                   - type: "null"
               slip_alert_enabled:
                 type:
@@ -16036,7 +16033,7 @@ legacyTools:
                   type: string
               habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared21"
+                  - $ref: "#/$defs/shared22"
                   - type: "null"
               tag_ids:
                 type:
@@ -16052,7 +16049,7 @@ legacyTools:
                   type: string
               parent_habit_id:
                 anyOf:
-                  - $ref: "#/$defs/shared22"
+                  - $ref: "#/$defs/shared23"
                   - type: "null"
               sub_habits:
                 type:
@@ -16129,7 +16126,8 @@ legacyTools:
             type: string
             description: YYYY-MM-DD. For a restriction's start, subtract its own offset from its referenced event's local date and
               time. A deadline-only item uses the event date with due_end_time at the event, never another preparation's
-              start date. Otherwise defaults to today.
+              start date. Use requested account-local dates from words or images, including implied holidays and
+              weekdays. Default to today only without a date signal.
           shared5:
             type:
               - string
@@ -16137,6 +16135,10 @@ legacyTools:
             description: YYYY-MM-DD, inclusive. A restriction starting before an event, including a 24-hour restriction, must end on
               that event's date with Day/1, never null. Omit or null for OneTime events and deadline-only items.
           shared6:
+            type: string
+            description: HH:mm. Preserve requested arrival or start times from words or images. Suggestion times with zero seconds
+              are accepted as HH:mm:ss.
+          shared7:
             type:
               - string
               - "null"
@@ -16144,14 +16146,14 @@ legacyTools:
               item that ends at an event uses that event's clock time, with due_date on the event date. A restriction
               starting before the event keeps its own start due_date and its inclusive end_date on the event. Leave
               due_time absent or null when no start time was supplied; do not drop a supplied collection deadline.
-          shared7:
+          shared8:
             type: boolean
             description: True for ongoing reduction or slip tracking, with Day/1 unless another cadence was requested. False for a
               temporary medical commitment.
-          shared8:
-            type: boolean
-            description: No schedule or avoid type. Must be false for an ongoing avoid habit. Defaults to false.
           shared9:
+            type: boolean
+            description: A one-time task with no date; log completes, unlog reopens. False for ongoing avoid habits; default false.
+          shared10:
             type: object
             properties:
               text:
@@ -16165,16 +16167,16 @@ legacyTools:
               - text
               - is_checked
             additionalProperties: false
-          shared10:
+          shared11:
             type: array
             description: Atomic sub-steps done together in one execution.
             items:
-              $ref: "#/$defs/shared9"
-          shared11:
+              $ref: "#/$defs/shared10"
+          shared12:
             type: string
             description: YYYY-MM-DD recurrence anchor. Also set due_date to the requested first date so it is visible in the
               approval preview.
-          shared12:
+          shared13:
             type: string
             enum:
               - sub_habit
@@ -16182,7 +16184,7 @@ legacyTools:
               - new_parent
             description: Optional explicit placement choice for an addition to parent_habit_id. Omit to use the server
               recommendation. Preserve every other proposal field when switching.
-          shared13:
+          shared14:
             type: object
             properties:
               when:
@@ -16197,12 +16199,12 @@ legacyTools:
               - when
               - time
             additionalProperties: false
-          shared14:
+          shared15:
             type: array
             description: Absolute-time reminders for habits WITHOUT a due_time
             items:
-              $ref: "#/$defs/shared13"
-          shared15:
+              $ref: "#/$defs/shared14"
+          shared16:
             type: object
             properties:
               minutes_before:
@@ -16226,13 +16228,13 @@ legacyTools:
               - when
               - time
             additionalProperties: false
-          shared16:
+          shared17:
             type: array
             description: "Reminders relative to due_time: minutes_before, or when (day_before/same_day) and time (HH:mm). Empty
               array clears them."
             items:
-              $ref: "#/$defs/shared15"
-          shared17:
+              $ref: "#/$defs/shared16"
+          shared18:
             type: integer
             enum:
               - 15
@@ -16262,25 +16264,24 @@ legacyTools:
               - 1260
               - 1320
               - 1380
-          shared18:
-            type: string
-            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared19:
             type: string
-            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+            description: Optional local HH:mm; supply active_end too. May cross midnight. Omit both for all day.
           shared20:
+            type: string
+            description: Optional ISO 8601 UTC instant before the first dose. Defaults to when the change is saved.
+          shared21:
             type: object
-            description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-              schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the local
-              day after completion or skip, and always respect the end date. General follows its own completion state.
-              When no daily target was requested, use General with no frequency, and do not derive a target from the
-              reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders.
+            description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+              overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+              Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+              recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders."
             properties:
               interval_minutes:
-                $ref: "#/$defs/shared17"
+                $ref: "#/$defs/shared18"
               active_start:
                 anyOf:
-                  - $ref: "#/$defs/shared18"
+                  - $ref: "#/$defs/shared19"
                   - type: "null"
               active_end:
                 type:
@@ -16289,7 +16290,7 @@ legacyTools:
                 description: Optional local HH:mm, paired with active_start.
               start_at_utc:
                 anyOf:
-                  - $ref: "#/$defs/shared19"
+                  - $ref: "#/$defs/shared20"
                   - type: "null"
             required:
               - interval_minutes
@@ -16297,12 +16298,12 @@ legacyTools:
               - active_end
               - start_at_utc
             additionalProperties: false
-          shared21:
+          shared22:
             type: string
             description: The stored habit ID from query_habits or existingHabitId from suggest_habits. Required for reuse. Keep its
               stored title verbatim; supply only requested changes and leave other fields null. Null means a new
               activity.
-          shared22:
+          shared23:
             type: string
             description: Existing parent for this item. Overrides the shared parent. Resolve headings against account habits; never
               turn them into description text.
@@ -16457,10 +16458,10 @@ legacyTools:
         or schedule math. Use only mechanics, screens, fields and steps explicitly documented in markdown or
         app_surfaces. related_surfaces lists destinations, not editing instructions. app_surfaces comes from the same
         catalog as list_app_surfaces_v2; use only its documented destinations and steps. Never infer a habit edit screen
-        or creation workflow from a related destination. When the requested detail is absent, say that the explanation
-        does not cover it; do not invent navigation or settings. Answer in the person's language. Use at most three
-        short steps, one complete sentence per line, at most 180 characters per line. Do not join steps into a
-        paragraph.
+        or creation workflow from a related destination. Say that the explanation does not cover the requested detail
+        only when no step in markdown or app_surfaces answers the question; do not invent navigation or settings. Answer
+        in the person's language. Use at most three short steps, one complete sentence per line, at most 180 characters
+        per line. Do not join steps into a paragraph.
       strict: true
       parameters:
         type: object
@@ -17663,10 +17664,10 @@ legacyTools:
     sensitiveFields: []
     function:
       name: query_goals
-      description: Read goals and their progress, deadlines and linked habits. Call before answering goal questions; indexes
-        do not ground replies. This result completely answers a goal-progress request; no habit analytics or habit
-        calendar read is needed. Goal progress is the goal's current value against its target in this result. For a
-        goal-progress request, call query_goals alone with orbit_read_complete=true.
+      description: Read goals, progress, deadlines and linked habits before answering goal questions; indexes do not ground
+        replies. For goals or progress, set include_completed=true unless only active goals or a specific status is
+        requested. Progress is current value against target. For goal progress, call only query_goals with
+        orbit_read_complete=true; no habit analytics or calendar read is needed.
       strict: true
       parameters:
         type: object
@@ -17777,7 +17778,7 @@ legacyTools:
             type:
               - boolean
               - "null"
-            description: Filter timeless habits; null includes both.
+            description: "General: a one-time task with no date. Null includes both."
           is_completed:
             type:
               - boolean
@@ -18079,41 +18080,27 @@ legacyTools:
           - date
         additionalProperties: false
   - type: function
-    writes: true
+    writes: false
     sensitiveFields: []
     function:
       name: suggest_breakdown
-      description: "Suggest sub-habits without creating them. When the person cannot get themselves to do an activity, is
-        stuck starting it, or asks for one concrete first step, call suggest_breakdown with one_small_step=true even if
-        they do not say start. When a read request also states an aim, answer only the requested read. An aim alone does
-        not request a write or suggest_breakdown. The server offers a goal action on the read block when appropriate;
-        wait for the person to select it before planning the aim. Set language to en or pt-BR matching their message,
-        title to the activity and suggested_sub_habits to exactly one concrete starting action. Never return an empty
-        array. For a smaller refinement, use structured previousStartingStep as the baseline, keep its goal and return a
-        proper part of its step or its first physical action, taking strictly less time and effort. A paraphrase or a
-        different action of equal or greater effort is not smaller. For a smaller refinement, use the typed
-        previousStartingStep.goal and previousStartingStep.step to compare effort before choosing the action. Keep the
-        same activity and return only the first preparatory physical motion, stopping before the previous action is
-        completed. When the previous step is already one short action, reduce it to contact or positioning and stop
-        there. Picking up material can take as much effort as opening it. Tapping material to open it still completes
-        the previous action. For opening study material, use a motion such as resting one fingertip on its closed cover:
-        'Rest one finger on the closed cover' / 'Encostar um dedo na capa fechada'. Do not append opening, reading or
-        another action to that motion. Apply this comparison in both en and pt-BR. If previousStartingStep.step already
-        consists of a single touch or contact, another touch, tap or finger placement is equal effort and is not
-        smaller. Reduce to looking at the same object without touching or moving it. Compare with the actual typed
-        previous step. Do not repeat contact as a refinement of contact. The server returns oneSmallStep with smaller
-        and save actions. Emit no prose or lists alongside it. Suggestions never save anything. Only an explicit save
-        request uses create_habit for a Task or update_checklist, with item_to_add containing only the step, resolving
-        the owned habit first. The server preserves all stored checklist items. Both require the existing approval
-        preview."
+      description: Suggest sub-habits without creating them. Call once per request; never repeat identical arguments. When the
+        person cannot get themselves to do an activity, is stuck starting it, or asks for one concrete first step, call
+        suggest_breakdown with one_small_step=true even if they do not say start. When a read request also states an
+        aim, answer only the requested read. An aim alone does not request a write or suggest_breakdown. The server
+        offers a goal action on the read block when appropriate; wait for the person to select it before planning the
+        aim. Set language to en or pt-BR matching their message, title to the activity and suggested_sub_habits to
+        exactly one concrete starting action. Never return an empty array. For a smaller refinement, use structured
+        previousStartingStep as the baseline, keep its goal and return a proper part of its step or its first physical
+        action, taking strictly less time and effort. A paraphrase or a different action of equal or greater effort is
+        not smaller. The server returns oneSmallStep with smaller and save actions. Emit no prose or lists alongside it.
+        Suggestions never save anything. Only an explicit save request uses create_habit for a Task or update_checklist,
+        with item_to_add containing only the step, resolving the owned habit first. The server preserves all stored
+        checklist items. Both require the existing approval preview.
       strict: true
       parameters:
         type: object
         properties:
-          orbit_write_complete:
-            type: boolean
-            description: True only when every requested mutation has its matching write call in this round; a read status never
-              fulfills a write. False when a lookup or dependent action is still needed.
           one_small_step:
             type:
               - boolean
@@ -18183,7 +18170,6 @@ legacyTools:
                 - days
               additionalProperties: false
         required:
-          - orbit_write_complete
           - one_small_step
           - language
           - title
@@ -18271,8 +18257,8 @@ legacyTools:
     sensitiveFields: []
     function:
       name: unlog_habit
-      description: Undo a habit completion for a specific date (defaults to today). Removes one completion without creating a
-        log. Fails if no completion exists for that date. Use log_habit to mark it again.
+      description: Undo one habit completion. Completed General tasks use their latest completion; other schedules use the
+        specified date or today. Fails if no completion exists. Use log_habit to mark it again.
       strict: true
       parameters:
         type: object
@@ -18288,7 +18274,7 @@ legacyTools:
             type:
               - string
               - "null"
-            description: ISO date (YYYY-MM-DD) of the completion to undo. Defaults to today.
+            description: ISO date (YYYY-MM-DD). Defaults to today for dated schedules; ignored for completed General tasks.
         required:
           - orbit_write_complete
           - habit_id
@@ -18519,26 +18505,27 @@ legacyTools:
         A Task is one-time: frequency_unit=OneTime in create tools, stored as null, with due_date and requested
         due_time. A dated event or single dated instruction is a Task unless repetition was requested. A Habit has Day,
         Week, Month or Year and a positive frequency_quantity. Daily weekdays require Day/1; is_flexible tracks a
-        quantity within a window and cannot have weekdays. General items have no schedule, recurrence or avoid type.
-        end_date is inclusive and only recurring items use it. A preparation that starts N days or hours before an event
-        and continues until it is a Day/1 Habit: set due_date to the first local date and inclusive end_date to the
-        event date. start_date is only the recurrence anchor and never replaces due_date. Keep a single dated action as
-        a Task. For an activity lasting until a collection or other deadline, put its ending clock time in due_end_time,
-        not due_time; omit due_time when its start was not specified. Never leave temporary preparation recurring
-        indefinitely. Before submitting a create call, check each preparation against its own referenced event's local
-        date and time. In a preparation list, each offset governs the action written immediately after it, up to the
-        next offset or the next action without an offset. This applies to 3 days before, 24 hours before, 3 dias antes
-        and 24 horas antes, even without punctuation between actions. Never make an offset its own item or move it to
-        another action. Keep the person's own verb, such as stop, don't go, parar com or não ir, rather than a synonym;
-        normalize only spelling and casing. A restriction starting N days or hours before an event continues through the
-        event day. A 24-hour restriction is a bounded daily commitment, not a single action on its first day. For an
-        event on local date D at time T, that restriction uses frequency_unit=Day, frequency_quantity=1, due_date=D-1,
-        end_date=D (inclusive). Subtract other offsets independently from that event's local date and time. A
-        deadline-only instruction such as fast until the collection or jejum até a coleta uses frequency_unit=OneTime,
-        due_date=D, due_end_time=T; leave due_time absent or null when no start time was supplied. Do not copy a
-        preceding preparation's start date into a deadline-only item. Keep the event itself OneTime with its own
-        due_date and due_time. Check every restriction has its event end_date and every deadline-only item has its event
-        date and supplied ending time before submitting the complete preview.
+        quantity within a window and cannot have weekdays. General is a one-time task with no date (is_general=true).
+        Log completes; unlog reopens. No recurrence or avoid type. end_date is inclusive and only recurring items use
+        it. A preparation that starts N days or hours before an event and continues until it is a Day/1 Habit: set
+        due_date to the first local date and inclusive end_date to the event date. start_date is only the recurrence
+        anchor and never replaces due_date. Keep a single dated action as a Task. For an activity lasting until a
+        collection or other deadline, put its ending clock time in due_end_time, not due_time; omit due_time when its
+        start was not specified. Never leave temporary preparation recurring indefinitely. Before submitting a create
+        call, check each preparation against its own referenced event's local date and time. In a preparation list, each
+        offset governs the action written immediately after it, up to the next offset or the next action without an
+        offset. This applies to 3 days before, 24 hours before, 3 dias antes and 24 horas antes, even without
+        punctuation between actions. Never make an offset its own item or move it to another action. Keep the person's
+        own verb, such as stop, don't go, parar com or não ir, rather than a synonym; normalize only spelling and
+        casing. A restriction starting N days or hours before an event continues through the event day. A 24-hour
+        restriction is a bounded daily commitment, not a single action on its first day. For an event on local date D at
+        time T, that restriction uses frequency_unit=Day, frequency_quantity=1, due_date=D-1, end_date=D (inclusive).
+        Subtract other offsets independently from that event's local date and time. A deadline-only instruction such as
+        fast until the collection or jejum até a coleta uses frequency_unit=OneTime, due_date=D, due_end_time=T; leave
+        due_time absent or null when no start time was supplied. Do not copy a preceding preparation's start date into a
+        deadline-only item. Keep the event itself OneTime with its own due_date and due_time. Check every restriction
+        has its event end_date and every deadline-only item has its event date and supplied ending time before
+        submitting the complete preview.
 
 
         Use is_bad_habit=true only for ongoing reduction or slip tracking, named for the behaviour itself: Fumar, Tomar
@@ -18756,7 +18743,7 @@ legacyTools:
             type:
               - boolean
               - "null"
-            description: General habit without a schedule. Children must match their parent.
+            description: A one-time task with no date. Children must match their parent.
           slip_alert_enabled:
             type:
               - boolean
@@ -18796,12 +18783,11 @@ legacyTools:
             type:
               - object
               - "null"
-            description: Repeat from the latest dose across midnight. Replaces other reminders. Allowed on every habit and task
-              schedule. Notify only while due today or overdue, or while General. Stop scheduled reminders for the local
-              day after completion or skip, and always respect the end date. General follows its own completion state.
-              When no daily target was requested, use General with no frequency, and do not derive a target from the
-              reminder interval. Keep doctor-prescribed fixed clock times in scheduled_reminders. Use clear_fields to
-              clear repeat_reminder.
+            description: "Repeat from the latest dose across midnight. Replaces other reminders. All schedules. Notify while due or
+              overdue. General is a one-time task with no date: log completes it and stops reminders until unlogged.
+              Scheduled reminders stop for the local day after completion or skip; respect end_date. Never infer
+              recurrence or a daily target from the interval. Keep prescribed clock times in scheduled_reminders. Use
+              clear_fields to clear repeat_reminder."
             properties:
               interval_minutes:
                 type: integer
