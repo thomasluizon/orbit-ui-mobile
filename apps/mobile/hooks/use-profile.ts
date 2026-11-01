@@ -12,7 +12,7 @@ import {
 import { apiClient } from '@/lib/api-client'
 import { useAuthStore } from '@/stores/auth-store'
 
-async function fetchProfile(): Promise<Profile> {
+export async function fetchProfile(): Promise<Profile> {
   return apiClient<Profile>(API.profile.get)
 }
 

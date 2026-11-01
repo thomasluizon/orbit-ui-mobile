@@ -3,6 +3,7 @@ import { checkCompletionAfterSkip, settleBulkSkippedHabits } from '@orbit/shared
 import { randomUUID } from 'expo-crypto'
 import type { HabitDetailSnapshots, HabitDetailUpdates, HabitListSnapshots } from '@orbit/shared/query'
 import {
+  onlineManager,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
@@ -11,6 +12,7 @@ import {
   restoreCachedHabitDetails,
   updateCachedHabitDetails,
   invalidateHabitParentDetails,
+  invalidateDerivedHabitLogQueries,
   habitKeys,
   invalidateBulkMoveParentQueries,
   goalKeys,
@@ -124,6 +126,7 @@ import { captureHabitLogged } from '@/lib/posthog'
 import { apiClient } from '@/lib/api-client'
 import { getAccountId } from '@/lib/account-scope'
 import { getAccountGeneration } from '@/lib/session-epoch'
+import { fetchProfile } from './use-profile'
 
 type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string; __offlineDependsOn?: string[] }
 type BulkCreateHabitMutationInput = BulkCreateRequest & { __offlineTempIds?: string[] }
@@ -139,6 +142,7 @@ type CreateSubHabitMutationInput = {
 }
 type RestoreHabitInput = string | { habitId: string; reconcileNotFound: true }
 type LogHabitSnapshot = {
+  account: ReturnType<typeof captureHabitAccount>
   occurrenceDate: string
   previousLists: HabitListSnapshots
   previousLogs: HabitLog[] | undefined
@@ -264,6 +268,28 @@ function checkTodayCompletionAfterLog(
     : null
 }
 
+async function resolveHabitLogDate(
+  queryClient: ReturnType<typeof useQueryClient>,
+  occurrenceTime: Date,
+  account: ReturnType<typeof captureHabitAccount>,
+): Promise<string | undefined> {
+  const cachedProfile = queryClient.getQueryData<Profile>(profileKeys.detail())
+  if (cachedProfile) return getAccountDay(occurrenceTime, cachedProfile.timeZone)
+  if (!onlineManager.isOnline() || queryClient.getQueryState(profileKeys.detail())?.fetchStatus === 'paused') {
+    return undefined
+  }
+  let profile: Profile | undefined
+  try {
+    profile = await fetchProfile()
+  } catch {
+    /** #1928: without a resolved profile, leave the account day to the server. */
+  }
+  if (!account.stillCurrent()) throw new Error('Account changed')
+  if (!profile) return undefined
+  queryClient.setQueryData(profileKeys.detail(), profile)
+  return getAccountDay(occurrenceTime, profile.timeZone)
+}
+
 export function useLogHabit() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
@@ -276,21 +302,27 @@ export function useLogHabit() {
     LogHabitMutationInput,
     LogHabitSnapshot
   >({
-    mutationFn: ({ habitId, date }) => {
-      const occurrenceDate = date ?? getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+    mutationFn: async ({ habitId, date }) => {
+      const account = captureHabitAccount()
+      const occurrenceTime = new Date()
+      const occurrenceDate = date ?? await resolveHabitLogDate(queryClient, occurrenceTime, account)
+      if (!account.stillCurrent()) throw new Error('Account changed')
+      const dedupeDate = occurrenceDate ?? getAccountDay(occurrenceTime)
       return performQueuedApiMutation<LogHabitResponse>({
+        isCurrent: account.stillCurrent,
         type: 'logHabit',
         scope: 'habits',
         endpoint: API.habits.log(habitId),
         method: 'POST',
-        payload: date ? { date } : undefined,
+        payload: occurrenceDate ? { date: occurrenceDate } : {},
         entityType: 'habit',
         targetEntityId: habitId,
-        dedupeKey: `habit-toggle:${habitId}:${occurrenceDate}`,
+        dedupeKey: `habit-toggle:${habitId}:${dedupeDate}`,
       })
     },
 
     onMutate: ({ habitId, date, intent }) => {
+      const account = captureHabitAccount()
       const occurrenceDate = date ?? getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
       const hadPendingListRefetch = queryClient.isFetching({ queryKey: habitKeys.lists() }) > 0
       /** Start canceling refetches without delaying the optimistic completion. */
@@ -354,10 +386,11 @@ export function useLogHabit() {
           (items) => optimisticToggleCompletion(items, habitId))
       }
 
-      return { occurrenceDate, previousLists, previousLogs, previousCalendars, hadPendingListRefetch, retryAllDoneDate: null }
+      return { account, occurrenceDate, previousLists, previousLogs, previousCalendars, hadPendingListRefetch, retryAllDoneDate: null }
     },
 
     onError: (error, variables, context) => {
+      if (context?.account.stillCurrent() === false) return
       if (context?.previousLists && !variables.date) {
         for (const [key, data] of context.previousLists) {
           if (data) {
@@ -402,6 +435,7 @@ export function useLogHabit() {
     },
 
     onSuccess: (response, variables, context: LogHabitSnapshot | undefined) => {
+      if (context?.account.stillCurrent() === false) return
       const queuedResult = isQueuedResult(response)
 
       if (variables.intent === 'log' && (!queuedResult || response.retained !== true)) {
@@ -428,7 +462,7 @@ export function useLogHabit() {
        * "streak" is consecutive abstinence, the opposite semantics, and an unresolvable habit
        * cannot be shown to be either. Celebrating on a guess is user-visible harm.
        */
-      const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
+      const countsTowardStreak = loggedHabit?.isBadHabit === false
 
       showStreakMoment(
         response.currentStreak,
@@ -498,12 +532,15 @@ export function useLogHabit() {
     },
 
     onSettled: (data, error, { habitId }, context) => {
+      if (context?.account.stillCurrent() === false) return
+      if (!error && !isQueuedResult(data)) invalidateDerivedHabitLogQueries(queryClient)
       const today = !error && !isQueuedResult(data) ? context?.retryAllDoneDate : null
       finalizeHabitMutation(queryClient, data, error, {
         habitId, includeCount: false, includeLists: !today,
       })
       if (!today) return
       return getTodayHabitListAfterRefetch(queryClient, today).then((habitsData) => {
+        if (context?.account.stillCurrent() === false) return
         if (!habitsData) return
         const normalized = normalizeHabits(habitsData)
         checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today, queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
@@ -1430,7 +1467,13 @@ export function useBulkLogHabits(options: { suppressParentSettlement?: boolean }
     { previousLists: HabitListSnapshots; occurrenceDate: string; account: ReturnType<typeof captureHabitAccount> }
   >({
     mutationFn: async (input) => {
-      const { items, parentPromptContinuation } = normalizeParentPromptBulkInput(input)
+      const account = captureHabitAccount()
+      const { items: requestedItems, parentPromptContinuation } = normalizeParentPromptBulkInput(input)
+      const occurrenceDate = requestedItems.some((item) => item.date === undefined)
+        ? await resolveHabitLogDate(queryClient, new Date(), account) : undefined
+      if (!account.stillCurrent()) throw new Error('Account changed')
+      const items = requestedItems.map((item) => item.date === undefined && occurrenceDate
+        ? { ...item, date: occurrenceDate } : item)
       const results: BulkLogResult['results'] = []
       const streakResponses: BulkLogResult[] = []
       const ambiguousIds: string[] = []
@@ -1441,6 +1484,7 @@ export function useBulkLogHabits(options: { suppressParentSettlement?: boolean }
         const chunk = items.slice(index, index + 100)
         try {
           const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
+            isCurrent: account.stillCurrent,
             type: 'bulkLogHabits',
             scope: 'habits',
             suppressParentSettlement: options.suppressParentSettlement,
@@ -1468,12 +1512,8 @@ export function useBulkLogHabits(options: { suppressParentSettlement?: boolean }
           if (!isQueuedResult(response)) streakResponses.push(chunkResponse)
           results.push(...chunkResponse.results)
         } catch (error: unknown) {
-          const failedIds = chunk.map((item) => item.habitId)
-          if (error instanceof OfflineMutationPreflightError) {
-            offlineFailureIds.push(...failedIds)
-          } else {
-            ambiguousIds.push(...failedIds)
-          }
+          const failures = error instanceof OfflineMutationPreflightError ? offlineFailureIds : ambiguousIds
+          failures.push(...chunk.map((item) => item.habitId))
         }
       }
       return { results, streakResponses, ambiguousIds, offlineFailureIds, hasConfirmedSuccess, queuedIds }
@@ -1486,6 +1526,7 @@ export function useBulkLogHabits(options: { suppressParentSettlement?: boolean }
 
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
+      if (!account.stillCurrent()) throw new Error('Account changed')
       const previousLists = snapshotHabitLists(queryClient)
       const completedIds = items.map((item) => item.habitId)
 
@@ -1500,12 +1541,14 @@ export function useBulkLogHabits(options: { suppressParentSettlement?: boolean }
     },
 
     onError: (_err, _vars, context) => {
+      if (context && !context.account.stillCurrent()) return
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
     },
 
     onSuccess: (data, input, context) => {
+      if (!context.account.stillCurrent()) return
       const { items: variables } = normalizeParentPromptBulkInput(input)
       const profileRefresh = data.hasConfirmedSuccess
         ? queryClient.invalidateQueries({ queryKey: profileKeys.all }) : null
@@ -1548,11 +1591,14 @@ export function useBulkLogHabits(options: { suppressParentSettlement?: boolean }
       })
     },
 
-    onSettled: (data, error) =>
+    onSettled: (data, error, _input, context) => {
+      if (context && !context.account.stillCurrent()) return
+      if (data?.hasConfirmedSuccess) invalidateDerivedHabitLogQueries(queryClient)
       finalizeHabitMutation(queryClient, data, error, {
         includeGoals: true,
         includeGamification: true,
-      }),
+      })
+    },
   })
 }
 

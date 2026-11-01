@@ -7,7 +7,7 @@ import type { HabitDetail, HabitDetailChild, HabitFullDetail, HabitScheduleItem,
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'
 import { buildOptimisticSkipPatch, optimisticSetDatedCompletion, clearOptimisticSkipMarker, findHabitInList, findHabitInTree, getTomorrowDateString, optimisticPatchHabit, withChildren, type HabitTreeNode } from '../utils/habit-optimistic'
 import type { HabitListSnapshots } from './keys'
-import { gamificationKeys, habitKeys } from './keys'
+import { gamificationKeys, habitKeys, profileKeys } from './keys'
 
 function includesDate(filters: HabitsFilter, date: string): boolean {
   if (!filters.dateFrom) return true
@@ -266,6 +266,17 @@ export function invalidateHabitDependents(queryClient: QueryClient, habitId: str
   void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.retrospectivePrefix() })
   void queryClient.invalidateQueries({ queryKey: gamificationKeys.recapPrefix() })
+}
+
+export function invalidateDerivedHabitLogQueries(queryClient: QueryClient): void {
+  for (const queryKey of [
+    habitKeys.details(),
+    habitKeys.fullDetails(),
+    habitKeys.logsPrefix(),
+    habitKeys.metricsPrefix(),
+    profileKeys.all,
+    gamificationKeys.all,
+  ]) void queryClient.invalidateQueries({ queryKey })
 }
 
 export function rollbackDatedHabitLists(
