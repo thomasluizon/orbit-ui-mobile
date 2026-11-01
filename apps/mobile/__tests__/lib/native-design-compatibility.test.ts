@@ -103,6 +103,10 @@ function requireThemeKeys(source: string) {
 const iosOnlyPlugins = new Set(['./plugins/with-ios-widget'])
 
 describe('native union accepts both widget callers', () => {
+  it('enables the billing library BuildConfig used by its Android logger', () => {
+    const billingGradle = readFileSync(require.resolve('expo-iap/android/build.gradle'), 'utf8')
+    expect(billingGradle).toMatch(/buildFeatures\s*\{\s*buildConfig\s*=\s*true\s*\}/)
+  })
   it('keeps the SDK 58 binary separate from the audited native union runtime', () => {
     requireNativePackages(legacyPackages)
     expect(() => requireNativePackages(lock.packages)).toThrow('Native version mismatch')
