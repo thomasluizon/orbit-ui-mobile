@@ -1,7 +1,7 @@
 {
   "apps/mobile/modules/orbit-app-update/android/build.gradle": "dad9ef0a1dc45fc7c036540632c3001be33d41396ddd9d418e2c7efd1352bf12",
   "apps/mobile/modules/orbit-app-update/android/src/main/AndroidManifest.xml": "343d5be1ac17cdd45d1a2f2ddc616c509290e655869125a9422a96d88aa66066",
-  "apps/mobile/modules/orbit-app-update/android/src/main/java/org/useorbit/app/update/OrbitAppUpdateModule.kt": "63295439b6cb272c599eb3e95fa6983a3b70e25d72563351cf97ec1c1a6e19fa",
+  "apps/mobile/modules/orbit-app-update/android/src/main/java/org/useorbit/app/update/OrbitAppUpdateModule.kt": "ff8cffda39a50b5a55fdacfb26a818c12b179086db07a0d76cdaf5840b754d56",
   "apps/mobile/modules/orbit-app-update/expo-module.config.json": "3dc5b3bc9ae422b858b75f4a65da68c15885eee874fd97d3a51705e1e512c337",
   "apps/mobile/modules/orbit-widget/android/build.gradle": "5249b84f027c8b26cf403332259184b665072701529cb7e516f543ff77d83dce",
   "apps/mobile/modules/orbit-widget/android/consumer-rules.pro": "334088bd2ba0f11aa9b06a092beec8698a6f5efd39032c5d1cf9f1cfb594d1d7",
