@@ -12,6 +12,7 @@ import { googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { AUTH_BACKEND_ERROR_MAP } from '@orbit/shared/utils'
 import { API } from '@orbit/shared/api'
+import { stackFixture } from '@/test-support/navigation-fixture'
 import AuthCallbackScreen from '@/app/auth-callback'
 import { LoginContent } from '@/components/auth/login-content'
 import { EmailStep } from '@/components/auth/email-step'
@@ -42,6 +43,7 @@ const mocks = vi.hoisted(() => ({
   resetAccount: vi.fn(async () => {}), clearOffline: vi.fn(async () => {}),
   referral: vi.fn(),
   setParams: vi.fn(),
+  navigationState: vi.fn(),
   widgetToken: null as string | null,
   saveWidgetToken: vi.fn((token: string) => { mocks.widgetToken = token; return Promise.resolve() }),
   clearWidgetToken: vi.fn(() => { mocks.widgetToken = null; return Promise.resolve() }),
@@ -57,7 +59,7 @@ vi.mock('@react-native-async-storage/async-storage', () => {
   } }
 })
 vi.mock('expo-router', () => ({
-  useNavigation: () => ({ dispatch: vi.fn() }),
+  useNavigation: () => ({ getState: mocks.navigationState, dispatch: vi.fn() }),
   router: { replace: mocks.replace },
   useRouter: () => ({ replace: mocks.replace, push: vi.fn(), canGoBack: () => false, setParams: mocks.setParams }),
   useLocalSearchParams: () => mocks.params,
@@ -145,6 +147,10 @@ beforeEach(async () => {
   vi.clearAllMocks()
   mocks.rawUrl = null
   mocks.params = {}
+  const navigation = stackFixture({ initialRouteName: 'login' })
+  mocks.navigationState.mockImplementation(() => navigation.getRehydratedState({
+    routes: [{ name: 'login', params: mocks.params }],
+  }, { routeNames: ['login'], routeGetIdList: {} }))
   mocks.widgetToken = null
   vi.stubGlobal('fetch', mocks.fetch)
   vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'test-client')
