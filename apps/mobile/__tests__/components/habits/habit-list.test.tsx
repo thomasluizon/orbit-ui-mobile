@@ -5991,6 +5991,11 @@ describe('HabitList', () => {
       expect(tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) => typeof node.type === 'string' && node.props['data-phase'] === 'exit')).toHaveLength(0)
       expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(1050)
       expect(rootListScroll.scrollToOffset).not.toHaveBeenCalled()
+      TestRenderer.act(() => { tree!.root.findByType('DraggableFlatList').props.onScrollOffsetChange(240) })
+      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(640)
+      TestRenderer.act(() => { tree!.root.findByType('DraggableFlatList').props.onScrollOffsetChange(0) })
+      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(400)
+      await TestRenderer.act(() => tree!.unmount())
     })
 
     function renderTodayList(onScroll?: (offsetY: number) => void) {

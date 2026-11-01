@@ -9,12 +9,12 @@ afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.resto
 
 function List({ ids, parentId = null }: Readonly<{ ids: string[]; parentId?: string | null }>) {
   const ref = useHabitListScrollAnchor(parentId)
-  return <div data-shell-scroller="" style={{ position: 'relative', paddingTop: 0 }}><div ref={ref} data-habit-list="" style={{ overflowAnchor: 'none' }}>
+  return <div data-shell-scroller="" style={{ position: 'relative', padding: 0 }}><div ref={ref} data-habit-list="" style={{ overflowAnchor: 'none' }}>
     <ListPresence>{ids.map((id) => <ListMotionItem key={id}><button>{id}</button></ListMotionItem>)}</ListPresence>
   </div></div>
 }
 
-it('keeps a pending scroll through initial observation and subsequent viewport resizing', async () => {
+it('keeps the observed scroll offset through viewport resizing and browser anchoring', async () => {
   vi.useFakeTimers()
   const callbacks: ResizeObserverCallback[] = []
   vi.stubGlobal('ResizeObserver', class {
@@ -34,7 +34,9 @@ it('keeps a pending scroll through initial observation and subsequent viewport r
   const scroller = view.container.querySelector<HTMLElement>('[data-shell-scroller]')!
   scroller.scrollTop = 650
   fireEvent.scroll(scroller)
-  viewportHeight = 800
+  await act(() => vi.advanceTimersByTime(100))
+  viewportHeight = 812
+  scroller.scrollTop = 722
   act(() => callbacks.forEach(callback => callback([], {} as ResizeObserver)))
   expect(scroller.scrollTop).toBe(650)
   fireEvent.scroll(scroller)
