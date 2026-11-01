@@ -19,6 +19,7 @@ import {
   makeHabitDetail as makeDetail,
   makeEnrichedHabitDetail,
   makeHabitScheduleItem,
+  makeMonthlyChildDaySchedule,
   makeTaggedNestedHabitScheduleItem,
   makeHabitDetailScopedChild as makeScopedChild,
   makeHabitDetailScopedParent as makeScopedParent,
@@ -49,6 +50,7 @@ const mocks = vi.hoisted(() => ({
   realHeaderRing: false,
   realEditorPencil: false,
   realChildRows: false,
+  realChildStatusCopy: false,
   realHistory: false,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
@@ -95,6 +97,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('next-intl', () => ({
   useLocale: () => mocks.language,
   useTranslations: () => (key: string, values?: Record<string, string | number>) => {
+    if (mocks.realChildStatusCopy && key === 'habits.form.typeHabit') return ptBR.habits.form.typeHabit
+    if (mocks.realChildStatusCopy && key === 'habits.statusDot.skip') return ptBR.habits.statusDot.skip
+    if (mocks.realChildStatusCopy && key === 'calendar.dayCell.notScheduled') return ptBR.calendar.dayCell.notScheduled
     if (key === 'habits.detail.slippingLine') return `${key}:${values?.days}:${values?.streak}:${values?.limit}`
     if (key === 'loggedAt') return `${values?.date}, logged at ${values?.time}`
     if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
@@ -330,6 +335,7 @@ describe('HabitDetailScreen', () => {
     mocks.realEditorPencil = false
     mocks.realHeaderRing = false
     mocks.realChildRows = false
+    mocks.realChildStatusCopy = false
     mocks.realHistory = false
     mocks.pathname = '/habits/habit-1'
     mocks.realTimeField = false;
@@ -1742,6 +1748,29 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('button', { name: 'habits.detail.rescheduleAccept' })).toBeInTheDocument()
   })
 
+  it.each([true, false])('shows a present monthly child as unavailable with skipped=%s', (skipped) => {
+    const date = '2026-08-28'
+    const schedule = makeMonthlyChildDaySchedule(date, '2026-09-28')
+    schedule.children[0]!.isSkippedOnDate = skipped
+    mocks.detail = { ...makeDetail(), frequencyUnit: 'Month', days: [], children: schedule.children }
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    mocks.logs = []
+    mocks.realChildRows = true
+    const { container } = render(<HabitDetailScreen habitId="habit-1" date={date} />)
+    const rows = within(screen.getByTestId('detail-children')).getAllByTestId('habit-row')
+    const skippedRow = rows[0]!
+    expect(within(skippedRow.querySelector('[data-habit-row-meta]')!).getByText(skipped ? 'habits.statusDot.skip' : 'calendar.dayCell.notScheduled')).toBeVisible()
+    expect(skippedRow.querySelector('[data-status="empty"]')).toBeNull()
+    expect(skippedRow.querySelector('[data-status="unavailable"]')).toBeInTheDocument()
+    const toggle = within(skippedRow).getByTestId('habit-status-toggle')
+    expect(toggle).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(toggle)
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(rows[1]!.querySelector('[data-status="done"]')).toBeInTheDocument()
+    fireEvent.click(container.querySelector('[data-habit-detail-header-row] button[data-logged]')!)
+    expect(mocks.log).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'habit-1', date }))
+  })
+
   it('composes integrated metadata from the detail child list records', () => {
     mocks.realChildRows = true
     const checklistItems = [{ text: 'Page', isChecked: true }, { text: 'Page', isChecked: false }]
@@ -1768,6 +1797,41 @@ describe('HabitDetailScreen', () => {
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([320, 412])('keeps not-due child status inside the card at 200 percent text at %ipx', async (width) => {
+      vi.useRealTimers()
+      mocks.realChildRows = true
+      mocks.realChildStatusCopy = true
+      const schedule = makeMonthlyChildDaySchedule('2026-08-28', '2026-09-28')
+      schedule.children[0]!.isSkippedOnDate = false
+      mocks.detail = { ...makeDetail(), children: schedule.children }
+      mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+      document.documentElement.style.fontSize = '32px'
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        const { container } = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+        await page.setContent(`<style>${stylesheet}:root { font-size:32px; --font-geist-mono: "Geist Mono" }</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const bounds = await page.locator('[data-habit-id="child-1"] [data-habit-row-meta-token]').evaluateAll((tokens) => tokens.map((token) => {
+          const card = token.closest('[data-testid="habit-row"]')!.getBoundingClientRect()
+          const box = token.getBoundingClientRect()
+          const range = document.createRange()
+          range.selectNodeContents(token)
+          const text = range.getBoundingClientRect()
+          return { right: card.right - box.right, bottom: card.bottom - box.bottom, textRight: box.right - text.right, textBottom: box.bottom - text.bottom }
+        }))
+        expect(bounds).toHaveLength(2)
+        for (const token of bounds) {
+          expect(token.right).toBeGreaterThanOrEqual(0)
+          expect(token.bottom).toBeGreaterThanOrEqual(0)
+          expect(token.textRight).toBeGreaterThanOrEqual(0)
+          expect(token.textBottom).toBeGreaterThanOrEqual(0)
+        }
+      } finally {
+        document.documentElement.style.removeProperty('font-size')
+        await page.close()
+      }
+    })
 
     it.each([320, 412, 840])('retains every history branch and loading disc allocation at %ipx', async (width) => {
       mocks.realHistory = true

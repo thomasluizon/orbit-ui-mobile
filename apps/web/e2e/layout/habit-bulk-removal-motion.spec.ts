@@ -46,7 +46,7 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await page.getByRole('button', { name: en.habits.bulkBar.skip, exact: true }).click()
     const observed = await observations
     expect(observed.departures).toBe(items.length)
-    expect(observed.offsets.every((offset) => Math.abs(offset - 650) < 1)).toBe(true)
+    expect(observed.offsets.every((offset) => Math.abs(offset - 650) < 1), JSON.stringify(observed)).toBe(true)
     await expect(rows).toHaveCount(0)
   })
 }

@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
+import { makeMonthlyChildDaySchedule } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -6,6 +8,7 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureInteractionFills } from '@/__tests__/support/interaction-fill-geometry'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { StyleSheet } from 'react-native'
 
 vi.unmock('@/components/ui/icons')
 const TestRenderer = require('react-test-renderer')
@@ -15,6 +18,8 @@ vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'or
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, values?: Record<string, string | number>) => {
   const messages = locale.value === 'en' ? en : ptBR
   if (key === 'habits.nextReminder') return messages.habits.nextReminder.replace('{time}', String(values?.time))
+  if (key === 'habits.statusDot.skip') return messages.habits.statusDot.skip
+  if (key === 'calendar.dayCell.notScheduled') return messages.calendar.dayCell.notScheduled
   if (key === 'habits.form.typeHabit') return messages.habits.form.typeHabit
   if (key === 'habits.rowTypeTask') return messages.habits.rowTypeTask
   if (key === 'habits.form.checklist') return messages.habits.form.checklist
@@ -30,6 +35,56 @@ vi.mock('@/lib/motion', async (importOriginal) => ({
 afterEach(() => { __resetTestHostConfig(); locale.value = 'en'; theme.value = 'dark' })
 
 describe('integrated native row metadata', () => {
+  it.each([true, false])('applies unavailable completion only inside a day scope, skipped=%s', (skipped) => {
+    const schedule = makeMonthlyChildDaySchedule()
+    schedule.children[0]!.isSkippedOnDate = skipped
+    const habit = normalizeHabitQueryData([schedule]).habitsById.get('child-1')!
+    const onLog = vi.fn()
+    const date = new Date('2026-11-01T12:00:00')
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} selectedDate={date} today="2026-11-01" actions={{ onLog }} />) })
+    const status = skipped ? en.habits.statusDot.skip : en.calendar.dayCell.notScheduled
+    expect(JSON.stringify(tree!.toJSON())).toContain(status)
+    const check = () => tree!.root.findAllByType('Pressable').find((node: import('react-test-renderer').ReactTestInstance) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).includes(`: ${habit.title}`))!
+    expect(check().props.disabled).toBe(true)
+    TestRenderer.act(() => check().props.onPress())
+    expect(onLog).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.update(<HabitRow habit={habit} today="2026-11-01" actions={{ onLog }} />))
+    expect(JSON.stringify(tree!.toJSON())).not.toContain(status)
+    expect(tree!.root.findAllByProps({ testID: 'habit-check' }).length).toBeGreaterThan(0)
+    expect(check().props.disabled).toBe(false)
+    TestRenderer.act(() => check().props.onPress())
+    expect(onLog).toHaveBeenCalledOnce()
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each([2, 2.5])('keeps the Portuguese not-due token and its text inside a child card at %s text', (scale) => {
+    locale.value = 'pt-BR'
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: scale })
+    const schedule = makeMonthlyChildDaySchedule()
+    schedule.children[0]!.isSkippedOnDate = false
+    const habit = normalizeHabitQueryData([schedule]).habitsById.get('child-1')!
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} depth={1} selectedDate={new Date('2026-11-01T12:00:00')} today="2026-11-01" />) })
+    const geometry = measureInteractionFills(tree!.toJSON(), 288, false, scale)
+    const row = geometry.find((part) => part.host.props.testID === 'habit-row')!
+    const status = geometry.find((part) => part.host.type === 'Text' && part.host.children?.includes(ptBR.calendar.dayCell.notScheduled))!
+    const text = tree!.root.findAllByType('Text').find((node: import('react-test-renderer').ReactTestInstance) => node.props.children === ptBR.calendar.dayCell.notScheduled)!
+    const tokenView = tree!.root.findAllByType('View').find((node: import('react-test-renderer').ReactTestInstance) => node.props.testID === 'habit-row-meta-token' && node.findAllByType('Text').some((part: import('react-test-renderer').ReactTestInstance) => part.props.children === ptBR.calendar.dayCell.notScheduled))!
+    expect(StyleSheet.flatten(tokenView.props.style)).toMatchObject({ minWidth: 0, maxWidth: '100%', flexShrink: 1 })
+    expect(StyleSheet.flatten(text.props.style)).toMatchObject({ minWidth: 0, flexShrink: 1 })
+    expect(text.props.numberOfLines).toBeUndefined()
+    expect(status.left).toBeGreaterThanOrEqual(row.left)
+    expect(status.right).toBeLessThanOrEqual(row.right)
+    expect(status.bottom).toBeLessThanOrEqual(row.bottom)
+    for (const token of geometry.filter((part) => part.host.props.testID === 'habit-row-meta-token')) {
+      expect(token.left).toBeGreaterThanOrEqual(row.left)
+      expect(token.right).toBeLessThanOrEqual(row.right)
+      expect(token.bottom).toBeLessThanOrEqual(row.bottom)
+    }
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('preserves actual checklist values across schedules and completion states', () => {
     const schedules: Partial<NormalizedHabit>[] = [{ frequencyUnit: null }, { isGeneral: true }, { isFlexible: true, frequencyUnit: 'Week' }, { frequencyUnit: 'Day' }]
     for (const schedule of schedules) for (const flags of [{ isCompleted: true }, { isOverdue: true }, { isBadHabit: true }, {}]) {
@@ -114,7 +169,7 @@ describe('integrated native row metadata', () => {
       theme.value = mode
       locale.value = language
       __setWindowDimensions({ width, height: 892, scale: 1, fontScale: scale })
-      const habit = createMockHabit({ title: 'Read pages', description: 'Read before breakfast.', checklistItems: Array.from({ length: 50 }, () => ({ text: 'Page', isChecked: true })) })
+      const habit = createMockHabit({ scheduledDates: [formatAPIDate(new Date())], title: 'Read pages', description: 'Read before breakfast.', checklistItems: Array.from({ length: 50 }, () => ({ text: 'Page', isChecked: true })) })
       let tree: ReturnType<typeof TestRenderer.create>
       TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} depth={depth} structuralColumn hasChildren childrenDone={1} childrenTotal={3} actions={{ onEdit: vi.fn(), onToggleExpand: vi.fn() }} />) })
       const initial = measureInteractionFills(tree!.toJSON(), width - 32, false, scale)

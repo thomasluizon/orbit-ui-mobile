@@ -3,6 +3,8 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { bundleHabitRowMetadata } from '@/__tests__/support/habit-row-metadata-browser'
 import { setHabitTextScale } from '@/e2e/layout/subhabit-indent-geometry'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -17,6 +19,51 @@ describe('habit row standard in Chromium', () => {
     metadataBundle = bundleHabitRowMetadata()
   })
   afterAll(async () => { vi.unstubAllGlobals(); await closeChrome(browserLaunch) }, 30_000)
+
+  it.each((['light', 'dark'] as const).flatMap((mode) => (['en', 'pt-BR'] as const).map((locale) => ({ mode, locale }))))(
+    'wraps live not-due status within the narrow detail row in $mode/$locale', async ({ mode, locale }) => {
+      const page = await browser.newPage({ viewport: { width: 320, height: 915 }, reducedMotion: 'reduce' })
+      try {
+        const tokens = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<!doctype html><style>${stylesheet}:root{${tokens};font-size:16px}body{margin:0;background:var(--bg)}</style><main class="overflow-y-auto [scrollbar-gutter:stable]" style="height:915px"><div class="px-4"><div id="root" data-scenario="not-due" data-locale="${locale}"></div></div></main>`)
+        await loadAppFonts(page)
+        await page.addScriptTag({ content: metadataBundle })
+        await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 3)
+        for (const scale of [1, 2, 2.5, 1]) {
+          await page.evaluate(async (scale) => {
+            document.documentElement.style.fontSize = `${16 * scale}px`
+            window.dispatchEvent(new Event('resize'))
+            await document.fonts.ready
+            await new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())))
+          }, scale)
+          if (scale > 1.3) await page.waitForFunction(() => document.querySelectorAll('[data-habit-row-heading]').length === 3)
+          for (const [id, label] of [['child-1', (locale === 'en' ? en : ptBR).habits.statusDot.skip], ['child-3', (locale === 'en' ? en : ptBR).calendar.dayCell.notScheduled]]) {
+            const row = page.locator(`[data-habit-id="${id}"]`)
+            expect(await row.locator('[data-habit-row-meta]').textContent()).toContain(label)
+            const measured = await row.evaluate((element) => {
+              const card = element.getBoundingClientRect()
+              return [...element.querySelectorAll('[data-habit-row-meta-token]')].map((token) => {
+                const box = token.getBoundingClientRect()
+                const range = document.createRange()
+                range.selectNodeContents(token)
+                const text = range.getBoundingClientRect()
+                const style = getComputedStyle(token)
+                const strip = token.parentElement!
+                return { clearance: { left: box.left - card.left, right: card.right - box.right, bottom: card.bottom - box.bottom,
+                  textLeft: text.left - box.left, textRight: box.right - text.right, textBottom: box.bottom - text.bottom },
+                  token: token.outerHTML, width: box.width, stripWidth: strip.getBoundingClientRect().width,
+                  whiteSpace: style.whiteSpace, maxWidth: style.maxWidth, minWidth: style.minWidth, shrink: style.flexShrink }
+              })
+            })
+            for (const token of measured) {
+              expect(Math.min(...Object.values(token.clearance)), JSON.stringify({ scale, id, token })).toBeGreaterThanOrEqual(0)
+            }
+          }
+          expect(await page.locator('[data-habit-id="child-2"] [data-habit-check]').getAttribute('data-status')).toBe('done')
+        }
+      } finally { await page.close() }
+    },
+  )
 
   it.each((['light', 'dark'] as const).flatMap((mode) =>
     (['en', 'pt-BR'] as const).map((locale) => ({ mode, locale })),
