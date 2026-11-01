@@ -605,6 +605,9 @@ select[aria-hidden="true"] {
   z-index: var(--z-index-dropdown);
   min-width: 240px;
   max-width: 320px;
+  max-height: var(--radix-dropdown-menu-content-available-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--orbit-space-8);
   border-radius: 20px;
   background: var(--bg-sheet);
