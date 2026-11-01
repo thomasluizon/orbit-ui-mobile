@@ -6,6 +6,14 @@ import type { LegacyTapGesture as TapGestureType, LegacyHoverGesture as HoverGes
 type NativeGestureType = ReturnType<typeof import('react-native-gesture-handler').Gesture.Native>
 
 const loadGestureModule = createRequire(import.meta.url)
+export const { State } = await vi.importActual<Pick<typeof import('react-native-gesture-handler'), 'State'>>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/State.js'))
+export const { PointerType } = await vi.importActual<Pick<typeof import('react-native-gesture-handler'), 'PointerType'>>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/PointerType.js'))
+export const { SingleGestureName } = await vi.importActual<typeof import('react-native-gesture-handler/lib/typescript/v3/types/GestureTypes')>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/v3/types/GestureTypes.js'))
+vi.mock('react-native-gesture-handler/lib/module/RNGestureHandlerModule.js', async () =>
+  vi.importActual('react-native-gesture-handler/lib/module/mocks/module.js'))
+export const { useNativeGesture } = await vi.importActual<Pick<typeof import('react-native-gesture-handler'), 'useNativeGesture'>>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/v3/hooks/gestures/native/useNativeGesture.js'))
+export const { useTapGesture } = await vi.importActual<Pick<typeof import('react-native-gesture-handler'), 'useTapGesture'>>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/v3/hooks/gestures/tap/useTapGesture.js'))
+export const { usePanGesture } = await vi.importActual<Pick<typeof import('react-native-gesture-handler'), 'usePanGesture'>>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/v3/hooks/gestures/pan/usePanGesture.js'))
 const { NativeGesture } = await vi.importActual<{ NativeGesture: new () => NativeGestureType }>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/handlers/gestures/nativeGesture.js'))
 const { TapGesture } = await vi.importActual<{ TapGesture: new () => TapGestureType }>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/handlers/gestures/tapGesture.js'))
 const { HoverGesture } = await vi.importActual<{ HoverGesture: new () => HoverGestureType }>(loadGestureModule.resolve('react-native-gesture-handler/lib/module/handlers/gestures/hoverGesture.js'))

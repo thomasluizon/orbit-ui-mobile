@@ -14,7 +14,7 @@ import {
   resolveDayCellOutcome,
   type CalendarMonthDay,
 } from '@orbit/shared/utils'
-import { GestureDetector, type LegacyPanGesture as PanGesture } from 'react-native-gesture-handler'
+import { GestureDetector, type PanGesture } from 'react-native-gesture-handler'
 import type { AppTokensV2 } from '@/lib/theme'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
