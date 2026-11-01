@@ -9,6 +9,6 @@
   "apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/OrbitWidgetModule.kt": "a1f3e879df86e43419b0f18b4e28b9553b4f38d14b53df253a0ecf492606a993",
   "apps/mobile/modules/orbit-widget/expo-module.config.json": "e161183eb074b7b3641eb82b0fbb110a66191cd105bd0ae0f7bcf9f55ed7a25f",
   "apps/mobile/modules/orbit-widget/src/OrbitWidget.types.ts": "7f08018f89e009da43c8a299b3d4a8185bb5a456fafbd897a40ee4fc5926bba3",
-  "apps/mobile/plugins/with-android-release-build-fixes.js": "2137a049d349378e514b54887a2dc245dc934cfb76ca3d5d421e6a56caef018f",
-  "apps/mobile/plugins/with-react-native-imperative-focus.js": "d230450d790d54a2c4680672982f0109b84571d21bd0a6554981b380c3d604a4"
+  "apps/mobile/plugins/with-android-release-build-fixes.js": "3989b658441fbdcfd893a595321c81d95af62199dfed0c720e193b7979a904e0",
+  "apps/mobile/plugins/with-react-native-imperative-focus.js": "c284b13c3d2659b3e7f057ce472afd9088ffcc109a17637eee3c7e2db15ddd42"
 }
