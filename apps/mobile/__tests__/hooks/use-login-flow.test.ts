@@ -1,13 +1,14 @@
 import React from 'react'
-import { createRequire, Module } from 'node:module'
+import { createRequire } from 'node:module'
 import { Platform } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import ICUCommonJs from 'i18next-icu/cjs'
 import { setI18n } from 'react-i18next'
 import { API } from '@orbit/shared/api'
-import { StackRouter } from 'expo-router/build/react-navigation/routers/StackRouter'
-import { CommonActions } from 'expo-router/build/react-navigation/routers'
+import { stackFixture as StackRouter } from '@/test-support/navigation-fixture'
+
+import { CommonActions } from 'expo-router/build/react-navigation/routers/index'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createApiClientError } from '@orbit/shared/utils'
@@ -44,6 +45,7 @@ const mocks = vi.hoisted(() => ({
   authListeners: new Set<() => void>(),
   setParams: vi.fn(),
   dispatch: vi.fn(),
+  navigationState: vi.fn(),
   localized: false,
   language: 'en',
   params: {},
@@ -105,7 +107,7 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({ replace: mocks.replace, push: mocks.push, setParams: mocks.setParams }),
-  useNavigation: () => ({ dispatch: mocks.dispatch }),
+  useNavigation: () => ({ dispatch: mocks.dispatch, getState: mocks.navigationState }),
   useLocalSearchParams: () => mocks.params,
 }))
 
@@ -207,6 +209,7 @@ beforeEach(() => {
   mocks.authenticated = false
   mocks.authLoading = false
   mocks.epoch = 0
+  mocks.navigationState.mockReturnValue({ routes: [], index: 0 })
   mocks.params = {}
   mocks.codeDigits = ['', '', '', '', '', '']
   mocks.apiClient.mockResolvedValue({})
@@ -998,25 +1001,12 @@ describe('email-link attempt ownership', () => {
   it.each(['cold', 'warm'])('removes captured secrets from real %s native route history while retaining the pending attempt', async (entry) => {
     vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
     const nativeRequire = createRequire(import.meta.url)
-    const nativePath = nativeRequire.resolve('expo-router/build/react-navigation/native')
-    const previous = nativeRequire.cache[nativePath]
-    const native = new Module(nativePath)
-    native.exports = nativeRequire('expo-router/build/react-navigation/core/validatePathConfig')
-    native.loaded = true
-    nativeRequire.cache[nativePath] = native
-    let getStateFromPath: typeof import('expo-router/build/fork/getStateFromPath').getStateFromPath
-    let getPathFromState: typeof import('expo-router/build/fork/getPathFromState').getPathFromState
-    try {
-      getStateFromPath = nativeRequire('expo-router/build/fork/getStateFromPath').getStateFromPath
-      getPathFromState = nativeRequire('expo-router/build/fork/getPathFromState').getPathFromState
-    } finally {
-      if (previous) nativeRequire.cache[nativePath] = previous
-      else delete nativeRequire.cache[nativePath]
-    }
+    const { getStateFromPath } = nativeRequire('expo-router/build/fork/getStateFromPath') as typeof import('expo-router/build/fork/getStateFromPath')
+    const { getPathFromState } = nativeRequire('expo-router/build/fork/getPathFromState') as typeof import('expo-router/build/fork/getPathFromState')
     const query = new URLSearchParams({ email: 'user@test.com', code: '123456', returnUrl: '/progress', ref: 'REF123' })
     const linking = { screens: { login: 'login', about: 'about' }, ...(entry === 'warm' ? { initialRouteName: 'about' } : {}) }
     const stack = StackRouter({})
-    const options = { routeNames: ['login', 'about'], routeParamList: {}, routeGetIdList: {} }
+    const options = { routeNames: ['login', 'about'], routeGetIdList: {} }
     const parsed = getStateFromPath(`/login?${query.toString()}`, linking)
     if (!parsed) throw new Error('Login link did not produce navigation state')
     let state = stack.getRehydratedState({ routes: parsed.routes }, options)
@@ -1025,8 +1015,10 @@ describe('email-link attempt ownership', () => {
     mocks.setParams.mockImplementation((params) => {
       state = stack.getRehydratedState(stack.getStateForAction(state, CommonActions.setParams(params), options)!, options)
     })
-    mocks.dispatch.mockImplementation((update) => {
-      state = stack.getRehydratedState(stack.getStateForAction(state, update(state), options)!, options)
+    mocks.navigationState.mockImplementation(() => state)
+    mocks.dispatch.mockImplementation((action) => {
+      expect(typeof action).toBe('object')
+      state = stack.getRehydratedState(stack.getStateForAction(state, action, options)!, options)
     })
     mocks.apiClient.mockResolvedValue(issuedResponse)
     const harness = await renderLoginFlow()

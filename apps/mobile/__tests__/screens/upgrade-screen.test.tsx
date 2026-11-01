@@ -10,7 +10,8 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { testI18n } from '@/__tests__/support/i18n'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { StackRouter, TabRouter, CommonActions, StackActions } from 'expo-router/build/react-navigation/routers'
+import { stackFixture as StackRouter, tabFixture as TabRouter } from '@/test-support/navigation-fixture'
+import { CommonActions, StackActions } from 'expo-router/build/react-navigation/routers/index'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 import UpgradeScreen from '@/app/upgrade'
@@ -532,12 +533,12 @@ describe('UpgradeScreen', () => {
       mocks.from = from
       await testI18n.changeLanguage(locale)
       const router = StackRouter({ initialRouteName: source ? '(tabs)' : 'upgrade' })
-      const options = { routeNames: ['(tabs)', 'profile/astra', 'habits/new', 'chat', 'upgrade'], routeParamList: {}, routeGetIdList: {} }
+      const options = { routeNames: ['(tabs)', 'profile/astra', 'habits/new', 'chat', 'upgrade'], routeGetIdList: {} }
       let state = router.getInitialState(options)
       if (source) {
         if (source === 'profile' || source === 'calendar' || source === 'index') {
           const tabs = TabRouter({ initialRouteName: source })
-          state = { ...state, routes: [{ ...state.routes[0]!, state: tabs.getInitialState({ routeNames: ['index', 'calendar', 'progress', 'profile'], routeParamList: {}, routeGetIdList: {} }) }] }
+          state = { ...state, routes: [{ ...state.routes[0]!, state: tabs.getInitialState({ routeNames: ['index', 'calendar', 'progress', 'profile'], routeGetIdList: {} }) }] }
         } else {
           state = router.getRehydratedState(router.getStateForAction(state, CommonActions.navigate(source), options)!, options)
         }

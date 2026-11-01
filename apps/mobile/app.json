@@ -245,7 +245,7 @@
         "projectId": "84b3535b-5957-42b7-bda3-4ed9dfde3734"
       }
     },
-    "runtimeVersion": "orbit-android-designs-1",
+    "runtimeVersion": "orbit-sdk-58",
     "locales": {
       "en": "./locales/ios/en.json",
       "pt-BR": "./locales/ios/pt-BR.json"

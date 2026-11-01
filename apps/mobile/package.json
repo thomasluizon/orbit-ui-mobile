@@ -6,11 +6,6 @@
   "expo": {
     "autolinking": {
       "nativeModulesDir": "./modules"
-    },
-    "install": {
-      "exclude": [
-        "@sentry/react-native"
-      ]
     }
   },
   "scripts": {
@@ -52,7 +47,7 @@
     "@rn-primitives/toast": "1.5.2",
     "@rn-primitives/toggle": "1.5.2",
     "@rn-primitives/types": "1.5.2",
-    "@sentry/react-native": "8.17.2",
+    "@sentry/react-native": "~8.28.0",
     "@siteed/audio-studio": "3.2.1",
     "@tabler/icons-react-native": "^3.46.0",
     "@tanstack/react-query": "^5.96.2",
@@ -85,7 +80,7 @@
     "expo-task-manager": "~58.0.13",
     "expo-updates": "~58.0.20",
     "expo-web-browser": "~58.0.7",
-    "hermes-compiler": "250829098.0.14",
+    "hermes-compiler": "260318099.0.5",
     "html-parse-stringify": "^3.0.1",
     "i18next": "^26.0.3",
     "i18next-icu": "^2.4.4",
