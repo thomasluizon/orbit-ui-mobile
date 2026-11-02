@@ -18,10 +18,10 @@ pub fn channel(identifier: &str) -> Result<&'static str, &'static str> {
     }
 }
 
-pub fn validate_config(channel: &str, config: &Config) -> Result<(), &'static str> {
+pub fn validate_config(channel: &str, config: &Config) -> Result<(), String> {
     let endpoint = format!("{RELEASES}/desktop-{channel}/latest.json");
     if config.endpoints.len() != 1 || config.endpoints[0].as_str() != endpoint {
-        return Err("Desktop update endpoint does not match its channel");
+        return Err("Desktop update endpoint does not match its channel".into());
     }
     if !config.require_signed_version
         || config.allow_downgrades
@@ -29,7 +29,7 @@ pub fn validate_config(channel: &str, config: &Config) -> Result<(), &'static st
         || config.dangerous_accept_invalid_certs
         || config.dangerous_accept_invalid_hostnames
     {
-        return Err("Desktop updates require TLS and signed newer versions");
+        return Err("Desktop updates require TLS and signed newer versions".into());
     }
     Ok(())
 }
