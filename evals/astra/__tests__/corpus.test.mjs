@@ -1,11 +1,46 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { summarize } from '../report.mjs'
-const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'))
+const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const scenarios = parse(readFileSync(new URL('../scenarios.yaml', import.meta.url), 'utf8'))
 const textOccurrenceCount = /\b(?:appear(?:s)?|occur(?:s)?|mention(?:ed)?|repeat(?:ed)?)\b[^.;]*\b(?:(?:exactly|only) once|once|one (?:time|occurrence)|twice)\b/i
+it('includes every scenario identity in the launch corpus', () => {
+  expect(corpus).toHaveLength(184)
+  expect(scenarios).toHaveLength(21)
+  expect(new Set([...corpus, ...scenarios].map((entry) => entry.metadata.id)).size).toBe(205)
+})
+it.each([
+  ['goal-behind', ['at_risk', 'behind']],
+  ['goal-on-track', ['on_track', 'completed', 'no_deadline']],
+  ['reminder-gap', ['reminders_off', 'reminders_on']],
+  ['goal-gap', ['no_equivalent_goal', 'equivalent_goal']],
+])('reports every explicit %s state in both locales', (family, states) => {
+  const entries = corpus.filter((entry) => entry.metadata.family === `offers-${family}`)
+  for (const locale of ['en', 'pt-BR']) {
+    const localized = entries.filter((entry) => entry.metadata.locale === locale)
+    expect(localized.map((entry) => entry.vars.offerState)).toEqual(states)
+    expect(localized[0].metadata.id).toBe(`offers-${family}-${locale}`)
+    const { offerState: _state, rubric: _rubric, ...original } = localized[0].vars
+    for (const entry of localized.slice(1)) {
+      const { offerState: _selected, rubric: _grading, ...variant } = entry.vars
+      expect(variant).toEqual(family === 'goal-on-track' && entry.vars.offerState === 'completed' ? {
+        ...original, input: locale === 'en' ? 'Show my completed goals and their progress.' : 'Mostre minhas metas concluídas e o progresso delas.',
+        composition: { mode: 'data', kinds: ['goalList'] }, expectations: { allowed: ['query_goals'], required: [{ name: 'query_goals',
+          argumentsAnyOf: [{ status: 'Completed' }, { status: { optional: null }, include_completed: true }], resultStatus: 'Succeeded' }] },
+      } : original)
+    }
+  }
+  const attempts = entries.flatMap(({ metadata }) => Array.from({ length: ATTEMPTS_PER_CASE }, () => ({
+    testCase: { metadata }, success: true,
+    gradingResult: { componentResults: [{ pass: true, assertion: { metric: 'composition' } }] },
+  })))
+  expect(summarize(attempts, entries.map((entry) => entry.metadata)).groups).toEqual(['en', 'pt-BR'].map((locale) => ({
+    family: `offers-${family}`, locale, cases: states.length, passed: states.length, allAttemptsPass: 'pass',
+  })))
+})
 it.each([
   'The stored title Water appears verbatim exactly once in the preview.',
   'The stored title Beber água appears verbatim exactly once in the preview.',
@@ -43,7 +78,7 @@ it.each(corpus.filter((entry) => entry.metadata.family.startsWith('suggestions')
     }
   },
 )
-it('runs every composition family in both languages with three attempts', () => {
+it('runs every composition family in both languages with the configured attempts', () => {
   const families = ['habits-schedules', 'logs-history', 'metrics', 'streaks', 'rankings', 'totals', 'comparisons',
     'goals', 'calendar-sync', 'notifications', 'tags', 'checklist-templates', 'profile-settings', 'subscription-plan',
     'referrals', 'api-keys', 'achievements-level', 'retrospectives-recaps', 'writes-outcomes', 'choice', 'pickList',
@@ -52,7 +87,7 @@ it('runs every composition family in both languages with three attempts', () => 
     'medical-correction', 'avoid-form', 'existing-parents', 'suggestions', 'suggestions-duplicate', 'suggestions-refine',
     'restart-preview', 'restart-approve', 'restart-reject', 'restart-preference', 'hoje-next-step']
   expect(configuration.tests).toContain('file://composition-scenarios.yaml')
-  expect(configuration.evaluateOptions.repeat).toBe(3)
+  expect(configuration.evaluateOptions.repeat).toBe(ATTEMPTS_PER_CASE)
   expect(new Set(corpus.map((entry) => entry.metadata.id)).size).toBe(corpus.length)
   for (const family of families) {
     for (const locale of ['en', 'pt-BR']) {
@@ -101,11 +136,11 @@ it.each(['en', 'pt-BR'])('keeps disconnected calendar recovery separate from cac
   expect(entry.vars.composition.blocks).toEqual([{ kind: 'calendar', completeness: 'partial', recovery: 'reconnect' }])
   expect(entry.metadata.fixture).not.toBe('composition-stale')
 })
-it('reports pass^3 for each family and locale and carries a failure into its group', () => {
+it('reports pass^k for each family and locale and carries a failure into its group', () => {
   const descriptors = [{ id: 'en', family: 'habits', locale: 'en' }, { id: 'pt', family: 'habits', locale: 'pt-BR' }]
-  const attempts = descriptors.flatMap((metadata) => Array.from({ length: 3 }, () => ({ testCase: { metadata }, success: true,
+  const attempts = descriptors.flatMap((metadata) => Array.from({ length: ATTEMPTS_PER_CASE }, () => ({ testCase: { metadata }, success: true,
     gradingResult: { componentResults: [{ pass: true, assertion: { metric: 'composition' } }] } })))
-  expect(summarize(attempts, descriptors).groups).toEqual(descriptors.map(({ family, locale }) => ({ family, locale, cases: 1, passed: 1, pass3: 'pass' })))
-  attempts[5].success = false
-  expect(summarize(attempts, descriptors).groups[1].pass3).toBe('fail')
+  expect(summarize(attempts, descriptors).groups).toEqual(descriptors.map(({ family, locale }) => ({ family, locale, cases: 1, passed: 1, allAttemptsPass: 'pass' })))
+  attempts.find((entry) => entry.testCase.metadata.id === descriptors[1].id).success = false
+  expect(summarize(attempts, descriptors).groups[1].allAttemptsPass).toBe('fail')
 })

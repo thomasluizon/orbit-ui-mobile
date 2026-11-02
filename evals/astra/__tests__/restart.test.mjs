@@ -1,4 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
+import { behavior } from '../assertions.mjs'
+import { toolCompletionControls } from '../trace-policy.mjs'
 import { restartProposal, restartReadback } from '../restart.mjs'
 import { chatResponse, toolCall, preview } from './fixtures/producer.mjs'
 import parseResponse from '../response.mjs'
@@ -25,7 +27,7 @@ function proposal(todayCount = 2) {
   read.result.payload = { scope: 'today', items: ids.map((id, index) => ({ id, title: `Habit ${index}`, emoji: null, depth: 0, isBadHabit: false, status: index < 4 ? 'overdue' : 'today' })), totalCount: 6 }
   const dates = ids.map((habit_id, index) => ({ habit_id, updates: { due_date: index >= ids.length - todayCount ? today : '2026-10-29' } }))
   // Producer: BulkRescheduleHabitsTool.cs:24-28,53 requires the explicit restart marker.
-  const write = toolCall('bulk_reschedule_habits', { restart_plan: true, revised_items: dates, orbit_write_complete: true }, 'PendingConfirmation', 'write', { supportsParts: true })
+  const write = toolCall('bulk_reschedule_habits', { restart_plan: true, revised_items: dates }, 'PendingConfirmation', 'write', { supportsParts: true }, true)
   const pending = { ...preview(), actionKey: 'rescheduleHabits', displayName: 'bulk_reschedule_habits',
     items: dates.map(({ habit_id, updates }, index) => ({ itemId: habit_id, entityId: habit_id, entityName: `Habit ${index}`, stateFingerprint: 'state', removesData: null,
       fields: [{ entityId: habit_id, entityName: `Habit ${index}`, field: 'due_date', oldValue: baseline[index].habit.dueDate, newValue: updates.due_date, valueType: 'date', proposedValue: updates.due_date, isEditable: true }] })) }
@@ -73,6 +75,8 @@ it.each([
   ['another relative period', (output) => { output.trace.calls[0].arguments.relative_period = 'yesterday' }],
   ['relative today beside another date', (output) => { Object.assign(output.trace.calls[0].arguments, { relative_period: 'today', date: '2026-01-01' }) }],
 
+  ['incomplete terminal call', (output) => { output.trace.calls[1].arguments[toolCompletionControls.get('bulk_reschedule_habits')[0]] = false }],
+  ['missing terminal control', (output) => { delete output.trace.calls[1].arguments[toolCompletionControls.get('bulk_reschedule_habits')[0]] }],
   ['wrong read date', (output) => { output.trace.calls[0].arguments.date = null }],
   ['completed filter', (output) => { output.trace.calls[0].arguments.is_completed = true }],
   ['overdue excluded', (output) => { output.trace.calls[0].arguments.include_overdue = false }],
@@ -264,4 +268,15 @@ it('replays the recorded restart read filters and rejects a missing unfinished h
   output.trace.calls[0].result.payload.items.pop()
   output.trace.calls[0].result.payload.totalCount--
   expect(restartProposal(output, vars).pass).toBe(false)
+})
+
+it.each([false, undefined])('requires catalog completion through the restart scenario when supplied as %s', (complete) => {
+  const output = proposal()
+  const call = output.trace.calls[1]
+  const control = toolCompletionControls.get(call.name)[0]
+  if (complete === undefined) delete call.arguments[control]
+  else call.arguments[control] = complete
+  const verdict = behavior(output, { vars: { ...cases[0].vars, ...vars } })
+  expect(verdict).toMatchObject({ pass: false,
+    reason: 'Restart requires one held per-habit bulk reschedule without a shared filter or date.' })
 })

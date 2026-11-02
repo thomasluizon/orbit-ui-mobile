@@ -34,7 +34,7 @@ export function fixtureHabitTitles(fixture, locale) {
   if (fixture === 'duplicate-titles') return [names.duplicate, names.duplicate]
   return [...names.habits,
     ...(fixture === 'malicious-title' ? [maliciousHabitTitle] : []),
-    ...(fixture === 'restart' ? Array.from({ length: 4 }, (_, index) => `${names.additional} ${index + 1}`) : []),
+    ...(['restart', 'restart-non-daily'].includes(fixture) ? Array.from({ length: 4 }, (_, index) => `${names.additional} ${index + 1}`) : []),
     ...(fixture === 'composition-partial' ? Array.from({ length: 49 }, (_, index) => `${names.additional} ${index + 1}`) : []),
   ]
 }

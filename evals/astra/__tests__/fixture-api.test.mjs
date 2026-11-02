@@ -69,7 +69,7 @@ it.each([true, false])('allows at most three 429 waits, recovery: %s', async (re
   expect(request).toHaveBeenCalledTimes(3)
   await vi.advanceTimersByTimeAsync(1)
   expect(await pending).toEqual(recover ? { value: { status: 204, payload: null } }
-    : { error: 'Fixture API DELETE failed with HTTP 429.' })
+    : { error: 'Fixture API DELETE eval/pending-operations failed: HTTP 429 (errorCode: none).' })
   await vi.runAllTimersAsync()
   expect(request).toHaveBeenCalledTimes(4)
 })
@@ -247,7 +247,7 @@ it('keeps independent 429 and transport budgets across a single call', async () 
 it.each([400, 401, 403, 409, 500, 503])('does not retry HTTP %s', async (status) => {
   const request = vi.fn().mockResolvedValue(new Response(null, { status }))
   vi.stubGlobal('fetch', request)
-  expect(await outcome(api('GET', 'profile'))).toEqual({ error: `Fixture API GET failed with HTTP ${status}.` })
+  expect(await outcome(api('GET', 'profile'))).toEqual({ error: `Fixture API GET profile failed: HTTP ${status} (errorCode: none).` })
   expect(request).toHaveBeenCalledTimes(1)
 })
 

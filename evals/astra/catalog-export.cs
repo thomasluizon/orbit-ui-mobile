@@ -31,12 +31,16 @@ var intent = Boundary<IAiIntentService>.Create((method, arguments) =>
     captured = (AiToolRequest)arguments![0]!;
     return Task.FromResult(Result.Success(new AiResponse()));
 });
-var prompts = Boundary<ISystemPromptBuilder>.Create((method, _) => method.Name is "BuildStatic" or "BuildDynamic"
+var prompts = Boundary<ISystemPromptBuilder>.Create((method, _) => method.Name is "BuildStatic" or "BuildDynamic" or "BuildAccountContext" or "BuildTurnContext"
     ? "" : throw new InvalidOperationException(method.Name));
-var catalog = Boundary<IAgentCatalogService>.Create((method, _) => method.Name is "BuildStaticSupplement" or "BuildDynamicSupplement"
+var catalog = Boundary<IAgentCatalogService>.Create((method, _) => method.Name is "BuildStaticSupplement" or "BuildDynamicSupplement" or "BuildClientHints"
     ? "" : throw new InvalidOperationException(method.Name));
-var pending = Boundary<IPendingAgentOperationStore>.Create((method, _) => method.Name == "GetAwaiting"
-    ? Array.Empty<PendingAgentOperationExecution>() : throw new InvalidOperationException(method.Name));
+var pending = Boundary<IPendingAgentOperationStore>.Create((method, _) => method.Name switch
+{
+    "GetAwaiting" => Array.Empty<PendingAgentOperationExecution>(),
+    "GetLastConversationPreviewsAsync" => Task.FromResult<IReadOnlyList<PendingAgentOperationPreview>>([]),
+    _ => throw new InvalidOperationException(method.Name),
+});
 var payGate = Boundary<IPayGateService>.Create((method, _) => method.Name == "TryConsumeAiMessage"
     ? Task.FromResult(Result.Success()) : throw new InvalidOperationException(method.Name));
 var previewer = Boundary<IPendingOperationChangePreviewer>.Create((method, _) => throw new InvalidOperationException(method.Name));
@@ -69,17 +73,23 @@ var collectSensitiveFields = handlerType.GetNestedType("ChatEvalTraceCollector",
 var partKinds = JsonSerializer.Deserialize<string[]>(args[1])!;
 var habitSetupBinding = new { draftCallId = "__draft_call_id__", missingField = "__missing_field__" };
 File.WriteAllText(args[0], JsonSerializer.Serialize(new {
+    offerTools = await ExportTools(true, offers: true),
+    offerPostReadTools = await ExportTools(true, afterAccountRead: true, offers: true),
+    offerHabitSetupTools = await ExportTools(true, draft: new HabitSetupDraft(
+        habitSetupBinding.draftCallId, "New habit draft", habitSetupBinding.missingField, Guid.Empty), offers: true),
     tools = await ExportTools(true), legacyTools = await ExportTools(false),
     postReadTools = await ExportTools(true, afterAccountRead: true), habitSetupBinding,
     habitSetupTools = await ExportTools(true, draft: new HabitSetupDraft(
         habitSetupBinding.draftCallId, "New habit draft", habitSetupBinding.missingField, Guid.Empty)) }));
 
-async Task<object[]> ExportTools(bool supportsParts, bool afterAccountRead = false, HabitSetupDraft? draft = null)
+async Task<object[]> ExportTools(bool supportsParts, bool afterAccountRead = false, HabitSetupDraft? draft = null, bool offers = false)
 {
     captured = null;
     var state = Activator.CreateInstance(handlerType.GetNestedType("ChatTurnState", BindingFlags.NonPublic)!, nonPublic: true);
     var request = new ProcessUserChatCommand(Guid.Empty, "", ClientContext: new AgentClientContext(
-        SupportsParts: supportsParts, PartKinds: supportsParts ? partKinds : null));
+        SupportsParts: supportsParts, PartKinds: supportsParts ? partKinds : null,
+        SupportsPendingOperationChanges: offers, SupportsProactiveOffers: offers,
+        ConversationId: offers ? Guid.Parse("11111111-1111-4111-8111-111111111111") : null));
     await (Task<Result<AiResponse>>)method.Invoke(handler, [request, context, null, new AiTurnTelemetry(), state, CancellationToken.None])!;
     if (captured is null) throw new InvalidOperationException("The API did not build a tool request.");
     var declarations = captured.ToolDeclarations;

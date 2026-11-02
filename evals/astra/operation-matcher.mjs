@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import { toolWrites } from './trace-policy.mjs'
 
 const normalizeText = (text) => text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase().replace(/\s+/g, ' ').trim()
 
@@ -39,9 +40,39 @@ export function matchesOperation(call, expected) {
       .some((arguments_) => matchesArguments(call.arguments, arguments_))
 }
 
+function sameArgumentTargets(original, candidate, name) {
+  if (!original || !candidate || typeof original !== 'object' || typeof candidate !== 'object'
+    || Array.isArray(original) || Array.isArray(candidate)) return false
+  // ProcessUserChatCommand.Correction.SameArgumentTargets preserves supplied identity and nested order.
+  const targets = ['habit_id', 'goal_id', 'template_id', 'parent_habit_id', 'title', 'name', 'habit_ids', 'filter', 'action']
+  return Object.entries(original).every(([key, value]) => {
+    if (value == null || (key === 'name' && name === 'update_profile_preferences')) return true
+    if (targets.includes(key)) return isDeepStrictEqual(value, candidate[key])
+    if (!['habits', 'sub_habits', 'revised_items'].includes(key) || !Array.isArray(value)) return true
+    return Array.isArray(candidate[key]) && value.length === candidate[key].length
+      && value.every((item, index) => sameArgumentTargets(item, candidate[key][index], name))
+  })
+}
+
+export const failedBeforeDispatch = (call) => ['create_habit', 'create_sub_habit', 'bulk_create_habits'].includes(call.name)
+  && call.resultStatus === 'Failed' && call.result?.success === false && call.result.payload === null
+  && typeof call.result.error === 'string' && call.result.error.trim().length > 0
+
+function withoutRepairedFailure(calls, scope) {
+  return calls.filter((failed, index) => {
+    if (!failedBeforeDispatch(failed)) return true
+    const repairs = calls.slice(index + 1).filter((candidate) => candidate.name === failed.name
+      && candidate.resultStatus === 'PendingConfirmation' && candidate.result?.success === true
+      && candidate.result.error === null && candidate.result.payload?.status === 'awaiting_confirmation'
+      && sameArgumentTargets(failed.arguments, candidate.arguments, failed.name)
+      && scope.some((operation) => operation.resultStatus !== 'Failed' && matchesOperation(candidate, operation)))
+    return repairs.length !== 1
+  })
+}
+
 export function outcomeCalls(calls, expectations) {
   const scope = [...expectations.required ?? [], ...expectations.permittedMutations ?? []]
-  return calls.filter((call, index) => {
+  return withoutRepairedFailure(calls, scope).filter((call, index, outcomes) => {
     if (call.name !== 'bulk_create_habits') return true
     const deferred = call.resultStatus === 'Succeeded' && call.result?.success === true
       && call.result.error === null && call.result.payload?.status === 'awaiting_reads'
@@ -50,7 +81,7 @@ export function outcomeCalls(calls, expectations) {
       && call.result.payload?.status === 'no_new_preview'
     if (!deferred && !rejected) return true
     // Only producer-confirmed non-dispatches recovered by a later scoped preview leave the outcome count.
-    return !calls.slice(index + 1).some((candidate) => candidate.name === call.name
+    return !outcomes.slice(index + 1).some((candidate) => candidate.name === call.name
       && candidate.resultStatus === 'PendingConfirmation' && candidate.result?.success === true
       && candidate.result.error === null && candidate.result.payload?.status === 'awaiting_confirmation'
       && scope.some((operation) => matchesOperation(candidate, operation)))

@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { beforeEach } from '../hooks.mjs'
 import { spawnSync } from 'node:child_process'
@@ -24,8 +25,8 @@ it('records a fixture failure with its original reason and sends no chat request
   const response = await provider.callApi('Create Stretch', { vars: test.vars })
   expect(response.error).toContain(reason)
   expect(request.mock.calls.map(([url]) => new URL(url).pathname)).toEqual(['/health', '/api/auth/refresh'])
-  const attempts = Array.from({ length: 3 }, () => ({ testCase: test, response, error: response.error, success: false }))
-  expect(summarize(attempts, [test.metadata]).cases[0]).toMatchObject({ attempts: 3, passed: 0, unavailable: 3, pass3: 'incomplete' })
+  const attempts = Array.from({ length: ATTEMPTS_PER_CASE }, () => ({ testCase: test, response, error: response.error, success: false }))
+  expect(summarize(attempts, [test.metadata]).cases[0]).toMatchObject({ attempts: ATTEMPTS_PER_CASE, passed: 0, unavailable: ATTEMPTS_PER_CASE, allAttemptsPass: 'incomplete' })
   const next = (await beforeEach({ test })).test
   expect(next.vars).not.toHaveProperty('preconditionFailure')
 })

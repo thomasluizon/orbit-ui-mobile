@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -49,7 +50,7 @@ function medicalPreviews(scenario, today) {
   return { original, setupInput, baseline, revised, revision }
 }
 
-it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^3 reporting: %s', async (locale) => {
+it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^k reporting: %s', async (locale) => {
   const today = '2031-12-30'
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(`${today}T12:00:00Z`))
@@ -100,7 +101,7 @@ it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^
       })),
     } })
   }
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < ATTEMPTS_PER_CASE; attempt++) {
     prepared = (await beforeEach({ test: structuredClone(scenario) })).test
     const gradingResult = await grade(prepared)
     expect(gradingResult.componentResults).toHaveLength(config.defaultTest.assert.length)
@@ -115,8 +116,8 @@ it.each(['en', 'pt-BR'])('runs setup, held correction, every assertion and pass^
     expect(gradingPrompt).not.toContain('evalTrace')
     attempts.push({ testCase: prepared, success: gradingResult.pass, gradingResult })
   }
-  expect(graded).toBe(3)
-  expect(summarize(attempts, [scenario.metadata])).toMatchObject({ status: 'pass', groups: [{ family: 'medical-correction', locale, pass3: 'pass' }] })
+  expect(graded).toBe(ATTEMPTS_PER_CASE)
+  expect(summarize(attempts, [scenario.metadata])).toMatchObject({ status: 'pass', groups: [{ family: 'medical-correction', locale, allAttemptsPass: 'pass' }] })
   const corruptions = [
     () => { correctionArguments.pending_operation_id = '22222222-2222-4222-8222-222222222222' },
     () => { correctionArguments.items[0].item_id = '1' },

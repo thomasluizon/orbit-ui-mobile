@@ -1,13 +1,16 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeResults } from '../report.mjs'
 import parseResponse from '../response.mjs'
 import { behavior } from '../assertions.mjs'
-import { chatResponse, toolCall, traceTiming } from './fixtures/producer.mjs'
+import { chatResponse, toolCall, traceTiming, suggestionDraft } from './fixtures/producer.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
-import { PostApiChatResponse } from '../../../packages/shared/src/types/__generated__/api.generated.ts'
+import { tsImport } from 'tsx/esm/api'
+
+const { PostApiChatResponse } = await tsImport('../../../packages/shared/src/types/__generated__/api.generated.ts', import.meta.url)
 
 const directories = []
 afterEach(() => {
@@ -39,6 +42,91 @@ it('preserves independent saved-step readback in the private attempt artifact', 
     { assertion: { metric: 'savedStep' }, pass: true, metadata: { savedStep } },
   ] } })
   expect(evidence.savedStep).toEqual(savedStep)
+})
+
+it('persists sanitized HTTP 400 diagnostics and the response identity without accepting the answer', () => {
+  offlineCredentials()
+  const requestId = '1a7acddb-c482-4acb-8adc-6539308afdb4'
+  const output = parseResponse({ error: 'offline-refresh person@example.invalid', errorCode: 'AI_EMPTY_RESPONSE' }, '', {
+    response: { status: 400, headers: { 'x-orbit-request-id': requestId } },
+  })
+  const { evidence, text } = persist(output.output)
+  expect(evidence.httpError).toEqual({ status: 400, error: '[redacted] [redacted]',
+    errorCode: 'AI_EMPTY_RESPONSE', responseRequestId: requestId })
+  expect(evidence.pass).toBe(false)
+  expect(evidence.httpStatus).toBe(400)
+  expect(text).not.toMatch(/offline-refresh|person@example.invalid/)
+})
+
+it('records the corpus requested aim as typed offer evidence', () => {
+  const { evidence } = persist(outputFor(), { testCase: { metadata: { id: 'evidence' }, vars: {
+    offerFamily: 'ordinary-reading', requestedAim: 'Read twelve books', clientContext: { supportsParts: true },
+  } } })
+  expect(evidence.requestedAim).toBe('Read twelve books')
+})
+
+it.each(['action-lifecycle', undefined])('persists issued offer binding and mutation scope on a failed %s turn', (offerFamily) => {
+  offlineCredentials()
+  const issuedOffer = { kind: 'daySummary', action: { offerKey: 'smallStep:account:2031-06-10',
+    kind: 'continueChat', label: 'One step', prompt: 'Help person@example.invalid take offline-refresh one step.',
+    surface: null, entityId: null, date: '2031-06-10' },
+  read: { queryId: '33333333-3333-4333-8333-333333333333', queryFamily: 'get_daily_summary',
+    scope: {}, completeness: 'complete', revision: 'private-revision', refreshToken: 'private-offer-refresh' } }
+  const expectations = { required: [{ name: 'suggest_breakdown',
+    arguments: { one_small_step: true, language: 'pt-BR' }, resultStatus: 'Succeeded' }],
+  permittedMutations: [{ name: 'update_habit', arguments: { habit_id: '22222222-2222-4222-8222-222222222222' } }] }
+  const output = outputFor()
+  output.offerReadback = { pass: false, turns: [], reason: 'Lifecycle failed.' }
+  output.answer = 'private-revision private-offer-refresh'
+  const { evidence, text } = persist(output, { testCase: { metadata: { id: 'evidence' }, vars: {
+    offerFamily, issuedOffer, expectations,
+    clientContext: { supportsParts: true, selectedOfferKey: issuedOffer.action.offerKey },
+  } } })
+  expect(evidence.pass).toBe(false)
+  expect(evidence.issuedOffer).toMatchObject({ kind: 'daySummary', action: { ...issuedOffer.action,
+    prompt: 'Help [redacted] take [redacted] one step.' },
+  read: { queryFamily: 'get_daily_summary', revision: '[redacted]', refreshToken: '[redacted]' } })
+  expect(evidence.selectedOfferKey).toBe(evidence.issuedOffer.action.offerKey)
+  expect(evidence.mutationScope).toEqual({ required: expectations.required,
+    permittedMutations: [{ name: 'update_habit', arguments: { habit_id: '[redacted]' } }] })
+  expect(evidence.answer).toBe('[redacted] [redacted]')
+  expect(text).not.toMatch(/private-revision|private-offer-refresh|person@example.invalid|offline-refresh|33333333|22222222/)
+  expect(issuedOffer.read.refreshToken).toBe('private-offer-refresh')
+})
+
+it('records absent offer setup explicitly without adding offer context to ordinary attempts', () => {
+  const entry = { testCase: { metadata: { id: 'evidence' }, vars: { offerFamily: 'action-lifecycle' } } }
+  const { evidence } = persist(outputFor(), entry)
+  expect(evidence.issuedOffer).toBeNull()
+  expect(evidence.selectedOfferKey).toBeNull()
+  expect(evidence.mutationScope).toEqual({ required: [], permittedMutations: [] })
+  expect(persist(outputFor()).evidence).not.toHaveProperty('issuedOffer')
+})
+
+it('redacts credential echoes even when a response-header identity is a UUID', () => {
+  const credential = randomUUID()
+  vi.stubEnv('ORBIT_EVAL_TOKEN', credential)
+  const output = parseResponse({ error: 'Unable to compose an answer.', errorCode: null }, '', {
+    response: { status: 400, headers: { 'x-orbit-request-id': credential } },
+  })
+  expect(persist(output.output).evidence.httpError.responseRequestId).toBe('[redacted]')
+})
+
+it('keeps issued suggestion drafts and typed targets while redacting draft credentials and e-mail', () => {
+  offlineCredentials()
+  vi.stubEnv('ORBIT_EVAL_TOKEN', 'private-draft-credential')
+  const draft = suggestionDraft({ existingHabitId: '22222222-2222-4222-8222-222222222222',
+    title: 'Read with person@example.invalid', reason: 'private-draft-credential',
+    checklistItems: ['Read one page', 'person@example.invalid', 'offline-refresh'] })
+  const call = toolCall('suggest_habits', { instruction: 'Suggest reading habits', language: 'en', count: 1 },
+    'Succeeded', 'suggest', { supportsParts: true })
+  call.result.payload = { language: 'en', drafts: [draft] }
+  const { evidence, text } = persist(outputFor([call]))
+  expect(evidence.toolCalls[0].result.payload).toEqual({ drafts: [{ ...draft,
+    id: '[redacted]', existingHabitId: '[redacted]', title: 'Read with [redacted]', reason: '[redacted]',
+    checklistItems: ['Read one page', '[redacted]', '[redacted]'],
+  }] })
+  expect(text).not.toMatch(/private-draft-credential|person@example.invalid|offline-refresh/)
 })
 
 it('retains sanitized brain dump approval and persisted schedule evidence', () => {
@@ -142,15 +230,55 @@ it('keeps earlier credential echoes redacted when later attempts rotate or clear
 })
 
 it('keeps declared nested and union arguments while omitting unknown credential fields', () => {
-  const call = toolCall('ask', { input: { form: 'pickList', action: 'create_habits', items: [{ id: 'water', label: 'Water',
-    arguments: { title: 'Water', cookie: 'private-nested-cookie', checklist_items: [
-      { text: 'Drink a glass', is_checked: false, token: 'private-nested-token' },
-    ] } }] } }, 'Succeeded', 'call-1', { supportsParts: true })
+  const call = toolCall('ask', { input: { form: 'pickList', action: 'log_habits', items: [{ id: 'water', label: 'Water',
+    arguments: { habit_id: 'water', date: '2026-10-26', cookie: 'private-nested-cookie' } }] } },
+  'Succeeded', 'call-1', { supportsParts: true })
   const { evidence, text } = persist(outputFor([call]))
-  expect(evidence.toolCalls[0].arguments.input.items[0].arguments).toEqual({ title: 'Water', checklist_items: [
-    { text: 'Drink a glass', is_checked: false },
-  ] })
-  expect(text).not.toMatch(/private-nested-(cookie|token)/)
+  expect(evidence.toolCalls[0].arguments.input.items[0].arguments).toEqual({ habit_id: 'water', date: '2026-10-26' })
+  expect(text).not.toContain('private-nested-cookie')
+})
+
+it('projects string-encoded create items and redacts withheld values from answer and grader echoes', () => {
+  const call = toolCall('ask', { input: { form: 'pickList', missing_input: 'bulk_selection', title: 'Choose habits',
+    action: 'create_habits', items: [{ id: 'water', label: 'Water', arguments: JSON.stringify({
+      title: 'Water', cookie: 'offline-private-cookie', unknown: 'offline-private-unknown',
+      checklist_items: [{ text: 'One glass', token: 'offline-private-token' }],
+    }) }] } }, 'Succeeded', 'ask', { supportsParts: true })
+  const output = outputFor([call])
+  output.answer = 'offline-private-cookie offline-private-token offline-private-unknown'
+  const { evidence, text } = persist(output, { gradingResult: { componentResults: [
+    { assertion: { metric: 'finalAnswer' }, pass: false, reason: output.answer },
+  ] } })
+  expect(evidence.toolCalls[0].arguments.input.items[0].arguments).toEqual({ title: 'Water',
+    checklist_items: [{ text: 'One glass' }] })
+  expect(evidence.answer).toBe('[redacted] [redacted] [redacted]')
+  expect(evidence.graderRationale).toBe(evidence.answer)
+  expect(evidence.assertions[0].reason).toBe(evidence.answer)
+  expect(text).not.toMatch(/cookie|token|offline-private-unknown/)
+})
+
+it.each(['invalid-json', 'null', '[]', '42', '"encoded-scalar"'])(
+  'withholds create item arguments that do not decode to an object: %s', (arguments_) => {
+    const call = toolCall('ask', { input: { form: 'pickList', missing_input: 'bulk_selection', title: 'Choose habits',
+      action: 'create_habits', items: [{ id: 'water', label: 'Water', arguments: arguments_ }] } },
+    'Succeeded', 'ask', { supportsParts: true })
+    const output = outputFor([call])
+    output.answer = arguments_
+    const { evidence } = persist(output)
+    expect(evidence.toolCalls[0].arguments.input.items[0].arguments).toBeNull()
+    expect(evidence.answer).toBe('[redacted]')
+  })
+
+it('withholds encoded item arguments without a matching create action schema', () => {
+  const arguments_ = JSON.stringify({ title: 'Water', cookie: 'offline-private-cookie' })
+  const call = toolCall('ask', { input: { form: 'pickList', missing_input: 'bulk_selection', title: 'Choose habits',
+    action: 'log_habits', items: [{ id: 'water', label: 'Water', arguments: arguments_ }] } },
+  'Succeeded', 'ask', { supportsParts: true })
+  const output = outputFor([call])
+  output.answer = arguments_
+  const { evidence } = persist(output)
+  expect(evidence.toolCalls[0].arguments.input.items[0].arguments).toBeNull()
+  expect(evidence.answer).toBe('[redacted]')
 })
 
 it.each(['choice', 'question'])('retains draft-bound %s arguments without unknown credential fields', (form) => {

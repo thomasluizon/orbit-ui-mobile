@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import { toolCompletionControls } from './trace-policy.mjs'
 import { matchesOperation } from './operation-matcher.mjs'
 
 const result = (pass, reason) => ({ pass, score: pass ? 1 : 0, reason })
@@ -34,8 +35,9 @@ export function restartProposal(output, vars) {
   const write = calls.at(-1)
   if (!completeReads(calls.slice(0, -1), ids, vars.accountDate)) return result(false, 'Restart must read every unfinished page before its write.')
   const args = write.arguments
+  const controls = toolCompletionControls.get(write.name)
   if (write.name !== 'bulk_reschedule_habits' || write.resultStatus !== 'PendingConfirmation'
-    || write.result?.success !== true || args.orbit_write_complete !== true
+    || write.result?.success !== true || !controls?.length || controls.some((name) => args[name] !== true)
     || args.filter != null || args.due_date != null || !sameIds(args.revised_items?.map((item) => item.habit_id), ids)) {
     return result(false, 'Restart requires one held per-habit bulk reschedule without a shared filter or date.')
   }

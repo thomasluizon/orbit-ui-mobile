@@ -1,11 +1,18 @@
 const previewTextFields = new Set(['title', 'name', 'emoji', 'description', 'frequency_unit', 'frequency_quantity',
-  'interval_weeks', 'due_date', 'date', 'due_time', 'end_date', 'due_end_time', 'deadline', 'expires_at_utc',
+  'interval_weeks', 'due_date', 'start_date', 'date', 'due_time', 'end_date', 'due_end_time', 'deadline', 'expires_at_utc',
   'is_general', 'is_flexible', 'is_bad_habit', 'reminder_enabled', 'enabled', 'slip_alert_enabled', 'is_completed',
   'is_read_only', 'release_other_account', 'uses_24_hour_clock', 'parent_habit_id', 'current_value', 'target_value',
   'unit', 'goal_type', 'status', 'note', 'subject', 'message', 'email', 'text', 'summary', 'color', 'action',
   'timezone', 'language', 'week_start_day', 'theme_preference', 'interval', 'delete', 'dismiss_import', 'run_sync'])
 
-function previewField({ field, newValue, proposedValue }) {
+function previewField(change) {
+  const projected = previewValue(change)
+  return projected ? { ...projected, provenance: change.provenance ?? undefined,
+    removal: change.removal ?? undefined } : null
+}
+
+function previewValue({ field, newValue, proposedValue }) {
+  if (field === 'repeat_reminder' || field === 'relative_reminders' || field.includes('/')) return { field, value: proposedValue }
   if (['tag_ids', 'goal_ids', 'habit_ids', 'positions', 'scopes'].includes(field)) {
     return Array.isArray(proposedValue) ? { field, count: proposedValue.length } : null
   }

@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as grades from '../assertions.mjs'
 import { visibleAnswer } from '../visible-answer.mjs'
@@ -29,7 +30,7 @@ export function startingResponse(locale = 'en', requestId = 'request', suppliedS
   ]
   if (supportsContext) actions[0].previousStep = structuredClone(suggestion)
   const call = toolCall('suggest_breakdown', { one_small_step: true, language: locale,
-    title: suggestion.goal, suggested_sub_habits: [{ title: suggestion.step }] }, 'Succeeded', 'call-1', { supportsParts: true })
+    title: suggestion.goal, suggested_sub_habits: [{ title: suggestion.step }] }, 'Succeeded', 'call-1', { supportsParts: true }, true)
   call.result.payload = suggestion
   return { ...chatResponse(requestId, [call]), aiMessage: null,
     parts: [{ type: 'block', kind: 'oneSmallStep', block: { suggestion, actions } }] }
@@ -278,7 +279,7 @@ it('registers bilingual starting-step cases and the independent persistence asse
   for (const family of ['one-small-step', 'one-small-step-smaller', 'one-small-step-smaller-legacy', 'one-small-step-save-task', 'one-small-step-save-checklist', 'one-small-step-legacy']) {
     expect(corpus.filter((entry) => entry.metadata.family === family).map((entry) => entry.metadata.locale).sort()).toEqual(['en', 'pt-BR'])
   }
-  expect(configuration.evaluateOptions).toMatchObject({ repeat: 3, maxConcurrency: 1, cache: false })
+  expect(configuration.evaluateOptions).toMatchObject({ repeat: ATTEMPTS_PER_CASE, maxConcurrency: 1, cache: false })
   expect(configuration.defaultTest.assert).toContainEqual({ type: 'javascript', value: 'file://assertions.mjs:savedStep', metric: 'savedStep' })
 })
 

@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { deferredCreationCall } from './fixtures/producer.mjs'
 import { approveBrainDump } from '../brain-dump-approval.mjs'
@@ -7,6 +8,8 @@ import { fixtureFetch } from './fixtures/public-api.mjs'
 import { offlineCredentials } from './fixtures/credentials.mjs'
 import { beforeEach as prepareAttempt } from '../hooks.mjs'
 import AstraHttpProvider from '../http-provider.mjs'
+import { composition } from '../composition.mjs'
+import { structural } from '../assertions.mjs'
 import { parse, stringify } from 'yaml'
 import { readFileSync } from 'node:fs'
 
@@ -103,6 +106,15 @@ it('never confirms an invalid preview', async () => {
   expect(requests.map(({ method }) => method)).toEqual(['DELETE', 'GET'])
 })
 
+it('retains unavailable preview verification through approval and composition', async () => {
+  const { test, output, baseline, requests } = approvalApi(brainDumpCases[0])
+  output.trace.state = 'unavailable'
+  const previewVerdict = await structural(output, { vars: test.vars })
+  output.brainDumpReadback = await approveBrainDump(output, test.vars, baseline, previewVerdict)
+  expect(composition(output, { vars: test.vars })).toMatchObject({ pass: false, metadata: { unavailable: true } })
+  expect(requests.map(({ method }) => method)).toEqual(['DELETE', 'GET'])
+})
+
 it.each(['valid', 'wrong-schedule', 'invalid-preview', 'wrong-arguments'])(
   'runs the real HTTP provider with %s evidence', async (mode) => {
   const { test, requests, response } = approvalApi(brainDumpCases[0], mode)
@@ -128,7 +140,7 @@ it.each(brainDumpCases)('isolates each $metadata.id attempt before setup', async
   const state = { habits: [], goals: [], tags: [], templates: [], requests: [], pro: true, exhausted: false,
     capacity: 100, email: 'thomaslrgregorio+orbit-eval-pro@gmail.com' }
   vi.stubGlobal('fetch', fixtureFetch(() => state))
-  for (let repeat = 0; repeat < 3; repeat++) {
+  for (let repeat = 0; repeat < ATTEMPTS_PER_CASE + 1; repeat++) {
     state.requests.length = 0
     const { test } = await prepareAttempt({ test: parse(stringify(source)) })
     expect(test.vars.preconditionFailure).toBeUndefined()

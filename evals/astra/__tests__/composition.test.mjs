@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
@@ -176,9 +177,9 @@ describe.each(['ambiguity-pt', 'ambiguity-en'])('%s clarification alternatives',
 })
 
 describe('composition reporting', () => {
-  it('cannot approve three successes with no composition assertion result', async () => {
+  it('cannot approve configured successes with no composition assertion result', async () => {
     const { summarize } = await import('../report.mjs')
-    const attempts = Array.from({ length: 3 }, () => ({ testCase: { metadata: { id: 'a', family: 'habits', locale: 'en' } }, success: true }))
+    const attempts = Array.from({ length: ATTEMPTS_PER_CASE }, () => ({ testCase: { metadata: { id: 'a', family: 'habits', locale: 'en' } }, success: true }))
     expect(summarize(attempts, ['a']).status).toBe('incomplete')
   })
 })

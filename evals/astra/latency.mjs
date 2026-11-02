@@ -1,9 +1,15 @@
+import { ATTEMPTS_PER_CASE } from './attempts.mjs'
+
 // The budget sits above every read case median with one model call and below the median with a second model call.
 export const READ_LATENCY_BUDGET_MILLISECONDS = 10000
 
 const phaseNames = ['moderation', 'context_load', 'prompt_build', 'model_call', 'tool_call', 'save', 'composition', 'budget', 'other']
 const validMilliseconds = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0
-const median = (values) => [...values].sort((left, right) => left - right)[1]
+const median = (values) => {
+  const sorted = [...values].sort((left, right) => left - right)
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
+}
 
 export function describeCase(test) {
   const readLatency = ['data', 'step-up'].includes(test.vars?.composition?.mode)
@@ -28,7 +34,8 @@ function phaseTotals(timing) {
 export function summarizeLatency(attempts) {
   const withoutTiming = (status, reason) => ({ budgetMilliseconds: READ_LATENCY_BUDGET_MILLISECONDS,
     totalMedianMilliseconds: null, phaseMediansMilliseconds: null, status, reason })
-  const requested = attempts.filter((entry) => entry.response?.metadata?.astraPreconditionFailure !== true)
+  const requested = attempts.filter((entry) => entry.response?.metadata?.astraPreconditionFailure !== true
+    && entry.response?.output?.unavailable !== true)
   const timings = requested.map((entry) => {
     const trace = entry.response?.output?.trace
     const requestId = entry.testCase.vars?.evalRequestId
@@ -37,7 +44,9 @@ export function summarizeLatency(attempts) {
   })
   const phases = timings.map(phaseTotals)
   if (phases.some((entry) => entry === null)) return withoutTiming('fail', 'Missing or malformed request-bound phase timing.')
-  if (attempts.length !== 3 || requested.length !== 3) return withoutTiming('incomplete', 'Latency requires exactly three completed chat requests.')
+  if (attempts.length !== ATTEMPTS_PER_CASE || requested.length !== ATTEMPTS_PER_CASE) {
+    return withoutTiming('incomplete', `Latency requires exactly ${ATTEMPTS_PER_CASE} completed chat requests.`)
+  }
   const totalMedianMilliseconds = median(timings.map((timing) => timing.totalMilliseconds))
   return { budgetMilliseconds: READ_LATENCY_BUDGET_MILLISECONDS, totalMedianMilliseconds,
     phaseMediansMilliseconds: Object.fromEntries(phaseNames.map((name) => [name, median(phases.map((entry) => entry[name]))])),
