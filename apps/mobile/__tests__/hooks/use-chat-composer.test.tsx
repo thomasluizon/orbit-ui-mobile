@@ -2622,6 +2622,85 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.imagePreview).toBeNull()
   })
 
+  it.each(['remove', 'send', 'queue'] as const)('discards an encoding result after %s consumes the selection', async action => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [
+      { uri: 'file:///original.png', width: 640, height: 480, mimeType: 'image/png', fileName: 'original.png', fileSize: 2048 },
+    ] })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => { await composer.current.openFilePicker() })
+    let finish!: (output: { uri: string; width: number; height: number; base64: null }) => void
+    mocks.saveImage.mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    let picking!: Promise<void>
+    await TestRenderer.act(async () => {
+      picking = composer.current.openFilePicker()
+      await vi.waitFor(() => expect(mocks.saveImage).toHaveBeenCalledTimes(2))
+    })
+    if (action === 'remove') TestRenderer.act(() => composer.current.composerProps.onAttachRemove?.('chat-image'))
+    else {
+      TestRenderer.act(() => {
+        composer.current.setInput('Describe the selected photo')
+        if (action === 'queue') useChatStore.setState({ replyActive: true })
+      })
+      await TestRenderer.act(async () => { await composer.current.sendMessage() })
+      if (action === 'queue') expect(useChatStore.getState().queuedPrompts).toHaveLength(1)
+      else expect(mocks.openChatStream).toHaveBeenCalledOnce()
+    }
+    await TestRenderer.act(async () => {
+      finish({ uri: 'file:///late.jpg', width: 640, height: 480, base64: null })
+      await picking
+    })
+    expect(composer.current.selectedImage).toBeNull()
+    expect(composer.current.imagePreview).toBeNull()
+    expect(mocks.releaseImage).toHaveBeenCalledTimes(2)
+    expect(mocks.releaseContext).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['success', 'error'] as const)('ignores an older encoding %s after a replacement selection', async outcome => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [
+      { uri: 'file:///original.png', width: 640, height: 480, mimeType: 'image/png', fileName: 'original.png', fileSize: 2048 },
+    ] })
+    let finish!: (output: { uri: string; width: number; height: number; base64: null }) => void
+    let fail!: (error: Error) => void
+    mocks.saveImage.mockReturnValueOnce(new Promise((resolve, reject) => { finish = resolve; fail = reject }))
+    const composer = await renderComposer()
+    let firstPick!: Promise<void>
+    await TestRenderer.act(async () => {
+      firstPick = composer.current.openFilePicker()
+      await vi.waitFor(() => expect(mocks.saveImage).toHaveBeenCalledOnce())
+    })
+    await TestRenderer.act(async () => { await composer.current.openFilePicker() })
+    expect(composer.current.selectedImage?.uri).toBe('file:///resized.jpg')
+    await TestRenderer.act(async () => {
+      if (outcome === 'success') finish({ uri: 'file:///late.jpg', width: 640, height: 480, base64: null })
+      else fail(new Error('Stale encoding failed'))
+      await firstPick
+    })
+    expect(composer.current.selectedImage?.uri).toBe('file:///resized.jpg')
+    expect(composer.current.imagePreview).toBe('file:///resized.jpg')
+    expect(composer.current.sendError).toBeNull()
+  })
+
+  it('ignores an encoding failure after removing the attachment', async () => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [
+      { uri: 'file:///original.png', width: 640, height: 480, mimeType: 'image/png', fileName: 'original.png', fileSize: 2048 },
+    ] })
+    let fail!: (error: Error) => void
+    mocks.saveImage.mockReturnValueOnce(new Promise((_resolve, reject) => { fail = reject }))
+    const composer = await renderComposer()
+    let picking!: Promise<void>
+    await TestRenderer.act(async () => {
+      picking = composer.current.openFilePicker()
+      await vi.waitFor(() => expect(mocks.saveImage).toHaveBeenCalledOnce())
+    })
+    TestRenderer.act(() => composer.current.composerProps.onAttachRemove?.('chat-image'))
+    await TestRenderer.act(async () => { fail(new Error('Stale encoding failed')); await picking })
+    expect(composer.current.sendError).toBeNull()
+  })
+
   it('selects a valid image from the library and lets it be removed', async () => {
     mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
     mocks.launchImageLibraryAsync.mockResolvedValue({
