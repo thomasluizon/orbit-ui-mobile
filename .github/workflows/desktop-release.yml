@@ -37,6 +37,10 @@ on:
       source_sha:
         required: true
         type: string
+      staging_admitted:
+        description: The caller completed production staging admission
+        type: boolean
+        default: false
       rollback:
         type: boolean
         default: false
@@ -77,11 +81,11 @@ jobs:
         env:
           TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
           GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
+          STAGING_ADMITTED: ${{ inputs.staging_admitted }}
           FORCE_UNSTAGED: ${{ inputs.force_unstaged }}
         run: |
           set -euo pipefail
-          if [ "$DESKTOP_VARIANT" = production ] && [ "$EVENT_NAME" = workflow_dispatch ] && [ "$FORCE_UNSTAGED" != true ]; then
+          if [ "$DESKTOP_VARIANT" = production ] && [ "$STAGING_ADMITTED" != true ] && [ "$FORCE_UNSTAGED" != true ]; then
             echo '::error::Direct production dispatch requires force_unstaged; use the admitted web release workflow'
             exit 1
           fi

@@ -222,6 +222,7 @@ jobs:
     with:
       variant: ${{ inputs.environment }}
       source_sha: ${{ needs.build.outputs.source_sha }}
+      staging_admitted: ${{ inputs.environment == 'production' }}
 
   production:
     if: inputs.environment == 'production'

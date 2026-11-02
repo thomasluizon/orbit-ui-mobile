@@ -29,7 +29,7 @@ struct PushService {
     saved: Mutex<PushState>,
     session: Mutex<PushSession>,
     candidate: Mutex<Option<Registration>>,
-    operation: Mutex<()>,
+    requests: RequestGate,
     persistence: Mutex<()>,
     permission: Mutex<&'static str>,
     refresh: Mutex<Refresh>,
@@ -114,7 +114,7 @@ pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             saved: Mutex::new(saved),
             session: Mutex::new(PushSession::default()),
             candidate: Mutex::new(None),
-            operation: Mutex::new(()),
+            requests: RequestGate::default(),
             persistence: Mutex::new(()),
             permission: Mutex::new("default"),
             refresh: Mutex::new(Refresh::default()),
@@ -151,7 +151,7 @@ fn recover_windows_launch() {
     if notification_launch() {
         tauri::async_runtime::spawn_blocking(|| {
             let service = SERVICE.get().unwrap();
-            let _operation = service.operation.recover_lock();
+            let _operation = service.requests.operation.recover_lock();
             if let Err(error) = crate::push_windows::initialize(&service.app, receive)
                 .and_then(|()| crate::push_windows::activate())
             {
@@ -224,7 +224,12 @@ fn operate(
 }
 
 fn request_registration(service: &PushService, prompt: bool, token: bool) -> Result<(), String> {
-    let _operation = request_operation(&service.operation)?;
+    service
+        .requests
+        .run(token, || register_native(service, prompt, token))
+}
+
+fn register_native(service: &PushService, prompt: bool, token: bool) -> Result<(), String> {
     let account_before_request = service.session.recover_lock().account.clone();
     let (sender, receiver) = mpsc::sync_channel(8);
     *service.response.recover_lock() = Some(RegistrationWaiter { sender, token });
@@ -246,6 +251,26 @@ fn request_registration(service: &PushService, prompt: bool, token: bool) -> Res
         *service.candidate.recover_lock() = Some(registration);
     }
     Ok(())
+}
+
+#[derive(Default)]
+struct RequestGate {
+    operation: Mutex<()>,
+    token_request: Mutex<()>,
+}
+
+impl RequestGate {
+    fn run<T>(
+        &self,
+        token: bool,
+        request: impl FnOnce() -> Result<T, String>,
+    ) -> Result<T, String> {
+        let _registration = token
+            .then(|| request_operation(&self.token_request))
+            .transpose()?;
+        let _operation = self.operation.recover_lock();
+        request()
+    }
 }
 
 fn request_operation(operation: &Mutex<()>) -> Result<std::sync::MutexGuard<'_, ()>, String> {
@@ -909,16 +934,66 @@ mod tests {
 
     #[test]
     fn status_is_cached_while_a_request_waits_and_duplicate_requests_are_refused() {
-        let operation = Mutex::new(());
-        let _waiting = request_operation(&operation).unwrap();
-        assert_eq!(
-            request_operation(&operation).unwrap_err(),
-            "Native push request already in progress"
+        let gate = RequestGate::default();
+        gate.run(true, || {
+            assert_eq!(
+                gate.run(true, || Ok(())).unwrap_err(),
+                "Native push request already in progress"
+            );
+            let saved = Mutex::new(registered_state());
+            let snapshot = cached_snapshot(&saved, &Mutex::new("granted"), &Mutex::new(None));
+            assert_eq!(snapshot.permission, "granted");
+            assert_eq!(snapshot.owner.as_deref(), Some("account-a"));
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn restored_subscription_waits_for_launch_probe_then_requests_a_token() {
+        let gate = std::sync::Arc::new(RequestGate::default());
+        let saved = registered_state();
+        let mut session = PushSession::default();
+        session.restore(Some("account-a".into()), &saved);
+        assert_eq!(session.account.as_deref(), Some("account-a"));
+        let (probe_started, started) = mpsc::sync_channel(1);
+        let (finish_probe, probe_response) = mpsc::sync_channel(1);
+        let probe_gate = gate.clone();
+        let probe = std::thread::spawn(move || {
+            probe_gate.run(false, || {
+                probe_started.send(()).unwrap();
+                wait_for_registration(&probe_response, false)
+            })
+        });
+        started.recv().unwrap();
+        let (request_started, requesting) = mpsc::sync_channel(1);
+        let (finished, result) = mpsc::sync_channel(1);
+        let registration_gate = gate.clone();
+        let registration = std::thread::spawn(move || {
+            request_started.send(()).unwrap();
+            finished
+                .send(registration_gate.run(true, || {
+                    let (native, response) = mpsc::sync_channel(1);
+                    native
+                        .send((REGISTRATION, "restored-token".into()))
+                        .unwrap();
+                    wait_for_registration(&response, true)
+                }))
+                .unwrap();
+        });
+        requesting.recv().unwrap();
+        let premature = result.recv_timeout(Duration::from_millis(30));
+        finish_probe.send((GRANTED, String::new())).unwrap();
+        assert_eq!(probe.join().unwrap(), Ok(("granted", None)));
+        registration.join().unwrap();
+        assert!(
+            matches!(premature, Err(mpsc::RecvTimeoutError::Timeout)),
+            "registration was dropped: {premature:?}"
         );
-        let saved = Mutex::new(registered_state());
-        let snapshot = cached_snapshot(&saved, &Mutex::new("granted"), &Mutex::new(None));
-        assert_eq!(snapshot.permission, "granted");
-        assert_eq!(snapshot.owner.as_deref(), Some("account-a"));
+        assert_eq!(
+            result.recv().unwrap(),
+            Ok(("granted", Some("restored-token".into())))
+        );
     }
 
     #[test]

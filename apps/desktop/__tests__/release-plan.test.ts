@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
@@ -72,7 +72,19 @@ function repository() {
   return source
 }
 
-it('skips shell publication for a web-only commit and compares the selected channel', () => {
+it('admits the reusable production dispatch and skips unchanged shell publication', () => {
+  const require = createRequire(import.meta.url)
+  const { load } = require('js-yaml') as { load: (source: string) => {
+    jobs: { validate: { steps: { name?: string; run?: string }[] } }
+  } }
+  const workflow = load(readFileSync(new URL('../../../.github/workflows/desktop-release.yml', import.meta.url), 'utf8'))
+  const planning = workflow.jobs.validate.steps.find(step => step.name === 'Plan shell publication')!.run!
+  const guard = planning.slice(0, planning.indexOf('node --experimental-strip-types'))
+  const admission = spawnSync('bash', ['-c', guard], { encoding: 'utf8', env: {
+    ...process.env, EVENT_NAME: 'workflow_dispatch', DESKTOP_VARIANT: 'production',
+    STAGING_ADMITTED: 'true', FORCE_UNSTAGED: '', GITHUB_REF: 'refs/heads/main',
+  } })
+  expect(admission.status, admission.stdout + admission.stderr).toBe(0)
   repository()
   const source = commit('web.ts', 'web')
   expect(planShellRelease('staging', source, '0.1.1', [])).toBeNull()
@@ -112,6 +124,7 @@ it('tests the pinned source and gates both web deployments on the reusable publi
   expect(workflow.jobs['desktop-release']!.uses).toBe('./.github/workflows/desktop-release.yml')
   expect(workflow.jobs['desktop-release']!.needs).toEqual(['build', 'desktop-test', 'admission'])
   expect(workflow.jobs['desktop-release']!.with!.source_sha).toBe('${{ needs.build.outputs.source_sha }}')
+  expect(workflow.jobs['desktop-release']!.with!.staging_admitted).toBe("${{ inputs.environment == 'production' }}")
   for (const environment of ['staging', 'production']) {
     expect(workflow.jobs[environment]!.needs).toContain('desktop-release')
   }

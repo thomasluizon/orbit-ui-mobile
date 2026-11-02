@@ -14,7 +14,7 @@ vi.setConfig({ testTimeout: 30_000 })
 
 const require = createRequire(import.meta.url)
 const { load } = require('js-yaml') as { load: (source: string) => Workflow }
-interface Step { name?: string; run?: string; if?: string }
+interface Step { name?: string; run?: string; if?: string; env?: Record<string, string> }
 interface Workflow {
   on: Record<string, unknown>
   concurrency: { 'cancel-in-progress': boolean }
@@ -26,6 +26,22 @@ const directories: string[] = []
 // WHY: The publisher runs on Ubuntu; these cases execute that workflow's Bash script.
 const publicationTest = it.skipIf(process.platform === 'win32')
 afterEach(() => directories.splice(0).forEach((directory) => rmSync(directory, { recursive: true, force: true })))
+
+publicationTest.each([
+  { variant: 'production', admitted: true, force: false, allowed: true },
+  { variant: 'production', admitted: false, force: false, allowed: false },
+  { variant: 'production', admitted: false, force: true, allowed: true },
+  { variant: 'staging', admitted: false, force: false, allowed: true },
+])('gates dispatch planning for $variant with admission $admitted and override $force', ({ variant, admitted, force, allowed }) => {
+  const planning = workflow.jobs.validate!.steps.find(step => step.name === 'Plan shell publication')!
+  const guard = planning.run!.slice(0, planning.run!.indexOf('node --experimental-strip-types'))
+  const result = spawnSync('bash', ['-c', guard], { encoding: 'utf8', env: {
+    ...process.env, DESKTOP_VARIANT: variant, EVENT_NAME: 'workflow_dispatch',
+    FORCE_UNSTAGED: String(force), STAGING_ADMITTED: String(admitted), GITHUB_REF: 'refs/heads/main',
+  } })
+  expect(result.status, result.stdout + result.stderr).toBe(allowed ? 0 : 1)
+  if (!allowed) expect(result.stdout).toContain('Direct production dispatch requires force_unstaged')
+})
 
 function publishAttempt(previous: string | null, failVersion = false, failFirstLookup = false, variant = 'staging', failDownload = false, failure: 'manifest' | 'tampered-previous' | 'unsigned-previous' | 'wrong-key' | 'tag' | 'lineage' | null = null) {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-desktop-publish-'))
@@ -219,6 +235,10 @@ it('requires the explicit monotonic gate and keeps private signing secrets out o
   expect(publish).toContain('scripts/release.ts newer')
   expect(JSON.stringify(workflow.jobs.validate)).not.toContain('TAURI_SIGNING_PRIVATE_KEY')
   const planning = workflow.jobs.validate!.steps.find(step => step.name === 'Plan shell publication')!.run!
-  expect(planning).toContain('workflow_dispatch')
+  expect(planning).toContain('STAGING_ADMITTED')
+  const plan = workflow.jobs.validate!.steps.find(step => step.name === 'Plan shell publication')!
+  expect(plan.env!.STAGING_ADMITTED).toBe('${{ inputs.staging_admitted }}')
+  expect(workflow.on).toMatchObject({ workflow_call: { inputs: { staging_admitted: { type: 'boolean', default: false } } } })
+  expect((workflow.on.workflow_dispatch as { inputs: Record<string, unknown> }).inputs).not.toHaveProperty('staging_admitted')
   expect(planning).toContain('FORCE_UNSTAGED')
 })

@@ -286,8 +286,8 @@ pub async fn desktop_update(
     Ok(snapshot)
 }
 
-fn apply_action(
-    state: &PendingUpdate,
+fn apply_action<T>(
+    state: &Mutex<UpdateState<T>>,
     action: Action,
     commit: Option<String>,
     reservation: Option<Uuid>,
@@ -493,6 +493,50 @@ fn publish_status<T, E>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_restart_web_cancel_download_install_and_retry_keep_approval() {
+        let state = Mutex::new(UpdateState::new(true));
+        let package = checked_package(&state, Ok(Some(("0.2.0".into(), "package")))).unwrap();
+        state.recover_lock().downloaded(package, true);
+        let version = state.recover_lock().take_prompt(true).unwrap();
+        state.recover_lock().answer_prompt(&version, true);
+        apply_action(&state, Action::Cancel, None, None).unwrap();
+        assert!(!state.recover_lock().snapshot().restart_requested);
+        for fail in [true, false] {
+            let reservation = Uuid::new_v4();
+            let package = state.recover_lock().begin_download(reservation).unwrap();
+            state.recover_lock().downloaded(package, true);
+            let package = reserve_install(&state, || Ok(())).unwrap();
+            run_install(
+                &state,
+                package,
+                |_, _| {
+                    if fail {
+                        Err("install failed")
+                    } else {
+                        Ok(())
+                    }
+                },
+                |_, _| (),
+            );
+            apply_action(&state, Action::Release, None, Some(reservation)).unwrap();
+            assert!(!state.recover_lock().snapshot().restart_requested);
+        }
+        assert_eq!(state.recover_lock().phase(), Phase::Idle);
+    }
+
+    #[test]
+    fn failed_install_web_retry_does_not_need_another_native_restart() {
+        let state = deferred_package();
+        state.recover_lock().request_restart();
+        let package = reserve_install(&state, || Ok(())).unwrap();
+        run_install(&state, package, |_, _| Err("install failed"), |_, _| ());
+        assert!(!state.recover_lock().snapshot().restart_requested);
+        let package = state.recover_lock().begin_download(Uuid::new_v4()).unwrap();
+        state.recover_lock().downloaded(package, true);
+        assert_eq!(reserve_install(&state, || Ok(())), Ok("package"));
+    }
 
     #[test]
     fn install_refusals_never_save_a_resume_record() {

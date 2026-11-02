@@ -56,6 +56,7 @@ pub struct UpdateState<T> {
     pub check_failed: bool,
     pub enabled: bool,
     restart_requested: bool,
+    restart_authorized: bool,
     install_reservation: Option<Uuid>,
     deferred: Option<(Option<String>, Option<String>)>,
     prompted_versions: HashSet<String>,
@@ -78,6 +79,7 @@ impl<T> UpdateState<T> {
             check_failed: false,
             enabled,
             restart_requested: false,
+            restart_authorized: false,
             install_reservation: None,
             deferred: None,
             prompted_versions: HashSet::new(),
@@ -162,6 +164,8 @@ impl<T> UpdateState<T> {
         }
         if let Ok(Some((version, package))) = candidate {
             if self.version.as_ref() != Some(&version) {
+                self.restart_authorized = false;
+                self.restart_requested = false;
                 self.version = Some(version);
                 self.phase = UpdatePhase::Available(package);
                 self.install_on_quit = false;
@@ -214,7 +218,7 @@ impl<T> UpdateState<T> {
         install_guard(
             self.phase(),
             self.prompt_pending(),
-            self.restart_requested,
+            self.restart_authorized,
             self.quit_requested,
         )?;
         let previous = std::mem::replace(&mut self.phase, UpdatePhase::Installing);
@@ -240,6 +244,7 @@ impl<T> UpdateState<T> {
     }
 
     pub fn installed(&mut self) {
+        self.restart_authorized = false;
         self.exiting = self.quit_requested;
         self.phase = UpdatePhase::Idle;
         self.install_on_quit = false;
@@ -322,6 +327,7 @@ impl<T> UpdateState<T> {
             && !self.prompt_pending()
             && (self.version.is_some() || self.web_commit.is_some())
         {
+            self.restart_authorized = true;
             self.restart_requested = true;
             self.deferred = None;
             self.quit_requested = false;
@@ -330,6 +336,7 @@ impl<T> UpdateState<T> {
 
     pub fn defer(&mut self) {
         if !self.busy() {
+            self.restart_authorized = false;
             self.deferred = Some((self.version.clone(), self.web_commit.clone()));
             self.restart_requested = false;
             self.install_reservation = None;
@@ -367,7 +374,7 @@ impl<T> UpdateState<T> {
 pub fn install_guard(
     phase: Phase,
     prompt_pending: bool,
-    restart_requested: bool,
+    restart_authorized: bool,
     quitting: bool,
 ) -> Result<(), &'static str> {
     if phase != Phase::Downloaded {
@@ -376,7 +383,7 @@ pub fn install_guard(
     if prompt_pending {
         return Err("Desktop update awaits native confirmation");
     }
-    if !restart_requested && !quitting {
+    if !restart_authorized && !quitting {
         return Err("Desktop update restart was not requested");
     }
     Ok(())
@@ -412,6 +419,49 @@ mod tests {
         ));
         assert_eq!(state.phase(), Phase::Downloaded);
         assert_eq!(state.package().copied(), Some("package"));
+    }
+
+    #[test]
+    fn native_approval_survives_web_acknowledgment_and_failed_install_retry() {
+        let mut state = UpdateState::new(true);
+        state.checked(Ok(Some(("0.2.0".into(), "package"))));
+        let package = state.begin_download(RESERVATION).unwrap();
+        state.downloaded(package, true);
+        confirm_restart(&mut state);
+        state.clear_restart();
+        assert!(!state.snapshot().restart_requested);
+        let package = state.begin_download(RESERVATION).unwrap();
+        state.downloaded(package, true);
+        let package = state.begin_install().expect("acknowledged native approval");
+        state.install_failed(package);
+        assert!(!state.snapshot().restart_requested);
+        state.release_install(RESERVATION);
+        let package = state.begin_download(RESERVATION).unwrap();
+        state.downloaded(package, true);
+        assert_eq!(state.begin_install(), Ok("package"));
+    }
+
+    #[test]
+    fn later_and_a_new_version_revoke_previous_native_approval() {
+        let mut state = ready_for_quit();
+        state.request_restart();
+        state.clear_restart();
+        state.defer();
+        assert!(state.begin_install().is_err());
+        let mut state = UpdateState::new(true);
+        state.checked(Ok(Some(("0.2.0".into(), "package"))));
+        let package = state.begin_download(RESERVATION).unwrap();
+        state.downloaded(package, true);
+        confirm_restart(&mut state);
+        state.clear_restart();
+        state.checked(Ok(Some(("0.3.0".into(), "new package"))));
+        assert!(!state.restart_authorized);
+        assert!(!state.snapshot().restart_requested);
+        let package = state.begin_download(RESERVATION).unwrap();
+        state.downloaded(package, true);
+        let version = state.take_prompt(true).unwrap();
+        state.answer_prompt(&version, false);
+        assert!(state.begin_install().is_err());
     }
 
     #[test]

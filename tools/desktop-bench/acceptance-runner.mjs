@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { request as requestHttp } from 'node:http'
 import { buildHermeticWeb } from './runner.mjs'
@@ -48,22 +48,35 @@ async function hermeticServices(repository, output) {
   await waitForHttp('http://127.0.0.1:3401/api/health', web)
 }
 
-async function updateServer(repository, output, shell, report) {
-  const { buildManifest, artifactName, verifyArtifact } = await import(pathToFileURL(join(repository, 'apps/desktop/scripts/release.ts')).href)
-  const signatures = Object.fromEntries(['aarch64-apple-darwin', 'x86_64-apple-darwin', 'x86_64-pc-windows-msvc', 'aarch64-pc-windows-msvc']
-    .map((target) => [artifactName('staging', '2.0.0', target), shell.signature]))
-  const valid = buildManifest('staging', '2.0.0', signatures)
-  const bad = structuredClone(valid)
-  for (const platform of Object.values(bad.platforms)) platform.signature = corruptSignature(platform.signature)
+async function prepareUpdateManifest(repository, output, shell) {
+  const { artifactName, targets, verifyArtifact, writeManifest } = await import(pathToFileURL(join(repository, 'apps/desktop/scripts/release.ts')).href)
+  const name = artifactName('staging', '2.0.0', shell.target)
+  if (basename(shell.packagePath) !== name) throw new Error('Acceptance package must use its published artifact name')
   const bytes = await readFile(shell.packagePath)
-  verifyArtifact(bytes, shell.signature, shell.publicKey, '2.0.0')
+  verifyArtifact(bytes, shell.signature, shell.publicKey, '2.0.0', name)
+  // WHY: The native validator requires every target; acceptance installs only its host package (#1964).
+  for (const target of Object.keys(targets)) {
+    const path = join(output, artifactName('staging', '2.0.0', target))
+    if (path === shell.packagePath) continue
+    await cp(shell.packagePath, path)
+    await execute(process.execPath, [require.resolve('@tauri-apps/cli/tauri.js'), 'signer', 'sign', '--app-version', '2.0.0', path], {
+      env: { ...process.env, TAURI_SIGNING_PRIVATE_KEY_PATH: join(output, 'updater.key'), TAURI_SIGNING_PRIVATE_KEY_PASSWORD: '' }, log: join(output, 'artifact-signing.log'),
+    })
+  }
+  const valid = writeManifest('staging', '2.0.0', output, shell.publicKey)
   const manifest = join(output, 'latest.json')
-  await record(manifest, valid)
   await execute(process.execPath, [require.resolve('@tauri-apps/cli/tauri.js'), 'signer', 'sign', '--app-version', '2.0.0', manifest], {
     env: { ...process.env, TAURI_SIGNING_PRIVATE_KEY_PATH: join(output, 'updater.key'), TAURI_SIGNING_PRIVATE_KEY_PASSWORD: '' }, log: join(output, 'manifest-signing.log'),
   })
   const manifestSignature = (await readFile(`${manifest}.sig`, 'utf8')).trim()
-  verifyArtifact(await readFile(manifest), manifestSignature, shell.publicKey, '2.0.0')
+  verifyArtifact(await readFile(manifest), manifestSignature, shell.publicKey, '2.0.0', 'latest.json')
+  return { valid, bytes, manifestSignature }
+}
+
+async function updateServer(repository, output, shell, report) {
+  const { valid, bytes, manifestSignature } = await prepareUpdateManifest(repository, output, shell)
+  const bad = structuredClone(valid)
+  for (const platform of Object.values(bad.platforms)) platform.signature = corruptSignature(platform.signature)
   let mode = 'off'
   const cookies = []
   let authenticated = false

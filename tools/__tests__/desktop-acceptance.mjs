@@ -37,7 +37,7 @@ async function bindErrorCases() {
 
 async function releaseImportCases() {
   const runnerSource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
-  const importExpression = /const \{ buildManifest, artifactName, verifyArtifact \} = await (.+)/.exec(runnerSource)[1]
+  const importExpression = /const \{[^}]+\} = await (import\(.+)/.exec(runnerSource)[1]
   for (const repository of [win32.join('d:\\runner workspace', 'orbit#checkout'), REPO_ROOT]) {
     const windowsPath = repository !== REPO_ROOT
     let imported
@@ -537,7 +537,7 @@ export async function cases() {
     rejects('each BFF cookie protection is required', () => assertCookieEvidence(cookies.map((cookie) => cookie.replace(attribute, '')), true))
   }
   rejects('a set cookie alone cannot prove an authenticated request', () => assertCookieEvidence(cookies, false))
-  const fixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 10000 })
+  const fixture = spawnSync(process.execPath, ['--import', 'tsx', join(REPO_ROOT, 'tools/desktop-bench/test-acceptance.ts')], { cwd: REPO_ROOT, encoding: 'utf8', timeout: 60000 })
   T('acceptance regressions exercise the email schema, signature verifier and native tree reader', fixture.status === 0, fixture.stderr || fixture.stdout)
   if (process.platform === 'darwin') {
     const compilation = spawnSync('clang', ['-fsyntax-only', '-fobjc-arc', join(REPO_ROOT, 'tools/desktop-bench/acceptance-ax.m')], { encoding: 'utf8', timeout: 30000 })

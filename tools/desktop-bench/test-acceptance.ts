@@ -1,21 +1,100 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
+import { createHash } from 'node:crypto'
+import * as files from 'node:fs/promises'
+import { basename, join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { runInNewContext } from 'node:vm'
 import { Readable } from 'node:stream'
 import { after, test } from 'node:test'
 import { emailReply, acceptanceEmail, acceptanceCode } from './acceptance-mock'
-import { verifyArtifact } from '../../apps/desktop/scripts/release'
+import { artifactName, targets, verifyArtifact, type Manifest } from '../../apps/desktop/scripts/release'
+import * as releaseModule from '../../apps/desktop/scripts/release'
 import { assertAccessibleTree, corruptSignature } from './acceptance-contract.mjs'
 import * as acceptanceContract from './acceptance-contract.mjs'
 
 const vector = JSON.parse(readFileSync(new URL('../../apps/desktop/__fixtures__/signer-vector.json', import.meta.url), 'utf8')) as { payload: string; signature: string; publicKey: string; version: string }
 const bytes = Buffer.from(vector.payload)
-verifyArtifact(bytes, vector.signature, vector.publicKey, vector.version)
-assert.throws(() => verifyArtifact(bytes, corruptSignature(vector.signature), vector.publicKey, vector.version))
+verifyArtifact(bytes, vector.signature, vector.publicKey, vector.version, 'payload')
+assert.throws(() => verifyArtifact(bytes, corruptSignature(vector.signature), vector.publicKey, vector.version, 'payload'))
+const require = createRequire(import.meta.url)
+const repository = fileURLToPath(new URL('../../', import.meta.url))
+
+function producerFunction(source: string, name: string, end: string, context: Record<string, unknown>) {
+  const body = source.slice(source.indexOf(`async function ${name}`), source.indexOf(end))
+    .replace("await import(pathToFileURL(join(repository, 'apps/desktop/scripts/release.ts')).href)", 'releaseModule')
+  runInNewContext(`${body}\nglobalThis.producer = ${name}`, context)
+  return (context as typeof context & { producer: (...args: unknown[]) => Promise<unknown> }).producer
+}
+
+for (const target of ['aarch64-apple-darwin', 'x86_64-apple-darwin', 'x86_64-pc-windows-msvc'] as const) {
+  test(`acceptance signs and publishes the canonical package name for ${target}`, async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'orbit-acceptance-updater-'))
+    try {
+      const desktop = join(directory, 'apps/desktop')
+      const output = join(directory, 'output')
+      mkdirSync(output, { recursive: true })
+      cpSync(join(repository, 'apps/desktop/scripts'), join(desktop, 'scripts'), { recursive: true })
+      const windows = target.includes('windows')
+      const bundle = join(desktop, 'src-tauri/target', target, 'release/bundle')
+      for (const [folder, name] of windows ? [['nsis', 'fixture.exe']] : [['dmg', 'fixture.dmg'], ['macos', 'fixture.app.tar.gz']]) {
+        mkdirSync(join(bundle, folder!), { recursive: true })
+        writeFileSync(join(bundle, folder!, name!), vector.payload)
+      }
+      const execute = async (command: string, args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}) => {
+        if (args[0] === 'native-build-fixture') return ''
+        const result = spawnSync(command, args, { cwd: options.cwd, env: options.env, encoding: 'utf8', timeout: 10000 })
+        assert.equal(result.status, 0, result.stderr)
+        return result.stdout
+      }
+      const buildSource = readFileSync(new URL('./acceptance-platform.mjs', import.meta.url), 'utf8')
+      const build = producerFunction(buildSource, 'buildInstaller', 'export async function install(', {
+        ...files, join, require, execute, artifactName, windows, npmCli: () => 'native-build-fixture',
+        process: { execPath: process.execPath, env: process.env, arch: target.startsWith('aarch64') ? 'arm64' : 'x64' },
+      })
+      const shell = await build(directory, output) as { packagePath: string; signature: string; publicKey: string; target: string }
+      const name = artifactName('staging', '2.0.0', target)
+      assert.equal(basename(shell.packagePath), name)
+      verifyArtifact(readFileSync(shell.packagePath), shell.signature, shell.publicKey, '2.0.0', name)
+      const runnerSource = readFileSync(new URL('./acceptance-runner.mjs', import.meta.url), 'utf8')
+      const updateContext: Record<string, unknown> = {
+        ...files, Buffer, URL, basename, createHash, join, pathToFileURL, require, process, releaseModule, execute, structuredClone, corruptSignature,
+        desktopOrigin: 'https://app-staging.useorbit.org',
+      }
+      updateContext.prepareUpdateManifest = producerFunction(runnerSource, 'prepareUpdateManifest', 'async function updateServer(', updateContext)
+      const update = producerFunction(runnerSource, 'updateServer', 'async function inspectSurfaces(', updateContext)
+      const updates = await update(repository, output, shell, { updateRequests: [] }) as {
+        mode: (mode: string) => void; route: (request: unknown, response: unknown) => boolean
+      }
+      updates.mode('good')
+      let status = 0
+      let body: string | Buffer = ''
+      const response = { writeHead(value: number) { status = value; return this }, end(value: string | Buffer) { body = value } }
+      const request = (path: string) => updates.route({ headers: { host: 'github.com' }, url: path }, response)
+      request('/thomasluizon/orbit-ui-mobile/releases/download/desktop-staging/latest.json')
+      assert.equal(status, 200)
+      const manifest = JSON.parse(String(body)) as Manifest
+      assert.deepEqual(Object.keys(manifest.platforms).sort(), Object.values(targets).map(descriptor => descriptor.platform).sort())
+      assert.equal(new URL(manifest.platforms[targets[target].platform]!.url).pathname.split('/').at(-1), name)
+      for (const platform of Object.values(manifest.platforms)) {
+        const filename = new URL(platform.url).pathname.split('/').at(-1)!
+        request(new URL(platform.url).pathname)
+        assert.equal(status, 200)
+        verifyArtifact(Buffer.from(body), platform.signature, shell.publicKey, manifest.version, filename)
+        assert.equal(platform.sha256, createHash('sha256').update(Buffer.from(body)).digest('hex'))
+        assert.equal(platform.size, Buffer.byteLength(body))
+      }
+      verifyArtifact(readFileSync(join(output, 'latest.json')), readFileSync(join(output, 'latest.json.sig'), 'utf8'), shell.publicKey, manifest.version, 'latest.json')
+      await assert.rejects(() => update(repository, output, { ...shell, signature: corruptSignature(shell.signature) }, { updateRequests: [] }), /signature verification failed/)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+}
+
 const sending = { email: acceptanceEmail, language: 'en' }
 assert.deepEqual(emailReply('/api/auth/send-code', sending, 'fixture-token'), { status: 200, body: {} })
 const login = emailReply('/api/auth/verify-code', { ...sending, code: acceptanceCode }, 'fixture-token')
