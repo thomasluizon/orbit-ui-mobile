@@ -1,3 +1,4 @@
+import { MAX_REMINDERS_PER_HABIT } from '@orbit/shared/validation'
 import { IconButton } from '@/components/ui/icon-button'
 import { PillButton } from '@/components/ui/pill-button'
 import { useState, useMemo, type ReactNode } from 'react'
@@ -38,11 +39,11 @@ export function ReminderSection({
     () => HABIT_REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
     [reminderTimes],
   )
-  const atLimit = reminderTimes.length + scheduledReminderCount >= 15
+  const atLimit = reminderTimes.length + scheduledReminderCount >= MAX_REMINDERS_PER_HABIT
 
   function addPreset(value: number) {
-    if (reminderTimes.length + scheduledReminderCount >= 15) {
-      onValidationError?.(t('habits.form.relativeReminderMax'))
+    if (reminderTimes.length + scheduledReminderCount >= MAX_REMINDERS_PER_HABIT) {
+      onValidationError?.(t('habits.form.relativeReminderMax', { count: MAX_REMINDERS_PER_HABIT }))
       return
     }
     if (!reminderTimes.includes(value)) {
@@ -64,8 +65,8 @@ export function ReminderSection({
       onValidationError?.(t('habits.form.invalidRelativeReminder'))
       return
     }
-    if (reminderTimes.length + scheduledReminderCount >= 15) {
-      onValidationError?.(t('habits.form.relativeReminderMax'))
+    if (reminderTimes.length + scheduledReminderCount >= MAX_REMINDERS_PER_HABIT) {
+      onValidationError?.(t('habits.form.relativeReminderMax', { count: MAX_REMINDERS_PER_HABIT }))
       return
     }
     if (!reminderTimes.includes(minutes)) {
@@ -111,7 +112,7 @@ export function ReminderSection({
           ) : null}
 
           <div className="relative">
-            {atLimit ? <p className="text-[14px] text-[var(--fg-3)]">{t('habits.form.relativeReminderMax')}</p> : null}
+            {atLimit ? <p className="text-[14px] text-[var(--fg-3)]">{t('habits.form.relativeReminderMax', { count: MAX_REMINDERS_PER_HABIT })}</p> : null}
             {!atLimit ? <>
             <IconButton label={t('habits.form.reminderAdd')} aria-expanded={showAddReminder} onClick={() => { setShowAddReminder(!showAddReminder); setShowCustomInput(false) }}><Plus size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
 

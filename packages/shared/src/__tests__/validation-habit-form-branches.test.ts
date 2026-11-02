@@ -10,7 +10,6 @@ import {
 import {
   validateChecklistItems,
   validateDaysSelection,
-  validateEmoji,
   validateEndDate,
   validateHabitForm,
   habitFormSchemaForType,
@@ -48,14 +47,6 @@ describe('validateEndDate', () => {
     expect(validateEndDate('2026-05-10', '2026-05-09')).toBe('habits.form.endDateBeforeDueDate')
     expect(validateEndDate('2026-05-10', '2026-05-10')).toBeNull()
     expect(validateEndDate('', '2026-05-09')).toBeNull()
-  })
-})
-
-describe('validateEmoji', () => {
-  it('rejects an over-long emoji and accepts short or empty ones', () => {
-    expect(validateEmoji('x'.repeat(MAX_HABIT_EMOJI_LENGTH + 1))).toBe('habits.form.emojiTooLong')
-    expect(validateEmoji('🔥')).toBeNull()
-    expect(validateEmoji(undefined)).toBeNull()
   })
 })
 
@@ -159,4 +150,47 @@ it.each([
   for (const [field, length, key] of [['title', 201, title], ['description', 10001, description], ['emoji', 33, emoji]] as const) {
     expect(() => schema.parse(makeFormData({ itemType, [field]: 'x'.repeat(length) }))).toThrow(`habits.form.${key}`)
   }
+})
+
+it.each([
+  ['habit', 'title', MAX_HABIT_TITLE_LENGTH, 'titleTooLong'],
+  ['task', 'title', MAX_HABIT_TITLE_LENGTH, 'taskTitleTooLong'],
+  ['habit', 'description', MAX_HABIT_DESCRIPTION_LENGTH, 'descriptionTooLong'],
+  ['task', 'description', MAX_HABIT_DESCRIPTION_LENGTH, 'taskDescriptionTooLong'],
+  ['habit', 'emoji', MAX_HABIT_EMOJI_LENGTH, 'emojiTooLong'],
+  ['task', 'emoji', MAX_HABIT_EMOJI_LENGTH, 'taskEmojiTooLong'],
+] as const)('validates %s %s through the form in schema order', (itemType, field, limit, key) => {
+  expect(validateHabitForm(makeFormData({ itemType, [field]: 'x'.repeat(limit + 1) }))).toBe(`habits.form.${key}`)
+  expect(validateHabitForm(makeFormData({ itemType, [field]: 'x'.repeat(limit) }))).toBeNull()
+})
+
+it('keeps title, description and emoji error priority', () => {
+  const form = makeFormData({ title: '', description: 'x'.repeat(10001), emoji: 'x'.repeat(33) })
+  expect(validateHabitForm(form)).toBe('habits.form.titleRequired')
+  expect(validateHabitForm({ ...form, title: 'Read' })).toBe('habits.form.descriptionTooLong')
+  expect(validateHabitForm({ ...form, title: 'Read', description: '' })).toBe('habits.form.emojiTooLong')
+  expect(validateHabitForm(makeFormData({ emoji: undefined }))).toBeNull()
+})
+
+it('accepts fifteen combined reminders and rejects sixteen', () => {
+  expect(validateReminderSelection(true, '09:00', Array.from({ length: 15 }, (_, index) => index), [])).toBeNull()
+  expect(validateReminderSelection(true, '09:00', Array.from({ length: 16 }, (_, index) => index), [])).toBe('habits.form.relativeReminderMax')
+})
+
+it.each([-1439, 10080])('accepts relative reminder bound %s', (minutes) => {
+  expect(validateReminderSelection(true, '09:00', [minutes], [])).toBeNull()
+})
+
+it.each([-1440, 10081])('rejects relative reminder outside bound %s', (minutes) => {
+  expect(validateReminderSelection(true, '09:00', [minutes], [])).toBe('habits.form.invalidRelativeReminder')
+})
+
+it.each([
+  { intervalMinutes: 3 },
+  { intervalMinutes: 30, activeStart: '08:00', activeEnd: null },
+  { intervalMinutes: 30, activeStart: '08:00', activeEnd: '08:00' },
+  { intervalMinutes: 30, activeStart: '08:00', activeEnd: '25:00' },
+  { intervalMinutes: 30, startAtUtc: 'invalid' },
+])('rejects an invalid repeat reminder %j', (repeatReminder) => {
+  expect(validateHabitForm(makeFormData({ reminderEnabled: true, repeatReminder }))).toBe('habits.form.repeatInvalid')
 })

@@ -10,25 +10,35 @@ import {
   MAX_HABIT_EMOJI_LENGTH,
   MAX_HABIT_TITLE_LENGTH,
   MAX_SCHEDULED_REMINDERS,
+  MAX_REMINDERS_PER_HABIT,
   MAX_SUB_HABITS,
   MAX_TAGS_PER_HABIT,
 } from './constants'
 
+const textErrorKeys = {
+  habit: { title: 'habits.form.titleTooLong', description: 'habits.form.descriptionTooLong', emoji: 'habits.form.emojiTooLong' },
+  task: { title: 'habits.form.taskTitleTooLong', description: 'habits.form.taskDescriptionTooLong', emoji: 'habits.form.taskEmojiTooLong' },
+}
+
+const MINUTES_PER_DAY = 24 * 60
+const MINUTES_PER_WEEK = 7 * MINUTES_PER_DAY
+
 function habitFormTextFields(task: boolean) {
+  const keys = textErrorKeys[task ? 'task' : 'habit']
   return {
     title: z
       .string()
       .trim()
       .check(utf16Length('min', 1, 'habits.form.titleRequired'))
-      .check(utf16Length('max', MAX_HABIT_TITLE_LENGTH, task ? 'habits.form.taskTitleTooLong' : 'habits.form.titleTooLong')),
+      .check(utf16Length('max', MAX_HABIT_TITLE_LENGTH, keys.title)),
     description: z
       .string()
-      .check(utf16Length('max', MAX_HABIT_DESCRIPTION_LENGTH, task ? 'habits.form.taskDescriptionTooLong' : 'habits.form.descriptionTooLong'))
+      .check(utf16Length('max', MAX_HABIT_DESCRIPTION_LENGTH, keys.description))
       .optional()
       .default(''),
     emoji: z
       .string()
-      .check(utf16Length('max', MAX_HABIT_EMOJI_LENGTH, task ? 'habits.form.taskEmojiTooLong' : 'habits.form.emojiTooLong'))
+      .check(utf16Length('max', MAX_HABIT_EMOJI_LENGTH, keys.emoji))
       .optional()
       .default(''),
   }
@@ -124,22 +134,6 @@ export function validateFrequency(
   return null
 }
 
-function validateDescription(description: string | undefined): string | null {
-  if (!description) return null
-  if (description.length > MAX_HABIT_DESCRIPTION_LENGTH) {
-    return 'habits.form.descriptionTooLong'
-  }
-  return null
-}
-
-export function validateEmoji(emoji: string | undefined): string | null {
-  if (!emoji) return null
-  if (emoji.length > MAX_HABIT_EMOJI_LENGTH) {
-    return 'habits.form.emojiTooLong'
-  }
-  return null
-}
-
 export function validateChecklistItems(
   checklistItems: Array<{ text: string; isChecked: boolean }>,
 ): string | null {
@@ -204,10 +198,10 @@ export function validateReminderSelection(
     if (reminderTimes.length + scheduledReminders.length === 0) {
       return 'habits.form.reminderMinimumOne'
     }
-    if (reminderTimes.length + scheduledReminders.length > 15) {
+    if (reminderTimes.length + scheduledReminders.length > MAX_REMINDERS_PER_HABIT) {
       return 'habits.form.relativeReminderMax'
     }
-    if (reminderTimes.some((minutes) => !Number.isInteger(minutes) || minutes < -1439 || minutes > 10080)) {
+    if (reminderTimes.some((minutes) => !Number.isInteger(minutes) || minutes < -(MINUTES_PER_DAY - 1) || minutes > MINUTES_PER_WEEK)) {
       return 'habits.form.invalidRelativeReminder'
     }
     return validateScheduledReminders(scheduledReminders)
@@ -263,20 +257,8 @@ function validateTimes(data: HabitFormData): string | null {
 }
 
 function validateHabitTextFields(data: HabitFormData): string | null {
-  if (!data.title.trim()) {
-    return 'habits.form.titleRequired'
-  }
-  if (data.title.trim().length > MAX_HABIT_TITLE_LENGTH) {
-    return data.itemType === 'task' ? 'habits.form.taskTitleTooLong' : 'habits.form.titleTooLong'
-  }
-
-  const descriptionErr = validateDescription(data.description)
-  if (descriptionErr) return data.itemType === 'task' ? 'habits.form.taskDescriptionTooLong' : descriptionErr
-
-  const emojiErr = validateEmoji(data.emoji)
-  if (emojiErr) return data.itemType === 'task' ? 'habits.form.taskEmojiTooLong' : emojiErr
-
-  return null
+  const result = habitFormSchemaForType(data.itemType).pick({ title: true, description: true, emoji: true }).safeParse(data)
+  return result.success ? null : result.error.issues[0]!.message
 }
 
 /**
@@ -328,10 +310,16 @@ function validateHabitReminders(data: HabitFormData): string | null {
 function validateRepeatReminder(data: HabitFormData): string | null {
   const repeat = data.repeatReminder
   if (!repeat) return null
-  if (!REPEAT_REMINDER_INTERVALS.includes(repeat.intervalMinutes)
-    || Boolean(repeat.activeStart) !== Boolean(repeat.activeEnd)
-    || repeat.activeStart != null && (!repeat.activeStart || repeat.activeStart.slice(0, 5) === repeat.activeEnd?.slice(0, 5) || validateTime(repeat.activeStart.slice(0, 5)) !== null)
-    || repeat.activeEnd != null && (!repeat.activeEnd || validateTime(repeat.activeEnd.slice(0, 5)) !== null)
-    || repeat.startAtUtc != null && !Number.isFinite(Date.parse(repeat.startAtUtc))) return 'habits.form.repeatInvalid'
-  return null
+  const invalidInterval = !REPEAT_REMINDER_INTERVALS.includes(repeat.intervalMinutes)
+  const incompleteActiveRange = Boolean(repeat.activeStart) !== Boolean(repeat.activeEnd)
+  const invalidActiveStart = repeat.activeStart != null && (
+    !repeat.activeStart || repeat.activeStart.slice(0, 5) === repeat.activeEnd?.slice(0, 5)
+    || validateTime(repeat.activeStart.slice(0, 5)) !== null
+  )
+  const invalidActiveEnd = repeat.activeEnd != null && (
+    !repeat.activeEnd || validateTime(repeat.activeEnd.slice(0, 5)) !== null
+  )
+  const invalidStartDate = repeat.startAtUtc != null && !Number.isFinite(Date.parse(repeat.startAtUtc))
+  return invalidInterval || incompleteActiveRange || invalidActiveStart || invalidActiveEnd || invalidStartDate
+    ? 'habits.form.repeatInvalid' : null
 }

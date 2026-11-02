@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
-import { MAX_SCHEDULED_REMINDERS, validateScheduledReminders } from '@orbit/shared/validation'
+import { MAX_SCHEDULED_REMINDERS, MAX_REMINDERS_PER_HABIT, validateScheduledReminders } from '@orbit/shared/validation'
 import { TimeField } from '@/components/ui/time-field'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import { RadioGroup, RadioItem } from '@/components/ui/radio-group'
@@ -43,12 +43,12 @@ export function ScheduledReminderSection({
 
 
   const atScheduledLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS
-  const atRelativeLimit = (scheduledReminders?.length ?? 0) + offsetReminderCount >= 15
+  const atRelativeLimit = (scheduledReminders?.length ?? 0) + offsetReminderCount >= MAX_REMINDERS_PER_HABIT
   const atLimit = atScheduledLimit || atRelativeLimit
 
   function addScheduledReminder(time: Time24) {
     if (atRelativeLimit) {
-      onValidationError(t('habits.form.relativeReminderMax'))
+      onValidationError(t('habits.form.relativeReminderMax', { count: MAX_REMINDERS_PER_HABIT }))
       return
     }
     const current = scheduledReminders ?? []
@@ -98,7 +98,7 @@ export function ScheduledReminderSection({
 
           <div>
             {atLimit && (
-              <p className="text-[14px] text-[var(--fg-3)]">{t(atRelativeLimit ? 'habits.form.relativeReminderMax' : 'habits.form.scheduledReminderMax')}</p>
+              <p className="text-[14px] text-[var(--fg-3)]">{t(atRelativeLimit ? 'habits.form.relativeReminderMax' : 'habits.form.scheduledReminderMax', { count: MAX_REMINDERS_PER_HABIT })}</p>
             )}
 
             {!atLimit && (

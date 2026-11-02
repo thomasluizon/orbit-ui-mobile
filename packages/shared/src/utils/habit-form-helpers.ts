@@ -848,22 +848,6 @@ export function formatHabitTimeInput(value: string): string {
   return nextValue
 }
 
-export function isValidHabitTimeInput(time: string): boolean {
-  if (!time) return true
-  if (time.length !== 5) return false
-  const [hStr, mStr] = time.split(':')
-  const hours = Number.parseInt(hStr ?? '', 10)
-  const minutes = Number.parseInt(mStr ?? '', 10)
-  return (
-    !Number.isNaN(hours) &&
-    !Number.isNaN(minutes) &&
-    hours >= 0 &&
-    hours <= 23 &&
-    minutes >= 0 &&
-    minutes <= 59
-  )
-}
-
 export function validateHabitFormInput(
   values: Partial<HabitFormData>,
   context: HabitFormValidationContext = {},

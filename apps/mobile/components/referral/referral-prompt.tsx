@@ -20,7 +20,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useUIStore } from '@/stores/ui-store'
 
-const SETTLE_DELAY_MS = 500
+import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 
 /** One-shot milestone nudge that hands off to the referral drawer. */
 export function ReferralPrompt() {

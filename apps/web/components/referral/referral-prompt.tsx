@@ -20,7 +20,7 @@ import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
 
-const SETTLE_DELAY_MS = 500
+import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 const ReferralDrawer = dynamic(() =>
   import('@/components/referral/referral-drawer').then((module) => module.ReferralDrawer),
 )

@@ -14,11 +14,6 @@ vi.mock('next-intl', () => ({
   },
 }))
 
-vi.mock('@/components/gamification/ring-motif', () => ({
-  RingMotif: ({ eyebrow, anchor }: { eyebrow: string; anchor: React.ReactNode }) => (
-    <div>{eyebrow}{anchor}</div>
-  ),
-}))
 
 vi.mock('@/components/ui/orbit-mark', () => ({ OrbitMark: () => <span data-testid="orbit-mark" /> }))
 vi.mock('@/components/ui/icon', () => ({

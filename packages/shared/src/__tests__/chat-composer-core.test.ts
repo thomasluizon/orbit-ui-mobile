@@ -6,7 +6,6 @@ import type {
 } from '../types/index'
 import {
   classifySendFailure,
-  findPremiumPolicyDenial,
   invalidateAgentQueries,
   reconcileAgentQueries,
   selectActionInvalidations,
@@ -198,42 +197,5 @@ describe('invalidateAgentQueries', () => {
     expect(invalidatedKeys).not.toContainEqual([retiredQueryKey])
     expect(invalidatedKeys).toContainEqual(['habits'])
     expect(invalidatedKeys).toContainEqual(['profile'])
-  })
-})
-
-describe('findPremiumPolicyDenial', () => {
-  it('returns the first denial that requires an upgrade', () => {
-    const denial = findPremiumPolicyDenial([
-      {
-        operationId: 'op-1',
-        sourceName: 'Src',
-        riskClass: 'Low',
-        confirmationRequirement: 'None',
-        reason: 'not an upgrade',
-      },
-      {
-        operationId: 'op-2',
-        sourceName: 'Src',
-        riskClass: 'Low',
-        confirmationRequirement: 'None',
-        reason: 'Yearly Pro plan required',
-      },
-    ])
-    expect(denial?.operationId).toBe('op-2')
-  })
-
-  it('returns undefined when no denial requires an upgrade', () => {
-    expect(findPremiumPolicyDenial(undefined)).toBeUndefined()
-    expect(
-      findPremiumPolicyDenial([
-        {
-          operationId: 'op-1',
-          sourceName: 'Src',
-          riskClass: 'Low',
-          confirmationRequirement: 'None',
-          reason: 'just a note',
-        },
-      ]),
-    ).toBeUndefined()
   })
 })

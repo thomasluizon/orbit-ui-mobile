@@ -4,7 +4,6 @@ export { createStepUpSessionState, type StepUpSessionState } from './step-up-ses
 export { submitApiKeyCreation, openApiKeyScopeOrStartStepUp, type ApiKeyCreationAdapter } from './api-key-creation'
 export { habitInitial } from './habit-initial'
 export { mapCompletionSeries } from './completion-series'
-export { getRadioNavigationIndex } from './radio-navigation'
 export { createClientId } from './client-id'
 export { getAllDoneOnDate, isHabitLoggedOnDate, isHabitSkippedOnDate } from './all-done'
 export {
@@ -260,7 +259,6 @@ export {
   requestHabitFormProposal,
   getHabitDisplayStartDate,
   shouldShowHabitAstraFallback,
-  isValidHabitTimeInput,
   validateHabitFormInput,
 } from './habit-form-helpers'
 export type {
@@ -293,7 +291,6 @@ export type {
   HabitCardStatus,
   HabitCardTranslationAdapter,
 } from './habit-card-helpers'
-export { formatHabitDetailSummary } from './habit-detail-summary'
 export { buildRescheduleProposalLabels, type RescheduleProposalLabels } from './reschedule-proposal'
 export { parseShowGeneralOnTodayPreference } from './preferences'
 export {
@@ -846,3 +843,5 @@ export { createAstraAllowanceTranslator, type AstraAllowance } from './astra-all
 
 export { computeParentResolutionProgress, computeParentPromptChain, selectParentPromptAncestor, settleParentPromptChain } from './parent-prompt-chain'
 export type { ParentPromptChain } from './parent-prompt-chain'
+
+export { SETTLE_DELAY_MS } from './engagement-prompt-timing'

@@ -73,7 +73,6 @@ interface HabitRowProps {
   hasSubHabits?: boolean
   expanded?: boolean
   childPanelId?: string
-  /** When the row is a parent, displays a ParentRing instead of StatusDot. */
   childProgress?: { done: number; total: number }
   /** Whether to render the small linked-goal indicator (5px primary dot before the status). */
   showLinkedGoalDot?: boolean
