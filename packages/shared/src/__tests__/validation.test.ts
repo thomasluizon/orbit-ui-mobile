@@ -213,8 +213,8 @@ describe('validateEndTime', () => {
     expect(validateEndTime('', '')).toBeNull()
   })
 
-  it('returns null when dueTime is empty', () => {
-    expect(validateEndTime('', '10:00')).toBeNull()
+  it('requires a start when an end time is supplied', () => {
+    expect(validateEndTime('', '10:00')).toBe('habits.form.endTimeRequiresStart')
   })
 
   it('returns null when dueEndTime is empty', () => {

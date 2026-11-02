@@ -113,7 +113,7 @@ async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
   </QueryClientProvider>
   await act(() => { tree = create(element(true)); return Promise.resolve() })
   if (mode === 'create') await act(() => {
-    const choice = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeHabit')[0]!
+    const choice = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeHabit, habits.form.typeHabitHint')[0]!
     ;(choice.props.onPress as () => void)()
     return Promise.resolve()
   })
@@ -122,7 +122,10 @@ async function renderSheet(mode: 'create' | 'edit', selectedHabit = habit) {
     selectedHabit = next
     await act(() => { tree.update(element(true)); return Promise.resolve() })
   }
-  return { onSaved, onClose, tree, changeHabit, setOpen: async (open: boolean) => { await act(() => { tree.update(element(open)); return Promise.resolve() }) }, title: tree.root.findAll((node) => (node.type as unknown) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!, submit: tree.root.findAll((node) => (node.type as unknown) === 'Pressable').find((node) => node.findAll((child) => (child.type as unknown) === 'Text').some((text) => text.props.children === label))! }
+  const titleLabel = mode === 'edit' && (selectedHabit.isGeneral || selectedHabit.frequencyUnit === null) ? 'habits.form.taskDescribe' : 'habits.form.describe'
+  const title = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === titleLabel)[0]!
+  expect(title).toBeDefined()
+  return { onSaved, onClose, tree, changeHabit, setOpen: async (open: boolean) => { await act(() => { tree.update(element(open)); return Promise.resolve() }) }, title, submit: tree.root.findAll((node) => (node.type as unknown) === 'Pressable').find((node) => node.findAll((child) => (child.type as unknown) === 'Text').some((text) => text.props.children === label))! }
 }
 
 async function changeTitle(title: ReactTestInstance, value: string) {
@@ -163,7 +166,7 @@ describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
     expect(form().backendFocusRequest).toBeGreaterThan(0)
     await setOpen(false)
     await setOpen(true)
-    const nextTitle = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!
+    const nextTitle = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === (mode === 'create' ? 'habits.form.taskDescribe' : 'habits.form.describe'))[0]!
     expect(nextTitle.props.value).toBe(habit.title)
     expect(nextTitle.props.accessibilityHint).toBeUndefined()
     expect(form().backendFocusRequest).toBe(0)
@@ -259,7 +262,8 @@ describe('controlled full editor checklist', () => {
     await settleMutation()
     if (replacement === 'habit') await changeHabit(createMockHabit({ id: '22222222-2222-4222-8222-222222222222', isGeneral: true, frequencyUnit: null }))
     else await act(() => { advanceAccountGeneration(); return Promise.resolve() })
-    const nextTitle = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!
+    const nextTitle = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.taskDescribe')[0]!
+    expect(nextTitle).toBeDefined()
     await changeTitle(nextTitle, 'Replacement draft')
     await act(() => { finish(); return Promise.resolve() })
     await settleMutation()
@@ -270,11 +274,15 @@ describe('controlled full editor checklist', () => {
     expect(mutation).toHaveBeenCalledOnce()
     void act(() => tree.update(<></>))
   })
-  it('disables the real dated form inputs and draft actions together', async () => {
+  it.each([false, true])('disables the real dated form inputs and draft actions together, repeat=%s', async (repeat) => {
     let finish!: () => void
     mutation.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
-    const { tree, submit } = await renderSheet('edit', createMockHabit({ checklistItems: editedHabit.checklistItems, frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true, dueTime: '08:00', dueEndTime: '09:00' }))
+    const { tree, submit } = await renderSheet('edit', createMockHabit({ checklistItems: editedHabit.checklistItems, frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true, dueTime: '08:00', dueEndTime: '09:00', reminderEnabled: true, repeatReminder: repeat ? { intervalMinutes: 30, startAtUtc: '2026-10-20T08:00:00Z' } : null }))
     const form = tree.root.findAll((node) => node.type === HabitFormFields)[0]!
+    await act(() => {
+      ;(form.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'button' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'habits.form.timingAndReminder').length === 1)[0]!.props.onPress as () => void)()
+      return Promise.resolve()
+    })
     const textHosts = form.findAll((node) => String(node.type) === 'TextInput')
     expect(textHosts.map((node) => node.props.accessibilityLabel)).toEqual(expect.arrayContaining(['habits.form.describe', 'habits.form.datePhrase', 'habits.form.frequency', 'habits.form.exactTime', 'habits.form.dueEndTime', 'habits.form.checklistItemLabel', 'habits.form.description']))
     await pressSubmit(submit)
@@ -284,7 +292,10 @@ describe('controlled full editor checklist', () => {
       expect(host.props.editable, String(host.props.accessibilityLabel)).toBe(false)
       expect(host.props.accessibilityState, String(host.props.accessibilityLabel)).toMatchObject({ disabled: true })
     }
-    const actions = form.findAll((node) => String(node.type) === 'Pressable' && Boolean(node.props.accessibilityRole))
+    if (repeat) expect(form.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.form.repeatAllDay')[0]!.props.disabled).toBe(true)
+    const done = form.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'button' && node.findAll((child) => String(child.type) === 'Text' && child.props.children === 'common.done').length === 1)[0]!
+    expect(done.props.disabled).toBe(false)
+    const actions = form.findAll((node) => String(node.type) === 'Pressable' && Boolean(node.props.accessibilityRole) && node !== done)
     expect(actions.length).toBeGreaterThan(20)
     for (const control of actions) expect(control.props.disabled, String(control.props.accessibilityLabel)).toBe(true)
     await act(() => { finish(); return Promise.resolve() })

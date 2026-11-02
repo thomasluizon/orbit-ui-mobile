@@ -5,10 +5,23 @@ import { loadHabitListSchedule, mergeHabitListSchedule } from '../utils/habit-li
 import { normalizeHabitQueryData } from '../utils/habit-normalization'
 import { buildHabitDateBuckets } from '../utils/habit-list-progress'
 import { canLogHabitOnDate } from '../utils/habit-card-helpers'
+import { makeMonthlyChildDaySchedule } from '../test-support/habit-detail-fixtures'
 
 const TODAY = '2026-09-12'
 
 describe('Todos schedule facts', () => {
+  it('enriches undated children with the selected day skip flag', () => {
+    const dated = makeMonthlyChildDaySchedule()
+    const undated = { ...dated, children: dated.children.map((child) => ({ ...child, isSkippedOnDate: false })) }
+    const merged = mergeHabitListSchedule([undated], [dated])
+    expect(normalizeHabitQueryData(merged).habitsById.get('child-1')?.isSkippedOnDate).toBe(true)
+  })
+  it('clears the current-day skip flag when a child is absent from another dated schedule', () => {
+    const undated = makeMonthlyChildDaySchedule()
+    const dated = { ...undated, children: undated.children.filter((child) => child.id !== 'child-1') }
+    const merged = mergeHabitListSchedule([undated], [dated])
+    expect(normalizeHabitQueryData(merged).habitsById.get('child-1')?.isSkippedOnDate).toBeUndefined()
+  })
   it('leaves an empty view or a view without a schedule date unchanged without reading a schedule', async () => {
     const fetchPage = async () => { throw new Error('Unexpected schedule request') }
     expect(await loadHabitListSchedule([], TODAY, fetchPage)).toEqual([])

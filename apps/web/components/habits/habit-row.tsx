@@ -359,7 +359,7 @@ function HabitRowSupportingFooter({ meta, largeText, descriptionPresent }: Reado
   return (
     <div className="col-span-full row-start-2 flex min-w-0" style={{ gap: 12, paddingInlineEnd: SPACING.s8, paddingBlockStart: descriptionPresent ? SPACING.s0 : SPACING.s4, paddingBlockEnd: SPACING.s8 }}>
       <span className="w-[48px] shrink-0" aria-hidden="true" />
-      <div className="min-w-0 flex-1"><MetaStrip tokens={supportingTokens} largeText={largeText} /></div>
+      <div className="min-w-0 flex-1"><MetaStrip tokens={supportingTokens} largeText={largeText} supportingLine /></div>
     </div>
   )
 }

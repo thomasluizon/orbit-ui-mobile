@@ -481,12 +481,12 @@ describe('CreateHabitModal', () => {
     try {
       await act(async () => { await Promise.resolve() })
       nextHistory.writes.replaceState.mockClear()
-      fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+      fireEvent.click(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
       await waitFor(() => expect(nextHistory.writes.replaceState).toHaveBeenCalledWith(expect.objectContaining({ __NA: true }), '', '/'))
       await waitFor(() => expect(location.pathname).toBe('/'))
       expect(mockCreateMutateAsync).toHaveBeenCalledOnce()
       expect(screen.getByText('Today')).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
+      expect(screen.queryByRole('button', { name: /habits.create(?:Habit|Task)/ })).toBeNull()
       expect(nextHistory.restoreTraversal).toHaveBeenCalledTimes(2)
       expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
       expect(mockShowError).not.toHaveBeenCalled()
@@ -523,7 +523,7 @@ describe('CreateHabitModal', () => {
     expect(JSON.stringify(nextHistory.restoreTraversal.mock.calls)).not.toContain('habits')
     expect(location.pathname).toBe('/')
     expect(screen.getByText('Today')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /habits.create(?:Habit|Task)/ })).toBeNull()
   })
 
   it.each(['common.keepEditing', 'close-overlay'])('forgets a rejected destination before Back after %s', async (cancelAction) => {
@@ -741,7 +741,7 @@ describe('CreateHabitModal', () => {
     }))
     const onOpenChange = vi.fn()
     renderWithProviders(<CreateHabitModal open onOpenChange={onOpenChange} />)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    fireEvent.click(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
     await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalledOnce())
 
     await replaceAccountWith('user-2')
@@ -785,14 +785,14 @@ describe('CreateHabitModal', () => {
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
     expect(screen.getByRole('button', { name: 'common.cancel' })).toBeDefined()
-    expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeDefined()
+    expect(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ })).toBeDefined()
   })
 
   it('starts permission from Save when a reminder was prefilled', async () => {
     const values = mockFormGetValues()
     mockFormGetValues.mockReturnValue({ ...values, reminderEnabled: true, dueTime: '09:00' })
     renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    fireEvent.click(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
     await waitFor(() => expect(pushPermission.subscribe).toHaveBeenCalledOnce())
     await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalledOnce())
   })
@@ -805,7 +805,7 @@ describe('CreateHabitModal', () => {
     expect(sheetSlotButtons('sheet-actions')).toEqual(['common.cancel', 'habits.createHabit'])
     expectSmallSheetActions()
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    fireEvent.click(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
 
     await waitFor(() => {
       expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
@@ -857,7 +857,7 @@ describe('CreateHabitModal', () => {
     renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
 
     fireEvent.click(screen.getByTestId('apply-phrase'))
-    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    fireEvent.click(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
 
     await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: 'Alongar' })
@@ -882,7 +882,7 @@ describe('CreateHabitModal', () => {
     act(() => mockHabitFormFieldsState.onPhraseOwnershipChange?.(ownership))
     expect(setOneTime).toHaveBeenCalledOnce()
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    fireEvent.click(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
 
     await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[0]).toMatchObject({ title: phrase })
@@ -920,7 +920,7 @@ describe('CreateHabitModal', () => {
     const close = vi.fn()
     renderWithProviders(<CreateHabitModal open onOpenChange={close} />)
     await waitFor(() => expect(mockFormReset).toHaveBeenCalled())
-    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    fireEvent.click(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
     const upgrade = await screen.findByRole('button', { name: 'common.upgrade' })
     sheetTestControls.defer(true)
     fireEvent.click(upgrade)
@@ -943,7 +943,7 @@ describe('CreateHabitModal', () => {
     mockFormStatus.dirty = dirty
     mockCreateMutateAsync.mockRejectedValueOnce(new ApiClientError(403, 'Boundary', { code: 'PAY_GATE' }))
     renderWithProviders(<HabitCreateRoute />)
-    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    fireEvent.click(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'common.upgrade' }))
     if (dirty) {
       expect(mockPush).not.toHaveBeenCalled()
@@ -962,7 +962,7 @@ describe('CreateHabitModal', () => {
       screen.getByLabelText('habits.form.subHabitInputLabel({"index":1})'),
       { target: { value: 'Warm up' } },
     )
-    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    fireEvent.click(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
 
     await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual(['Warm up'])
@@ -992,7 +992,7 @@ describe('CreateHabitModal', () => {
     )
 
     fireEvent.click(screen.getByTestId('goal-trigger'))
-    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    fireEvent.click(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ }))
 
     await waitFor(() => {
       expect(mockValidateAll).toHaveBeenCalledWith(expect.objectContaining({
@@ -1379,7 +1379,7 @@ describe('create form copy', () => {
     mockFormWatch.mockImplementation((field?: string) => field === 'title' ? '' : undefined)
     renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
     expect(screen.getByText('habits.form.newHabit')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /habits.create(?:Habit|Task)/ })).toBeEnabled()
     expect(screen.getByText('habits.form.createWhy')).toBeInTheDocument()
     expect(screen.queryByText('habits.form.createDescription')).toBeNull()
   })

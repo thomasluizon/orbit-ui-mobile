@@ -374,7 +374,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [false, true].map((fullWidth) => ({ 
 it('keeps multiword labels in taller segments without breaking a word', async () => {
   __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
   let tree!: SegmentTree
-  await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ paddingHorizontal: 16 }}><SegmentedControl fullWidth label="Views" value="all" onChange={vi.fn()} options={[{ value: 'all', label: 'All habits' }, { value: 'general', label: 'General habits' }]} /></View>) as SegmentTree })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ paddingHorizontal: 16 }}><SegmentedControl fullWidth label="Views" value="all" onChange={vi.fn()} options={[{ value: 'all', label: 'All habits' }, { value: 'general', label: 'Undated tasks' }]} /></View>) as SegmentTree })
   const measured = await measureSegments(tree, 320, 2)
   try {
     expect(measured.radios).toHaveLength(2)

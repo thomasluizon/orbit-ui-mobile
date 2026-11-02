@@ -20,6 +20,7 @@ export {
 
 export {
   habitFormSchema,
+  habitFormSchemaForType,
   type HabitFormData,
   validateChecklistItems,
   validateDaysSelection,

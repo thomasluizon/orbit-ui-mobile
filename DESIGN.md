@@ -572,20 +572,20 @@ real. Two things change instead:
 ### Expressing repetition without the model leaking
 
 Creation and editing begin with two vertical RadioRow choices: `Tarefa única` / `One-time task`
-and `Hábito` / `Habit`. An unseeded create requires a deliberate choice. An edit or an explicit
-inherited type shows its actual selection. The focal title remains editable before that choice;
-validation focuses the type group and preserves every field. Title parsing and Astra replies cannot
+and `Hábito` / `Habit`. An unseeded create starts with Task selected (#1922). An edit or an explicit
+inherited type shows its actual selection. The focal title stays editable; switching type preserves the draft. Title parsing and Astra replies cannot
 overwrite a deliberate type. Raw schedule enum names never render.
 
-A task has no cadence corrections. Habit exposes fixed repetition, count-based repetition and
-`Sem data` / `No schedule`, with `Registre quando acontecer.` / `Log it whenever it happens.`.
-The schedule group stays reachable in the undated branch. Tree constraints remain enforced, and
-General cannot gain reminders or avoidance settings. Switching modes preserves their drafts.
+A task has no cadence corrections. When offers `Fazer em` / `Do on` and `Sem data` / `No date`.
+An undated task lives in General and completes once; creation from Geral selects Task and No date.
+Habit exposes only fixed repetition and count-based repetition. Tree constraints remain enforced,
+and the undated branch retains repeat reminders and excludes clock reminders and avoidance settings.
+Switching modes preserves their drafts. Unchanged edit hydration leaves the form clean.
 
 The compact growing name field uses the standard 54px minimum with matching mirror/input metrics. Description follows it immediately, before emoji, understanding and proposal content, with one owned 10,000-character field. Type stays first. RadioRow keeps its 52px minimum: one-line content is centred as a group, while wrapped labels grow with the glyph aligned to their first line (#1607).
 
 The editable date group precedes the single details disclosure. It has a persistent `Quando` /
-`When` label, the type-specific question, natural-language input with `In your own words` / `Escreva do seu jeito` and the existing calendar picker. The picker owns the selected date display; no ordinary selected-date sentence repeats it. Machine attribution, validation and recovery feedback remain.
+`When` label, natural-language input with `In your own words` / `Escreva do seu jeito` and the existing calendar picker. The picker owns the selected date display; no ordinary selected-date sentence repeats it. Machine attribution, validation and recovery feedback remain.
 The picker is labelled `Fazer em` / `Do on` for tasks and `Começar em` / `Starts on` for dated
 habits. New dates use account today after its timezone is known; a caller-selected day is an
 explicit prefill. Edit uses the task due date or persisted recurring start anchor, never the
@@ -621,8 +621,10 @@ the child undated with the existing parent mismatch guidance and block Submit. M
 changes, form reopening and context replacement never replay an old recurrence read. Unknown
 wording keeps date recovery and never guesses a cadence.
 
-Exact time, reminders, end date, checklist, sub-habits, tags, goals and avoidance
-controls retain their existing homes behind one disclosure. Read-only DateRow remains a valid
+Frequency and its corrections follow When for habits. One Time and reminder row opens a sheet
+with exact time, conditional end time, one reminder switch and the two reminder models. More details
+groups checklist and sub-items under Steps, avoidance and slip alerts under Avoid, tags, goals and
+parent under Organize, and end date under End. Description keeps its #1607 position below the title. Read-only DateRow remains a valid
 primitive elsewhere; editable form dates use DateField.
 
 Rows and detail place the complete, quiet type vocabulary beneath the full-width title, with no
@@ -1544,14 +1546,14 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 - At the desktop breakpoint, content composes **horizontally** where the surface calls for it. Calendário keeps one centred column inside the 740px content cap.
 - **The main content column caps at about 740px and is centred.** Narrower page columns also centre within their available shell container, retaining their caps and 16px child insets (#1570). Child text and figures keep their start alignment.
 - **The right stats rail is deleted** (D69). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. The full-screen conversation replaces the destination in the centred content column on wide web.
-- **Sidebar:** on the canvas background with a hairline as its only separation. The lockup and theme action share the first header row, with theme at the trailing edge and vertically centred on the lockup. The notification bell and collapse action share the trailing row below; theme and collapse align at their trailing edges. Each uses IconButton's 44px round paint, centred glyph and transparent 2px hit extension, with a 12px paint gap and at least 8px from feedback to the lockup or sibling fill inside the existing 232px rail. In the 96px collapsed rail, the collapse control comes first, followed by theme and the bell in a centred vertical stack. Theme shows the target mode: sun in dark mode, moon in light mode. Compact web and Android place that same action immediately before the bell in every tab's 48px header row. Perfil preferences has no theme selector (#1881). The create button and compact account row stay grounded at the bottom. The account avatar centres on the adjacent name and email lines, with no reserved blank line or extra gap; loading reserves the same height as a one-line name and email.
+- **Sidebar:** on the canvas background with a hairline as its only separation. The lockup and theme action share the first header row, with theme at the trailing edge and vertically centred on the lockup. The notification bell starts the control row below, aligned with the lockup's leading edge, and the collapse action stays at the trailing edge; theme and collapse align at their trailing edges. Each uses IconButton's 44px round paint, centred glyph and transparent 2px hit extension, with at least a 12px paint gap and at least 8px from feedback to the lockup or sibling fill inside the existing 232px rail. In the 96px collapsed rail, the bell comes first, followed by collapse and theme in a centred vertical stack. Theme shows the target mode: sun in dark mode, moon in light mode. Compact web and Android place that same action immediately before the bell in every tab's 48px header row. Perfil preferences has no theme selector (#1881). The create button and compact account row stay grounded at the bottom. The account avatar centres on the adjacent name and email lines, with no reserved blank line or extra gap; loading reserves the same height as a one-line name and email.
 - Primary app sections are one click away in the desktop sidebar.
 - **Never hide core functionality at a breakpoint**, and keep one information architecture across every context. Adapt the layout, not the feature set.
 - **Match a feature's flow shape to its neighbours**, not just its surface.
 - **In the compact shell, a sheet or menu is the first home for secondary content.** Keep one visible, labelled entry for it. A menu or sheet closes before the next sheet opens; a confirmation dialog over a sheet stays allowed, per the Overlay dismissal contract. At wide width, inline progressive disclosure comes first.
 - **Do not overload the entry point.** The first screenful is a table of contents, not the whole book.
 
-The sidebar surface inventory covers four compositions: (1) the expanded header with theme beside the lockup and the bell and collapse actions on the trailing row below; (2) the collapsed rail header with collapse, theme and bell stacked; (3) the expanded account row while loading and with a short name, a wrapped name or an oversized token, with and without an email; (4) the collapsed account avatar and its loading reservation. Search, Astra, the four destinations and create retain their behavior and content in both sidebar states. Android uses the enumerated navigation-chrome divergence below.
+The sidebar surface inventory covers four compositions: (1) the expanded header with theme beside the lockup and the bell at the leading edge and collapse at the trailing edge of the control row below; (2) the collapsed rail header with bell, collapse and theme stacked; (3) the expanded account row while loading and with a short name, a wrapped name or an oversized token, with and without an email; (4) the collapsed account avatar and its loading reservation. Search, Astra, the four destinations and create retain their behavior and content in both sidebar states. Android uses the enumerated navigation-chrome divergence below.
 
 ### The allowed shell divergences, enumerated
 
@@ -2067,11 +2069,10 @@ Everything else, and specifically: the 65ch measure, the 2x gap rhythm, concentr
 
 ### Repeat reminder surfaces
 
-The habit reminder section offers Repeat every only for everyday daily, daily count and General
-schedules. It replaces relative and fixed-clock reminders. Existing Select, TimeField and ListRow
+The habit reminder sheet offers Repeat every for every task and habit schedule (#1922). It replaces relative and fixed-clock reminders. Existing Select, TimeField and ListRow
 controls own interval, start time and optional active hours, including an overnight window. All day
-is the default. An incompatible cadence clears the repeat choice from that draft. The existing sheet
-footer owns Save and Cancel; no repeat-specific token or surface is introduced.
+is the default. Cadence changes retain the repeat choice in that draft. The timing sheet closes with Done;
+Create or Save on the form owns persistence. No repeat-specific token is introduced.
 
 Hoje rows keep the complete next-time phrase as a single metadata token in the canonical wrapping
 flow. Its existing measured footer takes over when the heading column cannot fit it. Detail repeats

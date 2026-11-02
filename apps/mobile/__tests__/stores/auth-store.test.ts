@@ -146,7 +146,7 @@ const {
 }))
 
 vi.mock('expo-router', async () => {
-  const { StackRouter } = await import('expo-router/build/react-navigation/routers/StackRouter')
+  const { stackFixture: StackRouter } = await import('@/test-support/navigation-fixture')
   function Protected() { return null }
   function Screen() { return null }
   const stackRouter = StackRouter({})
@@ -163,8 +163,8 @@ vi.mock('expo-router', async () => {
     }
     collect(children)
     stackState.current = stackRouter.getStateForRouteNamesChange(stackState.current
-      ?? stackRouter.getInitialState({ routeNames, routeParamList: {}, routeGetIdList: {} }), {
-      routeNames, routeParamList: {}, routeGetIdList: {}, routeKeyChanges: [],
+      ?? stackRouter.getInitialState({ routeNames, routeGetIdList: {} }), {
+      routeNames, routeGetIdList: {},
     })
     navigation.destinations.push(stackState.current.routes[stackState.current.index]!.name)
     return null

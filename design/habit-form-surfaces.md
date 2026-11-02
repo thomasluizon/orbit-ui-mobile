@@ -4,11 +4,11 @@
 
 | Surface | Web and Android owner | Behavior |
 |---|---|---|
-| Create and edit composition | `components/habits/create-habit-modal.tsx`, `edit-habit-modal.tsx` | Required unseeded type, persisted edit prefill, inherited General locks, retained drafts and unsaved-change guard |
+| Create and edit composition | `components/habits/create-habit-modal.tsx`, `edit-habit-modal.tsx` | Task selected on create, persisted edit prefill, inherited General locks, retained drafts and unsaved-change guard |
 | Name and description | `habit-form-fields.tsx`, `habit-form-fields/habit-understanding.tsx` | Standard 54px growing name, equal mirror/input metrics, then one full description before all conditional content (#1607) |
 | Type | `habit-form-fields/habit-type-field.tsx` | Two vertical RadioRow choices before the focal title, visible validation and group focus |
-| Date | `habit-form-fields/habit-date-field.tsx` | When input, type-specific question and editable date before More details; General hides only the date group |
-| Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed, count-based and No schedule choices with a reachable return and tree locks |
+| Date | `habit-form-fields/habit-date-field.tsx` | When input and editable date before More details; tasks choose Do on or No date, and No date hides the phrase and picker |
+| Schedule | `habit-form-fields/habit-schedule-fields.tsx` | Fixed and count-based Habit choices; undated tasks remain in the Task date group with tree locks |
 | Date interpretation | Shared `date-phrase-parser.ts`, `date-interpretation-session.ts`, `habit-date-editor.ts`; app `use-date-interpretation.ts` | Offline calendar arithmetic, automatic debounced interpretation, editable draft date, in-field Astra provenance, stale rejection and terminal allowance refresh |
 | Recurrence intent | Shared `habit-recurrence-phrase.ts`, `habit-phrase-parser.ts`, `habit-date-editor.ts`, `habit-form-helpers.ts`; paired date/type fields and form hooks | Bilingual daily, weekly count and weekday wording writes the existing schedule for a deliberately selected dated Habit; a single Task weekday selects its next occurrence; explicit Task repetition keeps one inline recovery toward the existing Habit choice |
 | Type readback | `habit-row-content.tsx`, `habit-detail-screen.tsx` | Whole quiet vocabulary beneath the full-width title; original controls and counts retained |
@@ -78,7 +78,7 @@ The comparison sources are pre-promotion web `dfc321dc1^` and Android release so
 
 | Baseline capability | Disposition in both mirrors |
 |---|---|
-| Four schedule handlers | Restored with explicit Task/Habit and three Habit schedule choices |
+| Four schedule handlers | Task date choices own dated and General tasks; Habit owns fixed and count-based schedules |
 | Editable date | Restored outside details, with account-local default and distinct due/start semantics |
 | Clear selected end date | Retained explicit clear control and clearEndDate update contract |
 | Title and emoji, manual and suggested | Retained; explicit type cannot be overwritten by cadence-looking text or late suggestion |
@@ -182,7 +182,7 @@ form-size or invocation rule requiring an edit; the owning contradictions are in
 | Previous section or action | Final paired owner and boundary |
 |---|---|
 | Inline title rename and emoji picker | One named type-aware pencil opens `edit-habit-modal.tsx`; title/emoji are draft fields in `habit-form-fields.tsx` |
-| Task/Habit, fixed/count/General, weekdays, quantity, interval and tree constraints | Existing complete editor and shared mode drafts; no inline schedule writer |
+| Task/Habit, dated/undated tasks, fixed/count habits, weekdays, quantity, interval and tree constraints | Existing complete editor and shared mode drafts; no inline schedule writer |
 | Editable start/due date, local phrase, picker and explicit Astra proposal | Existing date editor; accepted proposals update the draft; Save owns persistence |
 | Exact/end time, relative offsets and absolute/scheduled reminders | Existing form reminder owners; local until Save |
 | End date and description clears | Full update carries clearEndDate and the explicit empty description |
@@ -259,8 +259,7 @@ remain separate acceptance boundaries.
 interval and start-time pickers and the optional paired active-hour controls. The supported values
 are 15, 20, 30 and 45 minutes, then whole hours from 1 through 23. The default start is now and the
 default window is all day. A supplied window may cross midnight but its endpoints must differ.
-Only everyday daily, daily count and General habits offer the choice. Changing to an incompatible
-cadence clears it from the draft. Selecting repeat clears relative and scheduled reminder stores;
+Every task and habit schedule offers the choice. Changing cadence retains the repeat reminder. Selecting repeat clears relative and scheduled reminder stores;
 shared request builders send the exclusive repeat contract while preserving the habit time window. General retains only this reminder kind, including its enabled state through edit initialization.
 
 The paired `repeat-reminder-detail.tsx` owners show the supplied next instant and each positive log's
@@ -271,7 +270,70 @@ the filled Save action. Save corrects that log and refreshes habit reads. Failur
 The existing Select, DateField, TimeField, ListRow, ActionRow and sheet footer own these controls.
 
 Shared validation and normalization tests preserve absent versus null next instants, recursively
-retain repeat fields, reject unsupported schedules and options, and cover overnight account clocks.
+retain repeat fields, accept every schedule and reject unsupported intervals and active windows, and cover overnight account clocks.
 Paired form, row, detail, preview and notification tests cover their owning compositions. Chromium
 Vitest measures the new form controls and complete Hoje metadata at compact widths in both locales.
 Staging delivery and installed Android behavior remain rollout verification owned by the coordinator.
+
+
+## Form decisions and reminder sheet (#1922)
+
+Create starts with Task selected; edit retains the stored type. Task means one completion finishes
+it. Habit repeats, including the Anytime / Sem dia fixo branch in General. Both type choices explain
+that distinction. The two API mismatch messages and the avoidance error use the same Portuguese
+schedule name as the selector and settings.
+
+The paired order is Type, title, Description, When, Frequency for habits, Time and reminder, then
+More details. Description remains directly under the title under #1607 and starts at one growing
+row. The frequency choices, understanding and weekday corrections stay visible before optional
+details. General hides the dated fields and retains a reachable frequency choice.
+
+The Time and reminder row summarizes the selected time and enabled reminders. Its sheet contains
+exact time, an end time after an exact time exists, then one Remind me switch. At set times and
+Repeat every are radio choices. Dated items retain offset presets, custom offsets and absolute
+clock reminders in the first choice. The clock field keeps typing as a draft until blur or Enter; picker Done commits its selection.
+Each commit adds one reminder and resets the Time / Horário field; HH:MM remains a placeholder.
+Only a task due today hides the day-before choice, without deleting an existing reminder.
+A habit starting today retains the day-before choice for subsequent occurrences. General retains its repeat-only reminder model. Repeat remains
+available for every task and cadence. Its exclusive request contract, active window and account
+clock conversion stay with the existing reminder owners.
+
+More details groups Steps, Avoid, Organize and End. Steps retains checklist templates and the
+sub-item editor, labelled Subtasks for Task. Avoid retains the slip alert and its plan boundary.
+Organize retains tags, goal links and the edit parent picker. End retains explicit end-date clearing
+beside the selected value. Create title and submit follow the selected type; the screen header uses
+the screen title role. The empty emoji well uses the smile glyph.
+
+Owning web and Android Vitest cases cover these decisions through the real form and request
+builders. Hermetic phone and desktop layout cases are submitted for CI. Installed Android rendering
+and whole-page visual inspection remain coordinator-owned acceptance boundaries.
+
+
+## Undated task date choice (#1922)
+
+General is a one-time task without a date. Create starts as a dated Task, except when opened
+from Geral, where Task and No date are selected together. In When,
+Do on / Fazer em retains the phrase and calendar; No date / Sem data saves through the existing
+General request path, with no dueDate, startDate or cadence fields. General edit and child prefill
+select Task and No date with an empty date. Habit frequency offers only Every and Times per.
+The previous repeating hint is removed. The existing Task hint describes completion once.
+Edit hydration supplies an empty date phrase before applying its mode, so an unchanged undated
+task closes directly. Deliberately choosing No date still requires discard confirmation.
+
+Visible references use undated task / tarefa sem data and No date / Sem data. The primary
+navigation label stays General / Geral.
+
+Dated Task, undated Task, fixed Habit and count-based Habit drafts remain independent. Returning
+to a type restores its last date choice or cadence. A General parent locks children to an undated
+Task; a dated parent disables No date. Repeat every remains available in the timing sheet for
+General, and existing reminder prefill and request ownership stay intact.
+
+The field order remains Type, title, Description, When, Habit frequency, Time and reminder,
+then More details. Description stays directly after the title under #1607. The title remains the
+focal input; the date decision reuses the existing vertical RadioRow controls and tokens.
+
+Web and Android tests submit the actual create/edit owners, cover General prefill and conversion,
+and retain date-context cancellation and schedule draft restoration. The hermetic layout cases
+cover No date and returning to a date in both locales and themes at compact and desktop widths.
+The layout workflow owns execution. API #1940 must reach production before consumer publication;
+Android Open delivery and Play acceptance remain coordinator-owned acceptance steps.

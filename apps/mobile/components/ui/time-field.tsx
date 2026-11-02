@@ -1,6 +1,6 @@
 import { TypedTextInput } from '@/components/ui/typed-text-input'
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { INTERACTION_FILL_CLEARANCE, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { useEffect, useRef, useState } from 'react'
 import { InsetFocusPressable } from './inset-focus-pressable'
 import {
   Pressable,
@@ -12,7 +12,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Gesture, GestureDetector, GestureHandlerRootView, type NativeGesture } from 'react-native-gesture-handler'
+import { GestureDetector, GestureHandlerRootView, useNativeGesture, useTapGesture, type NativeGesture } from 'react-native-gesture-handler'
 import type { TimeFieldProps } from '@orbit/shared/contracts/forms'
 import {
   DAY_PERIODS,
@@ -77,14 +77,15 @@ function TimeOption({
   tokens: Tokens
 }>) {
   const [touchPressed, setTouchPressed] = useState(false)
-  const tapGesture = Gesture.Tap()
-    .maxDistance(8)
-    .maxDuration(2 ** 31 - 1)
-    .simultaneousWithExternalGesture(scrollGesture)
-    .runOnJS(true)
-    .onBegin(() => setTouchPressed(true))
-    .onEnd((_event, success) => { if (success && !selected) onSelect() })
-    .onFinalize(() => setTouchPressed(false))
+  const tapGesture = useTapGesture({
+    maxDistance: 8,
+    maxDuration: 2 ** 31 - 1,
+    simultaneousWith: scrollGesture,
+    runOnJS: true,
+    onBegin: () => setTouchPressed(true),
+    onDeactivate: (event) => { if (!event.canceled && !selected) onSelect() },
+    onFinalize: () => setTouchPressed(false),
+  })
   return (
     <GestureDetector gesture={tapGesture}><RadioItem selected={selected} onSelect={onSelect}>
       <InsetFocusPressable selectionRingWidth={2}
@@ -118,19 +119,20 @@ function TimeColumn({
   tokens,
   onSelect,
 }: Readonly<TimeColumnProps>) {
-  const scrollGesture = useMemo(() => Gesture.Native()
-    .shouldActivateOnStart(true)
-    .disallowInterruption(true)
-    .shouldCancelWhenOutside(false)
-    .runOnJS(true), [])
+  const scrollGesture = useNativeGesture({
+    shouldActivateOnStart: true,
+    disallowInterruption: true,
+    shouldCancelWhenOutside: false,
+    runOnJS: true,
+  })
   const listRef = useRef<ScrollView>(null)
   const viewportHeightRef = useRef(0)
   const selectedIndex = values.indexOf(selected)
 
   function revealSelected(height: number) {
     if (selectedIndex < 0 || height <= 0) return
-    const contentHeight = values.length * ROW_HEIGHT + 8
-    const centeredOffset = 4 + selectedIndex * ROW_HEIGHT - height / 2 + ROW_HEIGHT / 2
+    const contentHeight = values.length * ROW_HEIGHT + Math.max(0, values.length - 1) * INTERACTION_FILL_CLEARANCE + SPACING.s8
+    const centeredOffset = SPACING.s4 + selectedIndex * (ROW_HEIGHT + INTERACTION_FILL_CLEARANCE) - height / 2 + ROW_HEIGHT / 2
     listRef.current?.scrollTo({
       y: Math.max(0, Math.min(centeredOffset, contentHeight - height)),
       animated: false,
@@ -185,6 +187,7 @@ interface TimeEntryProps {
   onClear?: () => void
   onFocus: () => void
   onOpenPicker: () => void
+  onSubmit?: () => void
   placeholder?: string
   selectTimeLabel: string
   tokens: Tokens
@@ -205,6 +208,7 @@ function TimeEntry({
   onClear,
   onFocus,
   onOpenPicker,
+  onSubmit,
   placeholder,
   selectTimeLabel,
   tokens,
@@ -235,6 +239,7 @@ function TimeEntry({
           accessibilityState={{ disabled }}
           onFocus={onFocus}
           onBlur={onBlur}
+          onSubmitEditing={onSubmit}
           style={[styles.input, { color: tokens.fg1 }]}
         />
         <Pressable
@@ -277,6 +282,7 @@ export function TimeField({
   onChange,
   onClear,
   commitTypedClearOnBlur = false,
+  commitOnBlur = false,
   placeholder,
   accessibilityLabel,
   hourCycle,
@@ -296,6 +302,7 @@ export function TimeField({
   const [focused, setFocused] = useState(false)
   const [inputDraft, setInputDraft] = useState<{ text: string; hourCycle: 'h23' | 'h12' } | null>(null)
   const previousHourCycle = useRef(resolvedHourCycle)
+  const pendingCommit = useRef(false)
   if (inputDraft && inputDraft.hourCycle !== resolvedHourCycle) {
     const reconciledDraft = reconcileTimeFieldInput(inputDraft.text, inputDraft.hourCycle, resolvedHourCycle)
     setInputDraft({ text: reconciledDraft.draft, hourCycle: resolvedHourCycle })
@@ -306,8 +313,8 @@ export function TimeField({
     if (previousHourCycle.current === resolvedHourCycle) return
     previousHourCycle.current = resolvedHourCycle
     const parsed = parseTypedTimeFieldValue(inputValue, resolvedHourCycle)
-    if (!disabled && parsed && parsed !== value) onChange(parsed)
-  }, [resolvedHourCycle, inputValue, value, onChange, disabled])
+    if (!disabled && !commitOnBlur && parsed && parsed !== value) onChange(parsed)
+  }, [resolvedHourCycle, inputValue, value, onChange, disabled, commitOnBlur])
   const [open, setOpen] = useState(false)
   const [pickerDraft, setPickerDraft] = useState({ hour24: 9, minute: 0 })
   const { sheetRef, closeSheet } = useSheetHost()
@@ -318,11 +325,20 @@ export function TimeField({
   function handleChange(displayValue: string) {
     const change = changeTimeFieldInput(displayValue, inputValue, resolvedHourCycle)
     setInputDraft({ text: change.draft, hourCycle: resolvedHourCycle })
+    pendingCommit.current = true
     if (change.clear) {
       if (!commitTypedClearOnBlur) onClear?.()
       return
     }
-    if (change.parsed) onChange(change.parsed)
+    if (!commitOnBlur && change.parsed) onChange(change.parsed)
+  }
+
+  function finishTyping() {
+    const parsed = parseTypedTimeFieldValue(inputValue, resolvedHourCycle)
+    if (!disabled && commitOnBlur && pendingCommit.current && parsed) onChange(parsed)
+    pendingCommit.current = false
+    if (!disabled && commitTypedClearOnBlur && inputDraft?.text === '') onClear?.()
+    setInputDraft(null)
   }
 
   function openPicker() {
@@ -334,6 +350,8 @@ export function TimeField({
   function applyDraft() {
     closeSheet(() => {
       setOpen(false)
+      pendingCommit.current = false
+      setInputDraft(null)
       onChange(commitTimeFieldPickerDraft(pickerDraft))
     })
   }
@@ -351,9 +369,9 @@ export function TimeField({
         label={resolvedLabel}
         onBlur={() => {
           setFocused(false)
-          if (commitTypedClearOnBlur && inputDraft?.text === '') onClear?.()
-          setInputDraft(null)
+          finishTyping()
         }}
+        onSubmit={commitOnBlur ? finishTyping : undefined}
         onChange={handleChange}
         onClear={onClear}
         onFocus={() => {
@@ -437,7 +455,7 @@ const styles = StyleSheet.create({
   columns: { flexDirection: 'row', gap: 8, height: COLUMN_HEIGHT, flexShrink: 1, minHeight: ROW_HEIGHT },
   column: { flex: 1 },
   columnScroll: { flex: 1 },
-  columnContent: { paddingVertical: SPACING.s4 },
+  columnContent: { paddingVertical: SPACING.s4, gap: INTERACTION_FILL_CLEARANCE },
   option: {
     borderWidth: 2,
     borderColor: 'transparent',

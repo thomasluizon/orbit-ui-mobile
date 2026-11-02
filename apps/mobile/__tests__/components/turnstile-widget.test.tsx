@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { expect, it, vi } from 'vitest'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
@@ -50,6 +51,9 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
     await Promise.resolve()
   })
   expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(0)
+  const solvedHost = renderer!.toJSON()
+  expect(StyleSheet.flatten(solvedHost.props.style)).toMatchObject({ position: 'absolute', height: 0 })
+  expect(renderer!.root.findByType('WebView')).toBe(first)
 
   await TestRenderer.act(async () => {
     renderer!.update(React.createElement(TurnstileWidget, {
@@ -59,6 +63,7 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
   })
   expect(renderer!.root.findByType('WebView')).not.toBe(first)
   expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(160)
+  expect(StyleSheet.flatten(renderer!.toJSON().props.style).position).not.toBe('absolute')
   expect(renderer!.root.findAllByType('Text').some((node: { props: { children: unknown } }) =>
     node.props.children === 'auth.turnstileLoading')).toBe(true)
 

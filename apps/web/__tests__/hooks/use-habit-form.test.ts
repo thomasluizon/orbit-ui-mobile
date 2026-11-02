@@ -13,6 +13,7 @@ describe('useHabitForm', () => {
     it('starts as one-time by default', () => {
       const { result } = renderHook(() => useHabitForm())
 
+      expect(result.current.form.getValues('itemType')).toBe('task')
       expect(result.current.isOneTime).toBe(true)
       expect(result.current.isRecurring).toBe(false)
       expect(result.current.isGeneral).toBe(false)
@@ -271,12 +272,15 @@ describe('General repeat edit initialization', () => {
     const prefill = buildEditHabitFormState(habit)
     const { result } = renderHook(() => useHabitForm())
     const helpers = () => result.current
+    expect(helpers().form.formState.isDirty).toBe(false)
     act(() => {
       helpers().resetModeDrafts()
       helpers().form.reset(prefill.formValues)
       applyHabitFormMode(prefill.mode, helpers())
     })
     expect(helpers().form.getValues('reminderEnabled')).toBe(true)
+    expect(helpers().form.formState.isDirty).toBe(false)
+    expect(helpers().form.formState.dirtyFields).toEqual({})
     act(() => {
       helpers().form.setValue('title', 'Water renamed')
       if (removeReminder) helpers().form.setValue('reminderEnabled', false)
@@ -292,4 +296,38 @@ describe('General repeat edit initialization', () => {
       expect(request.clearRepeatReminder).toBeUndefined()
     }
   })
+})
+
+it('counts a deliberate switch to No date as an edit', () => {
+  const prefill = buildEditHabitFormState(createMockHabit({ frequencyUnit: null, frequencyQuantity: null }))
+  const { result } = renderHook(() => useHabitForm())
+  expect(result.current.form.formState.isDirty).toBe(false)
+  act(() => {
+    result.current.form.reset(prefill.formValues)
+    applyHabitFormMode(prefill.mode, result.current)
+  })
+  expect(result.current.form.formState.isDirty).toBe(false)
+  act(() => result.current.setGeneral())
+  expect(result.current.form.getValues('isGeneral')).toBe(true)
+  expect(result.current.form.formState.isDirty).toBe(true)
+})
+
+
+it.each([
+  ['title', 201, 'Title'],
+  ['description', 10001, 'Description'],
+  ['emoji', 33, 'Emoji'],
+] as const)('uses the selected item type in %s validation', async (field, length, noun) => {
+  const { result } = renderHook(() => useHabitForm({ initialData: { title: 'Read', dueDate: '2026-10-20' } }))
+  const helpers = () => result.current
+  for (const itemType of ['task', 'habit'] as const) {
+    act(() => {
+      helpers().chooseItemType(itemType)
+      helpers().form.setValue(field, 'x'.repeat(length))
+    })
+    const suffix = itemType === 'task' ? `task${noun}TooLong` : `${field}TooLong`
+    expect(helpers().validateAll()).toBe(`habits.form.${suffix}`)
+    await act(async () => { await helpers().form.trigger() })
+    expect(helpers().form.getFieldState(field).error?.message).toBe(`habits.form.${suffix}`)
+  }
 })

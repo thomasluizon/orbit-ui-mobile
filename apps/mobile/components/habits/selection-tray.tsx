@@ -12,6 +12,7 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 
 interface SelectionTrayProps {
   count: number
+  skippableCount?: number
   allSelected: boolean
   onSelectAll: () => void
   onDeselectAll: () => void
@@ -76,6 +77,7 @@ function SelectionAction({
  */
 export function SelectionTray({
   count,
+  skippableCount = count,
   allSelected,
   onSelectAll,
   onDeselectAll,
@@ -159,16 +161,16 @@ export function SelectionTray({
         >
           <CheckCircle2 size={20} color={tokens.fg1} strokeWidth={1.8} />
         </SelectionAction>
-        <SelectionAction
+        {skippableCount > 0 || disabled ? <SelectionAction
           label={skipLabel}
-          disabled={completionDisabled}
+          disabled={skippableCount === 0 || completionReadOnly}
           hint={completionReadOnly ? completionReason : undefined}
           onPress={onSkip}
           pressedFill={tokens.bgHoverOpaque}
           prefersReducedMotion={prefersReducedMotion}
         >
           <FastForward size={20} color={tokens.fg3} strokeWidth={1.8} />
-        </SelectionAction>
+        </SelectionAction> : null}
         <SelectionAction
           label={moveLabel}
           disabled={moveDisabled}
@@ -202,6 +204,7 @@ export function SelectionTray({
           <X size={20} color={tokens.fg2} strokeWidth={1.8} />
         </Pressable>
       </View>
+      {skippableCount > 0 && skippableCount < count ? <Text style={[styles.moveLimit, { color: tokens.fg2 }]}>{t('habits.bulkBar.skipEligible', { count: skippableCount })}</Text> : null}
       {moveLimitReason ? <Text style={[styles.moveLimit, { color: tokens.fg2 }]}>{moveLimitReason}</Text> : null}
     </View></ShellContent>
   )

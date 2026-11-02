@@ -1,14 +1,29 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { execFile } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { createElement } from 'react'
+import { render } from '@testing-library/react'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
 import { setTimeout as delay } from 'node:timers/promises'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import en from '@orbit/shared/i18n/en.json'
+import { RadioOptionFixture } from '@/__tests__/support/radio-option-fixture'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
 import { inspectControls } from '@/e2e/layout/interaction-fill-states'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const FIXTURE_TIMEOUT_MS = 5000
+
+async function reachOptionState(page: Page, row: Locator, state: 'hover' | 'press' | 'focus') {
+  if (state === 'focus') { await page.mouse.move(0, 0); await page.keyboard.press('Tab'); await row.focus() }
+  else { await row.hover(); if (state === 'press') await page.mouse.down() }
+}
 
 async function within<Result>(description: string, action: () => Promise<Result>, timeout = FIXTURE_TIMEOUT_MS): Promise<Result> {
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -35,7 +50,12 @@ function compileFixture(source: string, input = '', timeout = FIXTURE_TIMEOUT_MS
 describe('interaction clearance inspector in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
+  let stylesheet: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => {
+    const source = resolve('app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   async function withPage(options: Parameters<Browser['newPage']>[0], inspect: (page: Page) => Promise<void>) {
@@ -44,6 +64,56 @@ describe('interaction clearance inspector in Chromium', () => {
     try { await within('Chromium fixture setup and inspection', () => inspect(page), 10_000) }
     finally { await within('Close Chromium fixture page', () => page.close()) }
   }
+
+  it.each([320, 360, 384, 412, 600, 1024, 1352].flatMap(width => (['light', 'dark'] as const).flatMap(mode =>
+    (['en', 'pt-BR'] as const).map(locale => ({ width, mode, locale })))))(
+    'clears interactive option rows beside selected rows at $width in $mode and $locale', async ({ width, mode, locale }) => {
+      const messages = locale === 'en' ? en : ptBR
+      const words = messages.habits.form
+      const { container, unmount } = render(createElement(RadioOptionFixture, { locale }))
+      try {
+        await withPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' }, async page => {
+          const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+          await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet} *, *::before, *::after { transition: none !important }</style>${container.innerHTML}</html>`)
+          await loadAppFonts(page)
+          for (const label of [words.typeTask, words.every]) {
+            const row = page.getByRole('radio', { name: label, exact: true })
+            const next = page.getByRole('radio', { name: label === words.typeTask ? words.typeHabit : words.timesPerUnit, exact: true })
+            expect(await next.getAttribute('aria-checked')).toBe('true')
+            for (const state of ['hover', 'press', 'focus'] as const) {
+              await reachOptionState(page, row, state)
+              const result = await row.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
+              expect(result.hasFill).toBe(true)
+              expect(result.violations, `${label}, ${state}`).toEqual([])
+              const currentBounds = (await row.boundingBox())!
+              const nextBounds = (await next.boundingBox())!
+              expect(nextBounds.y - currentBounds.y - currentBounds.height).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+              expect(currentBounds.x).toBe(nextBounds.x)
+              expect(currentBounds.width).toBe(nextBounds.width)
+              const labelFits = await row.locator('[data-slot="list-row-title"]').evaluate(element => {
+                const style = getComputedStyle(element)
+                return element.getBoundingClientRect().height <= parseFloat(style.lineHeight) + 1 && element.scrollWidth <= element.clientWidth
+              })
+              expect(labelFits).toBe(true)
+              if (state === 'press') { await page.mouse.move(0, 0); await page.mouse.up() }
+            }
+          }
+        })
+      } finally { unmount() }
+    })
+
+  it('inspects disjoint option inventories consecutively on the same page', async () => {
+    await withPage({ viewport: { width: 320, height: 915 } }, async page => {
+      await page.setContent(`<style>body { display:flex;gap:32px;padding:32px }
+        button { padding:16px;border:0;background:gray;outline:none }</style><button>First</button><button>Second</button>`)
+      const counts = { inspectedControls: 0, skippedSentinels: 0 }
+      for (const name of ['First', 'Second']) {
+        await inspectControls(page, page.getByRole('button', { name, exact: true }), 'sequential inventories', INTERACTION_FILL_CLEARANCE, counts)
+      }
+      expect(counts).toEqual({ inspectedControls: 2, skippedSentinels: 0 })
+      expect(await page.locator('[data-interaction-fill-probe]').count()).toBe(0)
+    })
+  })
 
   it('fails a stalled fixture compiler with a bounded error', async () => {
     await expect(compileFixture('await new Promise(resolve => setTimeout(resolve, 10_000)); process.stdout.write("late")', '', 250))
@@ -89,6 +159,7 @@ describe('interaction clearance inspector in Chromium', () => {
       await page.setContent('<button>Blocked control</button><div style="position: fixed; inset: 0; background: white"></div>')
       await expect(inspectControls(page, page.locator('button'), '/settings, 412px, pt-BR', INTERACTION_FILL_CLEARANCE))
         .rejects.toThrow(/\/settings, 412px, pt-BR.*button\[Blocked control\].*hover/)
+      expect(await page.locator('[data-interaction-fill-probe]').count()).toBe(0)
     })
   }, 5000)
 

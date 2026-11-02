@@ -7,6 +7,7 @@ import { AstraConversation } from '@/components/chat/conversation'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __getFocusedInputSelection, __setWindowDimensions } from '@/test-mocks/react-native'
 
+vi.mock('@/lib/conversation-history', () => ({ conversationHistory: { latest: vi.fn(() => Promise.resolve(false)) } }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/components/message-bubble', () => ({ MessageBubble: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))

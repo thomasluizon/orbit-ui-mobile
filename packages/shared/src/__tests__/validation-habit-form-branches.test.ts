@@ -13,6 +13,7 @@ import {
   validateEmoji,
   validateEndDate,
   validateHabitForm,
+  habitFormSchemaForType,
   validateReminderSelection,
   validateScheduledReminders,
   validateSubHabits,
@@ -141,4 +142,21 @@ describe('validateHabitForm', () => {
   it('accepts a well-formed one-time habit with a short description', () => {
     expect(validateHabitForm(makeFormData({ title: 'Read a book', description: 'Fiction only' }))).toBeNull()
   })
+})
+
+
+it('rejects an end time without an exact start time at submission', () => {
+  expect(validateHabitForm(makeFormData({ dueTime: '', dueEndTime: '09:00' }))).toBe('habits.form.endTimeRequiresStart')
+  expect(validateHabitForm(makeFormData({ dueTime: '08:00', dueEndTime: '09:00' }))).toBeNull()
+})
+
+
+it.each([
+  ['task', 'taskTitleTooLong', 'taskDescriptionTooLong', 'taskEmojiTooLong'],
+  ['habit', 'titleTooLong', 'descriptionTooLong', 'emojiTooLong'],
+] as const)('retains the %s text limits in the selected schema', (itemType, title, description, emoji) => {
+  const schema = habitFormSchemaForType(itemType)
+  for (const [field, length, key] of [['title', 201, title], ['description', 10001, description], ['emoji', 33, emoji]] as const) {
+    expect(() => schema.parse(makeFormData({ itemType, [field]: 'x'.repeat(length) }))).toThrow(`habits.form.${key}`)
+  }
 })

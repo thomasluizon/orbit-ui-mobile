@@ -22,11 +22,17 @@ function Marks({ props, tokens }: Readonly<{ props: InputProps; tokens: Tokens }
   return <View accessible accessibilityLabel={label} style={[styles.marks, { borderTopColor: tokens.hairline }]}>{marks.map((mark) => <Text key={`${mark.start}-${mark.end}`} style={[styles.mark, { backgroundColor: tokens.bgWell, color: tokens.fg2 }]}>{props.value.slice(mark.start, mark.end)}</Text>)}</View>
 }
 
+function multilineControl(props: InputProps) {
+  if (!props.multiline) return { inputProps: { textAlignVertical: 'center' as const }, style: null }
+  const compact = props.rows === 1
+  return { inputProps: { multiline: true, numberOfLines: compact ? undefined : props.rows, scrollEnabled: compact ? false : undefined, textAlignVertical: 'top' as const }, style: compact ? null : styles.multiline }
+}
+
 function Control({ props, tokens }: Readonly<{ props: InputProps; tokens: Tokens }>) {
   const { t } = useTranslation()
   const inputRef = useRef<TextInput>(null)
   const [focused, setFocused] = useState(false)
-  const multiline = props.multiline === true
+  const multiline = multilineControl(props)
   const focusedEnabled = focused && !props.disabled
   useEffect(() => { if (props.focusRequest) inputRef.current?.focus() }, [props.focusRequest])
   const keyEvents = { onKeyDown: (event: NativeSyntheticEvent<{ key: string }>) => {
@@ -34,7 +40,7 @@ function Control({ props, tokens }: Readonly<{ props: InputProps; tokens: Tokens
   } }
   const restingBorder = { borderColor: props.error ? tokens.statusBad : tokens.borderControl }
   return <View {...keyEvents} testID="input-control" style={[styles.control, { backgroundColor: tokens.bgField, borderColor: focusedEnabled ? tokens.primary : restingBorder.borderColor, borderWidth: focusedEnabled || props.error ? 2 : 1 }, props.disabled ? styles.disabled : null]}>
-    <TypedTextInput proposed={props.proposed} ref={inputRef} value={props.value} onChangeText={props.onChange} placeholder={props.placeholder} placeholderTextColor={tokens.fg3} editable={!props.disabled} maxLength={props.maxLength} multiline={multiline || undefined} numberOfLines={multiline ? props.rows : undefined} textAlignVertical={multiline ? 'top' : 'center'} keyboardType={getKeyboardType(props.kind, props.inputMode)} autoComplete={props.autoComplete === 'off' ? 'off' : props.autoComplete} autoCapitalize={props.kind === 'email' ? 'none' : 'sentences'} autoCorrect={props.kind !== 'email'} autoFocus={props.autoFocus} onSubmitEditing={props.onSubmit} returnKeyType={props.onSubmit ? 'done' : undefined} accessibilityLabel={props.label} accessibilityState={{ disabled: props.disabled }} accessibilityHint={[props.required ? t('common.required') : undefined, props.error, props.hint].filter(Boolean).join(' ') || undefined} onFocus={() => { setFocused(true); }} onBlur={() => { setFocused(false); props.onBlur?.() }} style={[styles.input, multiline ? styles.multiline : null, { color: tokens.fg1, paddingRight: props.trailing ? SPACING.s48 : SPACING.s16, fontFamily: props.mono ? 'GeistMono_400Regular' : 'Geist_400Regular' }]} />
+    <TypedTextInput proposed={props.proposed} ref={inputRef} value={props.value} onChangeText={props.onChange} placeholder={props.placeholder} placeholderTextColor={tokens.fg3} editable={!props.disabled} maxLength={props.maxLength} {...multiline.inputProps} keyboardType={getKeyboardType(props.kind, props.inputMode)} autoComplete={props.autoComplete === 'off' ? 'off' : props.autoComplete} autoCapitalize={props.kind === 'email' ? 'none' : 'sentences'} autoCorrect={props.kind !== 'email'} autoFocus={props.autoFocus} onSubmitEditing={props.onSubmit} returnKeyType={props.onSubmit ? 'done' : undefined} accessibilityLabel={props.label} accessibilityState={{ disabled: props.disabled }} accessibilityHint={[props.required ? t('common.required') : undefined, props.error, props.hint].filter(Boolean).join(' ') || undefined} onFocus={() => { setFocused(true); }} onBlur={() => { setFocused(false); props.onBlur?.() }} style={[styles.input, multiline.style, { color: tokens.fg1, paddingRight: props.trailing ? SPACING.s48 : SPACING.s16, fontFamily: props.mono ? 'GeistMono_400Regular' : 'Geist_400Regular' }]} />
     {props.trailing ? <View style={styles.trailing}>{props.trailing}</View> : null}
     <Marks props={props} tokens={tokens} />
   </View>

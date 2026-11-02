@@ -17,6 +17,7 @@ import { formatAPIDate, formatAPIDateInTimeZone, parseAPIDate } from './dates'
 import { normalizeHabitDetailForDrill } from './drill-navigation'
 import { formatHabitReminderLabel } from './habit-form-helpers'
 import { getTodayBoundary } from './today-date'
+import { buildHabitRowDateModel } from './habit-row-status'
 
 export const HABIT_DETAIL_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 export const HABIT_DETAIL_FREQUENCY_UNITS = ['Day', 'Week', 'Month', 'Year'] as const
@@ -63,6 +64,7 @@ export interface HabitDetailChildDateModel {
   completed: boolean
   canLog: boolean
   completionReadOnly: boolean
+  dateStatusKey: ReturnType<typeof buildHabitRowDateModel>['dateStatusKey']
 }
 
 export function getHabitDetailChildUnavailableReasonKey(
@@ -242,16 +244,14 @@ export function buildHabitDetailChildDateModel(
     isCompleted: completed,
     isLoggedInRange: completed,
   }
-  const canLog = scopedChild !== undefined && canLogHabitOnDate(habit, dateStr, todayStr)
-  const boundary = getTodayBoundary(dateStr, todayStr)
+  const dateModel = buildHabitRowDateModel(habit, dateStr, todayStr)
 
   return {
     habit,
     completed,
-    canLog,
-    completionReadOnly: scopedChild === undefined
-      || boundary === 'read-only'
-      || (boundary === 'future' && !canLog),
+    canLog: scopedChild !== undefined && dateModel.canLog,
+    dateStatusKey: scopedChild ? dateModel.dateStatusKey : undefined,
+    completionReadOnly: scopedChild === undefined || dateModel.completionReadOnly,
   }
 }
 

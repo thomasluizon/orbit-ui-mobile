@@ -9,6 +9,8 @@ import { useOffline } from '@/hooks/use-offline'
 import { useDateInterpretation } from '@/hooks/use-date-interpretation'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
+import { RadioGroup } from '@/components/ui/radio-group'
+import { RadioRow } from '@/components/ui/select-check'
 import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
@@ -31,7 +33,19 @@ function DateConsultation({ snapshot }: Readonly<{ snapshot: ReturnType<HabitDat
   </>
 }
 
-function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onRecurrence: (schedule: HabitRecurrence) => void; generalLocked: boolean }>) {
+function TaskDateChoices({ formHelpers, lockedGeneral, onChange }: Readonly<{ formHelpers: HabitFormHelpers; lockedGeneral?: boolean | null; onChange?: () => void }>) {
+  const t = useTranslations()
+  if (formHelpers.form.watch('itemType') !== 'task') return null
+  return <div className="flex min-w-0 flex-col gap-2">
+      {formHelpers.isGeneral ? <span className="form-label">{t('habits.form.datePhrase')}</span> : null}
+      <RadioGroup aria-label={t('habits.form.datePhrase')}>
+        <RadioRow label={t('habits.form.taskDate')} selected={!formHelpers.isGeneral} {...(lockedGeneral === true ? { disabled: true as const, reason: t('common.locked') } : { disabled: false as const })} onSelect={() => { onChange?.(); formHelpers.setOneTime() }} />
+        <RadioRow label={t('habits.form.noSchedule')} selected={formHelpers.isGeneral} {...(lockedGeneral === false ? { disabled: true as const, reason: t('common.locked') } : { disabled: false as const })} onSelect={() => { onChange?.(); formHelpers.setGeneral() }} />
+      </RadioGroup>
+    </div>
+}
+
+export function HabitDateField({ formHelpers, onRecurrence, lockedGeneral, onChange }: Readonly<{ formHelpers: HabitFormHelpers; onRecurrence: (schedule: HabitRecurrence) => void; lockedGeneral?: boolean | null; onChange?: () => void }>) {
   const t = useTranslations()
   const locale = useLocale()
   const { profile } = useProfile()
@@ -52,7 +66,7 @@ function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<
       cadence: { unit: values.frequencyUnit ?? null, quantity: values.frequencyQuantity ?? null, days: [...new Set(values.days ?? [])].sort((left, right) => left.localeCompare(right)), intervalWeeks: values.intervalWeeks ?? 1 },
       date: values.dueDate ?? '', endDate: values.endDate ?? '', phrase: values.datePhrase ?? '' }
   }
-  const adapter = { context, owner: form, generalLocked, applyRecurrence: onRecurrence,
+  const adapter = { context, owner: form, generalLocked: lockedGeneral === true, applyRecurrence: onRecurrence,
     initializeDate: (value: string) => {
       form.register('dueDate')
       form.resetField('dueDate', { defaultValue: value })
@@ -74,17 +88,14 @@ function DatedHabitField({ formHelpers, onRecurrence, generalLocked }: Readonly<
   const dateLabel = t(type === 'habit' ? 'habits.form.habitStartDate' : 'habits.form.taskDate')
   const validationError = form.formState.errors.datePhrase?.message
   const error = issue || validationError
-  if (formHelpers.isGeneral) return issue === 'errors.api.generalMismatchWithParent' ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t(issue)}</p> : null
   return <section data-habit-date-field="" className="flex min-w-0 flex-col gap-4">
-    <Input label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} hint={t(type === 'habit' ? 'habits.form.habitDateQuestion' : 'habits.form.taskDateQuestion')} trailing={snapshot.pending || snapshot.astra ? <span role="status" aria-label={t(snapshot.pending ? 'habits.form.dateInterpreting' : 'habits.form.dateInterpreted')}><AstraGlyph size={16} color="var(--fg-3)" /></span> : undefined} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError && issue !== 'habits.form.recurrenceRequiresHabit' ? formHelpers.validationFocusRequest : undefined} onChange={(value) => editor.setPhrase(value)} />
-    <div className="flex min-w-0 flex-col gap-2">
-      <span className="form-label">{dateLabel}</span>
+    {!formHelpers.isGeneral ? <Input label={t('habits.form.datePhrase')} placeholder={t('habits.form.datePhrasePlaceholder')} trailing={snapshot.pending || snapshot.astra ? <span role="status" aria-label={t(snapshot.pending ? 'habits.form.dateInterpreting' : 'habits.form.dateInterpreted')}><AstraGlyph size={16} color="var(--fg-3)" /></span> : undefined} name="datePhrase" autoComplete="off" value={phrase} error={error ? t(error) : undefined} focusRequest={validationError && issue !== 'habits.form.recurrenceRequiresHabit' ? formHelpers.validationFocusRequest : undefined} onChange={(value) => editor.setPhrase(value)} /> : null}
+    <TaskDateChoices formHelpers={formHelpers} lockedGeneral={lockedGeneral} onChange={onChange} />
+    {!formHelpers.isGeneral ? <div className="flex min-w-0 flex-col gap-2">
+      {type === 'habit' ? <span className="form-label">{dateLabel}</span> : null}
       <DateField label={dateLabel} value={date} onChange={(value) => editor.selectDate(value)} />
-    </div>
+    </div> : null}
     <DateConsultation snapshot={snapshot} />
   </section>
 }
 
-export function HabitDateField({ formHelpers, onRecurrence, generalLocked }: Readonly<{ formHelpers: HabitFormHelpers; onRecurrence: (schedule: HabitRecurrence) => void; generalLocked: boolean }>) {
-  return <DatedHabitField generalLocked={generalLocked} formHelpers={formHelpers} onRecurrence={onRecurrence} />
-}

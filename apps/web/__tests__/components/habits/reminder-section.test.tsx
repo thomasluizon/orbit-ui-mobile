@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
+import { ReminderSection as OffsetEditor } from '@/components/habits/habit-form-fields/reminder-section'
+import { RepeatReminderSection } from '@/components/habits/habit-form-fields/repeat-reminder-section'
 import { buildCreateHabitRequest, buildEmptyHabitFormValues } from '@orbit/shared/utils'
 
 vi.mock('@/hooks/use-push-subscriptions', () => ({
@@ -28,6 +29,11 @@ vi.mock('@/components/ui/select', () => ({
     </select>
   ),
 }))
+
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+function ReminderSection({ onToggleReminder, ...props }: Parameters<typeof OffsetEditor>[0] & { onToggleReminder: () => void }) {
+  return <RepeatReminderSection value={null} general={false} enabled={props.reminderEnabled} onToggle={onToggleReminder} onChange={vi.fn()}><OffsetEditor {...props} /></RepeatReminderSection>
+}
 
 const translate = (key: string, params?: Record<string, unknown>) =>
   params ? `${key}(${JSON.stringify(params)})` : key

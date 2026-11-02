@@ -38,10 +38,11 @@ type BulkActions = ReturnType<typeof useBulkActions>
 function renderBulkActions(
   selectedHabitIds: Set<string>,
   completionReadOnly = false,
-  habitsById = new Map<string, NormalizedHabit>(),
+  habitsById = new Map(Array.from(selectedHabitIds, id => [id, createMockHabit({ id })])),
   onReadOnlyCommit?: () => void,
   accountTimeZone?: string,
 ) {
+  let currentHabitsById = habitsById
   let currentCompletionReadOnly = completionReadOnly
   const onSuccess = vi.fn()
   const onPartialFailure = vi.fn()
@@ -56,7 +57,7 @@ function renderBulkActions(
       selectedDateStr: VIEWED_DATE,
       completionReadOnly: currentCompletionReadOnly,
       accountTimeZone,
-      habitsById,
+      habitsById: currentHabitsById,
       habitListRef,
       onSuccess,
       onPartialFailure,
@@ -72,6 +73,10 @@ function renderBulkActions(
   })
   return {
     captured, onSuccess, onPartialFailure, settleBulkHabitResolutions, habitListRef,
+    setHabitsById(value: Map<string, NormalizedHabit>) {
+      currentHabitsById = value
+      TestRenderer.act(() => tree.update(React.createElement(Probe)))
+    },
     setCompletionReadOnly(value: boolean) {
       currentCompletionReadOnly = value
       TestRenderer.act(() => tree.update(React.createElement(Probe)))
@@ -84,6 +89,35 @@ function bulkSuccess(ids: string[]) {
 }
 
 describe('useBulkActions replay acknowledgement', () => {
+  it.each([false, true])('excludes General habits from bulk Skip, mixed=%s', async (mixed) => {
+    bulkSkip.mutateAsync.mockResolvedValue(bulkSuccess(['daily']))
+    const general = createMockHabit({ id: 'general', isGeneral: true, frequencyUnit: null })
+    const daily = createMockHabit({ id: 'daily' })
+    const habits = mixed ? [general, daily] : [general]
+    const { captured } = renderBulkActions(new Set(habits.map(habit => habit.id)), false,
+      new Map(habits.map(habit => [habit.id, habit])))
+    await TestRenderer.act(async () => { await captured.current!.confirmBulkSkip() })
+    if (mixed) expect(bulkSkip.mutateAsync).toHaveBeenCalledWith([{ habitId: 'daily', date: VIEWED_DATE }])
+    else expect(bulkSkip.mutateAsync).not.toHaveBeenCalled()
+    expect(captured.current!.skippableCount).toBe(mixed ? 1 : 0)
+  })
+
+  it.each([false, true])('excludes a selected General habit missing after search from bulk Skip, mixed=%s', async (mixed) => {
+    const general = createMockHabit({ id: 'general', isGeneral: true, frequencyUnit: null })
+    const daily = createMockHabit({ id: 'daily' })
+    const habits = mixed ? [general, daily] : [general]
+    bulkSkip.mutateAsync.mockResolvedValue(bulkSuccess(['daily']))
+    const { captured, setHabitsById } = renderBulkActions(new Set(habits.map(habit => habit.id)), false,
+      new Map(habits.map(habit => [habit.id, habit])))
+
+    TestRenderer.act(() => { setHabitsById(new Map(mixed ? [[daily.id, daily]] : [])) })
+
+    expect(captured.current!.skippableCount).toBe(mixed ? 1 : 0)
+    await TestRenderer.act(async () => { await captured.current!.confirmBulkSkip() })
+    if (mixed) expect(bulkSkip.mutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'daily', date: VIEWED_DATE }])
+    else expect(bulkSkip.mutateAsync).not.toHaveBeenCalled()
+  })
+
   beforeEach(() => {
     bulkLog.mutateAsync.mockReset()
     bulkSkip.mutateAsync.mockReset()
@@ -330,7 +364,7 @@ describe('useBulkActions reversibility boundary', () => {
   ] as const)('blocks bulk %s after account midnight without a rerender', async (_name, mutation, action) => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-04-09T09:59:00Z'))
-    const { captured } = renderBulkActions(new Set(['h-1']), false, new Map(), undefined, 'Pacific/Honolulu')
+    const { captured } = renderBulkActions(new Set(['h-1']), false, undefined, undefined, 'Pacific/Honolulu')
     vi.setSystemTime(new Date('2026-04-09T10:01:00Z'))
     try {
       await TestRenderer.act(async () => { await captured.current![action]() })
@@ -408,7 +442,7 @@ describe('useBulkActions reversibility boundary', () => {
         selectedHabitIds: new Set(['h-1']),
         selectedDateStr: viewedDate,
         completionReadOnly: false,
-        habitsById: new Map(),
+        habitsById: new Map([['h-1', createMockHabit({ id: 'h-1' })]]),
         habitListRef,
         onSuccess: vi.fn(),
         onPartialFailure: vi.fn(),
@@ -460,7 +494,7 @@ describe('useBulkActions reversibility boundary', () => {
         selectedHabitIds: selection,
         selectedDateStr: viewedDate,
         completionReadOnly: false,
-        habitsById: new Map(),
+        habitsById: new Map([['h-1', createMockHabit({ id: 'h-1' })]]),
         habitListRef,
         onSuccess,
         onPartialFailure,
@@ -514,7 +548,7 @@ describe('useBulkActions reversibility boundary', () => {
         selectedHabitIds: selection,
         selectedDateStr: viewedDate,
         completionReadOnly: false,
-        habitsById: new Map(),
+        habitsById: new Map([['h-1', createMockHabit({ id: 'h-1' })]]),
         habitListRef,
         onSuccess,
         onPartialFailure,
@@ -666,7 +700,7 @@ describe('useBulkActions reversibility boundary', () => {
     mutation.mockResolvedValueOnce({ results: [{ habitId: 'h-1', status: 'Failed' }] })
     const retry = { current: undefined as (() => void) | undefined }
     const { captured, setCompletionReadOnly } = renderBulkActions(
-      new Set(['h-1']), false, new Map(), () => retry.current?.(),
+      new Set(['h-1']), false, undefined, () => retry.current?.(),
     )
     await TestRenderer.act(async () => {
       if (action === 'log') await captured.current!.confirmBulkLog()

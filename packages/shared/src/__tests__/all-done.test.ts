@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { createMockHabit, createMockHabitScheduleItem } from './factories'
-import { getAllDoneOnDate } from '../utils/all-done'
+import { getAllDoneOnDate, isHabitSkippedOnDate } from '../utils/all-done'
+import { makeMonthlyChildDaySchedule } from '../test-support/habit-detail-fixtures'
+import { normalizeHabitQueryData } from '../utils/habit-normalization'
 import { buildOptimisticSkipPatch, optimisticSkipMarker } from '../utils/habit-optimistic'
 
 const date = '2025-03-10'
 
 describe('getAllDoneOnDate', () => {
+  it('recognizes the day query skip flag without a scheduled date or instance', () => {
+    const { habitsById } = normalizeHabitQueryData([makeMonthlyChildDaySchedule()])
+    expect(isHabitSkippedOnDate(habitsById.get('child-1')!, '2026-11-01')).toBe(true)
+    expect(isHabitSkippedOnDate(habitsById.get('child-2')!, '2026-11-01')).toBe(false)
+  })
   it.each([false, true])('counts one flexible log with completed flag %s before the weekly target', (isCompleted) => {
     const habit = createMockHabit({ id: 'flexible', isFlexible: true, frequencyUnit: 'Week', flexibleTarget: 2,
       flexibleCompleted: 1, isCompleted, isLoggedInRange: true, scheduledDates: [date] })

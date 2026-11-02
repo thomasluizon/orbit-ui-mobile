@@ -95,16 +95,16 @@ async function openNestedHabit(context: 'create' | 'edit') {
   await user.click(screen.getByRole('button', { name: /^Linked habits/ }))
   const habits = await screen.findByRole('dialog', { name: en.goals.linkedHabits })
   expect(within(habits).getByText(en.goals.form.habitsInvitation)).toBeInTheDocument()
-  await user.click(within(habits).getByRole('button', { name: en.habits.createHabit }))
-  const child = await screen.findByRole('dialog', { name: en.habits.form.newHabit })
+  await user.click(within(habits).getByRole('button', { name: new RegExp(`${en.habits.createHabit}|${en.habits.createTask}`) }))
+  const child = await screen.findByRole('dialog', { name: en.habits.form.newTask })
   expect(screen.queryByRole('dialog', { name: en.goals.create })).not.toBeInTheDocument()
   expect(parentSubmit).not.toHaveBeenCalled()
   return { user, parentSubmit, parentForm, onGoalCreated, child }
 }
 
 function assertPortalForm(child: HTMLElement, parentForm: HTMLFormElement) {
-  const title = within(child).getByLabelText(en.habits.form.describe) as HTMLTextAreaElement
-  const submit = within(child).getByRole('button', { name: en.habits.createHabit }) as HTMLButtonElement
+  const title = child.querySelector<HTMLTextAreaElement>('textarea')!
+  const submit = within(child).getByRole('button', { name: new RegExp(`${en.habits.createHabit}|${en.habits.createTask}`) }) as HTMLButtonElement
   expect(title.form).not.toBeNull()
   expect(parentForm).not.toContainElement(title.form)
   expect(submit.form).toBe(title.form)
@@ -114,7 +114,7 @@ function assertPortalForm(child: HTMLElement, parentForm: HTMLFormElement) {
 }
 
 async function fillHabit(user: ReturnType<typeof userEvent.setup>, child: HTMLElement) {
-  await user.click(within(child).getByRole('radio', { name: en.habits.form.typeHabit }))
+  await user.click(within(child).getByRole('radio', { name: new RegExp(en.habits.form.typeHabit) }))
   await user.type(within(child).getByLabelText(en.habits.form.describe), 'Read every day')
   await user.type(within(child).getByLabelText(en.habits.form.datePhrase), '2030-01-15')
   expect(within(child).getByRole('button', { name: /^Starts on,/ })).toHaveTextContent('2030')
@@ -125,7 +125,7 @@ describe('nested habit submit ownership through the goal picker', () => {
     const { user, child, parentForm, parentSubmit, onGoalCreated } = await openNestedHabit(context)
     assertPortalForm(child, parentForm)
     await fillHabit(user, child)
-    await user.click(within(child).getByRole('button', { name: en.habits.createHabit }))
+    await user.click(within(child).getByRole('button', { name: new RegExp(`${en.habits.createHabit}|${en.habits.createTask}`) }))
     const picker = await screen.findByRole('dialog', { name: en.goals.linkedHabits })
     expect(mocks.createHabit).toHaveBeenCalledExactlyOnceWith({ title: 'Read', emoji: '📖', frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 1, isBadHabit: false, startDate: '2030-01-15', relativeReminders: [] })
     expect(mocks.createGoal).not.toHaveBeenCalled()
@@ -142,14 +142,14 @@ describe('nested habit submit ownership through the goal picker', () => {
     expect(within(parentForm).getByLabelText('Parent habit title')).toHaveValue('Retained parent habit')
   })
 
-  it.each(['create', 'edit'] as const)('contains missing type, empty title and invalid date submissions under a %s parent', async (context) => {
+  it.each(['create', 'edit'] as const)('contains empty title and invalid date submissions under a %s parent', async (context) => {
     const { user, child, parentSubmit, onGoalCreated } = await openNestedHabit(context)
-    const submit = within(child).getByRole('button', { name: en.habits.createHabit })
+    const submit = within(child).getByRole('button', { name: new RegExp(`${en.habits.createHabit}|${en.habits.createTask}`) })
     await user.click(submit)
-    expect(await within(child).findByText(en.habits.form.typeRequired)).toHaveAttribute('role', 'alert')
+    expect(within(child).getByRole('textbox', { name: en.habits.form.taskDescribe })).toHaveAttribute('aria-invalid', 'true')
     expect(mocks.createHabit).not.toHaveBeenCalled()
     expect(parentSubmit).not.toHaveBeenCalled()
-    await user.click(within(child).getByRole('radio', { name: en.habits.form.typeHabit }))
+    await user.click(within(child).getByRole('radio', { name: new RegExp(en.habits.form.typeHabit) }))
     await user.click(submit)
     const title = within(child).getByLabelText(en.habits.form.describe)
     await waitFor(() => expect(title).toHaveFocus())
@@ -164,7 +164,7 @@ describe('nested habit submit ownership through the goal picker', () => {
     await user.click(submit)
     await waitFor(() => expect(date).toHaveFocus())
     expect(date).toHaveAttribute('aria-invalid', 'true')
-    expect(date).toHaveAccessibleDescription(`${en.habits.form.datePhraseUnresolved} ${en.habits.form.habitDateQuestion}`)
+    expect(date).toHaveAccessibleDescription(en.habits.form.datePhraseUnresolved)
     expect(mocks.createHabit).not.toHaveBeenCalled()
     expect(mocks.createGoal).not.toHaveBeenCalled()
     expect(onGoalCreated).not.toHaveBeenCalled()
@@ -182,12 +182,12 @@ describe('nested habit submit ownership through the goal picker', () => {
     const { user, child, parentForm, parentSubmit, onGoalCreated } = await openNestedHabit(context)
     assertPortalForm(child, parentForm)
     await fillHabit(user, child)
-    const submit = within(child).getByRole('button', { name: en.habits.createHabit })
+    const submit = within(child).getByRole('button', { name: new RegExp(`${en.habits.createHabit}|${en.habits.createTask}`) })
     await user.click(submit)
     await waitFor(() => expect(mocks.showError).toHaveBeenCalledOnce())
     expect(mocks.createHabit).toHaveBeenCalledTimes(1)
     expect(within(child).getByLabelText(en.habits.form.describe)).toHaveValue('Read every day')
-    expect(within(child).getByRole('radio', { name: en.habits.form.typeHabit })).toHaveAttribute('aria-checked', 'true')
+    expect(within(child).getByRole('radio', { name: new RegExp(en.habits.form.typeHabit) })).toHaveAttribute('aria-checked', 'true')
     expect(within(child).getByLabelText(en.habits.form.datePhrase)).toHaveValue('2030-01-15')
     expect(mocks.createGoal).not.toHaveBeenCalled()
     expect(onGoalCreated).not.toHaveBeenCalled()
@@ -234,12 +234,12 @@ describe('nested habit submit ownership through the goal picker', () => {
     const onOpenChange = vi.fn()
     const user = userEvent.setup()
     render(<QueryClientProvider client={queryClient}><CreateHabitModal open onOpenChange={onOpenChange} /></QueryClientProvider>)
-    const child = await screen.findByRole('dialog', { name: messages.habits.form.newHabit })
-    await user.click(within(child).getByRole('radio', { name: messages.habits.form.typeTask }))
-    await user.type(within(child).getByLabelText(messages.habits.form.describe), 'Collect a book')
-    await user.type(within(child).getByLabelText(messages.habits.form.datePhrase), '2030-01-15')
-    const submit = within(child).getByRole('button', { name: messages.habits.createHabit }) as HTMLButtonElement
-    const title = within(child).getByLabelText(messages.habits.form.describe) as HTMLTextAreaElement
+    const child = await screen.findByRole('dialog', { name: messages.habits.form.newTask })
+    await user.click(within(child).getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) }))
+    await user.type(within(child).getByLabelText(messages.habits.form.taskDescribe), 'Collect a book')
+    await user.type(within(child).getByRole('textbox', { name: messages.habits.form.datePhrase }), '2030-01-15')
+    const submit = within(child).getByRole('button', { name: messages.habits.createTask }) as HTMLButtonElement
+    const title = within(child).getByLabelText(messages.habits.form.taskDescribe) as HTMLTextAreaElement
     expect(submit.form).toBe(title.form)
     expect(title.form).not.toContainElement(submit)
     submit.focus()

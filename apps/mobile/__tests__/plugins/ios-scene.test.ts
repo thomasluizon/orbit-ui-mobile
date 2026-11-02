@@ -21,7 +21,9 @@ it('starts React Native through the Expo scene delegate generated from the insta
     const configured = entry ? (require('../../plugins/with-ios-scene') as ConfigPlugin)(config) : config
     await compileModsAsync(configured, { projectRoot, platforms: ['ios'] })
     const properties = plist.parse(readFileSync(join(projectRoot, 'ios/HelloWorld/Info.plist'), 'utf8'))
-    expect(properties).toHaveProperty('UIApplicationSceneManifest.UISceneConfigurations.UIWindowSceneSessionRoleApplication.0.UISceneDelegateClassName', 'EXExpoAppSceneDelegate')
+    expect(properties).toHaveProperty('UIApplicationSceneManifest.UISceneConfigurations.UIWindowSceneSessionRoleApplication.0.UISceneDelegateClassName', '$(PRODUCT_MODULE_NAME).SceneDelegate')
+    const scene = readFileSync(join(projectRoot, 'ios/HelloWorld/SceneDelegate.swift'), 'utf8')
+    expect(scene).toContain('class SceneDelegate: ExpoAppSceneDelegate')
     const delegate = readFileSync(join(projectRoot, 'ios/HelloWorld/AppDelegate.swift'), 'utf8')
     expect(delegate).toContain('class AppDelegate: ExpoAppDelegate, ExpoReactNativeFactoryProvider')
     expect(delegate).toContain('reactNativeFactory = factory')

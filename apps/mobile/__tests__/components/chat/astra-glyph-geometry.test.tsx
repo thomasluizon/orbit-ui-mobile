@@ -12,6 +12,7 @@ import { TodayAstraLine } from '@/components/today/today-astra-line'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 
+vi.mock('@/lib/conversation-history', () => ({ conversationHistory: { latest: vi.fn(() => Promise.resolve(false)) } }))
 vi.mock('@/components/chat/proactive-action', () => ({ ProactiveAction: () => null }))
 vi.mock('@/components/message-bubble', () => ({ MessageBubble: () => null }))
 vi.mock('@/hooks/use-habits', () => ({}))

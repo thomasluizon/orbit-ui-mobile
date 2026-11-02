@@ -246,6 +246,16 @@ function DestinationShellContent({
 
   const navigate = useCallback(
     (id: BottomTab) => {
+      if (id === 'hoje') {
+        requestHabitCreateNavigation(() => {
+          useUIStore.getState().resetToday()
+          resetRouteTransitionIntent()
+          scroller?.scrollTo({ top: 0, behavior: 'instant' })
+          if (pathname === '/') router.replace('/')
+          else router.push('/')
+        })
+        return
+      }
       useUIStore.getState().setAstraConversationOpen(false)
       const route = ROUTES[id]
       if (route === pathname) {
@@ -273,7 +283,7 @@ function DestinationShellContent({
   }, [router])
   const commandItems = useMemo<CommandNavigationItem[]>(
     () => [
-      ...SHELL_DESTINATION_IDS.map((id) => ({ id, label: labels[id], icon: getDestinationIcon(id), onSelect: () => id === 'hoje' ? selectHabitView('today') : navigate(id) })),
+      ...SHELL_DESTINATION_IDS.map((id) => ({ id, label: labels[id], icon: getDestinationIcon(id), onSelect: () => navigate(id) })),
       { id: 'all', label: t('habits.viewAll'), icon: getDestinationIcon('hoje'), onSelect: () => selectHabitView('all') },
       { id: 'general', label: t('habits.viewGeneral'), icon: getDestinationIcon('hoje'), onSelect: () => selectHabitView('general') },
     ],

@@ -22,6 +22,7 @@ export interface PendingOperationCardLabels {
   empty: string
   cancel: string
   edit: string
+  recordedOutcome?: { approved: string; edited: string; expired: string }
   edited: string
   editTitle: string
   reject: string
@@ -108,6 +109,11 @@ function pendingOperationTitle(
   translate: (key: string, values?: Record<string, string | number>) => string,
 ): string {
   const count = operation.changeTargetCount ?? operation.items?.length ?? 1
+  const item = operation.items?.[0]
+  if (createsHabits && count === 1 && (item?.habitType === 'Task'
+    || (item?.fields ?? operation.changes ?? []).some(field => field.field === 'frequency_unit' && field.newValue === 'OneTime'))) {
+    return translate('habits.form.newTask')
+  }
   if (createsHabits) return translate('chat.operation.newHabits', { count })
   if (['updateHabit', 'updateHabits'].includes(operation.actionKey ?? '') && operation.items?.length === 1) {
     return translate('chat.operation.editHabit', { name: operation.items[0]!.entityName })
@@ -163,6 +169,7 @@ export function buildPendingOperationCardLabels(
     cancel: translate('common.cancel'),
     edit: translate('chat.operation.edit'),
     edited: translate('chat.operation.edited'),
+    recordedOutcome: { approved: translate('chat.conversation.approved'), edited: translate('chat.operation.edited'), expired: translate('chat.conversation.expired') },
     editTitle: translate('chat.operation.editTitle'),
     reject: translate('chat.operation.reject'),
     remove: translate('chat.operation.remove'),

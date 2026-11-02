@@ -1,5 +1,5 @@
 import { IconButton } from '@/components/ui/icon-button'
-import { SPACING } from '@orbit/shared/theme'
+import { INTERACTION_FILL_CLEARANCE, SPACING } from '@orbit/shared/theme'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Home, Search, RefreshCw } from '@/components/ui/icons'
@@ -263,7 +263,7 @@ function createStyles(tokens: AppTokensV2) {
       marginBottom: SPACING.s8,
     },
     moveOptionsContent: {
-      gap: 4,
+      gap: INTERACTION_FILL_CLEARANCE,
       paddingTop: SPACING.s4,
     },
     wellEmoji: {

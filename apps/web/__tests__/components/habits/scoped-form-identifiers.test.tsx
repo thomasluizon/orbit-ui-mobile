@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createTranslator } from 'next-intl'
@@ -43,7 +43,7 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { uses24HourClock: true, timeZone: 'UTC', weekStartDay: 1 } }),
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
-vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: () => ({ requestPermission: vi.fn(), toggleReminder: vi.fn(), showNotice: false }) }))
+vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, toggleReminder: () => void) => ({ requestPermission: vi.fn(), toggleReminder, showNotice: false }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
@@ -120,7 +120,7 @@ async function renderParent(context: Context = 'create') {
     : await screen.findByRole('dialog', { name: words.habits.editHabit })
   const { title } = phrase(parent)
   await waitFor(() => expect(title).toHaveValue('Retained parent habit'))
-  expect(title).toHaveAccessibleName(words.habits.form.describe)
+  expect(title).toHaveAccessibleName(context === 'create' ? words.habits.form.taskDescribe : words.habits.form.describe)
   return { user, words, parent, root, view, onOpenChange }
 }
 
@@ -135,7 +135,7 @@ async function openChild(parent: HTMLElement, user: User, words: typeof en) {
   const picker = await screen.findByRole('dialog', { name: words.goals.linkedHabits })
   expect(within(picker).getByText(words.goals.form.habitsInvitation)).toBeInTheDocument()
   await user.click(within(picker).getByRole('button', { name: words.habits.createHabit }))
-  const child = await screen.findByRole('dialog', { name: words.habits.form.newHabit })
+  const child = await screen.findByRole('dialog', { name: words.habits.form.newTask })
   expect(phrase(parent).title.form).not.toContainElement(phrase(child).title.form)
   expect(phrase(child).title.form).not.toBe(phrase(parent).title.form)
   return child
@@ -149,6 +149,29 @@ function expectNoWrites() {
 }
 
 describe('habit form identifiers across retained real owners', () => {
+  it('disables the open timing sheet throughout an edit request', async () => {
+    let finish!: () => void
+    mocks.updateHabit.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
+    const { parent, user, words } = await renderParent('edit')
+    const title = phrase(parent).title
+    await user.click(within(parent).getByText(words.habits.form.timingAndReminder, { exact: true }))
+    const timing = await screen.findByRole('dialog', { name: words.habits.form.timingAndReminder })
+    const reminder = within(timing).getByRole('switch', { name: words.habits.form.reminder })
+    if (reminder.getAttribute('aria-checked') !== 'true') await user.click(reminder)
+    await user.click(within(timing).getByRole('radio', { name: words.habits.form.repeatEvery }))
+    const allDay = within(timing).getByRole('switch', { name: words.habits.form.repeatAllDay })
+    expect(reminder).toBeEnabled()
+    expect(allDay).toBeEnabled()
+    fireEvent.submit(title.form!)
+    await waitFor(() => expect(mocks.updateHabit).toHaveBeenCalledOnce())
+    expect(reminder).toBeDisabled()
+    expect(allDay).toBeDisabled()
+    expect(within(timing).getByRole('button', { name: words.common.done })).toBeEnabled()
+    await act(async () => finish())
+    await waitFor(() => expect(reminder).toBeEnabled())
+    expect(allDay).toBeEnabled()
+  })
+
   it.each([
     ['create', 'en'], ['create', 'pt-BR'], ['edit', 'en'], ['edit', 'pt-BR'],
   ] as const)('owns the visible title label in a %s parent and child in %s', async (context, locale) => {
@@ -161,7 +184,7 @@ describe('habit form identifiers across retained real owners', () => {
     expect(retained.label.control).toBe(retained.title)
     expect(nested.title.id).not.toBe(retained.title.id)
     expect(nested.title.labels).toHaveLength(1)
-    expect(nested.title).toHaveAccessibleName(words.habits.form.describe)
+    expect(nested.title).toHaveAccessibleName(words.habits.form.taskDescribe)
     expect(nested.title).not.toHaveAttribute('aria-label')
     expect(nested.title).not.toHaveAttribute('aria-describedby')
     expectNoWrites()
@@ -180,7 +203,7 @@ describe('habit form identifiers across retained real owners', () => {
   it('focuses empty child title validation through its registered field ref', async () => {
     const { parent, user, words } = await renderParent()
     const child = await openChild(parent, user, words)
-    await user.click(within(child).getByRole('radio', { name: words.habits.form.typeTask }))
+    await user.click(within(child).getByRole('radio', { name: `${words.habits.form.typeTask}${words.habits.form.typeTaskHint}` }))
     const { title } = phrase(child)
     await user.click(submitFor(title))
     await waitFor(() => expect(title).toHaveAttribute('aria-invalid', 'true'))
@@ -189,26 +212,30 @@ describe('habit form identifiers across retained real owners', () => {
     expectNoWrites()
   })
 
-  it('focuses missing child type through its own registered radio map', async () => {
+  it('focuses the child type group when the default Task receives a repeating phrase', async () => {
     const { parent, user, words } = await renderParent()
     const child = await openChild(parent, user, words)
+    await user.type(phrase(child).title, 'Read a book')
+    const date = within(child).getByRole('textbox', { name: words.habits.form.datePhrase })
+    await user.clear(date)
+    await user.type(date, 'every week')
     await user.click(submitFor(phrase(child).title))
-    await waitFor(() => expect(typeGroup(child)).toHaveAttribute('aria-invalid', 'true'))
-    await waitFor(() => expect(within(child).getByRole('radio', { name: words.habits.form.typeTask })).toHaveFocus())
+    await waitFor(() => expect(within(child).getByRole('radio', { name: `${words.habits.form.typeTask}${words.habits.form.typeTaskHint}` })).toHaveFocus())
+    expect(describedAlert(date, phrase(child).title.form!)).toHaveTextContent(words.habits.form.recurrenceRequiresHabit)
     expect(typeGroup(parent).contains(document.activeElement)).toBe(false)
     expectNoWrites()
   })
 
   it.each(['create', 'edit'] as const)('keeps simultaneous title errors inside their own %s and child forms when one clears', async (context) => {
     const { parent, user, words } = await renderParent(context)
-    await user.click(within(parent).getByRole('radio', { name: words.habits.form.typeTask }))
+    await user.click(within(parent).getByRole('radio', { name: `${words.habits.form.typeTask}${words.habits.form.typeTaskHint}` }))
     const retained = phrase(parent).title
     await user.clear(retained)
     await user.click(submitFor(retained))
     await waitFor(() => expect(retained).toHaveAttribute('aria-invalid', 'true'))
     const parentAlert = describedAlert(retained, retained.form!)
     const child = await openChild(parent, user, words)
-    await user.click(within(child).getByRole('radio', { name: words.habits.form.typeTask }))
+    await user.click(within(child).getByRole('radio', { name: `${words.habits.form.typeTask}${words.habits.form.typeTaskHint}` }))
     const nested = phrase(child).title
     await user.click(submitFor(nested))
     await waitFor(() => expect(nested).toHaveAttribute('aria-invalid', 'true'))
@@ -225,43 +252,48 @@ describe('habit form identifiers across retained real owners', () => {
     expectNoWrites()
   })
 
-  it('keeps simultaneous type errors local while the child chooses and revalidates', async () => {
+  it('keeps simultaneous date errors local while the child chooses Habit and revalidates', async () => {
     const { parent, user, words } = await renderParent()
+    const parentDate = within(parent).getByRole('textbox', { name: words.habits.form.datePhrase })
+    await user.clear(parentDate)
+    await user.type(parentDate, 'every week')
     await user.click(submitFor(phrase(parent).title))
-    const parentGroup = typeGroup(parent)
-    await waitFor(() => expect(parentGroup).toHaveAttribute('aria-invalid', 'true'))
-    const parentAlert = describedAlert(parentGroup, phrase(parent).title.form!)
+    const parentAlert = describedAlert(parentDate, phrase(parent).title.form!)
     const child = await openChild(parent, user, words)
+    const childDate = within(child).getByRole('textbox', { name: words.habits.form.datePhrase })
+    await user.clear(childDate)
+    await user.type(childDate, 'every week')
     await user.click(submitFor(phrase(child).title))
-    const childGroup = typeGroup(child)
-    await waitFor(() => expect(childGroup).toHaveAttribute('aria-invalid', 'true'))
-    const childAlert = describedAlert(childGroup, phrase(child).title.form!)
+    const childAlert = describedAlert(childDate, phrase(child).title.form!)
     expect(childAlert.id).not.toBe(parentAlert.id)
-    expect(describedAlert(parentGroup, phrase(parent).title.form!)).toBe(parentAlert)
-    await user.click(within(child).getByRole('radio', { name: words.habits.form.typeHabit }))
+    expect(describedAlert(parentDate, phrase(parent).title.form!)).toBe(parentAlert)
+    await user.click(within(child).getByRole('radio', { name: `${words.habits.form.typeHabit}${words.habits.form.typeHabitHint}` }))
     await user.click(submitFor(phrase(child).title))
     await waitFor(() => expect(phrase(child).title).toHaveAttribute('aria-invalid', 'true'))
-    expect(childGroup).not.toHaveAttribute('aria-describedby')
+    expect(childDate).not.toHaveAttribute('aria-describedby')
     expect(childAlert).not.toBeInTheDocument()
-    expect(describedAlert(parentGroup, phrase(parent).title.form!)).toBe(parentAlert)
+    expect(describedAlert(parentDate, phrase(parent).title.form!)).toBe(parentAlert)
     expectNoWrites()
   })
 
   it('retains parent identifiers through rerenders, child schedule changes, discard and reopening', async () => {
     const { parent, user, words, root, view } = await renderParent()
+    const parentDate = within(parent).getByRole('textbox', { name: words.habits.form.datePhrase })
+    await user.clear(parentDate)
+    await user.type(parentDate, 'every week')
     await user.click(submitFor(phrase(parent).title))
     const retained = phrase(parent)
     const parentId = retained.title.id
-    const parentError = describedAlert(typeGroup(parent), retained.title.form!)
+    const parentError = describedAlert(parentDate, retained.title.form!)
     const parentErrorId = parentError.id
     const child = await openChild(parent, user, words)
     const nested = phrase(child)
     const childId = nested.title.id
     await user.type(nested.title, 'Read every day')
-    await user.click(within(child).getByRole('radio', { name: words.habits.form.typeHabit }))
-    await user.click(within(child).getByRole('button', { name: words.habits.form.moreDetails }))
-    await user.click(within(child).getByRole('radio', { name: `${words.habits.form.noSchedule}${words.habits.form.noScheduleHint}` }))
-    await user.click(within(child).getByRole('radio', { name: words.habits.form.typeTask }))
+    await user.click(within(child).getByRole('radio', { name: `${words.habits.form.typeHabit}${words.habits.form.typeHabitHint}` }))
+    await user.click(within(child).getByRole('radio', { name: `${words.habits.form.typeTask}${words.habits.form.typeTaskHint}` }))
+    await user.click(within(child).getByRole('radio', { name: words.habits.form.noSchedule }))
+    await user.click(within(child).getByRole('radio', { name: `${words.habits.form.typeTask}${words.habits.form.typeTaskHint}` }))
     view.rerender(root)
     expect(phrase(child).title.id).toBe(childId)
     expect(nested.label.control).toBe(nested.title)
@@ -275,14 +307,14 @@ describe('habit form identifiers across retained real owners', () => {
     await user.click(within(discard).getByRole('button', { name: words.common.discardChangesAction }))
     const picker = await screen.findByRole('dialog', { name: words.goals.linkedHabits })
     await user.click(within(picker).getByRole('button', { name: words.habits.createHabit }))
-    const reopened = await screen.findByRole('dialog', { name: words.habits.form.newHabit })
+    const reopened = await screen.findByRole('dialog', { name: words.habits.form.newTask })
     expect(phrase(reopened).label.control).toBe(phrase(reopened).title)
     expect(phrase(reopened).title.id).not.toBe(parentId)
     expect(phrase(parent).title).toBe(retained.title)
     expect(retained.title.id).toBe(parentId)
     expect(retained.label.control).toBe(retained.title)
     expect(retained.title).toHaveValue('Retained parent habit')
-    expect(describedAlert(typeGroup(parent), retained.title.form!)).toBe(parentError)
+    expect(describedAlert(parentDate, retained.title.form!)).toBe(parentError)
     expect(parentError.id).toBe(parentErrorId)
     expectNoWrites()
   })

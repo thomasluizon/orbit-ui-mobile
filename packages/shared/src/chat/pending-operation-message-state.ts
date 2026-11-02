@@ -3,6 +3,7 @@ import type { ChatMessage } from '../types/chat'
 import { getPendingOperationExecutionCanRetry, getPendingOperationExecutionStatus, type PendingOperationExecutionResult } from '../hooks/pending-operation-card-core'
 
 export interface PendingOperationMessageState {
+  recordedOutcome?: 'approved' | 'edited' | 'expired'
   status?: 'done' | 'failed'
   completedOperation?: AgentOperationResult
   canRetry?: boolean

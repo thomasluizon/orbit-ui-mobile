@@ -7,6 +7,7 @@ import {
   selectPendingOperationRevisionItem,
 } from '../hooks/pending-operation-revision-core'
 import { makePendingAgentOperation } from '../test-support/chat-fixtures'
+import { makeOfferedChildPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
 import type { PendingOperationItem } from '../types/ai'
 import { createPendingOperationAuthorizationState, reconcilePendingOperationAuthorizationState } from '../hooks/pending-operation-card-core'
 
@@ -110,6 +111,48 @@ describe('pending operation edits', () => {
     expect(state.operation.items).toEqual([second])
     expect(state.editingItemId).toBeUndefined()
     expect(state.drafts).toEqual({})
+  })
+
+  it('rebases nested removal across the saved item draft while preserving unrelated edits and drafts', () => {
+    const operation = makeOfferedChildPreview()
+    const first = operation.items![0]!
+    const second = { ...first, itemId: '1' }
+    operation.items = [first, second]
+    let state = selectPendingOperationRevisionItem(createPendingOperationRevisionState(operation), '0')
+    const children = JSON.parse(state.drafts['0']!.sub_habits!) as { title: string }[]
+    children[0]!.title = 'Read slowly'
+    state = changePendingOperationRevisionDraft(state, 'sub_habits', JSON.stringify(children))
+    state = changePendingOperationRevisionDraft(state, 'sub_habits/0/scheduled_reminders', '[{"time":"18:00","when":"same_day"}]')
+    state = selectPendingOperationRevisionItem(state, '1')
+    state = changePendingOperationRevisionDraft(state, 'title', 'Another routine')
+    const revised = makeOfferedChildPreview(0)
+    const accepted = { changes: revised.changes!, changeTargetCount: 2,
+      items: [revised.items![0]!, second], previewFingerprint: 'preview-two' }
+    const next = applyPendingOperationRevisionPreview(state, accepted, undefined, operation.items, {
+      itemId: '0', fields: ['sub_habits/0/reminder_enabled', 'sub_habits/0/scheduled_reminders'],
+    })
+    expect(next.editingItemId).toBe('1')
+    expect(next.drafts['1']).toEqual(state.drafts['1'])
+    expect(next.drafts['0']).not.toHaveProperty('sub_habits/0/reminder_enabled')
+    expect(next.drafts['0']).not.toHaveProperty('sub_habits/0/scheduled_reminders')
+    expect(pendingOperationEdits(accepted.items[0]!, next.drafts['0']!)).toEqual({ sub_habits: [
+      { title: 'Read slowly' }, { title: 'Stretch', reminder_enabled: true, scheduled_reminders: [{ time: '20:00', when: 'same_day' }] },
+    ] })
+    expect(state.drafts['0']!['sub_habits/0/reminder_enabled']).toBe('true')
+  })
+
+  it('drops removed top level drafts without changing the remaining local edits', () => {
+    const operation = makeOfferedTaskPreview()
+    let state = selectPendingOperationRevisionItem(createPendingOperationRevisionState(operation), '0')
+    state = changePendingOperationRevisionDraft(state, 'title', 'Updated task')
+    const fields = operation.items![0]!.fields.filter(field => !['reminder_enabled', 'scheduled_reminders'].includes(field.field))
+    const preview = { changes: fields, items: [{ ...operation.items![0]!, fields }], previewFingerprint: 'preview-two', changeTargetCount: 1 }
+    const next = applyPendingOperationRevisionPreview(state, preview, undefined, operation.items!, {
+      itemId: '0', fields: ['reminder_enabled', 'scheduled_reminders'],
+    })
+    expect(next.drafts['0']).not.toHaveProperty('reminder_enabled')
+    expect(next.drafts['0']).not.toHaveProperty('scheduled_reminders')
+    expect(pendingOperationEdits(preview.items[0]!, next.drafts['0']!)).toEqual({ title: 'Updated task' })
   })
 
   it('keeps an edited marker when the parent echoes a revised preview', () => {

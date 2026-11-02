@@ -394,6 +394,46 @@ jobs:
           echo "ccache statistics for this build:"
           ccache --show-stats
 
+      - name: Verify AAB signing certificate matches the upload keystore
+        working-directory: apps/mobile/android
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          if ! bundle_certificate=$(keytool -J-Duser.language=en -J-Duser.country=US \
+            -printcert -jarfile app/build/outputs/bundle/release/app-release.aab 2>/dev/null); then
+            echo "::error::Cannot read the AAB signing certificate."
+            exit 1
+          fi
+          if ! upload_certificate=$(keytool -J-Duser.language=en -J-Duser.country=US \
+            -list -v -keystore app/upload-keystore.jks -alias "$ANDROID_KEY_ALIAS" \
+            -storepass:env ANDROID_KEYSTORE_PASSWORD 2>/dev/null); then
+            echo "::error::Cannot read the upload keystore certificate."
+            exit 1
+          fi
+          bundle_fingerprint=$(printf '%s\n' "$bundle_certificate" | awk '
+            /^Certificate #1:$/ { leaf = 1; next }
+            leaf && /^[[:space:]]*SHA256:/ { print $2; leaf = 0 }
+          ')
+          upload_fingerprint=$(printf '%s\n' "$upload_certificate" | awk '
+            /^Certificate\[1\]:$/ { leaf = 1; next }
+            leaf && /^[[:space:]]*SHA256:/ { print $2; leaf = 0 }
+          ')
+          fingerprint_pattern='^([A-F0-9]{2}:){31}[A-F0-9]{2}$'
+          if [[ ! "$bundle_fingerprint" =~ $fingerprint_pattern ]] ||
+             [[ ! "$upload_fingerprint" =~ $fingerprint_pattern ]]; then
+            echo "::error::Expected one AAB signer and a SHA-256 fingerprint for each leaf certificate."
+            exit 1
+          fi
+          echo "AAB SHA-256: $bundle_fingerprint"
+          echo "Upload keystore SHA-256: $upload_fingerprint"
+          if [[ "$bundle_fingerprint" != "$upload_fingerprint" ]]; then
+            echo "::error::The AAB signing certificate does not match the upload keystore."
+            exit 1
+          fi
+
       - name: Verify Android widget is bundled in release manifest
         working-directory: apps/mobile/android
         shell: bash

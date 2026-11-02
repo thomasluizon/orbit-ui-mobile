@@ -10,6 +10,7 @@ import { AstraConversation } from '@/components/chat/conversation'
 import { usePendingOperationExecution } from '@/hooks/use-pending-operation-execution'
 import { renderedText } from '../../support/react-test-renderer'
 
+vi.mock('@/lib/conversation-history', () => ({ conversationHistory: { latest: vi.fn(() => Promise.resolve(false)) } }))
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'pt-BR' } }),
@@ -72,7 +73,7 @@ function update(chat: ChatController) {
   void act(() => { tree.update(<AstraConversation chat={chat} />) })
 }
 function politeRegions() {
-  return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && node.props.testID !== 'astra-working-announcement')
+  return tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite' && node.props.testID === 'astra-turn-announcement')
 }
 afterEach(() => { void act(() => tree.unmount()) })
 

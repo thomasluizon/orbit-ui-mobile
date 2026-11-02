@@ -801,6 +801,70 @@ export const PostApiCalendarAutoSyncRunHeader = zod.object({
 export const PostApiCalendarAutoSyncRunResponse = zod.unknown()
 
 
+export const getApiChatConversationsLatestQueryBeforeOrderRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiChatConversationsLatestQueryPageSizeDefaultOne = 40;
+export const getApiChatConversationsLatestQueryPageSizeDefaultTwo = 40;
+export const getApiChatConversationsLatestQueryPageSizeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiChatConversationsLatestQueryPageSizeDefault = 40;
+
+export const GetApiChatConversationsLatestQueryParams = zod.object({
+  "conversationId": zod.uuid().optional(),
+  "beforeOrder": zod.union([zod.int(),zod.stringFormat('int64', getApiChatConversationsLatestQueryBeforeOrderRegExpTwo)]).optional(),
+  "pageSize": zod.union([zod.int().default(getApiChatConversationsLatestQueryPageSizeDefaultOne),zod.stringFormat('int32', getApiChatConversationsLatestQueryPageSizeRegExpTwo).default(getApiChatConversationsLatestQueryPageSizeDefaultTwo)]).optional()
+})
+
+export const GetApiChatConversationsLatestHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const getApiChatConversationsLatestResponseTurnsItemOrderRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiChatConversationsLatestResponseBeforeOrderRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const GetApiChatConversationsLatestResponse = zod.object({
+  "conversationId": zod.uuid(),
+  "turns": zod.array(zod.object({
+  "turnId": zod.uuid(),
+  "order": zod.union([zod.int(),zod.stringFormat('int64', getApiChatConversationsLatestResponseTurnsItemOrderRegExpTwo)]),
+  "role": zod.string(),
+  "createdAtUtc": zod.iso.datetime({"offset":true}),
+  "content": zod.string().nullable(),
+  "responseJson": zod.string().nullable(),
+  "previewOutcomesJson": zod.string(),
+  "image": zod.union([zod.null(),zod.object({
+  "fileName": zod.string(),
+  "contentType": zod.string(),
+  "sha256": zod.string(),
+  "url": zod.string().nullish()
+})])
+})),
+  "beforeOrder": zod.union([zod.int(),zod.stringFormat('int64', getApiChatConversationsLatestResponseBeforeOrderRegExpTwo)]).nullable()
+})
+
+
+export const GetApiChatConversationsConversationIdImagesTurnIdParams = zod.object({
+  "conversationId": zod.uuid(),
+  "turnId": zod.uuid()
+})
+
+export const GetApiChatConversationsConversationIdImagesTurnIdHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const GetApiChatConversationsConversationIdImagesTurnIdResponse = zod.unknown()
+
+
+export const DeleteApiChatConversationsConversationIdParams = zod.object({
+  "conversationId": zod.uuid()
+})
+
+export const DeleteApiChatConversationsConversationIdHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const DeleteApiChatConversationsConversationIdResponse = zod.void()
+
+
 export const PostApiChatReadsRefreshHeader = zod.object({
   "api-version": zod.string().optional()
 })
@@ -2632,7 +2696,8 @@ export const PostApiChatResponse = zod.object({
   "target": zod.string().nullish(),
   "queryId": zod.uuid().nullish()
 })).nullish(),
-  "messageAllowanceConsumed": zod.boolean().nullish()
+  "messageAllowanceConsumed": zod.boolean().nullish(),
+  "conversationId": zod.uuid().nullish()
 })
 
 
@@ -3099,7 +3164,9 @@ export const PostApiChatHabitMonthRefreshResponse = zod.object({
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })]).optional(),
-  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "completedOn": zod.iso.date().nullish(),
+  "isSkippedOnDate": zod.boolean().nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', postApiChatHabitMonthRefreshResponseBlockCalendarHabitsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -3131,7 +3198,9 @@ export const PostApiChatHabitMonthRefreshResponse = zod.object({
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })]).optional(),
-  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "completedOn": zod.iso.date().nullish(),
+  "isSkippedOnDate": zod.boolean().nullish()
 })),
   "logs": zod.record(zod.string(), zod.array(zod.object({
   "id": zod.uuid(),
@@ -4417,7 +4486,9 @@ export const GetApiHabitsResponse = zod.object({
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })]).optional(),
-  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "completedOn": zod.iso.date().nullish(),
+  "isSkippedOnDate": zod.boolean().nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponseItemsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -4449,7 +4520,9 @@ export const GetApiHabitsResponse = zod.object({
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })]).optional(),
-  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "completedOn": zod.iso.date().nullish(),
+  "isSkippedOnDate": zod.boolean().nullish()
 })),
   "page": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponsePageRegExpTwo)]),
   "pageSize": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsResponsePageSizeRegExpTwo)]),
@@ -4700,7 +4773,9 @@ export const GetApiHabitsCalendarMonthResponse = zod.object({
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })]).optional(),
-  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "completedOn": zod.iso.date().nullish(),
+  "isSkippedOnDate": zod.boolean().nullish()
 })),
   "hasSubHabits": zod.boolean(),
   "flexibleTarget": zod.union([zod.int(),zod.stringFormat('int32', getApiHabitsCalendarMonthResponseHabitsItemFlexibleTargetRegExpTwo)]).nullable(),
@@ -4732,7 +4807,9 @@ export const GetApiHabitsCalendarMonthResponse = zod.object({
   "activeEnd": zod.iso.time({}).nullish(),
   "startAtUtc": zod.iso.datetime({"offset":true}).nullish()
 })]).optional(),
-  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish()
+  "nextReminderAtUtc": zod.iso.datetime({"offset":true}).nullish(),
+  "completedOn": zod.iso.date().nullish(),
+  "isSkippedOnDate": zod.boolean().nullish()
 })),
   "logs": zod.record(zod.string(), zod.array(zod.object({
   "id": zod.uuid(),

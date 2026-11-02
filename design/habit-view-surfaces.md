@@ -8,7 +8,7 @@ overdue, current, future, recurring, completed, general and nested habits.
 | --- | --- | --- | --- |
 | View switch | `components/today/habit-view-switch.tsx` | `components/today/habit-view-switch.tsx` | Three localized single-word segments, selected state, keyboard navigation, phone and foldable widths |
 | Header and date navigation | `app/(app)/today-page-view.tsx`, `today-shell.tsx` | `app/(tabs)/index.tsx`, `components/today/today-date-control.tsx` | Pager, boundary notice and proactive line only in Hoje; search and list menu in every view |
-| Saved view and entry points | `app/(app)/use-today-page.tsx`, `components/shell/destination-shell.tsx` | `app/(tabs)/index.tsx`, `components/navigation/destination-tab-bar.tsx` | Persisted active view, return from another destination, explicit date links, web command palette |
+| Saved view and entry points | `app/(app)/use-today-page.tsx`, `components/shell/destination-shell.tsx` | `app/(tabs)/index.tsx`, `components/navigation/destination-tab-bar.tsx` | Persisted view on reload, Hoje navigation reset on every activation, explicit date links, web command palette |
 | Scoped search | `app/(app)/today-shell.tsx`, `today-page-view.tsx`, `use-today-habits-data.ts` | `app/(tabs)/index.tsx`, `components/today/today-date-control.tsx` | Header entry at every width, separate from the web sidebar command palette; in-place debounced search preserves view, date and frequency; filtered rows retain selection and actions; clear on account, view or selected-day changes; close clears filtering |
 | Todos membership and ordering | `components/habits/habit-list.tsx` | `components/habit-list.tsx` | Scheduled roots, overdue group first, due-date groups, completed one-time habits behind Show completed |
 | Geral membership | `components/habits/habit-list.tsx` | `components/habit-list.tsx` | No-set-day roots independent of the Hoje preference, completed habits behind Show completed |
@@ -23,10 +23,22 @@ overdue, current, future, recurring, completed, general and nested habits.
 Row action and creation surfaces retain their existing redesign components. Restoring their view
 inputs and handlers is the required change; the restoration does not restyle those components.
 
+Activating the Hoje navigation entry resets the shared view, filters and selection, clears the
+selected date to the account's today, closes scoped search and local surfaces, and returns the
+list to the top. Repeated activations follow the same rule. Native sheets finish dismissal before
+the Hoje content resets. Reloads and explicit date links retain their own entry behaviour.
+
 At 21 roots, web Todos and Geral virtualize offscreen family rendering with `content-visibility`
 and an intrinsic size reservation, retaining natural family height and keyboard access. Geral
 temporarily renders every panel while dragging so reorder measurements use the whole list.
 Android retains its virtualized FlatList owners.
+
+Sortable rows own positional motion on both platforms. Web sortable families and child
+disclosures remain unclipped and do not add layout or disclosure movement around dnd-kit
+transforms. Native draggable cells own translation while their row wrappers retain opacity
+feedback. The dragged web row keeps its half-opacity drag feedback while every other row stays
+fully opaque. Non-sortable lists retain positional motion. Dropping or cancelling a web drag
+restores the dragged parent's children and clears the temporary drag inventory.
 
 Move opens the scheduled inventory without date or view filters and the separate General inventory,
 loading every page through the existing habit queries. Both complete forests supply destination

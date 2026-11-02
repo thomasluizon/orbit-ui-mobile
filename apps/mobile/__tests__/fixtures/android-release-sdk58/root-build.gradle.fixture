@@ -1,0 +1,63 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath('com.android.tools.build:gradle')
+    classpath('com.facebook.react:react-native-gradle-plugin')
+    def kotlinVersion = findProperty('android.kotlinVersion')
+    classpath(kotlinVersion ? "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion" : 'org.jetbrains.kotlin:kotlin-gradle-plugin')
+  }
+}
+
+allprojects {
+  repositories {
+    google()
+    mavenCentral()
+    maven { url = uri('https://www.jitpack.io') }
+  }
+}
+
+// orbit-android-shared-ndk-version
+subprojects { subproject ->
+    ["com.android.application", "com.android.library"].each { pluginId ->
+        subproject.plugins.withId(pluginId) {
+            subproject.extensions.getByName("android").ndkVersion = rootProject.ext.ndkVersion
+            subproject.extensions.getByName("androidComponents").finalizeDsl { android ->
+                android.ndkVersion = rootProject.ext.ndkVersion
+            }
+        }
+    }
+}
+
+// orbit-android-okhttp-version
+allprojects {
+    configurations.configureEach {
+        resolutionStrategy.eachDependency { dependency ->
+            if (dependency.requested.group == "com.squareup.okhttp3") {
+                dependency.useVersion("4.12.1")
+            }
+        }
+    }
+}
+
+// orbit-android-library-cmake-staging-dir
+subprojects { subproject ->
+    if (rootProject.hasProperty("orbit.cmakeBuildStagingDirectory")) {
+        subproject.plugins.withId("com.android.library") {
+            android {
+                externalNativeBuild {
+                    cmake {
+                        buildStagingDirectory = file("${rootProject.property('orbit.cmakeBuildStagingDirectory')}/${subproject.name}")
+                    }
+                }
+            }
+        }
+    }
+}
+
+apply plugin: "expo-root-project"
+apply plugin: "com.facebook.react.rootproject"

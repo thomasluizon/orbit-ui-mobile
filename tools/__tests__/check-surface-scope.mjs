@@ -335,7 +335,7 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
     const mobile = platform === "mobile"
     const paths = [path, ...(mobile ? ["apps/mobile/components/habits/habit-form-fields/styles.ts"] : [])]
     const foreground = mobile ? "color: tokens.fg3" : "color: proposed ? 'var(--fg-3)'"
-    const glyph = mobile ? ">{selectedEmoji}</Text>" : "{selectedEmoji || <Plus"
+    const glyph = mobile ? ">{selectedEmoji}</Text>" : "{selectedEmoji || <Smile"
     const wellMarker = mobile ? 'testID="habit-emoji-well"' : 'data-emoji-well=""'
     for (const [label, before, after, status, stderr] of [
       ["proposed-glyph", undefined, undefined, 0],

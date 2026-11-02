@@ -17,8 +17,10 @@ export const habitKeys = {
   detail: (id: string) => [...habitKeys.details(), id] as const,
   fullDetails: () => [...habitKeys.all, 'fullDetail'] as const,
   fullDetail: (id: string) => [...habitKeys.fullDetails(), id] as const,
-  metrics: (id: string) => [...habitKeys.all, 'metrics', id] as const,
-  logs: (id: string) => [...habitKeys.all, 'logs', id] as const,
+  metricsPrefix: () => [...habitKeys.all, 'metrics'] as const,
+  metrics: (id: string) => [...habitKeys.metricsPrefix(), id] as const,
+  logsPrefix: () => [...habitKeys.all, 'logs'] as const,
+  logs: (id: string) => [...habitKeys.logsPrefix(), id] as const,
   calendarPrefix: () => [...habitKeys.all, 'calendar'] as const,
   calendar: (from: string, to: string) => [...habitKeys.all, 'calendar', from, to] as const,
   summaryPrefix: () => [...habitKeys.all, 'summary'] as const,
@@ -131,4 +133,9 @@ export const proactiveKeys = {
 export const connectionKeys = {
   all: ['connections'] as const,
   notion: () => [...connectionKeys.all, 'notion'] as const,
+}
+
+export const conversationKeys = {
+  all: ['conversations'] as const,
+  page: (generation: number, conversationId?: string, beforeOrder?: number | string) => [...conversationKeys.all, generation, conversationId, beforeOrder] as const,
 }

@@ -15,13 +15,13 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 vi.mock('@/hooks/use-habit-create-navigation-guard', () => ({ useHabitCreateNavigationGuard: () => {} }))
 vi.mock('@/components/shell/destination-shell', () => ({ useShellComposerSlot: () => {} }))
 
-function renderFooter(locale: 'en' | 'pt-BR', empty = true, pending = false) {
+function renderFooter(locale: 'en' | 'pt-BR', empty = true, pending = false, task = false) {
   const messages = locale === 'en' ? en : ptBr
   return render(<NextIntlClientProvider locale={locale} messages={messages}>
     <main style={{ maxWidth: 740, marginInline: 'auto' }}>
       <HabitCreateFrame presentation="screen" open fromConversation={false} actionRefreshKey="test"
-        leaving={false} onNavigate={() => {}} onReturn={() => {}} title={messages.habits.form.newHabit}
-        actions={<HabitCreateActions presentation="screen" pending={pending} empty={empty} subHabit={false}
+        leaving={false} onNavigate={() => {}} onReturn={() => {}} title={task ? messages.habits.form.newTask : messages.habits.form.newHabit}
+        actions={<HabitCreateActions task={task} presentation="screen" pending={pending} empty={empty} subHabit={false}
           online formId="create-habit" onCancel={() => {}} />}>
         <form id="create-habit" />
       </HabitCreateFrame>
@@ -92,4 +92,16 @@ describe('habit create footer', () => {
     expect(screen.getByRole('button', { name: en.habits.createHabit })).toBeDisabled()
     expect(screen.getByRole('button', { name: en.habits.createHabit })).toHaveAttribute('aria-busy', 'true')
   })
+})
+
+
+it.each(['en', 'pt-BR'] as const)('follows the selected item type in the %s header and submit', (locale) => {
+  const messages = locale === 'en' ? en : ptBr
+  const { unmount } = renderFooter(locale, false, false, true)
+  expect(screen.getByRole('heading', { name: messages.habits.form.newTask })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: messages.habits.createTask })).toBeEnabled()
+  unmount()
+  renderFooter(locale, false, false, false)
+  expect(screen.getByRole('heading', { name: messages.habits.form.newHabit })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: messages.habits.createHabit })).toBeEnabled()
 })

@@ -2,14 +2,14 @@ import { makeEnrichedHabitDetail } from '@orbit/shared/test-support/habit-detail
 import { Switch } from '@/components/ui/switch'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { QueryClient, QueryObserver } from '@tanstack/query-core'
+import { MutationObserver, onlineManager, QueryClient, QueryObserver } from '@tanstack/query-core'
 import { QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
-import { createMockGoal, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import { createMockGoal, createMockProfile, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { createApiClientError } from '@orbit/shared'
-import { buildCalendarDayMap, buildChildrenIndex, buildHabitHistoryMonth, formatAPIDate, getAllDoneOnDate, hasHabitScheduleOnDate, isHabitCompletedOnDate, normalizeHabits } from '@orbit/shared/utils'
+import { buildCalendarDayMap, buildChildrenIndex, buildHabitHistoryMonth, formatAPIDate, getAccountDay, getAllDoneOnDate, hasHabitScheduleOnDate, isHabitCompletedOnDate, normalizeHabits } from '@orbit/shared/utils'
 import enMessages from '@orbit/shared/i18n/en.json'
-import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
+import { gamificationKeys, habitKeys, goalKeys, profileKeys, resetAccountQueries, tagKeys } from '@orbit/shared/query'
 import type { CalendarMonthResponse, ChecklistItem, CreateHabitRequest, HabitDetail, HabitScheduleChild, HabitScheduleItem, LogHabitResponse, UpdateHabitRequest } from '@orbit/shared/types/habit'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { Goal } from '@orbit/shared/types/goal'
@@ -34,8 +34,12 @@ import {
 } from '@/hooks/use-habits'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { setAccountId } from '@/lib/account-scope'
 import { cancelQueuedSkipForUndo } from '@/lib/offline-mutations'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+import { apiClient } from '@/lib/api-client'
+import { fetchProfile } from '@/hooks/use-profile'
+import type { QueuedMutation } from '@orbit/shared/types/sync'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -83,7 +87,10 @@ describe('returning profile after other completion writes', () => {
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
-beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+beforeEach(() => {
+  vi.setSystemTime(PINNED_TEST_TIME)
+  vi.mocked(apiClient).mockClear()
+})
 afterEach(() => vi.useRealTimers())
 
 const mocks = vi.hoisted(() => {
@@ -228,7 +235,6 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
     useMutation: (...parameters: Parameters<typeof actual.useMutation>) => mocks.useRealQueryHooks
       ? actual.useMutation(...parameters) : mocks.useMutation(parameters[0]),
     focusManager: { setEventListener: () => {} },
-    onlineManager: { setEventListener: () => {} },
     QueryClient: class {
       getDefaultOptions() {
         return {}
@@ -2113,8 +2119,8 @@ describe('mobile habit hooks', () => {
       queryKey: habitKeys.summaryPrefix(),
     })
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
-    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
-    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   /** The server awards no XP for a bad habit, so the fixture must return zero. */
@@ -3807,5 +3813,336 @@ describe('useBulkMoveHabitParent', () => {
       { method: 'POST', body: JSON.stringify(request) }, expect.anything())
     mutation.onSuccess?.(response, request, undefined)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all })
+  })
+})
+
+
+describe('API-owned bad parent slips', () => {
+  beforeEach(() => {
+    mocks.runQueuedMutation.mockClear()
+    mocks.buildQueuedMutation.mockClear()
+    mocks.queryClient.invalidateQueries.mockClear()
+  })
+  it.each([
+    { name: 'first child', childId: 'first', intent: 'log' as const, before: 0, after: 0 },
+    { name: 'last child', childId: 'second', intent: 'log' as const, before: 0, after: 1 },
+    { name: 'undo child', childId: 'first', intent: 'unlog' as const, before: 1, after: 0 },
+  ])('refreshes parent reads after $name without queuing a parent write', async (scenario) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    const date = '2026-09-12'
+    const parentLog = { id: 'parent-slip', date, value: 1, createdAtUtc: '2026-09-12T12:00:00Z' }
+    client.setQueryData(habitKeys.list({ dateFrom: date, dateTo: date }), [makeHabit({
+      id: 'parent', isBadHabit: true, isLoggedInRange: scenario.before > 0,
+      children: ['first', 'second'].map((id) => {
+        const slipped = scenario.intent === 'unlog' || (scenario.name === 'last child' && id === 'first')
+        return makeChild({ id, isBadHabit: true, isLoggedInRange: slipped,
+          instances: [{ date, status: slipped ? 'Completed' : 'Pending', logId: slipped ? `slip:${id}` : null }],
+        })
+      }),
+    })])
+    const readParentLogs = vi.fn(() => Promise.resolve(scenario.after ? [parentLog] : []))
+    const observer = new QueryObserver(client, {
+      queryKey: habitKeys.logs('parent'), queryFn: readParentLogs,
+      initialData: scenario.before ? [parentLog] : [], staleTime: Infinity,
+    })
+    const unsubscribe = observer.subscribe(() => {})
+    const parentKeys = [habitKeys.detail('parent'), habitKeys.fullDetail('parent'), habitKeys.metrics('parent'), profileKeys.detail(), gamificationKeys.profile()]
+    for (const key of parentKeys) client.setQueryData(key, {})
+    mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
+    const mutation = useLogHabit() as unknown as MutationConfig<LogHabitResponse, LogHabitVariables, unknown>
+    const variables = { habitId: scenario.childId, date, intent: scenario.intent }
+    const response = { logId: 'child-log', isFirstCompletionToday: false, currentStreak: 0 }
+    mocks.runQueuedMutation.mockResolvedValueOnce(response)
+    try {
+      const context = await mutation.onMutate?.(variables)
+      const result = await mutation.mutationFn(variables)
+      mutation.onSettled?.(result, null, variables, context)
+      await vi.waitFor(() => {
+        expect(readParentLogs).toHaveBeenCalledTimes(1)
+        expect(client.getQueryData(habitKeys.logs('parent'))).toEqual(scenario.after ? [parentLog] : [])
+      })
+      for (const key of parentKeys) expect(client.getQueryState(key)?.isInvalidated).toBe(true)
+      expect(mocks.runQueuedMutation).toHaveBeenCalledTimes(1)
+      expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ targetEntityId: scenario.childId }) }))
+    } finally {
+      unsubscribe()
+      client.clear()
+    }
+  })
+
+  it('keeps queued child slips pending server reconciliation and pins their occurrence date', async () => {
+    seedHabitState([makeHabit({ id: 'parent', isBadHabit: true, children: [makeChild({ id: 'first', isBadHabit: true }), makeChild({ id: 'second', isBadHabit: true })] })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { timeZone: 'Pacific/Kiritimati' })
+    vi.setSystemTime(new Date('2026-09-12T23:00:00Z'))
+    const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+    for (const habitId of ['first', 'second']) {
+      const variables = { habitId, intent: 'log' as const }
+      const context = await mutation.onMutate?.(variables)
+      const result = await mutation.mutationFn(variables)
+      mutation.onSuccess?.(result, variables, context)
+      mutation.onSettled?.(result, null, variables, context)
+    }
+    expect(getHabitList()[0]?.isLoggedInRange).toBe(false)
+    expect(mocks.runQueuedMutation).toHaveBeenCalledTimes(2)
+    for (const [options] of mocks.runQueuedMutation.mock.calls) {
+      expect(options.mutation).toEqual(expect.objectContaining({ payload: { date: '2026-09-13' }, targetEntityId: expect.stringMatching(/^(first|second)$/) }))
+    }
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.details() })
+  })
+
+  it('refreshes parent reads after confirmed bulk logs and pins undated queued items', async () => {
+    seedHabitState([])
+    mocks.queryClient.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'UTC' }))
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+    const variables = [{ habitId: 'first' }, { habitId: 'second' }]
+    const context = await mutation.onMutate?.(variables)
+    mocks.runQueuedMutation.mockResolvedValueOnce({ results: variables.map(({ habitId }, index) => ({ index, habitId, status: 'Success', logId: 'child-log', error: null })) })
+    const result = await mutation.mutationFn(variables)
+    mutation.onSettled?.(result, null, variables, context)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.details() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.fullDetails() })
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({ mutation: expect.objectContaining({ payload: { items: variables.map((item) => ({ ...item, date: '2026-09-12' })) } }) }))
+  })
+})
+
+describe('mobile log request account day', () => {
+  let client: QueryClient
+
+  beforeEach(() => {
+    client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    mocks.useQueryClient.mockReturnValue(client as unknown as typeof mocks.queryClient)
+    mocks.runQueuedMutation.mockClear()
+    vi.mocked(apiClient).mockReset()
+    vi.setSystemTime(new Date('2026-09-12T23:00:00Z'))
+    vi.stubEnv('TZ', 'Pacific/Kiritimati')
+    expect(getAccountDay(new Date())).toBe('2026-09-13')
+  })
+
+  afterEach(() => {
+    client.clear()
+    mocks.useQueryClient.mockReturnValue(mocks.queryClient)
+    vi.unstubAllEnvs()
+    onlineManager.setOnline(true)
+  })
+
+  it.each(['single', 'bulk'] as const)('resolves an uncached profile before pinning an undated %s log', async (mode) => {
+    expect(client.getQueryData(profileKeys.detail())).toBeUndefined()
+    vi.mocked(apiClient).mockResolvedValueOnce(createMockProfile({ timeZone: 'UTC' }))
+    const explicitDate = '2026-09-10'
+    if (mode === 'single') {
+      const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+      await mutation.mutationFn({ habitId: 'habit-1', intent: 'log' })
+    } else {
+      const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string; date?: string }[], unknown>
+      await mutation.mutationFn([{ habitId: 'habit-1' }, { habitId: 'habit-2', date: explicitDate }])
+    }
+    expect(mocks.runQueuedMutation).toHaveBeenCalledOnce()
+    expect(mocks.runQueuedMutation.mock.calls[0]?.[0].mutation).toMatchObject({
+      payload: mode === 'single' ? { date: '2026-09-12' }
+        : { items: [{ habitId: 'habit-1', date: '2026-09-12' }, { habitId: 'habit-2', date: explicitDate }] },
+    })
+    expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.profile.get)
+    expect(client.getQueryData(profileKeys.detail())).toMatchObject({ timeZone: 'UTC' })
+  })
+
+  it.each(['single', 'bulk'] as const)('omits an unknown account day when the profile cannot resolve for a %s log', async (mode) => {
+    vi.mocked(apiClient).mockRejectedValueOnce(new TypeError('Network request failed'))
+    if (mode === 'single') {
+      const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+      await mutation.mutationFn({ habitId: 'habit-1', intent: 'log' })
+    } else {
+      const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string; date?: string }[], unknown>
+      await mutation.mutationFn([{ habitId: 'habit-1' }, { habitId: 'habit-2', date: '2026-09-10' }])
+    }
+    const request = mocks.runQueuedMutation.mock.calls[0]?.[0].mutation as QueuedMutation
+    expect(request.payload).toEqual(mode === 'single' ? {}
+      : { items: [{ habitId: 'habit-1' }, { habitId: 'habit-2', date: '2026-09-10' }] })
+    if (mode === 'single') expect(request.dedupeKey).toBe('habit-toggle:habit-1:2026-09-13')
+    expect(JSON.stringify(request.payload)).not.toContain('2026-09-13')
+    expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.profile.get)
+  })
+
+  it.each([
+    { mode: 'single', profileOutcome: 'resolves' },
+    { mode: 'bulk', profileOutcome: 'resolves' },
+    { mode: 'single', profileOutcome: 'rejects' },
+    { mode: 'bulk', profileOutcome: 'rejects' },
+  ] as const)('stops an undated $mode log when its originating account changes before the profile $profileOutcome', async ({ mode, profileOutcome }) => {
+    setAccountId('account-a')
+    const profileA = createMockProfile({ timeZone: 'UTC' })
+    const profileB = createMockProfile({ timeZone: 'Pacific/Kiritimati' })
+    let settleProfile: (() => void) | undefined
+    vi.mocked(apiClient).mockImplementationOnce(() => new Promise((resolve, reject) => {
+      settleProfile = () => profileOutcome === 'resolves'
+        ? resolve(profileA) : reject(new TypeError('Network request failed'))
+    }))
+    const key = habitKeys.list({})
+    client.setQueryData(key, [makeHabit({ id: 'habit-1' })])
+    const accountBHabits = [makeHabit({ id: 'account-b-habit' })]
+    mocks.showError.mockClear()
+    mocks.showInfo.mockClear()
+    mocks.useRealQueryHooks = true
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    let singleLog!: ReturnType<typeof useLogHabit>
+    let bulkLog!: ReturnType<typeof useBulkLogHabits>
+    function Probe() {
+      singleLog = useLogHabit()
+      bulkLog = useBulkLogHabits()
+      return null
+    }
+    let renderer: { unmount: () => void } | undefined
+    let pending: Promise<unknown> | undefined
+    try {
+      await TestRenderer.act(() => {
+        renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe)))
+      })
+      await TestRenderer.act(() => {
+        pending = (mode === 'single'
+          ? singleLog.mutateAsync({ habitId: 'habit-1', intent: 'log' })
+          : bulkLog.mutateAsync([{ habitId: 'habit-1' }, { habitId: 'habit-2', date: '2026-09-10' }]))
+          .catch((error: unknown) => error)
+      })
+      await vi.waitFor(() => expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.profile.get))
+      await TestRenderer.act(async () => {
+        advanceAccountGeneration()
+        setAccountId(null)
+        await resetAccountQueries(client, 'signed-out')
+        advanceAccountGeneration()
+        setAccountId('account-b')
+        await resetAccountQueries(client, 'signed-in')
+        client.setQueryData(profileKeys.detail(), profileB)
+        client.setQueryData(key, accountBHabits)
+      })
+      let outcome: unknown
+      await TestRenderer.act(async () => {
+        settleProfile!()
+        outcome = await pending
+      })
+      expect(client.getQueryData(profileKeys.detail())).toEqual(profileB)
+      expect(client.getQueryData(key)).toEqual(accountBHabits)
+      expect(mocks.runQueuedMutation).not.toHaveBeenCalled()
+      expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.profile.get)
+      expect(mocks.showError).not.toHaveBeenCalled()
+      expect(mocks.showInfo).not.toHaveBeenCalled()
+      expect(outcome).toEqual(new Error('Account changed'))
+    } finally {
+      await TestRenderer.act(async () => {
+        settleProfile?.()
+        await pending
+        renderer?.unmount()
+      })
+      mocks.useRealQueryHooks = false
+      setAccountId(null)
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it.each(['single', 'bulk'] as const)('keeps the known account day pinned when an offline %s log executes the next day', async (mode) => {
+    onlineManager.setOnline(false)
+    client.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'UTC' }))
+    if (mode === 'single') {
+      const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+      await mutation.mutationFn({ habitId: 'habit-1', intent: 'log' })
+    } else {
+      const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>
+      await mutation.mutationFn([{ habitId: 'habit-1' }])
+    }
+    expect(apiClient).not.toHaveBeenCalled()
+    const queued = mocks.runQueuedMutation.mock.calls[0]?.[0]
+    expect(queued).toBeDefined()
+    vi.setSystemTime(new Date('2026-09-13T23:00:00Z'))
+    client.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'Pacific/Kiritimati' }))
+    await queued!.execute(queued!.mutation)
+    expect(apiClient).toHaveBeenCalledWith(mode === 'single' ? API.habits.log('habit-1') : API.habits.bulkLog,
+      { method: 'POST', body: JSON.stringify(mode === 'single' ? { date: '2026-09-12' }
+        : { items: [{ habitId: 'habit-1', date: '2026-09-12' }] }) }, expect.anything())
+    if (mode === 'single') expect((queued!.mutation as QueuedMutation).dedupeKey).toBe('habit-toggle:habit-1:2026-09-12')
+  })
+
+  it.each(['single', 'bulk'] as const)('admits an undated %s log to the queue after reconnect with an already-paused profile', async (mode) => {
+    client.mount()
+    onlineManager.setOnline(false)
+    vi.mocked(apiClient).mockResolvedValue(createMockProfile({ timeZone: 'UTC' }))
+    const profileObserver = new QueryObserver(client, {
+      queryKey: profileKeys.detail(),
+      queryFn: fetchProfile,
+    })
+    const unsubscribeProfile = profileObserver.subscribe(() => {})
+    const { observer, pending } = mode === 'single' ? (() => {
+      const observer = new MutationObserver(client, useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>)
+      return { observer, pending: observer.mutate({ habitId: 'habit-1', intent: 'log' }) }
+    })() : (() => {
+      const observer = new MutationObserver(client, useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string; date?: string }[], unknown>)
+      return { observer, pending: observer.mutate([{ habitId: 'habit-1' }, { habitId: 'habit-2', date: '2026-09-10' }]) }
+    })()
+    const unsubscribeMutation = observer.subscribe(() => {})
+    try {
+      expect(client.getQueryData(profileKeys.detail())).toBeUndefined()
+      expect(profileObserver.getCurrentResult().fetchStatus).toBe('paused')
+      await vi.waitFor(() => expect(observer.getCurrentResult().isPaused).toBe(true))
+      expect(mocks.runQueuedMutation).not.toHaveBeenCalled()
+      expect(apiClient).not.toHaveBeenCalled()
+
+      onlineManager.setOnline(true)
+
+      await vi.waitFor(() => expect(mocks.runQueuedMutation).toHaveBeenCalledOnce())
+      const request = mocks.runQueuedMutation.mock.calls[0]?.[0].mutation as QueuedMutation
+      expect(request.payload).toEqual(mode === 'single' ? {}
+        : { items: [{ habitId: 'habit-1' }, { habitId: 'habit-2', date: '2026-09-10' }] })
+      if (mode === 'single') expect(request.dedupeKey).toBe('habit-toggle:habit-1:2026-09-13')
+      await pending
+      await vi.waitFor(() => expect(profileObserver.getCurrentResult().fetchStatus).toBe('idle'))
+      expect(client.getQueryData(profileKeys.detail())).toMatchObject({ timeZone: 'UTC' })
+      expect(observer.getCurrentResult().isSuccess).toBe(true)
+    } finally {
+      unsubscribeMutation()
+      unsubscribeProfile()
+      client.unmount()
+      await client.cancelQueries()
+      await pending
+    }
+  })
+
+  it.each(['single', 'bulk'] as const)('omits an unknown account day without requesting a profile for an offline %s log', async (mode) => {
+    onlineManager.setOnline(false)
+    if (mode === 'single') {
+      const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
+      await mutation.mutationFn({ habitId: 'habit-1', intent: 'log' })
+    } else {
+      const mutation = useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string; date?: string }[], unknown>
+      await mutation.mutationFn([{ habitId: 'habit-1' }, { habitId: 'habit-2', date: '2026-09-10' }])
+    }
+    expect(mocks.runQueuedMutation).toHaveBeenCalledOnce()
+    const request = mocks.runQueuedMutation.mock.calls[0]?.[0].mutation as QueuedMutation
+    expect(request.payload).toEqual(mode === 'single' ? {}
+      : { items: [{ habitId: 'habit-1' }, { habitId: 'habit-2', date: '2026-09-10' }] })
+    expect(apiClient).not.toHaveBeenCalled()
+  })
+
+  it.each(['single', 'bulk'] as const)('resolves the account day independently of a fetching profile for an undated %s log', async (mode) => {
+    vi.mocked(apiClient).mockImplementationOnce(() => new Promise(() => {}))
+      .mockResolvedValueOnce(createMockProfile({ timeZone: 'UTC' }))
+    const profileObserver = new QueryObserver(client, { queryKey: profileKeys.detail(), queryFn: fetchProfile })
+    const unsubscribeProfile = profileObserver.subscribe(() => {})
+    const pending = mode === 'single'
+      ? (useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>)
+        .mutationFn({ habitId: 'habit-1', intent: 'log' })
+      : (useBulkLogHabits() as unknown as MutationConfig<unknown, { habitId: string }[], unknown>)
+        .mutationFn([{ habitId: 'habit-1' }])
+    try {
+      expect(profileObserver.getCurrentResult().fetchStatus).toBe('fetching')
+      await vi.waitFor(() => expect(mocks.runQueuedMutation).toHaveBeenCalledOnce())
+      await pending
+      expect(mocks.runQueuedMutation.mock.calls[0]?.[0].mutation).toMatchObject({
+        payload: mode === 'single' ? { date: '2026-09-12' } : { items: [{ habitId: 'habit-1', date: '2026-09-12' }] },
+      })
+      expect(client.getQueryData(profileKeys.detail())).toMatchObject({ timeZone: 'UTC' })
+      expect(apiClient).toHaveBeenCalledTimes(2)
+      for (const [endpoint] of vi.mocked(apiClient).mock.calls) expect(endpoint).toBe(API.profile.get)
+    } finally {
+      unsubscribeProfile()
+      await client.cancelQueries()
+      await pending
+    }
   })
 })

@@ -14,6 +14,7 @@ export function isHabitLoggedOnDate(habit: NormalizedHabit, date: string): boole
 export function isHabitSkippedOnDate(habit: NormalizedHabit, date: string): boolean {
   if (isPendingSkipOnDate(habit, date)) return true
   if (habit.isLoggedInRange) return false
+  if (habit.isSkippedOnDate != null) return habit.isSkippedOnDate
   if (habit.isFlexible) return habit.flexibleTarget === 0 && habit.flexibleCompleted === 0
   return habit.instances.some((instance) => instance.date === date && instance.status === 'Completed')
 }

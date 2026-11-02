@@ -9,6 +9,15 @@ import { runGate } from './check-critical-production-cves.mjs'
 
 const scriptPath = fileURLToPath(new URL('./check-critical-production-cves.mjs', import.meta.url))
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url))
+const packageRecords = {
+  'node_modules/form-data': { dev: false },
+  'node_modules/orval': { dev: true },
+  'node_modules/@xmldom/xmldom': { dev: false },
+  'node_modules/plist/node_modules/@xmldom/xmldom': { dev: false },
+  'node_modules/decode-uri-component': { dev: false },
+  'node_modules/expo-router': { dev: false },
+  'node_modules/query-string': { dev: false },
+}
 const productionCriticalReport = JSON.stringify({
   auditReportVersion: 2,
   vulnerabilities: {
@@ -100,6 +109,7 @@ async function run(command, args, options = {}) {
 
 test('fails and names a critical production advisory', () => {
   const result = runGate({
+    packageRecords,
     runAudit: () => ({ error: null, status: 1, stderr: '', stdout: productionCriticalReport }),
   })
 
@@ -111,6 +121,7 @@ test('fails and names a critical production advisory', () => {
 
 test('passes when the only critical advisory is dev only', () => {
   const result = runGate({
+    packageRecords,
     runAudit: () => ({ error: null, status: 1, stderr: '', stdout: devOnlyCriticalReport }),
   })
 
@@ -119,8 +130,9 @@ test('passes when the only critical advisory is dev only', () => {
   assert.doesNotMatch(result.stderr, /Critical production advisory found:/)
 })
 
-test('passes the real moderate-only production tree', () => {
+test('passes a moderate-only production tree', () => {
   const result = runGate({
+    packageRecords,
     runAudit: () => ({ error: null, status: 0, stderr: '', stdout: moderateOnlyReport }),
   })
 
@@ -135,6 +147,7 @@ test('uses the second response when the first audit attempt fails', () => {
   ]
   let attempts = 0
   const result = runGate({
+    packageRecords,
     runAudit: () => responses[attempts++],
   })
 

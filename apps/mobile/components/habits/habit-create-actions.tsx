@@ -6,10 +6,11 @@ import { ActionRow } from '@/components/ui/action-row'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export function HabitCreateActions({ presentation, pending, empty, subHabit, onCancel, onSubmit }: Readonly<{
+export function HabitCreateActions({ presentation, pending, empty, subHabit, task = false, onCancel, onSubmit }: Readonly<{
   presentation: 'sheet' | 'screen'
   pending: boolean
   empty: boolean
+  task?: boolean
   subHabit: boolean
   onCancel: () => void
   onSubmit: () => void
@@ -19,20 +20,22 @@ export function HabitCreateActions({ presentation, pending, empty, subHabit, onC
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { width } = useWindowDimensions()
   const screen = presentation === 'screen'
-  const label = subHabit ? t('common.create') : t('habits.createHabit')
-  const reason = empty ? <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: screen && width < 640 ? 'center' : 'left' }}>{t('habits.form.createWhy')}</Text> : null
+  const itemLabel = task ? t('habits.createTask') : t('habits.createHabit')
+  const label = subHabit ? t('common.create') : itemLabel
+  const guidance = task ? t('habits.form.taskCreateWhy') : t('habits.form.createWhy')
+  const reason = empty ? <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: screen && width < 640 ? 'center' : 'left' }}>{guidance}</Text> : null
   return <View style={{ gap: screen ? 8 : 16 }}>
     {!screen ? reason : null}
       {screen ? (
         <PillButton size="md" loading={pending}
-        hint={empty ? t('habits.form.createWhy') : undefined} onClick={onSubmit}>
+        hint={empty ? guidance : undefined} onClick={onSubmit}>
         {label}
       </PillButton>
       ) : (
         <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={pending} onClick={onCancel}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" loading={pending}
-        hint={empty ? t('habits.form.createWhy') : undefined} onClick={onSubmit}>
+        hint={empty ? guidance : undefined} onClick={onSubmit}>
         {label}
       </PillButton>
         </ActionRow>

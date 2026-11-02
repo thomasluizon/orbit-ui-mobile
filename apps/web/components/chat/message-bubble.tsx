@@ -97,6 +97,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
               src={message.imageUrl}
               alt={t('chat.attachmentPreview')}
               loading="lazy"
+              referrerPolicy="no-referrer"
               className="rounded-[12px] w-[200px] max-w-full h-48 object-cover mb-2"
               style={{ border: '1px solid var(--hairline)' }}
             />}

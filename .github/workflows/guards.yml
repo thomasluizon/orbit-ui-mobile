@@ -202,11 +202,12 @@ jobs:
         run: node tools/check-calibration.mjs
         if: ${{ !cancelled() && (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'calibration:reseed')) }}
       - id: expo-pin__1
-        name: "Expo SDK Pin: Expo-pinned versions still resolve to the SDK set"
+        name: "Expo SDK Pin: Dependencies resolve to the SDK 58 set"
         working-directory: apps/mobile
         run: |
           if [ '${{ github.event_name }}' != 'pull_request' ] || \
              grep -Eq '^(package-lock\.json|apps/mobile/package\.json)$' "$RUNNER_TEMP/changed-paths.txt"; then
+            node -e "if (require('expo/package.json').version.split('.')[0] !== '58') process.exit(1)"
             CI=1 npx expo install --check
           else
             echo "Expo pin skipped: no dependency manifest changed."

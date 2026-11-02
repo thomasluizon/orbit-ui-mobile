@@ -2,12 +2,56 @@ import { expect } from '@playwright/test'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { completeInstallOnboarding } from './install-onboarding'
 import { test } from './layout-test'
+import { test as optionTest } from './upgrade-fixtures'
 import { inspectControls } from './interaction-fill-states'
 import { captureControlInventory } from './interaction-fill-inventory'
 import { layoutRouteInventory } from './layout-route-inventory'
 import { installInteractionFillFixtures } from './interaction-fill-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+
+for (const width of [320, 360, 384, 412, 600, 1024, 1352]) {
+  for (const locale of ['en', 'pt-BR'] as const) {
+    for (const mode of ['light', 'dark'] as const) {
+      optionTest.describe(`option row clearance at ${width}px in ${locale} and ${mode}`, () => {
+        optionTest.use({ appLocale: locale, layoutProfile: { themePreference: mode }, viewport: { width, height: 1000 }, contextOptions: { reducedMotion: 'reduce' } })
+        optionTest('keeps hovered, pressed and focused options clear of selected neighbours', async ({ page }) => {
+          const words = (locale === 'en' ? en : ptBR).habits.form
+          await page.goto('/habits/new')
+          const screen = page.locator('[data-habit-create-screen]')
+          const type = screen.getByRole('radiogroup', { name: words.itemType, exact: true })
+          const habit = type.getByRole('radio', { name: new RegExp(words.typeHabit) })
+          await habit.click()
+          const frequency = screen.getByRole('radiogroup', { name: words.frequency, exact: true })
+          const timesPer = frequency.getByRole('radio', { name: words.timesPerUnit, exact: true })
+          const task = type.getByRole('radio', { name: new RegExp(words.typeTask) })
+          const dates = screen.getByRole('radiogroup', { name: words.datePhrase, exact: true })
+          const noDate = dates.getByRole('radio', { name: words.noSchedule, exact: true })
+          await page.evaluate(() => document.fonts.ready)
+          for (const [select, row, neighbour] of [
+            [() => timesPer.click(), frequency.getByRole('radio', { name: words.every, exact: true }), timesPer],
+            [() => habit.click(), task, habit],
+            [async () => { await task.click(); await noDate.click() }, dates.getByRole('radio', { name: words.taskDate, exact: true }), noDate],
+          ] as const) {
+            await select()
+            await expect(neighbour).toHaveAttribute('aria-checked', 'true')
+            await inspectControls(page, row, `option rows, ${width}px, ${locale}, ${mode}`, INTERACTION_FILL_CLEARANCE)
+            await expect(page.locator('[data-interaction-fill-probe]')).toHaveCount(0)
+            const bounds = (await row.boundingBox())!
+            const next = (await neighbour.boundingBox())!
+            expect(next.y - bounds.y - bounds.height).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+            expect(next.x).toBe(bounds.x)
+            expect(next.width).toBe(bounds.width)
+            const titleFits = await row.locator('[data-slot="list-row-title"]').evaluate(element =>
+              element.scrollWidth <= element.clientWidth && element.getBoundingClientRect().height <= parseFloat(getComputedStyle(element).lineHeight) + 1)
+            expect(titleFits).toBe(true)
+            await expect(neighbour).toHaveAttribute('aria-checked', 'true')
+          }
+        })
+      })
+    }
+  }
+}
 
 for (const change of ['remove', 'add', 'replace'] as const) {
   test(`interaction fill inventory settles after controls ${change} during capture`, async ({ page }) => {
@@ -82,7 +126,6 @@ for (const width of [320, 412, 600, 1024, 1352]) {
             await inspectControls(page, controls, `${route}, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE, counts)
             if (route === '/calendar') {
               await page.getByRole('radio', { name: words.calendar.view.week, exact: true }).click()
-              await page.locator('[data-interaction-fill-probe]').evaluateAll((elements) => elements.forEach((element) => element.removeAttribute('data-interaction-fill-probe')))
               const headers = page.getByTestId('time-grid-col-header')
               await expect(headers).toHaveCount(7)
               await inspectControls(page, headers, `calendar week header, ${width}px, ${locale}`, INTERACTION_FILL_CLEARANCE, counts)

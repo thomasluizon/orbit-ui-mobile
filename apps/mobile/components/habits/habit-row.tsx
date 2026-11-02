@@ -4,15 +4,13 @@ import { memo, useCallback, useMemo, useState, type ReactNode } from 'react'
 import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle, type LayoutChangeEvent } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
-  canLogHabitOnDate,
+  buildHabitRowDateModel,
   computeHabitCardStatus,
   formatAPIDate,
-  getTodayBoundary,
   isHabitDoneForRange,
   resolveHabitAccessibleStatus,
   getHabitInlineDepthLimit,
   stripInlineMarkdown,
-  type TodayBoundary,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitRowBase } from '@orbit/shared/contracts/lists'
@@ -62,6 +60,7 @@ function buildMenuItems(
   actions: HabitRowActions,
   isSelectMode: boolean,
   completionReadOnly: boolean,
+  isGeneral: boolean,
   isOverdue: boolean,
   hasSubHabits: boolean,
   t: (key: string) => string,
@@ -69,7 +68,7 @@ function buildMenuItems(
   const items: MenuItem[] = []
   if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.actions.addSubHabit'), icon: 'subtask' })
   if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.actions.moveUnder'), icon: 'arrows-move' })
-  if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
+  if (actions.onSkip && !completionReadOnly && !isGeneral) items.push({ id: 'skip', label: t('habits.actions.skip'), icon: 'player-skip-forward' })
   if (actions.onReschedule && isOverdue && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.rescheduleAstra'), icon: 'astra' })
   if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit'), icon: 'pencil' })
   if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate'), icon: 'copy' })
@@ -212,15 +211,6 @@ function resolveBodyPressAction(
   return selectMode ? actions.onToggleSelection : actions.onDetail
 }
 
-function resolveBoundaryCompletionReason(
-  boundary: TodayBoundary,
-  t: (key: string) => string,
-): string | undefined {
-  if (boundary === 'read-only') return t('habits.todayBoundary.readOnly')
-  if (boundary === 'future') return t('habits.todayBoundary.future')
-  return undefined
-}
-
 function useBodyPressFeedback(
   tokens: ReturnType<typeof createTokensV2>,
 ) {
@@ -274,6 +264,16 @@ function useHabitRowMetadataFit(metaParts: HabitRowMetaPart[]) {
   return { onContentWidth, onTokenWidth, narrow: keys.some((key) => (measurements.widths[key] ?? 0) > measurements.contentWidth) }
 }
 
+function getHabitRowDates(selectedDate: Date | undefined, today: string | undefined) {
+  const todayStr = today ?? formatAPIDate(new Date())
+  const scopedDate = selectedDate ? formatAPIDate(selectedDate) : undefined
+  return {
+    todayStr,
+    selectedDateStr: scopedDate ?? todayStr,
+    scopedDate,
+  }
+}
+
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal component; the flags are independent render inputs from the parent list, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitRow = memo(function HabitRow({
   habit,
@@ -288,7 +288,7 @@ export const HabitRow = memo(function HabitRow({
   isExpanded = false,
   completionReadOnly: completionReadOnlyOverride,
   completionReason: completionReasonOverride,
-  completionStatusUnavailable = false,
+  completionStatusUnavailable: completionStatusUnavailableOverride = false,
   childrenDone = 0,
   childrenTotal = 0,
   actions = EMPTY_HABIT_ROW_ACTIONS,
@@ -310,8 +310,7 @@ export const HabitRow = memo(function HabitRow({
   const { displayTime, displayReminderClock: displayClock } = useTimeFormat()
 
   const isChild = depth > 0
-  const todayStr = today ?? formatAPIDate(new Date())
-  const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
+  const { todayStr, selectedDateStr, scopedDate } = getHabitRowDates(selectedDate, today)
 
   const isDoneForRange = isHabitDoneForRange(habit)
   const status = useMemo(
@@ -320,10 +319,11 @@ export const HabitRow = memo(function HabitRow({
   )
 
   const isOverdue = status === 'overdue'
-  const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
-  const boundary = getTodayBoundary(selectedDateStr, todayStr)
-  const completionReadOnly = completionReadOnlyOverride ?? (boundary === 'read-only' || (boundary === 'future' && !canLog))
-  const completionReason = completionReasonOverride ?? resolveBoundaryCompletionReason(boundary, t)
+  const dateModel = buildHabitRowDateModel(habit, scopedDate, todayStr)
+  const { canLog, dateStatusKey } = dateModel
+  const completionStatusUnavailable = completionStatusUnavailableOverride || dateModel.completionStatusUnavailable
+  const completionReadOnly = dateModel.completionStatusUnavailable || (completionReadOnlyOverride ?? dateModel.completionReadOnly)
+  const completionReason = completionReasonOverride ?? translateCompletionReason(dateModel.completionReasonKey, t)
 
   const metaParts = buildHabitRowMetaParts({
     habit,
@@ -335,6 +335,7 @@ export const HabitRow = memo(function HabitRow({
     t,
     locale,
   })
+  if (dateStatusKey) metaParts.push({ kind: 'date-status', label: t(dateStatusKey) })
   if (habit.nextReminderAtUtc) metaParts.push({ kind: 'next', label: t('habits.nextReminder', { time: displayClock(habit.nextReminderAtUtc) }) })
   const { onContentWidth, onTokenWidth, narrow } = useHabitRowMetadataFit(metaParts)
   const supportingMeta = largeText || depthBoundary || narrow
@@ -347,11 +348,9 @@ export const HabitRow = memo(function HabitRow({
   const emoji = habit.emoji
 
   const [menuVisible, setMenuVisible] = useState(false)
-  const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
-  const menuItems = useMemo(
-    () => buildMenuItems(actions, isSelectMode, completionReadOnly, isOverdue, habit.hasSubHabits, t),
-    [actions, completionReadOnly, habit.hasSubHabits, isOverdue, isSelectMode, t],
-  )
+  const menuItems = buildMenuItems(actions, isSelectMode, completionReadOnly, habit.isGeneral, isOverdue, habit.hasSubHabits, t)
+
+  const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode) && menuItems.length > 0
 
   const handlePress = resolveBodyPressAction(isSelectMode, actions)
   const activation = useHabitRowActivation(handlePress, isSelectMode ? undefined : actions.onLongPressCard)
@@ -541,4 +540,8 @@ function habitRowBodyLayout(depth: number, supportingMeta: boolean): ViewStyle {
     paddingRight: supportingMeta ? SPACING.s0 : SPACING.s4,
     alignItems: supportingMeta ? 'flex-start' : 'center',
   }
+}
+
+function translateCompletionReason(key: ReturnType<typeof buildHabitRowDateModel>['completionReasonKey'], t: ReturnType<typeof useTranslation>['t']): string | undefined {
+  return key ? t(key) : undefined
 }

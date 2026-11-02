@@ -3487,6 +3487,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-conversation-delete-action",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation-delete-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation-delete-action.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-conversation-delete-action",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation-delete-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation-delete-action.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-conversation-delete-action",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation-delete-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation-delete-action.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-conversation-delete-action",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation-delete-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation-delete-action.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-conversation-motion",
       "platform": "web",
       "kind": "block",
@@ -7741,6 +7797,58 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-habit-timing-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-habit-timing-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-habit-timing-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-habit-timing-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/habit-timing-field.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -12771,6 +12879,118 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-conversation-delete-action",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/conversation-delete-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation-delete-action.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-conversation-delete-action",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/conversation-delete-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation-delete-action.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-conversation-delete-action",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/conversation-delete-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation-delete-action.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-conversation-delete-action",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/conversation-delete-action.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation-delete-action.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-conversation-image",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/conversation-image.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation-image.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-conversation-image",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/conversation-image.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation-image.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-conversation-image",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/conversation-image.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation-image.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-conversation-image",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/conversation-image.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation-image.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-conversation-motion",
       "platform": "mobile",
       "kind": "block",
@@ -12834,12 +13054,7 @@
       "href": "/chat",
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
-        "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
-        "apps/mobile/hooks/use-chat-composer.ts",
-        "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-speech-to-text.ts",
-        "apps/mobile/lib/chat-stream.ts"
+        "apps/mobile/components/chat/conversation.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -12853,12 +13068,7 @@
       "href": "/chat",
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
-        "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
-        "apps/mobile/hooks/use-chat-composer.ts",
-        "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-speech-to-text.ts",
-        "apps/mobile/lib/chat-stream.ts"
+        "apps/mobile/components/chat/conversation.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -12872,12 +13082,7 @@
       "href": "/chat",
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
-        "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
-        "apps/mobile/hooks/use-chat-composer.ts",
-        "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-speech-to-text.ts",
-        "apps/mobile/lib/chat-stream.ts"
+        "apps/mobile/components/chat/conversation.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -12891,12 +13096,7 @@
       "href": "/chat",
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
-        "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
-        "apps/mobile/hooks/use-chat-composer.ts",
-        "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-speech-to-text.ts",
-        "apps/mobile/lib/chat-stream.ts"
+        "apps/mobile/components/chat/conversation.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -12910,12 +13110,7 @@
       "href": "/chat",
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
-        "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
-        "apps/mobile/hooks/use-chat-composer.ts",
-        "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-speech-to-text.ts",
-        "apps/mobile/lib/chat-stream.ts"
+        "apps/mobile/components/chat/conversation.tsx"
       ],
       "state": "empty",
       "theme": "light",
@@ -12929,12 +13124,7 @@
       "href": "/chat",
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
-        "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
-        "apps/mobile/hooks/use-chat-composer.ts",
-        "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-speech-to-text.ts",
-        "apps/mobile/lib/chat-stream.ts"
+        "apps/mobile/components/chat/conversation.tsx"
       ],
       "state": "empty",
       "theme": "light",
@@ -12948,12 +13138,7 @@
       "href": "/chat",
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
-        "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
-        "apps/mobile/hooks/use-chat-composer.ts",
-        "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-speech-to-text.ts",
-        "apps/mobile/lib/chat-stream.ts"
+        "apps/mobile/components/chat/conversation.tsx"
       ],
       "state": "empty",
       "theme": "dark",
@@ -12967,12 +13152,7 @@
       "href": "/chat",
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
-        "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/chat/use-conversation-keyboard-scroll.ts",
-        "apps/mobile/hooks/use-chat-composer.ts",
-        "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-speech-to-text.ts",
-        "apps/mobile/lib/chat-stream.ts"
+        "apps/mobile/components/chat/conversation.tsx"
       ],
       "state": "empty",
       "theme": "dark",
@@ -15351,6 +15531,110 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-chat-conversation",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/chat/conversation.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-chat-conversation",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/chat/conversation.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-chat-conversation",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/chat/conversation.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-chat-conversation",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/chat/conversation.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-chat-conversation",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/chat/conversation.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-chat-conversation",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/chat/conversation.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation.tsx"
+      ],
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-chat-conversation",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/chat/conversation.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-chat-conversation",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/chat/conversation.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/chat/conversation.tsx"
+      ],
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-chat-pending-operation-card",
       "platform": "mobile",
       "kind": "overlay",
@@ -16807,6 +17091,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-habit-form-fields-habit-timing-field",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-habit-timing-field",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-habit-timing-field",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habit-form-fields-habit-timing-field",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/habit-form-fields/habit-timing-field.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-habit-form-fields-repeat-reminder-section",
       "platform": "mobile",
       "kind": "overlay",
@@ -17273,6 +17609,58 @@
       "ownedFiles": [
         "apps/mobile/components/milestone-share/milestone-share-card.tsx",
         "apps/mobile/components/milestone-share/milestone-share-prompt.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-navigation-destination-tab-bar",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/navigation/destination-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/navigation/destination-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-navigation-destination-tab-bar",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/navigation/destination-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/navigation/destination-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-navigation-destination-tab-bar",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/navigation/destination-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/navigation/destination-tab-bar.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-navigation-destination-tab-bar",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/navigation/destination-tab-bar.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/navigation/destination-tab-bar.tsx"
       ],
       "state": "default",
       "theme": "dark",

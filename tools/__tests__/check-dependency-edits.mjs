@@ -126,12 +126,13 @@ const expoBuildCases = () => {
     if (name === "expo-modules-jsi") {
       const producer = readFileSync(join(built.source, "apple/scripts/build-xcframework.sh"), "utf8")
       for (const assignment of [
-        'DERIVED_DATA_PATH="${PACKAGE_DIR}/.DerivedData"', 'SPM_BUILD_PATH="${PACKAGE_DIR}/.build"',
-        'SPM_WORKSPACE_PATH="${PACKAGE_DIR}/.swiftpm"',
-        'XCFRAMEWORK_PATH="${PACKAGE_DIR}/Products/${PACKAGE_NAME}.xcframework"',
+        'BUILD_ROOT="${EXPO_CUSTOM_BUILD_ROOT:-${PACKAGE_DIR}}"',
+        'DERIVED_DATA_PATH="${BUILD_ROOT}/.DerivedData"', 'SPM_BUILD_PATH="${BUILD_ROOT}/.build"',
+        'SPM_WORKSPACE_PATH="${BUILD_ROOT}/.swiftpm"',
+        'XCFRAMEWORK_PATH="${BUILD_ROOT}/Products/${PACKAGE_NAME}.xcframework"',
       ]) T(`JSI producer confirms ${assignment}`, producer.includes(assignment))
       T("JSI modulemap producer confirms the generated directory",
-        readFileSync(join(built.source, "apple/scripts/generate-modulemap.sh"), "utf8").includes('GENERATED_DIR="${PACKAGE_DIR}/.generated"'))
+        readFileSync(join(built.source, "apple/scripts/generate-modulemap.sh"), "utf8").includes('GENERATED_DIR="${EXPO_CUSTOM_BUILD_ROOT:-${PACKAGE_DIR}}/.generated"'))
     } else {
       const producer = readFileSync(join(built.source, "ios/ExpoSQLite.podspec"), "utf8")
       T("SQLite producer confirms vendor copies into ios", producer.includes("FileUtils.cp(source, destination)") &&

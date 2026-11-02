@@ -222,7 +222,42 @@ describe('useDrillNavigation', () => {
     expect(result.current.drillChildren.map((child) => child.id)).toEqual(['child1'])
   })
 
-  it('hides completed one-time and logged recurring children until Show completed is enabled', async () => {
+  it.each(['today', 'all', 'general'] as const)('keeps children on other dates and toggles only completed one-time tasks from %s', async (view) => {
+    const date = '2025-01-15'
+    const detail = makeDetailResponse()
+    detail.children = [
+      { ...detail.children[0]!, id: 'future', dueDate: '2025-02-01', position: 1 },
+      { ...detail.children[0]!, id: 'undated', isGeneral: true, position: 0 },
+      { ...detail.children[0]!, id: 'done-once', isCompleted: true, position: 2 },
+    ]
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(detail) })
+    const byId = new Map<string, NormalizedHabit>()
+    const options = { habitsById: byId, childrenByParent: new Map<string, string[]>(),
+      selectedDate: date, searchQuery: '', showCompleted: false, recentlyCompletedIds: new Set<string>() }
+    const { result, rerender } = renderHook(({ showCompleted }) =>
+      useDrillNavigation(byId, 0, { ...options, showCompleted }, view, date), { initialProps: { showCompleted: false } })
+    await act(async () => { await result.current.drillInto('parent1') })
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['undated', 'future'])
+    rerender({ showCompleted: true })
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['undated', 'future', 'done-once'])
+    expect(result.current.completedCount).toBe(0)
+  })
+
+  it('uses the cached nested parent title when that parent is absent from the date list', async () => {
+    const detail = makeDetailResponse()
+    const leaf = { ...detail.children[0]!, id: 'leaf', title: 'Leaf' }
+    detail.children = [{ ...detail.children[0]!, id: 'branch', title: 'Branch', children: [leaf] }]
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(detail) })
+    const { result } = renderHook(() => useDrillNavigation(new Map(), 0))
+    await act(async () => { await result.current.drillInto('parent1') })
+    await act(async () => { await result.current.drillInto('branch') })
+    expect(result.current.currentParent).toMatchObject({ id: 'branch', title: 'Branch' })
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['leaf'])
+    act(() => result.current.drillBack())
+    expect(result.current.currentParent?.id).toBe('parent1')
+  })
+
+  it('hides completed one-time children and keeps logged recurring children', async () => {
     const date = '2025-01-15'
     const detail = makeDetailResponse()
     detail.children = [
@@ -245,9 +280,9 @@ describe('useDrillNavigation', () => {
 
     const hidden = renderHook(() => useDrillNavigation(byId, 0, options, 'today'))
     await act(async () => { await hidden.result.current.drillInto('parent1') })
-    expect(hidden.result.current.drillChildren).toEqual([])
+    expect(hidden.result.current.drillChildren.map((child) => child.id)).toEqual(['recurring'])
     expect(hidden.result.current.hasUnfilteredChildren).toBe(true)
-    expect(hidden.result.current.canRevealCompletedChildren).toBe(true)
+    expect(hidden.result.current.canRevealCompletedChildren).toBe(false)
     hidden.unmount()
 
     const shown = renderHook(() => useDrillNavigation(byId, 0, {
@@ -282,7 +317,7 @@ describe('useDrillNavigation', () => {
     const options = {
       habitsById: byId,
       childrenByParent: new Map([['parent1', ['container']], ['container', ['active']]]),
-      selectedDate: date, searchQuery: '', showCompleted: false,
+      selectedDate: date, searchQuery: '', showCompleted: true,
       recentlyCompletedIds: new Set<string>(),
     }
 

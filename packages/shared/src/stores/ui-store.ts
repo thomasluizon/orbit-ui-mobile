@@ -94,6 +94,8 @@ export interface UIStoreState {
   setTodayComposerCollapsed: (collapsed: boolean) => void;
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
+  todayResetVersion: number;
+  resetToday: () => void;
 
   activeCelebration: CelebrationQueueItem | null;
   queuedCelebrations: CelebrationQueueItem[];
@@ -254,6 +256,17 @@ export function createUIStoreState(
     setCalendarShowRecurring: (calendarShowRecurring) => set({ calendarShowRecurring }),
     activeView: "today",
     setActiveView: (view) => set({ activeView: view }),
+    todayResetVersion: 0,
+    resetToday: () => set((state) => ({
+      todayResetVersion: state.todayResetVersion + 1,
+      activeView: "today",
+      activeFilters: {},
+      isSelectMode: false,
+      selectedHabitIds: new Set<string>(),
+      manuallySelectedIds: new Set<string>(),
+      showCreateModal: false,
+      astraConversationOpen: false,
+    })),
 
     dailyStreakMomentDate: "",
     showStreakMoment: (streak, previousStreak, log) => {

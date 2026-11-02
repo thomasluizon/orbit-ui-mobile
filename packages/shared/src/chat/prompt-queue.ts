@@ -1,3 +1,4 @@
+import type { ChatClientContext } from '../types/chat'
 import type { ChatStoreState } from '../stores/chat-store'
 import type { Profile } from '../types/profile'
 import type { PreparedChatTurn } from './stream-turn'
@@ -36,8 +37,19 @@ export async function sendQueuedChatPrompt(
   if (prompt) await prompt.send()
 }
 
+type ChatRequestContext = Pick<ChatClientContext, 'messageOrigin' | 'previousStartingStep' | 'selectedOfferKey'>
+
+export function resolveChatRequestContext(content: string | undefined, request?: 'followUp' | Omit<ChatRequestContext, 'messageOrigin'>): ChatRequestContext & { sendsComposerDraft: boolean } {
+  const context: ChatRequestContext = typeof request === 'object' ? request : { messageOrigin: request }
+  return { ...context, sendsComposerDraft: content === undefined && context.messageOrigin !== 'followUp' }
+}
+
+export function isChatReplyActive(chat: Pick<ChatStoreState, 'replyActive' | 'isTyping' | 'streamingMessageId'>): boolean {
+  return chat.replyActive || chat.isTyping || chat.streamingMessageId !== null
+}
+
 export function nextQueuedChatPrompt(chat: ChatStoreState): string | undefined {
-  if (!chat.queueReady || chat.queuePaused || chat.replyActive || chat.isTyping || chat.streamingMessageId !== null) return
+  if (!chat.queueReady || chat.queuePaused || isChatReplyActive(chat)) return
   return chat.queuedPrompts[0]?.id
 }
 

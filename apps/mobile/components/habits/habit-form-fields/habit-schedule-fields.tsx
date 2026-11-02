@@ -8,6 +8,7 @@ import { buildHabitFrequencyUnits, type HabitScheduleFieldsProps } from '@orbit/
 import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
 import { RadioGroup } from '@/components/ui/radio-group'
+import { FormSectionLabel } from './form-section-label'
 import { RadioRow } from '@/components/ui/select-check'
 
 function scheduleAvailability(locked: boolean | undefined, pending: boolean, reason: string) {
@@ -15,7 +16,7 @@ function scheduleAvailability(locked: boolean | undefined, pending: boolean, rea
   return locked ? { disabled: true as const, reason } : { disabled: false as const }
 }
 
-export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChange, onModeChange, proposed = false, hidden = false, general = false, generalLocked = false, onGeneral }: Readonly<HabitScheduleFieldsProps>) {
+export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChange, onModeChange, proposed = false, hidden = false }: Readonly<HabitScheduleFieldsProps>) {
   const { disabled: formDisabled, guard } = useHabitFormInteraction()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -29,6 +30,7 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
   if (hidden) return null
   return (
     <View style={styles.container}>
+      <FormSectionLabel>{t('habits.form.frequency')}</FormSectionLabel>
       <RadioGroup accessibilityLabel={t('habits.form.frequency')}>
         <Proposed keepMounted inset proposed={proposed && (Boolean(unit) && !flexible)} scope="row" label={t('habits.detail.proposed')}>
           <RadioRow proposed={proposed && (Boolean(unit) && !flexible)} label={t('habits.form.every')} selected={Boolean(unit) && !flexible} {...availability} onSelect={() => { if (!locked) onModeChange(false) }} />
@@ -36,9 +38,7 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
         <Proposed keepMounted inset proposed={proposed && flexible} scope="row" label={t('habits.detail.proposed')}>
           <RadioRow proposed={proposed && flexible} label={t('habits.form.timesPerUnit')} selected={flexible} {...availability} onSelect={() => { if (!locked) onModeChange(true) }} />
         </Proposed>
-        <RadioRow label={t('habits.form.noSchedule')} description={t('habits.form.noScheduleHint')} selected={general} {...scheduleAvailability(generalLocked || disabled, formDisabled, t('common.locked'))} onSelect={onGeneral ? guard(onGeneral) : undefined} />
       </RadioGroup>
-      {!general ? <>
       <Proposed keepMounted inset proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         <Input
           proposed={proposed}
@@ -64,7 +64,6 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
           ))}
         </RadioGroup>
       </View>
-      </> : null}
       {flexible && unit && quantity !== null && !invalid ? <Text style={[styles.hint, { color: tokens.fg3 }]}>{t('habits.form.flexibleDescription', { n: quantity, unit })}</Text> : null}
     </View>
   )

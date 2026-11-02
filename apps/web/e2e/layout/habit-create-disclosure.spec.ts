@@ -37,7 +37,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
     test.describe(`habit create disclosure in ${locale} at ${width}px`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
 
-      test('announces its state and names the reminders region', async ({ page }) => {
+      test('announces its state and reveals the Steps group', async ({ page }) => {
         await page.goto('/habits/new')
         const messages = locale === 'en' ? en : ptBr
         const screen = page.locator('[data-habit-create-screen]')
@@ -50,7 +50,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
         const regionId = await disclosure.getAttribute('aria-controls')
         const region = screen.locator(`[id=${JSON.stringify(regionId)}]`)
         await expect(region).toHaveCount(1)
-        await expect(region.getByRole('heading', { name: messages.habits.form.reminders, exact: true })).toBeVisible()
+        await expect(region.getByRole('heading', { name: messages.habits.form.steps, exact: true })).toBeVisible()
 
         await disclosure.click()
         await expect(disclosure).toHaveAttribute('aria-expanded', 'false')
@@ -74,14 +74,14 @@ for (const locale of ['pt-BR', 'en'] as const) {
             if (scale === 2) await page.addStyleTag({ content: ':root{font-size:32px!important}' })
             await page.evaluate(() => document.fonts.ready)
             const screen = page.locator('[data-habit-create-screen]')
-            const submit = page.locator('[data-habit-create-action]').getByRole('button', { name: messages.habits.createHabit, exact: true })
+            const submit = page.locator('[data-habit-create-action]').getByRole('button', { name: messages.habits.createTask, exact: true })
             await expect(submit).toBeEnabled()
             await submit.click()
-            const task = screen.getByRole('radio', { name: messages.habits.form.typeTask, exact: true })
-            await expect(task).toBeFocused()
-            await expect(screen.getByText(messages.habits.form.typeRequired, { exact: true })).toBeVisible()
+            const task = screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })
+            await expect(task).toBeChecked()
+            await expect(screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) })).toBeChecked()
             await task.click()
-            await screen.getByRole('textbox', { name: messages.habits.form.describe, exact: true }).fill('Read every Monday')
+            await screen.getByRole('textbox', { name: messages.habits.form.taskDescribe, exact: true }).fill('Read every Monday')
             const phrase = screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })
             const date = screen.getByRole('button', { name: new RegExp(messages.habits.form.taskDate) })
             await expect(date).toBeVisible()
@@ -109,11 +109,13 @@ for (const locale of ['pt-BR', 'en'] as const) {
             await expect(date).toHaveText(formatLocaleDate('2026-09-05', locale))
             await expect(screen.getByRole('button', { name: messages.habits.form.suggestDate, exact: true })).toHaveCount(0)
             await expect(screen.getByRole('button', { name: messages.habits.form.acceptDate, exact: true })).toHaveCount(0)
-            await screen.getByRole('radio', { name: messages.habits.form.typeHabit, exact: true }).click()
-            await screen.getByRole('button', { name: messages.habits.form.moreDetails, exact: true }).click()
-            await screen.getByRole('radio', { name: new RegExp(messages.habits.form.noSchedule) }).click()
-            await expect(screen.locator('[data-habit-date-field]')).toHaveCount(0)
-            await screen.getByRole('radio', { name: messages.habits.form.every, exact: true }).click()
+            await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) }).click()
+            const frequency = screen.getByRole('radiogroup', { name: messages.habits.form.frequency, exact: true })
+            await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) }).click()
+            await screen.getByRole('radio', { name: messages.habits.form.noSchedule, exact: true }).click()
+            await expect(phrase).toHaveCount(0)
+            await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeHabit) }).click()
+            await expect(frequency.getByRole('radio')).toHaveCount(2)
             await expect(screen.getByRole('button', { name: new RegExp(messages.habits.form.habitStartDate) })).toBeVisible()
             const geometry = await screen.evaluate((element) => ({
               scroll: document.documentElement.scrollWidth,
@@ -155,7 +157,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
       try {
         await page.goto('/habits/new')
         await page.addStyleTag({ content: ':root{font-size:32px!important}' })
-        await screen.getByRole('radio', { name: messages.habits.form.typeTask, exact: true }).click()
+        await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) }).click()
         await phrase.fill(wording)
         await expect(phrase).toHaveValue(wording)
         await expect(date).toHaveText(messages.common.selectDate)
@@ -178,7 +180,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
         const messages = locale === 'en' ? en : ptBr
         await page.goto('/habits/new')
         const screen = page.locator('[data-habit-create-screen]')
-        await screen.getByRole('radio', { name: messages.habits.form.typeTask, exact: true }).click()
+        await screen.getByRole('radio', { name: new RegExp(messages.habits.form.typeTask) }).click()
         const phrase = screen.getByRole('textbox', { name: messages.habits.form.datePhrase, exact: true })
         const date = screen.getByRole('button', { name: new RegExp(messages.habits.form.taskDate) })
         const consultations: string[] = []

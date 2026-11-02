@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import postcss from 'postcss'
+import en from '@orbit/shared/i18n/en.json'
+import { settleAnimations } from '@/e2e/layout/settle-animations'
 import tailwind from '@tailwindcss/postcss'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -16,6 +18,10 @@ beforeAll(async () => {
   const source = resolve(process.cwd(), 'app/globals.css')
   const tokens = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
   stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${tokens}}`
+  for (const [name, weight] of [['geist', '400 600'], ['space-grotesk', '500 600'], ['geist-mono', '400 500']]) {
+    const font = readFileSync(resolve(process.cwd(), `fonts/${name}-latin.woff2`)).toString('base64')
+    stylesheet += `@font-face{font-family:'${name}';font-weight:${weight};src:url(data:font/woff2;base64,${font})}:root{--font-${name}:'${name}'}`
+  }
   script = execFileSync(process.execPath, ['--input-type=module', '-e', `
     import { build } from 'esbuild';
     const polyfill = await build({ entryPoints: ['next/dist/compiled/process'], bundle: true, write: false,
@@ -37,25 +43,59 @@ beforeAll(async () => {
 }, 30_000)
 afterAll(async () => { await closeChrome(launch) })
 
-it.each([
+it.each(([
   { reducedMotion: 'no-preference', width: 412, height: 915, fontScale: 1 },
   { reducedMotion: 'reduce', width: 412, height: 915, fontScale: 1 },
+  { reducedMotion: 'no-preference', width: 915, height: 412, fontScale: 1 },
+  { reducedMotion: 'reduce', width: 915, height: 412, fontScale: 1 },
   { reducedMotion: 'no-preference', width: 915, height: 412, fontScale: 2 },
   { reducedMotion: 'reduce', width: 915, height: 412, fontScale: 2 },
-] as const)('anchors real HabitList bulk skips, motion=$reducedMotion at $width x $height and $fontScale text', async ({ reducedMotion, width, height, fontScale }) => {
+] as const).flatMap((viewport) => (['pointer', 'keyboard'] as const).map((activation) => ({ ...viewport, activation }))))('anchors real HabitList bulk skips via $activation, motion=$reducedMotion at $width x $height and $fontScale text', async ({ reducedMotion, width, height, fontScale, activation }) => {
   const page = await browser.newPage({ viewport: { width, height }, reducedMotion })
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   try {
-    await page.route('https://habit-list.test/', (route) => route.fulfill({ contentType: 'text/html', body: `<!doctype html><style>${stylesheet}</style><div id="root"></div>` }))
+    await page.route('https://habit-list.test/', (route) => route.fulfill({ contentType: 'text/html', body: `<!doctype html><style>${stylesheet}</style><body class="font-sans"><div id="root"></div></body>` }))
     await page.goto('https://habit-list.test/')
     await page.evaluate((scale) => { document.documentElement.style.fontSize = `${scale * 100}%` }, fontScale)
     await page.addScriptTag({ content: script })
+    await page.evaluate(() => document.fonts.ready)
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 30, undefined, { timeout: 5000 })
       .catch(async (cause: unknown) => { throw new Error(JSON.stringify({ errors, body: await page.locator('body').innerText() }), { cause }) })
+    const trigger = page.locator('[data-habit-row-control="menu"]').first()
+    if (activation === 'pointer') await trigger.click()
+    else { await trigger.focus(); await page.keyboard.press('Enter') }
+    const menu = page.getByRole('menu')
+    await menu.evaluate(settleAnimations)
+    const menuItems = menu.getByRole('menuitem')
+    expect(await menuItems.allTextContents()).toEqual([
+      en.habits.actions.addSubHabit, en.habits.actions.moveUnder, en.habits.actions.skip,
+      en.common.edit, en.habits.actions.duplicate, en.common.select, en.habits.actions.delete,
+    ])
+    for (const [index, item] of (await menuItems.all()).entries()) {
+      if (activation === 'pointer') await item.scrollIntoViewIfNeeded()
+      else {
+        await page.keyboard.press(index === 0 ? 'Home' : 'ArrowDown')
+        await expect.poll(() => item.evaluate((element) => document.activeElement === element)).toBe(true)
+      }
+      const reachable = await item.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+        return bounds.top >= 0 && bounds.bottom <= innerHeight && (hit === element || element.contains(hit))
+      })
+      expect(reachable).toBe(true)
+    }
+    const select = menu.getByRole('menuitem', { name: 'Select', exact: true })
+    if (activation === 'pointer') await select.click({ timeout: 3000 })
+    else {
+      await page.keyboard.press('ArrowUp')
+      await expect.poll(() => select.evaluate((element) => document.activeElement === element)).toBe(true)
+      await page.keyboard.press('Enter')
+    }
+    await page.getByRole('button', { name: 'Select all', exact: true }).click()
     const before = await page.locator('[data-shell-scroller]').evaluate((element) => {
       element.scrollTop = 650
-      return { offset: element.scrollTop, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-habit-list]')!.style.minHeight }
+      return { offset: element.scrollTop, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-shell-page-content]')!.style.minHeight }
     })
     expect(before.offset).toBe(650)
     const observations = page.locator('[data-shell-scroller]').evaluate((element) => new Promise<{ departures: number; offsets: number[]; minimum: string; remaining: number; viewport: number }>((done) => {
@@ -69,7 +109,7 @@ it.each([
         if (departures > 0) departureStarted ??= performance.now()
         const remaining = element.querySelectorAll('[data-testid="habit-row"]').length
         const settled = remaining === 0 && departureStarted !== undefined && performance.now() - departureStarted > 1000
-        if (settled || performance.now() - start > 5000) done({ departures, offsets, remaining, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-habit-list]')!.style.minHeight })
+        if (settled || performance.now() - start > 5000) done({ departures, offsets, remaining, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-shell-page-content]')!.style.minHeight })
         else requestAnimationFrame(sample)
       }
       requestAnimationFrame(sample)
@@ -82,7 +122,7 @@ it.each([
     await page.locator('[data-shell-scroller]').evaluate((element) => { element.scrollTop = 0 })
     await page.waitForFunction(() => {
       const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
-      return scroller.scrollTop === 0 && Number.parseFloat(scroller.querySelector<HTMLElement>('[data-habit-list]')!.style.minHeight) <= scroller.clientHeight
+      return scroller.scrollTop === 0 && scroller.querySelector<HTMLElement>('[data-shell-page-content]')!.clientHeight <= Math.max(scroller.clientHeight, scroller.querySelector<HTMLElement>('#orbit-main')!.clientHeight)
     }, undefined, { timeout: 5000 })
     expect(errors).toEqual([])
   } finally { await page.close() }

@@ -38,8 +38,8 @@ describe('date ownership across form transitions', () => {
     const form = () => <QueryClientProvider client={client}><OwningForm /></QueryClientProvider>
     const view = render(form())
     const phrase = (value: string) => fireEvent.change(screen.getByRole('textbox', { name: 'habits.form.datePhrase' }), { target: { value } })
-    const general = () => fireEvent.click(screen.getByRole('radio', { name: /habits.form.noSchedule/ }))
-    const recurring = () => fireEvent.click(screen.getByRole('radio', { name: 'habits.form.every' }))
+    const general = () => { fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ })); fireEvent.click(screen.getByRole('radio', { name: 'habits.form.noSchedule' })) }
+    const recurring = () => fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeHabit/ }))
     return { lockGeneral: () => { lockedGeneral = true; view.rerender(form()) }, values: () => helpers.form.getValues(), helpers: () => helpers, phrase, general, recurring, refresh: () => view.rerender(form()), remountFields: () => { fieldsVersion++; view.rerender(form()) } }
   }
 
@@ -109,7 +109,7 @@ describe('date ownership across form transitions', () => {
 
   it('recovers Task wording through the same-date manual picker', () => {
     const owner = mountDateForm()
-    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ }))
     owner.phrase('weekly')
     act(() => { owner.helpers().validateAll() })
     fireEvent.click(screen.getByRole('button', { name: /habits.form.taskDate/ }))
@@ -122,7 +122,7 @@ describe('date ownership across form transitions', () => {
   it.each(['en', 'pt-BR'])('retains deliberate Task with one %s recovery and real type focus', (locale) => {
     formLocale.language = locale
     const owner = mountDateForm()
-    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ }))
     const input = screen.getByRole('textbox', { name: 'habits.form.datePhrase' })
     input.focus()
     owner.phrase('every week')
@@ -131,40 +131,29 @@ describe('date ownership across form transitions', () => {
     expect(screen.getAllByText('habits.form.recurrenceRequiresHabit')).toHaveLength(1)
     expect(screen.queryByRole('button', { name: 'habits.form.suggestDate' })).toBeNull()
     act(() => { expect(owner.helpers().validateAll()).toBe('habits.form.recurrenceRequiresHabit') })
-    expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toHaveFocus()
-    expect(screen.getByRole('radio', { name: 'habits.form.typeTask' })).toBeChecked()
-    expect(screen.getByRole('radiogroup', { name: 'habits.form.itemType' })).toHaveAttribute('aria-invalid', 'false')
-    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeHabit' }))
+    expect(screen.getByRole('radio', { name: /^habits.form.typeTask/ })).toHaveFocus()
+    expect(screen.getByRole('radio', { name: /^habits.form.typeTask/ })).toBeChecked()
+    expect(screen.getByRole('radiogroup', { name: 'habits.form.itemType' })).not.toHaveAttribute('aria-invalid')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeHabit/ }))
     expect(owner.values()).toMatchObject({ itemType: 'habit', frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-20', dateIssue: '' })
     act(() => { expect(owner.helpers().validateAll()).toBeNull() })
     expect(dateRequests.request).not.toHaveBeenCalled()
   })
 
-  it.each([false, true])('resolves weekly Task wording after a General draft, inherited lock=%s', (locked) => {
+  it('resolves weekly Task wording after an undated draft', () => {
     const owner = mountDateForm()
     owner.general()
-    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.taskDate' }))
     owner.phrase('dia 23')
     owner.phrase('weekly')
-    if (locked) owner.lockGeneral()
-    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeHabit' }))
-    if (locked) {
-      expect(owner.values()).toMatchObject({ itemType: 'habit', isGeneral: true, frequencyUnit: null, dateIssue: 'errors.api.generalMismatchWithParent' })
-      expect(screen.getAllByText('errors.api.generalMismatchWithParent')).toHaveLength(1)
-      act(() => { expect(owner.helpers().validateAll()).toBe('errors.api.generalMismatchWithParent') })
-      expect(screen.getByRole('radio', { name: 'habits.form.typeHabit' })).toHaveFocus()
-      const request = buildCreateHabitRequest(habitFormSchema.parse(owner.values()), [], [], [], [])
-      expect(request.isGeneral).toBe(true)
-      expect(request).not.toHaveProperty('frequencyUnit')
-      expect(request).not.toHaveProperty('startDate')
-    } else {
-      expect(owner.values()).toMatchObject({ itemType: 'habit', isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-23', datePhrase: 'weekly', dateIssue: '' })
-      expect(buildCreateHabitRequest(habitFormSchema.parse(owner.values()), [], [], [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-23' })
-      act(() => { expect(owner.helpers().validateAll()).toBeNull() })
-      owner.refresh()
-      owner.remountFields()
-      expect(owner.values()).toMatchObject({ isGeneral: false, frequencyUnit: 'Week', dueDate: '2026-10-23', dateIssue: '' })
-    }
+    fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeHabit/ }))
+    expect(owner.values()).toMatchObject({ itemType: 'habit', isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-23', datePhrase: 'weekly', dateIssue: '' })
+    expect(buildCreateHabitRequest(habitFormSchema.parse(owner.values()), [], [], [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-23' })
+    act(() => { expect(owner.helpers().validateAll()).toBeNull() })
+    owner.refresh()
+    owner.remountFields()
+    expect(owner.values()).toMatchObject({ isGeneral: false, frequencyUnit: 'Week', dueDate: '2026-10-23', dateIssue: '' })
     expect(dateRequests.request).not.toHaveBeenCalled()
   })
 
@@ -229,7 +218,7 @@ describe('date ownership across form transitions', () => {
 
   it.each([false, true])('clears the persisted end date in a real task conversion, flexible: %s', (flexible) => {
     const owner = mountDateForm(flexible)
-    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.typeTask' }))
+    fireEvent.click(screen.getByRole('radio', { name: /^habits.form.typeTask/ }))
     expect(owner.values()).toMatchObject({ endDate: '', frequencyUnit: null, isFlexible: false, itemType: 'task' })
     act(() => { expect(owner.helpers().validateAll()).toBeNull() })
     const request = buildUpdateHabitRequest(habitFormSchema.parse(owner.values()), owner.helpers().isOneTime, '2026-12-01', [], [])

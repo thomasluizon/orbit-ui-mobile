@@ -205,7 +205,7 @@ export function useSearchHabits(filters: HabitsFilter) {
     queryFn: () => fetchJson<PaginatedResponse<HabitScheduleItem>>(
       buildUrlWithQuery(API.habits.list, buildHabitQueryString(filters)),
     ),
-    select: (response): NormalizedHabitsData => normalizeHabitQueryData(response.items, response),
+    select: (response): NormalizedHabitsData => normalizeHabitQueryData(response.items, response, 'response'),
     staleTime: QUERY_STALE_TIMES.habits,
   })
 }

@@ -20,11 +20,10 @@ export function HabitTypeField({ formHelpers, lockedGeneral, onChange }: Readonl
   return (
       <View style={{ minWidth: 0, gap: 8 }}>
         <Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{t('habits.form.itemType')}</Text>
-        <RadioGroup accessibilityLabel={t('habits.form.itemType')} focusRequest={errors.itemType || recurrenceMismatch ? formHelpers.validationFocusRequest : undefined} accessibilityHint={errors.itemType ? t('habits.form.typeRequired') : recurrenceMismatch ? t('habits.form.recurrenceRequiresHabit') : undefined}>
-          <RadioRow wrapLabel label={t('habits.form.typeTask')} selected={itemType === 'task'} {...(disabled ? { disabled: true as const, reasonScope: 'group' as const } : lockedGeneral === true ? { disabled: true as const, reason: t('common.locked') } : { disabled: false as const })} onSelect={() => choose('task')} />
-          <RadioRow wrapLabel label={t('habits.form.typeHabit')} selected={itemType === 'habit'} {...(disabled ? { disabled: true as const, reasonScope: 'group' as const } : { disabled: false as const })} onSelect={() => choose('habit')} />
+        <RadioGroup accessibilityLabel={t('habits.form.itemType')} focusRequest={recurrenceMismatch ? formHelpers.validationFocusRequest : undefined} accessibilityHint={recurrenceMismatch ? t('habits.form.recurrenceRequiresHabit') : undefined}>
+          <RadioRow wrapLabel label={t('habits.form.typeTask')} description={t('habits.form.typeTaskHint')} selected={itemType === 'task'} {...(disabled ? { disabled: true as const, reasonScope: 'group' as const } : { disabled: false as const })} onSelect={() => choose('task')} />
+          <RadioRow wrapLabel label={t('habits.form.typeHabit')} description={t('habits.form.typeHabitHint')} selected={itemType === 'habit'} {...(disabled ? { disabled: true as const, reasonScope: 'group' as const } : lockedGeneral === true ? { disabled: true as const, reason: t('common.locked') } : { disabled: false as const })} onSelect={() => choose('habit')} />
         </RadioGroup>
-        {errors.itemType ? <Text style={{ color: tokens.statusBadText, fontSize: 14 }}>{t('habits.form.typeRequired')}</Text> : null}
       </View>
   )
 }

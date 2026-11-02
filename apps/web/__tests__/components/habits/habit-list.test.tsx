@@ -4,6 +4,7 @@ import { createMoveInventoryFixture } from '@orbit/shared/__tests__/move-invento
 import { createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { personalText } from '@/__tests__/support/personal-text'
+import { makeMonthlyChildDaySchedule } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react'
 import React from 'react'
@@ -411,7 +412,7 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
 })
 
 vi.mock('@/components/habits/create-habit-modal', () => ({
-  CreateHabitModal: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="Create habit" /> : null,
+  CreateHabitModal: ({ open, parentHabit }: { open: boolean; parentHabit?: NormalizedHabit }) => open ? <div role="dialog" aria-label="Create habit" data-parent-id={parentHabit?.id} /> : null,
 }))
 
 vi.mock('@/components/habits/reschedule-sheet', () => ({
@@ -532,6 +533,28 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  it.each((['today', 'all'] as const).flatMap((view) => [true, false].map((skipped) => ({ view, skipped }))))(
+    'uses the selected-date child status in $view with skipped=$skipped', ({ view, skipped }) => {
+      const schedule = makeMonthlyChildDaySchedule(TODAY, '2026-10-12')
+      schedule.children[0]!.isSkippedOnDate = skipped
+      Object.assign(mockHabitsData, normalizeHabitQueryData([schedule]))
+      rowImplementation.actual = true
+      useActualHabitVisibility = true
+      const { container } = renderWithProviders(<HabitList view={view} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted />)
+      const child = container.querySelector('[data-habit-id="child-1"]')
+      if (view === 'today') expect(child).toBeNull()
+      else {
+        expect(child!.querySelector('[data-habit-row-meta]')).toHaveTextContent(skipped ? 'habits.statusDot.skip' : 'calendar.dayCell.notScheduled')
+        expect(child!.querySelector('[data-habit-check]')).toHaveAttribute('data-status', 'unavailable')
+        expect(child!.querySelector('[data-habit-row-control="check"]')).toHaveAttribute('aria-disabled', 'true')
+        fireEvent.click(child!.querySelector('[data-habit-row-control="check"]')!)
+        expect(logHabitMutateAsync).not.toHaveBeenCalled()
+      }
+      expect(container.querySelector('[data-habit-id="habit-1"] [data-habit-row-control="check"]')).not.toHaveAttribute('aria-disabled', 'true')
+      expect(container.querySelector('[data-habit-id="child-2"] [data-habit-check]')).toHaveAttribute('data-status', 'done')
+    },
+  )
+
   beforeEach(() => {
     moveModuleLoad.generation++
     moveModuleLoad.hold = null
@@ -1805,19 +1828,44 @@ describe('HabitList', () => {
     expect(within(row).getByRole('button', { name: 'habits.actions.more' })).toBeEnabled()
   })
 
-  it('opens sub-habit creation for a free account from the habit list', async () => {
+  it.each(['main', 'drill-row', 'drill-footer'])('opens sub-habit creation for a free account from %s', async (surface) => {
     accountDate.hasProAccess = false
     try {
       const habit = createMockHabit({ id: 'free-parent', title: 'Parent', scheduledDates: [TODAY] })
       mockHabitsData.habitsById.set(habit.id, habit)
       mockHabitsData.topLevelHabits = [habit]
       mockHabitsData.totalCount = 1
+      const drillOnly = createMockHabit({ id: 'off-date', title: 'Off date', parentId: habit.id, dueDate: '2027-01-01', scheduledDates: [] })
+      if (surface !== 'main') {
+        mockDrillState.currentParent = surface === 'drill-footer' ? drillOnly : habit
+        mockDrillState.currentParentId = mockDrillState.currentParent.id
+        mockDrillState.drillStack = surface === 'drill-footer' ? [habit.id, drillOnly.id] : [habit.id]
+        mockDrillState.drillChildren = surface === 'drill-footer' ? [] : [drillOnly]
+        expect(mockHabitsData.habitsById.has(drillOnly.id)).toBe(false)
+      }
       renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
       routerPush.mockClear()
-      fireEvent.click(screen.getByTestId('add-sub-free-parent'))
+      fireEvent.click(surface === 'drill-footer'
+        ? screen.getByRole('button', { name: 'habits.form.addSubHabit' })
+        : screen.getByTestId(`add-sub-${surface === 'main' ? habit.id : drillOnly.id}`))
       expect(await screen.findByRole('dialog', { name: 'Create habit' })).toBeVisible()
+      expect(screen.getByRole('dialog', { name: 'Create habit' })).toHaveAttribute('data-parent-id', surface === 'main' ? habit.id : drillOnly.id)
       expect(routerPush).not.toHaveBeenCalled()
     } finally { accountDate.hasProAccess = true }
+  })
+
+  it.each([['one-time', null, true], ['recurring', 'Day', false]] as const)('handles a drill-only %s child on the selected future date', async (_kind, frequencyUnit, permitted) => {
+    const parent = createMockHabit({ id: 'parent', hasSubHabits: true, scheduledDates: [TOMORROW] })
+    const child = createMockHabit({ id: 'off-date', parentId: parent.id, frequencyUnit, frequencyQuantity: frequencyUnit ? 1 : null, dueDate: '2027-01-01', scheduledDates: [] })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.topLevelHabits = [parent]
+    Object.assign(mockDrillState, { currentParent: parent, currentParentId: parent.id, drillStack: [parent.id], drillChildren: [child] })
+    renderWithProviders(<HabitList view="today" filters={{ dateFrom: TOMORROW, dateTo: TOMORROW }} selectedDate={new Date(`${TOMORROW}T09:00:00Z`)} />)
+    expect(mockHabitsData.habitsById.has(child.id)).toBe(false)
+    expect(screen.getByTestId(`habit-card-${child.id}`)).toHaveAttribute('data-can-log', permitted ? 'yes' : 'no')
+    await act(async () => { fireEvent.click(screen.getByTestId(`log-${child.id}`)) })
+    if (permitted) expect(logHabitMutateAsync).toHaveBeenCalledExactlyOnceWith({ habitId: child.id, date: TOMORROW, intent: 'log' })
+    else expect(logHabitMutateAsync).not.toHaveBeenCalled()
   })
 
   it('explains an offline sub-habit request beside the parent row', () => {
@@ -2175,11 +2223,11 @@ describe('HabitList', () => {
     expect(screen.getByRole('button', { name: 'habits.seeUpcoming' })).toHaveAttribute('data-variant', 'ghost')
   })
 
-  it('shows all-done above an unfinished anytime habit with a 24 gap', async () => {
+  it('shows all-done above an unfinished undated task with a 24 gap', async () => {
     useActualHabitVisibility = true
     accountHabitCount.count = 2
     const due = createMockHabit({ id: 'due', title: 'Due habit', scheduledDates: [TODAY], isLoggedInRange: true })
-    const anytime = createMockHabit({ id: 'anytime', title: 'Anytime habit', isGeneral: true })
+    const anytime = createMockHabit({ id: 'anytime', title: 'Undated task', isGeneral: true })
     mockHabitsData.habitsById = new Map([[due.id, due], [anytime.id, anytime]])
     mockHabitsData.topLevelHabits = [due, anytime]
     mockHabitsData.totalCount = 2
@@ -2187,8 +2235,8 @@ describe('HabitList', () => {
     const { container } = renderWithProviders(<HabitList filters={defaultFilters} view="today" showCompleted={false} />)
 
     expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
-    expect(screen.getByText(personalText('Anytime habit'))).toBeInTheDocument()
-    expect(screen.getByText('habits.allDoneToday').compareDocumentPosition(screen.getByText(personalText('Anytime habit'))) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByText(personalText('Undated task'))).toBeInTheDocument()
+    expect(screen.getByText('habits.allDoneToday').compareDocumentPosition(screen.getByText(personalText('Undated task'))) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const cssPath = resolve('app/globals.css')
     const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
     const launch = launchChrome()

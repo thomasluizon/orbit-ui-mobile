@@ -6,12 +6,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getRoutes } from 'expo-router/build/getRoutes'
 import type { RequireContext } from 'expo-router/build/types'
 import { Route } from 'expo-router/build/Route'
-import { StackRouter } from 'expo-router/build/react-navigation/routers/StackRouter'
+
 import { RootStackScreens } from '@/components/navigation/root-stack-screens'
 import { redirectSystemPath } from '@/app/+native-intent'
 import { useAuthStore } from '@/stores/auth-store'
 
-const navigation = vi.hoisted(() => ({ routeNames: [] as string[] }))
+const navigation = vi.hoisted((): { routeNames: string[]; target: string; redirect: unknown } => ({ routeNames: [], target: 'login', redirect: undefined }))
 
 vi.mock('expo-router', async () => {
   const routeContext = await import('expo-router/build/Route')
@@ -26,15 +26,14 @@ vi.mock('expo-router', async () => {
     '../native-tabs/NativeTabTrigger': { isNativeTabTrigger: () => false },
     '../views/Screen': { Screen, isScreen: (child: React.ReactNode) => React.isValidElement(child) && child.type === Screen },
     '../views/Protected': { isProtectedReactElement: (child: React.ReactNode) => React.isValidElement(child) && child.type === Protected },
-    './IsWithinLayoutContext': { IsWithinLayoutContext: React.createContext(false) },
     './primitives': { Screen },
   }
   function loadModule(path: string) {
     const moduleRequire = createRequire(nativeRequire.resolve(path))
     const previousModules = new Map<string, NodeModule | undefined>()
     const importedModules = path.endsWith('useScreens')
-      ? Object.entries(dependencies).filter(([name]) => !name.startsWith('../') && name !== './IsWithinLayoutContext')
-      : Object.entries(dependencies).filter(([name]) => name.startsWith('../') || name === './IsWithinLayoutContext' || !name.startsWith('.'))
+      ? Object.entries(dependencies).filter(([name]) => !name.startsWith('../') && name !== './GuardContext')
+      : Object.entries(dependencies).filter(([name]) => name.startsWith('../') || name === './GuardContext' || !name.startsWith('.'))
     for (const [name, exports] of importedModules) {
       const filename = moduleRequire.resolve(name)
       previousModules.set(filename, nativeRequire.cache[filename])
@@ -52,15 +51,22 @@ vi.mock('expo-router', async () => {
       }
     }
   }
-  dependencies['./global-state/storeContext'] = {}
+  const guards = loadModule('expo-router/build/layouts/GuardContext') as typeof import('expo-router/build/layouts/GuardContext')
+  dependencies['./layouts/GuardContext'] = guards
+  dependencies['./GuardContext'] = guards
   dependencies['./global-state/utils'] = {}
   dependencies['./hooks/useCurrentRouteInfo'] = {}
-  dependencies['./import-mode'] = {}
   dependencies['./link/zoom/ZoomTransitionEnabler'] = {}
   dependencies['./link/zoom/zoom-transition-context-providers'] = {}
-  dependencies['./navigationEvents'] = {}
   dependencies['./navigationParams'] = {}
-  dependencies['./react-navigation/native'] = {}
+  dependencies['./react-navigation/native/index'] = {}
+  dependencies['./link/Redirect'] = {}
+  dependencies['./loaders/LoaderRouteLifecycle'] = {}
+  dependencies['./loaders/resolveLoaderPath'] = {}
+  dependencies['./performance'] = {}
+  dependencies['./useIsFocused'] = {}
+  dependencies['./views/NavigationActivityContext'] = {}
+  dependencies['./views/NavigationAwareActivity'] = {}
   dependencies['./views/EmptyRoute'] = {}
   dependencies['./views/SuspenseFallback'] = {}
   dependencies['./views/Try'] = {}
@@ -68,6 +74,7 @@ vi.mock('expo-router', async () => {
   const { withLayoutContext } = loadModule('expo-router/build/layouts/withLayoutContext') as
     typeof import('expo-router/build/layouts/withLayoutContext')
   function Navigator({ children }: { children: React.ReactNode }) {
+    navigation.redirect = guards.useGuardRedirect(navigation.target)
     navigation.routeNames = React.Children.toArray(children).map((child) => {
       if (!React.isValidElement<{ name: string }>(child)) throw new Error('Invalid screen')
       return child.props.name
@@ -101,10 +108,6 @@ const context = Object.assign(() => ({}), {
 }) as RequireContext
 const routes = getRoutes(context, { platform: 'android', ignoreEntryPoints: true, skipGenerated: true })
 if (!routes) throw new Error('Root route tree was not generated')
-const stackRouter = StackRouter({})
-function routerOptions() {
-  return { routeNames: navigation.routeNames, routeParamList: {}, routeGetIdList: {} }
-}
 async function mountNavigator() {
   let tree!: import('react-test-renderer').ReactTestRenderer
   await TestRenderer.act(() => {
@@ -126,35 +129,39 @@ const legacyLinks = [
 describe('Perfil submenu navigator protection', () => {
   beforeEach(() => { useAuthStore.setState({ isAuthenticated: false }) })
 
+  it('returns a signed-in login entry to the tabs', async () => {
+    useAuthStore.setState({ isAuthenticated: true })
+    navigation.target = 'login'
+    const tree = await mountNavigator()
+    try {
+      expect(navigation.redirect).toBe('/(tabs)')
+    } finally {
+      await TestRenderer.act(() => tree.update(<></>))
+    }
+  })
+
   it.each([...settingsRoutes.map((route) => `/${route}`), ...legacyLinks])(
     'rejects a signed-out direct or legacy link %s and stays at login', async (path) => {
+      const destination = redirectSystemPath({ path, initial: true }).split(/[?#]/, 1)[0]!.slice(1)
+      navigation.target = settingsRoutes.includes(destination) ? destination : '(tabs)'
       const tree = await mountNavigator()
       try {
-        const destination = redirectSystemPath({ path, initial: true }).split(/[?#]/, 1)[0]!.slice(1)
-        const state = stackRouter.getInitialState(routerOptions())
-        expect(stackRouter.getStateForAction(state, { type: 'NAVIGATE', payload: { name: destination } }, routerOptions())).toBeNull()
-        expect(state.routes[state.index]!.name).toBe('login')
-        expect(navigation.routeNames.some((route) => settingsRoutes.includes(route))).toBe(false)
+        expect(navigation.redirect).toBe('/login')
       } finally {
         await TestRenderer.act(() => tree.update(<></>))
       }
     },
   )
 
-  it.each(settingsRoutes)('opens %s while signed in and removes it on authentication loss', async (name) => {
+  it.each(settingsRoutes)('opens %s while signed in and redirects it on authentication loss', async (name) => {
     useAuthStore.setState({ isAuthenticated: true })
+    navigation.target = name
     const tree = await mountNavigator()
     try {
-      const state = stackRouter.getInitialState(routerOptions())
-      const navigated = stackRouter.getStateForAction(state, { type: 'NAVIGATE', payload: { name } }, routerOptions())
-      if (!navigated) throw new Error(`Signed-in navigation rejected ${name}`)
-      const active = stackRouter.getRehydratedState(navigated, routerOptions())
-      expect(active.routes[active.index]!.name).toBe(name)
+      expect(navigation.routeNames).toContain(name)
+      expect(navigation.redirect).toBeUndefined()
       await TestRenderer.act(() => useAuthStore.setState({ isAuthenticated: false }))
-      const signedOut = stackRouter.getStateForRouteNamesChange(active, { ...routerOptions(), routeKeyChanges: [] })
-      expect(signedOut.routes[signedOut.index]!.name).toBe('login')
-      expect(signedOut.routes.some((route) => settingsRoutes.includes(route.name))).toBe(false)
-      expect(signedOut.routeNames.some((route) => settingsRoutes.includes(route))).toBe(false)
+      expect(navigation.redirect).toBe('/login')
     } finally {
       await TestRenderer.act(() => tree.update(<></>))
     }

@@ -13,6 +13,7 @@ import { PreviewItemTitle } from './preview-item-title'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { TimeField } from '@/components/ui/time-field'
+import { DateField } from '@/components/ui/date-field'
 import { useTimeFormat } from '@/hooks/use-time-format'
 
 import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
@@ -85,10 +86,28 @@ function ListFieldEditor({ field, value, labels, busy, error, onChange }: Readon
   </fieldset>
 }
 
-function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, error, onSelectItem, onChange, onClose, onSave }: Readonly<PendingOperationEditSheetProps>) {
+function PreviewDateField({ field, label, value, labels, busy, error, onChange }: Readonly<{
+  field: string; label: string; value: string; labels: PendingOperationEditSheetProps['labels']
+  busy: boolean; error: string | undefined; onChange: (value: string) => void
+}>) {
+  const [focusRequest, setFocusRequest] = useState(0)
+  const t = useTranslations()
+  return <div className="flex min-w-0 flex-col gap-2">
+    <span className="form-label">{label}</span>
+    <div className="flex min-w-0 items-end gap-2">
+      <div className="min-w-0 flex-1"><DateField label={label} value={value} disabled={busy} focusRequest={focusRequest} onChange={onChange} /></div>
+      {value && (field === 'end_date' || field === 'deadline') ? <div className="shrink-0"><Button variant="ghost" iconOnly label={t(field === 'end_date' ? 'habits.form.removeEndDate' : 'goals.form.removeDeadline')} disabled={busy} onClick={() => { onChange(''); setFocusRequest(request => request + 1) }}><X size={20} aria-hidden="true" /></Button></div> : null}
+    </div>
+    {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{labels.invalid}</p> : null}
+  </div>
+}
+
+function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, error, onSelectItem, onChange, onClose, onSave, fieldRemovals }: Readonly<PendingOperationEditSheetProps>) {
   const { sheetRef, closeSheet } = useSheetHost()
   const [query, setQuery] = useState('')
   const editableItems = items.filter((entry) => entry.fields.some(isPendingOperationEditableField))
+  const editableFields = item.fields.filter((field) => isPendingOperationEditableField(field)
+    && !(item.placement?.selected === 'new_parent' && field.field === 'parent_habit_id'))
   const showSearch = editableItems.length > PENDING_OPERATION_ITEM_SEARCH_THRESHOLD
   useEffect(() => { if (stale) closeSheet(onClose) }, [stale, closeSheet, onClose])
   const save = async () => { if (await onSave()) closeSheet(onClose) }
@@ -108,8 +127,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
         busy
           ? <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} busy reason={labels.acting} />
           : <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} onSelect={() => onSelectItem(entry.itemId)} />)}</RadioGroup></div> : null}
-      {item.fields.filter((field) => isPendingOperationEditableField(field)
-        && !(item.placement?.selected === 'new_parent' && field.field === 'parent_habit_id')).map((field) => {
+      {editableFields.map((field) => {
         const fieldName = field.field.split('/').at(-1)!
         const label = labels.fieldLabels[fieldName] ?? field.field
         const choices = item.fieldOptions?.find((entry) => entry.field === field.field && entry.field === 'parent_habit_id')
@@ -123,6 +141,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
           return <div key={field.field} className="flex flex-col gap-2"><p className="text-sm">{label}</p><WeekdayPicker label={label} days={days} scheduleLocked={busy} dayOptions={PENDING_OPERATION_WEEKDAYS.map(day => ({ value: day, label: labels.dayLabels[day]!, accessibleLabel: labels.dayLabels[day]! }))} onToggleDay={day => onChange(field.field, PENDING_OPERATION_WEEKDAYS.filter(name => name === day ? !days.includes(name) : days.includes(name)).join(', '))} /></div>
         }
         if (field.valueType === 'time') return <TimeField key={field.field} label={label} value={toTime24(draft[field.field])} onChange={(value) => onChange(field.field, value)} disabled={busy} error={error ? labels.invalid : undefined} />
+        if (field.valueType === 'date') return <PreviewDateField key={field.field} field={fieldName} label={label} value={draft[field.field] ?? ''} labels={labels} busy={busy} error={error} onChange={value => onChange(field.field, value)} />
         return <Input
           key={field.field}
           label={label}
@@ -132,6 +151,13 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
           kind={field.valueType === 'number' ? 'number' : undefined}
           error={error ? labels.invalid : undefined}
         />
+      }).map((editor, index) => {
+        const field = editableFields[index]!
+        const removal = fieldRemovals?.find(entry => entry.field === field.field)
+        return removal ? <div key={field.field} className="flex min-w-0 items-start gap-3">
+          <div className="min-w-0 flex-1">{editor}</div>
+          <IconButton label={removal.label} disabled={removal.disabled} onClick={removal.onRemove}><X size={20} aria-hidden="true" /></IconButton>
+        </div> : editor
       })}
       {error && item.fields.every((field) => field.valueType === 'action' || field.valueType === 'boolean' || field.field === 'days') ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{labels.invalid}</p> : null}
     </div>

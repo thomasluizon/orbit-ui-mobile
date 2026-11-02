@@ -17,6 +17,8 @@ import { captureError } from '@/lib/sentry'
 import { createApiClientError } from '@orbit/shared/utils'
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
+import { RepeatReminderSection } from '@/components/habits/habit-form-fields/repeat-reminder-section'
+import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { HabitScheduleFields } from '@/components/habits/habit-form-fields/habit-schedule-fields'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
@@ -30,6 +32,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import { habitFormSchema } from '@orbit/shared/validation'
+import { useUIStore } from '@/stores/ui-store'
 
 const renderer = require('react-test-renderer')
 const mountedTrees = new Set<ReturnType<typeof renderer.create>>()
@@ -47,6 +50,19 @@ afterEach(async () => {
   await renderer.act(() => { for (const tree of mountedTrees) tree.unmount() })
   mountedTrees.clear()
 })
+function matchesFormLabel(actual: unknown, expected: string): boolean {
+  return actual === expected
+}
+
+function formTitleLabel(tree: ReturnType<typeof TestRenderer.create>): string {
+  const form = tree.root.findAllByType(HabitFormFields)[0]!.props.formHelpers as HabitFormHelpers
+  return form.form.getValues('itemType') === 'task' ? 'habits.form.taskDescribe' : 'habits.form.describe'
+}
+
+function openTiming(tree: ReturnType<typeof TestRenderer.create>) {
+  TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.timingAndReminder')!.props.onClick())
+}
+
 const useWatchMock = vi.fn()
 const tagCollection = vi.hoisted(() => ({ tags: [] as HabitTag[] }))
 const tagMutations = vi.hoisted(() => ({ create: vi.fn(), suggest: vi.fn(), delete: vi.fn() }))
@@ -302,7 +318,7 @@ describe('HabitFormFields mobile', () => {
     const form = (isEmojiSuggesting = false) => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestEmoji={onSuggestEmoji} isEmojiSuggesting={isEmojiSuggesting} />
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(form()) })
-    const action = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === label)[0]!
+    const action = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && matchesFormLabel(node.props.accessibilityLabel, label))[0]!
     const button = action('habits.form.suggestEmoji')
     __setTouchMode(false)
     await TestRenderer.act(() => { __focusHost(button.props.__nativeTag) })
@@ -380,7 +396,7 @@ describe('HabitFormFields mobile', () => {
     })
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = createTokensV2(currentScheme, currentTheme)
-    const keys = ['endDate', 'slipAlert', 'subHabits', 'reminders', 'checklist']
+    const keys = ['endDate', 'slipAlert', 'subHabits', 'steps', 'organize', 'ending', 'checklist']
     for (const key of keys) {
       const heading = tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === `habits.form.${key}`)
       expect(heading).toHaveLength(1)
@@ -451,7 +467,7 @@ describe('HabitFormFields mobile', () => {
     const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} lockedGeneral={lockedGeneral} />
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(renderNode()) })
-    const buttons = (label: string) => tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) && node.props.accessibilityLabel === label)
+    const buttons = (label: string) => tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) && matchesFormLabel(node.props.accessibilityLabel, label))
     expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
     await TestRenderer.act(() => buttons('habits.form.emojiOpenPicker')[0]!.props.onPress())
     await TestRenderer.act(() => buttons('habits.form.emoji: 🏃')[0]!.props.onPress())
@@ -494,12 +510,12 @@ describe('HabitFormFields mobile', () => {
     useWatchMock.mockImplementation(useWatch)
     let formHelpers!: HabitFormHelpers
     function CreateFormHarness({ isSuggesting = false }: { isSuggesting?: boolean }) {
-      formHelpers = useHabitForm()
+      formHelpers = useHabitForm({ initialData: { itemType: 'habit' } })
       return <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} isSuggesting={isSuggesting} readPhraseLocally />
     }
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(<CreateFormHarness />) })
-    const buttons = (label: string) => tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) && node.props.accessibilityLabel === label)
+    const buttons = (label: string) => tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) && matchesFormLabel(node.props.accessibilityLabel, label))
     expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
     await TestRenderer.act(() => tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!.props.onChangeText('Run every day'))
     expect(buttons('habits.form.emojiOpenPicker')).toHaveLength(1)
@@ -714,17 +730,18 @@ describe('HabitFormFields mobile', () => {
   })
 
   it('nests fixed clock reminders under the offset reminder switch for a timed habit', async () => {
-    const formHelpers = createFormHelpers({ dueTime: '08:00' })
+    const formHelpers = createFormHelpers({ reminderEnabled: true, dueTime: '08:00' })
     let tree: any
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
       await Promise.resolve()
     })
+    openTiming(tree)
 
     expect(tree.root.findAll((node: any) => node.props?.testID === 'offset-reminders')).toHaveLength(1)
     expect(tree.root.findAll((node: any) => node.props?.testID === 'scheduled-reminders')).toHaveLength(1)
     const scheduled = tree.root.findAll((node: any) => node.props?.testID === 'scheduled-reminders')[0]
-    expect(scheduled.props.nested).toBe(true)
+    expect(scheduled.props.onToggleReminder).toBeUndefined()
     expect(scheduled.props.offsetReminderCount).toBe(0)
     TestRenderer.act(() => scheduled.props.onSetScheduledReminders([{ when: 'day_before', time: '18:00' }]))
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('scheduledReminders', [{ when: 'day_before', time: '18:00' }], { shouldDirty: true })
@@ -778,12 +795,13 @@ describe('HabitFormFields mobile', () => {
   })
 
   it('preserves a prefilled end time when the exact time changes', async () => {
-    const formHelpers = createFormHelpers({ dueTime: '08:00', dueEndTime: '09:00' })
+    const formHelpers = createFormHelpers({ reminderEnabled: true, dueTime: '08:00', dueEndTime: '09:00' })
     let tree: any
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
       await Promise.resolve()
     })
+    openTiming(tree)
 
     TestRenderer.act(() => tree.root.findAllByType('TimeField').find((node: { props: { label: string } }) => node.props.label === 'habits.form.exactTime').props.onChange('10:00'))
 
@@ -1101,10 +1119,10 @@ it('exposes tag suggestions from the owning habit form', async () => {
 describe('habit tag suggestions', () => {
   let tree: ReturnType<typeof TestRenderer.create>
   function button(label: string) {
-    return tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) && node.props.accessibilityLabel === label)[0]!
+    return tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) && matchesFormLabel(node.props.accessibilityLabel, label))[0]!
   }
   function proposalButton(label: string) {
-    return tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'proposed-field')[0]?.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) && node.props.accessibilityLabel === label)[0]
+    return tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'View' && node.props.testID === 'proposed-field')[0]?.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && ['button', 'checkbox'].includes(String(node.props.accessibilityRole)) && matchesFormLabel(node.props.accessibilityLabel, label))[0]
   }
   async function renderTagForm(title = ' Run ', description = ' Outside ', initialIds: string[] = []) {
     const helpers = createFormHelpers({ title, description })
@@ -1389,7 +1407,7 @@ describe('manual schedule creation', () => {
     }
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
-    await TestRenderer.act(() => tree!.root.findByType(ListRow).props.onClick())
+    await TestRenderer.act(() => tree!.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
     const radio = (label: string) => tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === `habits.form.${label}`)[0]!
     await TestRenderer.act(() => radio('every').props.onPress())
     await TestRenderer.act(() => radio(`unit${unit}`).props.onPress())
@@ -1431,7 +1449,7 @@ describe('manual schedule creation', () => {
       }
       return false
     }
-    const host = (label: string, role?: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === label && (!role || node.props.accessibilityRole === role))[0]!
+    const host = (label: string, role?: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && matchesFormLabel(node.props.accessibilityLabel, label) && (!role || node.props.accessibilityRole === role))[0]!
     try {
       expect(tree.root.findAll((node: UnderstandingTestNode) => node.props.testID === 'proposed-block')).toHaveLength(0)
       await TestRenderer.act(async () => {
@@ -1439,7 +1457,7 @@ describe('manual schedule creation', () => {
         await Promise.resolve()
       })
       expect(helpers.form.getValues('days')).toEqual(['Monday'])
-      await TestRenderer.act(() => tree.root.findByType(ListRow).props.onClick())
+      await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
       const quantity = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.frequency')[0]!
       for (const control of [quantity(), host('habits.form.every', 'radio'), host('habits.form.unitDay', 'radio'), host(helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel, 'button')]) expect(proposed(control)).toBe(true)
       expect(quantity().props.value).toBe('1')
@@ -1463,15 +1481,26 @@ describe('manual schedule creation', () => {
     }
   })
 
-  it('disables manual scheduling for a locked parent', async () => {
-    let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ isGeneral: true })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded lockedGeneral />) })
-    const quantity = tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.frequency')[0]!
-    expect(quantity.props.editable).toBe(false)
-    const options = tree!.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && !String(node.props.accessibilityLabel).startsWith('habits.form.type'))
-    expect(options).toHaveLength(7)
-    for (const option of options) expect(option.props.accessibilityState).toMatchObject({ disabled: true })
-    await TestRenderer.act(() => tree!.unmount())
+  it.each([false, true])('keeps the native task date choice consistent with its parent, General=%s', async (lockedGeneral) => {
+    formLocale.realController = true
+    onTestFinished(() => { useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name]) })
+    const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
+    useWatchMock.mockImplementation(useWatch)
+    function OwningForm() {
+      const helpers = useHabitForm({ initialData: { itemType: 'task', title: 'Read', isGeneral: lockedGeneral, dueDate: lockedGeneral ? '' : '2026-10-20' } })
+      return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} lockedGeneral={lockedGeneral} />
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
+    const radio = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && String(node.props.accessibilityLabel).startsWith(label))[0]!
+    expect(radio('habits.form.typeTask').props.accessibilityState.checked).toBe(true)
+    expect(radio('habits.form.noSchedule').props.accessibilityState.checked).toBe(lockedGeneral)
+    expect(Boolean(radio('habits.form.noSchedule').props.accessibilityState.disabled)).toBe(!lockedGeneral)
+    expect(radio('habits.form.taskDate').props.accessibilityState.checked).toBe(!lockedGeneral)
+    expect(Boolean(radio('habits.form.taskDate').props.accessibilityState.disabled)).toBe(lockedGeneral)
+    expect(Boolean(radio('habits.form.typeHabit').props.accessibilityState.disabled)).toBe(lockedGeneral)
+    expect(tree.root.findByType(HabitScheduleFields).props.hidden).toBe(true)
+    await TestRenderer.act(() => tree.unmount())
   })
 })
 
@@ -1485,8 +1514,8 @@ it('edits end times, reports ordering errors, and disables the field after clear
     await TestRenderer.act(action)
     await TestRenderer.act(() => tree.update(renderNode()))
   }
-  expect(field('habits.form.dueEndTime').props.disabled).toBe(true)
-  expect(field('habits.form.dueEndTime').props.hint).toBe('habits.form.endTimeRequiresStart')
+  openTiming(tree)
+  expect(tree.root.findAllByProps({ label: 'habits.form.dueEndTime' })).toHaveLength(0)
   await refresh(() => field('habits.form.exactTime').props.onChange('08:00'))
   expect(field('habits.form.dueEndTime').props.disabled).toBe(false)
   await refresh(() => field('habits.form.dueEndTime').props.onChange('09:00'))
@@ -1505,8 +1534,8 @@ it('edits end times, reports ordering errors, and disables the field after clear
   expect(field('habits.form.dueEndTime').props.value).toBe('')
   await refresh(() => field('habits.form.dueEndTime').props.onChange('10:00'))
   await refresh(() => field('habits.form.exactTime').props.onClear())
-  expect(field('habits.form.dueEndTime').props.value).toBe('')
-  expect(field('habits.form.dueEndTime').props.disabled).toBe(true)
+  expect(helpers.form.getValues('dueEndTime')).toBe('')
+  expect(tree.root.findAllByProps({ label: 'habits.form.dueEndTime' })).toHaveLength(0)
   await TestRenderer.act(() => tree.unmount())
 })
 
@@ -1541,7 +1570,7 @@ describe('restored type and editable date', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ itemType: 'task' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />) })
     const radios = tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')
-    expect(radios.map((node: UnderstandingTestNode) => node.props.accessibilityLabel)).toContain('habits.form.typeTask')
+    expect(radios.map((node: UnderstandingTestNode) => node.props.accessibilityLabel)).toContain('habits.form.typeTask, habits.form.typeTaskHint')
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'DateField' && node.props.label === 'habits.form.taskDate')).toHaveLength(1)
     await TestRenderer.act(() => tree.unmount())
   })
@@ -1557,30 +1586,33 @@ it('restores Task and General through the native owning form and real request bu
   }
   let tree!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
-  const host = (label: string, role: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityLabel === label && node.props.accessibilityRole === role)[0]!
-  const input = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === label)[0]!
-  await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('habits.form.typeRequired') })
-  await TestRenderer.act(() => host('habits.form.typeTask', 'radio').props.onPress())
+  const host = (label: string, role: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && matchesFormLabel(node.props.accessibilityLabel, label) && node.props.accessibilityRole === role)[0]!
+  const input = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && matchesFormLabel(node.props.accessibilityLabel, label))[0]!
+  await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
+  await TestRenderer.act(() => host('habits.form.typeTask, habits.form.typeTaskHint', 'radio').props.onPress())
   vi.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), toFake: ['Date'] })
   try {
     await TestRenderer.act(() => input('habits.form.datePhrase').props.onChangeText('03-04'))
     await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('habits.form.datePhraseUnresolved') })
     await TestRenderer.act(() => input('habits.form.datePhrase').props.onChangeText('dia 26'))
     expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ dueDate: '2026-10-26', title: 'migrar chats do ChatGPT para o Claude' })
-    await TestRenderer.act(() => input('habits.form.describe').props.onChangeText('Read every Monday'))
+    await TestRenderer.act(() => input(formTitleLabel(tree)).props.onChangeText('Read every Monday'))
     expect(helpers.form.getValues('frequencyUnit')).toBeNull()
-    await TestRenderer.act(() => host('habits.form.typeHabit', 'radio').props.onPress())
+    await TestRenderer.act(() => host('habits.form.typeHabit, habits.form.typeHabitHint', 'radio').props.onPress())
     await TestRenderer.act(() => input('habits.form.datePhrase').props.onChangeText('dia 28'))
-    await TestRenderer.act(() => tree.root.findByType(ListRow).props.onClick())
-    const general = tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && String(node.props.accessibilityLabel).startsWith('habits.form.noSchedule,'))[0]!
+    await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
+    await TestRenderer.act(() => host('habits.form.typeTask, habits.form.typeTaskHint', 'radio').props.onPress())
+    const general = tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.noSchedule')[0]!
     await TestRenderer.act(() => general.props.onPress())
-    expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: true, isBadHabit: false, reminderEnabled: false })
+    expect(helpers.form.getValues()).toMatchObject({ itemType: 'task', isGeneral: true, isBadHabit: false, reminderEnabled: false })
     expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ isGeneral: true })
     expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'DateField' && node.props.label === 'habits.form.taskDate')).toHaveLength(0)
-    await TestRenderer.act(() => host('habits.form.every', 'radio').props.onPress())
+    await TestRenderer.act(() => host('habits.form.typeHabit, habits.form.typeHabitHint', 'radio').props.onPress())
     expect(helpers.form.getValues('isGeneral')).toBe(false)
     expect(helpers.form.getValues('dueDate')).toBe('2026-10-28')
-    await TestRenderer.act(() => host('habits.form.typeTask', 'radio').props.onPress())
+    await TestRenderer.act(() => host('habits.form.typeTask, habits.form.typeTaskHint', 'radio').props.onPress())
+    expect(helpers.form.getValues()).toMatchObject({ isGeneral: true, dueDate: '' })
+    await TestRenderer.act(() => host('habits.form.taskDate', 'radio').props.onPress())
     expect(helpers.form.getValues('dueDate')).toBe('2026-10-26')
     expect(helpers.form.getValues('datePhrase')).toBe('dia 26')
   } finally { vi.useRealTimers(); await TestRenderer.act(() => tree.unmount()) }
@@ -1616,9 +1648,9 @@ describe('native date ownership across form transitions', () => {
   const hosts = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => typeof node.type === 'string' && String(node.props.accessibilityLabel).startsWith(label))
   const press = async (label: string) => { await TestRenderer.act(() => hosts(label)[0]!.props.onPress()) }
   const phrase = async (value: string) => { await TestRenderer.act(() => hosts('habits.form.datePhrase')[0]!.props.onChangeText(value)) }
-  const action = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && (node.props.accessibilityLabel === label || (!node.props.accessibilityLabel && node.findAll((child: UnderstandingTestNode) => child.type === 'Text' && child.props.children === label).length > 0)))
-  const general = () => press('habits.form.noSchedule,')
-  const recurring = () => press('habits.form.every')
+  const action = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && (matchesFormLabel(node.props.accessibilityLabel, label) || (!node.props.accessibilityLabel && node.findAll((child: UnderstandingTestNode) => child.type === 'Text' && matchesFormLabel(child.props.children, label)).length > 0)))
+  const general = async () => { await press('habits.form.typeTask'); await press('habits.form.noSchedule') }
+  const recurring = () => press('habits.form.typeHabit')
 
   it.each([
     ['pt-BR', 'toda semana'], ['pt-BR', 'todas as semanas'], ['pt-BR', 'semanalmente'],
@@ -1712,30 +1744,18 @@ describe('native date ownership across form transitions', () => {
     expect(dateRequests.request).not.toHaveBeenCalled()
   })
 
-  it.each([false, true])('resolves weekly Task wording after a General draft, inherited lock=%s', async (locked) => {
+  it('resolves weekly Task wording after an undated native draft', async () => {
     await mount()
     await general()
-    await press('habits.form.typeTask')
+    await press('habits.form.taskDate')
     await phrase('dia 23')
     await phrase('weekly')
-    if (locked) await TestRenderer.act(() => tree.update(<OwningForm lockedGeneral />))
     await press('habits.form.typeHabit')
-    if (locked) {
-      expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: true, frequencyUnit: null, dateIssue: 'errors.api.generalMismatchWithParent' })
-      expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === 'errors.api.generalMismatchWithParent')).toHaveLength(1)
-      await TestRenderer.act(() => { expect(helpers.validateAll()).toBe('errors.api.generalMismatchWithParent') })
-      expect(__getFocusedNativeTag()).toBe(hosts('habits.form.typeHabit')[0]!.props.__nativeTag)
-      const request = buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])
-      expect(request.isGeneral).toBe(true)
-      expect(request).not.toHaveProperty('frequencyUnit')
-      expect(request).not.toHaveProperty('startDate')
-    } else {
-      expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-23', datePhrase: 'weekly', dateIssue: '' })
-      expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-23' })
-      await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
-      await TestRenderer.act(() => tree.update(<OwningForm fieldsVersion={1} />))
-      expect(helpers.form.getValues()).toMatchObject({ isGeneral: false, frequencyUnit: 'Week', dueDate: '2026-10-23', dateIssue: '' })
-    }
+    expect(helpers.form.getValues()).toMatchObject({ itemType: 'habit', isGeneral: false, frequencyUnit: 'Week', frequencyQuantity: 1, dueDate: '2026-10-23', datePhrase: 'weekly', dateIssue: '' })
+    expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-23' })
+    await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
+    await TestRenderer.act(() => tree.update(<OwningForm fieldsVersion={1} />))
+    expect(helpers.form.getValues()).toMatchObject({ isGeneral: false, frequencyUnit: 'Week', dueDate: '2026-10-23', dateIssue: '' })
     expect(dateRequests.request).not.toHaveBeenCalled()
   })
 
@@ -1811,7 +1831,7 @@ describe('native date ownership across form transitions', () => {
     await mount()
     await phrase(text)
     await general()
-    expect(hosts('habits.form.datePhrase')).toHaveLength(0)
+    expect(hosts('habits.form.datePhrase').filter((node: UnderstandingTestNode) => node.type === 'TextInput')).toHaveLength(0)
     await recurring()
     expect(helpers.form.getValues('datePhrase')).toBe(text)
     expect(hosts('habits.form.habitStartDate,')).toHaveLength(1)
@@ -1907,28 +1927,116 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     formLocale.realDates = false
     formLocale.realDateCopy = false
     formLocale.language = 'en'
+    useUIStore.setState({ activeView: 'today' })
   })
-  const input = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === label)[0]!
+  const input = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && matchesFormLabel(node.props.accessibilityLabel, label))[0]!
   const phraseInput = () => input('habits.form.datePhrase')
-  const action = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && (node.props.accessibilityLabel === label || (!node.props.accessibilityLabel && node.findAll((child: UnderstandingTestNode) => child.type === 'Text' && child.props.children === label).length > 0)))[0]!
+  const action = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && (matchesFormLabel(node.props.accessibilityLabel, label) || (!node.props.accessibilityLabel && node.findAll((child: UnderstandingTestNode) => child.type === 'Text' && matchesFormLabel(child.props.children, label)).length > 0)))[0]!
   const captions = (text: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props.children === text)
   const mutation = () => owner === 'create' ? modalFeedback.create : modalFeedback.update
-  async function mount(type: 'task' | 'habit' | null) {
-    const habit = createMockHabit({ title: 'Read', frequencyUnit: type === 'habit' ? 'Day' : null, dueDate: '2026-10-20', startDate: '2026-10-20' })
+  async function mount(type: 'task' | 'habit' | null, general = false) {
+    const habit = createMockHabit({ title: 'Read', frequencyUnit: type === 'habit' ? 'Day' : null, dueDate: general ? '' : '2026-10-20', startDate: general ? undefined : '2026-10-20', isGeneral: general })
     const client = new QueryClient()
     const modal = () => <QueryClientProvider client={client}><FocusProvenanceView>{owner === 'create'
         ? <CreateHabitModal open onClose={closed} initialTitle="Read" />
         : <EditHabitModal open onClose={closed} habit={habit} />}</FocusProvenanceView></QueryClientProvider>
     await TestRenderer.act(() => { tree = TestRenderer.create(modal()) })
     if (type) await TestRenderer.act(() => {
-      tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === (type === 'task' ? 'habits.form.typeTask' : 'habits.form.typeHabit'))[0]!.props.onPress()
+      tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && matchesFormLabel(node.props.accessibilityLabel, (type === 'task' ? 'habits.form.typeTask, habits.form.typeTaskHint' : 'habits.form.typeHabit, habits.form.typeHabitHint')))[0]!.props.onPress()
     })
-    expect(input('habits.form.describe').props.value).toBe('Read')
+    expect(input(formTitleLabel(tree)).props.value).toBe('Read')
+    if (owner === 'create') expect(tree.root.findByType(HabitCreateFrame).props.title).toBe(type === 'habit' ? 'habits.form.newHabit' : 'habits.form.newTask')
     return { refresh: async () => { await TestRenderer.act(() => tree.update(modal())) } }
   }
   async function submit() {
-    await TestRenderer.act(() => action(owner === 'create' ? 'habits.createHabit' : 'common.save').props.onPress())
+    await TestRenderer.act(() => action(owner === 'create' ? formTitleLabel(tree) === 'habits.form.taskDescribe' ? 'habits.createTask' : 'habits.createHabit' : 'common.save').props.onPress())
   }
+
+  const dateChoice = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === label)[0]!
+
+  if (owner === 'create') it.each(['en', 'pt-BR'])('opens from General as an undated native task in %s', async (locale) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    useUIStore.setState({ activeView: 'general' })
+    await mount(null)
+    expect(dateChoice('habits.form.typeTask, habits.form.typeTaskHint').props.accessibilityState.checked).toBe(true)
+    expect(dateChoice('habits.form.noSchedule').props.accessibilityState.checked).toBe(true)
+    expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'habits.form.frequency')).toHaveLength(0)
+    expect(phraseInput()).toBeUndefined()
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    expect(mutation().mock.calls[0]![0]).toMatchObject({ title: 'Read', isGeneral: true })
+    for (const field of ['dueDate', 'startDate', 'frequencyUnit', 'frequencyQuantity']) expect(mutation().mock.calls[0]![0]).not.toHaveProperty(field)
+  })
+
+  it.each(['en', 'pt-BR'])('saves an undated task from the native date choice in %s', async (locale) => {
+    formLocale.realController = true
+    formLocale.language = locale
+    await mount('task')
+    expect(dateChoice('habits.form.noSchedule')).toBeDefined()
+    await TestRenderer.act(() => dateChoice('habits.form.noSchedule').props.onPress())
+    expect(dateChoice('habits.form.typeTask, habits.form.typeTaskHint').props.accessibilityState.checked).toBe(true)
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = owner === 'create' ? mutation().mock.calls[0]![0] : mutation().mock.calls[0]![0].data
+    expect(request).toMatchObject({ title: 'Read', isGeneral: true })
+    for (const field of ['dueDate', 'startDate', 'frequencyUnit', 'frequencyQuantity']) expect(request).not.toHaveProperty(field)
+  })
+
+  it('returns from no date to a dated native task', async () => {
+    formLocale.realController = true
+    await mount('task')
+    expect(dateChoice('habits.form.noSchedule')).toBeDefined()
+    await TestRenderer.act(() => dateChoice('habits.form.noSchedule').props.onPress())
+    await TestRenderer.act(() => dateChoice('habits.form.taskDate').props.onPress())
+    await TestRenderer.act(() => phraseInput().props.onChangeText('tomorrow'))
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = owner === 'create' ? mutation().mock.calls[0]![0] : mutation().mock.calls[0]![0].data
+    expect(request).toMatchObject({ dueDate: '2026-10-21' })
+    expect(request.isGeneral ?? false).toBe(false)
+    expect(request.frequencyUnit).toBeUndefined()
+  })
+
+  it('offers exactly two native habit frequencies', async () => {
+    formLocale.realController = true
+    await mount('habit')
+    const group = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'habits.form.frequency')[0]!
+    expect(group.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio')).toHaveLength(2)
+    expect(dateChoice('habits.form.noSchedule')).toBeUndefined()
+  })
+
+  if (owner === 'edit') it.each(['unchanged', 'dated', 'habit'] as const)('opens General as an undated native task and saves %s', async (transition) => {
+    formLocale.realController = true
+    await mount(null, true)
+    expect(dateChoice('habits.form.typeTask, habits.form.typeTaskHint').props.accessibilityState.checked).toBe(true)
+    expect(dateChoice('habits.form.noSchedule').props.accessibilityState.checked).toBe(true)
+    if (transition === 'dated') await TestRenderer.act(() => dateChoice('habits.form.taskDate').props.onPress())
+    if (transition === 'habit') await TestRenderer.act(() => dateChoice('habits.form.typeHabit, habits.form.typeHabitHint').props.onPress())
+    if (transition !== 'unchanged') await TestRenderer.act(() => phraseInput().props.onChangeText('tomorrow'))
+    await submit()
+    expect(mutation()).toHaveBeenCalledOnce()
+    const request = mutation().mock.calls[0]![0].data
+    expect(request.isGeneral).toBe(transition === 'unchanged')
+    if (transition === 'dated') expect(request.dueDate).toBe('2026-10-21')
+    if (transition === 'habit') expect(request).toMatchObject({ startDate: '2026-10-21', frequencyUnit: 'Day', frequencyQuantity: 1 })
+  })
+
+  if (owner === 'create') it('keeps native task guidance and sub-item inputs type-aware through a type change', async () => {
+    formLocale.realController = true
+    await mount('task')
+    await TestRenderer.act(() => input('habits.form.taskDescribe').props.onChangeText(''))
+    expect(captions('habits.form.taskCreateWhy')).toHaveLength(1)
+    await TestRenderer.act(() => action('habits.form.moreDetails').props.onPress())
+    await TestRenderer.act(() => action('habits.form.addSubTask').props.onPress())
+    const subtask = input(translateTestValue('habits.form.subTaskInputLabel', { index: 1 }))
+    expect(subtask.props.placeholder).toBe('habits.form.subTaskPlaceholder')
+    expect(action('habits.form.removeSubTask')).toBeDefined()
+    await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.typeHabit, habits.form.typeHabitHint')[0]!.props.onPress())
+    expect(captions('habits.form.createWhy')).toHaveLength(1)
+    expect(input(translateTestValue('habits.form.subHabitInputLabel', { index: 1 })).props.placeholder).toBe('habits.form.subHabitPlaceholder')
+    expect(action('habits.form.removeSubHabit')).toBeDefined()
+  })
 
   it.each(['en', 'pt-BR'])('saves the entered cadence with an accepted Astra start in %s', async (locale) => {
     formLocale.realController = true
@@ -1969,9 +2077,9 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     await mount(null)
     await TestRenderer.act(() => phraseInput().props.onChangeText('weekly'))
     await submit()
-    expect(captions('habits.form.typeRequired')).toHaveLength(1)
+    expect(captions('habits.form.recurrenceRequiresHabit')).toHaveLength(1)
     expect(mutation()).not.toHaveBeenCalled()
-    await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeHabit')[0]!.props.onPress())
+    await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && matchesFormLabel(node.props.accessibilityLabel, 'habits.form.typeHabit, habits.form.typeHabitHint'))[0]!.props.onPress())
     await submit()
     expect(mutation()).toHaveBeenCalledOnce()
     expect(mutation()).toHaveBeenCalledWith(expect.objectContaining({ frequencyUnit: 'Week', frequencyQuantity: 1, startDate: '2026-10-20' }))
@@ -2024,7 +2132,7 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     })
     onTestFinished(() => errors.mockRestore())
     const view = await mount(type)
-    const titleInput = () => input('habits.form.describe')
+    const titleInput = () => input(formTitleLabel(tree))
     const initialTitle = locale === 'en' ? 'Read every Monday' : 'Ler toda segunda'
     const editedTitle = locale === 'en' ? 'Read every Tuesday' : 'Ler toda terça'
     async function typeTitle(title: string) {
@@ -2075,7 +2183,7 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     if (recovery === 'manual') {
       await TestRenderer.act(() => picker().props.onPress())
       const label = formatLocaleDate(date, locale, { month: 'long', day: 'numeric', year: 'numeric' })
-      await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!.props.onPress())
+      await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && matchesFormLabel(node.props.accessibilityLabel, label))[0]!.props.onPress())
     }
     await submit()
     const request = expect.objectContaining({ title: 'Read', [type === 'task' ? 'dueDate' : 'startDate']: date })
@@ -2089,7 +2197,7 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
   it.each([false, true].flatMap((flexible) => [false, true].map((editAfterReturn) => ({ flexible, editAfterReturn }))))('saves the restored monthly draft after General, flexible=$flexible, edited=$editAfterReturn', async ({ flexible, editAfterReturn }) => {
     await mount('habit')
     const radio = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && String(node.props.accessibilityLabel).startsWith(`habits.form.${label}`))[0]!
-    await TestRenderer.act(() => input('habits.form.describe').props.onChangeText('Read every Monday'))
+    await TestRenderer.act(() => input(formTitleLabel(tree)).props.onChangeText('Read every Monday'))
     if (owner === 'create') await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
     if (flexible) await TestRenderer.act(() => radio('timesPerUnit').props.onPress())
     await TestRenderer.act(() => radio('unitMonth').props.onPress())
@@ -2099,8 +2207,9 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.endDate,'))[0]!.props.onPress())
     const endDateLabel = formatLocaleDate('2026-10-22', 'en', { month: 'long', day: 'numeric', year: 'numeric' })
     await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === endDateLabel)[0]!.props.onPress())
+    await TestRenderer.act(() => radio('typeTask').props.onPress())
     await TestRenderer.act(() => radio('noSchedule').props.onPress())
-    await TestRenderer.act(() => radio(flexible ? 'timesPerUnit' : 'every').props.onPress())
+    await TestRenderer.act(() => radio('typeHabit').props.onPress())
     if (editAfterReturn) {
       await TestRenderer.act(() => radio('unitYear').props.onPress())
       await TestRenderer.act(() => input('habits.form.frequency').props.onChangeText('4'))
@@ -2124,13 +2233,14 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
   ))('saves the owned title for $locale after $transition', async ({ locale, transition }) => {
     formLocale.language = locale
     await mount(transition === 'title-before-type' ? null : transition === 'task-before-title' ? 'task' : 'habit')
-    if (transition === 'task-before-title') expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeTask')[0]!.props.accessibilityState.checked).toBe(true)
+    if (transition === 'task-before-title') expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && matchesFormLabel(node.props.accessibilityLabel, 'habits.form.typeTask, habits.form.typeTaskHint'))[0]!.props.accessibilityState.checked).toBe(true)
     const title = locale === 'en' ? 'Read every Monday' : 'Ler toda segunda'
-    await TestRenderer.act(() => input('habits.form.describe').props.onChangeText(title))
+    await TestRenderer.act(() => input(formTitleLabel(tree)).props.onChangeText(title))
     if (transition === 'general') {
       await TestRenderer.act(() => tree.root.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')!.props.onClick())
-      await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && String(node.props.accessibilityLabel).startsWith('habits.form.noSchedule'))[0]!.props.onPress())
-    } else if (transition !== 'recurring' && transition !== 'task-before-title') await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeTask')[0]!.props.onPress())
+      await TestRenderer.act(() => dateChoice('habits.form.typeTask, habits.form.typeTaskHint').props.onPress())
+      await TestRenderer.act(() => dateChoice('habits.form.noSchedule').props.onPress())
+    } else if (transition !== 'recurring' && transition !== 'task-before-title') await TestRenderer.act(() => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && matchesFormLabel(node.props.accessibilityLabel, 'habits.form.typeTask, habits.form.typeTaskHint'))[0]!.props.onPress())
     await submit()
     expect(mutation()).toHaveBeenCalledOnce()
     const request = modalFeedback.create.mock.calls[0]![0]
@@ -2147,21 +2257,12 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
-  if (owner === 'create') it('keeps a missing type inline and saves the retained draft after selection', async () => {
+  if (owner === 'create') it('defaults to Task and saves without a type-selection step', async () => {
     await mount(null)
-    expect(tree.root.findByType(HabitFormFields).props.formHelpers.form.getValues('itemType')).toBeUndefined()
-    await submit()
-    expect(tree.root.findByType(HabitFormFields).props.formHelpers.form.getFieldState('itemType')).toMatchObject({ invalid: true })
-    expect(captions('habits.form.typeRequired')).toHaveLength(1)
-    const taskRadio = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.typeTask')[0]!
-    expect(__getFocusedNativeTag()).toBe(taskRadio.props.__nativeTag)
-    expect(input('habits.form.describe').props.value).toBe('Read')
-    expect(mutation()).not.toHaveBeenCalled()
-    expect(modalFeedback.showError).not.toHaveBeenCalled()
-    await TestRenderer.act(() => taskRadio.props.onPress())
-    expect(captions('habits.form.typeRequired')).toHaveLength(0)
+    expect(tree.root.findByType(HabitFormFields).props.formHelpers.form.getValues('itemType')).toBe('task')
     await submit()
     expect(mutation()).toHaveBeenCalledOnce()
+    expect(captions('habits.form.typeRequired')).toHaveLength(0)
     expect(modalFeedback.showError).not.toHaveBeenCalled()
   })
 
@@ -2178,7 +2279,7 @@ describe.each(['create', 'edit'] as const)('actual native %s modal submit feedba
     }
     expect(mutation()).toHaveBeenCalledOnce()
     expect(closed).not.toHaveBeenCalled()
-    expect(input('habits.form.describe').props.value).toBe('Read')
+    expect(input(formTitleLabel(tree)).props.value).toBe('Read')
   })
 })
 
@@ -2205,7 +2306,7 @@ describe('native automatic date field', () => {
   const input = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.datePhrase')[0]!
   const phrase = (value: string) => TestRenderer.act(() => input().props.onChangeText(value))
   const debounce = () => TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(700) })
-  const status = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.accessibilityLabel === label)
+  const status = (label: string) => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && matchesFormLabel(node.props.accessibilityLabel, label))
   const picker = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('habits.form.taskDate,'))[0]!
 
   it.each(['en', 'pt-BR'])('interprets non-local wording when the profile arrives after typing in %s', async (locale) => {
@@ -2228,8 +2329,8 @@ describe('native automatic date field', () => {
     expect(picker().props.accessibilityLabel).toContain(formatLocaleDate('2026-10-26', locale))
     expect(helpers.form.getValues()).toMatchObject({ dueDate: '2026-10-26', datePhrase: wording, dateIssue: '' })
     await TestRenderer.act(() => { expect(helpers.validateAll()).toBeNull() })
-    expect(input().props.accessibilityHint).not.toContain('habits.form.datePhraseUnresolved')
-    expect(input().props.accessibilityHint).not.toContain('habits.form.dateStale')
+    expect(input().props.accessibilityHint ?? '').not.toContain('habits.form.datePhraseUnresolved')
+    expect(input().props.accessibilityHint ?? '').not.toContain('habits.form.dateStale')
     expect(status('habits.form.dateInterpreted')).toHaveLength(1)
   })
 
@@ -2321,42 +2422,109 @@ describe('native automatic date field', () => {
 })
 
 
-it('offers Repeat every on daily habits inside the owning native form', async () => {
-  formLocale.realController = false
-  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
-  let tree: ReturnType<typeof TestRenderer.create>
-  await TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1 })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />) })
-  expect(tree!.root.findAllByProps({ accessibilityLabel: 'habits.form.reminderKind' }).length).toBeGreaterThan(0)
-  TestRenderer.act(() => tree.unmount())
-})
-
-
-it('saves the repeat contract from the owning native form and replaces fixed reminders', () => {
-  formLocale.realController = false
-  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
-  const helpers = createFormHelpers({ title: 'Water', itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, reminderEnabled: true, dueTime: '08:00', scheduledReminders: [{ when: 'same_day', time: '09:00' }] })
-  let tree: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[15]} onReminderTimesChange={vi.fn()} defaultExpanded />) })
-  const choice = tree!.root.findAll((node: { props: { label?: string; onChange?: unknown } }) => node.props.label === 'habits.form.reminderKind' && typeof node.props.onChange === 'function')[0]!
-  TestRenderer.act(() => choice.props.onChange('repeat'))
-  const request = buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [15], [], [], [])
-  expect(request).toMatchObject({ repeatReminder: { intervalMinutes: 30, startAtUtc: expect.stringMatching(/Z$/) }, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
-  TestRenderer.act(() => tree.unmount())
-})
-
 it.each([
-  [{ frequencyUnit: 'Week', frequencyQuantity: 1 }, false],
-  [{ frequencyUnit: 'Day', frequencyQuantity: 2 }, false],
-  [{ frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'] }, false],
-  [{ frequencyUnit: 'Day', frequencyQuantity: 4, isFlexible: true }, true],
-  [{ isGeneral: true }, true],
-] as const)('limits the native repeat choice to everyday schedules %j', (schedule, expected) => {
+  { itemType: 'task' },
+  { itemType: 'habit', frequencyUnit: 'Week', frequencyQuantity: 1 },
+  { itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 2 },
+  { itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday'] },
+  { itemType: 'task', isGeneral: true },
+])('offers and saves Repeat every from the native timing sheet for %j', (schedule) => {
   formLocale.realController = false
   useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
-  const helpers = createFormHelpers({ title: 'Water', ...schedule })
+  const helpers = createFormHelpers({ title: 'Water', reminderEnabled: true, dueTime: '08:00', ...schedule })
   helpers.isGeneral = 'isGeneral' in schedule
   let tree: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />) })
-  expect(tree!.root.findAllByProps({ accessibilityLabel: 'habits.form.reminderKind' }).length > 0).toBe(expected)
-  TestRenderer.act(() => tree.unmount())
+  TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[15]} onReminderTimesChange={vi.fn()} />) })
+  openTiming(tree)
+  const radio = tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.repeatEvery')[0]!
+  TestRenderer.act(() => radio.props.onPress())
+  expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [15], [], [], [])).toMatchObject({ repeatReminder: { intervalMinutes: 30, startAtUtc: expect.stringMatching(/Z$/) }, reminderEnabled: true, reminderTimes: [], scheduledReminders: [], relativeReminders: [] })
+})
+
+it('explains both native types and exposes frequency before opening details', () => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ itemType: 'habit', frequencyUnit: 'Day', frequencyQuantity: 1 })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />) })
+  expect(tree!.root.findAllByProps({ description: 'habits.form.typeTaskHint' }).length).toBeGreaterThan(0)
+  expect(tree!.root.findAllByProps({ description: 'habits.form.typeHabitHint' }).length).toBeGreaterThan(0)
+  expect(tree!.root.findAllByProps({ accessibilityLabel: 'habits.form.frequency' }).length).toBeGreaterThan(0)
+  expect(tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === 'habits.form.noSchedule')).toHaveLength(0)
+})
+
+it('keeps native Task copy, a compact description and conditional end time through the owning form', async () => {
+  const { useWatch } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form')
+  useWatchMock.mockImplementation(useWatch)
+  formLocale.realController = true
+  function OwningForm() {
+    const helpers = useHabitForm()
+    return <HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
+  }
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={new QueryClient()}><OwningForm /></QueryClientProvider>) })
+  const inputs = () => tree.root.findAll((node: UnderstandingTestNode) => node.type === 'TextInput')
+  expect(inputs()[0]!.props.accessibilityLabel).toBe('habits.form.taskDescribe')
+  const description = inputs().find((node: UnderstandingTestNode) => node.props.accessibilityLabel === 'habits.form.description')!
+  expect(StyleSheet.flatten(description.props.style).minHeight).toBe(54)
+  expect(description.props.scrollEnabled).toBe(false)
+  expect(tree.root.findByType(HabitScheduleFields).props.hidden).toBe(true)
+  const habit = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && matchesFormLabel(node.props.accessibilityLabel, 'habits.form.typeHabit, habits.form.typeHabitHint'))[0]!
+  await TestRenderer.act(() => habit.props.onPress())
+  expect(inputs()[0]!.props.accessibilityLabel).toBe('habits.form.describe')
+  expect(tree.root.findByType(HabitScheduleFields).props.hidden).toBe(false)
+  openTiming(tree)
+  expect(tree.root.findAllByProps({ label: 'habits.form.dueEndTime' })).toHaveLength(0)
+  const exactTime = tree.root.findAllByType('TimeField').find((node: { props: { label: string } }) => node.props.label === 'habits.form.exactTime')!
+  await TestRenderer.act(() => exactTime.props.onChange('08:00'))
+  expect(tree.root.findAllByType('TimeField').some((node: { props: { label: string } }) => node.props.label === 'habits.form.dueEndTime')).toBe(true)
+})
+
+
+it('preserves native fixed reminder choices when their selected radio is pressed again', () => {
+  const onChange = vi.fn()
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderSection value={null} enabled general={false} onToggle={vi.fn()} onChange={onChange} />) })
+  const radio = tree.root.findAll((node: UnderstandingTestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.definedTimes')[0]!
+  TestRenderer.act(() => radio.props.onPress())
+  expect(onChange).not.toHaveBeenCalled()
+})
+
+
+it.each([
+  { itemType: 'task', offset: 0, hidden: true },
+  { itemType: 'task', offset: 1, hidden: false },
+  { itemType: 'habit', offset: 0, hidden: false },
+  { itemType: 'habit', offset: 1, hidden: false },
+])('retains the native day-before choice for $itemType with start offset $offset', ({ itemType, offset, hidden }) => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  const date = new Date()
+  date.setUTCDate(date.getUTCDate() + offset)
+  const helpers = createFormHelpers({ itemType, frequencyUnit: itemType === 'habit' ? 'Day' : null, frequencyQuantity: 1, dueDate: date.toISOString().slice(0, 10), reminderEnabled: true })
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />) })
+  openTiming(tree)
+  expect(tree.root.findAll((node: UnderstandingTestNode) => node.type === 'View' && node.props.testID === 'scheduled-reminders')[0]!.props.hideDayBefore).toBe(hidden)
+})
+
+
+it('guards captured end-time changes and clears while the native form is frozen', async () => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  const helpers = createFormHelpers({ itemType: 'habit', frequencyUnit: 'Day', dueTime: '08:00', dueEndTime: '09:00' })
+  const form = (disabled: boolean) => <HabitFormInteractionProvider disabled={disabled}><HabitFormFields formHelpers={helpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} /></HabitFormInteractionProvider>
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(form(false)) })
+  openTiming(tree)
+  const end = tree.root.findAllByType('TimeField').find((node: UnderstandingTestNode) => node.props.label === 'habits.form.dueEndTime')!
+  const change = end.props.onChange
+  const clear = end.props.onClear
+  await TestRenderer.act(() => { tree.update(form(true)) })
+  await TestRenderer.act(() => { change('10:00'); clear() })
+  expect(helpers.form.getValues('dueEndTime')).toBe('09:00')
+  await TestRenderer.act(() => { tree.update(form(false)) })
+  await TestRenderer.act(() => change('10:00'))
+  expect(helpers.form.getValues('dueEndTime')).toBe('10:00')
+  await TestRenderer.act(() => clear())
+  expect(helpers.form.getValues('dueEndTime')).toBe('')
 })

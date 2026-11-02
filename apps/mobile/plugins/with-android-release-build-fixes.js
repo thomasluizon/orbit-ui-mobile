@@ -72,11 +72,15 @@ subprojects { subproject ->
 function withAndroidReleaseBuildFixes(config) {
   let nextConfig = withAppBuildGradle(config, (mod) => {
     if (mod.modResults.language !== 'groovy') {
-      return mod
+      throw new Error('CMake staging requires a Groovy app build.gradle.')
     }
 
     if (!mod.modResults.contents.includes(STAGING_DIR_MARKER)) {
-      mod.modResults.contents = mod.modResults.contents.replace(/android\s*\{/, APP_STAGING_SNIPPET)
+      const androidPattern = /^[ \t]*android\s*\{/m
+      if (!androidPattern.test(mod.modResults.contents)) {
+        throw new Error('Cannot configure CMake staging without the app android block.')
+      }
+      mod.modResults.contents = mod.modResults.contents.replace(androidPattern, APP_STAGING_SNIPPET)
     }
 
     return mod
@@ -84,7 +88,7 @@ function withAndroidReleaseBuildFixes(config) {
 
   nextConfig = withProjectBuildGradle(nextConfig, (mod) => {
     if (mod.modResults.language !== 'groovy') {
-      return mod
+      throw new Error('CMake staging requires a Groovy root build.gradle.')
     }
 
     if (mod.modResults.contents.includes(ROOT_STAGING_MARKER)) {
@@ -92,14 +96,13 @@ function withAndroidReleaseBuildFixes(config) {
     }
 
     const injectionPattern = /(^|\n)(apply plugin:\s*["']expo-root-project["'])/
-    if (injectionPattern.test(mod.modResults.contents)) {
-      mod.modResults.contents = mod.modResults.contents.replace(
-        injectionPattern,
-        `$1${ROOT_STAGING_SNIPPET}$2`,
-      )
-    } else {
-      mod.modResults.contents = mod.modResults.contents.trimEnd() + '\n\n' + ROOT_STAGING_SNIPPET
+    if (!injectionPattern.test(mod.modResults.contents)) {
+      throw new Error('Cannot register CMake staging before expo-root-project.')
     }
+    mod.modResults.contents = mod.modResults.contents.replace(
+      injectionPattern,
+      `$1${ROOT_STAGING_SNIPPET}$2`,
+    )
 
     return mod
   })

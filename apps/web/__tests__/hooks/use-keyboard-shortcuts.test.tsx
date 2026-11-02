@@ -3,7 +3,7 @@ import { act, render, renderHook, fireEvent } from '@testing-library/react'
 
 const mockPush = vi.fn()
 const mockTogglePalette = vi.fn()
-const mockSetActiveView = vi.fn()
+const mockResetToday = vi.fn()
 const mockSetAstraConversationOpen = vi.fn()
 let overlayOpen = false
 let modalFocusOwnerOpen = false
@@ -27,8 +27,8 @@ vi.mock('@/stores/shell-store', () => ({
 }))
 
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setActiveView: typeof mockSetActiveView; setAstraConversationOpen: typeof mockSetAstraConversationOpen }) => unknown) =>
-    selector({ setActiveView: mockSetActiveView, setAstraConversationOpen: mockSetAstraConversationOpen }),
+  useUIStore: (selector: (state: { resetToday: typeof mockResetToday; setAstraConversationOpen: typeof mockSetAstraConversationOpen }) => unknown) =>
+    selector({ resetToday: mockResetToday, setAstraConversationOpen: mockSetAstraConversationOpen }),
 }))
 
 vi.mock('@/lib/overlay-stack', () => ({
@@ -55,7 +55,7 @@ beforeEach(() => {
   paletteOpen = false
   mockPush.mockClear()
   mockTogglePalette.mockClear()
-  mockSetActiveView.mockClear()
+  mockResetToday.mockClear()
   mockSetAstraConversationOpen.mockClear()
   resetRouteTransitionIntent()
 })
@@ -146,11 +146,11 @@ describe('useKeyboardShortcuts', () => {
     expect(getCurrentRouteTransitionIntent()).toBe('instant')
   })
 
-  it('sets the today view with the g then t chord', () => {
+  it('resets Hoje with the g then t chord', () => {
     render(<Harness />)
     fireEvent.keyDown(document, { key: 'g' })
     fireEvent.keyDown(document, { key: 't' })
-    expect(mockSetActiveView).toHaveBeenCalledWith('today')
+    expect(mockResetToday).toHaveBeenCalledOnce()
     expect(mockPush).toHaveBeenCalledWith('/')
   })
 
@@ -161,7 +161,7 @@ describe('useKeyboardShortcuts', () => {
     expect(mockSetAstraConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
     expect(allowedDefault).toBe(false)
     expect(mockPush).not.toHaveBeenCalled()
-    expect(mockSetActiveView).not.toHaveBeenCalled()
+    expect(mockResetToday).not.toHaveBeenCalled()
     expect(getCurrentRouteTransitionIntent()).toBe('neutral')
   })
 
@@ -274,7 +274,7 @@ describe('progress destination shortcut', () => {
     fireEvent.keyDown(document, { key: prefix })
     expect(fireEvent.keyDown(document, { key: destination })).toBe(false)
     expect(mockPush).toHaveBeenCalledExactlyOnceWith('/progress')
-    expect(mockSetActiveView).not.toHaveBeenCalled()
+    expect(mockResetToday).not.toHaveBeenCalled()
     expect(getCurrentRouteTransitionIntent()).toBe('instant')
   })
 
