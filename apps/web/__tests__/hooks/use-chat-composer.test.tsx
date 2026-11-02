@@ -1,3 +1,4 @@
+import { useChatComposerAttachments } from '@/hooks/use-chat-composer-attachments'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { conversationHistory } from '@/lib/conversation-history'
 import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
@@ -2494,6 +2495,15 @@ describe('web useChatComposer streaming send', () => {
       'Import these\n\nchat.fileAttached:{"name":"notes.txt"}\nWalk\nRead',
     )
     expect(result.current.selectedTextFile).toBeNull()
+  })
+
+  it('rejects unsupported files in the extracted attachments hook without selecting them', async () => {
+    const setSendError = vi.fn()
+    const { result } = renderHook(() => useChatComposerAttachments({ setSendError }))
+    await act(async () => { await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.pdf', 'text'))) })
+    expect(setSendError).toHaveBeenCalledWith('chat.fileError')
+    expect(result.current.selectedTextFile).toBeNull()
+    expect(result.current.selectedImage).toBeNull()
   })
 
   it('rejects an unsupported text-file extension', async () => {

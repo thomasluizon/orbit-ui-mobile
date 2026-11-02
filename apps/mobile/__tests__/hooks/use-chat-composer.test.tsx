@@ -1,8 +1,10 @@
+import { useTranslation } from 'react-i18next'
 import { conversationHistory } from '@/lib/conversation-history'
 import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
 import { makeOneSmallStepCard, questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
+import { useChatComposerAttachments } from '@/hooks/use-chat-composer-attachments'
 import Animated from 'react-native-reanimated'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
@@ -2848,6 +2850,24 @@ describe('mobile useChatComposer', () => {
     )
     expect(composer.current.selectedTextFile).toBeNull()
     appendFormPart.mockRestore()
+  })
+
+  it('rejects unsupported files in the extracted attachments hook without selecting them', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [documentPickerAsset({ name: 'notes.pdf', uri: 'file:///notes.pdf' })] })
+    const setSendError = vi.fn()
+    let attachments!: ReturnType<typeof useChatComposerAttachments>
+    function Harness() {
+      const { t } = useTranslation()
+      attachments = useChatComposerAttachments({ t, setSendError })
+      return null
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<Harness />); mountedTrees.push(tree); await Promise.resolve() })
+    await TestRenderer.act(async () => { await attachments.openTextFilePicker() })
+    expect(setSendError).toHaveBeenCalledWith('chat.fileError')
+    expect(attachments.selectedTextFile).toBeNull()
+    expect(attachments.selectedImage).toBeNull()
+    expect(mocks.readFileText).not.toHaveBeenCalled()
   })
 
   it('rejects an unsupported text-file extension', async () => {

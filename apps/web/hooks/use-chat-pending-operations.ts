@@ -75,7 +75,34 @@ export function useChatPendingOperations(
     try { return await operation() }
     finally { setBatchCount((count) => count - 1) }
   }, [])
+  const { revisePendingOperationForBubble, refreshPendingOperationForBubble } = usePendingBubbleRevisions(t)
+  const { confirmAndExecutePendingOperation } = usePendingBubbleExecution(t, onExecuted)
+  const { prepareStepUpForBubble, verifyStepUpForBubble } = usePendingBubbleStepUp(t, locale, onExecuted)
 
+  const trackedRevise = useCallback((...args: Parameters<typeof revisePendingOperationForBubble>) =>
+    trackBatch(() => revisePendingOperationForBubble(...args)), [revisePendingOperationForBubble, trackBatch])
+  const trackedRefresh = useCallback((...args: Parameters<typeof refreshPendingOperationForBubble>) =>
+    trackBatch(() => refreshPendingOperationForBubble(...args)), [refreshPendingOperationForBubble, trackBatch])
+  const trackedExecute = useCallback((...args: Parameters<typeof confirmAndExecutePendingOperation>) =>
+    trackBatch(() => confirmAndExecutePendingOperation(...args)), [confirmAndExecutePendingOperation, trackBatch])
+  const trackedPrepare = useCallback((...args: Parameters<typeof prepareStepUpForBubble>) =>
+    trackBatch(() => prepareStepUpForBubble(...args)), [prepareStepUpForBubble, trackBatch])
+  const trackedVerify = useCallback((...args: Parameters<typeof verifyStepUpForBubble>) =>
+    trackBatch(() => verifyStepUpForBubble(...args)), [verifyStepUpForBubble, trackBatch])
+
+  return {
+    isPendingOperationBusy: batchCount > 0,
+    trackCardOperation: trackBatch,
+    revisePendingOperationForBubble: trackedRevise,
+    refreshPendingOperationForBubble: trackedRefresh,
+    confirmAndExecutePendingOperation: trackedExecute,
+    prepareStepUpForBubble: trackedPrepare,
+    verifyStepUpForBubble: trackedVerify,
+  }
+}
+
+
+function usePendingBubbleRevisions(t: ReturnType<typeof useTranslations>) {
   const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
@@ -99,7 +126,11 @@ export function useChatPendingOperations(
       ? { ok: true as const, result: response.data }
       : { ok: false as const, error: pendingOperationError(response, t), stale: isStalePreviewFailure(response) }
   }, [t])
+  return { revisePendingOperationForBubble, refreshPendingOperationForBubble }
+}
 
+
+function usePendingBubbleExecution(t: ReturnType<typeof useTranslations>, onExecuted: (response: AgentExecuteOperationResponse) => Promise<void>) {
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
@@ -128,7 +159,11 @@ export function useChatPendingOperations(
     await onExecuted(execution.data)
     return { ok: true, response: execution.data }
   }, [onExecuted, t])
+  return { confirmAndExecutePendingOperation }
+}
 
+
+function usePendingBubbleStepUp(t: ReturnType<typeof useTranslations>, locale: string, onExecuted: (response: AgentExecuteOperationResponse) => Promise<void>) {
   const prepareStepUpForBubble = useCallback(
     async (pendingOperationId: string) => {
       const intendedAccountId = getHeldAccountId()
@@ -199,25 +234,5 @@ export function useChatPendingOperations(
     },
     [onExecuted, t],
   )
-
-  const trackedRevise = useCallback((...args: Parameters<typeof revisePendingOperationForBubble>) =>
-    trackBatch(() => revisePendingOperationForBubble(...args)), [revisePendingOperationForBubble, trackBatch])
-  const trackedRefresh = useCallback((...args: Parameters<typeof refreshPendingOperationForBubble>) =>
-    trackBatch(() => refreshPendingOperationForBubble(...args)), [refreshPendingOperationForBubble, trackBatch])
-  const trackedExecute = useCallback((...args: Parameters<typeof confirmAndExecutePendingOperation>) =>
-    trackBatch(() => confirmAndExecutePendingOperation(...args)), [confirmAndExecutePendingOperation, trackBatch])
-  const trackedPrepare = useCallback((...args: Parameters<typeof prepareStepUpForBubble>) =>
-    trackBatch(() => prepareStepUpForBubble(...args)), [prepareStepUpForBubble, trackBatch])
-  const trackedVerify = useCallback((...args: Parameters<typeof verifyStepUpForBubble>) =>
-    trackBatch(() => verifyStepUpForBubble(...args)), [verifyStepUpForBubble, trackBatch])
-
-  return {
-    isPendingOperationBusy: batchCount > 0,
-    trackCardOperation: trackBatch,
-    revisePendingOperationForBubble: trackedRevise,
-    refreshPendingOperationForBubble: trackedRefresh,
-    confirmAndExecutePendingOperation: trackedExecute,
-    prepareStepUpForBubble: trackedPrepare,
-    verifyStepUpForBubble: trackedVerify,
-  }
+  return { prepareStepUpForBubble, verifyStepUpForBubble }
 }
