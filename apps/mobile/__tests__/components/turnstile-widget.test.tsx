@@ -1,9 +1,14 @@
+import { createRequire } from 'node:module'
 import React from 'react'
 import { StyleSheet } from 'react-native'
-import { expect, it, vi } from 'vitest'
+import { expect, it, onTestFinished, vi } from 'vitest'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
+import type appJson from '../../app.json'
 
 const TestRenderer = require('react-test-renderer')
+const createConfig = createRequire(import.meta.url)('../../app.config.js') as () => typeof appJson.expo
+const variantConfig = vi.hoisted(() => ({ current: null as typeof appJson.expo | null }))
+vi.mock('expo-constants', () => ({ default: { get expoConfig() { return variantConfig.current } } }))
 
 const appLanguage = vi.hoisted(() => ({ value: 'pt-BR' }))
 vi.mock('react-i18next', () => ({
@@ -16,6 +21,26 @@ vi.mock('@/lib/use-app-theme', () => ({
 vi.mock('react-native-webview', () => ({
   WebView: (props: Record<string, unknown>) => React.createElement('WebView', props),
 }))
+
+it.each(['production', 'staging'])('loads the Turnstile bridge from the %s App Link origin', async (variant) => {
+  vi.stubEnv('ORBIT_APP_VARIANT', variant)
+  variantConfig.current = createConfig()
+  onTestFinished(() => { vi.unstubAllEnvs(); variantConfig.current = null })
+  vi.resetModules()
+  const { TurnstileWidget: VariantWidget } = await import('@/components/auth/turnstile-widget')
+  let renderer!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<VariantWidget siteKey="site key/+" resetKey={0} onToken={vi.fn()} />)
+    await Promise.resolve()
+  })
+  onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
+  const bridge = new URL(renderer.root.findByType('WebView').props.source.uri)
+  expect(bridge.origin).toBe(variantConfig.current.extra.router.origin)
+  expect(bridge.pathname).toBe('/turnstile-bridge')
+  expect(bridge.searchParams.get('siteKey')).toBe('site key/+')
+  expect(bridge.searchParams.get('theme')).toBe('dark')
+  expect(bridge.searchParams.get('language')).toBe('pt-BR')
+})
 
 it('passes WebView tokens to the login flow and reloads after consumption', async () => {
   const onToken = vi.fn()
