@@ -8,8 +8,14 @@ const config = loadConfig('../../metro.config.js')
 const component = loadConfig.resolve('react-native-draggable-flatlist/src/components/DraggableFlatList.tsx')
 const adapter = path.resolve(import.meta.dirname, '../../lib/draggable-flatlist-native.ts')
 
-it.each(['src/components/DraggableFlatList.tsx', 'lib/module/components/DraggableFlatList.js', 'lib/commonjs/components/DraggableFlatList.js'])(
-  'routes the installed list entry through the Android adapter: %s', (entry) => {
+it.each(['src', 'lib/module', 'lib/commonjs'].flatMap((tree) => [
+  `${tree}/components/DraggableFlatList.${tree === 'src' ? 'tsx' : 'js'}`,
+  `${tree}/components/NestableDraggableFlatList.${tree === 'src' ? 'tsx' : 'js'}`,
+  `${tree}/components/CellRendererComponent.${tree === 'src' ? 'tsx' : 'js'}`,
+  `${tree}/constants.${tree === 'src' ? 'ts' : 'js'}`,
+  `${tree}/types.${tree === 'src' ? 'ts' : 'js'}`,
+]))(
+  'routes package React Native imports through the Android adapter: %s', (entry) => {
     const origin = component.replace('src/components/DraggableFlatList.tsx', entry)
     for (const originModulePath of [origin, origin.replace(/\//g, '\\')]) {
       const context = { originModulePath, resolveRequest: vi.fn() }
@@ -25,7 +31,11 @@ it.each([
   { platform: null, moduleName: 'react-native', origin: component },
   { platform: 'android', moduleName: 'react-native-reanimated', origin: component },
   { platform: 'android', moduleName: 'react-native', origin: adapter },
-  { platform: 'android', moduleName: 'react-native', origin: component.replace('DraggableFlatList.tsx', 'CellRendererComponent.tsx') },
+  { platform: 'android', moduleName: 'react-native/Libraries/Utilities/Platform', origin: component },
+  { platform: 'android', moduleName: 'react-native', origin: component.replace('react-native-draggable-flatlist', 'another-package') },
+  { platform: 'android', moduleName: 'react-native', origin: component.replace('react-native-draggable-flatlist', 'react-native-draggable-flatlist-extra') },
+  { platform: 'android', moduleName: 'react-native', origin: component.replace('src/components/DraggableFlatList.tsx', 'package.json') },
+  { platform: 'android', moduleName: 'react-native', origin: component.replace('src/components/DraggableFlatList.tsx', 'lib/typescript/components/DraggableFlatList.d.ts') },
 ])('delegates other requests to Metro: $platform, $moduleName, $origin', ({ platform, moduleName, origin }) => {
   const resolution = { type: 'sourceFile', filePath: loadConfig.resolve('react-native') }
   const context = { originModulePath: origin, resolveRequest: vi.fn(() => resolution) }
