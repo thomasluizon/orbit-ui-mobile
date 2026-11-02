@@ -145,14 +145,17 @@ function powershellWriteTargets(binary, rest) {
 /** Bind path literals to file-writing calls, rather than to unrelated reads or output contents. */
 function interpreterWriteTargets(segment) {
   const code = commandWords(segment).slice(1).map(shellValue).join(" ")
-  const literal = `(["'])(.*?)\\1`
+  const literal = "([\"'`])(.*?)\\1"
   const directWrites = new RegExp(`\\b(?:writeFile(?:Sync)?|appendFile(?:Sync)?|truncate(?:Sync)?|unlink(?:Sync)?|rm(?:Sync)?|rmdir(?:Sync)?|mkdir(?:Sync)?|createWriteStream|File\\.(?:write|append))\\s*\\(\\s*${literal}`, "g")
   const targets = [...code.matchAll(directWrites)].map((match) => match[2])
-  for (const match of code.matchAll(/\bopen(?:Sync)?\s*\(\s*(["'])(.*?)\1\s*,\s*(["'])(.*?)\3/g)) {
+  for (const match of code.matchAll(/\bopen(?:Sync)?\s*\(\s*(["'`])(.*?)\1\s*,\s*(?:mode\s*=\s*)?(["'`])(.*?)\3/g)) {
     if (/[wax+]/.test(match[4])) targets.push(match[2])
   }
+  for (const match of code.matchAll(/\bopen\s*\(\s*(?:my\s+)?\$\w+\s*,\s*(["'])(.*?)\1\s*,\s*(["'])(.*?)\3/g)) {
+    if (/[>+]/.test(match[2])) targets.push(match[4])
+  }
   for (const match of code.matchAll(/\bPath\s*\(\s*(["'])(.*?)\1\s*\)\s*\.\s*(?:write_text|write_bytes|touch|unlink|mkdir)\s*\(/g)) targets.push(match[2])
-  for (const match of code.matchAll(/\b(rename(?:Sync)?|copyFile(?:Sync)?)\s*\(\s*(["'])(.*?)\2\s*,\s*(["'])(.*?)\4/g)) {
+  for (const match of code.matchAll(/\b(rename(?:Sync)?|copyFile(?:Sync)?)\s*\(\s*(["'`])(.*?)\2\s*,\s*(["'`])(.*?)\4/g)) {
     if (match[1].startsWith("rename")) targets.push(match[3])
     targets.push(match[5])
   }
