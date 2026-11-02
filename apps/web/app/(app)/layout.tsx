@@ -22,7 +22,9 @@ import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { ActionRow } from '@/components/ui/action-row'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
-import { DeferredEngagementPrompts } from '@/components/engagement/deferred-engagement-prompts'
+import { ReferralPrompt } from '@/components/referral/referral-prompt'
+import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
+import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
 import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
@@ -539,7 +541,9 @@ function GlobalOverlays({
       <ExpiryWarning />
       {!showRetainedOnboarding ? <TrialExpiredModal /> : null}
       {showRetainedOnboarding && <RetainedOnboardingOverlay finalStepOnly={showPendingPro} onExit={retainedSession.dismiss} />}
-      {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <DeferredEngagementPrompts />}
+      {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <MarketingConsentPrompt />}
+      {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <ReferralPrompt />}
+      {profile?.hasCompletedOnboarding && !showRetainedOnboarding && <MilestoneSharePrompt />}
       {showCalendarPrompt && !showRetainedOnboarding ? (<Sheet
         ref={calendarSheetRef}
         open
