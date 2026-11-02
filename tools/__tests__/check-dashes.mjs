@@ -18,6 +18,11 @@ export const cases = () => {
     status: 1,
     stderr: /missing-a\.ts[\s\S]*missing-b\.ts/,
   }, { path: join(toolsDirectory, "check-dashes.mjs") })
+  check("check-dashes.mjs", "missing explicit input is a usage error", ["--files", "missing.ts"], { status: 2 }, { path: join(toolsDirectory, "check-dashes.mjs") })
+  writeFileSync(join(repository.path, "growing.ts"), `a${EM_DASH}b`)
+  repository.git(["--literal-pathspecs", "add", "growing.ts"])
+  check("check-dashes.mjs", "baseline growth is refused", ["--write-baseline"], { status: 1 }, { path: join(toolsDirectory, "check-dashes.mjs") })
+  writeFileSync(join(repository.path, "growing.ts"), "clean")
   writeFileSync(baselinePath, "{}\n")
   check("check-dashes.mjs", "removed baseline key passes", ["--check-baseline"], {
     status: 0,

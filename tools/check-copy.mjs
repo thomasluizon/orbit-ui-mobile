@@ -135,7 +135,8 @@ const keyOf = (finding) => `${finding.kind} :: ${finding.file} :: ${finding.key}
 const USAGE = `usage: check-copy.mjs --check | --write-baseline
 
   --check           fail on any locale-copy or brand-color finding not in tools/copy-baseline.json
-  --write-baseline  regenerate tools/copy-baseline.json
+  --write-baseline  regenerate tools/copy-baseline.json; refuses growth
+  --allow-growth    explicitly permit growth with --write-baseline
   --help, -h        print this usage and exit 0
 
 exit codes: 0 clean, 1 a finding outside the baseline, 2 usage error`
@@ -150,6 +151,17 @@ const findings = allFindings()
 const current = findings.map(keyOf).sort()
 
 if (mode === "--write-baseline") {
+  const remaining = existsSync(BASELINE_PATH) ? JSON.parse(readFileSync(BASELINE_PATH, "utf8")) : []
+  const grew = current.some((key) => {
+    const index = remaining.indexOf(key)
+    if (index < 0) return true
+    remaining.splice(index, 1)
+    return false
+  })
+  if (grew && !process.argv.includes("--allow-growth")) {
+    console.error("Copy baseline growth refused; --allow-growth is required.")
+    process.exit(1)
+  }
   writeFileSync(BASELINE_PATH, JSON.stringify(current, null, 2) + "\n")
   console.log(`copy-baseline.json written: ${current.length} entries`)
   process.exit(0)

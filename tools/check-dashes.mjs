@@ -53,12 +53,18 @@ const checkFiles = (files) => {
   for (const file of files) {
     if (shouldSkip(file)) continue
     const absolute = resolve(REPO_ROOT, file)
-    if (!existsSync(absolute)) continue
+    if (!existsSync(absolute)) {
+      const deleted = execFileSync("git", ["ls-files", "--deleted", "-z", "--", file], { cwd: REPO_ROOT, encoding: "utf8" }).split("\0")
+      if (deleted.includes(file)) continue
+      console.error(`Cannot read requested file ${file}: file does not exist`)
+      process.exit(2)
+    }
     let text
     try {
       text = readFileSync(absolute, "utf8")
-    } catch {
-      continue
+    } catch (error) {
+      console.error(`Cannot read requested file ${file}: ${error.message}`)
+      process.exit(2)
     }
     if (text.includes("\u0000")) continue
     const findings = dashFindings(text)
@@ -88,7 +94,8 @@ const USAGE = `usage: check-dashes.mjs --files <path>... | --check-baseline | --
 
   --files <path>...   check exactly these files (exit 1 on any hit above the baseline)
   --check-baseline    full tree vs tools/dash-baseline.json (exit 1 on growth or missing files)
-  --write-baseline    regenerate tools/dash-baseline.json
+  --write-baseline    regenerate tools/dash-baseline.json; refuses growth
+  --allow-growth      explicitly permit growth with --write-baseline
   --text "<string>"   check a string, for PR titles and bodies (exit 1 on any hit)
   --help, -h          print this usage and exit 0
 
@@ -117,6 +124,7 @@ if (isMain) {
 
   if (mode === "--files") {
     const files = process.argv.slice(3)
+    if (files.length === 0) { console.error(USAGE); process.exit(2) }
     const baseline = existsSync(BASELINE_PATH) ? JSON.parse(readFileSync(BASELINE_PATH, "utf8")) : {}
     const perFile = checkFiles(files)
     const offending = new Map(
@@ -135,6 +143,11 @@ if (isMain) {
     const perFile = checkFiles(trackedFiles())
     const current = Object.fromEntries([...perFile].map(([file, findings]) => [file, findings.length]).sort((a, b) => a[0].localeCompare(b[0])))
     if (mode === "--write-baseline") {
+      const baseline = existsSync(BASELINE_PATH) ? JSON.parse(readFileSync(BASELINE_PATH, "utf8")) : {}
+      if (!process.argv.includes("--allow-growth") && Object.entries(current).some(([file, count]) => count > (baseline[file] ?? 0))) {
+        console.error("Dash baseline growth refused; --allow-growth is required.")
+        process.exit(1)
+      }
       writeFileSync(BASELINE_PATH, JSON.stringify(current, null, 2) + "\n")
       console.log(`dash-baseline.json written: ${Object.keys(current).length} files, ${Object.values(current).reduce((a, b) => a + b, 0)} dashes`)
       process.exit(0)

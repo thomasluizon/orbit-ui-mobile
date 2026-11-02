@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
-const USAGE = `usage: check-push-target.mjs < <git pre-push stdin>
+const USAGE = `usage: check-push-target.mjs [--no-refs] < <git pre-push stdin>
 
   Reads git's pre-push format on stdin, one line per ref:
     <local ref> <local sha> <remote ref> <remote sha>
 
+  --no-refs  explicitly permit an empty ref list
   --help, -h  print this usage and exit 0
 
 exit codes: 0 no protected ref in the push, 1 a protected ref, 2 usage error`;
@@ -14,7 +15,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   process.exit(0);
 }
 
-if (process.argv.length > 2) {
+if (process.argv.slice(2).some((argument) => argument !== '--no-refs')) {
   console.error(`check-push-target: takes no arguments, got: ${process.argv.slice(2).join(' ')}\n`);
   console.error(USAGE);
   process.exit(2);
@@ -28,6 +29,11 @@ const stdin = await new Promise((resolve) => {
   process.stdin.on('data', (chunk) => (buffer += chunk));
   process.stdin.on('end', () => resolve(buffer));
 });
+
+if (!stdin.trim() && !process.argv.includes('--no-refs')) {
+  console.error('check-push-target: empty pre-push input; use --no-refs for an intentional empty push');
+  process.exit(2);
+}
 
 const blocked = stdin
   .split('\n')

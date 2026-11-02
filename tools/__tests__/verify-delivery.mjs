@@ -283,6 +283,11 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     T(`${TOOL}: the tracked e2e fixture staged`, false, "could not stage a repository carrying a committed e2e suite")
   }
 
+  const trackedBuild = stageDelivery("tracked-build", { changedPaths: ["dist/source.js"] })
+  writeFileSync(join(trackedBuild.path, "dist/source.js"), "unfinished edit")
+  const trackedBuildResult = verdictOf(trackedBuild, JSON.stringify([pullRequest(trackedBuild.head)]), "DIRTY_TREE", 1, "tracked dist source is protected")
+  T(`${TOOL}: tracked dist never becomes discardable`, /"allDiscardable": false/.test(trackedBuildResult.stdout), trackedBuildResult.stdout)
+
   const midEdit = stageDelivery("dirty-source", { dirty: ["apps/web/src/store.ts"] })
   const midEditResult = verdictOf(midEdit, JSON.stringify([pullRequest(midEdit.head)]), "DIRTY_TREE", 1, "a tracked source file left mid-edit is DIRTY_TREE too, but not discardable")
   T(

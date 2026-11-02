@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
 import { basename, dirname, join, relative, resolve, sep } from "node:path"
@@ -9,8 +9,8 @@ import { fileURLToPath } from "node:url"
 
 const USAGE = `usage: check-dependency-edits.mjs [--root <path>] [--tolerance-seconds <n>]
 
-  Walks installed node_modules trees under <root> for files later than their package's extraction.
-  For a flagged package, compares all regular files with its integrity-verified locked archive.
+  Walks installed node_modules trees and compares every locked package with its verified archive.
+  Without an archive, timestamps detect files later than their package's extraction.
   Matching contents pass regardless of extraction duration; modified, missing or extra files fail.
   Verified Expo packages may add specific native outputs; published files are always compared.
   SQLite generated sources must match an archived vendor source. Native outputs force verification.
@@ -71,7 +71,8 @@ let filesScanned = 0
 const readEntries = (directory) => {
   try {
     return readdirSync(directory, { withFileTypes: true })
-  } catch {
+  } catch (error) {
+    findings.push({ path: directory, packageDirectory: directory, reason: `unreadable directory: ${error.message}` })
     return []
   }
 }
@@ -80,12 +81,10 @@ const readEntries = (directory) => {
 function collectPackageFiles(directory, collected, installed = true) {
   for (const entry of readEntries(directory)) {
     const path = join(directory, entry.name)
-    /**
-     * A workspace is linked into node_modules rather than copied (`node_modules/@orbit/shared`),
-     * so following a link would walk the repository's own source and report every file edited
-     * since the install. A link is never extracted content.
-     */
-    if (entry.isSymbolicLink()) continue
+    if (entry.isSymbolicLink()) {
+      findings.push({ path, packageDirectory: directory, reason: "symbolic link in package contents" })
+      continue
+    }
     if (entry.isDirectory()) {
       if (entry.name === "node_modules") {
         if (installed) scanInstalledTree(path)
@@ -96,19 +95,19 @@ function collectPackageFiles(directory, collected, installed = true) {
     if (installed) filesScanned += 1
     try {
       collected.push({ path, modifiedAtMs: statSync(path).mtimeMs })
-    } catch {
-      /* a file that cannot be stated carries no mtime evidence either way */
+    } catch (error) {
+      findings.push({ path, packageDirectory: directory, reason: `unreadable file: ${error.message}` })
     }
   }
 }
 
 /** Expo hardcodes these outputs in its native producers; see #1742. Never skip published files. */
-function nativeOutputKind(packageDirectory, name) {
-  if (basename(packageDirectory) === "expo-modules-jsi") {
+function nativeOutputKind(locked, name) {
+  if (locked?.packagePath?.endsWith("node_modules/expo-modules-jsi")) {
     if (["apple/.DerivedData/", "apple/.build/", "apple/.swiftpm/", "apple/Products/ExpoModulesJSI.xcframework/"]
       .some((prefix) => name.startsWith(prefix)) || name === "apple/.generated/module.modulemap") return "jsi"
   }
-  if (basename(packageDirectory) === "expo-sqlite" && ["ios/sqlite3.c", "ios/sqlite3.h"].includes(name)) return "sqlite"
+  if (locked?.packagePath?.endsWith("node_modules/expo-sqlite") && ["ios/sqlite3.c", "ios/sqlite3.h"].includes(name)) return "sqlite"
   return null
 }
 
@@ -129,26 +128,47 @@ function scanPackage(packageDirectory) {
   packagesScanned += 1
   const collected = []
   collectPackageFiles(packageDirectory, collected)
-  if (collected.length === 0 && !missingManifest) return
+  let locked
+  try { locked = findLockedArchive(packageDirectory) } catch (error) {
+    findings.push({ path: packageDirectory, packageDirectory, reason: `could not read package lock: ${error.message}` })
+    return
+  }
+  if (collected.length === 0 && !missingManifest && !locked) return
   let extractedAtMs = collected.length > 0 ? collected[0].modifiedAtMs : 0
   for (const file of collected) if (file.modifiedAtMs < extractedAtMs) extractedAtMs = file.modifiedAtMs
   const lateFiles = collected.filter((file) => file.modifiedAtMs > extractedAtMs + toleranceSeconds * 1000)
   const nativeOutputs = collected.some((file) =>
-    nativeOutputKind(packageDirectory, relative(packageDirectory, file.path).split(sep).join("/")) !== null)
-  if (missingManifest || lateFiles.length > 0 || nativeOutputs) flaggedPackages.push({ packageDirectory, collected, lateFiles, extractedAtMs })
+    nativeOutputKind(locked, relative(packageDirectory, file.path).split(sep).join("/")) !== null)
+  if (locked || missingManifest || lateFiles.length > 0 || nativeOutputs) flaggedPackages.push({ packageDirectory, collected, lateFiles, extractedAtMs })
 }
 
-function findLockedArchive(packageDirectory) {
+function lockedEntryFor(packageDirectory) {
   for (let directory = dirname(packageDirectory); ; directory = dirname(directory)) {
     const lockPath = join(directory, "package-lock.json")
     if (existsSync(lockPath)) {
       if (!lockfiles.has(lockPath)) lockfiles.set(lockPath, JSON.parse(readFileSync(lockPath, "utf8")))
       const packagePath = relative(directory, packageDirectory).split(sep).join("/")
       const locked = lockfiles.get(lockPath).packages?.[packagePath]
-      if (locked?.resolved && locked.integrity) return { directory, resolved: locked.resolved, integrity: locked.integrity }
+      if (locked) return { ...locked, directory, packagePath }
     }
     if (dirname(directory) === directory) return null
   }
+}
+
+function findLockedArchive(packageDirectory) {
+  const locked = lockedEntryFor(packageDirectory)
+  return locked?.resolved && locked.integrity ? locked : null
+}
+
+function inspectPackageLink(path) {
+  try {
+    const locked = lockedEntryFor(path)
+    if (locked?.link === true && realpathSync(path) === resolve(locked.directory, locked.resolved)) return
+  } catch (error) {
+    findings.push({ path, packageDirectory: path, reason: `unreadable package link: ${error.message}` })
+    return
+  }
+  findings.push({ path, packageDirectory: path, reason: "symbolic package link without a matching workspace lock entry" })
 }
 
 async function readLockedArchive(locked) {
@@ -201,6 +221,8 @@ async function compareLockedPackage(packageDirectory, collected, locked) {
     const expected = []
     collectPackageFiles(unpacked, expected, false)
     if (expected.length === 0) throw new Error("locked archive contains no regular package files")
+    const archivedName = JSON.parse(readFileSync(join(unpacked, "package.json"), "utf8")).name
+    const verifiedNativeLock = locked.packagePath.endsWith(`node_modules/${archivedName}`) ? locked : null
     const installed = new Set(collected.map((file) => relative(packageDirectory, file.path)))
     const differences = []
     for (const file of expected) {
@@ -211,7 +233,7 @@ async function compareLockedPackage(packageDirectory, collected, locked) {
     }
     for (const name of installed) {
       const path = join(packageDirectory, name)
-      const kind = nativeOutputKind(packageDirectory, name.split(sep).join("/"))
+      const kind = nativeOutputKind(verifiedNativeLock, name.split(sep).join("/"))
       if (kind === "jsi") continue
       if (kind === "sqlite") {
         const contents = readFileSync(path)
@@ -248,14 +270,17 @@ async function checkFlaggedPackage({ packageDirectory, collected, lateFiles, ext
 function scanInstalledTree(nodeModulesDirectory) {
   for (const entry of readEntries(nodeModulesDirectory)) {
     /** `.bin`, `.cache` and `.package-lock.json` are npm's own bookkeeping, not package content. */
-    if (!entry.isDirectory() || entry.isSymbolicLink() || entry.name.startsWith(".")) continue
+    if (entry.name.startsWith(".")) continue
     const path = join(nodeModulesDirectory, entry.name)
+    if (entry.isSymbolicLink()) { inspectPackageLink(path); continue }
+    if (!entry.isDirectory()) continue
     if (!entry.name.startsWith("@")) {
       scanPackage(path)
       continue
     }
     for (const scoped of readEntries(path)) {
-      if (!scoped.isDirectory() || scoped.isSymbolicLink()) continue
+      if (scoped.isSymbolicLink()) { inspectPackageLink(join(path, scoped.name)); continue }
+      if (!scoped.isDirectory()) continue
       scanPackage(join(path, scoped.name))
     }
   }
@@ -275,7 +300,9 @@ function findInstalledTrees(directory) {
 
 const startedAtMs = Date.now()
 findInstalledTrees(repositoryRoot)
-for (const flagged of flaggedPackages) await checkFlaggedPackage(flagged)
+for (let index = 0; index < flaggedPackages.length; index += 8) {
+  await Promise.all(flaggedPackages.slice(index, index + 8).map(checkFlaggedPackage))
+}
 const elapsedSeconds = ((Date.now() - startedAtMs) / 1000).toFixed(1)
 const relativePath = (path) => relative(repositoryRoot, path).split(sep).join("/")
 
@@ -283,9 +310,12 @@ console.log(
   `Scanned ${packagesScanned} packages and ${filesScanned} files in ${elapsedSeconds}s, tolerance ${toleranceSeconds}s.`,
 )
 
+if (packagesScanned === 0) {
+  console.error("No installed dependency tree under this root. Nothing was checked.")
+  process.exit(1)
+}
 if (findings.length === 0) {
-  if (packagesScanned === 0) console.log("No installed dependency tree under this root. Nothing was checked.")
-  else console.log("Every file matches its own package's extraction. No dependency was edited in place.")
+  console.log("Every file matches its own package's extraction. No dependency was edited in place.")
   process.exit(0)
 }
 

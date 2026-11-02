@@ -229,6 +229,7 @@ for (const match of svg.matchAll(TAG)) {
   const attrs = {}
   let residue = attrText
   for (const a of attrText.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) {
+    if (Object.hasOwn(attrs, a[1])) fail(`<${name}> carries duplicate attribute ${a[1]}`)
     attrs[a[1]] = a[2] !== undefined ? a[2] : a[3]
     residue = residue.replace(a[0], "")
   }

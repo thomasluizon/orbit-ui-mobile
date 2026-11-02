@@ -43,11 +43,12 @@ const checkWorkflow = (label, contents, expectation, files = {}) => {
 }
 
 export const cases = () => {
+  checkWorkflow("expression-push", workflow(["push: ${{ inputs.push }}"]), { status: 1, stderr: /provenance/ })
   checkWorkflow("rejects docker driver pushes without disabled provenance", workflow(["push: true"]), {
     status: 1, stderr: /\.github\/workflows\/release\.yml:.*Build and push image.*provenance: false/,
   })
   checkWorkflow("accepts docker driver pushes with disabled provenance", workflow(["push: true", "provenance: false"]), { status: 0 })
-  checkWorkflow("accepts docker driver loads without provenance input", workflow(["load: true"]), { status: 0 })
+  checkWorkflow("accepts docker driver loads without provenance input", workflow(["load: true", "push: false"]), { status: 0 })
   checkWorkflow("rejects enabled provenance", workflow(["push: true", "provenance: true"]), { status: 1 })
   checkWorkflow("accepts other drivers", workflow(["push: true"], "docker-container"), { status: 0 })
   checkWorkflow("reads quoted inputs and inline comments", workflow(["push: 'true' # publish", 'provenance: "false" # disabled']), { status: 0 })
@@ -55,7 +56,7 @@ export const cases = () => {
         with:
           push: true
 `, { status: 1, stderr: /Build and push image[^\n]*\n[^\n]*docker\/build-push-action@v7/ })
-  checkWorkflow("keeps drivers scoped to their steps list", workflow(["load: true"]) + `  other:
+  checkWorkflow("keeps drivers scoped to their steps list", workflow(["load: true", "push: false"]) + `  other:
     steps:
       - uses: docker/build-push-action@v7
         with:

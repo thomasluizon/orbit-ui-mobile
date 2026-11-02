@@ -188,6 +188,15 @@ const expoBuildCases = () => {
 }
 
 export const cases = () => {
+  const reset = stageLockedPackage("reset-mtime")
+  for (const name of readdirSync(reset.packageDirectory)) utimesSync(join(reset.packageDirectory, name), at(0), at(0))
+  writeAt(join(reset.packageDirectory, "index.js"), "edited bytes", at(0))
+  check(TOOL, "reset mtime cannot hide edits", ["--root", reset.repository], { status: 1, stderr: /modified/ })
+  const linkedFile = stageLockedPackage("linked-file")
+  for (const name of readdirSync(linkedFile.packageDirectory)) utimesSync(join(linkedFile.packageDirectory, name), at(0), at(0))
+  rmSync(join(linkedFile.packageDirectory, "index.js"))
+  symlinkSync(join(linkedFile.packageDirectory, "README.md"), join(linkedFile.packageDirectory, "index.js"))
+  check(TOOL, "symbolic file cannot evade verification", ["--root", linkedFile.repository], { status: 1, stderr: /symbolic|missing/ })
   expoBuildCases()
   for (const [label, ignoreFiles] of [
     ["renamed-ignore", [".gitignore"]],
@@ -427,7 +436,7 @@ globalThis.fetch = async (url, options) => {
       TOOL,
       `a scan rooted in ${timestampMode} standalone output finds no installed tree`,
       ["--root", generatedRoot],
-      { status: 0, stdout: /Scanned 0 packages and 0 files[\s\S]*No installed dependency tree/ },
+      { status: 1, stderr: /No installed dependency tree/ },
     )
     writeAt(join(installedPackage, "index.js"), "edited installed bytes\n", at(10800))
     const installedResult = check(
@@ -462,6 +471,9 @@ globalThis.fetch = async (url, options) => {
    * Windows without elevation.
    */
   symlinkSync(source, join(workspace.nodeModules, "@orbit", "shared"), "junction")
+  writeFileSync(join(workspace.repository, "package-lock.json"), JSON.stringify({ packages: {
+    "node_modules/@orbit/shared": { resolved: "packages/shared", link: true },
+  } }))
   check(
     TOOL,
     "a linked workspace is never walked as installed content",
@@ -495,6 +507,6 @@ globalThis.fetch = async (url, options) => {
     TOOL,
     "a root with no installed tree says so rather than reporting clean",
     ["--root", join(empty.repository, "nothing-here")],
-    { status: 0, stdout: /No installed dependency tree under this root/ },
+    { status: 1, stderr: /No installed dependency tree under this root|unreadable/ },
   )
 }

@@ -1,3 +1,4 @@
+import { parityPlatform } from "../../tools/lib/parity-scope.mjs"
 import { readFileSync, writeFileSync } from "node:fs"
 import { dashFindings } from "../../tools/check-dashes.mjs"
 
@@ -16,8 +17,8 @@ if (process.env.CHECK_DASHES !== "false" && dashFindings(`${title} ${text}`).len
 }
 
 const paths = readFileSync(changedPaths, "utf8").split(/\r?\n/)
-const web = paths.some((path) => /^apps\/web\/(app|components|hooks|stores|lib)\//.test(path))
-const mobile = paths.some((path) => /^apps\/mobile\/(app|components|hooks|stores|lib)\//.test(path))
+const web = paths.some((path) => parityPlatform(path) === "web")
+const mobile = paths.some((path) => parityPlatform(path) === "mobile")
 if (labels.includes("parity:exempt") && (web || mobile)) {
   const section = text.split(/^## Parity[ \t]*\r?$/m)[1]?.split(/^## /m)[0].trim()
   if (!section || !/BFF|direct API|cookie|SecureStore|shadcn|StyleSheet|next-intl|i18next|Radix Primitives|rn-primitives|navigation chrome|sidebar|tab bar|command palette|keyboard shortcuts|hover affordances/i.test(section)) {

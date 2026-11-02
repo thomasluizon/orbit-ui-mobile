@@ -58,6 +58,14 @@ export const cases = () => {
     rmSync(root, { recursive: true, force: true })
   }
 
+  const repeated = fixture("replace-all", "sample.js", 'const word = "clean";\n// clean\n')
+  const repeatedPayload = { tool_input: { file_path: join(repeated, "sample.js"), old_string: "clean", new_string: date, replace_all: true } }
+  T("replace_all scans the later occurrence", run(repeated, ["--hook"], JSON.stringify(repeatedPayload)).status === 2)
+  const literal = fixture("literal-replacement", "sample.md", `${owner} clean\n`)
+  const literalPayload = { tool_input: { file_path: join(literal, "sample.md"), old_string: "clean", new_string: "$`" } }
+  T("replacement dollar stays literal", run(literal, ["--hook"], JSON.stringify(literalPayload)).status === 0)
+  rmSync(repeated, { recursive: true, force: true })
+  rmSync(literal, { recursive: true, force: true })
   const safe = fixture("literals", "sample.js", `const message = "${date}";\nconst pattern = /${date}/;\n// one\n// two\n// three\n// four\n// five\n// six\n`)
   const editRoot = fixture("edit-payloads", "sample.md", "clean\n")
   const editInput = { file_path: join(editRoot, "sample.md"), old_string: "clean", new_string: owner }
