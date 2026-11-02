@@ -669,6 +669,7 @@ T("admin merge: nested shell blocks", blocks(checkAdminMerge("bash -c 'gh api -X
 console.log("\n# forbid-raw-ticket-mutation (_lib/rules-tickets.mjs)")
 const TICKET_REPO = "thomasluizon/orbit-tickets"
 const CODE_REPO = "thomasluizon/orbit-ui-mobile"
+for (const command of ["gh issue close 1 -R $OWNER/orbit-tickets", "gh api -X PATCH repos/$OWNER/orbit-tickets/issues/1", "gh project delete $PROJECT --owner thomasluizon", "gh project delete 2 --owner $OWNER"]) T(`tickets: an unresolved target blocks ${command}`, blocks(checkTicketMutation(command)), true)
 T("ticket wrapper regression: nested escaped backticks", blocks(checkTicketMutation("echo `echo \\`gh issue close 1 -R thomasluizon/orbit-tickets\\``")), true)
 for (const command of [
   `echo $(gh issue close 1 -R ${TICKET_REPO})`,

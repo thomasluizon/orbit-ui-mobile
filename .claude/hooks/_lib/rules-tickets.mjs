@@ -55,7 +55,7 @@ function normalizeRepository(value) {
 function repositoryVerdict(words, command) {
   const repository = explicitRepository(words)
   if (!repository) return blocked(command, "The command does not prove which repository it will mutate.")
-  if (/[{}]/.test(repository) || !repository.includes("/")) return blocked(command, "The command carries an unresolved repository target.")
+  if (/[$`{}]/.test(repository) || !repository.includes("/")) return blocked(command, "The command carries an unresolved repository target.")
   if (repository.toLowerCase() !== TICKET_REPOSITORY) return null
   return blocked(command, `The command mutates the ticket repository ${TICKET_REPOSITORY}.`)
 }
@@ -64,7 +64,7 @@ function projectVerdict(words, command) {
   const owner = valueOf(words, ["--owner"])
   const itemIndex = ghIndex(words) + 2
   const number = words[itemIndex + 1]?.startsWith("-") ? null : words[itemIndex + 1] ?? null
-  if (!owner || !number || owner === "@me") return blocked(command, "The command does not prove which GitHub project it will mutate.")
+  if (!owner || !number || owner === "@me" || /[$`{}]/.test(owner) || /[$`{}]/.test(number)) return blocked(command, "The command does not prove which GitHub project it will mutate.")
   if (owner.toLowerCase() === TICKET_PROJECT_OWNER && number === TICKET_PROJECT_NUMBER) {
     return blocked(command, `The command mutates the ticket board ${TICKET_PROJECT_OWNER}/${TICKET_PROJECT_NUMBER}.`)
   }
@@ -184,7 +184,7 @@ function apiVerdict(words, apiIndex, command) {
   if (!API_RESOURCES.test(endpoint)) return null
   const repository = restRepository(endpoint)
   if (!repository) return blocked(command, "The API mutation does not prove which repository owns the ticket object.")
-  if (/[{}]/.test(repository)) return blocked(command, "The API mutation uses an unresolved repository placeholder.")
+  if (/[$`{}]/.test(repository)) return blocked(command, "The API mutation uses an unresolved repository placeholder.")
   return null
 }
 
