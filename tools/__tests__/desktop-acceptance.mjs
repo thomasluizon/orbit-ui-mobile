@@ -257,6 +257,7 @@ function macKeyboardEvents() {
 #import <ApplicationServices/ApplicationServices.h>
 static NSMutableArray *events;
 static NSString *command;
+static pid_t targetPid;
 static CGEventFlags inheritedFlags = kCGEventFlagMaskCommand | kCGEventFlagMaskShift;
 @interface PaletteApplication : NSObject
 + (instancetype)runningApplicationWithProcessIdentifier:(pid_t)pid;
@@ -273,15 +274,21 @@ static CGEventRef inheritedKeyboardEvent(CGEventSourceRef source, CGKeyCode code
 }
 static void captureKey(CGEventTapLocation tap, CGEventRef event) {
     inheritedFlags = CGEventGetFlags(event);
-    [events addObject:@{@"command": command, @"pressed": @((BOOL)(CGEventGetType(event) == kCGEventKeyDown)),
+    [events addObject:@{@"command": command, @"pid": @(targetPid), @"pressed": @((BOOL)(CGEventGetType(event) == kCGEventKeyDown)),
         @"metaKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskCommand) != 0)),
         @"shiftKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskShift) != 0)),
         @"ctrlKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskControl) != 0)),
         @"altKey": @((BOOL)((inheritedFlags & kCGEventFlagMaskAlternate) != 0))}];
+    targetPid = 0;
+}
+static void captureTargetedKey(pid_t pid, CGEventRef event) {
+    targetPid = pid;
+    captureKey(kCGHIDEventTap, event);
 }
 #define NSRunningApplication PaletteApplication
 #define CGEventCreateKeyboardEvent inheritedKeyboardEvent
 #define CGEventPost captureKey
+#define CGEventPostToPid captureTargetedKey
 #define usleep(microseconds) ((void)0)
 ${keyboard}
 int main(void) {
@@ -302,6 +309,8 @@ int main(void) {
   const capture = spawnSync(executable, [], { encoding: 'utf8', timeout: 10000 })
   T('macOS keyboard producer captures its real event flags without opening an app', capture.status === 0, capture.stderr)
   const events = JSON.parse(capture.stdout)
+  T('macOS keyboard producer targets both key phases at the installed process',
+    events.length === 12 && events.every((event) => event.pid === 1), JSON.stringify(events))
   T('macOS keyboard producer sets Command only for shortcuts and clears inherited modifiers on both key phases', events.length === 12 && events.every((event) =>
     event.metaKey === ['palette', 'quit'].includes(event.command) && !event.shiftKey && !event.ctrlKey && !event.altKey), JSON.stringify(events))
   return events

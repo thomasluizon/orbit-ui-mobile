@@ -10,7 +10,7 @@ const HOST = "https://sentry.io"
 const ORGANIZATION = "orbit-ai-habit-tracker"
 const PREVIOUS_ORGANIZATION = "thomasluizon"
 const PROJECT = "orbit-mobile"
-const CLI = "node_modules/@sentry/react-native/node_modules/@sentry/cli"
+const CLI = "apps/mobile/node_modules/@sentry/cli"
 const LOOKUP = `${HOST}/api/0/organizations/${ORGANIZATION}/chunk-upload/`
 const PROJECT_RELEASES = `${HOST}/api/0/projects/${ORGANIZATION}/${PROJECT}/releases/?per_page=1`
 const AUTH = `${HOST}/api/0/`
@@ -44,7 +44,7 @@ function assertConfiguration(root) {
   const plugin = app.expo.plugins.find((entry) => Array.isArray(entry) && entry[0] === "@sentry/react-native/expo")?.[1]
   const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"))
   if (plugin?.url !== `${HOST}/` || plugin.organization !== ORGANIZATION || plugin.project !== PROJECT || plugin.authToken
-    || lock.packages[CLI]?.version !== "3.8.0" || lock.packages["node_modules/@sentry/react-native"]?.version !== "8.28.0") {
+    || lock.packages[CLI]?.version !== "3.8.0" || lock.packages["apps/mobile/node_modules/@sentry/react-native"]?.version !== "8.28.0") {
     throw new Error("configuration_mismatch")
   }
 }
