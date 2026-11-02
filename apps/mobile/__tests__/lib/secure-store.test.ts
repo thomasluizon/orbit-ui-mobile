@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getRandomBytesAsync } from 'expo-crypto'
 import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
@@ -11,6 +12,8 @@ import {
   setRefreshToken,
   setToken,
 } from '@/lib/secure-store'
+
+vi.mock('expo-crypto', () => ({ getRandomBytesAsync: vi.fn() }))
 
 const { getItemAsyncMock, setItemAsyncMock, deleteItemAsyncMock, clearWidgetTokenMock } = vi.hoisted(() => ({
   getItemAsyncMock: vi.fn(),
@@ -49,14 +52,14 @@ describe('mobile secure store helpers', () => {
     await AsyncStorage.clear()
     vi.resetModules()
     const store = await import('@/lib/secure-store')
-    getItemAsyncMock.mockImplementation(() => Promise.resolve(deleteItemAsyncMock.mock.calls.length === 4 ? null : 'old-token'))
+    getItemAsyncMock.mockImplementation(() => Promise.resolve(deleteItemAsyncMock.mock.calls.length === 5 ? null : 'old-token'))
     await expect(store.getToken()).resolves.toBeNull()
     expect(deleteItemAsyncMock.mock.calls.map(([key]) => key).sort((left, right) => left.localeCompare(right))).toEqual([
-      'account_config', 'auth_token', 'google_auth_attempt', 'refresh_token',
+      'account_config', 'auth_token', 'google_auth_attempt', 'push_install_secret', 'refresh_token',
     ])
     await store.setToken('new-token')
     await store.getRefreshToken()
-    expect(deleteItemAsyncMock).toHaveBeenCalledTimes(4)
+    expect(deleteItemAsyncMock).toHaveBeenCalledTimes(5)
   })
 
   it('clears the shared widget Keychain before marking a new iOS install initialized', async () => {
@@ -71,6 +74,43 @@ describe('mobile secure store helpers', () => {
     await store.getToken()
     expect(clearWidgetTokenMock).toHaveBeenCalledTimes(2)
     expect(await AsyncStorage.getItem('orbit:ios-install')).toBe('1')
+  })
+
+  it('creates one base64url push secret for concurrent callers and reuses it after a restart', async () => {
+    vi.resetModules()
+    getItemAsyncMock.mockResolvedValue(null)
+    const bytes = Uint8Array.from({ length: 32 }, (_, index) => 224 + index)
+    vi.mocked(getRandomBytesAsync).mockReset().mockResolvedValue(bytes)
+    const store = await import('@/lib/secure-store')
+    const [first, concurrent] = await Promise.all([store.getPushSecret(), store.getPushSecret()])
+    expect(first).toBe(Buffer.from(bytes).toString('base64url'))
+    expect(concurrent).toBe(first)
+    expect(getRandomBytesAsync).toHaveBeenCalledExactlyOnceWith(32)
+    expect(setItemAsyncMock).toHaveBeenCalledExactlyOnceWith('push_install_secret', first)
+
+    getItemAsyncMock.mockResolvedValue(first)
+    vi.resetModules()
+    const restarted = await import('@/lib/secure-store')
+    expect(await restarted.getPushSecret()).toBe(first)
+    expect(getRandomBytesAsync).toHaveBeenCalledOnce()
+  })
+
+  it('creates different push secrets for separate installs and retries failed persistence', async () => {
+    getItemAsyncMock.mockResolvedValue(null)
+    vi.mocked(getRandomBytesAsync).mockReset()
+      .mockResolvedValueOnce(new Uint8Array(32).fill(1))
+      .mockResolvedValueOnce(new Uint8Array(32).fill(2))
+      .mockResolvedValueOnce(new Uint8Array(32).fill(3))
+    vi.resetModules()
+    const firstInstall = await import('@/lib/secure-store')
+    const first = await firstInstall.getPushSecret()
+    vi.resetModules()
+    const secondInstall = await import('@/lib/secure-store')
+    setItemAsyncMock.mockRejectedValueOnce(new Error('Keychain locked'))
+    await expect(secondInstall.getPushSecret()).rejects.toThrow('Keychain locked')
+    const second = await secondInstall.getPushSecret()
+    expect(second).not.toBe(first)
+    expect(second).toHaveLength(43)
   })
 
   it('reads and writes auth tokens', async () => {
@@ -114,7 +154,7 @@ describe('mobile secure store helpers', () => {
     const deletion = new Promise<void>((resolve) => { finishDeletion = resolve })
     deleteItemAsyncMock.mockReturnValue(deletion)
     const operations = Promise.all([store.getToken(), store.setRefreshToken('new-refresh')])
-    await vi.waitFor(() => expect(deleteItemAsyncMock).toHaveBeenCalledTimes(4))
+    await vi.waitFor(() => expect(deleteItemAsyncMock).toHaveBeenCalledTimes(5))
     expect(setItemAsyncMock).not.toHaveBeenCalled()
     expect(getItemAsyncMock).not.toHaveBeenCalled()
     finishDeletion()

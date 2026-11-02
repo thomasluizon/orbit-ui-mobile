@@ -45,6 +45,7 @@ import {
 } from '@/lib/pending-notification-deletes'
 import { useUIStore } from '@/stores/ui-store'
 import { getAccountId, setAccountId } from '@/lib/account-scope'
+import * as accountScopedState from '@/lib/account-scoped-state'
 import { startAccountScopedSession } from '@/lib/account-scoped-state'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -79,7 +80,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
-afterEach(() => vi.useRealTimers())
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 
 const {
   replaceMock,
@@ -454,6 +455,36 @@ describe('mobile auth store security paths', () => {
     useOnboardingDraftStore.setState({ onboardingLocallyDone: false })
   })
 
+  it('does not carry a draft into a sign-in that replaces another account', async () => {
+    const startSession = vi.spyOn(accountScopedState, 'startAccountScopedSession')
+    await useAuthStore.getState().login('account-a-token', null, {
+      userId: 'account-a', email: 'a@example.test', name: 'Account A',
+    })
+    useOnboardingDraftStore.getState().bufferHabit({ title: 'Read', frequencyUnit: 'Day', frequencyQuantity: 1 })
+    expect(useOnboardingDraftStore.getState().habits).toHaveLength(1)
+    startSession.mockClear()
+
+    await useAuthStore.getState().login('account-b-token', null, {
+      userId: 'account-b', email: 'b@example.test', name: 'Account B',
+    })
+
+    expect(startSession).toHaveBeenCalledWith('account-b', false)
+    expect(useOnboardingDraftStore.getState().habits).toEqual([])
+    expect(useAuthStore.getState().user?.userId).toBe('account-b')
+  })
+
+  it('signs out without a revocation request when no refresh token is stored', async () => {
+    getRefreshTokenMock.mockResolvedValue(null)
+    useAuthStore.setState({ isAuthenticated: true, sessionPhase: 'signed-in',
+      user: { userId: 'user-1', email: 'user@example.test', name: 'User' }, isLoading: false })
+
+    await useAuthStore.getState().logout()
+
+    expect(apiClientMock.mock.calls.some(([path]) => path === API.auth.logout)).toBe(false)
+    expect(clearAllTokensMock).toHaveBeenCalledOnce()
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, user: null, sessionPhase: 'signed-out' })
+  })
+
   it('clears any stale refresh token during login when no new refresh token is provided', async () => {
     await useAuthStore.getState().login('access-token', null, {
       userId: 'user-1',
@@ -537,7 +568,6 @@ describe('mobile auth store security paths', () => {
     expect(codeInput().props.value).toBe('')
     expect(confirmButton().props.disabled).toBe(true)
     TestRenderer.act(() => tree.unmount())
-    vi.restoreAllMocks()
   })
 
   it('deletes the pending OAuth attempt when another account signs in', async () => {

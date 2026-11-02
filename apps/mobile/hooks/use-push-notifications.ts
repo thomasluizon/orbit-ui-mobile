@@ -20,6 +20,7 @@ import {
   type NativePushRegistrationStatus,
 } from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
+import { getPushSecret } from '@/lib/secure-store'
 import { apiClient } from '@/lib/api-client'
 import { queryClient } from '@/lib/query-client'
 import { invalidateNotificationList } from '@/lib/notification-cache-helpers'
@@ -290,19 +291,19 @@ async function getCurrentPushToken(): Promise<string | null> {
   return null
 }
 
-function buildNativePushPayload(token: string) {
+async function buildNativePushPayload(token: string) {
   const transport = Platform.OS === 'ios' ? 'apns' : 'fcm'
   return {
     endpoint: token,
     p256dh: transport,
-    auth: transport,
+    auth: await getPushSecret(),
   }
 }
 
 async function sendTokenToBackend(token: string, isCurrent: () => boolean): Promise<void> {
   await apiClient(API.notifications.subscribe, {
     method: 'POST',
-    body: JSON.stringify(buildNativePushPayload(token)),
+    body: JSON.stringify(await buildNativePushPayload(token)),
     isCurrent,
   })
 }
@@ -325,7 +326,7 @@ async function replaceForeignPushToken(
 async function removeTokenFromBackend(token: string): Promise<void> {
   await apiClient(API.notifications.unsubscribe, {
     method: 'POST',
-    body: JSON.stringify(buildNativePushPayload(token)),
+    body: JSON.stringify(await buildNativePushPayload(token)),
   })
 }
 

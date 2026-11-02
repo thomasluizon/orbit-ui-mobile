@@ -86,7 +86,7 @@ describe('calendar import row press contrast', () => {
         weekStartDay={1} selected={state === 'selected'} isReviewMode={false} suggestionId={null}
         dismissPending={false} styles={createStyles()} tokens={tokens}
         t={((key: string) => key) as TFunction} onToggle={vi.fn()} onDismiss={vi.fn()}
-      />) as unknown as RowTree
+      />)
       trees.push(tree)
     })
     const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox')[0]!
@@ -112,7 +112,7 @@ describe('calendar import row press contrast', () => {
   it('expands the existing event title without duplicating it or exposing the description', () => {
     let tree!: RowTree
     void act(() => {
-      tree = create(<CalendarSyncEventRow event={event} weekStartDay={1} selected isReviewMode={false} suggestionId={null} dismissPending={false} styles={createStyles()} tokens={createTokensV2('orange', 'dark')} t={((key: string) => key) as TFunction} onToggle={vi.fn()} onDismiss={vi.fn()} />) as unknown as RowTree
+      tree = create(<CalendarSyncEventRow event={event} weekStartDay={1} selected isReviewMode={false} suggestionId={null} dismissPending={false} styles={createStyles()} tokens={createTokensV2('orange', 'dark')} t={((key: string) => key) as TFunction} onToggle={vi.fn()} onDismiss={vi.fn()} />)
       trees.push(tree)
     })
     const disclosure = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'contextMenu.viewDetails')[0]!
@@ -165,7 +165,7 @@ describe('calendar import row press contrast', () => {
         weekStartDay={1} selected={selected} isReviewMode suggestionId="suggestion"
         dismissPending={false} styles={createStyles()} tokens={tokens}
         t={((key: string) => key) as TFunction} onToggle={onToggle} onDismiss={onDismiss}
-      />) as unknown as RowTree
+      />)
       trees.push(tree)
     })
     const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox')[0]!

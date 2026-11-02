@@ -32,9 +32,6 @@
   },
   "settings": {
     "notifications": {
-      "title": "Notificações push",
-      "allowed": "Permitir notificações",
-      "description": "Receba lembretes e novidades mesmo com o app fechado",
       "enabled": "Notificações ativadas",
       "disabled": "Notificações desativadas",
       "requesting": "Pedindo acesso às notificações...",
@@ -45,11 +42,9 @@
       "denied": "As notificações estão bloqueadas. Ative nas configurações do navegador.",
       "unsupported": "Este navegador não tem suporte a notificações push",
       "deniedNative": "As notificações estão bloqueadas. Ative nas configurações do aparelho.",
-      "unsupportedNative": "Este aparelho não tem suporte a notificações push.",
       "openSettings": "Abrir configurações"
     },
     "homeScreen": {
-      "title": "Tela inicial",
       "showGeneral": "Ver tarefas sem data",
       "showGeneralDesc": "Tarefas sem data também aparecem no Hoje."
     },
@@ -218,7 +213,6 @@
   "nav": {
     "habits": "Hábitos",
     "calendar": "Calendário",
-    "chat": "Chat",
     "createHabit": "Criar hábito",
     "profile": "Perfil",
     "astra": "Astra",
@@ -230,9 +224,6 @@
   "shell": {
     "collapseSidebar": "Recolher menu",
     "expandSidebar": "Expandir menu",
-    "openRail": "Abrir painel",
-    "closeRail": "Fechar painel",
-    "openPalette": "Abrir paleta de comandos",
     "composer": {
       "queue": {
         "label": "Mensagens na fila",
@@ -348,7 +339,6 @@
     }
   },
   "todayAstra": {
-    "createSentence": "Me ajude a criar um hábito para hoje",
     "openConversation": "Abrir conversa",
     "returningElapsed": "{days, plural, =0 {Você concluiu um hábito pela última vez há # dias.} one {Você concluiu um hábito pela última vez há # dia.} other {Você concluiu um hábito pela última vez há # dias.}}",
     "returningBounded": "Você concluiu um hábito pela última vez há mais de 30 dias.",
@@ -368,7 +358,6 @@
       "create": "Criar",
       "actions": "Ações",
       "destinations": "Ir para",
-      "navigate": "Navegar",
       "search": "Hábitos"
     },
     "hints": {
@@ -383,27 +372,9 @@
     }
   },
   "contextMenu": {
-    "log": "Registrar",
-    "skip": "Pular",
-    "edit": "Editar",
-    "delete": "Apagar",
-    "duplicate": "Duplicar",
-    "viewDetails": "Ver detalhes",
-    "addSubHabit": "Adicionar sub-hábito"
-  },
-  "rail": {
-    "todayProgress": "Hoje",
-    "allDone": "Tudo feito",
-    "progressLabel": "{total, plural, =0 {{done} de # hábitos concluídos} one {{done} de # hábito concluído} other {{done} de # hábitos concluídos}}",
-    "remaining": "Restantes hoje",
-    "empty": "Sem hábitos hoje",
-    "loadFailed": "Erro ao carregar o progresso"
+    "viewDetails": "Ver detalhes"
   },
   "astraRail": {
-    "open": "Abrir a Astra",
-    "close": "Recolher a Astra",
-    "maximize": "Maximizar",
-    "minimize": "Minimizar",
     "title": "Copilota Astra",
     "subtitle": "Sua copilota de hábitos"
   },
@@ -505,25 +476,18 @@
     "resendCode": "Reenviar código",
     "resendIn": "Você pode pedir outro código em {time}",
     "changeEmail": "Trocar e-mail",
-    "minutesShort": "{minutes, plural, =0 {faltam # min} one {falta # min} other {faltam # min}}",
     "genericError": "Ocorreu um erro. Tente de novo.",
     "orContinueWith": "ou",
     "openInOrbit": "Abrir no Orbit",
     "signInWithGoogle": "Continuar com o Google",
     "signInWithApple": "Continuar com a Apple",
     "googleError": "Não foi possível entrar com o Google. Tente de novo.",
-    "signingIn": "Entrando...",
     "callbackError": "Algo deu errado ao entrar. Tente de novo.",
     "sessionExpiring": "{minutes, plural, =0 {Sua sessão expira em # minutos. Salve o que estiver fazendo.} one {Sua sessão expira em # minuto. Salve o que estiver fazendo.} other {Sua sessão expira em # minutos. Salve o que estiver fazendo.}}",
     "sessionExpired": "Sua sessão expirou.",
     "sessionSignedOut": "Você saiu da conta. Entre para continuar de onde parou.",
     "sessionRefreshFailed": "O Orbit não conseguiu atualizar sua sessão. Tente novamente.",
     "refresh": "Atualizar",
-    "todayBoundary": {
-      "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
-      "readOnly": "Só dá para registrar até 7 dias atrás. Aqui você ainda pode editar, mover e apagar.",
-      "future": "Este dia ainda não chegou. Você pode registrar o que não tem hora marcada."
-    },
     "login": "Entrar",
     "codeDigit": "Dígito {n} de 6",
     "legalConsent": "Ao continuar, você concorda com os <terms>Termos</terms> e a <privacy>Política de privacidade</privacy>.",
@@ -612,7 +576,6 @@
     "editTask": "Editar tarefa",
     "deleteHabit": "Apagar hábito",
     "logHabit": "Registrar hábito",
-    "saveChanges": "Salvar alterações",
     "viewsLabel": "Visualizações de hábitos",
     "viewToday": "Hoje",
     "viewAll": "Todos",
@@ -638,7 +601,6 @@
     "noSubHabits": "Nenhum sub-hábito ainda",
     "filterEmptySubHabits": "Nenhum sub-hábito corresponde a esta visualização.",
     "moveParent": {
-      "button": "Mover para...",
       "title": "Mover hábito",
       "description": "Escolha onde colocar \"{name}\"",
       "toRoot": "Sem hábito principal (nível raiz)",
@@ -675,7 +637,6 @@
       "title": "Reagendar com IA",
       "loading": "Procurando um plano realista.",
       "error": "Não foi possível sugerir um plano.",
-      "retry": "Tentar novamente",
       "accept": "Usar este plano",
       "dismiss": "Agora não",
       "freePrompt": "Com o Pro, a Astra transforma um hábito atrasado em um plano realista.",
@@ -701,15 +662,10 @@
     "checklistCompleteTitle": "Checklist concluído",
     "checklistCompleteMessage": "Você concluiu todos os itens de \"{name}\". Quer registrar este hábito?",
     "checklistCompleteConfirm": "Registrar hábito",
-    "checklistClearTitle": "Limpar checklist?",
-    "checklistClearMessage": "Isso remove todos os itens do checklist deste hábito.",
     "bulkDeleteTitle": "Apagar hábitos",
     "bulkDeleteMessage": "{count, plural, =0 {Isso remove # hábitos e os sub-hábitos deles. Você pode desfazer pela mensagem que aparece.} one {Isso remove # hábito e os sub-hábitos dele. Você pode desfazer pela mensagem que aparece.} other {Isso remove # hábitos e os sub-hábitos deles. Você pode desfazer pela mensagem que aparece.}}",
     "bulkDeleteConfirm": "Apagar hábitos",
-    "bulkLogTitle": "Registrar hábitos",
-    "bulkLogMessage": "{count, plural, =0 {Registrar # hábitos selecionados como concluídos? Os que já estão feitos serão ignorados.} one {Registrar # hábito selecionado como concluído? Os que já estão feitos serão ignorados.} other {Registrar # hábitos selecionados como concluídos? Os que já estão feitos serão ignorados.}}",
     "bulkLogConfirm": "Registrar",
-    "bulkSkipTitle": "Pular hábitos",
     "bulkSkipConfirm": "Pular",
     "bulkBar": {
       "log": "Registrar selecionados",
@@ -723,7 +679,6 @@
       "move": "Mover selecionados",
       "moveLimit": "{limit, plural, =0 {Selecione até # hábitos para mover de uma vez.} one {Selecione até # hábito para mover de uma vez.} other {Selecione até # hábitos para mover de uma vez.}}"
     },
-    "skipHabit": "Pular",
     "frequency": {
       "everyDay": "Todo dia",
       "everyWeek": "Toda semana",
@@ -736,7 +691,6 @@
       "flexibleLabel": "{n}x / {unit}",
       "flexibleProgress": "{unit}: {done}/{target}"
     },
-    "frequencyLabel": "Frequência",
     "form": {
       "reminderKind": "Tipo de lembrete",
       "repeatEvery": "Repetir a cada",
@@ -1115,7 +1069,6 @@
       "oneTime": "Uma vez"
     },
     "breakdown": {
-      "breakInto": "Dividir {name} em:",
       "limit": "{limit, plural, =0 {Limite de # hábitos. Remova um para adicionar outro.} one {Limite de # hábito. Remova um para adicionar outro.} other {Limite de # hábitos. Remova um para adicionar outro.}}",
       "retryError": "Não foi possível criar os hábitos restantes. Tente de novo.",
       "createError": "Não foi possível criar os hábitos. Edite a proposta e tente de novo.",
@@ -1125,8 +1078,6 @@
       "createAsParent": "Agrupar como hábito principal",
       "groupingDenied": "Não foi possível agrupar os hábitos. Nada foi salvo. Desmarque a opção de agrupar para criar os hábitos separados.",
       "capacityDenied": "A proposta passa do limite de hábitos. Remova um hábito da proposta e tente de novo.",
-      "every": "a cada",
-      "frequencyQuantityLabel": "Intervalo de frequência",
       "removeHabit": "Remover {name}"
     },
     "clarification": {
@@ -1205,8 +1156,6 @@
     },
     "noHabitsScheduled": "Nenhum hábito estava programado neste dia.",
     "goToDay": "Abrir no Hoje",
-    "goToCurrentMonth": "Ir para o mês atual",
-    "goToCurrentWeek": "Ir para a semana atual",
     "view": {
       "switchLabel": "Visualização do calendário",
       "month": "Mês",
@@ -1226,9 +1175,6 @@
       "allDay": "Dia inteiro",
       "noSetTime": "Sem horário",
       "now": "Agora",
-      "pickRangeHint": "Escolha o dia inicial e o final acima para definir o período.",
-      "pickEndHint": "Agora escolha o dia final",
-      "rangeMaxDays": "{max, plural, =0 {O período pode ter até # dias.} one {O período pode ter até # dia.} other {O período pode ter até # dias.}}",
       "empty": "Nada agendado",
       "moreLabel": "mais {count}",
       "moreCount": "{count, plural, =0 {+0} one {+#} other {+#}}",
@@ -1246,7 +1192,6 @@
     "entrySearchEmpty": "Nenhum resultado para \"{query}\"",
     "entryLabel": "{title}, {time}, {status}",
     "entryMeta": "{time} · {status}",
-    "completionHistory": "Histórico de conclusões",
     "showRecurringShort": "Mostrar hábitos",
     "showRecurring": "Mostrar hábitos que se repetem",
     "googleCalendar": "Google Agenda",
@@ -1254,8 +1199,6 @@
     "monthPicker": "Mês e ano",
     "legendTitle": "Legenda",
     "title": "Google Agenda",
-    "profileButton": "Google Agenda",
-    "profileHint": "Importe eventos como hábitos",
     "fetchingEvents": "Buscando seus eventos...",
     "noEvents": "Nenhum evento",
     "eventsFound": "{count, plural, =0 {# eventos} one {# evento} other {# eventos}}",
@@ -1291,12 +1234,10 @@
     "calendars": {
       "readFrom": "Calendários de origem",
       "title": "Calendários",
-      "description": "Escolha de quais calendários do Google o Orbit lê os eventos.",
       "loading": "Carregando seus calendários...",
       "empty": "Nenhum calendário encontrado na sua conta Google.",
       "error": "Não foi possível carregar seus calendários. Tente de novo.",
       "primaryLabel": "Principal",
-      "toggleLabel": "Sincronizar {name}",
       "saveFailed": "Não foi possível salvar a seleção de calendários. Tente de novo."
     },
     "autoSync": {
@@ -1304,9 +1245,6 @@
       "automaticImport": "Sincronizar sempre",
       "automaticImportDescription": "Novos eventos aparecem aqui.",
       "proRequired": "A sincronização automática precisa do Orbit Pro.",
-      "title": "Sincronização automática",
-      "description": "O Orbit fica de olho em novos eventos do seu Google Agenda e te avisa. Nenhum hábito é criado sem você confirmar.",
-      "toggleLabel": "Ativar sincronização automática",
       "lastSyncedNever": "Nunca sincronizado",
       "lastSyncedJustNow": "Sincronizado agora",
       "lastSyncedMinutesAgo": "{n, plural, =0 {há # minutos} one {há # minuto} other {há # minutos}}",
@@ -1314,27 +1252,12 @@
       "lastSyncedYesterday": "Ontem",
       "lastSyncedDaysAgo": "{n, plural, =0 {há # dias} one {há # dia} other {há # dias}}",
       "syncNow": "Sincronizar",
-      "syncNowRunning": "Sincronizando...",
-      "connectGoogleFirst": "Conecte sua conta Google antes de ativar a sincronização automática.",
       "reconnectTitle": "Google Agenda desconectado",
-      "reconnectBody": "A sincronização automática está pausada. Reconecte para retomar.",
       "reconnectCta": "Reconectar",
       "reviewModeTitle": "Revisar novos eventos",
       "reviewModeEmpty": "Nada para revisar",
       "dismissSuggestion": "Descartar",
-      "enableSuccess": "Sincronização automática ativada",
-      "disableSuccess": "Sincronização automática desativada",
       "syncFailed": "A sincronização falhou. Tente de novo."
-    }
-  },
-  "explore": {
-    "title": "Explorar",
-    "subtitle": "Tudo o que o Orbit pode fazer, em um só lugar.",
-    "sections": {
-      "discover": "Descobrir",
-      "progress": "Seu progresso",
-      "integrations": "Integrações",
-      "more": "Mais"
     }
   },
   "charts": {
@@ -1417,7 +1340,6 @@
       "partial": "Alguns registros estão indisponíveis.",
       "error": "Não foi possível atualizar. Tente de novo.",
       "expired": "Faça a pergunta original de novo.",
-      "delta": "Variação",
       "metric": {
         "positiveLogRecords": "Conclusões",
         "completedHabits": "Hábitos concluídos",
@@ -1685,16 +1607,10 @@
     },
     "attachImage": "Anexar imagem",
     "send": "Enviar mensagem",
-    "removeImage": "Remover imagem",
-    "listening": "Ouvindo...",
-    "transcribing": "Transcrevendo...",
-    "stopRecording": "Parar gravação",
-    "toggleMic": "Ativar gravação de voz",
     "imageError": "Só aceitamos imagens JPEG, PNG e WebP.",
     "imageSizeError": "A imagem precisa ter menos de 20 MB.",
     "imagePermissionError": "Permita o acesso às fotos para anexar imagens.",
     "attachFile": "Anexar arquivo",
-    "removeFile": "Remover arquivo",
     "fileError": "Só aceitamos arquivos .csv, .json, .txt e .md.",
     "fileSizeError": "O arquivo precisa ter menos de 1 MB.",
     "fileReadError": "Não foi possível ler esse arquivo. Tente de novo.",
@@ -1705,7 +1621,6 @@
     "limitReachedError": "Você usou as mensagens de hoje com a Astra. Elas voltam à meia-noite, no seu fuso horário.",
     "limitReachedErrorWeekly": "Você usou as mensagens da semana com a Astra.",
     "aiError": "Desculpe, algo deu errado. Tente de novo.",
-    "operationDone": "Pronto.",
     "operationFailed": "Não funcionou. Tente de novo.",
     "action": {
       "changes": "Alterações",
@@ -1783,7 +1698,6 @@
     "messagesUsedWeekly": "mensagens usadas nesta semana",
     "senderYou": "Você",
     "senderOrbit": "Astra",
-    "astraAvatarLabel": "Avatar da Astra",
     "unknownEntity": "Desconhecido",
     "habitList": {
       "title": "Hábitos de hoje",
@@ -1841,7 +1755,6 @@
       "deadline": "Prazo {date}",
       "projected": "Previsão para {date} neste ritmo",
       "empty": "Nenhuma meta ainda. Crie uma a partir de um hábito ou peça aqui mesmo.",
-      "done": "{name} foi concluída",
       "ring": "Progresso de {name}",
       "progressLink": "Ver no Progresso"
     },
@@ -2576,17 +2489,14 @@
       "saveError": "Alteração não salva. Tente de novo."
     },
     "groups": {
-      "you": "Você",
       "astra": "Astra",
       "notifications": "Notificações",
-      "more": "Mais do Orbit",
-      "ending": "Encerrar"
+      "more": "Mais do Orbit"
     },
     "settingsRows": {
       "editName": "{name}: Editar nome, {email}",
       "timezone": "Fuso horário",
       "timezoneValue": "Fuso horário {timeZone}",
-      "dailyAllowance": "Cota diária da Astra",
       "apiKeysMcp": "Chaves de API e MCP",
       "wrapped": "Orbit Wrapped",
       "weekStart": "Semana começa em",
@@ -2620,7 +2530,6 @@
       "activeCount": "{count, plural, =0 {# chaves ativas} one {# chave ativa} other {# chaves ativas}}",
       "create": "Criar chave",
       "createScoped": "Criar chave com escopo",
-      "newKeyName": "Nova chave",
       "scopeTitle": "Chave com escopo",
       "scopeLabel": "Escopo",
       "scopeAction": "Criar",
@@ -2638,15 +2547,9 @@
     },
     "loading": "Carregando perfil",
     "sections": {
-      "account": "Conta",
       "preferences": "Preferências",
       "communication": "Comunicação",
-      "aboutHelp": "Sobre e Ajuda",
-      "advanced": "Avançado",
-      "accountActions": "Ações da conta",
-      "subscription": "Assinatura",
-      "aboutHelpHint": "Guia de recursos, suporte, indicação",
-      "advancedHint": "Fuso horário, widget, ferramentas de desenvolvedor"
+      "advanced": "Avançado"
     },
     "editName": {
       "title": "Editar nome",
@@ -2715,13 +2618,10 @@
       "sendNeedsSubject": "Escolha um assunto para enviar.",
       "sendNeedsMessage": "Escreva uma mensagem para enviar."
     },
-    "logout": "Sair",
     "wrappedTitle": "Seu Wrapped",
     "widgetTitle": "Widget do Android",
-    "widgetHint": "Os hábitos de hoje na tela inicial do aparelho.",
     "calendarSync": {
-      "title": "Sincronizar calendário",
-      "hint": "Eventos dos seus calendários aparecem no Calendário."
+      "title": "Sincronizar calendário"
     },
     "aboutRow": "Sobre o Orbit",
     "widgetHow": {
@@ -2736,21 +2636,17 @@
       "feature4": "Os hábitos de amanhã, quando não há nada para hoje"
     },
     "subscription": {
-      "plan": "Plano",
       "pro": "Orbit Pro",
       "proHint": "Gerencie sua assinatura",
       "free": "Plano grátis",
       "freeHint": "Faça upgrade para ter tudo",
       "active": "Ativo",
       "trial": "Teste Pro",
-      "trialUntil": "{plan} até {date}",
       "trialDaysLeft": "{days, plural, =0 {faltam # dias} one {falta # dia} other {faltam # dias}}",
       "trialEnded": "Teste encerrado",
-      "trialEndedHint": "Faça upgrade para ter os recursos Pro de volta",
-      "manage": "Gerenciar"
+      "trialEndedHint": "Faça upgrade para ter os recursos Pro de volta"
     },
     "freshStart": {
-      "button": "Recomeçar",
       "reviewDeletion": "Revisar",
       "deleteData": "Apagar dados",
       "heading": "Recomeçar",
@@ -2771,7 +2667,6 @@
       "confirmInstruction": "Digite ORBIT abaixo para confirmar.",
       "confirmLabel": "Confirmação",
       "confirmPlaceholder": "ORBIT",
-      "processing": "Recomeçando...",
       "errorGeneric": "Algo deu errado. Tente de novo."
     },
     "deleteAccount": {
@@ -2851,7 +2746,6 @@
       "completions": "Conclusões",
       "bestStreak": "Melhor sequência",
       "activeDays": "Dias ativos",
-      "topHabits": "Principais hábitos",
       "goalsClosed": "Metas fechadas"
     },
     "streak": "{count, plural, =0 {Sequência de # dias} one {Sequência de # dia} other {Sequência de # dias}}"
@@ -3058,7 +2952,6 @@
     "monthly": "Mensal"
   },
   "summary": {
-    "title": "Seu dia",
     "loading": "Dando uma olhada no seu dia...",
     "error": "Não consegui carregar o resumo. Tente de novo.",
     "retry": "Tentar de novo",
@@ -3236,7 +3129,6 @@
     },
     "featureGuide": {
       "title": "Guia do Orbit",
-      "openButton": "Guia de recursos",
       "habits": "Hábitos",
       "calendar": "Calendário",
       "astra": "Astra",
@@ -3374,11 +3266,8 @@
     "purchaseSuccess": "O Orbit Pro está ativo.",
     "title": "Assinatura",
     "pitchTitle": "Orbit Pro",
-    "alreadyPro": "Você está no plano Pro",
-    "manageHint": "Gerencie sua assinatura, troque o pagamento ou cancele quando quiser",
     "feature": "Recurso",
     "free": "Grátis",
-    "subscribe": "Assinar Pro",
     "plan": "Plano",
     "restorePurchase": "Restaurar compra",
     "appStore": {
@@ -3403,10 +3292,8 @@
       "trialDaysLeft": "{days, plural, =0 {Faltam # dias de teste} one {Falta # dia de teste} other {Faltam # dias de teste}}",
       "trialLastDay": "Último dia do teste",
       "trialHeading": "250 por semana.",
-      "trialCta": "Manter o Pro",
       "freeEyebrow": "Você está no plano grátis",
       "freeHeading": "7 vezes mais Astra.",
-      "freeCta": "Assinar Pro",
       "trustLine": "Sem fidelidade, e nenhum cartão fica guardado no Orbit.",
       "cancelAnytime": "Cancele quando quiser.",
       "handOff": "O pagamento é feito pelo nosso provedor. O Orbit nunca guarda os dados do seu cartão.",
@@ -3455,7 +3342,6 @@
     },
     "billing": {
       "plan": {
-        "title": "Plano atual",
         "pro": "Orbit Pro",
         "monthly": "Pro Mensal",
         "yearly": "Pro Anual",
@@ -3509,8 +3395,7 @@
         "manageHint": "A sua assinatura é cobrada pelo Stripe. Para trocar de plano, mudar o cartão ou cancelar, use o portal deles.",
         "providerNote": "Toda mudança na cobrança é feita com o provedor. O Orbit não guarda os dados do seu cartão e nunca pede a sua senha aqui.",
         "managePlay": "Abrir o Google Play",
-        "managePlayHint": "Você assinou pelo Google Play, então a cobrança é feita por lá. Para trocar de plano ou cancelar, use o painel de assinaturas do Play.",
-        "opening": "Abrindo configurações de cobrança"
+        "managePlayHint": "Você assinou pelo Google Play, então a cobrança é feita por lá. Para trocar de plano ou cancelar, use o painel de assinaturas do Play."
       },
       "error": "Não foi possível carregar os detalhes de cobrança",
       "retry": "Tentar novamente",
@@ -3519,10 +3404,7 @@
       "offline": "Você está sem conexão. Reconecte para gerenciar a cobrança.",
       "lapsed": {
         "title": "Seu Pro terminou",
-        "canceled": "Sua assinatura foi cancelada em {date}.",
         "payment_failed": "Sua assinatura terminou após um problema de pagamento em {date}.",
-        "expired": "Sua assinatura expirou em {date}.",
-        "fallback": "Sua assinatura terminou.",
         "lostMessages": "{limit, plural, =0 {A cota da Astra voltou para # mensagens por dia.} one {A cota da Astra voltou para # mensagem por dia.} other {A cota da Astra voltou para # mensagens por dia.}}",
         "lostCalendar": "O Google Agenda não sincroniza mais.",
         "lostRetrospective": "A retrospectiva do período parou.",
@@ -3532,8 +3414,7 @@
         "body": "A conta voltou para o plano grátis. Os seus hábitos, registros e metas continuam aqui, sem mudança."
       },
       "paymentIssue": {
-        "title": "Não conseguimos processar seu pagamento",
-        "body": "Seu acesso Pro continua ativo. Para mantê-lo, abra os dados de cobrança abaixo e atualize a forma de pagamento."
+        "title": "Não conseguimos processar seu pagamento"
       },
       "portalFix": "Verifique a conexão e tente de novo. A sua assinatura continua como está."
     },
@@ -3637,7 +3518,6 @@
   "goals": {
     "empty": "Nenhuma meta ainda",
     "create": "Criar meta",
-    "dragItem": "item arrastável",
     "reorderHint": "Segure para reordenar",
     "form": {
       "habitsExplainer": "O progresso da meta vem dos hábitos que você vincula a ela.",
@@ -3692,8 +3572,7 @@
     "status": {
       "active": "Ativa",
       "completed": "Concluída",
-      "abandoned": "Abandonada",
-      "achieved": "Alcançada"
+      "abandoned": "Abandonada"
     },
     "detail": {
       "manualProgress": "Atualize o progresso. Ao bater a meta, ela é concluída.",
@@ -3724,9 +3603,7 @@
       "statusLabel": "Status"
     },
     "deadline": {
-      "overdue": "Atrasada",
-      "daysLeft": "{n, plural, =0 {# dias restantes} one {# dia restante} other {# dias restantes}}",
-      "dueToday": "Vence hoje"
+      "daysLeft": "{n, plural, =0 {# dias restantes} one {# dia restante} other {# dias restantes}}"
     },
     "errors": {
       "create": "Não foi possível criar a meta",
@@ -4154,7 +4031,6 @@
     "invalidExpiry": "Informe uma data de expiração futura válida."
   },
   "preferences": {
-    "title": "Preferências",
     "general": "Geral"
   },
   "about": {
@@ -4167,19 +4043,6 @@
     "tagline": "Uma IA que acompanha hábitos, para quem não consegue manter uma rotina.",
     "versionLabel": "Versão",
     "accountLabel": "Conta"
-  },
-  "advancedSettings": {
-    "title": "Avançado",
-    "widgetSection": "Widget",
-    "developersSection": "Desenvolvedores"
-  },
-  "calendarSync": {
-    "notConnected": "Não conectado"
-  },
-  "apiKeys": {
-    "errors": {
-      "create": "Não foi possível criar a chave de API"
-    }
   },
   "versionUpdate": {
     "title": "Uma versão nova está na loja",
@@ -4319,7 +4182,6 @@
   },
   "aiDisclosure": {
     "isAiLabel": "IA",
-    "isAiTooltip": "A Astra é uma assistente de IA. As respostas são geradas automaticamente.",
     "notMedicalAdvice": "A Astra é uma IA e pode errar. Isto não é aconselhamento médico ou profissional."
   },
   "milestoneShare": {

@@ -12,7 +12,7 @@ vi.mock('@/lib/actions/notifications', () => ({ subscribePush: mocks.subscribe, 
 import { desktopEndpoint, ensureDesktopPush, loadDesktopPush, releaseDesktopPush, requestDesktopPushPermission, resumeDesktopPush } from '@/lib/desktop-push'
 
 const registration: DesktopPushRegistration = {
-  endpoint: 'https://dm3p.notify.windows.com/?token=renewed', p256dh: 'wns', auth: 'wns', apnsTopic: null,
+  endpoint: 'https://dm3p.notify.windows.com/?token=renewed', p256dh: 'wns', auth: 'install-push-secret', apnsTopic: null,
   deviceId: '11111111-1111-4111-8111-111111111111',
 }
 const saved = { ...registration, endpoint: 'https://dm3p.notify.windows.com/?token=previous' }
@@ -59,6 +59,12 @@ describe('desktop push through the native bridge', () => {
     mocks.invoke.mockResolvedValue({ ...snapshot(), permission, supported })
     expect(await requestDesktopPushPermission()).toBe(expected)
     expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith('desktop_push', { action: 'request', prompt: true })
+    expect(mocks.subscribe).not.toHaveBeenCalled()
+  })
+
+  it.each(['', 'a'.repeat(129)])('rejects a native registration with an invalid secret length %s', async (auth) => {
+    mocks.invoke.mockResolvedValue({ ...snapshot(), candidate: { ...registration, auth } })
+    await expect(ensureDesktopPush()).rejects.toThrow()
     expect(mocks.subscribe).not.toHaveBeenCalled()
   })
 
@@ -141,7 +147,7 @@ describe('desktop push through the native bridge', () => {
     await resumeDesktopPush('account-a')
     expect(mocks.invoke).toHaveBeenCalledWith('desktop_push', { action: 'request', prompt: false })
     expect(mocks.subscribe).toHaveBeenCalledExactlyOnceWith({
-      endpoint: registration.endpoint, keys: { p256dh: 'wns', auth: 'wns' }, apnsTopic: null, deviceId: registration.deviceId,
+      endpoint: registration.endpoint, keys: { p256dh: 'wns', auth: 'install-push-secret' }, apnsTopic: null, deviceId: registration.deviceId,
     }, 'account-a')
     expect(current).toEqual(registration)
     expect((await loadDesktopPush('account-a')).status).toBe('registered')

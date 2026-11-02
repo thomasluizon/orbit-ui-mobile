@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use serde::{Deserialize, Serialize};
 use std::{io::Write, path::Path};
 use uuid::Uuid;
@@ -120,7 +121,7 @@ pub struct Registration {
     #[serde(rename = "p256dh")]
     pub key_transport: String,
     #[serde(rename = "auth")]
-    pub auth_transport: String,
+    pub auth_secret: String,
     pub apns_topic: Option<String>,
     pub device_id: Uuid,
 }
@@ -147,6 +148,8 @@ pub struct PushState {
     #[serde(default)]
     pub language: Option<String>,
     pub device_id: Uuid,
+    #[serde(default)]
+    pub push_secret: String,
     pub owner: Option<String>,
     pub registration: Option<Registration>,
     #[serde(default)]
@@ -192,8 +195,17 @@ impl PushState {
     }
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         match std::fs::read(path) {
-            Ok(bytes) => match serde_json::from_slice(&bytes) {
-                Ok(state) => Ok(state),
+            Ok(bytes) => match serde_json::from_slice::<Self>(&bytes) {
+                Ok(mut state) => {
+                    if state.push_secret.is_empty() {
+                        let mut random = [0u8; 32];
+                        getrandom::fill(&mut random)
+                            .map_err(|_| "Cannot create native push secret")?;
+                        state.push_secret = URL_SAFE_NO_PAD.encode(random);
+                        state.save(path)?;
+                    }
+                    Ok(state)
+                }
                 Err(_) => {
                     eprintln!("Desktop push: corrupt settings moved aside");
                     let identity = serde_json::from_slice::<serde_json::Value>(&bytes)
@@ -221,9 +233,12 @@ impl PushState {
         identity: Option<Uuid>,
         path: &Path,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let mut random = [0u8; 32];
+        getrandom::fill(&mut random).map_err(|_| "Cannot create native push secret")?;
         let state = Self {
             language: None,
             device_id: identity.unwrap_or_else(Uuid::new_v4),
+            push_secret: URL_SAFE_NO_PAD.encode(random),
             owner: None,
             registration: None,
             pending: Vec::new(),
@@ -281,7 +296,7 @@ impl PushState {
         Ok(Registration {
             endpoint,
             key_transport: transport.into(),
-            auth_transport: transport.into(),
+            auth_secret: self.push_secret.clone(),
             apns_topic: (!windows).then(|| topic.into()),
             device_id: self.device_id,
         })
@@ -329,6 +344,7 @@ mod tests {
         let state = PushState {
             language: None,
             device_id: Uuid::from_u128(1),
+            push_secret: "saved-install-secret".into(),
             owner: None,
             registration: None,
             pending: Vec::new(),
@@ -338,9 +354,10 @@ mod tests {
             .unwrap();
         assert_eq!(
             serde_json::to_string(&registration).unwrap(),
-            r#"{"endpoint":"abcd","p256dh":"apns","auth":"apns","apnsTopic":"org.useorbit.desktop","deviceId":"00000000-0000-0000-0000-000000000001"}"#
+            r#"{"endpoint":"abcd","p256dh":"apns","auth":"saved-install-secret","apnsTopic":"org.useorbit.desktop","deviceId":"00000000-0000-0000-0000-000000000001"}"#
         );
         assert!(!format!("{registration:?}").contains("abcd"));
+        assert!(!format!("{registration:?}").contains("saved-install-secret"));
     }
 
     #[test]
@@ -407,6 +424,71 @@ mod tests {
             .unwrap();
         assert_eq!(std::fs::read_to_string(backup).unwrap(), bytes);
         assert!(PushState::load(&path).is_ok());
+    }
+
+    #[test]
+    fn legacy_state_gains_a_saved_secret_without_changing_pending_revocations() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("push.json");
+        let mut state = PushState::load(&path).unwrap();
+        let mut registration = state
+            .registration("abcdef".into(), "org.useorbit.desktop", false)
+            .unwrap();
+        registration.auth_secret = "apns".into();
+        state
+            .stage("account-a".into(), registration.clone())
+            .unwrap();
+        let mut legacy = serde_json::to_value(&state).unwrap();
+        legacy.as_object_mut().unwrap().remove("pushSecret");
+        std::fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+
+        let migrated = PushState::load(&path).unwrap();
+
+        assert_eq!(migrated.device_id, state.device_id);
+        assert_eq!(migrated.pending[0].registration, registration);
+        assert_eq!(migrated.push_secret.len(), 43);
+        assert_eq!(
+            PushState::load(&path).unwrap().push_secret,
+            migrated.push_secret
+        );
+        let saved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(
+            saved["pushSecret"].as_str(),
+            Some(migrated.push_secret.as_str())
+        );
+    }
+
+    #[test]
+    fn registrations_reuse_a_saved_install_secret_instead_of_the_transport() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("push.json");
+        let state = PushState::load(&path).unwrap();
+        let registration = state
+            .registration("abcdef".into(), "org.useorbit.desktop", false)
+            .unwrap();
+        assert_ne!(registration.auth_secret, registration.key_transport);
+        assert_eq!(registration.auth_secret.len(), 43);
+        let restored = PushState::load(&path).unwrap();
+        assert_eq!(
+            restored
+                .registration(
+                    "https://dm3p.notify.windows.com/?token=next".into(),
+                    "",
+                    true
+                )
+                .unwrap()
+                .auth_secret,
+            registration.auth_secret
+        );
+        let other = PushState::load(&directory.path().join("other.json")).unwrap();
+        assert_ne!(
+            other
+                .registration("abcd".into(), "org.useorbit.desktop", false)
+                .unwrap()
+                .auth_secret,
+            registration.auth_secret
+        );
     }
 
     #[test]
@@ -493,6 +575,7 @@ mod tests {
         let saved = PushState {
             language: None,
             device_id: Uuid::new_v4(),
+            push_secret: "saved-install-secret".into(),
             owner: Some("account-a".into()),
             registration: None,
             pending: Vec::new(),
@@ -523,6 +606,7 @@ mod tests {
         let saved = PushState {
             language: Some("pt-BR".into()),
             device_id: Uuid::new_v4(),
+            push_secret: "saved-install-secret".into(),
             owner: Some("account-a".into()),
             registration: None,
             pending: Vec::new(),
@@ -717,6 +801,7 @@ mod tests {
         let state = PushState {
             language: None,
             device_id: Uuid::new_v4(),
+            push_secret: "saved-install-secret".into(),
             owner: None,
             registration: None,
             pending: Vec::new(),

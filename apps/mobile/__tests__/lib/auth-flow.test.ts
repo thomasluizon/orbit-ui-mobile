@@ -73,6 +73,45 @@ describe('mobile auth flow helpers', () => {
     expect(getSafeReturnUrl(returnUrl)).toBe(destination)
   })
 
+  it('a rejected return-URL write does not leave a stale destination for the next login', async () => {
+    const stored = new Map<string, string>()
+    setItemMock.mockImplementation((key: string, value: string) => { stored.set(key, value); return Promise.resolve() })
+    getItemMock.mockImplementation((key: string) => Promise.resolve(stored.get(key) ?? null))
+    removeItemMock.mockImplementation((key: string) => { stored.delete(key); return Promise.resolve() })
+    await storeAuthReturnUrl('/old', createAuthReturnUrlAttempt())
+    setItemMock.mockRejectedValueOnce(new Error('disk full'))
+    const attemptId = createAuthReturnUrlAttempt()
+
+    await expect(storeAuthReturnUrl('/new', attemptId)).rejects.toThrow('disk full')
+
+    const destination = await getStoredAuthReturnUrl(attemptId)
+    expect(destination).toBeNull()
+    expect(getSafeReturnUrl(destination)).toBe('/(tabs)')
+  })
+
+  it('runs the next queued return-URL mutation after a write rejects', async () => {
+    setItemMock.mockRejectedValueOnce(new Error('disk full')).mockResolvedValueOnce(undefined)
+    const attemptId = createAuthReturnUrlAttempt()
+    const failed = storeAuthReturnUrl('/failed', attemptId)
+    const next = storeAuthReturnUrl('/next', attemptId)
+
+    await expect(failed).rejects.toThrow('disk full')
+    await expect(next).resolves.toBeUndefined()
+    expect(setItemMock).toHaveBeenLastCalledWith('auth_return_url', '/next')
+  })
+
+  it('propagates a referral write failure and allows the next valid write', async () => {
+    setItemMock.mockRejectedValueOnce(new Error('disk full')).mockResolvedValueOnce(undefined)
+    await expect(storeReferralCode('invite_abc')).rejects.toThrow('disk full')
+    await expect(storeReferralCode('invite_next')).resolves.toBeUndefined()
+    expect(setItemMock).toHaveBeenLastCalledWith('referral_code', 'invite_next')
+  })
+
+  it('propagates a referral removal failure', async () => {
+    removeItemMock.mockRejectedValueOnce(new Error('disk unavailable'))
+    await expect(clearStoredReferralCode()).rejects.toThrow('disk unavailable')
+  })
+
   it('stores and retrieves valid referral codes', async () => {
     getItemMock.mockResolvedValue('invite_abc')
 

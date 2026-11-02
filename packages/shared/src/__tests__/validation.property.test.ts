@@ -46,10 +46,17 @@ const goalInputArb = fc.record(
 )
 
 describe('habitFormSchema (properties)', () => {
+  test.prop([fc.array(fc.constantFrom(' ', '\t'), { minLength: 1, maxLength: 5 }).map((characters) => characters.join(''))], PROPERTY_PARAMS)(
+    'rejects whitespace-only habit titles',
+    (title) => { expect(habitFormSchema.safeParse({ title }).success).toBe(false) },
+  )
+
   test.prop([habitInputArb], PROPERTY_PARAMS)(
-    're-parsing a parsed habit form is a fixed point',
+    'trims habit titles to a non-empty value and keeps parsing stable',
     (input) => {
       const once = habitFormSchema.parse(input)
+      expect(once.title).toBe(input.title.trim())
+      expect(once.title.length).toBeGreaterThan(0)
       const twice = habitFormSchema.parse(once)
       expect(twice).toEqual(once)
     },

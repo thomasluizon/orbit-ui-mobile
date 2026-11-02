@@ -82,7 +82,13 @@ export async function getStoredAuthReturnUrl(attemptId: string): Promise<string 
 export async function storeAuthReturnUrl(returnUrl: string, attemptId: string): Promise<void> {
   if (!isSafeReturnUrl(returnUrl)) return
   await queueReturnUrlMutation(async () => {
-    if (isAuthReturnUrlAttemptCurrent(attemptId)) await AsyncStorage.setItem(AUTH_RETURN_URL_KEY, returnUrl)
+    if (!isAuthReturnUrlAttemptCurrent(attemptId)) return
+    try {
+      await AsyncStorage.setItem(AUTH_RETURN_URL_KEY, returnUrl)
+    } catch (error) {
+      await AsyncStorage.removeItem(AUTH_RETURN_URL_KEY)
+      throw error
+    }
   })
 }
 

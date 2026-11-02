@@ -16,16 +16,19 @@ import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { Lockup } from '@/components/ui/lockup'
 import { PillLink } from '@/components/ui/pill-button'
-import { getGoogleAuthAppIntent } from '@/lib/google-auth-app-intent'
+import { getGoogleAuthAppIntent, resolveAuthCallbackParams } from '@/lib/google-auth-app-intent'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
-export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebState: string | null }>) {
+export function AuthCallbackContent({ pendingWebStates }: Readonly<{
+  pendingWebStates: Readonly<Record<'apple' | 'google', string | null>>
+}>) {
   const locale = useLocale()
   const t = useTranslations()
   const [appIntent, setAppIntent] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [params] = useState(() => new URLSearchParams(searchParams.toString()))
+  const [params] = useState(() => resolveAuthCallbackParams({ search: searchParams.toString(), hash: typeof location === 'undefined' ? '' : location.hash }))
+  const pendingWebState = pendingWebStates[params.get('provider') === 'apple' ? 'apple' : 'google']
   const [reportFailure] = useState(() => createAuthCallbackFailureReporter(params.get('provider') === 'apple' ? 'apple' : 'google', captureMessage))
   const { setAuth } = useAuthStore()
   const [state, setState] = useState<'pending' | 'failed' | 'account'>('pending')
@@ -39,7 +42,10 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
     if (processed.current) return
     processed.current = true
     const apple = params.get('provider') === 'apple'
-    if (apple) queueMicrotask(() => setProvider('apple'))
+    if (apple) {
+      globalThis.history.replaceState(null, '', '/auth-callback')
+      queueMicrotask(() => setProvider('apple'))
+    }
     const code = apple ? params.get('handoff') : params.get('code')
     const oauthState = params.get('state')
     const intent = getGoogleAuthAppIntent({
@@ -54,7 +60,6 @@ export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebSt
       })
       return
     }
-    if (apple) globalThis.history.replaceState(null, '', '/auth-callback')
     const inputFailure = readAuthCallbackInput(params.has('error'), code, oauthState).reason
       ?? (apple && (oauthState !== pendingWebState || params.getAll('state').length !== 1 || params.getAll('handoff').length !== 1) ? 'state_mismatch' : null)
     if (inputFailure) {
