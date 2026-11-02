@@ -7,7 +7,7 @@ import { gamificationKeys, referralKeys } from '@orbit/shared/query'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareKey } from '@orbit/shared/stores'
-import { buildReferralUrl } from '@orbit/shared/utils'
+import { buildReferralUrl , SETTLE_DELAY_MS } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ActionRow } from '@/components/ui/action-row'
 
@@ -23,7 +23,6 @@ import {
   type MilestoneShareVariant,
 } from '@/components/milestone-share/milestone-share-card'
 
-import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 
 function resolveVariant(
   milestoneKey: string,

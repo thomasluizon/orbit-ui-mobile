@@ -1,4 +1,4 @@
-import { MAX_REMINDERS_PER_HABIT } from '@orbit/shared/validation'
+import { MAX_REMINDERS_PER_HABIT, MIN_RELATIVE_REMINDER_MINUTES, MAX_RELATIVE_REMINDER_MINUTES } from '@orbit/shared/validation'
 import { IconButton } from '@/components/ui/icon-button'
 import { useHabitFormInteraction } from './habit-form-interaction'
 import { Select } from '@/components/ui/select'
@@ -70,7 +70,7 @@ export function ReminderSection({
     if (customUnit === "days") multiplier = 1440;
     else if (customUnit === "hours") multiplier = 60;
     const minutes = num * multiplier * (customDirection === "after" ? -1 : 1);
-    if (minutes < -1439 || minutes > 10080) {
+    if (minutes < MIN_RELATIVE_REMINDER_MINUTES || minutes > MAX_RELATIVE_REMINDER_MINUTES) {
       onValidationError?.(t("habits.form.invalidRelativeReminder"));
       return;
     }

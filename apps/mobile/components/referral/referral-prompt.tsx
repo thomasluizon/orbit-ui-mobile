@@ -3,7 +3,7 @@ import { Platform, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { referralKeys } from '@orbit/shared/query'
-import { REFERRAL_REWARD_COPY_KEYS, selectReferralReward } from '@orbit/shared/utils'
+import { REFERRAL_REWARD_COPY_KEYS, selectReferralReward , SETTLE_DELAY_MS } from '@orbit/shared/utils'
 import type { ReferralPresentationDashboard } from '@orbit/shared/types/referral'
 import {
   canPromptReferral,
@@ -20,7 +20,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useUIStore } from '@/stores/ui-store'
 
-import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 
 /** One-shot milestone nudge that hands off to the referral drawer. */
 export function ReferralPrompt() {

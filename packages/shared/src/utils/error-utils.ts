@@ -1,7 +1,7 @@
 import type { ZodType } from 'zod'
 import { validationErrorDetailsSchema, validationErrorsSchema, type ValidationErrorDetails } from '../types/api'
 
-import { MAX_ACTIVE_HABITS, MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH } from '../validation/constants'
+import { MAX_ACTIVE_HABITS, MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH, MAX_REMINDERS_PER_HABIT } from '../validation/constants'
 
 interface BackendErrorData {
   error?: string
@@ -119,7 +119,9 @@ export function translateErrorKey(
   values?: Record<string, string | number | Date>,
 ): string | null {
   if (!errorKey) return null
-  return translate(errorKey, values)
+  const reminderValues = errorKey === 'habits.form.relativeReminderMax'
+    ? { count: MAX_REMINDERS_PER_HABIT } : undefined
+  return translate(errorKey, values ?? reminderValues)
 }
 
 function extractNestedData(err: unknown): BackendErrorData | undefined {

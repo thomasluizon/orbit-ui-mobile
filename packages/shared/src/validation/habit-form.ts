@@ -11,6 +11,8 @@ import {
   MAX_HABIT_TITLE_LENGTH,
   MAX_SCHEDULED_REMINDERS,
   MAX_REMINDERS_PER_HABIT,
+  MIN_RELATIVE_REMINDER_MINUTES,
+  MAX_RELATIVE_REMINDER_MINUTES,
   MAX_SUB_HABITS,
   MAX_TAGS_PER_HABIT,
 } from './constants'
@@ -20,8 +22,6 @@ const textErrorKeys = {
   task: { title: 'habits.form.taskTitleTooLong', description: 'habits.form.taskDescriptionTooLong', emoji: 'habits.form.taskEmojiTooLong' },
 }
 
-const MINUTES_PER_DAY = 24 * 60
-const MINUTES_PER_WEEK = 7 * MINUTES_PER_DAY
 
 function habitFormTextFields(task: boolean) {
   const keys = textErrorKeys[task ? 'task' : 'habit']
@@ -201,7 +201,7 @@ export function validateReminderSelection(
     if (reminderTimes.length + scheduledReminders.length > MAX_REMINDERS_PER_HABIT) {
       return 'habits.form.relativeReminderMax'
     }
-    if (reminderTimes.some((minutes) => !Number.isInteger(minutes) || minutes < -(MINUTES_PER_DAY - 1) || minutes > MINUTES_PER_WEEK)) {
+    if (reminderTimes.some((minutes) => !Number.isInteger(minutes) || minutes < MIN_RELATIVE_REMINDER_MINUTES || minutes > MAX_RELATIVE_REMINDER_MINUTES)) {
       return 'habits.form.invalidRelativeReminder'
     }
     return validateScheduledReminders(scheduledReminders)

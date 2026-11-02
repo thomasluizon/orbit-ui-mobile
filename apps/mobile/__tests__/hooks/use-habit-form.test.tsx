@@ -1,8 +1,18 @@
+import { IntlMessageFormat } from 'intl-messageformat'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { applyHabitFormMode, buildEditHabitFormState, buildUpdateHabitRequest, normalizeHabitFormData, createApiClientError } from '@orbit/shared/utils'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import React from 'react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, onTestFinished } from 'vitest'
 import { useHabitForm, type HabitFormHelpers, type HabitFormOptions } from '@/hooks/use-habit-form'
+
+const translatedCopy = vi.hoisted(() => ({ locale: null as string | null }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({
+  t: (key: string, values?: Record<string, string | number>) => translatedCopy.locale && key === 'habits.form.relativeReminderMax'
+    ? String(new IntlMessageFormat((translatedCopy.locale === 'en' ? en : ptBR).habits.form.relativeReminderMax, translatedCopy.locale).format(values))
+    : key,
+}) }))
 
 const TestRenderer = require('react-test-renderer')
 
@@ -252,4 +262,11 @@ it.each([
     await TestRenderer.act(async () => { await helpers().form.trigger() })
     expect(helpers().form.getFieldState(field).error?.message).toBe(`habits.form.${suffix}`)
   }
+})
+
+it.each(['en', 'pt-BR'])('translates the submit reminder cap with its count in %s', (locale) => {
+  translatedCopy.locale = locale
+  onTestFinished(() => { translatedCopy.locale = null })
+  const form = renderHabitForm({ initialData: { title: 'Read', dueDate: '2026-09-12', dueTime: '09:00', reminderEnabled: true } })
+  expect(form.current.validateAll({ reminderTimes: Array.from({ length: 16 }, (_, index) => index) })).toBe(locale === 'en' ? 'Maximum 15 reminders' : 'No máximo 15 lembretes')
 })
