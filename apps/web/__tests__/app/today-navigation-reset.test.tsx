@@ -1,13 +1,15 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, getAccountDay } from '@orbit/shared/utils'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
+import { TodayProvider } from '@/app/(app)/today-provider'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { ShellScrollerProvider } from '@/components/shell/shell-scroller-context'
 import { useUIStore } from '@/stores/ui-store'
 
-const navigation = vi.hoisted(() => ({ pathname: '/', date: null as string | null, width: 600, push: vi.fn() }))
+const navigation = vi.hoisted(() => ({ pathname: '/', date: null as string | null, timeZone: 'UTC', width: 600, push: vi.fn() }))
 vi.mock('next/navigation', () => ({
   usePathname: () => navigation.pathname,
   useParams: () => ({}),
@@ -18,9 +20,8 @@ vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => navigation.width >= 1024 }))
 vi.mock('@/hooks/use-profile', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-profile')>(),
-  useProfile: () => ({ profile: createMockProfile({ timeZone: 'Pacific/Kiritimati' }) }),
+  useProfile: () => ({ profile: createMockProfile({ timeZone: navigation.timeZone }) }),
 }))
-vi.mock('@/app/(app)/today-provider', () => ({ useToday: () => '2026-09-12' }))
 vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: () => {} }))
 vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ currentTheme: 'dark', toggleTheme: vi.fn() }) }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
@@ -37,23 +38,31 @@ vi.mock('@/components/habits/habit-list', () => ({
       data-search={props.searchQuery} data-completed={String(props.showCompleted)} />,
 }))
 
+const queryClient = new QueryClient()
+
 function Surface() {
-  return <ShellScrollerProvider><DestinationShell onCreate={() => {}}>
-    <TodayPageClient initialToday="2026-09-12" initialHabits={null} />
-  </DestinationShell></ShellScrollerProvider>
+  return <QueryClientProvider client={queryClient}><TodayProvider><ShellScrollerProvider><DestinationShell onCreate={() => {}}>
+    <TodayPageClient initialToday={getAccountDay(new Date(), navigation.timeZone)} initialHabits={null} />
+  </DestinationShell></ShellScrollerProvider></TodayProvider></QueryClientProvider>
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.setSystemTime(new Date('2026-09-12T01:30:00Z'))
   navigation.pathname = '/'
   navigation.date = '2026-09-09'
   useUIStore.setState(useUIStore.getInitialState())
   navigation.push.mockImplementation(() => { navigation.pathname = '/'; navigation.date = null })
 })
 
+afterEach(() => { vi.useRealTimers() })
+
 it.each([600, 1100, 1352].flatMap((width) => ['today', 'all', 'general'].flatMap((view) => ['/', '/calendar', '/progress', '/profile', '/habits/example'].map((from) => ({ width, view, from })))))(
   'resets Hoje through its real navigation entry at $width from $from with $view selected, including a second press', async ({ width, view, from }) => {
     navigation.width = width
+    const expectedDate = getAccountDay(new Date(), navigation.timeZone)
+    expect(expectedDate).toBe('2026-09-12')
+    expect(getAccountDay(new Date(), 'America/Sao_Paulo')).toBe('2026-09-11')
     const rendered = render(<Surface />)
     const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
     const scrollTo = vi.fn()
@@ -78,7 +87,7 @@ it.each([600, 1100, 1352].flatMap((width) => ['today', 'all', 'general'].flatMap
       rendered.rerender(<Surface />)
       const list = screen.getByTestId('list')
       expect.soft(list).toHaveAttribute('data-view', 'today')
-      expect.soft(list).toHaveAttribute('data-date', '2026-09-12')
+      expect.soft(list).toHaveAttribute('data-date', expectedDate)
       expect.soft(list).toHaveAttribute('data-search', '')
       expect.soft(list).toHaveAttribute('data-completed', 'false')
       expect.soft(screen.queryByRole('textbox', { name: 'habits.search.title' })).not.toBeInTheDocument()
