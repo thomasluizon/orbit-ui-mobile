@@ -236,6 +236,8 @@ impl PushState {
         let directory = path.parent().ok_or("Missing push settings directory")?;
         std::fs::create_dir_all(directory)?;
         let mut file = tempfile::NamedTempFile::new_in(directory)?;
+        #[cfg(windows)]
+        protect_windows_file(file.path())?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -283,6 +285,22 @@ impl PushState {
             apns_topic: (!windows).then(|| topic.into()),
             device_id: self.device_id,
         })
+    }
+}
+
+#[cfg(windows)]
+fn protect_windows_file(path: &Path) -> Result<(), std::io::Error> {
+    use std::os::windows::ffi::OsStrExt;
+    let path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+    unsafe extern "C" {
+        fn orbit_push_protect_file(path: *const u16) -> bool;
+    }
+    if unsafe { orbit_push_protect_file(path.as_ptr()) } {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(
+            "Cannot protect desktop push settings",
+        ))
     }
 }
 
