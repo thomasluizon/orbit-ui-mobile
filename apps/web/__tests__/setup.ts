@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom/vitest'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { afterEach, vi } from 'vitest'
 

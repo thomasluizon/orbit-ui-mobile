@@ -53,6 +53,7 @@ describe('Lighthouse hermetic auth warmup', () => {
     expect(page.setCacheEnabled).toHaveBeenCalledTimes(4)
     expect(page.setCacheEnabled).toHaveBeenCalledWith(false)
     expect(page.goto).toHaveBeenCalledTimes(4)
+    expect(page.goto).toHaveBeenCalledWith('http://127.0.0.1:3000/', { waitUntil: 'load', timeout: 60000 })
     expect(page.close).toHaveBeenCalledTimes(4)
     expect(log).toHaveBeenCalledWith(
       '[lighthouse] warmup complete: 4/4 authenticated responses contained the Today empty state in server markup',

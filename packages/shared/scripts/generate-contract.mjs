@@ -51,7 +51,7 @@ async function main(argv) {
   else if (argv.length === 2 && argv[0] === '--candidate') options = { candidate: validateCommit(argv[1]) }
   else if (argv.length !== 0) throw new Error(usage)
   const require = createRequire(import.meta.url)
-  if (require('orval/package.json').version !== '8.37.0') throw new Error('Orval must be pinned to 8.37.0.')
+  if (require('orval/package.json').version !== '8.46.0') throw new Error('Orval must be pinned to 8.46.0.')
   await regenerate(options)
 }
 

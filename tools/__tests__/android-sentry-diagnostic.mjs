@@ -193,8 +193,8 @@ for (const field of ["url", "organization", "project", "authToken"]) {
   })
 }
 for (const [name, path, condition] of [
-  ["CLI", "node_modules/@sentry/react-native/node_modules/@sentry/cli", 'lock.packages[CLI]?.version !== "3.8.0"'],
-  ["SDK", "node_modules/@sentry/react-native", 'lock.packages["node_modules/@sentry/react-native"]?.version !== "8.28.0"'],
+  ["CLI", "apps/mobile/node_modules/@sentry/cli", 'lock.packages[CLI]?.version !== "3.8.0"'],
+  ["SDK", "apps/mobile/node_modules/@sentry/react-native", 'lock.packages["apps/mobile/node_modules/@sentry/react-native"]?.version !== "8.28.0"'],
 ]) {
   guard(`locked native ${name}`, [condition, "false"], async (subject) => {
     const lock = JSON.parse(readFileSync(join(REPO_ROOT, "package-lock.json"), "utf8"))
@@ -592,7 +592,8 @@ function outputStreamCases(source, stageModule) {
 
 async function configuredTargetRegressionCases() {
   const require = createRequire(import.meta.url)
-  const { getSentryProperties } = require("../../node_modules/@sentry/react-native/plugin/build/withSentry.js")
+  const mobileRequire = createRequire(join(REPO_ROOT, "apps/mobile/package.json"))
+  const { getSentryProperties } = mobileRequire("@sentry/react-native/plugin/build/withSentry.js")
   const app = JSON.parse(readFileSync(join(REPO_ROOT, "apps/mobile/app.json"), "utf8"))
   const options = app.expo.plugins.find((entry) => Array.isArray(entry) && entry[0] === "@sentry/react-native/expo")[1]
   T("android-sentry alignment: tracked plugin selects the current organization with the same host and project",
@@ -712,8 +713,8 @@ export const cases = async () => {
     T(`android-sentry: ${entry.name} rejects owning negative control`, !await entry.verify(mutant))
   }
   const healthy = await execute(diagnostic)
-  T("android-sentry: main calls the pinned nested CLI with no credential environment or argv", healthy.status === 0
-    && healthy.children[1][1][0] === join(REPO_ROOT, "node_modules/@sentry/react-native/node_modules/@sentry/cli/bin/sentry-cli")
+  T("android-sentry: main calls the pinned mobile CLI with no credential environment or argv", healthy.status === 0
+    && healthy.children[1][1][0] === join(REPO_ROOT, "apps/mobile/node_modules/@sentry/cli/bin/sentry-cli")
     && healthy.children.every(([, args, options]) => !JSON.stringify([args, options]).includes(token) && options.maxBuffer === 8192 && options.timeoutMs === 5000))
   for (const credential of [organizationToken("orbit-ai-habit-tracker"), organizationToken("orbit-ai-habit-tracker", "https://sentry.io/"), organizationToken("orbit-ai-habit-tracker", null)]) {
     const result = await execute(diagnostic, { env: { ...environment, SENTRY_AUTH_TOKEN: credential } })
@@ -785,9 +786,9 @@ export const cases = async () => {
   T("android-sentry: secret output refusal owns its negative control", (await execute(leaking, { env: environment })).report.outcome === "output_refused" && (await execute(unsafeLeak, { env: environment })).output.includes(token))
 
   await workflowCases()
-  const cli = join(REPO_ROOT, "node_modules/@sentry/react-native/node_modules/@sentry/cli/bin/sentry-cli")
+  const cli = join(REPO_ROOT, "apps/mobile/node_modules/@sentry/cli/bin/sentry-cli")
   const actual = spawnSync(process.execPath, [cli, "--version"], { env: { PATH: process.env.PATH }, encoding: "utf8", timeout: 5000 })
-  T("android-sentry: actual nested native version is pinned without auth or info operations", actual.status === 0 && actual.stdout.trim() === "sentry-cli 3.8.0")
+  T("android-sentry: actual mobile native version is pinned without auth or info operations", actual.status === 0 && actual.stdout.trim() === "sentry-cli 3.8.0")
 }
 
 async function workflowCases() {

@@ -78,14 +78,17 @@ vi.mock('react-native', async () => ({
       return { remove: () => mocks.resumeListeners.delete(listener) }
     },
   },
-  NativeModules: {
-    SpInAppUpdates: {
-      IN_APP_UPDATE_STATUS_KEY: 'in_app_update_status',
-      IN_APP_UPDATE_RESULT_KEY: 'in_app_update_result',
-      checkNeedsUpdate: mocks.checkNeedsUpdate,
-      startUpdate: mocks.startUpdate,
-      installUpdate: mocks.installUpdate,
-      setStatusUpdateSubscription: vi.fn(),
+  TurboModuleRegistry: {
+    getEnforcing: (name: string) => {
+      if (name !== 'SpInAppUpdates') throw new Error(`Unexpected native module: ${name}`)
+      return {
+        checkNeedsUpdate: mocks.checkNeedsUpdate,
+        startUpdate: mocks.startUpdate,
+        installUpdate: mocks.installUpdate,
+        setStatusUpdateSubscription: vi.fn(),
+        addListener: vi.fn(),
+        removeListeners: vi.fn(),
+      }
     },
   },
   NativeEventEmitter: class {

@@ -1,4 +1,5 @@
-import { ESLint, RuleTester } from 'eslint'
+import { ESLint, Linter, RuleTester } from 'eslint'
+import { createRequire } from 'node:module'
 import { setImmediate } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -62,6 +63,17 @@ async function runHooks(hooks) {
 }
 
 describe('installed web configuration lifecycle', () => {
+  it('preserves ignored component patterns in the installed React lint plugin', () => {
+    const requireWeb = createRequire(new URL('../../apps/web/package.json', import.meta.url))
+    const react = requireWeb('eslint-plugin-react')
+    const messages = new Linter().verify('const Example = () => <FooBar />', [{
+      languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } },
+      plugins: { react },
+      rules: { 'react/jsx-pascal-case': ['error', { ignore: ['Foo*'] }] },
+    }])
+    expect(messages).toEqual([])
+  })
+
   it('finishes the real configuration before entering the timed assertion', async () => {
     const loading = deferInstalledConfig()
     const integration = await collectIntegration()

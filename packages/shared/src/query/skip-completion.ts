@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query'
+import type { QueryClient } from '@tanstack/query-core'
 import type { BulkSkipItemRequest } from '../types/habit'
 import type { UIStoreState } from '../stores/ui-store'
 import { buildChildrenIndex, normalizeHabits } from '../utils/habit-normalization'

@@ -67,8 +67,8 @@ generation proves reproducibility, not deployment.
 Generation stages output before replacing the snapshot, so fetch, validation and
 Orval failures preserve the prior committed files. `--check` regenerates into a
 temporary directory and rejects stale bytes without rewriting the snapshot.
-Orval is pinned at `8.37.0`, Zod output at version `4`, and LF is enforced by
-`.gitattributes`. Direct `npx --yes orval@8.37.0 --config ./orval.config.ts` from
+Orval is pinned at `8.46.0`, Zod output at version `4`, and LF is enforced by
+`.gitattributes`. Direct `npx --yes orval@8.46.0 --config ./orval.config.ts` from
 `packages/shared` uses the same resolver and immutable default.
 Corrected revisions retain the title and HTTP version in a compact generated
 header; the producer description remains in the immutable document. Legacy
