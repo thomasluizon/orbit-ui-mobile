@@ -74,7 +74,10 @@ describe('main backlog ports', () => {
     'apps/web/components/habits/habit-list.tsx',
     'apps/web/components/habits/habit-checklist.tsx',
   ])('gives every server-rendered DndContext a stable React id in %s', (path) => {
-    const source = readFileSync(`${ROOT}${path}`, 'utf8')
+    const sources = path.endsWith('/habit-list.tsx')
+      ? [path, 'apps/web/components/habits/use-habit-list-state.ts']
+      : [path]
+    const source = sources.map((owner) => readFileSync(`${ROOT}${owner}`, 'utf8')).join('\n')
     expect(source).toMatch(/const dndContextId = useId\(\)/)
     expect(source).toMatch(/<DndContext\s+id=\{dndContextId\}/)
   })
