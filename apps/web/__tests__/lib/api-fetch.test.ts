@@ -71,7 +71,7 @@ describe('apiFetch', () => {
     const response = structuredClone(reminderWire.SyncChangesV2Response)
     if (scheduledOnly) response.habits.updated[0]!.relativeReminders = []
     mockFetch.mockResolvedValue(Response.json(response))
-    const parsed = await fetchJson(API.sync.changesV2, syncChangesV2ResponseSchema)
+    const parsed = await fetchJson('/api/test', syncChangesV2ResponseSchema)
     expect(parsed.habits.updated[0]?.scheduledReminders.map((reminder) => reminder.when)).toEqual(['same_day', 'day_before'])
     expect(parsed.habits.updated[0]?.relativeReminders?.map((reminder) => reminder.when)).toEqual(scheduledOnly ? [] : ['same_day', 'day_before'])
   })

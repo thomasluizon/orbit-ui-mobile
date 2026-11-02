@@ -16,7 +16,7 @@ async function mountSummary(overrides = {}) {
   let result!: ReturnType<typeof useSummary>
   function Harness() { result = useSummary({ ...options, ...overrides }); return null }
   let tree!: SummaryTree
-  await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={client}><Harness /></QueryClientProvider>) as SummaryTree })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={client}><Harness /></QueryClientProvider>) })
   return { current: () => result, unmount: () => TestRenderer.act(() => tree.unmount()) }
 }
 beforeEach(() => { mocks.fetchSummary.mockReset() })

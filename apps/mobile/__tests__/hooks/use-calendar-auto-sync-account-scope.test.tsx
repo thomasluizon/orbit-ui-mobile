@@ -30,7 +30,7 @@ describe('mobile calendar mutation account scope', () => {
 
     let tree!: { unmount: () => void }
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<QueryClientProvider client={queryClient}><Probe /></QueryClientProvider>) as unknown as { unmount: () => void }
+      tree = TestRenderer.create(<QueryClientProvider client={queryClient}><Probe /></QueryClientProvider>)
       await Promise.resolve()
     })
     let first!: Promise<void>
@@ -64,7 +64,7 @@ describe('mobile calendar mutation account scope', () => {
     apiClient.mockImplementationOnce(() => new Promise((resolve) => { finishFirst = resolve }))
     let tree!: { unmount: () => void }
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<QueryClientProvider client={queryClient}><Probe /></QueryClientProvider>) as unknown as { unmount: () => void }
+      tree = TestRenderer.create(<QueryClientProvider client={queryClient}><Probe /></QueryClientProvider>)
       await Promise.resolve()
     })
     let first!: Promise<unknown>
@@ -91,7 +91,7 @@ describe('mobile calendar mutation account scope', () => {
       .mockImplementationOnce(() => new Promise((resolve) => { finishSecond = resolve }))
     let tree!: { unmount: () => void }
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<QueryClientProvider client={queryClient}><Probe /></QueryClientProvider>) as unknown as { unmount: () => void }
+      tree = TestRenderer.create(<QueryClientProvider client={queryClient}><Probe /></QueryClientProvider>)
       await Promise.resolve()
     })
     let first!: Promise<void>

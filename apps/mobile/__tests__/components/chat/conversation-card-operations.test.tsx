@@ -108,7 +108,7 @@ afterEach(() => { void act(() => tree.unmount()); vi.unstubAllGlobals() })
 
 it.each(cardOperations.flatMap(operation => [false, true].map(failure => ({ operation, failure }))))('reports $operation busy until settlement (failure=$failure)', async ({ operation, failure }) => {
   const deferred = deferOperation(operation)
-  void act(() => { tree = create(<CardConversation operations={[operation]} />) as unknown as TestTree })
+  void act(() => { tree = create(<CardConversation operations={[operation]} />) })
   expectBusy(false)
   start(operation)
   expectBusy(true)
@@ -117,7 +117,7 @@ it.each(cardOperations.flatMap(operation => [false, true].map(failure => ({ oper
 })
 it.each([['refresh', 'revise'], ['breakdown', 'clarification']] as CardOperation[][])('keeps overlapping %s and %s busy until both settle', async (first, second) => {
   const one = deferOperation(first), two = deferOperation(second)
-  void act(() => { tree = create(<CardConversation operations={[first, second]} />) as unknown as TestTree })
+  void act(() => { tree = create(<CardConversation operations={[first, second]} />) })
   start(first); start(second)
   expectBusy(true)
   await act(async () => { one.finish(false); await Promise.resolve() })
@@ -135,11 +135,11 @@ function scroll(offset: number) {
 }
 
 it('opens and reopens a retained thread at its newest message', async () => {
-  await act(() => { tree = create(<CardConversation operations={['clarification']} />) as unknown as TestTree })
+  await act(() => { tree = create(<CardConversation operations={['clarification']} />) })
   await act(() => { listProps().onLayout?.({ nativeEvent: { layout: { x: 0, y: 0, width: 412, height: 500 } } } as Parameters<NonNullable<FlatListProps<ChatMessage>['onLayout']>>[0]) })
   expect(viewport.offset).toBe(900)
   scroll(100)
-  await act(() => { tree.unmount(); tree = create(<CardConversation operations={['clarification']} />) as unknown as TestTree })
+  await act(() => { tree.unmount(); tree = create(<CardConversation operations={['clarification']} />) })
   await act(() => { listProps().onContentSizeChange?.(412, 1400) })
   expect(viewport.offset).toBe(900)
   expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
@@ -148,7 +148,7 @@ it('opens and reopens a retained thread at its newest message', async () => {
 it.each([false, true])('reveals the clarification preview actions unless reading earlier messages (reading=%s)', async reading => {
   let finish!: (response: unknown) => void
   mutations.clarification.mockReturnValue(new Promise(resolve => { finish = resolve }))
-  await act(() => { tree = create(<CardConversation operations={['clarification']} />) as unknown as TestTree })
+  await act(() => { tree = create(<CardConversation operations={['clarification']} />) })
   await act(() => { listProps().onContentSizeChange?.(412, 1400) })
   scroll(900)
   start('clarification')
@@ -171,7 +171,7 @@ it.each(['following', 'before keyboard', 'while queued'])('keeps following reply
   vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => frames.push(callback))
   const flushFrames = () => { for (const frame of frames.splice(0)) frame(0) }
   const layout = () => listProps().onLayout?.({ nativeEvent: { layout: { x: 0, y: 0, width: 412, height: viewport.visibleHeight } } } as Parameters<NonNullable<FlatListProps<ChatMessage>['onLayout']>>[0])
-  await act(() => { tree = create(<CardConversation operations={['clarification']} />) as unknown as TestTree })
+  await act(() => { tree = create(<CardConversation operations={['clarification']} />) })
   await act(() => { listProps().onContentSizeChange?.(412, 1400) })
   expect(viewport.offset).toBe(900)
   await act(() => {
@@ -203,7 +203,7 @@ it.each(['following', 'before keyboard', 'while queued'])('keeps following reply
 })
 
 it('keeps the completed trace after its own reply blocks and request', async () => {
-  await act(() => { tree = create(<CardConversation operations={['revise']} />) as unknown as TestTree })
+  await act(() => { tree = create(<CardConversation operations={['revise']} />) })
   const nodes = tree.root.findAll(node => (typeof node.type === 'string' && ['thinking-trace-completed', 'block-frame-resting'].includes(String(node.props.testID)))
     || ((node.type as unknown) === 'Markdown' && node.props.children === 'My request'))
   expect(nodes.map(node => node.props.testID ?? 'request')).toEqual(['request', 'block-frame-resting', 'thinking-trace-completed'])
