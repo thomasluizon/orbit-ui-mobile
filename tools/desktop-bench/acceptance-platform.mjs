@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module'
 import { X509Certificate } from 'node:crypto'
+import { artifactName } from '../../apps/desktop/scripts/release.ts'
 import { lookup } from 'node:dns/promises'
 import { readFile, writeFile, copyFile, readdir, stat, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -53,7 +54,7 @@ export async function buildInstaller(repository, output) {
   const installer = join(installerDirectory, installers[0])
   const packages = windows ? [installer] : (await readdir(join(bundle, 'macos'))).filter((name) => name.endsWith('.app.tar.gz')).map((name) => join(bundle, 'macos', name))
   if (packages.length !== 1) throw new Error('Expected exactly one updater package')
-  const packagePath = join(output, windows ? 'update.exe' : 'update.app.tar.gz')
+  const packagePath = join(output, artifactName('staging', '2.0.0', target))
   await copyFile(packages[0], packagePath)
   await execute(process.execPath, [cli, 'signer', 'sign', '--app-version', '2.0.0', packagePath], {
     cwd: desktop, env: { ...process.env, TAURI_SIGNING_PRIVATE_KEY_PATH: key, TAURI_SIGNING_PRIVATE_KEY_PASSWORD: '' }, log: join(output, 'package-signing.log'),

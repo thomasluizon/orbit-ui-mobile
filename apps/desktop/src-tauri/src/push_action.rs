@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{future::Future, time::Duration};
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Reminder {
     pub url: Option<String>,
@@ -10,7 +10,13 @@ pub struct Reminder {
     pub done_label: Option<String>,
 }
 
-#[derive(Debug, PartialEq)]
+impl std::fmt::Debug for Reminder {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("Reminder").finish_non_exhaustive()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Response {
     Open(Option<String>),
     Done(Reminder),
@@ -52,9 +58,13 @@ pub fn apns_response(payload: &str, done: bool) -> Option<Response> {
     struct Payload {
         body: Reminder,
     }
-    serde_json::from_str::<Payload>(payload)
-        .ok()
-        .map(|payload| payload.body.response(done))
+    match serde_json::from_str::<Payload>(payload) {
+        Ok(payload) => Some(payload.body.response(done)),
+        Err(_) => {
+            eprintln!("Desktop push: dropped malformed APNs activation");
+            None
+        }
+    }
 }
 
 pub fn done_request(

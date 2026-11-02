@@ -1,5 +1,4 @@
 import { spawnSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,23 +13,17 @@ const shell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh'
 const available = spawnSync(shell, ['-NoProfile', '-Command', 'exit 0']).status === 0
 // WHY: Windows CI uses the build's PowerShell host; other hosts run these cases when pwsh is installed.
 const downloadTest = it.skipIf(!available && process.platform !== 'win32')
+if (!available) process.stderr.write(`PowerShell download tests skipped: ${shell} is unavailable\n`)
 const directories: string[] = []
 afterEach(() => directories.splice(0).forEach(directory => rmSync(directory, { recursive: true, force: true })))
 
-function prepare(mode: string, cached?: string, architecture = 'x64', artifact = 'sdk', complete = false) {
+function prepare(mode: string, cached?: string, architecture = 'x64', artifact = 'sdk', complete = false, signature = 'microsoft', url?: string) {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-windows-download-'))
   directories.push(directory)
   for (const filename of readdirSync(native).filter(filename => filename.endsWith('.ps1') || filename.endsWith('.json'))) {
     copyFileSync(join(native, filename), join(directory, filename))
   }
   const payload = 'verified package bytes'
-  const hash = createHash('sha256').update(payload).digest('hex')
-  const manifestPath = join(directory, 'downloads.json')
-  if (existsSync(manifestPath)) {
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, { sha256: string }>
-    Object.values(manifest).forEach(artifact => { artifact.sha256 = hash })
-    writeFileSync(manifestPath, JSON.stringify(manifest))
-  }
   if (cached !== undefined) writeFileSync(join(directory, 'sdk.zip'), cached)
   const harness = join(directory, 'test.ps1')
   writeFileSync(harness, `
@@ -72,7 +65,27 @@ Set-Alias -Name (Join-Path $env:TEST_ROOT 'cppwinrt/bin/cppwinrt.exe') -Value In
 function Copy-Item {
     param($Path, $Destination, [switch]$Force)
     if ([System.IO.File]::ReadAllText($Path) -ne 'verified package bytes') { throw 'Unverified installer reached output' }
+    Microsoft.PowerShell.Management\\Copy-Item $Path $Destination -Force
     Write-Output 'verified installer reached output'
+}
+function Get-FileHash {
+    param($Path, $Algorithm)
+    $content = [System.IO.File]::ReadAllText($Path)
+    if ($content -ne 'verified package bytes') { return @{ Hash = 'wrong' } }
+    $pins = Get-Content (Join-Path $env:TEST_ROOT 'downloads.json') -Raw | ConvertFrom-Json
+    $name = [System.IO.Path]::GetFileName($Path) -replace '\\.zip(\\.partial)?$', '' -replace '\\.exe(\\.partial)?$', ''
+    return @{ Hash = $pins.$name.sha256 }
+}
+function Get-AuthenticodeSignature {
+    param($FilePath)
+    Add-Content (Join-Path $env:TEST_ROOT 'signatures') $FilePath
+    $status = if ($env:TEST_SIGNATURE -eq 'unsigned') { 'NotSigned' } else { 'Valid' }
+    $subject = if ($env:TEST_SIGNATURE -eq 'non-microsoft') { 'O=Another Corporation,' } else { 'O=Microsoft Corporation,' }
+    return @{ Status = $status; SignerCertificate = @{ Subject = $subject } }
+}
+if ($env:TEST_URL) {
+    . (Join-Path $env:TEST_ROOT 'download.ps1')
+    Get-VerifiedDownload $env:TEST_URL (Join-Path $env:TEST_ROOT 'sdk.zip') 'unused'
     exit 0
 }
 & (Join-Path $env:TEST_ROOT 'prepare.ps1') -Architecture $env:TEST_ARCHITECTURE -Output $env:TEST_ROOT
@@ -80,7 +93,7 @@ function Copy-Item {
   const result = spawnSync(shell, ['-NoProfile', '-File', harness], {
     encoding: 'utf8', timeout: 20000,
     env: { ...process.env, TEST_ROOT: directory, TEST_MODE: mode, TEST_ARCHITECTURE: architecture, TEST_ARTIFACT: artifact,
-      TEST_COMPLETE: String(complete), ORBIT_WINDOWS_DOWNLOAD_CACHE: directory },
+      TEST_COMPLETE: String(complete), TEST_SIGNATURE: signature, TEST_URL: url ?? '', ORBIT_WINDOWS_DOWNLOAD_CACHE: directory },
   })
   const lines = (name: string) => existsSync(join(directory, name)) ? readFileSync(join(directory, name), 'utf8').trim().split(/\r?\n/).map(Number) : []
   return { result, directory, attempts: lines('attempts'), delays: lines('delays') }
@@ -137,4 +150,29 @@ downloadTest.each([
   expect(result.stdout).toContain('verified installer reached output')
   expect(attempts).toHaveLength(3)
   expect(delays).toEqual([2, 4])
+})
+
+it('keeps every real Windows download pin as a fixed SHA-256 literal', () => {
+  const pins = JSON.parse(readFileSync(join(native, 'downloads.json'), 'utf8')) as Record<string, { url: string; sha256: string }>
+  expect(Object.keys(pins).sort()).toEqual(['cppwinrt', 'runtime-arm64', 'runtime-x64', 'sdk'])
+  for (const pin of Object.values(pins)) expect(pin.sha256).toMatch(/^[a-f0-9]{64}$/)
+})
+
+downloadTest.each(['microsoft', 'non-microsoft', 'unsigned'])('runs Authenticode admission for a %s signer', (signature) => {
+  const { result, directory } = prepare('success', undefined, 'x64', 'sdk', true, signature)
+  expect(existsSync(join(directory, 'signatures'))).toBe(true)
+  if (signature === 'microsoft') {
+    expect(result.status, result.stderr).toBe(0)
+    expect(readFileSync(join(directory, 'signatures'), 'utf8').trim().split(/\r?\n/)).toHaveLength(2)
+  } else {
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('Windows App SDK signature verification failed')
+  }
+})
+
+downloadTest('refuses foreign download hosts before making a request', () => {
+  const { result, attempts } = prepare('success', undefined, 'x64', 'sdk', false, 'microsoft', 'https://example.com/sdk.zip')
+  expect(result.status).not.toBe(0)
+  expect(result.stderr).toContain('download host is not allowed')
+  expect(attempts).toHaveLength(0)
 })

@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <sddl.h>
 #include <MddBootstrap.h>
 #include <WindowsAppSDK-VersionInfo.h>
 #include <winrt/Windows.Foundation.h>
@@ -23,6 +24,16 @@ static winrt::event_token invoked;
 static bool initialized = false;
 static bool registered = false;
 static winrt::guid remoteId;
+
+extern "C" bool orbit_push_protect_file(wchar_t const* path) {
+    PSECURITY_DESCRIPTOR descriptor = nullptr;
+    if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            L"D:P(A;;FA;;;OW)", SDDL_REVISION_1, &descriptor, nullptr)) return false;
+    auto protectedFile = SetFileSecurityW(
+        path, DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION, descriptor);
+    LocalFree(descriptor);
+    return protectedFile != FALSE;
+}
 static AppNotificationManager notifications{nullptr};
 static CO_MTA_USAGE_COOKIE mtaCookie = nullptr;
 

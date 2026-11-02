@@ -66,9 +66,16 @@ function requestedViewportCases() {
   T('Tauri leaves frame min/max constraints unset for macOS title bars',
     ['minWidth', 'minHeight', 'maxWidth', 'maxHeight'].every((key) => !(key in tauriWindow)))
   const nativeSource = readFileSync(join(REPO_ROOT, 'apps/desktop/src-tauri/src/main.rs'), 'utf8')
+  const windowSetup = nativeSource.slice(nativeSource.indexOf('fn build_main_window('), nativeSource.indexOf('fn construct_window('))
+  const construction = nativeSource.slice(nativeSource.indexOf('fn construct_window('), nativeSource.indexOf('fn navigate_main('))
   T('Tauri applies calibrated dimensions before creating its window and never resizes it after build',
-    /#\[cfg\(feature = "bench-loopback"\)\]\s*bench_viewport::configure\(&mut window_config\)\?;/.test(nativeSource) &&
-    !nativeSource.includes('bench_viewport::set_size') && nativeSource.includes('_window.remove_menu()?;'))
+    /#\[cfg\(feature = "bench-loopback"\)\]\s*bench_viewport::configure\(&mut window_config\)\?;/.test(windowSetup) &&
+    windowSetup.indexOf('bench_viewport::configure') < windowSetup.indexOf('lifecycle::create_main(') &&
+    windowSetup.includes('|config| construct_window(app, config, origin, flow)') &&
+    construction.includes('tauri::WebviewWindowBuilder::from_config(app, window_config)?') &&
+    construction.indexOf('.build()?;') < construction.indexOf('window.remove_menu()?;') &&
+    !nativeSource.includes('bench_viewport::set_size') && !construction.includes('.set_size(') &&
+    /#\[cfg\(feature = "bench-loopback"\)\]\s*\{\s*window.remove_menu\(\)\?;/.test(construction))
   T('benchmark launches skip restored geometry which could resize a measured window',
     /#\[cfg\(feature = "bench-loopback"\)\]\s*let window_state = window_state.skip_initial_state\("main"\);/.test(nativeSource))
   T('Tauri excludes viewport adjustment from production builds',
