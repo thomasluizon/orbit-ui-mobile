@@ -39,6 +39,7 @@ import { cancelQueuedSkipForUndo } from '@/lib/offline-mutations'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { apiClient } from '@/lib/api-client'
 import { fetchProfile } from '@/hooks/use-profile'
+import { captureError } from '@/lib/sentry'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 
 const TestRenderer = require('react-test-renderer')
@@ -3946,7 +3947,9 @@ describe('mobile log request account day', () => {
   })
 
   it.each(['single', 'bulk'] as const)('omits an unknown account day when the profile cannot resolve for a %s log', async (mode) => {
-    vi.mocked(apiClient).mockRejectedValueOnce(new TypeError('Network request failed'))
+    const profileError = new TypeError('Network request failed')
+    vi.mocked(captureError).mockClear()
+    vi.mocked(apiClient).mockRejectedValueOnce(profileError)
     if (mode === 'single') {
       const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
       await mutation.mutationFn({ habitId: 'habit-1', intent: 'log' })
@@ -3960,6 +3963,7 @@ describe('mobile log request account day', () => {
     if (mode === 'single') expect(request.dedupeKey).toBe('habit-toggle:habit-1:2026-09-13')
     expect(JSON.stringify(request.payload)).not.toContain('2026-09-13')
     expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.profile.get)
+    expect(captureError).toHaveBeenCalledExactlyOnceWith(profileError)
   })
 
   it.each([

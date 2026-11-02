@@ -1,0 +1,324 @@
+'use client'
+
+import type { UseMutationOptions } from '@tanstack/react-query'
+import type { LogHabitResponse } from '@orbit/shared/types/habit'
+
+
+import { checkCompletionAfterSkip } from '@orbit/shared/query/skip-completion'
+import { useQueryClient } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
+import { invalidateDerivedHabitLogQueries, habitKeys, goalKeys, gamificationKeys, profileKeys, applyCachedHabitSkip, rollbackDatedHabitLists, updateHabitListsForDate, invalidateHabitDependents, clearCachedOptimisticSkip, restoreCachedHabitSkip, checkTodayAllDoneOrDefer, getTodayHabitListAfterRefetch } from '@orbit/shared/query'
+import { isStreakCelebrationMilestone } from '@orbit/shared/stores'
+import { applyLinkedGoalUpdates, buildSuccessfulLogPatch, findHabitInList, getAccountDay, normalizeHabits, buildChildrenIndex, optimisticSetCalendarHabitLog, optimisticSetDatedCompletion, rollbackOptimisticCalendarHabitLog, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { optimisticPatchHabit, optimisticToggleCompletion } from '@/lib/habit-optimistic-helpers'
+import { restoreHabitLists, snapshotHabitLists, type HabitListSnapshots } from '@/lib/habit-mutation-helpers'
+import type { HabitScheduleItem, CalendarMonthResponse } from '@orbit/shared/types/habit'
+import type { Goal } from '@orbit/shared/types/goal'
+import type { Profile } from '@orbit/shared/types/profile'
+import type { GamificationProfile } from '@orbit/shared/types/gamification'
+import { logHabit as logHabitAction, skipHabit as skipHabitAction, undoSkipHabit as undoSkipHabitAction } from '@/lib/actions/habits'
+import { getMilestoneShareStreakKey } from '@orbit/shared/stores'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { useUIStore } from '@/stores/ui-store'
+import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useUndoToast } from '@/hooks/use-undo-toast'
+import { captureHabitLogged } from '@/lib/posthog'
+import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
+
+/** Returns the day to recheck after the list refetch, when the complete Today list is not settled yet. */
+function checkTodayCompletionAfterLog(
+  queryClient: ReturnType<typeof useQueryClient>,
+  variables: { habitId: string; date?: string; intent: 'log' | 'unlog' },
+  hadPendingListRefetch: boolean,
+  checkAllDoneCelebration: ReturnType<typeof useUIStore.getState>['checkAllDoneCelebration'],
+): string | null {
+  const timeZone = queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone
+  const today = getAccountDay(new Date(), timeZone)
+  if (variables.intent === 'unlog' || (variables.date && variables.date !== today)) return null
+  updateHabitListsForDate(queryClient, today, (habits) => {
+    const habit = findHabitInList(habits, variables.habitId)
+    return habit ? optimisticPatchHabit(habits, variables.habitId, buildSuccessfulLogPatch(habit)) : habits
+  })
+  return checkTodayAllDoneOrDefer(queryClient, today, variables.date, hadPendingListRefetch,
+    (...args) => checkAllDoneCelebration(...args, timeZone))
+    ? today
+    : null
+}
+
+export function useLogHabit() {
+  const context = useLogHabitContext()
+  return useAccountScopedMutation({
+    mutationFn: ({
+      habitId,
+      date,
+    }: {
+      habitId: string
+      date?: string
+      intent: 'log' | 'unlog'
+    }, intendedAccountId) => logHabitAction(habitId, date ? { date } : undefined, intendedAccountId),
+
+    onMutate: createLogHabitOnMutate(context),
+
+    onError: createLogHabitOnError(context),
+
+    onSuccess: createLogHabitOnSuccess(context),
+
+    onSettled: createLogHabitOnSettled(context),
+  })
+}
+
+export function useSkipHabit() {
+  const queryClient = useQueryClient()
+  const t = useTranslations()
+  const showUndoToast = useUndoToast()
+  const { showError } = useAppToast()
+  type UndoInput = { habitId: string; skipId: string; previousLists: HabitListSnapshots; occurrence: { date: string; postponed: boolean }; onUndo?: () => void; intent: ReturnType<typeof captureAccountIntent> }
+  const undoSkip = useAccountScopedMutation<void, Error, UndoInput>({
+    mutationFn: (input, intendedAccountId) =>
+      undoSkipHabitAction(input.habitId, input.skipId, intendedAccountId),
+    onSuccess: (_result, { habitId, previousLists, occurrence, onUndo }) => {
+      onUndo?.()
+      restoreCachedHabitSkip(queryClient, previousLists, habitId, occurrence)
+      invalidateHabitDependents(queryClient, habitId)
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    },
+    onError: (error, input) => {
+      showUndoToast(getFriendlyErrorMessage(error, t, 'undo.restoreFailed'), () => {
+        if (!input.intent.stillCurrent()) { reportAccountChanged(); return }
+        undoSkip.mutate(input)
+      })
+    },
+  })
+
+  return useAccountScopedMutation({
+    mutationFn: async ({ habitId, date }: { habitId: string; date?: string; onUndo?: () => void }, intendedAccountId) => {
+      const skipId = crypto.randomUUID()
+      await skipHabitAction(habitId, { date, skipId }, intendedAccountId)
+      return { skipId }
+    },
+    onMutate: async ({ habitId, date }) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      const previousLists = snapshotHabitLists(queryClient)
+      const previous = previousLists.flatMap(([, items]) => items ? [findHabitInList(items, habitId)] : [])
+        .find((habit) => habit !== null)
+      const skippedDate = date ?? getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+      applyCachedHabitSkip(queryClient, habitId, skippedDate)
+      return { previousLists, skippedDate, postponed: previous?.frequencyUnit === null }
+    },
+    onSuccess: ({ skipId }, { habitId, onUndo }, context) => {
+      const intent = captureAccountIntent()
+      showUndoToast(t(context.postponed ? 'undo.habitPostponed' : 'undo.habitSkipped'), () => {
+        if (!intent.stillCurrent()) { reportAccountChanged(); return }
+        undoSkip.mutate({
+          habitId, skipId, previousLists: context.previousLists,
+          occurrence: { date: context.skippedDate, postponed: context.postponed }, onUndo, intent
+        })
+      })
+    },
+    onError: (error, _variables, context) => {
+      if (context) restoreHabitLists(queryClient, context.previousLists)
+      showError(getFriendlyErrorMessage(error, t, 'undo.skipFailed'))
+    },
+    onSettled: (_result, error, { habitId }, context) => {
+      if (error) return
+      if (context) {
+        clearCachedOptimisticSkip(queryClient, habitId, context.skippedDate)
+        checkCompletionAfterSkip(queryClient, [{ habitId, date: context.skippedDate }],
+          queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone, useUIStore.getState().checkAllDoneCelebration, context.previousLists)
+      }
+      invalidateHabitDependents(queryClient, habitId)
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    },
+  })
+}
+
+function useLogHabitContext() {
+  const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showError } = useAppToast()
+  const { setStreakCelebration, showStreakMoment, checkAllDoneCelebration } = useUIStore.getState()
+  return { queryClient, t, showError, setStreakCelebration, showStreakMoment, checkAllDoneCelebration }
+}
+
+type HabitLogVariables = { habitId: string; date?: string; intent: 'log' | 'unlog' }
+type HabitLogSnapshot = { occurrenceDate: string; previousLists: HabitListSnapshots; previousCalendars: readonly (readonly [readonly unknown[], CalendarMonthResponse | undefined])[]; hadPendingListRefetch: boolean; retryAllDoneDate: string | null }
+type HabitLogOptions = UseMutationOptions<LogHabitResponse, Error, HabitLogVariables, HabitLogSnapshot>
+
+function createLogHabitOnMutate(context: ReturnType<typeof useLogHabitContext>) {
+  const { queryClient } = context
+  const callback: NonNullable<HabitLogOptions['onMutate']> = ({ habitId, date, intent }) => {
+    const occurrenceDate = date ?? getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+    const hadPendingListRefetch = queryClient.isFetching({ queryKey: habitKeys.lists() }) > 0
+    /** Start canceling refetches without delaying the optimistic completion. */
+    void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+    if (date) void queryClient.cancelQueries({ queryKey: habitKeys.calendarPrefix() })
+
+    const previousLists = snapshotHabitLists(queryClient)
+    const previousCalendars = date
+      ? queryClient.getQueriesData<CalendarMonthResponse>({
+        queryKey: habitKeys.calendarPrefix(),
+      })
+      : []
+
+    if (date) {
+      const completed = intent === 'log'
+      const optimisticLogId = `optimistic-log:${habitId}:${date}`
+      const createdAtUtc = new Date().toISOString()
+      updateHabitListsForDate(queryClient, date, (items) => optimisticSetDatedCompletion(items, habitId, date, completed, optimisticLogId), { includeUnfiltered: false })
+      queryClient.setQueriesData<CalendarMonthResponse>(
+        { queryKey: habitKeys.calendarPrefix() },
+        (old) => old
+          ? optimisticSetCalendarHabitLog(
+            old,
+            habitId,
+            date,
+            completed,
+            optimisticLogId,
+            createdAtUtc,
+          )
+          : old,
+      )
+    } else {
+      updateHabitListsForDate(queryClient, occurrenceDate,
+        (items) => optimisticToggleCompletion(items, habitId))
+    }
+
+    return { occurrenceDate, previousLists, previousCalendars, hadPendingListRefetch, retryAllDoneDate: null as string | null }
+  }
+  return callback
+}
+
+function createLogHabitOnError(context: ReturnType<typeof useLogHabitContext>) {
+  const { queryClient, t, showError } = context
+  const callback: NonNullable<HabitLogOptions['onError']> = (error, variables, context) => {
+    if (!variables.date && context?.previousLists) {
+      for (const [key, data] of context.previousLists) {
+        if (data) {
+          queryClient.setQueryData(key, data)
+        }
+      }
+    }
+    if (variables.date) {
+      const date = variables.date
+      const optimisticLogId = `optimistic-log:${variables.habitId}:${date}`
+      rollbackDatedHabitLists(queryClient, context?.previousLists ?? [], variables.habitId, date, optimisticLogId)
+      for (const [key, previousCalendar] of context?.previousCalendars ?? []) {
+        if (!previousCalendar) continue
+        queryClient.setQueryData<CalendarMonthResponse>(key, (currentCalendar) =>
+          currentCalendar
+            ? rollbackOptimisticCalendarHabitLog(
+              currentCalendar,
+              previousCalendar,
+              variables.habitId,
+              date,
+              optimisticLogId,
+            )
+            : currentCalendar)
+      }
+    }
+    showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'habits.detail.logError'), t('common.dismiss'))
+  }
+  return callback
+}
+
+function createLogHabitOnSuccess(context: ReturnType<typeof useLogHabitContext>) {
+  const { queryClient, setStreakCelebration, showStreakMoment, checkAllDoneCelebration } = context
+  const callback: NonNullable<HabitLogOptions['onSuccess']> = (response, variables, context: { occurrenceDate: string; hadPendingListRefetch: boolean; retryAllDoneDate: string | null } | undefined) => {
+    captureHabitLogged()
+    const loggedHabit = findHabitInList(
+      queryClient
+        .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+        .flatMap(([, items]) => items ?? []),
+      variables.habitId,
+    )
+    /**
+     * The CELEBRATION still needs a known good habit, and deliberately so: a bad habit's
+     * "streak" is consecutive abstinence, the opposite semantics, and an unresolvable habit
+     * cannot be shown to be either. Celebrating on a guess is user-visible harm.
+     */
+    const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
+
+    showStreakMoment(
+      response.currentStreak,
+      response.previousStreak ?? undefined,
+      { ...variables, date: context?.occurrenceDate ?? variables.date, timeZone: queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone, countsTowardStreak },
+    )
+    const startsStreak = countsTowardStreak
+      && response.isFirstCompletionToday
+      && response.currentStreak > 0
+    const today = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+    const isTodayLog = (context?.occurrenceDate ?? variables.date ?? today) === today
+    if (startsStreak && isTodayLog && isStreakCelebrationMilestone(response.currentStreak)) {
+      setStreakCelebration({ streak: response.currentStreak })
+    }
+    if (startsStreak) {
+      queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+        old ? { ...old, currentStreak: response.currentStreak } : old,
+      )
+      const milestoneShareKey = getMilestoneShareStreakKey(response.currentStreak)
+      if (milestoneShareKey) {
+        useEngagementPromptStore.getState().armMilestoneSharePrompt(milestoneShareKey)
+      }
+    }
+
+    if (response.linkedGoalUpdates?.length) {
+      queryClient.setQueriesData<Goal[]>(
+        { queryKey: goalKeys.lists() },
+        (old) => old ? applyLinkedGoalUpdates(old, response.linkedGoalUpdates!) : old,
+      )
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      response.linkedGoalUpdates.forEach(({ goalId }) => {
+        void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
+        void queryClient.invalidateQueries({ queryKey: goalKeys.metrics(goalId) })
+      })
+    }
+
+    /**
+     * Rewards the server already granted are reconciled from the RESPONSE, with no list-cache
+     * requirement. The habit kind cannot change the answer here, so it is not consulted.
+     */
+    if (response.xpEarned || response.newAchievementIds?.length) {
+      queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
+        if (!old) return old
+        return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
+      })
+    }
+    if (variables.intent === 'unlog' || response.xpEarned || response.newAchievementIds?.length) {
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    }
+
+    if (response.isFirstCompletionToday || response.xpEarned || response.newAchievementIds?.length) {
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+    }
+
+    const retryAllDoneDate = checkTodayCompletionAfterLog(queryClient, { ...variables, date: context?.occurrenceDate ?? variables.date },
+      context?.hadPendingListRefetch ?? false, checkAllDoneCelebration)
+    if (context) context.retryAllDoneDate = retryAllDoneDate
+  }
+  return callback
+}
+
+function createLogHabitOnSettled(context: ReturnType<typeof useLogHabitContext>) {
+  const { queryClient, checkAllDoneCelebration } = context
+  const callback: NonNullable<HabitLogOptions['onSettled']> = (_response, error, { habitId }, context) => {
+    if (error) return
+    invalidateDerivedHabitLogQueries(queryClient)
+    if (!context?.retryAllDoneDate) {
+      invalidateHabitDependents(queryClient, habitId)
+      return
+    }
+    const today = context.retryAllDoneDate
+    invalidateHabitDependents(queryClient, habitId, false)
+    return getTodayHabitListAfterRefetch(queryClient, today).then((habitsData) => {
+      if (!habitsData) return
+      const normalized = normalizeHabits(habitsData)
+      checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today, queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
+    })
+  }
+  return callback
+}
