@@ -3,7 +3,7 @@
 import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/utils'
 
 import { useState } from 'react'
-import { LazyMotion } from 'motion/react'
+import { LazyMotion, domMin } from 'motion/react'
 import { AuthPagePanel } from '@/components/auth/auth-page-panel'
 import { Lockup } from '@/components/ui/lockup'
 import { PillButton } from '@/components/ui/pill-button'
@@ -12,8 +12,6 @@ import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
 import { useLoginFlow } from './use-login-flow'
 import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } from './login-sections'
-
-const loadLoginMotion = () => import('./login-motion-features').then((features) => features.domAnimation)
 
 export interface LoginCallback {
   provider?: 'apple' | 'google'
@@ -36,7 +34,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
     ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
     : null
   return (
-    <LazyMotion features={loadLoginMotion}>
+    <LazyMotion features={domMin}>
     <AuthPagePanel>
       {flow.referralCode && !account && <ReferralBanner t={t} />}
       <Lockup />

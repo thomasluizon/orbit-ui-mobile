@@ -65,7 +65,7 @@ vi.mock('motion/react', () => {
       React.createElement(React.Fragment, null, children),
     motion,
     m: motion,
-    domAnimation: {},
+    domMin: {},
     LazyMotion: ({ children }: { children: React.ReactNode }) => children,
     useReducedMotion: mockUseReducedMotion,
   }

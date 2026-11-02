@@ -15,7 +15,7 @@ vi.mock('motion/react-m', async () => {
 vi.mock('motion/react', async () => {
   const React = await import('react')
   return { useReducedMotion: () => mocks.reduced,
-    domAnimation: {},
+    domMin: {},
     LazyMotion: ({ children }: { children: React.ReactNode }) => React.createElement('section', { 'data-motion-provider': '' }, children),
     AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
     m: { div: ({ children, animate, initial, exit, transition }: { children: React.ReactNode; animate?: unknown; initial?: unknown; exit?: unknown; transition?: unknown }) => React.createElement('div', { 'data-motion-animate': JSON.stringify(animate), 'data-motion-initial': JSON.stringify(initial), 'data-motion-exit': JSON.stringify(exit), 'data-motion-transition': JSON.stringify(transition) }, children) } }
