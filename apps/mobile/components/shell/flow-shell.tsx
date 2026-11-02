@@ -72,5 +72,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.s16,
     paddingTop: SPACING.s16,
   },
-  notice: { alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH, paddingHorizontal: SPACING.s16 },
+  notice: { alignSelf: 'center', width: '100%', maxWidth: SHELL_CONTENT_MAX_WIDTH, paddingHorizontal: SPACING.s16, gap: SPACING.s12 },
 })

@@ -11,6 +11,8 @@ import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import ProgressScreen from '@/app/(tabs)/progress'
 import { Fab } from '@/components/ui/fab'
 import { Toast } from '@/components/ui/app-toast'
+import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
+import { clearPendingNotificationDeletes, queuePendingNotificationDelete } from '@/lib/pending-notification-deletes'
 import { createTokensV2 } from '@/lib/theme'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import en from '@orbit/shared/i18n/en.json'
@@ -51,6 +53,45 @@ function LongScrollSurface() {
 }
 
 describe('Shell412 mobile', () => {
+  it.each([1, 2, 3])('spaces %i queued delete notices at the shell owner', async (count) => {
+    vi.useFakeTimers()
+    let tree!: ReactTestRenderer
+    try {
+      for (let index = 0; index < count; index++) queuePendingNotificationDelete(`stack-${index}`, () => {})
+      await TestRenderer.act(() => {
+        tree = TestRenderer.create(<Shell412 nav={false} notice={<NotificationDeleteNotice />} />)
+      })
+      const slot = findByTestId(tree, 'shell-notice')[0]!
+      expect(slot.findAllByType(Toast)).toHaveLength(count)
+      expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ gap: 12, paddingHorizontal: 16 })
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+      clearPendingNotificationDeletes()
+      vi.useRealTimers()
+    }
+  })
+
+  it('spaces a failed delete beside a pending delete', async () => {
+    vi.useFakeTimers()
+    let tree!: ReactTestRenderer
+    try {
+      queuePendingNotificationDelete('failed-stack', () => { throw new Error('Delete failed') })
+      vi.advanceTimersByTime(5000)
+      queuePendingNotificationDelete('pending-stack', () => {})
+      await TestRenderer.act(() => {
+        tree = TestRenderer.create(<Shell412 nav={false} notice={<NotificationDeleteNotice />} />)
+      })
+      const slot = findByTestId(tree, 'shell-notice')[0]!
+      expect(slot.findAllByType(Toast).map(toast => toast.props.message)).toEqual([
+        'notifications.deleteQueued', 'notifications.deleteError',
+      ])
+      expect(StyleSheet.flatten(slot.props.style).gap).toBe(12)
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+      clearPendingNotificationDeletes()
+      vi.useRealTimers()
+    }
+  })
   afterEach(() => { __resetTestHostConfig(); vi.unstubAllGlobals() })
   beforeEach(() => {
     __resetTestHostConfig()
