@@ -1,3 +1,5 @@
+import { expandCommands } from "./command-expander.mjs"
+
 // Only these three repositories protect main; other repositories may allow direct pushes.
 const PROTECTED_REPOS = ["orbit-ui-mobile", "orbit-api", "orbit-landing-page"]
 
@@ -72,7 +74,7 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
 
   // Match against the command only. The full string, heredoc bodies included,
   // is still what gets shown back in the block message.
-  const scannable = stripHeredocBodies(command)
+  const scannable = expandCommands(stripHeredocBodies(command)).join("\n")
 
   // Hygiene rules are universal: bypassing hooks or signing is wrong anywhere.
   const hygieneRules = [
@@ -85,10 +87,13 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
       why: "This bypasses commit signing. Let the commit sign as configured.",
     },
     {
-      test: /\bgit\s+(?:-C\s+\S+\s+|-c\s+\S+\s+)*commit\s+(?:-[A-Za-z]\s+)*-n(?=\s|$)/,
+      test: /\bgit\s+(?:-C\s+\S+\s+|-c\s+\S+\s+)*commit\s+(?:[^\n]*?\s)?-[A-Za-z]*n[A-Za-z]*(?=\s|$)/,
       why: "`-n` is git's short alias for --no-verify on commit; it skips the pre-commit hooks. Commit normally.",
     },
   ]
+  if (/\bgit\b[^;\n]*\s-c\s*core\.hooksPath=[^\n]*\b(?:commit|push)\b/.test(scannable)) {
+    return blocked(command, "Overriding core.hooksPath bypasses the repository hooks.")
+  }
   const hit = hygieneRules.find((rule) => rule.test.test(scannable))
   if (hit) return blocked(command, hit.why)
 
@@ -154,7 +159,7 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
     const targetDir = pushTargetDir(segments, index, cwd)
     if (!targetsProtectedRepo(targetDir, resolveRemoteUrl)) continue
 
-    if (pushesProtectedRef(segment)) {
+    if (pushesProtectedRef(segment) || gitCommandParts(segment).rest.some((token) => ["--all", "--mirror", "--branches"].includes(token))) {
       return blocked(command, "Direct or force push to main is forbidden (branch protection, squash-merge only). Open a PR.")
     }
 
@@ -186,7 +191,7 @@ export function checkGitWorktreeRemove(command) {
   if (typeof command !== "string" || !/\bgit\b/.test(command)) return null
   // A heredoc/commit-message body that merely NAMES the flag is data, not a
   // command — strip bodies before matching, same as checkGitCommand.
-  const scannable = stripHeredocBodies(command)
+  const scannable = expandCommands(stripHeredocBodies(command)).join("\n")
   // Judge each segment on its own target, mirroring checkGitCommand: the force
   // flag must belong to the SAME segment as `worktree remove`, so a later
   // `&& npm test -- --force` cannot false-block a plain `git worktree remove`.

@@ -654,9 +654,36 @@ T(
   true,
 )
 
+for (const command of ["(git push origin main)", "$(git push origin main)", "echo `git push origin main`", "bash -c 'git push origin main'", "eval 'git push origin main'", "git commit -nam x", "git -c core.hooksPath=/dev/null commit", "git -c core.hooksPath=/dev/null push origin feature/x", "git push --all origin", "git push --mirror origin", "git push --branches origin"]) {
+  T(`git wrapper regression: ${command}`, blocks(checkGitCommand(command)), true)
+}
+for (const command of ["npx -y playwright test", "pnpm exec playwright test", "yarn exec playwright test", "npx vite --port 5173", "remix", "curl localhost:3000", "curl 127.0.0.1:3000", "curl '[::1]:3000'"]) {
+  T(`worker wrapper regression: ${command}`, blocks(checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" } })), true)
+}
+for (const command of ["cd node_modules/react-native && echo x > flags.kt", "echo x >| node_modules/react-native/flags.kt", "node -e \"require('fs').writeFileSync('node_modules/react-native/x', 'x')\"", "python -c \"open('node_modules/react-native/x', 'w').write('x')\"", "dd of=node_modules/react-native/x", "perl -i -pe 's/x/y/' node_modules/react-native/x"]) {
+  T(`dependency wrapper regression: ${command}`, blocks(checkDependencyCommand(command, { cwd: dependencyTree })), true)
+}
+T("admin merge: repository-id endpoint blocks", blocks(checkAdminMerge("gh api -X PUT repositories/123456/pulls/667/merge")), true)
+T("admin merge: nested shell blocks", blocks(checkAdminMerge("bash -c 'gh api -X PUT repositories/123456/pulls/667/merge'")), true)
 console.log("\n# forbid-raw-ticket-mutation (_lib/rules-tickets.mjs)")
 const TICKET_REPO = "thomasluizon/orbit-tickets"
 const CODE_REPO = "thomasluizon/orbit-ui-mobile"
+for (const command of [
+  `echo $(gh issue close 1 -R ${TICKET_REPO})`,
+  `node tools/x.mjs $(gh issue close 1 -R ${TICKET_REPO})`,
+  `node tools/x.mjs \`gh issue close 1 -R ${TICKET_REPO}\``,
+  `sh -c 'gh issue close 1 -R ${TICKET_REPO}'`,
+  `eval 'gh issue close 1 -R ${TICKET_REPO}'`,
+  "gh project delete 2 --owner thomasluizon",
+  `gh label clone source/repo --repo ${TICKET_REPO}`,
+  "gh api graphql -f query='mutation { addAssigneesToAssignable(input: {assignableId: $i}) { clientMutationId } }'",
+  `G=gh; $G issue close 1 -R ${TICKET_REPO}`,
+  `$G issue close 1 -R ${TICKET_REPO}`,
+  `echo node tools/x.mjs gh issue close 1 -R ${TICKET_REPO}`,
+]) T(`ticket wrapper regression: ${command}`, blocks(checkTicketMutation(command)), true)
+T("tickets: read-only project view allows", checkTicketMutation("gh project view 2"), null)
+T("tickets: read-only issue view allows", checkTicketMutation(`gh issue view 1 -R ${TICKET_REPO}`), null)
+
 T("tickets: issue edit in the ticket repository blocks", blocks(checkTicketMutation(`gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`)), true)
 T("tickets: attached short repo flag still blocks", blocks(checkTicketMutation(`gh issue close 215 -R${TICKET_REPO}`)), true)
 T("tickets: host-qualified ticket repository still blocks", blocks(checkTicketMutation(`gh issue delete 215 --repo github.com/${TICKET_REPO} --confirm`)), true)
@@ -683,7 +710,7 @@ T("tickets: GraphQL project item mutation fails closed on an opaque node id", bl
 T("tickets: GraphQL closeIssue fails closed on an opaque node id", blocks(checkTicketMutation("gh api graphql -f query='mutation { closeIssue(input: {issueId: $i}) { issue { id } } }'")), true)
 T("tickets: GraphQL addComment fails closed on an opaque subject id", blocks(checkTicketMutation("gh api graphql -f query='mutation { addComment(input: {subjectId: $i, body: $b}) { commentEdge { node { id } } } }'")), true)
 T("tickets: opaque GraphQL input fails closed", blocks(checkTicketMutation("gh api graphql --input payload.json")), true)
-T("tickets: GraphQL pull request mutation allows", checkTicketMutation("gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: $i}) { thread { isResolved } } }'"), null)
+T("tickets: GraphQL mutation with unproved node ownership blocks", blocks(checkTicketMutation("gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: $i}) { thread { isResolved } } }'")), true)
 T("tickets: a repository tool invocation allows", checkTicketMutation("node tools/sync-issue-state.mjs --issue ORB-215 --repo ui --state ready"), null)
 T("tickets: the ticket skill milestone read allows", checkTicketMutation(`gh api repos/${TICKET_REPO}/milestones?state=all&per_page=100 --paginate --jq .[].title`), null)
 T("tickets: the sanctioned milestone creator allows", checkTicketMutation("node tools/create-milestone.mjs --title Launch --description-file draft.md"), null)
@@ -731,10 +758,10 @@ const docPaths = (tracked.status === 0 ? tracked.stdout.trim().split(/\r?\n/) : 
   .filter(Boolean)
   // The adapter exempts the gate's own source, since a rule module must contain
   // the strings it matches on. Mirror that here rather than reporting it.
-  .filter((relative) => !relative.startsWith(".claude/hooks/"))
+  .filter((relative) => !relative.startsWith(".claude/hooks/") && !relative.startsWith("tools/"))
   .map((relative) => join(repoRoot, relative))
   .filter((absolute) => existsSync(absolute) && statSync(absolute).isFile())
-T("tickets: blocks none of this repo's tracked docs", docPaths.filter((path) => checkTicketMutation(readFileSync(path, "utf8"))?.block).map((path) => path.slice(repoRoot.length + 1)), [])
+T("tickets: blocks none of this repo's tracked docs", docPaths.filter((path) => checkTicketMutation(readFileSync(path, "utf8"), { sourcePath: path })?.block).map((path) => path.slice(repoRoot.length + 1)), [])
 T("tickets: the doc scan actually read files", docPaths.length > 0, true)
 
 console.log("\n# forbid-ef-migration-raw-index (_lib/rules-source.mjs)")
@@ -1654,6 +1681,8 @@ T("adapter tickets: pull request read -> 0", runHook(TICKET_HOOK, bash(`gh pr vi
 const mutatingScript = { tool_name: "Write", tool_input: { file_path: join(root, "post.mjs"), content: `gh issue comment 215 --repo ${TICKET_REPO} --body fixed` } }
 T("adapter tickets: a written script that mutates -> 2", runHook(TICKET_HOOK, mutatingScript), 2)
 T("adapter tickets: a repository tool source edit -> 0", runHook(TICKET_HOOK, { ...mutatingScript, tool_input: { ...mutatingScript.tool_input, file_path: join(repoRoot, "tools", "ticket-write.mjs") } }), 0)
+T("adapter tickets: nested tools source is not exempt", runHook(TICKET_HOOK, { ...mutatingScript, tool_input: { ...mutatingScript.tool_input, file_path: join(repoRoot, "apps", "web", "tools", "post.mjs") } }), 2)
+T("adapter tickets: documentation naming a write allows", runHook(TICKET_HOOK, { ...mutatingScript, tool_input: { ...mutatingScript.tool_input, file_path: join(repoRoot, "guide.md"), content: "Use `gh issue edit` through the repository adapter." } }), 0)
 T("adapter tickets: an unrelated command -> 0", runHook(TICKET_HOOK, bash("npm test")), 0)
 
 // The EF adapter re-reads the file from disk after the edit lands, so these need real files.

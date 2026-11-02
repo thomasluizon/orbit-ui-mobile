@@ -1,3 +1,5 @@
+import { commandWords, expandCommands } from "./command-expander.mjs"
+
 // Ticket tracker invariant: writes to thomasluizon/orbit-tickets and its Projects v2
 // board go through the repository tools. Reads stay open, as do issue and label writes
 // whose command proves that a different repository is the target.
@@ -5,49 +7,18 @@
 const TICKET_REPOSITORY = "thomasluizon/orbit-tickets"
 const TICKET_PROJECT_OWNER = "thomasluizon"
 const TICKET_PROJECT_NUMBER = "2"
-const SHELL_WORD = /"[^"]*"|'[^']*'|\S+/g
 const ISSUE_WRITES = new Set(["close", "comment", "create", "delete", "edit", "lock", "pin", "reopen", "transfer", "unlock", "unpin"])
-const LABEL_WRITES = new Set(["create", "delete", "edit"])
-const PROJECT_ITEM_WRITES = new Set(["item-add", "item-archive", "item-create", "item-delete", "item-edit"])
+const LABEL_READS = new Set(["list"])
+const PROJECT_READS = new Set(["field-list", "item-list", "list", "view"])
 const API_RESOURCES = /(?:^|\/)(?:issues?|labels?|milestones?|projects?)(?:\/|$)/i
 const API_VALUE_FLAGS = new Set(["--cache", "--field", "-F", "--header", "-H", "--hostname", "--input", "--jq", "-q", "--method", "-X", "--preview", "-p", "--raw-field", "-f", "--template", "-t"])
 const API_BOOLEAN_FLAGS = new Set(["--allow-escape-sequences", "--include", "-i", "--paginate", "--silent", "--slurp", "--verbose", "--help"])
-// Names confirmed from the live GitHub Mutation schema. Pull-request review mutations are absent.
-const GRAPHQL_TICKET_WRITE = /\b(?:addComment|addLabelsToLabelable|clearLabelsFromLabelable|removeLabelsFromLabelable|lockLockable|unlockLockable|minimizeComment|unminimizeComment|addSubIssue|removeSubIssue|reprioritizeSubIssue|(?:close|create|delete|pin|reopen|set|transfer|unmark|unpin|update)Issue(?:AsDuplicate|Comment|Field|FieldValue|IssueType|Type)?|(?:add|archive|clear|convert|copy|create|delete|link|mark|unarchive|unlink|unmark|update)ProjectV2\w*|(?:create|delete|update)Label|(?:create|delete|update)Milestone)\b/
-
 // The shell removes backslash escapes and quote characters before gh sees argv, so `g''h`,
 // `g"h"` and `\gh` all execute gh. Mirror that here, as _lib/rules-git.mjs already does, or a
 // concatenated spelling walks past the word scan.
 const unquote = (word) => word?.replace(/\\(.)/g, "$1").replace(/["']/g, "") ?? ""
 
-/** Segments plus whether the parse ended inside a quote, which means it could not be trusted. */
-function shellSegments(command) {
-  const segments = []
-  let current = ""
-  let quote = ""
-  for (const character of command) {
-    if (quote) {
-      current += character
-      if (character === quote) quote = ""
-      continue
-    }
-    if (character === '"' || character === "'") {
-      quote = character
-      current += character
-      continue
-    }
-    if (["&", "|", ";", "\n"].includes(character)) {
-      if (current.trim()) segments.push(current)
-      current = ""
-      continue
-    }
-    current += character
-  }
-  if (current.trim()) segments.push(current)
-  return { segments, unbalanced: quote !== "" }
-}
-
-const wordsOf = (segment) => (segment.match(SHELL_WORD) ?? []).map(unquote)
+const wordsOf = (segment) => commandWords(segment).map(unquote)
 
 function ghIndex(words) {
   return words.findIndex((word) => /(?:^|[\\/])gh(?:\.exe|\.cmd)?$/i.test(word))
@@ -91,7 +62,7 @@ function repositoryVerdict(words, command) {
 
 function projectVerdict(words, command) {
   const owner = valueOf(words, ["--owner"])
-  const itemIndex = words.findIndex((word) => PROJECT_ITEM_WRITES.has(word.toLowerCase()))
+  const itemIndex = ghIndex(words) + 2
   const number = words[itemIndex + 1]?.startsWith("-") ? null : words[itemIndex + 1] ?? null
   if (!owner || !number || owner === "@me") return blocked(command, "The command does not prove which GitHub project it will mutate.")
   if (owner.toLowerCase() === TICKET_PROJECT_OWNER && number === TICKET_PROJECT_NUMBER) {
@@ -197,7 +168,7 @@ function apiVerdict(words, apiIndex, command) {
     const typedField = valueOf(cluster.expanded, ["-F", "--field"])
     const opaquePayload = valueOf(cluster.expanded, ["--input"]) !== null || /^query=@/.test(typedField ?? "")
     if (opaquePayload) return blocked(command, "The GraphQL request body is opaque, so the ticket target cannot be proved safe.")
-    if (!/\bmutation\b/.test(command) || !GRAPHQL_TICKET_WRITE.test(command)) return null
+    if (!/\bmutation\b/.test(command)) return null
     const namesTicketRepository = command.toLowerCase().includes(TICKET_REPOSITORY)
     return blocked(command, namesTicketRepository ? "The GraphQL mutation names the ticket repository." : "The GraphQL mutation does not prove that its ticket object belongs to a different repository.")
   }
@@ -218,8 +189,8 @@ function apiVerdict(words, apiIndex, command) {
 }
 
 function sanctionedTool(words) {
-  const nodeIndex = words.findIndex((word) => /(?:^|[\\/])node(?:\.exe)?$/i.test(word))
-  if (nodeIndex === -1) return false
+  const nodeIndex = words.findIndex((word) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(word))
+  if (!/(?:^|[\\/])node(?:\.exe)?$/i.test(words[nodeIndex] ?? "")) return false
   const script = words[nodeIndex + 1]?.replaceAll("\\", "/") ?? ""
   return /(?:^|\/)tools\/[^/]+\.mjs$/i.test(script)
 }
@@ -241,8 +212,8 @@ function scanSegments(segments, command) {
     const action = words[index + 2]?.toLowerCase()
     let verdict = null
     if (group === "issue" && ISSUE_WRITES.has(action)) verdict = repositoryVerdict(words, command)
-    else if (group === "label" && LABEL_WRITES.has(action)) verdict = repositoryVerdict(words, command)
-    else if (group === "project" && PROJECT_ITEM_WRITES.has(action)) verdict = projectVerdict(words, command)
+    else if (group === "label" && !LABEL_READS.has(action)) verdict = repositoryVerdict(words, command)
+    else if (group === "project" && !PROJECT_READS.has(action)) verdict = projectVerdict(words, command)
     else if (group === "api") verdict = apiVerdict(words, index + 1, command)
     if (verdict) return verdict
   }
@@ -250,19 +221,18 @@ function scanSegments(segments, command) {
 }
 
 /** Verdict for a shell command or source text about to be written, or null to allow. */
-export function checkTicketMutation(command) {
+export function checkTicketMutation(command, { sourcePath = "" } = {}) {
+  if (/\.md$/i.test(sourcePath)) return null
   // The cheap pre-filter runs on a flattened copy: the shell turns `g''h` and `\gh` into gh, so
   // testing the raw text would bail out before the word normalization ever sees the invocation.
   if (typeof command !== "string") return null
+  if (command.toLowerCase().includes(TICKET_REPOSITORY) || /--owner(?:=|\s+)thomasluizon/.test(command)) {
+    const dynamic = expandCommands(command).some((segment) => {
+      const words = wordsOf(segment)
+      return words[0]?.startsWith("$") || words.some((word) => /^[A-Za-z_][A-Za-z0-9_]*=gh$/.test(word))
+    })
+    if (dynamic) return blocked(command, "A dynamic command cannot prove that the ticket target is read-only.")
+  }
   if (!/\bgh(?:\.exe|\.cmd)?\b/i.test(command.replace(/\\(.)/g, "$1").replace(/["']/g, ""))) return null
-  const { segments, unbalanced } = shellSegments(command)
-  const verdict = scanSegments(segments, command)
-  if (verdict) return verdict
-  if (!unbalanced) return null
-  // The quote never closed, so a gh invocation can sit inside an unterminated blob and never be
-  // parsed as its own segment. Re-split with the quotes neutralised and judge what surfaces: an
-  // unparseable command has to fail closed, and this reaches the accurate reason for doing so.
-  // Quotes are DELETED, never replaced with spaces: the shell concatenates `g''h` into `gh`, and a
-  // space would split it back apart and miss the invocation.
-  return scanSegments(shellSegments(command.replaceAll(String.fromCharCode(34), "").replaceAll(String.fromCharCode(39), "")).segments, command)
+  return scanSegments(expandCommands(command), command)
 }
