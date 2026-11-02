@@ -122,6 +122,9 @@ export function useAccountScopedMutation<
     if (stillHeld(variables, error)) {
       return onSettled?.(data, error, variables.input, onMutateResult, context)
     }
+    if (getHeldAccountId() === variables.intendedAccountId || variables.intendedAccountId === null) {
+      return queryClient.invalidateQueries()
+    }
   }
 
   const mutation = useMutation(scopedOptions)

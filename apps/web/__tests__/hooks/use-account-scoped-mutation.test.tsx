@@ -128,7 +128,7 @@ describe('useAccountScopedMutation', () => {
     expect(queryClient.getQueryData<string[]>(['templates']) ?? []).not.toContain('account-a-placeholder')
   })
 
-  it('preserves the new generation cache after a completed write from the same account', async () => {
+  it('reconciles a completed write after re-login to the same account', async () => {
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
     const wrapper = ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client: queryClient }, children)
@@ -145,10 +145,10 @@ describe('useAccountScopedMutation', () => {
     releaseWrite?.()
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(queryClient.getQueryState(['goals'])?.isInvalidated).toBe(false)
+    expect(queryClient.getQueryState(['goals'])?.isInvalidated).toBe(true)
   })
 
-  it('leaves the adopted account cache untouched by an earlier generation write', async () => {
+  it('reconciles a write that started before the first session check adopted the account', async () => {
     heldAccount.id = null
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
@@ -169,7 +169,7 @@ describe('useAccountScopedMutation', () => {
     await act(async () => { releaseWrite?.() })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(invalidate).not.toHaveBeenCalled()
+    expect(invalidate).toHaveBeenCalled()
   })
 
   it('removes optimistic account A cache when the cookie changed before this tab learned', async () => {
