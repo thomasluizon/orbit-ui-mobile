@@ -63,7 +63,7 @@ describe('useChatImageAttachment', () => {
     sessionFetch.mockReset()
     vi.stubGlobal('fetch', sessionFetch)
     vi.stubGlobal('createImageBitmap', vi.fn(() => Promise.resolve({ width: 640, height: 480, close: vi.fn() })))
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D)
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn(), fillRect: vi.fn() } as unknown as CanvasRenderingContext2D)
     vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (callback) { callback(new Blob(['resized'], { type: 'image/jpeg' })) })
     vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:preview-1'),

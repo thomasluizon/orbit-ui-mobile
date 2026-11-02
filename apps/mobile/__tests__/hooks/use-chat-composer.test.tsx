@@ -73,6 +73,7 @@ const mocks = vi.hoisted(() => {
     releaseImage: vi.fn(),
     releaseContext: vi.fn(),
     manipulateImage: vi.fn(),
+    saveChatJpeg: vi.fn(),
     readFileText: vi.fn(),
     requestMediaLibraryPermissionsAsync: vi.fn(),
     launchImageLibraryAsync: vi.fn(),
@@ -224,6 +225,8 @@ vi.mock('expo-image-manipulator', () => ({
   ImageManipulator: { manipulate: mocks.manipulateImage },
   SaveFormat: { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' },
 }))
+
+vi.mock('@/modules/orbit-chat-image', () => ({ saveChatJpeg: mocks.saveChatJpeg }))
 
 vi.mock('expo-document-picker', () => ({
   getDocumentAsync: mocks.getDocumentAsync,
@@ -1536,6 +1539,8 @@ describe('mobile useChatComposer', () => {
     mocks.releaseContext.mockReset()
     mocks.saveImage.mockReset()
     mocks.saveImage.mockImplementation(() => Promise.resolve({ uri: 'file:///resized.jpg', width: Math.min(mocks.imageWidth, 1024), height: Math.min(mocks.imageWidth, 1024) * 3 / 4, base64: null }))
+    mocks.saveChatJpeg.mockReset()
+    mocks.saveChatJpeg.mockImplementation((_image, options: { quality: number }) => mocks.saveImage({ format: 'jpeg', compress: options.quality }))
     mocks.manipulateImage.mockReset()
     mocks.manipulateImage.mockImplementation(() => ({
       renderAsync: () => Promise.resolve({ saveAsync: mocks.saveImage, release: mocks.releaseImage }),
@@ -2575,6 +2580,7 @@ describe('mobile useChatComposer', () => {
     await TestRenderer.act(async () => { await composer.current.openFilePicker() })
     expect(mocks.manipulateImage).toHaveBeenCalledWith('file:///original.png', { maxWidth: 1024 })
     expect(mocks.saveImage).toHaveBeenCalledWith({ format: 'jpeg', compress: 0.7 })
+    expect(mocks.saveChatJpeg).toHaveBeenCalledWith(expect.objectContaining({ release: mocks.releaseImage }), { quality: 0.7, backgroundColor: '#FFFFFF' })
     expect(composer.current.selectedImage).toMatchObject({ uri: 'file:///resized.jpg', width: Math.min(width, 1024), height: Math.min(width, 1024) * 3 / 4, mimeType: 'image/jpeg', fileSize: mocks.fileSize })
     expect(composer.current.imagePreview).toBe('file:///resized.jpg')
     TestRenderer.act(() => composer.current.setInput('Describe my photo'))

@@ -70,3 +70,54 @@ it.each([4000, 640].flatMap(width => (['pick', 'paste'] as const).map(method => 
     expect(uploaded.size).toBeGreaterThan(0)
   } finally { await page.close() }
 })
+
+it.each(['image/png', 'image/webp'].flatMap(type => (['pick', 'paste'] as const).map(method => ({ type, method }))))('preserves transparent $type content on $method in preview and upload', async ({ type, method }) => {
+  const page = await browser.newPage()
+  try {
+    await page.setContent('<div id="root"></div>')
+    await page.addScriptTag({ content: attachmentScript })
+    await page.getByLabel('Photo').waitFor()
+    await page.evaluate(async ({ type, method }) => {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 64
+      const context = canvas.getContext('2d')!
+      context.fillStyle = '#000000'
+      context.fillRect(16, 16, 32, 32)
+      context.fillStyle = 'rgba(0, 0, 0, 0.5)'
+      context.fillRect(0, 48, 16, 16)
+      const blob = await new Promise<Blob>(resolve => canvas.toBlob(blob => resolve(blob!), type))
+      const transfer = new DataTransfer()
+      transfer.items.add(new File([blob], `transparent.${type.split('/')[1]}`, { type: blob.type }))
+      if (method === 'pick') {
+        const input = document.querySelector('input')!
+        input.files = transfer.files
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+      } else {
+        document.querySelector('textarea')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }))
+      }
+    }, { type, method })
+    await expect.poll(() => page.getByAltText('Preview').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(64)
+    await page.getByRole('button', { name: 'Send' }).click()
+    const pixels = await page.evaluate(async () => {
+      const file = Reflect.get(window, 'uploadedImage') as File
+      const bitmap = await createImageBitmap(file)
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = canvas.height = 64
+        const context = canvas.getContext('2d')!
+        const sample = (image: CanvasImageSource) => {
+          context.drawImage(image, 0, 0)
+          return [[0, 0], [32, 32], [8, 56]].map(([x, y]) => Array.from(context.getImageData(x!, y!, 1, 1).data))
+        }
+        return { type: file.type, upload: sample(bitmap), preview: sample(document.querySelector('img')!) }
+      } finally { bitmap.close() }
+    })
+    expect(pixels.type).toBe('image/jpeg')
+    for (const [background, foreground, translucent] of [pixels.preview, pixels.upload]) {
+      expect(background![3]).toBe(255)
+      expect(background!.slice(0, 3).every(channel => channel >= 245)).toBe(true)
+      expect(foreground!.slice(0, 3).every(channel => channel <= 10)).toBe(true)
+      expect(translucent!.slice(0, 3).every(channel => channel >= 115 && channel <= 140)).toBe(true)
+    }
+  } finally { await page.close() }
+})

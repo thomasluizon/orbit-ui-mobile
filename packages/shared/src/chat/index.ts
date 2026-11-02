@@ -78,7 +78,7 @@ export function resolveChatImageMimeType(candidate: ChatImageCandidate): string 
   return inferChatImageMimeType(candidate.name) ?? inferChatImageMimeType(candidate.uri)
 }
 
-export const CHAT_IMAGE_OUTPUT = { maxWidth: 1024, quality: 0.7 } as const
+export const CHAT_IMAGE_OUTPUT = { maxWidth: 1024, quality: 0.7, backgroundColor: '#FFFFFF' } as const
 
 export function getChatImageValidationError(
   candidate: ChatImageCandidate,

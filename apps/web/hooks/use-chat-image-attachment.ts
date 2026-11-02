@@ -14,6 +14,8 @@ async function resizeChatImage(file: File): Promise<File> {
     canvas.height = Math.max(1, Math.round(bitmap.height * canvas.width / bitmap.width))
     const context = canvas.getContext('2d')
     if (!context) throw new Error('Image canvas unavailable')
+    context.fillStyle = CHAT_IMAGE_OUTPUT.backgroundColor
+    context.fillRect(0, 0, canvas.width, canvas.height)
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((output) => output ? resolve(output) : reject(new Error('Image encoding failed')), 'image/jpeg', CHAT_IMAGE_OUTPUT.quality)

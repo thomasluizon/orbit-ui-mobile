@@ -393,7 +393,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         type="file"
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
-        onChange={handleFileSelect}
+        onChange={(event) => void handleFileSelect(event)}
       />
 
       <GlobalOverlays
