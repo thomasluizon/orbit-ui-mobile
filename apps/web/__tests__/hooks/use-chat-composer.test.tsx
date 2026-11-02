@@ -175,6 +175,11 @@ vi.mock('@/app/actions/chat', async (importOriginal) => ({
 }))
 
 import { useChatComposer } from '@/hooks/use-chat-composer'
+import { useChatComposerAvailability } from '@/hooks/use-chat-composer-state'
+import { useChatSendRetry } from '@/hooks/use-chat-send-stream'
+import { useChatPendingBubbles } from '@/hooks/use-chat-pending-bubbles'
+import { agentExecuteOperationResponseSchema } from '@orbit/shared/types/ai'
+import { makeAgentOperationResult } from '@orbit/shared/test-support/chat-fixtures'
 import { useAuthStore } from '@/stores/auth-store'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -289,6 +294,51 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
 }
 
 describe('web useChatComposer streaming send', () => {
+
+  it('keeps attachments while the extracted state hook enters and leaves a daily budget limit', () => {
+    const inputs = { profile: createMockProfile({ aiMessagesUsed: 0, aiMessagesLimit: 5 }), today: '2026-09-12',
+      replyActive: false, isTyping: false, streamingMessageId: null, input: '', messages: [],
+      selectedTextFile: { name: 'notes.txt', content: 'Read' }, selectedImage: null, isOnline: true }
+
+    const { result, rerender } = renderHook(({ budgetDate }) => useChatComposerAvailability({ ...inputs, dailyBudgetDate: budgetDate }), { initialProps: { budgetDate: null as string | null } })
+    expect(result.current.atMessageLimit).toBe(false)
+    expect(result.current.attachments).toEqual([{ id: 'chat-file', kind: 'file', name: 'notes.txt' }])
+    rerender({ budgetDate: inputs.today })
+    expect(result.current.atMessageLimit).toBe(true)
+    expect(result.current.attachments).toHaveLength(1)
+    rerender({ budgetDate: '2026-09-11' })
+    expect(result.current.atMessageLimit).toBe(false)
+  })
+
+  it('preserves a newer draft in the extracted retry hook and clears the matching restored revision', async () => {
+    const attempted = { intendedAccountId: null, content: 'Retry this', draftContent: 'Retry this', image: null, preview: null,
+      textFile: null, restoreDraftOnFailure: false, clearDraftOnSuccess: true, restoredDraftRevision: 1 }
+    const performSend = vi.fn(() => Promise.resolve(true))
+    const setInput = vi.fn()
+    const inputs = { isOnline: true, offlineTitle: 'offline', atMessageLimit: false, isSending: false, queuePaused: false,
+      queueReady: true, queuedPrompts: [], lastFailedSend: attempted, performSend, setInput, setSendError: vi.fn(), queryClient: mocks.queryClient as never }
+    useChatStore.setState({ draft: 'Newer text', draftRevision: 2, isTyping: false, streamingMessageId: null })
+    const { result } = renderHook(() => useChatSendRetry(inputs))
+    await act(async () => { await result.current.retryLastSend() })
+    expect(performSend).toHaveBeenCalledWith(attempted, true)
+    expect(setInput).not.toHaveBeenCalled()
+    expect(useChatStore.getState().draft).toBe('Newer text')
+    useChatStore.setState({ draftRevision: 1 })
+    await act(async () => { await result.current.retryLastSend() })
+    expect(setInput).toHaveBeenCalledWith('')
+  })
+
+  it('refreshes agent queries only after a succeeded execution in the extracted pending hook', async () => {
+    vi.mocked(confirmPendingOperation).mockResolvedValue({ ok: true, data: { pendingOperationId: 'pending-1', confirmationToken: 'token-1', expiresAtUtc: '2026-09-29T12:00:00Z' } })
+    vi.mocked(executePendingOperation).mockResolvedValueOnce({ ok: true, data: agentExecuteOperationResponseSchema.parse({ operation: makeAgentOperationResult('Failed', 0) }) })
+    const { result } = renderHook(() => useChatPendingBubbles({ queryClient: mocks.queryClient as never, isRecording: false, isTranscribing: false, selectedImage: null, selectedTextFile: null, lastFailedSend: null, queuedPrompts: [] }))
+    mocks.queryClient.invalidateQueries.mockClear()
+    await act(async () => { await result.current.confirmAndExecutePendingOperation('pending-1') })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    vi.mocked(executePendingOperation).mockResolvedValueOnce({ ok: true, data: agentExecuteOperationResponseSchema.parse({ operation: makeAgentOperationResult('Succeeded', 0) }) })
+    await act(async () => { await result.current.confirmAndExecutePendingOperation('pending-1') })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all })
+  })
 
   it('rejects an account switch after history preparation completes before the composer resumes', async () => {
     act(() => useAuthStore.getState().setAuth({ userId: 'account-a', name: 'A', email: 'a@example.test' }))
