@@ -7,7 +7,6 @@ describe('API endpoints', () => {
     it('has correct static paths', () => {
       expect(API.auth.sendCode).toBe('/api/auth/send-code')
       expect(API.auth.verifyCode).toBe('/api/auth/verify-code')
-      expect(API.auth.google).toBe('/api/auth/google')
       expect(API.auth.logout).toBe('/api/auth/logout')
       expect(API.auth.requestDeletion).toBe('/api/auth/request-deletion')
       expect(API.auth.confirmDeletion).toBe('/api/auth/confirm-deletion')
@@ -68,18 +67,15 @@ describe('API endpoints', () => {
       expect(API.goals.list).toBe('/api/goals')
       expect(API.goals.create).toBe('/api/goals')
       expect(API.goals.reorder).toBe('/api/goals/reorder')
-      expect(API.goals.review).toBe('/api/goals/review')
     })
 
     it('has correct parameterized paths', () => {
-      expect(API.goals.get('g-1')).toBe('/api/goals/g-1')
       expect(API.goals.update('g-1')).toBe('/api/goals/g-1')
       expect(API.goals.delete('g-1')).toBe('/api/goals/g-1')
       expect(API.goals.restore('g-1')).toBe('/api/goals/g-1/restore')
       expect(API.goals.detail('g-1')).toBe('/api/goals/g-1/detail')
       expect(API.goals.progress('g-1')).toBe('/api/goals/g-1/progress')
       expect(API.goals.status('g-1')).toBe('/api/goals/g-1/status')
-      expect(API.goals.habits('g-1')).toBe('/api/goals/g-1/habits')
       expect(API.goals.metrics('g-1')).toBe('/api/goals/g-1/metrics')
     })
   })
@@ -105,7 +101,6 @@ describe('API endpoints', () => {
       expect(API.notifications.deleteAll).toBe('/api/notifications/all')
       expect(API.notifications.subscribe).toBe('/api/notifications/subscribe')
       expect(API.notifications.unsubscribe).toBe('/api/notifications/unsubscribe')
-      expect(API.notifications.testPush).toBe('/api/notifications/test-push')
     })
 
     it('has correct parameterized paths', () => {
@@ -127,26 +122,12 @@ describe('API endpoints', () => {
   describe('gamification', () => {
     it('has correct static paths', () => {
       expect(API.gamification.profile).toBe('/api/gamification/profile')
-      expect(API.gamification.achievements).toBe('/api/gamification/achievements')
       expect(API.gamification.streak).toBe('/api/gamification/streak')
       expect(API.gamification.repairStreakGap).toBe('/api/gamification/streak/repair-gap')
     })
   })
 
-  describe('chat', () => {
-    it('has correct static path', () => {
-      expect(API.chat.send).toBe('/api/chat')
-    })
-  })
-
   describe('ai', () => {
-    it('has correct static paths', () => {
-      expect(API.ai.capabilities).toBe('/api/ai/capabilities')
-      expect(API.ai.operations).toBe('/api/ai/operations')
-      expect(API.ai.dataCatalog).toBe('/api/ai/data-catalog')
-      expect(API.ai.surfaces).toBe('/api/ai/surfaces')
-    })
-
     it('has correct parameterized pending-operation paths', () => {
       expect(API.ai.pendingOperationConfirm('op-1')).toBe('/api/ai/pending-operations/op-1/confirm')
       expect(API.ai.pendingOperationStepUp('op-1')).toBe('/api/ai/pending-operations/op-1/step-up')
@@ -190,13 +171,6 @@ describe('API endpoints', () => {
   describe('config', () => {
     it('has correct static path', () => {
       expect(API.config.get).toBe('/api/config')
-    })
-  })
-
-  describe('sync', () => {
-    it('has correct static paths', () => {
-      expect(API.sync.batch).toBe('/api/sync/batch')
-      expect(API.sync.changesV2).toBe('/api/sync/v2/changes')
     })
   })
 

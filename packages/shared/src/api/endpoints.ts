@@ -22,7 +22,6 @@ export const API = {
   auth: {
     sendCode: '/api/auth/send-code',
     verifyCode: '/api/auth/verify-code',
-    google: '/api/auth/google',
     googleCode: '/api/auth/google/code',
     appleNative: '/api/auth/apple/native',
     appleStart: '/api/auth/apple/start',
@@ -91,18 +90,15 @@ export const API = {
   goals: {
     list: '/api/goals',
     create: '/api/goals',
-    get: (id: string) => `/api/goals/${id}` as const,
     update: (id: string) => `/api/goals/${id}` as const,
     delete: (id: string) => `/api/goals/${id}` as const,
     restore: (id: string) => `/api/goals/${id}/restore` as const,
     detail: (id: string) => `/api/goals/${id}/detail` as const,
     progress: (id: string) => `/api/goals/${id}/progress` as const,
     status: (id: string) => `/api/goals/${id}/status` as const,
-    habits: (id: string) => `/api/goals/${id}/habits` as const,
     metrics: (id: string) => `/api/goals/${id}/metrics` as const,
     progressHistory: (id: string) => `/api/goals/${id}/progress-history` as const,
     reorder: '/api/goals/reorder',
-    review: '/api/goals/review',
   },
 
   tags: {
@@ -124,7 +120,6 @@ export const API = {
     deleteAll: '/api/notifications/all',
     subscribe: '/api/notifications/subscribe',
     unsubscribe: '/api/notifications/unsubscribe',
-    testPush: '/api/notifications/test-push',
   },
 
   subscription: {
@@ -139,9 +134,7 @@ export const API = {
 
   gamification: {
     profile: '/api/gamification/profile',
-    achievements: '/api/gamification/achievements',
     streak: '/api/gamification/streak',
-    repairStreak: '/api/gamification/streak/repair',
     repairStreakGap: '/api/gamification/streak/repair-gap',
     recap: '/api/gamification/recap',
     streakHistory: '/api/gamification/streak-history',
@@ -157,7 +150,6 @@ export const API = {
     refineHabitSuggestion: '/api/chat/habit-suggestions/refine',
     previewHabitSuggestion: '/api/chat/habit-suggestions/preview',
     previewAllHabitSuggestions: '/api/chat/habit-suggestions/preview-all',
-    send: '/api/chat',
     stream: '/api/chat/stream',
     transcribe: '/api/chat/transcribe',
     records: '/api/chat/records',
@@ -168,10 +160,6 @@ export const API = {
   },
 
   ai: {
-    capabilities: '/api/ai/capabilities',
-    operations: '/api/ai/operations',
-    dataCatalog: '/api/ai/data-catalog',
-    surfaces: '/api/ai/surfaces',
     pendingOperationConfirm: (id: string) => `/api/ai/pending-operations/${id}/confirm` as const,
     pendingOperationRevise: (id: string) => `/api/ai/pending-operations/${id}/revise` as const,
     pendingOperationRefresh: (id: string) => `/api/ai/pending-operations/${id}/preview/refresh` as const,
@@ -214,11 +202,6 @@ export const API = {
 
   config: {
     get: '/api/config',
-  },
-
-  sync: {
-    batch: '/api/sync/batch',
-    changesV2: '/api/sync/v2/changes',
   },
 
   checklistTemplates: {
