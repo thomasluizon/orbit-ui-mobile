@@ -1,3 +1,5 @@
+import { useAuthStore } from '@/stores/auth-store'
+import { destructiveFailureCases, destructiveActionMessage } from '@orbit/shared/test-support/destructive-action-fixtures'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -16,16 +18,18 @@ const mocks = vi.hoisted(() => ({
   isOnline: { current: true },
   onClose: vi.fn(),
   push: vi.fn(),
-  accountId: { current: 'user-1' },
 }))
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mocks.push }),
 }))
 
+const failureCopy = vi.hoisted(() => ({ actual: false, locale: 'en' }))
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => {
+      if (failureCopy.actual) return destructiveActionMessage(failureCopy.locale, key)
       const warningKey = key.slice('profile.deleteAccount.'.length)
       const warning = key.startsWith('profile.deleteAccount.warning') || key === 'profile.deleteAccount.offlineDescription'
         ? Reflect.get(ptBR.profile.deleteAccount, warningKey) as unknown
@@ -39,12 +43,6 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
-vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: Object.assign(
-    (selector: (state: unknown) => unknown) => selector({ user: { userId: mocks.accountId.current } }),
-    { getState: () => ({ user: { userId: mocks.accountId.current } }) },
-  ),
-}))
 vi.mock('@/lib/step-up-storage', () => ({
   beginStepUpChallenge: (operation: string, accountId: string | null) =>
     mocks.beginChallenge(operation, accountId),
@@ -95,14 +93,77 @@ function button(tree: ReturnType<typeof TestRenderer.create>, label: string) {
 
 describe('DeleteAccountModal', () => {
   beforeEach(() => {
+    failureCopy.actual = false; failureCopy.locale = 'en'
     vi.clearAllMocks()
     mocks.isOnline.current = true
-    mocks.accountId.current = 'user-1'
+    useAuthStore.setState({ sessionPhase: 'signed-in', isAuthenticated: true, user: { userId: 'user-1', name: 'Alex', email: 'alex@example.com' } })
     mocks.apiClient.mockResolvedValue({ message: 'sent' })
   })
 
   afterEach(() => {
     sheetTestControls.defer(false)
+  })
+
+  it('sends one deletion request when Send code is pressed twice in the same turn', async () => {
+    let reject!: (error: Error) => void
+    mocks.apiClient.mockReturnValueOnce(new Promise<void>((_resolve, rejectRequest) => { reject = rejectRequest }))
+    const tree = await renderModal()
+    await TestRenderer.act(async () => {
+      const send = button(tree, 'profile.deleteAccount.sendCode')
+      send.props.onPress(); send.props.onPress()
+      await Promise.resolve()
+    })
+    expect(mocks.apiClient).toHaveBeenCalledOnce()
+    await TestRenderer.act(() => reject(new Error('Failed')))
+    TestRenderer.act(() => tree.unmount())
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: 'user-1' } })
+  })
+
+  it('does not request deletion without an account', async () => {
+    useAuthStore.setState({ user: null })
+    const tree = await renderModal()
+    const send = button(tree, 'profile.deleteAccount.sendCode')
+    expect(send.props.accessibilityState.disabled).toBe(true)
+    await TestRenderer.act(() => { send.props.onPress() })
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each(['success', 'failure', 'challenge'] as const)('clears the send spinner when another account replaces the session during %s', async outcome => {
+    let settle!: () => void
+    let reject!: (error: Error) => void
+    const pending = new Promise<void>((resolve, rejectRequest) => { settle = resolve; reject = rejectRequest })
+    if (outcome === 'challenge') mocks.beginChallenge.mockReturnValueOnce(pending)
+    else mocks.apiClient.mockReturnValueOnce(pending)
+    const tree = await renderModal()
+    await TestRenderer.act(async () => { button(tree, 'profile.deleteAccount.sendCode').props.onPress(); await Promise.resolve() })
+    await TestRenderer.act(async () => {
+      useAuthStore.setState({ user: { userId: 'user-2', name: 'Next', email: 'next@example.com' } })
+      advanceAccountGeneration()
+      if (outcome === 'failure') reject(new Error('Failed'))
+      else settle()
+      await Promise.resolve()
+    })
+    expect(button(tree, 'profile.deleteAccount.sendCode').props.accessibilityState.busy).not.toBe(true)
+    expect(mocks.push).not.toHaveBeenCalled()
+    expect(mocks.onClose).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: 'user-2' } })
+  })
+
+  it.each(destructiveFailureCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('shows $kind failure copy in $locale and keeps the session', async ({ createError, key, locale }) => {
+    failureCopy.actual = true; failureCopy.locale = locale
+    mocks.apiClient.mockRejectedValueOnce(createError())
+    const tree = await renderModal()
+    const label = destructiveActionMessage(locale, 'profile.deleteAccount.sendCode')
+    await TestRenderer.act(async () => { button(tree, label).props.onPress(); await Promise.resolve() })
+    expect(textContent(tree.root)).toContain(destructiveActionMessage(locale, key ?? 'profile.deleteAccount.errorGeneric'))
+    expect(button(tree, label).props.accessibilityState.disabled).toBe(false)
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: 'user-1' } })
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+    expect(mocks.onClose).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
   })
 
   it('explains Apple cancellation while preserving the deletion window', async () => {
@@ -235,6 +296,7 @@ describe('DeleteAccountModal', () => {
 
     expect(alerts('SheetActions')).toHaveLength(1)
     expect(alerts('SheetBody')).toHaveLength(0)
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: 'user-1' } })
   })
 
   it('enters the deletion step up only after the sheet dismisses', async () => {
@@ -279,7 +341,7 @@ describe('DeleteAccountModal', () => {
       await Promise.resolve()
     })
 
-    mocks.accountId.current = 'user-2'
+    useAuthStore.setState({ user: { userId: 'user-2', name: 'Next', email: 'next@example.com' } })
     TestRenderer.act(() => {
       tree.unmount()
       advanceAccountGeneration()
@@ -293,6 +355,7 @@ describe('DeleteAccountModal', () => {
 
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
     expect(mocks.push).not.toHaveBeenCalled()
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: 'user-2' } })
   })
 
   it('does not navigate from a pending sheet dismissal after replacement', async () => {

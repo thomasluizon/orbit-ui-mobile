@@ -13,7 +13,7 @@ export const updateWeekStartDay = bindServerAction(serverActions.updateWeekStart
 export const updateClockFormat = bindServerAction(serverActions.updateClockFormat)
 export const updateThemePreference = bindServerAction(serverActions.updateThemePreference)
 export const completeOnboarding = bindServerAction(serverActions.completeOnboarding)
-export const resetAccount = bindServerAction(serverActions.resetAccount)
+export const resetAccount = bindServerAction(serverActions.resetAccount, 'reject')
 export const exportUserData = bindServerAction(serverActions.exportUserData)
 
 export const authorizeNotion = bindServerAction(serverActions.authorizeNotion)

@@ -568,20 +568,23 @@ describe('useStoreBilling', () => {
     expect(mocks.invalidateQueries).toHaveBeenCalledOnce()
   })
 
-  it('leaves a store purchase unfinished and accepts a later purchase when verification rejects', async () => {
+  it.each(['android', 'ios'] as const)('leaves a %s purchase unfinished and accepts a later purchase when verification rejects', async platform => {
+    Platform.OS = platform
     mocks.state.subscriptions = [{ id: 'orbit_pro', subscriptionOffers: [
       { basePlanIdAndroid: 'monthly', offerTokenAndroid: 'tok_m', displayPrice: 'R$14,90' },
     ] }]
+    if (platform === 'ios') mocks.state.subscriptions = [{ id: 'orbit.monthly', displayPrice: '$4.99', price: 4.99, currency: 'USD' }]
     const onPurchased = vi.fn()
     const hook = renderUsePlayBillingLive({ onPurchased })
+    await flushAsync()
     await TestRenderer.act(async () => { await hook.current.purchase('monthly') })
     mocks.apiClient.mockRejectedValueOnce(new Error('network'))
-    mocks.state.iapOptions?.onPurchaseSuccess?.(createPlayPurchase({ purchaseToken: 'tok_fail' }))
+    mocks.state.iapOptions?.onPurchaseSuccess?.(platform === 'ios' ? createApplePurchase() : createPlayPurchase({ purchaseToken: 'tok_fail' }))
     await flushAsync()
     expect(mocks.finishTransaction).not.toHaveBeenCalled()
     expect(mocks.invalidateQueries).not.toHaveBeenCalled()
     expect(onPurchased).not.toHaveBeenCalled()
-    expect(hook.current.errorKey).toBe('upgrade.playError.serviceUnavailable')
+    expect(hook.current.errorKey).toBe(platform === 'ios' ? 'upgrade.appStore.error.serviceUnavailable' : 'upgrade.playError.serviceUnavailable')
     expect(hook.current.isProcessing).toBe(false)
     await TestRenderer.act(async () => { await hook.current.purchase('monthly') })
     expect(mocks.requestPurchase).toHaveBeenCalledTimes(2)
