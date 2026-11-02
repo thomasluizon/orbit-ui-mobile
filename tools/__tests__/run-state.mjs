@@ -113,6 +113,14 @@ import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
 }
 
 export const cases = async () => {
+  const corruptRoot = stageCheckout("corrupt")
+  writeFileSync(runStatePath(corruptRoot), "not json")
+  let corruptError
+  try { readRunState(corruptRoot) } catch (error) { corruptError = error }
+  T(`${TOOL}: corrupt record throws with its path`, corruptError?.message.includes(runStatePath(corruptRoot)))
+  let writeError
+  try { writeRunState({ sessionId: "replacement" }, corruptRoot) } catch (error) { writeError = error }
+  T(`${TOOL}: a corrupt record cannot be overwritten`, Boolean(writeError) && readFileSync(runStatePath(corruptRoot), "utf8") === "not json")
   const repoRoot = stageCheckout("basic")
   T(`${TOOL}: no run has written a record, so there is no state and no wake source`, readRunState(repoRoot) === null && readWakeSources(repoRoot).length === 0)
 

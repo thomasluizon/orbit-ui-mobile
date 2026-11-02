@@ -24,6 +24,7 @@ try {
     }
   }
   process.exit(0)
-} catch {
-  process.exit(0)
+} catch (error) {
+  process.stderr.write(`forbid-raw-ticket-mutation: ${error.message}\n`)
+  process.exit(2)
 }

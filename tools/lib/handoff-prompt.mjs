@@ -108,10 +108,14 @@ export const validateHandoffPrompt = (text, { sleep, crank }) => {
 const requestPath = (repoRoot) => join(gitDirectoryOf(repoRoot), REQUEST_FILE)
 
 const readRequests = (repoRoot) => {
+  const path = requestPath(repoRoot)
   try {
-    return JSON.parse(readFileSync(requestPath(repoRoot), "utf8"))
-  } catch {
-    return {}
+    const requests = JSON.parse(readFileSync(path, "utf8"))
+    if (!requests || typeof requests !== "object" || Array.isArray(requests)) throw new Error("expected a request map")
+    return requests
+  } catch (error) {
+    if (error.code === "ENOENT") return {}
+    throw new Error(`Cannot read handoff requests ${path}: ${error.message}`, { cause: error })
   }
 }
 

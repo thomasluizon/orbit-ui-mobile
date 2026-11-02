@@ -857,6 +857,14 @@ const runHookResult = (file, input, env) =>
     env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
   })
 const runHook = (file, payload, env) => runHookResult(file, JSON.stringify(payload), env).status
+for (const hook of ["git-guardrails", "orchestrator-guardrails", "forbid-invented-identifier", "forbid-worker-browser", "forbid-node-modules-write", "forbid-raw-ticket-mutation", "forbid-ef-migration-raw-index", "require-handoff-prompt", "require-wake-source", "forbid-superseded-session"]) {
+  const result = runHookResult(`${hook}.mjs`, "not json")
+  T(`adapter ${hook}: malformed stdin blocks`, result.status, 2)
+  T(`adapter ${hook}: failure identifies the hook`, result.stderr.includes(hook), true)
+}
+for (const hook of ["surface-pending-lessons", "record-handoff-request", "relay-at-threshold"]) {
+  T(`reminder ${hook}: malformed stdin allows`, runHookResult(`${hook}.mjs`, "not json").status, 0)
+}
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
 const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_input: { command }, cwd })
 const STALE_TEXT = "forbid-stale-text.mjs"
@@ -1073,7 +1081,7 @@ T("adapter dependency-write: reading the installed source -> 0", runHook(DEPENDE
  * layout, so the id-in-an-artifact path is exercised without touching any repository.
  */
 const IDENT_HOOK = "forbid-invented-identifier.mjs"
-const IDENT_SESSION = "orbit-hooks-gate-identifier-session"
+const IDENT_SESSION = "b7b639ab-803e-409a-b1ce-9b86ccdf9a60"
 const resolveCommand = (id) => `node tools/resolve-bot-thread.mjs --thread ${id} --repo ui --pr 699`
 const identPayload = (command, sessionId = IDENT_SESSION) => ({ tool_name: "Bash", tool_input: { command }, cwd: repoRoot, session_id: sessionId })
 
@@ -1090,6 +1098,7 @@ mkdirSync(dirname(scratchpadArtifact), { recursive: true })
 writeFileSync(scratchpadArtifact, JSON.stringify({ threads: [{ id: INVENTED }] }))
 try {
   T("adapter identifier: the same id read from a session artifact -> 0", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 0)
+  T("adapter identifier: traversal session cannot scan an artifact", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED), "../../x")), 2)
   T("adapter identifier: another session cannot borrow that artifact -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED), "a-different-session")), 2)
 } finally {
   rmSync(join(tmpdir(), "claude", "orbit-hooks-gate-project"), { recursive: true, force: true })
@@ -1163,12 +1172,29 @@ const relayUsage = JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", 
 const relayTranscript = join(wakeCheckout, ".git", "relay-transcript.jsonl")
 const relayPayload = { session_id: "relay-parent", transcript_path: relayTranscript, cwd: wakeCheckout, permission_mode: "bypassPermissions", hook_event_name: "Stop", stop_hook_active: false, last_assistant_message: "", background_tasks: [], session_crons: [] }
 const isolatedRelayHook = (name, payload = relayPayload, timeout) => spawnSync(process.execPath, [join(wakeHooks, name)], { input: JSON.stringify(payload), encoding: "utf8", timeout })
+writeFileSync(runStatePath(wakeCheckout), "not json")
+const corruptStop = isolatedRelayHook(WAKE_HOOK, stopPayload)
+T("adapter wake-source: corrupt run blocks stop", corruptStop.status, 2)
+T("adapter wake-source: corrupt run error names its path", corruptStop.stderr.includes(runStatePath(wakeCheckout)), true)
+T("adapter wake-source: active stop prevents a block loop", isolatedRelayHook(WAKE_HOOK, { ...stopPayload, stop_hook_active: true }).status, 0)
+rmSync(runStatePath(wakeCheckout))
+T("adapter wake-source: missing record allows stop", isolatedRelayHook(WAKE_HOOK, stopPayload).status, 0)
 writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }, wakeCheckout)
 T("adapter wake-source: a sleeping queue with nothing live -> 2", isolatedRelayHook(WAKE_HOOK, stopPayload).status, 2)
 writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: [] }, wakeCheckout)
 T("adapter wake-source: an exhausted queue -> 0", isolatedRelayHook(WAKE_HOOK, stopPayload).status, 0)
 writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }, wakeCheckout)
 T("adapter wake-source: another session's record -> 0", isolatedRelayHook(WAKE_HOOK, { ...stopPayload, session_id: "someone-else" }).status, 0)
+const requestFile = join(wakeCheckout, ".git", "orbit-handoff-request.json")
+writeFileSync(requestFile, "{")
+const corruptRequestStop = isolatedRelayHook("require-handoff-prompt.mjs", { ...stopPayload, hook_event_name: "Stop" })
+T("handoff adapter: corrupt request blocks", corruptRequestStop.status, 2)
+T("handoff adapter: corrupt request names path", corruptRequestStop.stderr.includes(requestFile), true)
+rmSync(requestFile)
+const { newestCommittedPrompt: readCommittedPrompt } = await import("./_lib/handoff-git.mjs")
+let promptReadFailed = false
+try { readCommittedPrompt(root) } catch { promptReadFailed = true }
+T("handoff reader: git failure throws instead of proving no prompt", promptReadFailed, true)
 writeRunState(relayState, wakeCheckout)
 writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: 399329 } } }) + "\n")
 T("relay adapter: 399999 prints nothing", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
