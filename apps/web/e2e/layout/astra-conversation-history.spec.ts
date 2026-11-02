@@ -41,7 +41,7 @@ for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
         }
         expect(await header.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
         await deletion.click()
-        await expect(page.getByRole('dialog')).toContainText(words.chat.conversation.deleteBody)
+        await expect(page.getByRole('dialog', { name: words.chat.conversation.deleteTitle, exact: true })).toContainText(words.chat.conversation.deleteBody)
       })
     })
   }

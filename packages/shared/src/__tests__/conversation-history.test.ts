@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createStore } from 'zustand/vanilla'
 import { createChatStoreState } from '../stores/chat-store'
 import type { ConversationPage } from '../types/conversation'
-import { createConversationHistory, prepareConversationSend, restoreConversationPage } from '../chat/conversation-history'
+import { conversationPagePath, createConversationHistory, prepareConversationSend, restoreConversationPage } from '../chat/conversation-history'
+import { buildChatClientContext } from '../chat/client-context'
 import { makeConversationPage, storedOperationId, storedConversationId } from '../test-support/conversation-fixtures'
 
 const store = createStore(createChatStoreState)
@@ -13,6 +14,13 @@ const history = createConversationHistory({ getState: store.getState, setState: 
 beforeEach(() => { store.setState(createChatStoreState(store.setState)); vi.clearAllMocks(); read.mockResolvedValue(makeConversationPage()); generation++ })
 
 describe('conversation restoration', () => {
+  it('builds the initial and pinned page paths without losing zero or string cursors', () => {
+    expect(conversationPagePath()).toBe('/api/chat/conversations/latest?pageSize=40')
+    expect(conversationPagePath({ conversationId: storedConversationId, beforeOrder: 0 }))
+      .toBe(`/api/chat/conversations/latest?pageSize=40&conversationId=${storedConversationId}&beforeOrder=0`)
+    expect(conversationPagePath({ conversationId: storedConversationId, beforeOrder: '9223372036854775806' }))
+      .toBe(`/api/chat/conversations/latest?pageSize=40&conversationId=${storedConversationId}&beforeOrder=9223372036854775806`)
+  })
   it('uses distinct role identities for one producer turn and existing response parts', () => {
     const messages = restoreConversationPage(makeConversationPage())
     expect(messages.map(message => message.role)).toEqual(['user', 'ai'])
@@ -37,6 +45,52 @@ describe('conversation restoration', () => {
     expect(read).toHaveBeenLastCalledWith({ conversationId: storedConversationId, beforeOrder: 3 })
     expect(store.getState().messages).toHaveLength(2)
     expect(store.getState().conversationBeforeOrder).toBeNull()
+  })
+  it('prepends earlier turns once and rejects pages for a different conversation', async () => {
+    await history.latest()
+    const page = makeConversationPage({ beforeOrder: 1 })
+    page.turns[0] = { ...page.turns[0]!, turnId: '00000000-0000-4000-8000-000000000004', order: 1 }
+    read.mockResolvedValueOnce(page)
+    expect(await history.earlier()).toBe(true)
+    expect(store.getState().messages.map(message => message.id)).toEqual([
+      'stored-00000000-0000-4000-8000-000000000004-user', ...restoreConversationPage(makeConversationPage()).map(message => message.id),
+    ])
+    read.mockResolvedValueOnce(makeConversationPage({ conversationId: '00000000-0000-4000-8000-000000000005' }))
+    expect(await history.earlier()).toBe(false)
+    expect(store.getState().messages).toHaveLength(3)
+    expect(store.getState().conversationBeforeOrder).toBe(1)
+  })
+  it('keeps an empty conversation ready after the adapter maps a missing conversation to null', async () => {
+    read.mockResolvedValueOnce(null)
+    expect(history.isReady()).toBe(false)
+    expect(await history.prepareSend()).toBe(true)
+    expect(history.isReady()).toBe(true)
+    expect(store.getState()).toMatchObject({ messages: [], conversationId: null, serverConversationId: null })
+    expect(await history.earlier()).toBe(false)
+    expect(await history.remove()).toBe(false)
+    expect(prepareConversationSend(history, { astraConversationOpen: true, setAstraConversationOpen: vi.fn() }, vi.fn())).toBe(true)
+    expect(await history.prepareSend()).toBe(true)
+    expect(read).toHaveBeenCalledOnce()
+  })
+  it.each(['web', 'mobile'] as const)('hands the restored id to the next %s request and clears it after delete', async platform => {
+    await history.latest()
+    const context = () => buildChatClientContext({ platform, locale: 'en', conversationId: store.getState().serverConversationId ?? undefined })
+    expect(context().conversationId).toBe(storedConversationId)
+    expect(await history.remove()).toBe(true)
+    expect(remove).toHaveBeenCalledExactlyOnceWith(storedConversationId)
+    expect(context().conversationId).toBeUndefined()
+  })
+  it('does not allow a send prepared for an earlier account', async () => {
+    let finish!: (page: ConversationPage) => void
+    read.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const pending = history.prepareSend()
+    await Promise.resolve()
+    generation++
+    store.setState(createChatStoreState(store.setState))
+    finish(makeConversationPage())
+    expect(await pending).toBe(false)
+    expect(history.isReady()).toBe(false)
+    expect(store.getState().serverConversationId).toBeNull()
   })
   it('ignores a response from an earlier account', async () => {
     let finish!: (page: ReturnType<typeof makeConversationPage>) => void

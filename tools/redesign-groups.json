@@ -17,6 +17,7 @@
       "block-chat-composer",
       "block-chat-conflict-warning",
       "block-chat-conversation",
+      "block-chat-conversation-delete-action",
       "block-chat-conversation-motion",
       "block-chat-day-summary-card",
       "block-chat-follow-up-chips",
@@ -61,6 +62,8 @@
       "m-block-chat-composer",
       "m-block-chat-conflict-warning",
       "m-block-chat-conversation",
+      "m-block-chat-conversation-delete-action",
+      "m-block-chat-conversation-image",
       "m-block-chat-conversation-motion",
       "m-block-chat-day-summary-card",
       "m-block-chat-follow-up-chips",
@@ -93,6 +96,7 @@
       "m-block-chat-streak-card",
       "m-block-chat-structured-preview-field",
       "m-overlay-chat-breakdown-suggestion",
+      "m-overlay-chat-conversation",
       "m-overlay-chat-pending-operation-card",
       "m-overlay-chat-structured-preview-field",
       "m-route-chat",
@@ -484,6 +488,8 @@
     }
   ],
   "notes": {
+    "m-block-chat-conversation-image": "Orbit Astra Conversation owns the authenticated native image adapter; the web counterpart is rendered within block-chat-message-bubble.",
+    "m-overlay-chat-conversation": "Orbit Astra Conversation owns the native thread and its delete confirmation; the web counterpart is block-chat-conversation, which renders the same confirmation. The native overlay entry comes from its direct ConfirmSheet import.",
     "m-overlay-ui-dropdown-menu": "The shared headless menu owns the overlay behavior rendered by habit actions and Today controls, whose surfaces belong to Orbit Hoje.",
     "overlay-ui-dropdown-menu": "The shared headless menu composes the trigger, header and lazy content used by habit actions and Today controls, whose surfaces belong to Orbit Hoje.",
     "overlay-ui-dropdown-menu-content": "The shared lazy menu content owns the overlay behavior rendered by Today controls and habit actions, whose surfaces belong to Orbit Hoje.",
