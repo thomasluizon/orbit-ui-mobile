@@ -16,6 +16,7 @@ import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 
 vi.unmock('react-i18next')
+vi.mock('@/lib/conversation-history', () => ({ conversationHistory: { latest: vi.fn(() => Promise.resolve(false)) } }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('expo-clipboard', () => ({ }))
 vi.mock('@/hooks/use-habits', () => ({

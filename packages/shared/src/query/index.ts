@@ -65,3 +65,5 @@ export * from './goal-cache'
 export type { HabitDetailSnapshots, HabitDetailUpdates } from './habit-cache'
 
 export { cachedHabitDeletionIds, isCachedHabitDeleted, removeDeletedHabitQueries, restoreDeletedHabitQueries } from './habit-deletion'
+
+export { conversationKeys } from './keys'

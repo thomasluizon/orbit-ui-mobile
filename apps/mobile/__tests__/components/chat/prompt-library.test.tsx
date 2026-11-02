@@ -21,6 +21,7 @@ import { createTokensV2, shadows } from '@/lib/theme'
 import { __focusHost, __getFocusedInputSelection, __getFocusedNativeTag, __resetTestHostConfig, __setTouchMode } from '@/test-mocks/react-native'
 
 const appearance = vi.hoisted((): { currentScheme: 'orange'; currentTheme: 'dark' | 'light' } => ({ currentScheme: 'orange', currentTheme: 'dark' }))
+vi.mock('@/lib/conversation-history', () => ({ conversationHistory: { latest: vi.fn(() => Promise.resolve(false)) } }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ ...appearance, shadows }) }))
 
 vi.mock('react-i18next', () => ({

@@ -1,3 +1,5 @@
+import { restoreConversationPage } from '@orbit/shared/chat'
+import { makeRevisedConversationPage, storedOperationId } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
 import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { formatLocaleDate } from '@orbit/shared/utils'
@@ -97,6 +99,32 @@ beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.ac
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  it.each(['approved', 'edited', 'expired'] as const)('restores a revised %s outcome without the original values or removed item', outcome => {
+    const message = restoreConversationPage(makeRevisedConversationPage(outcome))[1]!
+    const handlers = { onConfirmExecute: vi.fn(), onPrepareStepUp: vi.fn(), onVerifyStepUp: vi.fn(), onRevise: vi.fn() }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} {...handlers} />) })
+    const text = renderedText(tree!.toJSON())
+    expect(text).toContain(outcome === 'edited' ? 'chat.operation.edited' : `chat.conversation.${outcome}`)
+    expect(text).not.toContain('Evening walk')
+    expect(text).not.toContain('Read')
+    expect(text).not.toContain('20:30')
+    expect(tree!.root.findAll((node: { type: unknown }) => node.type === 'Pressable')).toHaveLength(0)
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    expect(handlers.onRevise).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it.each(['approved', 'edited', 'expired'] as const)('renders a restored %s preview read-only without an execution claim', recordedOutcome => {
+    const handlers = { onConfirmExecute: vi.fn(), onPrepareStepUp: vi.fn(), onVerifyStepUp: vi.fn() }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<PendingOperationCard pendingOperation={makePendingAgentOperation(preview)} savedState={{ recordedOutcome }} onRevise={vi.fn()} {...handlers} />) })
+    expect(renderedText(tree!.toJSON())).toContain(recordedOutcome === 'edited' ? 'chat.operation.edited' : `chat.conversation.${recordedOutcome}`)
+    expect(tree!.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && /chat\.operation\.(approve|edit|reject|refresh)/.test(node.props.accessibilityLabel ?? ''))).toHaveLength(0)
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree!.unmount())
+  })
+
   it.each(['en', 'pt-BR'])('revises a task date with the calendar before approval in %s', async locale => {
     visibleLocale.actual = true
     visibleLocale.language = locale

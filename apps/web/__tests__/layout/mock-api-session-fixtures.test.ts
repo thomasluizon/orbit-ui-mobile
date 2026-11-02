@@ -1,3 +1,4 @@
+import { makeRevisedConversationPage } from '@orbit/shared/test-support/conversation-fixtures'
 // @vitest-environment node
 import { createServer, type Server } from 'node:http'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -207,4 +208,23 @@ describe('mock API session fixtures', () => {
       path: '/api/habits', body: pageFor('not-stored'), afterMutation: { method: 'POST', path: '/api/habits', body: {} },
     }])).status).toBe(400)
   })
+})
+
+it('seeds saved conversation outcomes per session and keeps the absent-history response', async () => {
+  const page = makeRevisedConversationPage('edited')
+  const response = await fetch(`${origin}/_test/session-fixtures`, {
+    method: 'PUT', headers: { Authorization: `Bearer ${tokenFor('conversation')}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fixtures: [{ path: API.chat.latestConversation, body: page }] }),
+  })
+  expect(response.status).toBe(204)
+  const restored = await fetch(`${origin}${API.chat.latestConversation}?pageSize=40`, {
+    headers: { Authorization: `Bearer ${tokenFor('conversation')}` },
+  })
+  expect(restored.status).toBe(200)
+  expect(await restored.json()).toEqual(page)
+  const absent = await fetch(`${origin}${API.chat.latestConversation}?pageSize=40`, {
+    headers: { Authorization: `Bearer ${tokenFor('without-conversation')}` },
+  })
+  expect(absent.status).toBe(404)
+  expect(await absent.json()).toEqual({ error: 'Conversation unavailable', errorCode: 'CONVERSATION_NOT_FOUND' })
 })

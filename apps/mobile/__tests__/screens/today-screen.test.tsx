@@ -9,6 +9,7 @@ import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/fact
 import {
   canNavigateToNextDay,
   formatAPIDate,
+  getAccountDay,
   getTodayBoundary,
 } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -30,6 +31,7 @@ function createTestTree(node: React.ReactElement) {
 }
 afterEach(async () => {
   await TestRenderer.act(() => { for (const tree of mountedTrees.splice(0)) tree.unmount() })
+  vi.useRealTimers()
 })
 
 it('announces whether inline search is open and offers its closing action', async () => {
@@ -51,6 +53,7 @@ const mocks = vi.hoisted(() => ({
   routerNavigate: vi.fn(),
   routerSetParams: vi.fn(),
   realDate: false,
+  timeZone: 'UTC',
   routeDate: undefined as string | undefined,
   focusCallback: null as null | (() => void | (() => void)),
   clearSelection: vi.fn(),
@@ -88,7 +91,7 @@ vi.mock('@/components/ui/sheet', async () => ({
 vi.mock('@/hooks/use-summary', () => ({ useSummary: vi.fn() }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: mocks.profileReady ? mocks.checklistProfile ?? { hasCompletedOnboarding: mocks.onboardingComplete, timeZone: 'UTC', plan: mocks.plan, hasProAccess: mocks.plan !== 'free', isTrialActive: mocks.plan === 'trial' } : undefined }),
+  useProfile: () => ({ profile: mocks.profileReady ? mocks.checklistProfile ?? { hasCompletedOnboarding: mocks.onboardingComplete, timeZone: mocks.timeZone, plan: mocks.plan, hasProAccess: mocks.plan !== 'free', isTrialActive: mocks.plan === 'trial' } : undefined }),
 }))
 
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
@@ -370,6 +373,10 @@ describe('Hoje date boundaries', () => {
 
   it.each(['today', 'all', 'general'].flatMap((view) => ['/', '/calendar', '/progress', '/profile', '/habit/example'].map((from) => ({ view, from }))))(
     'resets the Android Hoje screen from $from with $view selected, including a second press', async ({ view, from }) => {
+      vi.setSystemTime(new Date('2026-09-12T01:30:00Z'))
+      const expectedDate = getAccountDay(new Date(), mocks.timeZone)
+      expect(expectedDate).toBe('2026-09-12')
+      expect(getAccountDay(new Date(), 'America/Sao_Paulo')).toBe('2026-09-11')
       mocks.realDate = true
       mocks.routeDate = '2026-04-01'
       mocks.routerNavigate.mockImplementation(() => { mocks.routeDate = undefined })
@@ -404,7 +411,7 @@ describe('Hoje date boundaries', () => {
           await TestRenderer.act(() => tree.update(surface()))
           expect.soft(list().props.view).toBe('today')
           const selectedDate = list().props.selectedDate as Date | undefined
-          expect.soft(selectedDate && formatAPIDate(selectedDate)).toBe(formatAPIDate(new Date()))
+          expect.soft(selectedDate && formatAPIDate(selectedDate)).toBe(expectedDate)
           expect.soft(list().props.searchQuery).toBe('')
           expect.soft(list().props.showCompleted).toBe(false)
           expect.soft(tree.root.findAll((node) => String(node.type) === 'TextInput')).toHaveLength(0)

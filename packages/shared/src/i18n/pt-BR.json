@@ -1349,6 +1349,13 @@
     }
   },
   "chat": {
+    "conversation": {
+      "delete": "Apagar conversa",
+      "deleteTitle": "Apagar esta conversa?",
+      "deleteBody": "A conversa e suas imagens serão apagadas de forma permanente da sua conta em todos os dispositivos.",
+      "approved": "Aprovada",
+      "expired": "Expirada"
+    },
     "habitSuggestions": {
       "title": "Ideias de hábitos",
       "add": "Adicionar",
@@ -2987,7 +2994,7 @@
       "intro": "Guardamos seus dados só pelo tempo necessário para oferecer o serviço:",
       "account": "Dados da conta: guardados enquanto sua conta estiver ativa.",
       "sessions": "Sessões de autenticação e tokens de push: guardados enquanto estão ativos e removidos quando você sai, quando o token expira ou quando o aparelho deixa de receber notificações.",
-      "ai": "Histórico do chat com a IA: guardado enquanto os recursos de IA estiverem ativos e removido quando você apaga a sua conta.",
+      "ai": "Guardamos suas conversas com a Astra, incluindo as imagens que você envia, até você apagar a conversa, usar Recomeçar ou apagar sua conta. As imagens nunca são públicas.",
       "reminderHistory": "Registros de lembretes enviados, alertas de deslize e congelamentos de sequência: guardados por 90 dias a partir da data do registro.",
       "syncRecords": "Registros apagados mantidos para sincronização offline: guardados por 31 dias antes da remoção permanente.",
       "calendarSuggestions": "Sugestões de importação do Google Agenda que você não aceita: guardadas por 14 dias.",
@@ -3015,7 +3022,7 @@
     },
     "export": {
       "title": "Seu direito de exportar os dados",
-      "body": "Você pode baixar uma cópia de todos os seus dados do Orbit (hábitos, registros, metas, tags e configurações) em um arquivo JSON, na página de Perfil, de acordo com o seu direito à portabilidade de dados previsto no Art. 18 da LGPD."
+      "body": "Você pode baixar uma cópia dos seus dados do Orbit em um arquivo JSON pelo Perfil, conforme o direito à portabilidade previsto no art. 18 da LGPD. O arquivo inclui seus hábitos, registros, metas, tags, configurações e as conversas salvas com a Astra: suas mensagens, as respostas da Astra, o que ela consultou ou alterou e o que você decidiu em cada sugestão. As imagens que você enviou aparecem só pelo nome do arquivo."
     },
     "deletion": {
       "title": "Apagar os seus dados",

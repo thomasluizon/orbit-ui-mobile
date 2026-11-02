@@ -110,3 +110,9 @@ describe('mobile chat store', () => {
     await useChatStore.getState().resetAccountScopedChat()
     expect(useChatStore.getState()).toMatchObject({ queuedPrompts: [], queuePaused: false, queueReady: false, replyActive: false })
   })
+
+it('forgets the server conversation and pagination state on account reset', async () => {
+  useChatStore.setState({ conversationId: 'local-thread', serverConversationId: 'server-thread', conversationBeforeOrder: 40, conversationLoaded: true, conversationBusy: true, conversationEpoch: 3 })
+  await useChatStore.getState().resetAccountScopedChat()
+  expect(useChatStore.getState()).toMatchObject({ conversationId: null, serverConversationId: null, conversationBeforeOrder: null, conversationLoaded: false, conversationBusy: false, conversationEpoch: 0 })
+})

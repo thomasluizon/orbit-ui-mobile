@@ -1,3 +1,5 @@
+import { restoreConversationPage } from '@orbit/shared/chat'
+import { makeRevisedConversationPage, storedOperationId } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
 import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { formatLocaleDate } from '@orbit/shared/utils'
@@ -84,6 +86,26 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  it.each(['approved', 'edited', 'expired'] as const)('restores a revised %s outcome without the original values or removed item', outcome => {
+    const message = restoreConversationPage(makeRevisedConversationPage(outcome))[1]!
+    render(<PendingOperationCard pendingOperation={message.pendingOperations![0]!} savedState={message.pendingOperationStates![storedOperationId]} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByText(outcome === 'edited' ? 'chat.operation.edited' : `chat.conversation.${outcome}`)).toBeInTheDocument()
+    expect(screen.queryByText('Evening walk')).not.toBeInTheDocument()
+    expect(screen.queryByText('Read')).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('20:30')
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+    expect(revise).not.toHaveBeenCalled()
+  })
+
+  it.each(['approved', 'edited', 'expired'] as const)('renders a restored %s preview read-only without an execution claim', recordedOutcome => {
+    render(<PendingOperationCard pendingOperation={preview} savedState={{ recordedOutcome }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByText(recordedOutcome === 'edited' ? 'chat.operation.edited' : `chat.conversation.${recordedOutcome}`)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /chat\.operation\.(approve|edit|reject|refresh)/ })).not.toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+    expect(revise).not.toHaveBeenCalled()
+  })
+
   it.each(['en', 'pt-BR'])('revises a task date with the calendar before approval in %s', async locale => {
     visibleLocale.actual = true
     visibleLocale.language = locale
