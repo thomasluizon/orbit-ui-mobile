@@ -5,6 +5,7 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { createCiBudget } from "./lib/ci-budget.mjs"
 import { readGithub, readGithubPull } from "./lib/github-read.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { requiredChecksFromResponse } from "./lib/readiness-receipt.mjs"
 import { clearWakeSource, registerWakeSource, readRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: wait-ci.mjs --repo <key> --pr <n> [--pr <n> ...] [--require-check <name> ...] [--ceiling-minutes <n>]
@@ -15,8 +16,9 @@ Transient GitHub errors retry until the ceiling; JSON includes their count and l
 Waiters in this checkout share half the live REST hourly limit per account, use conditional
 reads, and slow down when capacity is low. Budget waits remain inside the ceiling.
 --help, -h print this usage.
-exit codes: 0 settled, head moved, or pull request closed; 1 GitHub read or wake registration failed;
-            2 invalid arguments or config; 3 ceiling reached; 130 SIGINT; 143 SIGTERM`
+exit codes: 0 settled with passing checks; 1 GitHub read or wake registration failed;
+            2 invalid arguments or config; 3 ceiling reached; 4 head moved; 5 pull request closed;
+            6 settled with failing checks; 130 SIGINT; 143 SIGTERM`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -129,25 +131,41 @@ try {
     }
     return statuses
   }
+  const protectionByBase = new Map()
+  const requiredForBase = async (base) => {
+    if (!protectionByBase.has(base)) {
+      let payload
+      try { payload = await read(`branches/${encodeURIComponent(base)}/protection/required_status_checks`) } catch (error) {
+        if (error.status !== 404) throw error
+        payload = { checks: [] }
+      }
+      const required = requiredChecksFromResponse(payload, true)
+      if (required === null) throw new Error("GitHub required checks had an unexpected shape")
+      protectionByBase.set(base, required)
+    }
+    const protectedChecks = protectionByBase.get(base)
+    return [...protectedChecks, ...requiredChecks.filter((name) => !protectedChecks.some((required) => required.context === name)).map((context) => ({ context, appId: null }))]
+  }
   const lastQuietSet = new Map()
   while (!finished) {
     for (const entry of result.pullRequests) {
       const pull = await readGithubPull(slug, entry.number, auth.environment, readOptions)
-      if (typeof pull?.head?.sha !== "string" || !["open", "closed"].includes(pull.state)) {
+      if (typeof pull?.base?.ref !== "string" || typeof pull?.head?.sha !== "string" || !["open", "closed"].includes(pull.state)) {
         throw new Error(`GitHub pull request #${entry.number} had an unexpected shape`)
       }
       if (entry.head === null) entry.head = pull.head.sha
       if (pull.state !== "open") {
         entry.reason = "PR_CLOSED"
-        finish("PR_CLOSED", 0)
+        finish("PR_CLOSED", 5)
       }
       if (entry.head !== pull.head.sha) {
         entry.reason = "HEAD_MOVED"
-        finish("HEAD_MOVED", 0)
+        finish("HEAD_MOVED", 4)
       }
+      const required = await requiredForBase(pull.base.ref)
       const checks = await checksForHead(entry.head)
       const statuses = await statusesForHead(entry.head)
-      if (checks.some((check) => typeof check.name !== "string" || typeof check.status !== "string" || !("conclusion" in check)) ||
+      if (checks.some((check) => typeof check.name !== "string" || typeof check.status !== "string" || !Number.isInteger(check.app?.id) || !("conclusion" in check)) ||
           statuses.some((item) => typeof item.context !== "string" || !["pending", "success", "failure", "error"].includes(item.state))) {
         throw new Error("GitHub checks or statuses had an unexpected shape")
       }
@@ -162,12 +180,12 @@ try {
         ...statuses.filter((item) => ["failure", "error"].includes(item.state)).map((item) => item.context),
       ]
       const runsPending = (await runsForHead(entry.head)).some((run) => run.status !== "completed")
-      const quiet = completedNames.size > 0 && !pending && !runsPending && requiredChecks.every((name) => completedNames.has(name))
-      const observed = [...completedNames].sort().join("\n")
+      const quiet = completedNames.size > 0 && !pending && !runsPending && required.every(({ context, appId }) => checks.some((check) => check.name === context && (appId === null || check.app.id === appId) && check.status === "completed" && check.conclusion !== null) || (appId === null && statuses.some((item) => item.context === context && item.state !== "pending")))
+      const observed = JSON.stringify({ checks: checks.map((check) => [check.name, check.app.id, check.status, check.conclusion]).sort(), statuses: statuses.map((item) => [item.context, item.state]).sort() })
       entry.settled = quiet && lastQuietSet.get(entry.number) === observed
       lastQuietSet.set(entry.number, quiet ? observed : null)
     }
-    if (result.pullRequests.every((entry) => entry.settled)) finish("SETTLED", 0)
+    if (result.pullRequests.every((entry) => entry.settled)) finish("SETTLED", result.pullRequests.some((entry) => entry.failingChecks.length > 0) ? 6 : 0)
     if (Date.now() >= deadline) finish("CEILING", 3)
     await wait(Math.min(config.timeouts.pollSeconds * 1000, Math.max(1, deadline - Date.now())))
   }

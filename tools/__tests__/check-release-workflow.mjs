@@ -15,6 +15,7 @@ const stepScript = (name) => {
 
 const renderFixture = JSON.parse(readFileSync(toolPath("__tests__/render-release-fixture.json"), "utf8"))
 const releaseFixture = JSON.parse(readFileSync(toolPath("__tests__/release-fixture.json"), "utf8"))
+const gateFixture = JSON.parse(readFileSync(toolPath("__tests__/fixtures/gate-github-responses.json"), "utf8"))
 
 function checkProductionSteps() {
   T("production uses its build and credential environment", workflow.includes("if: inputs.environment == 'production'") &&
@@ -344,6 +345,9 @@ function checkPinnedRelease() {
   T("production retains staging admission", admission.if === "inputs.environment == 'production'")
   const summary = stage("release-admission/summary", "")
   const script = admission.run
+  const smokeStatus = stage("release-admission/status.json", JSON.stringify([{ ...gateFixture.combinedStatus,
+    sha: renderFixture.health.commit, state: "success", total_count: 1, statuses: [gateFixture.commitStatus],
+  }]))
   for (const [status, commit, override, accepted] of [
     ["ok", renderFixture.health.commit, "false", true],
     ["ok", "b".repeat(40), "false", false],
@@ -351,18 +355,20 @@ function checkPinnedRelease() {
     ["ok", "b".repeat(40), "true", true],
   ]) {
     const health = stage("release-admission/health", JSON.stringify({ ...renderFixture.health, status, commit }))
-    const result = spawnSync(BASH, ["-c", `curl() { if [[ "$*" == *api.render.com* ]]; then
+    const result = spawnSync(BASH, ["-c", `gh() { cat "$STAGING_STATUS_RESPONSE"; }\ncurl() { if [[ "$*" == *api.render.com* ]]; then
       local output='' previous='' argument; for argument in "$@"; do [[ "$previous" == -o ]] && output="$argument"; previous="$argument"; done
       cat "$SERVICE_RESPONSE" > "$output"; printf 200
       else cat "$HEALTH_RESPONSE"; fi; }\n${script}`], { encoding: "utf8", env: {
       ...process.env, GITHUB_WORKSPACE: toolPath(".."), SOURCE_SHA: renderFixture.health.commit, FORCE_UNSTAGED: override,
+      OVERRIDE_REASON: override === "true" ? "Staging service is unavailable" : "",
+      STAGING_STATUS_RESPONSE: smokeStatus, GITHUB_REPOSITORY: "fixture/repository", GH_TOKEN: "fixture",
       STAGING_SERVICE_ID: "srv-staging", RENDER_API_KEY: "fixture",
       SERVICE_RESPONSE: stage("release-admission/service", JSON.stringify(renderFixture.service)),
       HEALTH_RESPONSE: health, GITHUB_STEP_SUMMARY: summary,
     } })
     T(`staging admission ${status} ${commit} override ${override}`, result.status === (accepted ? 0 : 1), result.stdout + result.stderr)
   }
-  T("production override is recorded", readFileSync(summary, "utf8").includes("force_unstaged: true"))
+  T("production override is recorded with its reason", readFileSync(summary, "utf8").includes("force_unstaged: true") && readFileSync(summary, "utf8").includes("Staging service is unavailable"))
 }
 
 export function cases() {
@@ -376,7 +382,7 @@ export function cases() {
     ["staging", "feature/release", true],
   ]) {
     const result = spawnSync(BASH, ["-c", guard], { encoding: "utf8", env: {
-      ...process.env, GITHUB_REF_NAME: "main", RELEASE_ENVIRONMENT: environment, SOURCE_BRANCH: branch,
+      ...process.env, FORCE_UNSTAGED: "false", OVERRIDE_REASON: "", GITHUB_REF_NAME: "main", RELEASE_ENVIRONMENT: environment, SOURCE_BRANCH: branch,
       SOURCE_SHA: renderFixture.health.commit, DISPATCH_SHA: renderFixture.health.commit, GITHUB_OUTPUT: stage("release-guard/output", ""),
     } })
     T(`workflow ${environment} from ${branch} ${accepted ? "passes" : "fails"}`, accepted
@@ -388,7 +394,7 @@ export function cases() {
   ]) {
     const output = stage("release-selection/output", "")
     const result = spawnSync(BASH, ["-c", stepScript("Validate release selection")], { encoding: "utf8", env: {
-      ...process.env, GITHUB_REF_NAME: "main", RELEASE_ENVIRONMENT: environment,
+      ...process.env, FORCE_UNSTAGED: "false", OVERRIDE_REASON: "", GITHUB_REF_NAME: "main", RELEASE_ENVIRONMENT: environment,
       SOURCE_BRANCH: "main",
       SOURCE_SHA: selected, DISPATCH_SHA: renderFixture.health.commit, GITHUB_OUTPUT: output,
     } })

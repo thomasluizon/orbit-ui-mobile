@@ -14,11 +14,17 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 const mocks = vi.hoisted(() => ({ flow: {} as Record<string, unknown> }))
 vi.mock('@/app/(auth)/login/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
+vi.mock('motion/react-m', async () => {
+  const actual = await import('motion/react')
+  return actual.m
+})
 vi.mock('motion/react', async () => {
   const React = await import('react')
   return { useReducedMotion: () => true,
+    domMin: {},
+    LazyMotion: ({ children }: { children: React.ReactNode }) => children,
     AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
-    motion: { div: ({ children }: { children: React.ReactNode }) => React.createElement('div', {}, children) } }
+    m: { div: ({ children }: { children: React.ReactNode }) => React.createElement('div', {}, children) } }
 })
 
 const cases = [320, 1280].flatMap(width => authLocales.flatMap(locale =>

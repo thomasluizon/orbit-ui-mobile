@@ -311,6 +311,8 @@ describe('MessageBubble', () => {
     expect(screen.getByRole('group', { name: 'chat.related.title' })).toBeInTheDocument()
     expect(screen.queryByText('chat.related.title')).not.toBeInTheDocument()
     const link = screen.getByRole('button', { name: 'chat.related.surface.gamification' })
+    expect(link.className).toContain('focus-visible:ring-[var(--primary)]')
+    expect(link.className).not.toContain('ring-[var(--primary)]/60')
     fireEvent.click(link)
     expect(push).toHaveBeenCalledWith('/progress/achievements')
     expect(useUIStore.getState().astraConversationOpen).toBe(false)

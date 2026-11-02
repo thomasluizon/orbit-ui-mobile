@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 
+import { dropLeadingFlags } from "./rules-dependencies.mjs"
 import { stripHeredocBodies } from "./rules-git.mjs"
 import { insideLinkedWorktree } from "./repo-roots.mjs"
 
@@ -22,7 +23,7 @@ const DEV_BINARIES = new Set(["next", "vite", "remix", "nuxt"])
 const SCRIPT_RUNNERS = new Set(["npm", "pnpm", "yarn", "bun"])
 const SCRIPT_DEPTH_LIMIT = 8
 const NETWORK_CLIENTS = new Set(["curl", "wget", "http", "https", "httpie", "open", "xdg-open", "start", "invoke-webrequest", "invoke-restmethod"])
-const LOCAL_URL = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)?/i
+const LOCAL_URL = /(?:https?:\/\/)?(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)(?:[/?#]|$)|https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?:[/?#]|$)/i
 
 const SEGMENT_SPLIT = /[&|;\n]+/
 const LEADING_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)(?:\s+|$)/
@@ -48,11 +49,11 @@ function withoutRunners(tokens) {
   for (let guard = 0; guard < 4 && rest.length > 1; guard += 1) {
     const binary = normalize(rest[0])
     if (RUNNER_PREFIXES.has(binary)) {
-      rest = rest.slice(1)
+      rest = dropLeadingFlags(rest.slice(1))
       continue
     }
-    if (RUNNER_SUBCOMMANDS.get(binary) === normalize(rest[1])) {
-      rest = rest.slice(2)
+    if (RUNNER_SUBCOMMANDS.get(binary) === normalize(rest[1]) || (["pnpm", "yarn"].includes(binary) && normalize(rest[1]) === "exec")) {
+      rest = dropLeadingFlags(rest.slice(2))
       continue
     }
     return rest
@@ -68,12 +69,12 @@ function forbiddenAction(segment) {
   const args = tokens.slice(1).filter((token) => !token.startsWith("-")).map(normalize)
 
   if (BROWSER_DRIVERS.has(binary)) return "a browser driver or an emulator"
-  if (DEV_BINARIES.has(binary) && args[0] === "dev") return "a dev server"
+  if (DEV_BINARIES.has(binary) && (args[0] === "dev" || (["vite", "remix"].includes(binary) && (!tokens[1] || tokens[1].startsWith("-"))))) return "a dev server"
   if (SCRIPT_RUNNERS.has(binary) && DEV_SCRIPTS.has(args[0] === "run" ? args[1] : args[0])) return "a dev server"
   if (binary === "expo" && (args[0] === "start" || args[0] === "run")) return "a dev server or an emulator"
   if (binary === "turbo" && args[0] === "run" && args[1] === "dev") return "a dev server"
   if (binary === "dotnet" && args[0] === "run") return "a dev server"
-  if (NETWORK_CLIENTS.has(binary) && tokens.some((token) => LOCAL_URL.test(token))) return "a request to a locally served app"
+  if (NETWORK_CLIENTS.has(binary) && tokens.some((token) => LOCAL_URL.test(token.replace(/["']/g, "")))) return "a request to a locally served app"
   return null
 }
 

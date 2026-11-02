@@ -465,6 +465,7 @@
     "email": "Email",
     "emailPlaceholder": "name@example.com",
     "sendCode": "Continue",
+    "turnstileLabel": "Security check",
     "turnstileLoading": "Checking your connection…",
     "turnstileFailed": "Security check didn't load.",
     "turnstileExpired": "Security check expired.",

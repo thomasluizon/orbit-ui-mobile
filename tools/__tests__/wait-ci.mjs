@@ -7,10 +7,11 @@ const TOOL = "wait-ci.mjs"
 const SHA_A = "a".repeat(40)
 const SHA_B = "b".repeat(40)
 const recordedRate = JSON.parse(readFileSync(toolPath("__tests__/fixtures/wait-ci-rate-limit.json"), "utf8"))
-const pull = (sha = SHA_A, state = "open") => JSON.stringify({ state, head: { sha } })
+const confirmed = JSON.parse(readFileSync(toolPath("__tests__/fixtures/gate-github-responses.json"), "utf8"))
+const pull = (sha = SHA_A, state = "open") => JSON.stringify({ ...structuredClone(confirmed.pull), state, head: { ...confirmed.pull.head, sha } })
 const checks = (rows) => JSON.stringify({ total_count: rows.length, check_runs: rows })
-const completed = (name, conclusion = "success") => ({ name, status: "completed", conclusion })
-const queued = (name) => ({ name, status: "queued", conclusion: null })
+const completed = (name, conclusion = "success") => ({ ...structuredClone(confirmed.check), name, status: "completed", conclusion })
+const queued = (name) => ({ ...structuredClone(confirmed.check), name, status: "queued", conclusion: null })
 const runs = (rows) => JSON.stringify({ total_count: rows.length, workflow_runs: rows })
 const statuses = (rows, total = rows.length) => JSON.stringify({ state: "success", total_count: total, statuses: rows })
 
@@ -18,7 +19,7 @@ const fixture = (label, overrides = []) => {
   const repo = stageRepo(`wait-ci-${label}`)
   repo.git(["remote", "set-url", "origin", `https://github.com/test-owner/${label}.git`])
   const real = realOrchestratorConfig()
-  const config = { ...real, repos: { ...real.repos, ui: repo.path }, timeouts: { ...real.timeouts, pollSeconds: 0.01 } }
+  const config = { ...real, repos: { ...real.repos, ui: repo.path }, timeouts: { ...real.timeouts, pollSeconds: 0.01, hardCeilingMinutes: 0.1 } }
   const staged = stageWithConfig(`wait-ci-${label}`, TOOL, config)
   const env = orcaEnv([
     ...overrides.filter((entry) => entry.kind === "first"),
@@ -26,6 +27,7 @@ const fixture = (label, overrides = []) => {
     { match: "api rate_limit", stdout: JSON.stringify({ ...recordedRate, resources: { ...recordedRate.resources,
       core: { ...recordedRate.resources.core, limit: 3_600_000, remaining: 3_600_000, reset: Math.ceil(Date.now() / 1000) + 3600 },
     } }) },
+    { match: "/protection/required_status_checks", stdout: JSON.stringify(confirmed.protection), ...overrides.find((entry) => entry.kind === "protection") },
     { match: "/pulls/12", stdout: pull(), ...overrides.find((entry) => entry.kind === "pull") },
     { match: "/check-runs?", stdout: checks([completed("Lint")]), ...overrides.find((entry) => entry.kind === "checks") },
     { match: "/status?", stdout: statuses([]), ...overrides.find((entry) => entry.kind === "statuses") },
@@ -93,10 +95,10 @@ export const cases = async () => {
     T(`wait-ci: transient ${kind} recover`, recovery.status === 0 && body.reason === "SETTLED" && body.transientErrors.count === 1, recovery.stdout)
   }
   for (const [label, graphql, reason] of [
-    ["fallback", [{ state: "OPEN", headRefOid: SHA_A }], "SETTLED"],
-    ["fallback-moved", [{ state: "OPEN", headRefOid: SHA_A }, { state: "OPEN", headRefOid: SHA_B }], "HEAD_MOVED"],
-    ["fallback-closed", [{ state: "CLOSED", headRefOid: SHA_A }], "PR_CLOSED"],
-    ["fallback-merged", [{ state: "MERGED", headRefOid: SHA_A }], "PR_CLOSED"],
+    ["fallback", [{ state: "OPEN", headRefOid: SHA_A, baseRefName: "main" }], "SETTLED"],
+    ["fallback-moved", [{ state: "OPEN", headRefOid: SHA_A, baseRefName: "main" }, { state: "OPEN", headRefOid: SHA_B, baseRefName: "main" }], "HEAD_MOVED"],
+    ["fallback-closed", [{ state: "CLOSED", headRefOid: SHA_A, baseRefName: "main" }], "PR_CLOSED"],
+    ["fallback-merged", [{ state: "MERGED", headRefOid: SHA_A, baseRefName: "main" }], "PR_CLOSED"],
   ]) {
     const sequenceFile = stage(`wait-ci/${label}`, "")
     const alternate = fixture(label, [
@@ -105,7 +107,7 @@ export const cases = async () => {
     ])
     const observed = run(TOOL, argumentsFor(), { path: alternate.path, env: alternate.env })
     const body = JSON.parse(observed.stdout)
-    T(`wait-ci: ${label} preserves head and state`, observed.status === 0 && body.reason === reason && body.transientErrors.count > 0, observed.stdout)
+    T(`wait-ci: ${label} preserves head and state`, observed.status === ({ SETTLED: 0, HEAD_MOVED: 4, PR_CLOSED: 5 }[reason]) && body.reason === reason && body.transientErrors.count > 0, observed.stdout)
   }
   const exhausted = fixture("transient-ceiling", [
     { kind: "pull", ...unavailable }, { kind: "first", match: "pr view 12", ...unavailable },
@@ -139,7 +141,7 @@ export const cases = async () => {
   T("wait-ci: completed checks settle and clear wake source", settledResult.status === 0 && JSON.parse(settledResult.stdout).pullRequests[0].settled && readWakeSources(settled.base).length === 0, settledResult.stderr)
 
   const requiredSequence = stage("wait-ci/required-sequence", "")
-  const required = fixture("required", [{ kind: "checks", stdoutSequence: [checks([]), checks([completed("pullfrog-approval")])], sequenceFile: requiredSequence }])
+  const required = fixture("required", [{ kind: "protection", stdout: JSON.stringify({ ...confirmed.protection, checks: [{ context: "pullfrog-approval", app_id: 15368 }] }) }, { kind: "checks", stdoutSequence: [checks([]), checks([completed("pullfrog-approval")])], sequenceFile: requiredSequence }])
   const requiredResult = run(TOOL, argumentsFor("--require-check", "pullfrog-approval"), { path: required.path, env: required.env })
   T("wait-ci: absent required check waits for completion", requiredResult.status === 0 && JSON.parse(requiredResult.stdout).reason === "SETTLED", requiredResult.stderr)
 
@@ -149,7 +151,7 @@ export const cases = async () => {
     { kind: "checks", stdout: checks([queued("Lint")]) },
   ])
   const movedResult = run(TOOL, argumentsFor(), { path: moved.path, env: moved.env })
-  T("wait-ci: moved head exits", movedResult.status === 0 && JSON.parse(movedResult.stdout).reason === "HEAD_MOVED", movedResult.stderr)
+  T("wait-ci: moved head exits", movedResult.status === 4 && JSON.parse(movedResult.stdout).reason === "HEAD_MOVED", movedResult.stderr)
 
   const ceiling = fixture("ceiling", [{ kind: "checks", stdout: checks([queued("Lint")]) }])
   const ceilingResult = run(TOOL, argumentsFor("--ceiling-minutes", "0.0001"), { path: ceiling.path, env: ceiling.env })
@@ -160,7 +162,7 @@ export const cases = async () => {
   T("wait-ci: a head with no registered check never settles", emptyResult.status === 3 && JSON.parse(emptyResult.stdout).reason === "CEILING" && !JSON.parse(emptyResult.stdout).pullRequests[0].settled, emptyResult.stderr)
 
   const lateSequence = stage("wait-ci/late-sequence", "")
-  const late = fixture("late", [{ kind: "checks", sequenceFile: lateSequence, stdoutSequence: [
+  const late = fixture("late", [{ kind: "protection", stdout: JSON.stringify({ ...confirmed.protection, checks: [] }) }, { kind: "checks", sequenceFile: lateSequence, stdoutSequence: [
     checks([completed("Fast")]), checks([completed("Fast"), queued("Slow")]), checks([completed("Fast"), completed("Slow")]),
   ] }])
   const lateResult = run(TOOL, argumentsFor(), { path: late.path, env: late.env })
@@ -187,13 +189,17 @@ export const cases = async () => {
     secondPageResult.status === 0 && JSON.parse(secondPageResult.stdout).reason === "SETTLED" &&
       existsSync(secondPageSequence) && Number(readFileSync(secondPageSequence, "utf8")) >= 3, secondPageResult.stderr)
 
+  const wrongApp = fixture("wrong-app", [{ kind: "checks", stdout: checks([{ ...completed("Lint"), app: { ...confirmed.check.app, id: 999 } }]) }])
+  const wrongAppResult = run(TOOL, argumentsFor("--require-check", "Lint", "--ceiling-minutes", "0.1"), { path: wrongApp.path, env: wrongApp.env })
+  T("wait-ci: same name from another app cannot satisfy protection", wrongAppResult.status === 3, wrongAppResult.stdout + wrongAppResult.stderr)
+
   const failing = fixture("failing", [{ kind: "checks", stdout: checks([completed("Lint", "failure")]) }])
   const failingResult = run(TOOL, argumentsFor(), { path: failing.path, env: failing.env })
-  T("wait-ci: settled result names failing checks", failingResult.status === 0 && JSON.parse(failingResult.stdout).pullRequests[0].failingChecks.includes("Lint"), failingResult.stderr)
+  T("wait-ci: settled result names failing checks", failingResult.status === 6 && JSON.parse(failingResult.stdout).pullRequests[0].failingChecks.includes("Lint"), failingResult.stderr)
 
   const closed = fixture("closed", [{ kind: "pull", stdout: pull(SHA_A, "closed") }])
   const closedResult = run(TOOL, argumentsFor(), { path: closed.path, env: closed.env })
-  T("wait-ci: closed pull request exits", closedResult.status === 0 && JSON.parse(closedResult.stdout).reason === "PR_CLOSED", closedResult.stderr)
+  T("wait-ci: closed pull request exits", closedResult.status === 5 && JSON.parse(closedResult.stdout).reason === "PR_CLOSED", closedResult.stderr)
 
   const signalled = fixture("signal", [{ kind: "checks", stdout: checks([queued("Lint")]) }])
   const child = spawn(process.execPath, [signalled.path, ...argumentsFor()], { env: { ...process.env, ...signalled.env } })

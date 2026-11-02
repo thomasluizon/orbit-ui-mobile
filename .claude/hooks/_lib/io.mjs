@@ -5,11 +5,9 @@
 import { readFileSync } from "node:fs"
 
 export function readStdinJson() {
-  try {
-    return JSON.parse(readFileSync(0, "utf8"))
-  } catch {
-    return null
-  }
+  const input = JSON.parse(readFileSync(0, "utf8"))
+  if (input === null || typeof input !== "object" || Array.isArray(input)) throw new Error("hook input must be a JSON object")
+  return input
 }
 
 export function filePathFrom(input) {

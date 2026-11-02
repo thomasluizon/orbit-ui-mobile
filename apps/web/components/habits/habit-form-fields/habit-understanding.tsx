@@ -119,6 +119,7 @@ export function HabitUnderstanding({
               placeholder={labels.placeholder}
               aria-invalid={!!error}
               aria-describedby={error ? errorId : undefined}
+              // eslint-disable-next-line local/require-focus-replacement -- WHY: the parent draws the textarea focus perimeter with an inset shadow and a Highlight border in forced colors.
               className="absolute inset-0 h-full min-h-[54px] w-full resize-none rounded-[12px] border-0 bg-transparent px-4 py-3 text-base leading-[1.45] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] caret-[var(--fg-1)] focus-visible:outline-none"
               onChange={(event) => onValueChange(event.target.value)}
             />

@@ -13,7 +13,7 @@ Releases require --service-url, the selected service origin: verifies web/API he
 The run link is included in every result.
 Transient GitHub errors retry until the ceiling; JSON includes their count and last text.
 --help, -h  print this usage and exit 0
-exit codes: 0 successful run and deployed commit; 1 failed run, remote read, or deployed commit mismatch; 2 invalid arguments;
+exit codes: 0 successful run and deployed commit; 1 wrong workflow, failed run, remote read, or deployed commit mismatch; 2 invalid arguments;
             3 ceiling reached; 130 SIGINT; 143 SIGTERM`
 const REPOS = { api: "orbit-api", ui: "orbit-ui-mobile", landing: "orbit-landing-page" }
 const SHA = /^[a-f0-9]{40}$/
@@ -106,6 +106,7 @@ try {
         typeof run.status !== "string" || !(run.conclusion === null || typeof run.conclusion === "string")) {
       throw new Error(`GitHub workflow run ${runId} had an unexpected identity or shape`)
     }
+    if (run.path !== `.github/workflows/${workflow === "android" ? "android-release" : "release"}.yml`) finish("WRONG_WORKFLOW", 1)
     result.url = run.html_url
     result.status = run.status
     result.conclusion = run.conclusion

@@ -69,27 +69,27 @@ export function useHabits(filters: HabitsFilter, options: { completeDay?: boolea
         if (getAccountGeneration() !== accountGeneration) throw new CancelledError({ silent: true })
         return page
       }
-      const enrichSchedule = (items: HabitScheduleItem[]) => loadHabitListSchedule(items, scheduleDate, readPage)
-      const requestFilters = withDefaultPageSize(filters)
-      const firstPage = await readPage(requestFilters)
+      const readList = async () => {
+        const requestFilters = withDefaultPageSize(filters)
+        const firstPage = await readPage(requestFilters)
 
-      if (!shouldFetchAllHabitPages(requestFilters, completeDay, firstPage.totalPages)) {
+        if (!shouldFetchAllHabitPages(requestFilters, completeDay, firstPage.totalPages)) {
+          queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
+          return firstPage.items
+        }
+
+        const items = await fetchAllPaginatedItems<HabitScheduleItem, PaginatedResponse<HabitScheduleItem>>(
+          async (page) => {
+            if (page === 1) return firstPage
+
+            const pageFilters = { ...requestFilters, page }
+            return readPage(pageFilters)
+          },
+        )
         queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
-        const scheduled = await enrichSchedule(firstPage.items)
-        return scheduled
+        return deduplicateHabitList(items)
       }
-
-      const items = await fetchAllPaginatedItems<HabitScheduleItem, PaginatedResponse<HabitScheduleItem>>(
-        async (page) => {
-          if (page === 1) return firstPage
-
-          const pageFilters = { ...requestFilters, page }
-          return readPage(pageFilters)
-        },
-      )
-      queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
-      const scheduled = await enrichSchedule(deduplicateHabitList(items))
-      return scheduled
+      return loadHabitListSchedule(readList(), scheduleDate, readPage)
     },
     staleTime: QUERY_STALE_TIMES.habits,
     select: selectNormalizedHabits,

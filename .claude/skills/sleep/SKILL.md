@@ -127,9 +127,13 @@ Follow `/orchestrate`'s "Every turn under `--sleep` ends with a live wake source
   however long it runs. A background `npm install` is not a wake source. A remote Cloud task or a GitHub check by itself cannot
   wake this session.
 - If a slot is free and admission permits new ticket work, launch the next worker.
+  The CI waiter exits 0 only for a settled passing head; 4 means the head moved, 5 means the
+pull request closed, and 6 means settled failing checks. Re-read delivery on 4 or 5 and fix
+failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or usage error.
   When work waits on CI or review, start `tools/wait-ci.mjs` in the background for those pull requests.
   For a detached local check, start `node tools/wait-file.mjs --file <absolute completion file>
-  --what <check label>` in the background with a fresh completion file for that check.
+  --started-at <original ISO start> --what <check label>` in the background with a fresh completion file for that check.
+  The check writes JSON `{ "exitCode": <check exit status> }` atomically on completion.
   Verify the wake source is live; a stale pid file or an unscheduled promise to watch CI is not one.
 - With `relay.enabled: true` and `relay.pending: true`, launch nothing, including review batches.
   Wait for existing launchers and release watchers to finish; their exits wake this session.

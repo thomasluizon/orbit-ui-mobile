@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from './factories'
 import { createHabitViewItems, createHabitViewScheduleItems } from './habit-view-fixtures'
 import { loadHabitListSchedule, mergeHabitListSchedule } from '../utils/habit-list-schedule'
@@ -22,9 +22,9 @@ describe('Todos schedule facts', () => {
     const merged = mergeHabitListSchedule([undated], [dated])
     expect(normalizeHabitQueryData(merged).habitsById.get('child-1')?.isSkippedOnDate).toBeUndefined()
   })
-  it('leaves an empty view or a view without a schedule date unchanged without reading a schedule', async () => {
+  it('leaves an empty view unchanged after reading a schedule and skips undated views', async () => {
     const fetchPage = async () => { throw new Error('Unexpected schedule request') }
-    expect(await loadHabitListSchedule([], TODAY, fetchPage)).toEqual([])
+    expect(await loadHabitListSchedule([], TODAY, async () => ({ items: [], page: 1, pageSize: 200, totalCount: 0, totalPages: 0 }))).toEqual([])
     const items = createHabitViewItems(TODAY, 'general')
     expect(await loadHabitListSchedule(items, undefined, fetchPage)).toEqual(items)
   })
@@ -71,4 +71,16 @@ describe('Todos schedule facts', () => {
       throw new Error('Schedule unavailable')
     })).rejects.toThrow('Schedule unavailable')
   })
+})
+
+it('starts the schedule before the list resolves and preserves an empty list', async () => {
+  let resolveList!: (items: ReturnType<typeof createHabitViewItems>) => void
+  let resolveSchedule!: (page: { items: ReturnType<typeof createHabitViewItems>; page: number; pageSize: number; totalCount: number; totalPages: number }) => void
+  const list = new Promise<ReturnType<typeof createHabitViewItems>>((resolve) => { resolveList = resolve })
+  const fetchPage = vi.fn(() => new Promise<{ items: ReturnType<typeof createHabitViewItems>; page: number; pageSize: number; totalCount: number; totalPages: number }>((resolve) => { resolveSchedule = resolve }))
+  const loading = loadHabitListSchedule(list, TODAY, fetchPage)
+  expect(fetchPage).toHaveBeenCalledOnce()
+  resolveList([])
+  resolveSchedule({ items: createHabitViewScheduleItems(TODAY), page: 1, pageSize: 200, totalCount: 1, totalPages: 1 })
+  expect(await loading).toEqual([])
 })

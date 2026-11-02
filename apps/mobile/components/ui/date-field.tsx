@@ -92,6 +92,7 @@ function DatePickerMonthNav({
           onPress={onToggleMode}
           accessibilityRole="button"
           accessibilityLabel={t('common.selectYear')}
+          accessibilityState={{ expanded: pickerMode === 'years' }}
           style={({ pressed }) => [styles.yearButton, pressed ? { backgroundColor: tokens.bgHover } : null]}
         >
           <Text

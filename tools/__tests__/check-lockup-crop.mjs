@@ -25,6 +25,7 @@ const svgWith = (viewBox, d = SQUARE, transform = "translate(1 1) scale(2)") =>
   wrap(viewBox, grouped(d, transform))
 
 export const cases = () => {
+  check("check-lockup-crop.mjs", "duplicate attribute cannot hide painted geometry", ["--file", stage("duplicate", svgWith("1 1 20 20").replace('fill="currentColor"', 'fill="red" fill="currentColor"'))], { status: 1, stderr: /duplicate/i })
   check(
     "check-lockup-crop.mjs",
     "accepts a viewBox that is exactly the ink",

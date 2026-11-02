@@ -3,6 +3,7 @@
 import { getPendingAuthProvider, getAuthCallbackErrorKey } from '@orbit/shared/utils'
 
 import { useState } from 'react'
+import { LazyMotion, domMin } from 'motion/react'
 import { AuthPagePanel } from '@/components/auth/auth-page-panel'
 import { Lockup } from '@/components/ui/lockup'
 import { PillButton } from '@/components/ui/pill-button'
@@ -33,6 +34,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
     ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
     : null
   return (
+    <LazyMotion features={domMin}>
     <AuthPagePanel>
       {flow.referralCode && !account && <ReferralBanner t={t} />}
       <Lockup />
@@ -52,6 +54,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
       </LoginStepStage>}
       <LoginValidationMessage message={flow.validationGeneralError} isOnline={flow.isOnline} />
     </AuthPagePanel>
+    </LazyMotion>
   )
 }
 

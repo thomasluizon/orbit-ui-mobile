@@ -1,6 +1,7 @@
 # Each guard keeps its own status condition so failures do not skip later guards.
 name: Guards
 "on":
+  workflow_dispatch:
   pull_request:
     branches:
       - main
@@ -12,7 +13,7 @@ name: Guards
     branches:
       - main
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name != 'pull_request' && github.sha || github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
@@ -275,6 +276,10 @@ jobs:
         name: "Dependency Audit: Report high and moderate advisories (non-blocking)"
         if: ${{ !cancelled() && (github.event_name == 'pull_request') && (always()) }}
         run: npm audit --audit-level=moderate || true
+      - id: dependency-audit__4
+        name: "Dependency Audit: Verify installed packages against locked archives"
+        if: ${{ !cancelled() }}
+        run: node tools/check-dependency-edits.mjs
       - id: contract-drift__1
         name: "Contract Drift: Regenerate Zod contract snapshot from the pinned orbit-api commit"
         working-directory: packages/shared
