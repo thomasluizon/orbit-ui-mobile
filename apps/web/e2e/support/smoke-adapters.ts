@@ -21,6 +21,24 @@ async function handleSmokePrompts(page: Page): Promise<void> {
   await page.addLocatorHandler(calendar, async (dialog) => {
     await localizedRole(dialog, 'button', en.common.later, ptBR.common.later).click()
   })
+  const consent = localizedRole(page, 'dialog', en.marketingConsent.prompt.title, ptBR.marketingConsent.prompt.title)
+  await page.addLocatorHandler(consent, async (dialog) => {
+    await localizedRole(dialog, 'button', en.marketingConsent.prompt.decline, ptBR.marketingConsent.prompt.decline).click()
+  })
+  const habitImport = localizedRole(page, 'dialog', en.onboarding.wizard.importTitle, ptBR.onboarding.wizard.importTitle)
+  await page.addLocatorHandler(habitImport, async (dialog) => {
+    await localizedRole(dialog, 'button', en.onboarding.wizard.importNotNow, ptBR.onboarding.wizard.importNotNow).click()
+  })
+  const referral = page.getByRole('dialog').filter({
+    has: localizedRole(page, 'button', en.referral.prompt.cta, ptBR.referral.prompt.cta),
+  })
+  await page.addLocatorHandler(referral, async (dialog) => {
+    await localizedRole(dialog, 'button', en.referral.prompt.later, ptBR.referral.prompt.later).click()
+  })
+  const milestoneShare = localizedRole(page, 'dialog', en.milestoneShare.title, ptBR.milestoneShare.title)
+  await page.addLocatorHandler(milestoneShare, async (dialog) => {
+    await localizedRole(dialog, 'button', en.milestoneShare.later, ptBR.milestoneShare.later).click()
+  })
 }
 
 export async function expectAppNavigation(page: Page): Promise<void> {
@@ -51,6 +69,7 @@ export async function createSmokeHabit(page: Page, title: string, itemType: 'tas
 }
 
 export async function logSmokeHabit(page: Page, title: string): Promise<void> {
+  await handleSmokePrompts(page)
   const listOptions = localizedRole(page, 'button', en.habits.listOptions, ptBR.habits.listOptions)
   const showCompleted = localizedRole(page, 'menuitem', en.habits.showCompletedMenu, ptBR.habits.showCompletedMenu)
   await expect(async () => {

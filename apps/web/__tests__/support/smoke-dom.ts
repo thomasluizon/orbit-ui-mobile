@@ -42,6 +42,11 @@ export class SmokeDomLocator {
     return new SmokeDomLocator(this.page, `first ${this.description}`, () => this.matches().slice(0, 1))
   }
 
+  filter({ has }: { has: SmokeDomLocator }) {
+    return new SmokeDomLocator(this.page, `${this.description} containing ${has.description}`,
+      () => this.matches().filter((element) => has.matches().some((child) => element !== child && element.contains(child))))
+  }
+
   async isVisible() {
     if (!this.matches().length) return false
     const element = this.element()
