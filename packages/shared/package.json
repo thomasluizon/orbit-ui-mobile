@@ -43,7 +43,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@tanstack/query-core": "^5.105.1",
+    "@tanstack/query-core": "5.101.4",
     "@vvo/tzdb": "^6.202.0",
     "date-fns": "^4.4.0",
     "html-entities": "2.6.0",
