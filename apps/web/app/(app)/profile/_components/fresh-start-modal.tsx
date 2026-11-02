@@ -2,7 +2,7 @@
 
 import { SPACING } from '@orbit/shared/theme'
 
-import { useCallback } from 'react'
+import { useRef, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { resetAccountQueries } from '@orbit/shared/query'
 import { useTranslations } from 'next-intl'
@@ -68,6 +68,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
   const [step, setStep] = useAccountScopedState<'info' | 'confirm'>('info')
   const [confirmText, setConfirmText] = useAccountScopedState('')
   const [loading, setLoading] = useAccountScopedState(false)
+  const requestPending = useRef(false)
   const [error, setError] = useAccountScopedState('')
 
   const isConfirmed = confirmText.trim().toUpperCase() === 'ORBIT'
@@ -87,9 +88,10 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
   )
 
   async function handleReset() {
-    if (!isConfirmed) return
+    if (loading || requestPending.current || !isConfirmed || getHeldAccountId() === null) return
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
+    requestPending.current = true
     setLoading(true)
     setError('')
     try {
@@ -118,6 +120,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       if (getAccountGeneration() !== accountGeneration) return
       setError(getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic'))
     } finally {
+      requestPending.current = false
       if (getAccountGeneration() === accountGeneration) setLoading(false)
     }
   }

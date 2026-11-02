@@ -15,7 +15,21 @@ on:
         type: string
         required: true
 
+      rollback:
+        description: Allow source outside the previous release lineage while retaining version increases
+        type: boolean
+        default: false
+      force_unstaged:
+        description: Permit a direct production dispatch without the web staging admission
+        type: boolean
+        default: false
+
   workflow_call:
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: true
     inputs:
       variant:
         required: true
@@ -23,6 +37,13 @@ on:
       source_sha:
         required: true
         type: string
+      staging_admitted:
+        description: The caller completed production staging admission
+        type: boolean
+        default: false
+      rollback:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -34,6 +55,7 @@ concurrency:
 env:
   DESKTOP_VARIANT: ${{ inputs.variant }}
   DESKTOP_VERSION: ${{ inputs.version }}
+  DESKTOP_ROLLBACK: ${{ inputs.rollback }}
   SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
 
 jobs:
@@ -58,8 +80,15 @@ jobs:
         id: plan
         env:
           TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          STAGING_ADMITTED: ${{ inputs.staging_admitted }}
+          FORCE_UNSTAGED: ${{ inputs.force_unstaged }}
         run: |
           set -euo pipefail
+          if [ "$DESKTOP_VARIANT" = production ] && [ "$STAGING_ADMITTED" != true ] && [ "$FORCE_UNSTAGED" != true ]; then
+            echo '::error::Direct production dispatch requires force_unstaged; use the admitted web release workflow'
+            exit 1
+          fi
           if [ "$DESKTOP_VARIANT" = production ] && [ "$GITHUB_REF" != refs/heads/main ]; then
             echo '::error::Production desktop releases must run from main'
             exit 1
@@ -69,12 +98,10 @@ jobs:
         if: steps.plan.outputs.publish == 'true'
         env:
           TAURI_SIGNING_PUBLIC_KEY: ${{ vars.TAURI_SIGNING_PUBLIC_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           DESKTOP_VERSION: ${{ steps.plan.outputs.version }}
         run: |
           set -euo pipefail
-          for key in TAURI_SIGNING_PUBLIC_KEY TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD; do
+          for key in TAURI_SIGNING_PUBLIC_KEY; do
             if [ -z "${!key}" ]; then echo "::error::Missing $key"; exit 1; fi
           done
           node --experimental-strip-types apps/desktop/scripts/release.ts prepare \
@@ -228,15 +255,20 @@ jobs:
         run: |
           set -euo pipefail
           channel="desktop-${DESKTOP_VARIANT}"
-          tag="${channel}-v${DESKTOP_VERSION}"
-          channel_exists=false
-          if gh release view "$channel" --repo "$GITHUB_REPOSITORY" >/dev/null; then
-            channel_exists=true
+          tag=$(node --experimental-strip-types apps/desktop/scripts/release.ts tag "$DESKTOP_VARIANT" "$DESKTOP_VERSION")
+          channel_exists=$(node --experimental-strip-types apps/desktop/scripts/release.ts lookup "$DESKTOP_VARIANT" "$DESKTOP_VERSION")
+          previous=""
+          if [ "$channel_exists" = true ]; then
             gh release download "$channel" --repo "$GITHUB_REPOSITORY" \
               --pattern latest.json --output "$RUNNER_TEMP/previous.json"
+            gh release download "$channel" --repo "$GITHUB_REPOSITORY" \
+              --pattern latest.json.sig --output "$RUNNER_TEMP/previous.json.sig"
             node --experimental-strip-types apps/desktop/scripts/release.ts newer \
               "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$RUNNER_TEMP/previous.json"
+            previous="$RUNNER_TEMP/previous.json"
           fi
+          node --experimental-strip-types apps/desktop/scripts/release.ts candidate \
+            "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$SOURCE_SHA" "$previous"
           if [ "$DESKTOP_VARIANT" = production ]; then
             node --experimental-strip-types apps/desktop/scripts/downloads.ts prepare \
               "$DESKTOP_VARIANT" "$DESKTOP_VERSION" desktop-assets "$RUNNER_TEMP/desktop-downloads"
@@ -245,17 +277,6 @@ jobs:
             --target "$SOURCE_SHA" --title "Orbit desktop ${DESKTOP_VARIANT} ${DESKTOP_VERSION}" \
             --notes "Desktop shell ${DESKTOP_VERSION}. Updater signatures are separate from operating system signing." \
             --prerelease --latest=false
-          if [ "$DESKTOP_VARIANT" = production ]; then
-            if [ "$channel_exists" = false ]; then
-              gh release create "$channel" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" \
-                --title "Orbit desktop ${DESKTOP_VARIANT} update channel" \
-                --notes 'Stable desktop downloads and updater endpoint. macOS landing links wait for notarization (#1563).' \
-                --prerelease --latest=false
-              channel_exists=true
-            fi
-            gh release upload "$channel" "$RUNNER_TEMP"/desktop-downloads/* \
-              --repo "$GITHUB_REPOSITORY" --clobber
-          fi
           if [ "$channel_exists" = true ]; then
             gh release upload "$channel" desktop-assets/latest.json.sig \
               --repo "$GITHUB_REPOSITORY" --clobber
@@ -267,6 +288,12 @@ jobs:
               --title "Orbit desktop ${DESKTOP_VARIANT} update channel" \
               --notes 'Stable updater endpoint. Versioned artifacts live in their own releases.' \
               --prerelease --latest=false
+          fi
+          if [ "$DESKTOP_VARIANT" = production ]; then
+            node --experimental-strip-types apps/desktop/scripts/downloads.ts verify \
+              "$DESKTOP_VARIANT" "$DESKTOP_VERSION" "$RUNNER_TEMP/desktop-downloads"
+            gh release upload "$channel" "$RUNNER_TEMP"/desktop-downloads/* \
+              --repo "$GITHUB_REPOSITORY" --clobber
           fi
 
   ready:

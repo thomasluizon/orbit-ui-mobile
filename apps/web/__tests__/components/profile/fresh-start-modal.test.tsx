@@ -1,10 +1,16 @@
+import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { destructiveFailureCases, destructiveActionMessage } from '@orbit/shared/test-support/destructive-action-fixtures'
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
+const failureCopy = vi.hoisted(() => ({ actual: false, locale: 'en', realAdapter: false }))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    if (failureCopy.actual) return destructiveActionMessage(failureCopy.locale, key)
     if (params) return `${key}:${JSON.stringify(params)}`
     return key
   },
@@ -12,7 +18,8 @@ vi.mock('next-intl', () => ({
 
 const mockRouterPush = vi.fn()
 const mockRouterRefresh = vi.fn()
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...await importOriginal<typeof import('next/navigation')>(),
   useRouter: () => ({
     push: mockRouterPush,
     refresh: mockRouterRefresh,
@@ -30,9 +37,27 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
 }))
 
 const mockResetAccount = vi.fn()
-vi.mock('@/lib/actions/profile', () => ({
+vi.mock('@/app/actions/profile', () => ({
   resetAccount: (...args: unknown[]) => mockResetAccount(...args),
+  updateName: vi.fn(),
+  updateTimezone: vi.fn(),
+  updateLanguage: vi.fn(),
+  updateAiSummary: vi.fn(),
+  updateProactiveAstra: vi.fn(),
+  updateMarketingConsent: vi.fn(),
+  updateWeekStartDay: vi.fn(),
+  updateClockFormat: vi.fn(),
+  updateThemePreference: vi.fn(),
+  completeOnboarding: vi.fn(),
+  exportUserData: vi.fn(),
+  authorizeNotion: vi.fn(),
+  completeNotion: vi.fn(),
+  disconnectNotion: vi.fn(),
 }))
+vi.mock('@/lib/actions/profile', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/actions/profile')>()
+  return { resetAccount: (...args: Parameters<typeof original.resetAccount>) => failureCopy.realAdapter ? original.resetAccount(...args) : mockResetAccount(...args) }
+})
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
@@ -42,14 +67,114 @@ import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
 import { FreshStartModal } from '@/app/(app)/profile/_components/fresh-start-modal'
 import {
   holdAccount,
+  retireHeldAccount,
   recoverSameAccount,
   replaceAccountWith,
 } from '@/__tests__/support/account-change'
 
 describe('FreshStartModal', () => {
   beforeEach(() => {
+    failureCopy.actual = false; failureCopy.locale = 'en'; failureCopy.realAdapter = false
     vi.clearAllMocks()
     mockResetAccount.mockResolvedValue(undefined)
+    holdAccount('user-1')
+    mockResetAccountQueries.mockClear()
+  })
+
+  it.each(['click', 'Enter'])('resets once when Delete data is confirmed twice by %s', async method => {
+    holdAccount('user-1')
+    let reject!: (error: Error) => void
+    mockResetAccount.mockReturnValueOnce(new Promise<void>((_resolve, rejectRequest) => { reject = rejectRequest }))
+    render(<FreshStartModal open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
+    const field = screen.getByLabelText('profile.freshStart.confirmLabel')
+    fireEvent.change(field, { target: { value: 'ORBIT' } })
+    const submit = screen.getByRole('button', { name: 'profile.freshStart.deleteData' })
+    act(() => {
+      fireEvent.click(submit)
+      if (method === 'Enter') fireEvent.keyDown(field, { key: 'Enter' })
+      else fireEvent.click(submit)
+    })
+    expect(mockResetAccount).toHaveBeenCalledOnce()
+    await act(async () => reject(new Error('Failed')))
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-1')
+  })
+
+  it('does not reset without an account', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    await retireHeldAccount()
+    render(<FreshStartModal open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
+    fireEvent.change(screen.getByLabelText('profile.freshStart.confirmLabel'), { target: { value: 'ORBIT' } })
+    fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
+    expect(mockResetAccount).not.toHaveBeenCalled()
+  })
+
+  it.each(destructiveFailureCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('shows $kind failure copy in $locale and preserves session and local data', async ({ createError, key, locale }) => {
+    holdAccount('user-1')
+    mockResetAccountQueries.mockClear()
+    failureCopy.actual = true; failureCopy.locale = locale
+    const keys = ['orbit-checklist-templates', 'orbit_trial_expired_seen', buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-1')]
+    for (const storageKey of keys) localStorage.setItem(storageKey, 'saved')
+    mockResetAccount.mockRejectedValueOnce(createError())
+    const onOpenChange = vi.fn()
+    render(<FreshStartModal open onOpenChange={onOpenChange} />)
+    fireEvent.click(screen.getByText(destructiveActionMessage(locale, 'profile.freshStart.reviewDeletion')))
+    fireEvent.change(screen.getByLabelText(destructiveActionMessage(locale, 'profile.freshStart.confirmLabel')), { target: { value: 'ORBIT' } })
+    const label = destructiveActionMessage(locale, 'profile.freshStart.deleteData')
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(destructiveActionMessage(locale, key ?? 'profile.freshStart.errorGeneric'))
+    expect(screen.getByRole('button', { name: label })).toBeEnabled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-1')
+    for (const storageKey of keys) expect(localStorage.getItem(storageKey)).toBe('saved')
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockResetAccountQueries).not.toHaveBeenCalled()
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('clears the stale-build spinner without losing data when reload was already attempted', async () => {
+    holdAccount('user-1')
+    mockResetAccountQueries.mockClear()
+    failureCopy.realAdapter = true
+    sessionStorage.setItem('orbit-stale-build-reload', process.env.NEXT_PUBLIC_WEB_COMMIT_SHA || 'unknown')
+    const keys = ['orbit-checklist-templates', 'orbit_trial_expired_seen', buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-1')]
+    for (const key of keys) localStorage.setItem(key, 'saved')
+    mockResetAccount.mockRejectedValueOnce(new UnrecognizedActionError('Unknown action'))
+    const onOpenChange = vi.fn()
+    render(<FreshStartModal open onOpenChange={onOpenChange} />)
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
+    fireEvent.change(screen.getByLabelText('profile.freshStart.confirmLabel'), { target: { value: 'ORBIT' } })
+    fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'profile.freshStart.deleteData' })).toBeEnabled())
+    expect(screen.getByRole('alert')).toBeVisible()
+    for (const key of keys) expect(localStorage.getItem(key)).toBe('saved')
+    expect(mockResetAccountQueries).not.toHaveBeenCalled()
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockRouterRefresh).not.toHaveBeenCalled()
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-1')
+  })
+
+  it('keeps the replacement account intact when a pending reset fails', async () => {
+    holdAccount('user-1')
+    let reject!: (error: Error) => void
+    mockResetAccount.mockReturnValueOnce(new Promise<void>((_resolve, rejectRequest) => { reject = rejectRequest }))
+    render(<FreshStartModal open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByText('profile.freshStart.reviewDeletion'))
+    fireEvent.change(screen.getByLabelText('profile.freshStart.confirmLabel'), { target: { value: 'ORBIT' } })
+    fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
+    vi.stubGlobal('fetch', vi.fn())
+    await replaceAccountWith('user-2')
+    mockResetAccountQueries.mockClear()
+    await act(async () => reject(new Error('Old failure')))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(mockResetAccountQueries).not.toHaveBeenCalled()
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-2')
   })
 
   it('renders nothing when closed', () => {
@@ -254,6 +379,8 @@ describe('FreshStartModal', () => {
     fireEvent.click(screen.getByText('profile.freshStart.deleteData'))
 
     expect((await screen.findByRole('alert')).closest('[data-slot="sheet-actions"]')).not.toBeNull()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-1')
   })
 
   it('shows error when resetAccount fails', async () => {
@@ -274,6 +401,8 @@ describe('FreshStartModal', () => {
     expect(screen.queryByText('Server error')).not.toBeInTheDocument()
     expect(mockRouterPush).not.toHaveBeenCalled()
     expect(mockResetAccountQueries).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-1')
   })
 
   it('submits the reset on Enter once ORBIT is typed', async () => {
@@ -337,6 +466,7 @@ describe('FreshStartModal', () => {
 
 describe('FreshStartModal across an account change', () => {
   beforeEach(() => {
+    failureCopy.actual = false; failureCopy.locale = 'en'; failureCopy.realAdapter = false
     vi.clearAllMocks()
     vi.stubGlobal('fetch', vi.fn())
     mockResetAccount.mockResolvedValue(undefined)
@@ -396,6 +526,7 @@ describe('FreshStartModal and the trial notice', () => {
   const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
 
   beforeEach(() => {
+    failureCopy.actual = false; failureCopy.locale = 'en'; failureCopy.realAdapter = false
     vi.clearAllMocks()
     vi.stubGlobal('fetch', vi.fn())
     localStorage.clear()

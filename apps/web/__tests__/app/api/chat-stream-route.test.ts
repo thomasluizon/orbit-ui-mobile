@@ -28,6 +28,18 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 describe('chat stream route', () => {
+  it.each([{ status: 429, errorCode: 'RATE_LIMITED', error: 'Too many requests' },
+    { status: 403, errorCode: 'PAY_GATE', error: 'limit' }])('passes through upstream $status and its error code without caching', async ({ status, ...payload }) => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: tokenFor('account-a'), expiresAt: null, refreshed: false, refreshFailed: false })
+    mockFetch.mockResolvedValueOnce(Response.json(payload, { status }))
+    const response = await POST(new NextRequest('https://example.invalid/api/chat/stream', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' }, body: new FormData(),
+    }))
+    expect(response.status).toBe(status)
+    expect(await response.json()).toEqual(payload)
+    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
+  })
+
   it('forwards the turn key to the upstream API', async () => {
     vi.mocked(resolveServerSession).mockResolvedValue({ token: tokenFor('account-a'), expiresAt: null, refreshed: false, refreshFailed: false })
     mockFetch.mockResolvedValue(new Response('data: {"type":"started"}\n\n'))

@@ -347,6 +347,7 @@ function controlledSseStreamResponse() {
       json: () => Promise.resolve(null),
     },
     enqueue: (sseFrame: string) => streamController.enqueue(encoder.encode(sseFrame)),
+    enqueueBytes: (bytes: Uint8Array) => streamController.enqueue(bytes),
     close: () => streamController.close(),
     fail: (error: Error) => streamController.error(error),
   }
@@ -925,13 +926,49 @@ describe('mobile useChatComposer', () => {
     expect(pending[0].props.importantForAccessibility).toBe('no-hide-descendants')
   })
 
-  it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit', 'limit-notice'])('replaces the pending reply indicator on %s', async (arrival) => {
+  it.each(['drop', 'incomplete'])('makes a %s turn retryable with its original key', async (outcome) => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const composer = await renderComposer()
+    let sending!: Promise<void>
+    await TestRenderer.act(async () => { sending = composer.current.sendMessage('Plan'); await Promise.resolve() })
+    await TestRenderer.act(async () => { stream.enqueue(frame('{"type":"started"}')); stream.enqueue(frame('{"type":"delta","text":"Partial"}')); await Promise.resolve() })
+    expect(useChatStore.getState().messages.find(message => message.role === 'ai')?.content).toBe('Partial')
+    await TestRenderer.act(async () => { if (outcome === 'drop') stream.fail(new TypeError('network connection lost')); else stream.close(); await sending })
+    expect(composer.current.sendError).toBe('chat.sendError')
+    expect(composer.current.canRetryLastSend).toBe(true)
+    mocks.openChatStream.mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+    await TestRenderer.act(async () => { await composer.current.retryLastSend() })
+    const keys = mocks.openChatStream.mock.calls.map(([, , key]) => key)
+    expect(keys).toHaveLength(3)
+    expect(keys[0]).toBeTruthy()
+    expect(new Set(keys).size).toBe(1)
+    expect(composer.current.sendError).toBeNull()
+  })
+
+  it('keeps a multi-byte character whole across network chunks', async () => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValueOnce(stream.response)
+    const composer = await renderComposer()
+    let sending!: Promise<void>
+    await TestRenderer.act(async () => { sending = composer.current.sendMessage('Plan'); await Promise.resolve() })
+    const text = 'ação 🪐'
+    const bytes = new TextEncoder().encode(frame(JSON.stringify({ type: 'delta', text })))
+    const split = bytes.indexOf(0xc3) + 1
+    await TestRenderer.act(async () => { stream.enqueueBytes(bytes.slice(0, split)); await Promise.resolve() })
+    await TestRenderer.act(async () => { stream.enqueueBytes(bytes.slice(split)); await Promise.resolve() })
+    expect(useChatStore.getState().messages.find(message => message.role === 'ai')?.content).toBe(text)
+    await TestRenderer.act(async () => { stream.enqueue(finalFrame(makeChatResponse({ aiMessage: text }))); stream.close(); await sending })
+    expect(composer.current.sendError).toBeNull()
+  })
+
+  it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit', 'limit-notice', 'drop', 'incomplete'])('replaces the pending reply indicator on %s', async (arrival) => {
     const stream = controlledSseStreamResponse()
     mocks.openChatStream.mockResolvedValue(stream.response)
     const tree = await renderConversationHarness()
     TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
     await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
-    onTestFinished(() => { if (arrival !== 'cancel') stream.close() })
+    onTestFinished(() => { if (!['cancel', 'drop', 'incomplete'].includes(arrival)) stream.close() })
     const pending = () => tree.root.findAll((node: { type: unknown; props: { testID?: string } }) => typeof node.type === 'string' && node.props.testID === 'astra-pending')
     expect(pending()).toHaveLength(1)
     expect(tree.root.findByType('FlatList').props.accessibilityState).toEqual({ busy: true })
@@ -946,11 +983,28 @@ describe('mobile useChatComposer', () => {
       if (arrival === 'limit') stream.enqueue(frame('{"type":"error","error":"Limit reached","status":403}'))
       if (arrival === 'block') stream.enqueue(finalFrame(makeChatResponse({ aiMessage: '', habitList: { scope: 'today', items: [] } })))
       if (arrival === 'cancel') stream.fail(new DOMException('Cancelled', 'AbortError'))
+      if (arrival === 'drop' || arrival === 'incomplete') {
+        stream.enqueue(frame('{"type":"started"}'))
+        stream.enqueue(frame('{"type":"delta","text":"Partial"}'))
+        await Promise.resolve()
+        if (arrival === 'drop') stream.fail(new TypeError('network connection lost'))
+        else stream.close()
+      }
       await Promise.resolve()
     })
     expect(pending()).toHaveLength(arrival === 'text' ? 1 : 0)
     if (arrival === 'text') expect(visibleMessageTexts(tree)).not.toContain('Start with water')
     if (arrival === 'tool') expect(visibleMessageTexts(tree)).toContain('chat.trace.habits.read')
+    if (arrival === 'drop' || arrival === 'incomplete') {
+      expect(visibleMessageTexts(tree)).toContain('chat.sendError')
+      mocks.openChatStream.mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+      const retry = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.retry')[0]
+      await TestRenderer.act(async () => { retry.props.onPress(); await Promise.resolve() })
+      expect(mocks.openChatStream).toHaveBeenCalledTimes(3)
+      const keys = mocks.openChatStream.mock.calls.map(([, , key]) => key)
+      expect(keys[0]).toBeTruthy()
+      expect(new Set(keys).size).toBe(1)
+    }
   })
 
   it('opens the conversation for a shell typed send with the message and streaming answer in its list', async () => {

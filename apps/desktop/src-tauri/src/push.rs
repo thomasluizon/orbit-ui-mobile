@@ -1,3 +1,4 @@
+use crate::locks::RecoverLock;
 use crate::push_state::launch_path;
 use crate::push_state::{PendingRegistration, PushSession, PushState, Registration};
 use serde::{Deserialize, Serialize};
@@ -8,24 +9,42 @@ use std::{
 };
 use tauri::{AppHandle, Manager, WebviewWindow};
 
+const UNSUPPORTED: i32 = 0;
+const DEFAULT: i32 = 1;
+const GRANTED: i32 = 2;
+const DENIED: i32 = 3;
+const REGISTRATION: i32 = 4;
+const NOTICE: i32 = 5;
+const OPEN: i32 = 6;
+const FAILED: i32 = 7;
+const DONE: i32 = 8;
+
+struct RegistrationWaiter {
+    sender: mpsc::SyncSender<(i32, String)>,
+    token: bool,
+}
+
 struct PushService {
     path: PathBuf,
     saved: Mutex<PushState>,
     session: Mutex<PushSession>,
     candidate: Mutex<Option<Registration>>,
-    operation: Mutex<()>,
-    response: Mutex<Option<mpsc::Sender<(i32, String)>>>,
+    requests: RequestGate,
+    persistence: Mutex<()>,
+    permission: Mutex<&'static str>,
+    refresh: Mutex<Refresh>,
+    response: Mutex<Option<RegistrationWaiter>>,
     app: AppHandle,
 }
 
 static SERVICE: OnceLock<PushService> = OnceLock::new();
 
-pub fn prepare_launch() {
+pub fn prepare_launch() -> Result<(), &'static str> {
     #[cfg(target_os = "macos")]
-    assert!(
-        unsafe { orbit_push_prepare_launch() },
-        "Cannot observe desktop launch"
-    );
+    if !unsafe { orbit_push_prepare_launch() } {
+        return Err("Native launch observer unavailable");
+    }
+    Ok(())
 }
 
 pub fn notification_activation(_arguments: &[String]) -> bool {
@@ -56,7 +75,7 @@ pub fn page_loaded(window: &WebviewWindow, payload: tauri::webview::PageLoadPayl
         origin,
         payload.url(),
         payload.event(),
-        &mut service.session.lock().unwrap(),
+        &mut service.session.recover_lock(),
         || crate::lifecycle::show_main(window.app_handle()),
     ) {
         eprintln!("Cannot show desktop sign-in window: {error}");
@@ -95,7 +114,10 @@ pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             saved: Mutex::new(saved),
             session: Mutex::new(PushSession::default()),
             candidate: Mutex::new(None),
-            operation: Mutex::new(()),
+            requests: RequestGate::default(),
+            persistence: Mutex::new(()),
+            permission: Mutex::new("default"),
+            refresh: Mutex::new(Refresh::default()),
             response: Mutex::new(None),
             app: app.clone(),
         })
@@ -103,14 +125,7 @@ pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(target_os = "macos")]
     unsafe {
         orbit_push_init(receive);
-        let language = SERVICE
-            .get()
-            .unwrap()
-            .saved
-            .lock()
-            .unwrap()
-            .language
-            .clone();
+        let language = SERVICE.get().unwrap().saved.recover_lock().language.clone();
         register_category(
             language
                 .as_deref()
@@ -118,10 +133,25 @@ pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         )?;
     }
     #[cfg(windows)]
+    recover_windows_launch();
+    tauri::async_runtime::spawn_blocking(|| {
+        let service = SERVICE
+            .get()
+            .expect("push service initialized before permission lookup");
+        if let Err(error) = request_registration(service, false, false) {
+            eprintln!("Desktop push: cannot refresh native permission: {error}");
+        }
+        refresh(service, false);
+    });
+    Ok(())
+}
+
+#[cfg(windows)]
+fn recover_windows_launch() {
     if notification_launch() {
         tauri::async_runtime::spawn_blocking(|| {
             let service = SERVICE.get().unwrap();
-            let _operation = service.operation.lock().unwrap();
+            let _operation = service.requests.operation.recover_lock();
             if let Err(error) = crate::push_windows::initialize(&service.app, receive)
                 .and_then(|()| crate::push_windows::activate())
             {
@@ -137,7 +167,6 @@ pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             }
         });
     }
-    Ok(())
 }
 
 fn check_origin(window: &WebviewWindow) -> Result<(), String> {
@@ -163,6 +192,12 @@ pub async fn desktop_push(
     language: Option<String>,
 ) -> Result<Snapshot, String> {
     check_origin(&window)?;
+    if let Some(language) = &language {
+        validate_language(language)?;
+    }
+    if matches!(action, PushAction::Status) && language.is_none() {
+        return Ok(snapshot(SERVICE.get().ok_or("Push service unavailable")?));
+    }
     tauri::async_runtime::spawn_blocking(move || {
         if let Some(language) = language {
             set_language(&language)?;
@@ -180,38 +215,94 @@ fn operate(
     prompt: bool,
 ) -> Result<Snapshot, String> {
     let service = SERVICE.get().ok_or("Push service unavailable")?;
-    if matches!(action, PushAction::Suspend) {
+    if !matches!(action, PushAction::Request) {
         change_registration(service, &action, account, endpoint)?;
-        return Ok(snapshot(service, "default"));
+        return Ok(snapshot(service));
     }
-    let _operation = service.operation.lock().unwrap();
-    change_registration(service, &action, account, endpoint)?;
-    let token = matches!(action, PushAction::Request);
-    let (sender, receiver) = mpsc::channel();
-    *service.response.lock().unwrap() = Some(sender);
+    request_registration(service, prompt, true)?;
+    Ok(snapshot(service))
+}
+
+fn request_registration(service: &PushService, prompt: bool, token: bool) -> Result<(), String> {
+    service
+        .requests
+        .run(token, || register_native(service, prompt, token))
+}
+
+fn register_native(service: &PushService, prompt: bool, token: bool) -> Result<(), String> {
+    let account_before_request = service.session.recover_lock().account.clone();
+    let (sender, receiver) = mpsc::sync_channel(8);
+    *service.response.recover_lock() = Some(RegistrationWaiter { sender, token });
     let received = native_request(service, prompt, token)
         .and_then(|()| wait_for_registration(&receiver, token));
-    service.response.lock().unwrap().take();
+    service.response.recover_lock().take();
     let (permission, candidate) = received?;
+    if service.session.recover_lock().account != account_before_request {
+        stop_inactive(false)?;
+        return Err("Native push account changed during request".into());
+    }
+    *service.permission.recover_lock() = permission;
     if let Some(endpoint) = candidate {
-        let registration = service.saved.lock().unwrap().registration(
+        let registration = service.saved.recover_lock().registration(
             endpoint,
             &service.app.config().identifier,
             cfg!(windows),
         )?;
-        *service.candidate.lock().unwrap() = Some(registration);
+        *service.candidate.recover_lock() = Some(registration);
     }
-    Ok(snapshot(service, permission))
+    Ok(())
 }
 
-fn snapshot(service: &PushService, permission: &'static str) -> Snapshot {
-    let saved = service.saved.lock().unwrap();
+#[derive(Default)]
+struct RequestGate {
+    operation: Mutex<()>,
+    token_request: Mutex<()>,
+}
+
+impl RequestGate {
+    fn run<T>(
+        &self,
+        token: bool,
+        request: impl FnOnce() -> Result<T, String>,
+    ) -> Result<T, String> {
+        let _registration = token
+            .then(|| request_operation(&self.token_request))
+            .transpose()?;
+        let _operation = self.operation.recover_lock();
+        request()
+    }
+}
+
+fn request_operation(operation: &Mutex<()>) -> Result<std::sync::MutexGuard<'_, ()>, String> {
+    match operation.try_lock() {
+        Ok(guard) => Ok(guard),
+        Err(std::sync::TryLockError::WouldBlock) => {
+            Err("Native push request already in progress".into())
+        }
+        Err(std::sync::TryLockError::Poisoned(poisoned)) => {
+            eprintln!("Desktop push: recovering a poisoned request lock");
+            Ok(poisoned.into_inner())
+        }
+    }
+}
+
+fn snapshot(service: &PushService) -> Snapshot {
+    cached_snapshot(&service.saved, &service.permission, &service.candidate)
+}
+
+fn cached_snapshot(
+    saved: &Mutex<PushState>,
+    permission: &Mutex<&'static str>,
+    candidate: &Mutex<Option<Registration>>,
+) -> Snapshot {
+    let permission = *permission.recover_lock();
+    let saved = saved.recover_lock();
     Snapshot {
         supported: permission != "unsupported",
         permission,
         owner: saved.owner.clone(),
         registration: saved.registration.clone(),
-        candidate: service.candidate.lock().unwrap().clone(),
+        candidate: candidate.recover_lock().clone(),
         pending: saved.pending.clone(),
     }
 }
@@ -233,41 +324,88 @@ fn change_registration(
     }
 }
 
+trait PushStore {
+    fn save(&self, state: &PushState) -> Result<(), String>;
+}
+
+impl PushStore for PathBuf {
+    fn save(&self, state: &PushState) -> Result<(), String> {
+        state.save(self).map_err(|error| error.to_string())
+    }
+}
+
+fn save_registration(
+    saved: &Mutex<PushState>,
+    store: &impl PushStore,
+    change: impl FnOnce(&mut PushState) -> Result<(), String>,
+) -> Result<(), String> {
+    let mut next = saved.recover_lock().clone();
+    change(&mut next)?;
+    store.save(&next)?;
+    *saved.recover_lock() = next;
+    Ok(())
+}
+
 fn suspend_registration(service: &PushService, account: Option<String>) -> Result<(), String> {
     let account = account.ok_or("Missing native push account")?;
-    let mut session = service.session.lock().unwrap();
-    let mut saved = service.saved.lock().unwrap();
-    session.suspend(&mut saved, &account);
-    #[cfg(target_os = "macos")]
-    let enabled = session.owns(&saved);
+    let _persistence = service.persistence.recover_lock();
+    suspend_with_store(
+        &service.saved,
+        &service.session,
+        &account,
+        &service.path,
+        |enabled| {
+            set_active(enabled);
+            stop_inactive(enabled)
+        },
+    )
+}
+
+fn suspend_with_store(
+    saved: &Mutex<PushState>,
+    session: &Mutex<PushSession>,
+    account: &str,
+    store: &impl PushStore,
+    stop: impl FnOnce(bool) -> Result<(), String>,
+) -> Result<(), String> {
+    let mut candidate_session = session.recover_lock().clone();
+    save_registration(saved, store, |next| {
+        candidate_session
+            .suspend(next, account)
+            .map_err(str::to_owned)
+    })?;
+    let enabled = {
+        let mut session = session.recover_lock();
+        let mut saved = saved.recover_lock();
+        session.suspend(&mut saved, account)?;
+        session.owns(&saved)
+    };
+    stop(enabled)
+}
+
+fn set_active(_enabled: bool) {
     #[cfg(target_os = "macos")]
     unsafe {
-        orbit_push_set_active(enabled);
+        orbit_push_set_active(_enabled);
     }
-    let persisted = saved.save(&service.path).map_err(|error| error.to_string());
-    drop(saved);
-    drop(session);
-    #[cfg(target_os = "macos")]
+}
+
+fn stop_inactive(enabled: bool) -> Result<(), String> {
     if !enabled && !unsafe { orbit_push_stop() } {
         return Err("Cannot pause native push registration".into());
     }
-    persisted
+    Ok(())
 }
 
 fn restore_session(service: &'static PushService, account: Option<String>) -> Result<(), String> {
-    let mut session = service.session.lock().unwrap();
-    let saved = service.saved.lock().unwrap();
-    let destination = session.restore(account, &saved);
-    let enabled = session.owns(&saved);
-    #[cfg(target_os = "macos")]
-    unsafe {
-        orbit_push_set_active(enabled);
-    }
-    drop(saved);
-    drop(session);
-    if !enabled && !unsafe { orbit_push_stop() } {
-        return Err("Cannot pause native push registration".into());
-    }
+    let _persistence = service.persistence.recover_lock();
+    let (destination, enabled) = {
+        let mut session = service.session.recover_lock();
+        let saved = service.saved.recover_lock();
+        (session.restore(account, &saved), session.owns(&saved))
+    };
+    set_active(enabled);
+    stop_inactive(enabled)?;
     if let Some(response) = destination {
         dispatch_response(service, response);
     }
@@ -280,73 +418,82 @@ fn persist_registration(
     account: Option<String>,
     endpoint: Option<String>,
 ) -> Result<(), String> {
+    let _persistence = service.persistence.recover_lock();
     let candidate = service
         .candidate
-        .lock()
-        .unwrap()
+        .recover_lock()
         .clone()
         .ok_or("Missing native registration")?;
-    let session = service.session.lock().unwrap();
+    let session = service.session.recover_lock().clone();
+    persist_candidate(
+        &service.saved,
+        &service.path,
+        &session,
+        candidate,
+        action,
+        account,
+        endpoint,
+    )?;
+    let saved = service.saved.recover_lock();
+    set_active(session.owns(&saved) && saved.pending.is_empty());
+    Ok(())
+}
+
+fn persist_candidate(
+    saved: &Mutex<PushState>,
+    store: &impl PushStore,
+    session: &PushSession,
+    candidate: Registration,
+    action: &PushAction,
+    account: Option<String>,
+    endpoint: Option<String>,
+) -> Result<(), String> {
     if endpoint.as_deref() != Some(&candidate.endpoint)
         || account.as_ref().is_none_or(String::is_empty)
         || account != session.account
     {
         return Err("Invalid native registration commit".into());
     }
-    let mut saved = service.saved.lock().unwrap();
-    let mut next = saved.clone();
-    let owner = account.unwrap();
-    if matches!(action, PushAction::Stage) {
-        next.stage(owner, candidate);
-    } else {
-        next.commit(owner, candidate)?;
-    }
-    next.save(&service.path)
-        .map_err(|error| error.to_string())?;
-    *saved = next;
-    #[cfg(target_os = "macos")]
-    unsafe {
-        orbit_push_set_active(session.owns(&saved) && saved.pending.is_empty());
-    }
-    Ok(())
+    let owner = account.ok_or("Missing native push account")?;
+    save_registration(saved, store, |next| {
+        if matches!(action, PushAction::Stage) {
+            next.stage(owner, candidate)?;
+        } else {
+            next.commit(owner, candidate)?;
+        }
+        Ok(())
+    })
 }
 
 fn clear_registration(service: &PushService, account: Option<String>) -> Result<(), String> {
-    let session = service.session.lock().unwrap();
-    let mut saved = service.saved.lock().unwrap();
-    let mut next = saved.clone();
-    if account.is_none()
-        || (next.owner != account
-            && !next
-                .pending
-                .iter()
-                .any(|pending| Some(&pending.owner) == account.as_ref()))
-    {
-        return Err("Native push account changed".into());
-    }
-    if next.owner == account {
-        next.owner = None;
-        next.registration = None;
-    }
-    next.pending
-        .retain(|pending| Some(&pending.owner) != account.as_ref());
-    next.save(&service.path)
-        .map_err(|error| error.to_string())?;
-    *saved = next;
-    let enabled = session.owns(&saved);
-    #[cfg(target_os = "macos")]
-    unsafe {
-        orbit_push_set_active(enabled);
-    }
-    drop(saved);
-    drop(session);
-    if !enabled {
-        *service.candidate.lock().unwrap() = None;
-        if !unsafe { orbit_push_stop() } {
-            return Err("Cannot stop native push registration".into());
+    let _persistence = service.persistence.recover_lock();
+    save_registration(&service.saved, &service.path, |next| {
+        if account.is_none()
+            || (next.owner != account
+                && !next
+                    .pending
+                    .iter()
+                    .any(|pending| Some(&pending.owner) == account.as_ref()))
+        {
+            return Err("Native push account changed".into());
         }
+        if next.owner == account {
+            next.owner = None;
+            next.registration = None;
+        }
+        next.pending
+            .retain(|pending| Some(&pending.owner) != account.as_ref());
+        Ok(())
+    })?;
+    let enabled = service
+        .session
+        .recover_lock()
+        .owns(&service.saved.recover_lock());
+    set_active(enabled);
+    if !enabled {
+        *service.candidate.recover_lock() = None;
     }
-    Ok(())
+    stop_inactive(enabled)
 }
 
 fn wait_for_registration(
@@ -359,12 +506,12 @@ fn wait_for_registration(
             .recv_timeout(deadline.saturating_duration_since(std::time::Instant::now()))
             .map_err(|_| "Native push request timed out")?;
         match kind {
-            0 => return Ok(("unsupported", None)),
-            1 => return Ok(("default", None)),
-            2 if !token => return Ok(("granted", None)),
-            3 => return Ok(("denied", None)),
-            4 => return Ok(("granted", Some(payload))),
-            7 => return Err("Native push request failed".into()),
+            UNSUPPORTED => return Ok(("unsupported", None)),
+            DEFAULT => return Ok(("default", None)),
+            GRANTED if !token => return Ok(("granted", None)),
+            DENIED => return Ok(("denied", None)),
+            REGISTRATION => return Ok(("granted", Some(payload))),
+            FAILED => return Err("Native push request failed".into()),
             _ => {}
         }
     }
@@ -375,7 +522,7 @@ fn native_request(_service: &PushService, prompt: bool, token: bool) -> Result<(
     {
         let object_id = option_env!("ORBIT_DESKTOP_WNS_OBJECT_ID").unwrap_or("");
         if object_id.is_empty() {
-            receive_value(0, String::new());
+            receive_value(UNSUPPORTED, String::new());
             return Ok(());
         }
         uuid::Uuid::parse_str(object_id).map_err(|_| "Invalid WNS service principal object ID")?;
@@ -388,31 +535,42 @@ fn native_request(_service: &PushService, prompt: bool, token: bool) -> Result<(
 }
 
 extern "C" fn receive(kind: i32, bytes: *const u8, length: usize) {
-    let payload = if length == 0 {
-        String::new()
+    if length > isize::MAX as usize || (bytes.is_null() && length != 0) {
+        eprintln!("Desktop push: dropped invalid native buffer");
+        receive_value(FAILED, String::new());
+        return;
+    }
+    let bytes = if length == 0 {
+        &[][..]
     } else {
-        let bytes = unsafe { std::slice::from_raw_parts(bytes, length) };
-        let Ok(payload) = std::str::from_utf8(bytes) else {
-            return;
-        };
-        payload.to_owned()
+        unsafe { std::slice::from_raw_parts(bytes, length) }
     };
-    receive_value(kind, payload);
+    receive_payload(kind, bytes, receive_value);
+}
+
+fn receive_payload(kind: i32, bytes: &[u8], dispatch: impl FnOnce(i32, String)) {
+    match std::str::from_utf8(bytes) {
+        Ok(payload) => dispatch(kind, payload.to_owned()),
+        Err(_) => {
+            eprintln!("Desktop push: dropped invalid UTF-8 payload");
+            dispatch(FAILED, String::new());
+        }
+    }
 }
 
 fn receive_value(kind: i32, payload: String) {
     let Some(service) = SERVICE.get() else {
         return;
     };
-    if kind == 5 {
+    if kind == NOTICE {
         received_payload(service, &payload);
-    } else if kind == 6 || kind == 8 {
+    } else if kind == OPEN || kind == DONE {
         #[cfg(target_os = "macos")]
         {
-            let destination = service.session.lock().unwrap().response(
-                &service.saved.lock().unwrap(),
+            let destination = service.session.recover_lock().response(
+                &service.saved.recover_lock(),
                 &payload,
-                kind == 8,
+                kind == DONE,
             );
             if let Some(response) = destination {
                 dispatch_response(service, response);
@@ -420,36 +578,49 @@ fn receive_value(kind: i32, payload: String) {
         }
         #[cfg(windows)]
         {
-            let destination = service.session.lock().unwrap().windows_response(
-                &service.saved.lock().unwrap(),
+            let destination = service.session.recover_lock().windows_response(
+                &service.saved.recover_lock(),
                 &payload,
-                kind == 8,
+                kind == DONE,
             );
             if let Some(response) = destination {
                 dispatch_response(service, response);
             }
         }
-    } else if let Some(sender) = service.response.lock().unwrap().as_ref() {
-        let _ = sender.send((kind, payload));
+    } else if let Some(waiter) = service.response.recover_lock().as_ref() {
+        if matches!(kind, UNSUPPORTED | DEFAULT | DENIED | REGISTRATION | FAILED)
+            || (kind == GRANTED && !waiter.token)
+        {
+            if let Err(error) = waiter.sender.try_send((kind, payload)) {
+                eprintln!(
+                    "Desktop push: dropped native response: {}",
+                    match error {
+                        mpsc::TrySendError::Full(_) => "queue full",
+                        mpsc::TrySendError::Disconnected(_) => "waiter closed",
+                    }
+                );
+            }
+        }
     }
 }
 
-fn received_payload(service: &PushService, payload: &str) {
+fn received_payload(service: &'static PushService, _payload: &str) {
     if !owns_session(service) {
         return;
     }
     #[cfg(windows)]
     {
-        let Ok(payload) = serde_json::from_str::<crate::push_state::RawNotice>(payload) else {
+        let Ok(payload) = serde_json::from_str::<crate::push_state::RawNotice>(_payload) else {
+            eprintln!("Desktop push: dropped malformed Windows notice");
+            refresh(service, false);
             return;
         };
-        let Some(owner) = service.saved.lock().unwrap().owner.clone() else {
+        let Some(owner) = service.saved.recover_lock().owner.clone() else {
             return;
         };
         let language = service
             .saved
-            .lock()
-            .unwrap()
+            .recover_lock()
             .language
             .clone()
             .unwrap_or_else(|| "en".into());
@@ -458,11 +629,52 @@ fn received_payload(service: &PushService, payload: &str) {
             eprintln!("Cannot show desktop reminder: {error}");
         }
     }
-    let _ = payload;
     refresh(service, false);
 }
 
-fn refresh(service: &PushService, completed: bool) {
+#[derive(Default)]
+struct Refresh {
+    generation: u64,
+    scheduled: bool,
+    completed: bool,
+    push: bool,
+}
+
+fn refresh(service: &'static PushService, completed: bool) {
+    {
+        let mut refresh = service.refresh.recover_lock();
+        refresh.generation = refresh.generation.wrapping_add(1);
+        refresh.completed |= completed;
+        refresh.push |= !completed;
+        if refresh.scheduled {
+            return;
+        }
+        refresh.scheduled = true;
+    }
+    std::thread::spawn(move || loop {
+        let generation = service.refresh.recover_lock().generation;
+        std::thread::sleep(Duration::from_millis(250));
+        let mut refresh = service.refresh.recover_lock();
+        if generation != refresh.generation {
+            continue;
+        }
+        let completed = refresh.completed;
+        let push = refresh.push;
+        refresh.push = false;
+        refresh.completed = false;
+        refresh.scheduled = false;
+        drop(refresh);
+        if push {
+            publish_refresh(service, false);
+        }
+        if completed {
+            publish_refresh(service, true);
+        }
+        break;
+    });
+}
+
+fn publish_refresh(service: &PushService, completed: bool) {
     if let Some(window) = service.app.get_webview_window("main") {
         if check_origin(&window).is_ok() {
             if let Err(error) = window.eval(if completed {
@@ -477,19 +689,27 @@ fn refresh(service: &PushService, completed: bool) {
 }
 
 fn set_language(language: &str) -> Result<(), String> {
+    validate_language(language)?;
     let service = SERVICE.get().ok_or("Push service unavailable")?;
-    let mut saved = service.saved.lock().unwrap();
-    if saved.language.as_deref() == Some(language) {
+    let _persistence = service.persistence.recover_lock();
+    if service.saved.recover_lock().language.as_deref() == Some(language) {
         return Ok(());
     }
+    save_registration(&service.saved, &service.path, |next| {
+        next.language = Some(language.into());
+        Ok(())
+    })?;
     #[cfg(target_os = "macos")]
     register_category(language)?;
-    let mut next = saved.clone();
-    next.language = Some(language.into());
-    next.save(&service.path)
-        .map_err(|error| error.to_string())?;
-    *saved = next;
     Ok(())
+}
+
+fn validate_language(language: &str) -> Result<(), String> {
+    if matches!(language, "en" | "pt-BR") {
+        Ok(())
+    } else {
+        Err("Unsupported desktop push language".into())
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -504,12 +724,11 @@ fn register_category(language: &str) -> Result<(), String> {
 }
 
 fn dispatch_response(service: &'static PushService, response: crate::push_action::Response) {
-    let Some(owner) = service.saved.lock().unwrap().owner.clone() else {
+    let Some(owner) = service.saved.recover_lock().owner.clone() else {
         return;
     };
     tauri::async_runtime::spawn(async move {
-        if !owns_session(service) || service.saved.lock().unwrap().owner.as_deref() != Some(&owner)
-        {
+        if !owns_session(service) || service.saved.recover_lock().owner.as_deref() != Some(&owner) {
             return;
         }
         let destination = crate::push_action::resolve(response, |token| async move {
@@ -522,7 +741,7 @@ fn dispatch_response(service: &'static PushService, response: crate::push_action
                 Ok(request) => request
                     .send()
                     .await
-                    .map(|response| response.status().is_success()),
+                    .map(|response| done_status(response.status())),
                 Err(error) => Err(error),
             };
             match result {
@@ -534,7 +753,7 @@ fn dispatch_response(service: &'static PushService, response: crate::push_action
             }
         })
         .await;
-        if owns_session(service) && service.saved.lock().unwrap().owner.as_deref() == Some(&owner) {
+        if owns_session(service) && service.saved.recover_lock().owner.as_deref() == Some(&owner) {
             if let Some(url) = destination {
                 open(&service.app, url.as_deref());
             } else {
@@ -544,12 +763,18 @@ fn dispatch_response(service: &'static PushService, response: crate::push_action
     });
 }
 
+fn done_status(status: reqwest::StatusCode) -> bool {
+    if !status.is_success() {
+        eprintln!("Desktop push: reminder done rejected: {status}");
+    }
+    status.is_success()
+}
+
 fn owns_session(service: &PushService) -> bool {
     service
         .session
-        .lock()
-        .unwrap()
-        .owns(&service.saved.lock().unwrap())
+        .recover_lock()
+        .owns(&service.saved.recover_lock())
 }
 
 fn open(app: &AppHandle, url: Option<&str>) {
@@ -580,6 +805,233 @@ unsafe extern "C" {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn registered_state() -> PushState {
+        let directory = tempfile::tempdir().unwrap();
+        let mut saved = PushState::load(&directory.path().join("push.json")).unwrap();
+        let registration = saved
+            .registration("abcd".into(), "org.useorbit.desktop", false)
+            .unwrap();
+        saved
+            .stage("account-a".into(), registration.clone())
+            .unwrap();
+        saved.commit("account-a".into(), registration).unwrap();
+        saved
+    }
+
+    struct Store<'a> {
+        events: &'a std::cell::RefCell<Vec<&'static str>>,
+        session: &'a Mutex<PushSession>,
+        fail: bool,
+    }
+    impl PushStore for Store<'_> {
+        fn save(&self, _: &PushState) -> Result<(), String> {
+            assert!(
+                self.session.try_lock().is_ok(),
+                "disk flush held the page-load lock"
+            );
+            self.events.borrow_mut().push("save");
+            if self.fail {
+                Err("save failed".into())
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    #[test]
+    fn staged_attempt_is_durable_before_the_api_caller_can_continue() {
+        struct RecordingStore(std::cell::RefCell<Vec<PushState>>);
+        impl PushStore for RecordingStore {
+            fn save(&self, state: &PushState) -> Result<(), String> {
+                self.0.borrow_mut().push(state.clone());
+                Ok(())
+            }
+        }
+        let saved = Mutex::new(registered_state());
+        let mut session = PushSession::default();
+        session.restore(Some("account-a".into()), &saved.recover_lock());
+        let candidate = saved
+            .recover_lock()
+            .registration("cdef".into(), "org.useorbit.desktop", false)
+            .unwrap();
+        let store = RecordingStore(std::cell::RefCell::new(Vec::new()));
+        persist_candidate(
+            &saved,
+            &store,
+            &session,
+            candidate.clone(),
+            &PushAction::Stage,
+            Some("account-a".into()),
+            Some(candidate.endpoint.clone()),
+        )
+        .unwrap();
+        assert_eq!(store.0.borrow().len(), 1);
+        assert_eq!(store.0.borrow()[0].pending[0].registration, candidate);
+        assert_eq!(saved.recover_lock().pending[0].registration, candidate);
+        let events = std::cell::RefCell::new(Vec::new());
+        let session = Mutex::new(session);
+        let failing = Store {
+            events: &events,
+            session: &session,
+            fail: true,
+        };
+        let session_snapshot = session.recover_lock().clone();
+        assert_eq!(
+            persist_candidate(
+                &saved,
+                &failing,
+                &session_snapshot,
+                candidate.clone(),
+                &PushAction::Commit,
+                Some("account-a".into()),
+                Some(candidate.endpoint.clone()),
+            ),
+            Err("save failed".into())
+        );
+        assert_eq!(saved.recover_lock().pending[0].registration, candidate);
+        assert_eq!(
+            saved.recover_lock().registration.as_ref().unwrap().endpoint,
+            "abcd"
+        );
+    }
+
+    #[test]
+    fn suspend_saves_before_native_stop_and_failed_saves_preserve_live_state() {
+        for fail in [true, false] {
+            let saved = Mutex::new(registered_state());
+            let session = Mutex::new(PushSession::default());
+            session
+                .recover_lock()
+                .restore(Some("account-a".into()), &saved.recover_lock());
+            let events = std::cell::RefCell::new(Vec::new());
+            let store = Store {
+                events: &events,
+                session: &session,
+                fail,
+            };
+            let before = serde_json::to_value(&*saved.recover_lock()).unwrap();
+            let result = suspend_with_store(&saved, &session, "account-a", &store, |enabled| {
+                assert!(!enabled);
+                events.borrow_mut().push("stop");
+                Ok(())
+            });
+            if fail {
+                assert_eq!(result, Err("save failed".into()));
+                assert_eq!(*events.borrow(), ["save"]);
+                assert_eq!(
+                    serde_json::to_value(&*saved.recover_lock()).unwrap(),
+                    before
+                );
+                assert_eq!(session.recover_lock().account.as_deref(), Some("account-a"));
+            } else {
+                assert!(result.is_ok());
+                assert_eq!(*events.borrow(), ["save", "stop"]);
+                assert!(saved.recover_lock().pending[0].revoke);
+            }
+        }
+    }
+
+    #[test]
+    fn status_is_cached_while_a_request_waits_and_duplicate_requests_are_refused() {
+        let gate = RequestGate::default();
+        gate.run(true, || {
+            assert_eq!(
+                gate.run(true, || Ok(())).unwrap_err(),
+                "Native push request already in progress"
+            );
+            let saved = Mutex::new(registered_state());
+            let snapshot = cached_snapshot(&saved, &Mutex::new("granted"), &Mutex::new(None));
+            assert_eq!(snapshot.permission, "granted");
+            assert_eq!(snapshot.owner.as_deref(), Some("account-a"));
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn restored_subscription_waits_for_launch_probe_then_requests_a_token() {
+        let gate = std::sync::Arc::new(RequestGate::default());
+        let saved = registered_state();
+        let mut session = PushSession::default();
+        session.restore(Some("account-a".into()), &saved);
+        assert_eq!(session.account.as_deref(), Some("account-a"));
+        let (probe_started, started) = mpsc::sync_channel(1);
+        let (finish_probe, probe_response) = mpsc::sync_channel(1);
+        let probe_gate = gate.clone();
+        let probe = std::thread::spawn(move || {
+            probe_gate.run(false, || {
+                probe_started.send(()).unwrap();
+                wait_for_registration(&probe_response, false)
+            })
+        });
+        started.recv().unwrap();
+        let (request_started, requesting) = mpsc::sync_channel(1);
+        let (finished, result) = mpsc::sync_channel(1);
+        let registration_gate = gate.clone();
+        let registration = std::thread::spawn(move || {
+            request_started.send(()).unwrap();
+            finished
+                .send(registration_gate.run(true, || {
+                    let (native, response) = mpsc::sync_channel(1);
+                    native
+                        .send((REGISTRATION, "restored-token".into()))
+                        .unwrap();
+                    wait_for_registration(&response, true)
+                }))
+                .unwrap();
+        });
+        requesting.recv().unwrap();
+        let premature = result.recv_timeout(Duration::from_millis(30));
+        finish_probe.send((GRANTED, String::new())).unwrap();
+        assert_eq!(probe.join().unwrap(), Ok(("granted", None)));
+        registration.join().unwrap();
+        assert!(
+            matches!(premature, Err(mpsc::RecvTimeoutError::Timeout)),
+            "registration was dropped: {premature:?}"
+        );
+        assert_eq!(
+            result.recv().unwrap(),
+            Ok(("granted", Some("restored-token".into())))
+        );
+    }
+
+    #[test]
+    fn invalid_utf8_fails_the_waiter_immediately() {
+        let (sender, receiver) = mpsc::sync_channel(1);
+        receive_payload(REGISTRATION, &[255], |kind, payload| {
+            sender.send((kind, payload)).unwrap()
+        });
+        assert_eq!(
+            wait_for_registration(&receiver, true),
+            Err("Native push request failed".into())
+        );
+        receive(REGISTRATION, std::ptr::null(), 1);
+    }
+
+    #[test]
+    fn language_accepts_only_the_two_supported_catalogs() {
+        for language in ["en", "pt-BR"] {
+            assert!(validate_language(language).is_ok());
+        }
+        for language in ["fr", "pt", "en-US", ""] {
+            assert!(validate_language(language).is_err());
+        }
+    }
+
+    #[test]
+    fn gone_done_response_still_opens_the_habit() {
+        let reminder = crate::push_action::Reminder {
+            url: Some("/habits/example".into()),
+            done_token: Some("private".into()),
+            ..Default::default()
+        };
+        let destination = tauri::async_runtime::block_on(crate::push_action::resolve(
+            reminder.response(true),
+            |_| async { done_status(reqwest::StatusCode::GONE) },
+        ));
+        assert_eq!(destination, Some(Some("/habits/example".into())));
+    }
 
     #[test]
     fn granted_permission_is_not_a_registration_until_the_native_token_arrives() {

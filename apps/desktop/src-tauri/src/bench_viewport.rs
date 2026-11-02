@@ -22,13 +22,38 @@ fn parse_size(width: Option<String>, height: Option<String>) -> Result<LogicalSi
 
 #[tauri::command]
 pub fn fit_bench_viewport(window: WebviewWindow, viewport: [f64; 2]) -> Result<[f64; 2], String> {
+    let tauri::utils::config::WebviewUrl::External(origin) = &window.config().app.windows[0].url
+    else {
+        return Err("Desktop requires a deployed origin".into());
+    };
+    validate_viewport(
+        window.label(),
+        &window.url().map_err(|error| error.to_string())?,
+        origin,
+        viewport,
+    )?;
     if std::env::var("ORBIT_BENCH_READINESS_ONLY").as_deref() != Ok("1") {
         return Err("Viewport fitting is restricted to the readiness launch".into());
     }
-    if viewport.iter().any(|value| !value.is_finite() || *value <= 0.0) {
+    fit_page(&window, LogicalSize::new(viewport[0], viewport[1])).map_err(|error| error.to_string())
+}
+
+fn validate_viewport(
+    label: &str,
+    url: &tauri::Url,
+    origin: &tauri::Url,
+    viewport: [f64; 2],
+) -> Result<(), String> {
+    if !crate::command_origin::allows(label, url, origin) {
+        return Err("Invalid benchmark viewport origin".into());
+    }
+    if viewport
+        .iter()
+        .any(|value| !value.is_finite() || *value <= 0.0 || *value > 16384.0)
+    {
         return Err("Invalid benchmark page viewport".into());
     }
-    fit_page(&window, LogicalSize::new(viewport[0], viewport[1])).map_err(|error| error.to_string())
+    Ok(())
 }
 
 fn fit_page(window: &WebviewWindow, viewport: LogicalSize<f64>) -> tauri::Result<[f64; 2]> {
@@ -64,12 +89,35 @@ mod tests {
     use tauri::Size;
 
     #[test]
+    fn fitting_refuses_other_origins_and_oversized_dimensions() {
+        let origin = "http://127.0.0.1:3400/".parse().unwrap();
+        assert!(validate_viewport("main", &origin, &origin, [900.0, 600.0]).is_ok());
+        assert!(validate_viewport(
+            "main",
+            &"https://example.com/".parse().unwrap(),
+            &origin,
+            [900.0, 600.0]
+        )
+        .is_err());
+        for size in [[16385.0, 600.0], [900.0, 16385.0], [f64::NAN, 600.0]] {
+            assert!(validate_viewport("main", &origin, &origin, size).is_err());
+        }
+    }
+
+    #[test]
     fn native_launch_dimensions_use_the_calibrated_request() {
         assert_eq!(
             parse_size(Some("904".into()), Some("632".into())),
             Ok(LogicalSize::new(904.0, 632.0)),
         );
-        for value in [None, Some("0"), Some("-1"), Some("NaN"), Some("inf"), Some("bad")] {
+        for value in [
+            None,
+            Some("0"),
+            Some("-1"),
+            Some("NaN"),
+            Some("inf"),
+            Some("bad"),
+        ] {
             assert!(parse_size(value.map(str::to_string), Some("600".into())).is_err());
             assert!(parse_size(Some("900".into()), value.map(str::to_string)).is_err());
         }

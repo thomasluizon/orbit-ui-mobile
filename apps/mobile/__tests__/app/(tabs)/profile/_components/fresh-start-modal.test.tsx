@@ -1,3 +1,4 @@
+import { destructiveFailureCases, destructiveActionMessage } from '@orbit/shared/test-support/destructive-action-fixtures'
 import React from 'react'
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -18,10 +19,12 @@ const resetAccountQueries = vi.hoisted(() => vi.fn(async (_client: QueryClient, 
 const activeQueryClient = vi.hoisted(() => ({ current: null as QueryClient | null }))
 const storage = vi.hoisted(() => new Map<string, string>())
 
+const failureCopy = vi.hoisted(() => ({ actual: false, locale: 'en' }))
+
 vi.mock('react-i18next', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-i18next')>()),
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string) => failureCopy.actual ? destructiveActionMessage(failureCopy.locale, key) : key,
     i18n: { language: 'en' },
   }),
 }))
@@ -133,6 +136,7 @@ await Promise.resolve()
 
 describe('FreshStartModal', () => {
   beforeEach(() => {
+    failureCopy.actual = false; failureCopy.locale = 'en'
     activeQueryClient.current = null
     storage.clear()
     useOfflineSyncStore.setState({ drops: [] })
@@ -148,6 +152,83 @@ describe('FreshStartModal', () => {
     activeQueryClient.current = null
     sheetTestControls.defer(false)
     vi.clearAllMocks()
+  })
+
+  it.each(['button', 'keyboard'])('resets once when confirmed twice by %s', async method => {
+    const offlineMutations = await import('@/lib/offline-mutations')
+    let reject!: (error: Error) => void
+    vi.mocked(offlineMutations.queueOrExecute).mockReturnValueOnce(new Promise((_resolve, rejectRequest) => { reject = rejectRequest }))
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
+    await TestRenderer.act(() => { (input(tree).props.onChangeText as (value: string) => void)('ORBIT') })
+    await TestRenderer.act(async () => {
+      const send = buttonWithLabel(tree, 'profile.freshStart.deleteData')!.props.onPress as () => void
+      send()
+      if (method === 'keyboard') (input(tree).props.onSubmitEditing as () => void)()
+      else send()
+      await Promise.resolve()
+    })
+    expect(offlineMutations.queueOrExecute).toHaveBeenCalledOnce()
+    await TestRenderer.act(() => reject(new Error('Failed')))
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: 'user-1' } })
+  })
+
+  it('does not reset without an account or submit an incomplete confirmation', async () => {
+    const offlineMutations = await import('@/lib/offline-mutations')
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    await press(buttonWithLabel(tree, 'profile.freshStart.reviewDeletion')!)
+    await TestRenderer.act(() => { (input(tree).props.onChangeText as (value: string) => void)('ORB') })
+    await TestRenderer.act(() => { (input(tree).props.onSubmitEditing as () => void)() })
+    expect(offlineMutations.queueOrExecute).not.toHaveBeenCalled()
+    useAuthStore.setState({ user: null })
+    await TestRenderer.act(() => { (input(tree).props.onChangeText as (value: string) => void)('ORBIT') })
+    await press(buttonWithLabel(tree, 'profile.freshStart.deleteData')!)
+    expect(offlineMutations.queueOrExecute).not.toHaveBeenCalled()
+  })
+
+  it('shows nothing and clears nothing when a reset fails after the account changes', async () => {
+    const offlineMutations = await import('@/lib/offline-mutations')
+    const offlineQueue = await import('@/lib/offline-queue')
+    const { clearChecklistTemplates } = await import('@/lib/checklist-template-storage')
+    let reject!: (error: Error) => void
+    vi.mocked(offlineMutations.queueOrExecute).mockReturnValueOnce(new Promise((_resolve, rejectRequest) => { reject = rejectRequest }))
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    await confirmReset(tree)
+    await TestRenderer.act(async () => {
+      advanceAccountGeneration()
+      useAuthStore.setState({ user: { userId: 'user-2', name: 'Next', email: 'next@example.com' } })
+      reject(new Error('Old failure'))
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll(node => node.props.accessibilityRole === 'alert')).toHaveLength(0)
+    expect(offlineQueue.clear).not.toHaveBeenCalled()
+    expect(clearChecklistTemplates).not.toHaveBeenCalled()
+    expect(resetAccountQueries).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
+    expect(buttonWithLabel(tree, 'profile.freshStart.deleteData')!.props.accessibilityState).not.toMatchObject({ busy: true })
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: 'user-2' } })
+  })
+
+  it.each(destructiveFailureCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('shows $kind failure copy in $locale and keeps the session', async ({ createError, key, locale }) => {
+    failureCopy.actual = true; failureCopy.locale = locale
+    const offlineMutations = await import('@/lib/offline-mutations')
+    const offlineQueue = await import('@/lib/offline-queue')
+    const { clearChecklistTemplates } = await import('@/lib/checklist-template-storage')
+    vi.mocked(offlineMutations.queueOrExecute).mockRejectedValueOnce(createError())
+    const onClose = vi.fn()
+    const tree = await render(<FreshStartModal open onClose={onClose} />)
+    await press(buttonWithLabel(tree, destructiveActionMessage(locale, 'profile.freshStart.reviewDeletion'))!)
+    await TestRenderer.act(() => { (input(tree).props.onChangeText as (value: string) => void)('ORBIT') })
+    const label = destructiveActionMessage(locale, 'profile.freshStart.deleteData')
+    await press(buttonWithLabel(tree, label)!)
+    const errors = tree.root.findAll(node => node.type === 'Text').map(node => node.props.children)
+    expect(errors).toContain(destructiveActionMessage(locale, key ?? 'profile.freshStart.errorGeneric'))
+    expect(buttonWithLabel(tree, label)!.props.accessibilityState).not.toMatchObject({ busy: true })
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: 'user-1' } })
+    expect(offlineQueue.clear).not.toHaveBeenCalled()
+    expect(clearChecklistTemplates).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
   })
 
   it('renders the info step heading when opened', async () => {
@@ -406,6 +487,7 @@ await Promise.resolve()
 
     expect(alerts('SheetActions')).toHaveLength(1)
     expect(alerts('SheetBody')).toHaveLength(0)
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: 'user-1' } })
   })
 
   it('surfaces a friendly error and keeps the modal open on failure', async () => {
@@ -421,5 +503,6 @@ await Promise.resolve()
       .map((node) => node.props.children)
       .find((value) => typeof value === 'string' && value.toLowerCase().includes('error'))
     expect(errorText).toBeTruthy()
+    expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: 'user-1' } })
   })
 })

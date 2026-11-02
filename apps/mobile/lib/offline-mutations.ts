@@ -630,13 +630,7 @@ function shouldDropMutation(error: unknown, nextRetries: number, maxRetries: num
   const message = error.message.toLowerCase()
   if (nextRetries >= maxRetries) return true
 
-  return (
-    message.includes('404') ||
-    message.includes('409') ||
-    message.includes('410') ||
-    message.includes('400') ||
-    message.includes('validation')
-  )
+  return (error instanceof ApiClientError && [400, 404, 409, 410].includes(error.status)) || message.includes('validation')
 }
 
 function shouldStopFlushing(error: unknown): boolean {

@@ -1,5 +1,8 @@
 use serde::Serialize;
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    time::{Duration, Instant},
+};
 use uuid::Uuid;
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -13,7 +16,7 @@ pub enum Phase {
     Failed,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     pub phase: Phase,
@@ -33,15 +36,27 @@ pub enum QuitAction<T> {
     Install(T),
 }
 
+enum UpdatePhase<T> {
+    Idle,
+    Available(T),
+    Downloading,
+    Downloaded(T),
+    Installing,
+    Failed(T),
+}
+
 pub struct UpdateState<T> {
-    pub package: Option<T>,
-    pub phase: Phase,
+    phase: UpdatePhase<T>,
+    last_completed: Option<Instant>,
+    failures: u32,
+    pub published: Option<(Snapshot, bool)>,
     pub version: Option<String>,
     pub web_commit: Option<String>,
     pub checking: bool,
     pub check_failed: bool,
     pub enabled: bool,
     restart_requested: bool,
+    restart_authorized: bool,
     install_reservation: Option<Uuid>,
     deferred: Option<(Option<String>, Option<String>)>,
     prompted_versions: HashSet<String>,
@@ -54,14 +69,17 @@ pub struct UpdateState<T> {
 impl<T> UpdateState<T> {
     pub fn new(enabled: bool) -> Self {
         Self {
-            package: None,
-            phase: Phase::Idle,
+            phase: UpdatePhase::Idle,
+            last_completed: None,
+            failures: 0,
+            published: None,
             version: None,
             web_commit: None,
             checking: false,
             check_failed: false,
             enabled,
             restart_requested: false,
+            restart_authorized: false,
             install_reservation: None,
             deferred: None,
             prompted_versions: HashSet::new(),
@@ -70,6 +88,44 @@ impl<T> UpdateState<T> {
             quit_requested: false,
             exiting: false,
         }
+    }
+
+    pub fn phase(&self) -> Phase {
+        match self.phase {
+            UpdatePhase::Idle => Phase::Idle,
+            UpdatePhase::Available(_) => Phase::Available,
+            UpdatePhase::Downloading => Phase::Downloading,
+            UpdatePhase::Downloaded(_) => Phase::Downloaded,
+            UpdatePhase::Installing => Phase::Installing,
+            UpdatePhase::Failed(_) => Phase::Failed,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn package(&self) -> Option<&T> {
+        match &self.phase {
+            UpdatePhase::Available(package)
+            | UpdatePhase::Downloaded(package)
+            | UpdatePhase::Failed(package) => Some(package),
+            _ => None,
+        }
+    }
+
+    pub fn check_interval(&self) -> Duration {
+        Duration::from_secs((60_u64 << self.failures.min(6)).min(3600))
+    }
+
+    pub fn check_delay(&self, now: Instant) -> Duration {
+        self.last_completed
+            .map(|last| {
+                self.check_interval()
+                    .saturating_sub(now.saturating_duration_since(last))
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn begin_scheduled_check(&mut self, now: Instant) -> bool {
+        self.check_delay(now).is_zero() && self.begin_check()
     }
 
     pub fn begin_check(&mut self) -> bool {
@@ -91,6 +147,12 @@ impl<T> UpdateState<T> {
     pub fn checked(&mut self, candidate: Result<Option<(String, T)>, ()>) {
         self.checking = false;
         self.check_failed = candidate.is_err();
+        self.failures = if self.check_failed {
+            self.failures.saturating_add(1)
+        } else {
+            0
+        };
+        self.last_completed = Some(Instant::now());
         if self.exiting
             || self.busy()
             || self.install_reservation.is_some()
@@ -102,9 +164,10 @@ impl<T> UpdateState<T> {
         }
         if let Ok(Some((version, package))) = candidate {
             if self.version.as_ref() != Some(&version) {
+                self.restart_authorized = false;
+                self.restart_requested = false;
                 self.version = Some(version);
-                self.package = Some(package);
-                self.phase = Phase::Available;
+                self.phase = UpdatePhase::Available(package);
                 self.install_on_quit = false;
             }
         }
@@ -120,25 +183,31 @@ impl<T> UpdateState<T> {
         if self.busy() {
             return Err("Desktop update already in progress");
         }
-        let package = self
-            .package
-            .take()
-            .ok_or("No desktop shell update available")?;
-        self.clear_restart();
+        if !matches!(
+            self.phase,
+            UpdatePhase::Available(_) | UpdatePhase::Downloaded(_) | UpdatePhase::Failed(_)
+        ) {
+            return Err("No desktop shell update available");
+        }
+        let previous = std::mem::replace(&mut self.phase, UpdatePhase::Downloading);
+        let package = match previous {
+            UpdatePhase::Available(package)
+            | UpdatePhase::Downloaded(package)
+            | UpdatePhase::Failed(package) => package,
+            _ => return Err("No desktop shell update available"),
+        };
         self.install_reservation = Some(reservation);
-        self.phase = Phase::Downloading;
         Ok(package)
     }
 
     pub fn downloaded(&mut self, package: T, verified: bool) {
-        self.package = Some(package);
         if !verified {
             self.install_reservation = None;
         }
         self.phase = if verified {
-            Phase::Downloaded
+            UpdatePhase::Downloaded(package)
         } else {
-            Phase::Failed
+            UpdatePhase::Failed(package)
         };
     }
 
@@ -146,25 +215,28 @@ impl<T> UpdateState<T> {
         if self.exiting {
             return Err("Desktop application is exiting");
         }
-        if self.phase != Phase::Downloaded {
-            return Err("Desktop update is not downloaded");
+        install_guard(
+            self.phase(),
+            self.prompt_pending(),
+            self.restart_authorized,
+            self.quit_requested,
+        )?;
+        let previous = std::mem::replace(&mut self.phase, UpdatePhase::Installing);
+        match previous {
+            UpdatePhase::Downloaded(package) => {
+                self.install_reservation = None;
+                Ok(package)
+            }
+            previous => {
+                self.phase = previous;
+                Err("Desktop update is not downloaded")
+            }
         }
-        if self.prompt_pending() {
-            return Err("Desktop update awaits native confirmation");
-        }
-        let package = self
-            .package
-            .take()
-            .ok_or("Missing desktop update package")?;
-        self.phase = Phase::Installing;
-        self.install_reservation = None;
-        Ok(package)
     }
 
     pub fn install_failed(&mut self, package: T) {
         self.exiting = self.quit_requested;
-        self.package = Some(package);
-        self.phase = Phase::Failed;
+        self.phase = UpdatePhase::Failed(package);
         self.install_reservation = None;
         self.install_on_quit = false;
         self.quit_requested = false;
@@ -172,15 +244,16 @@ impl<T> UpdateState<T> {
     }
 
     pub fn installed(&mut self) {
+        self.restart_authorized = false;
         self.exiting = self.quit_requested;
-        self.phase = Phase::Idle;
+        self.phase = UpdatePhase::Idle;
         self.install_on_quit = false;
         self.quit_requested = false;
         self.restart_requested = false;
     }
 
     fn prompt_pending(&self) -> bool {
-        self.phase == Phase::Downloaded
+        self.phase() == Phase::Downloaded
             && (self.prompt_open
                 || self
                     .version
@@ -189,7 +262,7 @@ impl<T> UpdateState<T> {
     }
 
     pub fn take_prompt(&mut self, visible: bool) -> Option<String> {
-        if !visible || self.phase != Phase::Downloaded || self.prompt_open {
+        if !visible || self.phase() != Phase::Downloaded || self.prompt_open {
             return None;
         }
         let version = self.version.as_ref()?;
@@ -214,14 +287,14 @@ impl<T> UpdateState<T> {
     }
 
     pub fn request_quit(&mut self) -> QuitAction<T> {
-        if self.phase == Phase::Installing {
+        if self.phase() == Phase::Installing {
             self.quit_requested = true;
             return QuitAction::Wait;
         }
         if self.exiting {
             return QuitAction::Exit;
         }
-        if !self.install_on_quit || self.phase != Phase::Downloaded {
+        if !self.install_on_quit || self.phase() != Phase::Downloaded {
             self.exiting = true;
             return QuitAction::Exit;
         }
@@ -229,14 +302,18 @@ impl<T> UpdateState<T> {
         self.restart_requested = false;
         self.deferred = None;
         self.install_reservation = None;
-        QuitAction::Install(
-            self.begin_install()
-                .expect("Deferred desktop update must retain its verified package"),
-        )
+        match std::mem::replace(&mut self.phase, UpdatePhase::Installing) {
+            UpdatePhase::Downloaded(package) => QuitAction::Install(package),
+            previous => {
+                self.phase = previous;
+                self.exiting = true;
+                QuitAction::Exit
+            }
+        }
     }
 
     pub fn busy(&self) -> bool {
-        matches!(self.phase, Phase::Downloading | Phase::Installing)
+        matches!(self.phase(), Phase::Downloading | Phase::Installing)
     }
 
     pub fn reveal(&mut self) {
@@ -250,6 +327,7 @@ impl<T> UpdateState<T> {
             && !self.prompt_pending()
             && (self.version.is_some() || self.web_commit.is_some())
         {
+            self.restart_authorized = true;
             self.restart_requested = true;
             self.deferred = None;
             self.quit_requested = false;
@@ -258,10 +336,11 @@ impl<T> UpdateState<T> {
 
     pub fn defer(&mut self) {
         if !self.busy() {
+            self.restart_authorized = false;
             self.deferred = Some((self.version.clone(), self.web_commit.clone()));
             self.restart_requested = false;
             self.install_reservation = None;
-            self.install_on_quit = self.phase == Phase::Downloaded && !self.prompt_pending();
+            self.install_on_quit = self.phase() == Phase::Downloaded && !self.prompt_pending();
             self.quit_requested = false;
         }
     }
@@ -279,7 +358,7 @@ impl<T> UpdateState<T> {
 
     pub fn snapshot(&self) -> Snapshot {
         Snapshot {
-            phase: self.phase,
+            phase: self.phase(),
             shell_version: self.version.clone(),
             web_commit: self.web_commit.clone(),
             deferred: self.deferred.as_ref()
@@ -292,11 +371,98 @@ impl<T> UpdateState<T> {
     }
 }
 
+pub fn install_guard(
+    phase: Phase,
+    prompt_pending: bool,
+    restart_authorized: bool,
+    quitting: bool,
+) -> Result<(), &'static str> {
+    if phase != Phase::Downloaded {
+        return Err("Desktop update is not downloaded");
+    }
+    if prompt_pending {
+        return Err("Desktop update awaits native confirmation");
+    }
+    if !restart_authorized && !quitting {
+        return Err("Desktop update restart was not requested");
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const RESERVATION: Uuid = Uuid::from_u128(1);
+
+    #[test]
+    fn failed_checks_back_off_to_an_hour_and_success_resets_spacing() {
+        let mut state = UpdateState::<()>::new(true);
+        for expected in [120, 240, 480, 960, 1920, 3600, 3600] {
+            state.checked(Err(()));
+            assert_eq!(state.check_interval(), Duration::from_secs(expected));
+        }
+        state.checked(Ok(None));
+        assert_eq!(state.check_interval(), Duration::from_secs(60));
+        let completed = state.last_completed.unwrap();
+        assert!(!state.begin_scheduled_check(completed + Duration::from_secs(10)));
+        assert!(state.begin_scheduled_check(completed + Duration::from_secs(60)));
+        assert!(!state.begin_scheduled_check(completed + Duration::from_secs(70)));
+    }
+
+    #[test]
+    fn later_does_not_authorize_a_page_install() {
+        let mut state = ready_for_quit();
+        assert!(matches!(
+            state.begin_install(),
+            Err("Desktop update restart was not requested")
+        ));
+        assert_eq!(state.phase(), Phase::Downloaded);
+        assert_eq!(state.package().copied(), Some("package"));
+    }
+
+    #[test]
+    fn native_approval_survives_web_acknowledgment_and_failed_install_retry() {
+        let mut state = UpdateState::new(true);
+        state.checked(Ok(Some(("0.2.0".into(), "package"))));
+        let package = state.begin_download(RESERVATION).unwrap();
+        state.downloaded(package, true);
+        confirm_restart(&mut state);
+        state.clear_restart();
+        assert!(!state.snapshot().restart_requested);
+        let package = state.begin_download(RESERVATION).unwrap();
+        state.downloaded(package, true);
+        let package = state.begin_install().expect("acknowledged native approval");
+        state.install_failed(package);
+        assert!(!state.snapshot().restart_requested);
+        state.release_install(RESERVATION);
+        let package = state.begin_download(RESERVATION).unwrap();
+        state.downloaded(package, true);
+        assert_eq!(state.begin_install(), Ok("package"));
+    }
+
+    #[test]
+    fn later_and_a_new_version_revoke_previous_native_approval() {
+        let mut state = ready_for_quit();
+        state.request_restart();
+        state.clear_restart();
+        state.defer();
+        assert!(state.begin_install().is_err());
+        let mut state = UpdateState::new(true);
+        state.checked(Ok(Some(("0.2.0".into(), "package"))));
+        let package = state.begin_download(RESERVATION).unwrap();
+        state.downloaded(package, true);
+        confirm_restart(&mut state);
+        state.clear_restart();
+        state.checked(Ok(Some(("0.3.0".into(), "new package"))));
+        assert!(!state.restart_authorized);
+        assert!(!state.snapshot().restart_requested);
+        let package = state.begin_download(RESERVATION).unwrap();
+        state.downloaded(package, true);
+        let version = state.take_prompt(true).unwrap();
+        state.answer_prompt(&version, false);
+        assert!(state.begin_install().is_err());
+    }
 
     #[test]
     fn ready_package_waits_for_native_confirmation() {
@@ -329,8 +495,8 @@ mod tests {
     fn quit_during_installing_waits_for_completion() {
         let mut state = ready_for_quit();
         assert_eq!(state.request_quit(), QuitAction::Install("package"));
-        assert_eq!(state.phase, Phase::Installing);
-        assert_eq!(state.package, None);
+        assert_eq!(state.phase(), Phase::Installing);
+        assert_eq!(state.package(), None);
         assert_eq!(state.request_quit(), QuitAction::Wait);
         assert_eq!(state.request_quit(), QuitAction::Wait);
         assert!(state.begin_install().is_err());
@@ -383,8 +549,8 @@ mod tests {
         state.downloaded(package, true);
         confirm_restart(&mut state);
         assert!(state.snapshot().restart_requested);
-        assert_eq!(state.phase, Phase::Downloaded);
-        assert_eq!(state.package, Some("package"));
+        assert_eq!(state.phase(), Phase::Downloaded);
+        assert_eq!(state.package().copied(), Some("package"));
         let package = state.begin_download(RESERVATION).unwrap();
         state.downloaded(package, true);
         assert_eq!(state.take_prompt(true), None);
@@ -399,13 +565,13 @@ mod tests {
         let QuitAction::Install(package) = state.request_quit() else {
             panic!("Quit must take the package without a web call");
         };
-        assert_eq!(state.phase, Phase::Installing);
+        assert_eq!(state.phase(), Phase::Installing);
         assert!(state.quit_requested);
         assert!(!state.snapshot().restart_requested);
         assert_eq!(package, "package");
         state.install_failed(package);
-        assert_eq!(state.phase, Phase::Failed);
-        assert_eq!(state.package, Some("package"));
+        assert_eq!(state.phase(), Phase::Failed);
+        assert_eq!(state.package().copied(), Some("package"));
         assert_eq!(state.snapshot().shell_version.as_deref(), Some("0.2.0"));
         assert!(!state.quit_requested);
         assert!(!state.snapshot().restart_requested);
@@ -423,7 +589,7 @@ mod tests {
         state.answer_prompt(&version, false);
         state.checked(Ok(Some(("0.3.0".into(), "unverified package"))));
         assert_eq!(state.version.as_deref(), Some("0.2.0"));
-        assert_eq!(state.package, Some("verified package"));
+        assert_eq!(state.package().copied(), Some("verified package"));
         assert!(!state.begin_check());
         assert_eq!(
             state.request_quit(),
@@ -437,14 +603,14 @@ mod tests {
         assert!(state.begin_check());
         assert!(!state.begin_check());
         state.checked(Ok(Some(("0.2.0".into(), "package"))));
-        assert_eq!(state.phase, Phase::Available);
+        assert_eq!(state.phase(), Phase::Available);
         assert!(!state.snapshot().restart_requested);
         assert!(state.begin_check());
         state.checked(Ok(Some(("0.2.0".into(), "same package"))));
-        assert_eq!(state.package, Some("package"));
-        state.phase = Phase::Downloading;
+        assert_eq!(state.package().copied(), Some("package"));
+        state.phase = UpdatePhase::Downloading;
         assert!(!state.begin_check());
-        state.phase = Phase::Installing;
+        state.phase = UpdatePhase::Installing;
         assert!(!state.begin_check());
     }
 
@@ -457,7 +623,7 @@ mod tests {
         state.reveal();
         assert!(!state.snapshot().deferred);
         assert!(!state.snapshot().restart_requested);
-        assert_eq!(state.phase, Phase::Available);
+        assert_eq!(state.phase(), Phase::Available);
     }
 
     #[test]
@@ -471,7 +637,7 @@ mod tests {
         assert!(state.begin_download(RESERVATION).is_err());
         state.checked(Ok(Some(("0.3.0".into(), "racing check"))));
         state.downloaded(package, false);
-        assert_eq!(state.phase, Phase::Failed);
+        assert_eq!(state.phase(), Phase::Failed);
         assert!(state.begin_install().is_err());
         let package = state.begin_download(RESERVATION).unwrap();
         state.downloaded(package, true);
@@ -479,10 +645,12 @@ mod tests {
         let verified = state.begin_install().unwrap();
         assert!(!state.begin_check());
         state.install_failed(verified);
-        assert_eq!(state.phase, Phase::Failed);
+        assert_eq!(state.phase(), Phase::Failed);
+        state.request_restart();
         let verified = state.begin_download(RESERVATION).unwrap();
         assert_eq!(verified, "package");
         state.downloaded(verified, true);
+        state.request_restart();
         assert_eq!(state.begin_install().unwrap(), "package");
     }
 
@@ -494,7 +662,7 @@ mod tests {
         let package = state.begin_download(RESERVATION).unwrap();
         state.downloaded(package, true);
         state.checked(Ok(Some(("0.3.0".into(), "newer package"))));
-        assert_eq!(state.phase, Phase::Downloaded);
+        assert_eq!(state.phase(), Phase::Downloaded);
         state.request_restart();
         assert!(!state.snapshot().restart_requested);
         state.clear_restart();
@@ -506,7 +674,7 @@ mod tests {
         state.install_failed(package);
         assert!(state.begin_check());
         state.checked(Ok(Some(("0.3.0".into(), "newer package"))));
-        assert_eq!(state.phase, Phase::Available);
+        assert_eq!(state.phase(), Phase::Available);
     }
 
     #[test]
@@ -566,7 +734,7 @@ mod tests {
         state.release_install(RESERVATION);
         state.checked(Ok(Some(("0.3.0".into(), "newer package"))));
         assert_eq!(state.version.as_deref(), Some("0.3.0"));
-        assert_eq!(state.phase, Phase::Available);
+        assert_eq!(state.phase(), Phase::Available);
     }
 
     #[test]
@@ -611,7 +779,7 @@ mod tests {
         state.checked(Ok(Some(("0.2.0".into(), "package"))));
         state.checked(Err(()));
         assert!(state.snapshot().check_failed);
-        assert_eq!(state.package, Some("package"));
+        assert_eq!(state.package().copied(), Some("package"));
         assert!(state.begin_check());
         state.checked(Ok(None));
         assert!(!state.snapshot().check_failed);

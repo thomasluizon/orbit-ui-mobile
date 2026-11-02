@@ -245,6 +245,7 @@ function controlledSseResponse() {
       headers: { 'content-type': 'text/event-stream' },
     }),
     enqueue: (sseFrame: string) => streamController.enqueue(encoder.encode(sseFrame)),
+    enqueueBytes: (bytes: Uint8Array) => streamController.enqueue(bytes),
     close: () => streamController.close(),
     fail: (error: Error) => streamController.error(error),
   }
@@ -760,13 +761,49 @@ describe('web useChatComposer streaming send', () => {
     ])
   })
 
-  it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit', 'limit-notice'])('replaces the pending reply indicator on %s', async (arrival) => {
+  it.each(['drop', 'incomplete'])('makes a %s turn retryable with its original key', async (outcome) => {
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+    let sending!: Promise<void>
+    act(() => { sending = result.current.sendMessage('Plan') })
+    await act(async () => { stream.enqueue(frame('{"type":"started"}')); stream.enqueue(frame('{"type":"delta","text":"Partial"}')) })
+    expect(useChatStore.getState().messages.find(message => message.role === 'ai')?.content).toBe('Partial')
+    await act(async () => { if (outcome === 'drop') stream.fail(new TypeError('network connection lost')); else stream.close(); await sending })
+    expect(result.current.sendError).toBe('chat.sendError')
+    expect(result.current.canRetryLastSend).toBe(true)
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    await act(async () => { await result.current.retryLastSend() })
+    const keys = mocks.fetch.mock.calls.map(([, options]) => new Headers(options.headers).get('Idempotency-Key'))
+    expect(keys).toHaveLength(3)
+    expect(keys[0]).toBeTruthy()
+    expect(new Set(keys).size).toBe(1)
+    expect(result.current.sendError).toBeNull()
+  })
+
+  it('keeps a multi-byte character whole across network chunks', async () => {
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+    let sending!: Promise<void>
+    act(() => { sending = result.current.sendMessage('Plan') })
+    const text = 'ação 🪐'
+    const bytes = new TextEncoder().encode(frame(JSON.stringify({ type: 'delta', text })))
+    const split = bytes.indexOf(0xc3) + 1
+    await act(async () => { stream.enqueueBytes(bytes.slice(0, split)) })
+    await act(async () => { stream.enqueueBytes(bytes.slice(split)) })
+    expect(useChatStore.getState().messages.find(message => message.role === 'ai')?.content).toBe(text)
+    await act(async () => { stream.enqueue(finalFrame(makeChatResponse({ aiMessage: text }))); stream.close(); await sending })
+    expect(result.current.sendError).toBeNull()
+  })
+
+  it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit', 'limit-notice', 'drop', 'incomplete'])('replaces the pending reply indicator on %s', async (arrival) => {
     const stream = controlledSseResponse()
     mocks.fetch.mockResolvedValue(stream.response)
     const { container, rerender } = render(<ComposerConversationHarness />)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
-    onTestFinished(() => { if (arrival !== 'cancel') stream.close() })
+    onTestFinished(() => { if (!['cancel', 'drop', 'incomplete'].includes(arrival)) stream.close() })
     expect(container.querySelector('[data-astra-pending]')).not.toBeNull()
     expect(screen.getByRole('feed')).toHaveAttribute('aria-busy', 'true')
     await act(async () => {
@@ -780,10 +817,26 @@ describe('web useChatComposer streaming send', () => {
       if (arrival === 'limit') stream.enqueue(frame('{"type":"error","error":"Limit reached","status":403}'))
       if (arrival === 'block') stream.enqueue(finalFrame(makeChatResponse({ aiMessage: '', habitList: { scope: 'today', items: [] } })))
       if (arrival === 'cancel') stream.fail(new DOMException('Cancelled', 'AbortError'))
+      if (arrival === 'drop' || arrival === 'incomplete') {
+        stream.enqueue(frame('{"type":"started"}'))
+        stream.enqueue(frame('{"type":"delta","text":"Partial"}'))
+        await Promise.resolve()
+        if (arrival === 'drop') stream.fail(new TypeError('network connection lost'))
+        else stream.close()
+      }
     })
     await waitFor(() => expect(container.querySelector('[data-astra-pending]') === null).toBe(arrival !== 'text'))
     if (arrival === 'text') expect(screen.queryByText('Start with water')).not.toBeInTheDocument()
     if (arrival === 'tool') expect(screen.getByText('chat.trace.habits.read')).toBeVisible()
+    if (arrival === 'drop' || arrival === 'incomplete') {
+      expect(screen.getAllByText('chat.sendError').some(element => !element.hidden)).toBe(true)
+      mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+      fireEvent.click(screen.getByRole('button', { name: 'shell.composer.retry' }))
+      await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3))
+      const keys = mocks.fetch.mock.calls.map(([, options]) => new Headers(options.headers).get('Idempotency-Key'))
+      expect(keys[0]).toBeTruthy()
+      expect(new Set(keys).size).toBe(1)
+    }
   })
 
   it.each([412, 1440])('opens the conversation for a shell typed send at %s with streaming text and one composer', async (width) => {

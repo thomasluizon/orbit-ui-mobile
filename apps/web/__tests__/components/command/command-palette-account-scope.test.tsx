@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { holdAccount, recoverSameAccount, replaceAccountWith } from '@/__tests__/support/account-change'
@@ -48,6 +48,7 @@ let habitsQuery: { data?: ReturnType<typeof buildQueryData>; isPending: boolean;
 
 async function renderPalette() {
   const view = render(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} />)
+  await act(async () => { await vi.dynamicImportSettled() })
   await screen.findByRole('combobox')
   return view
 }
