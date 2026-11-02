@@ -1,4 +1,5 @@
 import React from 'react'
+import { CodedError } from 'expo-modules-core'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VersionUpdateDrawer } from '@/components/version-update-drawer'
@@ -390,7 +391,7 @@ describe('Play update sheet selection', () => {
     expect(mocks.startUpdate).not.toHaveBeenCalled()
   })
   it('shows no store sheet if Play install status cannot be read', async () => {
-    const error = new Error('Unexpected Play failure')
+    const error = new CodedError('ERR_APP_UPDATE_CHECK', 'Unexpected Play failure')
     mocks.readDownloaded.mockRejectedValue(error)
     await mount()
     expect(sheetTitles()).toEqual([])
@@ -401,6 +402,20 @@ describe('Play update sheet selection', () => {
       outcome: 'success', play_status: 2, available_version_code: 141,
       installed_version_code: 140, play_error_code: null,
     })
+  })
+  it.each([
+    'Failed to bind to the service.',
+    'Install Error(-3): The API is not available on this device.',
+    'Install Error(-9): The Play Store app is either not installed or not the official version.',
+  ])('does not report a native unavailable-service rejection or prompt for an update: %s', async (message) => {
+    mocks.readDownloaded.mockRejectedValue(new CodedError('ERR_APP_UPDATE_SERVICE_UNAVAILABLE', message))
+    await mount()
+    expect(mocks.readDownloaded).toHaveBeenCalledOnce()
+    expect(Sentry.captureException).not.toHaveBeenCalled()
+    expect(sheetTitles()).toEqual([])
+    expect(mocks.present).not.toHaveBeenCalled()
+    expect(mocks.startUpdate).not.toHaveBeenCalled()
+    expect(captureAndroidUpdateSheetShown).not.toHaveBeenCalled()
   })
   it.each([
     'm9.E: Failed to bind to the service.',

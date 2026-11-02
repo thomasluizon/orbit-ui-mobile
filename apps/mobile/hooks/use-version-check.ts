@@ -52,7 +52,8 @@ function compareVersionCodes(offered: string, installed: string): -1 | 0 | 1 {
 function classifyAndroidUpdateError(error: unknown) {
   const codeMatch = error instanceof Error ? /Install Error\((-?\d+)\)/.exec(error.message) : null
   const playErrorCode = codeMatch ? Number(codeMatch[1]) : null
-  const serviceUnavailable = playErrorCode === -3 || playErrorCode === -9 ||
+  const serviceUnavailable = (error instanceof Error && 'code' in error && error.code === 'ERR_APP_UPDATE_SERVICE_UNAVAILABLE') ||
+    playErrorCode === -3 || playErrorCode === -9 ||
     (error instanceof Error && error.message.endsWith(': Failed to bind to the service.'))
   return { playErrorCode, serviceUnavailable }
 }
