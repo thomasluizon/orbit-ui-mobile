@@ -1,5 +1,9 @@
 'use client'
 
+import { isChatReplyActive, prepareConversationSend, resolveChatRequestContext } from '@orbit/shared/chat'
+
+import { conversationHistory } from '@/lib/conversation-history'
+
 import { createAstraAllowanceTranslator } from '@orbit/shared/utils'
 
 import { mediaQueryMatches } from '@/lib/media-query'
@@ -409,6 +413,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       await reply.waitForReveal(firstReveal)
       if (!reply.isHidden()) threadScroll.holdPosition()
     }
+    if (!reply.isCancelled() && response.conversationId) useChatStore.setState({ conversationId: response.conversationId, serverConversationId: response.conversationId })
     if (!reply.isHidden()) {
       setIsTyping(false)
       activeStepsRef.current = []
@@ -642,11 +647,29 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     }
   }, [performSend, setInput, setSendError, t, clearImage, removeTextFile])
 
+  const reportHistoryFailure = useCallback((generation: number) => {
+    if (generation === getAccountGeneration()) setSendError(t('common.error'))
+  }, [setSendError, t])
+
+  const sendPreparedAttempt = useCallback(async (attempted: AttemptedSend, consumesComposerDraft: boolean) => {
+    const sendState = useChatStore.getState()
+    if (isChatReplyActive(sendState)) {
+      queueAttempt(attempted, consumesComposerDraft)
+      return
+    }
+
+    if (consumesComposerDraft) {
+      setInput('')
+      clearImage()
+      removeTextFile()
+    }
+
+    await performSend(attempted, false)
+  }, [queueAttempt, setInput, clearImage, removeTextFile, performSend])
+
   const sendMessage = useCallback(
     async (content?: string, requestContext?: 'followUp' | Pick<ChatClientContext, 'previousStartingStep' | 'selectedOfferKey'>, contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
-      const { messageOrigin, previousStartingStep, selectedOfferKey }: Pick<ChatClientContext, 'messageOrigin' | 'previousStartingStep' | 'selectedOfferKey'> =
-        typeof requestContext === 'object' ? requestContext : { messageOrigin: requestContext }
-      const sendsComposerDraft = content === undefined && messageOrigin !== 'followUp'
+      const { messageOrigin, previousStartingStep, selectedOfferKey, sendsComposerDraft } = resolveChatRequestContext(content, requestContext)
       const typedContent = content?.trim() ?? input.trim()
       const messageContent = selectedTextFile && sendsComposerDraft
         ? buildChatMessageWithFileContent({
@@ -655,7 +678,6 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
             fileContent: selectedTextFile.content,
           })
         : typedContent
-      const sendState = useChatStore.getState()
       if (!hasComposerContent(typedContent, sendsComposerDraft ? attachments : [])) return
       if (!isOnline) {
         setSendError(t('shell.composer.offline.reason'))
@@ -674,15 +696,23 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
         return
       }
 
+      const initiatingGeneration = getAccountGeneration()
+      const intendedAccountId = getHeldAccountId()
+      const draftRevision = useChatStore.getState().draftRevision
+      const ready = prepareConversationSend(conversationHistory, useUIStore.getState(), () => reportHistoryFailure(initiatingGeneration))
+      if (ready !== true && !await ready) return
+      if (initiatingGeneration !== getAccountGeneration() || intendedAccountId !== getHeldAccountId()) return
+      const consumesComposerDraft = sendsComposerDraft && draftRevision === useChatStore.getState().draftRevision
+
       const attempted: AttemptedSend = {
-        intendedAccountId: getHeldAccountId(),
+        intendedAccountId,
         content: messageContent,
         draftContent: sendsComposerDraft ? input : typedContent,
         image: sendsComposerDraft ? selectedImage : null,
         preview: sendsComposerDraft ? imagePreview : null,
         textFile: sendsComposerDraft ? selectedTextFile : null,
-        restoreDraftOnFailure: content === undefined,
-        clearDraftOnSuccess: content === undefined,
+        restoreDraftOnFailure: consumesComposerDraft,
+        clearDraftOnSuccess: consumesComposerDraft,
         restoredDraftRevision: null,
         messageOrigin,
         previousStartingStep,
@@ -690,22 +720,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
         contextualRequest,
       }
 
-      if (sendState.replyActive || sendState.isTyping || sendState.streamingMessageId !== null) {
-        queueAttempt(attempted, sendsComposerDraft)
-        return
-      }
-
-      if (sendsComposerDraft) {
-        setInput('')
-        clearImage()
-        removeTextFile()
-      }
-
-      await performSend(attempted, false)
+      await sendPreparedAttempt(attempted, consumesComposerDraft)
     },
     [allowanceText,
-      queueAttempt, setSendError,
-      clearImage,
+      reportHistoryFailure, sendPreparedAttempt, setSendError,
       attachments,
       addMessage,
       atMessageLimit,
@@ -713,11 +731,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       imagePreview,
       input,
       isOnline,
-      performSend,
-      removeTextFile,
       selectedImage,
       selectedTextFile,
-      setInput,
       scrollToBottom,
       t,
     ],

@@ -1,3 +1,4 @@
+import { conversationPageSchema } from '@orbit/shared/types/conversation'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { proactiveItemSchema } from '@orbit/shared/types/proactive'
 import { z, type ZodType } from 'zod'
@@ -58,6 +59,7 @@ interface MockRoute {
 }
 
 const routes: MockRoute[] = [
+  { method: 'GET', path: '/api/chat/conversations/latest', schema: conversationPageSchema.nullable(), body: null },
   { method: 'POST', path: '/api/habits/interpret-date', schema: dateInterpretationSchema, body: { date: '2026-09-26', referenceDate: '2026-09-04' } },
   { method: 'GET', path: '/api/ai/proactive/current', schema: proactiveItemSchema.nullable(), body: null },
   { method: 'GET', path: '/api/gamification/streak', schema: streakInfoSchema, body: streakFixture },
@@ -311,6 +313,10 @@ function sendFixtureRoute(req: IncomingMessage, res: ServerResponse, route: Mock
   if (url.pathname === '/api/tags') body = tagsForRequest(req)
   const seeded = session ? sessionFixtures.read(session, route.method, url) : undefined
   if (seeded) body = seeded.body
+  if (body === null && url.pathname === '/api/chat/conversations/latest') {
+    sendJson(res, 404, { error: 'Conversation unavailable', errorCode: 'CONVERSATION_NOT_FOUND' })
+    return
+  }
   if (body === null && url.pathname === '/api/ai/proactive/current') {
     res.writeHead(204)
     res.end()

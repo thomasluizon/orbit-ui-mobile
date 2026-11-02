@@ -33,6 +33,21 @@ function createRequest(
 }
 
 describe('catch-all API proxy route', () => {
+  it('forwards private conversation image bytes with the signed-in session and no cache', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: 'image-session-token', expiresAt: null, refreshed: false, refreshFailed: false })
+    const bytes = new Uint8Array([137, 80, 78, 71])
+    mockFetch.mockResolvedValue(new Response(bytes, { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, no-store' } }))
+    const path = ['chat', 'conversations', '00000000-0000-4000-8000-000000000001', 'images', '00000000-0000-4000-8000-000000000002']
+    const response = await GET(createRequest(path.join('/')), { params: Promise.resolve({ path }) })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('image/png')
+    expect(response.headers.get('cache-control')).toContain('private, no-store')
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes)
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining(`/api/${path.join('/')}`), expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer image-session-token' }), cache: 'no-store',
+    }))
+  })
+
   it.each([
     { body: 'Too Many Requests', contentType: 'text/plain; charset=utf-8' },
     { body: '<html>Too Many Requests</html>', contentType: 'text/html' },

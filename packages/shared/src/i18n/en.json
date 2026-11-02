@@ -1349,6 +1349,13 @@
     }
   },
   "chat": {
+    "conversation": {
+      "delete": "Delete conversation",
+      "deleteTitle": "Delete this conversation?",
+      "deleteBody": "This permanently removes the conversation and its images from your account on every device.",
+      "approved": "Approved",
+      "expired": "Expired"
+    },
     "habitSuggestions": {
       "title": "Habit ideas",
       "add": "Add",
@@ -2987,7 +2994,7 @@
       "intro": "We retain your data only as long as needed to provide the service:",
       "account": "Account data: kept for as long as your account is active.",
       "sessions": "Authentication sessions and push tokens: kept while active and removed on logout, token expiry, or device unsubscribe.",
-      "ai": "AI chat history: kept while AI features are enabled and removed when you delete your account.",
+      "ai": "We keep your Astra conversations, including the images you send, until you delete the conversation, use Fresh Start, or delete your account. Images are never public.",
       "reminderHistory": "Sent reminder, slip alert, and streak freeze records: kept for 90 days from the record date.",
       "syncRecords": "Records deleted for offline sync: kept for 31 days before permanent removal.",
       "calendarSuggestions": "Google Calendar import suggestions that you do not import: kept for 14 days.",
@@ -3015,7 +3022,7 @@
     },
     "export": {
       "title": "Your Right to Export Your Data",
-      "body": "You can download a copy of all your Orbit data (habits, logs, goals, tags, and settings) as a JSON file from the Profile page, in line with your data-portability rights under LGPD Art. 18."
+      "body": "You can download a copy of your Orbit data as a JSON file from Profile, in line with your data-portability rights under LGPD Art. 18. It includes your habits, logs, goals, tags, settings, and saved Astra conversations: your messages, Astra's replies, what Astra checked or changed, and what you decided on each suggestion. Images you sent are listed by file name only."
     },
     "deletion": {
       "title": "Data Deletion",

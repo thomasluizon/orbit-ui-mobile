@@ -1,3 +1,5 @@
+import { makeConversationPage } from '@orbit/shared/test-support/conversation-fixtures'
+import { restoreConversationPage } from '@orbit/shared/chat'
 import { useUIStore } from '@/stores/ui-store'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
@@ -77,6 +79,15 @@ const periodInsight: NonNullable<ChatMessage['periodInsight']> = {
 }
 
 describe('MessageBubble', () => {
+  it('loads a restored private image through the same-origin BFF session path', () => {
+    const message = restoreConversationPage(makeConversationPage())[0]!
+    render(<MessageBubble message={message} />)
+    const image = screen.getByRole('img', { name: 'chat.attachmentPreview' })
+    expect(image).toHaveAttribute('src', message.imageUrl)
+    expect(image.getAttribute('src')).toMatch(/^\/api\/chat\/conversations\/[^/]+\/images\/[^/]+$/)
+    expect(image).toHaveAttribute('referrerpolicy', 'no-referrer')
+  })
+
   it('renders a clarified operation and its repeated pending preview once', () => {
     const message = makeClarificationPreviewMessage()
     const operation = makeHeldHabitMessage().pendingOperations![0]!

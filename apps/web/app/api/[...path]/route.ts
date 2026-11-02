@@ -216,7 +216,7 @@ async function toNextResponse(
   sessionRefreshFailed = false,
 ): Promise<NextResponse> {
   source = await normalizeUpstreamResponse(source)
-  const body = NULL_BODY_STATUSES.has(source.status) ? null : await source.text()
+  const body = NULL_BODY_STATUSES.has(source.status) ? null : await source.arrayBuffer()
   const headers = buildResponseHeaders(source)
   if (sessionRefreshFailed) {
     headers.set(SESSION_REFRESH_HEADER, SESSION_REFRESH_FAILED_VALUE)

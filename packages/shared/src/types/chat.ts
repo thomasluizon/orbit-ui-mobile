@@ -639,6 +639,7 @@ export const chatMessageSchema = z.object({
   operations: z.array(agentOperationResultSchema).nullable().optional(),
   pendingOperations: z.array(pendingAgentOperationSchema).nullable().optional(),
   pendingOperationStates: z.record(z.string(), z.object({
+    recordedOutcome: z.enum(['approved', 'edited', 'expired']).optional(),
     status: z.enum(['done', 'failed']).optional(),
     completedOperation: agentOperationResultSchema.optional(),
     canRetry: z.boolean().optional(),
@@ -658,6 +659,8 @@ export const chatMessageSchema = z.object({
   clarificationPreviews: z.record(z.string(), pendingAgentOperationSchema).optional(),
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   imageUrl: z.string().nullable().optional(),
+  storedImage: z.object({ conversationId: z.uuid(), turnId: z.uuid() }).optional(),
+  restored: z.boolean().optional(),
   ...replyCardFieldsShape,
   toolSteps: z.array(z.object({ domain: z.string(), access: z.string() })).optional(),
   timestamp: z.date(),
@@ -674,6 +677,7 @@ export const chatResponseSchema = z.object({
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   ...replyCardFieldsShape,
   messageAllowanceConsumed: z.boolean().nullish(),
+  conversationId: z.uuid().nullish(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

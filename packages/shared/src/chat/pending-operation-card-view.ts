@@ -125,6 +125,7 @@ export interface PendingOperationCardRenderers<Node> {
 }
 
 export interface PendingOperationCardActions {
+  recordedOutcome?: 'approved' | 'edited' | 'expired'
   busy: boolean
   parentChoiceFocus?: { request: number; shouldFocus: () => boolean }
   hasRequiredChoices?: boolean
@@ -512,6 +513,9 @@ export function renderPendingOperationCard<Node>({
   render: PendingOperationCardRenderers<Node>
 }): Node | null {
   const revision = card.revision
+  if (card.recordedOutcome && labels.recordedOutcome) {
+    return render.notice(labels.recordedOutcome[card.recordedOutcome])
+  }
   if (card.dismissed || revision?.rejected) return render.fragment(render.rejected(labels.rejected(targetCount(pendingOperation))))
 
   if (card.status == null && (pendingOperation.changeTargetCount === 0 || (pendingOperation.changeTargetCount == null

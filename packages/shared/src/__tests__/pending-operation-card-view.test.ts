@@ -1,3 +1,5 @@
+import { restoreConversationPage } from '../chat/conversation-history'
+import { makeRevisedConversationPage, storedOperationId } from '../test-support/conversation-fixtures'
 import { astraOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
 import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
@@ -1352,4 +1354,18 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     expect(output).toContain(account ? messages.chat.operation.status.Denied : messages.chat.operation.status.changeNotMade)
     if (!account) expect(output).not.toContain(messages.chat.operation.status.Denied)
   })
+})
+
+it.each(['approved', 'edited', 'expired'] as const)('keeps a restored revised %s outcome separate from the original proposal', outcome => {
+  const message = restoreConversationPage(makeRevisedConversationPage(outcome))[1]!
+  const operation = message.pendingOperations![0]!
+  const localized = buildPendingOperationCardLabels(operation, key => key, value => value)
+  const { record, render } = createRenderers()
+  const result = renderPendingOperationCard({
+    card: { ...createCard(), ...message.pendingOperationStates![storedOperationId] },
+    labels: localized, render, pendingOperation: operation, onVerifyStepUp: vi.fn(),
+  })
+  expect(result).toBe(outcome === 'edited' ? 'chat.operation.edited' : `chat.conversation.${outcome}`)
+  expect(record.frame).toBeUndefined()
+  expect(record.buttons).toEqual([])
 })

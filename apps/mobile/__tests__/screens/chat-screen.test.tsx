@@ -56,6 +56,7 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 
+vi.mock('@/lib/conversation-history', () => ({ conversationHistory: { latest: vi.fn(() => Promise.resolve(false)) } }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, values?: { count?: number }) =>
     key === 'chat.trace.steps' ? `${values?.count} steps` : key }),

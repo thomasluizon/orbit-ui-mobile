@@ -1,3 +1,8 @@
+import { ConversationDeleteAction } from './conversation-delete-action'
+import { useConversationHistory } from '@/hooks/use-conversation-history'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { ErrorState } from '@/components/ui/error-state'
+import { IconButton } from '@/components/ui/icon-button'
 import { ConversationReveal } from './conversation-motion'
 import { ShellContent } from '@/components/shell/shell-content';
 import { useShellContentStyle } from '@/components/shell/shell-side-insets';
@@ -32,7 +37,7 @@ import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { AstraGlyph } from "@/components/ui/astra-glyph";
 import { MotionPressable } from "@/components/ui/motion-pressable";
-import { ChevronDown, Lightbulb, X } from "@/components/ui/icons";
+import { ChevronDown, Lightbulb, X, RefreshCw } from "@/components/ui/icons";
 import { useChatStore } from '@/stores/chat-store';
 import { Button } from '@/components/ui/pill-button';
 import { ListRow } from '@/components/ui/list-row';
@@ -87,7 +92,7 @@ function TurnAnnouncement({ content, complete, messageId, claimAnnouncement }: R
     });
     return () => { mounted = false; };
   }, [complete, content, messageId, claimAnnouncement]);
-  return <Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcement}</Text>;
+  return <Text testID="astra-turn-announcement" accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcement}</Text>;
 }
 
 function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
@@ -106,8 +111,21 @@ function PendingPromptIdea({ hasDraft, disabledReason, onSelect }: Readonly<{
   </View>;
 }
 
+function ConversationHistoryFeedback({ failed, busy, onRetry }: Readonly<{ failed: boolean; busy: boolean; onRetry: () => void }>) {
+  const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return <>
+    {failed ? <ErrorState message={t('common.error')} action={<IconButton label={t('common.retry')} onClick={onRetry}><RefreshCw size={20} color={tokens.fg1} /></IconButton>} /> : null}
+    <Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{busy ? t('common.loading') : ''}</Text>
+  </>
+}
+
 export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) {
   const { t } = useTranslation();
+  const history = useConversationHistory()
+  const historyBusy = useChatStore(state => state.conversationBusy)
+  const beforeOrder = useChatStore(state => state.conversationBeforeOrder)
   const navigate = useChatNavigation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
@@ -274,14 +292,14 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         <AstraGlyph size={24} />
       </View> : null}
       <View style={styles.messageContent}>
-      {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={getChatCompletionText(item, { ready: t('chat.replyReady'), unreadable: t('chat.unreadableReply') })} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
+      {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={getChatCompletionText(item, { ready: t('chat.replyReady'), unreadable: t('chat.unreadableReply') })} complete={!item.restored && (!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
       <MessageBubble
         message={item}
         earlierMessages={messages.slice(0, index)}
         laterMessages={messages.slice(index + 1)}
         blockAnswerInteraction={blockAnswerInteraction}
         onSendMessage={sendMessage}
-        animateEntry={!initialMessageIds.has(item.id)}
+        animateEntry={!item.restored && !initialMessageIds.has(item.id)}
         isStreaming={item.id === streamingMessageId}
         onBreakdownConfirmed={handleBreakdownConfirmed}
         onActionChipClick={handleActionChipClick}
@@ -331,6 +349,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           title={t("chat.title")}
           titleVisual={<AstraGlyph size={16} />}
           action={<>
+            <ConversationDeleteAction onDelete={history.requestDelete} isSending={chat.isSending} operationBusy={isPendingOperationBusy} />
             <MotionPressable ref={browseHeaderRef} accessibilityRole="button" accessibilityLabel={t('chat.templates.browse')} onPress={() => openLibrary(browseHeaderRef)} style={({ pressed }) => [styles.headerClose, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><Lightbulb size={20} strokeWidth={2} color={tokens.fg1} /></MotionPressable>
             <MotionPressable
               accessibilityRole="button"
@@ -346,6 +365,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           </>}
         />
 
+        <ConversationHistoryFeedback failed={history.failed !== null} busy={historyBusy} onRetry={history.retry} />
         <Text testID="astra-working-announcement" accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcingWork ? t('chat.trace.working') : ''}</Text>
 
         {showSuggestions ? (
@@ -355,6 +375,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             <KeyboardAwareFlatList
               ref={flatListRef}
               data={messages}
+              maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
               renderItem={renderMessage}
               keyExtractor={keyExtractor}
               contentContainerStyle={[styles.messageList, messageStyle]}
@@ -362,6 +383,10 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               onContentSizeChange={onContentSizeChange}
               onScroll={(event) => {
                 const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+                if (contentOffset.y <= 0 && beforeOrder !== null && !historyBusy) {
+                  threadScroll.stopFollowing()
+                  void history.loadEarlier()
+                }
                 threadScroll.recordScroll(contentOffset.y, contentSize.height - layoutMeasurement.height);
                 const visible = contentSize.height - layoutMeasurement.height - contentOffset.y < 40;
                 if (pendingVisible.current !== visible) {
@@ -417,6 +442,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           goalId={selectedGoalId}
         />
       )}
+      <ConfirmSheet open={history.confirmationOpen} title={t('chat.conversation.deleteTitle')} message={t('chat.conversation.deleteBody')} confirmLabel={t('chat.conversation.delete')} destructive onCancel={history.cancelDelete} onConfirm={() => { void history.confirmDelete() }} />
     </View>
     </ChatCardOperationContext.Provider>
   );

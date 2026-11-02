@@ -13,6 +13,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 
 const safeArea = vi.hoisted(() => ({ top: 24, bottom: 16, left: 0, right: 0 }))
+vi.mock('@/lib/conversation-history', () => ({ conversationHistory: { latest: vi.fn(() => Promise.resolve(false)) } }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ ...safeArea }) }))
 vi.mock('@/hooks/use-habits', () => ({}))
 vi.mock('expo-clipboard', () => ({ }))
