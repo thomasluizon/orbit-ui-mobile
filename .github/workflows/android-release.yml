@@ -45,6 +45,8 @@ on:
 permissions:
   contents: read
   deployments: write
+  actions: read
+  checks: read
 
 concurrency:
   group: android-design-release-${{ inputs.track == 'internal' && 'staging' || 'production' }}
@@ -67,6 +69,28 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     steps:
+      - name: Require successful release CI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          checks=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/commits/${SOURCE_SHA}/check-runs?per_page=100")
+          for workflow in test guards; do
+            runs=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}.yml/runs?head_sha=${SOURCE_SHA}&per_page=100")
+            suite=$(jq -er --arg sha "$SOURCE_SHA" --arg path ".github/workflows/${workflow}.yml" '
+              [.[] | .workflow_runs[] | select(.head_sha == $sha and .path == $path)]
+              | max_by([.run_number, .run_attempt])
+              | select(.status == "completed" and .conclusion == "success") | .check_suite_id' <<< "$runs") || {
+              echo "::error::Selected SHA requires a successful ${workflow}.yml run"; exit 1;
+            }
+            jq -e --arg sha "$SOURCE_SHA" --argjson suite "$suite" '
+              [.[] | .check_runs[] | select(.check_suite.id == $suite)]
+              | length > 0 and all(.[]; .head_sha == $sha and .app.id == 15368 and .status == "completed"
+                and (.conclusion == "success" or .conclusion == "neutral" or .conclusion == "skipped"))' <<< "$checks" >/dev/null || {
+              echo "::error::Selected SHA has missing or failing checks for ${workflow}.yml"; exit 1;
+            }
+          done
       - name: Validate track branch
         env:
           RELEASE_TRACK: ${{ inputs.track }}
@@ -199,11 +223,12 @@ jobs:
             "ANDROID_KEY_ALIAS"
             "ANDROID_KEY_PASSWORD"
             "SENTRY_AUTH_TOKEN"
+            "EXPO_PUBLIC_SENTRY_DSN"
           )
 
           for secret_name in "${REQUIRED_SECRETS[@]}"; do
-            if [ -z "${!secret_name}" ]; then
-              echo "Missing required secret: ${secret_name}" >&2
+            if [ -z "${!secret_name//[[:space:]]/}" ]; then
+              echo "Missing required release setting: ${secret_name}" >&2
               exit 1
             fi
           done
