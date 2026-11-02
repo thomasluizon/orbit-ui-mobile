@@ -3,19 +3,27 @@
   "platforms": {
     "darwin-aarch64": {
       "url": "https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-production-v2.0.0/orbit-production-2.0.0-aarch64-apple-darwin.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWDVxWnZkUFNlcFBGMnpzanZQL0wvVFF0QkxSbldSdmFxKzRvbUsxVUV1Z3RRcC9VU3JHaUkxdjc2MnNEeTNpZDNhb3I3YlJDOUVUeWVvdDZsTUhIcldvWjVoalVNMVFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNjQ5MDUxCWZpbGU6cGF5bG9hZAl2ZXJzaW9uOjIuMC4wCkREcTJDTE9FbDVjUW1DMmVKUkhsblpQVlZpT1pzdTFDanBQS1FvZWk0QS9YQmZrRHFHTzBCK1FNcmNySGdFUTVxVjNtbmU3NXRkRldoSnBxVVhoOUFBPT0="
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZHhMYVA3VEg4UzdycTNjMy9iUmpvL3dDenpIRUh4WWxwbmo2bWZYYVQ0V3lXMHE3V0Q4U0I5RnFkSU5PZWpjcUpYSEtRd2tkVEhTZmsrSXU5YXFJUWsvTVNIY1NUbFFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjAzNjMxCWZpbGU6b3JiaXQtcHJvZHVjdGlvbi0yLjAuMC1hYXJjaDY0LWFwcGxlLWRhcndpbi5hcHAudGFyLmd6CXZlcnNpb246Mi4wLjAKMDMwcE95RVNITEloS29MOXlldFhVWnhFRHBEeE5SdkV6azQzNktIK0E5eFdnSjgyRnNNU3hMdm9tVzBRa08rZE5UdEovSFhlZTNWa3pZRk0zVWp0QWc9PQo=",
+      "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "size": 4
     },
     "darwin-x86_64": {
       "url": "https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-production-v2.0.0/orbit-production-2.0.0-x86_64-apple-darwin.app.tar.gz",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWDVxWnZkUFNlcFBGMnpzanZQL0wvVFF0QkxSbldSdmFxKzRvbUsxVUV1Z3RRcC9VU3JHaUkxdjc2MnNEeTNpZDNhb3I3YlJDOUVUeWVvdDZsTUhIcldvWjVoalVNMVFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNjQ5MDUxCWZpbGU6cGF5bG9hZAl2ZXJzaW9uOjIuMC4wCkREcTJDTE9FbDVjUW1DMmVKUkhsblpQVlZpT1pzdTFDanBQS1FvZWk0QS9YQmZrRHFHTzBCK1FNcmNySGdFUTVxVjNtbmU3NXRkRldoSnBxVVhoOUFBPT0="
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZHhMYVA3VEg4U3d5WExHY0QveGUzZ1l1dkpibnVlRDJ4OVNtQ3lyam9XOVFIMFlqOHdtWUpLRE4rVlJtQ25hd0tueUNqcDZxdlFYTzN5T0gvbG1JaE9vQmh3WkpVeHd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjAzNjMyCWZpbGU6b3JiaXQtcHJvZHVjdGlvbi0yLjAuMC14ODZfNjQtYXBwbGUtZGFyd2luLmFwcC50YXIuZ3oJdmVyc2lvbjoyLjAuMApHRU9vMUZWZ1hqeEQ0SXo0VkNBd01KL2NQdkJVZU41ZmNDM1Z2Wjd1eTZCNVYyRGNLblE5ZlQrcmVSd3o0b3BDbktCc1ozdVpXbTJIWWltTmdWdlpDZz09Cg==",
+      "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "size": 4
     },
     "windows-x86_64": {
       "url": "https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-production-v2.0.0/orbit-production-2.0.0-x86_64-pc-windows-msvc.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWDVxWnZkUFNlcFBGMnpzanZQL0wvVFF0QkxSbldSdmFxKzRvbUsxVUV1Z3RRcC9VU3JHaUkxdjc2MnNEeTNpZDNhb3I3YlJDOUVUeWVvdDZsTUhIcldvWjVoalVNMVFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNjQ5MDUxCWZpbGU6cGF5bG9hZAl2ZXJzaW9uOjIuMC4wCkREcTJDTE9FbDVjUW1DMmVKUkhsblpQVlZpT1pzdTFDanBQS1FvZWk0QS9YQmZrRHFHTzBCK1FNcmNySGdFUTVxVjNtbmU3NXRkRldoSnBxVVhoOUFBPT0="
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZHhMYVA3VEg4U3czWktSL0lnMFJPZUdOeUJxQU9DdkZoaXA1a3JsaGJDTUJWd2ptczVhanFScUVKN3h5WWNDZlZDNXJpYVJjZU1pV3lMSk04WHltZG5CNCtqUURwZFFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjAzNjMzCWZpbGU6b3JiaXQtcHJvZHVjdGlvbi0yLjAuMC14ODZfNjQtcGMtd2luZG93cy1tc3ZjLmV4ZQl2ZXJzaW9uOjIuMC4wCkNrK3RQK0RNTkZoZnBGUjR4VjlWZk9FSTZlb3lqMW9FMmcyZjdWMXhRT1BDWVJ3b2ZVVnE5L3lUL2FZbnNBWGl4SjdWMEZJcVJCTXgxMzQ5bG1FbUJBPT0K",
+      "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "size": 4
     },
     "windows-aarch64": {
       "url": "https://github.com/thomasluizon/orbit-ui-mobile/releases/download/desktop-production-v2.0.0/orbit-production-2.0.0-aarch64-pc-windows-msvc.exe",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUWDVxWnZkUFNlcFBGMnpzanZQL0wvVFF0QkxSbldSdmFxKzRvbUsxVUV1Z3RRcC9VU3JHaUkxdjc2MnNEeTNpZDNhb3I3YlJDOUVUeWVvdDZsTUhIcldvWjVoalVNMVFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNjQ5MDUxCWZpbGU6cGF5bG9hZAl2ZXJzaW9uOjIuMC4wCkREcTJDTE9FbDVjUW1DMmVKUkhsblpQVlZpT1pzdTFDanBQS1FvZWk0QS9YQmZrRHFHTzBCK1FNcmNySGdFUTVxVjNtbmU3NXRkRldoSnBxVVhoOUFBPT0="
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRZHhMYVA3VEg4UytOcnhTNlJsUTZTVUN5RVkwQUdMSUg2NzhzSGxLMFVLYWlaR3NIK25HMkZYZ0RwOERmS1crSVYyeDEvaVVPRzVrRkczMnZ6VGJ3dVhTUVZZS0V5VHdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjAzNjM0CWZpbGU6b3JiaXQtcHJvZHVjdGlvbi0yLjAuMC1hYXJjaDY0LXBjLXdpbmRvd3MtbXN2Yy5leGUJdmVyc2lvbjoyLjAuMApTZHM3SFN2NlNFR0d6N2lxSWk0RzFQNjNGUS9ScTVTL3l4dmY0V2p3dHBoMENncVl4VUxpQ0ZERUIxTzhGaFBJRGNib2hMT0V2Q2phVy82bVJIeCtEUT09Cg==",
+      "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "size": 4
     }
   }
 }

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -5,7 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it } from 'vitest'
 import vector from '../__fixtures__/signer-vector.json'
-import { collectDmg, downloadName, prepareDownloads } from '../scripts/downloads.ts'
+import { collectDmg, downloadName, prepareDownloads, verifyDownloads } from '../scripts/downloads.ts'
 import { artifactName, collectArtifact, targets } from '../scripts/release.ts'
 
 const directories: string[] = []
@@ -28,7 +29,7 @@ function collectedDownloads() {
     if (macos) collectDmg(vector.version, target, bundle, output)
     else collectArtifact('production', vector.version, target, bundle, output)
     const name = artifactName('production', vector.version, target).replace('.app.tar.gz', '.dmg')
-    writeFileSync(join(output, `${name}.sig`), vector.signature)
+    writeFileSync(join(output, `${name}.sig`), vector.artifacts[name as keyof typeof vector.artifacts])
   }
   return { directory, output }
 }
@@ -38,9 +39,11 @@ it('copies the complete signed installer set to exact version-free download name
   const destination = join(directory, 'fixed')
   prepareDownloads(vector.version, output, destination, vector.publicKey)
   expect(readdirSync(destination).sort()).toEqual([
-    'orbit-aarch64-apple-darwin.dmg', 'orbit-aarch64-pc-windows-msvc.exe',
+    'SHA256SUMS', 'downloads.json', 'orbit-aarch64-apple-darwin.dmg', 'orbit-aarch64-pc-windows-msvc.exe',
     'orbit-x86_64-apple-darwin.dmg', 'orbit-x86_64-pc-windows-msvc.exe',
   ])
+  verifyDownloads(destination)
+  expect(readFileSync(join(destination, 'SHA256SUMS'), 'utf8')).toContain(`${createHash('sha256').update(vector.payload).digest('hex')}  orbit-aarch64-apple-darwin.dmg`)
   for (const target of Object.keys(targets)) {
     expect(readFileSync(join(destination, downloadName(target)), 'utf8')).toBe(vector.payload)
   }
@@ -52,7 +55,7 @@ it.each(['missing', 'tampered', 'signature'])('rejects a %s installer before pre
   if (failure === 'missing') rmSync(source)
   else writeFileSync(failure === 'signature' ? `${source}.sig` : source, 'changed')
   const destination = join(directory, 'fixed')
-  expect(() => prepareDownloads(vector.version, output, destination, vector.publicKey)).toThrow()
+  expect(() => prepareDownloads(vector.version, output, destination, vector.publicKey)).toThrow(failure === 'missing' ? 'ENOENT' : failure === 'signature' ? 'Invalid signing encoding' : 'verification failed')
   expect(existsSync(destination)).toBe(false)
 })
 
@@ -76,4 +79,12 @@ it('rejects unsupported targets and channels', () => {
     fileURLToPath(new URL('../scripts/downloads.ts', import.meta.url)), 'prepare', 'staging', vector.version], { encoding: 'utf8' })
   expect(result.status).not.toBe(0)
   expect(result.stderr).toContain('Stable downloads require production')
+})
+
+it('rehashes the staged files immediately before publication', () => {
+  const { directory, output } = collectedDownloads()
+  const destination = join(directory, 'fixed')
+  prepareDownloads(vector.version, output, destination, vector.publicKey)
+  writeFileSync(join(destination, 'orbit-aarch64-apple-darwin.dmg'), 'tampered')
+  expect(() => verifyDownloads(destination)).toThrow('checksum or size mismatch')
 })
