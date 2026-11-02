@@ -32,7 +32,7 @@ function mount() {
     return null
   }
   let renderer!: MountedRenderer
-  void act(() => { renderer = TestRenderer.create(React.createElement(Wrapper, null, React.createElement(Probe))) as MountedRenderer })
+  void act(() => { renderer = TestRenderer.create(React.createElement(Wrapper, null, React.createElement(Probe))) })
   renderers.push(renderer)
   return { result, unmount: () => { void act(() => { renderer.unmount() }) } }
 }
