@@ -1,3 +1,4 @@
+import { ACCOUNT_A_ACCESS_TOKEN } from '@/__tests__/helpers/auth-token'
 vi.mock('@/lib/request-language', () => ({ getServerRequestLanguage: vi.fn().mockResolvedValue('en') }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -18,7 +19,7 @@ describe('API key server actions', () => {
     mockFetch.mockReset()
     resolveServerSession.mockReset()
     resolveServerSession.mockResolvedValue({
-      token: 'test-token',
+      token: ACCOUNT_A_ACCESS_TOKEN,
       expiresAt: null,
       refreshed: false,
       refreshFailed: false,

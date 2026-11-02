@@ -1,13 +1,11 @@
+import { ACCOUNT_A_ACCESS_TOKEN } from '@/__tests__/helpers/auth-token'
 vi.mock('@/lib/request-language', () => ({ getServerRequestLanguage: vi.fn().mockResolvedValue('en') }))
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/auth-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/auth-api')>()),
-  getAuthHeaders: vi.fn().mockResolvedValue({
-    Authorization: 'Bearer test-token',
-  }),
   resolveServerSession: vi.fn().mockResolvedValue({
-    token: 'test-token',
+    token: (await import('@/__tests__/helpers/auth-token')).ACCOUNT_A_ACCESS_TOKEN,
     expiresAt: null,
     refreshed: false,
   }),
@@ -163,7 +161,7 @@ describe('habit server actions (extended)', () => {
       await createSubHabit('parent-1', { title: 'Sub' }, 'account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
-      expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
+      expect(init.headers).toHaveProperty('Authorization', `Bearer ${ACCOUNT_A_ACCESS_TOKEN}`)
     })
 
     it('throws on server error', async () => {

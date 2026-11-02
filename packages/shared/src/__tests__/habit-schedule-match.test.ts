@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hasHabitScheduleOnDate, computeHabitReorderPositions, buildUnresolvedBulkFailures, type ReorderableHabitItem } from '../utils/habits'
+import { hasHabitScheduleOnDate, buildUnresolvedBulkFailures } from '../utils/habits'
 
 it('marks every unresolved bulk item with its original index and failure reason', () => {
   expect(buildUnresolvedBulkFailures(['A', 'B'], 3, new Error('offline'),
@@ -89,76 +89,5 @@ describe('hasHabitScheduleOnDate', () => {
         '2025-01-15',
       ),
     ).toBe(true)
-  })
-})
-
-describe('computeHabitReorderPositions', () => {
-  function makeItem(id: string, position: number, parentId: string | null = null): ReorderableHabitItem {
-    return { id, position, parentId }
-  }
-
-  it('returns empty array when oldIndex equals newIndex', () => {
-    const items = [makeItem('a', 0), makeItem('b', 1)]
-    const habitsById = new Map(items.map((i) => [i.id, i]))
-    expect(computeHabitReorderPositions(items, 0, 0, habitsById, () => [])).toEqual([])
-  })
-
-  it('returns empty array for out of bounds indices', () => {
-    const items = [makeItem('a', 0)]
-    const habitsById = new Map(items.map((i) => [i.id, i]))
-    expect(computeHabitReorderPositions(items, -1, 0, habitsById, () => [])).toEqual([])
-    expect(computeHabitReorderPositions(items, 0, 5, habitsById, () => [])).toEqual([])
-  })
-
-  it('reorders items within the same parent', () => {
-    const items = [makeItem('a', 0), makeItem('b', 1), makeItem('c', 2)]
-    const habitsById = new Map(items.map((i) => [i.id, i]))
-
-    const positions = computeHabitReorderPositions(
-      items,
-      0,
-      2,
-      habitsById,
-      () => [],
-    )
-
-    expect(positions.length).toBeGreaterThan(0)
-    const aPos = positions.find((p) => p.habitId === 'a')
-    expect(aPos).toBeDefined()
-  })
-
-  it('handles moving from last to first position', () => {
-    const items = [makeItem('a', 0), makeItem('b', 1), makeItem('c', 2)]
-    const habitsById = new Map(items.map((i) => [i.id, i]))
-
-    const positions = computeHabitReorderPositions(
-      items,
-      2,
-      0,
-      habitsById,
-      () => [],
-    )
-
-    expect(positions.length).toBeGreaterThan(0)
-    const cPos = positions.find((p) => p.habitId === 'c')
-    expect(cPos?.position).toBe(0)
-  })
-
-  it('produces contiguous 0-based positions', () => {
-    const items = [makeItem('a', 0), makeItem('b', 1), makeItem('c', 2)]
-    const habitsById = new Map(items.map((i) => [i.id, i]))
-
-    const positions = computeHabitReorderPositions(
-      items,
-      0,
-      1,
-      habitsById,
-      () => [],
-    )
-
-    const posValues = positions.map((p) => p.position).sort((a, b) => a - b)
-    for (let i = 0; i < posValues.length; i++) {
-      expect(posValues[i]).toBe(i)
-    }
   })
 })

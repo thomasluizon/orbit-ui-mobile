@@ -1,7 +1,8 @@
+import { cookies } from 'next/headers'
 import { API_VERSION_HEADERS } from '@/lib/api-version'
 import { getServerRequestLanguage } from './request-language'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
-import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
+import { AUTH_COOKIE, getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import { createApiClientError } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { APP_VERSION_HEADER, validateApiResponse } from '@orbit/shared/utils'
@@ -39,7 +40,7 @@ function assertIntendedAccountStillHolds(
   if (!intendedAccountId) return
 
   const cookieAccountId = getAccountIdFromToken(token)
-  if (cookieAccountId === null || cookieAccountId === intendedAccountId) return
+  if (cookieAccountId === intendedAccountId) return
 
   throw createApiClientError(
     409,
@@ -49,6 +50,15 @@ function assertIntendedAccountStillHolds(
     },
     'The signed in account changed before this request ran',
   )
+}
+
+async function assertUnresolvedAccountCookie(
+  intendedAccountId: string | null,
+  sessionRefreshFailed: boolean,
+): Promise<void> {
+  if (!intendedAccountId || sessionRefreshFailed) return
+  const cookieToken = (await cookies()).get(AUTH_COOKIE)?.value
+  if (cookieToken) assertIntendedAccountStillHolds(cookieToken, intendedAccountId)
 }
 
 /**
@@ -103,6 +113,7 @@ async function fetchWithSession<T>(
 
   let session = renderToken ? { token: renderToken, refreshFailed: false } : await resolveServerSession()
   if (!session.token) {
+    await assertUnresolvedAccountCookie(accountIntent.accountId, session.refreshFailed)
     throw unauthorizedError(session.refreshFailed)
   }
   assertIntendedAccountStillHolds(session.token, accountIntent.accountId)
