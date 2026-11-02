@@ -28,6 +28,7 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
   })
 
   const first = renderer!.root.findByType('WebView')
+  expect(first.props.accessibilityLabel).toBe('auth.turnstileLabel')
   expect(first.props.source.uri).toContain('/turnstile-bridge?siteKey=site-key')
   expect(first.props.source.uri).toContain('&theme=dark')
   expect(first.props.source.uri).toContain('&language=pt-BR')

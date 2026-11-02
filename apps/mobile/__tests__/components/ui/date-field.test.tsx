@@ -96,6 +96,11 @@ describe('DateField (mobile)', () => {
       })
     }
     const [previous, year, next] = navigation
+    expect(year.props.accessibilityState).toMatchObject({ expanded: false })
+    TestRenderer.act(() => year.props.onPress())
+    expect(year.props.accessibilityState).toMatchObject({ expanded: true })
+    TestRenderer.act(() => year.props.onPress())
+    expect(year.props.accessibilityState).toMatchObject({ expanded: false })
     TestRenderer.act(() => year.props.onPress())
     for (const control of [previous, next]) {
       expect(control.props.disabled).toBe(true)

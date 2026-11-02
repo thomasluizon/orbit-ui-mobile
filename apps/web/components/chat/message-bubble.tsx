@@ -114,7 +114,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
                   key={surface.id}
                   type="button"
                   onClick={() => navigate(surface.webRoute)}
-                  className="chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
+                  className="chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                 >
                   {t(surface.labelKey)}
                   <ArrowUpRight size={16} strokeWidth={1.8} color="var(--fg-3)" />

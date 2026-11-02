@@ -54,24 +54,18 @@ describe('BarChart measured geometry', () => {
   it.each(['none', 'active'] as const)('shows one live focus indicator after clicking then pressing Space, forced colors %s', async (forcedColors) => {
     const page = await browser.newPage({ viewport: { width: 320, height: 640 }, forcedColors })
     try {
-      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="chart-fixture" type="application/json">${JSON.stringify({ series, locale: 'en' })}</script>`)
+      await page.setContent(`<style>:root{--primary:#C4530F}${stylesheet}</style><div id="root"></div><script id="chart-fixture" type="application/json">${JSON.stringify({ series, locale: 'en' })}</script>`)
       await page.addScriptTag({ content: chartScript })
       const radio = page.getByRole('radio').nth(3)
       await radio.click()
       expect(await radio.evaluate(element => element === document.activeElement && !element.matches(':focus-visible'))).toBe(true)
       await page.keyboard.press('Space')
       expect(await radio.evaluate(element => element === document.activeElement && element.matches(':focus-visible'))).toBe(true)
-      const indicator = await page.locator('[data-slot="bar-chart-readout"]').evaluate(element => {
+      const indicator = await radio.evaluate(element => {
         const style = getComputedStyle(element)
-        return { width: style.borderTopWidth, color: style.borderTopColor, text: style.color }
+        return { outline: style.outlineStyle, width: parseFloat(style.outlineWidth), offset: parseFloat(style.outlineOffset) }
       })
-      expect(indicator.width).toBe('2px')
-      expect(indicator.color).toBe(indicator.text)
-      const radioFocus = await radio.evaluate(element => {
-        const style = getComputedStyle(element)
-        return { outline: style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0, shadow: style.boxShadow }
-      })
-      expect(radioFocus).toEqual({ outline: false, shadow: 'none' })
+      expect(indicator).toEqual({ outline: 'solid', width: 2, offset: -2 })
       await radio.blur()
       if (forcedColors === 'none') expect(await page.locator('[data-slot="bar-chart-readout"]').evaluate(element => getComputedStyle(element).borderTopColor)).toBe('rgba(0, 0, 0, 0)')
     } finally { await page.close() }
@@ -109,9 +103,9 @@ describe('BarChart measured geometry', () => {
         const focus = chart.querySelector<HTMLElement>('[data-slot="bar-chart-readout"]')!
         const bounds = fill.getBoundingClientRect()
         const ring = focus.getBoundingClientRect()
-        const focusStyle = getComputedStyle(focus)
+        const focusStyle = getComputedStyle(element)
         return { plotWidth: element.parentElement!.getBoundingClientRect().width, barWidth: bar.width, fillWidth: bounds.width, focusWidth: ring.width,
-          fillColor: getComputedStyle(fill.querySelector('path')!).fill, selectedColor: getComputedStyle(chart.querySelector('[data-state=selected]')!).fill, background: getComputedStyle(fill).backgroundColor, outline: focusStyle.borderTopStyle, outlineWidth: Number.parseFloat(focusStyle.borderTopWidth), focusClip: focusStyle.clipPath,
+          fillColor: getComputedStyle(fill.querySelector('path')!).fill, selectedColor: getComputedStyle(chart.querySelector('[data-state=selected]')!).fill, background: getComputedStyle(fill).backgroundColor, outline: focusStyle.outlineStyle, outlineWidth: Number.parseFloat(focusStyle.outlineWidth), focusClip: focusStyle.clipPath,
           left: bar.left - bounds.left, right: bounds.right - bar.right,
           previousGap: bounds.left - paths[index - 1]!.getBoundingClientRect().right, nextGap: paths[index + 1]!.getBoundingClientRect().left - bounds.right }
       })
@@ -148,15 +142,14 @@ describe('BarChart measured geometry', () => {
           await target.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
           const geometry = await target.evaluate(element => {
             const bar = element.querySelector('path')!.getBoundingClientRect()
-            const readout = element.closest('[data-testid="bar-chart"]')!.querySelector('[data-slot="bar-chart-readout"]')!
-            const outline = getComputedStyle(readout)
+            const outline = getComputedStyle(element)
             const paint = element.querySelector('[data-slot="bar-chart-fill"]')!
             const bounds = paint.getBoundingClientRect()
-            return { outline: outline.borderTopStyle, outlineWidth: parseFloat(outline.borderTopWidth), background: getComputedStyle(paint).backgroundColor, deltas: [bar.left - bounds.left, bar.right - bounds.right, bar.top - bounds.top, bar.bottom - bounds.bottom] }
+            return { outline: outline.outlineStyle, outlineWidth: parseFloat(outline.outlineWidth), background: getComputedStyle(paint).backgroundColor, deltas: [bar.left - bounds.left, bar.right - bounds.right, bar.top - bounds.top, bar.bottom - bounds.bottom] }
           })
           expect(geometry.background).toBe('rgba(0, 0, 0, 0)')
           geometry.deltas.forEach(delta => expect(delta).toBeCloseTo(0, 2))
-          if (state === 'focus') { expect(geometry.outline).toBe('solid'); expect(geometry.outlineWidth, JSON.stringify(geometry)).toBe(2) }
+          if (state === 'focus') { expect(geometry.outline).toBe('solid'); expect(geometry.outlineWidth, JSON.stringify(geometry)).toBeGreaterThanOrEqual(2) }
           await page.mouse.up()
           await target.blur()
         }

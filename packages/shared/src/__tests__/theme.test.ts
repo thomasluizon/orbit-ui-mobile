@@ -827,3 +827,11 @@ describe('opaque control hover role', () => {
     expect(contrastOnSurface(neutral.fg2, layers)).toBeGreaterThanOrEqual(3)
   })
 })
+
+for (const mode of ['dark', 'light'] as const) {
+  it(`keeps field boundaries above 3:1 in ${mode}`, () => {
+    const colors = neutralColors[mode]
+    expect(contrastOnSurface(colors.borderControl, [colors.bg])).toBeGreaterThanOrEqual(3)
+    expect(contrastOnSurface(colors.borderControl, [colors.bg, colors.bgField])).toBeGreaterThanOrEqual(3)
+  })
+}

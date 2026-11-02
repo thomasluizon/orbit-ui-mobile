@@ -494,6 +494,7 @@
     "email": "E-mail",
     "emailPlaceholder": "nome@exemplo.com",
     "sendCode": "Continuar",
+    "turnstileLabel": "Verificação de segurança",
     "turnstileLoading": "Verificando sua conexão…",
     "turnstileFailed": "A verificação de segurança não carregou.",
     "turnstileExpired": "A verificação de segurança expirou.",

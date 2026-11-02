@@ -72,7 +72,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           tabIndex={index === selectedIndex ? 0 : -1}
           onClick={() => setSelectedDate(point.startDate)}
           onKeyDown={handleKey}
-          className="orbit-bar-chart-column group relative min-w-0 flex-1 cursor-pointer touch-manipulation rounded-none bg-transparent p-0 focus-visible:outline-0"
+          className="orbit-bar-chart-column group relative min-w-0 flex-1 cursor-pointer touch-manipulation rounded-none bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
         >
           {bars[index] ? <>
             <svg data-slot="bar-chart-fill" aria-hidden="true" focusable="false" className="pointer-events-none absolute" style={{ left: bars[index].x - bars[index].slotStart, top: bars[index].y, width: bars[index].width, height: bars[index].height }} viewBox={`${bars[index].x} ${bars[index].y} ${bars[index].width} ${bars[index].height}`} preserveAspectRatio="none">
