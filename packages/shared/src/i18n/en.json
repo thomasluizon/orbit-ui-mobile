@@ -32,9 +32,6 @@
   },
   "settings": {
     "notifications": {
-      "title": "Push Notifications",
-      "allowed": "Allow notifications",
-      "description": "Receive reminders and updates even when the app is closed",
       "enabled": "Notifications are enabled",
       "disabled": "Notifications are turned off",
       "requesting": "Requesting notification access...",
@@ -45,11 +42,9 @@
       "denied": "Notifications are blocked. Enable them in your browser settings.",
       "unsupported": "Push notifications are not supported in this browser",
       "deniedNative": "Notifications are blocked. Enable them in your device settings.",
-      "unsupportedNative": "Push notifications are not supported on this device.",
       "openSettings": "Open settings"
     },
     "homeScreen": {
-      "title": "Home Screen",
       "showGeneral": "Show undated tasks",
       "showGeneralDesc": "Undated tasks also appear in Today."
     },
@@ -218,7 +213,6 @@
   "nav": {
     "habits": "Habits",
     "calendar": "Calendar",
-    "chat": "Chat",
     "createHabit": "Create habit",
     "profile": "Profile",
     "astra": "Astra",
@@ -230,9 +224,6 @@
   "shell": {
     "collapseSidebar": "Collapse sidebar",
     "expandSidebar": "Expand sidebar",
-    "openRail": "Open panel",
-    "closeRail": "Close panel",
-    "openPalette": "Open command palette",
     "composer": {
       "queue": {
         "label": "Queued messages",
@@ -348,7 +339,6 @@
     }
   },
   "todayAstra": {
-    "createSentence": "Help me create a habit for today",
     "openConversation": "Open the conversation",
     "returningElapsed": "{days, plural, one {You last completed a habit # day ago.} other {You last completed a habit # days ago.}}",
     "returningBounded": "You last completed a habit over 30 days ago.",
@@ -368,7 +358,6 @@
       "create": "Create",
       "actions": "Actions",
       "destinations": "Go to",
-      "navigate": "Navigate",
       "search": "Habits"
     },
     "hints": {
@@ -383,27 +372,9 @@
     }
   },
   "contextMenu": {
-    "log": "Log",
-    "skip": "Skip",
-    "edit": "Edit",
-    "delete": "Delete",
-    "duplicate": "Duplicate",
-    "viewDetails": "View details",
-    "addSubHabit": "Add sub-habit"
-  },
-  "rail": {
-    "todayProgress": "Today",
-    "allDone": "All done",
-    "progressLabel": "{total, plural, one {{done} of # habit completed} other {{done} of # habits completed}}",
-    "remaining": "Remaining today",
-    "empty": "No habits today",
-    "loadFailed": "Couldn't load progress"
+    "viewDetails": "View details"
   },
   "astraRail": {
-    "open": "Open Astra",
-    "close": "Collapse Astra",
-    "maximize": "Maximize",
-    "minimize": "Minimize",
     "title": "Astra copilot",
     "subtitle": "Your habit copilot"
   },
@@ -505,25 +476,18 @@
     "resendCode": "Resend code",
     "resendIn": "You can ask for another code in {time}",
     "changeEmail": "Change email",
-    "minutesShort": "{minutes, plural, one {# min left} other {# min left}}",
     "genericError": "An error occurred. Please try again.",
     "orContinueWith": "or",
     "openInOrbit": "Open in Orbit",
     "signInWithGoogle": "Continue with Google",
     "signInWithApple": "Continue with Apple",
     "googleError": "Google sign-in failed. Please try again.",
-    "signingIn": "Signing you in...",
     "callbackError": "Something went wrong during sign-in. Please try again.",
     "sessionExpiring": "{minutes, plural, one {Your session expires in # minute. Save your work.} other {Your session expires in # minutes. Save your work.}}",
     "sessionExpired": "Your session timed out.",
     "sessionSignedOut": "You were signed out. Sign in to pick up where you left off.",
     "sessionRefreshFailed": "Orbit couldn't refresh your session. Try again.",
     "refresh": "Refresh",
-    "todayBoundary": {
-      "lastLoggable": "This is the oldest day you can log.",
-      "readOnly": "Logging stops 7 days back. You can still edit, move and delete here.",
-      "future": "This day has not arrived yet. You can log what has no set time."
-    },
     "login": "Log in",
     "codeDigit": "Digit {n} of 6",
     "legalConsent": "By continuing, you agree to the <terms>Terms</terms> and the <privacy>Privacy policy</privacy>.",
@@ -612,7 +576,6 @@
     "editTask": "Edit task",
     "deleteHabit": "Delete habit",
     "logHabit": "Log Habit",
-    "saveChanges": "Save Changes",
     "viewsLabel": "Habit views",
     "viewToday": "Today",
     "viewAll": "All",
@@ -638,7 +601,6 @@
     "noSubHabits": "No sub-habits yet",
     "filterEmptySubHabits": "No sub-habits match this view.",
     "moveParent": {
-      "button": "Move to...",
       "title": "Move habit",
       "description": "Choose where to place \"{name}\"",
       "toRoot": "No parent (top level)",
@@ -675,7 +637,6 @@
       "title": "Reschedule with AI",
       "loading": "Looking for a realistic plan.",
       "error": "No plan could be suggested.",
-      "retry": "Try again",
       "accept": "Use this plan",
       "dismiss": "Not now",
       "freePrompt": "With Pro, Astra turns a missed habit into a realistic plan.",
@@ -701,15 +662,10 @@
     "checklistCompleteTitle": "Checklist complete",
     "checklistCompleteMessage": "All items in \"{name}\" are done. Would you like to log this habit?",
     "checklistCompleteConfirm": "Log habit",
-    "checklistClearTitle": "Clear checklist?",
-    "checklistClearMessage": "This removes every item from this habit's checklist.",
     "bulkDeleteTitle": "Delete Habits",
     "bulkDeleteMessage": "{count, plural, one {This removes # habit and any sub-habits. You can undo it from the message that appears.} other {This removes # habits and any sub-habits. You can undo it from the message that appears.}}",
     "bulkDeleteConfirm": "Delete habits",
-    "bulkLogTitle": "Log Habits",
-    "bulkLogMessage": "{count, plural, one {Log # selected habit as complete? Already completed habits will be skipped.} other {Log # selected habits as complete? Already completed habits will be skipped.}}",
     "bulkLogConfirm": "Log",
-    "bulkSkipTitle": "Skip Habits",
     "bulkSkipConfirm": "Skip",
     "bulkBar": {
       "log": "Log selected",
@@ -723,7 +679,6 @@
       "move": "Move selected",
       "moveLimit": "{limit, plural, one {Select up to # habit to move at once.} other {Select up to # habits to move at once.}}"
     },
-    "skipHabit": "Skip",
     "frequency": {
       "everyDay": "Every day",
       "everyWeek": "Every week",
@@ -736,7 +691,6 @@
       "flexibleLabel": "{n}x / {unit}",
       "flexibleProgress": "{unit}: {done}/{target}"
     },
-    "frequencyLabel": "Frequency",
     "form": {
       "reminderKind": "Reminder type",
       "repeatEvery": "Repeat every",
@@ -1115,7 +1069,6 @@
       "oneTime": "Once"
     },
     "breakdown": {
-      "breakInto": "Break down {name} into:",
       "limit": "{limit, plural, one {# habit max. Remove one to add another.} other {# habits max. Remove one to add another.}}",
       "retryError": "Could not create the remaining habits. Try again.",
       "createError": "Could not create these habits. Edit the proposal and try again.",
@@ -1125,8 +1078,6 @@
       "createAsParent": "Group as parent habit",
       "groupingDenied": "Grouping these habits was not allowed. Nothing was saved. Turn off grouping to create separate habits.",
       "capacityDenied": "This proposal exceeds the habit limit. Remove a habit from the proposal and try again.",
-      "every": "every",
-      "frequencyQuantityLabel": "Frequency interval",
       "removeHabit": "Remove {name}"
     },
     "clarification": {
@@ -1205,8 +1156,6 @@
     },
     "noHabitsScheduled": "No habit was scheduled on this day.",
     "goToDay": "Open in Today",
-    "goToCurrentMonth": "Go to current month",
-    "goToCurrentWeek": "Go to current week",
     "view": {
       "switchLabel": "Calendar view",
       "month": "Month",
@@ -1226,9 +1175,6 @@
       "allDay": "All-day",
       "noSetTime": "No set time",
       "now": "Now",
-      "pickRangeHint": "Pick a start and end day above to set your range.",
-      "pickEndHint": "Now pick the end day",
-      "rangeMaxDays": "{max, plural, one {Range limited to # day.} other {Range limited to # days.}}",
       "empty": "Nothing scheduled",
       "moreLabel": "{count} more",
       "moreCount": "{count, plural, =0 {+0} one {+#} other {+#}}",
@@ -1246,7 +1192,6 @@
     "entrySearchEmpty": "No matches for \"{query}\"",
     "entryLabel": "{title}, {time}, {status}",
     "entryMeta": "{time} · {status}",
-    "completionHistory": "Completion history",
     "showRecurringShort": "Show habits",
     "showRecurring": "Show habits that repeat",
     "googleCalendar": "Google Calendar",
@@ -1254,8 +1199,6 @@
     "monthPicker": "Month and year",
     "legendTitle": "Legend",
     "title": "Google Calendar",
-    "profileButton": "Google Calendar",
-    "profileHint": "Import events as habits",
     "fetchingEvents": "Fetching your calendar events...",
     "noEvents": "No events",
     "eventsFound": "{count, plural, one {# event} other {# events}}",
@@ -1291,12 +1234,10 @@
     "calendars": {
       "readFrom": "Calendars to read",
       "title": "Calendars",
-      "description": "Choose which Google calendars Orbit reads events from.",
       "loading": "Loading your calendars...",
       "empty": "No calendars found in your Google account.",
       "error": "Could not load your calendars. Please try again.",
       "primaryLabel": "Primary",
-      "toggleLabel": "Sync {name}",
       "saveFailed": "Could not save your calendar selection. Please try again."
     },
     "autoSync": {
@@ -1304,9 +1245,6 @@
       "automaticImport": "Automatic sync",
       "automaticImportDescription": "New Google events appear here.",
       "proRequired": "Automatic sync requires Orbit Pro.",
-      "title": "Automatic sync",
-      "description": "Orbit checks your Google Calendar for new events and notifies you. Habits are never created without your confirmation.",
-      "toggleLabel": "Enable automatic sync",
       "lastSyncedNever": "Never synced",
       "lastSyncedJustNow": "Just synced",
       "lastSyncedMinutesAgo": "{n, plural, one {# minute ago} other {# minutes ago}}",
@@ -1314,27 +1252,12 @@
       "lastSyncedYesterday": "Yesterday",
       "lastSyncedDaysAgo": "{n, plural, one {# day ago} other {# days ago}}",
       "syncNow": "Sync",
-      "syncNowRunning": "Syncing...",
-      "connectGoogleFirst": "Connect your Google account first to enable auto-sync.",
       "reconnectTitle": "Google Calendar disconnected",
-      "reconnectBody": "Auto-sync paused. Reconnect to resume.",
       "reconnectCta": "Reconnect",
       "reviewModeTitle": "Review new events",
       "reviewModeEmpty": "Nothing to review",
       "dismissSuggestion": "Dismiss",
-      "enableSuccess": "Auto-sync enabled",
-      "disableSuccess": "Auto-sync disabled",
       "syncFailed": "Sync failed. Please try again."
-    }
-  },
-  "explore": {
-    "title": "Explore",
-    "subtitle": "Everything Orbit can do, in one place.",
-    "sections": {
-      "discover": "Discover",
-      "progress": "Your progress",
-      "integrations": "Integrations",
-      "more": "More"
     }
   },
   "charts": {
@@ -1417,7 +1340,6 @@
       "partial": "Some records are unavailable.",
       "error": "Could not refresh. Try again.",
       "expired": "Ask the original question again.",
-      "delta": "Change",
       "metric": {
         "positiveLogRecords": "Completions",
         "completedHabits": "Habits completed",
@@ -1685,16 +1607,10 @@
     },
     "attachImage": "Attach image",
     "send": "Send message",
-    "removeImage": "Remove image",
-    "listening": "Listening...",
-    "transcribing": "Transcribing...",
-    "stopRecording": "Stop recording",
-    "toggleMic": "Toggle voice recording",
     "imageError": "Only JPEG, PNG, and WebP images are supported.",
     "imageSizeError": "Image must be under 20MB.",
     "imagePermissionError": "Photo library access is required to attach images.",
     "attachFile": "Attach file",
-    "removeFile": "Remove file",
     "fileError": "Only .csv, .json, .txt, and .md files are supported.",
     "fileSizeError": "File must be under 1 MB.",
     "fileReadError": "Couldn't read that file. Please try again.",
@@ -1705,7 +1621,6 @@
     "limitReachedError": "You've used today's Astra messages. More arrive at midnight, your time.",
     "limitReachedErrorWeekly": "You've used this week's Astra messages.",
     "aiError": "Sorry, something went wrong. Please try again.",
-    "operationDone": "Done.",
     "operationFailed": "That didn't work. Try again.",
     "action": {
       "changes": "Changes",
@@ -1783,7 +1698,6 @@
     "messagesUsedWeekly": "messages used this week",
     "senderYou": "You",
     "senderOrbit": "Astra",
-    "astraAvatarLabel": "Astra avatar",
     "unknownEntity": "Unknown",
     "habitList": {
       "title": "Today's habits",
@@ -1841,7 +1755,6 @@
       "deadline": "Due {date}",
       "projected": "Projected {date} at this pace",
       "empty": "No goals yet. Start one from a habit, or ask for one right here.",
-      "done": "{name} is done",
       "ring": "Progress of {name}",
       "progressLink": "See it on Progress"
     },
@@ -2576,17 +2489,14 @@
       "saveError": "Change not saved. Try again."
     },
     "groups": {
-      "you": "You",
       "astra": "Astra",
       "notifications": "Notifications",
-      "more": "More of Orbit",
-      "ending": "Ending things"
+      "more": "More of Orbit"
     },
     "settingsRows": {
       "editName": "{name}: Edit name, {email}",
       "timezone": "Timezone",
       "timezoneValue": "Timezone {timeZone}",
-      "dailyAllowance": "Daily Astra allowance",
       "apiKeysMcp": "API keys and MCP",
       "wrapped": "Orbit Wrapped",
       "weekStart": "Week starts on",
@@ -2620,7 +2530,6 @@
       "activeCount": "{count, plural, one {# active key} other {# active keys}}",
       "create": "Create key",
       "createScoped": "Create a scoped key",
-      "newKeyName": "New key",
       "scopeTitle": "Scoped key",
       "scopeLabel": "Scope",
       "scopeAction": "Create",
@@ -2638,15 +2547,9 @@
     },
     "loading": "Loading profile",
     "sections": {
-      "account": "Account",
       "preferences": "Preferences",
       "communication": "Communication",
-      "aboutHelp": "About & Help",
-      "advanced": "Advanced",
-      "accountActions": "Account actions",
-      "subscription": "Subscription",
-      "aboutHelpHint": "Feature guide, support, referral",
-      "advancedHint": "Timezone, widget, developer tools"
+      "advanced": "Advanced"
     },
     "editName": {
       "title": "Edit name",
@@ -2715,13 +2618,10 @@
       "sendNeedsSubject": "Choose a subject to send.",
       "sendNeedsMessage": "Add a message to send."
     },
-    "logout": "Log Out",
     "wrappedTitle": "Your Wrapped",
     "widgetTitle": "Android widget",
-    "widgetHint": "Today's habits on the device's home screen.",
     "calendarSync": {
-      "title": "Calendar sync",
-      "hint": "Events from your calendars show on Calendar."
+      "title": "Calendar sync"
     },
     "aboutRow": "About Orbit",
     "widgetHow": {
@@ -2736,21 +2636,17 @@
       "feature4": "Automatically shows tomorrow's habits when today is clear"
     },
     "subscription": {
-      "plan": "Plan",
       "pro": "Orbit Pro",
       "proHint": "Manage your subscription",
       "free": "Free Plan",
       "freeHint": "Upgrade for every feature",
       "active": "Active",
       "trial": "Pro Trial",
-      "trialUntil": "{plan} until {date}",
       "trialDaysLeft": "{days, plural, one {# day remaining} other {# days remaining}}",
       "trialEnded": "Trial Ended",
-      "trialEndedHint": "Upgrade to get Pro features back",
-      "manage": "Manage"
+      "trialEndedHint": "Upgrade to get Pro features back"
     },
     "freshStart": {
-      "button": "Fresh Start",
       "reviewDeletion": "Review deletion",
       "deleteData": "Delete data",
       "heading": "Fresh Start",
@@ -2771,7 +2667,6 @@
       "confirmInstruction": "Type ORBIT below to confirm this action.",
       "confirmLabel": "Confirmation",
       "confirmPlaceholder": "ORBIT",
-      "processing": "Resetting...",
       "errorGeneric": "Something went wrong. Please try again."
     },
     "deleteAccount": {
@@ -2851,7 +2746,6 @@
       "completions": "Completions",
       "bestStreak": "Best streak",
       "activeDays": "Active days",
-      "topHabits": "Top habits",
       "goalsClosed": "Goals closed"
     },
     "streak": "{count, plural, one {#-day streak} other {#-day streak}}"
@@ -3058,7 +2952,6 @@
     "monthly": "Monthly"
   },
   "summary": {
-    "title": "Your Day",
     "loading": "Checking in on your day...",
     "error": "Couldn't load your summary. Try again.",
     "retry": "Try again",
@@ -3236,7 +3129,6 @@
     },
     "featureGuide": {
       "title": "Orbit guide",
-      "openButton": "Feature Guide",
       "habits": "Habits",
       "calendar": "Calendar",
       "astra": "Astra",
@@ -3374,11 +3266,8 @@
     "purchaseSuccess": "Orbit Pro is on.",
     "title": "Subscription",
     "pitchTitle": "Orbit Pro",
-    "alreadyPro": "You're on the Pro plan",
-    "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",
     "free": "Free",
-    "subscribe": "Subscribe to Pro",
     "plan": "Plan",
     "restorePurchase": "Restore purchase",
     "appStore": {
@@ -3403,10 +3292,8 @@
       "trialDaysLeft": "{days, plural, one {# trial day left} other {# trial days left}}",
       "trialLastDay": "Last day of the trial",
       "trialHeading": "250 a week.",
-      "trialCta": "Keep Pro",
       "freeEyebrow": "You are on the free plan",
       "freeHeading": "7 times more Astra.",
-      "freeCta": "Get Pro",
       "trustLine": "No lock-in, and no card is ever stored in Orbit.",
       "cancelAnytime": "Cancel whenever you like.",
       "handOff": "Payment happens with our provider. Orbit never holds your card details.",
@@ -3455,7 +3342,6 @@
     },
     "billing": {
       "plan": {
-        "title": "Current plan",
         "pro": "Orbit Pro",
         "monthly": "Pro Monthly",
         "yearly": "Pro Yearly",
@@ -3509,8 +3395,7 @@
         "manageHint": "Your subscription is billed by Stripe. Changing plan, changing the card or cancelling happens in their portal.",
         "providerNote": "Any billing change happens with the provider. Orbit never holds your card details and never asks for your password here.",
         "managePlay": "Open Google Play",
-        "managePlayHint": "You subscribed through Google Play, so billing is handled there. Changing plan or cancelling happens in the Play subscriptions dashboard.",
-        "opening": "Opening billing settings"
+        "managePlayHint": "You subscribed through Google Play, so billing is handled there. Changing plan or cancelling happens in the Play subscriptions dashboard."
       },
       "error": "Couldn't load billing details",
       "retry": "Try again",
@@ -3519,10 +3404,7 @@
       "offline": "You are offline. Reconnect to manage billing.",
       "lapsed": {
         "title": "Your Pro has ended",
-        "canceled": "Your subscription was canceled on {date}.",
         "payment_failed": "Your subscription ended after a payment problem on {date}.",
-        "expired": "Your subscription expired on {date}.",
-        "fallback": "Your subscription has ended.",
         "lostMessages": "{limit, plural, one {Astra messages went back to # a day.} other {Astra messages went back to # a day.}}",
         "lostCalendar": "Google Calendar no longer syncs.",
         "lostRetrospective": "The periodic retrospective stopped.",
@@ -3532,8 +3414,7 @@
         "body": "The account went back to the free plan. Your habits, logs and goals are all still here, unchanged."
       },
       "paymentIssue": {
-        "title": "We couldn't process your payment",
-        "body": "Your Pro access is still active. Open billing below and update your payment method to keep it."
+        "title": "We couldn't process your payment"
       },
       "portalFix": "Check the connection and try again. Your subscription stays exactly as it is."
     },
@@ -3637,7 +3518,6 @@
   "goals": {
     "empty": "No goals yet",
     "create": "Create goal",
-    "dragItem": "draggable item",
     "reorderHint": "Hold to reorder",
     "form": {
       "habitsExplainer": "A goal tracks progress from the habits linked to it.",
@@ -3692,8 +3572,7 @@
     "status": {
       "active": "Active",
       "completed": "Completed",
-      "abandoned": "Abandoned",
-      "achieved": "Achieved"
+      "abandoned": "Abandoned"
     },
     "detail": {
       "manualProgress": "Update progress. Reaching the target completes the goal.",
@@ -3724,9 +3603,7 @@
       "statusLabel": "Status"
     },
     "deadline": {
-      "overdue": "Overdue",
-      "daysLeft": "{n, plural, one {# day left} other {# days left}}",
-      "dueToday": "Due today"
+      "daysLeft": "{n, plural, one {# day left} other {# days left}}"
     },
     "errors": {
       "create": "Failed to create goal",
@@ -4154,7 +4031,6 @@
     "invalidExpiry": "Enter a valid future expiry date."
   },
   "preferences": {
-    "title": "Preferences",
     "general": "General"
   },
   "about": {
@@ -4167,19 +4043,6 @@
     "tagline": "An AI that tracks habits, for people who cannot keep a routine.",
     "versionLabel": "Version",
     "accountLabel": "Account"
-  },
-  "advancedSettings": {
-    "title": "Advanced",
-    "widgetSection": "Widget",
-    "developersSection": "Developers"
-  },
-  "calendarSync": {
-    "notConnected": "Not Connected"
-  },
-  "apiKeys": {
-    "errors": {
-      "create": "Failed to create API key"
-    }
   },
   "versionUpdate": {
     "title": "A new version is in the store",
@@ -4319,7 +4182,6 @@
   },
   "aiDisclosure": {
     "isAiLabel": "AI",
-    "isAiTooltip": "Astra is an AI assistant. Responses are generated automatically.",
     "notMedicalAdvice": "Astra is AI and can be wrong. This is not medical or professional advice."
   },
   "milestoneShare": {
