@@ -161,8 +161,13 @@ function derivedVariables(script) {
 
 function executableCommands(script) {
   return expandCommands(script.replace(/\\\r?\n/g, " ")).filter((segment) => {
-    const first = shellValue(commandWords(segment)[0])
-    return ["node", "npx", "xargs"].includes(first)
+    const words = commandWords(segment).map(shellValue)
+    let index = 0
+    if (words[0] === "xargs") {
+      index = 1
+      while (words[index]?.startsWith("-")) index++
+    }
+    return ["node", "npx"].includes(words[index])
   })
 }
 
