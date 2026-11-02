@@ -19,6 +19,7 @@ import {
   makeHabitDetail as makeDetail,
   makeEnrichedHabitDetail,
   makeHabitScheduleItem,
+  makeMonthlyChildDaySchedule,
   makeTaggedNestedHabitScheduleItem,
   makeHabitDetailScopedChild as makeScopedChild,
   makeHabitDetailScopedParent as makeScopedParent,
@@ -706,6 +707,26 @@ describe('HabitDetailScreen', () => {
     expect(tree.root.findAllByProps({ testID: 'detail-children' })).toHaveLength(0)
     TestRenderer.act(() => { tree.root.findByProps({ title: 'habits.detail.addSubHabit' }).props.onClick() })
     expect(tree.root.findByProps({ testID: 'create-sub-habit' })).toBeDefined()
+  })
+
+  it.each([true, false])('shows a present monthly child as unavailable with skipped=%s', (skipped) => {
+    const date = '2026-08-28'
+    const schedule = makeMonthlyChildDaySchedule(date, '2026-09-28')
+    schedule.children[0]!.isSkippedOnDate = skipped
+    mocks.detail = { ...makeDetail(), frequencyUnit: 'Month', days: [], children: schedule.children }
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    mocks.logs = []
+    mocks.realHabitRows = true
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date={date} />) })
+    const group = tree.root.findByProps({ testID: 'detail-children' })
+    const rows = group.findAll((node: TestNode) => node.type === 'View' && node.props.testID === 'habit-row')
+    expect(renderedText(rows[0])).toContain(skipped ? 'habits.statusDot.skip' : 'calendar.dayCell.notScheduled')
+    const toggle = rows[0]!.findAll((node: TestNode) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).includes('habits.logHabit'))[0]!
+    expect(toggle.props.accessibilityState.disabled).toBe(true)
+    TestRenderer.act(() => { toggle.props.onPress() })
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(rows[1]!.findAll((node: TestNode) => String(node.props.accessibilityLabel).includes('habits.actions.unlog')).length).toBeGreaterThan(0)
   })
 
   it.each(['light', 'dark'] as const)('keeps detail child monograms readable through the complete %s paint stack', (mode) => {

@@ -18,6 +18,10 @@ beforeAll(async () => {
   const source = resolve(process.cwd(), 'app/globals.css')
   const tokens = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
   stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${tokens}}`
+  for (const [name, weight] of [['geist', '400 600'], ['space-grotesk', '500 600'], ['geist-mono', '400 500']]) {
+    const font = readFileSync(resolve(process.cwd(), `fonts/${name}-latin.woff2`)).toString('base64')
+    stylesheet += `@font-face{font-family:'${name}';font-weight:${weight};src:url(data:font/woff2;base64,${font})}:root{--font-${name}:'${name}'}`
+  }
   script = execFileSync(process.execPath, ['--input-type=module', '-e', `
     import { build } from 'esbuild';
     const polyfill = await build({ entryPoints: ['next/dist/compiled/process'], bundle: true, write: false,
@@ -51,10 +55,11 @@ it.each(([
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   try {
-    await page.route('https://habit-list.test/', (route) => route.fulfill({ contentType: 'text/html', body: `<!doctype html><style>${stylesheet}</style><div id="root"></div>` }))
+    await page.route('https://habit-list.test/', (route) => route.fulfill({ contentType: 'text/html', body: `<!doctype html><style>${stylesheet}</style><body class="font-sans"><div id="root"></div></body>` }))
     await page.goto('https://habit-list.test/')
     await page.evaluate((scale) => { document.documentElement.style.fontSize = `${scale * 100}%` }, fontScale)
     await page.addScriptTag({ content: script })
+    await page.evaluate(() => document.fonts.ready)
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 30, undefined, { timeout: 5000 })
       .catch(async (cause: unknown) => { throw new Error(JSON.stringify({ errors, body: await page.locator('body').innerText() }), { cause }) })
     const trigger = page.locator('[data-habit-row-control="menu"]').first()
@@ -90,7 +95,7 @@ it.each(([
     await page.getByRole('button', { name: 'Select all', exact: true }).click()
     const before = await page.locator('[data-shell-scroller]').evaluate((element) => {
       element.scrollTop = 650
-      return { offset: element.scrollTop, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-habit-list]')!.style.minHeight }
+      return { offset: element.scrollTop, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-shell-page-content]')!.style.minHeight }
     })
     expect(before.offset).toBe(650)
     const observations = page.locator('[data-shell-scroller]').evaluate((element) => new Promise<{ departures: number; offsets: number[]; minimum: string; remaining: number; viewport: number }>((done) => {
@@ -104,7 +109,7 @@ it.each(([
         if (departures > 0) departureStarted ??= performance.now()
         const remaining = element.querySelectorAll('[data-testid="habit-row"]').length
         const settled = remaining === 0 && departureStarted !== undefined && performance.now() - departureStarted > 1000
-        if (settled || performance.now() - start > 5000) done({ departures, offsets, remaining, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-habit-list]')!.style.minHeight })
+        if (settled || performance.now() - start > 5000) done({ departures, offsets, remaining, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-shell-page-content]')!.style.minHeight })
         else requestAnimationFrame(sample)
       }
       requestAnimationFrame(sample)
@@ -117,7 +122,7 @@ it.each(([
     await page.locator('[data-shell-scroller]').evaluate((element) => { element.scrollTop = 0 })
     await page.waitForFunction(() => {
       const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
-      return scroller.scrollTop === 0 && Number.parseFloat(scroller.querySelector<HTMLElement>('[data-habit-list]')!.style.minHeight) <= scroller.clientHeight
+      return scroller.scrollTop === 0 && scroller.querySelector<HTMLElement>('[data-shell-page-content]')!.clientHeight <= Math.max(scroller.clientHeight, scroller.querySelector<HTMLElement>('#orbit-main')!.clientHeight)
     }, undefined, { timeout: 5000 })
     expect(errors).toEqual([])
   } finally { await page.close() }

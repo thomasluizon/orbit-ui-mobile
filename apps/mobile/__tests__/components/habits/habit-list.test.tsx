@@ -11,6 +11,7 @@ import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geom
 import { FlatList, LayoutAnimation, StyleSheet, View, type ViewStyle, type HostInstance } from 'react-native'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
+import { makeMonthlyChildDaySchedule } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate, createApiClientError, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -631,6 +632,30 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 }
 
 describe('HabitList', () => {
+  it.each((['today', 'all'] as const).flatMap((view) => [true, false].map((skipped) => ({ view, skipped }))))(
+    'uses the selected-date child status in $view with skipped=$skipped', ({ view, skipped }) => {
+      useActualHabitVisibility = true
+      const schedule = makeMonthlyChildDaySchedule(TODAY, '2026-10-12')
+      schedule.children[0]!.isSkippedOnDate = skipped
+      Object.assign(mockHabitsData, normalizeHabitQueryData([schedule]))
+      let tree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { tree = createTestTree(<HabitList view={view} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} />) })
+      const rows = tree.root.findAllByType(HabitRow).filter(isInteractiveRow)
+      const child = rows.find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'child-1')
+      if (view === 'today') expect(child).toBeUndefined()
+      else {
+        expect(flattenRenderedText(child)).toContain(skipped ? 'habits.statusDot.skip' : 'calendar.dayCell.notScheduled')
+        const glyph = child!.findAllByProps({ testID: 'unavailable-status-dot' })[0]!
+        expect(StyleSheet.flatten(glyph.props.style)).toMatchObject({ width: 28, height: 28, borderWidth: 0 })
+        const toggle = child!.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) => node.props.accessibilityRole === 'button' && String(node.props.accessibilityLabel).includes('habits.logHabit'))[0]!
+        expect(toggle.props.accessibilityState.disabled).toBe(true)
+        TestRenderer.act(() => toggle.props.onPress())
+        expect(logMutateAsync).not.toHaveBeenCalled()
+      }
+      expect(rows.find((row: { props: { habit: NormalizedHabit } }) => row.props.habit.id === 'child-2')!.props.habit.isLoggedInRange).toBe(true)
+    },
+  )
+
   it.each(['today', 'all', 'general'] as const)('names the %s list without merging row actions', (view) => {
     seedHabits([createMockHabit({ id: 'named-row', title: 'Read', isGeneral: view === 'general', scheduledDates: [TODAY] })])
     let tree: ReturnType<typeof TestRenderer.create>
@@ -1609,7 +1634,7 @@ describe('HabitList', () => {
   it('blocks an account-old completion before it enters the offline queue', () => {
     vi.setSystemTime(new Date('2026-09-11T10:30:00Z'))
     accountDate.timeZone = 'Pacific/Kiritimati'
-    const habit = createMockHabit({ id: 'account-window', title: 'Read' })
+    const habit = createMockHabit({ id: 'account-window', title: 'Read', scheduledDates: ['2026-09-04'] })
     seedHabits([habit])
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
@@ -4777,14 +4802,9 @@ describe('HabitList', () => {
   })
 
   it('renders the status dot disabled for a non-loggable row and interactive for a loggable one', () => {
-    const nonLoggable = createMockHabit({
-      id: 'non-loggable',
-      title: 'Daily yoga',
-      frequencyUnit: 'Day',
-      scheduledDates: [],
-      isOverdue: false,
-      isCompleted: false,
-    })
+    const schedule = makeMonthlyChildDaySchedule(TODAY, TOMORROW)
+    schedule.children[0]!.isSkippedOnDate = false
+    const nonLoggable = normalizeHabitQueryData([schedule]).habitsById.get('child-1')!
     const loggable = createMockHabit({
       id: 'loggable',
       title: 'Pay rent',
@@ -4797,10 +4817,10 @@ describe('HabitList', () => {
     let loggableTree: any
     TestRenderer.act(() => {
       nonLoggableTree = createTestTree(
-        <HabitRow habit={nonLoggable} actions={{ onLog }} />,
+        <HabitRow habit={nonLoggable} selectedDate={new Date(`${TODAY}T12:00:00`)} today={TODAY} actions={{ onLog }} />,
       )
       loggableTree = createTestTree(
-        <HabitRow habit={loggable} actions={{ onLog }} />,
+        <HabitRow habit={loggable} selectedDate={new Date(`${TODAY}T12:00:00`)} today={TODAY} actions={{ onLog }} />,
       )
     })
 
@@ -5949,7 +5969,7 @@ describe('HabitList', () => {
       await TestRenderer.act(() => tree.unmount())
     })
 
-    it('retains every bulk departing row and the scrolled viewport through removal', async () => {
+    it('retains every bulk departing row through an immediate viewport resize and removal', async () => {
       vi.useFakeTimers()
       seedHabits(['first', 'second', 'third'].map((id) => createMockHabit({ id, scheduledDates: [TODAY] })))
       const content = <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
@@ -5959,17 +5979,23 @@ describe('HabitList', () => {
       TestRenderer.act(() => {
         list.props.onLayout({ nativeEvent: { layout: { width: 412, height: 300, x: 0, y: 0 } } })
         list.props.onScrollOffsetChange(650)
+        list.props.onLayout({ nativeEvent: { layout: { width: 412, height: 400, x: 0, y: 0 } } })
       })
       seedHabits([])
       await TestRenderer.act(() => { tree!.update(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
       const leaving = tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) =>
         typeof node.type === 'string' && node.props['data-phase'] === 'exit')
       expect(leaving).toHaveLength(3)
-      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(950)
+      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(1050)
       await TestRenderer.act(() => { vi.advanceTimersByTime(300) })
       expect(tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) => typeof node.type === 'string' && node.props['data-phase'] === 'exit')).toHaveLength(0)
-      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(950)
+      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(1050)
       expect(rootListScroll.scrollToOffset).not.toHaveBeenCalled()
+      TestRenderer.act(() => { tree!.root.findByType('DraggableFlatList').props.onScrollOffsetChange(240) })
+      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(640)
+      TestRenderer.act(() => { tree!.root.findByType('DraggableFlatList').props.onScrollOffsetChange(0) })
+      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(400)
+      await TestRenderer.act(() => tree!.unmount())
     })
 
     function renderTodayList(onScroll?: (offsetY: number) => void) {

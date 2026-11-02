@@ -4,6 +4,7 @@ import { createMoveInventoryFixture } from '@orbit/shared/__tests__/move-invento
 import { createHabitViewItems, createHabitViewScheduleItems, createHabitViewFixture, HABIT_VIEW_ROW_ORDER } from '@orbit/shared/__tests__/habit-view-fixtures'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { personalText } from '@/__tests__/support/personal-text'
+import { makeMonthlyChildDaySchedule } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react'
 import React from 'react'
@@ -532,6 +533,28 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  it.each((['today', 'all'] as const).flatMap((view) => [true, false].map((skipped) => ({ view, skipped }))))(
+    'uses the selected-date child status in $view with skipped=$skipped', ({ view, skipped }) => {
+      const schedule = makeMonthlyChildDaySchedule(TODAY, '2026-10-12')
+      schedule.children[0]!.isSkippedOnDate = skipped
+      Object.assign(mockHabitsData, normalizeHabitQueryData([schedule]))
+      rowImplementation.actual = true
+      useActualHabitVisibility = true
+      const { container } = renderWithProviders(<HabitList view={view} filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted />)
+      const child = container.querySelector('[data-habit-id="child-1"]')
+      if (view === 'today') expect(child).toBeNull()
+      else {
+        expect(child!.querySelector('[data-habit-row-meta]')).toHaveTextContent(skipped ? 'habits.statusDot.skip' : 'calendar.dayCell.notScheduled')
+        expect(child!.querySelector('[data-habit-check]')).toHaveAttribute('data-status', 'unavailable')
+        expect(child!.querySelector('[data-habit-row-control="check"]')).toHaveAttribute('aria-disabled', 'true')
+        fireEvent.click(child!.querySelector('[data-habit-row-control="check"]')!)
+        expect(logHabitMutateAsync).not.toHaveBeenCalled()
+      }
+      expect(container.querySelector('[data-habit-id="habit-1"] [data-habit-row-control="check"]')).not.toHaveAttribute('aria-disabled', 'true')
+      expect(container.querySelector('[data-habit-id="child-2"] [data-habit-check]')).toHaveAttribute('data-status', 'done')
+    },
+  )
+
   beforeEach(() => {
     moveModuleLoad.generation++
     moveModuleLoad.hold = null

@@ -9,12 +9,12 @@ afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.resto
 
 function List({ ids, parentId = null }: Readonly<{ ids: string[]; parentId?: string | null }>) {
   const ref = useHabitListScrollAnchor(parentId)
-  return <div data-shell-scroller=""><div ref={ref} data-habit-list="" style={{ overflowAnchor: 'none' }}>
+  return <div data-shell-scroller="" style={{ position: 'relative', padding: 0 }}><div ref={ref} data-habit-list="" style={{ overflowAnchor: 'none' }}>
     <ListPresence>{ids.map((id) => <ListMotionItem key={id}><button>{id}</button></ListMotionItem>)}</ListPresence>
   </div></div>
 }
 
-it('keeps a pending scroll through initial observation and subsequent viewport resizing', async () => {
+it('keeps the observed scroll offset through viewport resizing and browser anchoring', async () => {
   vi.useFakeTimers()
   const callbacks: ResizeObserverCallback[] = []
   vi.stubGlobal('ResizeObserver', class {
@@ -24,18 +24,26 @@ it('keeps a pending scroll through initial observation and subsequent viewport r
     disconnect() {}
   })
   let viewportHeight = 740
+  let scrollHeight = 5000
   vi.spyOn(Element.prototype, 'clientHeight', 'get').mockImplementation(() => viewportHeight)
+  vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockImplementation(() => scrollHeight)
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
     return new DOMRect(0, this.hasAttribute('data-habit-list') ? -this.parentElement!.scrollTop : 0, 412, viewportHeight)
   })
   const view = render(<List ids={['first']} />)
   const scroller = view.container.querySelector<HTMLElement>('[data-shell-scroller]')!
   scroller.scrollTop = 650
+  fireEvent.scroll(scroller)
+  await act(() => vi.advanceTimersByTime(100))
+  viewportHeight = 812
+  scroller.scrollTop = 722
   act(() => callbacks.forEach(callback => callback([], {} as ResizeObserver)))
   expect(scroller.scrollTop).toBe(650)
   fireEvent.scroll(scroller)
   await act(() => vi.advanceTimersByTime(100))
-  viewportHeight = 800
+  scrollHeight = 950
+  viewportHeight = 860
+  scroller.scrollTop = scrollHeight - viewportHeight
   act(() => callbacks.forEach(callback => callback([], {} as ResizeObserver)))
   expect(scroller.scrollTop).toBe(650)
   scroller.scrollTop = 0

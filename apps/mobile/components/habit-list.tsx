@@ -447,6 +447,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const accountTimeZone = profile?.timeZone
     const todayStr = useCurrentDate(accountTimeZone)
     const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
+    const rowDate = useMemo(() => new Date(`${selectedDateStr}T00:00:00`), [selectedDateStr])
     const settlementDateIsReadOnly = useCallback((date: string): boolean =>
       !profile || getTodayBoundary(date, formatAPIDateInTimeZone(new Date(), profile.timeZone)) === 'read-only',
     [profile])
@@ -1466,7 +1467,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             habit={habit}
             canSkip={canLogHabitOnDate(habit, selectedDateStr, todayStr)}
             structuralColumn
-            selectedDate={selectedDate}
+            selectedDate={rowDate}
             today={todayStr}
             depth={depth}
             drillInsteadOfExpand={Boolean(options?.isDrillCard) || depth >= maxInlineDepth}
@@ -1487,7 +1488,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         return row
       },
       [
-        selectedDate,
+        rowDate,
         selectedDateStr,
         todayStr,
         collapsedIds,

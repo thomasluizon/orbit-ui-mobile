@@ -77,3 +77,43 @@ it.each(['no-preference', 'reduce'] as const)('holds the offset when rows leave 
     await page.waitForFunction(() => document.querySelector('[data-shell-scroller]')!.scrollHeight === 1376)
   } finally { await page.close() }
 })
+
+it.each([1, 1.1].flatMap((zoom) => (['no-preference', 'reduce'] as const).map((reducedMotion) => ({ zoom, reducedMotion }))))(
+  'holds the bulk removal offset while the viewport grows, zoom=$zoom motion=$reducedMotion', async ({ zoom, reducedMotion }) => {
+    const page = await browser.newPage({ viewport: { width: 412, height: 1100 }, reducedMotion })
+    try {
+      page.setDefaultTimeout(3000)
+      await page.setContent('<!doctype html><div id="root" data-count="30" data-remaining="0"></div>')
+      await page.addScriptTag({ content: script })
+      await page.waitForFunction(() => document.querySelectorAll('[data-row]').length === 30)
+      const scroller = page.locator('[data-shell-scroller]')
+      await scroller.evaluate(async (element) => {
+        element.scrollTop = 650
+        await new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())))
+      })
+      const observations = scroller.evaluate((element) => new Promise<{ offset: number; maximum: number; viewport: number; minimum: string; departures: number }[]>((done) => {
+        const samples: { offset: number; maximum: number; viewport: number; minimum: string; departures: number }[] = []
+        let grownAt: number | undefined
+        const sample = () => {
+          samples.push({ offset: element.scrollTop, maximum: element.scrollHeight - element.clientHeight, viewport: element.clientHeight,
+            minimum: (element.querySelector('[data-shell-page-content]') as HTMLElement).style.minHeight,
+            departures: element.querySelectorAll('[data-list-motion][inert]').length })
+          if (element.clientHeight === 832) grownAt ??= performance.now()
+          if (grownAt !== undefined && performance.now() - grownAt > 300) done(samples)
+          else requestAnimationFrame(sample)
+        }
+        requestAnimationFrame(sample)
+      }))
+      await page.evaluate(() => document.querySelector<HTMLButtonElement>('button')!.click())
+      await page.waitForFunction(() => document.querySelectorAll('[data-row]').length === 0)
+      await page.evaluate((zoom) => { document.body.style.zoom = String(zoom); document.getElementById('grow-viewport')!.click() }, zoom)
+      const samples = await observations
+      expect(samples.every(({ offset }) => Math.abs(offset - 650) < 1), JSON.stringify(samples)).toBe(true)
+      expect(await page.locator('[data-row]').count()).toBe(0)
+      await scroller.evaluate((element) => { element.scrollTop = 240 })
+      await page.waitForFunction(() => Math.abs(document.querySelector('[data-shell-scroller]')!.scrollTop - 240) < 1)
+      await scroller.evaluate((element) => { element.scrollTop = 0 })
+      await page.waitForFunction(() => document.querySelector('[data-shell-scroller]')!.scrollHeight === 832)
+    } finally { await page.close() }
+  },
+)
