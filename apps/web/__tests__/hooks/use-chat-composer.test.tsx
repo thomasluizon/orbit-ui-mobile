@@ -28,7 +28,7 @@ vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => {
   vi.setSystemTime(PINNED_TEST_TIME)
   vi.stubGlobal('createImageBitmap', vi.fn(() => Promise.resolve({ width: 640, height: 480, close: vi.fn() })))
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D)
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn(), fillRect: vi.fn() } as unknown as CanvasRenderingContext2D)
   vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(callback => callback(new Blob(['resized'], { type: 'image/jpeg' })))
 })
 afterEach(() => vi.useRealTimers())
@@ -519,6 +519,10 @@ describe('web useChatComposer streaming send', () => {
       result.current.setInput(draft)
       if (draftKind === 'image-plus-text') await result.current.handleFileSelect(fileChangeEvent(image))
     })
+    expect(result.current.sendError).toBeNull()
+    if (draftKind === 'image-plus-text') {
+      expect(result.current.selectedImage).toMatchObject({ name: 'walk.jpg', type: 'image/jpeg', size: 7 })
+    }
     const selectedImage = result.current.selectedImage
     await act(async () => { result.current.composerProps.onSend(); await Promise.resolve() })
     expect(result.current.input).toBe(draft)
