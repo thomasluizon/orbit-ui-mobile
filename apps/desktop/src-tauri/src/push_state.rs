@@ -161,10 +161,8 @@ impl PushState {
             .any(|pending| pending.owner == owner && pending.registration == registration)
         {
             if self.pending.len() >= 8 {
-                let Some(oldest) = self.pending.iter().position(|pending| pending.revoke) else {
-                    return Err("Too many pending native registrations");
-                };
-                self.pending.remove(oldest);
+                // WHY: revoke marks an uncertain endpoint still needing cleanup, so eviction loses retry state (#1964).
+                return Err("Too many pending native registrations");
             }
             self.pending.push(PendingRegistration {
                 owner,
@@ -328,7 +326,7 @@ mod tests {
     }
 
     #[test]
-    fn pending_registrations_are_bounded_and_evict_the_oldest_revoke_first() {
+    fn pending_registrations_are_bounded_without_losing_unconfirmed_revocations() {
         let directory = tempfile::tempdir().unwrap();
         let mut state = PushState::load(&directory.path().join("push.json")).unwrap();
         let registration = state
@@ -345,17 +343,19 @@ mod tests {
         );
         state.pending[1].revoke = true;
         state.pending[3].revoke = true;
-        state.stage("replacement".into(), registration).unwrap();
+        assert_eq!(
+            state.stage("replacement".into(), registration),
+            Err("Too many pending native registrations")
+        );
         assert_eq!(state.pending.len(), 8);
-        assert_eq!(state.pending[0].owner, "account-0");
-        assert!(!state
-            .pending
-            .iter()
-            .any(|pending| pending.owner == "account-1"));
         assert!(state
             .pending
             .iter()
-            .any(|pending| pending.owner == "account-3"));
+            .any(|pending| pending.owner == "account-1" && pending.revoke));
+        assert!(state
+            .pending
+            .iter()
+            .any(|pending| pending.owner == "account-3" && pending.revoke));
     }
 
     #[cfg(unix)]

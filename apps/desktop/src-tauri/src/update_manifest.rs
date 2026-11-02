@@ -8,13 +8,13 @@ pub const TARGETS: [&str; 4] = [
     "windows-aarch64",
 ];
 
-pub fn channel(identifier: &str) -> Result<&'static str, &'static str> {
+pub fn channel(identifier: &str) -> Result<&'static str, String> {
     match identifier {
         "org.useorbit.desktop" => Ok("production"),
         "org.useorbit.desktop.staging" => Ok("staging"),
         #[cfg(feature = "bench-loopback")]
         "org.useorbit.desktop.benchmark" => Ok("staging"),
-        _ => Err("Unknown desktop update channel"),
+        _ => Err("Unknown desktop update channel".into()),
     }
 }
 

@@ -4,10 +4,13 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import vector from '../__fixtures__/signer-vector.json'
 import published from '../__fixtures__/channel-staging.json'
 import { artifactName, targets } from '../scripts/release.ts'
+
+// WHY: Publication runs several real Git and Node processes; allow startup headroom on shared hosts (#1964).
+vi.setConfig({ testTimeout: 30_000 })
 
 const require = createRequire(import.meta.url)
 const { load } = require('js-yaml') as { load: (source: string) => Workflow }
