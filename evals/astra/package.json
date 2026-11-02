@@ -20,6 +20,9 @@
   "overrides": {
     "@azure/identity": {
       "@azure/msal-node": "^7.1.0"
-    }
+    },
+    "minimatch": "^11.0.3",
+    "glob": "^14.0.3",
+    "basic-ftp": "^6.2.5"
   }
 }
