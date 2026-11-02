@@ -802,7 +802,7 @@ describe('HabitList', () => {
       return
     }
     expect(move).not.toHaveAttribute('aria-disabled', 'true')
-    fireEvent.click(screen.getByRole('radio', { name: /^target/ }))
+    fireEvent.click(await screen.findByRole('radio', { name: /^target/ }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(ids, 'target')
