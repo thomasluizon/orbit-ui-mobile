@@ -1,3 +1,4 @@
+use crate::locks::RecoverLock;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use sha2::{Digest, Sha256};
 use std::time::{Duration, Instant};
@@ -45,7 +46,7 @@ impl AuthFlow {
         })
     }
 
-    pub fn begin(&mut self, owner: CookieOwner) -> Result<Url, &'static str> {
+    pub fn begin(&mut self, owner: CookieOwner) -> Result<(Url, String), &'static str> {
         let mut random = [0u8; 64];
         getrandom::fill(&mut random).map_err(|_| "Unable to create desktop proof")?;
         let state: String = random[..32]
@@ -62,12 +63,12 @@ impl AuthFlow {
         self.active = Some(state.clone());
         self.ready = None;
         self.pending = Some(Attempt {
-            state,
+            state: state.clone(),
             verifier,
             owner,
             created: Instant::now(),
         });
-        Ok(url)
+        Ok((url, state))
     }
 
     pub fn claim(&mut self, url: &Url) -> Option<(Attempt, Option<String>)> {
@@ -140,12 +141,24 @@ mod benchmark_origin_tests {
     #[test]
     fn loopback_requires_the_explicit_benchmark_feature() {
         assert_eq!(
-            AuthFlow::new("http://127.0.0.1:3400/".parse().unwrap(), "org.useorbit.desktop.staging").is_ok(),
+            AuthFlow::new(
+                "http://127.0.0.1:3400/".parse().unwrap(),
+                "org.useorbit.desktop.staging"
+            )
+            .is_ok(),
             cfg!(feature = "bench-loopback")
         );
-        for origin in ["http://localhost:3400/", "http://127.0.0.2:3400/", "https://127.0.0.1:3400/",
-            "http://127.0.0.1:3400/login", "http://user@127.0.0.1:3400/", "http://127.0.0.1:3400/?x=1"] {
-            assert!(AuthFlow::new(origin.parse().unwrap(), "org.useorbit.desktop.staging").is_err());
+        for origin in [
+            "http://localhost:3400/",
+            "http://127.0.0.2:3400/",
+            "https://127.0.0.1:3400/",
+            "http://127.0.0.1:3400/login",
+            "http://user@127.0.0.1:3400/",
+            "http://127.0.0.1:3400/?x=1",
+        ] {
+            assert!(
+                AuthFlow::new(origin.parse().unwrap(), "org.useorbit.desktop.staging").is_err()
+            );
         }
     }
 }
@@ -172,14 +185,14 @@ pub fn cookie_owner(cookies: &[Cookie<'_>]) -> CookieOwner {
 
 pub fn session_cookies(
     headers: &[String],
-    origin: &Url,
+    _origin: &Url,
 ) -> Result<Vec<Cookie<'static>>, &'static str> {
     if headers.len() != 2 {
         return Err("Incomplete desktop session");
     }
     let mut cookies = Vec::new();
     for header in headers {
-        let mut cookie = Cookie::parse(header.clone()).map_err(|_| "Invalid session cookie")?;
+        let cookie = Cookie::parse(header.clone()).map_err(|_| "Invalid session cookie")?;
         if !matches!(cookie.name(), "auth_token" | "refresh_token")
             || cookie.value().is_empty()
             || cookie.http_only() != Some(true)
@@ -194,12 +207,6 @@ pub fn session_cookies(
         {
             return Err("Invalid session cookie policy");
         }
-        cookie.set_domain(
-            origin
-                .host_str()
-                .ok_or("Invalid desktop origin")?
-                .to_owned(),
-        );
         cookies.push(cookie);
     }
     Ok(cookies)
@@ -241,7 +248,7 @@ pub fn commit_session<Failure>(
     set: impl FnMut(&Cookie<'static>) -> Result<(), Failure>,
     delete: impl FnMut(&Cookie<'static>) -> Result<(), Failure>,
 ) -> Result<bool, &'static str> {
-    let guard = flow.lock().unwrap();
+    let guard = flow.recover_lock();
     let current = read().map_err(|_| "Cannot read desktop session")?;
     if !guard.accepts_session(attempt, &current) {
         return Ok(false);
@@ -326,7 +333,7 @@ mod tests {
     #[test]
     fn native_proof_stays_in_memory_and_matches_the_browser_challenge() {
         let mut flow = flow();
-        let first = flow.begin(Vec::new()).unwrap();
+        let (first, _) = flow.begin(Vec::new()).unwrap();
         let pairs: std::collections::HashMap<_, _> = first.query_pairs().collect();
         let attempt = flow.pending.as_ref().unwrap();
         assert_eq!(pairs["desktopState"], attempt.state);
@@ -337,7 +344,7 @@ mod tests {
             URL_SAFE_NO_PAD.encode(Sha256::digest(attempt.verifier.as_bytes()))
         );
         assert!(!first.as_str().contains(&attempt.verifier));
-        assert_ne!(flow.begin(Vec::new()).unwrap(), first);
+        assert_ne!(flow.begin(Vec::new()).unwrap().0, first);
     }
 
     #[test]
@@ -411,11 +418,11 @@ mod tests {
     }
 
     #[test]
-    fn bff_cookies_keep_their_security_expiry_and_environment_domain() {
+    fn bff_cookies_keep_their_security_expiry_and_host_only_scope() {
         let origin = flow().origin;
         let cookies = session_cookies(&headers(), &origin).unwrap();
         for cookie in &cookies {
-            assert_eq!(cookie.domain(), origin.host_str());
+            assert_eq!(cookie.domain(), None);
             assert_eq!(cookie.http_only(), Some(true));
             assert_eq!(cookie.secure(), Some(true));
             assert_eq!(cookie.same_site(), Some(SameSite::Strict));
