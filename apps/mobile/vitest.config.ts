@@ -1,11 +1,19 @@
 import { defaultExclude, defineConfig } from 'vitest/config'
 import path from 'path'
 import { transformWithOxc } from 'vite'
+import { draggableFlatListNativeAdapter } from './scripts/draggable-flatlist-resolver.js'
 
 const focusIndicatorTest = '__tests__/components/ui/selected-focus-indicator.test.tsx'
 
 export default defineConfig({
   plugins: [{
+    name: 'android-draggable-flatlist-adapter',
+    enforce: 'pre',
+    resolveId(moduleName, importer) {
+      const nativeModule = moduleName === path.resolve(__dirname, './test-mocks/react-native.ts') ? 'react-native' : moduleName
+      return importer ? draggableFlatListNativeAdapter(nativeModule, importer, 'android') : undefined
+    },
+  }, {
     name: 'rn-primitives-jsx',
     enforce: 'pre',
     transform(source, id) {
