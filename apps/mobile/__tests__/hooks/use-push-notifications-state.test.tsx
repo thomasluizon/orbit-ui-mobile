@@ -1,6 +1,7 @@
 import React from 'react'
 import type { ReactTestRenderer } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as SecureStore from 'expo-secure-store'
 import { API } from '@orbit/shared/api'
 import { createApiClientError } from '@orbit/shared'
 
@@ -15,7 +16,7 @@ const mocks = vi.hoisted(() => {
     storage: new Map<string, string>(),
     setAstraConversationOpen: vi.fn(),
     invalidateQueries: vi.fn(() => Promise.resolve()),
-    apiClient: vi.fn((_path: string, _options?: { isCurrent?: () => boolean }) => Promise.resolve(undefined)),
+    apiClient: vi.fn((_path: string, _options?: { isCurrent?: () => boolean; body?: string }) => Promise.resolve(undefined)),
     router: {
       push: vi.fn(),
     },
@@ -41,6 +42,8 @@ const mocks = vi.hoisted(() => {
 vi.mock('@/lib/proactive-item', () => ({ openCurrentProactiveItem: () => { mocks.setAstraConversationOpen(true); return Promise.resolve() } }))
 
 vi.mock('@/hooks/use-push-subscriptions', () => ({ hasPushSubscriptionCapacity: mocks.capacity }))
+
+vi.mock('expo-crypto', () => ({ getRandomBytesAsync: vi.fn(() => Promise.resolve(new Uint8Array(32).fill(255))) }))
 
 vi.mock('expo', () => ({
   isRunningInExpoGo: () => mocks.expoGo,
@@ -209,6 +212,9 @@ describe('usePushNotifications', () => {
     globalPromptResult = null
     profileSurfaceResult = null
     mocks.storage.clear()
+    mocks.storage.set('orbit:ios-install', '1')
+    await SecureStore.deleteItemAsync('push_install_secret')
+    await SecureStore.setItemAsync('push_install_secret', 'install-push-secret')
     mocks.capacity.mockReset().mockResolvedValue(true)
     mocks.apiClient.mockClear()
     mocks.invalidateQueries.mockClear()
@@ -262,12 +268,30 @@ describe('usePushNotifications', () => {
     PushNotificationsProvider = pushNotificationsModule.PushNotificationsProvider
   })
 
+  it.each(['android', 'ios'])('creates and reuses the SecureStore secret for %s subscribe and unsubscribe', async (platform) => {
+    mocks.platform = platform
+    await SecureStore.deleteItemAsync('push_install_secret')
+    const renderer = await renderHarness()
+    await TestRenderer.act(async () => { await latestResult!.requestPermission() })
+    const saved = await SecureStore.getItemAsync('push_install_secret')
+    expect(saved).toBe(Buffer.from(new Uint8Array(32).fill(255)).toString('base64url'))
+    await TestRenderer.act(async () => { await latestResult!.requestPermission() })
+    await pushNotificationsModule.unsubscribePushToken()
+    const requests = mocks.apiClient.mock.calls.filter(([path]) => path === API.notifications.subscribe || path === API.notifications.unsubscribe)
+    expect(requests.filter(([path]) => path === API.notifications.subscribe)).toHaveLength(2)
+    expect(requests.filter(([path]) => path === API.notifications.unsubscribe)).toHaveLength(1)
+    for (const [, options] of requests) {
+      expect(JSON.parse(options?.body ?? 'null')).toMatchObject({ auth: saved, p256dh: platform === 'ios' ? 'apns' : 'fcm' })
+    }
+    TestRenderer.act(() => renderer.unmount())
+  })
+
   it('subscribes and unsubscribes on iOS with the native APNs token', async () => {
     mocks.platform = 'ios'
     vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(createPermissionResponse('granted'))
     vi.mocked(notificationsModule.getDevicePushTokenAsync).mockResolvedValue({ type: 'ios', data: 'a'.repeat(64) })
     const renderer = await renderHarness()
-    const payload = JSON.stringify({ endpoint: 'a'.repeat(64), p256dh: 'apns', auth: 'apns' })
+    const payload = JSON.stringify({ endpoint: 'a'.repeat(64), p256dh: 'apns', auth: 'install-push-secret' })
     expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.subscribe, expect.objectContaining({ body: payload }))
     expect(notificationsModule.setNotificationChannelAsync).not.toHaveBeenCalled()
     expect(notificationsModule.getExpoPushTokenAsync).not.toHaveBeenCalled()
@@ -286,7 +310,7 @@ describe('usePushNotifications', () => {
     mocks.apiClient.mockClear()
     await TestRenderer.act(async () => { listener?.({ type: 'ios', data: 'rotated-apns-token' }); await Promise.resolve() })
     expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.subscribe, expect.objectContaining({
-      body: JSON.stringify({ endpoint: 'rotated-apns-token', p256dh: 'apns', auth: 'apns' }),
+      body: JSON.stringify({ endpoint: 'rotated-apns-token', p256dh: 'apns', auth: 'install-push-secret' }),
     }))
     expect(notificationsModule.getDevicePushTokenAsync).not.toHaveBeenCalled()
     mocks.apiClient.mockClear()
@@ -294,6 +318,9 @@ describe('usePushNotifications', () => {
     await TestRenderer.act(async () => { listener?.({ type: 'ios', data: 'disabled-token' }); await Promise.resolve() })
     expect(mocks.apiClient).not.toHaveBeenCalled()
     mocks.storage.clear()
+    mocks.storage.set('orbit:ios-install', '1')
+    await SecureStore.deleteItemAsync('push_install_secret')
+    await SecureStore.setItemAsync('push_install_secret', 'install-push-secret')
     mocks.auth.isAuthenticated = false
     await TestRenderer.act(async () => { listener?.({ type: 'ios', data: 'signed-out-token' }); await Promise.resolve() })
     expect(mocks.apiClient).not.toHaveBeenCalled()
@@ -473,7 +500,7 @@ describe('usePushNotifications', () => {
         body: JSON.stringify({
           endpoint: 'native-token',
           p256dh: 'fcm',
-          auth: 'fcm',
+          auth: 'install-push-secret',
         }),
       }),
     )
@@ -492,7 +519,7 @@ describe('usePushNotifications', () => {
         body: JSON.stringify({
           endpoint: 'native-token',
           p256dh: 'fcm',
-          auth: 'fcm',
+          auth: 'install-push-secret',
         }),
       }),
     )
@@ -524,10 +551,10 @@ describe('usePushNotifications', () => {
     await renderHarness()
 
     expect(mocks.apiClient).toHaveBeenNthCalledWith(1, API.notifications.subscribe,
-      expect.objectContaining({ body: JSON.stringify({ endpoint: 'account-a-token', p256dh: 'fcm', auth: 'fcm' }) }))
+      expect.objectContaining({ body: JSON.stringify({ endpoint: 'account-a-token', p256dh: 'fcm', auth: 'install-push-secret' }) }))
     expect(notificationsModule.unregisterForNotificationsAsync).toHaveBeenCalledTimes(1)
     expect(mocks.apiClient).toHaveBeenNthCalledWith(2, API.notifications.subscribe,
-      expect.objectContaining({ body: JSON.stringify({ endpoint: 'account-b-token', p256dh: 'fcm', auth: 'fcm' }) }))
+      expect.objectContaining({ body: JSON.stringify({ endpoint: 'account-b-token', p256dh: 'fcm', auth: 'install-push-secret' }) }))
     expect(latestResult?.expoPushToken).toBe('account-b-token')
     expect(latestResult?.registrationStatus).toBe('registered')
   })
@@ -1185,7 +1212,7 @@ describe('usePushNotifications', () => {
       API.notifications.unsubscribe,
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ endpoint: 'native-token', p256dh: 'fcm', auth: 'fcm' }),
+        body: JSON.stringify({ endpoint: 'native-token', p256dh: 'fcm', auth: 'install-push-secret' }),
       }),
     )
   })

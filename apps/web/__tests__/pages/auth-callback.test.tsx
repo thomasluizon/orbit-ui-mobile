@@ -75,8 +75,8 @@ describe('Google code callback', () => {
     expect(assign).toHaveBeenCalledOnce()
   })
 
-  it('rejects an Apple state mismatch before exchanging a handoff', async () => {
-    window.history.replaceState(null, '', '/auth-callback?provider=apple&handoff=one-use&state=wrong-state')
+  it.each(['?', '#'])('rejects an Apple state mismatch from %s before exchanging a handoff', async (separator) => {
+    window.history.replaceState(null, '', `/auth-callback${separator}provider=apple&handoff=one-use&state=wrong-state`)
     render(<AuthCallbackContent pendingWebState="expected-state" />)
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
     expect(fetchMock).not.toHaveBeenCalled()
@@ -86,8 +86,49 @@ describe('Google code callback', () => {
     })
   })
 
-  it.each([false, true])('exchanges a matching Apple handoff and signs in with a new generation, reactivated=%s', async (reactivated) => {
-    window.history.replaceState(null, '', '/auth-callback?provider=apple&handoff=one-use&state=expected-state')
+  it('clears Apple fragment credentials before opening the Android intent', async () => {
+    const assign = vi.fn(() => {
+      expect(window.location.search).toBe('')
+      expect(window.location.hash).toBe('')
+    })
+    vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', 'org.useorbit.app')
+    vi.stubGlobal('navigator', { userAgent: 'Android' })
+    window.history.replaceState(null, '', '/auth-callback#provider=apple&handoff=h&state=mobile-state')
+    const browserLocation = window.location
+    vi.stubGlobal('location', {
+      protocol: 'https:', host: 'app.useorbit.org',
+      get search() { return browserLocation.search },
+      get hash() { return browserLocation.hash }, assign,
+    })
+    render(<AuthCallbackContent pendingWebState={null} />)
+    await waitFor(() => expect(assign).toHaveBeenCalledExactlyOnceWith(
+      'intent://app.useorbit.org/auth-callback?provider=apple&handoff=h&state=mobile-state#Intent;scheme=https;package=org.useorbit.app;end',
+    ))
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('uses fragment values before query values and clears the URL before the Apple request', async () => {
+    window.history.replaceState(null, '', '/auth-callback?provider=google&handoff=old&state=old#provider=apple&handoff=one-use&state=expected-state')
+    fetchMock.mockImplementation(() => {
+      expect(window.location.search).toBe('')
+      expect(window.location.hash).toBe('')
+      return Promise.resolve(Response.json({ userId: 'user-1', name: 'Person', email: 'person@example.test' }))
+    })
+    render(<AuthCallbackContent pendingWebState="expected-state" />)
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/'))
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/apple/handoff', expect.objectContaining({ body: JSON.stringify({ handoff: 'one-use', state: 'expected-state' }) }))
+  })
+
+  it.each(['state=expected-state&state=expected-state&handoff=h', 'state=expected-state&handoff=h&handoff=h'])('rejects duplicate Apple fragment credentials: %s', async (fragment) => {
+    window.history.replaceState(null, '', `/auth-callback#provider=apple&${fragment}`)
+    render(<AuthCallbackContent pendingWebState="expected-state" />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(mocks.captureMessage).toHaveBeenCalledWith('auth_callback_failed', expect.objectContaining({ tags: { provider: 'apple', reason: 'state_mismatch' } }))
+  })
+
+  it.each([['?', false], ['?', true], ['#', false], ['#', true]] as const)('exchanges a matching Apple handoff from %s and signs in, reactivated=%s', async (separator, reactivated) => {
+    window.history.replaceState(null, '', `/auth-callback${separator}provider=apple&handoff=one-use&state=expected-state`)
     sessionStorage.setItem('auth_return_url', '/')
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'Person', email: 'person@example.test', wasReactivated: reactivated })))
     render(<AuthCallbackContent pendingWebState="expected-state" />)
@@ -102,6 +143,7 @@ describe('Google code callback', () => {
     expect(mocks.generation).toBe(1)
     expect(sessionStorage.getItem('auth_return_url')).toBeNull()
     expect(window.location.search).toBe('')
+    expect(window.location.hash).toBe('')
   })
 
   it.each([
