@@ -2152,6 +2152,22 @@ describe("CalendarScreen views (mobile)", () => {
     } finally { sheetTestControls.defer(false); TestRenderer.act(() => { tree.update(<></>); }); }
   });
 
+  it.each(['month', 'week', 'range', 'agenda'] as const)('routes %s without losing the selected date or range', (view) => {
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const selectedDay = calendarGridProps.current!.selectedDay;
+    pressView(tree, 'range');
+    const rangeView = () => tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarRangeView')[0]!;
+    const span = rangeView().props.model;
+    pressView(tree, view);
+    pressView(tree, 'range');
+    expect(rangeView().props.model.start).toEqual(span.start);
+    expect(rangeView().props.model.end).toEqual(span.end);
+    pressView(tree, 'month');
+    expect(calendarGridProps.current!.selectedDay).toBe(selectedDay);
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
   it('returns from a later week to the month containing the selected day', () => {
     let tree!: Tree;
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
