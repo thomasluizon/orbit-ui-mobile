@@ -99,7 +99,7 @@ describe('a destructive write formed under a replaced account', () => {
     },
   )
 
-  it('sends a delete that names no account because no mismatch is proven', async () => {
+  it('sends a delete when the intent names no account', async () => {
     holdCookieForAccount('account-b')
 
     await deleteHabit('habit-1', null)
@@ -107,6 +107,24 @@ describe('a destructive write formed under a replaced account', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
     const [url] = mockFetch.mock.calls[0] as [string]
     expect(url).toContain(API.habits.delete('habit-1'))
+  })
+
+  it.each(destructiveWrites)('refuses to %s when the auth cookie cannot be read as an account token', async (_name, runWrite) => {
+    mockCookieStore.get.mockImplementation((name: string) =>
+      name === 'auth_token' ? { value: 'not-a-jwt' } : undefined,
+    )
+
+    await expect(runWrite()).rejects.toMatchObject({ status: 409, code: 'ACCOUNT_CHANGED' })
+
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it.each(destructiveWrites)('refuses to %s when a live cookie token has no account claim', async (_name, runWrite) => {
+    const token = `${encodeJwtSegment({ alg: 'HS256' })}.${encodeJwtSegment({ exp: Math.floor(Date.now() / 1000) + 3600 })}.signature`
+    mockCookieStore.get.mockImplementation((name: string) => name === 'auth_token' ? { value: token } : undefined)
+
+    await expect(runWrite()).rejects.toMatchObject({ status: 409, code: 'ACCOUNT_CHANGED' })
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('reports the refused account deletion as a failure rather than as a wrong code', async () => {

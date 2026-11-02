@@ -39,7 +39,7 @@ function assertIntendedAccountStillHolds(
   if (!intendedAccountId) return
 
   const cookieAccountId = getAccountIdFromToken(token)
-  if (cookieAccountId === null || cookieAccountId === intendedAccountId) return
+  if (cookieAccountId === intendedAccountId) return
 
   throw createApiClientError(
     409,
@@ -102,10 +102,10 @@ async function fetchWithSession<T>(
   })
 
   let session = renderToken ? { token: renderToken, refreshFailed: false } : await resolveServerSession()
+  assertIntendedAccountStillHolds(session.token ?? '', accountIntent.accountId)
   if (!session.token) {
     throw unauthorizedError(session.refreshFailed)
   }
-  assertIntendedAccountStillHolds(session.token, accountIntent.accountId)
 
   let res = await fetch(`${API_BASE}${path}`, {
     ...init,
