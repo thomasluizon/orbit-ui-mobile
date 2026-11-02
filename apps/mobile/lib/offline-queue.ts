@@ -68,6 +68,13 @@ function getDb(): SQLite.SQLiteDatabase {
     `)
 
     const columns = db.getAllSync<{ name: string }>('PRAGMA table_info(mutation_queue)')
+    if (!columns.some((column) => column.name === 'sequence')) {
+      const database = db
+      database.withTransactionSync(() => {
+        database.execSync('ALTER TABLE mutation_queue ADD COLUMN sequence INTEGER;')
+        database.execSync('UPDATE mutation_queue SET sequence = rowid;')
+      })
+    }
     if (!columns.some((column) => column.name === 'meta')) {
       db.execSync('ALTER TABLE mutation_queue ADD COLUMN meta TEXT;')
     }
@@ -162,8 +169,10 @@ function currentAccountId(): string | null {
 
 function upsert(database: SQLite.SQLiteDatabase, mutation: PersistedQueuedMutation, accountId: string | null): void {
   database.runSync(
-    `INSERT OR REPLACE INTO mutation_queue (id, timestamp, type, endpoint, method, payload, retries, max_retries, meta, account_id, owner_state)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO mutation_queue (id, timestamp, type, endpoint, method, payload, retries, max_retries, meta, account_id, owner_state, sequence)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(
+       (SELECT sequence FROM mutation_queue WHERE id = ?),
+       (SELECT COALESCE(MAX(sequence), 0) + 1 FROM mutation_queue)))`,
     [
       mutation.id,
       mutation.timestamp,
@@ -176,6 +185,7 @@ function upsert(database: SQLite.SQLiteDatabase, mutation: PersistedQueuedMutati
       JSON.stringify(buildMeta(mutation)),
       accountId,
       accountId === null ? 'anonymous' : 'account',
+      mutation.id,
     ],
   )
 }
@@ -184,7 +194,10 @@ function replaceAll(mutations: PersistedQueuedMutation[]): void {
   const database = getDb()
   const accountId = currentAccountId()
   database.withTransactionSync(() => {
-    database.runSync("DELETE FROM mutation_queue WHERE owner_state != 'legacy' AND (account_id IS ? OR owner_state = 'anonymous')", [accountId])
+    const retainedIds = new Set(mutations.map((mutation) => mutation.id))
+    for (const existing of getForAccount(accountId)) {
+      if (!retainedIds.has(existing.id)) database.runSync('DELETE FROM mutation_queue WHERE id = ?', [existing.id])
+    }
     for (const mutation of mutations) {
       upsert(database, mutation, accountId)
     }
@@ -428,7 +441,7 @@ export function getAll(): PersistedQueuedMutation[] {
 
 function getForAccount(accountId: string | null): PersistedQueuedMutation[] {
   const database = getDb()
-  const rows = database.getAllSync<QueueRow>("SELECT * FROM mutation_queue WHERE owner_state != 'legacy' AND (account_id IS ? OR owner_state = 'anonymous') ORDER BY timestamp ASC", [accountId])
+  const rows = database.getAllSync<QueueRow>("SELECT * FROM mutation_queue WHERE owner_state != 'legacy' AND (account_id IS ? OR owner_state = 'anonymous') ORDER BY timestamp ASC, sequence ASC", [accountId])
   return rows.map(mapRow)
 }
 

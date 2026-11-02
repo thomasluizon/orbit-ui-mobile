@@ -8,10 +8,6 @@ import { useUIStore } from '@/stores/ui-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
 const chunk = vi.hoisted(() => ({ reject: (_error: Error) => {}, started: vi.fn() }))
-vi.mock('next/dynamic', async () => {
-  const appDynamic = await import('next/dist/shared/lib/app-dynamic')
-  return { default: appDynamic }
-})
 vi.mock('@/components/command/command-palette-dialog', async (importOriginal) => {
   chunk.started()
   await new Promise<void>((_resolve, reject) => { chunk.reject = reject })
@@ -45,8 +41,12 @@ it('contains a rejected App Router chunk, announces the failure and imports agai
   trigger.focus()
   fireEvent.click(trigger)
   await waitFor(() => expect(chunk.started).toHaveBeenCalledTimes(1))
-  await act(async () => { chunk.reject(new Error('Chunk unavailable')) })
+  await act(async () => {
+    chunk.reject(new Error('Chunk unavailable'))
+    await vi.dynamicImportSettled()
+  })
   await waitFor(() => expect(useShellStore.getState().paletteOpen).toBe(false))
+  await act(async () => { await vi.dynamicImportSettled() })
   expect(screen.getByRole('main')).toHaveTextContent('Today screen')
   expect(await screen.findByText('command.loadFailed')).toBeInTheDocument()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -56,6 +56,7 @@ it('contains a rejected App Router chunk, announces the failure and imports agai
 
   vi.doUnmock('@/components/command/command-palette-dialog')
   fireEvent.click(trigger)
+  await act(async () => { await vi.dynamicImportSettled() })
   const input = await screen.findByRole('combobox', { name: 'command.placeholder' }, { timeout: 5000 })
   expect(screen.getByRole('dialog')).toBeInTheDocument()
   await waitFor(() => expect(input).toHaveFocus())

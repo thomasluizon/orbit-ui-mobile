@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
@@ -18,6 +18,7 @@ describe('HabitRow menu replacement', () => {
     render(<HabitRow habit={createMockHabit({ isGeneral, frequencyUnit: isGeneral ? null : 'Day' })}
       actions={{ onSkip, onEdit: vi.fn() }} />)
     await userEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    await act(async () => { await vi.dynamicImportSettled() })
     await screen.findByRole('menuitem', { name: 'common.edit' })
     const skip = screen.queryByRole('menuitem', { name: 'habits.actions.skip' })
     if (isGeneral) expect(skip).toBeNull()

@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef } from 'react'
 import { SPACING } from '@orbit/shared/theme'
 
 import { useRouter } from 'next/navigation'
@@ -35,6 +36,7 @@ export function DeleteAccountModal({
   const { sheetRef, closeSheet } = useSheetHost()
   const accountId = useHeldAccountId()
   const [loading, setLoading] = useAccountScopedState(false)
+  const requestPending = useRef(false)
   const [error, setError] = useAccountScopedState('')
 
   const warningMessage = (() => {
@@ -61,9 +63,10 @@ export function DeleteAccountModal({
   }
 
   async function handleRequestDeletion() {
-    if (!isOnline || accountId === null) return
+    if (loading || requestPending.current || !isOnline || accountId === null) return
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
+    requestPending.current = true
     setLoading(true)
     setError('')
     try {
@@ -91,6 +94,9 @@ export function DeleteAccountModal({
         ),
       )
       setLoading(false)
+    } finally {
+      requestPending.current = false
+      if (getAccountGeneration() !== accountGeneration) setLoading(false)
     }
   }
 

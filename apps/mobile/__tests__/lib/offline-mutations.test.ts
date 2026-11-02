@@ -1423,6 +1423,41 @@ describe('offline mutations', () => {
     }
   })
 
+  it.each([400, 404, 409, 410].flatMap((status) => [
+    { status, message: `${status} rejected` }, { status, message: 'Write rejected' },
+  ]))('drops replayed writes by status $status with message $message and continues', async ({ status, message }) => {
+    mocks.setOnline(true)
+    const update = buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: API.habits.update('habit'),
+      method: 'PUT', payload: { title: 'Changed' } })
+    const create = buildQueuedMutation({ type: 'createHabit', scope: 'habits', endpoint: API.habits.create,
+      method: 'POST', payload: { title: 'New' }, entityType: 'habit', clientEntityId: 'offline-habit-conflict' })
+    const next = buildQueuedMutation({ type: 'setName', scope: 'profile', endpoint: API.profile.name,
+      method: 'PUT', payload: { name: 'Next' } })
+    mocks.queued.push(update, create, next)
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(status, null, message))
+      .mockRejectedValueOnce(createApiClientError(status, null, message))
+    const result = await flushQueuedMutations()
+    expect(result).toMatchObject({ succeeded: 1, remaining: 0 })
+    expect(result.droppedMutations).toMatchObject([
+      { id: update.id, lastError: message }, { id: create.id, lastError: message },
+    ])
+    expect(mocks.clearOfflineEntity).toHaveBeenCalledWith('habit', 'offline-habit-conflict')
+    expect(mocks.queued).toEqual([])
+    expect(mocks.apiClient).toHaveBeenLastCalledWith(next.endpoint,
+      expect.objectContaining({ idempotencyKey: next.id }), undefined)
+  })
+
+  it('keeps a transient error that mentions a status number queued', async () => {
+    mocks.setOnline(true)
+    const mutation = buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: API.habits.update('habit'),
+      method: 'PUT', payload: { title: 'Changed' } })
+    mocks.queued.push(mutation)
+    mocks.apiClient.mockRejectedValueOnce(new Error('Connection lost after 400 milliseconds'))
+    const result = await flushQueuedMutations()
+    expect(result.droppedMutations).toEqual([])
+    expect(mocks.queued).toMatchObject([{ id: mutation.id, retries: 1 }])
+  })
+
   it.each([401, 403])('retains the queue on an HTTP %s session failure', async (status) => {
     mocks.setOnline(true)
     const mutation = buildQueuedMutation({
@@ -2243,6 +2278,23 @@ describe('offline mutations', () => {
     afterEach(() => {
       cancelScheduledFlush()
       vi.useRealTimers()
+    })
+
+    it('keeps the retry count when token refresh loses the network and retries with the same key', async () => {
+      mocks.setOnline(true)
+      const mutation = { ...buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: API.habits.update('habit'),
+        method: 'PUT', payload: { title: 'Retry' } }), retries: 1 }
+      mocks.queued.push(mutation)
+      const refreshError = new TypeError('Network request failed')
+      refreshError.name = 'AuthRefreshNetworkError'
+      mocks.apiClient.mockRejectedValueOnce(refreshError)
+      const result = await flushQueuedMutations()
+      expect(result).toMatchObject({ remaining: 1, replayState: 'waiting-on-backoff' })
+      expect(mocks.queued).toMatchObject([{ id: mutation.id, retries: 1 }])
+      await vi.advanceTimersByTimeAsync(2_000)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+      for (const [, options] of mocks.apiClient.mock.calls) expect(options?.idempotencyKey).toBe(mutation.id)
+      expect(mocks.queued).toEqual([])
     })
 
     it('schedules a backoff re-flush after a transient network failure and recovers', async () => {

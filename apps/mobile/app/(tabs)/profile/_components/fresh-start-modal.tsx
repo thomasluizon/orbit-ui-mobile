@@ -1,5 +1,5 @@
 import { SPACING } from '@orbit/shared/theme'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -70,6 +70,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
   const [resetStep, setResetStep] = useState<'info' | 'confirm'>('info')
   const [resetConfirmText, setResetConfirmText] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
+  const requestPending = useRef(false)
   const [resetError, setResetError] = useState('')
   const [prevOpen, setPrevOpen] = useState(open)
 
@@ -86,10 +87,12 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
   const isResetConfirmed = resetConfirmText.trim().toUpperCase() === 'ORBIT'
 
   async function handleResetAccount() {
+    if (resetLoading || requestPending.current) return
     const resetAccount = getAccountGeneration()
     const accountId = useAuthStore.getState().user?.userId ?? null
     const isCurrentAccount = () => accountStillCurrent(resetAccount, accountId)
     if (!isResetConfirmed || accountId === null || !isCurrentAccount()) return
+    requestPending.current = true
     setResetLoading(true)
     setResetError('')
     try {
@@ -151,7 +154,8 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
       const msg = getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic')
       setResetError(msg)
     } finally {
-      if (isCurrentAccount()) setResetLoading(false)
+      requestPending.current = false
+      setResetLoading(false)
     }
   }
 

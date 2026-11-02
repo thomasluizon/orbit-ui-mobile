@@ -79,6 +79,20 @@ describe('openChatStream', () => {
     expect(await response.text()).toBe(body)
   })
 
+  it('returns a Pro denial unchanged without throttle state or token refresh', async () => {
+    const payload = { errorCode: 'PAY_GATE', error: 'limit' }
+    const upstream = Response.json(payload, { status: 403 })
+    mocks.expoFetch.mockResolvedValueOnce(upstream)
+    const writeThrottle = vi.spyOn(useThrottleStore.getState(), 'show')
+    const response = await openChatStream(new FormData(), new AbortController().signal)
+    expect(response).toBe(upstream)
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual(payload)
+    expect(writeThrottle).not.toHaveBeenCalled()
+    expect(useThrottleStore.getState().error).toBeNull()
+    expect(mocks.refreshSessionToken).not.toHaveBeenCalled()
+  })
+
   it('posts the form data with a bearer token and time-zone header', async () => {
     mocks.getToken.mockResolvedValue('token-123')
     mocks.expoFetch.mockResolvedValue(makeResponse(200))

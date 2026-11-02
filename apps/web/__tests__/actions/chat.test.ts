@@ -1,3 +1,5 @@
+import { createApiClientError } from '@orbit/shared/utils'
+import { API } from '@orbit/shared/api'
 import { buildChatClientContext } from '@orbit/shared/chat'
 import { gamificationReadBlockResponseSchema, habitMonthReadBlockResponseSchema } from '@orbit/shared/types/chat'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -15,6 +17,7 @@ vi.mock('@/lib/server-fetch', () => ({
 }))
 
 const {
+  dismissChatOffers,
   getCurrentProactiveItem,
   refreshHabitMonth,
   refreshGamification,
@@ -29,6 +32,15 @@ const {
 describe('chat server actions', () => {
   beforeEach(() => {
     mockServerAuthMutate.mockReset()
+  })
+
+  it('returns a failed dismissal when the server refuses the write', async () => {
+    const conversationId = '11111111-1111-4111-8111-111111111111'
+    mockServerAuthMutate.mockRejectedValueOnce(createApiClientError(429, { errorCode: 'RATE_LIMITED', error: 'Too many requests' }, 'Rate limited'))
+    await expect(dismissChatOffers(conversationId, ['offer'], 'account')).resolves.toMatchObject({ ok: false, status: 429, code: 'RATE_LIMITED' })
+    expect(mockServerAuthMutate).toHaveBeenCalledWith(API.chat.dismissOffers, {
+      method: 'POST', body: JSON.stringify({ conversationId, offerKeys: ['offer'] }),
+    }, 'account')
   })
 
   it('negotiates proactive parts using the shared chat capabilities', async () => {
