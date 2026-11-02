@@ -1,5 +1,5 @@
 
-import { cpSync, mkdirSync, writeFileSync } from "node:fs"
+import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { EM_DASH, check, stageRepo, toolPath } from "./_harness.mjs"
@@ -23,6 +23,14 @@ export const cases = () => {
   repository.git(["--literal-pathspecs", "add", "growing.ts"])
   check("check-dashes.mjs", "baseline growth is refused", ["--write-baseline"], { status: 1 }, { path: join(toolsDirectory, "check-dashes.mjs") })
   writeFileSync(join(repository.path, "growing.ts"), "clean")
+  writeFileSync(join(repository.path, "deleted.ts"), "tracked")
+  repository.git(["--literal-pathspecs", "add", "deleted.ts"])
+  repository.git(["commit", "-m", "tracked deletion fixture"])
+  rmSync(join(repository.path, "deleted.ts"))
+  check("check-dashes.mjs", "an absolute unstaged deletion is allowed", ["--files", join(repository.path, "deleted.ts")], { status: 0 }, { path: join(toolsDirectory, "check-dashes.mjs") })
+  repository.git(["--literal-pathspecs", "add", "deleted.ts"])
+  check("check-dashes.mjs", "a staged deletion is allowed", ["--files", "./deleted.ts"], { status: 0 }, { path: join(toolsDirectory, "check-dashes.mjs") })
+  check("check-dashes.mjs", "a missing skipped path is still a usage error", ["--files", ".claude/missing.mjs"], { status: 2 }, { path: join(toolsDirectory, "check-dashes.mjs") })
   writeFileSync(baselinePath, "{}\n")
   check("check-dashes.mjs", "removed baseline key passes", ["--check-baseline"], {
     status: 0,

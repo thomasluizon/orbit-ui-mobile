@@ -2,7 +2,7 @@
 
 import { execFileSync } from "node:child_process"
 import { readFileSync, writeFileSync, existsSync } from "node:fs"
-import { dirname, join, resolve } from "node:path"
+import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -48,14 +48,15 @@ export function dashFindings(text, { allowNumericRanges = true } = {}) {
   return findings
 }
 
-const checkFiles = (files) => {
+const checkFiles = (files, explicit = false) => {
   const perFile = new Map()
   for (const file of files) {
-    if (shouldSkip(file)) continue
+    if (!explicit && shouldSkip(file)) continue
     const absolute = resolve(REPO_ROOT, file)
     if (!existsSync(absolute)) {
       const deleted = execFileSync("git", ["ls-files", "--deleted", "-z", "--", file], { cwd: REPO_ROOT, encoding: "utf8" }).split("\0")
-      if (deleted.includes(file)) continue
+      const stagedDeleted = execFileSync("git", ["diff", "--cached", "--name-only", "--diff-filter=D", "-z", "--", file], { cwd: REPO_ROOT, encoding: "utf8" }).split("\0")
+      if ([...deleted, ...stagedDeleted].includes(relative(REPO_ROOT, absolute).replaceAll("\\", "/"))) continue
       console.error(`Cannot read requested file ${file}: file does not exist`)
       process.exit(2)
     }
@@ -66,7 +67,7 @@ const checkFiles = (files) => {
       console.error(`Cannot read requested file ${file}: ${error.message}`)
       process.exit(2)
     }
-    if (text.includes("\u0000")) continue
+    if (shouldSkip(file) || text.includes("\u0000")) continue
     const findings = dashFindings(text)
     if (findings.length) perFile.set(file.replaceAll("\\", "/"), findings)
   }
@@ -126,7 +127,7 @@ if (isMain) {
     const files = process.argv.slice(3)
     if (files.length === 0) { console.error(USAGE); process.exit(2) }
     const baseline = existsSync(BASELINE_PATH) ? JSON.parse(readFileSync(BASELINE_PATH, "utf8")) : {}
-    const perFile = checkFiles(files)
+    const perFile = checkFiles(files, true)
     const offending = new Map(
       [...perFile].filter(([file, findings]) => findings.length > (baseline[file] ?? 0)),
     )

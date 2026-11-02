@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { chmodSync, cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { join, sep } from "node:path"
 
@@ -111,6 +111,31 @@ const stageExpoBuild = (name, label) => {
   return { ...tree, source, packageDirectory }
 }
 
+const esbuildPostinstallCases = () => {
+  if (process.platform === "win32") return
+  const tree = stageTree("esbuild-postinstall")
+  const source = join(tree.repository, "published")
+  const packageDirectory = join(tree.nodeModules, "esbuild")
+  mkdirSync(join(source, "bin"), { recursive: true })
+  cpSync(join(REPO_ROOT, "node_modules/esbuild/package.json"), join(source, "package.json"))
+  writeFileSync(join(source, "bin/esbuild"), "published launcher\n")
+  const tar = createRequire(import.meta.url)("next/dist/compiled/tar")
+  const archive = join(tree.repository, "esbuild.tgz")
+  tar.c({ file: archive, cwd: tree.repository, gzip: true, sync: true }, ["published"])
+  cpSync(source, packageDirectory, { recursive: true })
+  const binary = readFileSync(join(REPO_ROOT, "node_modules/esbuild/bin/esbuild"))
+  const manifest = JSON.parse(readFileSync(join(source, "package.json"), "utf8"))
+  const expectedHashes = Object.values(manifest["esbuild.binaryHashes"])
+  T("esbuild fixture uses a real postinstall binary authenticated by its published manifest", expectedHashes.includes(createHash("sha256").update(binary).digest("hex")))
+  writeFileSync(join(tree.repository, "package-lock.json"), JSON.stringify({ packages: {
+    "node_modules/esbuild": { resolved: "file:esbuild.tgz", integrity: `sha512-${createHash("sha512").update(readFileSync(archive)).digest("base64")}` },
+  } }))
+  writeFileSync(join(packageDirectory, "bin/esbuild"), binary)
+  check(TOOL, "authenticated esbuild postinstall optimization passes", ["--root", tree.repository], { status: 0 })
+  writeFileSync(join(packageDirectory, "bin/esbuild"), Buffer.concat([binary, Buffer.from("edited")]))
+  check(TOOL, "an edited postinstall binary still fails", ["--root", tree.repository], { status: 1, stderr: /modified/ })
+}
+
 const expoBuildCases = () => {
   for (const name of ["expo-modules-jsi", "expo-sqlite"]) {
     const built = stageExpoBuild(name, "native-outputs")
@@ -188,6 +213,15 @@ const expoBuildCases = () => {
 }
 
 export const cases = () => {
+  if (process.platform !== "win32" && process.getuid() !== 0) {
+    const unreadable = stageTree("unreadable-directory")
+    const packageDirectory = stagePackage(unreadable.nodeModules, "fixture-package", { "index.js": 0 })
+    const directory = join(packageDirectory, "unreadable")
+    mkdirSync(directory)
+    chmodSync(directory, 0)
+    try { check(TOOL, "unreadable package directory is a finding", ["--root", unreadable.repository], { status: 1, stderr: /unreadable directory:.*unreadable/ }) }
+    finally { chmodSync(directory, 0o755) }
+  }
   const reset = stageLockedPackage("reset-mtime")
   for (const name of readdirSync(reset.packageDirectory)) utimesSync(join(reset.packageDirectory, name), at(0), at(0))
   writeAt(join(reset.packageDirectory, "index.js"), "edited bytes", at(0))
@@ -197,6 +231,7 @@ export const cases = () => {
   rmSync(join(linkedFile.packageDirectory, "index.js"))
   symlinkSync(join(linkedFile.packageDirectory, "README.md"), join(linkedFile.packageDirectory, "index.js"))
   check(TOOL, "symbolic file cannot evade verification", ["--root", linkedFile.repository], { status: 1, stderr: /symbolic|missing/ })
+  esbuildPostinstallCases()
   expoBuildCases()
   for (const [label, ignoreFiles] of [
     ["renamed-ignore", [".gitignore"]],
@@ -471,6 +506,7 @@ globalThis.fetch = async (url, options) => {
    * Windows without elevation.
    */
   symlinkSync(source, join(workspace.nodeModules, "@orbit", "shared"), "junction")
+  writeFileSync(join(workspace.repository, "package.json"), JSON.stringify({ workspaces: ["packages/*"] }))
   writeFileSync(join(workspace.repository, "package-lock.json"), JSON.stringify({ packages: {
     "node_modules/@orbit/shared": { resolved: "packages/shared", link: true },
   } }))
@@ -480,6 +516,9 @@ globalThis.fetch = async (url, options) => {
     ["--root", workspace.repository],
     { status: 0, stdout: /No dependency was edited in place/ },
   )
+
+  writeFileSync(join(workspace.repository, "package.json"), JSON.stringify({ workspaces: ["apps/*"] }))
+  check(TOOL, "a lock link outside declared workspaces is a finding", ["--root", workspace.repository], { status: 1, stderr: /symbolic package link/ })
 
   const tolerance = stageTree("tolerance")
   stagePackage(tolerance.nodeModules, "@tabler/icons-react-native", { "dist/IconAB.d.ts": 93 })

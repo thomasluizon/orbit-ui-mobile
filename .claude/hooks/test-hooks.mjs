@@ -4,7 +4,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, 
 import { spawn, spawnSync } from "node:child_process"
 import { performance } from "node:perf_hooks"
 import { tmpdir } from "node:os"
-import { dirname, join } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
@@ -654,7 +654,7 @@ T(
   true,
 )
 
-for (const command of ["(git push origin main)", "$(git push origin main)", "echo `git push origin main`", "bash -c 'git push origin main'", "eval 'git push origin main'", "git commit -nam x", "git -c core.hooksPath=/dev/null commit", "git -c core.hooksPath=/dev/null push origin feature/x", "git push --all origin", "git push --mirror origin", "git push --branches origin"]) {
+for (const command of ["(git push origin main)", "$(git push origin main)", "echo `git push origin main`", "bash -c 'git push origin main'", "eval 'git push origin main'", "git commit -nam x", "git -c core.hooksPath=/dev/null commit", "git -c 'core.hooksPath=/dev/null' commit", "git -ccore.hooksPath=/dev/null push origin feature/x", "git -c core.hooksPath=/dev/null push origin feature/x", "git push --all origin", "git push --mirror origin", "git push --branches origin"]) {
   T(`git wrapper regression: ${command}`, blocks(checkGitCommand(command)), true)
 }
 for (const command of ["npx -y playwright test", "pnpm exec playwright test", "yarn exec playwright test", "npx vite --port 5173", "remix", "curl localhost:3000", "curl 127.0.0.1:3000", "curl '[::1]:3000'"]) {
@@ -1216,6 +1216,7 @@ const requestFile = join(wakeCheckout, ".git", "orbit-handoff-request.json")
 writeFileSync(requestFile, "{")
 const corruptRequestStop = isolatedRelayHook("require-handoff-prompt.mjs", { ...stopPayload, hook_event_name: "Stop" })
 T("handoff adapter: corrupt request blocks", corruptRequestStop.status, 2)
+T("handoff adapter: an internal request-read throw blocks a valid tool payload", isolatedRelayHook("require-handoff-prompt.mjs", { ...stopPayload, hook_event_name: "PreToolUse", tool_input: { command: "git status" } }).status, 2)
 T("handoff adapter: corrupt request names path", corruptRequestStop.stderr.includes(requestFile), true)
 rmSync(requestFile)
 const { newestCommittedPrompt: readCommittedPrompt } = await import("./_lib/handoff-git.mjs")
@@ -1986,6 +1987,19 @@ writeFileSync(handoffFile, goodSleepPrompt)
 spawnSync("git", ["-C", handoffGitRepo, "commit", "-q", "-am", "sleep handoff"], { encoding: "utf8", env: { ...process.env, GIT_COMMITTER_DATE: "2030-01-01T00:00:00Z" } })
 inHandoffRepo("checkout", "-q", "feature")
 T("handoff git: the newest committed prompt is read from another branch", newestCommittedPrompt(handoffGitRepo).text, goodSleepPrompt)
+const copiedHandoffHooks = join(handoffGitRepo, ".claude/hooks")
+cpSync(hooksDir, copiedHandoffHooks, { recursive: true })
+cpSync(join(repoRoot, "tools/lib"), join(handoffGitRepo, "tools/lib"), { recursive: true })
+if (process.env.HANDOFF_GIT_FIXTURE) cpSync(process.env.HANDOFF_GIT_FIXTURE, join(copiedHandoffHooks, "_lib/handoff-git.mjs"))
+recordHandoffRequest("show-failure", { sleep: true }, new Date(0).toISOString(), handoffGitRepo)
+const committedBlob = inHandoffRepo("rev-parse", "integration:.claude/handoffs/NEXT.md").stdout.trim()
+T("handoff fixture: committed prompt resolves to a blob", /^[0-9a-f]{40}$/.test(committedBlob), true)
+const objectPath = inHandoffRepo("rev-parse", "--git-path", `objects/${committedBlob.slice(0, 2)}/${committedBlob.slice(2)}`).stdout.trim()
+rmSync(resolve(handoffGitRepo, objectPath))
+T("handoff fixture: git log still reads the committed prompt metadata", inHandoffRepo("log", "-1", "--format=%H%n%cI", "--branches", "--remotes", "HEAD", "--", ".claude/handoffs/NEXT.md").status, 0)
+T("handoff fixture: git show really fails for the missing blob", inHandoffRepo("show", `integration:.claude/handoffs/NEXT.md`).status !== 0, true)
+const failedShowStop = spawnSync(process.execPath, [join(copiedHandoffHooks, "require-handoff-prompt.mjs")], { input: JSON.stringify({ hook_event_name: "Stop", session_id: "show-failure" }), encoding: "utf8" })
+T("handoff hook: failing git show with a live request blocks Stop", failedShowStop.status, 2)
 rmSync(handoffGitRepo, { recursive: true, force: true })
 
 const timelessHook = join(hooksDir, "forbid-stale-text.mjs")

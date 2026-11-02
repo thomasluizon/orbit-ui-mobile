@@ -91,9 +91,6 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
       why: "`-n` is git's short alias for --no-verify on commit; it skips the pre-commit hooks. Commit normally.",
     },
   ]
-  if (/\bgit\b[^;\n]*\s-c\s*core\.hooksPath=[^\n]*\b(?:commit|push)\b/.test(scannable)) {
-    return blocked(command, "Overriding core.hooksPath bypasses the repository hooks.")
-  }
   const hit = hygieneRules.find((rule) => rule.test.test(scannable))
   if (hit) return blocked(command, hit.why)
 
@@ -131,9 +128,9 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
         continue
       }
       if (token.startsWith("-")) continue
-      return { subcommand: token, rest: tokens.slice(index + 1) }
+      return { subcommand: token, globals: tokens.slice(0, index), rest: tokens.slice(index + 1) }
     }
-    return { subcommand: null, rest: [] }
+    return { subcommand: null, globals: [], rest: [] }
   }
 
   const gitSubcommand = (segment) => gitCommandParts(segment).subcommand
@@ -155,6 +152,11 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
   // main, and a protected push must not be blamed for a `main` ref belonging to a
   // different segment.
   for (const [index, segment] of segments.entries()) {
+    const { subcommand, globals } = gitCommandParts(segment)
+    if (["commit", "push"].includes(subcommand) && globals.some((token, offset) =>
+      (token === "-c" && globals[offset + 1]?.startsWith("core.hooksPath=")) || token.startsWith("-ccore.hooksPath="))) {
+      return blocked(command, "Overriding core.hooksPath bypasses the repository hooks.")
+    }
     if (gitSubcommand(segment) !== "push") continue
     const targetDir = pushTargetDir(segments, index, cwd)
     if (!targetsProtectedRepo(targetDir, resolveRemoteUrl)) continue

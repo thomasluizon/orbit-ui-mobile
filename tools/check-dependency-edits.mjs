@@ -160,10 +160,20 @@ function findLockedArchive(packageDirectory) {
   return locked?.resolved && locked.integrity ? locked : null
 }
 
+function isDeclaredWorkspace(locked) {
+  const manifest = JSON.parse(readFileSync(join(locked.directory, "package.json"), "utf8"))
+  const patterns = Array.isArray(manifest.workspaces) ? manifest.workspaces : manifest.workspaces?.packages
+  if (!Array.isArray(patterns) || locked.resolved.split(/[\\/]/).includes("..")) return false
+  return patterns.some((pattern) => {
+    const expression = pattern.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[^/]+")
+    return new RegExp(`^${expression}$`).test(locked.resolved)
+  })
+}
+
 function inspectPackageLink(path) {
   try {
     const locked = lockedEntryFor(path)
-    if (locked?.link === true && realpathSync(path) === resolve(locked.directory, locked.resolved)) return
+    if (locked?.link === true && isDeclaredWorkspace(locked) && realpathSync(path) === resolve(locked.directory, locked.resolved)) return
   } catch (error) {
     findings.push({ path, packageDirectory: path, reason: `unreadable package link: ${error.message}` })
     return
@@ -189,6 +199,15 @@ async function readLockedArchive(locked) {
     throw new Error("locked archive integrity mismatch")
   }
   return archive
+}
+
+/** The installer replaces this launcher with a binary authenticated by the archived manifest. */
+function verifiedEsbuildBinary(locked, manifest, name, contents) {
+  if (!locked.packagePath.endsWith("node_modules/esbuild") || manifest.name !== "esbuild" || name !== "bin/esbuild") return false
+  const hashes = manifest["esbuild.binaryHashes"]
+  if (!hashes || typeof hashes !== "object" || Array.isArray(hashes)) return false
+  const digest = createHash("sha256").update(contents).digest("hex")
+  return Object.entries(hashes).some(([binary, expected]) => binary.endsWith("/bin/esbuild") && expected === digest)
 }
 
 async function compareLockedPackage(packageDirectory, collected, locked) {
@@ -221,7 +240,8 @@ async function compareLockedPackage(packageDirectory, collected, locked) {
     const expected = []
     collectPackageFiles(unpacked, expected, false)
     if (expected.length === 0) throw new Error("locked archive contains no regular package files")
-    const archivedName = JSON.parse(readFileSync(join(unpacked, "package.json"), "utf8")).name
+    const manifest = JSON.parse(readFileSync(join(unpacked, "package.json"), "utf8"))
+    const archivedName = manifest.name
     const verifiedNativeLock = locked.packagePath.endsWith(`node_modules/${archivedName}`) ? locked : null
     const installed = new Set(collected.map((file) => relative(packageDirectory, file.path)))
     const differences = []
@@ -229,7 +249,12 @@ async function compareLockedPackage(packageDirectory, collected, locked) {
       const name = relative(unpacked, file.path)
       const path = join(packageDirectory, name)
       if (!installed.delete(name)) differences.push({ path, packageDirectory, reason: "missing" })
-      else if (!readFileSync(path).equals(readFileSync(file.path))) differences.push({ path, packageDirectory, reason: "modified" })
+      else {
+        const contents = readFileSync(path)
+        if (!contents.equals(readFileSync(file.path)) && !verifiedEsbuildBinary(locked, manifest, name.split(sep).join("/"), contents)) {
+          differences.push({ path, packageDirectory, reason: "modified" })
+        }
+      }
     }
     for (const name of installed) {
       const path = join(packageDirectory, name)
@@ -291,6 +316,9 @@ function findInstalledTrees(directory) {
   const segments = directory.split(sep)
   if (segments.some((segment, index) => segment === ".next" && segments[index + 1] === "standalone")) return
   for (const entry of readEntries(directory)) {
+    if (entry.isSymbolicLink() && entry.name === "node_modules") {
+      findings.push({ path: join(directory, entry.name), packageDirectory: directory, reason: "symbolic installed dependency tree" })
+    }
     if (!entry.isDirectory() || entry.isSymbolicLink() || entry.name === ".git") continue
     const path = join(directory, entry.name)
     if (entry.name === "node_modules") scanInstalledTree(path)
@@ -312,7 +340,7 @@ console.log(
 
 if (packagesScanned === 0) {
   console.error("No installed dependency tree under this root. Nothing was checked.")
-  process.exit(1)
+  if (findings.length === 0) process.exit(1)
 }
 if (findings.length === 0) {
   console.log("Every file matches its own package's extraction. No dependency was edited in place.")

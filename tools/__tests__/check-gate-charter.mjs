@@ -340,8 +340,10 @@ export const cases = () => {
 
   for (const workflowFile of ["guards.yml", "dependency-review.yml"]) {
     const workflow = yaml.load(readFileSync(join(REPO_ROOT, ".github", "workflows", workflowFile), "utf8"))
-    T(`${workflowFile}: superseded runs share a workflow and ref concurrency group`,
-      workflow.concurrency?.group === "${{ github.workflow }}-${{ github.ref }}",
+    T(`${workflowFile}: concurrency retains releasable push SHAs and replaces superseded pull request runs`,
+      workflow.concurrency?.group === (workflowFile === "guards.yml"
+        ? "${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}"
+        : "${{ github.workflow }}-${{ github.ref }}"),
       JSON.stringify(workflow.concurrency))
     T(`${workflowFile}: superseded runs are cancelled`,
       workflow.concurrency?.["cancel-in-progress"] === true,
