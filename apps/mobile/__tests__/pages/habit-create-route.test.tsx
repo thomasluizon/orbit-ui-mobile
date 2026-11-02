@@ -22,7 +22,7 @@ vi.mock('@/stores/offline-sync-store', () => ({ useOfflineSyncStore: () => undef
 beforeEach(() => { vi.clearAllMocks(); route.params = {}; route.canGoBack = true; useUIStore.getState().setAstraConversationOpen(false) })
 async function mount() {
   let tree: import('react-test-renderer').ReactTestRenderer & { unmount: () => void }
-  await TestRenderer.act(() => { tree = TestRenderer.create(<HabitCreateRoute />) as typeof tree })
+  await TestRenderer.act(() => { tree = TestRenderer.create(<HabitCreateRoute />) })
   return async () => await TestRenderer.act(() => tree.unmount())
 }
 describe('native habit creation route', () => {

@@ -144,7 +144,7 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 const mountedTrees: { unmount: () => void }[] = []
 function createTestTree(node: React.ReactElement) {
   const tree = TestRenderer.create(node)
-  mountedTrees.push(tree as typeof tree & { unmount: () => void })
+  mountedTrees.push(tree)
   return tree
 }
 afterEach(async () => {

@@ -20,7 +20,7 @@ afterEach(() => {
 it('keeps exhausted pending dots static after scrolling away and back', () => {
   const pending = createRef<PendingReplyHandle>()
   const repeat = vi.spyOn(Reanimated, 'withRepeat')
-  void act(() => { tree = create(<PendingReply ref={pending} />) as PendingTree })
+  void act(() => { tree = create(<PendingReply ref={pending} />) })
   void act(() => { vi.advanceTimersByTime(pulseBudget) })
   void act(() => pending.current!.setVisible(false))
   repeat.mockClear()
@@ -33,7 +33,7 @@ it('preserves the remaining pulse budget while the pending line is offscreen', (
   const pending = createRef<PendingReplyHandle>()
   const repeat = vi.spyOn(Reanimated, 'withRepeat')
   const cancel = vi.spyOn(Reanimated, 'cancelAnimation')
-  void act(() => { tree = create(<PendingReply ref={pending} />) as PendingTree })
+  void act(() => { tree = create(<PendingReply ref={pending} />) })
   void act(() => { vi.advanceTimersByTime(pulseBudget - 100) })
   void act(() => pending.current!.setVisible(false))
   void act(() => { vi.advanceTimersByTime(10_000) })
