@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // PreToolUse(Bash, PowerShell) and Stop adapter for the handoff prompt gate. The rules live in
-// _lib/rules-handoff.mjs. Exits 0 (allow) or 2 + stderr (block). Checkout refresh failures block
-// handoff commits; unrelated adapter errors leave the shell and Stop usable.
+// _lib/rules-handoff.mjs. Exits 0 (allow) or 2 + stderr (block). Adapter errors block with a diagnostic.
 
 import { handoffDocsChanged, syncRelayCheckout } from "../../tools/lib/relay-checkout.mjs"
 import { readHandoffRequest } from "../../tools/lib/handoff-prompt.mjs"
@@ -16,7 +15,7 @@ try {
   const run = readRunState()
   const state = run?.sessionId === input?.session_id ? run : null
   let verdict = null
-  if (input?.hook_event_name === "Stop") {
+  if (input?.hook_event_name === "Stop" && request) {
     const head = newestCommittedPrompt(REPO_ROOT)
     verdict = checkHandoffStop({ request, state, headPrompt: head.text, headPromptCommittedAt: head.committedAt })
   } else if (typeof input?.tool_input?.command === "string") {
@@ -29,6 +28,7 @@ try {
     process.exit(2)
   }
   process.exit(0)
-} catch {
-  process.exit(0)
+} catch (error) {
+  process.stderr.write(`require-handoff-prompt: ${error.message}\n`)
+  process.exit(2)
 }

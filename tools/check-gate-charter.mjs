@@ -4,6 +4,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { dirname, extname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import yaml from "js-yaml"
+import { commandWords, expandCommands, expandHeredocSubstitutions, shellValue } from "../.claude/hooks/_lib/command-expander.mjs"
 
 const USAGE = `usage: check-gate-charter.mjs [--root <repository>]
 
@@ -24,6 +25,7 @@ const BLOCKING_INVENTORIES = new Set([
   ".github/workflows/guards.yml#dependency-audit",
   ".github/workflows/guards.yml#workflow-syntax",
   "tools/check-dashes.mjs",
+  "tools/check-dependency-edits.mjs",
   "tools/check-sonar-paths.mjs",
   "tools/check-surface-scope.mjs",
 ])
@@ -111,13 +113,19 @@ function runSteps(job) {
 
 function commandOffsets(script) {
   return [...script.matchAll(/^(?!\s*#).*?(?:\b(?:node|npx)\s+|\bexit\s+1\b).*$/gm)]
-    .map((match) => {
+    .flatMap((match) => {
       let end = match.index + match[0].length
       while (script.slice(match.index, end).trimEnd().endsWith("\\")) {
         const nextLine = script.indexOf("\n", end + 1)
         end = nextLine < 0 ? script.length : nextLine
       }
-      return { index: match.index, line: script.slice(match.index, end) }
+      const line = script.slice(match.index, end)
+      const commands = executableCommands(line)
+      if (commands.length === 0) return [{ index: match.index, line }]
+      return commands.map((segment) => ({
+        index: match.index + Math.max(0, line.indexOf(segment)),
+        line: segment,
+      }))
     })
 }
 
@@ -157,21 +165,90 @@ function derivedVariables(script) {
   return variables
 }
 
+function executableCommands(script) {
+  return expandCommands(executableHeredocs(script).replace(/\\\r?\n/g, " ")).filter((segment) => {
+    const words = commandWords(segment).map(shellValue)
+    let index = 0
+    if (words[0] === "xargs") {
+      index = 1
+      while (words[index]?.startsWith("-")) index++
+    }
+    return ["node", "npx"].includes(words[index])
+  })
+}
+
+/** Input text is not a command; shells execute it and unquoted consumers expand substitutions. */
+function executableHeredocs(script) {
+  const lines = script.split("\n")
+  const executable = []
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]
+    const documents = heredocDelimiters(line)
+    executable.push(line)
+    for (const document of documents) {
+      const body = []
+      while (++index < lines.length) {
+        const text = document.tabs ? lines[index].replace(/^\t+/, "") : lines[index]
+        if (text === document.delimiter) break
+        body.push(text)
+      }
+      if (document.shell) executable.push(`(${body.join("\n")})`)
+      else if (!document.quoted) executable.push(...expandHeredocSubstitutions(body.join("\n")))
+    }
+  }
+  return executable.join("\n")
+}
+
+function heredocDelimiters(line) {
+  const documents = []
+  let quote = ""
+  for (let index = 0; index < line.length; index++) {
+    const character = line[index]
+    if (character === "\\" && quote !== "'") { index++; continue }
+    if (quote) { if (character === quote) quote = ""; continue }
+    if (character === "#" && (index === 0 || /[\s;|&()]/.test(line[index - 1]))) break
+    if (character === '"' || character === "'") { quote = character; continue }
+    const match = /^<<(-?)(?!<)[ \t]*(\\?[^\s<>|;&()"'\\]+|'[^']+'|"[^"]+")/.exec(line.slice(index))
+    if (!match || line[index - 1] === "<") continue
+    const previous = documents.at(-1)
+    const continuation = previous && !/[;|&]/.test(line.slice(previous.end, index).replace(/[<>]&\d+/g, ""))
+    documents.push({
+      delimiter: shellValue(match[2]).replace(/\\(.)/g, "$1"),
+      quoted: /["'\\]/.test(match[2]),
+      tabs: match[1] === "-",
+      shell: continuation ? previous.shell : /\b(?:ba|z)?sh\s*(?:-[^<]*\s*)?$/.test(line.slice(0, index)),
+      end: index + match[0].length,
+    })
+    index += match[0].length - 1
+  }
+  return documents.map((document) => ({
+    ...document,
+    shell: document.shell && !line.slice(document.end).replace(/[<>]&\d+/g, "").split(/[;|&]/, 1)[0].includes("<"),
+  }))
+}
+
+function hasArgumentValue(command, flag, expected) {
+  return executableCommands(command.line).some((segment) => {
+    const words = commandWords(segment).map(shellValue)
+    return words.some((word, index) => word === flag && words[index + 1] === expected)
+  })
+}
+
 function commandUsesRedirectedChangedFiles(script, command) {
-  if (command.line.includes('--changed-files-file "$RUNNER_TEMP/changed-paths.txt"')) return true
+  if (hasArgumentValue(command, "--changed-files-file", "$RUNNER_TEMP/changed-paths.txt")) return true
   const before = script.slice(0, command.index)
   const preparedCopy = /\bcp\s+"\$RUNNER_TEMP\/changed-paths\.(?:txt|nul)"\s+"([^"]+)"/.exec(before)
-  if (preparedCopy && command.line.includes(`--changed-files-file "${preparedCopy[1]}"`)) return true
+  if (preparedCopy && hasArgumentValue(command, "--changed-files-file", preparedCopy[1])) return true
   for (const match of before.matchAll(/\bgit\s+diff\s+--name-only\b[^\n]*(?:\\\r?\n[^\n]*)*?>\s*(?:"([^"]+)"|'([^']+)'|([^\s;]+))/g)) {
     const target = match[1] ?? match[2] ?? match[3]
-    if (new RegExp(`--changed-files-file\\s+["']?${target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(command.line)) return true
+    if (hasArgumentValue(command, "--changed-files-file", target)) return true
   }
   return false
 }
 
 function commandUsesChangedFilePipeline(script, command) {
   if (/\bxargs\s+-0\s+--no-run-if-empty\s+node\b/.test(command.line) &&
-      script.includes('< "$RUNNER_TEMP/changed-paths-present.nul"')) return true
+      executableCommands(command.line).some((segment) => /<\s*"\$RUNNER_TEMP\/changed-paths-present\.nul"(?=\s|$)/.test(segment))) return true
   const before = script.slice(0, command.index)
   const diff = before.lastIndexOf("git diff --name-only")
   if (diff < 0) return false
@@ -314,6 +391,23 @@ function gateCharterRunsForPath(guardJobs, path) {
   })
 }
 
+function invocationScripts(value) {
+  if (!value || typeof value !== "object") return []
+  return Object.entries(value).flatMap(([key, child]) => key === "run" && typeof child === "string" ? [child] : invocationScripts(child))
+}
+
+function invokedGateTools(repositoryRoot) {
+  const sources = filesIn(repositoryRoot, ".github/workflows", (name) => /\.ya?ml$/.test(name))
+  if (existsSync(resolve(repositoryRoot, "lefthook.yml"))) sources.push("lefthook.yml")
+  return new Set(sources.flatMap((path) => invocationScripts(yaml.load(readFileSync(resolve(repositoryRoot, path), "utf8"))))
+    .flatMap(executableCommands)
+    .flatMap((segment) => {
+      const words = commandWords(segment).map(shellValue)
+      const index = words.findIndex((word) => word === "node" || word === "npx")
+      return index < 0 ? [] : words.slice(index + 1, index + 2)
+    }))
+}
+
 function gateIds(repositoryRoot) {
   return [
     ...filesIn(repositoryRoot, "tools", (name) => /^check-.*\.mjs$/.test(name)),
@@ -403,8 +497,10 @@ function run(repositoryRoot) {
   const registeredJobs = registeredGuardJobs(repositoryRoot)
   const declared = Object.keys(charter).sort()
   const problems = []
+  const invoked = invokedGateTools(repositoryRoot)
   for (const id of expected) {
     if (!(id in charter)) problems.push(`${id}: missing registry entry`)
+    if (/^tools\/check-.*\.mjs$/.test(id) && !invoked.has(id)) problems.push(`${id}: registered tool is not invoked by a workflow or lefthook.yml`)
   }
   for (const id of declared) {
     if (!expected.includes(id)) problems.push(`${id}: registry entry names no gate`)

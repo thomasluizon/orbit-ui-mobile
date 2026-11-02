@@ -28,11 +28,17 @@ const staged = (name, responses, liveCommit = SHA, repository = "api", healthSta
     NODE_OPTIONS: `${env.NODE_OPTIONS} --import=${fetchStub}` }, sequenceFile }
 }
 const workflowRun = (status, conclusion = null) => ({
-  ...structuredClone(fixture.run), id: 1, head_sha: SHA, status, conclusion,
+  ...structuredClone(fixture.run), id: 1, head_sha: SHA, status, conclusion, path: ".github/workflows/release.yml",
 })
 const args = ["--repo", "api", "--run", "1", "--sha", SHA, "--service-url", "https://example.invalid", "--poll-seconds", "0.001"]
 
 export async function cases() {
+  for (const workflow of ["release", "android"]) {
+    const wrong = staged(`wrong-workflow-${workflow}`, [{ ...workflowRun("completed", "success"), path: ".github/workflows/test.yml" }], SHA, "ui", "ok")
+    const argv = ["--repo", "ui", "--workflow", workflow, "--run", "1", "--sha", SHA, ...(workflow === "release" ? ["--service-url", "https://example.invalid"] : [])]
+    const result = run(TOOL, argv, { path: wrong.path, env: wrong.env })
+    T(`release waiter rejects wrong workflow in ${workflow} mode`, result.status === 1 && JSON.parse(result.stdout).reason === "WRONG_WORKFLOW", result.stdout)
+  }
   for (const [signal, code] of [["SIGTERM", 143], ["SIGINT", 130]]) {
     const pidFile = stage(`wait-release/${signal}-gh.pid`, "")
     const descendantPidFile = stage(`wait-release/${signal}-descendant.pid`, "")
@@ -94,7 +100,7 @@ export async function cases() {
     T(`release waiter rejects unhealthy service ${status} HTTP ${httpStatus}`, observed.status === 1 &&
       JSON.parse(observed.stdout).reason === "READ_ERROR", observed.stdout + observed.stderr)
   }
-  const native = staged("android", [workflowRun("completed", "success")], SHA, "ui")
+  const native = staged("android", [{ ...workflowRun("completed", "success"), path: ".github/workflows/android-release.yml" }], SHA, "ui")
   const nativeResult = run(TOOL, ["--repo", "ui", "--workflow", "android", "--run", "1", "--sha", SHA], { path: native.path, env: native.env })
   T("Android verifies its workflow commit without requiring a service origin", nativeResult.status === 0, nativeResult.stdout + nativeResult.stderr)
   for (const origin of [undefined, "http://example.invalid", "https://example.invalid/path", "https://user:secret@example.invalid"]) {

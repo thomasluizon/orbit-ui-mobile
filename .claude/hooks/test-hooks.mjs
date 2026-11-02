@@ -4,7 +4,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, 
 import { spawn, spawnSync } from "node:child_process"
 import { performance } from "node:perf_hooks"
 import { tmpdir } from "node:os"
-import { dirname, join } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
@@ -452,6 +452,77 @@ T("dependency-write: the repository's own source allows", checkDependencyFileWri
 T("dependency-write: a directory merely named like node_modules allows", checkDependencyFileWrite("node_modules_backup/notes.md", inTree), null)
 T("dependency-write: no path at all allows", checkDependencyFileWrite(null, inTree), null)
 const dependencyCommand = (command) => checkDependencyCommand(command, inTree)
+const isolatedDirectoryBodies = [
+  (body) => `echo $(${body})`,
+  (body) => `echo \`${body}\``,
+  (body) => `(${body})`,
+  (body) => `bash -c '${body}'`,
+  (body) => `sh -c '${body}'`,
+  (body) => `zsh -c '${body}'`,
+  (body) => `${body} | cat`,
+  (body) => `${body} & wait`,
+]
+for (const wrap of isolatedDirectoryBodies) {
+  for (const [command, cwd, expected] of [
+    [`${wrap(`cd ${root}`)}; touch package.json`, installedPackage, true],
+    [`cd ${installedPackage}; ${wrap(`cd ${root}`)}; touch package.json`, root, true],
+    [`${wrap(`cd ${root}`)}; cd ${installedPackage}; touch package.json`, root, true],
+    [`cd ${installedPackage}; ${wrap("touch package.json")}`, root, true],
+    [`${wrap("touch package.json")}; cd ${installedPackage}`, root, false],
+    [`${wrap(`cd ${installedPackage}`)}; touch package.json`, root, false],
+  ]) T(`dependency scope: ${command}`, blocks(checkDependencyCommand(command, { cwd })), expected)
+  const resolveRemoteUrl = (directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git"
+  for (const [command, cwd, expected] of [
+    [`${wrap(`cd ${root}`)}; git push origin main`, installedPackage, true],
+    [`cd ${installedPackage}; ${wrap(`cd ${root}`)}; git push origin main`, root, true],
+    [`${wrap(`cd ${root}`)}; cd ${installedPackage}; git push origin main`, root, true],
+    [`cd ${installedPackage}; ${wrap("git push origin main")}`, root, true],
+    [`${wrap("git push origin main")}; cd ${installedPackage}`, root, false],
+    [`${wrap(`cd ${installedPackage}`)}; git push origin main`, root, false],
+  ]) T(`git scope: ${command}`, blocks(checkGitCommand(command, { cwd, resolveRemoteUrl })), expected)
+}
+T("dependency scope: eval changes the parent directory", blocks(dependencyCommand("eval 'cd node_modules/react-native'; touch package.json")), true)
+T("dependency scope: eval can leave the installed package", checkDependencyCommand(`eval 'cd ${root}'; touch package.json`, { cwd: installedPackage }), null)
+const scopeRemote = (directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git"
+T("git scope: eval changes the parent directory", blocks(checkGitCommand(`eval 'cd ${installedPackage}'; git push origin main`, { cwd: root, resolveRemoteUrl: scopeRemote })), true)
+T("git scope: eval can leave a protected repository", checkGitCommand(`eval 'cd ${root}'; git push origin main`, { cwd: installedPackage, resolveRemoteUrl: scopeRemote }), null)
+const interpreterReads = [
+  `node -e 'require("fs").readFileSync("node_modules/js-yaml/package.json", "utf8")'`,
+  `node -e 'require("node_modules/js-yaml/package.json")'`,
+  `node -e 'require("fs").promises.readFile("node_modules/js-yaml/package.json", "utf8")'`,
+  `python -c 'print(open("node_modules/js-yaml/package.json").read())'`,
+  `python3 -c 'print(open("node_modules/pkg/file", mode="r").read())'`,
+  `perl -e 'open(my $f, "<", "node_modules/pkg/file"); print <$f>'`,
+  "node -e 'require(\"fs\").readFileSync(`node_modules/pkg/file`, \"utf8\")'",
+  "node -e 'require(\"fs\").openSync(`node_modules/pkg/file`, \"r\")'",
+  "node -e 'require(\"fs\").copyFileSync(`node_modules/pkg/file`, `report.txt`)'",
+  `python3 -c 'from pathlib import Path; print(Path("node_modules/js-yaml/package.json").read_text())'`,
+  `node -e 'require("fs").writeFileSync("report.txt", "node_modules/js-yaml/package.json")'`,
+  `python3 -c 'open("report.txt", mode="w").write("node_modules/pkg/file")'`,
+  `perl -e 'open(my $f, ">", "report.txt"); print $f "node_modules/pkg/file"'`,
+  "node -e 'require(\"fs\").writeFileSync(`report.txt`, \"node_modules/pkg/file\")'",
+  `node -e 'const fs = require("fs"); fs.readFileSync("node_modules/js-yaml/package.json"); fs.writeFileSync("report.txt", "ok")'`,
+]
+for (const command of interpreterReads) T(`dependency interpreter read: ${command}`, dependencyCommand(command), null)
+const interpreterWrites = [
+  `node -e 'require("fs").writeFileSync("node_modules/js-yaml/package.json", "edited")'`,
+  `node -e 'require("fs").openSync("node_modules/js-yaml/package.json", "w")'`,
+  `python -c 'open("node_modules/js-yaml/package.json", "w").write("edited")'`,
+  `python3 -c 'open("node_modules/pkg/file", mode="w").write("x")'`,
+  `python3 -c 'open("node_modules/pkg/file", mode = "r+").write("x")'`,
+  `perl -e 'open(my $f, ">", "node_modules/pkg/file"); print $f "x"'`,
+  `perl -e 'open(my $f, "+<", "node_modules/pkg/file"); print $f "x"'`,
+  "node -e 'require(\"fs\").writeFileSync(`node_modules/pkg/file`, \"x\")'",
+  "node -e 'require(\"fs\").openSync(`node_modules/pkg/file`, \"w\")'",
+  "node -e 'require(\"fs\").copyFileSync(`report.txt`, `node_modules/pkg/file`)'",
+  "node -e 'require(\"fs\").renameSync(`report.txt`, `node_modules/pkg/file`)'",
+  "node -e 'require(\"fs\").renameSync(`node_modules/pkg/file`, `report.txt`)'",
+  `python3 -c 'from pathlib import Path; Path("node_modules/js-yaml/package.json").write_text("edited")'`,
+  `bash -c 'true' > node_modules/js-yaml/package.json`,
+  `eval 'true' > node_modules/js-yaml/package.json`,
+]
+for (const command of interpreterWrites) T(`dependency interpreter write: ${command}`, blocks(dependencyCommand(command)), true)
+T("dependency scope: eval redirects before changing its directory", blocks(checkDependencyCommand(`eval 'cd ${root}' > package.json`, { cwd: installedPackage })), true)
 for (const command of [
   "echo true > node_modules/react-native/flags.kt",
   'sed -i "s/false/true/" node_modules/react-native/flags.kt',
@@ -654,9 +725,39 @@ T(
   true,
 )
 
+T("git wrapper regression: nested escaped backticks", blocks(checkGitCommand("echo `echo \\`git push origin main\\``")), true)
+for (const command of ["(git push origin main)", "$(git push origin main)", "echo `git push origin main`", "bash -c 'git push origin main'", "eval 'git push origin main'", "git commit -nam x", "git -c core.hooksPath=/dev/null commit", "git -c 'core.hooksPath=/dev/null' commit", "git -ccore.hooksPath=/dev/null push origin feature/x", "git -c core.hooksPath=/dev/null push origin feature/x", "git push --all origin", "git push --mirror origin", "git push --branches origin"]) {
+  T(`git wrapper regression: ${command}`, blocks(checkGitCommand(command)), true)
+}
+for (const command of ["npx -y playwright test", "pnpm exec playwright test", "yarn exec playwright test", "npx vite --port 5173", "remix", "curl localhost:3000", "curl 127.0.0.1:3000", "curl '[::1]:3000'"]) {
+  T(`worker wrapper regression: ${command}`, blocks(checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" } })), true)
+}
+for (const command of ["cd node_modules/react-native && echo x > flags.kt", "echo x >| node_modules/react-native/flags.kt", "node -e \"require('fs').writeFileSync('node_modules/react-native/x', 'x')\"", "python -c \"open('node_modules/react-native/x', 'w').write('x')\"", "dd of=node_modules/react-native/x", "perl -i -pe 's/x/y/' node_modules/react-native/x"]) {
+  T(`dependency wrapper regression: ${command}`, blocks(checkDependencyCommand(command, { cwd: dependencyTree })), true)
+}
+T("admin merge: repository-id endpoint blocks", blocks(checkAdminMerge("gh api -X PUT repositories/123456/pulls/667/merge")), true)
+T("admin merge: nested shell blocks", blocks(checkAdminMerge("bash -c 'gh api -X PUT repositories/123456/pulls/667/merge'")), true)
 console.log("\n# forbid-raw-ticket-mutation (_lib/rules-tickets.mjs)")
 const TICKET_REPO = "thomasluizon/orbit-tickets"
 const CODE_REPO = "thomasluizon/orbit-ui-mobile"
+for (const command of ["gh issue close 1 -R $OWNER/orbit-tickets", "gh api -X PATCH repos/$OWNER/orbit-tickets/issues/1", "gh project delete $PROJECT --owner thomasluizon", "gh project delete 2 --owner $OWNER"]) T(`tickets: an unresolved target blocks ${command}`, blocks(checkTicketMutation(command)), true)
+T("ticket wrapper regression: nested escaped backticks", blocks(checkTicketMutation("echo `echo \\`gh issue close 1 -R thomasluizon/orbit-tickets\\``")), true)
+for (const command of [
+  `echo $(gh issue close 1 -R ${TICKET_REPO})`,
+  `node tools/x.mjs $(gh issue close 1 -R ${TICKET_REPO})`,
+  `node tools/x.mjs \`gh issue close 1 -R ${TICKET_REPO}\``,
+  `sh -c 'gh issue close 1 -R ${TICKET_REPO}'`,
+  `eval 'gh issue close 1 -R ${TICKET_REPO}'`,
+  "gh project delete 2 --owner thomasluizon",
+  `gh label clone source/repo --repo ${TICKET_REPO}`,
+  "gh api graphql -f query='mutation { addAssigneesToAssignable(input: {assignableId: $i}) { clientMutationId } }'",
+  `G=gh; $G issue close 1 -R ${TICKET_REPO}`,
+  `$G issue close 1 -R ${TICKET_REPO}`,
+  `echo node tools/x.mjs gh issue close 1 -R ${TICKET_REPO}`,
+]) T(`ticket wrapper regression: ${command}`, blocks(checkTicketMutation(command)), true)
+T("tickets: read-only project view allows", checkTicketMutation("gh project view 2"), null)
+T("tickets: read-only issue view allows", checkTicketMutation(`gh issue view 1 -R ${TICKET_REPO}`), null)
+
 T("tickets: issue edit in the ticket repository blocks", blocks(checkTicketMutation(`gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`)), true)
 T("tickets: attached short repo flag still blocks", blocks(checkTicketMutation(`gh issue close 215 -R${TICKET_REPO}`)), true)
 T("tickets: host-qualified ticket repository still blocks", blocks(checkTicketMutation(`gh issue delete 215 --repo github.com/${TICKET_REPO} --confirm`)), true)
@@ -683,7 +784,7 @@ T("tickets: GraphQL project item mutation fails closed on an opaque node id", bl
 T("tickets: GraphQL closeIssue fails closed on an opaque node id", blocks(checkTicketMutation("gh api graphql -f query='mutation { closeIssue(input: {issueId: $i}) { issue { id } } }'")), true)
 T("tickets: GraphQL addComment fails closed on an opaque subject id", blocks(checkTicketMutation("gh api graphql -f query='mutation { addComment(input: {subjectId: $i, body: $b}) { commentEdge { node { id } } } }'")), true)
 T("tickets: opaque GraphQL input fails closed", blocks(checkTicketMutation("gh api graphql --input payload.json")), true)
-T("tickets: GraphQL pull request mutation allows", checkTicketMutation("gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: $i}) { thread { isResolved } } }'"), null)
+T("tickets: GraphQL mutation with unproved node ownership blocks", blocks(checkTicketMutation("gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: $i}) { thread { isResolved } } }'")), true)
 T("tickets: a repository tool invocation allows", checkTicketMutation("node tools/sync-issue-state.mjs --issue ORB-215 --repo ui --state ready"), null)
 T("tickets: the ticket skill milestone read allows", checkTicketMutation(`gh api repos/${TICKET_REPO}/milestones?state=all&per_page=100 --paginate --jq .[].title`), null)
 T("tickets: the sanctioned milestone creator allows", checkTicketMutation("node tools/create-milestone.mjs --title Launch --description-file draft.md"), null)
@@ -731,10 +832,10 @@ const docPaths = (tracked.status === 0 ? tracked.stdout.trim().split(/\r?\n/) : 
   .filter(Boolean)
   // The adapter exempts the gate's own source, since a rule module must contain
   // the strings it matches on. Mirror that here rather than reporting it.
-  .filter((relative) => !relative.startsWith(".claude/hooks/"))
+  .filter((relative) => !relative.startsWith(".claude/hooks/") && !relative.startsWith("tools/"))
   .map((relative) => join(repoRoot, relative))
   .filter((absolute) => existsSync(absolute) && statSync(absolute).isFile())
-T("tickets: blocks none of this repo's tracked docs", docPaths.filter((path) => checkTicketMutation(readFileSync(path, "utf8"))?.block).map((path) => path.slice(repoRoot.length + 1)), [])
+T("tickets: blocks none of this repo's tracked docs", docPaths.filter((path) => checkTicketMutation(readFileSync(path, "utf8"), { sourcePath: path })?.block).map((path) => path.slice(repoRoot.length + 1)), [])
 T("tickets: the doc scan actually read files", docPaths.length > 0, true)
 
 console.log("\n# forbid-ef-migration-raw-index (_lib/rules-source.mjs)")
@@ -857,6 +958,14 @@ const runHookResult = (file, input, env) =>
     env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
   })
 const runHook = (file, payload, env) => runHookResult(file, JSON.stringify(payload), env).status
+for (const hook of ["git-guardrails", "orchestrator-guardrails", "forbid-invented-identifier", "forbid-worker-browser", "forbid-node-modules-write", "forbid-raw-ticket-mutation", "forbid-ef-migration-raw-index", "require-handoff-prompt", "require-wake-source", "forbid-superseded-session"]) {
+  const result = runHookResult(`${hook}.mjs`, "not json")
+  T(`adapter ${hook}: malformed stdin blocks`, result.status, 2)
+  T(`adapter ${hook}: failure identifies the hook`, result.stderr.includes(hook), true)
+}
+for (const hook of ["surface-pending-lessons", "record-handoff-request", "relay-at-threshold"]) {
+  T(`reminder ${hook}: malformed stdin allows`, runHookResult(`${hook}.mjs`, "not json").status, 0)
+}
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
 const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_input: { command }, cwd })
 const STALE_TEXT = "forbid-stale-text.mjs"
@@ -1054,6 +1163,33 @@ T("adapter worker-browser: the same dev server outside a worker -> 0", runHook(B
 // file with a tool and not with a redirect, and the launcher marker is irrelevant to it: every
 // caller is refused.
 const DEPENDENCY = "forbid-node-modules-write.mjs"
+for (const wrap of isolatedDirectoryBodies) {
+  for (const [command, cwd, expected] of [
+    [`${wrap(`cd ${root}`)}; touch package.json`, installedPackage, 2],
+    [`cd ${installedPackage}; ${wrap(`cd ${root}`)}; touch package.json`, root, 2],
+    [`cd ${installedPackage}; ${wrap("touch package.json")}`, root, 2],
+    [`${wrap("touch package.json")}; cd ${installedPackage}`, root, 0],
+  ]) T(`adapter dependency scope: ${command}`, runHook(DEPENDENCY, bash(command, cwd)), expected)
+}
+for (const command of interpreterReads) T(`adapter dependency interpreter read: ${command}`, runHook(DEPENDENCY, bash(command, dependencyTree)), 0)
+for (const command of interpreterWrites) T(`adapter dependency interpreter write: ${command}`, runHook(DEPENDENCY, bash(command, dependencyTree)), 2)
+const scopedProtectedRepo = join(root, "scoped-protected")
+const scopedOtherRepo = join(root, "scoped-other")
+for (const [directory, repository] of [[scopedProtectedRepo, "orbit-ui-mobile"], [scopedOtherRepo, "other"]]) {
+  mkdirSync(directory)
+  T("git scope fixture: init", stagingGit(["init", "--initial-branch=main"], directory).status, 0)
+  T("git scope fixture: remote", stagingGit(["remote", "add", "origin", `https://example.invalid/${repository}.git`], directory).status, 0)
+}
+for (const wrap of isolatedDirectoryBodies) {
+  for (const [command, cwd, expected] of [
+    [`${wrap(`cd ${scopedOtherRepo}`)}; git push origin main`, scopedProtectedRepo, 2],
+    [`cd ${scopedProtectedRepo}; ${wrap(`cd ${scopedOtherRepo}`)}; git push origin main`, root, 2],
+    [`cd ${scopedProtectedRepo}; ${wrap("git push origin main")}`, root, 2],
+    [`${wrap("git push origin main")}; cd ${scopedProtectedRepo}`, scopedOtherRepo, 0],
+  ]) T(`adapter git scope: ${command}`, runHook("git-guardrails.mjs", bash(command, cwd)), expected)
+}
+T("adapter git scope: eval can enter a protected repository", runHook("git-guardrails.mjs", bash(`eval 'cd ${scopedProtectedRepo}'; git push origin main`, scopedOtherRepo)), 2)
+T("adapter git scope: eval can leave a protected repository", runHook("git-guardrails.mjs", bash(`eval 'cd ${scopedOtherRepo}'; git push origin main`, scopedProtectedRepo)), 0)
 const edit = (toolName, filePath) => ({ tool_name: toolName, tool_input: { file_path: filePath }, cwd: dependencyTree })
 T("adapter dependency-write: Write inside node_modules -> 2", runHook(DEPENDENCY, edit("Write", installedFile)), 2)
 T("adapter dependency-write: Edit through a relative path -> 2", runHook(DEPENDENCY, edit("Edit", "node_modules/react-native/flags.kt")), 2)
@@ -1073,7 +1209,7 @@ T("adapter dependency-write: reading the installed source -> 0", runHook(DEPENDE
  * layout, so the id-in-an-artifact path is exercised without touching any repository.
  */
 const IDENT_HOOK = "forbid-invented-identifier.mjs"
-const IDENT_SESSION = "orbit-hooks-gate-identifier-session"
+const IDENT_SESSION = "b7b639ab-803e-409a-b1ce-9b86ccdf9a60"
 const resolveCommand = (id) => `node tools/resolve-bot-thread.mjs --thread ${id} --repo ui --pr 699`
 const identPayload = (command, sessionId = IDENT_SESSION) => ({ tool_name: "Bash", tool_input: { command }, cwd: repoRoot, session_id: sessionId })
 
@@ -1090,6 +1226,7 @@ mkdirSync(dirname(scratchpadArtifact), { recursive: true })
 writeFileSync(scratchpadArtifact, JSON.stringify({ threads: [{ id: INVENTED }] }))
 try {
   T("adapter identifier: the same id read from a session artifact -> 0", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 0)
+  T("adapter identifier: traversal session cannot scan an artifact", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED), "../../x")), 2)
   T("adapter identifier: another session cannot borrow that artifact -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED), "a-different-session")), 2)
 } finally {
   rmSync(join(tmpdir(), "claude", "orbit-hooks-gate-project"), { recursive: true, force: true })
@@ -1163,12 +1300,30 @@ const relayUsage = JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", 
 const relayTranscript = join(wakeCheckout, ".git", "relay-transcript.jsonl")
 const relayPayload = { session_id: "relay-parent", transcript_path: relayTranscript, cwd: wakeCheckout, permission_mode: "bypassPermissions", hook_event_name: "Stop", stop_hook_active: false, last_assistant_message: "", background_tasks: [], session_crons: [] }
 const isolatedRelayHook = (name, payload = relayPayload, timeout) => spawnSync(process.execPath, [join(wakeHooks, name)], { input: JSON.stringify(payload), encoding: "utf8", timeout })
+writeFileSync(runStatePath(wakeCheckout), "not json")
+const corruptStop = isolatedRelayHook(WAKE_HOOK, stopPayload)
+T("adapter wake-source: corrupt run blocks stop", corruptStop.status, 2)
+T("adapter wake-source: corrupt run error names its path", corruptStop.stderr.includes(runStatePath(wakeCheckout)), true)
+T("adapter wake-source: active stop prevents a block loop", isolatedRelayHook(WAKE_HOOK, { ...stopPayload, stop_hook_active: true }).status, 0)
+rmSync(runStatePath(wakeCheckout))
+T("adapter wake-source: missing record allows stop", isolatedRelayHook(WAKE_HOOK, stopPayload).status, 0)
 writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }, wakeCheckout)
 T("adapter wake-source: a sleeping queue with nothing live -> 2", isolatedRelayHook(WAKE_HOOK, stopPayload).status, 2)
 writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: [] }, wakeCheckout)
 T("adapter wake-source: an exhausted queue -> 0", isolatedRelayHook(WAKE_HOOK, stopPayload).status, 0)
 writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }, wakeCheckout)
 T("adapter wake-source: another session's record -> 0", isolatedRelayHook(WAKE_HOOK, { ...stopPayload, session_id: "someone-else" }).status, 0)
+const requestFile = join(wakeCheckout, ".git", "orbit-handoff-request.json")
+writeFileSync(requestFile, "{")
+const corruptRequestStop = isolatedRelayHook("require-handoff-prompt.mjs", { ...stopPayload, hook_event_name: "Stop" })
+T("handoff adapter: corrupt request blocks", corruptRequestStop.status, 2)
+T("handoff adapter: an internal request-read throw blocks a valid tool payload", isolatedRelayHook("require-handoff-prompt.mjs", { ...stopPayload, hook_event_name: "PreToolUse", tool_input: { command: "git status" } }).status, 2)
+T("handoff adapter: corrupt request names path", corruptRequestStop.stderr.includes(requestFile), true)
+rmSync(requestFile)
+const { newestCommittedPrompt: readCommittedPrompt } = await import("./_lib/handoff-git.mjs")
+let promptReadFailed = false
+try { readCommittedPrompt(root) } catch { promptReadFailed = true }
+T("handoff reader: git failure throws instead of proving no prompt", promptReadFailed, true)
 writeRunState(relayState, wakeCheckout)
 writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: 399329 } } }) + "\n")
 T("relay adapter: 399999 prints nothing", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
@@ -1628,6 +1783,8 @@ T("adapter tickets: pull request read -> 0", runHook(TICKET_HOOK, bash(`gh pr vi
 const mutatingScript = { tool_name: "Write", tool_input: { file_path: join(root, "post.mjs"), content: `gh issue comment 215 --repo ${TICKET_REPO} --body fixed` } }
 T("adapter tickets: a written script that mutates -> 2", runHook(TICKET_HOOK, mutatingScript), 2)
 T("adapter tickets: a repository tool source edit -> 0", runHook(TICKET_HOOK, { ...mutatingScript, tool_input: { ...mutatingScript.tool_input, file_path: join(repoRoot, "tools", "ticket-write.mjs") } }), 0)
+T("adapter tickets: nested tools source is not exempt", runHook(TICKET_HOOK, { ...mutatingScript, tool_input: { ...mutatingScript.tool_input, file_path: join(repoRoot, "apps", "web", "tools", "post.mjs") } }), 2)
+T("adapter tickets: documentation naming a write allows", runHook(TICKET_HOOK, { ...mutatingScript, tool_input: { ...mutatingScript.tool_input, file_path: join(repoRoot, "guide.md"), content: "Use `gh issue edit` through the repository adapter." } }), 0)
 T("adapter tickets: an unrelated command -> 0", runHook(TICKET_HOOK, bash("npm test")), 0)
 
 // The EF adapter re-reads the file from disk after the edit lands, so these need real files.
@@ -1931,6 +2088,19 @@ writeFileSync(handoffFile, goodSleepPrompt)
 spawnSync("git", ["-C", handoffGitRepo, "commit", "-q", "-am", "sleep handoff"], { encoding: "utf8", env: { ...process.env, GIT_COMMITTER_DATE: "2030-01-01T00:00:00Z" } })
 inHandoffRepo("checkout", "-q", "feature")
 T("handoff git: the newest committed prompt is read from another branch", newestCommittedPrompt(handoffGitRepo).text, goodSleepPrompt)
+const copiedHandoffHooks = join(handoffGitRepo, ".claude/hooks")
+cpSync(hooksDir, copiedHandoffHooks, { recursive: true })
+cpSync(join(repoRoot, "tools/lib"), join(handoffGitRepo, "tools/lib"), { recursive: true })
+if (process.env.HANDOFF_GIT_FIXTURE) cpSync(process.env.HANDOFF_GIT_FIXTURE, join(copiedHandoffHooks, "_lib/handoff-git.mjs"))
+recordHandoffRequest("show-failure", { sleep: true }, new Date(0).toISOString(), handoffGitRepo)
+const committedBlob = inHandoffRepo("rev-parse", "integration:.claude/handoffs/NEXT.md").stdout.trim()
+T("handoff fixture: committed prompt resolves to a blob", /^[0-9a-f]{40}$/.test(committedBlob), true)
+const objectPath = inHandoffRepo("rev-parse", "--git-path", `objects/${committedBlob.slice(0, 2)}/${committedBlob.slice(2)}`).stdout.trim()
+rmSync(resolve(handoffGitRepo, objectPath))
+T("handoff fixture: git log still reads the committed prompt metadata", inHandoffRepo("log", "-1", "--format=%H%n%cI", "--branches", "--remotes", "HEAD", "--", ".claude/handoffs/NEXT.md").status, 0)
+T("handoff fixture: git show really fails for the missing blob", inHandoffRepo("show", `integration:.claude/handoffs/NEXT.md`).status !== 0, true)
+const failedShowStop = spawnSync(process.execPath, [join(copiedHandoffHooks, "require-handoff-prompt.mjs")], { input: JSON.stringify({ hook_event_name: "Stop", session_id: "show-failure" }), encoding: "utf8" })
+T("handoff hook: failing git show with a live request blocks Stop", failedShowStop.status, 2)
 rmSync(handoffGitRepo, { recursive: true, force: true })
 
 const timelessHook = join(hooksDir, "forbid-stale-text.mjs")

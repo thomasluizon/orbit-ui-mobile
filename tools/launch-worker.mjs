@@ -120,7 +120,9 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
-if (config.relay.enabled && readRunState()?.relay?.pending === true) {
+let launchRunState
+try { launchRunState = readRunState() } catch (error) { fail(2, error.message) }
+if (config.relay.enabled && launchRunState?.relay?.pending === true) {
   console.log(JSON.stringify({ admitted: false, reason: "ADMISSION_REFUSED", refusalReason: "RELAY_DRAIN", error: "RELAY_DRAIN" }))
   process.exit(ADMISSION_REFUSED_EXIT)
 }
@@ -320,7 +322,8 @@ for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
 }
 
 const timestamp = new Date().toISOString()
-const launchSessionId = readRunState()?.sessionId ?? null
+let launchSessionId
+try { launchSessionId = readRunState()?.sessionId ?? null } catch (error) { fail(2, error.message) }
 const reservation = research ? { allowed: true } : reserveWorkerLaunch({
   launcherPid: process.pid,
   sessionId: launchSessionId,

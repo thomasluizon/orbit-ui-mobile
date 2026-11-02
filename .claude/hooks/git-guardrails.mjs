@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // PreToolUse(Bash) adapter for the git-workflow guard. Thin: the reusable core is
 // the pure functions in _lib/rules-git.mjs (opencode was dropped from this repo,
-// D22). Exits 0 (allow) or 2 + stderr (block). Any error exits 0 so the hook
-// never wedges Bash.
+// D22). Exits 0 (allow) or 2 + stderr (block). Errors block the command and name this hook.
 
 import { execFileSync } from "node:child_process"
 import { readStdinJson } from "./_lib/io.mjs"
@@ -32,6 +31,7 @@ try {
     process.exit(2)
   }
   process.exit(0)
-} catch {
-  process.exit(0)
+} catch (error) {
+  process.stderr.write(`git-guardrails: ${error.message}\n`)
+  process.exit(2)
 }

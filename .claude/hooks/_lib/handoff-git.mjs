@@ -25,11 +25,7 @@ export const promptsForCommit = (directory) => {
 
 /** The newest committed NEXT.md on any local or remote branch, so a handoff committed in another checkout is still judged. */
 export const newestCommittedPrompt = (repoRoot) => {
-  try {
-    const [sha, committedAt] = git(repoRoot, ["log", "-1", "--format=%H%n%cI", "--branches", "--remotes", "HEAD", "--", HANDOFF_PROMPT_PATH]).trim().split("\n")
-    if (!sha) return { text: null, committedAt: "" }
-    return { text: git(repoRoot, ["show", `${sha}:${HANDOFF_PROMPT_PATH}`]), committedAt }
-  } catch {
-    return { text: null, committedAt: "" }
-  }
+  const [sha, committedAt] = git(repoRoot, ["log", "-1", "--format=%H%n%cI", "--branches", "--remotes", "HEAD", "--", HANDOFF_PROMPT_PATH]).trim().split("\n")
+  if (!sha) return { text: null, committedAt: "" }
+  return { text: git(repoRoot, ["show", `${sha}:${HANDOFF_PROMPT_PATH}`]), committedAt }
 }
