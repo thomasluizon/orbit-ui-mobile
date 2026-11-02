@@ -268,13 +268,41 @@ impl CookieStore for WebviewWindow {
             .map_err(|error| error.to_string())
     }
     fn set(&self, cookie: &tauri::webview::Cookie<'static>) -> Result<(), String> {
-        self.set_cookie(cookie.clone())
+        self.set_cookie(native_store_cookie(self, cookie)?)
             .map_err(|error| error.to_string())
     }
     fn delete(&self, cookie: &tauri::webview::Cookie<'static>) -> Result<(), String> {
-        self.delete_cookie(cookie.clone())
+        self.delete_cookie(native_store_cookie(self, cookie)?)
             .map_err(|error| error.to_string())
     }
+}
+
+fn native_store_cookie(
+    window: &WebviewWindow,
+    cookie: &tauri::webview::Cookie<'static>,
+) -> Result<tauri::webview::Cookie<'static>, String> {
+    let tauri::utils::config::WebviewUrl::External(origin) = &window.config().app.windows[0].url
+    else {
+        return Err("Desktop requires a deployed origin".into());
+    };
+    cookie_for_native_host(cookie, origin)
+}
+
+fn cookie_for_native_host(
+    cookie: &tauri::webview::Cookie<'static>,
+    origin: &Url,
+) -> Result<tauri::webview::Cookie<'static>, String> {
+    let mut native = cookie.clone();
+    if native.domain().is_none() {
+        // WHY: Native cookie stores require an explicit exact host; an empty domain has no origin (#1964).
+        native.set_domain(
+            origin
+                .host_str()
+                .ok_or("Missing desktop cookie host")?
+                .to_owned(),
+        );
+    }
+    Ok(native)
 }
 
 fn commit_login(
@@ -412,6 +440,26 @@ mod tests {
         let rejected =
             tauri::async_runtime::block_on(client.get("http://127.0.0.1:1/").send()).unwrap_err();
         assert!(rejected.is_builder());
+    }
+
+    #[test]
+    fn native_cookie_store_receives_the_exact_host_for_install_and_rollback() {
+        let origin: Url = "https://app-staging.useorbit.org/".parse().unwrap();
+        let cookies = session_cookies(
+            &exchange_headers(reqwest::StatusCode::OK, &cookie_headers()).unwrap(),
+            &origin,
+        )
+        .unwrap();
+        for cookie in cookies {
+            assert!(cookie.domain().is_none());
+            let native = cookie_for_native_host(&cookie, &origin).unwrap();
+            assert_eq!(native.domain(), Some("app-staging.useorbit.org"));
+            assert_eq!(native.value(), cookie.value());
+            assert_eq!(native.http_only(), Some(true));
+            assert_eq!(native.secure(), Some(true));
+            assert_eq!(native.path(), Some("/"));
+            assert_eq!(cookie_for_native_host(&native, &origin).unwrap(), native);
+        }
     }
 
     #[test]
