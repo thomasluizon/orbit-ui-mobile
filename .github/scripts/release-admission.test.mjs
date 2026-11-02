@@ -116,9 +116,8 @@ test("staging smoke success is published only after the selected build passes sm
 
 // The commit-status fields come from components.schemas.status in GitHub's REST OpenAPI schema.
 const smokeStatus = (state, id = 1) => ({
-  url: "https://example.invalid/status", avatar_url: "https://example.invalid/avatar", id,
-  node_id: "<status node>", state, description: null, target_url: null, context: "web-staging-smoke",
-  created_at: `2000-01-01T00:00:0${id}Z`, updated_at: `2000-01-01T00:00:0${id}Z`, creator: null,
+  ...structuredClone(recorded.commitStatus), state, id,
+  created_at: `2000-01-01T00:00:0${id}Z`, updated_at: `2000-01-01T00:00:0${id}Z`,
 })
 
 test("staging status gates reject absent, stale and failed smoke evidence on both production paths", () => {
@@ -126,12 +125,12 @@ test("staging status gates reject absent, stale and failed smoke evidence on bot
     const step = stepNamed(job, "Require healthy staging commit")
     const settings = { FORCE_UNSTAGED: "false", OVERRIDE_REASON: "", STAGING_SERVICE_ID: "fixture-service", RENDER_API_KEY: "fixture-key" }
     for (const statuses of [[], [smokeStatus("failure")], [smokeStatus("pending")], [smokeStatus("success"), smokeStatus("pending", 2)], [smokeStatus("success"), smokeStatus("failure", 2)]]) {
-      const response = { statuses: [{ state: "failure", statuses, sha, total_count: statuses.length, repository: {}, commit_url: "https://example.invalid", url: "https://example.invalid" }] }
+      const response = { statuses: [{ ...recorded.combinedStatus, state: "failure", statuses, sha, total_count: statuses.length }] }
       const rejected = execute(step.run, settings, response)
       assert.notEqual(rejected.status, 0, rejected.stdout + rejected.stderr)
       assert.match(rejected.stdout + rejected.stderr, /web-staging-smoke/)
     }
-    const response = { statuses: [{ state: "success", statuses: [smokeStatus("success")], sha, total_count: 1, repository: {}, commit_url: "https://example.invalid", url: "https://example.invalid" }] }
+    const response = { statuses: [{ ...recorded.combinedStatus, state: "success", statuses: [smokeStatus("success")], sha, total_count: 1 }] }
     const accepted = execute(step.run, settings, response)
     assert.equal(accepted.status, 0, accepted.stdout + accepted.stderr)
     assert.notEqual(execute(step.run, settings, { ...response, health: { status: "ok", commit: "b".repeat(40) } }).status, 0)
