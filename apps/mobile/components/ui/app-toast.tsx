@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   icon: { flexShrink: 0 },
-  copy: { flex: 1, flexBasis: 'auto', gap: 4 },
+  copy: { flexGrow: 1, flexShrink: 1, gap: 4 },
   controls: { flexDirection: 'row', alignItems: 'center', gap: 12, marginStart: 'auto', flexShrink: 0 },
   message: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
   detail: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },

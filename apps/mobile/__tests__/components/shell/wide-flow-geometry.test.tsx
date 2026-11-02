@@ -26,8 +26,8 @@ it.each([1, 2, 3])('spaces %i notices inside the standalone flow slot', async (c
       <View key={index} testID={`notice-${index}`} style={{ height: 48 }} />)}</>}><View /></FlowShell>)
   })
   try {
-    const slot = tree.root.findByProps({ testID: 'notice-0' }).parent!
-    expect(StyleSheet.flatten(slot.props.style).gap).toBe(12)
+    const slot = tree.root.findAll(node => node.props.testID === 'notice-0')[0]!.parent!
+    expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ gap: 12 })
     const boxes = measureSafeArea((tree as GeometryTree).toJSON(), (host) => host.props.testID)
     for (let index = 1; index < count; index++) {
       expect(boxes.get(`notice-${index}`)!.top - boxes.get(`notice-${index - 1}`)!.bottom).toBe(12)

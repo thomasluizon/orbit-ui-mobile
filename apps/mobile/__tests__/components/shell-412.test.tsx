@@ -85,7 +85,7 @@ describe('Shell412 mobile', () => {
       expect(slot.findAllByType(Toast).map(toast => toast.props.message)).toEqual([
         'notifications.deleteQueued', 'notifications.deleteError',
       ])
-      expect(StyleSheet.flatten(slot.props.style).gap).toBe(12)
+      expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ gap: 12 })
     } finally {
       await TestRenderer.act(() => tree.unmount())
       clearPendingNotificationDeletes()

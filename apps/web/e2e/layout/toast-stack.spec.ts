@@ -19,7 +19,7 @@ const notifications = notificationsResponseSchema.parse({
 for (const width of [412, 1352]) {
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
     test.describe(`Notice stack at ${width}px in ${locale}`, () => {
-      test.use({ viewport: { width, height: 915 }, appLocale: locale, reducedMotion: 'reduce' })
+      test.use({ viewport: { width, height: 915 }, appLocale: locale, contextOptions: { reducedMotion: 'reduce' } })
 
       test('separates two and three deletes and centres each undo label', async ({ page, context }) => {
         await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
