@@ -53,7 +53,7 @@ const attempt = async (args, environment, options) => {
     const transient = !result.error && !result.overflowed && (status >= 500 && status <= 599 ||
       status === 429 || rateLimited || (!(status >= 400 && status <= 499) && timeout))
     const error = Object.assign(new Error(`GitHub read ${args.join(" ")} failed: ${text}`), {
-      transient, retryAfterMs: retryAfter(response.headers), fallbackAllowed: transient && !rateLimited && status !== 429,
+      status, transient, retryAfterMs: retryAfter(response.headers), fallbackAllowed: transient && !rateLimited && status !== 429,
     })
     if (transient) options.onTransientError(error.message)
     throw error
@@ -114,10 +114,10 @@ export const readGithubPull = (slug, number, environment, options = {}) => retry
     if (!error.fallbackAllowed) throw error
     if (error.retryAfterMs !== null) await pause(error.retryAfterMs, settings)
     // Tracks #1640: GitHub can serve GraphQL while the single-pull REST endpoint is unavailable.
-    const pull = await attempt(["pr", "view", String(number), "--repo", slug, "--json", "state,headRefOid"], environment, settings)
-    if (typeof pull?.headRefOid !== "string" || !["OPEN", "CLOSED", "MERGED"].includes(pull.state)) {
+    const pull = await attempt(["pr", "view", String(number), "--repo", slug, "--json", "state,headRefOid,baseRefName"], environment, settings)
+    if (typeof pull?.baseRefName !== "string" || typeof pull?.headRefOid !== "string" || !["OPEN", "CLOSED", "MERGED"].includes(pull.state)) {
       throw new Error(`GitHub pull request #${number} GraphQL read had an unexpected shape`)
     }
-    return { state: pull.state === "OPEN" ? "open" : "closed", head: { sha: pull.headRefOid } }
+    return { state: pull.state === "OPEN" ? "open" : "closed", head: { sha: pull.headRefOid }, base: { ref: pull.baseRefName } }
   }
 }, options)

@@ -1526,7 +1526,7 @@ questions in the spec and run state. The tool verifies the pushed spec and promp
 session's CI and file waiters and confirms a nominated successor from its run-state write. CI and
 file waiters may remain live during the drain; neither blocks it. A local check detached with
 `setsid` keeps running when its waiter stops. Carry the check and its absolute completion file
-in the handoff; the successor starts a new file waiter on that same file. Successor
+in the handoff; the successor starts a new file waiter on that same file, passing the original start with `--started-at`. Successor
 adoption durably fences the predecessor before the reporting chain is finalized; reading
 the open chain reconciles interrupted finalization. The successor enters through `/sleep`, adopts the run with
 `adoptRelayRun`, and starts its first wakeup with `run-status.mjs` as usual. The open chain
@@ -1544,12 +1544,15 @@ finished, so nobody goes looking. A claim that CI will wake the session requires
 
 **Launch a new ticket only when a slot is free and admission allows it.** `launch-worker.mjs` and
 `submit-cloud-worker.mjs` enforce the GitHub counts. Existing pull request work can proceed.
+The CI waiter exits 0 only for a settled passing head; 4 means the head moved, 5 means the
+pull request closed, and 6 means settled failing checks. Re-read delivery on 4 or 5 and fix
+failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or usage error.
 When CI or review is the remaining work, start
 `node tools/wait-ci.mjs --repo <key> --pr <n> [--require-check pullfrog-approval]` in the background.
 The worker launcher, Cloud receipt watcher, CI waiter, release waiter, file waiter and relay tool
 each register a live wake source. For a detached local check, start
-`node tools/wait-file.mjs --file <absolute completion file> --what <check label>` in the background.
-Use a fresh completion file for each check and reuse that file when restarting its waiter after
+`node tools/wait-file.mjs --file <absolute completion file> --started-at <original ISO start> --what <check label>` in the background.
+Write the completion file atomically as JSON `{ "exitCode": <check exit status> }` after the check exits. Carry the original ISO start time with the file path. Use a fresh completion file for each check and reuse that file when restarting its waiter after
 a relay; a plain shell polling loop registers no wake source.
 
 **The gate:** `.claude/hooks/require-wake-source.mjs` runs on `Stop` and refuses the stop when the
