@@ -11,8 +11,11 @@ import AuthCallbackPage from '@/app/(auth)/auth-callback/page'
 const mocks = vi.hoisted(() => ({ cookies: vi.fn() }))
 vi.mock('next/headers', () => ({ cookies: mocks.cookies }))
 vi.mock('@/app/(auth)/auth-callback/auth-callback-content', () => ({
-  AuthCallbackContent: ({ pendingWebState }: { pendingWebState: string | null }) =>
-    <div>{pendingWebState ?? 'no web attempt'}</div>,
+  AuthCallbackContent: ({ pendingWebStates }: { pendingWebStates: Record<'apple' | 'google', string | null> }) =>
+    <div>
+      <span data-testid="apple-state">{pendingWebStates.apple ?? 'no web attempt'}</span>
+      <span data-testid="google-state">{pendingWebStates.google ?? 'no web attempt'}</span>
+    </div>,
 }))
 
 function googleAttempt(desktop = true) {
@@ -84,7 +87,7 @@ describe('OAuth callback ownership', () => {
     const callbackRequest = new NextRequest(`${origin}/auth-callback?code=google-code&state=${state}`, { headers })
     expect((await proxy(callbackRequest)).headers.get('x-middleware-next')).toBe('1')
     mocks.cookies.mockResolvedValue(callbackRequest.cookies)
-    render(await AuthCallbackPage({}))
+    render(await AuthCallbackPage())
     expect(screen.getByText(state)).toBeInTheDocument()
     const verifier = JSON.parse(pending.value).verifier as string
     expect(document.body.textContent).not.toContain(verifier)
@@ -108,21 +111,22 @@ describe('OAuth callback ownership', () => {
     expect(crossProvider.headers.get('x-middleware-next')).toBe('1')
     expect(crossProvider.headers.get('location')).toBeNull()
     mocks.cookies.mockResolvedValue(request.cookies)
-    render(await AuthCallbackPage({ searchParams: Promise.resolve({ provider: 'apple', state: appleState, handoff: 'apple-handoff' }) }))
+    render(await AuthCallbackPage())
     expect(screen.getByText(appleState)).toBeInTheDocument()
-    expect(document.body.textContent).not.toContain(google.state)
+    expect(screen.getByTestId('google-state')).toHaveTextContent(google.state)
   })
   it.each([null, 'invalid-json', '{}', '{"state":42}', '{"state":""}'])
   ('does not claim web ownership without a valid pending state: %s', async (pending) => {
     const callbackRequest = new NextRequest('https://app.useorbit.org/auth-callback', {
-      headers: pending === null ? {} : { cookie: `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(pending)}` },
+      headers: pending === null ? {} : { cookie: `${GOOGLE_OAUTH_COOKIE}=${encodeURIComponent(pending)}; ${APPLE_OAUTH_COOKIE}=${encodeURIComponent(pending)}` },
     })
     const response = await proxy(callbackRequest)
     expect(response.headers.get('x-middleware-next')).toBe('1')
     expect(response.headers.get('location')).toBeNull()
     expect(response.headers.get('set-cookie')).toBeNull()
     mocks.cookies.mockResolvedValue(callbackRequest.cookies)
-    render(await AuthCallbackPage({}))
-    expect(screen.getByText('no web attempt')).toBeInTheDocument()
+    render(await AuthCallbackPage())
+    expect(screen.getByTestId('apple-state')).toHaveTextContent('no web attempt')
+    expect(screen.getByTestId('google-state')).toHaveTextContent('no web attempt')
   })
 })

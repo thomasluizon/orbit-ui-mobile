@@ -5,6 +5,12 @@ const callback = { protocol: 'https:', host: 'app.useorbit.org', search: '?code=
 const input = { callback, userAgent: 'Android', pendingWebState: null, packageName: 'org.useorbit.app' }
 
 describe('Google callback intent boundary', () => {
+  it('forwards fragment-only Apple credentials in the Android intent query', () => {
+    expect(getGoogleAuthAppIntent({ ...input, callback: { ...callback, search: '', hash: '#provider=apple&handoff=h%2Bvalue&state=s' } })).toBe(
+      'intent://app.useorbit.org/auth-callback?provider=apple&handoff=h%2Bvalue&state=s#Intent;scheme=https;package=org.useorbit.app;end',
+    )
+  })
+
   it.each([undefined, '', 'org.useorbit.app;S.extra=unsafe', 'org/useorbit/app'])('rejects invalid package configuration %s', (packageName) => {
     expect(getGoogleAuthAppIntent({ ...input, packageName })).toBeNull()
   })

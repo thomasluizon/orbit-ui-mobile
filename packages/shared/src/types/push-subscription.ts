@@ -15,7 +15,7 @@ export type PushSubscriptionsResponse = z.infer<typeof pushSubscriptionsResponse
 export const desktopPushRegistrationSchema = z.object({
   endpoint: z.string().min(1),
   p256dh: z.enum(['apns', 'wns']),
-  auth: z.enum(['apns', 'wns']),
+  auth: z.string().min(1).max(128),
   apnsTopic: z.enum(['org.useorbit.desktop', 'org.useorbit.desktop.staging']).nullable(),
   deviceId: z.uuid(),
 })

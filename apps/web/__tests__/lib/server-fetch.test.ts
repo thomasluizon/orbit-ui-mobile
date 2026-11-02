@@ -1,3 +1,4 @@
+import { ACCOUNT_A_ACCESS_TOKEN, makeAccessToken } from '@/__tests__/helpers/auth-token'
 import { expectApiVersion2Requests } from '@/__tests__/support/api-version'
 import en from '@orbit/shared/i18n/en.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -43,7 +44,7 @@ describe('createHabit action error boundary', () => {
   beforeEach(() => {
     resolveServerSessionMock.mockReset()
     mockFetch.mockReset()
-    resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
+    resolveServerSessionMock.mockResolvedValue({ token: ACCOUNT_A_ACCESS_TOKEN, refreshFailed: false })
   })
 
   it('exposes the rotated onboarding credential from the public response headers', async () => {
@@ -141,7 +142,7 @@ describe('serverAuthFetch', () => {
   })
 
   it.each(['authenticated', 'public'])('pins API v2 on a %s request despite a caller version', async (boundary) => {
-    resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
+    resolveServerSessionMock.mockResolvedValue({ token: ACCOUNT_A_ACCESS_TOKEN, refreshFailed: false })
     mockFetch.mockResolvedValue(Response.json({ value: 'accepted' }))
     const init = { headers: { 'Api-Version': '1.0' } }
     const response = boundary === 'public'
@@ -154,7 +155,7 @@ describe('serverAuthFetch', () => {
 
   it('calls fetch with the resolved auth token', async () => {
     resolveServerSessionMock.mockResolvedValue({
-      token: 'test-token',
+      token: ACCOUNT_A_ACCESS_TOKEN,
       expiresAt: Date.now() + 3600000,
       refreshed: false,
     })
@@ -170,7 +171,7 @@ describe('serverAuthFetch', () => {
       expect.stringContaining('/api/habits'),
       expect.objectContaining({
         headers: expect.objectContaining({
-          Authorization: 'Bearer test-token',
+          Authorization: `Bearer ${ACCOUNT_A_ACCESS_TOKEN}`,
           'Content-Type': 'application/json',
         }),
       }),
@@ -234,14 +235,14 @@ describe('serverAuthFetch', () => {
   })
 
   it('returns null for 204 responses', async () => {
-    resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
+    resolveServerSessionMock.mockResolvedValue({ token: ACCOUNT_A_ACCESS_TOKEN, refreshFailed: false })
     mockFetch.mockResolvedValue({ ok: true, status: 204 })
 
     await expect(serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, null)).resolves.toBeNull()
   })
 
   it('forwards the event origin from a bound account mutation', async () => {
-    resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
+    resolveServerSessionMock.mockResolvedValue({ token: ACCOUNT_A_ACCESS_TOKEN, refreshFailed: false })
     mockFetch.mockResolvedValue({ ok: true, status: 204 })
 
     await serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, JSON.stringify({
@@ -256,7 +257,7 @@ describe('serverAuthFetch', () => {
   it('attaches the X-App-Version header when APP_VERSION is set', async () => {
     vi.stubEnv('APP_VERSION', '1.2.3')
     resolveServerSessionMock.mockResolvedValue({
-      token: 'test-token',
+      token: ACCOUNT_A_ACCESS_TOKEN,
       expiresAt: Date.now() + 3600000,
       refreshed: false,
     })
@@ -279,7 +280,7 @@ describe('serverAuthFetch', () => {
   it('omits the X-App-Version header when APP_VERSION is unset', async () => {
     vi.stubEnv('APP_VERSION', undefined)
     resolveServerSessionMock.mockResolvedValue({
-      token: 'test-token',
+      token: ACCOUNT_A_ACCESS_TOKEN,
       expiresAt: Date.now() + 3600000,
       refreshed: false,
     })
@@ -297,7 +298,7 @@ describe('serverAuthFetch', () => {
 
   it('validates and returns the parsed body when a schema is supplied', async () => {
     resolveServerSessionMock.mockResolvedValue({
-      token: 'test-token',
+      token: ACCOUNT_A_ACCESS_TOKEN,
       expiresAt: Date.now() + 3600000,
       refreshed: false,
     })
@@ -315,7 +316,7 @@ describe('serverAuthFetch', () => {
 
   it('rejects a malformed body with a typed 502 ApiClientError', async () => {
     resolveServerSessionMock.mockResolvedValue({
-      token: 'test-token',
+      token: ACCOUNT_A_ACCESS_TOKEN,
       expiresAt: Date.now() + 3600000,
       refreshed: false,
     })
@@ -385,25 +386,6 @@ describe('serverPublicFetch', () => {
   })
 })
 
-/**
- * The claim the API puts the account id under. It is the literal `auth-api.ts` reads and the one
- * `JwtTokenServiceTests` in the orbit-api repository pins, so a token built here carries an account
- * the real `getAccountIdFromToken` can find.
- */
-const ACCOUNT_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
-
-function encodeJwtSegment(value: Record<string, unknown>): string {
-  return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
-}
-
-function makeAccessToken(accountId: string): string {
-  return [
-    encodeJwtSegment({ alg: 'HS256', typ: 'JWT' }),
-    encodeJwtSegment({ [ACCOUNT_CLAIM]: accountId }),
-    'ZmFrZS1zaWduYXR1cmU',
-  ].join('.')
-}
-
 describe('serverAuthMutate', () => {
   beforeEach(() => {
     resolveServerSessionMock.mockReset()
@@ -453,16 +435,16 @@ describe('serverAuthMutate', () => {
     expect(url).toContain('/api/habits/h-1')
   })
 
-  it('sends a write whose token carries no readable account, rather than failing shut', async () => {
+  it('refuses a write whose token carries no readable account', async () => {
     resolveServerSessionMock.mockResolvedValue({
       token: 'not-a-jwt',
       expiresAt: Date.now() + 3600000,
       refreshed: false,
     })
 
-    await serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, 'account-a')
+    await expect(serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, 'account-a')).rejects.toMatchObject({ status: 409 })
 
-    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('refuses a write when a refresh swaps the account mid-flight, before the retry goes out', async () => {
@@ -508,12 +490,12 @@ describe('serverAuthMutate', () => {
   it('does not recurse when the refresh endpoint returns 401', async () => {
     resolveServerSessionMock
       .mockResolvedValueOnce({
-        token: 'stale-token',
+        token: makeAccessToken('account-a'),
         expiresAt: Date.now() + 30000,
         refreshed: false,
       })
       .mockResolvedValueOnce({
-        token: 'unexpected-token',
+        token: makeAccessToken('account-a'),
         expiresAt: Date.now() + 3600000,
         refreshed: true,
       })
@@ -663,7 +645,7 @@ describe('current proactive response boundary', () => {
   beforeEach(() => {
     resolveServerSessionMock.mockReset()
     mockFetch.mockReset()
-    resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
+    resolveServerSessionMock.mockResolvedValue({ token: ACCOUNT_A_ACCESS_TOKEN, refreshFailed: false })
   })
 
   afterEach(() => {

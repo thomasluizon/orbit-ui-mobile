@@ -49,18 +49,24 @@ describe('submitApiKeyCreation', () => {
     expect(isCreating()).toBe(false)
   })
 
-  it('ignores a completed submission after the account changes', async () => {
+  it('keeps the busy state owned by the newer account when a stale submission finishes', async () => {
     const { adapter, changeAccount, isCreating } = setup()
     let finish!: (value: typeof createdKey) => void
-    adapter.createKey.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    let finishNewer!: (value: typeof createdKey) => void
+    adapter.createKey.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+      .mockImplementationOnce(() => new Promise((resolve) => { finishNewer = resolve }))
     const pending = submitApiKeyCreation(request, adapter)
     changeAccount()
-    adapter.setCreating(true)
+    const newer = submitApiKeyCreation(request, adapter)
     finish(createdKey)
 
     expect(await pending).toBeNull()
     expect(adapter.retainExpiryDraft).not.toHaveBeenCalled()
     expect(isCreating()).toBe(true)
+    finishNewer(createdKey)
+    expect(await newer).toEqual(createdKey)
+    expect(isCreating()).toBe(false)
+    expect(adapter.retainExpiryDraft).toHaveBeenCalledExactlyOnceWith('')
   })
 })
 
