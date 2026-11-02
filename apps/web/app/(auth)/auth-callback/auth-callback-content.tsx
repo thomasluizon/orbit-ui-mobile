@@ -19,13 +19,16 @@ import { PillLink } from '@/components/ui/pill-button'
 import { getGoogleAuthAppIntent, resolveAuthCallbackParams } from '@/lib/google-auth-app-intent'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
-export function AuthCallbackContent({ pendingWebState }: Readonly<{ pendingWebState: string | null }>) {
+export function AuthCallbackContent({ pendingWebStates }: Readonly<{
+  pendingWebStates: Readonly<Record<'apple' | 'google', string | null>>
+}>) {
   const locale = useLocale()
   const t = useTranslations()
   const [appIntent, setAppIntent] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const [params] = useState(() => resolveAuthCallbackParams({ search: searchParams.toString(), hash: typeof location === 'undefined' ? '' : location.hash }))
+  const pendingWebState = pendingWebStates[params.get('provider') === 'apple' ? 'apple' : 'google']
   const [reportFailure] = useState(() => createAuthCallbackFailureReporter(params.get('provider') === 'apple' ? 'apple' : 'google', captureMessage))
   const { setAuth } = useAuthStore()
   const [state, setState] = useState<'pending' | 'failed' | 'account'>('pending')
