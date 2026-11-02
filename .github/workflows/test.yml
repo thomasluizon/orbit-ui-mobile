@@ -1,14 +1,15 @@
 name: PR Tests
 
 on:
+  workflow_dispatch:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name != 'pull_request' && github.sha || github.ref }}
   cancel-in-progress: true
 
 permissions:

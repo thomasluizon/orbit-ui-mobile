@@ -1,6 +1,7 @@
 # Each guard keeps its own status condition so failures do not skip later guards.
 name: Guards
 "on":
+  workflow_dispatch:
   pull_request:
     branches:
       - main
@@ -10,9 +11,9 @@ name: Guards
       - reopened
   push:
     branches:
-      - '**'
+      - main
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name != 'pull_request' && github.sha || github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read

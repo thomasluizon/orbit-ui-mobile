@@ -45,16 +45,19 @@ const green = () => ({
   ...Object.fromEntries(["test", "guards"].map((name, index) => [name, [{ total_count: 1, workflow_runs: [{ ...structuredClone(recorded.run), head_sha: sha, path: `.github/workflows/${name}.yml`, event: "push", check_suite_id: index + 1, status: "completed", conclusion: "success" }] }]])),
 })
 
-test("merged SHAs retain their own tests and guards runs", () => {
+test("CI runs automatically on main and supports dispatch without overriding the event checkout", () => {
   for (const name of ["test", "guards"]) {
     const workflow = load(name)
-    assert.deepEqual(workflow.on.push.branches, ["**"])
+    assert.deepEqual(workflow.on.push.branches, ["main"])
+    assert.ok(Object.hasOwn(workflow.on, "workflow_dispatch"))
     for (const job of Object.values(workflow.jobs)) {
+      assert.doesNotMatch(job.if ?? "", /github\.event_name\s*==\s*'push'/, "push jobs must also run on dispatch")
       for (const step of job.steps ?? []) {
-        if (step.uses?.startsWith("actions/checkout@")) assert.equal(step.with?.ref, undefined, "push jobs must test the event commit")
+        assert.doesNotMatch(step.if ?? "", /github\.event_name\s*==\s*'push'/, "push steps must also run on dispatch")
+        if (step.uses?.startsWith("actions/checkout@")) assert.equal(step.with?.ref, undefined, "CI must test the event commit")
       }
     }
-    assert.match(workflow.concurrency.group, /github.sha/)
+    assert.equal(workflow.concurrency.group, "${{ github.workflow }}-${{ github.event_name != 'pull_request' && github.sha || github.ref }}")
   }
 })
 
@@ -90,6 +93,24 @@ test("web and Android reject PR merge-tree evidence associated with the selected
     assert.notEqual(result.status, 0, "PR head metadata cannot authenticate the merge checkout")
     for (const name of ["test", "guards"]) response[name][0].workflow_runs[0].event = "push"
     assert.equal(execute(step.run, {}, response).status, 0)
+  }
+})
+
+test("web and Android accept dispatch evidence only for the selected SHA", () => {
+  for (const step of [stepNamed(web.jobs.build, "Require successful release CI"), stepNamed(load("android-release").jobs["release-android"], "Require successful release CI")]) {
+    const response = green()
+    for (const name of ["test", "guards"]) response[name][0].workflow_runs[0].event = "workflow_dispatch"
+    const accepted = execute(step.run, {}, response)
+    assert.equal(accepted.status, 0, accepted.stdout + accepted.stderr)
+    for (const name of ["test", "guards"]) {
+      const stale = structuredClone(response)
+      stale[name][0].workflow_runs[0].head_sha = "b".repeat(40)
+      const rejected = execute(step.run, {}, stale)
+      assert.notEqual(rejected.status, 0)
+      assert.match(rejected.stdout + rejected.stderr, /dispatch test\.yml and guards\.yml on that ref, then rerun the release/)
+    }
+    for (const name of ["test", "guards"]) response[name][0].workflow_runs[0].event = "schedule"
+    assert.notEqual(execute(step.run, {}, response).status, 0)
   }
 })
 
