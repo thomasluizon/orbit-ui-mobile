@@ -173,7 +173,10 @@ describe('ReferralPrompt', () => {
     await arm('level-3')
     await settle()
 
-    fireEvent.click(screen.getByText('referral.prompt.cta'))
+    await act(async () => {
+      fireEvent.click(screen.getByText('referral.prompt.cta'))
+      await vi.dynamicImportSettled()
+    })
 
     expect(screen.queryByTestId('sheet')).toBeNull()
     vi.useRealTimers()

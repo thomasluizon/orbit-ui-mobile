@@ -12,6 +12,8 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useAppToast } from '@/hooks/use-app-toast'
 
+const SETTLEMENT_BACKOFF_MS = [1000, 2000, 4000, 8000]
+
 export function useStripeCheckoutReturn() {
   const queryClient = useQueryClient()
   const t = useTranslations()
@@ -20,23 +22,28 @@ export function useStripeCheckoutReturn() {
   const returnAccount = useRef<{ id: string; generation: number } | null>(null)
   const [retryAttempt, setRetryAttempt] = useState(0)
   const [returnState, setReturnState] = useAccountScopedState({ hasReturnError: false, isSettling: false })
-  const settlementPending = useRef(false)
   useEffect(() => {
-    if (settlementPending.current || accountId === null || new URLSearchParams(globalThis.location.search).get('subscription') !== 'success') return
+    if (accountId === null || new URLSearchParams(globalThis.location.search).get('subscription') !== 'success') return
     const generation = getAccountGeneration()
     returnAccount.current ??= { id: accountId, generation }
     if (returnAccount.current.id !== accountId || returnAccount.current.generation !== generation) return
-    const isCurrentAccount = () => getAccountGeneration() === generation && getHeldAccountId() === accountId
-    settlementPending.current = true
-    void Promise.resolve().then(async () => {
-      setReturnState((previous) => ({ ...previous, isSettling: true }))
+    let cancelled = false
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    const isCurrentAccount = () => !cancelled && getAccountGeneration() === generation && getHeldAccountId() === accountId
+    const handleFailure = () => {
+      if (isCurrentAccount()) setReturnState({ hasReturnError: true, isSettling: false })
+    }
+    const settle = async (attempt: number): Promise<void> => {
+      if (!isCurrentAccount()) return
       const [profile] = await Promise.all([
         queryClient.fetchQuery({ queryKey: profileKeys.detail(), queryFn: () => fetchJson<Profile>(API.profile.get), staleTime: 0 }),
         queryClient.invalidateQueries({ queryKey: subscriptionKeys.all }, { throwOnError: true }),
       ])
       if (!isCurrentAccount()) return
       if (!profile.hasProAccess) {
-        setReturnState({ hasReturnError: true, isSettling: false })
+        const delay = SETTLEMENT_BACKOFF_MS[attempt]
+        if (delay === undefined) handleFailure()
+        else retryTimer = setTimeout(() => { void settle(attempt + 1).catch(handleFailure) }, delay)
         return
       }
       const url = new URL(globalThis.location.href)
@@ -45,9 +52,16 @@ export function useStripeCheckoutReturn() {
       globalThis.history.replaceState(globalThis.history.state, '', url)
       setReturnState({ hasReturnError: false, isSettling: false })
       showSuccess(t('upgrade.purchaseSuccess'))
-    }).catch(() => {
-      if (isCurrentAccount()) setReturnState({ hasReturnError: true, isSettling: false })
-    }).finally(() => { settlementPending.current = false })
+    }
+    void Promise.resolve().then(() => {
+      if (!isCurrentAccount()) return
+      setReturnState({ hasReturnError: false, isSettling: true })
+      return settle(0)
+    }).catch(handleFailure)
+    return () => {
+      cancelled = true
+      clearTimeout(retryTimer)
+    }
   }, [accountId, queryClient, retryAttempt, setReturnState, showSuccess, t])
   return { ...returnState, retryReturn: () => setRetryAttempt((attempt) => attempt + 1) }
 }
