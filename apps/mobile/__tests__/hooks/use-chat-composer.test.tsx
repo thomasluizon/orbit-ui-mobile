@@ -2573,6 +2573,8 @@ describe('mobile useChatComposer', () => {
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const composer = await renderComposer()
     await TestRenderer.act(async () => { await composer.current.openFilePicker() })
+    expect(mocks.manipulateImage).toHaveBeenCalledWith('file:///original.png', { maxWidth: 1024 })
+    expect(mocks.saveImage).toHaveBeenCalledWith({ format: 'jpeg', compress: 0.7 })
     expect(composer.current.selectedImage).toMatchObject({ uri: 'file:///resized.jpg', width: Math.min(width, 1024), height: Math.min(width, 1024) * 3 / 4, mimeType: 'image/jpeg', fileSize: mocks.fileSize })
     expect(composer.current.imagePreview).toBe('file:///resized.jpg')
     TestRenderer.act(() => composer.current.setInput('Describe my photo'))
