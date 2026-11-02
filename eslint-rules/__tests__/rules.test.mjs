@@ -755,7 +755,7 @@ typedTester.run('icon-size-grid', rule('icon-size-grid'), {
       ['focus:h-[22px]!', 'sm:w-[16px]! hover:h-[20px]! dark:size-[24px]!'],
     ].map(([offGrid, control]) => ({
       code: `import { Check } from './icons'; export const a = <><Check className="${offGrid}" /><Check className="${control}" /></>`,
-      errors: [{ messageId: 'offGridIconSize', data: { size: '22' }, type: 'JSXAttribute', column: 60 }],
+      errors: [{ messageId: 'offGridIconSize', data: { size: '22' }, line: 1, column: 60 }],
     })),
     ...[
       'className="size-[22px]"',
@@ -771,7 +771,12 @@ typedTester.run('icon-size-grid', rule('icon-size-grid'), {
       'size={24} className="size-[22px]"',
     ].map((attributes) => ({
       code: `import { Check } from './icons'; declare const tone: string; declare const active: boolean; export const a = <Check ${attributes} />`,
-      errors: [{ messageId: 'offGridIconSize', data: { size: '22' }, type: 'JSXAttribute' }],
+      errors: [{
+        messageId: 'offGridIconSize',
+        data: { size: '22' },
+        line: 1,
+        column: "import { Check } from './icons'; declare const tone: string; declare const active: boolean; export const a = <Check ".length + attributes.indexOf('className') + 1,
+      }],
     })),
     {
       code: 'import { Check } from \'./icons\'; export const a = <Check className="size-[22.5px]" />',

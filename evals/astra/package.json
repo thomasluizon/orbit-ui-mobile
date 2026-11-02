@@ -12,9 +12,9 @@
   },
   "devDependencies": {
     "promptfoo": "0.125.1",
-    "react": "19.2.3",
-    "use-intl": "4.13.6",
-    "vitest": "4.1.12",
+    "react": "19.3.1",
+    "use-intl": "4.14.9",
+    "vitest": "5.0.5",
     "yaml": "2.9.1"
   },
   "overrides": {

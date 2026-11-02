@@ -15,7 +15,7 @@ const ACCOUNT_B_TRIAL_KEY = buildAccountScopedStorageKey(LEGACY_TRIAL_KEY, 'user
 const renderedTrees: { unmount: () => void }[] = []
 function create(element: React.ReactElement) {
   const tree = createRenderer(element)
-  renderedTrees.push(tree as unknown as { unmount: () => void })
+  renderedTrees.push(tree)
   return tree
 }
 
