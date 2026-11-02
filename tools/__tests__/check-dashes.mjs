@@ -1,5 +1,5 @@
 
-import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { EM_DASH, check, stageRepo, toolPath } from "./_harness.mjs"
@@ -12,6 +12,11 @@ export const cases = () => {
   const toolsDirectory = join(repository.path, "tools")
   mkdirSync(toolsDirectory, { recursive: true })
   cpSync(toolPath("check-dashes.mjs"), join(toolsDirectory, "check-dashes.mjs"))
+  if (process.platform !== "win32") {
+    const alias = join(repository.path, "dash-alias.mjs")
+    symlinkSync(join(toolsDirectory, "check-dashes.mjs"), alias)
+    check("check-dashes.mjs", "an executable symlink still runs the gate", ["--text", `a${EM_DASH}b`], { status: 1, stderr: /Banned dash/ }, { path: alias })
+  }
   const baselinePath = join(toolsDirectory, "dash-baseline.json")
   writeFileSync(baselinePath, '{"missing-a.ts": 1, "missing-b.ts": 1}\n')
   check("check-dashes.mjs", "every missing baseline key is named", ["--check-baseline"], {

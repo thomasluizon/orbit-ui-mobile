@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process"
-import { readFileSync, writeFileSync, existsSync } from "node:fs"
+import { readFileSync, writeFileSync, existsSync, realpathSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -102,7 +102,7 @@ const USAGE = `usage: check-dashes.mjs --files <path>... | --check-baseline | --
 
 exit codes: 0 clean, 1 a banned dash or missing baseline file, 2 usage error`
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+const isMain = process.argv[1] && existsSync(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)
 
 if (isMain) {
   if (process.argv.includes("--help") || process.argv.includes("-h")) {
