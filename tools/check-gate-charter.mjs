@@ -113,13 +113,19 @@ function runSteps(job) {
 
 function commandOffsets(script) {
   return [...script.matchAll(/^(?!\s*#).*?(?:\b(?:node|npx)\s+|\bexit\s+1\b).*$/gm)]
-    .map((match) => {
+    .flatMap((match) => {
       let end = match.index + match[0].length
       while (script.slice(match.index, end).trimEnd().endsWith("\\")) {
         const nextLine = script.indexOf("\n", end + 1)
         end = nextLine < 0 ? script.length : nextLine
       }
-      return { index: match.index, line: script.slice(match.index, end) }
+      const line = script.slice(match.index, end)
+      const commands = executableCommands(line)
+      if (commands.length === 0) return [{ index: match.index, line }]
+      return commands.map((segment) => ({
+        index: match.index + Math.max(0, line.indexOf(segment)),
+        line: segment,
+      }))
     })
 }
 

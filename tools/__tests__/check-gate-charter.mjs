@@ -48,6 +48,8 @@ export const cases = () => {
   for (const [label, script] of [
     ["suffix", 'git diff --name-only origin/main...HEAD > changed.txt\nnode gate.mjs --changed-files-file changed.txt.unchecked'],
     ["flag-prefix", 'git diff --name-only origin/main...HEAD > changed.txt\nnode gate.mjs --changed-files-file-extra changed.txt'],
+    ["sibling-flag", 'git diff --name-only origin/main...HEAD > changed.txt\nnode gate.mjs; node other.mjs --changed-files-file changed.txt'],
+    ["sibling-redirect", 'xargs -0 --no-run-if-empty node gate.mjs < unchecked.nul; node other.mjs < "$RUNNER_TEMP/changed-paths-present.nul"'],
     ["other-redirect", 'cat < "$RUNNER_TEMP/changed-paths-present.nul"\nxargs -0 --no-run-if-empty node gate.mjs < unchecked.nul'],
   ]) {
     const workflow = { jobs: { existing: { steps: [{ name: "Resolve pull request changed paths", if: "github.event_name == 'pull_request'", env: { BASE_REF: "${{ github.base_ref }}" }, run: 'bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"' }, { run: script }] } } }
