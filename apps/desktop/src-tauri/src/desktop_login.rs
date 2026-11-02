@@ -98,18 +98,21 @@ fn receive(app: &AppHandle, flow: SharedAuth, url: Url) {
             let current = window
                 .cookies_for_url(origin.clone())
                 .map_err(|_| "Cannot read desktop session");
-            let result = handle_callback(&flow, &attempt, current, || async {
-                match code {
-                    Some(code) => redeem(&window, &flow, &attempt, &code).await,
-                    None => Err("Desktop sign-in cancelled or expired".into()),
-                }
-            })
-            .await;
-            if result.is_err() && flow.recover_lock().owns(&attempt.state) {
-                flow.recover_lock().ready = None;
-                eprintln!("Desktop sign-in: exchange or callback failed");
-                show_failure(&window, &origin);
-            }
+            drop(
+                handle_callback(
+                    &flow,
+                    &attempt,
+                    current,
+                    || async {
+                        match code {
+                            Some(code) => redeem(&window, &flow, &attempt, &code).await,
+                            None => Err("Desktop sign-in cancelled or expired".into()),
+                        }
+                    },
+                    || show_failure(&window, &origin),
+                )
+                .await,
+            );
         });
     });
 }
@@ -119,12 +122,32 @@ async fn handle_callback<F: std::future::Future<Output = Result<(), String>>>(
     attempt: &Attempt,
     current: Result<Vec<tauri::webview::Cookie<'static>>, &'static str>,
     redeem: impl FnOnce() -> F,
+    failure: impl FnOnce(),
 ) -> Result<(), String> {
-    let current = current?;
-    if !flow.recover_lock().accepts_session(attempt, &current) {
-        return Ok(());
+    let result = match current {
+        Ok(current) => {
+            if !flow.recover_lock().accepts_session(attempt, &current) {
+                return Ok(());
+            }
+            redeem().await
+        }
+        Err(error) => Err(error.into()),
+    };
+    if result.is_err() {
+        let owned = {
+            let mut guard = flow.recover_lock();
+            let owned = guard.owns(&attempt.state);
+            if owned {
+                guard.ready = None;
+            }
+            owned
+        };
+        if owned {
+            eprintln!("Desktop sign-in: exchange or callback failed");
+            failure();
+        }
     }
-    redeem().await
+    result
 }
 
 static EXCHANGE_CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
@@ -434,6 +457,7 @@ mod tests {
     fn callback_owner_and_cookie_read_gate_the_exchange() {
         let (flow, attempt) = claimed_flow();
         let called = std::cell::Cell::new(false);
+        let failed_page = std::cell::Cell::new(false);
         for (current, expected, redeemed) in [
             (Ok(ready_cookies(&flow)), Ok(()), false),
             (Ok(Vec::new()), Ok(()), true),
@@ -444,6 +468,7 @@ mod tests {
             ),
         ] {
             called.set(false);
+            failed_page.set(false);
             let result = tauri::async_runtime::block_on(handle_callback(
                 &flow,
                 &attempt,
@@ -452,7 +477,9 @@ mod tests {
                     called.set(true);
                     Ok(())
                 },
+                || failed_page.set(true),
             ));
+            assert_eq!(failed_page.get(), expected.is_err());
             assert_eq!(result, expected);
             assert_eq!(called.get(), redeemed);
             assert!(flow.recover_lock().ready.is_none());

@@ -28,7 +28,16 @@ mod web_release;
 
 fn main() {
     let context = context();
-    let identifier = context.config().identifier.clone();
+    let app = desktop_builder(context.config().identifier.clone())
+        .build(context)
+        .expect("desktop application failed");
+    if let Err(error) = push::prepare_launch() {
+        eprintln!("Cannot observe desktop launch: {error}");
+    }
+    app.run(handle_run_event);
+}
+
+fn desktop_builder(identifier: String) -> tauri::Builder<tauri::Wry> {
     let builder = tauri::Builder::default();
     let window_state =
         tauri_plugin_window_state::Builder::new().with_state_flags(lifecycle::window_state_flags());
@@ -36,7 +45,7 @@ fn main() {
     let window_state = window_state.skip_initial_state("main");
     #[cfg(target_os = "macos")]
     let builder = builder.activate_ignoring_other_apps(false);
-    let app = builder
+    builder
         .invoke_handler(tauri::generate_handler![
             desktop_login::commit_desktop_login,
             push::desktop_push,
@@ -64,12 +73,6 @@ fn main() {
         .on_menu_event(menus::handle)
         .on_window_event(lifecycle::on_window_event)
         .setup(setup)
-        .build(context)
-        .expect("desktop application failed");
-    if let Err(error) = push::prepare_launch() {
-        eprintln!("Cannot observe desktop launch: {error}");
-    }
-    app.run(handle_run_event);
 }
 
 fn handle_run_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
@@ -98,7 +101,9 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(flow.clone());
     let callbacks_flow = flow.clone();
     menus::install(app.handle())?;
-    push::start(app.handle())?;
+    if let Err(error) = push::start(app.handle()) {
+        eprintln!("Cannot start desktop push: {error}");
+    }
     build_main_window(app, origin, flow.clone())?;
     desktop_login::attach_callbacks(app.handle(), callbacks_flow)?;
     updates::start(app.handle())?;
