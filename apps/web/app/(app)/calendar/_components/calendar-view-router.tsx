@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl'
 import { PADDING } from '@orbit/shared/theme'
 import { calendarDayLoadingLabel, calendarStatState } from '@orbit/shared/utils/calendar-navigation'
 import { type ReactNode } from 'react'
@@ -54,7 +55,8 @@ function calendarActionVariant(wide: boolean): 'primary' | 'secondary' {
   return wide ? 'secondary' : 'primary'
 }
 function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) {
-  const { currentMonth, selectedDay, todayKey, weekStartsOn, t, isOnline, isWideDesktop, showCreateRefusal, openImport, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, isLoading, displayMonthDayMap, openDay, monthDayEntries, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthDisplayState, monthStatTiles, monthSlideClass, handleTouchStart, handleTouchEnd, openHabitCreation } = state
+  const t = useTranslations()
+  const { currentMonth, selectedDay, todayKey, weekStartsOn, isOnline, isWideDesktop, showCreateRefusal, openImport, showRecurring, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro, isLoading, displayMonthDayMap, openDay, monthDayEntries, selectedCalendarEvents, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthDisplayState, monthStatTiles, monthSlideClass, handleTouchStart, handleTouchEnd, openHabitCreation } = state
   return (<div className="flex min-w-0 flex-col">
     <div
       key={format(currentMonth, 'yyyy-MM')}
@@ -113,7 +115,8 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
 }
 
 export function CalendarViewRouter({ state }: Readonly<{ state: CalendarScreenState }>) {
-  const { view, timeZone, todayKey, t, weekSlide, displayTime, dateFnsLocale, agendaStart, rangeLoading, displayRangeDayMap, gridColumns, openDay, rangeLabel, rangeModel, weekdayLabels, rangeStatTiles } = state
+  const t = useTranslations()
+  const { view, timeZone, todayKey, weekSlide, displayTime, dateFnsLocale, agendaStart, rangeLoading, displayRangeDayMap, gridColumns, openDay, rangeLabel, rangeModel, weekdayLabels, rangeStatTiles } = state
   if (view === 'month') return (<CalendarMonthView state={state} />)
   if (view === 'week') return (<CalendarWeekView
     columns={gridColumns}

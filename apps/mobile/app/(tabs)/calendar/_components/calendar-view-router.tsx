@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { calendarDayLoadingLabel, calendarStatState } from '@orbit/shared/utils/calendar-navigation'
 
 import { useMemo, type ReactNode } from "react"
@@ -69,7 +70,8 @@ function CalendarMonthFeedback({
   )
 }
 function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) {
-  const { currentMonth, selectedDay, router, todayKey, t, i18n, openImport, tokens, calendarGridRef, calendarDayRef, displayTime, showEventSource, calendarEventsState, refetchCalendarEvents, isLoading, swipeGesture, selectMonthDay, gridDays, weekdayHeaders, monthDisplayState, formattedSelectedDate, monthDayEntries, selectedCalendarEvents, completedCount, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthEntering, openHabitCreation } = state
+  const { t, i18n } = useTranslation()
+  const { currentMonth, selectedDay, router, todayKey, openImport, tokens, calendarGridRef, calendarDayRef, displayTime, showEventSource, calendarEventsState, refetchCalendarEvents, isLoading, swipeGesture, selectMonthDay, gridDays, weekdayHeaders, monthDisplayState, formattedSelectedDate, monthDayEntries, selectedCalendarEvents, completedCount, selectedDayLoggable, pendingEntryStates, changeSelectedEntry, monthEntering, openHabitCreation } = state
   return ((
     <>
       <CalendarGrid
@@ -126,7 +128,8 @@ function CalendarMonthView({ state }: Readonly<{ state: CalendarScreenState }>) 
 }
 
 export function CalendarViewRouter({ state }: Readonly<{ state: CalendarScreenState }>) {
-  const { view, timeZone, todayKey, t, i18n, tokens, displayTime, weekSlide, agendaStart, rangeLoading, displayRangeDayMap, gridColumns, onSelectDay, rangeModel, rangeLabel, weekdayHeaders, rangeStatTiles } = state
+  const { t, i18n } = useTranslation()
+  const { view, timeZone, todayKey, tokens, displayTime, weekSlide, agendaStart, rangeLoading, displayRangeDayMap, gridColumns, onSelectDay, rangeModel, rangeLabel, weekdayHeaders, rangeStatTiles } = state
   return ({
     week: (
       <CalendarWeekView
@@ -171,7 +174,8 @@ export function CalendarViewRouter({ state }: Readonly<{ state: CalendarScreenSt
 }
 
 export function CalendarMonthFooter({ state }: Readonly<{ state: CalendarScreenState }>) {
-  const { t, styles, monthDisplayState, monthStatTiles, profile, profileError, activeError } = state
+  const { t } = useTranslation()
+  const { styles, monthDisplayState, monthStatTiles, profile, profileError, activeError } = state
   if (profile ? activeError : profileError) return null
   return (
     <View style={styles.listFooter}>

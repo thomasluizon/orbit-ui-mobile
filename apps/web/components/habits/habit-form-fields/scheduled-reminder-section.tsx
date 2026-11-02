@@ -98,7 +98,7 @@ export function ScheduledReminderSection({
 
           <div>
             {atLimit && (
-              <p className="text-[14px] text-[var(--fg-3)]">{t(atRelativeLimit ? 'habits.form.relativeReminderMax' : 'habits.form.scheduledReminderMax', { count: MAX_REMINDERS_PER_HABIT })}</p>
+              <p className="text-[14px] text-[var(--fg-3)]">{atRelativeLimit ? t('habits.form.relativeReminderMax', { count: MAX_REMINDERS_PER_HABIT }) : t('habits.form.scheduledReminderMax')}</p>
             )}
 
             {!atLimit && (
