@@ -16,7 +16,7 @@ it('uses the conversation tokens without delaying an action', () => {
   const delay = vi.spyOn(Reanimated, 'withDelay')
   const press = vi.fn()
   let tree!: ReturnType<typeof create> & { unmount(): void }
-  void act(() => { tree = create(<ConversationReveal animate index={2}><Pressable onPress={press}><Text>Approve</Text></Pressable></ConversationReveal>) as typeof tree })
+  void act(() => { tree = create(<ConversationReveal animate index={2}><Pressable onPress={press}><Text>Approve</Text></Pressable></ConversationReveal>) })
   expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: motionDurations.conversation }))
   expect(delay).toHaveBeenCalledWith(2 * motionLayerTiming.contentStagger, 1)
   const button = tree.root.findAll(node => node.type === Pressable)[0]!
@@ -29,7 +29,7 @@ it('settles entry and replacement when reduced motion changes live', () => {
   const timing = vi.spyOn(Reanimated, 'withTiming')
   const cancel = vi.spyOn(Reanimated, 'cancelAnimation')
   let tree!: ReturnType<typeof create> & { unmount(): void }
-  void act(() => { tree = create(<ConversationReveal animate><ConversationChange changeKey="preview"><Text>Preview</Text></ConversationChange></ConversationReveal>) as typeof tree })
+  void act(() => { tree = create(<ConversationReveal animate><ConversationChange changeKey="preview"><Text>Preview</Text></ConversationChange></ConversationReveal>) })
   void act(() => tree.update(<ConversationReveal animate><ConversationChange changeKey="done"><Text>Saved</Text></ConversationChange></ConversationReveal>))
   expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: motionDurations.micro }))
   preference.reduced = true
@@ -45,7 +45,7 @@ it('starts reduced motion without translation or a delayed reveal', () => {
   preference.reduced = true
   const delay = vi.spyOn(Reanimated, 'withDelay')
   let tree!: ReturnType<typeof create> & { unmount(): void }
-  void act(() => { tree = create(<ConversationReveal animate index={100}><Text>Reply</Text></ConversationReveal>) as typeof tree })
+  void act(() => { tree = create(<ConversationReveal animate index={100}><Text>Reply</Text></ConversationReveal>) })
   expect(delay).not.toHaveBeenCalled()
   const host = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'conversation-reveal')[0]!
   expect(host.props.style).toEqual(expect.arrayContaining([{ opacity: 1, transform: [{ translateY: 0 }] }]))

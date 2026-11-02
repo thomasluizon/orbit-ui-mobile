@@ -49,7 +49,7 @@ describe('habit detail content edge', () => {
   it.each([320, 412, 480, 840, 1100, 1200, 1352, 1600])('centres the capped body in the FlowShell column at %i', async (width) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     let tree!: ReturnType<typeof create> & { unmount: () => void }
-    await act(() => { tree = create(<HabitDetailScreen habitId="habit-1" />) as typeof tree })
+    await act(() => { tree = create(<HabitDetailScreen habitId="habit-1" />) })
     const viewport = Yoga.Node.create()
     const scroller = Yoga.Node.create()
     const column = Yoga.Node.create()

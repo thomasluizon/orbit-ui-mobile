@@ -25,7 +25,7 @@ interface TestNode {
 function render(element: ReactElement): TestNode {
   let tree!: { root: TestNode }
   void act(() => {
-    tree = create(element) as unknown as { root: TestNode }
+    tree = create(element)
   })
   return tree.root
 }

@@ -32,7 +32,7 @@ function setup() {
   return { client, render: async (children: React.ReactNode) => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<QueryClientProvider client={client}>{children}</QueryClientProvider>) as ReactTestRenderer
+      tree = TestRenderer.create(<QueryClientProvider client={client}>{children}</QueryClientProvider>)
     })
     await TestRenderer.act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
     return tree
