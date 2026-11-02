@@ -1,6 +1,7 @@
 const { getDefaultConfig } = require("expo/metro-config");
 const path = require("path");
 const fs = require("fs");
+const { draggableFlatListNativeAdapter } = require('./scripts/draggable-flatlist-resolver.js');
 
 const monorepoRoot = path.resolve(__dirname, "../..");
 const realMonorepoRoot = fs.realpathSync.native(monorepoRoot);
@@ -21,5 +22,12 @@ config.server = { ...config.server, unstable_serverRoot: __dirname };
 
 // Resolve node_modules from the app first, then monorepo root
 config.resolver.nodeModulesPaths = Array.from(new Set([mobileModules, rootModules, realRootModules]));
+
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  const adapter = draggableFlatListNativeAdapter(moduleName, context.originModulePath, platform);
+  return adapter
+    ? { type: 'sourceFile', filePath: adapter }
+    : context.resolveRequest(context, moduleName, platform);
+};
 
 module.exports = config;
