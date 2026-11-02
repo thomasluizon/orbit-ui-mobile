@@ -96,6 +96,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      'next/dynamic': 'next/dist/shared/lib/app-dynamic',
       '@': path.resolve(__dirname),
       '@orbit/shared': path.resolve(__dirname, '../../packages/shared/src'),
       '@orbit/shared/types': path.resolve(__dirname, '../../packages/shared/src/types'),

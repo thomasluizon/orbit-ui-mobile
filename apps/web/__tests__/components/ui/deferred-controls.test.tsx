@@ -37,9 +37,10 @@ it.each(['loading', 'complete'] as const)('renders the first offline failure and
   expect(screen.queryByRole('status')).toBeNull()
   network.available = false
 
-  await act(async () => {
+  act(() => {
     useAppToastStore.getState().showToast({ kind: 'neutral', message: 'Connection failed', actionLabel: 'Retry', onAction: retry })
   })
+  await act(async () => { await vi.dynamicImportSettled() })
   await waitFor(() => expect(screen.getByText('Connection failed')).toBeVisible())
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
   expect(retry).toHaveBeenCalledOnce()
