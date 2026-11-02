@@ -39,6 +39,23 @@ describe('Shared Stripe checkout', () => {
     vi.stubGlobal('location', { set href(value: string) { assigned.push(value) } })
     const { result } = renderHook(() => useStripeCheckout(vi.fn(async () => { throw new Error('completion failed') })))
     await act(async () => result.current.checkout('yearly'))
-    expect(assigned).toEqual([]); expect(result.current.checkoutError).not.toBe('')
+    expect(assigned).toEqual([]); expect(result.current.checkoutError).toBe('auth.genericError')
   })
+  it('shows the friendly error and does not redirect when checkout returns 409', async () => {
+    const assigned: string[] = []
+    vi.stubGlobal('location', { set href(value: string) { assigned.push(value) } })
+    mocks.request.mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Already subscribed' }), { status: 409 }))
+    const { result } = renderHook(() => useStripeCheckout())
+    await act(async () => result.current.checkout('monthly'))
+    expect(assigned).toEqual([])
+    expect(result.current.checkoutError).toBe('auth.genericError')
+  })
+  it.each(['monthly', 'yearly'] as const)('sends the chosen %s billing interval in the checkout body', async (interval) => {
+    vi.stubGlobal('location', { href: '' })
+    const { result } = renderHook(() => useStripeCheckout())
+    await act(async () => result.current.checkout(interval))
+    const [, init] = mocks.request.mock.calls[0]!
+    expect(JSON.parse(String(init.body))).toEqual({ interval })
+  })
+
 })

@@ -12,11 +12,12 @@ mod desktop_login;
 mod lifecycle;
 mod links;
 mod localization;
+mod locks;
 mod menus;
 mod push;
 mod push_action;
 mod push_state;
-#[cfg(windows)]
+#[cfg(any(windows, test))]
 mod push_windows;
 mod settings;
 mod update_manifest;
@@ -27,7 +28,16 @@ mod web_release;
 
 fn main() {
     let context = context();
-    let identifier = context.config().identifier.clone();
+    let app = desktop_builder(context.config().identifier.clone())
+        .build(context)
+        .expect("desktop application failed");
+    if let Err(error) = push::prepare_launch() {
+        eprintln!("Cannot observe desktop launch: {error}");
+    }
+    app.run(handle_run_event);
+}
+
+fn desktop_builder(identifier: String) -> tauri::Builder<tauri::Wry> {
     let builder = tauri::Builder::default();
     let window_state =
         tauri_plugin_window_state::Builder::new().with_state_flags(lifecycle::window_state_flags());
@@ -35,7 +45,7 @@ fn main() {
     let window_state = window_state.skip_initial_state("main");
     #[cfg(target_os = "macos")]
     let builder = builder.activate_ignoring_other_apps(false);
-    let app = builder
+    builder
         .invoke_handler(tauri::generate_handler![
             desktop_login::commit_desktop_login,
             push::desktop_push,
@@ -43,8 +53,8 @@ fn main() {
             #[cfg(feature = "bench-loopback")]
             bench_viewport::fit_bench_viewport
         ])
-        .plugin(tauri_plugin_single_instance::init(|app, _arguments, _| {
-            if !push::notification_activation(&_arguments) {
+        .plugin(tauri_plugin_single_instance::init(|app, arguments, _| {
+            if !push::notification_activation(&arguments) {
                 if let Err(error) = lifecycle::show_main(app) {
                     eprintln!("Cannot restore desktop window: {error}");
                 }
@@ -62,81 +72,121 @@ fn main() {
         .plugin(window_state.build())
         .on_menu_event(menus::handle)
         .on_window_event(lifecycle::on_window_event)
-        .setup(|app| {
-            let tauri::utils::config::WebviewUrl::External(origin) =
-                &app.config().app.windows[0].url
-            else {
-                return Err("Desktop requires a deployed origin".into());
-            };
-            let flow = Arc::new(Mutex::new(auth::AuthFlow::new(
-                origin.clone(),
-                &app.config().identifier,
-            )?));
-            let navigation_origin = origin.clone();
-            app.manage(flow.clone());
-            let callbacks_flow = flow.clone();
-            let handle = app.handle().clone();
-            menus::install(app.handle())?;
-            push::start(app.handle())?;
-            let mut window_config = app.config().app.windows[0].clone();
-            #[cfg(feature = "bench-loopback")]
-            bench_viewport::configure(&mut window_config)?;
-            if let Some(destination) = update_resume::take(app.handle(), origin)? {
-                window_config.url = tauri::utils::config::WebviewUrl::External(destination);
-            }
-            lifecycle::create_main(
-                window_config,
-                push::notification_launch(),
-                |window_config| {
-                    let _window = tauri::WebviewWindowBuilder::from_config(app, window_config)?
-                        .initialization_script(web_release::initialization_script(
-                            origin,
-                            &app.package_info().version.to_string(),
-                        ))
-                        .on_navigation(move |url| {
-                            if auth::intercepts(&navigation_origin, url) {
-                                desktop_login::start(handle.clone(), flow.clone());
-                                return false;
-                            }
-                            true
-                        })
-                        .on_page_load(|window, payload| {
-                            push::page_loaded(&window, payload);
-                        })
-                        .on_new_window(|url, _features| {
-                            open_new_window(url, |url| {
-                                tauri_plugin_opener::open_url(url, None::<&str>)
-                            })
-                        })
-                        .build()?;
-                    #[cfg(feature = "bench-loopback")]
-                    {
-                        _window.remove_menu()?;
-                    }
-                    Ok(())
+        .setup(setup)
+}
+
+fn handle_run_event(app: &tauri::AppHandle, event: tauri::RunEvent) {
+    if let tauri::RunEvent::ExitRequested { code, api, .. } = &event {
+        if *code != Some(tauri::RESTART_EXIT_CODE) && updates::request_quit(app) {
+            api.prevent_exit();
+        }
+    }
+    #[cfg(target_os = "macos")]
+    if let tauri::RunEvent::Reopen { .. } = event {
+        if let Err(error) = lifecycle::show_main(app) {
+            eprintln!("Cannot reopen desktop window: {error}");
+        }
+    }
+}
+
+fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let tauri::utils::config::WebviewUrl::External(origin) = &app.config().app.windows[0].url
+    else {
+        return Err("Desktop requires a deployed origin".into());
+    };
+    let flow = Arc::new(Mutex::new(auth::AuthFlow::new(
+        origin.clone(),
+        &app.config().identifier,
+    )?));
+    app.manage(flow.clone());
+    let callbacks_flow = flow.clone();
+    menus::install(app.handle())?;
+    if let Err(error) = push::start(app.handle()) {
+        eprintln!("Cannot start desktop push: {error}");
+    }
+    build_main_window(app, origin, flow.clone())?;
+    desktop_login::attach_callbacks(app.handle(), callbacks_flow)?;
+    updates::start(app.handle())?;
+    Ok(())
+}
+
+fn build_main_window(
+    app: &tauri::App,
+    origin: &tauri::Url,
+    flow: desktop_login::SharedAuth,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut window_config = app.config().app.windows[0].clone();
+    #[cfg(feature = "bench-loopback")]
+    bench_viewport::configure(&mut window_config)?;
+    match update_resume::take(app.handle(), origin) {
+        Ok(Some(destination)) => {
+            window_config.url = tauri::utils::config::WebviewUrl::External(destination)
+        }
+        Ok(None) => {}
+        Err(error) => eprintln!("Cannot restore desktop update route: {error}"),
+    }
+    lifecycle::create_main(
+        window_config,
+        push::notification_launch(),
+        |config| construct_window(app, config, origin, flow),
+        || lifecycle::show_main(app.handle()),
+    )
+    .map_err(Into::into)
+}
+
+fn construct_window(
+    app: &tauri::App,
+    window_config: &tauri::utils::config::WindowConfig,
+    origin: &tauri::Url,
+    flow: desktop_login::SharedAuth,
+) -> tauri::Result<()> {
+    let navigation_origin = origin.clone();
+    let handle = app.handle().clone();
+    let window = tauri::WebviewWindowBuilder::from_config(app, window_config)?
+        .initialization_script(web_release::initialization_script(
+            origin,
+            &app.package_info().version.to_string(),
+        ))
+        .on_navigation(move |url| {
+            navigate_main(
+                &navigation_origin,
+                url,
+                || {
+                    desktop_login::start(handle.clone(), flow.clone());
                 },
-                || lifecycle::show_main(app.handle()),
-            )?;
-            desktop_login::attach_callbacks(app.handle(), callbacks_flow)?;
-            updates::start(app.handle())?;
-            Ok(())
+                |url| tauri_plugin_opener::open_url(url, None::<&str>),
+            )
         })
-        .build(context)
-        .expect("desktop application failed");
-    push::prepare_launch();
-    app.run(|_app, _event| {
-        if let tauri::RunEvent::ExitRequested { code, api, .. } = &_event {
-            if *code != Some(tauri::RESTART_EXIT_CODE) && updates::request_quit(_app) {
-                api.prevent_exit();
-            }
-        }
-        #[cfg(target_os = "macos")]
-        if let tauri::RunEvent::Reopen { .. } = _event {
-            if let Err(error) = lifecycle::show_main(_app) {
-                eprintln!("Cannot reopen desktop window: {error}");
-            }
-        }
-    });
+        .on_page_load(|window, payload| {
+            push::page_loaded(&window, payload);
+        })
+        .on_new_window(|url, _features| {
+            open_new_window(url, |url| tauri_plugin_opener::open_url(url, None::<&str>))
+        })
+        .build()?;
+    #[cfg(feature = "bench-loopback")]
+    {
+        window.remove_menu()?;
+    }
+    drop(window);
+    Ok(())
+}
+
+fn navigate_main(
+    origin: &tauri::Url,
+    url: &tauri::Url,
+    sign_in: impl FnOnce(),
+    open: impl FnOnce(&str) -> Result<(), tauri_plugin_opener::Error>,
+) -> bool {
+    if auth::intercepts(origin, url) {
+        sign_in();
+        return false;
+    }
+    if url.origin() == origin.origin() {
+        return true;
+    }
+    open_new_window(url.clone(), open);
+    false
 }
 
 fn open_new_window(
@@ -159,6 +209,41 @@ fn context() -> tauri::Context<tauri::Wry> {
 mod tests {
     use super::{open_new_window, NewWindowResponse};
     use tauri::utils::config::{FrontendDist, WebviewUrl};
+
+    #[test]
+    fn main_navigation_keeps_only_the_configured_origin_and_intercepts_sign_in() {
+        let origin = "https://app.useorbit.org/".parse().unwrap();
+        for (destination, accepted, external, intercepted) in [
+            ("https://app.useorbit.org/calendar", true, false, false),
+            ("https://example.com/", false, true, false),
+            ("http://example.com/", false, true, false),
+            ("file:///private", false, false, false),
+            (
+                "https://app.useorbit.org/api/auth/google/start?purpose=signin",
+                false,
+                false,
+                true,
+            ),
+        ] {
+            let mut opened = false;
+            let mut signed_in = false;
+            assert_eq!(
+                super::navigate_main(
+                    &origin,
+                    &destination.parse().unwrap(),
+                    || signed_in = true,
+                    |url| {
+                        assert_eq!(url, destination);
+                        opened = true;
+                        Ok(())
+                    }
+                ),
+                accepted
+            );
+            assert_eq!(opened, external);
+            assert_eq!(signed_in, intercepted);
+        }
+    }
 
     #[test]
     fn native_context_loads_the_deployed_app_without_bundled_assets() {

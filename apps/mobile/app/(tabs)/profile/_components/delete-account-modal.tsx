@@ -1,5 +1,5 @@
 import { SPACING } from '@orbit/shared/theme'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -39,6 +39,7 @@ export function DeleteAccountModal({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { sheetRef, closeSheet } = useSheetHost()
   const [loading, setLoading] = useState(false)
+  const requestPending = useRef(false)
   const [error, setError] = useState('')
 
   const warningMessage = (() => {
@@ -63,9 +64,10 @@ export function DeleteAccountModal({
   }
 
   async function handleRequestDeletion() {
-    if (!isOnline) return
+    if (loading || requestPending.current || !isOnline || accountId === null) return
     const startingAccountGeneration = getAccountGeneration()
     const ownsAccount = () => getAccountGeneration() === startingAccountGeneration
+    requestPending.current = true
     setLoading(true)
     setError('')
     try {
@@ -93,6 +95,9 @@ export function DeleteAccountModal({
         ),
       )
       setLoading(false)
+    } finally {
+      requestPending.current = false
+      if (!ownsAccount()) setLoading(false)
     }
   }
 
@@ -121,7 +126,7 @@ export function DeleteAccountModal({
                 size="sm"
                 variant="destructive"
                 onClick={() => void handleRequestDeletion()}
-                disabled={loading}
+                disabled={loading || accountId === null}
                 loading={loading}
               >
                 {t('profile.deleteAccount.sendCode')}

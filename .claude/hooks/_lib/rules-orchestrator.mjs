@@ -1,3 +1,5 @@
+import { expandCommands } from "./command-expander.mjs"
+
 import { lstatSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { resolve } from "node:path"
@@ -20,7 +22,7 @@ const ADMIN_FLAG = /(?<![\w-])--admin(?![\w-])/
 // `[=\s]*` and not `[= ]+`: curl's concatenated short form `-XPUT` carries no separator at all,
 // and the quoted forms carry one on each side.
 const PUT_METHOD = /(?<![\w-])(?:-X|--method|--request)[=\s]*["']?PUT["']?(?![\w-])/i
-const PULLS_MERGE_PATH = /repos\/[^/\s"']+\/[^/\s"']+\/pulls\/[^/\s"']+\/merge(?![\w-])/
+const PULLS_MERGE_PATH = /(?:repos\/[^/\s"']+\/[^/\s"']+|repositories\/[^/\s"']+)\/pulls\/[^/\s"']+\/merge(?![\w-])/
 const MERGE_MUTATION = /(?<![\w])mergePullRequest(?![\w])/
 const API_CLIENTS = new Set(["gh", "curl", "wget", "http", "https", "httpie"])
 // httpie takes the method as a POSITIONAL argument (`http PUT <url>`), never as a flag, so the
@@ -363,7 +365,7 @@ const MATCH_HEAD_COMMIT = /(?<![\w-])--match-head-commit[= ]+[0-9a-f]{40}(?![0-9
 
 export function checkAdminMerge(command) {
   if (typeof command !== "string") return null
-  for (const segment of segmentsOf(command)) {
+  for (const segment of expandCommands(stripHeredocBodies(command))) {
     const binary = invokedBinary(segment)
     if (binary === null) return unclassifiableRedirect(command)
     if (binary === "gh" && PR_MERGE.test(segment) && ADMIN_FLAG.test(segment)) {

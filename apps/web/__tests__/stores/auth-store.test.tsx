@@ -277,6 +277,52 @@ describe('auth store', () => {
     expect(posthogMocks.identifyPostHogUser).toHaveBeenCalledWith('account-a')
   })
 
+  it('signs out locally when the logout request fails', async () => {
+    useAuthStore.getState().setAuth(makeLoginResponse())
+    mockFetch.mockRejectedValueOnce(new TypeError('fetch failed'))
+    posthogMocks.resetPostHogUser.mockClear()
+    document.cookie = 'orbit_design=redesign; Path=/; Secure; SameSite=Lax'
+    const originalLocation = globalThis.location
+    const location = { href: '/' }
+    vi.stubGlobal('location', location)
+    try {
+      await useAuthStore.getState().logout()
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', headers: expect.any(Headers) })
+      expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, user: null, expiresAt: null, sessionInactive: true })
+      expect(document.cookie).not.toContain('orbit_design=')
+      expect(posthogMocks.resetPostHogUser).toHaveBeenCalledOnce()
+      expect(location.href).toBe('/login')
+    } finally {
+      vi.stubGlobal('location', originalLocation)
+    }
+  })
+
+  it('runs concurrent session revalidations once each in order', async () => {
+    useAuthStore.getState().setAuth(makeLoginResponse())
+    mockFetch.mockClear()
+    const firstExpiry = Date.now() + 3600000
+    const lastExpiry = firstExpiry + 3600000
+    let finishFirst!: (response: Response) => void
+    let finishLast!: (response: Response) => void
+    mockFetch.mockImplementationOnce(() => new Promise<Response>((resolve) => { finishFirst = resolve }))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishLast = resolve }))
+
+    const first = useAuthStore.getState().confirmSessionRefreshFailure()
+    const last = useAuthStore.getState().confirmSessionRefreshFailure()
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+    finishFirst(Response.json({ expiresAt: firstExpiry, userId: 'user-1' }))
+    await first
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
+    expect(useAuthStore.getState().expiresAt).toBe(firstExpiry)
+    finishLast(Response.json({ expiresAt: lastExpiry, userId: 'user-1' }))
+    await last
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(mockFetch.mock.calls.map(([path]) => path)).toEqual(['/api/auth/session', '/api/auth/session'])
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, expiresAt: lastExpiry, sessionRefreshFailed: false })
+  })
+
   it('logs out and calls the BFF logout endpoint', async () => {
     mockFetch.mockResolvedValue({ ok: true })
     useAuthStore.getState().setAuth(makeLoginResponse())

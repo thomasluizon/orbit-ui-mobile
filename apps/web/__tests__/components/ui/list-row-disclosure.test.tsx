@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { ListRow } from '@/components/ui/list-row'
@@ -27,4 +27,25 @@ describe('ListRow disclosure', () => {
     view.rerender(<ListRow title="Frequency" onClick={props.onClick} />)
     expect(screen.getByRole('button', { name: 'Frequency' })).not.toHaveAttribute('aria-expanded')
   })
+})
+
+it('keeps a pending switch focused and ignores activation until saving finishes', () => {
+  const onChange = vi.fn()
+  const view = render(<ListRow title="Notifications" toggle={{ checked: false, onChange }} />)
+  const control = screen.getByRole('switch', { name: 'Notifications' })
+  control.focus()
+  fireEvent.click(control)
+  expect(onChange).toHaveBeenCalledWith(true)
+  onChange.mockClear()
+  view.rerender(<ListRow title="Notifications" toggle={{ checked: true, onChange, pending: true }} />)
+  expect(control).toHaveFocus()
+  expect(control).toBeEnabled()
+  expect(control).toHaveAttribute('aria-disabled', 'true')
+  expect(control).toHaveAttribute('aria-busy', 'true')
+  fireEvent.click(control)
+  expect(onChange).not.toHaveBeenCalled()
+  view.rerender(<ListRow title="Notifications" toggle={{ checked: true, onChange }} />)
+  expect(control).toHaveFocus()
+  fireEvent.click(control)
+  expect(onChange).toHaveBeenCalledWith(false)
 })

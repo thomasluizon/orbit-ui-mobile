@@ -31,6 +31,9 @@ export const cases = () => {
     { status: 0 },
   )
 
+  writePackage(cleanRepository, { workspaces: ["typo/*"] })
+  check("check-workspace-overrides.mjs", "unmatched workspace is a configuration error", ["--root", cleanRepository], { status: 2 })
+
   const offendingRepository = stageRepository("offender", {
     name: "@fixture/mobile",
     overrides: { underscore: "1.0.0" },

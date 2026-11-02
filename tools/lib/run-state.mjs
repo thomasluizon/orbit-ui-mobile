@@ -293,10 +293,14 @@ export const clearWorkerLaunchReservation = (launcherPid, repoRoot = REPO_ROOT) 
 
 /** The orchestrator's own run record, or null when no run has written one. */
 export const readRunState = (repoRoot = REPO_ROOT) => {
+  const path = runStatePath(repoRoot)
   try {
-    return JSON.parse(readFileSync(runStatePath(repoRoot), "utf8"))
-  } catch {
-    return null
+    const state = JSON.parse(readFileSync(path, "utf8"))
+    if (!state || typeof state !== "object" || Array.isArray(state)) throw new Error("expected a run record object")
+    return state
+  } catch (error) {
+    if (error.code === "ENOENT") return null
+    throw new Error(`Cannot read run state ${path}: ${error.message}`, { cause: error })
   }
 }
 

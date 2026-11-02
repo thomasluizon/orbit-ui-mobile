@@ -266,10 +266,13 @@ ruleTester.run('no-dynamic-tailwind-class', rule('no-dynamic-tailwind-class'), {
 
 ruleTester.run('require-focus-replacement', rule('require-focus-replacement'), {
   valid: [
+    '<input className="focus-visible:outline-0 focus-visible:ring-2" />',
+    '<input className="outline-0 focus-visible:outline-2" />',
     '<input className="outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]" />',
     '<input className="border" />',
   ],
   invalid: [
+    ...['outline-0', 'focus-visible:outline-0', 'focus-visible:outline-none', 'outline-none focus-visible:outline-0', 'outline-none focus-visible:outline-none'].map((classes) => ({ code: `<input className="${classes}" />`, errors: [{ messageId: 'noBareOutlineNone' }] })),
     { code: '<input className="flex-1 bg-transparent outline-none" />', errors: [{ messageId: 'noBareOutlineNone' }] },
     { code: '<input className="outline-none focus:ring-2" />', errors: [{ messageId: 'noBareOutlineNone' }] },
   ],

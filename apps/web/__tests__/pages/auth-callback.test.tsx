@@ -62,7 +62,7 @@ describe('Google code callback', () => {
     vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Linux; Android 15) Chrome/130.0' })
     vi.stubGlobal('location', { protocol: 'https:', host, search: query, assign })
     fetchMock.mockResolvedValue(new Response('{}', { status: 400 }))
-    render(<AuthCallbackContent pendingWebState={null} />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: null, google: null }} />)
 
     await waitFor(() => expect(assign).toHaveBeenCalledWith(
       `intent://${host}/auth-callback${query}#Intent;scheme=https;package=${packageName};end`,
@@ -75,9 +75,9 @@ describe('Google code callback', () => {
     expect(assign).toHaveBeenCalledOnce()
   })
 
-  it('rejects an Apple state mismatch before exchanging a handoff', async () => {
-    window.history.replaceState(null, '', '/auth-callback?provider=apple&handoff=one-use&state=wrong-state')
-    render(<AuthCallbackContent pendingWebState="expected-state" />)
+  it.each(['?', '#'])('rejects an Apple state mismatch from %s before exchanging a handoff', async (separator) => {
+    window.history.replaceState(null, '', `/auth-callback${separator}provider=apple&handoff=one-use&state=wrong-state`)
+    render(<AuthCallbackContent pendingWebStates={{ apple: 'expected-state', google: 'expected-state' }} />)
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
     expect(fetchMock).not.toHaveBeenCalled()
     expect(mocks.setAuth).not.toHaveBeenCalled()
@@ -86,11 +86,52 @@ describe('Google code callback', () => {
     })
   })
 
-  it.each([false, true])('exchanges a matching Apple handoff and signs in with a new generation, reactivated=%s', async (reactivated) => {
-    window.history.replaceState(null, '', '/auth-callback?provider=apple&handoff=one-use&state=expected-state')
+  it('clears Apple fragment credentials before opening the Android intent', async () => {
+    const assign = vi.fn(() => {
+      expect(window.location.search).toBe('')
+      expect(window.location.hash).toBe('')
+    })
+    vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', 'org.useorbit.app')
+    vi.stubGlobal('navigator', { userAgent: 'Android' })
+    window.history.replaceState(null, '', '/auth-callback#provider=apple&handoff=h&state=mobile-state')
+    const browserLocation = window.location
+    vi.stubGlobal('location', {
+      protocol: 'https:', host: 'app.useorbit.org',
+      get search() { return browserLocation.search },
+      get hash() { return browserLocation.hash }, assign,
+    })
+    render(<AuthCallbackContent pendingWebStates={{ apple: null, google: null }} />)
+    await waitFor(() => expect(assign).toHaveBeenCalledExactlyOnceWith(
+      'intent://app.useorbit.org/auth-callback?provider=apple&handoff=h&state=mobile-state#Intent;scheme=https;package=org.useorbit.app;end',
+    ))
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('uses fragment values before query values and clears the URL before the Apple request', async () => {
+    window.history.replaceState(null, '', '/auth-callback?provider=google&handoff=old&state=old#provider=apple&handoff=one-use&state=expected-state')
+    fetchMock.mockImplementation(() => {
+      expect(window.location.search).toBe('')
+      expect(window.location.hash).toBe('')
+      return Promise.resolve(Response.json({ userId: 'user-1', name: 'Person', email: 'person@example.test' }))
+    })
+    render(<AuthCallbackContent pendingWebStates={{ apple: 'expected-state', google: 'expected-state' }} />)
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/'))
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/apple/handoff', expect.objectContaining({ body: JSON.stringify({ handoff: 'one-use', state: 'expected-state' }) }))
+  })
+
+  it.each(['state=expected-state&state=expected-state&handoff=h', 'state=expected-state&handoff=h&handoff=h'])('rejects duplicate Apple fragment credentials: %s', async (fragment) => {
+    window.history.replaceState(null, '', `/auth-callback#provider=apple&${fragment}`)
+    render(<AuthCallbackContent pendingWebStates={{ apple: 'expected-state', google: 'expected-state' }} />)
+    await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(mocks.captureMessage).toHaveBeenCalledWith('auth_callback_failed', expect.objectContaining({ tags: { provider: 'apple', reason: 'state_mismatch' } }))
+  })
+
+  it.each([['?', false], ['?', true], ['#', false], ['#', true]] as const)('exchanges a matching Apple handoff from %s and signs in, reactivated=%s', async (separator, reactivated) => {
+    window.history.replaceState(null, '', `/auth-callback${separator}provider=apple&handoff=one-use&state=expected-state`)
     sessionStorage.setItem('auth_return_url', '/')
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'Person', email: 'person@example.test', wasReactivated: reactivated })))
-    render(<AuthCallbackContent pendingWebState="expected-state" />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: 'expected-state', google: 'expected-state' }} />)
     if (reactivated) {
       await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
       await act(async () => { mocks.continueAccount?.() })
@@ -102,6 +143,7 @@ describe('Google code callback', () => {
     expect(mocks.generation).toBe(1)
     expect(sessionStorage.getItem('auth_return_url')).toBeNull()
     expect(window.location.search).toBe('')
+    expect(window.location.hash).toBe('')
   })
 
   it.each([
@@ -114,7 +156,7 @@ describe('Google code callback', () => {
       email: 'person@example.test', wasReactivated: reactivated })))
     let release!: () => void
     mocks.hydrateProfilePresentation.mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve }))
-    render(<AuthCallbackContent pendingWebState="expected-state" />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: 'expected-state', google: 'expected-state' }} />)
     if (reactivated) {
       await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
       await act(async () => { mocks.continueAccount?.() })
@@ -129,21 +171,37 @@ describe('Google code callback', () => {
     expect(sessionStorage.getItem('auth_return_url')).toBe('/newer')
   })
 
-  it('exchanges a web-owned Android callback on the web', async () => {
+  it.each(['apple', 'google'] as const)('exchanges a web-owned Android %s callback using its own pending state', async (provider) => {
     const assign = vi.fn()
     vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', 'org.useorbit.app')
     vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Linux; Android 15) Chrome/130.0' })
-    vi.stubGlobal('location', { protocol: 'https:', host: 'app.useorbit.org',
-      search: '?code=web-code&state=web-state', assign })
+    const query = provider === 'apple' ? '?provider=apple&handoff=web-handoff&state=apple-state' : '?code=web-code&state=google-state'
+    vi.stubGlobal('location', { protocol: 'https:', host: 'app.useorbit.org', search: query, assign })
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'A', email: 'a@example.com' })))
-    render(<AuthCallbackContent pendingWebState="web-state" />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: 'apple-state', google: 'google-state' }} />)
 
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/'))
-    expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code', expect.objectContaining({
-      body: JSON.stringify({ code: 'web-code', state: 'web-state', language: 'pt-BR' }),
+    expect(fetchMock).toHaveBeenCalledWith(provider === 'apple' ? '/api/auth/apple/handoff' : '/api/auth/google/code', expect.objectContaining({
+      body: JSON.stringify(provider === 'apple' ? { handoff: 'web-handoff', state: 'apple-state' }
+        : { code: 'web-code', state: 'google-state', language: 'pt-BR' }),
     }))
     expect(assign).not.toHaveBeenCalled()
     expect(screen.queryByRole('link', { name: 'auth.openInOrbit' })).not.toBeInTheDocument()
+  })
+
+  it.each(['apple', 'google'] as const)('forwards an Android %s callback whose state belongs only to the other provider', async (provider) => {
+    const assign = vi.fn()
+    vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', 'org.useorbit.app')
+    vi.stubGlobal('navigator', { userAgent: 'Android' })
+    const query = provider === 'apple' ? '?provider=apple&handoff=app-handoff&state=google-state' : '?code=app-code&state=apple-state'
+    vi.stubGlobal('location', { protocol: 'https:', host: 'app.useorbit.org', search: query, assign })
+    render(<AuthCallbackContent pendingWebStates={{ apple: 'apple-state', google: 'google-state' }} />)
+
+    await waitFor(() => expect(assign).toHaveBeenCalledExactlyOnceWith(
+      `intent://app.useorbit.org/auth-callback${query}#Intent;scheme=https;package=org.useorbit.app;end`,
+    ))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(mocks.setAuth).not.toHaveBeenCalled()
   })
 
   it('returns Android consent denial to the app without clearing a different web attempt', async () => {
@@ -152,7 +210,7 @@ describe('Google code callback', () => {
     vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Linux; Android 15) Chrome/130.0' })
     const query = '?error=access_denied&state=mobile-state&error_description=User+cancelled'
     vi.stubGlobal('location', { protocol: 'https:', host: 'app-staging.useorbit.org', search: query, assign })
-    render(<AuthCallbackContent pendingWebState="older-web-state" />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: 'older-web-state', google: 'older-web-state' }} />)
 
     await waitFor(() => expect(assign).toHaveBeenCalledWith(
       `intent://app-staging.useorbit.org/auth-callback${query}#Intent;scheme=https;package=org.useorbit.app.staging;end`,
@@ -164,7 +222,7 @@ describe('Google code callback', () => {
   it('shows upgrade guidance in the auth layout when Google returns 426', async () => {
     window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
     fetchMock.mockResolvedValue(new Response(null, { status: 426 }))
-    render(<AuthLayout><AuthCallbackContent pendingWebState={null} /></AuthLayout>)
+    render(<AuthLayout><AuthCallbackContent pendingWebStates={{ apple: null, google: null }} /></AuthLayout>)
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('forceUpdate.banner'))
     expect(screen.getByRole('button', { name: 'forceUpdate.refresh' })).toBeEnabled()
     expect(mocks.setAuth).not.toHaveBeenCalled()
@@ -178,7 +236,7 @@ describe('Google code callback', () => {
     window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
     let releaseBody!: (value: unknown) => void
     fetchMock.mockResolvedValue({ ok: true, json: () => new Promise((resolve) => { releaseBody = resolve }) })
-    render(<AuthCallbackContent pendingWebState={null} />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: null, google: null }} />)
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
     mocks.generation += 1
     await act(async () => {
@@ -196,7 +254,7 @@ describe('Google code callback', () => {
     window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'old-user', name: 'Old',
       email: 'old@example.com', wasReactivated: true }), { status: 200 }))
-    render(<AuthCallbackContent pendingWebState={null} />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: null, google: null }} />)
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
 
     mocks.generation += 1
@@ -211,7 +269,7 @@ describe('Google code callback', () => {
     sessionStorage.setItem('auth_return_url', returnUrl)
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'A',
       email: 'a@example.com', wasReactivated: true }), { status: 200 }))
-    render(<AuthCallbackContent pendingWebState={null} />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: null, google: null }} />)
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
     await act(async () => { mocks.continueAccount?.() })
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith(returnUrl))
@@ -222,7 +280,7 @@ describe('Google code callback', () => {
     window.history.replaceState(null, '', `/auth-callback?error=${error}&state=oauth-state`)
     sessionStorage.setItem('auth_return_url', '/calendar?import=1')
     fetchMock.mockResolvedValue({ ok: true })
-    render(<AuthCallbackContent pendingWebState={null} />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: null, google: null }} />)
     await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/calendar?import=1'))
     expect(mocks.replace).not.toHaveBeenCalledWith('/login?googleError=1')
   })
@@ -231,7 +289,7 @@ describe('Google code callback', () => {
     window.history.replaceState(null, '', '/auth-callback?code=google-code&state=oauth-state')
     sessionStorage.setItem('auth_return_url', '/calendar?import=1')
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'A', email: 'a@example.com' }), { status: 200 }))
-    render(<AuthCallbackContent pendingWebState={null} />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: null, google: null }} />)
     await waitFor(() => expect(mocks.setAuth).toHaveBeenCalledOnce())
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code', expect.objectContaining({
       body: JSON.stringify({ code: 'google-code', state: 'oauth-state', language: 'pt-BR' }),
@@ -242,7 +300,7 @@ describe('Google code callback', () => {
   it.each(['?error=access_denied&state=oauth-state', '?code=google-code'])('shows a visible error for invalid callback %s', async (query) => {
     window.history.replaceState(null, '', `/auth-callback${query}`)
     fetchMock.mockResolvedValue(new Response('{}', { status: 200 }))
-    render(<AuthCallbackContent pendingWebState={null} />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: null, google: null }} />)
     if (query.includes('state=')) {
       expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code?state=oauth-state', { method: 'DELETE', headers: expect.any(Headers) })
     } else {
@@ -255,7 +313,7 @@ describe('Google code callback', () => {
   it('shows a visible error when the API rejects the code', async () => {
     window.history.replaceState(null, '', '/auth-callback?code=bad&state=oauth-state')
     fetchMock.mockResolvedValue(new Response('{}', { status: 400 }))
-    render(<AuthCallbackContent pendingWebState={null} />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: null, google: null }} />)
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
     expect(mocks.setAuth).not.toHaveBeenCalled()
     expect(mocks.captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
@@ -270,7 +328,7 @@ describe('Google code callback', () => {
   ])('reports one fixed reason for invalid input %s under effect replay', async (query, reason) => {
     window.history.replaceState(null, '', `/auth-callback?${query}`)
     fetchMock.mockResolvedValue(new Response('{}'))
-    render(<StrictMode><AuthCallbackContent pendingWebState={null} /></StrictMode>)
+    render(<StrictMode><AuthCallbackContent pendingWebStates={{ apple: null, google: null }} /></StrictMode>)
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
     expect(mocks.captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
       level: 'error', tags: { provider: 'google', reason },
@@ -294,7 +352,7 @@ describe('Google code callback', () => {
         breadcrumbs }, {})
       if (event) captured.push(event)
     })
-    render(<StrictMode><AuthCallbackContent pendingWebState={null} /></StrictMode>)
+    render(<StrictMode><AuthCallbackContent pendingWebStates={{ apple: null, google: null }} /></StrictMode>)
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
     expect(fetchMock).toHaveBeenCalledExactlyOnceWith('/api/auth/google/code?state=private-state', expect.objectContaining({ method: 'DELETE' }))
     expect(captured).toHaveLength(1)
@@ -308,7 +366,7 @@ describe('Google code callback', () => {
   it('reports hydration failure when continuing a reactivated account', async () => {
     window.history.replaceState(null, '', '/auth-callback?code=secret&state=expected-state')
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', wasReactivated: true })))
-    render(<AuthCallbackContent pendingWebState="expected-state" />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: 'expected-state', google: 'expected-state' }} />)
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('account'))
     mocks.hydrateProfilePresentation.mockRejectedValueOnce(new Error('private profile content'))
     await act(async () => { mocks.continueAccount?.() })
@@ -324,7 +382,7 @@ describe('Google code callback', () => {
     window.history.replaceState(null, '', `/auth-callback?${query}&state=expected-state`)
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ userId: 'user-1', name: 'Person', email: 'private@example.test' })))
     mocks.hydrateProfilePresentation.mockRejectedValue(new Error('private profile content'))
-    render(<AuthCallbackContent pendingWebState="expected-state" />)
+    render(<AuthCallbackContent pendingWebStates={{ apple: 'expected-state', google: 'expected-state' }} />)
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
     expect(mocks.captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
       level: 'error', tags: { provider, reason: 'profile_hydration_failed' },

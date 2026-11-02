@@ -18,7 +18,7 @@ const MAX_FILE_BYTES = 8 * 1024 * 1024
  * <tmp>/claude/<project-slug>/<session-id>/, and the project slug is not derivable here, so the
  * session id is matched one level down rather than assumed. */
 const sessionScratchpads = (sessionId) => {
-  if (typeof sessionId !== "string" || sessionId === "") return []
+  if (typeof sessionId !== "string" || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(sessionId)) return []
   const base = join(tmpdir(), "claude")
   try {
     return readdirSync(base)
@@ -95,6 +95,7 @@ try {
     process.exit(2)
   }
   process.exit(0)
-} catch {
-  process.exit(0)
+} catch (error) {
+  process.stderr.write(`forbid-invented-identifier: ${error.message}\n`)
+  process.exit(2)
 }

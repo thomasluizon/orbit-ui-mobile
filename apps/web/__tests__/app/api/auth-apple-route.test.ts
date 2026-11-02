@@ -84,4 +84,17 @@ describe('Apple BFF session handoff', () => {
     expect(response.status).toBe(401)
     expect(mocks.setSessionCookies).not.toHaveBeenCalled()
   })
+  it.each(['network', 'server', 'schema'])('sets no session when the handoff fails at the %s boundary', async (failure) => {
+    const { cookie, state } = await start()
+    if (failure === 'network') mocks.fetch.mockRejectedValueOnce(new TypeError('fetch failed'))
+    else mocks.fetch.mockResolvedValueOnce(new Response('{}', { status: failure === 'server' ? 500 : 200 }))
+
+    const response = await POST(handoff(cookie.value, state))
+
+    expect(response.status).toBe(500)
+    expect(mocks.setSessionCookies).not.toHaveBeenCalled()
+    expect(response.cookies.get('auth_token')).toBeUndefined()
+    expect(response.cookies.get('refresh_token')).toBeUndefined()
+  })
+
 })

@@ -17,7 +17,7 @@ describe('readAccountScopedFlag', () => {
     expect(readAccountScopedFlag('1', null)).toEqual({ seen: true, adoptsLegacy: false })
   })
 
-  it('gives the pre-rename flag to the account signed in now, once', () => {
+  it('reports the pre-rename flag as adoptable for the account signed in now', () => {
     expect(readAccountScopedFlag(null, '1')).toEqual({ seen: true, adoptsLegacy: true })
   })
 

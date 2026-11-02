@@ -56,8 +56,8 @@ const moveModuleLoad = vi.hoisted(() => ({
   generation: 0, hold: null as Promise<void> | null, pending: null as Promise<unknown> | null, requested: vi.fn(), ready: vi.fn(),
 }))
 
-vi.mock('next/dynamic', async () => {
-  const { default: dynamic } = await import('next/dist/shared/lib/app-dynamic')
+vi.mock('next/dynamic', async (importOriginal) => {
+  const { default: dynamic } = await importOriginal<typeof import('next/dynamic')>()
   return { default: <Props extends object,>(loader: () => Promise<React.ComponentType<Props>>) => {
     const components = new Map<number, React.ComponentType<Props>>()
     return function DeferredComponent(props: Props) {
@@ -623,6 +623,7 @@ describe('HabitList', () => {
     expect(moveControllerOwner.loaded).not.toHaveBeenCalled()
     expect(moveModuleLoad.requested).not.toHaveBeenCalled()
     fireEvent.click(screen.getByTestId('move-source'))
+    await act(async () => { await vi.dynamicImportSettled() })
     expect(await screen.findByRole('radio', { name: /^target/ })).toBeInTheDocument()
     expect(moveControllerOwner.initialize).toHaveBeenCalled()
     expect(moveControllerOwner.loaded).toHaveBeenCalledOnce()
@@ -789,9 +790,10 @@ describe('HabitList', () => {
       <HabitList ref={ref} filters={{}} isSelectMode selectedHabitIds={new Set(ids)} onBulkMove={onBulkMove} />
     </>)
     const move = screen.getByRole('button', { name: 'Move selected' })
+    fireEvent.click(move)
     await act(async () => {
-      fireEvent.click(move)
       await moveModuleLoad.pending
+      await vi.dynamicImportSettled()
     })
     if (count === 101) {
       expect.soft(move).toHaveAttribute('aria-disabled', 'true')
@@ -802,7 +804,7 @@ describe('HabitList', () => {
       return
     }
     expect(move).not.toHaveAttribute('aria-disabled', 'true')
-    fireEvent.click(screen.getByRole('radio', { name: /^target/ }))
+    fireEvent.click(await screen.findByRole('radio', { name: /^target/ }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(ids, 'target')
@@ -927,7 +929,7 @@ describe('HabitList', () => {
     rendered.rerenderWithProviders(<HabitList ref={ref} view="all" selectedDate={new Date(TOMORROW)}
       filters={{ search: 'replacement', tagIds: ['other'], page: 4 }} isSelectMode
       selectedHabitIds={new Set(['replacement'])} onBulkMove={onBulkMove} />)
-    await act(async () => { release() })
+    await act(async () => { release(); await vi.dynamicImportSettled() })
     fireEvent.click(await screen.findByRole('radio', { name: /^target/ }))
     fireEvent.click(screen.getByRole('button', { name: 'habits.moveParent.confirm' }))
     if (entry === 'bulk') expect(onBulkMove).toHaveBeenCalledExactlyOnceWith(['source'], 'target')
@@ -947,7 +949,7 @@ describe('HabitList', () => {
     else if (boundary === 'account') act(() => { advanceAccountGeneration() })
     else rendered.unmount()
     if (boundary !== 'unmount') expect(onSurfaceOpenChange).toHaveBeenLastCalledWith(false)
-    await act(async () => { release() })
+    await act(async () => { release(); await vi.dynamicImportSettled() })
     await waitFor(() => expect(moveModuleLoad.ready).toHaveBeenCalledOnce())
     expect(moveControllerOwner.initialize).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

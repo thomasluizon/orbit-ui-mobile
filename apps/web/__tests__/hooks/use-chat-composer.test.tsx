@@ -25,7 +25,12 @@ import { canReloadDesktopWeb } from '@/lib/desktop-web-release'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
-beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+beforeEach(() => {
+  vi.setSystemTime(PINNED_TEST_TIME)
+  vi.stubGlobal('createImageBitmap', vi.fn(() => Promise.resolve({ width: 640, height: 480, close: vi.fn() })))
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn(), fillRect: vi.fn() } as unknown as CanvasRenderingContext2D)
+  vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(callback => callback(new Blob(['resized'], { type: 'image/jpeg' })))
+})
 afterEach(() => vi.useRealTimers())
 
 const mocks = vi.hoisted(() => ({
@@ -245,6 +250,7 @@ function controlledSseResponse() {
       headers: { 'content-type': 'text/event-stream' },
     }),
     enqueue: (sseFrame: string) => streamController.enqueue(encoder.encode(sseFrame)),
+    enqueueBytes: (bytes: Uint8Array) => streamController.enqueue(bytes),
     close: () => streamController.close(),
     fail: (error: Error) => streamController.error(error),
   }
@@ -510,14 +516,19 @@ describe('web useChatComposer streaming send', () => {
       .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
     const { result, rerender } = renderHook(({ today }) => useChatComposer({ today }), { initialProps: { today: '2026-09-12' } })
     await act(async () => { await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.txt', 'Walk\nRead'))) })
-    act(() => {
+    await act(async () => {
       result.current.setInput(draft)
-      if (draftKind === 'image-plus-text') result.current.handleFileSelect(fileChangeEvent(image))
+      if (draftKind === 'image-plus-text') await result.current.handleFileSelect(fileChangeEvent(image))
     })
+    expect(result.current.sendError).toBeNull()
+    if (draftKind === 'image-plus-text') {
+      expect(result.current.selectedImage).toMatchObject({ name: 'walk.jpg', type: 'image/jpeg', size: 7 })
+    }
+    const selectedImage = result.current.selectedImage
     await act(async () => { result.current.composerProps.onSend(); await Promise.resolve() })
     expect(result.current.input).toBe(draft)
     expect(result.current.selectedTextFile).toEqual({ name: 'notes.txt', content: 'Walk\nRead' })
-    expect(result.current.selectedImage).toBe(draftKind === 'image-plus-text' ? image : null)
+    expect(result.current.selectedImage).toBe(selectedImage)
     expect(result.current.imagePreview).toBe(draftKind === 'image-plus-text' ? 'blob:draft-image' : null)
     expect(result.current.composerProps.attachments).toHaveLength(draftKind === 'image-plus-text' ? 2 : 1)
     expect(result.current.composerProps.state).toBe('atLimit')
@@ -535,7 +546,7 @@ describe('web useChatComposer streaming send', () => {
     for (const call of mocks.fetch.mock.calls) {
       const payload = call[1].body as FormData
       expect(payload.get('message')).toBe(message)
-      expect(payload.get('image')).toBe(draftKind === 'image-plus-text' ? image : null)
+      expect(payload.get('image')).toBe(selectedImage)
     }
     expect(result.current.input).toBe('')
     expect(result.current.composerProps.attachments).toHaveLength(0)
@@ -760,13 +771,49 @@ describe('web useChatComposer streaming send', () => {
     ])
   })
 
-  it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit', 'limit-notice'])('replaces the pending reply indicator on %s', async (arrival) => {
+  it.each(['drop', 'incomplete'])('makes a %s turn retryable with its original key', async (outcome) => {
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+    let sending!: Promise<void>
+    act(() => { sending = result.current.sendMessage('Plan') })
+    await act(async () => { stream.enqueue(frame('{"type":"started"}')); stream.enqueue(frame('{"type":"delta","text":"Partial"}')) })
+    expect(useChatStore.getState().messages.find(message => message.role === 'ai')?.content).toBe('Partial')
+    await act(async () => { if (outcome === 'drop') stream.fail(new TypeError('network connection lost')); else stream.close(); await sending })
+    expect(result.current.sendError).toBe('chat.sendError')
+    expect(result.current.canRetryLastSend).toBe(true)
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    await act(async () => { await result.current.retryLastSend() })
+    const keys = mocks.fetch.mock.calls.map(([, options]) => new Headers(options.headers).get('Idempotency-Key'))
+    expect(keys).toHaveLength(3)
+    expect(keys[0]).toBeTruthy()
+    expect(new Set(keys).size).toBe(1)
+    expect(result.current.sendError).toBeNull()
+  })
+
+  it('keeps a multi-byte character whole across network chunks', async () => {
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+    let sending!: Promise<void>
+    act(() => { sending = result.current.sendMessage('Plan') })
+    const text = 'ação 🪐'
+    const bytes = new TextEncoder().encode(frame(JSON.stringify({ type: 'delta', text })))
+    const split = bytes.indexOf(0xc3) + 1
+    await act(async () => { stream.enqueueBytes(bytes.slice(0, split)) })
+    await act(async () => { stream.enqueueBytes(bytes.slice(split)) })
+    expect(useChatStore.getState().messages.find(message => message.role === 'ai')?.content).toBe(text)
+    await act(async () => { stream.enqueue(finalFrame(makeChatResponse({ aiMessage: text }))); stream.close(); await sending })
+    expect(result.current.sendError).toBeNull()
+  })
+
+  it.each(['text', 'tool', 'error', 'block', 'cancel', 'limit', 'limit-notice', 'drop', 'incomplete'])('replaces the pending reply indicator on %s', async (arrival) => {
     const stream = controlledSseResponse()
     mocks.fetch.mockResolvedValue(stream.response)
     const { container, rerender } = render(<ComposerConversationHarness />)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
-    onTestFinished(() => { if (arrival !== 'cancel') stream.close() })
+    onTestFinished(() => { if (!['cancel', 'drop', 'incomplete'].includes(arrival)) stream.close() })
     expect(container.querySelector('[data-astra-pending]')).not.toBeNull()
     expect(screen.getByRole('feed')).toHaveAttribute('aria-busy', 'true')
     await act(async () => {
@@ -780,10 +827,26 @@ describe('web useChatComposer streaming send', () => {
       if (arrival === 'limit') stream.enqueue(frame('{"type":"error","error":"Limit reached","status":403}'))
       if (arrival === 'block') stream.enqueue(finalFrame(makeChatResponse({ aiMessage: '', habitList: { scope: 'today', items: [] } })))
       if (arrival === 'cancel') stream.fail(new DOMException('Cancelled', 'AbortError'))
+      if (arrival === 'drop' || arrival === 'incomplete') {
+        stream.enqueue(frame('{"type":"started"}'))
+        stream.enqueue(frame('{"type":"delta","text":"Partial"}'))
+        await Promise.resolve()
+        if (arrival === 'drop') stream.fail(new TypeError('network connection lost'))
+        else stream.close()
+      }
     })
     await waitFor(() => expect(container.querySelector('[data-astra-pending]') === null).toBe(arrival !== 'text'))
     if (arrival === 'text') expect(screen.queryByText('Start with water')).not.toBeInTheDocument()
     if (arrival === 'tool') expect(screen.getByText('chat.trace.habits.read')).toBeVisible()
+    if (arrival === 'drop' || arrival === 'incomplete') {
+      expect(screen.getAllByText('chat.sendError').some(element => !element.hidden)).toBe(true)
+      mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+      fireEvent.click(screen.getByRole('button', { name: 'shell.composer.retry' }))
+      await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3))
+      const keys = mocks.fetch.mock.calls.map(([, options]) => new Headers(options.headers).get('Idempotency-Key'))
+      expect(keys[0]).toBeTruthy()
+      expect(new Set(keys).size).toBe(1)
+    }
   })
 
   it.each([412, 1440])('opens the conversation for a shell typed send at %s with streaming text and one composer', async (width) => {
@@ -2388,7 +2451,7 @@ describe('web useChatComposer streaming send', () => {
       },
     })
 
-    expect(screen.getByRole('list', { name: 'shell.composer.attach.trayLabel' })).toBeInTheDocument()
+    expect(await screen.findByRole('list', { name: 'shell.composer.attach.trayLabel' })).toBeInTheDocument()
     expect(screen.getByText('pasted.jpg')).toBeInTheDocument()
 
     fireEvent.change(screen.getByRole('textbox', { name: 'shell.composer.inputLabel' }), {
@@ -2401,7 +2464,8 @@ describe('web useChatComposer streaming send', () => {
     expect(requestBody).toBeInstanceOf(FormData)
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe('log my walk')
-    expect(requestBody.get('image')).toBe(pastedImage)
+    expect(requestBody.get('image')).toMatchObject({ name: 'pasted.jpg', type: 'image/jpeg', size: 7 })
+    expect(requestBody.get('image')).not.toBe(pastedImage)
     if (resend) expect(mocks.fetch.mock.calls[1]?.[1].body).toBe(requestBody)
   })
 
@@ -2495,12 +2559,12 @@ describe('web useChatComposer streaming send', () => {
     await act(async () => {
       await result.current.handleTextFileSelect(fileChangeEvent(textAttachment))
     })
-    act(() => result.current.handleFileSelect(fileChangeEvent(image)))
+    await act(async () => { await result.current.handleFileSelect(fileChangeEvent(image)) })
     expect(result.current.composerProps.attachments).toHaveLength(2)
 
     act(() => result.current.composerProps.onAttachRemove?.('chat-file'))
     expect(result.current.selectedTextFile).toBeNull()
-    expect(result.current.selectedImage).toBe(image)
+    expect(result.current.selectedImage).toMatchObject({ name: 'walk.jpg', type: 'image/jpeg' })
 
     await act(async () => {
       await result.current.handleTextFileSelect(fileChangeEvent(textAttachment))
@@ -2524,9 +2588,9 @@ describe('web useChatComposer streaming send', () => {
     act(() => result.current.composerProps.onSend())
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
 
-    act(() => result.current.handleFileSelect(
+    await act(async () => { await result.current.handleFileSelect(
       fileChangeEvent(new File(['image'], 'walk.png', { type: 'image/png' })),
-    ))
+    ) })
     act(() => result.current.composerProps.onSend())
     await act(async () => Promise.resolve())
     expect(mocks.fetch).toHaveBeenCalledOnce()

@@ -1,7 +1,7 @@
 const { collectStaticStrings, getAttribute, getAttributeValueNode, collectStyleProperties, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
-const OUTLINE_NONE_CLASS_RE = /(?:^|\s)(?:focus:|focus-visible:)?(outline-none|outline-hidden|outline-\[none\])(?:\s|$)/
-const FOCUS_REPLACEMENT_RE = /(?:^|\s)focus-visible:(?:ring|outline|border|shadow)[-[\s]/
+const OUTLINE_NONE_CLASS_RE = /(?:^|\s)(?:focus:|focus-visible:)?(outline-0|outline-none|outline-hidden|outline-\[none\])(?:\s|$)/
+const FOCUS_REPLACEMENT_RE = /(?:^|\s)focus-visible:(?:ring|border|shadow)[-[\s]|(?:^|\s)focus-visible:outline-(?!(?:0|none|hidden|\[none\])(?:\s|$))/
 
 module.exports = {
   meta: {

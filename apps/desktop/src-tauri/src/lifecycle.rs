@@ -7,7 +7,7 @@ trait DesktopHost {
     fn focus(&self) -> tauri::Result<()>;
     fn hide(&self) -> tauri::Result<()>;
     fn save_geometry(&self);
-    fn exit(&self);
+    fn exit_process(&self);
 }
 
 impl DesktopHost for AppHandle {
@@ -26,7 +26,7 @@ impl DesktopHost for AppHandle {
     fn save_geometry(&self) {
         save_window(self);
     }
-    fn exit(&self) {
+    fn exit_process(&self) {
         self.exit(0);
     }
 }
@@ -74,7 +74,7 @@ pub fn notification_page_loaded(
         && matches!(event, tauri::webview::PageLoadEvent::Finished)
         && url.origin() == origin.origin()
         && crate::auth::is_sign_in_path(url.path())
-        && session.abandon_startup()
+        && session.discard_unrestored_startup_response()
     {
         show()?;
     }
@@ -88,7 +88,7 @@ fn hide_to_tray(host: &impl DesktopHost) -> tauri::Result<()> {
 
 fn quit(host: &impl DesktopHost) {
     host.save_geometry();
-    host.exit();
+    host.exit_process();
 }
 
 pub fn show_main(app: &AppHandle) -> tauri::Result<()> {
@@ -205,7 +205,7 @@ mod tests {
         fn save_geometry(&self) {
             self.saved.set(true);
         }
-        fn exit(&self) {
+        fn exit_process(&self) {
             assert!(self.saved.get());
             self.running.set(false);
         }

@@ -1,0 +1,9 @@
+{
+  "platforms": ["android", "apple"],
+  "apple": {
+    "modules": ["OrbitChatImageModule"]
+  },
+  "android": {
+    "modules": ["org.useorbit.app.chatimage.OrbitChatImageModule"]
+  }
+}

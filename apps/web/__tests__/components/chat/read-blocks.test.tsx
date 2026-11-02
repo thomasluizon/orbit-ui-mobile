@@ -455,11 +455,13 @@ describe('read offers', () => {
     mount({ kind: 'periodTotal', block: offeredReadFixture })
     expect(screen.queryByRole('button', { name: astraOfferFixture.label })).not.toBeInTheDocument()
   })
-  it('retains a failed dismissal for retry', async () => {
-    vi.mocked(dismissChatOffers).mockResolvedValueOnce({ ok: false, error: 'offline', code: 'offline', status: 0, sessionRefreshFailed: false })
+  it.each([429, 403])('retains a failed dismissal for retry after status %s', async (status) => {
+    vi.mocked(dismissChatOffers).mockResolvedValueOnce({ ok: false, error: 'offline', code: 'RATE_LIMITED', status, sessionRefreshFailed: false })
     mount({ kind: 'periodTotal', block: offeredReadFixture }, 'en', vi.fn())
     fireEvent.click(screen.getByRole('button', { name: en.chat.offers.dismiss }))
     await screen.findByText(en.chat.offers.failed)
+    expect(screen.getByRole('button', { name: astraOfferFixture.label })).toBeVisible()
+    expect(useChatStore.getState().dismissedOfferKeys).toEqual([])
     expect(screen.getByRole('button', { name: en.chat.offers.dismiss })).toBeEnabled()
   })
 })

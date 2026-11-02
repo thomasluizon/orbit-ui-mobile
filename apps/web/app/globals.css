@@ -1385,7 +1385,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     .orbit-field-hover:hover:is(:enabled, :has(:is(input, textarea):enabled)):not(:focus-within):not(:disabled):not([aria-invalid="true"]):not(:has(:disabled, [aria-invalid="true"], button:hover, a:hover, [role="button"]:hover)),
     .orbit-field-hover-overlay:hover:not(:focus-within):not(:has(:disabled, [aria-invalid="true"], :autofill, button:hover, a:hover, [role="button"]:hover))::after,
     .orbit-otp-hover:hover:not(:focus-within):not(:has(:disabled, [aria-invalid="true"])) [data-otp-cell] {
-      box-shadow: inset 0 0 0 1px var(--hairline-strong);
+      box-shadow: inset 0 0 0 1px var(--border-control);
     }
   }
 }
@@ -1874,6 +1874,11 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 }
 
+.orbit-bar-chart-column:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
 @media (forced-colors: active) {
   :focus-visible {
     /* WHY: Forced colors mode removes box-shadow focus indicators. */
@@ -1882,7 +1887,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
   [data-habit-row-control="check"]:focus-visible,
   .orbit-tab:focus-visible,
-  .orbit-bar-chart-column:focus-visible,
   .orbit-calendar-nav-control:focus-visible,
   .orbit-calendar-picker-control:focus-visible,
   .orbit-calendar-day-disclosure:focus-visible,
@@ -1892,6 +1896,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     outline: none !important;
   }
 
+  .orbit-bar-chart-column:focus-visible,
   [data-habit-row-control="check"]:focus-visible [data-habit-check],
   .orbit-tab:focus-visible::after,
   .orbit-calendar-nav-control:focus-visible::before,
@@ -2412,10 +2417,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 .orbit-bar-chart [data-slot="bar-chart-readout"] {
   border: 2px solid transparent;
-}
-
-.orbit-bar-chart:has([role="radio"]:focus-visible) [data-slot="bar-chart-readout"] {
-  border-color: currentColor;
 }
 
 .orbit-calendar-grid-card {

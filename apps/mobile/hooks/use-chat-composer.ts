@@ -1,3 +1,4 @@
+import { resizeChatImage } from '@/lib/chat-image'
 import { isChatReplyActive, prepareConversationSend, resolveChatRequestContext } from '@orbit/shared/chat'
 import { conversationHistory } from '@/lib/conversation-history'
 import { createAstraAllowanceTranslator ,
@@ -238,6 +239,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const imageSelectionVersion = useRef(0);
+  useEffect(() => () => { imageSelectionVersion.current += 1 }, []);
   const [selectedTextFile, setSelectedTextFile] =
     useState<SelectedChatTextFile | null>(null);
 
@@ -248,6 +251,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
    * itself, and every field added here is covered by the same subscription.
    */
   useResetOnAccountChange(() => {
+    imageSelectionVersion.current += 1;
     turnReconciliation.reset()
     blockSubmission.reset()
     activeStepsRef.current = [];
@@ -349,9 +353,12 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   );
 
   const openFilePicker = useCallback(async () => {
+    const selectionVersion = ++imageSelectionVersion.current;
     const startingAccountGeneration = getAccountGeneration();
+    const isCurrentSelection = () => selectionVersion === imageSelectionVersion.current
+      && getAccountGeneration() === startingAccountGeneration;
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (getAccountGeneration() !== startingAccountGeneration) return;
+    if (!isCurrentSelection()) return;
     if (!permission.granted) {
       setSendError(t("chat.imagePermissionError"));
       return;
@@ -360,9 +367,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"] as ImagePicker.MediaType[],
       allowsMultipleSelection: false,
-      quality: 0.7,
+      quality: 1,
     });
-    if (getAccountGeneration() !== startingAccountGeneration) return;
+    if (!isCurrentSelection()) return;
 
     if (result.canceled) return;
 
@@ -375,12 +382,21 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       return;
     }
 
-    setSendError(null);
-    setSelectedImage(asset);
-    setImagePreview(asset.uri);
+    try {
+      const resized = await resizeChatImage(asset);
+      if (!isCurrentSelection()) return;
+      const outputError = validateImageAsset(resized);
+      if (outputError) { setSendError(outputError); return; }
+      setSendError(null);
+      setSelectedImage(resized);
+      setImagePreview(resized.uri);
+    } catch {
+      if (isCurrentSelection()) setSendError(t("chat.imageError"));
+    }
   }, [t, validateImageAsset, setSendError, setSelectedImage, setImagePreview]);
 
   const removeImage = useCallback(() => {
+    imageSelectionVersion.current += 1;
     setSelectedImage(null);
     setImagePreview(null);
   }, []);
@@ -430,6 +446,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
   const handleDailyBudgetExceeded = useCallback((draftMessageId: string | null, attempted?: AttemptedSend) => {
     if (attempted?.clearDraftOnSuccess && attempted.restoredDraftRevision === useChatStore.getState().draftRevision) {
+      imageSelectionVersion.current += 1;
       setSelectedImage(attempted.image)
       setImagePreview(attempted.preview)
       setSelectedTextFile(attempted.textFile)
@@ -746,6 +763,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     setSendError(null)
     if (sendsComposerDraft) {
       setInput('')
+      imageSelectionVersion.current += 1;
       setSelectedImage(null); setImagePreview(null); setSelectedTextFile(null)
     }
   }, [performSend, setInput, setSendError, t, setSelectedImage, setImagePreview, setSelectedTextFile])
@@ -763,6 +781,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
     if (consumesComposerDraft) {
       setInput("");
+      imageSelectionVersion.current += 1;
       setSelectedImage(null);
       setImagePreview(null);
       setSelectedTextFile(null);

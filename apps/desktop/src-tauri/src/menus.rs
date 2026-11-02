@@ -1,3 +1,4 @@
+use crate::locks::RecoverLock;
 use crate::{
     lifecycle,
     localization::Labels,
@@ -25,29 +26,27 @@ struct DesktopMenu {
 }
 
 pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let menu = build_menu(app)?;
+    build_tray(app, &menu.labels, &menu.restart_updates[1])?;
+    app.manage(menu);
+    Ok(())
+}
+
+fn update_item(
+    app: &AppHandle,
+    labels: &Labels,
+    id: &str,
+    label: &str,
+) -> tauri::Result<MenuItem<tauri::Wry>> {
+    MenuItem::with_id(app, id, labels.text(label), false, None::<&str>)
+}
+
+fn build_menu(app: &AppHandle) -> Result<DesktopMenu, Box<dyn std::error::Error>> {
     let labels = Labels::new(&sys_locale::get_locale().unwrap_or_default());
     let enabled = app.autolaunch().is_enabled()?;
-    let check_updates = MenuItem::with_id(
-        app,
-        "check-updates",
-        labels.text("updateCheck"),
-        false,
-        None::<&str>,
-    )?;
-    let restart = MenuItem::with_id(
-        app,
-        "restart-update",
-        labels.text("updateRestart"),
-        false,
-        None::<&str>,
-    )?;
-    let tray_restart = MenuItem::with_id(
-        app,
-        "restart-update",
-        labels.text("updateRestart"),
-        false,
-        None::<&str>,
-    )?;
+    let check_updates = update_item(app, &labels, "check-updates", "updateCheck")?;
+    let restart = update_item(app, &labels, "restart-update", "updateRestart")?;
+    let tray_restart = update_item(app, &labels, "tray-restart-update", "updateRestart")?;
     let autostart = CheckMenuItem::with_id(
         app,
         "autostart",
@@ -63,24 +62,42 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             &edit_menu(app, &labels)?,
             &view_menu(app, &labels)?,
             &window_menu(app, &labels)?,
-            &Submenu::with_id_and_items(
-                app,
-                HELP_SUBMENU_ID,
-                labels.text("help"),
-                true,
-                &[
-                    &MenuItem::with_id(app, "support", labels.text("support"), true, None::<&str>)?,
-                    #[cfg(not(target_os = "macos"))]
-                    &about_item(app, &labels)?,
-                ],
-            )?,
+            &help_menu(app, &labels)?,
         ],
     )?)?;
+    Ok(DesktopMenu {
+        labels,
+        autostart,
+        login: Mutex::new(LoginSetting { enabled }),
+        check_updates,
+        restart_updates: [restart, tray_restart],
+    })
+}
+
+fn help_menu(app: &AppHandle, labels: &Labels) -> tauri::Result<Submenu<tauri::Wry>> {
+    Submenu::with_id_and_items(
+        app,
+        HELP_SUBMENU_ID,
+        labels.text("help"),
+        true,
+        &[
+            &MenuItem::with_id(app, "support", labels.text("support"), true, None::<&str>)?,
+            #[cfg(not(target_os = "macos"))]
+            &about_item(app, labels)?,
+        ],
+    )
+}
+
+fn build_tray(
+    app: &AppHandle,
+    labels: &Labels,
+    restart: &MenuItem<tauri::Wry>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let tray = Menu::with_items(
         app,
         &[
             &MenuItem::with_id(app, "open", labels.text("open"), true, None::<&str>)?,
-            &tray_restart,
+            restart,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "quit", labels.text("quit"), true, None::<&str>)?,
         ],
@@ -95,13 +112,6 @@ pub fn install(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         .menu(&tray)
         .show_menu_on_left_click(true)
         .build(app)?;
-    app.manage(DesktopMenu {
-        labels,
-        autostart,
-        login: Mutex::new(LoginSetting { enabled }),
-        check_updates,
-        restart_updates: [restart, tray_restart],
-    });
     Ok(())
 }
 
@@ -251,7 +261,7 @@ pub fn handle(app: &AppHandle, event: tauri::menu::MenuEvent) {
             updates::offer_or_check(app);
             Ok(())
         }
-        "restart-update" => {
+        "restart-update" | "tray-restart-update" => {
             updates::request_restart(app);
             Ok(())
         }
@@ -303,7 +313,7 @@ fn toggle_autostart(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let menu = app.state::<DesktopMenu>();
     let manager = app.autolaunch();
     let (result, enabled) = {
-        let mut login = menu.login.lock().unwrap();
+        let mut login = menu.login.recover_lock();
         let result = login.toggle(
             || manager.is_enabled(),
             |next| {
@@ -316,6 +326,9 @@ fn toggle_autostart(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         );
         (result, login.enabled)
     };
+    if let Err(error) = &result {
+        eprintln!("Cannot change desktop autostart: {error}");
+    }
     menu.autostart.set_checked(enabled)?;
     menu.autostart
         .set_text(menu.labels.text(if result.is_ok() {

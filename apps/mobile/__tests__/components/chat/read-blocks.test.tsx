@@ -12,7 +12,7 @@ import { completedHabitTotalFixture, completedHabitComparisonFixture, focusedDat
 import { gamificationCardCases, gamificationCardFixture } from '@orbit/shared/test-support/gamification-card-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { getAccountDay } from '@orbit/shared/utils'
+import { createApiClientError, getAccountDay } from '@orbit/shared/utils'
 import { inPlaceDayFixture } from '@orbit/shared/__tests__/in-place-block-fixtures'
 import { ChatBlock } from '@/components/chat/block-registry'
 import { HabitCheck } from '@/components/habits/habit-check'
@@ -508,6 +508,16 @@ describe('read offers on Android', () => {
     await press(tree, messages.chat.offers.dismiss)
     expect(apiClient).toHaveBeenCalledWith(API.chat.dismissOffers, expect.objectContaining({ body: JSON.stringify({ conversationId: offerConversationId, offerKeys: [astraOfferFixture.offerKey] }) }))
     expect(renderedText(tree.toJSON())).not.toContain(astraOfferFixture.label)
+    await act(() => tree.unmount())
+  })
+  it.each([429, 403])('keeps a refused offer visible after dismissal status %s', async status => {
+    state.locale = 'en'; state.actualCopy = true
+    vi.mocked(apiClient).mockRejectedValueOnce(createApiClientError(status, null, 'Refused'))
+    const tree = await mount({ kind: 'periodTotal', block: offeredReadFixture }, vi.fn())
+    await press(tree, en.chat.offers.dismiss)
+    expect(renderedText(tree.toJSON())).toContain(en.chat.offers.failed)
+    expect(renderedText(tree.toJSON())).toContain(astraOfferFixture.label)
+    expect(useChatStore.getState().dismissedOfferKeys).toEqual([])
     await act(() => tree.unmount())
   })
   it('opens a known surface after acknowledging the offer', async () => {

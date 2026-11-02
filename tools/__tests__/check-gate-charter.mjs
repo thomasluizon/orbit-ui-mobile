@@ -32,6 +32,7 @@ const stageRepository = (label, charter, { guardWorkflow = scopedGuardWorkflow, 
   writeFileSync(join(repository, ".claude/hooks", "test-hooks.mjs"), "process.exit(0)\n")
   writeFileSync(join(repository, ".github/workflows", "guards.yml"), guardWorkflow)
   writeFileSync(join(repository, ".github/workflows", "test.yml"), lintWorkflow)
+  writeFileSync(join(repository, "lefthook.yml"), "pre-commit:\n  commands:\n    existing:\n      run: node tools/check-existing.mjs\n")
   writeFileSync(join(repository, "tools", "gate-charter.json"), `${JSON.stringify(charter, null, 2)}\n`)
   return repository
 }
@@ -44,6 +45,48 @@ const completeCharter = () => ({
 })
 
 export const cases = () => {
+  for (const [label, script] of [
+    ["suffix", 'git diff --name-only origin/main...HEAD > changed.txt\nnode gate.mjs --changed-files-file changed.txt.unchecked'],
+    ["flag-prefix", 'git diff --name-only origin/main...HEAD > changed.txt\nnode gate.mjs --changed-files-file-extra changed.txt'],
+    ["sibling-flag", 'git diff --name-only origin/main...HEAD > changed.txt\nnode gate.mjs; node other.mjs --changed-files-file changed.txt'],
+    ["sibling-redirect", 'xargs -0 --no-run-if-empty node gate.mjs < unchecked.nul; node other.mjs < "$RUNNER_TEMP/changed-paths-present.nul"'],
+    ["other-redirect", 'cat < "$RUNNER_TEMP/changed-paths-present.nul"\nxargs -0 --no-run-if-empty node gate.mjs < unchecked.nul'],
+  ]) {
+    const workflow = { jobs: { existing: { steps: [{ name: "Resolve pull request changed paths", if: "github.event_name == 'pull_request'", env: { BASE_REF: "${{ github.base_ref }}" }, run: 'bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"' }, { run: script }] } } }
+    check("check-gate-charter.mjs", `rejects changed-path ${label}`, ["--root", stageRepository(label, completeCharter(), { guardWorkflow: yaml.dump(workflow) })], { status: 1, stderr: /not scoped/ })
+  }
+  const uninvoked = stageRepository("uninvoked", completeCharter())
+  writeFileSync(join(uninvoked, "lefthook.yml"), "{}")
+  check("check-gate-charter.mjs", "registered tool without invocation is refused", ["--root", uninvoked], { status: 1, stderr: /not invoked/ })
+  for (const [label, script, status] of [
+    ["quoted-data", "cat <<'EOF'\nnode tools/check-existing.mjs\nEOF", 1],
+    ["bare-data", "cat <<EOF\nnode tools/check-existing.mjs\nEOF", 1],
+    ["quoted-substitution-data", "cat <<'EOF'\n$(node tools/check-existing.mjs)\nEOF", 1],
+    ["shell-heredoc", "bash <<'EOF'\nnode tools/check-existing.mjs\nEOF", 0],
+    ["shell-overridden-input", "bash <<'EOF' < /dev/null\nnode tools/check-existing.mjs\nEOF", 1],
+    ["shell-overridden-document", "bash <<'A' <<'B'\nnode tools/check-existing.mjs\nA\ntrue\nB", 1],
+    ["shell-overridden-with-stream", "bash <<'A' 2>&1 <<'B'\nnode tools/check-existing.mjs\nA\ntrue\nB", 1],
+    ["shell-final-document", "bash <<'A' <<'B'\ntrue\nA\nnode tools/check-existing.mjs\nB", 0],
+    ["bare-substitution", "cat <<EOF\n$(node tools/check-existing.mjs)\nEOF", 0],
+    ["bare-backtick", "cat <<EOF\n`node tools/check-existing.mjs`\nEOF", 0],
+    ["bare-quoted-path", 'cat <<EOF\n$(node "tools/check-existing.mjs")\nEOF', 0],
+    ["bare-literal-quotes", "cat <<EOF\n'$(node tools/check-existing.mjs)'\nEOF", 0],
+    ["bare-escaped-substitution", "cat <<EOF\n\\$(node tools/check-existing.mjs)\nEOF", 1],
+    ["escaped-data", "cat <<\\EOF\nnode tools/check-existing.mjs\nEOF", 1],
+    ["numeric-data", "cat <<123\nnode tools/check-existing.mjs\n123", 1],
+    ["unterminated-data", "cat <<'EOF'\nnode tools/check-existing.mjs", 1],
+    ["tabbed-data", "cat <<-'EOF'\n\tnode tools/check-existing.mjs\n\tEOF", 1],
+    ["multiple-data", "cat <<'A' <<'B'\nnode tools/check-existing.mjs\nA\nnode tools/check-existing.mjs\nB", 1],
+    ["comment-data", "# $(node tools/check-existing.mjs)", 1],
+    ["comment-delimiter", "# cat <<'EOF'\nnode tools/check-existing.mjs\nEOF", 0],
+  ]) {
+    const repository = stageRepository(`heredoc-${label}`, completeCharter())
+    writeFileSync(join(repository, "lefthook.yml"), yaml.dump({ "pre-commit": { commands: { existing: { run: script } } } }))
+    check("check-gate-charter.mjs", `heredoc invocation ${label}`, ["--root", repository], { status, ...(status ? { stderr: /not invoked/ } : {}) })
+  }
+  const echoed = stageRepository("echoed-invocation", completeCharter())
+  writeFileSync(join(echoed, "lefthook.yml"), "pre-commit:\n  commands:\n    fake:\n      run: xargs echo node tools/check-existing.mjs\n")
+  check("check-gate-charter.mjs", "an echoed xargs argument is not an invocation", ["--root", echoed], { status: 1, stderr: /not invoked/ })
   const contractCharter = completeCharter()
   contractCharter[".github/workflows/guards.yml#contract-drift"] = entry({ scope: "whole-tree-blocking" })
   const contractWorkflow = yaml.load(scopedGuardWorkflow)
@@ -146,6 +189,7 @@ export const cases = () => {
   registeredGateCharter["tools/check-new-gate.mjs"] = entry()
   const registeredGate = stageRepository("registered-gate", registeredGateCharter)
   writeFileSync(join(registeredGate, "tools", "check-new-gate.mjs"), "process.exit(0)\n")
+  writeFileSync(join(registeredGate, "lefthook.yml"), "pre-commit:\n  commands:\n    existing:\n      run: node tools/check-existing.mjs\n    added:\n      run: node tools/check-new-gate.mjs\n")
   check(
     "check-gate-charter.mjs",
     "accepts the new gate after registration",
@@ -327,8 +371,10 @@ export const cases = () => {
 
   for (const workflowFile of ["guards.yml", "dependency-review.yml"]) {
     const workflow = yaml.load(readFileSync(join(REPO_ROOT, ".github", "workflows", workflowFile), "utf8"))
-    T(`${workflowFile}: superseded runs share a workflow and ref concurrency group`,
-      workflow.concurrency?.group === "${{ github.workflow }}-${{ github.ref }}",
+    T(`${workflowFile}: concurrency retains releasable push and dispatch SHAs and replaces superseded pull request runs`,
+      workflow.concurrency?.group === (workflowFile === "guards.yml"
+        ? "${{ github.workflow }}-${{ github.event_name != 'pull_request' && github.sha || github.ref }}"
+        : "${{ github.workflow }}-${{ github.ref }}"),
       JSON.stringify(workflow.concurrency))
     T(`${workflowFile}: superseded runs are cancelled`,
       workflow.concurrency?.["cancel-in-progress"] === true,

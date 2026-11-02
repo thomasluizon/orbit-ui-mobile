@@ -8,6 +8,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { PASSING_CONCLUSIONS, headActivityArgv, headActivityBoundary, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, registrationFingerprint, requiredCheckSatisfied, requiredChecksFromResponse, resolveReviewVerdict, reviewPageArgv, reviewPageFromGraphQl, reviewSatisfiedOutOfBand } from "./lib/readiness-receipt.mjs"
+import { parityPlatform } from "./lib/parity-scope.mjs"
 import { gitDirectoryOf } from "./lib/run-state.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
@@ -26,7 +27,7 @@ const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path>
 
 Derives delivery from git and GitHub artifacts only, never from a worker's own
 report. Checks run in order and the first failure decides the verdict:
-NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, MISSING_PARITY_LABEL, DRAFT, OUT_OF_DATE,
+NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, UNLINKED_PR, MISSING_PARITY_LABEL, DRAFT, OUT_OF_DATE,
 CI_FAILING, CI_PENDING, or DELIVERED.
 
 A cancelled current-head Actions run is rerun once when a run from the same pull request
@@ -150,7 +151,7 @@ const GENERATED_RESIDUE = [/(^|\/)next-env\.d\.ts$/, /(^|\/)\.next\//, /(^|\/)di
  */
 const UNTRACKED_ONLY_RESIDUE = [/(^|\/)e2e\//, /(^|\/)\.orca\//]
 const isDiscardable = ({ status, path }) =>
-  GENERATED_RESIDUE.some((pattern) => pattern.test(path)) || (status === "??" && UNTRACKED_ONLY_RESIDUE.some((pattern) => pattern.test(path)))
+  status === "??" && [...GENERATED_RESIDUE, ...UNTRACKED_ONLY_RESIDUE].some((pattern) => pattern.test(path))
 
 /** `--untracked-files=all` because the default collapses a wholly untracked directory into one
  * entry, and a single `?? apps/` cannot be classified as residue or as somebody's unfinished work. */
@@ -269,8 +270,8 @@ const mergeBase = merged.stdout.trim()
 const changed = await git(["diff", "--name-only", "-z", `${mergeBase}..HEAD`, "--", "apps/web/", "apps/mobile/"])
 if (!changed.ok) fail(2, `git diff --name-only ${mergeBase}..HEAD failed in ${worktree}: ${changed.error}`)
 const changedPaths = changed.stdout.split("\0").filter(Boolean)
-const webPaths = changedPaths.filter((path) => /^apps\/web\/(app|components|hooks|stores|lib)\//.test(path))
-const mobilePaths = changedPaths.filter((path) => /^apps\/mobile\/(app|components|hooks|stores|lib)\//.test(path))
+const webPaths = changedPaths.filter((path) => parityPlatform(path) === "web")
+const mobilePaths = changedPaths.filter((path) => parityPlatform(path) === "mobile")
 if (!Array.isArray(pullRequest.labels) || !pullRequest.labels.every((label) => typeof label?.name === "string")) {
   fail(2, `gh pr list reported no labels array for pull request #${pullRequest.number}`)
 }

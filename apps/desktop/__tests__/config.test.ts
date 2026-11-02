@@ -56,7 +56,8 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
   it('creates the window in Rust with the system browser handler attached', () => {
     expect(config.app.windows[0]).toHaveProperty('create', false)
     const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
-    expect(entrypoint).toMatch(/\.setup\([\s\S]*WebviewWindowBuilder::from_config[\s\S]*\.on_new_window\([\s\S]*open_new_window\([\s\S]*tauri_plugin_opener::open_url[\s\S]*\.build\(\)/)
+    expect(entrypoint).toContain('.setup(setup)')
+    expect(entrypoint).toMatch(/fn construct_window[\s\S]*WebviewWindowBuilder::from_config[\s\S]*\.on_new_window\([\s\S]*open_new_window\([\s\S]*tauri_plugin_opener::open_url[\s\S]*\.build\(\)/)
     expect(entrypoint).toContain('.on_navigation(')
     expect(entrypoint).toMatch(/\.invoke_handler\(tauri::generate_handler!\[\s*desktop_login::commit_desktop_login,\s*push::desktop_push,\s*updates::desktop_update,\s*#\[cfg\(feature = "bench-loopback"\)\]\s*bench_viewport::fit_bench_viewport\s*\]\)/)
   })
@@ -93,10 +94,10 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
 
   it('observes native launch intent before startup and gates window creation with it', () => {
     const entrypoint = readFileSync(new URL('../src-tauri/src/main.rs', import.meta.url), 'utf8').split('#[cfg(test)]')[0]!
-    expect(entrypoint).toMatch(/\.build\(context\)[\s\S]*push::prepare_launch\(\);\s*app\.run\(/)
+    expect(entrypoint).toMatch(/\.build\(context\)[\s\S]*if let Err\(error\) = push::prepare_launch\(\)[\s\S]*Cannot observe desktop launch[\s\S]*app\.run\(handle_run_event\)/)
     expect(entrypoint).toMatch(/lifecycle::create_main\(\s*window_config,\s*push::notification_launch\(\)/)
     expect(entrypoint).toContain('.activate_ignoring_other_apps(false)')
-    expect(entrypoint).toContain('if !push::notification_activation(&_arguments)')
+    expect(entrypoint).toContain('if !push::notification_activation(&arguments)')
   })
 })
 

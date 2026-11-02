@@ -1,4 +1,8 @@
 function Get-VerifiedDownload([string]$Url, [string]$Destination, [string]$Sha256) {
+    $source = [uri]$Url
+    if ($source.Scheme -ne 'https' -or $source.Host -notin @('api.nuget.org', 'aka.ms')) {
+        throw 'Windows App SDK download host is not allowed'
+    }
     $partial = "$Destination.partial"
     New-Item -ItemType Directory -Path (Split-Path $Destination -Parent) -Force | Out-Null
     Remove-Item $partial -Force -ErrorAction SilentlyContinue

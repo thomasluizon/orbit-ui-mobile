@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{fs, io::Write, path::Path};
 use tauri::{AppHandle, Manager, Url};
 
 fn resume_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
@@ -11,16 +11,22 @@ fn resume_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
 
 pub fn save(app: &AppHandle, url: &Url) -> Result<(), String> {
     let path = resume_path(app)?;
-    fs::create_dir_all(path.parent().unwrap()).map_err(|error| error.to_string())?;
-    fs::write(path, resume_url(url).as_str()).map_err(|error| error.to_string())
+    let directory = path.parent().ok_or("Missing desktop resume directory")?;
+    fs::create_dir_all(directory).map_err(|error| error.to_string())?;
+    let mut file = tempfile::NamedTempFile::new_in(directory).map_err(|error| error.to_string())?;
+    file.write_all(resume_url(url).as_str().as_bytes())
+        .map_err(|error| error.to_string())?;
+    file.as_file()
+        .sync_all()
+        .map_err(|error| error.to_string())?;
+    file.persist(path).map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 fn resume_url(url: &Url) -> Url {
     let mut destination = url.clone();
-    if crate::auth::is_sign_in_path(url.path()) {
-        destination.set_query(None);
-        destination.set_fragment(None);
-    }
+    destination.set_query(None);
+    destination.set_fragment(None);
     destination
 }
 
@@ -51,12 +57,26 @@ fn read(path: &Path, origin: &Url) -> Result<Option<Url>, String> {
     if url.origin() != origin.origin() || !url.username().is_empty() || url.password().is_some() {
         return Err("Invalid desktop update resume origin".into());
     }
-    Ok(Some(url))
+    Ok(Some(resume_url(&url)))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_resume_route_drops_query_and_fragment() {
+        for path in ["/calendar", "/auth-callback/x", "/onboarding/step"] {
+            let url = Url::parse(&format!(
+                "https://app.useorbit.org{path}?code=x&token=y#frag"
+            ))
+            .unwrap();
+            assert_eq!(
+                resume_url(&url).as_str(),
+                format!("https://app.useorbit.org{path}")
+            );
+        }
+    }
 
     #[test]
     fn restart_restores_the_same_environment_route_once() {
@@ -65,7 +85,10 @@ mod tests {
         let origin = Url::parse("https://app.useorbit.org/").unwrap();
         let destination = "https://app.useorbit.org/calendar?month=10#day";
         fs::write(&path, destination).unwrap();
-        assert_eq!(read(&path, &origin).unwrap().unwrap().as_str(), destination);
+        assert_eq!(
+            read(&path, &origin).unwrap().unwrap().as_str(),
+            "https://app.useorbit.org/calendar"
+        );
         assert!(read(&path, &origin).unwrap().is_none());
     }
 

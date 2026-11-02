@@ -1,6 +1,7 @@
+import * as m from 'motion/react-m'
 import type { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
-import { motion, useReducedMotion } from 'motion/react'
+import { useReducedMotion } from 'motion/react'
 import { motionEasings } from '@orbit/shared/theme'
 import { formatLoginCountdown, type LoginCodeFailure } from '@orbit/shared/utils'
 import { OtpInput } from '@/components/ui/otp-input'
@@ -52,13 +53,13 @@ export function CodeStep({ email, codeDigits, isSubmitting, isResending, canRese
         </div>
       </div>
       <form className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onVerifyCode() }}>
-        <motion.div animate={shake ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }}
+        <m.div animate={shake ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }}
           transition={{ duration: reduced ? 0 : 0.28, ease: motionEasings.standard }} data-mock={expired || undefined}>
           <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')}
             onChange={onCodeChange} onBlur={onCodeBlur} focusRequest={codeFocusRequest} error={fieldError}
             hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
             disabled={isSubmitting || expired || waiting} />
-        </motion.div>
+        </m.div>
         {turnstileWidget}
         {!isOnline && <LoginOfflineNotice t={t} />}
         {!waiting && !expired && <PillButton disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6 || !canSubmitTurnstile}

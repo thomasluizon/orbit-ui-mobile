@@ -1,3 +1,5 @@
+import { commandWords, inspectCommands, shellValue } from "./command-expander.mjs"
+
 // Resolve existing ancestors through symlinks so an indirect path into node_modules is refused.
 
 import { existsSync, realpathSync } from "node:fs"
@@ -5,12 +7,11 @@ import { basename, dirname, isAbsolute, join, resolve } from "node:path"
 
 import { stripHeredocBodies } from "./rules-git.mjs"
 
-const SEGMENT_SPLIT = /[&|;\n]+/
 const LEADING_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)(?:\s+|$)/
 const QUOTED_SPAN = /"[^"]*"|'[^']*'/g
-const QUOTED_REDIRECT = />>?\s*("[^"]*"|'[^']*')/g
+const QUOTED_REDIRECT = />(?:>|\|)?\s*("[^"]*"|'[^']*')/g
 /** `2>&1` names a stream rather than a file, so a redirection into `&` is never resolved. */
-const BARE_REDIRECT = />>?\s*(?!&)([^\s;|&<>"']+)/g
+const BARE_REDIRECT = />(?:>|\|)?\s*(?!&)([^\s;|&<>"']+)/g
 
 /** Package runners that front another program. The real invocation is whatever follows them. */
 const RUNNER_PREFIXES = new Set(["npx", "bunx", "sudo", "command", "time"])
@@ -82,7 +83,7 @@ function tokensOf(segment) {
 const isFlag = (token) => token.startsWith("-")
 
 /** `--` separates a runner's own flags from the command, and is not itself the command. */
-const dropLeadingFlags = (tokens) => {
+export const dropLeadingFlags = (tokens) => {
   let index = 0
   while (index < tokens.length && (tokens[index] === "--" || isFlag(tokens[index]))) index += 1
   return tokens.slice(index)
@@ -141,6 +142,26 @@ function powershellWriteTargets(binary, rest) {
   return targets
 }
 
+/** Bind path literals to file-writing calls, rather than to unrelated reads or output contents. */
+function interpreterWriteTargets(segment) {
+  const code = commandWords(segment).slice(1).map(shellValue).join(" ")
+  const literal = "([\"'`])(.*?)\\1"
+  const directWrites = new RegExp(`\\b(?:writeFile(?:Sync)?|appendFile(?:Sync)?|truncate(?:Sync)?|unlink(?:Sync)?|rm(?:Sync)?|rmdir(?:Sync)?|mkdir(?:Sync)?|createWriteStream|File\\.(?:write|append))\\s*\\(\\s*${literal}`, "g")
+  const targets = [...code.matchAll(directWrites)].map((match) => match[2])
+  for (const match of code.matchAll(/\bopen(?:Sync)?\s*\(\s*(["'`])(.*?)\1\s*,\s*(?:mode\s*=\s*)?(["'`])(.*?)\3/g)) {
+    if (/[wax+]/.test(match[4])) targets.push(match[2])
+  }
+  for (const match of code.matchAll(/\bopen\s*\(\s*(?:my\s+)?\$\w+\s*,\s*(["'])(.*?)\1\s*,\s*(["'])(.*?)\3/g)) {
+    if (/[>+]/.test(match[2])) targets.push(match[4])
+  }
+  for (const match of code.matchAll(/\bPath\s*\(\s*(["'])(.*?)\1\s*\)\s*\.\s*(?:write_text|write_bytes|touch|unlink|mkdir)\s*\(/g)) targets.push(match[2])
+  for (const match of code.matchAll(/\b(rename(?:Sync)?|copyFile(?:Sync)?)\s*\(\s*(["'`])(.*?)\2\s*,\s*(["'`])(.*?)\4/g)) {
+    if (match[1].startsWith("rename")) targets.push(match[3])
+    targets.push(match[5])
+  }
+  return targets
+}
+
 function segmentWrites(segment) {
   const targets = redirectTargets(segment)
   const { tokens, strippedRunner } = withoutRunners(tokensOf(segment))
@@ -157,6 +178,10 @@ function segmentWrites(segment) {
    * `grep -rn patch-package .claude/hooks` and `npm install patch-package` stay ordinary commands.
    */
   if (strippedRunner && tokens.some((token) => PATCH_TOOLS.has(normalize(token)))) return { patchTool: true, targets }
+  const inlineInterpreter = ["node", "nodejs", "python", "python3", "ruby", "perl"].includes(binary) && rest.some((token) => /^-[a-z]*[ec]/i.test(token))
+  if (inlineInterpreter) targets.push(...interpreterWriteTargets(segment))
+  if (binary === "dd") targets.push(...rest.filter((token) => token.startsWith("of=")).map((token) => token.slice(3)))
+  if (binary === "perl" && rest.some((token) => /^-[a-z]*i/.test(token))) targets.push(...args)
   if (binary === "sed" && rest.some((token) => SED_IN_PLACE.test(token))) targets.push(...args.slice(1))
   if (WRITES_EVERY_ARGUMENT.has(binary)) targets.push(...args)
   if (WRITES_LAST_ARGUMENT.has(binary) && args.length > 1) targets.push(args[args.length - 1])
@@ -198,12 +223,16 @@ export function checkDependencyFileWrite(filePath, { cwd = "" } = {}) {
 export function checkDependencyCommand(command, { cwd = "" } = {}) {
   if (typeof command !== "string") return null
 
-  for (const segment of stripHeredocBodies(command).split(SEGMENT_SPLIT)) {
+  let verdict = null
+  inspectCommands(stripHeredocBodies(command), cwd || process.cwd(), (segment, directory) => {
+    const words = tokensOf(segment)
+    if (normalize(words[0]) === "cd" && words[1]) directory = resolve(directory, unquote(words[1]))
     const { patchTool, targets } = segmentWrites(segment)
-    if (patchTool) return refusal("Running patch-package", `Refused: ${segment.trim().slice(0, 160)}`)
-    if (targets.some((target) => resolvesInsideNodeModules(target, cwd))) {
-      return refusal("Writing a file", `Refused: ${segment.trim().slice(0, 160)}`)
+    if (patchTool) verdict ??= refusal("Running patch-package", `Refused: ${segment.trim().slice(0, 160)}`)
+    if (targets.some((target) => resolvesInsideNodeModules(target, directory))) {
+      verdict ??= refusal("Writing a file", `Refused: ${segment.trim().slice(0, 160)}`)
     }
-  }
-  return null
+    return directory
+  })
+  return verdict
 }

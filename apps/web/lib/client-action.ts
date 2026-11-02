@@ -102,8 +102,9 @@ export async function runServerAction<T>(
 
 export function bindServerAction<Arguments extends unknown[], T>(
   action: (...arguments_: Arguments) => Promise<ServerActionResult<T>>,
+  failureMode: 'reload' | 'reject' = 'reload',
 ): (...arguments_: Arguments) => Promise<T> {
-  return (...arguments_) => runServerAction(action(...arguments_))
+  return (...arguments_) => runServerAction(action(...arguments_), failureMode)
 }
 
 export function bindAccountServerAction<Arguments extends unknown[], T>(

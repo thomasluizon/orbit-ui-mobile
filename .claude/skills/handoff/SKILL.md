@@ -31,11 +31,11 @@ is confirmed. This is the exception to the owner handoff's ending
 rule below. Every other inventory, spec, prompt, commit and push requirement still applies.
 
 For a local check detached with `setsid` to survive the relay, start
-`node tools/wait-file.mjs --file <absolute completion file> --what <check label>` as a background
-task. Use a fresh completion file for each check. CI and file waiters may remain live during the
+`node tools/wait-file.mjs --file <absolute completion file> --started-at <original ISO start> --what <check label>` as a background
+task. Write the completion file atomically as JSON `{ "exitCode": <check exit status> }` after the check exits. Carry the original ISO start time with the file path. Use a fresh completion file for each check. CI and file waiters may remain live during the
 drain; neither blocks it. The relay tool stops this session's waiters while the detached check
 keeps running. Record the check and its absolute completion file in the in-flight inventory;
-the successor starts a new file waiter on that same file. The waiter registers a wake source
+the successor starts a new file waiter on that same file, passing the original start with `--started-at`. The waiter registers a wake source
 until it exits; a plain shell polling loop does not.
 
 Relay mode waits for every live background Workflow run and background subagent to finish before ending the session, with the hook and relay tool checking recorded launch and completion evidence and the owning process start identity.

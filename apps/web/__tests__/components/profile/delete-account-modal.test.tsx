@@ -1,3 +1,5 @@
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { destructiveFailureCases, destructiveActionMessage } from '@orbit/shared/test-support/destructive-action-fixtures'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import en from '@orbit/shared/i18n/en.json'
@@ -15,9 +17,12 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push }),
 }))
 
+const failureCopy = vi.hoisted(() => ({ actual: false, locale: 'en' }))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    const warningKey = key.slice('profile.deleteAccount.'.length)
+    if (failureCopy.actual) return destructiveActionMessage(failureCopy.locale, key)
+      const warningKey = key.slice('profile.deleteAccount.'.length)
     const warning = key.startsWith('profile.deleteAccount.warning') || key === 'profile.deleteAccount.offlineDescription'
       ? Reflect.get(en.profile.deleteAccount, warningKey) as unknown
       : undefined
@@ -45,6 +50,7 @@ vi.mock('@/components/ui/sheet', async () =>
 import { DeleteAccountModal } from '@/app/(app)/profile/_components/delete-account-modal'
 import {
   holdAccount,
+  retireHeldAccount,
   recoverSameAccount,
   replaceAccountWith,
 } from '@/__tests__/support/account-change'
@@ -86,6 +92,7 @@ const profile = {
 
 describe('DeleteAccountModal', () => {
   beforeEach(() => {
+    failureCopy.actual = false; failureCopy.locale = 'en'
     vi.clearAllMocks()
     sheetTestControls.defer(false)
     mocks.requestDeletion.mockResolvedValue(undefined)
@@ -98,6 +105,42 @@ describe('DeleteAccountModal', () => {
     cleanup()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+  })
+
+  it('sends one deletion request when Send code is pressed twice in the same turn', async () => {
+    let reject!: (error: Error) => void
+    mocks.requestDeletion.mockReturnValueOnce(new Promise<void>((_resolve, rejectRequest) => { reject = rejectRequest }))
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+    const send = screen.getByRole('button', { name: 'profile.deleteAccount.sendCode' })
+    act(() => { fireEvent.click(send); fireEvent.click(send) })
+    expect(mocks.requestDeletion).toHaveBeenCalledOnce()
+    await act(async () => reject(new Error('Failed')))
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-1')
+  })
+
+  it.each(destructiveFailureCases.flatMap(scenario => ['en', 'pt-BR'].map(locale => ({ ...scenario, locale }))))('shows $kind failure copy in $locale and keeps the session', async ({ createError, key, locale }) => {
+    failureCopy.actual = true; failureCopy.locale = locale
+    mocks.requestDeletion.mockRejectedValueOnce(createError())
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+    const label = destructiveActionMessage(locale, 'profile.deleteAccount.sendCode')
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(destructiveActionMessage(locale, key ?? 'profile.deleteAccount.errorGeneric'))
+    expect(screen.getByRole('button', { name: label })).toBeEnabled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-1')
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+    expect(mocks.onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('does not request deletion without an account', async () => {
+    await retireHeldAccount()
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+    const send = screen.getByRole('button', { name: 'profile.deleteAccount.sendCode' })
+    expect(send).toBeDisabled()
+    fireEvent.click(send)
+    expect(mocks.requestDeletion).not.toHaveBeenCalled()
   })
 
   it('explains Apple cancellation while preserving the deletion window', () => {
@@ -184,6 +227,8 @@ describe('DeleteAccountModal', () => {
     expect(sheetSlotButtons('sheet-actions')).toEqual([])
     expect(mocks.requestDeletion).toHaveBeenCalledOnce()
     expect(mocks.push).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-1')
   })
 
   it('shows the Pro deletion upper bound without tying it to the plan ending', () => {
@@ -280,6 +325,8 @@ describe('DeleteAccountModal', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('profile.deleteAccount.errorGeneric')
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
     expect(mocks.push).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-1')
   })
 
   it('shows a failed send in the pinned footer, beside Send code', async () => {
@@ -289,6 +336,8 @@ describe('DeleteAccountModal', () => {
     fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
 
     expect((await screen.findByRole('alert')).closest('[data-slot="sheet-actions"]')).not.toBeNull()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-1')
   })
 
   it('renders nothing while closed', () => {
@@ -308,6 +357,8 @@ describe('DeleteAccountModal', () => {
     await replaceAccountWith('user-2')
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-2')
   })
 
   it('keeps the send failure when the same account recovers from a rejected refresh', async () => {
@@ -320,6 +371,8 @@ describe('DeleteAccountModal', () => {
     await recoverSameAccount('user-1')
 
     expect(screen.getByRole('alert')).toHaveTextContent('profile.deleteAccount.errorGeneric')
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(getHeldAccountId()).toBe('user-1')
   })
 
   it('stops the send spinner when another account replaces the tab mid request', async () => {

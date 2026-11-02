@@ -75,7 +75,12 @@ const expandWorkspacePattern = (pattern) => {
         .map((entry) => join(candidate, entry.name))
     })
   }
-  return candidates.filter((candidate) => existsSync(join(candidate, "package.json")))
+  const packages = candidates.filter((candidate) => existsSync(join(candidate, "package.json")))
+  if (packages.length === 0) {
+    console.error(`check-workspace-overrides: workspace pattern matches no package: ${pattern}`)
+    process.exit(2)
+  }
+  return packages
 }
 
 const workspacePackagePaths = [...new Set(workspacePatterns.flatMap(expandWorkspacePattern).map((workspace) => join(workspace, "package.json")))]

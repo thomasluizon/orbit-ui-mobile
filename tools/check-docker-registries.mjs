@@ -162,7 +162,7 @@ const inspectWorkflow = (filename, contents, imageArguments) => {
       const action = stepValue(step, "uses") ?? ""
       if (!/^docker\/build-push-action@/.test(action)) continue
       violations.push(...inspectBuildArguments(filename, step, imageArguments))
-      if (dockerDriver && stepValue(step, "push", true) === "true" && stepValue(step, "provenance", true) !== "false") {
+      if (dockerDriver && stepValue(step, "push", true) !== undefined && stepValue(step, "push", true) !== "false" && stepValue(step, "provenance", true) !== "false") {
         violations.push(`${filename}:${step.line}: ${stepValue(step, "name") ?? action} must set provenance: false for pushes with the docker driver`)
       }
     }

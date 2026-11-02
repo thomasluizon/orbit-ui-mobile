@@ -1,19 +1,57 @@
+use crate::locks::RecoverLock;
 use crate::{
     lifecycle,
     localization::Labels,
     menus, update_manifest,
     update_state::{Phase, QuitAction, Snapshot, UpdateState},
 };
-use std::{sync::Mutex, time::Duration};
+use sha2::{Digest, Sha256};
+use std::{
+    io::Write,
+    path::Path,
+    sync::Mutex,
+    time::{Duration, Instant},
+};
 use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_updater::{Update, UpdaterExt};
 use uuid::Uuid;
 
-const CHECK_INTERVAL: Duration = Duration::from_secs(60);
-struct Package {
-    update: Update,
-    bytes: Option<Vec<u8>>,
+enum Package {
+    Remote(Update),
+    Verified {
+        update: Update,
+        artifact: StagedPackage,
+    },
+}
+
+struct StagedPackage {
+    path: tempfile::TempPath,
+    digest: [u8; 32],
+}
+
+impl StagedPackage {
+    fn save(directory: &Path, bytes: &[u8]) -> Result<Self, String> {
+        std::fs::create_dir_all(directory).map_err(|error| error.to_string())?;
+        let mut file =
+            tempfile::NamedTempFile::new_in(directory).map_err(|error| error.to_string())?;
+        file.write_all(bytes).map_err(|error| error.to_string())?;
+        file.as_file()
+            .sync_all()
+            .map_err(|error| error.to_string())?;
+        Ok(Self {
+            path: file.into_temp_path(),
+            digest: Sha256::digest(bytes).into(),
+        })
+    }
+
+    fn read(&self) -> Result<Vec<u8>, String> {
+        let bytes = std::fs::read(&self.path).map_err(|error| error.to_string())?;
+        if <[u8; 32]>::from(Sha256::digest(&bytes)) != self.digest {
+            return Err("Desktop update package digest mismatch".into());
+        }
+        Ok(bytes)
+    }
 }
 type PendingUpdate = Mutex<UpdateState<Package>>;
 
@@ -30,7 +68,11 @@ pub fn start(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             .name("desktop-updates".into())
             .spawn(move || loop {
                 check(&handle);
-                std::thread::sleep(CHECK_INTERVAL);
+                let delay = handle
+                    .state::<PendingUpdate>()
+                    .recover_lock()
+                    .check_delay(Instant::now());
+                std::thread::sleep(delay.max(Duration::from_secs(1)));
             })?;
     }
     Ok(())
@@ -40,7 +82,7 @@ pub fn check(app: &AppHandle) {
     let Some(state) = app.try_state::<PendingUpdate>() else {
         return;
     };
-    if !state.lock().unwrap().begin_check() {
+    if !state.recover_lock().begin_scheduled_check(Instant::now()) {
         return;
     }
     show_status(app);
@@ -61,10 +103,16 @@ fn checked_package<T>(
     state: &Mutex<UpdateState<T>>,
     candidate: Result<Option<(String, T)>, ()>,
 ) -> Option<T> {
-    let mut state = state.lock().unwrap();
+    let mut state = state.recover_lock();
     state.checked(candidate);
-    if state.phase == Phase::Available {
-        Some(state.begin_download(Uuid::new_v4()).unwrap())
+    if state.phase() == Phase::Available {
+        match state.begin_download(Uuid::new_v4()) {
+            Ok(package) => Some(package),
+            Err(error) => {
+                eprintln!("Cannot begin desktop update download: {error}");
+                None
+            }
+        }
     } else {
         None
     }
@@ -87,19 +135,13 @@ async fn check_release(
         update.raw_json.clone(),
     )?;
     update.timeout = Some(Duration::from_secs(5 * 60));
-    Ok(Some((
-        update.version.clone(),
-        Package {
-            update,
-            bytes: None,
-        },
-    )))
+    Ok(Some((update.version.clone(), Package::Remote(update))))
 }
 
 pub fn offer_or_check(app: &AppHandle) {
     let available = {
         let state = app.state::<PendingUpdate>();
-        let mut state = state.lock().unwrap();
+        let mut state = state.recover_lock();
         let available = state.version.is_some() || state.web_commit.is_some();
         if available {
             state.reveal();
@@ -117,8 +159,7 @@ pub fn offer_or_check(app: &AppHandle) {
 
 pub fn request_restart(app: &AppHandle) {
     app.state::<PendingUpdate>()
-        .lock()
-        .unwrap()
+        .recover_lock()
         .request_restart();
     if let Err(error) = lifecycle::show_main(app) {
         eprintln!("Cannot show desktop update: {error}");
@@ -141,7 +182,7 @@ pub fn request_quit(app: &AppHandle) -> bool {
 }
 
 fn dispatch_quit<T>(state: &Mutex<UpdateState<T>>, install: impl FnOnce(T)) -> bool {
-    let action = state.lock().unwrap().request_quit();
+    let action = state.recover_lock().request_quit();
     match action {
         QuitAction::Exit => false,
         QuitAction::Wait => true,
@@ -156,7 +197,7 @@ pub fn show_prompt(app: &AppHandle) {
     let Some(state) = app.try_state::<PendingUpdate>() else {
         return;
     };
-    if !state.lock().unwrap().snapshot().prompt_pending {
+    if !state.recover_lock().snapshot().prompt_pending {
         return;
     }
     let handle = app.clone();
@@ -176,8 +217,7 @@ fn prompt_visible_window(app: &AppHandle) -> tauri::Result<()> {
     let visible = window.is_visible()?;
     let version = app
         .state::<PendingUpdate>()
-        .lock()
-        .unwrap()
+        .recover_lock()
         .take_prompt(visible);
     let Some(version) = version else {
         return Ok(());
@@ -195,8 +235,7 @@ fn prompt_visible_window(app: &AppHandle) -> tauri::Result<()> {
         .show(move |restart| {
             handle
                 .state::<PendingUpdate>()
-                .lock()
-                .unwrap()
+                .recover_lock()
                 .answer_prompt(&version, restart);
             show_status(&handle);
         });
@@ -240,40 +279,51 @@ pub async fn desktop_update(
             .await?
         }
         Action::Install => install(&app, &url).await?,
-        _ => {
-            let state = app.state::<PendingUpdate>();
-            let mut state = state.lock().unwrap();
-            match action {
-                Action::WebRelease => {
-                    if let Some(commit) = &commit {
-                        if commit.len() != 40
-                            || !commit
-                                .bytes()
-                                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-                        {
-                            return Err("Invalid desktop web commit".into());
-                        }
-                    }
-                    state.web_commit = commit;
-                }
-                Action::Defer => state.defer(),
-                Action::Cancel => state.clear_restart(),
-                Action::Release => {
-                    state.release_install(reservation.ok_or("Missing desktop update reservation")?)
-                }
-                _ => {}
-            }
-        }
+        _ => apply_action(&app.state::<PendingUpdate>(), action, commit, reservation)?,
     }
     show_status(&app);
-    let snapshot = app.state::<PendingUpdate>().lock().unwrap().snapshot();
+    let snapshot = app.state::<PendingUpdate>().recover_lock().snapshot();
     Ok(snapshot)
+}
+
+fn apply_action<T>(
+    state: &Mutex<UpdateState<T>>,
+    action: Action,
+    commit: Option<String>,
+    reservation: Option<Uuid>,
+) -> Result<(), String> {
+    let mut state = state.recover_lock();
+    match action {
+        Action::WebRelease => {
+            validate_web_commit(commit.as_deref())?;
+            state.web_commit = commit;
+        }
+        Action::Defer => state.defer(),
+        Action::Cancel => state.clear_restart(),
+        Action::Release => {
+            state.release_install(reservation.ok_or("Missing desktop update reservation")?)
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn validate_web_commit(commit: Option<&str>) -> Result<(), String> {
+    if commit.is_some_and(|commit| {
+        commit.len() != 40
+            || !commit
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    }) {
+        return Err("Invalid desktop web commit".into());
+    }
+    Ok(())
 }
 
 async fn download(app: &AppHandle, reservation: Uuid) -> Result<(), String> {
     let package = {
         let state = app.state::<PendingUpdate>();
-        let mut state = state.lock().unwrap();
+        let mut state = state.recover_lock();
         state.begin_download(reservation)?
     };
     download_package(app, package).await;
@@ -282,41 +332,53 @@ async fn download(app: &AppHandle, reservation: Uuid) -> Result<(), String> {
 
 async fn download_package(app: &AppHandle, package: Package) {
     show_status(app);
-    let result = match package.bytes {
-        Some(bytes) => Ok(bytes),
-        None => package.update.download(|_, _| {}, || {}).await,
+    let update = match package {
+        Package::Verified { update, artifact } => {
+            match artifact.read() {
+                Ok(_) => {
+                    app.state::<PendingUpdate>()
+                        .recover_lock()
+                        .downloaded(Package::Verified { update, artifact }, true);
+                    return;
+                }
+                Err(error) => eprintln!("Cannot reuse staged desktop update: {error}"),
+            }
+            update
+        }
+        Package::Remote(update) => update,
     };
-    let state = app.state::<PendingUpdate>();
-    let mut state = state.lock().unwrap();
-    let (bytes, verified) = match result {
-        Ok(bytes) => (Some(bytes), true),
+    let staged = stage_download(app, &update).await;
+    let (package, verified) = match staged {
+        Ok(artifact) => (Package::Verified { update, artifact }, true),
         Err(error) => {
             eprintln!("Cannot download desktop update: {error}");
-            (None, false)
+            (Package::Remote(update), false)
         }
     };
-    state.downloaded(
-        Package {
-            update: package.update,
-            bytes,
-        },
-        verified,
-    );
+    app.state::<PendingUpdate>()
+        .recover_lock()
+        .downloaded(package, verified);
+}
+
+async fn stage_download(app: &AppHandle, update: &Update) -> Result<StagedPackage, String> {
+    let bytes = update
+        .download(|_, _| {}, || {})
+        .await
+        .map_err(|error| error.to_string())?;
+    let directory = app
+        .path()
+        .app_cache_dir()
+        .map_err(|error| error.to_string())?
+        .join("updates");
+    tauri::async_runtime::spawn_blocking(move || StagedPackage::save(&directory, &bytes))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 async fn install(app: &AppHandle, url: &tauri::Url) -> Result<(), String> {
-    let package = {
-        let state = app.state::<PendingUpdate>();
-        let mut state = state.lock().unwrap();
-        if state.phase != Phase::Downloaded {
-            return Err("Desktop update is not downloaded".into());
-        }
-        if state.snapshot().prompt_pending {
-            return Err("Desktop update awaits native confirmation".into());
-        }
-        crate::update_resume::save(app, url).map_err(|error| error.to_string())?;
-        state.begin_install()?
-    };
+    let package = reserve_install(&app.state::<PendingUpdate>(), || {
+        crate::update_resume::save(app, url)
+    })?;
     show_status(app);
     let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || install_package(&app, package, true))
@@ -324,39 +386,60 @@ async fn install(app: &AppHandle, url: &tauri::Url) -> Result<(), String> {
         .map_err(|error| error.to_string())?
 }
 
+fn reserve_install<T>(
+    state: &Mutex<UpdateState<T>>,
+    save: impl FnOnce() -> Result<(), String>,
+) -> Result<T, String> {
+    let package = state.recover_lock().begin_install()?;
+    if let Err(error) = save() {
+        state.recover_lock().install_failed(package);
+        return Err(error);
+    }
+    Ok(package)
+}
+
 fn install_package(app: &AppHandle, package: Package, resume_saved: bool) -> Result<(), String> {
     lifecycle::save_window(app);
     run_install(
         &app.state::<PendingUpdate>(),
         package,
-        |package, quitting| {
-            package
-                .update
+        |package, quitting| match package {
+            Package::Verified { update, artifact } => update
                 .clone()
                 .restart_after_install(!quitting)
-                .install(package.bytes.as_ref().unwrap())
+                .install(artifact.read()?)
+                .map_err(|error| error.to_string()),
+            Package::Remote(_) => Err("Desktop update is not downloaded".into()),
         },
-        |quitting, result| {
-            let mut cleanup = Ok(());
-            if let Err(error) = &result {
-                eprintln!("Cannot install desktop update: {error}");
-                if resume_saved {
-                    cleanup = crate::update_resume::clear(app);
-                }
-            }
-            if quitting {
-                app.exit(0);
-            } else if result.is_err() {
-                if let Err(error) = lifecycle::show_main(app) {
-                    eprintln!("Cannot show failed desktop update: {error}");
-                }
-            } else {
-                #[cfg(not(windows))]
-                app.request_restart();
-            }
-            cleanup
-        },
+        |quitting, result| finish_install(app, resume_saved, quitting, result),
     )
+}
+
+fn finish_install(
+    app: &AppHandle,
+    resume_saved: bool,
+    quitting: bool,
+    result: Result<(), String>,
+) -> Result<(), String> {
+    let mut cleanup = Ok(());
+    if let Err(error) = &result {
+        eprintln!("Cannot install desktop update: {error}");
+        if resume_saved {
+            cleanup = crate::update_resume::clear(app);
+        }
+    }
+    show_status(app);
+    if quitting {
+        app.exit(0);
+    } else if result.is_err() {
+        if let Err(error) = lifecycle::show_main(app) {
+            eprintln!("Cannot show failed desktop update: {error}");
+        }
+    } else {
+        #[cfg(not(windows))]
+        app.request_restart();
+    }
+    result.and(cleanup)
 }
 
 fn run_install<T, E, R>(
@@ -365,10 +448,10 @@ fn run_install<T, E, R>(
     install: impl FnOnce(&T, bool) -> Result<(), E>,
     finish: impl FnOnce(bool, Result<(), E>) -> R,
 ) -> R {
-    let quitting = state.lock().unwrap().quit_requested;
+    let quitting = state.recover_lock().quit_requested;
     let result = install(&package, quitting);
     let quitting = {
-        let mut state = state.lock().unwrap();
+        let mut state = state.recover_lock();
         let quitting = state.quit_requested;
         if result.is_ok() {
             state.installed();
@@ -395,10 +478,16 @@ fn publish_status<T, E>(
     publish: impl FnOnce(&Snapshot, bool) -> Result<(), E>,
 ) -> Result<(), E> {
     let (snapshot, enabled) = {
-        let state = state.lock().unwrap();
-        (state.snapshot(), state.enabled)
+        let state = state.recover_lock();
+        let snapshot = state.snapshot();
+        if state.published.as_ref() == Some(&(snapshot.clone(), state.enabled)) {
+            return Ok(());
+        }
+        (snapshot, state.enabled)
     };
-    publish(&snapshot, enabled)
+    publish(&snapshot, enabled)?;
+    state.recover_lock().published = Some((snapshot, enabled));
+    Ok(())
 }
 
 #[cfg(test)]
@@ -406,12 +495,113 @@ mod tests {
     use super::*;
 
     #[test]
+    fn native_restart_web_cancel_download_install_and_retry_keep_approval() {
+        let state = Mutex::new(UpdateState::new(true));
+        let package = checked_package(&state, Ok(Some(("0.2.0".into(), "package")))).unwrap();
+        state.recover_lock().downloaded(package, true);
+        let version = state.recover_lock().take_prompt(true).unwrap();
+        state.recover_lock().answer_prompt(&version, true);
+        apply_action(&state, Action::Cancel, None, None).unwrap();
+        assert!(!state.recover_lock().snapshot().restart_requested);
+        for fail in [true, false] {
+            let reservation = Uuid::new_v4();
+            let package = state.recover_lock().begin_download(reservation).unwrap();
+            state.recover_lock().downloaded(package, true);
+            let package = reserve_install(&state, || Ok(())).unwrap();
+            run_install(
+                &state,
+                package,
+                |_, _| {
+                    if fail {
+                        Err("install failed")
+                    } else {
+                        Ok(())
+                    }
+                },
+                |_, _| (),
+            );
+            apply_action(&state, Action::Release, None, Some(reservation)).unwrap();
+            assert!(!state.recover_lock().snapshot().restart_requested);
+        }
+        assert_eq!(state.recover_lock().phase(), Phase::Idle);
+    }
+
+    #[test]
+    fn failed_install_web_retry_does_not_need_another_native_restart() {
+        let state = deferred_package();
+        state.recover_lock().request_restart();
+        let package = reserve_install(&state, || Ok(())).unwrap();
+        run_install(&state, package, |_, _| Err("install failed"), |_, _| ());
+        assert!(!state.recover_lock().snapshot().restart_requested);
+        let package = state.recover_lock().begin_download(Uuid::new_v4()).unwrap();
+        state.recover_lock().downloaded(package, true);
+        assert_eq!(reserve_install(&state, || Ok(())), Ok("package"));
+    }
+
+    #[test]
+    fn install_refusals_never_save_a_resume_record() {
+        let state = Mutex::new(UpdateState::<&str>::new(true));
+        assert_eq!(
+            reserve_install(&state, || panic!("unexpected resume save")),
+            Err("Desktop update is not downloaded".into())
+        );
+        let package = checked_package(&state, Ok(Some(("0.2.0".into(), "package")))).unwrap();
+        state.recover_lock().downloaded(package, true);
+        assert_eq!(
+            reserve_install(&state, || panic!("unexpected resume save")),
+            Err("Desktop update awaits native confirmation".into())
+        );
+        let version = state.recover_lock().take_prompt(true).unwrap();
+        state.recover_lock().answer_prompt(&version, false);
+        assert_eq!(
+            reserve_install(&state, || panic!("unexpected resume save")),
+            Err("Desktop update restart was not requested".into())
+        );
+    }
+
+    #[test]
+    fn staged_packages_recheck_the_digest_and_preserve_failed_installs_for_retry() {
+        let directory = tempfile::tempdir().unwrap();
+        let package = StagedPackage::save(directory.path(), b"verified installer").unwrap();
+        assert_eq!(package.read().unwrap(), b"verified installer");
+        std::fs::write(&package.path, b"tampered installer").unwrap();
+        let mut state = UpdateState::new(true);
+        state.checked(Ok(Some(("0.2.0".into(), package))));
+        let package = state.begin_download(Uuid::new_v4()).unwrap();
+        state.downloaded(package, true);
+        let version = state.take_prompt(true).unwrap();
+        state.answer_prompt(&version, true);
+        let state = Mutex::new(state);
+        let package = reserve_install(&state, || Ok(())).unwrap();
+        run_install(
+            &state,
+            package,
+            |package, _| package.read().map(|_| ()),
+            |_, result| {
+                assert_eq!(result, Err("Desktop update package digest mismatch".into()));
+            },
+        );
+        assert_eq!(state.recover_lock().phase(), Phase::Failed);
+        assert!(state.recover_lock().package().is_some());
+    }
+
+    #[test]
+    fn unchanged_snapshots_do_not_update_the_menu() {
+        let state = Mutex::new(UpdateState::<()>::new(true));
+        publish_status(&state, |_, _| Ok::<(), ()>(())).unwrap();
+        publish_status(&state, |_, _| -> Result<(), ()> {
+            panic!("unchanged menu")
+        })
+        .unwrap();
+    }
+
+    #[test]
     fn background_check_downloads_before_prompting_and_pins_the_ready_version() {
         let state = Mutex::new(UpdateState::new(true));
         let package = checked_package(&state, Ok(Some(("0.2.0".into(), "package")))).unwrap();
         {
-            let mut state = state.lock().unwrap();
-            assert_eq!(state.phase, Phase::Downloading);
+            let mut state = state.recover_lock();
+            assert_eq!(state.phase(), Phase::Downloading);
             assert_eq!(state.take_prompt(true), None);
             state.downloaded(package, true);
             assert_eq!(state.take_prompt(false), None);
@@ -420,23 +610,23 @@ mod tests {
             checked_package(&state, Ok(Some(("0.3.0".into(), "newer")))),
             None
         );
-        let mut state = state.lock().unwrap();
+        let mut state = state.recover_lock();
         assert_eq!(state.take_prompt(true).as_deref(), Some("0.2.0"));
         assert_eq!(state.take_prompt(true), None);
-        assert_eq!(state.package, Some("package"));
+        assert_eq!(state.package().copied(), Some("package"));
     }
 
     #[test]
     fn failed_background_download_requires_retry_and_does_not_prompt() {
         let state = Mutex::new(UpdateState::new(true));
         let package = checked_package(&state, Ok(Some(("0.2.0".into(), "package")))).unwrap();
-        state.lock().unwrap().downloaded(package, false);
+        state.recover_lock().downloaded(package, false);
         assert_eq!(
             checked_package(&state, Ok(Some(("0.2.0".into(), "same")))),
             None
         );
-        assert_eq!(state.lock().unwrap().take_prompt(true), None);
-        assert_eq!(state.lock().unwrap().phase, Phase::Failed);
+        assert_eq!(state.recover_lock().take_prompt(true), None);
+        assert_eq!(state.recover_lock().phase(), Phase::Failed);
     }
 
     fn deferred_package() -> Mutex<UpdateState<&'static str>> {
@@ -454,8 +644,8 @@ mod tests {
         let state = deferred_package();
         let exited = std::cell::Cell::new(false);
         assert!(dispatch_quit(&state, |package| {
-            assert_eq!(state.lock().unwrap().phase, Phase::Installing);
-            assert!(!state.lock().unwrap().snapshot().restart_requested);
+            assert_eq!(state.recover_lock().phase(), Phase::Installing);
+            assert!(!state.recover_lock().snapshot().restart_requested);
             run_install(
                 &state,
                 package,
@@ -465,14 +655,14 @@ mod tests {
                     for _ in 0..2 {
                         assert!(dispatch_quit(&state, |_| panic!("duplicate installation")));
                         assert!(!exited.get());
-                        assert_eq!(state.lock().unwrap().phase, Phase::Installing);
+                        assert_eq!(state.recover_lock().phase(), Phase::Installing);
                     }
                     Ok::<(), &str>(())
                 },
                 |quitting, result| {
                     assert!(quitting);
                     assert!(result.is_ok());
-                    assert_eq!(state.try_lock().unwrap().phase, Phase::Idle);
+                    assert_eq!(state.try_lock().unwrap().phase(), Phase::Idle);
                     assert!(!dispatch_quit(&state, |_| panic!("completed installation")));
                     exited.set(true);
                 },
@@ -501,7 +691,7 @@ mod tests {
                     let snapshot = state.try_lock().unwrap().snapshot();
                     assert_eq!(snapshot.phase, Phase::Failed);
                     assert_eq!(snapshot.shell_version.as_deref(), Some("0.2.0"));
-                    assert_eq!(state.lock().unwrap().package, Some("package"));
+                    assert_eq!(state.recover_lock().package().copied(), Some("package"));
                     assert!(!dispatch_quit(&state, |_| panic!("implicit retry")));
                     exited.set(true);
                 },
@@ -519,16 +709,15 @@ mod tests {
     #[test]
     fn restart_now_keeps_the_web_handoff_and_relaunches_after_installing() {
         let state = deferred_package();
-        state.lock().unwrap().request_restart();
+        state.recover_lock().request_restart();
         {
-            let mut state = state.lock().unwrap();
+            let state = state.recover_lock();
             assert!(state.snapshot().restart_requested);
-            assert_eq!(state.phase, Phase::Downloaded);
-            assert_eq!(state.package, Some("package"));
+            assert_eq!(state.phase(), Phase::Downloaded);
+            assert_eq!(state.package().copied(), Some("package"));
             assert!(!state.quit_requested);
-            state.clear_restart();
         }
-        let package = state.lock().unwrap().begin_install().unwrap();
+        let package = state.recover_lock().begin_install().unwrap();
         run_install(
             &state,
             package,
@@ -539,7 +728,7 @@ mod tests {
             |quitting, result| {
                 assert!(!quitting);
                 assert!(result.is_ok());
-                assert_eq!(state.lock().unwrap().phase, Phase::Idle);
+                assert_eq!(state.recover_lock().phase(), Phase::Idle);
             },
         );
     }
@@ -561,6 +750,6 @@ mod tests {
             Err("menu unavailable")
         });
         assert_eq!(result, Err("menu unavailable"));
-        assert!(state.lock().unwrap().snapshot().restart_requested);
+        assert!(state.recover_lock().snapshot().restart_requested);
     }
 }

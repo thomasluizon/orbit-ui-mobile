@@ -22,6 +22,7 @@ const receiptVerdict = (entry) => {
 
 try {
   const input = readStdinJson()
+  if (input.stop_hook_active === true) process.exit(0)
   const wakeSourceStates = readWakeSourceStates()
   let state = readRunState()
   const config = readOrchestratorConfig()
@@ -50,6 +51,7 @@ try {
     process.stderr.write(verdict.message)
   }
   process.exit(0)
-} catch {
-  process.exit(0)
+} catch (error) {
+  process.stderr.write(`require-wake-source: ${error.message}\n`)
+  process.exit(2)
 }

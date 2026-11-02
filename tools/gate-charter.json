@@ -495,7 +495,7 @@
     "constants": "none"
   },
   "tools/check-dependency-edits.mjs": {
-    "scope": "whole-tree-advisory",
+    "scope": "whole-tree-blocking",
     "snapshot": "none",
     "constants": [
       {

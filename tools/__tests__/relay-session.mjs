@@ -175,7 +175,7 @@ const fileWaiterCase = async () => {
     const { existsSync, writeFileSync } = require("node:fs")
     const timer = setInterval(() => {
       if (!existsSync(${JSON.stringify(trigger)})) return
-      writeFileSync(${JSON.stringify(file)}, "done")
+      writeFileSync(${JSON.stringify(file)}, JSON.stringify({ exitCode: 0 }))
       clearInterval(timer)
     }, 10)
   `], { detached: process.platform !== "win32", stdio: "ignore" })

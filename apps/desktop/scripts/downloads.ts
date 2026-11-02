@@ -1,5 +1,6 @@
-import { copyFileSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { createHash } from 'node:crypto'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { artifactName, releaseSettings, targets, verifyArtifact } from './release.ts'
 
@@ -23,15 +24,43 @@ export function collectDmg(version: string, target: string, bundle: string, outp
   copyFileSync(resolve(directory, candidates[0]!), resolve(output, name))
 }
 
+interface Download { name: string; sha256: string; size: number }
+
+function checksum(bytes: Buffer) { return createHash('sha256').update(bytes).digest('hex') }
+function sums(downloads: Download[]) { return downloads.map(file => `${file.sha256}  ${file.name}\n`).join('') }
+
 export function prepareDownloads(version: string, directory: string, output: string, publicKey: string) {
-  const downloads = Object.keys(targets).map(target => {
-    const source = resolve(directory, versionedDownloadName(version, target))
-    const bytes = readFileSync(source)
-    verifyArtifact(bytes, readFileSync(`${source}.sig`, 'utf8'), publicKey, version)
-    return { name: downloadName(target), bytes }
-  })
-  mkdirSync(output, { recursive: true })
-  for (const { name, bytes } of downloads) writeFileSync(resolve(output, name), bytes)
+  mkdirSync(dirname(output), { recursive: true })
+  const staging = mkdtempSync(join(dirname(output), '.desktop-downloads-'))
+  const downloads: Download[] = []
+  try {
+    for (const target of Object.keys(targets)) {
+      const source = resolve(directory, versionedDownloadName(version, target))
+      const bytes = readFileSync(source)
+      verifyArtifact(bytes, readFileSync(`${source}.sig`, 'utf8'), publicKey, version, basename(source))
+      const name = downloadName(target)
+      writeFileSync(resolve(staging, name), bytes)
+      downloads.push({ name, sha256: checksum(bytes), size: bytes.length })
+    }
+    writeFileSync(resolve(staging, 'SHA256SUMS'), sums(downloads))
+    writeFileSync(resolve(staging, 'downloads.json'), `${JSON.stringify(downloads, null, 2)}\n`)
+    renameSync(staging, output)
+  } finally {
+    rmSync(staging, { recursive: true, force: true })
+  }
+}
+
+export function verifyDownloads(directory: string) {
+  const downloads: Download[] = JSON.parse(readFileSync(resolve(directory, 'downloads.json'), 'utf8'))
+  const expected = Object.keys(targets).map(downloadName).sort()
+  if (!Array.isArray(downloads) || JSON.stringify(downloads.map(file => file.name).sort()) !== JSON.stringify(expected)) {
+    throw new Error('Desktop download inventory does not match its targets')
+  }
+  for (const file of downloads) {
+    const bytes = readFileSync(resolve(directory, file.name))
+    if (checksum(bytes) !== file.sha256 || bytes.length !== file.size) throw new Error('Desktop download checksum or size mismatch')
+  }
+  if (readFileSync(resolve(directory, 'SHA256SUMS'), 'utf8') !== sums(downloads)) throw new Error('Desktop download checksums changed')
 }
 
 function main() {
@@ -41,6 +70,9 @@ function main() {
   switch (command) {
     case 'collect-dmg':
       collectDmg(version, args[0]!, args[1]!, args[2]!)
+      break
+    case 'verify':
+      verifyDownloads(args[0]!)
       break
     case 'prepare':
       prepareDownloads(version, args[0]!, args[1]!, process.env.TAURI_SIGNING_PUBLIC_KEY ?? '')

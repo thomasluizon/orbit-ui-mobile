@@ -79,9 +79,9 @@ describe('resolveAuthLoginErrorKey', () => {
     ).toBe('auth.errors.invalidCode')
   })
 
-  it('prefers exact backend message mapping', () => {
+  it('maps a known backend message even when the HTTP status points elsewhere', () => {
     expect(
-      resolveAuthLoginErrorKey({ status: 400, backendMessage: 'Invalid verification code' }),
+      resolveAuthLoginErrorKey({ status: 500, backendMessage: 'Invalid verification code' }),
     ).toBe('auth.errors.invalidCode')
   })
 
@@ -106,18 +106,18 @@ describe('resolveAuthLoginErrorKey', () => {
     expect(resolveAuthLoginErrorKey({ status: 409 })).toBe('auth.errors.conflict')
   })
 
-  it('maps 429 to rateLimited', () => {
+  it('maps 429 to sendFailed', () => {
     expect(resolveAuthLoginErrorKey({ status: 429 })).toBe('auth.errors.sendFailed')
   })
 
-  it('maps 5xx to serverError', () => {
+  it('maps 5xx to unknownError', () => {
     expect(resolveAuthLoginErrorKey({ status: 500 })).toBe('auth.errors.unknownError')
     expect(resolveAuthLoginErrorKey({ status: 502 })).toBe('auth.errors.unknownError')
     expect(resolveAuthLoginErrorKey({ status: 503 })).toBe('auth.errors.unknownError')
     expect(resolveAuthLoginErrorKey({ status: 504 })).toBe('auth.errors.unknownError')
   })
 
-  it('detects TypeError as network failure', () => {
+  it('maps a TypeError from fetch to unknownError', () => {
     expect(resolveAuthLoginErrorKey({ raw: new TypeError('fetch failed') })).toBe(
       'auth.errors.unknownError',
     )

@@ -27,6 +27,10 @@ on:
         description: Full commit SHA (required outside production; production defaults to the dispatch commit)
         required: false
         type: string
+      override_reason:
+        description: Written reason for bypassing staging admission
+        required: false
+        type: string
       force_unstaged:
         description: Release production without a matching healthy staging commit
         required: false
@@ -37,6 +41,9 @@ permissions:
   contents: read
   packages: write
   deployments: write
+  actions: read
+  checks: read
+  statuses: read
 
 concurrency:
   group: release-web-${{ inputs.environment }}
@@ -59,6 +66,8 @@ jobs:
           SOURCE_BRANCH: ${{ inputs.branch }}
           SOURCE_SHA: ${{ inputs.sha }}
           DISPATCH_SHA: ${{ github.sha }}
+          FORCE_UNSTAGED: ${{ inputs.force_unstaged }}
+          OVERRIDE_REASON: ${{ inputs.override_reason }}
         run: |
           set -euo pipefail
           if [ "$GITHUB_REF_NAME" != main ]; then echo "::error::Dispatch release.yml from main"; exit 1; fi
@@ -68,12 +77,52 @@ jobs:
           if [ -z "$SOURCE_BRANCH" ] || [[ "$SOURCE_BRANCH" == refs/* ]]; then
             echo "::error::Select a branch name"; exit 1
           fi
+          if [ "$FORCE_UNSTAGED" = true ] && [ -z "${OVERRIDE_REASON//[[:space:]]/}" ]; then
+            echo "::error::force_unstaged requires a non-empty override_reason"; exit 1
+          fi
           git check-ref-format "refs/heads/$SOURCE_BRANCH" >/dev/null
           if [ "$RELEASE_ENVIRONMENT" = production ] && [ -z "$SOURCE_SHA" ]; then SOURCE_SHA="$DISPATCH_SHA"; fi
           if [[ ! "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]; then
             echo "::error::Select a full 40-character commit SHA; staging requires an explicit SHA"; exit 1
           fi
           echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+      - name: Require successful release CI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ steps.selection.outputs.sha }}
+        run: |
+          set -euo pipefail
+          checks=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/commits/${SOURCE_SHA}/check-runs?per_page=100")
+          for workflow in test guards; do
+            runs=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}.yml/runs?head_sha=${SOURCE_SHA}&per_page=100")
+            suite=$(jq -er --arg sha "$SOURCE_SHA" --arg path ".github/workflows/${workflow}.yml" '
+              [.[] | .workflow_runs[] | select(.head_sha == $sha and .path == $path and (.event == "push" or .event == "workflow_dispatch"))]
+              | max_by([.run_number, .run_attempt])
+              | select(.status == "completed" and .conclusion == "success") | .check_suite_id' <<< "$runs") || {
+              echo "::error::Selected SHA requires a successful ${workflow}.yml push or workflow_dispatch run; dispatch test.yml and guards.yml on that ref, then rerun the release"; exit 1;
+            }
+            jq -e --arg sha "$SOURCE_SHA" --argjson suite "$suite" '
+              [.[] | .check_runs[] | select(.check_suite.id == $suite)]
+              | length > 0 and all(.[]; .head_sha == $sha and .app.id == 15368 and .status == "completed"
+                and (.conclusion == "success" or .conclusion == "neutral" or .conclusion == "skipped"))' <<< "$checks" >/dev/null || {
+              echo "::error::Selected SHA has missing or failing checks for ${workflow}.yml"; exit 1;
+            }
+          done
+      - name: Validate browser Sentry DSN
+        env:
+          RELEASE_ENVIRONMENT: ${{ inputs.environment }}
+          PRODUCTION_DSN: ${{ vars.PRODUCTION_NEXT_PUBLIC_SENTRY_DSN }}
+          STAGING_DSN: ${{ vars.STAGING_NEXT_PUBLIC_SENTRY_DSN }}
+        run: |
+          set -euo pipefail
+          case "$RELEASE_ENVIRONMENT" in
+            production) dsn="$PRODUCTION_DSN" ;;
+            staging) dsn="$STAGING_DSN" ;;
+            *) echo "::error::Unknown release environment"; exit 1 ;;
+          esac
+          if [ -z "${dsn//[[:space:]]/}" ]; then
+            echo "::error::Missing ${RELEASE_ENVIRONMENT} NEXT_PUBLIC_SENTRY_DSN"; exit 1
+          fi
       - uses: actions/checkout@v7
         with:
           ref: ${{ steps.selection.outputs.sha }}
@@ -181,6 +230,8 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
           FORCE_UNSTAGED: ${{ inputs.force_unstaged }}
+          OVERRIDE_REASON: ${{ inputs.override_reason }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STAGING_SERVICE_ID: ${{ vars.RENDER_WEB_STAGING_SERVICE_ID }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
@@ -192,8 +243,17 @@ jobs:
             echo "force_unstaged: $FORCE_UNSTAGED"
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "$FORCE_UNSTAGED" = true ]; then
-            echo "::notice::Operator override force_unstaged permits production release of $SOURCE_SHA without staging admission"
+            if [ -z "${OVERRIDE_REASON//[[:space:]]/}" ]; then
+              echo "::error::force_unstaged requires a non-empty override_reason"; exit 1
+            fi
+            printf 'Staging override reason: %s\n' "$OVERRIDE_REASON" >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::Operator override permits production release of $SOURCE_SHA without staging admission"
             exit 0
+          fi
+          statuses=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/commits/${SOURCE_SHA}/status?per_page=100")
+          if ! jq -e '[.[] | .statuses[] | select(.context == "web-staging-smoke")]
+            | max_by([.created_at, .id]) | .state == "success"' <<< "$statuses" >/dev/null; then
+            echo "::error::Selected SHA requires a successful web-staging-smoke status"; exit 1
           fi
           if [ -z "$STAGING_SERVICE_ID" ]; then echo "::error::Missing RENDER_WEB_STAGING_SERVICE_ID"; exit 1; fi
           if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing production RENDER_API_KEY"; exit 1; fi
@@ -216,10 +276,13 @@ jobs:
     uses: ./.github/workflows/desktop-release.yml
     permissions:
       contents: write
-    secrets: inherit
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
     with:
       variant: ${{ inputs.environment }}
       source_sha: ${{ needs.build.outputs.source_sha }}
+      staging_admitted: ${{ inputs.environment == 'production' }}
 
   production:
     if: inputs.environment == 'production'
@@ -244,6 +307,8 @@ jobs:
         env:
           SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
           FORCE_UNSTAGED: ${{ inputs.force_unstaged }}
+          OVERRIDE_REASON: ${{ inputs.override_reason }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STAGING_SERVICE_ID: ${{ vars.RENDER_WEB_STAGING_SERVICE_ID }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
@@ -255,8 +320,17 @@ jobs:
             echo "force_unstaged: $FORCE_UNSTAGED"
           } >> "$GITHUB_STEP_SUMMARY"
           if [ "$FORCE_UNSTAGED" = true ]; then
-            echo "::notice::Operator override force_unstaged permits production release of $SOURCE_SHA without staging admission"
+            if [ -z "${OVERRIDE_REASON//[[:space:]]/}" ]; then
+              echo "::error::force_unstaged requires a non-empty override_reason"; exit 1
+            fi
+            printf 'Staging override reason: %s\n' "$OVERRIDE_REASON" >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::Operator override permits production release of $SOURCE_SHA without staging admission"
             exit 0
+          fi
+          statuses=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/commits/${SOURCE_SHA}/status?per_page=100")
+          if ! jq -e '[.[] | .statuses[] | select(.context == "web-staging-smoke")]
+            | max_by([.created_at, .id]) | .state == "success"' <<< "$statuses" >/dev/null; then
+            echo "::error::Selected SHA requires a successful web-staging-smoke status"; exit 1
           fi
           if [ -z "$STAGING_SERVICE_ID" ]; then echo "::error::Missing RENDER_WEB_STAGING_SERVICE_ID"; exit 1; fi
           if [ -z "$RENDER_API_KEY" ]; then echo "::error::Missing production RENDER_API_KEY"; exit 1; fi
@@ -360,11 +434,23 @@ jobs:
     environment:
       name: staging
       deployment: false
+    permissions:
+      contents: read
+      deployments: write
+      statuses: write
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Mark staging smoke pending
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+        run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SOURCE_SHA}" \
+            -f state=pending -f context=web-staging-smoke \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >/dev/null
       - name: Deploy staging web digest
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -416,6 +502,60 @@ jobs:
           echo "deployment_url=${origin}" >> "$GITHUB_OUTPUT"
           echo "Verified staging ${origin} at ${SOURCE_SHA}" >> "$GITHUB_STEP_SUMMARY"
           echo "Deployed SHA: $SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.build.outputs.source_sha }}
+          path: staging-smoke-source
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: staging-smoke-source/package-lock.json
+      - name: Validate staging smoke settings
+        env:
+          SMOKE_TEST_EMAIL: ${{ secrets.STAGING_SMOKE_TEST_EMAIL }}
+          SMOKE_TEST_CODE: ${{ secrets.STAGING_SMOKE_TEST_CODE }}
+        run: |
+          set -euo pipefail
+          for name in SMOKE_TEST_EMAIL SMOKE_TEST_CODE; do
+            if [ -z "${!name:-}" ]; then echo "::error::Missing staging ${name}"; exit 1; fi
+          done
+      - name: Install staging smoke dependencies
+        working-directory: staging-smoke-source
+        run: npm ci
+      - name: Install staging smoke browser
+        working-directory: staging-smoke-source
+        run: npx playwright install --with-deps chromium
+      - name: Run staging smoke suite
+        id: staging_smoke
+        working-directory: staging-smoke-source
+        env:
+          SMOKE_BASE_URL: ${{ steps.health.outputs.deployment_url }}
+          SMOKE_TEST_EMAIL: ${{ secrets.STAGING_SMOKE_TEST_EMAIL }}
+          SMOKE_TEST_CODE: ${{ secrets.STAGING_SMOKE_TEST_CODE }}
+        run: npm --workspace @orbit/web run test:smoke
+      - name: Record staging smoke pass
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+        run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${SOURCE_SHA}" \
+            -f state=success -f context=web-staging-smoke \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >/dev/null
+      - name: Upload staging smoke report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: staging-smoke-report
+          path: |
+            staging-smoke-source/apps/web/e2e/.report
+            staging-smoke-source/apps/web/e2e/.results
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
       - name: Record GitHub deployment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

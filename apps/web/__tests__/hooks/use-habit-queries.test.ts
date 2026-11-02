@@ -208,6 +208,23 @@ describe('useHabits (query hook)', () => {
     queryClient.clear()
   })
 
+  it('starts the first list and schedule reads before either resolves', async () => {
+    const today = '2026-09-12'
+    const pending: { url: string; resolve: (response: Response) => void }[] = []
+    mockFetch.mockImplementation((url: string) => new Promise<Response>((resolve) => { pending.push({ url, resolve }) }))
+    const { result } = renderHook(() => useHabits({}, undefined, { scheduleDate: today }), { wrapper: createWrapper() })
+    await waitFor(() => expect(pending).toHaveLength(2))
+    expect(pending.some(({ url }) => url.includes('dateFrom='))).toBe(true)
+    await act(async () => {
+      for (const request of pending) {
+        const items = request.url.includes('dateFrom=') ? createHabitViewScheduleItems(today) : createHabitViewItems(today, 'all')
+        request.resolve(Response.json({ items, page: 1, pageSize: 200, totalCount: items.length, totalPages: 1 }))
+      }
+    })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.habitsById.get('overdue')?.isOverdue).toBe(true)
+  })
+
   it('enriches undated Todos membership with dated overdue and schedule facts', async () => {
     const today = '2026-09-12'
     mockFetch.mockImplementation(async (url: string) => Response.json(makePaginatedResponse(

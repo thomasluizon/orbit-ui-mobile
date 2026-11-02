@@ -313,7 +313,7 @@ function hook() {
   const isWrite = typeof input.content === "string"
   const edits = isWrite ? [{ old_string: current, new_string: input.content }] : pairs(input)
   const proposed = isWrite ? input.content
-    : edits.reduce((body, edit) => body.replace(String(edit.old_string ?? ""), String(edit.new_string ?? "")), current)
+    : edits.reduce((body, edit) => edit.replace_all ? body.split(String(edit.old_string ?? "")).join(String(edit.new_string ?? "")) : body.replace(String(edit.old_string ?? ""), () => String(edit.new_string ?? "")), current)
   return report(newFindings(path, current, proposed, root), allowlist(root), false) ? 2 : 0
 }
 

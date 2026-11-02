@@ -14,6 +14,7 @@ try {
     process.exit(2)
   }
   process.exit(0)
-} catch {
-  process.exit(0)
+} catch (error) {
+  process.stderr.write(`forbid-node-modules-write: ${error.message}\n`)
+  process.exit(2)
 }
