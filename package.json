@@ -30,6 +30,7 @@
     "html-parse-stringify": "^4.0.1",
     "indent-string": "^5.0.0",
     "js-yaml": "^4.3.2",
+    "jsdom": "^29.1.1",
     "lefthook": "^2.2.2",
     "min-indent": "^1.0.1",
     "png-to-ico": "^3.0.2",
