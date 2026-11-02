@@ -33,12 +33,15 @@ vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 vi.mock('@/stores/offline-sync-store', () => ({ useOfflineSyncStore: { getState: () => ({ addDrop: vi.fn() }) } }))
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: { getItem: () => Promise.resolve(null), setItem: () => Promise.resolve() } }))
 
+await import('@/lib/offline-mutations')
+
 let directory: string
 let database: DatabaseSync
-let cancelReplay: () => void
+let cancelReplay = () => {}
 
 beforeEach(() => {
   vi.resetModules()
+  cancelReplay = () => {}
   vi.useFakeTimers()
   directory = mkdtempSync(join(tmpdir(), 'orbit-queue-'))
   database = new DatabaseSync(join(directory, 'queue.db'))
