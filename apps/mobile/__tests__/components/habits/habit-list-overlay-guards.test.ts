@@ -56,7 +56,7 @@ describe('habit list overlay caller guards', () => {
   it.each(overlays)('$name mounts with an accessible name without a nested scroller', (overlay) => {
     const caller = source(overlay.sourcePath)
     const sheet = source('components/ui/sheet.tsx')
-    const habitList = source('components/habit-list.tsx')
+    const habitList = source('components/habit-list.tsx') + source('components/habits/use-parent-prompt-queue.ts')
     expect(caller).toMatch(overlay.mount)
     expect(caller).toContain(overlay.firstLine)
     if (overlay.name === 'move parent sheet') {
