@@ -1,3 +1,4 @@
+import { useCalendarNavigation } from './calendar/_components/use-calendar-navigation'
 import { createStyles } from './calendar/_components/calendar-screen-styles'
 
 import { useCalendarScreenState, type CalendarScreenContentProps } from './calendar/_components/use-calendar-screen-state'
@@ -10,11 +11,9 @@ import { RefreshCw } from '@/components/ui/icons'
 
 import { calendarImportInitialEventId } from '@orbit/shared/utils/calendar-sync'
 
-import { type CalendarView } from '@orbit/shared/utils/calendar-navigation'
-
 import { CalendarOptions } from './calendar/_components/calendar-options'
 
-import { useState, useMemo, useEffect, type ReactNode } from "react"
+import { useMemo, type ReactNode } from "react"
 
 import { View, Text, FlatList } from "react-native"
 
@@ -22,9 +21,7 @@ import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 
 import { useTranslation } from "react-i18next"
 
-import { useLocalSearchParams, useRouter } from "expo-router"
-
-import { formatAPIDate, resolveHabitDetailRouteDate, calendarMonthForDay, calendarImportTitleKey } from "@orbit/shared/utils"
+import { calendarMonthForDay, calendarImportTitleKey } from "@orbit/shared/utils"
 
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar"
 
@@ -32,9 +29,7 @@ import { useCalendarData } from "@/hooks/use-habits"
 
 import { useProfile } from "@/hooks/use-profile"
 
-import { useAccountBoundRouteRequest, useAccountScopedState } from '@/hooks/use-session-reset'
-
-import { createTokensV2 } from "@/lib/theme"
+import type { createTokensV2 } from "@/lib/theme"
 
 import { Sheet } from '@/components/ui/sheet'
 
@@ -61,29 +56,15 @@ function CalendarImportActions({ state, onImport, t }: {
 const EMPTY_LIST: readonly CalendarDayEntry[] = []
 
 export default function CalendarScreen() {
-  const { setParams } = useRouter()
   const { profile, error: profileError, refetch: refetchProfile } = useProfile()
-  const params = useLocalSearchParams<{ date?: string }>()
-  const routeDate = resolveHabitDetailRouteDate(params.date)
-  const acceptRouteDate = useAccountBoundRouteRequest(routeDate ?? '')
-  const [selectedDay, setSelectedDay] = useAccountScopedState(() => acceptRouteDate && routeDate ? routeDate : formatAPIDate(new Date()))
-  const [view, setView] = useState<CalendarView>('month')
-  const [observedRouteDate, setObservedRouteDate] = useState(routeDate)
-  if (observedRouteDate !== routeDate) {
-    setObservedRouteDate(routeDate)
-    if (acceptRouteDate && routeDate) {
-      setSelectedDay(routeDate)
-      setView('month')
-    }
-  }
-  useEffect(() => {
-    if (params.date !== undefined) setParams({ date: undefined })
-  }, [params.date, setParams])
+  const navigation = useCalendarNavigation()
+  const { selectedDay, setSelectedDay, view, setView } = navigation
   const currentMonth = useMemo(() => calendarMonthForDay(selectedDay), [selectedDay])
   const monthQuery = useCalendarData(currentMonth)
 
   return (
     <CalendarScreenContent
+      navigation={navigation}
       profile={profile}
       profileError={profileError}
       onRetryProfile={() => void refetchProfile()}

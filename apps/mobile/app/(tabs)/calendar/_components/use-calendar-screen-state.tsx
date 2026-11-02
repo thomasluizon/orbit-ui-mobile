@@ -1,3 +1,4 @@
+import type { useCalendarNavigation } from './use-calendar-navigation'
 import { useOpenHabit } from '@/hooks/use-open-habit'
 import { buildCalendarHeaderState, resolveCalendarProfileSettings, type CalendarProfile, type CalendarView } from '@orbit/shared/utils/calendar-navigation'
 import { useCalendars } from '@/hooks/use-calendars'
@@ -48,6 +49,7 @@ function resolveMonthEntering(monthSlide: MonthSlide) {
 }
 
 export interface CalendarScreenContentProps {
+  navigation: ReturnType<typeof useCalendarNavigation>
   profile: CalendarProfile | undefined
   profileError: Error | null
   onRetryProfile: () => void
@@ -59,9 +61,9 @@ export interface CalendarScreenContentProps {
   setView: Dispatch<SetStateAction<CalendarView>>
 }
 
-type CalendarScreenSessionInputs = Pick<CalendarScreenContentProps, 'profile' | 'view' | 'selectedDay'>
+type CalendarScreenSessionInputs = Pick<CalendarScreenContentProps, 'navigation' | 'profile' | 'view' | 'selectedDay'>
 
-function useCalendarScreenSession({ profile, view, selectedDay }: CalendarScreenSessionInputs) {
+function useCalendarScreenSession({ navigation, profile, view, selectedDay }: CalendarScreenSessionInputs) {
   const { t, i18n } = useTranslation()
   const clearance = useShellScrollerClearance()
   const listRef = useRef<FlatList<CalendarDayEntry>>(null)
@@ -86,10 +88,8 @@ function useCalendarScreenSession({ profile, view, selectedDay }: CalendarScreen
   const calendarGridRef = useRef<View>(null)
   const calendarDayRef = useRef<View>(null)
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
-  const [weekAnchor, setWeekAnchor] = useAccountScopedState<Date | null>(null)
+  const { weekAnchor, setWeekAnchor, agendaOffset, setAgendaOffset, rangeOffset, setRangeOffset } = navigation
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
-  const [agendaOffset, setAgendaOffset] = useAccountScopedState(0)
-  const [rangeOffset, setRangeOffset] = useAccountScopedState(0)
   const [isDayDetailOpen, setIsDayDetailOpen] = useAccountScopedState(false)
   const [isEventsOpen, setIsEventsOpen] = useAccountScopedState(false)
   const openHabit = useOpenHabit()
