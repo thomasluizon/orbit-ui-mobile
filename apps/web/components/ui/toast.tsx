@@ -97,7 +97,7 @@ function ToastSurface({ props, dismiss, setHovered, setFocused }: Readonly<{
         </span>
       ) : null}
 
-      <span className="flex min-w-0 flex-1 flex-col gap-1" style={props.actionLabel ? { flexBasis: '50%' } : undefined}>
+      <span className="flex min-w-0 flex-auto flex-col gap-1">
         <span data-toast-message className="text-sm font-medium" style={{ fontFamily: 'var(--font-sans)' }}>
           {props.message}
         </span>
@@ -132,7 +132,7 @@ function ToastControls({ props, present, dismiss, setFocused, actionColor }: Rea
         ) : (
           <Primitive.Action altText={props.actionLabel}
             disabled={!present}
-            className={`cursor-pointer whitespace-nowrap border-0 bg-transparent p-3 text-sm font-medium ${actionColor} underline underline-offset-4 hover:text-[var(--fg-2)] ${props.kind === 'lost' ? 'active:text-[var(--fg-1)]' : 'active:text-[var(--fg-2)]'} active:underline-offset-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]`}
+            className={`inline-flex cursor-pointer items-center justify-center whitespace-nowrap border-0 bg-transparent p-3 text-sm font-medium ${actionColor} underline underline-offset-4 hover:text-[var(--fg-2)] ${props.kind === 'lost' ? 'active:text-[var(--fg-1)]' : 'active:text-[var(--fg-2)]'} active:underline-offset-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--fg-1)]`}
             style={{ fontFamily: 'var(--font-sans)', minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, margin: -SPACING.s4 }}
             onFocus={() => setFocused(true)}
             onClick={(event) => { event.preventDefault(); props.onAction() }}

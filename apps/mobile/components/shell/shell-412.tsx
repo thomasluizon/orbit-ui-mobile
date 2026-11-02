@@ -368,6 +368,7 @@ const styles = StyleSheet.create({
   notice: {
     alignSelf: 'center', maxWidth: SHELL_CONTENT_MAX_WIDTH, width: '100%',
     paddingHorizontal: PADDING.screenGutter,
+    gap: SPACING.s12,
   },
   bottomColumn: {
     flexShrink: 1,

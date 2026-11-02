@@ -149,7 +149,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
     >
       <ToastLeadingMark props={props} tokens={tokens} />
 
-      <View style={[styles.copy, props.actionLabel ? styles.actionCopy : null]}>
+      <View style={styles.copy}>
         <Text style={[styles.message, { color: tokens.fg1 }]}>{announcedMessage}</Text>
         {props.kind === 'lost' && announcedMessage ? (
           <Text style={[styles.detail, { color: tokens.fg3 }]}>{props.detail}</Text>
@@ -224,15 +224,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   icon: { flexShrink: 0 },
-  copy: { flex: 1, gap: 4 },
-  actionCopy: { flexBasis: '50%' },
+  copy: { flexGrow: 1, flexShrink: 1, gap: 4 },
   controls: { flexDirection: 'row', alignItems: 'center', gap: 12, marginStart: 'auto', flexShrink: 0 },
   message: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
   detail: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
-  action: { padding: SPACING.s8, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN },
+  action: { padding: SPACING.s8, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' },
   actionText: {
     fontFamily: 'Geist_500Medium',
     fontSize: 14,
+    lineHeight: 20,
     textDecorationLine: 'underline',
   },
 })

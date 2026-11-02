@@ -8,9 +8,16 @@ import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { FlowShell } from '@/components/shell/flow-shell'
+import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
+import { clearPendingNotificationDeletes, queuePendingNotificationDelete } from '@/lib/pending-notification-deletes'
+import { measureToastStack } from '@/e2e/layout/toast-stack-geometry'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { Toast } from '@/components/ui/toast'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { useUIStore } from '@/stores/ui-store'
+import { useVersionGateStore } from '@/stores/version-gate-store'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -24,6 +31,94 @@ describe('shared toast geometry', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 1352].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
+    (['destination', 'flow'] as const).map(shell => ({ width, locale, shell })),
+  )))('separates queued deletes without moving one notice at $width in $locale $shell', async ({ width, locale, shell }) => {
+    const words = locale === 'en' ? en : ptBR
+    const notice = <><UpdateAvailableBanner inset={false} /><NotificationDeleteNotice /></>
+    const view = render(<NextIntlClientProvider locale={locale} messages={words} timeZone="UTC">
+      {shell === 'flow' ? <FlowShell notice={notice}>Form</FlowShell> :
+        <ShellWide items={[]} activeId="hoje" navLabel={words.nav.mainNavigation}
+          astraRow={{ label: 'Astra', onOpen: () => {} }} notice={notice}>Notifications</ShellWide>}
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 1200 } })
+    try {
+      let singleHeight = 0
+      for (const count of [1, 2, 3]) {
+        act(() => { queuePendingNotificationDelete(`stack-${count}`, () => {}) })
+        await act(async () => { await vi.dynamicImportSettled() })
+        await page.setContent(`<html class="dark"><style>${stylesheet}</style><body>${view.container.innerHTML}</body></html>`)
+        await loadAppFonts(page)
+        const measured = await page.locator('[data-shell-notice-content]').evaluate(measureToastStack)
+        expect(measured).toHaveLength(count)
+        expect(measured[0]!.topInset).toBe(0)
+        expect(measured.at(-1)!.bottomInset).toBe(0)
+        if (count === 1) singleHeight = measured[0]!.height
+        for (const [index, toast] of measured.entries()) {
+          expect(toast.height).toBe(singleHeight)
+          if (index) expect(toast.gap).toBe(12)
+          expect(toast.actionOffset).not.toBeNull()
+          expect(Math.abs(toast.actionOffset!)).toBeLessThanOrEqual(1)
+          expect(Math.abs(toast.closeOffset)).toBeLessThanOrEqual(1)
+        }
+      }
+    } finally { view.unmount(); clearPendingNotificationDeletes(); await page.close() }
+  })
+
+  it.each([412, 1352])('separates a failed delete, pending delete and update banner at %ipx', async (width) => {
+    vi.useFakeTimers()
+    queuePendingNotificationDelete('failed-stack', () => { throw new Error('Delete failed') })
+    vi.advanceTimersByTime(5000)
+    vi.useRealTimers()
+    queuePendingNotificationDelete('pending-stack', () => {})
+    useVersionGateStore.setState({ upgradeRequired: true, updateDismissed: false })
+    const view = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+      <ShellWide nav={false} notice={<><UpdateAvailableBanner inset={false} /><NotificationDeleteNotice /></>} />
+    </NextIntlClientProvider>)
+    await act(async () => { await vi.dynamicImportSettled() })
+    const markup = view.container.innerHTML
+    view.unmount()
+    clearPendingNotificationDeletes()
+    useVersionGateStore.setState({ upgradeRequired: false, updateDismissed: false })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height: 1200 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${markup}`)
+      await loadAppFonts(page)
+      const slot = page.locator('[data-shell-notice-content]')
+      const measured = await slot.evaluate(measureToastStack)
+      expect(measured).toHaveLength(2)
+      expect(measured[1]!.gap).toBe(12)
+      expect(await slot.evaluate(element => {
+        const banner = element.querySelector('[data-update-banner]')!.getBoundingClientRect()
+        const toast = element.querySelector('[data-kind]')!.getBoundingClientRect()
+        return toast.top - banner.bottom
+      })).toBe(12)
+    } finally { await page.close() }
+  })
+
+  it('centres a sheet-hosted action without changing its outlined placement', async () => {
+    useUIStore.setState({ openOverlayIds: ['modal:toast-stack'] })
+    useAppToastStore.getState().showQueued(ptBR.notifications.deleteQueued, ptBR.notifications.deleteUndo, () => {})
+    const view = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+      <div data-sheet-toast=""><AppToastHost placement="modal" modalId="modal:toast-stack" /></div>
+    </NextIntlClientProvider>)
+    await act(async () => { await vi.dynamicImportSettled() })
+    const markup = view.container.innerHTML
+    view.unmount()
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+    useUIStore.setState({ openOverlayIds: [] })
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width: 412, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${markup}`)
+      await loadAppFonts(page)
+      const measured = await page.locator('[data-sheet-toast]').evaluate(measureToastStack)
+      expect(measured).toHaveLength(1)
+      expect(Math.abs(measured[0]!.actionOffset!)).toBeLessThanOrEqual(1)
+      expect(Math.abs(measured[0]!.closeOffset)).toBeLessThanOrEqual(1)
+      expect(await page.locator('[data-kind]').evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none')
+    } finally { await page.close() }
+  })
 
   it('keeps page controls outside the toast frame reachable', async () => {
     useAppToastStore.getState().showInfo(en.toast.errors.notFound)
