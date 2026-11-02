@@ -400,6 +400,29 @@ fn persist_registration(
         .clone()
         .ok_or("Missing native registration")?;
     let session = service.session.recover_lock().clone();
+    persist_candidate(
+        &service.saved,
+        &service.path,
+        &session,
+        candidate,
+        action,
+        account,
+        endpoint,
+    )?;
+    let saved = service.saved.recover_lock();
+    set_active(session.owns(&saved) && saved.pending.is_empty());
+    Ok(())
+}
+
+fn persist_candidate(
+    saved: &Mutex<PushState>,
+    store: &impl PushStore,
+    session: &PushSession,
+    candidate: Registration,
+    action: &PushAction,
+    account: Option<String>,
+    endpoint: Option<String>,
+) -> Result<(), String> {
     if endpoint.as_deref() != Some(&candidate.endpoint)
         || account.as_ref().is_none_or(String::is_empty)
         || account != session.account
@@ -407,17 +430,14 @@ fn persist_registration(
         return Err("Invalid native registration commit".into());
     }
     let owner = account.ok_or("Missing native push account")?;
-    save_registration(&service.saved, &service.path, |next| {
+    save_registration(saved, store, |next| {
         if matches!(action, PushAction::Stage) {
             next.stage(owner, candidate)?;
         } else {
             next.commit(owner, candidate)?;
         }
         Ok(())
-    })?;
-    let saved = service.saved.recover_lock();
-    set_active(session.owns(&saved) && saved.pending.is_empty());
-    Ok(())
+    })
 }
 
 fn clear_registration(service: &PushService, account: Option<String>) -> Result<(), String> {
@@ -792,6 +812,63 @@ mod tests {
                 Ok(())
             }
         }
+    }
+
+    #[test]
+    fn staged_attempt_is_durable_before_the_api_caller_can_continue() {
+        struct RecordingStore(std::cell::RefCell<Vec<PushState>>);
+        impl PushStore for RecordingStore {
+            fn save(&self, state: &PushState) -> Result<(), String> {
+                self.0.borrow_mut().push(state.clone());
+                Ok(())
+            }
+        }
+        let saved = Mutex::new(registered_state());
+        let mut session = PushSession::default();
+        session.restore(Some("account-a".into()), &saved.recover_lock());
+        let candidate = saved
+            .recover_lock()
+            .registration("cdef".into(), "org.useorbit.desktop", false)
+            .unwrap();
+        let store = RecordingStore(std::cell::RefCell::new(Vec::new()));
+        persist_candidate(
+            &saved,
+            &store,
+            &session,
+            candidate.clone(),
+            &PushAction::Stage,
+            Some("account-a".into()),
+            Some(candidate.endpoint.clone()),
+        )
+        .unwrap();
+        assert_eq!(store.0.borrow().len(), 1);
+        assert_eq!(store.0.borrow()[0].pending[0].registration, candidate);
+        assert_eq!(saved.recover_lock().pending[0].registration, candidate);
+        let events = std::cell::RefCell::new(Vec::new());
+        let session = Mutex::new(session);
+        let failing = Store {
+            events: &events,
+            session: &session,
+            fail: true,
+        };
+        let session_snapshot = session.recover_lock().clone();
+        assert_eq!(
+            persist_candidate(
+                &saved,
+                &failing,
+                &session_snapshot,
+                candidate.clone(),
+                &PushAction::Commit,
+                Some("account-a".into()),
+                Some(candidate.endpoint.clone()),
+            ),
+            Err("save failed".into())
+        );
+        assert_eq!(saved.recover_lock().pending[0].registration, candidate);
+        assert_eq!(
+            saved.recover_lock().registration.as_ref().unwrap().endpoint,
+            "abcd"
+        );
     }
 
     #[test]
