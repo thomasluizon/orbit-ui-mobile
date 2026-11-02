@@ -1,3 +1,4 @@
+import { resizeChatImage } from '@/lib/chat-image'
 import { isChatReplyActive, prepareConversationSend, resolveChatRequestContext } from '@orbit/shared/chat'
 import { conversationHistory } from '@/lib/conversation-history'
 import { createAstraAllowanceTranslator ,
@@ -360,7 +361,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"] as ImagePicker.MediaType[],
       allowsMultipleSelection: false,
-      quality: 0.7,
+      quality: 1,
     });
     if (getAccountGeneration() !== startingAccountGeneration) return;
 
@@ -375,9 +376,17 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       return;
     }
 
-    setSendError(null);
-    setSelectedImage(asset);
-    setImagePreview(asset.uri);
+    try {
+      const resized = await resizeChatImage(asset);
+      if (getAccountGeneration() !== startingAccountGeneration) return;
+      const outputError = validateImageAsset(resized);
+      if (outputError) { setSendError(outputError); return; }
+      setSendError(null);
+      setSelectedImage(resized);
+      setImagePreview(resized.uri);
+    } catch {
+      if (getAccountGeneration() === startingAccountGeneration) setSendError(t("chat.imageError"));
+    }
   }, [t, validateImageAsset, setSendError, setSelectedImage, setImagePreview]);
 
   const removeImage = useCallback(() => {

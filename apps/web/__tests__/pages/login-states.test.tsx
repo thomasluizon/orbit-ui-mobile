@@ -6,13 +6,19 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LoginContent } from '@/app/(auth)/login/login-content'
 
-const mocks = vi.hoisted(() => ({ flow: {} as Record<string, unknown>, action: vi.fn() }))
+const mocks = vi.hoisted(() => ({ flow: {} as Record<string, unknown>, action: vi.fn(), reduced: true }))
 vi.mock('@/app/(auth)/login/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
+vi.mock('motion/react-m', async () => {
+  const actual = await import('motion/react')
+  return actual.m
+})
 vi.mock('motion/react', async () => {
   const React = await import('react')
-  return { useReducedMotion: () => true,
+  return { useReducedMotion: () => mocks.reduced,
+    domAnimation: {},
+    LazyMotion: ({ children }: { children: React.ReactNode }) => React.createElement('section', { 'data-motion-provider': '' }, children),
     AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
-    motion: { div: ({ children }: { children: React.ReactNode }) => React.createElement('div', {}, children) } }
+    m: { div: ({ children, animate, initial, exit, transition }: { children: React.ReactNode; animate?: unknown; initial?: unknown; exit?: unknown; transition?: unknown }) => React.createElement('div', { 'data-motion-animate': JSON.stringify(animate), 'data-motion-initial': JSON.stringify(initial), 'data-motion-exit': JSON.stringify(exit), 'data-motion-transition': JSON.stringify(transition) }, children) } }
 })
 
 function setFixture(state: Parameters<typeof createLoginScreenFixture>[0], locale: typeof authLocales[number]) {
@@ -25,7 +31,25 @@ function setFixture(state: Parameters<typeof createLoginScreenFixture>[0], local
 }
 
 describe.each(authLocales)('auth screen composition in %s', (locale) => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => { vi.clearAllMocks(); mocks.reduced = true })
+  it.each([false, true])('keeps step transitions and error shake inside the lazy provider, reduced=%s', reduced => {
+    mocks.reduced = reduced
+    setFixture('code wrong', locale)
+    mocks.flow.authStepMotion = { ...(mocks.flow.authStepMotion as Record<string, unknown>), reducedMotionEnabled: reduced }
+    const { container, rerender } = render(<LoginContent />)
+    const shake = container.querySelector('[data-motion-transition]')!
+    expect(JSON.parse(shake.getAttribute('data-motion-animate')!)).toEqual({ x: reduced ? 0 : [0, -4, 4, -4, 4, 0] })
+    expect(JSON.parse(shake.getAttribute('data-motion-transition')!).duration).toBe(reduced ? 0 : 0.28)
+    expect(shake.closest('[data-motion-provider]')).not.toBeNull()
+    expect(JSON.parse(container.querySelector('[data-motion-initial]')!.getAttribute('data-motion-initial')!)).toEqual({ opacity: reduced ? 1 : 0, x: reduced ? 0 : 12 })
+    setFixture('email', locale)
+    mocks.flow.authStepMotion = { ...(mocks.flow.authStepMotion as Record<string, unknown>), reducedMotionEnabled: reduced }
+    rerender(<LoginContent />)
+    const stage = container.querySelector('[data-motion-exit]')!
+    expect(JSON.parse(stage.getAttribute('data-motion-exit')!).x).toBe(reduced ? 0 : -12)
+    expect(stage.closest('[data-motion-provider]')).not.toBeNull()
+  })
+
   it('labels the email field and shows the drawn example address', () => {
     setFixture('email', locale)
     render(<LoginContent />)

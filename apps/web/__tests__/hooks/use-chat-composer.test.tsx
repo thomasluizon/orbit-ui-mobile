@@ -25,7 +25,12 @@ import { canReloadDesktopWeb } from '@/lib/desktop-web-release'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
-beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+beforeEach(() => {
+  vi.setSystemTime(PINNED_TEST_TIME)
+  vi.stubGlobal('createImageBitmap', vi.fn(() => Promise.resolve({ width: 640, height: 480, close: vi.fn() })))
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D)
+  vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(callback => callback(new Blob(['resized'], { type: 'image/jpeg' })))
+})
 afterEach(() => vi.useRealTimers())
 
 const mocks = vi.hoisted(() => ({
@@ -510,14 +515,15 @@ describe('web useChatComposer streaming send', () => {
       .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
     const { result, rerender } = renderHook(({ today }) => useChatComposer({ today }), { initialProps: { today: '2026-09-12' } })
     await act(async () => { await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.txt', 'Walk\nRead'))) })
-    act(() => {
+    await act(async () => {
       result.current.setInput(draft)
-      if (draftKind === 'image-plus-text') result.current.handleFileSelect(fileChangeEvent(image))
+      if (draftKind === 'image-plus-text') await result.current.handleFileSelect(fileChangeEvent(image))
     })
+    const selectedImage = result.current.selectedImage
     await act(async () => { result.current.composerProps.onSend(); await Promise.resolve() })
     expect(result.current.input).toBe(draft)
     expect(result.current.selectedTextFile).toEqual({ name: 'notes.txt', content: 'Walk\nRead' })
-    expect(result.current.selectedImage).toBe(draftKind === 'image-plus-text' ? image : null)
+    expect(result.current.selectedImage).toBe(selectedImage)
     expect(result.current.imagePreview).toBe(draftKind === 'image-plus-text' ? 'blob:draft-image' : null)
     expect(result.current.composerProps.attachments).toHaveLength(draftKind === 'image-plus-text' ? 2 : 1)
     expect(result.current.composerProps.state).toBe('atLimit')
@@ -535,7 +541,7 @@ describe('web useChatComposer streaming send', () => {
     for (const call of mocks.fetch.mock.calls) {
       const payload = call[1].body as FormData
       expect(payload.get('message')).toBe(message)
-      expect(payload.get('image')).toBe(draftKind === 'image-plus-text' ? image : null)
+      expect(payload.get('image')).toBe(selectedImage)
     }
     expect(result.current.input).toBe('')
     expect(result.current.composerProps.attachments).toHaveLength(0)
@@ -2388,7 +2394,7 @@ describe('web useChatComposer streaming send', () => {
       },
     })
 
-    expect(screen.getByRole('list', { name: 'shell.composer.attach.trayLabel' })).toBeInTheDocument()
+    expect(await screen.findByRole('list', { name: 'shell.composer.attach.trayLabel' })).toBeInTheDocument()
     expect(screen.getByText('pasted.jpg')).toBeInTheDocument()
 
     fireEvent.change(screen.getByRole('textbox', { name: 'shell.composer.inputLabel' }), {
@@ -2401,7 +2407,8 @@ describe('web useChatComposer streaming send', () => {
     expect(requestBody).toBeInstanceOf(FormData)
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe('log my walk')
-    expect(requestBody.get('image')).toBe(pastedImage)
+    expect(requestBody.get('image')).toMatchObject({ name: 'pasted.jpg', type: 'image/jpeg', size: 7 })
+    expect(requestBody.get('image')).not.toBe(pastedImage)
     if (resend) expect(mocks.fetch.mock.calls[1]?.[1].body).toBe(requestBody)
   })
 
@@ -2495,12 +2502,12 @@ describe('web useChatComposer streaming send', () => {
     await act(async () => {
       await result.current.handleTextFileSelect(fileChangeEvent(textAttachment))
     })
-    act(() => result.current.handleFileSelect(fileChangeEvent(image)))
+    await act(async () => { await result.current.handleFileSelect(fileChangeEvent(image)) })
     expect(result.current.composerProps.attachments).toHaveLength(2)
 
     act(() => result.current.composerProps.onAttachRemove?.('chat-file'))
     expect(result.current.selectedTextFile).toBeNull()
-    expect(result.current.selectedImage).toBe(image)
+    expect(result.current.selectedImage).toMatchObject({ name: 'walk.jpg', type: 'image/jpeg' })
 
     await act(async () => {
       await result.current.handleTextFileSelect(fileChangeEvent(textAttachment))
@@ -2524,9 +2531,9 @@ describe('web useChatComposer streaming send', () => {
     act(() => result.current.composerProps.onSend())
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
 
-    act(() => result.current.handleFileSelect(
+    await act(async () => { await result.current.handleFileSelect(
       fileChangeEvent(new File(['image'], 'walk.png', { type: 'image/png' })),
-    ))
+    ) })
     act(() => result.current.composerProps.onSend())
     await act(async () => Promise.resolve())
     expect(mocks.fetch).toHaveBeenCalledOnce()

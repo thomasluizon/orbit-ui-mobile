@@ -1,8 +1,9 @@
 'use client'
 
+import * as m from 'motion/react-m'
 import type { ReactNode } from 'react'
 import type { useTranslations } from 'next-intl'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence } from 'motion/react'
 import type { ResolvedMotionPreset } from '@orbit/shared/theme'
 import { WifiOff } from '@/components/ui/icons'
 
@@ -51,12 +52,12 @@ export function LoginStepStage({ step, motionPreset, children }: Readonly<{
   const reduced = motionPreset.reducedMotionEnabled
   return (
     <AnimatePresence initial={false} mode="wait">
-      <motion.div key={step}
+      <m.div key={step}
         initial={{ opacity: reduced ? 1 : 0, x: reduced ? 0 : step === 'email' ? -12 : 12 }}
         animate={{ opacity: 1, x: 0, transition: { duration: reduced ? 0 : 0.11, ease: motionPreset.enterEasing } }}
         exit={{ opacity: reduced ? 1 : 0, x: reduced ? 0 : step === 'email' ? -12 : 12,
           transition: { duration: reduced ? 0 : 0.11, ease: motionPreset.exitEasing } }}
-      >{children}</motion.div>
+      >{children}</m.div>
     </AnimatePresence>
   )
 }

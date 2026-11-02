@@ -62,6 +62,9 @@ describe('useChatImageAttachment', () => {
   beforeEach(() => {
     sessionFetch.mockReset()
     vi.stubGlobal('fetch', sessionFetch)
+    vi.stubGlobal('createImageBitmap', vi.fn(() => Promise.resolve({ width: 640, height: 480, close: vi.fn() })))
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D)
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (callback) { callback(new Blob(['resized'], { type: 'image/jpeg' })) })
     vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:preview-1'),
       revokeObjectURL: vi.fn(),
@@ -70,28 +73,28 @@ describe('useChatImageAttachment', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
-    vi.clearAllMocks()
+    vi.restoreAllMocks()
   })
 
-  it('accepts a valid pick, clears the error, and builds a preview URL', () => {
+  it('accepts a valid pick, clears the error, and builds a preview URL', async () => {
     const setSendError = vi.fn()
     const { result } = renderHook(() => useChatImageAttachment(setSendError))
 
-    act(() => {
-      result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024)))
+    await act(async () => {
+      await result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024)))
     })
 
     expect(setSendError).toHaveBeenCalledWith(null)
-    expect(result.current.selectedImage?.type).toBe('image/png')
+    expect(result.current.selectedImage?.type).toBe('image/jpeg')
     expect(result.current.imagePreview).toBe('blob:preview-1')
   })
 
-  it('rejects an unsupported type with the type error key and keeps no selection', () => {
+  it('rejects an unsupported type with the type error key and keeps no selection', async () => {
     const setSendError = vi.fn()
     const { result } = renderHook(() => useChatImageAttachment(setSendError))
 
-    act(() => {
-      result.current.handleFileSelect(fileSelectEvent(imageFile('image/gif', 1024, 'bad.gif')))
+    await act(async () => {
+      await result.current.handleFileSelect(fileSelectEvent(imageFile('image/gif', 1024, 'bad.gif')))
     })
 
     expect(setSendError).toHaveBeenCalledWith('chat.imageError')
@@ -99,12 +102,12 @@ describe('useChatImageAttachment', () => {
     expect(result.current.imagePreview).toBeNull()
   })
 
-  it('rejects an oversized image with the size error key', () => {
+  it('rejects an oversized image with the size error key', async () => {
     const setSendError = vi.fn()
     const { result } = renderHook(() => useChatImageAttachment(setSendError))
 
-    act(() => {
-      result.current.handleFileSelect(
+    await act(async () => {
+      await result.current.handleFileSelect(
         fileSelectEvent(imageFile('image/png', 21 * 1024 * 1024)),
       )
     })
@@ -113,13 +116,13 @@ describe('useChatImageAttachment', () => {
     expect(result.current.selectedImage).toBeNull()
   })
 
-  it('surfaces a validation error when a pasted image is the wrong type', () => {
+  it('surfaces a validation error when a pasted image is the wrong type', async () => {
     const setSendError = vi.fn()
     const { result } = renderHook(() => useChatImageAttachment(setSendError))
     const event = pasteEvent(imageFile('image/gif', 2048, 'pasted.gif'), 'image/gif')
 
-    act(() => {
-      result.current.handlePaste(event)
+    await act(async () => {
+      await result.current.handlePaste(event)
     })
 
     expect(event.preventDefault).toHaveBeenCalledTimes(1)
@@ -127,7 +130,7 @@ describe('useChatImageAttachment', () => {
     expect(result.current.selectedImage).toBeNull()
   })
 
-  it('revokes the preview URL when the image is removed', () => {
+  it('revokes the preview URL when the image is removed', async () => {
     const revokeObjectURL = vi.fn()
     vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:preview-2'),
@@ -135,8 +138,8 @@ describe('useChatImageAttachment', () => {
     }))
     const { result } = renderHook(() => useChatImageAttachment(vi.fn()))
 
-    act(() => {
-      result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024)))
+    await act(async () => {
+      await result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024)))
     })
     expect(result.current.imagePreview).toBe('blob:preview-2')
 
@@ -152,8 +155,8 @@ describe('useChatImageAttachment', () => {
   it('drops the previous account image when another account replaces it', async () => {
     signInAs('user-1')
     const { result } = renderHook(() => useChatImageAttachment(vi.fn()))
-    act(() => {
-      result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024)))
+    await act(async () => {
+      await result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024)))
     })
     expect(result.current.selectedImage).not.toBeNull()
 
@@ -174,8 +177,8 @@ describe('useChatImageAttachment', () => {
     }))
     signInAs('user-1')
     const { result } = renderHook(() => useChatImageAttachment(vi.fn()))
-    act(() => {
-      result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024)))
+    await act(async () => {
+      await result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024)))
     })
     const preview = result.current.imagePreview
 
@@ -193,4 +196,38 @@ describe('useChatImageAttachment', () => {
     expect(result.current.imagePreview).toBe(preview)
     expect(revokeObjectURL).not.toHaveBeenCalled()
   })
+
+it('reports decode failure without selecting the original file', async () => {
+  vi.stubGlobal('createImageBitmap', vi.fn().mockRejectedValue(new Error('Decode failed')))
+  const setError = vi.fn()
+  const { result } = renderHook(() => useChatImageAttachment(setError))
+  await act(async () => { await result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024))) })
+  expect(setError).toHaveBeenCalledWith('chat.imageError')
+  expect(result.current.selectedImage).toBeNull()
+})
+
+it('validates the encoded output size', async () => {
+  vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(callback => callback(new Blob([new Uint8Array(21 * 1024 * 1024)], { type: 'image/jpeg' })))
+  const setError = vi.fn()
+  const { result } = renderHook(() => useChatImageAttachment(setError))
+  await act(async () => { await result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024))) })
+  expect(setError).toHaveBeenCalledWith('chat.imageSizeError')
+  expect(result.current.selectedImage).toBeNull()
+})
+
+it('discards a resize completed after the attachment was removed', async () => {
+  let finish!: (bitmap: { width: number; height: number; close: () => void }) => void
+  vi.stubGlobal('createImageBitmap', vi.fn(() => new Promise<{ width: number; height: number; close: () => void }>(resolve => { finish = resolve })))
+  const { result } = renderHook(() => useChatImageAttachment(vi.fn()))
+  let selecting!: Promise<void>
+  await act(async () => { selecting = result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024))) })
+  await act(async () => {
+    result.current.removeImage()
+    finish({ width: 640, height: 480, close: vi.fn() })
+    await selecting
+  })
+  expect(result.current.selectedImage).toBeNull()
+  expect(result.current.imagePreview).toBeNull()
+})
+
 })

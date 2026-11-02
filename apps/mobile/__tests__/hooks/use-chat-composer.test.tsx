@@ -67,6 +67,12 @@ const mocks = vi.hoisted(() => {
     openChatStream: vi.fn(),
     getDocumentAsync: vi.fn(),
     fileSize: 1024,
+    imageWidth: 640,
+    fileUris: [] as string[],
+    saveImage: vi.fn(),
+    releaseImage: vi.fn(),
+    releaseContext: vi.fn(),
+    manipulateImage: vi.fn(),
     readFileText: vi.fn(),
     requestMediaLibraryPermissionsAsync: vi.fn(),
     launchImageLibraryAsync: vi.fn(),
@@ -214,14 +220,20 @@ vi.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: mocks.launchImageLibraryAsync,
 }))
 
+vi.mock('expo-image-manipulator', () => ({
+  ImageManipulator: { manipulate: mocks.manipulateImage },
+  SaveFormat: { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' },
+}))
+
 vi.mock('expo-document-picker', () => ({
   getDocumentAsync: mocks.getDocumentAsync,
 }))
 
 vi.mock('expo-file-system', () => ({
   File: class MockFile extends Blob {
-    constructor() {
+    constructor(uri: string) {
       super(['x'.repeat(mocks.fileSize)])
+      mocks.fileUris.push(uri)
     }
 
     text(): Promise<string> {
@@ -598,12 +610,13 @@ describe('mobile useChatComposer', () => {
       await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledOnce())
       if (draftKind === 'image-plus-text') await composer.current.openFilePicker()
     })
+    const selectedImage = composer.current.selectedImage
     TestRenderer.act(() => composer.current.setInput(draft))
     await TestRenderer.act(async () => { composer.current.composerProps.onSend(); await Promise.resolve() })
     expect(composer.current.input).toBe(draft)
     expect(composer.current.selectedTextFile).toEqual({ name: 'notes.txt', content: 'Walk\nRead' })
-    expect(composer.current.selectedImage).toEqual(draftKind === 'image-plus-text' ? image : null)
-    expect(composer.current.imagePreview).toBe(draftKind === 'image-plus-text' ? image.uri : null)
+    expect(composer.current.selectedImage).toBe(selectedImage)
+    expect(composer.current.imagePreview).toBe(selectedImage?.uri ?? null)
     expect(composer.current.composerProps.attachments).toHaveLength(draftKind === 'image-plus-text' ? 2 : 1)
     expect(composer.current.composerProps.state).toBe('atLimit')
     expect(composer.current.atMessageLimit).toBe(true)
@@ -1517,6 +1530,17 @@ describe('mobile useChatComposer', () => {
     mocks.openChatStream.mockReset()
     mocks.getDocumentAsync.mockReset()
     mocks.fileSize = 1024
+    mocks.imageWidth = 640
+    mocks.fileUris = []
+    mocks.releaseImage.mockReset()
+    mocks.releaseContext.mockReset()
+    mocks.saveImage.mockReset()
+    mocks.saveImage.mockImplementation(() => Promise.resolve({ uri: 'file:///resized.jpg', width: Math.min(mocks.imageWidth, 1024), height: Math.min(mocks.imageWidth, 1024) * 3 / 4, base64: null }))
+    mocks.manipulateImage.mockReset()
+    mocks.manipulateImage.mockImplementation(() => ({
+      renderAsync: () => Promise.resolve({ saveAsync: mocks.saveImage, release: mocks.releaseImage }),
+      release: mocks.releaseContext,
+    }))
     mocks.readFileText.mockReset()
     mocks.readFileText.mockResolvedValue('Walk')
     mocks.requestMediaLibraryPermissionsAsync.mockReset()
@@ -2540,6 +2564,62 @@ describe('mobile useChatComposer', () => {
     expect(useChatStore.getState().messages).toHaveLength(0)
   })
 
+  it.each([4000, 640])('bounds a %s pixel photo before preview and upload', async width => {
+    mocks.imageWidth = width
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [
+      { uri: 'file:///original.png', width, height: width * 3 / 4, mimeType: 'image/png', fileName: 'original.png', fileSize: 2048 },
+    ] })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => { await composer.current.openFilePicker() })
+    expect(composer.current.selectedImage).toMatchObject({ uri: 'file:///resized.jpg', width: Math.min(width, 1024), height: Math.min(width, 1024) * 3 / 4, mimeType: 'image/jpeg', fileSize: mocks.fileSize })
+    expect(composer.current.imagePreview).toBe('file:///resized.jpg')
+    TestRenderer.act(() => composer.current.setInput('Describe my photo'))
+    await TestRenderer.act(async () => { await composer.current.sendMessage() })
+    expect(mocks.fileUris).toContain('file:///resized.jpg')
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
+    expect(mocks.releaseImage).toHaveBeenCalledOnce()
+    expect(mocks.releaseContext).toHaveBeenCalledOnce()
+  })
+
+  it.each(['encoding', 'size'] as const)('rejects an image after a resized output %s failure', async failure => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [
+      { uri: 'file:///original.png', width: 4000, height: 3000, mimeType: 'image/png', fileName: 'original.png', fileSize: 2048 },
+    ] })
+    if (failure === 'encoding') mocks.saveImage.mockRejectedValueOnce(new Error('Encoding failed'))
+    else mocks.fileSize = 21 * 1024 * 1024
+    const composer = await renderComposer()
+    await TestRenderer.act(async () => { await composer.current.openFilePicker() })
+    expect(composer.current.selectedImage).toBeNull()
+    expect(composer.current.sendError).toBe(failure === 'encoding' ? 'chat.imageError' : 'chat.imageSizeError')
+    expect(mocks.releaseImage).toHaveBeenCalledOnce()
+    expect(mocks.releaseContext).toHaveBeenCalledOnce()
+  })
+
+  it('discards an encoded image after account replacement', async () => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [
+      { uri: 'file:///original.png', width: 4000, height: 3000, mimeType: 'image/png', fileName: 'original.png', fileSize: 2048 },
+    ] })
+    let finish!: (output: { uri: string; width: number; height: number; base64: null }) => void
+    mocks.saveImage.mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    const composer = await renderComposer()
+    let picking!: Promise<void>
+    await TestRenderer.act(async () => {
+      picking = composer.current.openFilePicker()
+      await vi.waitFor(() => expect(mocks.saveImage).toHaveBeenCalledOnce())
+    })
+    await TestRenderer.act(async () => {
+      advanceAccountGeneration()
+      finish({ uri: 'file:///resized.jpg', width: 1024, height: 768, base64: null })
+      await picking
+    })
+    expect(composer.current.selectedImage).toBeNull()
+    expect(composer.current.imagePreview).toBeNull()
+  })
+
   it('selects a valid image from the library and lets it be removed', async () => {
     mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
     mocks.launchImageLibraryAsync.mockResolvedValue({
@@ -2554,8 +2634,8 @@ describe('mobile useChatComposer', () => {
       await composer.current.openFilePicker()
     })
 
-    expect(composer.current.selectedImage?.uri).toBe('file:///pic.jpg')
-    expect(composer.current.imagePreview).toBe('file:///pic.jpg')
+    expect(composer.current.selectedImage?.uri).toBe('file:///resized.jpg')
+    expect(composer.current.imagePreview).toBe('file:///resized.jpg')
     expect(composer.current.sendError).toBeNull()
 
     await TestRenderer.act(() => {
