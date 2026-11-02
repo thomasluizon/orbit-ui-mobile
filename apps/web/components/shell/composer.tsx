@@ -411,7 +411,7 @@ function ComposerInputRow({ props, disclosure }: Readonly<{ props: WebComposerPr
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
           onPaste={props.onPaste}
           onFocus={props.onOpenConversation}
-          // eslint-disable-next-line local/require-focus-replacement -- WHY: the data-focus-perimeter parent draws the textarea focus ring, including in forced colors.
+          // eslint-disable-next-line local/require-focus-replacement -- WHY: the composer row draws the textarea focus ring, including in forced colors.
           className={`col-start-1 row-start-1 w-0 min-w-full max-h-[calc(5lh+24px)] min-h-[48px] resize-none appearance-none border-0 bg-transparent ${composerInputMetrics} text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] placeholder:whitespace-normal disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]`}
         /></div>}
       </motion.div>
