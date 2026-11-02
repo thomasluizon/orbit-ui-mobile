@@ -20,12 +20,12 @@ struct PushService {
 
 static SERVICE: OnceLock<PushService> = OnceLock::new();
 
-pub fn prepare_launch() {
+pub fn prepare_launch() -> Result<(), &'static str> {
     #[cfg(target_os = "macos")]
-    assert!(
-        unsafe { orbit_push_prepare_launch() },
-        "Cannot observe desktop launch"
-    );
+    if !unsafe { orbit_push_prepare_launch() } {
+        return Err("Native launch observer unavailable");
+    }
+    Ok(())
 }
 
 pub fn notification_activation(_arguments: &[String]) -> bool {

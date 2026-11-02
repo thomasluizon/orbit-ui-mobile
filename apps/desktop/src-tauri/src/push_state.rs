@@ -10,7 +10,7 @@ pub struct PushSession {
 }
 
 impl PushSession {
-    pub fn abandon_startup(&mut self) -> bool {
+    pub fn discard_unrestored_startup_response(&mut self) -> bool {
         if self.restored {
             return false;
         }
@@ -169,20 +169,44 @@ impl PushState {
     }
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         match std::fs::read(path) {
-            Ok(bytes) => Ok(serde_json::from_slice(&bytes)?),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                let state = Self {
-                    language: None,
-                    device_id: Uuid::new_v4(),
-                    owner: None,
-                    registration: None,
-                    pending: Vec::new(),
-                };
-                state.save(path)?;
-                Ok(state)
-            }
+            Ok(bytes) => match serde_json::from_slice(&bytes) {
+                Ok(state) => Ok(state),
+                Err(_) => {
+                    eprintln!("Desktop push: corrupt settings moved aside");
+                    let identity = serde_json::from_slice::<serde_json::Value>(&bytes)
+                        .ok()
+                        .and_then(|value| value.get("deviceId")?.as_str()?.parse().ok());
+                    let timestamp = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)?
+                        .as_nanos();
+                    std::fs::rename(
+                        path,
+                        path.with_file_name(format!(
+                            "push.corrupt-{timestamp}-{}.json",
+                            Uuid::new_v4()
+                        )),
+                    )?;
+                    Self::fresh(identity, path)
+                }
+            },
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Self::fresh(None, path),
             Err(error) => Err(error.into()),
         }
+    }
+
+    fn fresh(
+        identity: Option<Uuid>,
+        path: &Path,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let state = Self {
+            language: None,
+            device_id: identity.unwrap_or_else(Uuid::new_v4),
+            owner: None,
+            registration: None,
+            pending: Vec::new(),
+        };
+        state.save(path)?;
+        Ok(state)
     }
 
     pub fn save(&self, path: &Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -254,6 +278,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn corrupt_settings_are_quarantined_before_fresh_state_is_saved() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("push.json");
+        let identity = Uuid::new_v4();
+        let bytes = format!(r#"{{"deviceId":"{identity}","pending":"invalid"}}"#);
+        std::fs::write(&path, &bytes).unwrap();
+        let fresh = PushState::load(&path).unwrap();
+        assert_eq!(fresh.device_id, identity);
+        assert!(fresh.owner.is_none());
+        assert!(fresh.pending.is_empty());
+        let backup = std::fs::read_dir(directory.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .find(|entry| entry != &path)
+            .unwrap();
+        assert_eq!(std::fs::read_to_string(backup).unwrap(), bytes);
+        assert!(PushState::load(&path).is_ok());
+    }
+
+    #[test]
     fn unstaged_commits_preserve_the_owner_and_other_accounts_pending_work() {
         let directory = tempfile::tempdir().unwrap();
         let mut state = PushState::load(&directory.path().join("push.json")).unwrap();
@@ -316,8 +360,13 @@ mod tests {
         let path = directory.path().join("push.json");
         let corrupt = b"{invalid registration";
         std::fs::write(&path, corrupt).unwrap();
-        assert!(PushState::load(&path).is_err());
-        assert_eq!(std::fs::read(&path).unwrap(), corrupt);
+        assert!(PushState::load(&path).is_ok());
+        let backup = std::fs::read_dir(directory.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .find(|entry| entry != &path)
+            .unwrap();
+        assert_eq!(std::fs::read(backup).unwrap(), corrupt);
         assert!(PushState::load(directory.path()).is_err());
     }
 
