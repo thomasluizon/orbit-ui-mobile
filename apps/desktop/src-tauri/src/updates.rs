@@ -334,11 +334,14 @@ async fn download_package(app: &AppHandle, package: Package) {
     show_status(app);
     let update = match package {
         Package::Verified { update, artifact } => {
-            if artifact.read().is_ok() {
-                app.state::<PendingUpdate>()
-                    .recover_lock()
-                    .downloaded(Package::Verified { update, artifact }, true);
-                return;
+            match artifact.read() {
+                Ok(_) => {
+                    app.state::<PendingUpdate>()
+                        .recover_lock()
+                        .downloaded(Package::Verified { update, artifact }, true);
+                    return;
+                }
+                Err(error) => eprintln!("Cannot reuse staged desktop update: {error}"),
             }
             update
         }
@@ -493,12 +496,12 @@ mod tests {
 
     #[test]
     fn install_refusals_never_save_a_resume_record() {
-        let state = Mutex::new(UpdateState::<()>::new(true));
+        let state = Mutex::new(UpdateState::<&str>::new(true));
         assert_eq!(
             reserve_install(&state, || panic!("unexpected resume save")),
             Err("Desktop update is not downloaded".into())
         );
-        let package = checked_package(&state, Ok(Some(("0.2.0".into(), ())))).unwrap();
+        let package = checked_package(&state, Ok(Some(("0.2.0".into(), "package")))).unwrap();
         state.recover_lock().downloaded(package, true);
         assert_eq!(
             reserve_install(&state, || panic!("unexpected resume save")),

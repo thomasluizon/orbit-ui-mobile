@@ -19,6 +19,11 @@ const OPEN: i32 = 6;
 const FAILED: i32 = 7;
 const DONE: i32 = 8;
 
+struct RegistrationWaiter {
+    sender: mpsc::SyncSender<(i32, String)>,
+    token: bool,
+}
+
 struct PushService {
     path: PathBuf,
     saved: Mutex<PushState>,
@@ -28,7 +33,7 @@ struct PushService {
     persistence: Mutex<()>,
     permission: Mutex<&'static str>,
     refresh: Mutex<Refresh>,
-    response: Mutex<Option<(mpsc::SyncSender<(i32, String)>, bool)>>,
+    response: Mutex<Option<RegistrationWaiter>>,
     app: AppHandle,
 }
 
@@ -222,7 +227,7 @@ fn request_registration(service: &PushService, prompt: bool, token: bool) -> Res
     let _operation = request_operation(&service.operation)?;
     let account_before_request = service.session.recover_lock().account.clone();
     let (sender, receiver) = mpsc::sync_channel(8);
-    *service.response.recover_lock() = Some((sender, token));
+    *service.response.recover_lock() = Some(RegistrationWaiter { sender, token });
     let received = native_request(service, prompt, token)
         .and_then(|()| wait_for_registration(&receiver, token));
     service.response.recover_lock().take();
@@ -537,11 +542,11 @@ fn receive_value(kind: i32, payload: String) {
                 dispatch_response(service, response);
             }
         }
-    } else if let Some((sender, token)) = service.response.recover_lock().as_ref() {
+    } else if let Some(waiter) = service.response.recover_lock().as_ref() {
         if matches!(kind, UNSUPPORTED | DEFAULT | DENIED | REGISTRATION | FAILED)
-            || (kind == GRANTED && !token)
+            || (kind == GRANTED && !waiter.token)
         {
-            if let Err(error) = sender.try_send((kind, payload)) {
+            if let Err(error) = waiter.sender.try_send((kind, payload)) {
                 eprintln!(
                     "Desktop push: dropped native response: {}",
                     match error {
