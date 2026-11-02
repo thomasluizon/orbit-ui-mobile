@@ -265,7 +265,23 @@ A deletion ships as a deprecation, then a code removal, then a table drop, each 
 `/prod-readiness`, then fix what it finds, then ship. The launch chores that require the owner sit here too.
 
 - `#33` Record the 7 demo clips and 2 landing videos (owner).
-- `#315` Run /prod-readiness once the board is clear (last). The run is done (workflow `wf_6dadcb1a-7d6`, 934 findings, verdict CONDITIONAL) and is the final readiness run before launch (owner order). Its drafts merge across slices into the fewest one-pull-request tickets, filed once, Highs first (the deploy-cutover sign-in code loss first); each filed ticket is placed in this batch. Sweeps: api dependencies merged as `orbit-api#1061` (Microsoft.OpenApi and Stripe.net held back, reasons on the ticket); ui architecture sweep is `ui#2291`; ui dependency sweep has 6 unpushed commits in `ticket-315-deps`. Close `#315` with the verdict after the filed set closes.
+- `#315` Run /prod-readiness once the board is clear (last). The run is done (workflow `wf_6dadcb1a-7d6`, 934 findings, verdict CONDITIONAL) and is the final readiness run before launch (owner order). Its drafts merge across slices into the fewest one-pull-request tickets, filed once as `#1955` to `#1970` (16 tickets from 62 drafts), Highs first, `#1956` (the deploy-cutover sign-in code loss) first. Sweeps: api dependencies merged as `orbit-api#1061` (Microsoft.OpenApi and Stripe.net held back, reasons on the ticket); ui architecture sweep is `ui#2291`; ui dependency sweep has 6 unpushed commits in `ticket-315-deps`. Close `#315` with the verdict after the filed set closes.
+- `#1955` Send a per-install push secret, read the Apple sign-in handoff from the URL fragment, and cover auth and session failures on web and mobile (High, repo:ui, `#315` launch list).
+- `#1956` Keep sign-in codes valid across API instances and deploys, hash and consume them once, and make the auth stores safe (High, repo:api, `#315` launch list).
+- `#1957` Enforce Astra policy, crisis replies and Pro entitlement on every server path and close the agent policy gaps (High, repo:api, `#315` launch list).
+- `#1958` Erase every trace of a deleted account and keep every record private to its owner (High, repo:api, `#315` launch list).
+- `#1959` Rate-limit and bot-check the public endpoints and hide waitlist emails (High, repo:api, `#315` launch list).
+- `#1960` Make billing, email, Google and push delivery fail loudly, keep provider calls out of transactions, and stop a habit log from waiting on push sends (High, repo:api, `#315` launch list).
+- `#1961` Run scheduled jobs once, keep a stale job from taking the API down, and index, page and bound every background job (High, repo:api, `#315` launch list).
+- `#1962` Bound habit, sync and summary reads, batch bulk writes, cap request bodies and give API constants one home (Medium, repo:api, `#315` launch list).
+- `#1963` Gate API production releases on CI, a staging smoke and a Render export, prove migrations, check Terraform in CI and add the landing CSP header (High, repo:api, `#315` launch list).
+- `#1964` Harden the desktop app launch, push, update and release paths, with Rust tests (High, repo:ui, `#315` launch list).
+- `#1965` Make the harness gates, waiters and release workflows fail closed on input they did not check (Medium, repo:ui, `#315` launch list).
+- `#1966` Fix six WCAG 2.2 AA gaps, downscale chat images before upload and load the habit list faster on web and mobile (Medium, repo:ui, `#315` launch list).
+- `#1967` Cover purchase, Astra stream, offline replay and account modal failures on web and mobile (Medium, repo:ui, `#315` launch list).
+- `#1968` Tidy the landing waitlist and consent client, batch resize work and cover its edges with tests (Medium, repo:landing, `#315` launch list).
+- `#1969` Accept only registered MCP OAuth clients, move the Apple web handoff to the URL fragment, and fail MCP tool results loudly with tests (High, repo:api, `#315` launch list). Blocked by `#1955`.
+- `#1970` Split the oversized habit, chat and calendar hooks and remove dead code and duplicated limits (Medium, repo:ui, `#315` launch list). Blocked by `#1963`.
 - `#1954` Restore the mobile test lint gate by removing unnecessary assertions. Filed by the architecture sweep worker; `ui#2291` commit `08d689ba3` removes the same 29 assertions. Close it when `ui#2291` merges.
 
 ### Batch 8: new platforms, iOS first, then desktop
