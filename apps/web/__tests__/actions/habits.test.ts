@@ -1,3 +1,4 @@
+import { ACCOUNT_A_ACCESS_TOKEN } from '@/__tests__/helpers/auth-token'
 import reminderWire from '@orbit/shared/test-support/fixtures/habit-reminder-wire.json'
 import { habitDetailSchema } from '@orbit/shared/types/habit'
 import en from '@orbit/shared/i18n/en.json'
@@ -12,9 +13,6 @@ const { resolveServerSessionMock } = vi.hoisted(() => ({
 
 vi.mock('@/lib/auth-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/auth-api')>()),
-  getAuthHeaders: vi.fn().mockResolvedValue({
-    Authorization: 'Bearer test-token',
-  }),
   resolveServerSession: resolveServerSessionMock,
 }))
 
@@ -42,7 +40,7 @@ describe('habit server actions', () => {
     useAuthStore.setState({ sessionRefreshFailed: false })
     resolveServerSessionMock.mockReset()
     resolveServerSessionMock.mockResolvedValue({
-      token: 'test-token',
+      token: ACCOUNT_A_ACCESS_TOKEN,
       expiresAt: null,
       refreshed: false,
       refreshFailed: false,
@@ -106,7 +104,7 @@ describe('habit server actions', () => {
     it('returns a serializable refresh rejection for the client boundary', async () => {
       resolveServerSessionMock
         .mockResolvedValueOnce({
-          token: 'stale-token',
+          token: ACCOUNT_A_ACCESS_TOKEN,
           expiresAt: null,
           refreshed: false,
           refreshFailed: false,
@@ -165,7 +163,7 @@ describe('habit server actions', () => {
       await createHabit({ title: 'Test' }, 'account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
-      expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
+      expect(init.headers).toHaveProperty('Authorization', `Bearer ${ACCOUNT_A_ACCESS_TOKEN}`)
     })
 
     it('throws on non-OK response', async () => {

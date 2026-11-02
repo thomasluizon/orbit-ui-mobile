@@ -1,3 +1,4 @@
+import { makeAccessToken } from '@/__tests__/helpers/auth-token'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 
@@ -30,19 +31,6 @@ const ACCOUNT_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nam
 
 function encodeJwtSegment(value: Record<string, unknown>): string {
   return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
-}
-
-function makeAccessToken(accountId: string): string {
-  return [
-    encodeJwtSegment({ alg: 'HS256', typ: 'JWT' }),
-    encodeJwtSegment({
-      aud: 'orbit-client',
-      iss: 'orbit-api',
-      exp: Math.floor(Date.now() / 1000) + 3600,
-      [ACCOUNT_CLAIM]: accountId,
-    }),
-    'ZmFrZS1zaWduYXR1cmU',
-  ].join('.')
 }
 
 /** Puts the account the browser's shared cookie now names in front of the server action. */
@@ -124,6 +112,18 @@ describe('a destructive write formed under a replaced account', () => {
     mockCookieStore.get.mockImplementation((name: string) => name === 'auth_token' ? { value: token } : undefined)
 
     await expect(runWrite()).rejects.toMatchObject({ status: 409, code: 'ACCOUNT_CHANGED' })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('keeps a missing session unauthorized when the intent names an account', async () => {
+    await expect(deleteHabit('habit-1', 'account-a')).rejects.toMatchObject({ status: 401 })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('keeps an expired cookie unauthorized when it still names the intended account', async () => {
+    const token = `${encodeJwtSegment({ alg: 'HS256' })}.${encodeJwtSegment({ exp: 1, [ACCOUNT_CLAIM]: 'account-a' })}.signature`
+    mockCookieStore.get.mockImplementation((name: string) => name === 'auth_token' ? { value: token } : undefined)
+    await expect(deleteHabit('habit-1', 'account-a')).rejects.toMatchObject({ status: 401 })
     expect(mockFetch).not.toHaveBeenCalled()
   })
 

@@ -1,3 +1,4 @@
+import { ACCOUNT_A_ACCESS_TOKEN } from '@/__tests__/helpers/auth-token'
 vi.mock('@/lib/request-language', () => ({ getServerRequestLanguage: vi.fn().mockResolvedValue('en') }))
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -5,9 +6,6 @@ const resolveServerSession = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/auth-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/auth-api')>()),
-  getAuthHeaders: vi.fn().mockResolvedValue({
-    Authorization: 'Bearer test-token',
-  }),
   resolveServerSession,
 }))
 
@@ -26,7 +24,7 @@ describe('auth server actions', () => {
     mockFetch.mockReset()
     resolveServerSession.mockReset()
     resolveServerSession.mockResolvedValue({
-      token: 'test-token',
+      token: ACCOUNT_A_ACCESS_TOKEN,
       expiresAt: null,
       refreshed: false,
       refreshFailed: false,
@@ -59,7 +57,7 @@ describe('auth server actions', () => {
       await requestDeletion('account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
-      expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
+      expect(init.headers).toHaveProperty('Authorization', `Bearer ${ACCOUNT_A_ACCESS_TOKEN}`)
     })
 
     it('throws on server error', async () => {
@@ -107,7 +105,7 @@ describe('auth server actions', () => {
       await confirmDeletion('123456', 'account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
-      expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
+      expect(init.headers).toHaveProperty('Authorization', `Bearer ${ACCOUNT_A_ACCESS_TOKEN}`)
     })
 
     it('returns a serializable failure for a bodyless success response', async () => {
