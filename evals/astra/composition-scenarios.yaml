@@ -1557,8 +1557,9 @@
         - query_habits
         - describe_feature
     rubric: Answer in English. One plain line stating that the documentation does not cover
-      where to set it is permitted only when app_surfaces is an empty array in the successful
-      describe_feature result. A nonempty or missing app_surfaces does not permit this exception.
+      where to set it is permitted only when no step in markdown or app_surfaces answers the question
+      in the successful describe_feature result. A nonempty destination list alone does not answer it;
+      related_surfaces lists destinations, not editing instructions.
       Anything longer fails. Keep the entire answer within one to three short lines and do not
       invent a setting location. Use only the requested scope and current fixture
       facts. Preserve typed empty, partial, stale and failure states honestly.
@@ -1583,8 +1584,9 @@
         - query_habits
         - describe_feature
     rubric: Answer in Brazilian Portuguese. One plain line stating that the documentation does
-      not cover where to set it is permitted only when app_surfaces is an empty array in the successful
-      describe_feature result. A nonempty or missing app_surfaces does not permit this exception.
+      not cover where to set it is permitted only when no step in markdown or app_surfaces answers the question
+      in the successful describe_feature result. A nonempty destination list alone does not answer it;
+      related_surfaces lists destinations, not editing instructions.
       Anything longer fails. Keep the entire answer within one to three short lines and do not
       invent a setting location. Use only the requested scope and current
       fixture facts. Preserve typed empty, partial, stale and failure states

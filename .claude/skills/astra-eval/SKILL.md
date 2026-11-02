@@ -38,6 +38,13 @@ passed cases and second reruns are rejected. The merged `sourceWindow` numbers r
 positions; `superseded` preserves prior evidence without counting its attempts toward pass^k.
 Follow `TESTING.md` `### Daily windows and combined report` for the exact commands.
 
+For an offline assertion audit, run `node evals/astra/replay.mjs <source-window> <separate-output>`.
+Keep request schemas distinct from continuation instruction constraints: the API retains the
+cacheable `ask` schema throughout the turn, including nullable draft bindings on every form.
+The audit never calls the provider or judge and retains semantic rubric verdicts. Offer attempt
+artifacts retain sanitized issued offers, selected keys and declared mutation scope; older artifacts
+that omit this context cannot prove why a lifecycle failed.
+
 For the app-launch gate, use the configured disposable eval accounts and their fixture reset
 executable. Never substitute a personal account. Enable the existing
 `astra_eval_trace` account flag through `/flag` only for disposable fixtures, record its

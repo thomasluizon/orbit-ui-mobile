@@ -9,8 +9,8 @@ const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').to
 function strictArguments(schema, supplied, root = schema, complete = false) {
   if (!supplied || typeof supplied !== 'object') return supplied
   const variants = schemaVariants(schema, root).filter((variant) => variant.type !== 'null')
-  // Default only an unambiguous shape; form unions are supplied by the fixture.
-  const resolved = variants.length === 1 ? variants[0] : resolveSchema(schema, root)
+  const selected = variants.find((variant) => resolveSchema(variant.properties?.form, root)?.enum?.includes(supplied.form))
+  const resolved = selected ?? (variants.length === 1 ? variants[0] : resolveSchema(schema, root))
   if (Array.isArray(supplied)) return supplied.map((entry) => strictArguments(resolved?.items, entry, root))
   const properties = resolved?.properties ?? {}
   const defaults = Object.fromEntries(Object.entries(properties)

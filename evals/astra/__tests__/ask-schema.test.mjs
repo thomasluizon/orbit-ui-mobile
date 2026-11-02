@@ -34,6 +34,37 @@ it('accepts the selection read payload that omits a read directive', async () =>
   expect(verdict.pass, verdict.reason).toBe(true)
 })
 
+// AiIntentService.AppendToolConstraints keeps the cacheable SDK schema after account reads.
+it.each(['choice', 'pickList', 'question'])('keeps the actual request declaration for post-read %s', async (form) => {
+  const call = ask()
+  call.arguments.input = { ...(form === 'choice' ? call.arguments.input : form === 'pickList' ? {
+    form, missing_input: 'bulk_selection', title: 'Choose habits', action: 'log_habits',
+    items: [{ id: 'water', label: 'Water', detail: null, arguments: { habit_id: 'water', date: '2031-06-10' } }],
+  } : { form, missing_input: 'check_in', title: null, intro: null, progress: null,
+    questions: [{ id: 'energy', type: 'yesNo', prompt: 'Feeling ready?', allowFreeText: false }],
+  }), draft_call_id: null, missing_field: null }
+  for (const offers of [false, true]) {
+    const read = habitAccountRead(true)
+    const candidate = structuredClone(call)
+    if (offers) {
+      read.arguments.orbit_dismissed_offer_keys = []
+      candidate.arguments.orbit_dismissed_offer_keys = []
+    }
+    const grade = (entry) => structural(response([read, entry]), { ...context,
+      vars: { ...context.vars, clientContext: { ...clientContext, supportsProactiveOffers: offers } } })
+    const valid = await grade(candidate)
+    expect(valid.pass, valid.reason).toBe(true)
+    for (const fields of [['draft_call_id'], ['missing_field'], ['draft_call_id', 'missing_field']]) {
+      const missing = structuredClone(candidate)
+      for (const field of fields) delete missing.arguments.input[field]
+      expect((await grade(missing)).pass, `Missing request properties: ${fields.join(', ')}`).toBe(false)
+    }
+    const extra = structuredClone(candidate)
+    extra.arguments.input.invented = true
+    expect((await grade(extra)).pass).toBe(false)
+  }
+})
+
 it('accepts a typed account read from another tool', async () => {
   const read = toolCall('get_subscription_overview', { include_status: true }, 'Succeeded', 'plan', clientContext)
   read.result.readDirective = '[[orbit:read:plan]]'

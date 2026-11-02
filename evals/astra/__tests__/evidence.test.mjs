@@ -65,6 +65,44 @@ it('records the corpus requested aim as typed offer evidence', () => {
   expect(evidence.requestedAim).toBe('Read twelve books')
 })
 
+it.each(['action-lifecycle', undefined])('persists issued offer binding and mutation scope on a failed %s turn', (offerFamily) => {
+  offlineCredentials()
+  const issuedOffer = { kind: 'daySummary', action: { offerKey: 'smallStep:account:2031-06-10',
+    kind: 'continueChat', label: 'One step', prompt: 'Help person@example.invalid take offline-refresh one step.',
+    surface: null, entityId: null, date: '2031-06-10' },
+  read: { queryId: '33333333-3333-4333-8333-333333333333', queryFamily: 'get_daily_summary',
+    scope: {}, completeness: 'complete', revision: 'private-revision', refreshToken: 'private-offer-refresh' } }
+  const expectations = { required: [{ name: 'suggest_breakdown',
+    arguments: { one_small_step: true, language: 'pt-BR' }, resultStatus: 'Succeeded' }],
+  permittedMutations: [{ name: 'update_habit', arguments: { habit_id: '22222222-2222-4222-8222-222222222222' } }] }
+  const output = outputFor()
+  output.offerReadback = { pass: false, turns: [], reason: 'Lifecycle failed.' }
+  output.answer = 'private-revision private-offer-refresh'
+  const { evidence, text } = persist(output, { testCase: { metadata: { id: 'evidence' }, vars: {
+    offerFamily, issuedOffer, expectations,
+    clientContext: { supportsParts: true, selectedOfferKey: issuedOffer.action.offerKey },
+  } } })
+  expect(evidence.pass).toBe(false)
+  expect(evidence.issuedOffer).toMatchObject({ kind: 'daySummary', action: { ...issuedOffer.action,
+    prompt: 'Help [redacted] take [redacted] one step.' },
+  read: { queryFamily: 'get_daily_summary', revision: '[redacted]', refreshToken: '[redacted]' } })
+  expect(evidence.selectedOfferKey).toBe(evidence.issuedOffer.action.offerKey)
+  expect(evidence.mutationScope).toEqual({ required: expectations.required,
+    permittedMutations: [{ name: 'update_habit', arguments: { habit_id: '[redacted]' } }] })
+  expect(evidence.answer).toBe('[redacted] [redacted]')
+  expect(text).not.toMatch(/private-revision|private-offer-refresh|person@example.invalid|offline-refresh|33333333|22222222/)
+  expect(issuedOffer.read.refreshToken).toBe('private-offer-refresh')
+})
+
+it('records absent offer setup explicitly without adding offer context to ordinary attempts', () => {
+  const entry = { testCase: { metadata: { id: 'evidence' }, vars: { offerFamily: 'action-lifecycle' } } }
+  const { evidence } = persist(outputFor(), entry)
+  expect(evidence.issuedOffer).toBeNull()
+  expect(evidence.selectedOfferKey).toBeNull()
+  expect(evidence.mutationScope).toEqual({ required: [], permittedMutations: [] })
+  expect(persist(outputFor()).evidence).not.toHaveProperty('issuedOffer')
+})
+
 it('redacts credential echoes even when a response-header identity is a UUID', () => {
   const credential = randomUUID()
   vi.stubEnv('ORBIT_EVAL_TOKEN', credential)

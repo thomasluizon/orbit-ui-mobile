@@ -779,10 +779,14 @@ database. Sharing and database writes are disabled in the configuration. For loc
 promptfoo debug logging or publish raw output, arguments, results, traces or its local state.
 
 The structural wrapper delegates each nonempty call to promptfoo's
-`is-valid-openai-tools-call` against its active declaration. The generated `tools` catalog carries
-the initial `ask` schema, restricted to `habit_setup`; `postReadTools` carries the API's declaration
-update with all missing-input reasons. A successful typed account read earlier in the same turn
-unlocks that update. Evidence is the result's call-bound `readDirective`, or `query_habits` returning
+`is-valid-openai-tools-call` against the SDK request declaration. The generated `tools` and
+`offerTools` catalogs carry the cacheable `ask` schema, including nullable `draft_call_id` and
+`missing_field` on every form. `AiIntentService.AppendToolConstraints` retains that schema for
+the entire turn. The exported `postReadTools` and `habitSetupTools` describe continuation
+instruction constraints, not replacement SDK declarations. Structural validation always checks
+the request schema and separately enforces a bound missing-field draft before an account read.
+A successful typed account read earlier in the same turn unlocks the other missing-input reasons.
+Evidence is the result's call-bound `readDirective`, or `query_habits` returning
 `selection_required: true`, as produced by `ProcessUserChatCommand.ToolResults.cs`. Failed reads,
 untyped successes and reads in another turn do not unlock it. This mirrors
 `ProcessUserChatCommand.Ask.cs` `RecordSuccessfulAskRead` and `RefreshAskSchema`, with strict
@@ -848,6 +852,14 @@ previews, unallowed tools and successful unsolicited writes continue to fail. A 
 small-step offer explicitly permits one successful `suggest_breakdown` with `one_small_step=true`
 in the person's language; subsequent saves still require the existing approval and readback.
 
+Feature-help rubrics permit one short documentation-gap line only when no step in the successful
+`describe_feature` result's `markdown` or `app_surfaces` answers the question. A nonempty destination
+list does not establish an editing step. Invented navigation or setting locations still fail.
+
+Offer attempt evidence retains sanitized `issuedOffer`, `selectedOfferKey` and `mutationScope`
+(`required` and `permittedMutations`), including failed lifecycle attempts. Missing setup is
+explicitly null. Offer context identifiers, credentials, refresh tokens, revisions and preview
+fingerprints are redacted before persistence, including their echoes elsewhere in the attempt.
 Offer continuation evidence is captured before verification, including failing turns. Each
 turn retains its arguments, statuses, result projection, answer and assertion verdicts. Only
 valid request UUIDs retain their identity; account identifiers and private fields remain

@@ -5,8 +5,8 @@ export { composition }
 export { proactiveOffers } from './proactive-offers.mjs'
 import { matchesArguments, matchesOperation, outcomeCalls, failedBeforeDispatch } from './operation-matcher.mjs'
 import { validateToolArguments } from './tool-validation.mjs'
-import { tools, legacyTools, postReadTools, habitSetupTools, habitSetupBinding,
-  toolWrites, toolSensitiveFields, observableSchema, offerTools, offerPostReadTools, offerHabitSetupTools } from './trace-policy.mjs'
+import { tools, legacyTools, habitSetupTools, habitSetupBinding,
+  toolWrites, toolSensitiveFields, observableSchema, offerTools, offerHabitSetupTools } from './trace-policy.mjs'
 import { resolveSchema } from './tool-schema.mjs'
 
 const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
@@ -16,9 +16,7 @@ const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { 
 const compositionCatalog = traceCatalog(tools)
 const legacyCatalog = traceCatalog(legacyTools)
 const mergeCatalog = (initial, updates) => [...new Map([...initial, ...updates].map((tool) => [tool.function.name, tool])).values()]
-const postReadCatalog = mergeCatalog(compositionCatalog, traceCatalog(postReadTools))
 const offerCatalog = traceCatalog(offerTools)
-const offerContinuationCatalog = mergeCatalog(offerCatalog, traceCatalog(offerPostReadTools))
 const habitSetupCatalog = traceCatalog(habitSetupTools)
 const offerHabitSetupCatalog = traceCatalog(offerHabitSetupTools)
 
@@ -115,7 +113,7 @@ export async function structural(output, context) {
   const supportsParts = context.vars.clientContext?.supportsParts === true
   const offers = context.vars.clientContext?.supportsProactiveOffers === true
   if (offers && !offerCatalog.length) return result(false, 'Missing producer-exported proactive tool catalog; regenerate against the evaluated API.', { unavailable: true })
-  let catalog = offers ? offerCatalog : supportsParts ? compositionCatalog : legacyCatalog
+  const catalog = offers ? offerCatalog : supportsParts ? compositionCatalog : legacyCatalog
   let hasSuccessfulAccountRead = false
   const drafts = new Map()
   let verdict = result(true, 'No tool calls to validate.')
@@ -124,12 +122,14 @@ export async function structural(output, context) {
     if (supportsParts && call.name === 'ask' && !hasSuccessfulAccountRead && !drafts.size) {
       return result(false, 'ask requires a typed account read or a bound missing-field draft.')
     }
-    // The trace has no round marker; a read and ask can share the initial declaration.
-    const catalogs = supportsParts && call.name === 'ask' && hasSuccessfulAccountRead
-      ? [catalog, offers ? offerCatalog : compositionCatalog] : [catalog]
-    verdict = await validateToolArguments(call, catalogs, context)
+    // AiIntentService.AppendToolConstraints retains the initial SDK schema throughout the turn.
+    verdict = await validateToolArguments(call, [catalog], context)
     if (!verdict.pass) return verdict
-    // Mirror ProcessUserChatCommand.Ask.cs:125-197 and ToolResults.cs:60-84 for ordered, typed declaration updates.
+    if (supportsParts && call.name === 'ask' && !hasSuccessfulAccountRead) {
+      verdict = await validateToolArguments(call, [boundHabitSetupCatalog(drafts, offers)], context)
+      if (!verdict.pass) return verdict
+    }
+    // ProcessUserChatCommand.Ask.cs and ToolResults.cs bind prerequisites to typed results in this turn.
     const successfulAccountRead = toolWrites.get(call.name) === false
       && call.resultStatus === 'Succeeded' && call.result.success === true
       && (call.result.readDirective === `[[orbit:read:${call.id}]]`
@@ -137,8 +137,6 @@ export async function structural(output, context) {
     if (supportsParts) {
       recordHabitSetupDraft(call, drafts)
       hasSuccessfulAccountRead ||= successfulAccountRead
-      if (hasSuccessfulAccountRead) catalog = offers ? offerContinuationCatalog : postReadCatalog
-      else if (drafts.size) catalog = boundHabitSetupCatalog(drafts, offers)
     }
   }
   return verdict

@@ -98,6 +98,23 @@ function resultEvidence(result, name) {
       ...(name === 'suggest_habits' && Array.isArray(result.payload.drafts) ? { drafts: result.payload.drafts } : {}) } : null }
 }
 
+function offerContextEvidence(vars, withheld) {
+  const project = (value) => {
+    if (Array.isArray(value)) return value.map(project)
+    if (!value || typeof value !== 'object') return value
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => {
+      if (/token|credential|password|secret|cookie|authorization|cursor|revision|fingerprint|^(?:api|access|refresh)?key$|ids?$/u.test(normalizeField(key))) {
+        collectStrings(child, withheld)
+        return [key, child === null ? null : '[redacted]']
+      }
+      return [key, project(child)]
+    }))
+  }
+  return project({ issuedOffer: vars.issuedOffer ?? null,
+    selectedOfferKey: vars.clientContext?.selectedOfferKey ?? null,
+    mutationScope: { required: vars.expectations?.required ?? [], permittedMutations: vars.expectations?.permittedMutations ?? [] } })
+}
+
 export function attemptEvidence(entry, attempt) {
   const output = entry.response?.output
   const catalog = entry.testCase.vars?.clientContext?.supportsParts === true ? [...tools, ...postReadTools, ...habitSetupTools, ...offerTools, ...offerPostReadTools, ...offerHabitSetupTools] : legacyTools
@@ -117,7 +134,8 @@ export function attemptEvidence(entry, attempt) {
   const evidence = sanitizeEvidence({ ...attempt,
     ...(entry.testCase.vars?.setupEvidence ? { setup: entry.testCase.vars.setupEvidence } : {}),
     ...(output?.httpError ? { httpError: output.httpError } : {}),
-    ...(entry.testCase.vars?.offerFamily ? { requestedAim: entry.testCase.vars.requestedAim ?? null } : {}),
+    ...(entry.testCase.vars?.offerFamily || entry.testCase.vars?.issuedOffer !== undefined ? { requestedAim: entry.testCase.vars.requestedAim ?? null,
+      ...offerContextEvidence(entry.testCase.vars, withheld) } : {}),
     answer: output?.answer ?? null,
     ...(output?.trace ? { trace: { state: output.trace.state } } : {}),
     composition: (output?.composition?.parts ?? []).filter((part) => part?.type === 'block')

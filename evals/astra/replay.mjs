@@ -4,7 +4,7 @@ import { basename, dirname, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
 import { validateToolArguments } from './tool-validation.mjs'
-import { tools, legacyTools, postReadTools, offerTools, offerPostReadTools, observableSchema } from './trace-policy.mjs'
+import { tools, legacyTools, offerTools, observableSchema } from './trace-policy.mjs'
 import { configureOffers } from './offer-context.mjs'
 import { toolBehavior } from './assertions.mjs'
 import parseResponse from './response.mjs'
@@ -15,15 +15,14 @@ const { buildChatClientContext } = await tsImport('../../packages/shared/src/cha
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
   parse(readFileSync(new URL(path, import.meta.url), 'utf8'), { merge: true }))
 const observable = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
+  description: tool.function.description ?? undefined,
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
 } }))
 
-function declarations(vars, name) {
+function declarations(vars) {
   if (vars.clientContext?.supportsParts !== true) return [observable(legacyTools)]
   const offers = vars.clientContext.supportsProactiveOffers === true
-  const initial = offers ? offerTools : tools
-  const continued = offers ? offerPostReadTools : postReadTools
-  return (name === 'ask' ? [initial, continued] : [initial]).map(observable)
+  return [observable(offers ? offerTools : tools)]
 }
 
 function restartPopulation(attempt, vars) {
@@ -43,12 +42,12 @@ export async function replayAttempt(attempt, descriptor, recorded) {
   const assertions = structuredClone(attempt.assertions)
   const notes = []
   const schemas = await Promise.all(attempt.toolCalls.map(async (call) => ({ name: call.name,
-    ...await validateToolArguments(call, declarations(test.vars, call.name), { test, vars: test.vars }) })))
+    ...await validateToolArguments(call, declarations(test.vars), { test, vars: test.vars }) })))
   const structure = assertions.find((assertion) => assertion.metric === 'toolStructure')
   if (structure?.pass === false && /Call to "ask" does not match schema/u.test(structure.reason)
     && schemas.length && schemas.every((verdict) => verdict.pass)) {
-    Object.assign(structure, { pass: true, reason: 'Recorded arguments match a producer declaration available to this round.' })
-    notes.push('Pre-read/post-read ask declaration union.')
+    Object.assign(structure, { pass: true, reason: 'Recorded arguments match the producer request declaration.' })
+    notes.push('The API keeps the cacheable ask request schema; continuation updates are instruction constraints.')
   }
   const behavior = assertions.find((assertion) => assertion.metric === 'toolBehavior')
   const completedGoal = test.vars.offerFamily === 'goal-on-track' && test.vars.offerState === 'completed'
