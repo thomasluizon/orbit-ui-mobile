@@ -42,13 +42,18 @@ const execute = (script, environment = {}, responses = {}) => {
 
 const green = () => ({
   checks: [{ total_count: 2, check_runs: [1, 2].map((id) => ({ ...structuredClone(recorded.check), name: `check ${id}`, head_sha: sha, status: "completed", conclusion: "success", check_suite: { id } })) }],
-  ...Object.fromEntries(["test", "guards"].map((name, index) => [name, [{ total_count: 1, workflow_runs: [{ ...structuredClone(recorded.run), head_sha: sha, path: `.github/workflows/${name}.yml`, check_suite_id: index + 1, status: "completed", conclusion: "success" }] }]])),
+  ...Object.fromEntries(["test", "guards"].map((name, index) => [name, [{ total_count: 1, workflow_runs: [{ ...structuredClone(recorded.run), head_sha: sha, path: `.github/workflows/${name}.yml`, event: "push", check_suite_id: index + 1, status: "completed", conclusion: "success" }] }]])),
 })
 
 test("merged SHAs retain their own tests and guards runs", () => {
   for (const name of ["test", "guards"]) {
     const workflow = load(name)
-    assert.deepEqual(workflow.on.push.branches, ["main"])
+    assert.deepEqual(workflow.on.push.branches, ["**"])
+    for (const job of Object.values(workflow.jobs)) {
+      for (const step of job.steps ?? []) {
+        if (step.uses?.startsWith("actions/checkout@")) assert.equal(step.with?.ref, undefined, "push jobs must test the event commit")
+      }
+    }
     assert.match(workflow.concurrency.group, /github.sha/)
   }
 })
@@ -74,6 +79,17 @@ test("web release requires both successful workflows and their actual checks bef
     mutate(response)
     const result = execute(step.run, {}, response)
     assert.notEqual(result.status, 0, result.stdout + result.stderr)
+  }
+})
+
+test("web and Android reject PR merge-tree evidence associated with the selected feature head", () => {
+  for (const step of [stepNamed(web.jobs.build, "Require successful release CI"), stepNamed(load("android-release").jobs["release-android"], "Require successful release CI")]) {
+    const response = green()
+    for (const name of ["test", "guards"]) response[name][0].workflow_runs[0].event = "pull_request"
+    const result = execute(step.run, {}, response)
+    assert.notEqual(result.status, 0, "PR head metadata cannot authenticate the merge checkout")
+    for (const name of ["test", "guards"]) response[name][0].workflow_runs[0].event = "push"
+    assert.equal(execute(step.run, {}, response).status, 0)
   }
 })
 

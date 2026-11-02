@@ -96,7 +96,7 @@ jobs:
           for workflow in test guards; do
             runs=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}.yml/runs?head_sha=${SOURCE_SHA}&per_page=100")
             suite=$(jq -er --arg sha "$SOURCE_SHA" --arg path ".github/workflows/${workflow}.yml" '
-              [.[] | .workflow_runs[] | select(.head_sha == $sha and .path == $path)]
+              [.[] | .workflow_runs[] | select(.head_sha == $sha and .path == $path and .event == "push")]
               | max_by([.run_number, .run_attempt])
               | select(.status == "completed" and .conclusion == "success") | .check_suite_id' <<< "$runs") || {
               echo "::error::Selected SHA requires a successful ${workflow}.yml run"; exit 1;

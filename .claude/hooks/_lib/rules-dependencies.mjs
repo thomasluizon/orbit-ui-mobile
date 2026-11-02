@@ -1,4 +1,4 @@
-import { expandCommands } from "./command-expander.mjs"
+import { commandWords, inspectCommands, shellValue } from "./command-expander.mjs"
 
 // Resolve existing ancestors through symlinks so an indirect path into node_modules is refused.
 
@@ -142,6 +142,23 @@ function powershellWriteTargets(binary, rest) {
   return targets
 }
 
+/** Bind path literals to file-writing calls, rather than to unrelated reads or output contents. */
+function interpreterWriteTargets(segment) {
+  const code = commandWords(segment).slice(1).map(shellValue).join(" ")
+  const literal = `(["'])(.*?)\\1`
+  const directWrites = new RegExp(`\\b(?:writeFile(?:Sync)?|appendFile(?:Sync)?|truncate(?:Sync)?|unlink(?:Sync)?|rm(?:Sync)?|rmdir(?:Sync)?|mkdir(?:Sync)?|createWriteStream|File\\.(?:write|append))\\s*\\(\\s*${literal}`, "g")
+  const targets = [...code.matchAll(directWrites)].map((match) => match[2])
+  for (const match of code.matchAll(/\bopen(?:Sync)?\s*\(\s*(["'])(.*?)\1\s*,\s*(["'])(.*?)\3/g)) {
+    if (/[wax+]/.test(match[4])) targets.push(match[2])
+  }
+  for (const match of code.matchAll(/\bPath\s*\(\s*(["'])(.*?)\1\s*\)\s*\.\s*(?:write_text|write_bytes|touch|unlink|mkdir)\s*\(/g)) targets.push(match[2])
+  for (const match of code.matchAll(/\b(rename(?:Sync)?|copyFile(?:Sync)?)\s*\(\s*(["'])(.*?)\2\s*,\s*(["'])(.*?)\4/g)) {
+    if (match[1].startsWith("rename")) targets.push(match[3])
+    targets.push(match[5])
+  }
+  return targets
+}
+
 function segmentWrites(segment) {
   const targets = redirectTargets(segment)
   const { tokens, strippedRunner } = withoutRunners(tokensOf(segment))
@@ -158,9 +175,8 @@ function segmentWrites(segment) {
    * `grep -rn patch-package .claude/hooks` and `npm install patch-package` stay ordinary commands.
    */
   if (strippedRunner && tokens.some((token) => PATCH_TOOLS.has(normalize(token)))) return { patchTool: true, targets }
-  if (["node", "nodejs", "python", "python3", "ruby", "perl", "sh", "bash", "zsh"].includes(binary) && rest.some((token) => /^-[a-z]*[ec]/i.test(token))) {
-    targets.push(...[...segment.matchAll(/(?:[^\s"'`();,]*[\\/])?node_modules[\\/][^\s"'`();,]+/g)].map((match) => match[0]))
-  }
+  const inlineInterpreter = ["node", "nodejs", "python", "python3", "ruby", "perl"].includes(binary) && rest.some((token) => /^-[a-z]*[ec]/i.test(token))
+  if (inlineInterpreter) targets.push(...interpreterWriteTargets(segment))
   if (binary === "dd") targets.push(...rest.filter((token) => token.startsWith("of=")).map((token) => token.slice(3)))
   if (binary === "perl" && rest.some((token) => /^-[a-z]*i/.test(token))) targets.push(...args)
   if (binary === "sed" && rest.some((token) => SED_IN_PLACE.test(token))) targets.push(...args.slice(1))
@@ -204,15 +220,16 @@ export function checkDependencyFileWrite(filePath, { cwd = "" } = {}) {
 export function checkDependencyCommand(command, { cwd = "" } = {}) {
   if (typeof command !== "string") return null
 
-  let directory = cwd || process.cwd()
-  for (const segment of expandCommands(stripHeredocBodies(command))) {
+  let verdict = null
+  inspectCommands(stripHeredocBodies(command), cwd || process.cwd(), (segment, directory) => {
     const words = tokensOf(segment)
     if (normalize(words[0]) === "cd" && words[1]) directory = resolve(directory, unquote(words[1]))
     const { patchTool, targets } = segmentWrites(segment)
-    if (patchTool) return refusal("Running patch-package", `Refused: ${segment.trim().slice(0, 160)}`)
+    if (patchTool) verdict ??= refusal("Running patch-package", `Refused: ${segment.trim().slice(0, 160)}`)
     if (targets.some((target) => resolvesInsideNodeModules(target, directory))) {
-      return refusal("Writing a file", `Refused: ${segment.trim().slice(0, 160)}`)
+      verdict ??= refusal("Writing a file", `Refused: ${segment.trim().slice(0, 160)}`)
     }
-  }
-  return null
+    return directory
+  })
+  return verdict
 }

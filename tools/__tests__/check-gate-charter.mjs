@@ -58,6 +58,32 @@ export const cases = () => {
   const uninvoked = stageRepository("uninvoked", completeCharter())
   writeFileSync(join(uninvoked, "lefthook.yml"), "{}")
   check("check-gate-charter.mjs", "registered tool without invocation is refused", ["--root", uninvoked], { status: 1, stderr: /not invoked/ })
+  for (const [label, script, status] of [
+    ["quoted-data", "cat <<'EOF'\nnode tools/check-existing.mjs\nEOF", 1],
+    ["bare-data", "cat <<EOF\nnode tools/check-existing.mjs\nEOF", 1],
+    ["quoted-substitution-data", "cat <<'EOF'\n$(node tools/check-existing.mjs)\nEOF", 1],
+    ["shell-heredoc", "bash <<'EOF'\nnode tools/check-existing.mjs\nEOF", 0],
+    ["shell-overridden-input", "bash <<'EOF' < /dev/null\nnode tools/check-existing.mjs\nEOF", 1],
+    ["shell-overridden-document", "bash <<'A' <<'B'\nnode tools/check-existing.mjs\nA\ntrue\nB", 1],
+    ["shell-overridden-with-stream", "bash <<'A' 2>&1 <<'B'\nnode tools/check-existing.mjs\nA\ntrue\nB", 1],
+    ["shell-final-document", "bash <<'A' <<'B'\ntrue\nA\nnode tools/check-existing.mjs\nB", 0],
+    ["bare-substitution", "cat <<EOF\n$(node tools/check-existing.mjs)\nEOF", 0],
+    ["bare-backtick", "cat <<EOF\n`node tools/check-existing.mjs`\nEOF", 0],
+    ["bare-quoted-path", 'cat <<EOF\n$(node "tools/check-existing.mjs")\nEOF', 0],
+    ["bare-literal-quotes", "cat <<EOF\n'$(node tools/check-existing.mjs)'\nEOF", 0],
+    ["bare-escaped-substitution", "cat <<EOF\n\\$(node tools/check-existing.mjs)\nEOF", 1],
+    ["escaped-data", "cat <<\\EOF\nnode tools/check-existing.mjs\nEOF", 1],
+    ["numeric-data", "cat <<123\nnode tools/check-existing.mjs\n123", 1],
+    ["unterminated-data", "cat <<'EOF'\nnode tools/check-existing.mjs", 1],
+    ["tabbed-data", "cat <<-'EOF'\n\tnode tools/check-existing.mjs\n\tEOF", 1],
+    ["multiple-data", "cat <<'A' <<'B'\nnode tools/check-existing.mjs\nA\nnode tools/check-existing.mjs\nB", 1],
+    ["comment-data", "# $(node tools/check-existing.mjs)", 1],
+    ["comment-delimiter", "# cat <<'EOF'\nnode tools/check-existing.mjs\nEOF", 0],
+  ]) {
+    const repository = stageRepository(`heredoc-${label}`, completeCharter())
+    writeFileSync(join(repository, "lefthook.yml"), yaml.dump({ "pre-commit": { commands: { existing: { run: script } } } }))
+    check("check-gate-charter.mjs", `heredoc invocation ${label}`, ["--root", repository], { status, ...(status ? { stderr: /not invoked/ } : {}) })
+  }
   const echoed = stageRepository("echoed-invocation", completeCharter())
   writeFileSync(join(echoed, "lefthook.yml"), "pre-commit:\n  commands:\n    fake:\n      run: xargs echo node tools/check-existing.mjs\n")
   check("check-gate-charter.mjs", "an echoed xargs argument is not an invocation", ["--root", echoed], { status: 1, stderr: /not invoked/ })

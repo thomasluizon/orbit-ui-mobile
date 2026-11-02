@@ -452,6 +452,60 @@ T("dependency-write: the repository's own source allows", checkDependencyFileWri
 T("dependency-write: a directory merely named like node_modules allows", checkDependencyFileWrite("node_modules_backup/notes.md", inTree), null)
 T("dependency-write: no path at all allows", checkDependencyFileWrite(null, inTree), null)
 const dependencyCommand = (command) => checkDependencyCommand(command, inTree)
+const isolatedDirectoryBodies = [
+  (body) => `echo $(${body})`,
+  (body) => `echo \`${body}\``,
+  (body) => `(${body})`,
+  (body) => `bash -c '${body}'`,
+  (body) => `sh -c '${body}'`,
+  (body) => `zsh -c '${body}'`,
+  (body) => `${body} | cat`,
+  (body) => `${body} & wait`,
+]
+for (const wrap of isolatedDirectoryBodies) {
+  for (const [command, cwd, expected] of [
+    [`${wrap(`cd ${root}`)}; touch package.json`, installedPackage, true],
+    [`cd ${installedPackage}; ${wrap(`cd ${root}`)}; touch package.json`, root, true],
+    [`${wrap(`cd ${root}`)}; cd ${installedPackage}; touch package.json`, root, true],
+    [`cd ${installedPackage}; ${wrap("touch package.json")}`, root, true],
+    [`${wrap("touch package.json")}; cd ${installedPackage}`, root, false],
+    [`${wrap(`cd ${installedPackage}`)}; touch package.json`, root, false],
+  ]) T(`dependency scope: ${command}`, blocks(checkDependencyCommand(command, { cwd })), expected)
+  const resolveRemoteUrl = (directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git"
+  for (const [command, cwd, expected] of [
+    [`${wrap(`cd ${root}`)}; git push origin main`, installedPackage, true],
+    [`cd ${installedPackage}; ${wrap(`cd ${root}`)}; git push origin main`, root, true],
+    [`${wrap(`cd ${root}`)}; cd ${installedPackage}; git push origin main`, root, true],
+    [`cd ${installedPackage}; ${wrap("git push origin main")}`, root, true],
+    [`${wrap("git push origin main")}; cd ${installedPackage}`, root, false],
+    [`${wrap(`cd ${installedPackage}`)}; git push origin main`, root, false],
+  ]) T(`git scope: ${command}`, blocks(checkGitCommand(command, { cwd, resolveRemoteUrl })), expected)
+}
+T("dependency scope: eval changes the parent directory", blocks(dependencyCommand("eval 'cd node_modules/react-native'; touch package.json")), true)
+T("dependency scope: eval can leave the installed package", checkDependencyCommand(`eval 'cd ${root}'; touch package.json`, { cwd: installedPackage }), null)
+const scopeRemote = (directory) => directory === root ? "https://example.invalid/other.git" : "https://example.invalid/orbit-ui-mobile.git"
+T("git scope: eval changes the parent directory", blocks(checkGitCommand(`eval 'cd ${installedPackage}'; git push origin main`, { cwd: root, resolveRemoteUrl: scopeRemote })), true)
+T("git scope: eval can leave a protected repository", checkGitCommand(`eval 'cd ${root}'; git push origin main`, { cwd: installedPackage, resolveRemoteUrl: scopeRemote }), null)
+const interpreterReads = [
+  `node -e 'require("fs").readFileSync("node_modules/js-yaml/package.json", "utf8")'`,
+  `node -e 'require("node_modules/js-yaml/package.json")'`,
+  `node -e 'require("fs").promises.readFile("node_modules/js-yaml/package.json", "utf8")'`,
+  `python -c 'print(open("node_modules/js-yaml/package.json").read())'`,
+  `python3 -c 'from pathlib import Path; print(Path("node_modules/js-yaml/package.json").read_text())'`,
+  `node -e 'require("fs").writeFileSync("report.txt", "node_modules/js-yaml/package.json")'`,
+  `node -e 'const fs = require("fs"); fs.readFileSync("node_modules/js-yaml/package.json"); fs.writeFileSync("report.txt", "ok")'`,
+]
+for (const command of interpreterReads) T(`dependency interpreter read: ${command}`, dependencyCommand(command), null)
+const interpreterWrites = [
+  `node -e 'require("fs").writeFileSync("node_modules/js-yaml/package.json", "edited")'`,
+  `node -e 'require("fs").openSync("node_modules/js-yaml/package.json", "w")'`,
+  `python -c 'open("node_modules/js-yaml/package.json", "w").write("edited")'`,
+  `python3 -c 'from pathlib import Path; Path("node_modules/js-yaml/package.json").write_text("edited")'`,
+  `bash -c 'true' > node_modules/js-yaml/package.json`,
+  `eval 'true' > node_modules/js-yaml/package.json`,
+]
+for (const command of interpreterWrites) T(`dependency interpreter write: ${command}`, blocks(dependencyCommand(command)), true)
+T("dependency scope: eval redirects before changing its directory", blocks(checkDependencyCommand(`eval 'cd ${root}' > package.json`, { cwd: installedPackage })), true)
 for (const command of [
   "echo true > node_modules/react-native/flags.kt",
   'sed -i "s/false/true/" node_modules/react-native/flags.kt',
@@ -1092,6 +1146,33 @@ T("adapter worker-browser: the same dev server outside a worker -> 0", runHook(B
 // file with a tool and not with a redirect, and the launcher marker is irrelevant to it: every
 // caller is refused.
 const DEPENDENCY = "forbid-node-modules-write.mjs"
+for (const wrap of isolatedDirectoryBodies) {
+  for (const [command, cwd, expected] of [
+    [`${wrap(`cd ${root}`)}; touch package.json`, installedPackage, 2],
+    [`cd ${installedPackage}; ${wrap(`cd ${root}`)}; touch package.json`, root, 2],
+    [`cd ${installedPackage}; ${wrap("touch package.json")}`, root, 2],
+    [`${wrap("touch package.json")}; cd ${installedPackage}`, root, 0],
+  ]) T(`adapter dependency scope: ${command}`, runHook(DEPENDENCY, bash(command, cwd)), expected)
+}
+for (const command of interpreterReads) T(`adapter dependency interpreter read: ${command}`, runHook(DEPENDENCY, bash(command, dependencyTree)), 0)
+for (const command of interpreterWrites) T(`adapter dependency interpreter write: ${command}`, runHook(DEPENDENCY, bash(command, dependencyTree)), 2)
+const scopedProtectedRepo = join(root, "scoped-protected")
+const scopedOtherRepo = join(root, "scoped-other")
+for (const [directory, repository] of [[scopedProtectedRepo, "orbit-ui-mobile"], [scopedOtherRepo, "other"]]) {
+  mkdirSync(directory)
+  T("git scope fixture: init", stagingGit(["init", "--initial-branch=main"], directory).status, 0)
+  T("git scope fixture: remote", stagingGit(["remote", "add", "origin", `https://example.invalid/${repository}.git`], directory).status, 0)
+}
+for (const wrap of isolatedDirectoryBodies) {
+  for (const [command, cwd, expected] of [
+    [`${wrap(`cd ${scopedOtherRepo}`)}; git push origin main`, scopedProtectedRepo, 2],
+    [`cd ${scopedProtectedRepo}; ${wrap(`cd ${scopedOtherRepo}`)}; git push origin main`, root, 2],
+    [`cd ${scopedProtectedRepo}; ${wrap("git push origin main")}`, root, 2],
+    [`${wrap("git push origin main")}; cd ${scopedProtectedRepo}`, scopedOtherRepo, 0],
+  ]) T(`adapter git scope: ${command}`, runHook("git-guardrails.mjs", bash(command, cwd)), expected)
+}
+T("adapter git scope: eval can enter a protected repository", runHook("git-guardrails.mjs", bash(`eval 'cd ${scopedProtectedRepo}'; git push origin main`, scopedOtherRepo)), 2)
+T("adapter git scope: eval can leave a protected repository", runHook("git-guardrails.mjs", bash(`eval 'cd ${scopedOtherRepo}'; git push origin main`, scopedProtectedRepo)), 0)
 const edit = (toolName, filePath) => ({ tool_name: toolName, tool_input: { file_path: filePath }, cwd: dependencyTree })
 T("adapter dependency-write: Write inside node_modules -> 2", runHook(DEPENDENCY, edit("Write", installedFile)), 2)
 T("adapter dependency-write: Edit through a relative path -> 2", runHook(DEPENDENCY, edit("Edit", "node_modules/react-native/flags.kt")), 2)

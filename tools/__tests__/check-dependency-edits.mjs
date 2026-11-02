@@ -117,7 +117,10 @@ const esbuildPostinstallCases = () => {
   const source = join(tree.repository, "published")
   const packageDirectory = join(tree.nodeModules, "esbuild")
   mkdirSync(join(source, "bin"), { recursive: true })
+  mkdirSync(join(source, "lib"), { recursive: true })
   cpSync(join(REPO_ROOT, "node_modules/esbuild/package.json"), join(source, "package.json"))
+  cpSync(join(REPO_ROOT, "node_modules/esbuild/install.js"), join(source, "install.js"))
+  cpSync(join(REPO_ROOT, "node_modules/esbuild/lib/main.js"), join(source, "lib/main.js"))
   writeFileSync(join(source, "bin/esbuild"), "published launcher\n")
   const tar = createRequire(import.meta.url)("next/dist/compiled/tar")
   const archive = join(tree.repository, "esbuild.tgz")
@@ -132,8 +135,44 @@ const esbuildPostinstallCases = () => {
   } }))
   writeFileSync(join(packageDirectory, "bin/esbuild"), binary)
   check(TOOL, "authenticated esbuild postinstall optimization passes", ["--root", tree.repository], { status: 0 })
+  mkdirSync(join(packageDirectory, "lib"), { recursive: true })
+  const binaryEntry = Object.entries(manifest["esbuild.binaryHashes"]).find(([, hash]) => hash === createHash("sha256").update(binary).digest("hex"))[0]
+  const fallbackName = `downloaded-${binaryEntry.replace(/\/bin\/esbuild$/, "").replace("/", "-")}-esbuild`
+  const fallback = join(packageDirectory, "lib", fallbackName)
+  writeFileSync(fallback, binary)
+  check(TOOL, "authenticated esbuild fallback artifact passes", ["--root", tree.repository], { status: 0 })
+  writeFileSync(fallback, Buffer.concat([binary, Buffer.from("edited")]))
+  check(TOOL, "edited esbuild fallback artifact fails", ["--root", tree.repository], { status: 1, stderr: /extra/ })
+  rmSync(fallback)
   writeFileSync(join(packageDirectory, "bin/esbuild"), Buffer.concat([binary, Buffer.from("edited")]))
   check(TOOL, "an edited postinstall binary still fails", ["--root", tree.repository], { status: 1, stderr: /modified/ })
+  cpSync(source, packageDirectory, { recursive: true })
+  const installerShim = stage("esbuild-offline-install.cjs", `
+    const fs = require('node:fs')
+    const path = require('node:path')
+    require('node:child_process').execSync = (command, options) => {
+      if (!command.startsWith('npm install ')) throw new Error('unexpected installer command')
+      const target = path.join(options.cwd, 'node_modules', ${JSON.stringify(binaryEntry)})
+      fs.mkdirSync(path.dirname(target), { recursive: true })
+      fs.copyFileSync(${JSON.stringify(join(REPO_ROOT, "node_modules/esbuild/bin/esbuild"))}, target)
+      fs.chmodSync(target, 0o755)
+    }
+  `)
+  const installed = spawnSync(process.execPath, ["--require", installerShim, join(packageDirectory, "install.js")], {
+    cwd: tree.repository, encoding: "utf8",
+    env: { ...process.env, ESBUILD_BINARY_PATH: "", NODE_PATH: "", npm_config_user_agent: "npm" },
+  })
+  T("real esbuild installer creates its fallback using an offline npm transport", installed.status === 0 && statSync(fallback).isFile(), installed.stderr)
+  const version = spawnSync(join(packageDirectory, "bin/esbuild"), ["--version"], { encoding: "utf8" })
+  T("real esbuild fallback installation runs the locked binary", version.status === 0 && version.stdout.trim() === manifest.version)
+  check(TOOL, "real esbuild fallback installation passes archive verification", ["--root", tree.repository], { status: 0 })
+  // Replace the file so the installer's hard link cannot change the optimized launcher too.
+  rmSync(fallback)
+  writeFileSync(fallback, Buffer.concat([binary, Buffer.from("edited")]))
+  check(TOOL, "edited real esbuild fallback installation fails verification", ["--root", tree.repository], { status: 1, stderr: /extra/ })
+  rmSync(fallback)
+  writeFileSync(join(packageDirectory, "lib", `${fallbackName}-other`), binary)
+  check(TOOL, "an arbitrary extra binary with valid esbuild bytes is refused", ["--root", tree.repository], { status: 1, stderr: /extra/ })
 }
 
 const expoBuildCases = () => {

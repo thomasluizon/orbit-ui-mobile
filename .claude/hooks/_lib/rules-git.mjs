@@ -1,4 +1,5 @@
-import { expandCommands } from "./command-expander.mjs"
+import { commandWords, expandCommands, inspectCommands, shellValue } from "./command-expander.mjs"
+import { resolve } from "node:path"
 
 // Only these three repositories protect main; other repositories may allow direct pushes.
 const PROTECTED_REPOS = ["orbit-ui-mobile", "orbit-api", "orbit-landing-page"]
@@ -25,14 +26,10 @@ function targetsProtectedRepo(dir, resolveRemoteUrl) {
 
 // The push may target another repo: `git -C <dir> push`, or a `cd <dir> &&`
 // earlier in the same chain. Honor both before falling back to the session cwd.
-function pushTargetDir(segments, pushIndex, cwd) {
-  const cMatch = /-C\s+("[^"]+"|'[^']+'|[^\s"']+)/.exec(segments[pushIndex])
-  if (cMatch) return unquote(cMatch[1])
-  for (let index = pushIndex - 1; index >= 0; index--) {
-    const cdMatch = /(?:^|\s)cd\s+("[^"]+"|'[^']+'|[^\s"']+)/.exec(segments[index])
-    if (cdMatch) return unquote(cdMatch[1])
-  }
-  return cwd
+function pushTargetDir(segment, cwd) {
+  let directory = cwd
+  for (const match of segment.matchAll(/(?:^|\s)-C\s+("[^"]+"|'[^']+'|[^\s"']+)/g)) directory = resolve(directory, unquote(match[1]))
+  return directory
 }
 
 const heredoc = /^([^\n]*?)<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2([^\n]*)\n([\s\S]*?)^\3[ \t]*$/gm
@@ -96,7 +93,13 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
 
   // Everything below is branch protection, so it applies only to the repos that
   // actually have it.
-  const segments = scannable.split(/[&|;\n]/)
+  const segments = []
+  inspectCommands(stripHeredocBodies(command), cwd || process.cwd(), (segment, directory) => {
+    const words = commandWords(segment).map(shellValue)
+    if (words[0] === "cd" && words[1]) directory = resolve(directory, words[1])
+    segments.push({ segment, directory })
+    return directory
+  })
 
   const unquoteToken = (token) => token.replace(/\\(.)/g, "$1").replace(/["']/g, "")
 
@@ -151,14 +154,14 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
   // an unprotected sibling repo must never vouch for a later push to a protected
   // main, and a protected push must not be blamed for a `main` ref belonging to a
   // different segment.
-  for (const [index, segment] of segments.entries()) {
+  for (const { segment, directory } of segments) {
     const { subcommand, globals } = gitCommandParts(segment)
     if (["commit", "push"].includes(subcommand) && globals.some((token, offset) =>
       (token === "-c" && globals[offset + 1]?.startsWith("core.hooksPath=")) || token.startsWith("-ccore.hooksPath="))) {
       return blocked(command, "Overriding core.hooksPath bypasses the repository hooks.")
     }
     if (gitSubcommand(segment) !== "push") continue
-    const targetDir = pushTargetDir(segments, index, cwd)
+    const targetDir = pushTargetDir(segment, directory)
     if (!targetsProtectedRepo(targetDir, resolveRemoteUrl)) continue
 
     if (pushesProtectedRef(segment) || gitCommandParts(segment).rest.some((token) => ["--all", "--mirror", "--branches"].includes(token))) {

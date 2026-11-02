@@ -203,11 +203,16 @@ async function readLockedArchive(locked) {
 
 /** The installer replaces this launcher with a binary authenticated by the archived manifest. */
 function verifiedEsbuildBinary(locked, manifest, name, contents) {
-  if (!locked.packagePath.endsWith("node_modules/esbuild") || manifest.name !== "esbuild" || name !== "bin/esbuild") return false
+  if (!locked.packagePath.endsWith("node_modules/esbuild") || manifest.name !== "esbuild") return false
   const hashes = manifest["esbuild.binaryHashes"]
   if (!hashes || typeof hashes !== "object" || Array.isArray(hashes)) return false
   const digest = createHash("sha256").update(contents).digest("hex")
-  return Object.entries(hashes).some(([binary, expected]) => binary.endsWith("/bin/esbuild") && expected === digest)
+  return Object.entries(hashes).some(([binary, expected]) => {
+    const match = /^(@esbuild\/[^/]+)\/(bin\/esbuild|esbuild\.exe)$/.exec(binary)
+    if (!match || expected !== digest) return false
+    const downloaded = `lib/downloaded-${match[1].replace("/", "-")}-${basename(match[2])}`
+    return name === downloaded || (name === "bin/esbuild" && match[2] === "bin/esbuild")
+  })
 }
 
 async function compareLockedPackage(packageDirectory, collected, locked) {
@@ -258,6 +263,7 @@ async function compareLockedPackage(packageDirectory, collected, locked) {
     }
     for (const name of installed) {
       const path = join(packageDirectory, name)
+      if (verifiedEsbuildBinary(locked, manifest, name.split(sep).join("/"), readFileSync(path))) continue
       const kind = nativeOutputKind(verifiedNativeLock, name.split(sep).join("/"))
       if (kind === "jsi") continue
       if (kind === "sqlite") {
