@@ -3,7 +3,8 @@ import type { UseMutationOptions } from '@tanstack/react-query'
 import { checkCompletionAfterSkip } from '@orbit/shared/query/skip-completion'
 import { randomUUID } from 'expo-crypto'
 import type { HabitListSnapshots } from '@orbit/shared/query'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useHabitMutation } from './use-habit-mutation'
 import { invalidateDerivedHabitLogQueries, habitKeys, goalKeys, gamificationKeys, profileKeys, applyCachedHabitSkip, rollbackDatedHabitLists, checkTodayAllDoneOrDefer, clearCachedOptimisticSkip, restoreCachedHabitSkip, getTodayHabitListAfterRefetch } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { applyLinkedGoalUpdates, buildSuccessfulLogPatch, findHabitInList, getAccountDay, getFriendlyErrorMessage, normalizeHabits, buildChildrenIndex, optimisticSetCalendarHabitLog, rollbackOptimisticCalendarHabitLog, rollbackOptimisticHabitLogs } from '@orbit/shared/utils'
@@ -86,7 +87,7 @@ function checkTodayCompletionAfterLog(
 export function useLogHabit() {
   const context = useLogHabitContext()
   const { queryClient } = context
-  return useMutation<
+  return useHabitMutation<
     LogHabitResponse | QueuedMarker,
     Error,
     LogHabitMutationInput,
@@ -140,7 +141,7 @@ function useUndoSkipHabit() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
   const showUndoToast = useUndoToast()
-  const undoSkip = useMutation<void | QueuedMarker, Error, UndoSkipInput>({
+  const undoSkip = useHabitMutation<void | QueuedMarker, Error, UndoSkipInput>({
     mutationFn: async (input) => {
       return withAccountGuard(async (guardedAccount) => {
         input.account ??= guardedAccount
@@ -187,7 +188,7 @@ export function useSkipHabit() {
   const showUndoToast = useUndoToast()
   const { showError } = useAppToast()
   const undoSkip = useUndoSkipHabit()
-  const mutation = useMutation({
+  const mutation = useHabitMutation({
     mutationFn: async (input: SkipHabitInput) => {
       return withAccountGuard(async (guardedAccount) => {
         input.account ??= guardedAccount
@@ -270,7 +271,6 @@ export function useSkipHabit() {
       return withAccountGuard(async (guardedAccount) => {
         const account = guardedAccount
         const result = await mutation.mutateAsync({ ...input, account }, scopeOptions(options, account))
-        account.assertCurrent()
         return result
 
       })

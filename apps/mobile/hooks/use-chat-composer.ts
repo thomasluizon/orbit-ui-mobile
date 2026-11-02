@@ -1,7 +1,8 @@
 import type { UseChatComposerOptions } from './use-chat-composer-types'
 import { useChatComposerState, useChatComposerSession, useChatComposerAvailability, useChatDraftPersistence, useChatComposerScroll, useChatComposerSuggestions, useChatComposerProps } from './use-chat-composer-state'
 import { useChatComposerAttachments } from './use-chat-composer-attachments'
-import { useChatPendingBubbles, useChatPendingBubbleActions } from './use-chat-pending-bubbles'
+import { useChatPendingBubbles } from './use-chat-pending-bubbles'
+import { usePendingOperationExecution } from './use-pending-operation-execution'
 import { useChatSendFailure, useChatResponseSettlement, useChatRequestPayload, useChatStream, useChatSendQueue, useChatSendMessage, useChatSendRetry, useChatBreakdownRefresh } from './use-chat-send-stream'
 
 /**
@@ -28,7 +29,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   const chatSendRetry = useChatSendRetry({ ...parameters, ...chatComposerAvailability, ...chatComposerState, ...chatSendQueue })
   const chatComposerSuggestions = useChatComposerSuggestions({ ...chatComposerState, ...parameters, ...chatSendMessage, ...chatComposerAvailability, ...chatSendRetry })
   const chatComposerProps = useChatComposerProps({ ...chatComposerState, ...parameters, ...chatComposerAvailability, ...chatComposerSuggestions, ...chatSendMessage, ...chatComposerAttachments, ...chatSendRetry })
-  const chatPendingBubbleActions = useChatPendingBubbleActions({ ...chatPendingBubbles })
+  const chatPendingBubbleActions = usePendingOperationExecution(chatPendingBubbles)
   const chatBreakdownRefresh = useChatBreakdownRefresh({ ...chatComposerState })
   const { profile, isTyping, streamingMessageId, messages, input, isRecording, transcript, setInput, threadScroll, flatListRef, allowanceText, speechError, sendError, toggleRecording, isTranscribing, speechSupported, activeSteps } = chatComposerState
   const { selectedImage, selectedTextFile, imagePreview } = chatComposerAttachments

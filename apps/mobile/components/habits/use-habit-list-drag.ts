@@ -1,11 +1,18 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { computeHabitReorderPositions } from '@orbit/shared/utils'
 import type { DragItem } from '../habit-list/tree-helpers'
-import type { useHabitListCollapseState, useHabitListPresentation, useHabitListQueries } from './use-habit-list-state'
+import type { useHabitListCollapseState, useHabitListItems, useHabitListQueries } from './use-habit-list-state'
 
-type HabitListDragStateInputs = Pick<ReturnType<typeof useHabitListCollapseState>, 'setIsDraggingList' | 'setCollapsedIds'>
+type HabitListDragInputs = {
+  collapse: Pick<ReturnType<typeof useHabitListCollapseState>, 'collapsedIds' | 'setCollapsedIds'>
+  items: Pick<ReturnType<typeof useHabitListItems>, 'flatItems'>
+  queries: Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'getChildren' | 'reorderHabitsMutation'>
+}
 
-export function useHabitListDragState({ setIsDraggingList, setCollapsedIds }: HabitListDragStateInputs) {
+export function useHabitListDrag({ collapse, items, queries }: HabitListDragInputs) {
+  const { collapsedIds, setCollapsedIds } = collapse
+  const { habitsById, getChildren, reorderHabitsMutation } = queries
+  const [isDraggingList, setIsDraggingList] = useState(false)
   const [dragOverrideItems, setDragOverrideItems] = useState<
     DragItem[] | null
   >(null)
@@ -25,12 +32,9 @@ export function useHabitListDragState({ setIsDraggingList, setCollapsedIds }: Ha
     })
     autoCollapsedOnDragRef.current = null
   }, [setCollapsedIds, setIsDraggingList])
-  return { dragOverrideItems, autoCollapsedOnDragRef, setDragOverrideItems, restoreCollapsedStateAfterDrag }
-}
-
-type HabitListPrepareDragInputs = Pick<ReturnType<typeof useHabitListCollapseState>, 'setIsDraggingList' | 'collapsedIds' | 'setCollapsedIds'> & Pick<ReturnType<typeof useHabitListDragState>, 'autoCollapsedOnDragRef' | 'setDragOverrideItems'> & Pick<ReturnType<typeof useHabitListPresentation>, 'activeDragItemsRef'>
-
-export function useHabitListPrepareDrag({ setIsDraggingList, autoCollapsedOnDragRef, collapsedIds, activeDragItemsRef, setCollapsedIds, setDragOverrideItems }: HabitListPrepareDragInputs) {
+  const activeDragItems = dragOverrideItems ?? items.flatItems
+  const activeDragItemsRef = useRef(activeDragItems)
+  useEffect(() => { activeDragItemsRef.current = activeDragItems }, [activeDragItems])
   const prepareDrag = useCallback(
     (item: DragItem, drag: () => void) => {
       setIsDraggingList(true)
@@ -66,12 +70,6 @@ export function useHabitListPrepareDrag({ setIsDraggingList, autoCollapsedOnDrag
     },
     [activeDragItemsRef, autoCollapsedOnDragRef, collapsedIds, setCollapsedIds, setDragOverrideItems, setIsDraggingList],
   )
-  return { prepareDrag }
-}
-
-type HabitListDragEndInputs = Pick<ReturnType<typeof useHabitListPresentation>, 'activeDragItemsRef'> & Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'getChildren' | 'reorderHabitsMutation'> & Pick<ReturnType<typeof useHabitListDragState>, 'restoreCollapsedStateAfterDrag'>
-
-export function useHabitListDragEnd({ activeDragItemsRef, habitsById, getChildren, reorderHabitsMutation, restoreCollapsedStateAfterDrag }: HabitListDragEndInputs) {
   const handleDragEnd = useCallback(
     async ({ from, to }: { from: number; to: number }) => {
       const items = activeDragItemsRef.current
@@ -98,5 +96,5 @@ export function useHabitListDragEnd({ activeDragItemsRef, habitsById, getChildre
     // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById are extracted habitsQuery members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [activeDragItemsRef, getChildren, habitsById, reorderHabitsMutation, restoreCollapsedStateAfterDrag],
   )
-  return { handleDragEnd }
+  return { activeDragItems, isDraggingList, prepareDrag, handleDragEnd }
 }

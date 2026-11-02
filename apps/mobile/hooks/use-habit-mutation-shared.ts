@@ -1,4 +1,3 @@
-import { captureError } from '@/lib/sentry'
 import { onlineManager, useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import { getAccountDay } from '@orbit/shared/utils'
@@ -22,9 +21,8 @@ export async function resolveHabitLogDate(
   let profile: Profile | undefined
   try {
     profile = await fetchProfile()
-  } catch (error) {
+  } catch {
     /** https://github.com/thomasluizon/orbit-tickets/issues/1928: leave an unresolved account day to the server. */
-    captureError(error)
   }
   account.assertCurrent()
   if (!profile) return undefined
@@ -54,10 +52,5 @@ export function withAccountGuard<TResult>(
 ): TResult {
   const account = intendedAccount ?? captureHabitAccount()
   account.assertCurrent()
-  const result = mutation(account)
-  if (result instanceof Promise) {
-    return result.then((value: unknown) => { account.assertCurrent(); return value }) as TResult
-  }
-  account.assertCurrent()
-  return result
+  return mutation(account)
 }

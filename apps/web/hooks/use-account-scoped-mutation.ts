@@ -97,14 +97,11 @@ export function useAccountScopedMutation<
 
   if (onMutate) {
     scopedOptions.onMutate = async (variables, context) => {
-      try {
-        return await onMutate(variables.input, context)
-      } finally {
-        if (getAccountGeneration() !== variables.accountGeneration
-          || getHeldAccountId() !== variables.intendedAccountId) {
-          void resetAccountQueries(queryClient, useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out')
-        }
+      const snapshot = await onMutate(variables.input, context)
+      if (!stillHeld(variables)) {
+        void resetAccountQueries(queryClient, useAuthStore.getState().isAuthenticated ? 'signed-in' : 'signed-out')
       }
+      return snapshot
     }
   }
   if (onSuccess) {
@@ -124,9 +121,6 @@ export function useAccountScopedMutation<
   scopedOptions.onSettled = (data, error, variables, onMutateResult, context) => {
     if (stillHeld(variables, error)) {
       return onSettled?.(data, error, variables.input, onMutateResult, context)
-    }
-    if (getHeldAccountId() === variables.intendedAccountId || variables.intendedAccountId === null) {
-      return queryClient.invalidateQueries()
     }
   }
 

@@ -10,6 +10,7 @@ import { applyReorderPositions, buildOptimisticHabitPatch, restoreHabitLists, sn
 import type { HabitScheduleItem, HabitDetail, HabitFullDetail, CreateHabitRequest, UpdateHabitRequest, ReorderHabitsRequest, ChecklistItem, CreateSubHabitRequest, MoveHabitParentRequest } from '@orbit/shared/types/habit'
 import { createHabit as createHabitAction, updateHabit as updateHabitAction, deleteHabit as deleteHabitAction, restoreHabit as restoreHabitAction, reorderHabits as reorderHabitsAction, duplicateHabit as duplicateHabitAction, updateChecklist as updateChecklistAction, createSubHabit as createSubHabitAction, moveHabitParent as moveHabitParentAction } from '@/lib/actions/habits'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { captureAccountIntent } from '@/lib/client-action'
 import { useUIStore } from '@/stores/ui-store'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
@@ -47,11 +48,13 @@ export function useUpdateHabit() {
       updateHabitAction(habitId, data, intendedAccountId),
 
     onMutate: async ({ habitId, data }) => {
+      const account = captureAccountIntent()
       await Promise.all([
         queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
         queryClient.cancelQueries({ queryKey: habitKeys.details() }),
         queryClient.cancelQueries({ queryKey: data.parentId != null || data.clearParent === true ? habitKeys.fullDetails() : habitKeys.fullDetail(habitId) }),
       ])
+      if (!account.stillCurrent()) throw new Error('Account changed')
 
       const previousLists = snapshotHabitLists(queryClient)
       const patch = buildOptimisticHabitPatch(queryClient, data)
@@ -117,7 +120,9 @@ export function useDeleteHabit() {
       isCachedHabitDeleted(queryClient, habitId) ? Promise.resolve() : deleteHabitAction(habitId, intendedAccountId),
 
     onMutate: async (habitId) => {
+      const account = captureAccountIntent()
       await queryClient.cancelQueries({ queryKey: habitKeys.all })
+      if (!account.stillCurrent()) throw new Error('Account changed')
       const deletedIds = cachedHabitDeletionIds(queryClient, [habitId])
       const previousLists = snapshotHabitLists(queryClient)
       const previousDetails = queryClient.getQueriesData<HabitDetail>({
@@ -139,8 +144,12 @@ export function useDeleteHabit() {
     },
 
     onSuccess: async (_data, habitId, context) => {
-      await removeDeletedHabitQueries(queryClient, habitId, context.deletedIds)
-      showUndoToast(t('undo.habitDeleted'), () => restoreHabit.mutate(habitId))
+      const account = captureAccountIntent()
+      await removeDeletedHabitQueries(queryClient, habitId, context.deletedIds, account.stillCurrent)
+      if (!account.stillCurrent()) return
+      showUndoToast(t('undo.habitDeleted'), () => {
+        if (account.stillCurrent()) restoreHabit.mutate(habitId)
+      })
     },
 
     onSettled: (_response, error) => {
@@ -160,7 +169,9 @@ export function useReorderHabits() {
       reorderHabitsAction(data, intendedAccountId),
 
     onMutate: async (data) => {
+      const account = captureAccountIntent()
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      if (!account.stillCurrent()) throw new Error('Account changed')
 
       const previousLists = snapshotHabitLists(queryClient)
       updateHabitLists(queryClient, (items) =>
@@ -209,11 +220,13 @@ export function useUpdateChecklist() {
     }, intendedAccountId) => updateChecklistAction(habitId, items, intendedAccountId),
 
     onMutate: async ({ habitId, items }) => {
+      const account = captureAccountIntent()
       await Promise.all([
         queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
         queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId) }),
         queryClient.cancelQueries({ queryKey: habitKeys.fullDetail(habitId) }),
       ])
+      if (!account.stillCurrent()) throw new Error('Account changed')
 
       const previousLists = queryClient.getQueriesData<HabitScheduleItem[]>({
         queryKey: habitKeys.lists(),
@@ -274,7 +287,9 @@ export function useCreateSubHabit() {
     }, intendedAccountId) => createSubHabitAction(parentId, data, intendedAccountId),
 
     onMutate: async ({ parentId, data }) => {
+      const account = captureAccountIntent()
       await queryClient.cancelQueries({ queryKey: habitKeys.detail(parentId) })
+      if (!account.stillCurrent()) throw new Error('Account changed')
       const previousDetail = queryClient.getQueryData<HabitDetail>(habitKeys.detail(parentId))
       const optimisticChildId = createOptimisticSubHabitId()
       queryClient.setQueryData<HabitDetail>(habitKeys.detail(parentId), (detail) =>

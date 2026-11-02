@@ -24,8 +24,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { motionDurations } from '@orbit/shared/theme'
 import type { HabitListProps, HabitListHandleInputs } from './habit-list'
 import type { useParentPromptQueue } from './use-parent-prompt-queue'
-import type { useHabitListDragState } from './use-habit-list-drag'
-import type { useHabitListConfirmState } from './use-habit-list-confirmations'
+import type { useHabitListConfirmations } from './use-habit-list-confirmations'
 
 type HabitListQueriesInputs = { view: HabitView } & { requestedDate: HabitListProps['selectedDate'] } & Pick<HabitListProps, 'filters'>
 
@@ -307,20 +306,14 @@ export function useHabitListMoveState({ habitsById, accountGeneration, selectedH
   return { moveIntent, openBulkMove, openMoveParentPicker, closeMoveParentPicker }
 }
 
-type HabitListSurfaceStateInputs = Pick<ReturnType<typeof useHabitRecentCompletions>, 'recentlyCompletedTimersRef'> & Pick<ReturnType<typeof useParentPromptQueue>, 'parentPrompt'> & Pick<ReturnType<typeof useHabitListDragState>, 'autoCollapsedOnDragRef'> & Pick<ReturnType<typeof useHabitListConfirmState>, 'habitToDelete' | 'showDeleteConfirm' | 'deletePending' | 'habitToDuplicate'> & Pick<ReturnType<typeof useHabitListVisibility>, 'drill'> & Pick<ReturnType<typeof useHabitListModalState>, 'showEditModal' | 'showSubHabitModal' | 'showRescheduleSheet'> & Pick<ReturnType<typeof useHabitListMoveState>, 'moveIntent'> & Pick<HabitListProps, 'onSurfaceOpenChange'>
+type HabitListSurfaceStateInputs = Pick<ReturnType<typeof useHabitRecentCompletions>, 'recentlyCompletedTimersRef'> & Pick<ReturnType<typeof useParentPromptQueue>, 'parentPrompt'> & { confirmations: ReturnType<typeof useHabitListConfirmations> } & Pick<ReturnType<typeof useHabitListVisibility>, 'drill'> & Pick<ReturnType<typeof useHabitListModalState>, 'showEditModal' | 'showSubHabitModal' | 'showRescheduleSheet'> & Pick<ReturnType<typeof useHabitListMoveState>, 'moveIntent'> & Pick<HabitListProps, 'onSurfaceOpenChange'>
 
-export function useHabitListSurfaceState({ recentlyCompletedTimersRef, autoCollapsedOnDragRef, habitToDelete, drill, showEditModal, showSubHabitModal, showRescheduleSheet, showDeleteConfirm, deletePending, habitToDuplicate, parentPrompt, moveIntent, onSurfaceOpenChange }: HabitListSurfaceStateInputs) {
-  /**
-     * The state above drops itself, but a ref carries the previous account's habit ids past an
-     * account change with nothing to notice: a queued parent prompt, a pending toggle and a running
-     * highlight timer each key on an id the next account does not own.
-     */
+export function useHabitListSurfaceState({ recentlyCompletedTimersRef, confirmations, drill, showEditModal, showSubHabitModal, showRescheduleSheet, parentPrompt, moveIntent, onSurfaceOpenChange }: HabitListSurfaceStateInputs) {
   useResetOnAccountChange(() => {
     for (const timer of recentlyCompletedTimersRef.current.values()) clearTimeout(timer)
     recentlyCompletedTimersRef.current.clear()
-    autoCollapsedOnDragRef.current = null
   })
-  const deleteConfirmation = habitToDelete ?? { name: '', descendantCount: 0 }
+  const { showDeleteConfirm, deletePending, habitToDuplicate } = confirmations
 
   const surfaceOpen = Boolean(
     drill.currentParent ||
@@ -336,7 +329,7 @@ export function useHabitListSurfaceState({ recentlyCompletedTimersRef, autoColla
   useEffect(() => {
     onSurfaceOpenChange?.(surfaceOpen)
   }, [onSurfaceOpenChange, surfaceOpen])
-  return { deleteConfirmation }
+
 }
 
 type HabitListEditStateInputs = Pick<ReturnType<typeof useHabitListModalState>, 'habitToEdit' | 'setShowEditModal' | 'setHabitToEdit' | 'setEditModalOnSaved'> & Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'openHabit' | 'selectedDateStr'>

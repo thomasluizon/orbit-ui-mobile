@@ -18,9 +18,9 @@ import type { NormalizedHabit, HabitsFilter, BulkMoveHabitParentResult } from '@
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useUIStore } from '@/stores/ui-store'
 import { useParentPromptQueue } from './use-parent-prompt-queue'
-import { useHabitListConfirmState, createHabitListActions } from './use-habit-list-confirmations'
+import { useHabitListConfirmations, createHabitListSubHabitActions } from './use-habit-list-confirmations'
 import { useHabitListCollapse, useHabitListRoots, useHabitRecentCompletions, useHabitListMoveState, useHabitListQueries, useHabitListModalState, useHabitListProgress, useHabitRecentCompletionState, useHabitListVisibility, useHabitListEditState, useHabitListSurfaceState, useHabitListHandle } from './use-habit-list-state'
-import { useHabitListDragState, useHabitListKeyboardReorder, useHabitListDragActions } from './use-habit-list-drag'
+import { useHabitListDrag, useHabitListKeyboardReorder } from './use-habit-list-drag'
 
 const CreateHabitModal = dynamic(() =>
   import('./create-habit-modal').then((module) => module.CreateHabitModal),
@@ -137,7 +137,14 @@ export function HabitList({
   onSurfaceOpenChange,
 }: Readonly<HabitListProps>) {
   const state = useHabitListModel({ ref, view, requestedDate, showCompleted, onShowCompleted, isSelectMode, selectedHabitIds, onBulkMove, searchQuery, onClearSearch, filters, onToggleSelection, onEnterSelectMode, onCreate, createRefusal, onSeeUpcoming, onAllLoadedIdsChange, onAllCollapsedChange, onSurfaceOpenChange })
-  const { habitsQuery, t, accountGeneration, parentPrompt, listContainerRef, showEditModal, showSubHabitModal, showRescheduleSheet, habitToEdit, setShowSubHabitModal, setHabitToReschedule, setShowRescheduleSheet, editModalOnSaved, habitToReschedule, subHabitParent, showDeleteConfirm, deletePending, habitToDuplicate, setHabitToDelete, setShowDeleteConfirm, setHabitToDuplicate, moveIntent, closeMoveParentPicker, deleteConfirmation, handleEditModalOpenChange, editHabitLockedGeneral, confirmParentSettlement, selectParentAncestor, confirmDuplicate, confirmDelete, renderList } = state
+  const { habitsQuery, t, accountGeneration } = state.queries
+  const { parentPrompt, confirmParentSettlement, selectParentAncestor } = state.parentPrompts
+  const { showEditModal, showSubHabitModal, showRescheduleSheet, habitToEdit, setShowSubHabitModal, setHabitToReschedule, setShowRescheduleSheet, editModalOnSaved, habitToReschedule, subHabitParent } = state.modals
+  const { moveIntent, closeMoveParentPicker } = state.move
+  const { handleEditModalOpenChange, editHabitLockedGeneral } = state.edit
+  const { renderList } = state.rendering
+  const { listContainerRef } = state.drag
+  const { showDeleteConfirm, deletePending, habitToDuplicate, deleteConfirmation, confirmDuplicate, confirmDelete, closeDelete, cancelDelete, cancelDuplicate } = state.confirmations
   return <>
     <ListPresence>{habitsQuery.isLoading ? <ContentFade key="loading"><HabitListSkeleton /></ContentFade> : null}</ListPresence>
     {renderList()}
@@ -175,18 +182,15 @@ export function HabitList({
       parentPrompt={parentPrompt}
       onConfirmDelete={() => void confirmDelete()}
       onDeleteClosed={() => {
-        setHabitToDelete(null)
+        closeDelete()
         listContainerRef.current?.focus()
       }}
-      onCancelDelete={() => {
-        setHabitToDelete(null)
-        setShowDeleteConfirm(false)
-      }}
+      onCancelDelete={cancelDelete}
       onConfirmDuplicate={() => void confirmDuplicate()}
-      onCancelDuplicate={() => setHabitToDuplicate(null)}
+      onCancelDuplicate={cancelDuplicate}
       onSelectParentAncestor={selectParentAncestor}
       onConfirmParent={() => void confirmParentSettlement()}
-      onCancelParent={state.cancelParentPrompt}
+      onCancelParent={state.parentPrompts.cancelParentPrompt}
     />
     {moveIntent && moveIntent.accountGeneration === accountGeneration ? (
       <Suspense key="move-parent" fallback={<PendingMoveParent onClose={closeMoveParentPicker} />}>
@@ -197,7 +201,7 @@ export function HabitList({
   </>
 }
 
-export type HabitListHandleInputs = Pick<HabitListProps, 'ref'> & Pick<ReturnType<typeof useHabitListCollapse>, 'collapseAll' | 'expandAll' | 'allCollapsed'> & Pick<ReturnType<typeof useHabitListRoots>, 'allLoadedIds'> & Pick<ReturnType<typeof useHabitRecentCompletions>, 'markRecentlyCompleted'> & Pick<ReturnType<typeof useParentPromptQueue>, 'checkAndPromptParentLog' | 'settleBulkHabitResolutions'> & Pick<ReturnType<typeof useHabitListMoveState>, 'openBulkMove'> & Pick<ReturnType<typeof useHabitListDragState>, 'listContainerRef'>
+export type HabitListHandleInputs = Pick<HabitListProps, 'ref'> & Pick<ReturnType<typeof useHabitListCollapse>, 'collapseAll' | 'expandAll' | 'allCollapsed'> & Pick<ReturnType<typeof useHabitListRoots>, 'allLoadedIds'> & Pick<ReturnType<typeof useHabitRecentCompletions>, 'markRecentlyCompleted'> & Pick<ReturnType<typeof useParentPromptQueue>, 'checkAndPromptParentLog' | 'settleBulkHabitResolutions'> & Pick<ReturnType<typeof useHabitListMoveState>, 'openBulkMove'> & Pick<ReturnType<typeof useHabitListDrag>, 'listContainerRef'>
 
 type getHabitListCompletionInputs = { view: HabitView } & Pick<HabitListProps, 'filters'> & Pick<ReturnType<typeof useHabitListQueries>, 'accountHabitCount' | 'selectedDateStr' | 'todayStr' | 'habitsById' | 'childrenByParent'>
 
@@ -254,7 +258,8 @@ function renderHabitCard(context: HabitListRenderingContext,
     onReorder?: (direction: -1 | 1) => void
   },
 ) {
-  const { getChildrenProgress, recentlyCompletedIds, selectedDateStr, todayStr, t, maxInlineDepth, isSelectMode, selectedHabitIds, collapsedIds, handleDirectToggle, skipFromRow, setHabitToDuplicate, setHabitToEdit, drill, setEditModalOnSaved, setShowEditModal, openMoveParentPicker, setHabitToReschedule, setShowRescheduleSheet, promptDelete, openDetail, startAddSubHabit, toggleExpand, onToggleSelection, onEnterSelectMode, refusedSubHabitParentId, isOnline } = context
+  const { getChildrenProgress, recentlyCompletedIds, selectedDateStr, todayStr, t, isSelectMode, selectedHabitIds, collapsedIds, handleDirectToggle, skipFromRow, confirmations, setHabitToEdit, drill, setEditModalOnSaved, setShowEditModal, openMoveParentPicker, setHabitToReschedule, setShowRescheduleSheet, openDetail, startAddSubHabit, toggleExpand, onToggleSelection, onEnterSelectMode, refusedSubHabitParentId, isOnline } = context
+  const { maxInlineDepth } = context.drag
 
   const progress = hasChildren ? getChildrenProgress(habit.id) : undefined
   const isChild = depth > 0
@@ -293,7 +298,7 @@ function renderHabitCard(context: HabitListRenderingContext,
           onLog: () => { void handleDirectToggle(habit, 'log') },
           onUnlog: () => { void handleDirectToggle(habit, 'unlog') },
           onSkip: !completionReadOnly && canLog && !habit.isGeneral ? () => { void skipFromRow(habit) } : undefined,
-          onDuplicate: () => setHabitToDuplicate(habit),
+          onDuplicate: () => confirmations.promptDuplicate(habit),
           onEdit: () => {
             setHabitToEdit(habit)
             const onSaved = options?.isDrillCard ? () => drill.refreshCurrent() : null
@@ -307,7 +312,7 @@ function renderHabitCard(context: HabitListRenderingContext,
               setShowRescheduleSheet(true)
             }
             : undefined,
-          onDelete: () => promptDelete(habit.id),
+          onDelete: () => confirmations.promptDelete(habit.id),
           onDetail: () => openDetail(habit),
           onDrillInto: () => void drill.drillInto(habit.id),
           onAddSubHabit: () => startAddSubHabit(habit),
@@ -326,7 +331,8 @@ function renderHabitCard(context: HabitListRenderingContext,
 }
 
 function renderHabitTree(context: HabitListRenderingContext, item: DragItem, panel: DragItem[], sortable: boolean): React.ReactNode {
-  const { maxInlineDepth, dndContextId, isDragging, reorderInstructionsId, moveHabitByKeyboard, collapsedIds } = context
+  const { dndContextId, reorderInstructionsId, moveHabitByKeyboard, collapsedIds } = context
+  const { maxInlineDepth, isDragging } = context.drag
 
   const childPanelId = item.depth < maxInlineDepth ? `${dndContextId}-habit-children-${item.id}` : undefined
   const row = renderHabitCard(context,
@@ -355,7 +361,8 @@ function renderHabitTree(context: HabitListRenderingContext, item: DragItem, pan
 }
 
 function renderAllHabitGroups(context: HabitListRenderingContext): React.ReactNode {
-  const { habits, todayStr, locale, t, dragPanels, listViewPanelStyle } = context
+  const { habits, todayStr, locale, t } = context
+  const { dragPanels, listViewPanelStyle } = context.drag
 
   return <div className="flex min-w-0 flex-col gap-6">
     <ListPresence>{buildHabitDateBuckets(habits, todayStr).map((bucket) => <ListMotionItem key={bucket.key}><section className="flex min-w-0 flex-col gap-3" aria-label={formatHabitDateBucketLabel(bucket.key, todayStr, locale, t)}>
@@ -388,7 +395,8 @@ function renderEmptyList(context: HabitListRenderingContext): React.ReactNode {
 }
 
 function renderMainContent(context: HabitListRenderingContext): React.ReactNode {
-  const { drill, t, startAddSubHabit, refusedSubHabitParentId, isOnline, onShowCompleted, view, habits, dndContextId, dragAccessibility, sensors, handleDragStart, handleDragEnd, restoreAfterDrag, activeDragItems, isDragging, isDndEnabled, activeDragPanels, dragPanels, listViewPanelStyle } = context
+  const { drill, t, startAddSubHabit, refusedSubHabitParentId, isOnline, onShowCompleted, view, habits, dndContextId, dragAccessibility } = context
+  const { sensors, handleDragStart, handleDragEnd, restoreAfterDrag, activeDragItems, isDragging, isDndEnabled, activeDragPanels, dragPanels, listViewPanelStyle } = context.drag
 
   if (drill.currentParent) {
     return (
@@ -434,7 +442,8 @@ function renderMainContent(context: HabitListRenderingContext): React.ReactNode 
 }
 
 function renderList(context: HabitListRenderingContext): React.ReactNode {
-  const { habitsQuery, t, view, selectedDateStr, searchQuery, filters, launchFromCache, habits, setListContainerRef, reorderInstructionsId, reorderAnnouncements, drill, showAllDone, onSeeUpcoming } = context
+  const { habitsQuery, t, view, selectedDateStr, searchQuery, filters, launchFromCache, habits, reorderInstructionsId, reorderAnnouncements, drill, showAllDone, onSeeUpcoming } = context
+  const { setListContainerRef } = context.drag
 
   if (habitsQuery.isLoading) return null
   if (habitsQuery.isError && !habitsQuery.data) return <HabitListEmptyState
@@ -460,7 +469,7 @@ function renderList(context: HabitListRenderingContext): React.ReactNode {
   </div></TodayLaunchContent></ContentFade>
 }
 
-type HabitListRenderingContext = Pick<ReturnType<typeof useHabitListModalState>, 'cardSelectedDate' | 'setHabitToEdit' | 'setEditModalOnSaved' | 'setShowEditModal' | 'setHabitToReschedule' | 'setShowRescheduleSheet' | 'refusedSubHabitParentId'> & Pick<ReturnType<typeof useHabitListQueries>, 't' | 'displayTime' | 'selectedDateStr' | 'todayStr' | 'locale' | 'isOnline' | 'dndContextId' | 'accountHabitCount' | 'dragAccessibility' | 'habitsQuery' | 'launchFromCache'> & Pick<ReturnType<typeof useHabitListProgress>, 'getChildrenProgress'> & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'recentlyCompletedIds'> & Pick<ReturnType<typeof useHabitListDragState>, 'maxInlineDepth' | 'isDragging' | 'dragPanels' | 'listViewPanelStyle' | 'sensors' | 'activeDragItems' | 'isDndEnabled' | 'activeDragPanels' | 'setListContainerRef'> & { isSelectMode: boolean } & Pick<HabitListProps, 'selectedHabitIds' | 'onToggleSelection' | 'onEnterSelectMode' | 'onClearSearch' | 'onCreate' | 'filters' | 'createRefusal' | 'onShowCompleted' | 'onSeeUpcoming'> & Pick<ReturnType<typeof useHabitListCollapse>, 'collapsedIds' | 'toggleExpand'> & Pick<ReturnType<typeof useParentPromptQueue>, 'handleDirectToggle' | 'skipFromRow'> & Pick<ReturnType<typeof useHabitListConfirmState>, 'setHabitToDuplicate'> & Pick<ReturnType<typeof useHabitListVisibility>, 'drill'> & Pick<ReturnType<typeof useHabitListMoveState>, 'openMoveParentPicker'> & Pick<ReturnType<typeof createHabitListActions>, 'promptDelete' | 'startAddSubHabit'> & Pick<ReturnType<typeof useHabitListEditState>, 'openDetail'> & Pick<ReturnType<typeof useHabitListKeyboardReorder>, 'reorderInstructionsId' | 'moveHabitByKeyboard' | 'reorderAnnouncements'> & Pick<ReturnType<typeof useHabitListRoots>, 'habits'> & { searchQuery: string } & { view: HabitView } & Pick<ReturnType<typeof getHabitListCompletion>, 'showAllDone'> & Pick<ReturnType<typeof useHabitListDragActions>, 'handleDragStart' | 'handleDragEnd' | 'restoreAfterDrag'>
+type HabitListRenderingContext = Pick<ReturnType<typeof useHabitListModalState>, 'cardSelectedDate' | 'setHabitToEdit' | 'setEditModalOnSaved' | 'setShowEditModal' | 'setHabitToReschedule' | 'setShowRescheduleSheet' | 'refusedSubHabitParentId'> & Pick<ReturnType<typeof useHabitListQueries>, 't' | 'displayTime' | 'selectedDateStr' | 'todayStr' | 'locale' | 'isOnline' | 'dndContextId' | 'accountHabitCount' | 'dragAccessibility' | 'habitsQuery' | 'launchFromCache'> & Pick<ReturnType<typeof useHabitListProgress>, 'getChildrenProgress'> & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'recentlyCompletedIds'> & { drag: ReturnType<typeof useHabitListDrag> } & { isSelectMode: boolean } & Pick<HabitListProps, 'selectedHabitIds' | 'onToggleSelection' | 'onEnterSelectMode' | 'onClearSearch' | 'onCreate' | 'filters' | 'createRefusal' | 'onShowCompleted' | 'onSeeUpcoming'> & Pick<ReturnType<typeof useHabitListCollapse>, 'collapsedIds' | 'toggleExpand'> & Pick<ReturnType<typeof useParentPromptQueue>, 'handleDirectToggle' | 'skipFromRow'> & { confirmations: ReturnType<typeof useHabitListConfirmations> } & Pick<ReturnType<typeof useHabitListVisibility>, 'drill'> & Pick<ReturnType<typeof useHabitListMoveState>, 'openMoveParentPicker'> & Pick<ReturnType<typeof createHabitListSubHabitActions>, 'startAddSubHabit'> & Pick<ReturnType<typeof useHabitListEditState>, 'openDetail'> & Pick<ReturnType<typeof useHabitListKeyboardReorder>, 'reorderInstructionsId' | 'moveHabitByKeyboard' | 'reorderAnnouncements'> & Pick<ReturnType<typeof useHabitListRoots>, 'habits'> & { searchQuery: string } & { view: HabitView } & Pick<ReturnType<typeof getHabitListCompletion>, 'showAllDone'>
 
 function createHabitListRendering(context: HabitListRenderingContext) {
   return { renderList: renderList.bind(null, context) }
@@ -476,18 +485,18 @@ function useHabitListModel(parameters: HabitListModelInputs) {
   const habitListCollapse = useHabitListCollapse({ ...habitListQueries, ...parameters })
   const habitListRoots = useHabitListRoots({ ...habitListQueries, ...parameters, ...habitRecentCompletionState, ...habitListVisibility })
   const habitListProgress = useHabitListProgress({ ...habitListVisibility, ...parameters, ...habitListQueries })
-  const habitListDragState = useHabitListDragState({ ...habitListVisibility, ...parameters, ...habitListRoots, ...habitListQueries, ...habitListCollapse })
-  const habitListKeyboardReorder = useHabitListKeyboardReorder({ ...habitListQueries, ...habitListDragState })
-  const habitListDragActions = useHabitListDragActions({ ...habitListDragState, ...habitListCollapse, ...habitListQueries })
+  const drag = useHabitListDrag({ visibilityState: habitListVisibility, view: parameters.view, roots: habitListRoots, queries: habitListQueries, collapse: habitListCollapse, isSelectMode: parameters.isSelectMode })
+  const habitListKeyboardReorder = useHabitListKeyboardReorder({ ...habitListQueries, ...drag })
   const habitListModalState = useHabitListModalState({ ...parameters, ...habitListQueries })
-  const habitListConfirmState = useHabitListConfirmState()
+  const confirmations = useHabitListConfirmations({ queries: habitListQueries })
   const habitListMoveState = useHabitListMoveState({ ...habitListQueries, ...parameters })
   const habitListEditState = useHabitListEditState({ ...habitListModalState, ...habitListQueries })
   const habitListCompletion = getHabitListCompletion({ ...parameters, ...habitListQueries })
-  const habitListActions = createHabitListActions({ ...habitListConfirmState, ...habitListQueries, ...habitListModalState, ...habitListCollapse })
+  const habitListActions = createHabitListSubHabitActions({ ...habitListQueries, ...habitListModalState, ...habitListCollapse })
   const parentPromptQueue = useParentPromptQueue({ ...habitListQueries, ...habitListVisibility, ...parameters, ...habitRecentCompletions })
-  const habitListSurfaceState = useHabitListSurfaceState({ ...habitRecentCompletions, ...habitListDragState, ...habitListConfirmState, ...habitListVisibility, ...habitListModalState, ...parentPromptQueue, ...habitListMoveState, ...parameters })
-  useHabitListHandle({ ...parameters, ...habitListCollapse, ...habitListRoots, ...habitRecentCompletions, ...parentPromptQueue, ...habitListMoveState, ...habitListDragState })
-  const habitListRendering = createHabitListRendering({ ...habitListModalState, ...habitListQueries, ...habitListProgress, ...habitRecentCompletionState, ...habitListDragState, ...parameters, ...habitListCollapse, ...parentPromptQueue, ...habitListConfirmState, ...habitListVisibility, ...habitListMoveState, ...habitListActions, ...habitListEditState, ...habitListKeyboardReorder, ...habitListRoots, ...habitListCompletion, ...habitListDragActions })
-  return { ...parameters, ...habitListQueries, ...habitRecentCompletionState, ...habitRecentCompletions, ...habitListVisibility, ...habitListCollapse, ...habitListRoots, ...habitListProgress, ...habitListDragState, ...habitListKeyboardReorder, ...habitListDragActions, ...habitListModalState, ...habitListConfirmState, ...habitListMoveState, ...habitListEditState, ...habitListCompletion, ...habitListActions, ...parentPromptQueue, ...habitListSurfaceState, ...habitListRendering }
+  useHabitListSurfaceState({ ...habitRecentCompletions, ...drag, confirmations, ...habitListVisibility, ...habitListModalState, ...parentPromptQueue, ...habitListMoveState, ...parameters })
+  useHabitListHandle({ ...parameters, ...habitListCollapse, ...habitListRoots, ...habitRecentCompletions, ...parentPromptQueue, ...habitListMoveState, ...drag })
+  const habitListRendering = createHabitListRendering({ ...habitListModalState, ...habitListQueries, ...habitListProgress, ...habitRecentCompletionState, drag, ...parameters, ...habitListCollapse, ...parentPromptQueue, confirmations, ...habitListVisibility, ...habitListMoveState, ...habitListActions, ...habitListEditState, ...habitListKeyboardReorder, ...habitListRoots, ...habitListCompletion })
+  return { queries: habitListQueries, modals: habitListModalState, move: habitListMoveState,
+    edit: habitListEditState, parentPrompts: parentPromptQueue, rendering: habitListRendering, drag, confirmations }
 }

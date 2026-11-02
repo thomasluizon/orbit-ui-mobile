@@ -2268,6 +2268,9 @@ describe("CalendarScreen views (mobile)", () => {
     __setScrollToImpl(scrollTo)
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><CalendarScreen /><DestinationTabBar pathname="/calendar" /></RootScrollProvider>) })
+    const calendarList = tree.root.findAll((node: TestNode) => node.type === 'FlatList')[0]!
+    if (surface === 'profile-loading') expect(calendarList.props.ListFooterComponent).toBeDefined()
+    else expect(calendarList.props.ListFooterComponent).toBeUndefined()
     scrollTo.mockClear()
     rootScrollMocks.scrollToOffset.mockClear()
     TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'tab-calendario-current')[0]!.props.onPress() })

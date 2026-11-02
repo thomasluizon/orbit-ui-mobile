@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback } from 'react'
 import { collectSelectableDescendantIds } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -20,36 +21,47 @@ function getDeleteConfirmation(
   }
 }
 
-export function useHabitListConfirmState() {
+type ConfirmationQueries = Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent' | 'deleteHabitMut' | 'duplicateHabitMut'>
+
+export function useHabitListConfirmations({ queries }: { queries: ConfirmationQueries }) {
+  const { habitsById, childrenByParent, deleteHabitMut, duplicateHabitMut } = queries
   const [showDeleteConfirm, setShowDeleteConfirm] = useAccountScopedState(false)
   const [deletePending, setDeletePending] = useAccountScopedState(false)
-  const [habitToDelete, setHabitToDelete] = useAccountScopedState<{
-    id: string; name: string; descendantCount: number
-  } | null>(null)
+  const [habitToDelete, setHabitToDelete] = useAccountScopedState<{ id: string; name: string; descendantCount: number } | null>(null)
   const [habitToDuplicate, setHabitToDuplicate] = useAccountScopedState<NormalizedHabit | null>(null)
-  return { habitToDelete, showDeleteConfirm, deletePending, habitToDuplicate, setHabitToDelete, setShowDeleteConfirm, setHabitToDuplicate, setDeletePending }
+  const promptDelete = useCallback((habitId: string) => {
+    setHabitToDelete({ id: habitId, ...getDeleteConfirmation(habitId, habitsById, childrenByParent) })
+    setShowDeleteConfirm(true)
+  }, [habitsById, childrenByParent, setHabitToDelete, setShowDeleteConfirm])
+  const confirmDelete = useCallback(async () => {
+    if (!habitToDelete) return
+    setDeletePending(true)
+    setShowDeleteConfirm(false)
+    try {
+      await deleteHabitMut.mutateAsync(habitToDelete.id)
+    } catch {
+    } finally {
+      setDeletePending(false)
+    }
+  }, [deleteHabitMut, habitToDelete, setDeletePending, setShowDeleteConfirm])
+  const confirmDuplicate = useCallback(async () => {
+    if (!habitToDuplicate) return
+    try {
+      await duplicateHabitMut.mutateAsync(habitToDuplicate.id)
+    } catch {
+    } finally {
+      setHabitToDuplicate(null)
+    }
+  }, [duplicateHabitMut, habitToDuplicate, setHabitToDuplicate])
+  const closeDelete = () => setHabitToDelete(null)
+  const cancelDelete = () => { setHabitToDelete(null); setShowDeleteConfirm(false) }
+  const cancelDuplicate = () => setHabitToDuplicate(null)
+  const deleteConfirmation = habitToDelete ?? { name: '', descendantCount: 0 }
+  return { showDeleteConfirm, deletePending, habitToDuplicate, deleteConfirmation, promptDelete,
+    promptDuplicate: setHabitToDuplicate, confirmDelete, confirmDuplicate, closeDelete, cancelDelete, cancelDuplicate }
 }
 
-export function promptDelete(context: HabitListActionsContext, habitId: string) {
-  const { setHabitToDelete, habitsById, childrenByParent, setShowDeleteConfirm } = context
-
-  setHabitToDelete({ id: habitId, ...getDeleteConfirmation(habitId, habitsById, childrenByParent) })
-  setShowDeleteConfirm(true)
-}
-
-export async function confirmDuplicate(context: HabitListActionsContext) {
-  const { habitToDuplicate, duplicateHabitMut, setHabitToDuplicate } = context
-
-  if (!habitToDuplicate) return
-  try {
-    await duplicateHabitMut.mutateAsync(habitToDuplicate.id)
-  } catch {
-  } finally {
-    setHabitToDuplicate(null)
-  }
-}
-
-export function startAddSubHabit(context: HabitListActionsContext, parent: NormalizedHabit) {
+function startAddSubHabit(context: SubHabitInputs, parent: NormalizedHabit) {
   const { isOnline, setRefusedSubHabitParentId, collapsedIds, toggleExpand, setSubHabitParent, setShowSubHabitModal } = context
 
   const parentId = parent.id
@@ -59,22 +71,8 @@ export function startAddSubHabit(context: HabitListActionsContext, parent: Norma
   setShowSubHabitModal(true)
 }
 
-export async function confirmDelete(context: HabitListActionsContext) {
-  const { habitToDelete, setDeletePending, setShowDeleteConfirm, deleteHabitMut } = context
+type SubHabitInputs = Pick<ReturnType<typeof useHabitListQueries>, 'isOnline'> & Pick<ReturnType<typeof useHabitListModalState>, 'setRefusedSubHabitParentId' | 'setSubHabitParent' | 'setShowSubHabitModal'> & Pick<ReturnType<typeof useHabitListCollapse>, 'collapsedIds' | 'toggleExpand'>
 
-  if (!habitToDelete) return
-  setDeletePending(true)
-  setShowDeleteConfirm(false)
-  try {
-    await deleteHabitMut.mutateAsync(habitToDelete.id)
-  } catch {
-  } finally {
-    setDeletePending(false)
-  }
-}
-
-type HabitListActionsContext = Pick<ReturnType<typeof useHabitListConfirmState>, 'setHabitToDelete' | 'setShowDeleteConfirm' | 'habitToDuplicate' | 'setHabitToDuplicate' | 'habitToDelete' | 'setDeletePending'> & Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent' | 'duplicateHabitMut' | 'isOnline' | 'deleteHabitMut'> & Pick<ReturnType<typeof useHabitListModalState>, 'setRefusedSubHabitParentId' | 'setSubHabitParent' | 'setShowSubHabitModal'> & Pick<ReturnType<typeof useHabitListCollapse>, 'collapsedIds' | 'toggleExpand'>
-
-export function createHabitListActions(context: HabitListActionsContext) {
-  return { promptDelete: promptDelete.bind(null, context), confirmDuplicate: confirmDuplicate.bind(null, context), startAddSubHabit: startAddSubHabit.bind(null, context), confirmDelete: confirmDelete.bind(null, context) }
+export function createHabitListSubHabitActions(context: SubHabitInputs) {
+  return { startAddSubHabit: startAddSubHabit.bind(null, context) }
 }

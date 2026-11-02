@@ -6,7 +6,7 @@ import { useHabitInlineDepthLimit } from './use-habit-row-large-text'
 import { buildDragItemsFlat, groupDragItemsByPanel, type DragItem, type HabitView } from './habit-list/tree-helpers'
 import { PointerSensor, TouchSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { useHabitListScrollAnchor } from '@/hooks/use-habit-list-scroll-anchor'
 import type { useHabitListVisibility, useHabitListRoots, useHabitListQueries, useHabitListCollapse } from './use-habit-list-state'
 
@@ -16,9 +16,32 @@ function getListViewPanelStyle(view: HabitView, rootCount: number, isDragging: b
     : undefined
 }
 
-type HabitListDragStateInputs = Pick<ReturnType<typeof useHabitListVisibility>, 'drill' | 'visibility'> & { view: HabitView } & Pick<ReturnType<typeof useHabitListRoots>, 'habits'> & Pick<ReturnType<typeof useHabitListQueries>, 'todayStr'> & Pick<ReturnType<typeof useHabitListCollapse>, 'collapsedIds'> & { isSelectMode: boolean }
+function withoutDraggedDescendants(items: DragItem[], draggedItem: DragItem): DragItem[] {
+  const filtered: DragItem[] = []
+  let stripping = false
+  for (const item of items) {
+    if (item.id === draggedItem.id) { stripping = true; filtered.push({ ...item, hasChildren: true }); continue }
+    if (stripping && item.depth > draggedItem.depth) continue
+    stripping = false
+    filtered.push(item)
+  }
+  return filtered
+}
 
-export function useHabitListDragState({ drill, view, habits, todayStr, collapsedIds, visibility, isSelectMode }: HabitListDragStateInputs) {
+type HabitListDragInputs = {
+  visibilityState: Pick<ReturnType<typeof useHabitListVisibility>, 'drill' | 'visibility'>
+  view: HabitView
+  roots: Pick<ReturnType<typeof useHabitListRoots>, 'habits'>
+  queries: Pick<ReturnType<typeof useHabitListQueries>, 'todayStr' | 'habitsById' | 'getChildren' | 'reorderHabitsMut'>
+  collapse: Pick<ReturnType<typeof useHabitListCollapse>, 'collapsedIds' | 'setCollapsedIds'>
+  isSelectMode: boolean
+}
+
+export function useHabitListDrag({ visibilityState, view, roots, queries, collapse, isSelectMode }: HabitListDragInputs) {
+  const { drill, visibility } = visibilityState
+  const { habits } = roots
+  const { todayStr, habitsById, getChildren, reorderHabitsMut } = queries
+  const { collapsedIds, setCollapsedIds } = collapse
   const listContainerRef = useRef<HTMLDivElement>(null)
   const anchorList = useHabitListScrollAnchor(drill.currentParentId)
   const { maxInlineDepth, measureRef } = useHabitInlineDepthLimit()
@@ -35,6 +58,7 @@ export function useHabitListDragState({ drill, view, habits, todayStr, collapsed
 
   const [isDragging, setIsDragging] = useAccountScopedState(false)
   const autoCollapsedOnDragRef = useRef<string | null>(null)
+  useResetOnAccountChange(() => { autoCollapsedOnDragRef.current = null })
 
   const dragItemsRef = useRef<DragItem[]>(dragItems)
   useEffect(() => {
@@ -59,44 +83,6 @@ export function useHabitListDragState({ drill, view, habits, todayStr, collapsed
 
   const isDndEnabled = view !== 'all' && !isSelectMode
   const listViewPanelStyle = getListViewPanelStyle(view, habits.length, isDragging)
-  return { isDragging, dragItems, setIsDragging, autoCollapsedOnDragRef, dragItemsRef, setDragOverrideItems, dragOverrideItems, listContainerRef, maxInlineDepth, dragPanels, listViewPanelStyle, sensors, activeDragItems, isDndEnabled, activeDragPanels, setListContainerRef }
-}
-
-type HabitListKeyboardReorderInputs = Pick<ReturnType<typeof useHabitListQueries>, 'dndContextId' | 'reorderHabitsMut' | 't' | 'habitsById' | 'getChildren'> & Pick<ReturnType<typeof useHabitListDragState>, 'isDragging' | 'dragItems'>
-
-export function useHabitListKeyboardReorder({ dndContextId, reorderHabitsMut, isDragging, dragItems, t, habitsById, getChildren }: HabitListKeyboardReorderInputs) {
-  const reorderInstructionsId = `${dndContextId}-habit-reorder-instructions`
-  const [reorderAnnouncements, setReorderAnnouncements] = useAccountScopedState<readonly [string, string]>(['', ''])
-  function announceReorder(message: string) {
-    setReorderAnnouncements(([first]) => first === '' ? [message, ''] : ['', message])
-  }
-
-  function moveHabitByKeyboard(habit: NormalizedHabit, direction: -1 | 1) {
-    if (reorderHabitsMut.isPending || isDragging) return
-    const siblings = dragItems.filter((sibling) => sibling.parentId === (habit.parentId ?? null))
-    const currentIndex = siblings.findIndex((sibling) => sibling.id === habit.id)
-    const targetIndex = currentIndex + direction
-    if (targetIndex < 0 || targetIndex >= siblings.length) {
-      announceReorder(t('habits.reorderBoundary', { title: habit.title, position: currentIndex + 1, total: siblings.length }))
-      return
-    }
-    const storedSiblings = Array.from(habitsById.values())
-      .filter((sibling) => (sibling.parentId ?? null) === (habit.parentId ?? null))
-      .sort(sortNormalizedHabits)
-    const storedIndex = storedSiblings.findIndex((sibling) => sibling.id === habit.id)
-    const storedTargetIndex = storedSiblings.findIndex((sibling) => sibling.id === siblings[targetIndex]!.id)
-    const positions = computeHabitReorderPositions(storedSiblings, storedIndex, storedTargetIndex, habitsById, getChildren)
-    if (positions.length === 0) return
-    reorderHabitsMut.mutate({ positions }, {
-      onSuccess: () => announceReorder(t('habits.reorderMoved', { title: habit.title, position: targetIndex + 1, total: siblings.length })),
-    })
-  }
-  return { reorderInstructionsId, moveHabitByKeyboard, reorderAnnouncements }
-}
-
-type HabitListDragActionsInputs = Pick<ReturnType<typeof useHabitListDragState>, 'setIsDragging' | 'autoCollapsedOnDragRef' | 'dragItemsRef' | 'setDragOverrideItems' | 'dragOverrideItems'> & Pick<ReturnType<typeof useHabitListCollapse>, 'collapsedIds' | 'setCollapsedIds'> & Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'getChildren' | 'reorderHabitsMut'>
-
-export function useHabitListDragActions({ setIsDragging, autoCollapsedOnDragRef, dragItemsRef, collapsedIds, setDragOverrideItems, dragOverrideItems, habitsById, getChildren, reorderHabitsMut, setCollapsedIds }: HabitListDragActionsInputs) {
   function handleDragStart(event: DragStartEvent) {
     setIsDragging(true)
     autoCollapsedOnDragRef.current = null
@@ -110,21 +96,7 @@ export function useHabitListDragActions({ setIsDragging, autoCollapsedOnDragRef,
     const isCollapsed = collapsedIds.has(draggedItem.id)
     if (draggedItem.hasChildren && !isCollapsed) {
       autoCollapsedOnDragRef.current = draggedItem.id
-      const draggedDepth = draggedItem.depth
-      const filtered: DragItem[] = []
-      let stripping = false
-      for (const it of currentItems) {
-        if (it.id === draggedId) {
-          stripping = true
-          filtered.push({ ...it, hasChildren: true })
-          continue
-        }
-        if (stripping && it.depth > draggedDepth) {
-          continue
-        }
-        stripping = false
-        filtered.push(it)
-      }
+      const filtered = withoutDraggedDescendants(currentItems, draggedItem)
       setDragOverrideItems(filtered)
     }
   }
@@ -164,5 +136,38 @@ export function useHabitListDragActions({ setIsDragging, autoCollapsedOnDragRef,
       autoCollapsedOnDragRef.current = null
     }
   }
-  return { handleDragStart, handleDragEnd, restoreAfterDrag }
+  return { isDragging, dragItems, listContainerRef, maxInlineDepth, dragPanels, listViewPanelStyle,
+    sensors, activeDragItems, isDndEnabled, activeDragPanels, setListContainerRef, handleDragStart, handleDragEnd, restoreAfterDrag }
+}
+
+type HabitListKeyboardReorderInputs = Pick<ReturnType<typeof useHabitListQueries>, 'dndContextId' | 'reorderHabitsMut' | 't' | 'habitsById' | 'getChildren'> & Pick<ReturnType<typeof useHabitListDrag>, 'isDragging' | 'dragItems'>
+
+export function useHabitListKeyboardReorder({ dndContextId, reorderHabitsMut, isDragging, dragItems, t, habitsById, getChildren }: HabitListKeyboardReorderInputs) {
+  const reorderInstructionsId = `${dndContextId}-habit-reorder-instructions`
+  const [reorderAnnouncements, setReorderAnnouncements] = useAccountScopedState<readonly [string, string]>(['', ''])
+  function announceReorder(message: string) {
+    setReorderAnnouncements(([first]) => first === '' ? [message, ''] : ['', message])
+  }
+
+  function moveHabitByKeyboard(habit: NormalizedHabit, direction: -1 | 1) {
+    if (reorderHabitsMut.isPending || isDragging) return
+    const siblings = dragItems.filter((sibling) => sibling.parentId === (habit.parentId ?? null))
+    const currentIndex = siblings.findIndex((sibling) => sibling.id === habit.id)
+    const targetIndex = currentIndex + direction
+    if (targetIndex < 0 || targetIndex >= siblings.length) {
+      announceReorder(t('habits.reorderBoundary', { title: habit.title, position: currentIndex + 1, total: siblings.length }))
+      return
+    }
+    const storedSiblings = Array.from(habitsById.values())
+      .filter((sibling) => (sibling.parentId ?? null) === (habit.parentId ?? null))
+      .sort(sortNormalizedHabits)
+    const storedIndex = storedSiblings.findIndex((sibling) => sibling.id === habit.id)
+    const storedTargetIndex = storedSiblings.findIndex((sibling) => sibling.id === siblings[targetIndex]!.id)
+    const positions = computeHabitReorderPositions(storedSiblings, storedIndex, storedTargetIndex, habitsById, getChildren)
+    if (positions.length === 0) return
+    reorderHabitsMut.mutate({ positions }, {
+      onSuccess: () => announceReorder(t('habits.reorderMoved', { title: habit.title, position: targetIndex + 1, total: siblings.length })),
+    })
+  }
+  return { reorderInstructionsId, moveHabitByKeyboard, reorderAnnouncements }
 }

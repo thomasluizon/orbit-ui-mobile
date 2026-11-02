@@ -1,6 +1,7 @@
 import { withAccountGuard, type HabitAccount , type RestoreHabitInput } from './use-habit-mutation-shared'
 import type { HabitDetailSnapshots, HabitDetailUpdates, HabitListSnapshots } from '@orbit/shared/query'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useHabitMutation } from './use-habit-mutation'
 import { cachedHabitDeletionIds, isCachedHabitDeleted, removeDeletedHabitQueries, restoreDeletedHabitQueries, restoreCachedHabitDetails, updateCachedHabitDetails, invalidateHabitParentDetails, habitKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { createHabitRequestSchema, extractBackendErrorCode, validateApiRequest } from '@orbit/shared'
@@ -28,7 +29,7 @@ type CreateSubHabitMutationInput = {
 export function useCreateHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation<
+  return useHabitMutation<
     { id: string },
     Error,
     CreateHabitMutationInput,
@@ -56,8 +57,9 @@ export function useCreateHabit() {
       })
     },
 
-    onMutate: async (data) => {
+    onMutate: async (data, _context, account) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      account.assertCurrent()
 
       const previousLists = snapshotHabitLists(queryClient)
       const tempId = createTempEntityId('habit')
@@ -86,7 +88,7 @@ export function useCreateHabit() {
 export function useUpdateHabit() {
   const queryClient = useQueryClient()
 
-  const mutation = useMutation<
+  const mutation = useHabitMutation<
     void | QueuedMarker,
     Error,
     { habitId: string; data: UpdateHabitRequest; dependsOn?: string[]; account?: HabitAccount },
@@ -161,7 +163,6 @@ export function useUpdateHabit() {
       return withAccountGuard(async (guardedAccount) => {
         const account = guardedAccount
         const result = await mutation.mutateAsync({ ...input, account })
-        account.assertCurrent()
         return result
 
       })
@@ -174,7 +175,7 @@ export function useRestoreHabit() {
   const { t } = useTranslation()
   const { showSuccess, showError } = useAppToast()
 
-  return useMutation<void | QueuedMarker, Error, RestoreHabitInput>({
+  return useHabitMutation<void | QueuedMarker, Error, RestoreHabitInput>({
     mutationFn: (input) =>
       performQueuedApiMutation<void>({
         type: 'restoreHabit',
@@ -214,11 +215,11 @@ export function useDeleteHabit({ requiresConnection = false }: { requiresConnect
   const restoreHabit = useRestoreHabit()
   const showUndoToast = useUndoToast()
 
-  return useMutation<
+  return useHabitMutation<
     void | QueuedMarker,
     Error,
     string,
-    { previousLists: HabitListSnapshots; previousDetails: HabitDetailSnapshots; deletedIds: string[] }
+    { previousLists: HabitListSnapshots; previousDetails: HabitDetailSnapshots; deletedIds: string[]; account: HabitAccount }
   >({
     mutationFn: (habitId) =>
       isCachedHabitDeleted(queryClient, habitId) ? Promise.resolve() : performQueuedApiMutation<void>({
@@ -231,8 +232,9 @@ export function useDeleteHabit({ requiresConnection = false }: { requiresConnect
         targetEntityId: habitId,
       }),
 
-    onMutate: async (habitId) => {
+    onMutate: async (habitId, _context, account) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.all })
+      account.assertCurrent()
 
       const deletedIds = cachedHabitDeletionIds(queryClient, [habitId])
       const previousLists = snapshotHabitLists(queryClient)
@@ -245,7 +247,7 @@ export function useDeleteHabit({ requiresConnection = false }: { requiresConnect
         (detail) => detail ? removeHabitDetailChild(detail, habitId) : detail,
       )
 
-      return { previousLists, previousDetails, deletedIds }
+      return { previousLists, previousDetails, deletedIds, account }
     },
 
     onError: (_err, _vars, context) => {
@@ -257,10 +259,13 @@ export function useDeleteHabit({ requiresConnection = false }: { requiresConnect
     },
 
     onSuccess: async (data, habitId, context) => {
-      if (!isQueuedResult(data)) await removeDeletedHabitQueries(queryClient, habitId, context.deletedIds)
+      if (!isQueuedResult(data)) await removeDeletedHabitQueries(queryClient, habitId, context.deletedIds, context.account.stillCurrent)
+      if (!context.account.stillCurrent()) return
       showUndoToast(t('undo.habitDeleted'), () => {
+        if (!context.account.stillCurrent()) return
         if (isQueuedResult(data)) {
           void cancelQueuedDeleteForUndo(data.queuedMutationId).then((outcome) => {
+            if (!context.account.stillCurrent()) return
             if (outcome !== 'replayed') {
               restoreHabitLists(queryClient, context.previousLists)
               void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
@@ -292,7 +297,7 @@ export function useDeleteHabit({ requiresConnection = false }: { requiresConnect
 export function useReorderHabits() {
   const queryClient = useQueryClient()
 
-  return useMutation<
+  return useHabitMutation<
     void | QueuedMarker,
     Error,
     ReorderHabitsRequest,
@@ -308,8 +313,9 @@ export function useReorderHabits() {
         dedupeKey: 'habits:reorder',
       }),
 
-    onMutate: async (data) => {
+    onMutate: async (data, _context, account) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      account.assertCurrent()
 
       const previousLists = snapshotHabitLists(queryClient)
       updateHabitLists(queryClient, (items) => optimisticReorderHabits(items, data.positions))
@@ -330,7 +336,7 @@ export function useReorderHabits() {
 export function useDuplicateHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation<
+  return useHabitMutation<
     void | QueuedMarker,
     Error,
     string,
@@ -347,8 +353,9 @@ export function useDuplicateHabit() {
         targetEntityId: habitId,
       }),
 
-    onMutate: async (habitId) => {
+    onMutate: async (habitId, _context, account) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      account.assertCurrent()
 
       const previousLists = snapshotHabitLists(queryClient)
       const tempId = createTempEntityId('habit')
@@ -377,7 +384,7 @@ export function useDuplicateHabit() {
 export function useUpdateChecklist() {
   const queryClient = useQueryClient()
 
-  return useMutation<
+  return useHabitMutation<
     void | QueuedMarker,
     Error,
     { habitId: string; items: ChecklistItem[] },
@@ -398,12 +405,13 @@ export function useUpdateChecklist() {
         targetEntityId: habitId,
       }),
 
-    onMutate: async ({ habitId, items }) => {
+    onMutate: async ({ habitId, items }, _context, account) => {
       await Promise.all([
         queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
         queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId) }),
         queryClient.cancelQueries({ queryKey: habitKeys.fullDetail(habitId) }),
       ])
+      account.assertCurrent()
 
       const previousLists = snapshotHabitLists(queryClient)
       const previousDetail = queryClient.getQueryData<HabitDetail>(habitKeys.detail(habitId))
@@ -443,7 +451,7 @@ export function useUpdateChecklist() {
 export function useCreateSubHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation<
+  return useHabitMutation<
     void | QueuedMarker,
     Error,
     CreateSubHabitMutationInput,
@@ -465,11 +473,12 @@ export function useCreateSubHabit() {
       })
     },
 
-    onMutate: async (input) => {
+    onMutate: async (input, _context, account) => {
       await Promise.all([
         queryClient.cancelQueries({ queryKey: habitKeys.lists() }),
         queryClient.cancelQueries({ queryKey: habitKeys.detail(input.parentId) }),
       ])
+      account.assertCurrent()
 
       const { parentId, data } = input
       const previousLists = snapshotHabitLists(queryClient)
@@ -508,7 +517,7 @@ export function useCreateSubHabit() {
 export function useMoveHabitParent() {
   const queryClient = useQueryClient()
 
-  return useMutation<void | QueuedMarker, Error, {
+  return useHabitMutation<void | QueuedMarker, Error, {
     habitId: string
     data: MoveHabitParentRequest
   }, {
@@ -530,8 +539,9 @@ export function useMoveHabitParent() {
       })
     },
 
-    onMutate: async ({ habitId, data }) => {
+    onMutate: async ({ habitId, data }, _context, account) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      account.assertCurrent()
 
       const previousLists = snapshotHabitLists(queryClient)
       updateHabitLists(queryClient, (items) =>

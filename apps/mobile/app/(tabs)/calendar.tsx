@@ -125,7 +125,7 @@ function CalendarScreenContent(props: Readonly<CalendarScreenContentProps>) {
           </CalendarBody>
         </>}
         ListHeaderComponentStyle={view === 'week' ? styles.container : undefined}
-        ListFooterComponent={view === 'month' ? <CalendarMonthFooter state={state} /> : undefined}
+        ListFooterComponent={view === 'month' && !(profile ? activeError : profileError) ? <CalendarMonthFooter state={state} /> : undefined}
         contentContainerStyle={{ paddingBottom: clearance, ...(view === 'week' ? { flex: 1 } : {}) }}
         scrollEnabled={view !== 'week'}
         showsVerticalScrollIndicator={false}

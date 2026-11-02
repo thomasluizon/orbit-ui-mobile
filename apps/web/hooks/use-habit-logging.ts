@@ -100,7 +100,9 @@ export function useSkipHabit() {
       return { skipId }
     },
     onMutate: async ({ habitId, date }) => {
+      const account = captureAccountIntent()
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      if (!account.stillCurrent()) throw new Error('Account changed')
       const previousLists = snapshotHabitLists(queryClient)
       const previous = previousLists.flatMap(([, items]) => items ? [findHabitInList(items, habitId)] : [])
         .find((habit) => habit !== null)

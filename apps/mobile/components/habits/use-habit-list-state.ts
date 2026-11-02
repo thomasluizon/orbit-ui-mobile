@@ -32,8 +32,7 @@ import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { buildFlatHabitItems, getMoveParentSelection, validateMoveTarget as computeMoveTargetValidation, type DragItem } from '../habit-list/tree-helpers'
 import { createStyles } from '../habit-list/styles'
 import type { HabitListProps, HabitListHandleInputs } from '../habit-list'
-import type { useHabitListConfirmState } from './use-habit-list-confirmations'
-import type { useHabitListDragState } from './use-habit-list-drag'
+import type { useHabitListDrag } from './use-habit-list-drag'
 
 type HabitListAccountInputs = { view: NonNullable<HabitListProps['view']> } & { requestedDate: HabitListProps['selectedDate'] }
 
@@ -136,10 +135,9 @@ export function useHabitListQueries({ filters, view, todayStr }: HabitListQuerie
 }
 
 export function useHabitListCollapseState() {
-  const [isDraggingList, setIsDraggingList] = useState(false)
   const reducedListMotion = usePrefersReducedMotion()
   const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
-  return { collapsedIds, setCollapsedIds, setIsDraggingList, isDraggingList, reducedListMotion }
+  return { collapsedIds, setCollapsedIds, reducedListMotion }
 }
 
 type HabitRecentCompletionStateInputs = Pick<ReturnType<typeof useHabitListAccount>, 'selectedDateStr'>
@@ -200,10 +198,9 @@ export function useHabitListMoveState() {
   return { movingHabitId, moveInventory, bulkMovingIds, selectedMoveParentId, moveState, isMovingParent, setMoveState, moveOperation, showMoveParentDialog, moveError, retryMoveInventory }
 }
 
-type HabitListSelectionStateInputs = Pick<ReturnType<typeof useHabitListConfirmState>, 'habitToDelete'> & Pick<HabitListProps, 'selectedHabitIds' | 'isSelectMode'> & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'recentlyCompletedIds'>
+type HabitListSelectionStateInputs = Pick<HabitListProps, 'selectedHabitIds' | 'isSelectMode'> & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'recentlyCompletedIds'>
 
-export function useHabitListSelectionState({ habitToDelete, selectedHabitIds, isSelectMode, recentlyCompletedIds }: HabitListSelectionStateInputs) {
-  const deleteConfirmation = habitToDelete ?? { name: '', descendantCount: 0 }
+export function useHabitListSelectionState({ selectedHabitIds, isSelectMode, recentlyCompletedIds }: HabitListSelectionStateInputs) {
   const selectedIds = useMemo(
     () => selectedHabitIds ?? new Set<string>(),
     [selectedHabitIds],
@@ -217,7 +214,7 @@ export function useHabitListSelectionState({ habitToDelete, selectedHabitIds, is
       ),
     [isSelectMode, recentlyCompletedIds, selectedIds],
   )
-  return { selectedIds, deleteConfirmation, listExtraData }
+  return { selectedIds, listExtraData }
 }
 
 type HabitListVisibilityInputs = Pick<ReturnType<typeof useHabitListMoveState>, 'movingHabitId'> & Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent'> & Pick<ReturnType<typeof useHabitListAccount>, 'selectedDateStr'> & Pick<HabitListProps, 'searchQuery' | 'showCompleted'> & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'recentlyCompletedIds'>
@@ -376,9 +373,9 @@ export function useHabitListCollapse({ getVisibleChildren, visibleHabits, collap
   return { toggleExpand, allCollapsed, collapseAll, expandAll }
 }
 
-type HabitListPresentationInputs = { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitListRoots>, 'visibleHabits' | 'getVisibleChildren'> & Pick<ReturnType<typeof useHabitListAccount>, 'todayStr' | 'i18n' | 't' | 'accountGeneration' | 'selectedDateStr'> & Pick<ReturnType<typeof useHabitListScroll>, 'reserveViewport'> & Pick<ReturnType<typeof useHabitListCollapseState>, 'collapsedIds' | 'isDraggingList' | 'reducedListMotion'> & Pick<ReturnType<typeof useHabitListDragState>, 'dragOverrideItems'> & Pick<HabitListProps, 'searchQuery' | 'filters' | 'isSelectMode'>
+type HabitListItemsInputs = { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitListRoots>, 'visibleHabits' | 'getVisibleChildren'> & Pick<ReturnType<typeof useHabitListAccount>, 'todayStr' | 'i18n' | 't' | 'accountGeneration' | 'selectedDateStr'> & Pick<ReturnType<typeof useHabitListScroll>, 'reserveViewport'> & Pick<ReturnType<typeof useHabitListCollapseState>, 'collapsedIds'> & Pick<HabitListProps, 'searchQuery' | 'filters' | 'isSelectMode'>
 
-export function useHabitListPresentation({ view, visibleHabits, todayStr, i18n, t, reserveViewport, collapsedIds, getVisibleChildren, dragOverrideItems, accountGeneration, isDraggingList, selectedDateStr, searchQuery, filters, reducedListMotion, isSelectMode }: HabitListPresentationInputs) {
+export function useHabitListItems({ view, visibleHabits, todayStr, i18n, t, reserveViewport, collapsedIds, getVisibleChildren, isSelectMode }: HabitListItemsInputs) {
   const dateGroups = useMemo(() => view === 'all' ? buildHabitDateBuckets(visibleHabits, todayStr) : [], [view, visibleHabits, todayStr])
   const groupHeadings = useMemo(() => new Map(dateGroups.map((bucket) => [bucket.habits[0]!.id, formatHabitDateBucketLabel(bucket.key, todayStr, i18n.language, t)])), [dateGroups, todayStr, i18n.language, t])
   const { width: windowWidth, fontScale } = useWindowDimensions()
@@ -393,16 +390,22 @@ export function useHabitListPresentation({ view, visibleHabits, todayStr, i18n, 
     [view, dateGroups, visibleHabits, collapsedIds, getVisibleChildren, maxInlineDepth],
   )
 
-  const activeDragItems = dragOverrideItems ?? flatItems
+  const isDndEnabled = view !== 'all' && !isSelectMode
+  return { maxInlineDepth, isDndEnabled, measureList, groupHeadings, flatItems }
+}
+
+type HabitListPresentationInputs = {
+  drag: Pick<ReturnType<typeof useHabitListDrag>, 'activeDragItems' | 'isDraggingList'>
+  account: Pick<ReturnType<typeof useHabitListAccount>, 'accountGeneration' | 'selectedDateStr'>
+  reducedListMotion: ReturnType<typeof useHabitListCollapseState>['reducedListMotion']
+} & Pick<HabitListProps, 'view' | 'searchQuery' | 'filters'>
+
+export function useHabitListPresentation({ drag, account, view, searchQuery, filters, reducedListMotion }: HabitListPresentationInputs) {
+  const { activeDragItems, isDraggingList } = drag
+  const { accountGeneration, selectedDateStr } = account
   const presentation = useRetainedHabitList(activeDragItems, `${accountGeneration}:${view}:${isDraggingList}:${selectedDateStr}:${searchQuery ?? ''}:${JSON.stringify(filters)}`, reducedListMotion)
   const cellMotion = useMemo(() => createListCellMotion(reducedListMotion), [reducedListMotion])
-  const activeDragItemsRef = useRef(activeDragItems)
-  useEffect(() => {
-    activeDragItemsRef.current = activeDragItems
-    // react-doctor-disable-next-line exhaustive-deps -- activeDragItems already combines dragOverrideItems and flatItems (both the analyzer flags); listing the combined value is sufficient, no staleness https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [activeDragItems])
-  const isDndEnabled = view !== 'all' && !isSelectMode
-  return { activeDragItemsRef, maxInlineDepth, presentation, isDndEnabled, measureList, groupHeadings, flatItems, cellMotion }
+  return { presentation, cellMotion }
 }
 
 type HabitListProgressInputs = Pick<ReturnType<typeof useHabitListVisibility>, 'visibility'> & { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitListQueries>, 'getChildren' | 'habitsById'>

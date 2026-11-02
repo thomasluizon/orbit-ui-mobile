@@ -175,8 +175,7 @@ export function CalendarViewRouter({ state }: Readonly<{ state: CalendarScreenSt
 
 export function CalendarMonthFooter({ state }: Readonly<{ state: CalendarScreenState }>) {
   const { t } = useTranslation()
-  const { styles, monthDisplayState, monthStatTiles, profile, profileError, activeError } = state
-  if (profile ? activeError : profileError) return null
+  const { styles, monthDisplayState, monthStatTiles } = state
   return (
     <View style={styles.listFooter}>
       <CalendarStats
