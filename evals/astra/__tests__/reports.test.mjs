@@ -1,13 +1,14 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { expect, it } from 'vitest'
-import { mergeReports } from '../merge-reports.mjs'
-import { writeResults } from '../report.mjs'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mergeReportFiles, mergeReports } from '../merge-reports.mjs'
+import { summarize, writeReport, writeResults } from '../report.mjs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import parseResponse from '../response.mjs'
 import { chatResponse, toolCall } from './fixtures/producer.mjs'
 const descriptors = [{ id: 'english', family: 'habits', locale: 'en' }, { id: 'portuguese', family: 'habits', locale: 'pt-BR' }]
-const window = (index, overrides = {}) => ({ k: 3, cases: [{ ...descriptors[index], attempts: 3, passed: 3, skipped: 0, unavailable: 0, missingComposition: 0, pass3: 'pass', ...overrides }] })
+const window = (index, overrides = {}) => ({ k: ATTEMPTS_PER_CASE, cases: [{ ...descriptors[index], attempts: ATTEMPTS_PER_CASE, passed: ATTEMPTS_PER_CASE, skipped: 0, unavailable: 0, missingComposition: 0, allAttemptsPass: 'pass', ...overrides }] })
 it('writes private evidence without catalog-marked secrets or injected credential fields', () => {
   const call = toolCall('manage_account', { action: 'confirm_deletion' })
   Object.assign(call.arguments, { code: 'private-code-value', token: 'private-token-value', cookie: 'private-cookie-value',
@@ -31,15 +32,133 @@ it('merges disjoint windows against the entire corpus without hiding missing fam
   const merged = mergeReports([window(0), window(1)], descriptors)
   expect(merged.status).toBe('pass')
   expect(merged.groups).toHaveLength(2)
-  expect(mergeReports([window(0), window(1, { pass3: 'fail', passed: 2 })], descriptors).status).toBe('fail')
+  expect(mergeReports([window(0), window(1, { allAttemptsPass: 'fail', passed: ATTEMPTS_PER_CASE - 1 })], descriptors).status).toBe('fail')
 })
-it.each([{ skipped: 1 }, { unavailable: 1 }, { missingComposition: 1 }, { attempts: 2 }, { passed: 2 }])('rejects an unsupported pass: %j', (overrides) => {
+it.each([{ skipped: 1 }, { unavailable: 1 }, { missingComposition: 1 }, { attempts: ATTEMPTS_PER_CASE - 1 }, { passed: ATTEMPTS_PER_CASE - 1 }])('rejects an unsupported pass: %j', (overrides) => {
   expect(() => mergeReports([window(0, overrides)], descriptors)).toThrow()
 })
 it('rejects repeated, foreign, mislabeled and overcounted cases', () => {
-  for (const windows of [[window(0), window(0)], [window(0, { id: 'unknown' })], [window(0, { family: 'other' })], [window(0, { attempts: 4 })]]) {
+  for (const windows of [[window(0), window(0)], [window(0, { id: 'unknown' })], [window(0, { family: 'other' })], [window(0, { attempts: ATTEMPTS_PER_CASE + 1 })]]) {
     expect(() => mergeReports(windows, descriptors)).toThrow()
   }
+})
+
+const result = (index, success = true) => ({ testCase: { metadata: descriptors[index] }, success,
+  gradingResult: { componentResults: [{ assertion: { metric: 'composition' }, pass: true }] } })
+const completed = (index, success = true) => Array.from({ length: ATTEMPTS_PER_CASE }, () => result(index, success))
+
+it.each([0, ATTEMPTS_PER_CASE - 1])('continues an interrupted window with %i attempts without losing completed cases', (attempts) => {
+  const first = summarize([...completed(0), ...Array.from({ length: attempts }, () => result(1))], descriptors)
+  const continuation = summarize(completed(1), [descriptors[1]])
+  const merged = mergeReports([first, continuation], descriptors)
+  expect(merged.status).toBe('pass')
+  expect(merged.cases[0]).toMatchObject({ id: 'english', sourceWindow: 1, attempts: ATTEMPTS_PER_CASE, passed: ATTEMPTS_PER_CASE, allAttemptsPass: 'pass' })
+  expect(merged.cases[1]).toMatchObject({ id: 'portuguese', sourceWindow: 2, attempts: ATTEMPTS_PER_CASE, passed: ATTEMPTS_PER_CASE, allAttemptsPass: 'pass',
+    superseded: [{ ...first.cases[1], sourceWindow: 1 }] })
+  expect(merged.groups.every((group) => group.passed === 1)).toBe(true)
+})
+
+it('replaces only the failed case in a declared rerun and preserves its passing window companion', () => {
+  const first = summarize([...completed(0), ...completed(1, false)], descriptors)
+  const rerun = summarize(completed(1), [descriptors[1]])
+  const merged = mergeReports([first, rerun], descriptors, { rerunWindows: [2] })
+  expect(merged.status).toBe('pass')
+  expect(merged.cases[0]).toMatchObject({ id: 'english', sourceWindow: 1, allAttemptsPass: 'pass' })
+  expect(merged.cases[1]).toMatchObject({ id: 'portuguese', sourceWindow: 2, attempts: ATTEMPTS_PER_CASE, passed: ATTEMPTS_PER_CASE,
+    rerun: true, superseded: [{ ...first.cases[1], sourceWindow: 1 }] })
+  const directory = mkdtempSync(join(tmpdir(), 'astra-merged-evidence-'))
+  try {
+    writeReport(merged, directory)
+    expect(JSON.parse(readFileSync(join(directory, 'summary.json'), 'utf8'))).toEqual(merged)
+    expect(readFileSync(join(directory, 'summary.md'), 'utf8')).toContain(`| portuguese | 2 | 1 | 0/${ATTEMPTS_PER_CASE} | fail |`)
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})
+
+it('rejects a later entry for an already passed case, including a declared rerun', () => {
+  const first = summarize(completed(0), descriptors)
+  for (const options of [{}, { rerunWindows: [2] }]) {
+    expect(() => mergeReports([first, window(0)], descriptors, options)).toThrow(/already passed/)
+  }
+})
+
+it('keeps an incomplete case incomplete when no later window completes it', () => {
+  const partial = Array.from({ length: ATTEMPTS_PER_CASE - 1 }, () => result(1))
+  const first = summarize([...completed(0), ...partial], descriptors)
+  const merged = mergeReports([first], descriptors)
+  expect(merged.status).toBe('incomplete')
+  expect(merged.cases[1]).toMatchObject({ attempts: ATTEMPTS_PER_CASE - 1, passed: ATTEMPTS_PER_CASE - 1, allAttemptsPass: 'incomplete' })
+  expect(merged.cases[1].superseded).toBeUndefined()
+})
+
+it('rejects complete failed-case replacement without a declaration and rejects a second rerun', () => {
+  const first = summarize(completed(1, false), [descriptors[1]])
+  expect(() => mergeReports([first, window(1)], descriptors)).toThrow(/declare.*rerun/)
+  expect(() => mergeReports([first, first, window(1)], descriptors, { rerunWindows: [2, 3] }))
+    .toThrow(/already.*rerun/)
+})
+
+it('keeps all interrupted evidence without adding superseded attempts to the final counts', () => {
+  const first = summarize([], [descriptors[1]])
+  const ungraded = completed(1).map((entry) => ({ ...entry, gradingResult: { componentResults: [] } }))
+  const second = summarize(ungraded, [descriptors[1]])
+  const merged = mergeReports([first, second, window(1)], descriptors)
+  expect(merged.cases[1]).toMatchObject({ attempts: ATTEMPTS_PER_CASE, passed: ATTEMPTS_PER_CASE, sourceWindow: 3,
+    superseded: [{ attempts: 0, passed: 0, sourceWindow: 1, allAttemptsPass: 'incomplete' },
+      { attempts: ATTEMPTS_PER_CASE, passed: ATTEMPTS_PER_CASE, missingComposition: ATTEMPTS_PER_CASE, sourceWindow: 2 }] })
+  expect(mergeReports([first], descriptors).cases[1].allAttemptsPass).toBe('incomplete')
+})
+
+it('keeps an interrupted case with a failed attempt failed until its declared rerun', () => {
+  const first = summarize([result(1, false)], [descriptors[1]])
+  expect(mergeReports([first], descriptors).cases[1].allAttemptsPass).toBe('fail')
+  expect(() => mergeReports([first, window(1)], descriptors)).toThrow(/declare its permitted rerun/)
+  expect(mergeReports([first, window(1)], descriptors, { rerunWindows: [2] }).cases[1])
+    .toMatchObject({ rerun: true, sourceWindow: 2, allAttemptsPass: 'pass', superseded: [{ attempts: 1, passed: 0, sourceWindow: 1, allAttemptsPass: 'fail' }] })
+})
+
+it('continues an interrupted rerun without granting another rerun', () => {
+  const first = summarize(completed(1, false), [descriptors[1]])
+  const interrupted = summarize([], [descriptors[1]])
+  const merged = mergeReports([first, interrupted, window(1)], descriptors, { rerunWindows: [2] })
+  expect(merged.cases[1]).toMatchObject({ rerun: true, sourceWindow: 3, allAttemptsPass: 'pass', superseded: [
+    { sourceWindow: 1, allAttemptsPass: 'fail' }, { sourceWindow: 2, rerun: true, allAttemptsPass: 'incomplete' },
+  ] })
+  expect(() => mergeReports([first, interrupted, window(1)], descriptors, { rerunWindows: [2, 3] }))
+    .toThrow(/already.*rerun/)
+})
+
+it('keeps skipped or unavailable replacement evidence incomplete', () => {
+  for (const field of ['skipped', 'unavailable', 'missingComposition']) {
+    const replacement = window(1, { [field]: 1, allAttemptsPass: 'incomplete' })
+    const merged = mergeReports([window(0), window(1, { attempts: 0, passed: 0, allAttemptsPass: 'incomplete' }), replacement], descriptors)
+    expect(merged.status).toBe('incomplete')
+    expect(merged.cases[1]).toMatchObject({ allAttemptsPass: 'incomplete', [field]: 1 })
+  }
+})
+
+it('rejects duplicate entries inside a window and rerun declarations without a failed predecessor', () => {
+  const incomplete = window(1, { attempts: 0, passed: 0, allAttemptsPass: 'incomplete' })
+  expect(() => mergeReports([{ k: ATTEMPTS_PER_CASE, cases: [...incomplete.cases, ...window(1).cases] }], descriptors))
+    .toThrow(/Duplicate case within window/)
+  expect(() => mergeReports([window(1)], descriptors, { rerunWindows: [1] })).toThrow(/previous failed case/)
+  expect(() => mergeReports([incomplete, window(1)], descriptors, { rerunWindows: [2] })).toThrow(/previous failed case/)
+  expect(() => mergeReports([window(1)], descriptors, { rerunWindows: [2] })).toThrow(/input positions/)
+})
+
+it('reads ordered summary paths with --rerun applying only to its following window', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'astra-window-files-'))
+  const initial = join(directory, 'initial.json')
+  const rerun = join(directory, 'rerun.json')
+  try {
+    writeFileSync(initial, JSON.stringify(summarize([...completed(0), ...completed(1, false)], descriptors)))
+    writeFileSync(rerun, JSON.stringify(summarize(completed(1), [descriptors[1]])))
+    expect(mergeReportFiles([initial, '--rerun', rerun], descriptors)).toMatchObject({ status: 'pass', cases: [
+      { sourceWindow: 1, allAttemptsPass: 'pass' }, { sourceWindow: 2, rerun: true, allAttemptsPass: 'pass' },
+    ] })
+    expect(() => mergeReportFiles([initial, rerun], descriptors)).toThrow(/declare.*rerun/)
+    expect(() => mergeReportFiles([initial, '--rerun'], descriptors)).toThrow(/summary path/)
+    expect(() => mergeReportFiles(['--unknown', initial], descriptors)).toThrow(/options are unsupported/)
+  } finally { rmSync(directory, { recursive: true, force: true }) }
 })
 
 it('preserves exact incomplete preconditions in merged windows and the written report', async () => {
@@ -48,10 +167,10 @@ it('preserves exact incomplete preconditions in merged windows and the written r
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
   const reason = 'Daily safety budget prevented message allowance exhaustion. Setup cannot reset counters, rotate accounts or raise limits.'
-  const attempts = Array.from({ length: 3 }, () => ({ testCase: { metadata: descriptors[0] }, success: false,
+  const attempts = Array.from({ length: ATTEMPTS_PER_CASE }, () => ({ testCase: { metadata: descriptors[0] }, success: false,
     response: { metadata: { astraPreconditionFailure: true, astraPreconditionReason: reason } } }))
   const summary = summarize(attempts, [descriptors[0]])
-  expect(summary.cases[0]).toMatchObject({ pass3: 'incomplete', unavailableReasons: [reason] })
+  expect(summary.cases[0]).toMatchObject({ allAttemptsPass: 'incomplete', unavailableReasons: [reason] })
   const merged = mergeReports([summary, window(1)], descriptors)
   expect(merged.cases[0].unavailableReasons).toEqual([reason])
   const directory = mkdtempSync(join(tmpdir(), 'astra-report-'))

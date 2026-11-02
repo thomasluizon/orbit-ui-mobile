@@ -2,19 +2,23 @@ import { refineResult } from './suggestions.mjs'
 import { restartProposal, restartReadback } from './restart.mjs'
 import { composition } from './composition.mjs'
 export { composition }
-import { assertions } from 'promptfoo'
-import { matchesArguments, matchesOperation, outcomeCalls } from './operation-matcher.mjs'
-import { tools, legacyTools, postReadTools, habitSetupTools, habitSetupBinding,
-  toolWrites, toolSensitiveFields, observableSchema } from './trace-policy.mjs'
+export { proactiveOffers } from './proactive-offers.mjs'
+import { matchesArguments, matchesOperation, outcomeCalls, failedBeforeDispatch } from './operation-matcher.mjs'
+import { validateToolArguments } from './tool-validation.mjs'
+import { tools, legacyTools, habitSetupTools, habitSetupBinding,
+  toolWrites, toolSensitiveFields, observableSchema, offerTools, offerHabitSetupTools } from './trace-policy.mjs'
+import { resolveSchema } from './tool-schema.mjs'
 
 const traceCatalog = (catalog) => catalog.map((tool) => ({ ...tool, function: { ...tool.function,
+  description: tool.function.description ?? undefined,
   parameters: observableSchema(tool.function.parameters, new Set(tool.sensitiveFields)),
 } }))
 const compositionCatalog = traceCatalog(tools)
 const legacyCatalog = traceCatalog(legacyTools)
 const mergeCatalog = (initial, updates) => [...new Map([...initial, ...updates].map((tool) => [tool.function.name, tool])).values()]
-const postReadCatalog = mergeCatalog(compositionCatalog, traceCatalog(postReadTools))
+const offerCatalog = traceCatalog(offerTools)
 const habitSetupCatalog = traceCatalog(habitSetupTools)
+const offerHabitSetupCatalog = traceCatalog(offerHabitSetupTools)
 
 const result = (pass, reason, metadata = {}) => ({ pass, score: pass ? 1 : 0, reason, metadata })
 const decode = (output) => typeof output === 'string' ? JSON.parse(output) : output
@@ -22,22 +26,23 @@ const decode = (output) => typeof output === 'string' ? JSON.parse(output) : out
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 const statuses = new Set(['Succeeded', 'Failed', 'PendingConfirmation', 'Denied', 'UnsupportedByPolicy', 'NotExecuted'])
 
-function bindDraftSchema(schema, draft) {
-  if (Array.isArray(schema)) return schema.map((entry) => bindDraftSchema(entry, draft))
+function bindDraftSchema(schema, draft, root) {
+  if (Array.isArray(schema)) return schema.map((entry) => bindDraftSchema(entry, draft, root))
+  schema = resolveSchema(schema, root)
   if (!isObject(schema)) return schema
   return Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, key === 'enum'
     ? value.map((entry) => entry === habitSetupBinding.draftCallId ? draft.callId
       : entry === habitSetupBinding.missingField ? draft.missingField : entry)
-    : bindDraftSchema(value, draft)]))
+    : bindDraftSchema(value, draft, root)]))
 }
 
-function boundHabitSetupCatalog(drafts) {
-  const bound = structuredClone(habitSetupCatalog)
+function boundHabitSetupCatalog(drafts, offers = false) {
+  const bound = structuredClone(offers ? offerHabitSetupCatalog : habitSetupCatalog)
   for (const tool of bound) {
-    const input = tool.function.parameters.properties.input
-    input.anyOf = [...drafts.values()].flatMap((draft) => bindDraftSchema(input.anyOf, draft))
+    const root = tool.function.parameters
+    root.properties.input = { anyOf: [...drafts.values()].map((draft) => bindDraftSchema(root.properties.input, draft, root)) }
   }
-  return mergeCatalog(compositionCatalog, bound)
+  return mergeCatalog(offers ? offerCatalog : compositionCatalog, bound)
 }
 
 function recordHabitSetupDraft(call, drafts) {
@@ -56,10 +61,11 @@ function recordHabitSetupDraft(call, drafts) {
 export function savedStep(output, context) {
   if (!['saveTask', 'saveChecklistItem'].includes(context.vars.startingStepAction)) return result(true, 'No saved-step approval requested.')
   const verdict = decode(output)?.savedStepReadback
-  return verdict?.pass === true ? verdict : result(false, verdict?.reason ?? 'Missing saved-step approval readback.')
+  return verdict?.pass === true ? verdict : result(false, verdict?.reason ?? 'Missing saved-step approval readback.', verdict?.metadata)
 }
 
 function traceBoundary(output, context) {
+  if (decode(output)?.unavailable === true) return result(false, 'Astra response evidence is unavailable.', { unavailable: true })
   const { trace } = decode(output)
   const requestId = context.vars.evalRequestId
   if (typeof requestId !== 'string' || !requestId.trim() || trace?.responseRequestId !== requestId) {
@@ -105,21 +111,25 @@ export async function structural(output, context) {
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
   const supportsParts = context.vars.clientContext?.supportsParts === true
-  let catalog = supportsParts ? compositionCatalog : legacyCatalog
+  const offers = context.vars.clientContext?.supportsProactiveOffers === true
+  if (offers && !offerCatalog.length) return result(false, 'Missing producer-exported proactive tool catalog; regenerate against the evaluated API.', { unavailable: true })
+  const catalog = offers ? offerCatalog : supportsParts ? compositionCatalog : legacyCatalog
   let hasSuccessfulAccountRead = false
   const drafts = new Map()
   let verdict = result(true, 'No tool calls to validate.')
   for (const call of trace.calls) {
-    verdict = await assertions.runAssertion({
-      assertion: { type: 'is-valid-openai-tools-call' },
-      provider: { config: { tools: catalog } },
-      test: context.test,
-      providerResponse: { output: [{
-        type: 'function', function: { name: call.name, arguments: JSON.stringify(call.arguments) },
-      }] },
-    })
+    // ProcessUserChatCommand.Ask.cs enforces a typed read or bound missing-field draft before ask.
+    if (supportsParts && call.name === 'ask' && !hasSuccessfulAccountRead && !drafts.size) {
+      return result(false, 'ask requires a typed account read or a bound missing-field draft.')
+    }
+    // AiIntentService.AppendToolConstraints retains the initial SDK schema throughout the turn.
+    verdict = await validateToolArguments(call, [catalog], context)
     if (!verdict.pass) return verdict
-    // Mirror ProcessUserChatCommand.Ask.cs:125-197 and ToolResults.cs:60-84 for ordered, typed declaration updates.
+    if (supportsParts && call.name === 'ask' && !hasSuccessfulAccountRead) {
+      verdict = await validateToolArguments(call, [boundHabitSetupCatalog(drafts, offers)], context)
+      if (!verdict.pass) return verdict
+    }
+    // ProcessUserChatCommand.Ask.cs and ToolResults.cs bind prerequisites to typed results in this turn.
     const successfulAccountRead = toolWrites.get(call.name) === false
       && call.resultStatus === 'Succeeded' && call.result.success === true
       && (call.result.readDirective === `[[orbit:read:${call.id}]]`
@@ -127,8 +137,6 @@ export async function structural(output, context) {
     if (supportsParts) {
       recordHabitSetupDraft(call, drafts)
       hasSuccessfulAccountRead ||= successfulAccountRead
-      if (hasSuccessfulAccountRead) catalog = postReadCatalog
-      else if (drafts.size) catalog = boundHabitSetupCatalog(drafts)
     }
   }
   return verdict
@@ -136,10 +144,13 @@ export async function structural(output, context) {
 
 function checkMutationScope(calls, expectations) {
   const scope = [...expectations.required ?? [], ...expectations.permittedMutations ?? []]
+  const optionalNames = new Set((expectations.permittedMutations ?? []).flatMap((operation) =>
+    (operation.anyOf ?? [operation]).map(({ name }) => name)))
   for (const call of calls) {
     const writes = toolWrites.get(call.name)
     if (typeof writes !== 'boolean') return result(false, `Tool lacks a catalog write classification: ${call.name}`)
-    if (writes) {
+    // Optional argument and count constraints survive a producer's write-to-read reclassification.
+    if ((writes || optionalNames.has(call.name)) && !failedBeforeDispatch(call)) {
       const index = scope.findIndex((operation) => matchesOperation(call, operation))
       if (index < 0) return result(false, `Mutation outside the declared operation scope: ${call.name}`)
       scope.splice(index, 1)
@@ -148,20 +159,27 @@ function checkMutationScope(calls, expectations) {
 }
 
 export function behavior(output, context) {
+  if (decode(output)?.unavailable === true) return result(false, 'Astra response evidence is unavailable.', { unavailable: true })
   const { httpStatus = 200 } = decode(output)
   if (httpStatus !== (context.vars.expectedHttpStatus ?? 200)) return result(false, 'Unexpected HTTP outcome for this scenario.')
   if (context.vars.refine) return refineResult(decode(output), context.vars)
   const trace = traceBoundary(output, context)
   if ('pass' in trace) return trace
-  const expectations = context.vars.expectations
-  const forbidden = [...new Set(trace.calls.filter((call) => expectations.forbidden?.includes(call.name)).map((call) => call.name))]
+  const verdict = toolBehavior(trace.calls, context.vars.expectations)
+  if (!verdict.pass || !context.vars.restart) return verdict
+  const proposal = restartProposal(decode(output), context.vars)
+  return proposal.pass ? restartReadback(decode(output), context.vars) : proposal
+}
+
+export function toolBehavior(traceCalls, expectations) {
+  const forbidden = [...new Set(traceCalls.filter((call) => expectations.forbidden?.includes(call.name)).map((call) => call.name))]
   if (forbidden.length) return result(false, `Forbidden tool: ${forbidden.join(', ')}`)
-  const outside = [...new Set(trace.calls.filter((call) => expectations.allowed && !expectations.allowed.includes(call.name))
+  const outside = [...new Set(traceCalls.filter((call) => expectations.allowed && !expectations.allowed.includes(call.name))
     .map((call) => `${call.name} (${call.resultStatus})`))]
   if (outside.length) {
     return result(false, `A tool was called outside the allowed set: ${outside.join(', ')}.`)
   }
-  const calls = outcomeCalls(trace.calls, expectations)
+  const calls = outcomeCalls(traceCalls, expectations)
   const scopeFailure = checkMutationScope(calls, expectations)
   if (scopeFailure) return scopeFailure
   for (const call of calls) {
@@ -189,10 +207,6 @@ export function behavior(output, context) {
   }
   for (const [name, count] of Object.entries(expectations.counts ?? {})) {
     if (calls.filter((call) => call.name === name).length !== count) return result(false, `Wrong call count: ${name}`)
-  }
-  if (context.vars.restart) {
-    const proposal = restartProposal(decode(output), context.vars)
-    return proposal.pass ? restartReadback(decode(output), context.vars) : proposal
   }
   return result(true, 'Required tools, arguments and results matched.')
 }

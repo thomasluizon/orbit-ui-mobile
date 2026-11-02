@@ -7,13 +7,16 @@ import { publicApi, requireEvalAccess } from './api.mjs'
 import { fixtureNames, fixtureHabitTitles, habitlessFixtures, maliciousHabitTitle, startingChecklistItems } from './names.mjs'
 import { exhaustAllowance } from './allowance.mjs'
 import { seedRestart } from './restart.mjs'
+import { configureOffers, freshConversation } from '../offer-context.mjs'
+import { seedOfferFixture } from './offers.mjs'
+import { dateInTimeZone, goalBehindDates, isBehindState } from './offer-timezone.mjs'
 import { seedHojeNextStep } from './hoje-next-step.mjs'
 
 const corpus = ['scenarios.yaml', 'composition-scenarios.yaml'].flatMap((path) =>
-  parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')))
+  parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'), { merge: true }))
 const fixtures = new Set(['pro', 'duplicate-titles', 'malicious-title', 'zero-history', 'empty', 'overdue', 'skipped',
   'free-at-limit', 'budget-exhausted', 'composition', 'composition-partial', 'composition-stale', 'composition-error',
-  'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'starting-step-checklist', 'hoje-next-step'])
+  'composition-offline', 'composition-logged', 'composition-streaks', 'medical', 'existing-parents', 'restart', 'restart-non-daily', 'starting-step-checklist', 'hoje-next-step'])
 export const disposableEvalOrigins = ['https://orbit-api-staging-uqu2.onrender.com', 'https://api.useorbit.org']
 export function requireEvalOrigin() {
   if (!disposableEvalOrigins.includes(apiOrigin())) throw new Error('Fixture reset requires a known eval origin and a disposable eval account.')
@@ -87,13 +90,14 @@ async function restoreHabits(api, exported, account, fixture, today, titles) {
   for (const [id, title] of [[account.habitId, titles[0]], [account.secondHabitId, titles[1]]]) {
     const start = fixture === 'overdue' ? process.env.ORBIT_EVAL_OVERDUE_DATE
       : fixture.startsWith('composition') ? dateOffset(today, -6) : today
-    await api('PUT', `habits/${id}`, { ...dailyHabit(title, start), clearEndDate: true, clearParent: true })
+    await api('PUT', `habits/${id}`, { ...dailyHabit(title, start), startDate: fixture === 'overdue' ? start : dateOffset(today, -6),
+      clearEndDate: true, clearParent: true, clearRepeatReminder: true, emoji: null })
     const history = exported.habits.find((habit) => habit.id === id)?.logs
     if (!Array.isArray(history)) throw new Error('Fixture export lacks stable habit history.')
     const completed = history.filter((log) => log.value > 0)
     if (completed.some((log) => log.date < dateOffset(today, -7))) throw new Error('Positive history outside the public undo window needs a new corpus window; stable IDs cannot be recreated.')
     for (const log of completed) await api('POST', `habits/${id}/log`, { date: log.date })
-    await api('PUT', `habits/${id}`, { ...dailyHabit(title, start), clearEndDate: true, clearParent: true })
+    await api('PUT', `habits/${id}`, { ...dailyHabit(title, start), clearEndDate: true, clearParent: true, clearRepeatReminder: true, emoji: null })
   }
 }
 function compositionOffsets(habit, today, fixture, offsets) {
@@ -118,16 +122,19 @@ async function seedComposition(api, account, today, fixture, names, exported) {
   await api('PUT', 'calendar/auto-sync', { enabled: false })
   if (fixture === 'composition-logged') await api('POST', `habits/${account.habitId}/log`, { date: today })
 }
-async function seedStaleRetrospective(api, today, locale) {
-  const path = `habits/retrospective?period=month&language=${encodeURIComponent(locale)}`
+export async function seedStaleRetrospective(api, today, locale, period = 'month', weekStartDay) {
+  if (period === 'week' && (!Number.isInteger(weekStartDay) || weekStartDay < 0 || weekStartDay > 6)) throw new Error('Weekly offer fixture lacks the account week start.')
+  const dateFrom = period === 'month' ? dateOffset(today, -29)
+    : dateOffset(today, -((new Date(`${today}T12:00:00Z`).getUTCDay() - weekStartDay + 7) % 7))
+  const path = `habits/retrospective?period=${period}&language=${encodeURIComponent(locale)}`
   await api('GET', path)
   const { payload } = await api('GET', path)
   const narrative = payload?.narrative
-  if (payload?.fromCache !== true || payload.period !== 'month'
-    || payload.dateFrom !== dateOffset(today, -29) || payload.dateTo !== today
+  if (payload?.fromCache !== true || payload.period !== period
+    || payload.dateFrom !== dateFrom || payload.dateTo !== today
     || !narrative || !['highlights', 'missed', 'trends', 'suggestion'].every((field) => typeof narrative[field] === 'string')
     || !Object.values(narrative).some((section) => typeof section === 'string' && section.trim())) {
-    throw new Error('Stale fixture could not verify a cached month retrospective narrative for the account dates.')
+    throw new Error(`Stale fixture could not verify a cached ${period} retrospective narrative for the account dates.`)
   }
   return payload
 }
@@ -192,6 +199,11 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   if (typeof profile?.email !== 'string' || !/^thomaslrgregorio\+orbit-eval-[a-z0-9-]+@gmail\.com$/.test(profile.email)) {
     throw new Error('Fixture reset requires a known eval origin and a disposable eval account.')
   }
+  if (isBehindState(test.vars)) {
+    goalBehindDates()
+    today = dateInTimeZone(profile.timeZone)
+    test.vars.accountDate = today
+  }
   try { await clearPendingOperations(api) } catch (error) {
     throw new Error(`Pending isolation unavailable. ${safeFailureMessage(error)}`)
   }
@@ -199,7 +211,7 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   if (requireFreshFreeWindow && (profile.hasProAccess || profile.aiMessagesUsed !== 0)) {
     throw new Error('Fixture needs a fresh Free daily window with zero Astra messages used.')
   }
-  await api('PUT', 'profile/timezone', { timeZone: 'UTC' })
+  if (!isBehindState(test.vars)) await api('PUT', 'profile/timezone', { timeZone: 'UTC' })
   await api('PUT', 'profile/language', { language: test.metadata.locale ?? 'en' })
   if (fixture === 'budget-exhausted') {
     await exhaustAllowance(api, profile, test.metadata.locale)
@@ -238,8 +250,9 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
     test.vars.fixtureEvidence = fixtureEvidence(await seedHojeNextStep(api, account, today, dailyHabit), fixture, today, account)
     return
   }
-  if (fixture === 'restart') {
-    test.vars.restartBaseline = await seedRestart(api, account, today, titles, dailyHabit, dateOffset)
+  if (fixture === 'restart' || fixture === 'restart-non-daily') {
+    test.vars.restartBaseline = await seedRestart(api, account, today, titles, dailyHabit, dateOffset, fixture === 'restart-non-daily')
+    test.vars.fixtureEvidence = fixtureEvidence(await snapshot(api), fixture, today, account)
     return
   }
   if (fixture === 'starting-step-checklist') {
@@ -256,7 +269,8 @@ export async function resetFixture(test, today = new Date().toISOString().slice(
   }
   if (fixture === 'free-at-limit') await fillCapacity(api, today)
   test.vars.fixtureEvidence = fixtureEvidence(await verifyFixture(api, account, fixture, today, titles), fixture, today, account)
-  if (fixture === 'composition-stale') return seedStaleRetrospective(api, today, test.metadata.locale ?? 'en')
+  if (fixture === 'composition-stale') return seedStaleRetrospective(api, today, test.metadata.locale ?? 'en',
+    test.vars.offerFamily === 'stale' ? 'week' : 'month', profile.weekStartDay)
 }
 
 export async function runReset(caseId) {
@@ -265,7 +279,11 @@ export async function runReset(caseId) {
   requireEvalOrigin()
   await refreshCredential(test.vars.credentialKey)
   const unmetered = await requireEvalAccess(test.vars.credentialKey)
-  await resetFixture(test, undefined, unmetered)
+  configureOffers(test)
+  freshConversation(test.vars)
+  const today = new Date().toISOString().slice(0, 10)
+  await resetFixture(test, today, unmetered)
+  await seedOfferFixture(test, today)
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try { await runReset(process.argv[2]) } catch (error) {

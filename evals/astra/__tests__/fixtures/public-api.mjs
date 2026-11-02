@@ -47,7 +47,8 @@ export function fixtureFetch(getState) {
       features: { astra_eval_unmetered: { enabled: unmetered, planRequirement: null } },
       settings: { syncIntervalSeconds: 300, syncMaxBatchSize: 100 }, minVersion: '0.0.0',
     })
-    if (path === 'profile' && method === 'GET') return Response.json({ email, hasProAccess: pro, hasGoogleConnection: false, aiMessagesUsed: exhausted ? 50 : 0, aiMessagesLimit: 50 })
+    if (path === 'profile' && method === 'GET') return Response.json({ email, hasProAccess: pro, hasGoogleConnection: false,
+      weekStartDay: 1, aiMessagesUsed: exhausted ? 50 : 0, aiMessagesLimit: 50 })
     if (path === 'profile/export') return Response.json({ exportedAtUtc: '2026-10-24T12:00:00Z', account: {}, settings: {}, subscription: {},
       habits: habits.filter((habit) => !habit.deleted).map(({ deleted, startDate, ...habit }) => habit), goals, tags, checklistTemplates: templates,
       notifications: [], achievements: [], streakFreezes: [], referrals: [], apiKeys: [], friendships: [], cheers: [], blockedUsers: [], reports: [], friendFeedEvents: [], proactiveItems: [], notionConnection: null, notionTasks: [], conversations: [] })
@@ -61,6 +62,15 @@ export function fixtureFetch(getState) {
     if (['profile/timezone', 'profile/language', 'calendar/selected-calendars', 'calendar/auto-sync'].includes(path)) return new Response(null, { status: 204 })
     if (path === 'notifications' && method === 'GET') return Response.json({ items: [], unreadCount: 0, totalCount: 0, sourceRevision: 'empty' })
     if (path === 'notifications/all' && method === 'DELETE') return new Response(null, { status: 204 })
+    // Producer: GetHabitScheduleQuery and HabitScheduleFilters return the unfinished dated population.
+    if (path === 'habits' && method === 'GET') {
+      const date = new URL(url).searchParams.get('dateTo')
+      const items = habits.filter((habit) => !habit.deleted && !habit.isCompleted && habit.dueDate <= date)
+        .map((habit) => ({ ...habit, isCompleted: false,
+          isLoggedInRange: habit.logs.some((log) => log.date === date && log.value > 0),
+          isSkippedOnDate: habit.logs.some((log) => log.date === date && log.value === 0) }))
+      return Response.json({ items, page: 1, pageSize: 50, totalCount: items.length, totalPages: 1 })
+    }
     if (path === 'habits' && method === 'POST') {
       const habit = exportedHabit(body)
       habits.push(habit)

@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -28,7 +29,7 @@ describe('real promptfoo CLI with an offline provider', () => {
     [false, false, 'fail', 'slow-latency'], [false, false, 'fail', 'missing-timing'],
     [false, false, 'incomplete', 'missing-composition'], [false, false, 'incomplete', 'skipped-composition'],
     [false, false, 'fail', 'unrenderable'],
-  ])('runs the production assertions and pass^3 reporter; broken=%s, noTrace=%s, status=%s, mode=%s', (broken, noTrace, status, responseMode) => {
+  ])('runs the production assertions and pass^k reporter; broken=%s, noTrace=%s, status=%s, mode=%s', (broken, noTrace, status, responseMode) => {
     offlineCredentials()
     const directory = mkdtempSync(resolve(tmpdir(), 'astra-eval-'))
     scratch.push(directory)
@@ -66,17 +67,17 @@ describe('real promptfoo CLI with an offline provider', () => {
     else expect(run.status, run.stdout + run.stderr).toBe(0)
     expect(summary.status).toBe(status)
     if (['slow-latency', 'missing-timing'].includes(responseMode)) {
-      expect(summary.cases[0]).toMatchObject({ passed: 3, latency: { status: 'fail' } })
+      expect(summary.cases[0]).toMatchObject({ passed: ATTEMPTS_PER_CASE, latency: { status: 'fail' } })
     }
     if (status === 'pass') expect(summary.gateStatus).toBe('incomplete')
-    expect(summary.cases[0]).toMatchObject({ attempts: 3, passed: broken || noTrace || ['prose-first', 'repeated-figure', 'unrenderable'].includes(responseMode) ? 0 : 3, skipped: responseMode === 'skipped-composition' ? 3 : 0, unavailable: noTrace ? 3 : 0 })
+    expect(summary.cases[0]).toMatchObject({ attempts: ATTEMPTS_PER_CASE, passed: broken || noTrace || ['prose-first', 'repeated-figure', 'unrenderable'].includes(responseMode) ? 0 : ATTEMPTS_PER_CASE, skipped: responseMode === 'skipped-composition' ? ATTEMPTS_PER_CASE : 0, unavailable: noTrace ? ATTEMPTS_PER_CASE : 0 })
     expect(readFileSync(summaryPath, 'utf8')).not.toContain('TOOL_TRACE_SECRET')
     const resultsPath = resolve(directory, 'reports/results.json')
     expect(existsSync(resultsPath)).toBe(true)
     expect(statSync(resultsPath).mode & 0o777).toBe(0o600)
     const attempts = JSON.parse(readFileSync(resultsPath, 'utf8'))
     expect(attempts.map(({ caseId, repeat, pass, httpStatus }) => ({ caseId, repeat, pass, httpStatus }))).toEqual(
-      [1, 2, 3].map((repeat) => ({ caseId: 'offline-water', repeat,
+      Array.from({ length: ATTEMPTS_PER_CASE }, (_, index) => index + 1).map((repeat) => ({ caseId: 'offline-water', repeat,
         pass: !broken && !noTrace && !['prose-first', 'repeated-figure', 'unrenderable'].includes(responseMode), httpStatus: 200 })),
     )
     for (const attempt of attempts) {
@@ -161,37 +162,37 @@ describe('HTTP provider wiring without a server', () => {
           PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'), PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
       })
       expect(run.error, run.stdout + run.stderr).toBeUndefined()
-      expect(readFileSync(resolve(directory, 'requests.txt'), 'utf8').trim().split('\n')).toHaveLength(6)
+      expect(readFileSync(resolve(directory, 'requests.txt'), 'utf8').trim().split('\n')).toHaveLength(2 * ATTEMPTS_PER_CASE)
       if (mode === 'reset-stop') {
         expect(run.status, run.stdout + run.stderr).not.toBe(0)
         expect(run.stdout + run.stderr).toContain('Unknown fixture.')
         expect(run.stdout + run.stderr).not.toContain('Aborting scan')
         const attempts = JSON.parse(readFileSync(resolve(directory, 'reports/results.json'), 'utf8'))
-        expect(attempts).toHaveLength(9)
+        expect(attempts).toHaveLength(3 * ATTEMPTS_PER_CASE)
         expect(attempts.filter(({ caseId }) => caseId !== 'reset-stop').every(({ pass }) => pass)).toBe(true)
         expect(attempts.filter(({ caseId }) => caseId === 'reset-stop').every(({ pass, reason, httpStatus }) =>
           !pass && reason.includes('Unknown fixture.') && httpStatus === null)).toBe(true)
         const summary = JSON.parse(readFileSync(resolve(directory, 'reports/summary.json'), 'utf8'))
         expect(summary.status).toBe('incomplete')
-        expect(summary.cases.map(({ attempts }) => attempts)).toEqual([3, 3, 3])
-        expect(summary.cases[1]).toMatchObject({ unavailable: 3, pass3: 'incomplete' })
+        expect(summary.cases.map(({ attempts }) => attempts)).toEqual(Array(3).fill(ATTEMPTS_PER_CASE))
+        expect(summary.cases[1]).toMatchObject({ unavailable: ATTEMPTS_PER_CASE, allAttemptsPass: 'incomplete' })
       } else if (['budget', 'legacy-moderation'].includes(mode)) {
         expect(run.status, run.stdout + run.stderr).toBe(0)
         const summary = JSON.parse(readFileSync(resolve(directory, 'reports/summary.json'), 'utf8'))
         expect(summary.cases.map(({ attempts, passed }) => ({ attempts, passed }))).toEqual([
-          { attempts: 3, passed: 3 }, { attempts: 3, passed: 3 },
+          { attempts: ATTEMPTS_PER_CASE, passed: ATTEMPTS_PER_CASE }, { attempts: ATTEMPTS_PER_CASE, passed: ATTEMPTS_PER_CASE },
         ])
         const attempts = JSON.parse(readFileSync(resolve(directory, 'reports/results.json'), 'utf8'))
-        expect(attempts.map(({ httpStatus }) => httpStatus)).toEqual([...(mode === 'budget' ? [403, 403, 403] : [400, 400, 400]), 200, 200, 200])
+        expect(attempts.map(({ httpStatus }) => httpStatus)).toEqual([...Array(ATTEMPTS_PER_CASE).fill(mode === 'budget' ? 403 : 400), ...Array(ATTEMPTS_PER_CASE).fill(200)])
       } else {
         expect(run.status, run.stdout + run.stderr).not.toBe(0)
         expect(run.stdout + run.stderr).not.toContain('Aborting scan')
         const attempts = JSON.parse(readFileSync(resolve(directory, 'reports/results.json'), 'utf8'))
-        expect(attempts).toHaveLength(6)
+        expect(attempts).toHaveLength(2 * ATTEMPTS_PER_CASE)
         const status = ({ unauthorized: 401, throttled: 429, 'server-error': 500, 'not-found': 404, 'not-json': 502 })[mode] ?? 403
-        expect(attempts.map(({ httpStatus }) => httpStatus)).toEqual([status, status, status, 200, 200, 200])
-        expect(attempts.slice(0, 3).every(({ pass }) => !pass)).toBe(true)
-        expect(attempts.slice(3).every(({ pass }) => pass)).toBe(true)
+        expect(attempts.map(({ httpStatus }) => httpStatus)).toEqual([...Array(ATTEMPTS_PER_CASE).fill(status), ...Array(ATTEMPTS_PER_CASE).fill(200)])
+        expect(attempts.slice(0, ATTEMPTS_PER_CASE).every(({ pass }) => !pass)).toBe(true)
+        expect(attempts.slice(ATTEMPTS_PER_CASE).every(({ pass }) => pass)).toBe(true)
       }
     },
   )

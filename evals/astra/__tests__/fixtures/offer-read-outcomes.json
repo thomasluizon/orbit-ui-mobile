@@ -1,0 +1,959 @@
+[
+  {
+    "caseId": "offers-bounded-en",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "create_habit",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-bounded-en",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "bulk_create_habits",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-bounded-en",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "create_habit",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-bounded-pt-BR",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "bulk_create_habits",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-calendar-gap-en",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "create_habit",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-calendar-gap-pt-BR",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "create_habit",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-checklist-en",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "bulk_create_habits",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-children-en",
+    "repeat": 1,
+    "pass": false,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "bulk_create_habits",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-children-en",
+    "repeat": 2,
+    "pass": false,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "bulk_create_habits",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-children-en",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "bulk_create_habits",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-crisis-en",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": []
+  },
+  {
+    "caseId": "offers-crisis-en",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": []
+  },
+  {
+    "caseId": "offers-crisis-en",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": []
+  },
+  {
+    "caseId": "offers-crisis-pt-BR",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": []
+  },
+  {
+    "caseId": "offers-crisis-pt-BR",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": []
+  },
+  {
+    "caseId": "offers-crisis-pt-BR",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": []
+  },
+  {
+    "caseId": "offers-fixed-medication-en",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "create_habit",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-fixed-medication-pt-BR",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "create_habit",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-goal-gap-en",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_goals",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-goal-on-track-en",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_goals",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-goal-on-track-en",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_goals",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-goal-on-track-en",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_goals",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-goal-on-track-pt-BR",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_goals",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-goal-on-track-pt-BR",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_goals",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-goal-on-track-pt-BR",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_goals",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-multi-block-en",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "query_goals",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-multi-block-en",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "query_goals",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-multi-block-en",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "query_goals",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-multi-block-pt-BR",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "query_goals",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-multi-block-pt-BR",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      },
+      {
+        "name": "query_goals",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-ordinary-reading-en",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "create_habit",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-preview-rejection-en",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "revise_pending_changes",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-preview-rejection-pt-BR",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "revise_pending_changes",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-reminder-gap-en",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-reminder-gap-pt-BR",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-resolved-en",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-resolved-en",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-resolved-en",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-resolved-pt-BR",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-resolved-pt-BR",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-resolved-pt-BR",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-root-en",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "bulk_create_habits",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-stale-en",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "get_retrospective",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-stale-en",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "get_retrospective",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-stale-en",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "get_retrospective",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-stale-pt-BR",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "get_retrospective",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-stale-pt-BR",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "get_retrospective",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-stale-pt-BR",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "get_retrospective",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-stored-pt-BR",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "update_habit",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-unsupported-client-en",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "get_daily_summary",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-unsupported-client-pt-BR",
+    "repeat": 1,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-unsupported-client-pt-BR",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-unsupported-client-pt-BR",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "query_habits",
+        "resultStatus": "Succeeded",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {}
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-unsupported-schedule-en",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "bulk_create_habits",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-unsupported-schedule-en",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "create_habit",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-unsupported-schedule-pt-BR",
+    "repeat": 2,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "bulk_create_habits",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "caseId": "offers-unsupported-schedule-pt-BR",
+    "repeat": 3,
+    "pass": true,
+    "toolCalls": [
+      {
+        "name": "bulk_create_habits",
+        "resultStatus": "PendingConfirmation",
+        "result": {
+          "success": true,
+          "error": null,
+          "payload": {
+            "status": "awaiting_confirmation"
+          }
+        }
+      }
+    ]
+  }
+]

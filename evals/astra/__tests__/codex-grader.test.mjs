@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -7,6 +8,8 @@ import { parse } from 'yaml'
 import { summarize, writeResults, writeReport } from '../report.mjs'
 import { beforeEach as prepareAttempt } from '../hooks.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
+import { chatResponse, turnTiming } from './fixtures/producer.mjs'
+import parseResponse from '../response.mjs'
 
 vi.mock('../fixtures/reset.mjs', async (original) => ({ ...await original(), resetFixture: vi.fn() }))
 import { assertions, loadApiProvider } from 'promptfoo'
@@ -119,19 +122,26 @@ it.each([false, true])('keeps exhausted rubric evidence unavailable with product
   } })
   expect(readFileSync(`${process.env.TEST_CODEX_RECORD}.attempts`, 'utf8')).toBe('2')
   expect(result).toMatchObject({ pass: false, componentResults: [{ metadata: { graderError: true } }] })
-  const testCase = { metadata: { id: 'grader-outage' } }
+  const testCase = { metadata: { id: 'grader-outage' }, vars: { evalRequestId: 'request' } }
+  const output = parseResponse(chatResponse('request'), '', {
+    response: { status: 200, headers: { 'x-orbit-request-id': 'request' } },
+  })
+  output.trace.timing = turnTiming()
   result.componentResults.push({ assertion: { metric: 'composition' }, pass: !productFailure,
     reason: productFailure ? 'Wrong habit.' : 'Composition matched.' })
-  const attempts = Array.from({ length: 3 }, () => ({ testCase, success: result.pass, gradingResult: result }))
+  const attempts = Array.from({ length: ATTEMPTS_PER_CASE }, () => ({ testCase, response: { output }, success: result.pass, gradingResult: result }))
   const summary = summarize(attempts, [testCase.metadata])
-  expect(summary.cases[0]).toMatchObject({ unavailable: 3, passed: 0,
-    pass3: 'incomplete',
+  expect(summary.cases[0]).toMatchObject({ unavailable: ATTEMPTS_PER_CASE, passed: 0,
+    allAttemptsPass: productFailure ? 'fail' : 'incomplete',
     unavailableReasons: ['Codex rubric grading failed: process exited with code 1.'] })
-  expect(summarize(attempts, [{ ...testCase.metadata, readLatency: true }]).status).toBe('incomplete')
+  expect(summarize(attempts, [{ ...testCase.metadata, readLatency: true }]).status).toBe(productFailure ? 'fail' : 'incomplete')
+  const malformedTiming = structuredClone(attempts)
+  malformedTiming[0].response.output.trace.timing = null
+  expect(summarize(malformedTiming, [{ ...testCase.metadata, readLatency: true }]).status).toBe('fail')
   const productAttempt = { testCase, success: false, gradingResult: { componentResults: [
     { assertion: { metric: 'composition' }, pass: false, reason: 'Wrong habit.' },
   ] } }
-  expect(summarize([attempts[0], productAttempt, attempts[2]], [testCase.metadata]).status).toBe('fail')
+  expect(summarize([...attempts, productAttempt], [testCase.metadata]).status).toBe('fail')
   writeResults(attempts, directory)
   const evidence = JSON.parse(readFileSync(join(directory, 'attempts/grader-outage-r1.json'), 'utf8'))
   expect(evidence).toMatchObject({ pass: false, unavailable: true, assertions: [{ metric: 'finalAnswer', pass: false, unavailable: true }, {}] })

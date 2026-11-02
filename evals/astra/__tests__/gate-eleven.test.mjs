@@ -73,16 +73,19 @@ it.each(['en', 'pt-BR'])('limits the streak rubric to model-written eligibility 
   expect(prompt).toContain('Do not grade the client-drawn day strip')
 })
 
-it.each(['en', 'pt-BR'])('allows only one grounded documentation-gap line with empty app_surfaces in %s', async (locale) => {
+it.each(['en', 'pt-BR'])('allows one documentation-gap line when no documented step answers the question in %s', async (locale) => {
   const test = scenario('feature-help', locale)
   const sharedPolicy = configuration.defaultTest.assert.find((assertion) => assertion.type === 'llm-rubric').value
-  expect(sharedPolicy).toContain('only when app_surfaces is an empty array')
-  expect(test.vars.rubric).toContain('only when app_surfaces is an empty array')
+  expect(sharedPolicy).toContain('only when no step in markdown or app_surfaces answers the question')
+  expect(test.vars.rubric).toContain('only when no step in markdown or app_surfaces answers the question')
   expect(test.vars.rubric).toContain('One plain line')
   expect(test.vars.rubric).toContain('Anything longer fails')
   const prompt = await gradingPrompt(test)
-  expect(prompt).toContain('only when app_surfaces is an empty array')
-  expect(prompt).toContain('A nonempty or missing app_surfaces does not permit this exception')
+  expect(prompt).toContain('only when no step in markdown or app_surfaces answers the question')
+  expect(prompt).not.toContain('only when app_surfaces is an empty array')
+  expect(prompt).not.toContain('A nonempty or missing app_surfaces does not permit this exception')
+  expect(prompt).toContain('do not invent a setting location')
+  expect(prompt).toContain('related_surfaces lists destinations, not editing instructions')
   expect(recorded.featureHelp.appSurfaces.length).toBeGreaterThan(0)
 })
 

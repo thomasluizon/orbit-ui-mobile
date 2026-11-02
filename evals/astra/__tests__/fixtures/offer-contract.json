@@ -1,0 +1,558 @@
+{
+  "AstraNextAction": {
+    "required": [
+      "offerKey",
+      "kind",
+      "label"
+    ],
+    "type": "object",
+    "properties": {
+      "offerKey": {
+        "type": "string"
+      },
+      "kind": {
+        "type": "string"
+      },
+      "label": {
+        "type": "string"
+      },
+      "surface": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "prompt": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "entityId": {
+        "type": [
+          "null",
+          "string"
+        ],
+        "format": "uuid"
+      },
+      "date": {
+        "type": [
+          "null",
+          "string"
+        ],
+        "format": "date"
+      }
+    }
+  },
+  "PendingProposalRemoval": {
+    "required": [
+      "offerKey",
+      "field"
+    ],
+    "type": "object",
+    "properties": {
+      "offerKey": {
+        "type": "string"
+      },
+      "field": {
+        "type": "string"
+      },
+      "fields": {
+        "type": [
+          "null",
+          "array"
+        ],
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "PendingOperationChange": {
+    "required": [
+      "entityId",
+      "entityName",
+      "field",
+      "oldValue",
+      "newValue",
+      "valueType"
+    ],
+    "type": "object",
+    "properties": {
+      "entityId": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "entityName": {
+        "type": "string"
+      },
+      "field": {
+        "type": "string"
+      },
+      "oldValue": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "newValue": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "valueType": {
+        "type": "string"
+      },
+      "proposedValue": {},
+      "isEditable": {
+        "type": "boolean",
+        "default": false
+      },
+      "entityEmoji": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "provenance": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "removal": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/components/schemas/PendingProposalRemoval"
+          }
+        ]
+      }
+    }
+  },
+  "ReadBlockMetadata": {
+    "required": [
+      "queryId",
+      "queryFamily",
+      "scope",
+      "revision",
+      "completeness",
+      "refreshToken"
+    ],
+    "type": "object",
+    "properties": {
+      "queryId": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "queryFamily": {
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/components/schemas/JsonElement"
+      },
+      "revision": {
+        "type": "string"
+      },
+      "completeness": {
+        "type": "string"
+      },
+      "refreshToken": {
+        "type": "string"
+      },
+      "nextCursor": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "totalCount": {
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "type": [
+          "null",
+          "integer",
+          "string"
+        ],
+        "format": "int32"
+      },
+      "recovery": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "nextAction": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/components/schemas/AstraNextAction"
+          }
+        ]
+      }
+    }
+  },
+  "RevisedPendingOperationItem": {
+    "required": [
+      "itemId"
+    ],
+    "type": "object",
+    "properties": {
+      "itemId": {
+        "type": "string"
+      },
+      "edits": {},
+      "placement": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "removeSuggestedFields": {
+        "type": [
+          "null",
+          "array"
+        ],
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "RevisePendingOperationRequest": {
+    "required": [
+      "previewFingerprint",
+      "items"
+    ],
+    "type": "object",
+    "properties": {
+      "previewFingerprint": {
+        "type": "string"
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/RevisedPendingOperationItem"
+        }
+      },
+      "clientContext": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/components/schemas/AgentClientContext"
+          }
+        ]
+      }
+    }
+  },
+  "PendingOperationRevisionResult": {
+    "required": [
+      "isSuccess",
+      "error",
+      "pendingOperationId",
+      "preview"
+    ],
+    "type": "object",
+    "properties": {
+      "isSuccess": {
+        "type": "boolean"
+      },
+      "error": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "pendingOperationId": {
+        "type": [
+          "null",
+          "string"
+        ],
+        "format": "uuid"
+      },
+      "preview": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/components/schemas/PendingOperationChangePreview"
+          }
+        ]
+      },
+      "cancelled": {
+        "type": "boolean",
+        "default": false
+      }
+    }
+  },
+  "RepeatReminderOptions": {
+    "required": [
+      "intervalMinutes"
+    ],
+    "type": "object",
+    "properties": {
+      "intervalMinutes": {
+        "pattern": "^-?(?:0|[1-9]\\d*)$",
+        "type": [
+          "integer",
+          "string"
+        ],
+        "format": "int32"
+      },
+      "activeStart": {
+        "type": [
+          "null",
+          "string"
+        ],
+        "format": "time"
+      },
+      "activeEnd": {
+        "type": [
+          "null",
+          "string"
+        ],
+        "format": "time"
+      },
+      "startAtUtc": {
+        "type": [
+          "null",
+          "string"
+        ],
+        "format": "date-time"
+      }
+    }
+  },
+  "AgentClientContext": {
+    "type": "object",
+    "properties": {
+      "platform": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "locale": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "timeFormat": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "currentAppArea": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "showGeneralOnToday": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsHabitListCard": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsGoalListCard": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsMetricsCard": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "entryPointIntent": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "supportsPendingOperationChanges": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsToolSteps": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsFollowUps": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "messageOrigin": {
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "supportsPeriodInsightCard": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsDaySummaryCard": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsStreakCard": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsCalendarCard": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsRecordListCard": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsAccountRowsCard": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsHabitListDoneStatus": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsParts": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "partKinds": {
+        "type": [
+          "null",
+          "array"
+        ],
+        "items": {
+          "type": "string"
+        }
+      },
+      "supportsDatedHabitListCard": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsHabitHistoryCard": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsFollowUpContext": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsMessageAllowance": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsPendingOperationPlacement": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsCompletedHabitsMetric": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsSkippedHabitRows": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "previousStartingStep": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/components/schemas/StartingStep"
+          }
+        ]
+      },
+      "supportsStartingStepContext": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "supportsProactiveOffers": {
+        "type": [
+          "null",
+          "boolean"
+        ]
+      },
+      "conversationId": {
+        "type": [
+          "null",
+          "string"
+        ],
+        "format": "uuid"
+      },
+      "dismissedOfferKeys": {
+        "type": [
+          "null",
+          "array"
+        ],
+        "items": {
+          "type": "string"
+        }
+      },
+      "selectedOfferKey": {
+        "type": [
+          "null",
+          "string"
+        ]
+      }
+    }
+  }
+}

@@ -22,7 +22,22 @@ it.each(['en', 'pt-BR'])('allows the coaching tool and preserves its recorded ou
   expect(verdict.reason).not.toContain('outside the allowed set')
   if (recordedCall.resultStatus === 'Failed') expect(verdict.reason).toContain('expected outcome')
   call.arguments.one_small_step = false
-  expect(grade(test, [call]).pass).toBe(false)
+  const rejected = grade(test, [call])
+  expect(rejected.pass).toBe(false)
+  expect(rejected.reason).toBe('Mutation outside the declared operation scope: suggest_breakdown')
+})
+
+it.each(['en', 'pt-BR'])('constrains optional coaching arguments and count after a read reclassification in %s', (locale) => {
+  const test = scenario(`composition-coaching-advice-${locale}`)
+  const call = toolCall('suggest_breakdown', { one_small_step: true, language: locale }, 'Succeeded', 'step')
+  expect(grade(test, [call]).pass).toBe(true)
+  call.arguments.language = locale === 'en' ? 'pt-BR' : 'en'
+  expect(grade(test, [call])).toMatchObject({ pass: false,
+    reason: 'Mutation outside the declared operation scope: suggest_breakdown' })
+  call.arguments.language = locale
+  const duplicate = { ...structuredClone(call), id: 'extra', result: { ...call.result, id: 'extra' } }
+  expect(grade(test, [call, duplicate])).toMatchObject({ pass: false,
+    reason: 'Mutation outside the declared operation scope: suggest_breakdown' })
 })
 
 it.each(['en', 'pt-BR'])('accepts inherited owned parent IDs but rejects a different parent in %s', (locale) => {

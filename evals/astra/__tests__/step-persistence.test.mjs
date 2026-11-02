@@ -184,6 +184,16 @@ it('does not claim persistence for unrelated cases', async () => {
   expect((await grades.savedStep({}, { vars: {} })).pass).toBe(true)
 })
 
+it('preserves unavailable verification through the saved-step approval and assertion', async () => {
+  const { output, context } = saveAttempt()
+  output.trace.state = 'unavailable'
+  const requests = approvalServer(output)
+  const provider = new AstraHttpProvider({ config: {} })
+  output.savedStepReadback = await provider.saveStartingStep(output, context)
+  expect(grades.savedStep(output, context)).toMatchObject({ pass: false, metadata: { unavailable: true } })
+  expect(requests).toEqual([])
+})
+
 it.each([
   (pending) => { pending.items[0].entityName = 'Wrong task' },
   (pending) => { pending.items[0].fields[0].proposedValue = 'Day' },

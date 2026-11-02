@@ -1,3 +1,4 @@
+import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { expect, it } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -74,7 +75,7 @@ it('the documented clean install loads the harness and runs promptfoo past befor
       PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1',
     })
     const summary = JSON.parse(readFileSync(join(evaluation, 'reports/summary.json'), 'utf8'))
-    expect(summary.cases).toEqual([expect.objectContaining({ id: 'install-smoke', attempts: 3, passed: 3 })])
+    expect(summary.cases).toEqual([expect.objectContaining({ id: 'install-smoke', attempts: ATTEMPTS_PER_CASE, passed: ATTEMPTS_PER_CASE })])
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
