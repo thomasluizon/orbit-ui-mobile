@@ -30,11 +30,15 @@ export function useStripeCheckoutReturn() {
     settlementPending.current = true
     void Promise.resolve().then(async () => {
       setReturnState((previous) => ({ ...previous, isSettling: true }))
-      await Promise.all([
+      const [profile] = await Promise.all([
         queryClient.fetchQuery({ queryKey: profileKeys.detail(), queryFn: () => fetchJson<Profile>(API.profile.get), staleTime: 0 }),
         queryClient.invalidateQueries({ queryKey: subscriptionKeys.all }, { throwOnError: true }),
       ])
       if (!isCurrentAccount()) return
+      if (!profile.hasProAccess) {
+        setReturnState({ hasReturnError: true, isSettling: false })
+        return
+      }
       const url = new URL(globalThis.location.href)
       if (url.searchParams.get('subscription') !== 'success') return
       url.searchParams.delete('subscription')

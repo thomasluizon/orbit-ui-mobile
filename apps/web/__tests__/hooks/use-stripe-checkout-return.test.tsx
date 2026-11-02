@@ -67,6 +67,20 @@ describe('Stripe return', () => {
     view.unmount(); renderHook(() => useStripeCheckoutReturn(), { wrapper })
     expect(showSuccess).toHaveBeenCalledOnce()
   })
+  it('keeps the return pending and shows no purchase toast when the refreshed profile still lacks Pro access', async () => {
+    const { fetch, wrapper } = mount()
+    fetch.mockResolvedValueOnce(createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: false }))
+    const { result } = renderHook(() => useStripeCheckoutReturn(), { wrapper })
+    await waitFor(() => expect(result.current.hasReturnError).toBe(true))
+    expect(result.current.isSettling).toBe(false)
+    expect(showSuccess).not.toHaveBeenCalled()
+    expect(location.search).toBe('?subscription=success&keep=1')
+    expect(result.current.hasReturnError).toBe(true)
+    await act(async () => result.current.retryReturn())
+    await waitFor(() => expect(showSuccess).toHaveBeenCalledOnce())
+    expect(location.search).toBe('?keep=1')
+    expect(result.current.hasReturnError).toBe(false)
+  })
   it('does not toast a checkout from an account replaced during refresh', async () => {
     const { fetch, wrapper } = mount()
     let release!: () => void
@@ -75,7 +89,7 @@ describe('Stripe return', () => {
     await act(async () => { await replaceAccountWith('account-2'); release() })
     expect(showSuccess).not.toHaveBeenCalled()
   })
-  it('retains a failed return for recovery and toasts only after a successful active profile refresh', async () => {
+  it('retains a failed return for recovery and toasts only after a failed profile refresh is retried with Pro access', async () => {
     const { client, wrapper } = mount(false)
     const free = createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: false })
     const pro = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false })
