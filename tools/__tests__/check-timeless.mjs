@@ -64,6 +64,10 @@ export const cases = () => {
   const literal = fixture("literal-replacement", "sample.md", `${owner} clean\n`)
   const literalPayload = { tool_input: { file_path: join(literal, "sample.md"), old_string: "clean", new_string: "$`" } }
   T("replacement dollar stays literal", run(literal, ["--hook"], JSON.stringify(literalPayload)).status === 0)
+  writeFileSync(join(literal, "sample.md"), `clean ${owner}\n`)
+  T("replacement dollar suffix stays literal", run(literal, ["--hook"], JSON.stringify({ tool_input: {
+    file_path: join(literal, "sample.md"), old_string: "clean", new_string: "$'",
+  } })).status === 0)
   rmSync(repeated, { recursive: true, force: true })
   rmSync(literal, { recursive: true, force: true })
   const safe = fixture("literals", "sample.js", `const message = "${date}";\nconst pattern = /${date}/;\n// one\n// two\n// three\n// four\n// five\n// six\n`)

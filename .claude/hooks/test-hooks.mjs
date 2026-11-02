@@ -654,6 +654,7 @@ T(
   true,
 )
 
+T("git wrapper regression: nested escaped backticks", blocks(checkGitCommand("echo `echo \\`git push origin main\\``")), true)
 for (const command of ["(git push origin main)", "$(git push origin main)", "echo `git push origin main`", "bash -c 'git push origin main'", "eval 'git push origin main'", "git commit -nam x", "git -c core.hooksPath=/dev/null commit", "git -c 'core.hooksPath=/dev/null' commit", "git -ccore.hooksPath=/dev/null push origin feature/x", "git -c core.hooksPath=/dev/null push origin feature/x", "git push --all origin", "git push --mirror origin", "git push --branches origin"]) {
   T(`git wrapper regression: ${command}`, blocks(checkGitCommand(command)), true)
 }
@@ -668,6 +669,7 @@ T("admin merge: nested shell blocks", blocks(checkAdminMerge("bash -c 'gh api -X
 console.log("\n# forbid-raw-ticket-mutation (_lib/rules-tickets.mjs)")
 const TICKET_REPO = "thomasluizon/orbit-tickets"
 const CODE_REPO = "thomasluizon/orbit-ui-mobile"
+T("ticket wrapper regression: nested escaped backticks", blocks(checkTicketMutation("echo `echo \\`gh issue close 1 -R thomasluizon/orbit-tickets\\``")), true)
 for (const command of [
   `echo $(gh issue close 1 -R ${TICKET_REPO})`,
   `node tools/x.mjs $(gh issue close 1 -R ${TICKET_REPO})`,

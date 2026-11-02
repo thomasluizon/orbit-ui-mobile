@@ -36,7 +36,8 @@ function splitCommands(source) {
     if (substitution) {
       const start = index + (character === "`" ? 1 : 2)
       const end = substitutionEnd(source, start, character === "`")
-      substitutions.push(source.slice(start, end))
+      const body = source.slice(start, end)
+      substitutions.push(character === "`" ? body.replace(/\\([\\$`])/g, "$1") : body)
       current += " __substitution__ "
       index = end
       continue
