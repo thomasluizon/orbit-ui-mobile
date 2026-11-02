@@ -33,6 +33,8 @@ describe('BarChart on web', () => {
     expect(screen.getByRole('radiogroup', { name: 'Last 7 days' })).toBeInTheDocument()
     const radios = screen.getAllByRole('radio')
     expect(radios).toHaveLength(7)
+    expect(radios[3]?.className).toContain('focus-visible:outline-2')
+    expect(radios[3]?.className).not.toContain('outline-0')
     expect(screen.getAllByRole('row')).toHaveLength(8)
     expect(radios[3]).toHaveAttribute('aria-checked', 'true')
     expect(radios.filter((radio) => radio.tabIndex === 0)).toEqual([radios[3]])

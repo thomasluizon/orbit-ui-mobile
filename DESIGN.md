@@ -846,7 +846,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --bg-hover-opaque rgba(250,250,250,0.13)      /* overlay on an opaque control -> #39393B over elev. 1.477:1 step */
 --bg-sunk         rgba(0,0,0,0.28)            /* recessed wells -> #060608 */
 --hairline        rgba(255,255,255,0.08)      /* separator: divides content */
---border-control  rgba(255,255,255,0.08)      /* border: encloses a control. Same value today, separate role */
+--border-control  #6E6E72                     /* control boundary: at least 3:1 on field and canvas */
 --hairline-ghost  rgba(255,255,255,0.10)
 --hairline-strong rgba(255,255,255,0.16)
 --fg-1 #F4F4F6   /* 18.11:1 */   --fg-2 #C9C9CC   /* 12.04:1 */
@@ -902,7 +902,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --status-bad-text #C00000  /* 4.502:1 on well hover, 5.407:1 on a status-bad tint inside a card */
 --fg-on-bad      #FFFFFF   /* 4.77:1 on the fill */
 --fg-on-overdue  #FFFFFF   /* 6.491:1 on the fill */
---hairline rgba(9,9,11,0.08) · --border-control rgba(9,9,11,0.08)
+--hairline rgba(9,9,11,0.08) · --border-control #89898D
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
 --fg-3 #68686D  /*  5.31:1 */   --fg-4 #89898D  /*  3.34:1 */
@@ -1416,7 +1416,7 @@ states. No second insight block belongs below the date. Request actions and comp
 - **Inset 1px hairline rings instead of borders.**
 - **No opaque card-on-card on dark, and never a translucent surface stacked on another translucent surface.** Legibility collapses.
 - **D34, one separation device per boundary.** Separation uses exactly ONE of a surface step, a hairline, or space. Never two. Space is the default choice among the three.
-- **Separator and border are separate roles**, even though `--hairline` and `--border-control` carry the same value today. A separator divides content; a border encloses a control. They diverge the first time inputs are restyled.
+- **Separator and border are separate roles.** `--hairline` divides content; `--border-control` encloses a control and clears the 3:1 non-text floor.
 - **Separation is the container's job, never the row's.** A row cannot know whether it is last, so a row that draws its own rule trails one into a section break. Never stack two hairlines.
 - **Blur and glass are never a default or a decoration.** Orbit's ladder is an alpha ladder, not a blur ladder. An animated blur stays at 8px or less, short, one-time, and never on a large surface.
 - **Do not use flat grey text on a translucent surface.** The whole dark ladder is translucency, so secondary text on a card takes the next weight step up rather than a dimmer colour.
@@ -1708,7 +1708,7 @@ while focused (#1607, #1668).
 |---|---|---|
 | a surface (row, card, panel, list item) | **380ms** | background goes to `--bg-hover`, and its hairline to `--hairline-strong` |
 | a control (button, chip, segmented control, icon button) | **240ms** | fill or label colour only |
-| a web text field | **240ms** | inset perimeter ring moves from `--border-control` to `--hairline-strong` |
+| a web text field | **240ms** | inset perimeter ring retains `--border-control` (`#6E6E72` dark, `#89898D` light), preserving the 3:1 boundary |
 | a link | **380ms** | colour, plus an underline scaling from the leading edge |
 
 Web text fields keep the hover transition on the base perimeter rule, behind
@@ -1764,7 +1764,7 @@ The Android composer measures both its ordinary and allowance placeholders at en
 retaining the same field height through allowance transitions, as the web input grid does.
 A dense composite whose cells cannot reserve 8px paints feedback on its own mark instead of a
 cell box. Bar charts change their own bar to the selected-bar foreground on hover or held press;
-one keyboard indicator follows the padded moving readout and the radio's live `:focus-visible` state. Full-height transparent radio targets,
+one inset keyboard outline follows the focused column's live `:focus-visible` state on web, including forced colors. Android retains the padded moving readout indicator. Full-height transparent radio targets,
 selection, arrows, Home/End and Android accessibility actions stay unchanged, with every column
 visible and no horizontal scrolling. Month and range feedback and position rings use the existing
 34px discs. Their centres distribute across the row to retain 8px gaps inside unchanged transparent

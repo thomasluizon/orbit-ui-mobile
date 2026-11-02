@@ -161,6 +161,22 @@ describe('useHabits (mobile query hook)', () => {
     client.clear()
   })
 
+  it('starts the first list and schedule reads before either resolves', async () => {
+    const today = '2026-09-12'
+    const pending: { url: string; resolve: (page: unknown) => void }[] = []
+    mocks.apiClient.mockImplementation((url: string) => new Promise((resolve) => { pending.push({ url, resolve }) }))
+    renderHookCapture(() => useHabits({}, { scheduleDate: today }))
+    const loading = lastQuery().queryFn()
+    expect(pending).toHaveLength(2)
+    expect(pending.some(({ url }) => url.includes('dateFrom='))).toBe(true)
+    for (const request of pending) {
+      const items = request.url.includes('dateFrom=') ? createHabitViewScheduleItems(today) : createHabitViewItems(today, 'all')
+      request.resolve({ items, page: 1, pageSize: 200, totalCount: items.length, totalPages: 1 })
+    }
+    const items = await loading as HabitScheduleItem[]
+    expect(normalizeHabitQueryData(items).habitsById.get('overdue')?.isOverdue).toBe(true)
+  })
+
   it('enriches undated Todos membership with dated overdue and schedule facts', async () => {
     const today = '2026-09-12'
     mocks.apiClient.mockImplementation((url: string) => {

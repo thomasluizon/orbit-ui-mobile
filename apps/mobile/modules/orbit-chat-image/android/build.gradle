@@ -1,0 +1,11 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'org.useorbit.app.chatimage'
+version = '1.0.0'
+
+android {
+  namespace 'org.useorbit.app.chatimage'
+}

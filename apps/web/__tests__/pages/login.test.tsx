@@ -41,6 +41,10 @@ vi.mock('next-intl', async (importActual) => {
   }
 })
 
+vi.mock('motion/react-m', async () => {
+  const actual = await import('motion/react')
+  return actual.m
+})
 vi.mock('motion/react', () => {
   const React = require('react')
   const motion = {
@@ -60,6 +64,9 @@ vi.mock('motion/react', () => {
     AnimatePresence: ({ children }: { children: React.ReactNode }) =>
       React.createElement(React.Fragment, null, children),
     motion,
+    m: motion,
+    domMin: {},
+    LazyMotion: ({ children }: { children: React.ReactNode }) => children,
     useReducedMotion: mockUseReducedMotion,
   }
 })

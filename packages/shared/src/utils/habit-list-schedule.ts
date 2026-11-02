@@ -34,13 +34,15 @@ export function mergeHabitListSchedule(items: HabitScheduleItem[], schedule: Hab
 }
 
 export async function loadHabitListSchedule(
-  items: HabitScheduleItem[],
+  items: HabitScheduleItem[] | Promise<HabitScheduleItem[]>,
   scheduleDate: string | undefined,
   fetchPage: (filters: HabitsFilter) => Promise<PaginatedResponse<HabitScheduleItem>>,
 ): Promise<HabitScheduleItem[]> {
-  if (!scheduleDate || items.length === 0) return items
-  const schedule = await fetchAllPaginatedItems<HabitScheduleItem, PaginatedResponse<HabitScheduleItem>>(
-    (page) => fetchPage({ dateFrom: scheduleDate, dateTo: scheduleDate, includeOverdue: true, pageSize: 200, page }),
-  )
-  return mergeHabitListSchedule(items, schedule)
+  const [list, schedule] = await Promise.all([
+    items,
+    scheduleDate ? fetchAllPaginatedItems<HabitScheduleItem, PaginatedResponse<HabitScheduleItem>>(
+      (page) => fetchPage({ dateFrom: scheduleDate, dateTo: scheduleDate, includeOverdue: true, pageSize: 200, page }),
+    ) : undefined,
+  ])
+  return !schedule || list.length === 0 ? list : mergeHabitListSchedule(list, schedule)
 }

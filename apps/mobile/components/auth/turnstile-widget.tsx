@@ -65,6 +65,7 @@ export function TurnstileWidget({
       <WebView
         key={`${resetKey}-${attempt}`}
         source={{ uri: bridgeUrl }}
+        accessibilityLabel={t('auth.turnstileLabel')}
         containerStyle={{ width: 256, height: challengeHeight, flex: 0, backgroundColor: tokens.bg }}
         style={{ width: 256, height: challengeHeight, flex: 0, backgroundColor: tokens.bg }}
         javaScriptEnabled
