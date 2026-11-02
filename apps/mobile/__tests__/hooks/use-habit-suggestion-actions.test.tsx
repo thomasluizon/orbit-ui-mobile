@@ -20,7 +20,7 @@ async function mount() {
   const invalidate = vi.spyOn(client, 'invalidateQueries')
   let actions!: ReturnType<typeof useHabitSuggestionActions>
   function Harness() { actions = useHabitSuggestionActions('suggestions', 'pt-BR'); return null }
-  await act(() => { tree = create(<QueryClientProvider client={client}><Harness /></QueryClientProvider>) as typeof tree })
+  await act(() => { tree = create(<QueryClientProvider client={client}><Harness /></QueryClientProvider>) })
   return { actions, invalidate }
 }
 

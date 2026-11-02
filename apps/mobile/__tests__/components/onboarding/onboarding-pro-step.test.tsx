@@ -245,7 +245,7 @@ it.each(geometryCases)('fits the owning Android final-step heading at $width in 
     expect(heading).toBeDefined()
     const style = StyleSheet.flatten(heading.props.style as StyleProp<TextStyle>)
     let measure = width
-    for (let ancestor = Reflect.get(heading, 'parent') as ReactTestInstance | null; ancestor; ancestor = Reflect.get(ancestor, 'parent') as ReactTestInstance | null) {
+    for (let ancestor: ReactTestInstance | null = Reflect.get(heading, 'parent'); ancestor; ancestor = Reflect.get(ancestor, 'parent')) {
       if (ancestor.type !== View && ancestor.type !== ScrollView) continue
       const ancestorStyle = StyleSheet.flatten((ancestor.type === ScrollView ? ancestor.props.contentContainerStyle : ancestor.props.style) as StyleProp<ViewStyle>)
       measure = Math.min(measure, Number(ancestorStyle.maxWidth ?? measure)) - Number(ancestorStyle.paddingHorizontal ?? 0) * 2
