@@ -17,7 +17,7 @@ mod menus;
 mod push;
 mod push_action;
 mod push_state;
-#[cfg(windows)]
+#[cfg(any(windows, test))]
 mod push_windows;
 mod settings;
 mod update_manifest;

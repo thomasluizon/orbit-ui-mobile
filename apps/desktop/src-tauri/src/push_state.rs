@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::{io::Write, path::Path};
 use uuid::Uuid;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct PushSession {
     pub account: Option<String>,
     restored: bool,
@@ -19,16 +19,17 @@ impl PushSession {
         true
     }
 
-    pub fn suspend(&mut self, saved: &mut PushState, account: &str) {
+    pub fn suspend(&mut self, saved: &mut PushState, account: &str) -> Result<(), &'static str> {
         if self.account.as_deref() == Some(account) {
             self.account = None;
             self.restored = true;
             self.startup_response = None;
         }
         if saved.owner.as_deref() == Some(account) {
-            if let Some(registration) = saved.registration.take() {
-                saved.stage(account.into(), registration);
+            if let Some(registration) = saved.registration.clone() {
+                saved.stage(account.into(), registration)?;
             }
+            saved.registration = None;
             saved.owner = None;
         }
         for pending in &mut saved.pending {
@@ -36,6 +37,7 @@ impl PushSession {
                 pending.revoke = true;
             }
         }
+        Ok(())
     }
     pub fn owns(&self, saved: &PushState) -> bool {
         self.account.is_some() && self.account == saved.owner
@@ -88,7 +90,13 @@ impl PushSession {
         payload: &str,
         done: bool,
     ) -> Option<crate::push_action::Response> {
-        let notice: crate::push_action::WindowsNotice = serde_json::from_str(payload).ok()?;
+        let notice: crate::push_action::WindowsNotice = match serde_json::from_str(payload) {
+            Ok(notice) => notice,
+            Err(_) => {
+                eprintln!("Desktop push: dropped malformed Windows activation");
+                return None;
+            }
+        };
         if saved.owner.as_deref() != Some(&notice.owner) {
             return None;
         }
@@ -105,14 +113,24 @@ pub struct RawNotice {
     pub reminder: crate::push_action::Reminder,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Registration {
     pub endpoint: String,
-    pub p256dh: String,
-    pub auth: String,
+    #[serde(rename = "p256dh")]
+    pub key_transport: String,
+    #[serde(rename = "auth")]
+    pub auth_transport: String,
     pub apns_topic: Option<String>,
     pub device_id: Uuid,
+}
+
+impl std::fmt::Debug for Registration {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Registration")
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -136,18 +154,25 @@ pub struct PushState {
 }
 
 impl PushState {
-    pub fn stage(&mut self, owner: String, registration: Registration) {
+    pub fn stage(&mut self, owner: String, registration: Registration) -> Result<(), &'static str> {
         if !self
             .pending
             .iter()
             .any(|pending| pending.owner == owner && pending.registration == registration)
         {
+            if self.pending.len() >= 8 {
+                let Some(oldest) = self.pending.iter().position(|pending| pending.revoke) else {
+                    return Err("Too many pending native registrations");
+                };
+                self.pending.remove(oldest);
+            }
             self.pending.push(PendingRegistration {
                 owner,
                 registration,
                 revoke: false,
             });
         }
+        Ok(())
     }
 
     pub fn commit(
@@ -213,6 +238,12 @@ impl PushState {
         let directory = path.parent().ok_or("Missing push settings directory")?;
         std::fs::create_dir_all(directory)?;
         let mut file = tempfile::NamedTempFile::new_in(directory)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            file.as_file()
+                .set_permissions(std::fs::Permissions::from_mode(0o600))?;
+        }
         file.write_all(&serde_json::to_vec(self)?)?;
         file.as_file().sync_all()?;
         file.persist(path)?;
@@ -249,8 +280,8 @@ impl PushState {
         }
         Ok(Registration {
             endpoint,
-            p256dh: transport.into(),
-            auth: transport.into(),
+            key_transport: transport.into(),
+            auth_transport: transport.into(),
             apns_topic: (!windows).then(|| topic.into()),
             device_id: self.device_id,
         })
@@ -276,6 +307,69 @@ pub fn launch_path(url: Option<&str>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn registration_wire_keys_and_bytes_stay_unchanged_and_debug_redacts_values() {
+        let state = PushState {
+            language: None,
+            device_id: Uuid::from_u128(1),
+            owner: None,
+            registration: None,
+            pending: Vec::new(),
+        };
+        let registration = state
+            .registration("abcd".into(), "org.useorbit.desktop", false)
+            .unwrap();
+        assert_eq!(
+            serde_json::to_string(&registration).unwrap(),
+            r#"{"endpoint":"abcd","p256dh":"apns","auth":"apns","apnsTopic":"org.useorbit.desktop","deviceId":"00000000-0000-0000-0000-000000000001"}"#
+        );
+        assert!(!format!("{registration:?}").contains("abcd"));
+    }
+
+    #[test]
+    fn pending_registrations_are_bounded_and_evict_the_oldest_revoke_first() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut state = PushState::load(&directory.path().join("push.json")).unwrap();
+        let registration = state
+            .registration("abcd".into(), "org.useorbit.desktop", false)
+            .unwrap();
+        for index in 0..8 {
+            state
+                .stage(format!("account-{index}"), registration.clone())
+                .unwrap();
+        }
+        assert_eq!(
+            state.stage("overflow".into(), registration.clone()),
+            Err("Too many pending native registrations")
+        );
+        state.pending[1].revoke = true;
+        state.pending[3].revoke = true;
+        state.stage("replacement".into(), registration).unwrap();
+        assert_eq!(state.pending.len(), 8);
+        assert_eq!(state.pending[0].owner, "account-0");
+        assert!(!state
+            .pending
+            .iter()
+            .any(|pending| pending.owner == "account-1"));
+        assert!(state
+            .pending
+            .iter()
+            .any(|pending| pending.owner == "account-3"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn saved_push_settings_are_readable_only_by_the_owner() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("push.json");
+        PushState::load(&path).unwrap();
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
 
     #[test]
     fn corrupt_settings_are_quarantined_before_fresh_state_is_saved() {
@@ -304,14 +398,18 @@ mod tests {
         let registration = state
             .registration("abcdef".into(), "org.useorbit.desktop", false)
             .unwrap();
-        state.stage("account-a".into(), registration.clone());
+        state
+            .stage("account-a".into(), registration.clone())
+            .unwrap();
         let before = serde_json::to_value(&state).unwrap();
         assert_eq!(
             state.commit("account-b".into(), registration.clone()),
             Err("Native registration was not staged")
         );
         assert_eq!(serde_json::to_value(&state).unwrap(), before);
-        state.stage("account-b".into(), registration.clone());
+        state
+            .stage("account-b".into(), registration.clone())
+            .unwrap();
         state
             .commit("account-a".into(), registration.clone())
             .unwrap();
@@ -330,14 +428,16 @@ mod tests {
         let registration = state
             .registration("abcdef".into(), "org.useorbit.desktop", false)
             .unwrap();
-        state.stage("account-a".into(), registration.clone());
+        state
+            .stage("account-a".into(), registration.clone())
+            .unwrap();
         state
             .commit("account-a".into(), registration.clone())
             .unwrap();
         state.language = Some("pt-BR".into());
         let mut session = PushSession::default();
         session.restore(Some("account-a".into()), &state);
-        session.suspend(&mut state, "account-a");
+        session.suspend(&mut state, "account-a").unwrap();
         state.save(&path).unwrap();
         let restored = PushState::load(&path).unwrap();
         assert_eq!(restored.device_id, identity);
@@ -464,13 +564,15 @@ mod tests {
         let registration = saved
             .registration("abcd".into(), "org.useorbit.desktop", false)
             .unwrap();
-        saved.stage("account-a".into(), registration.clone());
+        saved
+            .stage("account-a".into(), registration.clone())
+            .unwrap();
         saved
             .commit("account-a".into(), registration.clone())
             .unwrap();
         let mut session = PushSession::default();
         session.restore(Some("account-a".into()), &saved);
-        session.suspend(&mut saved, "account-a");
+        session.suspend(&mut saved, "account-a").unwrap();
         assert!(!session.owns(&saved));
         saved.save(&path).unwrap();
         let saved = PushState::load(&path).unwrap();
@@ -492,14 +594,18 @@ mod tests {
         let registration = saved
             .registration("abcd".into(), "org.useorbit.desktop", false)
             .unwrap();
-        saved.stage("account-a".into(), registration.clone());
-        saved.stage("account-b".into(), registration.clone());
+        saved
+            .stage("account-a".into(), registration.clone())
+            .unwrap();
+        saved
+            .stage("account-b".into(), registration.clone())
+            .unwrap();
         saved
             .commit("account-b".into(), registration.clone())
             .unwrap();
         let mut session = PushSession::default();
         session.restore(Some("account-b".into()), &saved);
-        session.suspend(&mut saved, "account-a");
+        session.suspend(&mut saved, "account-a").unwrap();
         assert!(session.owns(&saved));
         assert_eq!(saved.owner.as_deref(), Some("account-b"));
         assert_eq!(saved.registration, Some(registration));
@@ -563,8 +669,8 @@ mod tests {
                 true,
             )
             .unwrap();
-        state.stage("account-a".into(), first.clone());
-        state.stage("account-a".into(), first.clone());
+        state.stage("account-a".into(), first.clone()).unwrap();
+        state.stage("account-a".into(), first.clone()).unwrap();
         state.save(&path).unwrap();
         state = PushState::load(&path).unwrap();
         assert_eq!(state.pending.len(), 1);
@@ -609,7 +715,7 @@ mod tests {
         for topic in ["org.useorbit.desktop", "org.useorbit.desktop.staging"] {
             let registration = state.registration("ab1234ef".into(), topic, false).unwrap();
             assert_eq!(registration.apns_topic.as_deref(), Some(topic));
-            assert_eq!(registration.p256dh, "apns");
+            assert_eq!(registration.key_transport, "apns");
         }
         assert!(state
             .registration("not-a-token".into(), "org.useorbit.desktop", false)
