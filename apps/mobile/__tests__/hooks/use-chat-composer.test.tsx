@@ -1521,31 +1521,68 @@ describe('mobile useChatComposer', () => {
     expect(useChatStore.getState().queuePaused).toBe(true)
   })
 
-  it('does not POST again after Stop aborts a running stream', async () => {
+  it.each(['final', 'free final', 'error'] as const)('settles a stopped reply through the keyed replay path for %s', async terminal => {
+    const { QueryClient } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
+    const cache = new QueryClient()
+    cache.setQueryData(profileKeys.detail(), createMockProfile({ aiMessagesUsed: 2, aiMessagesLimit: 5 }))
+    mocks.queryClient.setQueryData.mockImplementation(cache.setQueryData.bind(cache))
+    onTestFinished(() => { cache.clear(); mocks.queryClient.setQueryData.mockReset() })
     const stream = controlledSseStreamResponse()
-    mocks.openChatStream.mockResolvedValueOnce(stream.response)
+    const replay = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValueOnce(stream.response).mockResolvedValueOnce(replay.response)
     const composer = await renderComposer()
-    let sending!: Promise<void>
-    await TestRenderer.act(() => { sending = composer.current.sendMessage('running') })
+    let firstSend!: Promise<void>
+    await TestRenderer.act(() => { firstSend = composer.current.sendMessage('running') })
     await TestRenderer.act(async () => { await vi.dynamicImportSettled() })
     await TestRenderer.act(async () => { await composer.current.sendMessage('waiting') })
     await TestRenderer.act(async () => {
       composer.current.composerProps.replyControl!.onStop()
       stream.fail(new DOMException('Aborted', 'AbortError'))
-      await sending
+      await Promise.resolve()
     })
-    expect(mocks.openChatStream).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState()).toMatchObject({ replyActive: false, queuePaused: true, isTyping: false })
     expect(composer.current.isSending).toBe(false)
-    expect(useChatStore.getState().queuePaused).toBe(true)
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
+    expect(mocks.openChatStream.mock.calls[1]![2]).toBe(mocks.openChatStream.mock.calls[0]![2])
+    expect(mocks.openChatStream.mock.calls[1]![0]).toBe(mocks.openChatStream.mock.calls[0]![0])
+    await TestRenderer.act(async () => {
+      replay.enqueue(frame('{"type":"delta","text":"Hidden replay text"}'))
+      replay.enqueue(frame('{"type":"step","domain":"habits","access":"write"}'))
+      replay.enqueue(terminal === 'error'
+        ? frame('{"type":"error","error":"Interrupted","status":503,"code":"CHAT_TURN_INTERRUPTED"}')
+        : finalFrame(makeChatResponse({
+          aiMessage: 'Hidden final text', messageAllowanceConsumed: terminal === 'final',
+          actions: [{ type: 'CreateHabit', status: 'Success' }, { type: 'CreateGoal', status: 'Success' }],
+          operations: [{ operationId: 'operation-1', sourceName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', status: 'Succeeded' }],
+        })))
+      replay.close()
+      await firstSend
+    })
+    expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(terminal === 'final' ? 3 : 2)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith(terminal === 'error'
+      ? { queryKey: habitKeys.all, refetchType: 'all' } : { queryKey: habitKeys.lists() },
+      ...(terminal === 'error' ? [{ throwOnError: true }] : []))
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith(terminal === 'error'
+      ? { queryKey: goalKeys.all, refetchType: 'all' } : { queryKey: goalKeys.lists() },
+      ...(terminal === 'error' ? [{ throwOnError: true }] : []))
+    if (terminal !== 'error') expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(useChatStore.getState()).toMatchObject({ replyActive: false, queuePaused: true, queueReady: false, streamingMessageId: null })
+    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['waiting'])
+    expect(composer.current.sendError).toBeNull()
+    expect(composer.current.activeSteps).toEqual([])
+    expect(useChatStore.getState().messages.filter(message => message.role === 'ai').map(message => message.content)).toEqual(['shell.composer.queue.stopped'])
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
   })
 
-  it('retries a stopped turn only when requested and keeps its original key', async () => {
+  it('retains the stopped turn key for retry when its settlement replay disconnects', async () => {
     const stream = controlledSseStreamResponse()
     mocks.openChatStream.mockResolvedValueOnce(stream.response)
+      .mockRejectedValueOnce(new TypeError('Disconnected during settlement'))
       .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
     const composer = await renderComposer()
     let firstSend!: Promise<void>
     await TestRenderer.act(() => { firstSend = composer.current.sendMessage('running') })
+    await TestRenderer.act(async () => { await vi.dynamicImportSettled() })
     await TestRenderer.act(async () => { await composer.current.sendMessage('waiting') })
     await TestRenderer.act(async () => {
       composer.current.composerProps.replyControl!.onStop()
@@ -1556,9 +1593,8 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.sendError).toBeNull()
     expect(useChatStore.getState().queuePaused).toBe(true)
     await TestRenderer.act(async () => { await composer.current.retryLastSend() })
-    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
-    expect(mocks.openChatStream.mock.calls[1]![2]).toBe(mocks.openChatStream.mock.calls[0]![2])
-    expect(mocks.openChatStream.mock.calls[1]![0]).toBe(mocks.openChatStream.mock.calls[0]![0])
+    expect(mocks.openChatStream.mock.calls[2]![2]).toBe(mocks.openChatStream.mock.calls[0]![2])
+    expect(mocks.openChatStream.mock.calls[2]![0]).toBe(mocks.openChatStream.mock.calls[0]![0])
     expect(useChatStore.getState().messages.filter(message => message.role === 'user').map(message => message.content)).toEqual(['running'])
     expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['waiting'])
     expect(mocks.queryClient.setQueryData).toHaveBeenCalledOnce()
