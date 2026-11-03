@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createStore } from 'zustand/vanilla'
 import { astraPlanSchema } from '../types/astra-plan'
+import { agentExecuteOperationResponseSchema, pendingAgentOperationConfirmationSchema, pendingOperationRevisionResultSchema } from '../types/ai'
 import { chatResponseSchema } from '../types/chat'
 import { conversationPageSchema } from '../types/conversation'
 import { createChatStoreState } from '../stores/chat-store'
 import { consumeChatSseStream, createChatSseParser } from '../chat/sse-stream'
-import { applyChatPlan, PlanAnnouncementTracker, planStepStatus, planStepStatusKey, reconcileChatPlanApproval, unplannedToolSteps, updateMessagePlanStep } from '../chat/astra-plan'
+import { applyChatPlan, PlanAnnouncementTracker, planStepStatus, planStepStatusKey, reconcileChatPlanApproval, reconcileChatPlanExecution, unplannedToolSteps, updateMessagePlanStep } from '../chat/astra-plan'
 import { getChatReplyState } from '../chat/reply-state'
 import { buildChatFinalMessageFields } from '../chat/final-message'
 import { restoreConversationPage } from '../chat/conversation-history'
@@ -97,6 +98,30 @@ describe('Astra plan contract and transitions', () => {
     applyChatPlan(store.getState(), updated)
     expect(store.getState().messages[0]?.plan).toEqual(updated)
     expect(store.getState().messages[1]?.plan?.steps[0]?.status).toBe('pending')
+  })
+
+  it.each([undefined, null, makeApprovalPlan('running')])('preserves optional plans through confirmation and revision validation: %s', plan => {
+    const confirmation = { pendingOperationId: planOperationId, confirmationToken: 'confirmation-token', expiresAtUtc: '2099-01-01T00:00:00Z', plan }
+    expect(pendingAgentOperationConfirmationSchema.parse(confirmation)).toEqual(confirmation)
+    const revision = { isSuccess: true, error: null, pendingOperationId: planOperationId, preview: null, cancelled: true, plan }
+    expect(pendingOperationRevisionResultSchema.parse(revision)).toEqual(revision)
+  })
+
+  it.each([
+    ['Succeeded', 'done'], ['Failed', 'failed'], ['PendingConfirmation', 'pending'],
+    ['Denied', 'failed'], ['UnsupportedByPolicy', 'failed'],
+  ] as const)('reconciles the validated %s execution outcome with and without a persisted plan', (status, expected) => {
+    for (const plan of [undefined, null, makeApprovalPlan(expected)]) {
+      const response = agentExecuteOperationResponseSchema.parse({
+        operation: { operationId: 'create_habit', sourceName: 'create_habit', riskClass: 'Low', confirmationRequirement: 'FreshConfirmation', status },
+        pendingOperation: null, policyDenial: null, plan,
+      })
+      expect(response.plan).toEqual(plan)
+      const store = createStore(createChatStoreState)
+      store.setState({ messages: [{ ...makeMessage(), plan: makeApprovalPlan('running') }] })
+      reconcileChatPlanExecution(store.getState(), planOperationId, response)
+      expect(store.getState().messages[0]?.plan?.steps.map(step => step.status)).toEqual(['done', expected])
+    }
   })
 
   it.each(['running', 'done', 'failed', 'skipped'] as const)('reconciles %s approval without recording and preserves execution rows', status => {
