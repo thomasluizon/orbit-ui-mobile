@@ -29,7 +29,7 @@ it.skipIf(process.platform !== 'darwin')('presents the native mark before displa
   }
 }, 120_000)
 
-it.skipIf(process.platform !== 'win32')('repaints the centered mark without stale pixels on Windows resize and handles timeout and stale timers', () => {
+it.skipIf(process.platform !== 'win32')('keeps the centered Windows mark above host and webview repaints from hidden creation through reload and resize', () => {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-launch-'))
   try {
     const executable = join(directory, 'launch.exe')

@@ -198,7 +198,7 @@ function menuCommands(items, enabled = true) {
 
 export async function acceptance({ repository, output }) {
   await mkdir(join(output, 'trees'), { recursive: true })
-  const report = { platform: process.platform, architecture: process.arch, accessibility: {}, updateRequests: [], passed: false }
+  const report = { platform: process.platform, architecture: process.arch, accessibility: {}, updateRequests: [], launchChecks: [], passed: false }
   const nextOutput = join(repository, 'apps/web/.next')
   let finishRecording
   let isolation
@@ -210,6 +210,7 @@ export async function acceptance({ repository, output }) {
     for (const port of [proxyPort, 5099, 3401]) await assertFree(port)
     if (!windows) await startHttpsListener()
     finishRecording = await startRecording(output)
+    const checkpoint = (event) => report.launchChecks.push({ event, recordingSeconds: (Date.now() - finishRecording.startedAt) / 1000 })
     process.stdout.write('Building release-shaped installer and hermetic web application\n')
     const shell = await buildInstaller(repository, output)
     builtWeb = true
@@ -220,19 +221,29 @@ export async function acceptance({ repository, output }) {
     proxy = await startProxy({ probePath: join(directory, 'acceptance-probe.js'), port: proxyPort, upstreamPort: 3401, tls: isolation, route: updates.route, acceptance: true })
     const executable = await install(shell.installer, output)
     report.install = { source: shell.installer, executable, target: shell.target, version: '1.0.0', optionalFeatures: [] }
+    checkpoint('first-launch')
     let handle = installedLaunch(executable, output, 'installed')
     await waitFor(() => proxy.read('email-completed'), 'email sign-in through the BFF')
+    checkpoint('email-completed')
     const hoje = await waitFor(() => proxy.read('hoje'), 'Hoje in installed shell')
+    checkpoint('signed-in-hoje')
     if (hoje.nativeVersion !== '1.0.0') throw new Error('Installed shell has the wrong version')
     report.email = updates.cookieEvidence()
     await inspectSurfaces(proxy, native, handle, output, report)
+    const beforeReload = proxy.events().filter((event) => event.kind === 'hoje').length
+    checkpoint('reload')
+    proxy.send('reload')
+    await waitFor(() => proxy.read('hoje') && proxy.events().filter((event) => event.kind === 'hoje')[beforeReload], 'authenticated reload')
+    checkpoint('reloaded-hoje')
     await quit(native, handle)
     report.cleanQuit = true
     for (const [mode, phase] of [['bad', 'failed'], ['valid', 'downloaded']]) {
       proxy.reset({ expectAuthenticated: true })
       updates.mode(mode)
+      checkpoint(`relaunch-${mode}`)
       handle = installedLaunch(executable, output, `update-${mode}`)
       await waitFor(() => proxy.read('hoje'), 'authenticated installed relaunch')
+      checkpoint(`relaunched-hoje-${mode}`)
       proxy.send(`update-${phase}`)
       const result = await waitFor(() => proxy.read(`update-${phase}`), `${mode} native updater result`, 200000)
       report[`update-${mode}`] = result.snapshot

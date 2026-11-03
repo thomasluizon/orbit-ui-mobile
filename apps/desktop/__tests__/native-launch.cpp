@@ -9,6 +9,27 @@ static bool shown() {
     return (GetWindowLongPtrW(launch.window, GWL_STYLE) & WS_VISIBLE) != 0;
 }
 
+static void paint_canvas(HWND window) {
+    RECT bounds{};
+    assert(GetClientRect(window, &bounds));
+    HDC context = GetDC(window);
+    HBRUSH canvas = CreateSolidBrush(launch.canvas);
+    assert(context && canvas && FillRect(context, &bounds, canvas));
+    DeleteObject(canvas);
+    ReleaseDC(window, context);
+    GdiFlush();
+}
+
+static void assert_cover(HWND parent, HWND webview) {
+    RECT outer{}, inner{};
+    assert(GetClientRect(parent, &outer) && GetClientRect(launch.window, &inner));
+    assert(IsWindowVisible(launch.window));
+    assert(inner.right > 0 && inner.bottom > 0);
+    assert(outer.right == inner.right && outer.bottom == inner.bottom);
+    assert(GetWindow(parent, GW_CHILD) == launch.window);
+    assert(GetWindow(launch.window, GW_HWNDNEXT) == webview);
+}
+
 static void assert_centered_mark() {
     UpdateWindow(launch.window);
     RECT bounds{};
@@ -57,22 +78,37 @@ int main(int count, char *arguments[]) {
     HWND parent = CreateWindowExW(0, L"STATIC", L"", WS_OVERLAPPEDWINDOW,
         0, 0, 800, 600, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
     assert(parent);
-    SetWindowPos(parent, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    HWND webview = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN,
+        0, 0, 800, 600, parent, nullptr, GetModuleHandleW(nullptr), nullptr);
+    assert(webview);
     assert(orbit_launch_install(parent, png.data(), png.size(), red, red, blue));
     assert(shown() && launch.mark->GetLastStatus() == Gdiplus::Ok);
-    assert(GetWindow(parent, GW_CHILD) == launch.window);
+    assert(!IsWindowVisible(launch.window));
+    SetWindowLongPtrW(parent, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS);
+    SetWindowPos(parent, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    assert_cover(parent, webview);
+    assert_centered_mark();
+    paint_canvas(parent);
+    assert_cover(parent, webview);
+    assert_centered_mark();
+    paint_canvas(webview);
+    assert_cover(parent, webview);
     assert_centered_mark();
     auto first = launch.timer;
     assert(orbit_launch_install(parent, png.data(), png.size(), 250, 250, 250));
     assert(shown() && launch.timer == first);
     assert(launch.canvas == RGB(250, 250, 250));
-    assert(GetWindow(launch.window, GW_HWNDNEXT) == nullptr);
+    assert_cover(parent, webview);
     orbit_launch_set_visible(parent, false);
     assert(!shown() && !launch.timer);
     assert(orbit_launch_install(parent, png.data(), png.size(), red, red, blue));
     assert(!shown() && !launch.timer && launch.canvas == RGB(red, red, blue));
     orbit_launch_set_visible(parent, true);
     assert(shown() && launch.timer != first);
+    SetWindowLongPtrW(parent, GWL_STYLE, GetWindowLongPtrW(parent, GWL_STYLE) & ~WS_CLIPCHILDREN);
+    paint_canvas(parent);
+    assert_cover(parent, webview);
+    assert_centered_mark();
     SendMessageW(launch.window, WM_TIMER, first, 0);
     assert(shown());
     for (const auto &size : {std::pair{1000, 600}, std::pair{1000, 700}, std::pair{700, 500}}) {
@@ -81,6 +117,9 @@ int main(int count, char *arguments[]) {
         GetClientRect(parent, &outer);
         GetClientRect(launch.window, &inner);
         assert(outer.right == inner.right && outer.bottom == inner.bottom);
+        assert_centered_mark();
+        paint_canvas(webview);
+        assert_cover(parent, webview);
         assert_centered_mark();
     }
     SendMessageW(launch.window, WM_TIMER, launch.timer, 0);

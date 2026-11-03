@@ -1,6 +1,7 @@
 ;(() => {
   if (window.top !== window || window.__orbitAcceptance) return
   window.__orbitAcceptance = true
+  const emailLink = new URLSearchParams(location.search).has('code')
   const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
   const report = (kind, details = {}) => fetch('/_bench/events', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, ...details }) })
   async function until(read, label) {
@@ -14,18 +15,12 @@
   }
   async function emailSignIn() {
     if (document.cookie.includes('auth_token=')) throw new Error('The auth cookie must be httpOnly')
-    for (const [path, body] of [
-      ['send-code', { email: 'desktop-vm@example.invalid', language: 'en' }],
-      ['verify-code', { email: 'desktop-vm@example.invalid', language: 'en', code: '741852' }],
-    ]) {
-      const response = await fetch(`/api/auth/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-      if (!response.ok) throw new Error(`Email /api/auth/${path} failed: HTTP ${response.status}; response ${await response.text()}`)
-      const result = await response.json()
-      if ('token' in result || 'refreshToken' in result) throw new Error('BFF exposed a session token')
-    }
-    if (document.cookie.includes('auth_token=')) throw new Error('BFF cookie is readable by JavaScript')
-    await report('email-completed')
-    location.assign('/')
+    const response = await fetch('/api/auth/send-code', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'desktop-vm@example.invalid', language: 'en' }) })
+    if (!response.ok) throw new Error(`Email /api/auth/send-code failed: HTTP ${response.status}; response ${await response.text()}`)
+    const result = await response.json()
+    if ('token' in result || 'refreshToken' in result) throw new Error('BFF exposed a session token')
+    location.assign('/login?email=desktop-vm%40example.invalid&code=741852')
   }
   async function screen(name) {
     if (name === 'astra-close') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }))
@@ -77,13 +72,20 @@
   }
   async function run() {
     await until(() => document.readyState === 'complete', 'page load')
-    const session = await fetch('/api/auth/session', { cache: 'no-store' })
+    let session = await fetch('/api/auth/session', { cache: 'no-store' })
     if (!session.ok && session.status !== 401) throw new Error(`BFF session check failed: HTTP ${session.status}`)
     if (__BENCH_EXPECT_AUTHENTICATED__ && !session.ok) throw new Error('Authenticated installed relaunch lost its BFF session')
     if (location.pathname.includes('/login') || location.pathname.includes('/onboarding')) {
-      if (session.ok) location.assign('/')
-      else await emailSignIn()
-      return
+      if (session.ok && !emailLink) { location.assign('/'); return }
+      if (!emailLink) { await emailSignIn(); return }
+      await until(() => {
+        const failure = document.querySelector('[role="alert"]')?.textContent.trim()
+        if (failure) throw new Error(`Email login failed: ${failure}`)
+        return !location.pathname.includes('/login')
+      }, 'email sign-in through the login form')
+      session = await fetch('/api/auth/session', { cache: 'no-store' })
+      if (document.cookie.includes('auth_token=')) throw new Error('BFF cookie is readable by JavaScript')
+      await report('email-completed')
     }
     if (!session.ok) throw new Error('Hoje requires an authenticated BFF session')
     await until(() => document.querySelector('[data-habit-id="bench-0000"]') && document.querySelector('[data-composer-input]:not([disabled])'), 'Hoje')
@@ -92,6 +94,7 @@
       const response = await fetch('/_bench/command')
       if (!response.ok) throw new Error(`Command request failed: ${response.status}`)
       const command = await response.text()
+      if (command === 'reload') { location.reload(); return }
       if (command.startsWith('update-')) await update(command.slice(7))
       else if (command.startsWith('focus-')) {
         await until(() => paletteState().selected === Number(command.slice(6)), 'next keyboard-selected result')

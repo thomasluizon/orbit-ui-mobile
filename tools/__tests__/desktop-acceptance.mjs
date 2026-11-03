@@ -165,26 +165,38 @@ async function listenerStartupCases() {
 async function installedLaunchCases() {
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-runner.mjs'), 'utf8')
   const launches = []
+  const commands = []
+  const events = [{ kind: 'hoje', nativeVersion: '1.0.0' }]
+  let recorded
   let settings = {}
   const proxy = {
     reset(value) { settings = value },
     read(kind) { return kind === 'hoje' ? { nativeVersion: '1.0.0' } : { snapshot: {} } },
-    send() {}, stop() {},
+    events() { return events.slice() },
+    send(command) { commands.push(command); if (command === 'reload') events.push({ kind: 'hoje', nativeVersion: '1.0.0' }) },
+    stop() {},
   }
   const context = {
     join, directory: '/fixture', windows: true, process: { platform: 'win32', arch: 'x64', stdout: { write() {} } },
-    mkdir: async () => {}, existsSync: () => false, assertFree: async () => {}, startRecording: async () => () => {},
+    mkdir: async () => {}, existsSync: () => false, assertFree: async () => {}, startRecording: async () => Object.assign(() => {}, { startedAt: Date.now() }),
     buildInstaller: async () => ({}), hermeticServices: async () => {}, nativeTool: async () => () => {},
     updateServer: async () => ({ route() {}, mode() {}, cookieEvidence() {} }),
     isolateOrigins: async () => ({ restore() {} }), lookup: async () => [{ address: '127.0.0.1' }],
     startProxy: async () => proxy, install: async () => '/fixture/Orbit',
     installedLaunch: () => { launches.push(settings.expectAuthenticated === true); return {} },
-    waitFor: async (read) => read(), inspectSurfaces: async () => {}, quit: async () => {},
-    readFile: async () => 'signature verification failed', record: async () => {}, rm: async () => {}, stopAll: async () => {},
+    waitFor: async (read, label) => { const result = read(); if (!result) throw new Error(`Timed out waiting for ${label}`); return result },
+    inspectSurfaces: async () => {}, quit: async () => {},
+    readFile: async () => 'signature verification failed', record: async (_path, report) => { recorded = report }, rm: async () => {}, stopAll: async () => {},
   }
   runInNewContext(source.slice(source.indexOf('export async function acceptance')).replace('export ', '') + '\nglobalThis.acceptance = acceptance', context)
   await context.acceptance({ repository: '/fixture', output: '/output' })
   T('installed updater relaunches require the persisted session after the initial email launch', JSON.stringify(launches) === '[false,true,true]', JSON.stringify(launches))
+  T('installed acceptance waits for a new Hoje event after requesting an authenticated reload',
+    commands.filter(command => command === 'reload').length === 1 && events.length === 2)
+  T('recording checkpoints locate first launch, sign-in, reload and both authenticated relaunches',
+    recorded.launchChecks.map(checkpoint => checkpoint.event).join(',') ===
+      'first-launch,email-completed,signed-in-hoje,reload,reloaded-hoje,relaunch-bad,relaunched-hoje-bad,relaunch-valid,relaunched-hoje-valid' &&
+      recorded.launchChecks.every(checkpoint => Number.isFinite(checkpoint.recordingSeconds) && checkpoint.recordingSeconds >= 0))
 }
 
 async function servedProbe(expectAuthenticated) {
@@ -225,8 +237,8 @@ async function sessionProbeCases() {
     const browserWindow = { __ORBIT_DESKTOP_VERSION__: '1.0.0' }
     browserWindow.top = browserWindow
     const context = {
-      window: browserWindow, document: { readyState: 'complete', cookie: '', querySelector: () => ({}) },
-      location: { pathname, assign: (path) => { destination = path } }, setTimeout,
+      URLSearchParams, window: browserWindow, document: { readyState: 'complete', cookie: '', querySelector: () => ({}) },
+      location: { pathname, search: '', assign: (path) => { destination = path } }, setTimeout,
       fetch: async (path, options) => {
         if (path === '/_bench/events') {
           const event = JSON.parse(options.body)
@@ -374,7 +386,7 @@ async function controlledPaletteCases() {
   const reports = []
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-probe.js'), 'utf8')
     .replace('run().catch', 'globalThis.screen = screen; globalThis.paletteState = paletteState; Promise.resolve().catch')
-  const context = { window: dom.window, document: dom.window.document, setTimeout,
+  const context = { URLSearchParams, window: dom.window, location: dom.window.location, document: dom.window.document, setTimeout,
     fetch: async (url, options) => { reports.push(JSON.parse(options.body)) },
   }
   try {
@@ -560,8 +572,8 @@ export async function cases() {
     const browserWindow = {}
     browserWindow.top = browserWindow
     const context = {
-      window: browserWindow, document: { readyState: 'complete', cookie: scenario === 'readable-cookie' ? 'auth_token=readable' : '' },
-      location: { pathname: '/login', assign: (path) => { destination = path } },
+      URLSearchParams, window: browserWindow, document: { readyState: 'complete', cookie: scenario === 'readable-cookie' ? 'auth_token=readable' : '' },
+      location: { pathname: '/login', search: '', assign: (path) => { destination = path } },
       setTimeout, navigator: { platform: 'MacIntel' },
       fetch: async (path, options) => {
         if (path === '/_bench/events') { reports.push(JSON.parse(options.body)); return { ok: true } }
@@ -572,8 +584,8 @@ export async function cases() {
     }
     runInNewContext(probeSource, context)
     await context.completion
-    T('installed page probe completes only through successful protected BFF email requests', scenario === 'success'
-      ? destination === '/' && requests.map((entry) => entry.path).join(',') === '/api/auth/send-code,/api/auth/verify-code' && reports.some((entry) => entry.kind === 'email-completed')
+    T('installed page probe enters the real email login only after a successful protected code request', scenario === 'success'
+      ? destination === '/login?email=desktop-vm%40example.invalid&code=741852' && requests.map((entry) => entry.path).join(',') === '/api/auth/send-code' && !reports.some((entry) => entry.kind === 'email-completed')
       : !destination && reports.some((entry) => entry.kind === 'error') && !reports.some((entry) => entry.kind === 'email-completed'))
   }
   const proxySource = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/server.mjs'), 'utf8')

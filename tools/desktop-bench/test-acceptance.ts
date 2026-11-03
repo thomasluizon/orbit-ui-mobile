@@ -233,7 +233,77 @@ const probeSource = readFileSync(new URL('./acceptance-probe.js', import.meta.ur
   .replace('run().catch', 'globalThis.completion = run().catch')
 const safariStack = 'emailSignIn@https://app-staging.useorbit.org/_bench/probe.js:22:40'
 
-for (const path of ['send-code', 'verify-code']) {
+test('email acceptance enters the production login flow instead of verifying and navigating directly to Hoje', async () => {
+  const navigations: string[] = []
+  const requests: string[] = []
+  const browserWindow: { top?: unknown } = {}
+  browserWindow.top = browserWindow
+  const context = {
+    URLSearchParams, window: browserWindow, document: { readyState: 'complete', cookie: '' },
+    location: { pathname: '/onboarding', search: '', assign(url: string) { navigations.push(url) } },
+    setTimeout,
+    fetch: async (url: string) => {
+      requests.push(url)
+      return new Response('{}', { status: url === '/api/auth/session' ? 401 : 200 })
+    },
+  }
+  runInNewContext(probeSource, context)
+  await (context as typeof context & { completion: Promise<void> }).completion
+  assert.equal(navigations.length, 1)
+  const destination = new URL(navigations[0], 'https://app-staging.useorbit.org')
+  assert.equal(destination.pathname, '/login')
+  assert.equal(destination.searchParams.get('email'), acceptanceEmail)
+  assert.equal(destination.searchParams.get('code'), acceptanceCode)
+  assert.ok(!requests.includes('/api/auth/verify-code'))
+})
+
+for (const failure of [false, true]) {
+  test(`the email link waits for production login completion and retains its failure: failure=${failure}`, async () => {
+    const requests: string[] = []
+    const reports: { kind: string; message?: string }[] = []
+    const browserWindow: { top?: unknown } = {}
+    browserWindow.top = browserWindow
+    const location = { pathname: '/login', search: '?email=desktop-vm%40example.invalid&code=741852',
+      assign() { assert.fail('The production login flow owns this navigation') } }
+    let finish!: () => void
+    const completed = new Promise<void>(resolve => { finish = resolve })
+    let resume!: () => void
+    const context = {
+      URLSearchParams, window: browserWindow, location,
+      document: { readyState: 'complete', cookie: '', querySelector(selector: string) {
+        if (selector === '[role="alert"]') return failure ? { textContent: 'Verification code expired' } : null
+        return {}
+      } },
+      setTimeout(callback: () => void) { resume = callback },
+      fetch: async (url: string, options?: { body: string }) => {
+        requests.push(url)
+        if (url === '/_bench/events') {
+          const event = JSON.parse(options!.body) as { kind: string }
+          reports.push(event)
+          if (event.kind === 'hoje' || event.kind === 'error') finish()
+          return new Response(null, { status: 204 })
+        }
+        if (url === '/_bench/command') return new Promise<Response>(() => {})
+        assert.equal(url, '/api/auth/session')
+        return new Response(null, { status: location.pathname === '/login' ? 401 : 200 })
+      },
+    }
+    runInNewContext(probeSource, context)
+    if (!failure) {
+      for (let index = 0; index < 10 && !resume; index++) await Promise.resolve()
+      assert.ok(resume)
+      assert.deepEqual(reports, [])
+      location.pathname = '/'
+      resume()
+    }
+    await completed
+    assert.deepEqual(reports.map(event => event.kind), failure ? ['error'] : ['email-completed', 'hoje'])
+    if (failure) assert.ok(reports[0].message?.includes('Verification code expired'))
+    assert.ok(!requests.some(url => /send-code|verify-code/.test(url)))
+  })
+}
+
+for (const path of ['send-code']) {
   test(`probe preserves ${path} status and response body separately from a frame-only Safari stack`, async () => {
     const reports: { kind: string; message: string; stack: string }[] = []
     const browserWindow: { top?: unknown } = {}
@@ -241,8 +311,8 @@ for (const path of ['send-code', 'verify-code']) {
     const failureBody = JSON.stringify({ error: 'Hermetic request refused', errorCode: 'HERMETIC_FAILURE' })
     const context = {
       Error: class extends Error { constructor(message: string) { super(message); this.stack = safariStack } },
-      window: browserWindow, document: { readyState: 'complete', cookie: '' },
-      location: { pathname: '/login', assign() { assert.fail('Failed email sign-in must not navigate') } },
+      URLSearchParams, window: browserWindow, document: { readyState: 'complete', cookie: '' },
+      location: { pathname: '/login', search: '', assign() { assert.fail('Failed email sign-in must not navigate') } },
       setTimeout,
       fetch: async (url: string, options: { body: string }) => {
         if (url === '/_bench/events') { reports.push(JSON.parse(options.body)); return new Response(null, { status: 204 }) }

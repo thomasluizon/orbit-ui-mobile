@@ -37,6 +37,9 @@ static void resize(HWND parent) {
 static LRESULT CALLBACK parent_events(HWND window, UINT message, WPARAM word, LPARAM parameter,
     UINT_PTR identifier, DWORD_PTR reference) {
     (void)reference;
+    if (message == WM_STYLECHANGING && word == static_cast<WPARAM>(GWL_STYLE)) {
+        reinterpret_cast<STYLESTRUCT *>(parameter)->styleNew |= WS_CLIPCHILDREN;
+    }
     if (message == WM_SIZE || message == WM_DPICHANGED) resize(window);
     if (message == WM_NCDESTROY) RemoveWindowSubclass(window, parent_events, identifier);
     return DefSubclassProc(window, message, word, parameter);
@@ -116,6 +119,11 @@ extern "C" bool orbit_launch_install(void *parent, const unsigned char *png, siz
     definition.lpszClassName = L"OrbitLaunchSurface";
     if (!RegisterClassW(&definition)) return false;
     auto window = static_cast<HWND>(parent);
+    SetWindowLongPtrW(window, GWL_STYLE, GetWindowLongPtrW(window, GWL_STYLE) | WS_CLIPCHILDREN);
+    for (HWND sibling = GetWindow(window, GW_CHILD); sibling;
+        sibling = GetWindow(sibling, GW_HWNDNEXT)) {
+        SetWindowLongPtrW(sibling, GWL_STYLE, GetWindowLongPtrW(sibling, GWL_STYLE) | WS_CLIPSIBLINGS);
+    }
     launch.window = CreateWindowExW(0, definition.lpszClassName, L"", WS_CHILD | WS_CLIPSIBLINGS,
         0, 0, 0, 0, window, nullptr, definition.hInstance, nullptr);
     if (!launch.window || !SetWindowSubclass(window, parent_events, 1, 0)) return false;
