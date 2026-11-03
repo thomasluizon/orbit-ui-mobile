@@ -27,7 +27,7 @@
     const appearance = new MutationObserver(() => report());
     appearance.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     window.addEventListener('pagehide', () => appearance.disconnect(), { once: true });
-    report(true);
+    void report(true);
   };
   window.addEventListener('pagehide', () => { active = false; }, { once: true });
   if (typeof PerformanceObserver !== 'undefined' && PerformanceObserver.supportedEntryTypes.includes('paint')) {
