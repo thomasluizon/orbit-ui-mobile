@@ -79,6 +79,7 @@ describe('Today day cache', () => {
       await new Promise(resolve => setTimeout(resolve, 3_000))
       const items = Array.from({ length: 50 }, (_, index) => createMockHabitScheduleItem({
         id: `${date}-${(page - 1) * 50 + index}`, title: `${date} habit ${(page - 1) * 50 + index}`,
+        dueDate: date, scheduledDates: [date],
       }))
       return { items, page, pageSize: 50, totalCount: 450, totalPages: 9 }
     })
