@@ -876,9 +876,9 @@ describe('CreateHabitModal', () => {
       setGeneral: vi.fn(),
       setField: vi.fn(),
     }
-    const initial = applyHabitPhraseRead(true, readHabitPhrase('Run Monday every 2 weeks', 'en'), '', false,
+    const initial = applyHabitPhraseRead(true, readHabitPhrase('Run Monday every 2 weeks', 'en'), false,
       { cadence: false, dueTime: false }, target)
-    const ownership = applyHabitPhraseRead(true, readHabitPhrase(phrase, 'en'), '', false, initial, target)
+    const ownership = applyHabitPhraseRead(true, readHabitPhrase(phrase, 'en'), false, initial, target)
     act(() => mockHabitFormFieldsState.onPhraseOwnershipChange?.(ownership))
     expect(setOneTime).toHaveBeenCalledOnce()
 

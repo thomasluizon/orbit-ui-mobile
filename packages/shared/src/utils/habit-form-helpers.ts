@@ -333,7 +333,7 @@ export async function requestHabitFormProposal(
   return action()
 }
 
-type PhraseField = 'days' | 'dueTime' | 'emoji' | 'frequencyQuantity' | 'frequencyUnit' | 'intervalWeeks'
+type PhraseField = 'days' | 'dueTime' | 'frequencyQuantity' | 'frequencyUnit' | 'intervalWeeks'
 
 export interface HabitPhraseFormTarget {
   setOneTime: () => void
@@ -367,6 +367,7 @@ interface HabitCadenceCorrectionTarget {
 
 type HabitControllerField =
   | PhraseField
+  | 'emoji'
   | 'checklistItems'
   | 'dueEndTime'
   | 'reminderEnabled'
@@ -404,7 +405,7 @@ export interface HabitFormController {
   resolveSubHabitProposal: () => void
   releaseDueTime: () => void
   reconcilePhraseOwnership: (read: HabitPhraseRead) => void
-  readPhrase: (enabled: boolean, read: HabitPhraseRead, emoji: string) => void
+  readPhrase: (enabled: boolean, read: HabitPhraseRead) => void
   setDueTime: (dueTime: string) => void
   clearDueTime: () => void
   setChecklistItems: (items: ChecklistItem[]) => void
@@ -460,7 +461,7 @@ export function createHabitFormController({
       const ownership = target.getOwnership()
       target.setOwnership({ cadence: ownership.cadence && read.cadence !== null, dueTime: ownership.dueTime && read.dueTime !== null })
     },
-    readPhrase: (enabled, read, emoji) => readOwnedHabitPhrase(enabled, read, emoji, lockedGeneral, target),
+    readPhrase: (enabled, read) => readOwnedHabitPhrase(enabled, read, lockedGeneral, target),
     setDueTime: (dueTime: string): void => {
       releaseOwnership('dueTime')
       target.setField('dueTime', dueTime)
@@ -541,11 +542,10 @@ export function createHabitFormController({
 function readOwnedHabitPhrase(
   enabled: boolean,
   read: HabitPhraseRead,
-  emoji: string,
   lockedGeneral: boolean | null,
   target: HabitFormControllerTarget,
 ): void {
-  target.setOwnership(applyHabitPhraseRead(enabled, read, emoji, lockedGeneral, target.getOwnership(), target))
+  target.setOwnership(applyHabitPhraseRead(enabled, read, lockedGeneral, target.getOwnership(), target))
 }
 
 export function applyHabitDayCorrection(
@@ -580,7 +580,6 @@ export function applyHabitQuantityCorrection(
 export function applyHabitPhraseRead(
   enabled: boolean,
   read: HabitPhraseRead,
-  emoji: string,
   lockedGeneral: boolean | null,
   ownership: HabitPhraseFormOwnership,
   target: HabitPhraseFormTarget,
@@ -598,7 +597,6 @@ export function applyHabitPhraseRead(
   } else if (ownership.dueTime) {
     target.setField('dueTime', '')
   }
-  if (read.emoji && !emoji) target.setField('emoji', read.emoji)
   if (read.cadence) target.setField('intervalWeeks', Math.min(MAX_HABIT_INTERVAL_WEEKS, read.intervalWeeks ?? 1))
   if (!read.cadence) {
     if (ownership.cadence) target.setOneTime()

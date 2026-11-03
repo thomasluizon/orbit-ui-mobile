@@ -15,6 +15,19 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
 
 describe('HabitFormFields', () => {
+  it.each(['task', 'habit'].flatMap((itemType) => ['', '🌱'].map((emoji) => ({ itemType, emoji }))))('keeps the $itemType emoji $emoji under explicit control while parsing the title', async ({ itemType, emoji }) => {
+    for (const [title, locale] of [['Escolher aneis corretos', 'pt-BR'], ['Get ready for the run', 'en']] as const) {
+      formLocale.language = locale
+      const formHelpers = createFormHelpers({ title, itemType, emoji })
+      const view = renderForm(formHelpers, undefined, false, true)
+      expect(formHelpers.form.getValues('emoji')).toBe(emoji)
+      const request = buildCreateHabitRequest(habitFormSchema.parse(formHelpers.form.getValues()), [], [], [], [])
+      if (emoji) expect(request.emoji).toBe(emoji)
+      else expect(request).not.toHaveProperty('emoji')
+      view.unmount()
+    }
+  })
+
   it('keeps the frequency fill action mounted with one spinner during its request', () => {
     const view = renderForm(createFormHelpers({ title: 'Build a stronger routine' }), vi.fn(() => SETUP_PROPOSAL))
     const action = screen.getByRole('button', { name: 'habits.form.askAstra' })
