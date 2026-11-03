@@ -80,14 +80,18 @@ describe('mobile config and flags', () => {
     expect(mocks.report).not.toHaveBeenCalled()
   })
 
-  it('reports a config network failure once after the retry budget is exhausted', async () => {
+  it.each([
+    { failure: new TypeError('Failed to fetch'), reports: false },
+    { failure: createApiClientError(500, null, 'Internal server error'), reports: true },
+    { failure: new TypeError('Cannot read properties of undefined'), reports: true },
+  ])('reports actionable config failures after retries: $failure.message', async ({ failure, reports }) => {
     queryClient.setDefaultOptions({ queries: { retry: shouldRetryQuery, retryDelay: 50 } })
-    const failure = new TypeError('Failed to fetch')
     mocks.fetch.mockRejectedValue(failure)
     const { result } = mount()
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(mocks.fetch).toHaveBeenCalledTimes(4)
-    expect(mocks.report).toHaveBeenCalledExactlyOnceWith(failure)
+    expect(mocks.report).toHaveBeenCalledTimes(reports ? 1 : 0)
+    if (reports) expect(mocks.report).toHaveBeenCalledWith(failure)
     expect(result.current.enabled).toBe(false)
   })
 
