@@ -10,7 +10,7 @@ import { useTranslations,useLocale } from 'next-intl'
 import { useOpenHabit } from '@/hooks/use-open-habit'
 import { filterHabitViewRoots,collectVisibleHabitTreeIds,formatAPIDate,isTodayLaunchCache } from '@orbit/shared/utils'
 import type { HabitView } from './habit-list/tree-helpers'
-import { EMPTY_CHILDREN_BY_PARENT,EMPTY_HABITS_BY_ID,EMPTY_NORMALIZED_HABITS,useHabits } from '@/hooks/use-habit-queries'
+import { EMPTY_CHILDREN_BY_PARENT, EMPTY_HABITS_BY_ID, EMPTY_NORMALIZED_HABITS, useHabits, useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useLogHabit,useSkipHabit } from '@/hooks/use-habit-logging'
 import { useBulkLogHabits } from '@/hooks/use-bulk-log-habits'
 import { useBulkSkipHabits } from '@/hooks/use-bulk-skip-habits'
@@ -23,7 +23,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { getRecentlyCompletedIdsForDate } from '@orbit/shared/utils/drill-navigation'
-import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
+
 import { useDragAccessibility } from '@/components/ui/drag-accessibility'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { MoveParentIntent } from './habit-list/move-parent-controller'
@@ -85,8 +85,6 @@ export function useHabitRecentCompletionState({ selectedDateStr }: Pick<HabitRec
   )
   return { setRecentlyCompletedDates, recentlyCompletedIds, recentlyCompletedDates }
 }
-
-
 
 type HabitListVisibilityInputs = Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent' | 'selectedDateStr' | 'habitsQuery' | 'todayStr'> & { searchQuery: string } & { showCompleted: boolean } & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'recentlyCompletedIds' | 'recentlyCompletedDates'> & { view: HabitView }
 

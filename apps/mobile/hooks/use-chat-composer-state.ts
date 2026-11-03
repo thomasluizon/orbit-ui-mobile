@@ -6,17 +6,15 @@ import { FlatList } from "react-native"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useTranslation } from "react-i18next"
 
-
 import type { ChatMessage } from "@orbit/shared/types"
 
 import { useHabitDetail,useHabits } from "@/hooks/use-habit-queries"
 import { useSpeechToText } from "@/hooks/use-speech-to-text"
-import { useChatStore } from "@/stores/chat-store"
+
 import { useUIStore } from "@/stores/ui-store"
 import { useResetOnAccountChange } from "@/hooks/use-session-reset"
 import type { AttemptedSend } from './use-chat-composer-types'
 import type { useChatComposerAttachmentState } from './use-chat-composer-attachments'
-
 
 export type ChatComposerState = ComposerState<AttemptedSend, ReturnType<typeof useHabits>, ReturnType<typeof useHabitDetail>> & Pick<ReturnType<typeof useSpeechToText>, 'isRecording' | 'isTranscribing' | 'transcript' | 'toggleRecording' | 'recordingDuration'> & {
   speechSupported: ReturnType<typeof useSpeechToText>['isSupported']

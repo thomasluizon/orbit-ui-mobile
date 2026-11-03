@@ -1,8 +1,8 @@
-import { createComposerRuntime } from '@orbit/shared/hooks'
-import { useState } from 'react'
-import { buildComposerSuggestions,buildChatComposerProps } from '@orbit/shared/hooks'
+import { createComposerRuntime, buildComposerSuggestions, buildChatComposerProps } from '@orbit/shared/hooks'
+import { useState, useEffect, useMemo, useRef } from 'react'
+
 import { createAstraAllowanceTranslator,formatAPIDateInTimeZone } from '@orbit/shared/utils'
-import { useEffect,useMemo,useRef } from "react"
+
 import { FlatList,Linking } from "react-native"
 import { useTranslation } from "react-i18next"
 import { useQueryClient } from "@tanstack/react-query"
@@ -14,8 +14,8 @@ import { useSpeechToText } from "@/hooks/use-speech-to-text"
 import { useChatStore } from "@/stores/chat-store"
 import { useUIStore } from "@/stores/ui-store"
 import { usePrefersReducedMotion } from "@/lib/motion"
-import type { AttemptedSend } from './use-chat-composer-types'
-import type { UseChatComposerOptions } from './use-chat-composer-types'
+import type { AttemptedSend, UseChatComposerOptions } from './use-chat-composer-types'
+
 import { useChatComposerSession,useChatComposerAvailability,useChatDraftPersistence,useChatComposerScroll } from './use-chat-composer-state'
 import { useChatComposerAttachments } from './use-chat-composer-attachments'
 import { useChatPendingBubbles } from './use-chat-pending-bubbles'
@@ -86,7 +86,6 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   const composerProps = buildChatComposerProps({ t, isOnline, isSending, queue, stopReply, usageMessage, renewalHint, allowanceReason, input, speechError, sendError, setInput, sendMessage, composerSuggestions, openTextFilePicker, openFilePicker, attachments, removeTextFile, removeImage, canRetryLastSend, retryLastSend, isRecording, toggleRecording, isTranscribing, speechSupported, atMessageLimit, messageLimitPlaceholder, messageLimitReason }, speechRecovery)
   const { revisePendingOperationForBubble, refreshPendingOperationForBubble, isPendingOperationBusy, trackCardOperation, confirmAndExecutePendingOperation, prepareStepUpForBubble, verifyStepUpForBubble } = usePendingOperationExecution(chatPendingBubbles)
   const { handleBreakdownConfirmed } = useChatBreakdownRefresh(queryClient)
-
 
   return {
     blockAnswerInteraction, activeSteps, canShowFollowUps: isOnline && !isSending && !atMessageLimit && profile != null, isOnline,

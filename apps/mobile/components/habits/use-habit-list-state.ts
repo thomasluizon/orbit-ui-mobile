@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useShellListFocus } from '@/components/shell/shell-focus-target'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { EMPTY_HABITS_BY_ID,EMPTY_NORMALIZED_HABITS,useHabits } from '@/hooks/use-habit-queries'
+import { EMPTY_HABITS_BY_ID, EMPTY_NORMALIZED_HABITS, useHabits, useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useLogHabit,useSkipHabit } from '@/hooks/use-habit-logging'
 import { useBulkLogHabits } from '@/hooks/use-bulk-log-habits'
 import { useBulkSkipHabits } from '@/hooks/use-bulk-skip-habits'
@@ -36,7 +36,7 @@ import { getHabitListExtraData } from '@/lib/habit-selection-state'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
-import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
+
 import { buildFlatHabitItems,getMoveParentSelection,validateMoveTarget as computeMoveTargetValidation,type DragItem } from '../habit-list/tree-helpers'
 import { createStyles } from '../habit-list/styles'
 import type { HabitListProps,HabitListHandleInputs } from '../habit-list'
@@ -242,8 +242,6 @@ export function useHabitListVisibility({ movingHabitId }: Pick<HabitListVisibili
   })
   return { visibility, movingHabit }
 }
-
-
 
 type HabitListRootsInputs = Pick<ReturnType<typeof useHabitListVisibility>, 'visibility'> & { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitListQueries>, 'topLevelHabits' | 'childrenByParent'> & Pick<HabitListProps, 'showCompleted'> & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'recentlyCompletedIds'>
 

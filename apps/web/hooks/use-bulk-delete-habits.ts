@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 import { isCachedHabitDeleted,removeDeletedHabitQueries,habitKeys,goalKeys,profileKeys } from '@orbit/shared/query'
 import { plural } from '@orbit/shared/utils'
 import { snapshotHabitLists } from '@/lib/habit-mutation-helpers'
-import type { BulkMutationOutcome,BulkDeleteResponse,HabitScheduleItem } from '@orbit/shared/types/habit'
+import type { BulkMutationOutcome, BulkDeleteResponse } from '@orbit/shared/types/habit'
 import { deleteHabit as deleteHabitAction } from '@/lib/actions/habits'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { reportsAccountChanged } from '@/app/actions/action-result'
@@ -15,8 +15,6 @@ import { useUndoToast } from '@/hooks/use-undo-toast'
 import { captureAccountIntent } from '@/lib/client-action'
 import { invalidateHabitInventoryQueries } from './use-habit-mutation-shared'
 import { useRestoreHabit } from './use-restore-habit'
-
-
 
 export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()

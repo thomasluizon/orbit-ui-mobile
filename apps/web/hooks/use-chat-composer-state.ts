@@ -2,17 +2,15 @@
 
 import type { ComposerState } from '@orbit/shared/hooks'
 
-import { buildComposerAvailability } from '@orbit/shared/hooks'
-
+import { buildComposerAvailability, CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 
 import { mediaQueryMatches } from '@/lib/media-query'
 import { useRef,useCallback,useEffect,useMemo,useSyncExternalStore } from 'react'
 
 import { useLocale,useTranslations } from 'next-intl'
 
-import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
-import { useChatStore } from '@/stores/chat-store'
+
 import { useUIStore } from '@/stores/ui-store'
 
 import { useHabitDetail,useHabits } from '@/hooks/use-habit-queries'
@@ -36,7 +34,6 @@ function readNetworkStatus(): boolean {
 function readServerNetworkStatus(): boolean {
   return true
 }
-
 
 export type ChatComposerState = ComposerState<AttemptedSend, ReturnType<typeof useHabits>, ReturnType<typeof useHabitDetail>> & Pick<ReturnType<typeof useSpeechToText>, 'isRecording' | 'isTranscribing' | 'transcript' | 'toggleRecording' | 'recordingDuration'> & {
   speechSupported: ReturnType<typeof useSpeechToText>['isSupported']

@@ -1,24 +1,21 @@
 'use client'
 
-import { createComposerRuntime } from '@orbit/shared/hooks'
-import { useState } from 'react'
+import { createComposerRuntime, buildComposerSuggestions, buildChatComposerProps } from '@orbit/shared/hooks'
+import { useState, useRef, useId, useMemo } from 'react'
 
-import { buildComposerSuggestions,buildChatComposerProps } from '@orbit/shared/hooks'
+import { createAstraAllowanceTranslator, formatAPIDateInTimeZone } from '@orbit/shared/utils'
 
-import { createAstraAllowanceTranslator } from '@orbit/shared/utils'
-import { useRef,useId,useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocale,useTranslations } from 'next-intl'
 import { resolveComposerChipSurface } from '@orbit/shared/chat'
-import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
+
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useHabitDetail,useHabits } from '@/hooks/use-habit-queries'
-import type { AttemptedSend } from './use-chat-composer-types'
+import type { AttemptedSend, UseChatComposerOptions } from './use-chat-composer-types'
 
-import type { UseChatComposerOptions } from './use-chat-composer-types'
 import { useChatComposerSession,useChatComposerAvailability,useChatComposerScroll,useChatDraftPersistence } from './use-chat-composer-state'
 import { useChatComposerAttachments } from './use-chat-composer-attachments'
 import { useChatPendingBubbles } from './use-chat-pending-bubbles'
@@ -83,7 +80,6 @@ export function useChatComposer(options: UseChatComposerOptions = {}) {
   const { queue, usageMessage, renewalHint, allowanceReason, composerSuggestions, messageLimitPlaceholder, messageLimitReason } = buildComposerSuggestions({ surface, habitsQuery, detailQuery, calendarHasError, selectedDate, today, profile, contextualSuggestion, t, sendMessage, aiMessagesLimit, aiMessagesUsed, dailyBudgetReached, allowanceText, queuedPrompts, queuePaused, isSending, isOnline, atMessageLimit, setSendError, sendQueuedPrompt, totalHabitCount: options.totalHabitCount, getChat: useChatStore.getState })
   const composerProps = buildChatComposerProps({ t, isOnline, isSending, queue, stopReply, usageMessage, renewalHint, allowanceReason, input, speechError, sendError, setInput, sendMessage, composerSuggestions, openTextFilePicker, openFilePicker, attachments, removeTextFile, removeImage, canRetryLastSend, retryLastSend, isRecording, toggleRecording, isTranscribing, speechSupported, atMessageLimit, messageLimitPlaceholder, messageLimitReason }, { onPaste: handlePaste })
   const { handleBreakdownConfirmed } = useChatBreakdownRefresh(queryClient)
-
 
   return {
     blockAnswerInteraction, activeSteps, canShowFollowUps: isOnline && !isSending && !atMessageLimit && profile != null, chatContainerRef,
