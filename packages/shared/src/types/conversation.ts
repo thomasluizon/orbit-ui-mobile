@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { astraPlanSchema } from './astra-plan'
 
 const conversationOrderSchema = z.union([z.number().int().safe(), z.string().regex(/^-?(?:0|[1-9]\d*)$/)])
 
@@ -17,6 +18,7 @@ export const conversationPreviewOutcomeSchema = z.object({
 })
 
 export const conversationDisplayTurnSchema = z.object({
+  plan: astraPlanSchema.nullish(),
   turnId: z.uuid(),
   order: conversationOrderSchema,
   role: z.enum(['user', 'assistant']),
