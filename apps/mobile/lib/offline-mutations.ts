@@ -33,7 +33,7 @@ import {
 } from '@orbit/shared/types/profile'
 import { bulkLogItemRequestSchema, bulkLogResultSchema, bulkSkipItemRequestSchema, bulkSkipResultSchema, habitDetailSchema, reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
 import { z } from 'zod'
-import { ApiClientError, extractBackendErrorCode, findHabitInList } from '@orbit/shared/utils'
+import { ApiClientError, isNetworkUnavailableError, extractBackendErrorCode, findHabitInList } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { validateResolvedHabitReferences } from './habit-update-request'
 import { apiClient } from './api-client'
@@ -142,9 +142,9 @@ export function subscribeDroppedMutations(listener: DroppedMutationListener): ()
   }
 }
 
-function notifyDroppedMutation(dropped: DroppedMutation): void {
+function notifyDroppedMutation(dropped: DroppedMutation, reportFailure: boolean): void {
   useOfflineSyncStore.getState().addDrop(dropped)
-  captureError(new Error(`Offline mutation dropped: ${dropped.type}: ${dropped.lastError}`))
+  if (reportFailure) captureError(new Error(`Offline mutation dropped: ${dropped.type}: ${dropped.lastError}`))
   for (const listener of droppedMutationListeners) listener(dropped)
 }
 
@@ -591,28 +591,13 @@ function scheduleBackoffFlush(replaceTimer?: ReturnType<typeof setTimeout>): voi
         return
       }
       await flushQueuedMutations()
-    })().catch(captureError)
+    })().catch((error: unknown) => { if (!isNetworkUnavailableError(error)) captureError(error) })
   }, delay)
   setReplayControlState({
     status: 'waiting-on-backoff',
     backoffAttempt: nextBackoffAttempt,
     timer,
   })
-}
-
-function isTransientNetworkError(error: unknown): boolean {
-  if (error instanceof TypeError) return true
-  if (!(error instanceof Error)) return false
-
-  const message = error.message.toLowerCase()
-  return (
-    message.includes('network request failed') ||
-    message.includes('network error') ||
-    message.includes('failed to fetch') ||
-    message.includes('fetch failed') ||
-    message.includes('load failed') ||
-    message.includes('timed out')
-  )
 }
 
 function isAuthRefreshNetworkError(error: unknown): boolean {
@@ -738,7 +723,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     if (resolvedMutation.type === 'setTimeZone') releaseAccountTimezoneDependencies(resolvedMutation.id)
     return result
   } catch (error: unknown) {
-    if (!isTransientNetworkError(error) || isAutomaticReplayBlocked(resolvedMutation.type)) {
+    if (!isNetworkUnavailableError(error) || isAutomaticReplayBlocked(resolvedMutation.type)) {
       throw error
     }
 
@@ -916,7 +901,7 @@ async function handleFlushFailure(
     }
     return { incrementFailed: true, stopReason: 'auth', dropped: null }
   }
-  const transientNetworkFailure = isTransientNetworkError(error)
+  const transientNetworkFailure = isNetworkUnavailableError(error)
   const nextRetries = isAuthRefreshNetworkError(error) ? mutation.retries : mutation.retries + 1
   const dropMutation = shouldDropMutation(error, nextRetries, mutation.maxRetries)
   let dropped: DroppedMutation | null = null
@@ -1187,7 +1172,7 @@ async function runQueueFlush(): Promise<FlushOutcome> {
     failed += step.failedDelta
     if (step.dropped) {
       droppedMutations.push(step.dropped)
-      notifyDroppedMutation(step.dropped)
+      notifyDroppedMutation(step.dropped, step.stopReason !== 'network')
     }
     if (step.stopReason) {
       stopReason = step.stopReason

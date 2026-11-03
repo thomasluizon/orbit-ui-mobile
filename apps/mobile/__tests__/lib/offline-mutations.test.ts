@@ -2280,6 +2280,20 @@ describe('offline mutations', () => {
       vi.useRealTimers()
     })
 
+    it('keeps offline retry exhaustion visible to the user without sending transport errors to Sentry', async () => {
+      mocks.setOnline(true)
+      mocks.apiClient.mockRejectedValueOnce(new Error('fetch failed: java.net.UnknownHostException: Unable to resolve host "example.invalid": No address associated with hostname'))
+      const mutation = { ...buildQueuedMutation({
+        type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/habit-1', method: 'PUT',
+        payload: { title: 'Updated' }, entityType: 'habit', targetEntityId: 'habit-1',
+      }), maxRetries: 1 }
+      mocks.queued.push(mutation)
+      const result = await flushQueuedMutations()
+      expect(result.droppedMutations.map((dropped) => dropped.id)).toEqual([mutation.id])
+      expect(useOfflineSyncStore.getState().drops.map((dropped) => dropped.id)).toEqual([mutation.id])
+      expect(captureError).not.toHaveBeenCalled()
+    })
+
     it('keeps the retry count when token refresh loses the network and retries with the same key', async () => {
       mocks.setOnline(true)
       const mutation = { ...buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: API.habits.update('habit'),
@@ -2893,7 +2907,7 @@ describe('offline mutations', () => {
       mocks.apiClient.mockImplementation((endpoint: string) => {
         flushOrder.push(endpoint)
         if (endpoint === '/api/habits/habit-slow') {
-          return Promise.reject(new Error('The request timed out'))
+          return Promise.reject(new TypeError('Network request timed out'))
         }
         return Promise.resolve(null)
       })

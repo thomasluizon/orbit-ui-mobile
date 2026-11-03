@@ -1,3 +1,4 @@
+import { isNetworkUnavailableError } from '@orbit/shared/utils'
 import { useState, useEffect, useCallback } from 'react'
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo'
 import { AppState, type AppStateStatus } from 'react-native'
@@ -63,7 +64,7 @@ export function useOffline(manageQueue = false): UseOfflineReturn {
     try {
       await flushQueuedMutations()
     } catch (error) {
-      captureError(error)
+      if (!isNetworkUnavailableError(error)) captureError(error)
     } finally {
       setPendingCount(offlineQueue.count())
     }

@@ -847,3 +847,5 @@ export { createAstraAllowanceTranslator, type AstraAllowance } from './astra-all
 
 export { computeParentResolutionProgress, computeParentPromptChain, selectParentPromptAncestor, settleParentPromptChain } from './parent-prompt-chain'
 export type { ParentPromptChain } from './parent-prompt-chain'
+
+export { AuthRefreshNetworkError, isNetworkUnavailableError } from './network-error'
