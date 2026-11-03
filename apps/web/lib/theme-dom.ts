@@ -18,6 +18,15 @@ export function normalizeThemeMode(value: string | null | undefined): ThemeMode 
   return value === 'light' ? 'light' : 'dark'
 }
 
+export function resolveInitialTheme(
+  cookieTheme: string | null | undefined,
+  accountTheme?: string | null,
+): ThemeMode | null {
+  if (accountTheme === 'light' || accountTheme === 'dark') return accountTheme
+  if (cookieTheme === 'light' || cookieTheme === 'dark') return cookieTheme
+  return null
+}
+
 export function normalizeColorScheme(_value: string | null | undefined): ColorScheme {
   return 'orange'
 }

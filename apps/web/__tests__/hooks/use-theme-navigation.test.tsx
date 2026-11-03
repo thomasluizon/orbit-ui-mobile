@@ -1,3 +1,4 @@
+import { RequestCookies } from 'next/dist/server/web/spec-extension/cookies'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
@@ -8,7 +9,7 @@ import type { Profile, ThemeMode } from '@orbit/shared/types/profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { useProfile } from '@/hooks/use-profile'
 import { updateThemePreference } from '@/lib/actions/profile'
-import { canvasColor } from '@/lib/theme-dom'
+import { applyThemeTokensToDOM, canvasColor } from '@/lib/theme-dom'
 
 vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError: vi.fn() }) }))
@@ -21,6 +22,7 @@ vi.mock('@/lib/actions/profile', () => ({ updateThemePreference: vi.fn().mockRes
 vi.mock('@/lib/api-fetch', () => ({ fetchJson: vi.fn() }))
 
 function setup(previous: ThemeMode) {
+  applyThemeTokensToDOM('orange', previous)
   document.cookie = `orbit_theme_mode=${previous}; path=/`
   const profile = createMockProfile({ themePreference: previous })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -41,6 +43,53 @@ function expectTheme(client: QueryClient, theme: ThemeMode) {
 afterEach(() => vi.clearAllMocks())
 
 describe('theme choice across profile consumers', () => {
+  it('does not persist the system mode when a theme consumer mounts', () => {
+    document.cookie = 'orbit_theme_mode=;max-age=0;path=/'
+    document.documentElement.style.colorScheme = 'light'
+    const client = new QueryClient()
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    const chooser = renderHook(() => useColorScheme(), { wrapper })
+    expect(chooser.result.current.currentTheme).toBe('light')
+    expect(document.cookie).not.toContain('orbit_theme_mode')
+  })
+
+  it('does not turn system detection into a theme cookie', () => {
+    document.cookie = 'orbit_theme_mode=;max-age=0;path=/'
+    const client = new QueryClient()
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    const chooser = renderHook(() => useColorScheme(), { wrapper })
+    act(() => chooser.result.current.detectAndSaveThemeIfNeeded(null))
+    expect(document.cookie).not.toContain('orbit_theme_mode')
+  })
+
+  it.each(['invalid', '%'])('ignores the invalid theme cookie %s during system detection', (value) => {
+    const { chooser } = setup('light')
+    document.cookie = `orbit_theme_mode=${value};path=/`
+    expect(() => act(() => chooser.result.current.detectAndSaveThemeIfNeeded(null))).not.toThrow()
+    expect(chooser.result.current.currentTheme).toBe('dark')
+    expect(document.cookie).toContain(`orbit_theme_mode=${value}`)
+  })
+
+  it.each([['light', '%6cight'], ['dark', '%64ark']] as const)('matches the server decoding of an encoded %s cookie', (mode, value) => {
+    const { chooser } = setup(mode)
+    document.cookie = `orbit_theme_mode=${value};path=/`
+    const serverCookies = new RequestCookies(new Headers({ cookie: document.cookie }))
+    const serverTheme = serverCookies.get('orbit_theme_mode')?.value
+    expect(serverTheme).toBe(mode)
+    act(() => chooser.result.current.detectAndSaveThemeIfNeeded(null))
+    expect(chooser.result.current.currentTheme).toBe(serverTheme)
+    expect(updateThemePreference).not.toHaveBeenCalled()
+  })
+
+  it('keeps an explicit cookie when a profile has no theme preference', () => {
+    const { chooser } = setup('light')
+    act(() => chooser.result.current.detectAndSaveThemeIfNeeded(null))
+    expect(chooser.result.current.currentTheme).toBe('light')
+    expect(updateThemePreference).not.toHaveBeenCalled()
+  })
+
   it.each([['dark', 'light'], ['light', 'dark']] as const)(
     'keeps %s to %s after navigation and a successful save', async (previous, chosen) => {
       let resolveSave: () => void = () => {}
