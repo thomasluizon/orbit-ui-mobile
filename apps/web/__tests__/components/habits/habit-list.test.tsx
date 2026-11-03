@@ -1,3 +1,5 @@
+import * as habitQueries from '@/hooks/use-habit-queries'
+import { useHabits as useHabitQueryFixture } from '@/hooks/use-habits'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { resetAccountQueries } from '@orbit/shared/query'
 import { createMoveInventoryFixture } from '@orbit/shared/__tests__/move-inventory-fixtures'
@@ -95,7 +97,7 @@ vi.mock('@/components/habits/habit-list/move-parent-controller', async (importOr
   const { useEffect } = await import('react')
   return { ...actual, MoveParentController: function MountedController(props: React.ComponentProps<typeof actual.MoveParentController>) {
     useEffect(() => { moveControllerOwner.mounted() }, [])
-    return <actual.MoveParentController {...props} />
+    return useHabitListFixture(() => actual.MoveParentController(props))
   } }
 })
 
@@ -134,6 +136,19 @@ vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/use-habit-queries')>()),
   useHabitCountLoaded: () => accountHabitCount,
 }))
+
+function useHabitListFixture<Result>(render: () => Result): Result {
+  const [useRealHook] = React.useState(() => skipFlow.active)
+  if (useRealHook) return render()
+  const query = vi.spyOn(habitQueries, 'useHabits').mockImplementation(useHabitQueryFixture)
+  try { return render() } finally { query.mockRestore() }
+}
+
+vi.mock('@/components/habits/use-habit-list-state', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/use-habit-list-state')>()
+  return { ...actual, useHabitListQueries: (...args: Parameters<typeof actual.useHabitListQueries>) =>
+    useHabitListFixture(() => actual.useHabitListQueries(...args)) }
+})
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { timeZone: accountDate.timeZone, hasProAccess: accountDate.hasProAccess } }),
