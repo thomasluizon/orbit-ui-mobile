@@ -52,9 +52,9 @@ export function useChatComposerSession(turnReconciliation: ChatComposerSessionIn
 
 }
 
-type ChatComposerAvailabilityInputs = Pick<ChatComposerState, 'profile' | 'dailyBudgetDate' | 'today' | 'replyActive' | 'isTyping' | 'streamingMessageId' | 'messages'> & Pick<ReturnType<typeof useChatComposerAttachmentState>, 'selectedImage' | 'selectedTextFile'>
+type ChatComposerAvailabilityInputs = Pick<ChatComposerState, 'profile' | 'dailyBudgetDate' | 'today' | 'replyActive' | 'isTyping' | 'streamingMessageId' | 'messages' | 'input'> & Pick<ReturnType<typeof useChatComposerAttachmentState>, 'selectedImage' | 'selectedTextFile'> & { isOnline: boolean }
 
-export function useChatComposerAvailability(profile: ChatComposerAvailabilityInputs['profile'], dailyBudgetDate: ChatComposerAvailabilityInputs['dailyBudgetDate'], today: ChatComposerAvailabilityInputs['today'], replyActive: ChatComposerAvailabilityInputs['replyActive'], isTyping: ChatComposerAvailabilityInputs['isTyping'], streamingMessageId: ChatComposerAvailabilityInputs['streamingMessageId'], selectedImage: ChatComposerAvailabilityInputs['selectedImage'], selectedTextFile: ChatComposerAvailabilityInputs['selectedTextFile'], messages: ChatComposerAvailabilityInputs['messages']) {
+export function useChatComposerAvailability(profile: ChatComposerAvailabilityInputs['profile'], dailyBudgetDate: ChatComposerAvailabilityInputs['dailyBudgetDate'], today: ChatComposerAvailabilityInputs['today'], replyActive: ChatComposerAvailabilityInputs['replyActive'], isTyping: ChatComposerAvailabilityInputs['isTyping'], streamingMessageId: ChatComposerAvailabilityInputs['streamingMessageId'], selectedImage: ChatComposerAvailabilityInputs['selectedImage'], selectedTextFile: ChatComposerAvailabilityInputs['selectedTextFile'], messages: ChatComposerAvailabilityInputs['messages'], input: ChatComposerAvailabilityInputs['input'], isOnline: ChatComposerAvailabilityInputs['isOnline']) {
   const imageName = selectedImage?.fileName ?? selectedImage?.uri.split("/").at(-1)
   const attachments = useMemo(
     () => [
@@ -67,7 +67,7 @@ export function useChatComposerAvailability(profile: ChatComposerAvailabilityInp
     ],
     [imageName, selectedImage, selectedTextFile],
   )
-  return buildComposerAvailability({ profile, dailyBudgetDate, today, replyActive, isTyping, streamingMessageId, messages, attachments })
+  return buildComposerAvailability({ profile, dailyBudgetDate, today, replyActive, isTyping, streamingMessageId, messages, input, isOnline, attachments })
 }
 
 type ChatDraftPersistenceInputs = Pick<ChatComposerState, 'draftHydrated' | 'hydrateDraft' | 'input' | 'isRecording' | 'pendingVoiceCommitRef' | 'transcript' | 'setInput'>

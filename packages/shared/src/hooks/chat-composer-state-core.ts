@@ -14,12 +14,12 @@ type ComposerAvailabilityInputs = Pick<ChatStoreState, 'replyActive' | 'isTyping
   profile: Profile | undefined
   dailyBudgetDate: string | null
   today: string
-  input?: string
-  isOnline?: boolean
+  input: string
+  isOnline: boolean
   attachments: ComposerAttachment[]
 }
 
-export function buildComposerAvailability({ profile, dailyBudgetDate, today, replyActive, isTyping, streamingMessageId, messages, input = '', isOnline = true, attachments }: ComposerAvailabilityInputs) {
+export function buildComposerAvailability({ profile, dailyBudgetDate, today, replyActive, isTyping, streamingMessageId, messages, input, isOnline, attachments }: ComposerAvailabilityInputs) {
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
   const aiMessagesLimit = profile?.aiMessagesLimit ?? (hasProAccess ? 50 : 5)

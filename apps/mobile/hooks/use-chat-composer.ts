@@ -70,7 +70,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   const [{ stopReply, pendingVoiceCommitRef, threadScroll, activeStepsRef, turnReconciliation, blockSubmission }] = useState(createComposerRuntime)
   const { selectedImage, selectedTextFile, imagePreview, openFilePicker, removeImage, setSelectedImage, setImagePreview, setSelectedTextFile, imageSelectionVersionRef, openTextFilePicker, removeTextFile } = useChatComposerAttachments({ t, setSendError })
   useChatComposerSession(turnReconciliation, blockSubmission, activeStepsRef, setActiveSteps, setLastFailedSend, setDailyBudgetDate, setSendError, setSelectedImage, setImagePreview, setSelectedTextFile, imageSelectionVersionRef)
-  const { atMessageLimit, dailyBudgetReached, isSending, aiMessagesLimit, aiMessagesUsed, hasProAccess, showSuggestions, attachments } = useChatComposerAvailability(profile, dailyBudgetDate, today, replyActive, isTyping, streamingMessageId, selectedImage, selectedTextFile, messages)
+  const { atMessageLimit, dailyBudgetReached, isSending, aiMessagesLimit, aiMessagesUsed, hasProAccess, showSuggestions, attachments } = useChatComposerAvailability(profile, dailyBudgetDate, today, replyActive, isTyping, streamingMessageId, selectedImage, selectedTextFile, messages, input, isOnline)
   useChatDraftPersistence(draftHydrated, hydrateDraft, input, isRecording, pendingVoiceCommitRef, transcript, setInput)
   const { scrollToBottom, recordingTime } = useChatComposerScroll(recordingDuration, threadScroll, flatListRef, prefersReducedMotionRef)
   const chatPendingBubbles = useChatPendingBubbles(queryClient)

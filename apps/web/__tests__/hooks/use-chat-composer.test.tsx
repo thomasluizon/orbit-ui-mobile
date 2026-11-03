@@ -297,6 +297,15 @@ function ComposerConversationHarness({ conversationReady = true }: { conversatio
 
 describe('web useChatComposer streaming send', () => {
 
+  it.each([
+    ['draft', true, null, true], ['', true, null, false], ['draft', false, null, false],
+    ['', true, { name: 'notes.txt', content: 'Read' }, true],
+    ['', false, { name: 'notes.txt', content: 'Read' }, false],
+  ] as const)('derives availability from the actual draft and network: %s, online=%s', (input, isOnline, selectedTextFile, canSend) => {
+    const { result } = renderHook(() => useChatComposerAvailability(createMockProfile(), null, '2026-09-12', false, false, null, selectedTextFile, null, input, isOnline, []))
+    expect(result.current.canSend).toBe(canSend)
+  })
+
   it('keeps attachments while the extracted state hook enters and leaves a daily budget limit', () => {
     const inputs = { profile: createMockProfile({ aiMessagesUsed: 0, aiMessagesLimit: 5 }), today: '2026-09-12',
       replyActive: false, isTyping: false, streamingMessageId: null, input: '', messages: [],

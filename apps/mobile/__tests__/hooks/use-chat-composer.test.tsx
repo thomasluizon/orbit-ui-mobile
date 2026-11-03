@@ -429,6 +429,20 @@ function inputHosts(tree: ReturnType<typeof TestRenderer.create>) {
 
 describe('mobile useChatComposer', () => {
 
+  it.each([
+    ['draft', true, null, true], ['', true, null, false], ['draft', false, null, false],
+    ['', true, { name: 'notes.txt', content: 'Read' }, true],
+    ['', false, { name: 'notes.txt', content: 'Read' }, false],
+  ] as const)('derives availability from the actual draft and network: %s, online=%s', (input, isOnline, selectedTextFile, canSend) => {
+    let availability!: ReturnType<typeof useChatComposerAvailability>
+    function Harness() {
+      availability = useChatComposerAvailability(createMockProfile(), null, '2026-09-12', false, false, null, null, selectedTextFile, [], input, isOnline)
+      return null
+    }
+    TestRenderer.act(() => { mountedTrees.push(TestRenderer.create(<Harness />)) })
+    expect(availability.canSend).toBe(canSend)
+  })
+
   it('keeps attachments while the extracted state hook enters and leaves a daily budget limit', () => {
     const inputs = { profile: createMockProfile({ aiMessagesUsed: 0, aiMessagesLimit: 5 }), today: '2026-09-12',
       replyActive: false, isTyping: false, streamingMessageId: null, input: '', messages: [],
@@ -436,7 +450,7 @@ describe('mobile useChatComposer', () => {
 
     let budgetDate: string | null = null
     let availability!: ReturnType<typeof useChatComposerAvailability>
-    function Harness() { availability = useChatComposerAvailability(inputs.profile, budgetDate, inputs.today, inputs.replyActive, inputs.isTyping, inputs.streamingMessageId, inputs.selectedImage, inputs.selectedTextFile, inputs.messages); return null }
+    function Harness() { availability = useChatComposerAvailability(inputs.profile, budgetDate, inputs.today, inputs.replyActive, inputs.isTyping, inputs.streamingMessageId, inputs.selectedImage, inputs.selectedTextFile, inputs.messages, inputs.input, inputs.isOnline); return null }
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<Harness />); mountedTrees.push(tree) })
     expect(availability.atMessageLimit).toBe(false)
