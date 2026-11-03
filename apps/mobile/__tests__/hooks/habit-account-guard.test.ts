@@ -78,7 +78,7 @@ it('returns the result while the captured account remains current', async () => 
   await expect(withAccountGuard(() => Promise.resolve('response'))).resolves.toBe('response')
 })
 
-it('reports a profile failure once and leaves the day undefined', async () => {
+it('leaves the day to the server without a report when the profile fails', async () => {
   onlineManager.setOnline(true)
   const error = new TypeError('Network request failed')
   vi.mocked(fetchProfile).mockRejectedValueOnce(error)
@@ -86,7 +86,7 @@ it('reports a profile failure once and leaves the day undefined', async () => {
   try {
     const date = await withAccountGuard((account) => resolveHabitLogDate(client, new Date(), account))
     expect(date).toBeUndefined()
-    expect(captureError).toHaveBeenCalledExactlyOnceWith(error)
+    expect(captureError).not.toHaveBeenCalled()
   } finally {
     client.clear()
   }

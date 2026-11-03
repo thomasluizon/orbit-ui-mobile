@@ -5,7 +5,6 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { getAccountId } from '@/lib/account-scope'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { fetchProfile } from './use-profile'
-import { captureError } from '@/lib/sentry'
 
 export type RestoreHabitInput = string | { habitId: string; reconcileNotFound: true }
 
@@ -22,9 +21,8 @@ export async function resolveHabitLogDate(
   let profile: Profile | undefined
   try {
     profile = await fetchProfile()
-  } catch (error) {
+  } catch {
     /** https://github.com/thomasluizon/orbit-tickets/issues/1928: leave an unresolved account day to the server. */
-    captureError(error)
   }
   account.assertCurrent()
   if (!profile) return undefined

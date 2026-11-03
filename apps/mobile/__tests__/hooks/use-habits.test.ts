@@ -3972,7 +3972,7 @@ describe('mobile log request account day', () => {
     if (mode === 'single') expect(request.dedupeKey).toBe('habit-toggle:habit-1:2026-09-13')
     expect(JSON.stringify(request.payload)).not.toContain('2026-09-13')
     expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.profile.get)
-    expect(captureError).toHaveBeenCalledExactlyOnceWith(profileError)
+    expect(captureError).not.toHaveBeenCalled()
   })
 
   it.each([

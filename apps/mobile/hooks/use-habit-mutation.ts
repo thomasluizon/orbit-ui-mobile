@@ -8,7 +8,7 @@ type HabitMutationOptions<TResult, TError, TVariables, TSnapshot> = Omit<
   onMutate?: (variables: TVariables, context: MutationFunctionContext, account: HabitAccount) => TSnapshot | Promise<TSnapshot>
 }
 
-const habitAccounts = new WeakMap<object, HabitAccount>()
+const habitAccounts = new WeakMap<MutationFunctionContext, HabitAccount>()
 
 function scopeCallbacks<TResult, TError, TVariables, TSnapshot>(
   options: MutateOptions<TResult, TError, TVariables, TSnapshot> | undefined,
@@ -26,17 +26,14 @@ function scopeCallbacks<TResult, TError, TVariables, TSnapshot>(
 export function useHabitMutation<TResult = unknown, TError = DefaultError, TVariables = void, TSnapshot = unknown>(
   options: HabitMutationOptions<TResult, TError, TVariables, TSnapshot>,
 ) {
-  const execution = {}
-  const executionKey = (context?: MutationFunctionContext) => context ?? execution
-  const accountFor = (context: MutationFunctionContext) => habitAccounts.get(executionKey(context))
-  const current = (context: MutationFunctionContext) => accountFor(context)?.stillCurrent() !== false
+  const current = (context: MutationFunctionContext) => habitAccounts.get(context)?.stillCurrent() !== false
   const mutation = useMutation<TResult, TError, TVariables, TSnapshot>({
     ...options,
     onMutate: (variables, context) => withAccountGuard((account) => {
-      habitAccounts.set(executionKey(context), account)
+      habitAccounts.set(context, account)
       return options.onMutate ? options.onMutate(variables, context, account) : undefined as TSnapshot
     }),
-    mutationFn: (variables, context) => withAccountGuard(() => options.mutationFn(variables, context), accountFor(context)),
+    mutationFn: (variables, context) => withAccountGuard(() => options.mutationFn(variables, context), habitAccounts.get(context)),
     onError: (error, variables, snapshot, context) => {
       if (current(context)) return options.onError?.(error, variables, snapshot, context)
     },
