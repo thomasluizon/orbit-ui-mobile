@@ -19,7 +19,7 @@ type EngagementPromptStoreSet = {
 export type EngagementPromptKind = 'consent' | 'referral' | 'milestone-share' | 'review'
 
 /** Arbiter weights for the single armed slot: the one-time marketing-consent prompt outranks a review moment, which outranks a milestone-share prompt, which outranks a referral prompt. */
-export const ENGAGEMENT_PROMPT_PRIORITY: Record<EngagementPromptKind, number> = {
+const ENGAGEMENT_PROMPT_PRIORITY: Record<EngagementPromptKind, number> = {
   consent: 4,
   review: 3,
   'milestone-share': 2,
@@ -31,7 +31,7 @@ export const MARKETING_CONSENT_MILESTONE_KEY = 'marketing-consent'
 
 export const STREAK_CROSSING_MILESTONES = [7, 30, 100] as const
 
-export const REVIEW_MOMENT_STREAK_MILESTONES = [7, 14, 30, 100, 365] as const
+const REVIEW_MOMENT_STREAK_MILESTONES = [7, 14, 30, 100, 365] as const
 
 export const REFERRAL_PROMPT_COOLDOWN_DAYS = 14
 
@@ -267,7 +267,6 @@ export function createEngagementPromptStoreState(
 
 export const canPromptReferral = canPromptEngagement
 
-export const REFERRAL_STREAK_MILESTONES = STREAK_CROSSING_MILESTONES
 
 export type ReferralPromptGuardState = EngagementPromptGuardState
 

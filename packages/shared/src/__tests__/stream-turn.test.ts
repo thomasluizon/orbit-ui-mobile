@@ -1,5 +1,6 @@
+import { sendChatStreamTurn } from '../chat/send-stream-turn'
 import { describe, expect, it, vi } from 'vitest'
-import { ChatTurnReconciliation, needsNewChatTurn, sendChatStreamTurn } from '../chat/stream-turn'
+import { ChatTurnReconciliation, needsNewChatTurn } from '../chat/stream-turn'
 
 const turnId = 'fe4a8c19-9c97-481a-882d-ed7dea936ec0'
 const started = (state = 'running', replayed = false) => ({ type: 'started', turnId, state, replayed })

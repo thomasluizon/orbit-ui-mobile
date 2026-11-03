@@ -15,11 +15,9 @@ import {
 } from '../query/keys'
 import type {
   ActionResult,
-  AgentPolicyDenial,
 } from '../types/index'
 import {
   resolveUpgradeEntitlementDenial,
-  resolveUpgradeEntitlementFromPolicyDenial,
   type UpgradeEntitlementResolution,
 } from '../utils/upgrade'
 
@@ -145,16 +143,6 @@ export function classifySendFailure(input: SendFailureInput): SendFailureClassif
     return { kind: 'limit', reason, upgrade }
   }
   return { kind: 'generic', reason, upgrade }
-}
-
-/**
- * Picks the first policy denial that requires an upgrade, so the hook can both
- * surface its reason and route the user to the upgrade screen.
- */
-export function findPremiumPolicyDenial(
-  denials: readonly AgentPolicyDenial[] | null | undefined,
-): AgentPolicyDenial | undefined {
-  return denials?.find((denial) => resolveUpgradeEntitlementFromPolicyDenial(denial).shouldUpgrade)
 }
 
 interface ActionInvalidations {

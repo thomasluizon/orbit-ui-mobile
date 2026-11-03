@@ -11,6 +11,8 @@ import { renderedText } from '../../support/react-test-renderer'
 import type { GeometryTree } from '../../support/safe-area-geometry'
 
 const state = vi.hoisted(() => ({ locale: 'en' }))
+vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
+
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: state.locale }, t: (key: string, values?: Record<string, string | number>) => {
   const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, state.locale === 'en' ? en : pt)
   return typeof message === 'string' ? new IntlMessageFormat(message, state.locale).format(values) : key
@@ -18,6 +20,11 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: sta
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: string }) => <>{children}</> }))
 

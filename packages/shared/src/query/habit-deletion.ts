@@ -28,10 +28,12 @@ export function cachedHabitDeletionIds(queryClient: QueryClient, habitIds: reado
   return [...deleted]
 }
 
-export async function removeDeletedHabitQueries(queryClient: QueryClient, habitId: string, deletedIds = cachedHabitDeletionIds(queryClient, [habitId])): Promise<void> {
+export async function removeDeletedHabitQueries(queryClient: QueryClient, habitId: string, deletedIds = cachedHabitDeletionIds(queryClient, [habitId]), isCurrent: () => boolean = () => true): Promise<void> {
+  if (!isCurrent()) return
   queryClient.setQueryDefaults(habitKeys.deletedPrefix(), { gcTime: Infinity })
   for (const id of deletedIds) queryClient.setQueryData(habitKeys.deleted(id), deletedIds)
   await queryClient.cancelQueries({ queryKey: habitKeys.all })
+  if (!isCurrent()) return
   const deleted = new Set(deletedIds)
   for (const id of deletedIds) {
     for (const queryKey of [habitKeys.detail(id), habitKeys.fullDetail(id), habitKeys.logs(id), habitKeys.metrics(id), habitKeys.rescheduleSuggestion(id)]) {

@@ -25,6 +25,22 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }),
   useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
+
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }),
+  useHabits: () => ({ data: { habitsById: new Map() } }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn() }) }
+})
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, uses24HourClock: false } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value, displayClock: (value: string) => value }) }))

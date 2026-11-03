@@ -51,6 +51,16 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: habitMocks.createHabit, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
+
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => ({ mutateAsync: habitMocks.createHabit, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-create-sub-habit', () => {
+
+return { useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-habit-form', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/hooks/use-habit-form')>()
   return { ...actual, useHabitForm: (options: HabitFormOptions) => ({ ...actual.useHabitForm(options), validateAll: habitMocks.validateAll }) }

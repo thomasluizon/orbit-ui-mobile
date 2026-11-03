@@ -1,8 +1,6 @@
-const ORBIT_REQUEST_ID_HEADER = 'X-Orbit-Request-Id'
+import { isRecord } from '@orbit/shared/utils'
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object'
-}
+const ORBIT_REQUEST_ID_HEADER = 'X-Orbit-Request-Id'
 
 export function extractErrorMessage(data: unknown): string | undefined {
   if (!isRecord(data)) return undefined

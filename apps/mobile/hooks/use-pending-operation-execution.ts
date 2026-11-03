@@ -1,254 +1,60 @@
+import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { AgentExecuteOperationResponse, RevisePendingOperationRequest } from '@orbit/shared/types'
+import { buildChatClientContext } from '@orbit/shared/chat'
+import { captureError } from '@/lib/sentry'
+import { getFriendlyErrorMessage, loadModule } from '@orbit/shared/utils'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
-import { useCallback, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { API } from "@orbit/shared/api";
-import { reconcileChatPlanApproval, reconcileChatPlanExecution, reconcileChatPlanRevision, buildChatClientContext } from "@orbit/shared/chat";
-import { pendingOperationRevisionResultSchema } from "@orbit/shared/types";
-import type {
-  AgentExecuteOperationResponse,
-  AgentStepUpChallenge,
-  PendingAgentOperationConfirmation,
-  PendingOperationRevisionResult,
-  RevisePendingOperationRequest,
-} from "@orbit/shared/types";
-import { ApiClientError, getFriendlyErrorMessage } from "@orbit/shared/utils";
-import { apiClient } from "@/lib/api-client";
-
-export type PendingExecutionResult =
-  | { ok: true; response: AgentExecuteOperationResponse }
-  | { ok: false; error: string; stale?: boolean };
-
-export type PreparedStepUpExecution =
-  | {
-      ok: true;
-      challenge: AgentStepUpChallenge;
-      confirmationToken: string;
-    }
-  | { ok: false; error: string; stale?: boolean };
+export type { PendingExecutionResult, PreparedStepUpExecution } from './chat-pending-operation-actions'
 
 interface UsePendingOperationExecutionOptions {
-  handleExecutedOperation: (
-    response: AgentExecuteOperationResponse,
-  ) => Promise<void>;
+  handleExecutedOperation: (response: AgentExecuteOperationResponse) => Promise<void>
 }
 
-/**
- * Wraps the agent pending-operation confirm/step-up/execute API calls used by
- * the chat composer. Each call returns a discriminated `ok` result and
- * invalidates affected queries through the injected completion callback.
- */
-export function usePendingOperationExecution({
-  handleExecutedOperation,
-}: UsePendingOperationExecutionOptions) {
-  const { t, i18n } = useTranslation();
-  const getClientContext = useCallback(() => buildChatClientContext({ platform: 'mobile', locale: i18n.language, conversationId: useChatStore.getState().conversationId ?? undefined }), [i18n.language]);
-  const [batchCount, setBatchCount] = useState(0);
+export function usePendingOperationExecution({ handleExecutedOperation }: UsePendingOperationExecutionOptions) {
+  const { t, i18n } = useTranslation()
+  const getClientContext = useCallback(() => buildChatClientContext({ platform: 'mobile', locale: i18n.language, conversationId: useChatStore.getState().conversationId ?? undefined }), [i18n.language])
+  const [batchCount, setBatchCount] = useState(0)
   const trackBatch = useCallback(async <Result,>(operation: () => Promise<Result>) => {
-    setBatchCount((count) => count + 1);
-    try { return await operation(); }
-    finally { setBatchCount((count) => count - 1); }
-  }, []);
-
-  const pendingOperationFailure = useCallback((error: unknown) => ({
-    ok: false as const,
-    error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
-    stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404),
-  }), [t]);
-
-  const revisionResult = useCallback((id: string, accountGeneration: number, result: PendingOperationRevisionResult) => {
-    if (accountGeneration === getAccountGeneration()) {
-      reconcileChatPlanRevision(useChatStore.getState(), id, result);
-    }
-    return { ok: true as const, result };
-  }, []);
-
-  const executionResult = useCallback(async (
-    id: string, accountGeneration: number, execution: AgentExecuteOperationResponse,
-  ): Promise<PendingExecutionResult> => {
-    if (accountGeneration === getAccountGeneration()) {
-      reconcileChatPlanExecution(useChatStore.getState(), id, execution);
-    }
-    await handleExecutedOperation(execution);
-    return { ok: true, response: execution };
-  }, [handleExecutedOperation]);
-
-  const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
-    const accountGeneration = getAccountGeneration();
+    setBatchCount(count => count + 1)
+    try { return await operation() }
+    finally { setBatchCount(count => count - 1) }
+  }, [])
+  const loadOperations = useCallback(async () => {
+    const intendedGeneration = getAccountGeneration()
     try {
-      const result = await apiClient<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
-        method: 'POST',
-        body: JSON.stringify({ ...request, clientContext: getClientContext() }),
-      }, pendingOperationRevisionResultSchema);
-      return revisionResult(id, accountGeneration, result);
-    } catch (error: unknown) {
-      return pendingOperationFailure(error);
+      const { createPendingOperations } = await loadModule(() => import('./chat-pending-operation-actions'), captureError)
+      if (intendedGeneration !== getAccountGeneration()) return { ok: false as const, error: t('errors.api.accountChanged') }
+      return { ok: true as const, operations: createPendingOperations(handleExecutedOperation, t, i18n, getClientContext, intendedGeneration) }
+    } catch (error) {
+      return { ok: false as const, error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'), stale: false }
     }
-  }, [getClientContext, pendingOperationFailure, revisionResult]);
-
-  const refreshPendingOperationForBubble = useCallback(async (id: string) => {
-    const accountGeneration = getAccountGeneration();
-    try {
-      const result = await apiClient<PendingOperationRevisionResult>(`${API.ai.pendingOperationRefresh(id)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`, {
-        method: 'POST',
-      }, pendingOperationRevisionResultSchema);
-      return revisionResult(id, accountGeneration, result);
-    } catch (error: unknown) {
-      return pendingOperationFailure(error);
-    }
-  }, [getClientContext, pendingOperationFailure, revisionResult]);
-
-  const confirmAndExecutePendingOperation = useCallback(
-    async (pendingOperationId: string): Promise<PendingExecutionResult> => {
-      const accountGeneration = getAccountGeneration();
-      try {
-        const confirmation = await apiClient<PendingAgentOperationConfirmation>(
-          `${API.ai.pendingOperationConfirm(pendingOperationId)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`,
-          {
-            method: "POST",
-          },
-        );
-
-        if (accountGeneration === getAccountGeneration()) reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.plan);
-
-        const execution = await apiClient<AgentExecuteOperationResponse>(
-          API.ai.pendingOperationExecute(pendingOperationId),
-          {
-            method: "POST",
-            body: JSON.stringify({
-              confirmationToken: confirmation.confirmationToken,
-              clientContext: getClientContext(),
-            }),
-          },
-        );
-
-        return await executionResult(pendingOperationId, accountGeneration, execution);
-      } catch (error: unknown) {
-        return pendingOperationFailure(error);
-      }
-    },
-    [executionResult, getClientContext, pendingOperationFailure],
-  );
-
-  const preparePendingOperationStepUp = useCallback(
-    async (pendingOperationId: string): Promise<PreparedStepUpExecution> => {
-      const accountGeneration = getAccountGeneration();
-      try {
-        const confirmation = await apiClient<PendingAgentOperationConfirmation>(
-          `${API.ai.pendingOperationConfirm(pendingOperationId)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`,
-          {
-            method: "POST",
-          },
-        );
-
-        if (accountGeneration === getAccountGeneration()) reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.plan);
-
-        const challenge = await apiClient<AgentStepUpChallenge>(
-          API.ai.pendingOperationStepUp(pendingOperationId),
-          {
-            method: "POST",
-            body: JSON.stringify({ language: i18n.language }),
-          },
-        );
-
-        return {
-          ok: true,
-          challenge,
-          confirmationToken: confirmation.confirmationToken,
-        };
-      } catch (error: unknown) {
-        return pendingOperationFailure(error);
-      }
-    },
-    [getClientContext, i18n.language, pendingOperationFailure],
-  );
-
-  const verifyAndExecutePendingOperationStepUp = useCallback(
-    async (
-      pendingOperationId: string,
-      challengeId: string,
-      code: string,
-      confirmationToken: string,
-    ): Promise<PendingExecutionResult> => {
-      const accountGeneration = getAccountGeneration();
-      try {
-        await apiClient<{ id: string } | null>(
-          API.ai.pendingOperationVerifyStepUp(pendingOperationId),
-          {
-            method: "POST",
-            body: JSON.stringify({ challengeId, code }),
-          },
-        );
-
-        const execution = await apiClient<AgentExecuteOperationResponse>(
-          API.ai.pendingOperationExecute(pendingOperationId),
-          {
-            method: "POST",
-            body: JSON.stringify({ confirmationToken, clientContext: getClientContext() }),
-          },
-        );
-
-        return await executionResult(pendingOperationId, accountGeneration, execution);
-      } catch (error: unknown) {
-        return pendingOperationFailure(error);
-      }
-    },
-    [executionResult, getClientContext, pendingOperationFailure],
-  );
-
-  const prepareStepUpForBubble = useCallback(
-    async (pendingOperationId: string) => {
-      const result = await preparePendingOperationStepUp(pendingOperationId);
-      if (!result.ok) {
-        return { ok: false as const, error: result.error, stale: result.stale };
-      }
-      return {
-        ok: true as const,
-        challengeId: result.challenge.challengeId,
-        confirmationToken: result.confirmationToken,
-      };
-    },
-    [preparePendingOperationStepUp],
-  );
-
-  const verifyStepUpForBubble = useCallback(
-    async (
-      pendingOperationId: string,
-      challengeId: string,
-      code: string,
-      confirmationToken: string,
-    ) => {
-      const result = await verifyAndExecutePendingOperationStepUp(
-        pendingOperationId,
-        challengeId,
-        code,
-        confirmationToken,
-      );
-      return result.ok
-        ? { ok: true as const, response: result.response }
-        : { ok: false as const, error: result.error, stale: result.stale };
-    },
-    [verifyAndExecutePendingOperationStepUp],
-  );
-
-  const trackedRevise = useCallback((...args: Parameters<typeof revisePendingOperationForBubble>) =>
-    trackBatch(() => revisePendingOperationForBubble(...args)), [revisePendingOperationForBubble, trackBatch]);
-  const trackedRefresh = useCallback((...args: Parameters<typeof refreshPendingOperationForBubble>) =>
-    trackBatch(() => refreshPendingOperationForBubble(...args)), [refreshPendingOperationForBubble, trackBatch]);
-  const trackedExecute = useCallback((...args: Parameters<typeof confirmAndExecutePendingOperation>) =>
-    trackBatch(() => confirmAndExecutePendingOperation(...args)), [confirmAndExecutePendingOperation, trackBatch]);
-  const trackedPrepare = useCallback((...args: Parameters<typeof prepareStepUpForBubble>) =>
-    trackBatch(() => prepareStepUpForBubble(...args)), [prepareStepUpForBubble, trackBatch]);
-  const trackedVerify = useCallback((...args: Parameters<typeof verifyStepUpForBubble>) =>
-    trackBatch(() => verifyStepUpForBubble(...args)), [verifyStepUpForBubble, trackBatch]);
-
+  }, [getClientContext, handleExecutedOperation, i18n, t])
+  const revisePendingOperationForBubble = useCallback((id: string, request: RevisePendingOperationRequest) => trackBatch(async () => {
+    const loaded = await loadOperations()
+    return loaded.ok ? loaded.operations.revisePendingOperationForBubble(id, request) : loaded
+  }), [loadOperations, trackBatch])
+  const refreshPendingOperationForBubble = useCallback((id: string) => trackBatch(async () => {
+    const loaded = await loadOperations()
+    return loaded.ok ? loaded.operations.refreshPendingOperationForBubble(id) : loaded
+  }), [loadOperations, trackBatch])
+  const confirmAndExecutePendingOperation = useCallback((id: string) => trackBatch(async () => {
+    const loaded = await loadOperations()
+    return loaded.ok ? loaded.operations.confirmAndExecutePendingOperation(id) : loaded
+  }), [loadOperations, trackBatch])
+  const prepareStepUpForBubble = useCallback((id: string) => trackBatch(async () => {
+    const loaded = await loadOperations()
+    return loaded.ok ? loaded.operations.prepareStepUpForBubble(id) : loaded
+  }), [loadOperations, trackBatch])
+  const verifyStepUpForBubble = useCallback((id: string, challengeId: string, code: string, token: string) => trackBatch(async () => {
+    const loaded = await loadOperations()
+    return loaded.ok ? loaded.operations.verifyStepUpForBubble(id, challengeId, code, token) : loaded
+  }), [loadOperations, trackBatch])
   return {
     isPendingOperationBusy: batchCount > 0,
     trackCardOperation: trackBatch,
-    revisePendingOperationForBubble: trackedRevise,
-    refreshPendingOperationForBubble: trackedRefresh,
-    confirmAndExecutePendingOperation: trackedExecute,
-    prepareStepUpForBubble: trackedPrepare,
-    verifyStepUpForBubble: trackedVerify,
-  };
+    revisePendingOperationForBubble, refreshPendingOperationForBubble, confirmAndExecutePendingOperation,
+    prepareStepUpForBubble, verifyStepUpForBubble,
+  }
 }

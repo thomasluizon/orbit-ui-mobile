@@ -95,6 +95,11 @@ vi.mock('@/stores/ui-store', () => ({
 }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: null }) }))
+
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabitDetail: () => ({ data: null }) }
+})
 vi.mock('@/components/message-bubble', () => ({
   MessageBubble: (props: Record<string, unknown>) => React.createElement('MessageBubble', props),
 }))

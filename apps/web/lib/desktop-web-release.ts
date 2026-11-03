@@ -44,10 +44,10 @@ export async function reloadDesktopWeb(reload: () => void | Promise<void>, persi
   if (!accountId) { await reload(); return true }
   const chat = useChatStore.getState()
   const ui = useUIStore.getState()
-  await writeDesktopChatCheckpoint(accountId, chat, ui.astraConversationOpen, persistent)
+  const written = await writeDesktopChatCheckpoint(accountId, chat, ui.astraConversationOpen, persistent)
   if (getHeldAccountId() !== accountId || chat !== useChatStore.getState()
     || ui !== useUIStore.getState() || !canReloadDesktopWeb()) {
-    forgetDesktopChatCheckpoint()
+    if (written) forgetDesktopChatCheckpoint()
     return false
   }
   await reload()

@@ -78,9 +78,6 @@ vi.mock('@/components/ui/pill-button', () => ({
     React.createElement('PillButton', null, children),
 }))
 
-vi.mock('@/components/ui/verified-badge', () => ({
-  VerifiedBadge: () => null,
-}))
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 

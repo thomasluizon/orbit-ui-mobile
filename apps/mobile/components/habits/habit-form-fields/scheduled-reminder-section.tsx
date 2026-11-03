@@ -10,7 +10,7 @@ import { X } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
 import {
-  MAX_SCHEDULED_REMINDERS,
+  MAX_SCHEDULED_REMINDERS, MAX_REMINDERS_PER_HABIT,
   validateScheduledReminders,
 } from "@orbit/shared/validation";
 import { TimeField } from "@/components/ui/time-field";
@@ -73,12 +73,12 @@ export function ScheduledReminderSection({
 
 
   const atScheduledLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS;
-  const atRelativeLimit = (scheduledReminders?.length ?? 0) + offsetReminderCount >= 15;
+  const atRelativeLimit = (scheduledReminders?.length ?? 0) + offsetReminderCount >= MAX_REMINDERS_PER_HABIT;
   const atLimit = atScheduledLimit || atRelativeLimit;
 
   function addScheduledReminder(time: Time24) {
     if (atRelativeLimit) {
-      onValidationError(t("habits.form.relativeReminderMax"));
+      onValidationError(t("habits.form.relativeReminderMax", { count: MAX_REMINDERS_PER_HABIT }));
       return;
     }
     const current = scheduledReminders ?? [];
@@ -86,7 +86,7 @@ export function ScheduledReminderSection({
     const validationErrorKey = validateScheduledReminders(candidate);
     if (validationErrorKey) {
       onValidationError(
-        t(validationErrorKey as "habits.form.scheduledReminderMax"),
+        t(validationErrorKey as "habits.form.scheduledReminderMax", { count: MAX_REMINDERS_PER_HABIT }),
       );
       return;
     }
@@ -138,7 +138,7 @@ export function ScheduledReminderSection({
 
           {atLimit && (
             <Text style={sectionStyles.limitText}>
-              {t(atRelativeLimit ? "habits.form.relativeReminderMax" : "habits.form.scheduledReminderMax")}
+              {atRelativeLimit ? t("habits.form.relativeReminderMax", { count: MAX_REMINDERS_PER_HABIT }) : t("habits.form.scheduledReminderMax")}
             </Text>
           )}
 

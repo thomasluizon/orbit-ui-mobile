@@ -5,7 +5,8 @@ import { profileKeys } from '@orbit/shared/query'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { clearStepUpState, hasApiKeyCreationGrant, markStepUpVerified } from '@/lib/step-up-storage'
 
-const mocks = vi.hoisted(() => ({ createApiKey: vi.fn() }))
+const mocks = vi.hoisted(() => ({ createApiKey: vi.fn(), keys: [] as unknown[], limit: 5 }))
+vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { limits: { maxActiveApiKeys: mocks.limit } } }) }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError: vi.fn() }) }))
@@ -22,7 +23,7 @@ import {
 
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
-  useQuery: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
+  useQuery: () => ({ data: mocks.keys, isLoading: false, error: null, refetch: vi.fn() }),
   useQueryClient: () => queryClient,
   useMutation: () => ({ mutate: vi.fn(), isPending: false }),
 }))
@@ -36,6 +37,8 @@ function renderManagement() {
 }
 
 beforeEach(() => {
+  mocks.keys = []
+  mocks.limit = 5
   vi.stubGlobal('fetch', vi.fn())
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   clearStepUpState()
@@ -99,4 +102,12 @@ it('refreshes the profile count after creating a key', async () => {
   })
 
   expect(invalidate).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+})
+
+it('uses the config cap to disable creation at three keys', () => {
+  mocks.keys = [{ id: 'one' }, { id: 'two' }, { id: 'three' }]
+  mocks.limit = 3
+  expect(renderManagement().result.current.canCreateKey).toBe(false)
+  mocks.keys.pop()
+  expect(renderManagement().result.current.canCreateKey).toBe(true)
 })

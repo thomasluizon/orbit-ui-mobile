@@ -177,21 +177,23 @@ function startBatch(callback: typeof batchCallbacks[number]) {
 
 it.each(batchCallbacks)('keeps the list busy through %s and clears it after failure', async (callback) => {
   let fail!: (error: Error) => void
-  api.request.mockReturnValue(new Promise((_, reject) => { fail = reject }))
+  api.request.mockReset().mockReturnValue(new Promise((_, reject) => { fail = reject }))
   void act(() => { tree = create(<BatchConversation />) })
   let execution!: Promise<unknown>
   void act(() => { execution = startBatch(callback) })
   expect(list().props.accessibilityState).toEqual({ busy: true })
+  await act(async () => { await vi.waitFor(() => expect(api.request).toHaveBeenCalledOnce()) })
   await act(async () => { fail(new Error('Failed')); await execution })
   expect(list().props.accessibilityState).toEqual({ busy: false })
 })
 
 it.each(batchCallbacks)('keeps a reopened conversation busy during %s', async (callback) => {
   let fail!: (error: Error) => void
-  api.request.mockReturnValue(new Promise((_, reject) => { fail = reject }))
+  api.request.mockReset().mockReturnValue(new Promise((_, reject) => { fail = reject }))
   void act(() => { tree = create(<BatchConversation />) })
   let execution!: Promise<unknown>
   void act(() => { execution = startBatch(callback) })
+  await act(async () => { await vi.waitFor(() => expect(api.request).toHaveBeenCalledOnce()) })
   void act(() => { tree.update(<BatchConversation open={false} />) })
   void act(() => { tree.update(<BatchConversation />) })
   expect(list().props.accessibilityState).toEqual({ busy: true })

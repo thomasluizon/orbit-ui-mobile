@@ -13,7 +13,7 @@ export function seededDayMap(prefix: string) {
   return new Map([[`${prefix}-02`, [completed]], [`${prefix}-03`, [completed, missed]], [`${prefix}-04`, [missed]]])
 }
 
-export const calendarKeys = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'web').find((site) => site.path === 'app/(app)/calendar/page.tsx')!.optionKeys
+export const calendarKeys = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'web').find((site) => site.path === 'app/(app)/calendar/_components/use-calendar-screen-state.tsx')!.optionKeys
 
 export function calendarGeometryHarness(registerLaunch: typeof registerChromeLaunchHook) {
   let browserLaunch: BrowserLaunch | undefined

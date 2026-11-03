@@ -32,6 +32,11 @@ vi.mock('@/app/(app)/today-provider', () => ({ useToday: () => h.today }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: h.showError }) }))
 vi.mock('@/hooks/use-habits', () => ({ useUpdateHabit: () => ({ mutateAsync: h.mutateAsync, isPending: h.pending }) }))
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutateAsync: h.mutateAsync, isPending: h.pending }) }
+})
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => h.wide }))
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({ useRescheduleSuggestion: () => h.reschedule }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))

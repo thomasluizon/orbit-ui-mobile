@@ -16,14 +16,6 @@ export function restoreGoalLists(
   }
 }
 
-export function restoreGoalDetail(
-  queryClient: QueryClient,
-  goalId: string,
-  previousDetail: GoalDetailWithMetrics | undefined,
-): void {
-  queryClient.setQueryData(goalKeys.detail(goalId), previousDetail)
-}
-
 export function findLinkedHabits(
   queryClient: QueryClient,
   habitIds: string[],
@@ -121,7 +113,7 @@ export function goalListRollback(queryClient: QueryClient, beforeChange?: () => 
 export function goalDetailRollback(queryClient: QueryClient, beforeChange?: () => void) {
   return (_error: unknown, variables: { goalId: string }, context: (GoalListSnapshot & { previousDetail: GoalDetailWithMetrics | undefined }) | undefined): void => {
     if (context) restoreGoalLists(queryClient, context.previousLists, beforeChange)
-    restoreGoalDetail(queryClient, variables.goalId, context?.previousDetail)
+    queryClient.setQueryData(goalKeys.detail(variables.goalId), context?.previousDetail)
   }
 }
 

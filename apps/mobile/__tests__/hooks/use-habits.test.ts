@@ -2,7 +2,7 @@ import { makeEnrichedHabitDetail } from '@orbit/shared/test-support/habit-detail
 import { Switch } from '@/components/ui/switch'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { MutationObserver, onlineManager, QueryClient, QueryObserver } from '@tanstack/query-core'
+import { MutationObserver, onlineManager, QueryClient, QueryObserver, type MutationFunctionContext, type MutationOptions } from '@tanstack/query-core'
 import { QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { createMockGoal, createMockProfile, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
@@ -39,6 +39,7 @@ import { cancelQueuedSkipForUndo } from '@/lib/offline-mutations'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { apiClient } from '@/lib/api-client'
 import { fetchProfile } from '@/hooks/use-profile'
+import { captureError } from '@/lib/sentry'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 
 const TestRenderer = require('react-test-renderer')
@@ -162,10 +163,19 @@ const mocks = vi.hoisted(() => {
     queryClient,
     useQuery: vi.fn(),
     useQueryClient: vi.fn(() => queryClient),
-    useMutation: vi.fn((config: unknown) => ({
-      ...(config as object),
-      mutate: mocks.restoreHabitMutate,
-    })),
+    useMutation: vi.fn((config: unknown) => {
+      const options = config as MutationOptions<unknown, Error, unknown, unknown>
+      const execution: MutationFunctionContext = { client: mocks.useQueryClient() as unknown as QueryClient, meta: undefined, mutationKey: undefined }
+      return {
+        ...options,
+        mutationFn: (variables: unknown, context = execution) => options.mutationFn?.(variables, context),
+        onMutate: (variables: unknown, context = execution) => options.onMutate?.(variables, context),
+        onSuccess: (result: unknown, variables: unknown, snapshot: unknown, context = execution) => options.onSuccess?.(result, variables, snapshot, context),
+        onError: (error: Error, variables: unknown, snapshot: unknown, context = execution) => options.onError?.(error, variables, snapshot, context),
+        onSettled: (result: unknown, error: Error | null, variables: unknown, snapshot: unknown, context = execution) => options.onSettled?.(result, error, variables, snapshot, context),
+        mutate: mocks.restoreHabitMutate,
+      }
+    }),
     restoreHabitMutate: vi.fn(),
     cancelQueuedDeleteForUndo: vi.fn(() => Promise.resolve<'cancelled' | 'replayed' | 'dropped' | 'uncertain'>('cancelled')),
     runQueuedMutation: vi.fn(({ queuedResult, queuedResultFactory }: {
@@ -1892,7 +1902,7 @@ describe('mobile habit hooks', () => {
     await mutation.onSuccess?.(
       { queued: true, queuedMutationId: 'mutation-1' },
       'habit-1',
-      { previousLists: [] },
+      await mutation.onMutate?.('habit-1'),
     )
     expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitDeleted', expect.any(Function), 'mutation-1')
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
@@ -2935,7 +2945,7 @@ describe('mobile habit hooks', () => {
       ],
       offlineFailureIds: [],
       queuedDeletes: [],
-    }, ['habit-1', 'habit-2', 'habit-3'], { previousLists: [], deletedCount: 0 })
+    }, ['habit-1', 'habit-2', 'habit-3'], await mutation.onMutate?.(['habit-1', 'habit-2', 'habit-3']))
 
     expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitsDeleted:{"count":2}', expect.any(Function))
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
@@ -2955,7 +2965,7 @@ describe('mobile habit hooks', () => {
       results: [{ status: 'Failed', habitId: 'habit-1' }],
       offlineFailureIds: [],
       queuedDeletes: [],
-    }, ['habit-1'], { previousLists: [] })
+    }, ['habit-1'], await mutation.onMutate?.(['habit-1']))
     expect(mocks.showUndoToast).not.toHaveBeenCalled()
   })
 
@@ -3155,7 +3165,7 @@ describe('mobile habit hooks', () => {
       results: [{ status: 'Success', habitId: 'habit-1' }],
       offlineFailureIds: [],
       queuedDeletes: [],
-    }, ['habit-1'], { previousLists: [], deletedCount: 0 })
+    }, ['habit-1'], await mutation.onMutate?.(['habit-1']))
     expect(mocks.showUndoToast).toHaveBeenCalledWith(
       'undo.habitsDeleted:{"count":1}', expect.any(Function),
     )
@@ -3946,7 +3956,9 @@ describe('mobile log request account day', () => {
   })
 
   it.each(['single', 'bulk'] as const)('omits an unknown account day when the profile cannot resolve for a %s log', async (mode) => {
-    vi.mocked(apiClient).mockRejectedValueOnce(new TypeError('Network request failed'))
+    const profileError = new TypeError('Network request failed')
+    vi.mocked(captureError).mockClear()
+    vi.mocked(apiClient).mockRejectedValueOnce(profileError)
     if (mode === 'single') {
       const mutation = useLogHabit() as unknown as MutationConfig<unknown, LogHabitVariables, unknown>
       await mutation.mutationFn({ habitId: 'habit-1', intent: 'log' })
@@ -3960,6 +3972,7 @@ describe('mobile log request account day', () => {
     if (mode === 'single') expect(request.dedupeKey).toBe('habit-toggle:habit-1:2026-09-13')
     expect(JSON.stringify(request.payload)).not.toContain('2026-09-13')
     expect(apiClient).toHaveBeenCalledExactlyOnceWith(API.profile.get)
+    expect(captureError).toHaveBeenCalledExactlyOnceWith(profileError)
   })
 
   it.each([
@@ -4145,4 +4158,169 @@ describe('mobile log request account day', () => {
       await pending
     }
   })
+})
+
+
+describe('pending habit writes across account replacement', () => {
+  const logResponse = { logId: 'server-log', isFirstCompletionToday: true, currentStreak: 3 }
+  const bulkResponse = { results: [{ index: 0, habitId: 'habit-1', status: 'Success', error: null }] }
+  const scenarios = [
+    { name: 'log', useWrite: useLogHabit, input: () => ({ habitId: 'habit-1', intent: 'log', date: '2026-09-12' }), response: logResponse },
+    { name: 'skip', useWrite: useSkipHabit, input: () => ({ habitId: 'habit-1', date: '2026-09-12' }), response: undefined },
+    { name: 'update', useWrite: useUpdateHabit, input: () => ({ habitId: 'habit-1', data: { title: 'Updated', isBadHabit: false } }), response: undefined },
+    { name: 'bulk delete', useWrite: useBulkDeleteHabits, input: () => ['habit-1'], response: undefined },
+    { name: 'bulk log', useWrite: useBulkLogHabits, input: () => [{ habitId: 'habit-1', date: '2026-09-12' }], response: bulkResponse },
+    { name: 'bulk skip', useWrite: useBulkSkipHabits, input: () => [{ habitId: 'habit-1', date: '2026-09-12' }], response: bulkResponse },
+    { name: 'create', useWrite: useCreateHabit, input: () => ({ title: 'Created' }), response: { id: 'server-habit' } },
+    { name: 'delete', useWrite: useDeleteHabit, input: () => 'habit-1', response: undefined },
+    { name: 'restore', useWrite: useRestoreHabit, input: () => 'habit-1', response: undefined },
+    { name: 'reorder', useWrite: useReorderHabits, input: () => ({ positions: [{ habitId: 'habit-1', position: 0 }] }), response: undefined },
+    { name: 'duplicate', useWrite: useDuplicateHabit, input: () => 'habit-1', response: undefined },
+    { name: 'checklist', useWrite: useUpdateChecklist, input: () => ({ habitId: 'habit-1', items: [] }), response: undefined },
+    { name: 'sub-habit', useWrite: useCreateSubHabit, input: () => ({ parentId: 'habit-1', data: { title: 'Child' } }), response: undefined },
+    { name: 'move parent', useWrite: useMoveHabitParent, input: () => ({ habitId: 'habit-1', data: { parentId: null } }), response: undefined },
+    { name: 'bulk create', useWrite: useBulkCreateHabits, input: () => ({ habits: [{ title: 'Created' }] }), response: { results: [] } },
+    { name: 'bulk move', useWrite: useBulkMoveHabitParent, input: () => ({ habitIds: ['habit-1'], parentId: null }), response: bulkResponse },
+  ]
+
+  it.each(scenarios)('keeps a resolved $name write successful and leaves the replacement cache untouched', async ({ name, useWrite, input, response }) => {
+    await settleAfterAccountReplacement(name, useWrite, input(), response, false)
+  })
+
+  it.each(scenarios.slice(0, 5))('preserves the real $name caller contract and suppresses stale callbacks after account replacement', async ({ name, useWrite, input, response }) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    setAccountId('account-a')
+    client.setQueryData(habitKeys.list({}), [makeHabit({ id: 'habit-1' })])
+    client.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'UTC' }))
+    mocks.useRealQueryHooks = true
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    let write!: { mutateAsync: (input: unknown, options: { onSuccess: () => void }) => Promise<unknown> }
+    function Probe() { write = useWrite() as typeof write; return null }
+    let renderer: { unmount: () => void } | undefined
+    let settle!: () => void
+    mocks.runQueuedMutation.mockReset()
+    mocks.runQueuedMutation.mockImplementationOnce(() => new Promise(resolve => { settle = () => resolve(response) }))
+    const completed = vi.fn()
+    let pending: Promise<unknown> | undefined
+    try {
+      await TestRenderer.act(() => { renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe))) })
+      await TestRenderer.act(() => { pending = write.mutateAsync(input(), { onSuccess: completed }).then(value => ({ value }), error => ({ error })) })
+      await vi.waitFor(() => expect(settle).toBeTypeOf('function'))
+      await TestRenderer.act(async () => {
+        advanceAccountGeneration()
+        setAccountId(null)
+        await resetAccountQueries(client, 'signed-out')
+        advanceAccountGeneration()
+        setAccountId('account-b')
+        await resetAccountQueries(client, 'signed-in')
+        client.setQueryData(habitKeys.list({}), [makeHabit({ id: 'account-b-habit' })])
+        client.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'UTC' }))
+      })
+      const before = client.getQueryCache().getAll().map(query => [query.queryKey, query.state])
+      const invalidate = vi.spyOn(client, 'invalidateQueries')
+      let outcome: unknown
+      await TestRenderer.act(async () => { settle(); outcome = await pending })
+      expect(client.getQueryCache().getAll().map(query => [query.queryKey, query.state])).toEqual(before)
+      expect(invalidate).not.toHaveBeenCalled()
+      expect(completed).not.toHaveBeenCalled()
+      if (name === 'update' || name === 'skip') expect(outcome).toEqual({ error: new Error('Account changed') })
+      else expect(outcome).toHaveProperty('value')
+      if (name === 'log') expect(outcome).toEqual({ value: response })
+    } finally {
+      await TestRenderer.act(async () => { settle(); await pending; renderer?.unmount() })
+      mocks.useRealQueryHooks = false
+      setAccountId(null)
+      client.clear()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it.each(scenarios)('keeps a failed $name write out of the replacement cache', async ({ name, useWrite, input, response }) => {
+    await settleAfterAccountReplacement(name, useWrite, input(), response, true)
+  })
+
+  async function settleAfterAccountReplacement(name: string, createWrite: () => unknown, input: unknown, response: unknown, rejected: boolean) {
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false, gcTime: Infinity } } })
+    mocks.useQueryClient.mockReturnValue(client as unknown as typeof mocks.queryClient)
+    setAccountId('account-a')
+    client.setQueryData(habitKeys.list({}), [makeHabit({ id: 'habit-1', title: 'Private account A' })])
+    client.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'UTC' }))
+    let settle!: () => void
+    const serverError = new Error('Server rejected write')
+    mocks.runQueuedMutation.mockReset()
+    mocks.runQueuedMutation.mockImplementationOnce(() => new Promise((resolve, reject) => {
+      settle = () => rejected ? reject(serverError) : resolve(response)
+    }))
+    const observer = new MutationObserver(client, createWrite() as MutationConfig<unknown, unknown, unknown>)
+    const pending = observer.mutate(input).then(value => ({ value }), error => ({ error }))
+    try {
+      await vi.waitFor(() => expect(settle).toBeTypeOf('function'))
+      advanceAccountGeneration()
+      setAccountId(null)
+      await resetAccountQueries(client, 'signed-out')
+      advanceAccountGeneration()
+      setAccountId('account-b')
+      await resetAccountQueries(client, 'signed-in')
+      const replacement = [makeHabit({ id: 'account-b-habit', title: 'Private account B' })]
+      client.setQueryData(habitKeys.list({}), replacement)
+      client.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'Pacific/Kiritimati' }))
+      client.setQueryData(habitKeys.detail('habit-1'), { id: 'habit-1', title: 'Account B detail' })
+      const before = client.getQueryCache().getAll().map(query => [query.queryKey, query.state])
+      const invalidate = vi.spyOn(client, 'invalidateQueries')
+      mocks.showUndoToast.mockClear()
+      mocks.showSuccess.mockClear()
+      mocks.showError.mockClear()
+      mocks.showInfo.mockClear()
+      settle()
+      const outcome = await pending
+      expect(client.getQueryData(habitKeys.list({}))).toEqual(replacement)
+      expect(client.getQueryCache().getAll().map(query => [query.queryKey, query.state])).toEqual(before)
+      expect(invalidate).not.toHaveBeenCalled()
+      expect(mocks.showUndoToast).not.toHaveBeenCalled()
+      expect(mocks.showSuccess).not.toHaveBeenCalled()
+      expect(mocks.showError).not.toHaveBeenCalled()
+      expect(mocks.showInfo).not.toHaveBeenCalled()
+      if (!rejected) {
+        expect(outcome).toHaveProperty('value')
+        if (name === 'log' || name === 'update') expect(outcome).toEqual({ value: response })
+        if (name === 'skip') expect(outcome).toEqual({ value: { skipId: '11111111-1111-4111-8111-111111111111', outcome: response } })
+        if (name === 'bulk delete' || name === 'bulk log') expect(outcome).toMatchObject({ value: { results: bulkResponse.results } })
+      }
+    } finally {
+      settle()
+      await pending
+      client.clear()
+      mocks.useQueryClient.mockReturnValue(mocks.queryClient)
+      setAccountId(null)
+    }
+  }
+})
+
+
+it('stops later bulk delete batches after account replacement while returning completed writes', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+  mocks.useQueryClient.mockReturnValue(client as unknown as typeof mocks.queryClient)
+  setAccountId('account-a')
+  const finishes: (() => void)[] = []
+  mocks.runQueuedMutation.mockReset()
+  mocks.runQueuedMutation.mockImplementation(() => finishes.length < 4
+    ? new Promise(resolve => { finishes.push(() => resolve(undefined)) }) : Promise.resolve(undefined))
+  const mutation = useBulkDeleteHabits() as unknown as MutationConfig<{ results: { habitId: string }[] }, string[], unknown>
+  const ids = Array.from({ length: 5 }, (_, index) => `habit-${index}`)
+  const pending = mutation.mutationFn(ids)
+  try {
+    await vi.waitFor(() => expect(finishes).toHaveLength(4))
+    advanceAccountGeneration()
+    setAccountId('account-b')
+    for (const finish of finishes) finish()
+    const outcome = await pending
+    expect(mocks.runQueuedMutation).toHaveBeenCalledTimes(4)
+    expect(outcome.results.map(result => result.habitId)).toEqual(ids.slice(0, 4))
+  } finally {
+    for (const finish of finishes) finish()
+    await pending
+    client.clear()
+    mocks.useQueryClient.mockReturnValue(mocks.queryClient)
+    setAccountId(null)
+  }
 })

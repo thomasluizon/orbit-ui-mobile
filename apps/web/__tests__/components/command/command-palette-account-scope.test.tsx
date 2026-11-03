@@ -30,6 +30,12 @@ vi.mock('@/hooks/use-habits', () => ({
   useSkipHabit: () => ({ mutate: mocks.skipHabit, isPending: false }),
 }))
 
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: mocks.logHabit, isPending: false }),
+  useSkipHabit: () => ({ mutate: mocks.skipHabit, isPending: false }) }
+})
+
 import { CommandPalette } from '@/components/command/command-palette'
 import { useShellStore } from '@/stores/shell-store'
 

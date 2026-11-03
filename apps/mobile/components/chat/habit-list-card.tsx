@@ -14,7 +14,8 @@ import { formatAPIDate } from '@orbit/shared/utils'
 import { BlockFrame, useReadActionScope } from './read-block-frame'
 import { HabitCheck } from '@/components/habits/habit-check'
 
-import { useHabits, useLogHabit } from '@/hooks/use-habits'
+import { useHabits } from '@/hooks/use-habit-queries'
+import { useLogHabit } from '@/hooks/use-habit-logging'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 

@@ -44,6 +44,12 @@ vi.mock('@/hooks/use-habits', () => ({
   useSkipHabit: () => ({ mutate: vi.fn() }),
 }))
 
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn() }),
+  useSkipHabit: () => ({ mutate: vi.fn() }) }
+})
+
 function PaletteHarness() {
   return (
     <CommandPaletteBackground>

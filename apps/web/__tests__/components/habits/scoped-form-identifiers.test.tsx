@@ -29,13 +29,32 @@ vi.mock('next-intl', async (importOriginal) => ({
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-goals', () => ({ useCreateGoal: () => ({ mutateAsync: mocks.createGoal, isPending: false }) }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => mocks.habits }))
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabitDetail: () => ({ data: undefined, isPending: false, error: null }),
+  useHabits: () => mocks.habits }
+})
 vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: mocks.createHabit, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateHabit: () => ({ mutateAsync: mocks.updateHabit, isPending: false }),
   useHabitDetail: () => ({ data: undefined, isPending: false, error: null }),
 }))
+
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => ({ mutateAsync: mocks.createHabit, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-create-sub-habit', () => {
+
+return { useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutateAsync: mocks.updateHabit, isPending: false }) }
+})
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError, showSuccess: vi.fn(), showInfo: vi.fn() }) }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: appConfigSchema.parse(createMockConfigResponse()) }) }))
 vi.mock('@/hooks/use-profile', () => ({

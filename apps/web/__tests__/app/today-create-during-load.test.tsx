@@ -77,7 +77,11 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentEr
 vi.mock('@/components/navigation/web-nav', () => ({ WebNav: () => null }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: React.ReactNode }) => <>{children}</> }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: state.profile, patchProfile: vi.fn() }) }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: state.count, isLoaded: state.countLoaded }) }))
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useTotalHabitCount: () => state.count,
+  useHabitCountLoaded: () => ({ count: state.count, isLoaded: state.countLoaded }) }
+})
 vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => state.count }))
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => ({ leveledUp: false, newLevel: null, crossedStreakMilestones: [], newAchievements: [] }),

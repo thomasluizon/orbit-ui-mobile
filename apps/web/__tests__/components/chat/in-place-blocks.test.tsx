@@ -32,6 +32,17 @@ vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }),
   useHabitMetrics: () => ({ ...state.query, refetch: state.refetch }),
 }))
+
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabits: () => ({ ...state.query, data: { habitsById: state.habits }, refetch: state.refetch }),
+  useHabitMetrics: () => ({ ...state.query, refetch: state.refetch }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }) }
+})
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ ...state.query, data: { goalsById: state.goals }, refetch: state.refetch }) }))
 vi.mock('@/hooks/use-recap', () => ({ useProgressRecap: () => ({ ...state.query, refetch: state.refetch }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ ...state.query, data: state.disconnected ? { status: 'not-connected', events: [] } : undefined, refetch: state.refetch }) }))

@@ -229,6 +229,11 @@ vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutateAsync: logHabitMutateAsync }),
 }))
 
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutateAsync: logHabitMutateAsync }) }
+})
+
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (time: string) => time }),
 }))
@@ -678,6 +683,20 @@ describe('CalendarPage view switcher', () => {
     expect(Array.from(screen.getByTestId('month-grid-header').children, (child) => child.textContent)).toEqual(labels)
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
     expect(Array.from(screen.getByTestId('month-grid-header').children, (child) => child.textContent)).toEqual(labels)
+  })
+
+  it.each(['month', 'week', 'range', 'agenda'] as const)('routes %s without losing the selected date or range', (view) => {
+    render(<CalendarPage />)
+    fireEvent.click(screen.getByTestId('month-view'))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+    const span = calendarRangeViewProps.current!.model as ReturnType<typeof import('@orbit/shared/utils')['buildCalendarRangeModel']>
+    fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${view}` }))
+    expect(screen.getByTestId(`${view}-view`)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+    expect(calendarRangeViewProps.current!.model).toMatchObject({ start: span.start })
+    expect(calendarRangeViewProps.current!.model).toMatchObject({ end: span.end })
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
+    expect(calendarGridProps.selectedDateStr).toBe(calendarGridSelectionDate)
   })
 
   it.each(['month', 'week', 'range', 'agenda'] as const)('restores the %s view and selected date after a route remount', (selectedView) => {

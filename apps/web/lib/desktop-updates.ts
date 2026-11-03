@@ -1,3 +1,4 @@
+import { reportModuleLoadError } from './report-module-load-error'
 import { z } from 'zod'
 import { captureException } from '@sentry/nextjs'
 import { desktopRuntime } from './desktop-runtime'
@@ -87,15 +88,18 @@ class DesktopUpdateController {
     if (this.shellInstallationPaused()) { this.requested = false; return }
     this.applying = true
     this.failed = false
+    const reloadAttempt = { started: false }
     try {
       if (this.native?.shellVersion && !await this.downloadShell()) return
       if (!canReloadDesktopWeb() || this.isStopped()) return
-      await reloadDesktopWeb(() => this.finish(), Boolean(this.native?.shellVersion))
+      await reloadDesktopWeb(() => { reloadAttempt.started = true; return this.finish() }, Boolean(this.native?.shellVersion))
     } catch (error) {
       this.requested = false
       this.failed = true
-      captureException(error)
-      try { forgetDesktopChatCheckpoint() } catch (storageError) { captureException(storageError) }
+      reportModuleLoadError(error)
+      if (reloadAttempt.started) {
+        try { forgetDesktopChatCheckpoint() } catch (storageError) { captureException(storageError) }
+      }
     } finally {
       if (this.native?.shellVersion && (this.isStopped() || this.failed)) {
         try { this.native = await invoke('release', { reservation: this.reservation }) } catch (error) { captureException(error) }

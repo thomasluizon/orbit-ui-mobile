@@ -34,7 +34,7 @@ import {
 } from '@orbit/shared/utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProfile } from '@/hooks/use-profile'
-import { useBulkCreateHabits } from '@/hooks/use-habits'
+import { useBulkCreateHabits } from '@/hooks/use-bulk-create-habits'
 import {
   useSetCalendarAutoSync,
   useRunCalendarSyncNow,

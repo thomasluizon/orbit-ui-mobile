@@ -2229,10 +2229,8 @@ describe('barrel re-exports', () => {
     const barrel = validationBarrel
     expect(barrel.habitFormSchema).toBeDefined()
     expect(barrel.goalFormSchema).toBeDefined()
-    expect(barrel.validateEndDate).toBeDefined()
     expect(barrel.validateEndTime).toBeDefined()
     expect(barrel.validateTime).toBeDefined()
-    expect(barrel.validateFrequency).toBeDefined()
     expect(barrel.validateScheduledReminders).toBeDefined()
     expect(barrel.validateHabitForm).toBeDefined()
   })

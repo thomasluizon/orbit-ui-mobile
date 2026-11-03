@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, expect, it, onTestFinished, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -13,6 +13,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { getQueryClient } from '@/lib/query-client'
 import { takeDesktopChatCheckpoint, writeDesktopChatCheckpoint } from '@/lib/desktop-chat-checkpoint'
+import { desktopChatCheckpointKey } from '@/lib/web-reload-state'
 import { blockDesktopWebReload } from '@/lib/web-reload-state'
 import { desktopOffersSupported } from '@/lib/desktop-updates'
 import { holdAccount, retireHeldAccount } from '@/__tests__/support/account-change'
@@ -89,7 +90,12 @@ async function tick(milliseconds = 2000) {
   await act(async () => {})
   await act(async () => { await vi.advanceTimersByTimeAsync(milliseconds) })
 }
-async function click(name: string) { await act(async () => { fireEvent.click(screen.getByRole('button', { name })) }) }
+async function click(name: string) {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name }))
+    await vi.dynamicImportSettled()
+  })
+}
 function actions() { return invoke.mock.calls.map(([, payload]) => payload.action) }
 
 it.each([undefined, false, 'true', 1, true])('requires the explicit native update capability: %s', supported => {
@@ -131,7 +137,7 @@ it.each([{ messages: en, locale: 'en' }, { messages: ptBR, locale: 'pt-BR' }])(
     expect(reload).toHaveBeenCalledOnce()
     expect(actions()).not.toContain('download')
     expect(actions()).not.toContain('install')
-    const checkpoint = takeDesktopChatCheckpoint('desktop-account')
+    const checkpoint = await takeDesktopChatCheckpoint('desktop-account')
     expect(checkpoint?.chat.draft).toBe('Tomorrow too?')
     expect(checkpoint?.conversationOpen).toBe(true)
   },
@@ -234,7 +240,7 @@ it('waits for the native dialog and edits made during the download before instal
   expect(actions().filter(action => action === 'install')).toHaveLength(1)
   expect(reload).not.toHaveBeenCalled()
   sessionStorage.clear()
-  expect(takeDesktopChatCheckpoint('desktop-account')?.chat.draft).toBe('Changed during download')
+  expect((await takeDesktopChatCheckpoint('desktop-account'))?.chat.draft).toBe('Changed during download')
   expect(localStorage.getItem('orbit-desktop-web-reload')).toBeNull()
 })
 
@@ -284,7 +290,7 @@ it('reserves a cached download through a newer focus check during the asynchrono
   expect(native.phase).toBe('installing')
   expect(native.shellVersion).toBe('0.2.0')
   expect(actions().filter(action => action === 'install')).toHaveLength(1)
-  expect(takeDesktopChatCheckpoint('desktop-account')?.chat.messages[0]?.imageUrl).toBe('data:image/png;base64,aW1hZ2U=')
+  expect((await takeDesktopChatCheckpoint('desktop-account'))?.chat.messages[0]?.imageUrl).toBe('data:image/png;base64,aW1hZ2U=')
 })
 
 it('keeps a remounted controller reservation when an older checkpoint finishes', async () => {
@@ -316,7 +322,7 @@ it('keeps a remounted controller reservation when an older checkpoint finishes',
   expect(native.phase).toBe('installing')
   expect(native.shellVersion).toBe('0.2.0')
   expect(actions().filter(action => action === 'install')).toHaveLength(1)
-  expect(takeDesktopChatCheckpoint('desktop-account')?.chat.messages[0]?.imageUrl).toBe('data:image/png;base64,aW1hZ2U=')
+  expect((await takeDesktopChatCheckpoint('desktop-account'))?.chat.messages[0]?.imageUrl).toBe('data:image/png;base64,aW1hZ2U=')
 })
 
 it.each(['download', 'checkpoint'])('releases a stopped controller when its late %s completes without a successor', async pending => {
@@ -427,7 +433,7 @@ it('a native Later decision cancels a pending restart until an explicit restart 
   await tick()
   expect(actions().filter(action => action === 'install')).toHaveLength(1)
   sessionStorage.clear()
-  expect(takeDesktopChatCheckpoint('desktop-account')?.chat.draft).toBe('Continue after launch')
+  expect((await takeDesktopChatCheckpoint('desktop-account'))?.chat.draft).toBe('Continue after launch')
 })
 
 it('a ready native prompt stays hidden from the web notice until its decision arrives', async () => {
@@ -485,7 +491,7 @@ it('restores the account-bound conversation after a process restart through the 
   await tick()
   expect(useChatStore.getState().draft).toBe('After the restart')
   expect(useUIStore.getState().astraConversationOpen).toBe(true)
-  expect(takeDesktopChatCheckpoint('desktop-account')).toBeNull()
+  expect(await takeDesktopChatCheckpoint('desktop-account')).toBeNull()
 })
 
 it('keeps a failed shell install retryable and discards its stale checkpoint', async () => {
@@ -531,4 +537,21 @@ it('the native Update available item reveals a deferred notice without restartin
   expect(reload).not.toHaveBeenCalled()
   expect(actions()).not.toContain('download')
   expect(actions()).not.toContain('install')
+})
+
+it('retains an existing checkpoint when a restart schema import fails before the reload starts', async () => {
+  mount()
+  await tick()
+  vi.stubEnv('WEB_COMMIT_SHA', nextCommit)
+  await act(async () => { window.dispatchEvent(new Event('focus')) })
+  await tick()
+  await writeDesktopChatCheckpoint('desktop-account', { ...useChatStore.getState(), draft: 'Saved before restart' }, true)
+  const stored = sessionStorage.getItem(desktopChatCheckpointKey)
+  const error = new Error('Schema unavailable')
+  vi.doMock('@/lib/desktop-chat-checkpoint-schema', () => ({ get then() { throw error } }))
+  onTestFinished(() => vi.doUnmock('@/lib/desktop-chat-checkpoint-schema'))
+  await click(en.versionUpdate.restartCta)
+  expect(screen.getByRole('status')).toHaveTextContent(en.desktopUpdate.failed)
+  expect(reload).not.toHaveBeenCalled()
+  expect(sessionStorage.getItem(desktopChatCheckpointKey)).toBe(stored)
 })

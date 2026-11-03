@@ -29,6 +29,11 @@ import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mock
 
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
 
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }
+})
+
 const TestRenderer = require('react-test-renderer') as typeof import('react-test-renderer')
 type SegmentTree = ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }
 
@@ -199,7 +204,7 @@ const segmentSites = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'm
 
 it('leaves at least 8px spare for the four Portuguese calendar views in a 288px frame', async () => {
   __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 1 })
-  const keys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar.tsx')!.optionKeys
+  const keys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar/_components/use-calendar-screen-state.tsx')!.optionKeys
   const option = (index: number) => ({ value: String(index), label: segmentTranslation(ptBR, keys[index]!) })
   let tree!: SegmentTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ paddingHorizontal: 16 }}><SegmentedControl fullWidth label={ptBR.calendar.view.switchLabel}
@@ -232,7 +237,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width)
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
   const tokens = createTokensV2('orange', 'dark')
   const messages = locale === 'en' ? en : ptBR
-  const calendarKeys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar.tsx')!.optionKeys
+  const calendarKeys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar/_components/use-calendar-screen-state.tsx')!.optionKeys
   expect(calendarKeys).toHaveLength(4)
   const option = (index: number) => ({ value: calendarKeys[index]!, label: segmentTranslation(messages, calendarKeys[index]!) })
   const choices = [option(0), option(1), option(2), option(3)] as const
@@ -291,7 +296,7 @@ function SelectedView({ surface, onChange }: Readonly<{ surface: 'today' | 'cale
   const [view, setView] = React.useState('month')
   const activeView = useUIStore((state) => state.activeView)
   const setActiveView = useUIStore((state) => state.setActiveView)
-  const keys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar.tsx')!.optionKeys
+  const keys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar/_components/use-calendar-screen-state.tsx')!.optionKeys
   const option = (index: number) => ({ value: ['month', 'week', 'range', 'agenda'][index]!, label: i18n.t(keys[index]!) })
   const options = [option(0), option(1), option(2), option(3)] as const
   return <View style={{ width: '100%' }}>
@@ -341,7 +346,7 @@ it.each([
 
 it('keeps every calendar word whole at double text size', async () => {
   __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
-  const keys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar.tsx')!.optionKeys
+  const keys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar/_components/use-calendar-screen-state.tsx')!.optionKeys
   const option = (index: number) => ({ value: String(index), label: segmentTranslation(en, keys[index]!) })
   let tree!: SegmentTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ paddingHorizontal: 16 }}><SegmentedControl fullWidth label="Views" value="0" onChange={vi.fn()} options={[option(0), option(1), option(2), option(3)]} /></View>) as SegmentTree })
@@ -355,7 +360,7 @@ it('keeps every calendar word whole at double text size', async () => {
 it.each(['en', 'pt-BR'].flatMap((locale) => [false, true].map((fullWidth) => ({ locale, fullWidth }))))('restores segments when the folded allocation grows in $locale, fullWidth $fullWidth', async ({ locale, fullWidth }) => {
   __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
   const messages = locale === 'en' ? en : ptBR
-  const keys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar.tsx')!.optionKeys
+  const keys = segmentSites.find((site) => site.path === 'app/(tabs)/calendar/_components/use-calendar-screen-state.tsx')!.optionKeys
   const option = (index: number) => ({ value: String(index), label: segmentTranslation(messages, keys[index]!) })
   let tree!: SegmentTree
   await TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ width: '100%' }}><SegmentedControl fullWidth={fullWidth} label="Views" value="0" onChange={vi.fn()} options={[option(0), option(1), option(2), option(3)]} /></View>) as SegmentTree })

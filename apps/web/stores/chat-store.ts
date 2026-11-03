@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
+import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks/chat-composer-core'
 import { createChatStoreState, type ChatStoreState } from '@orbit/shared/stores'
 import { forgetDesktopChatCheckpoint } from '@/lib/web-reload-state'
 

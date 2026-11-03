@@ -20,7 +20,7 @@ import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { AlertTriangle, MoreVertical, Plus, Trash2, RefreshCw } from '@/components/ui/icons'
-import { useBulkCreateHabits } from '@/hooks/use-habits'
+import { useBulkCreateHabits } from '@/hooks/use-bulk-create-habits'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 

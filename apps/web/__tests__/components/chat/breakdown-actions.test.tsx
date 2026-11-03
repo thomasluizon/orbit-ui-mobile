@@ -10,6 +10,11 @@ import { BreakdownSuggestion } from '@/components/chat/breakdown-suggestion'
 
 const bulkCreate = vi.fn()
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }) }))
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }) }
+})
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, onConfirm, confirmLabel }: { open: boolean; onConfirm: () => void; confirmLabel: string }) =>
     open ? <div role="dialog"><button onClick={onConfirm}>{confirmLabel}</button></div> : null,

@@ -163,6 +163,25 @@ it('restores structured Astra state and visibility through the real provider com
   expect(sessionStorage.length).toBe(0)
 })
 
+it.each(['draft', 'account'] as const)('preserves a newer %s while checkpoint models load', async change => {
+  vi.stubGlobal('__TAURI_INTERNALS__', {})
+  vi.stubGlobal('__ORBIT_DESKTOP_VERSION__', '0.1.2')
+  const message = makeHeldHabitMessage({ content: 'Stored conversation' })
+  useChatStore.setState({ messages: [message], draft: 'Stored draft' })
+  await writeDesktopChatCheckpoint('desktop-account', useChatStore.getState(), true)
+  useChatStore.setState(useChatStore.getInitialState())
+  render(<NextIntlClientProvider locale="en" messages={en}>
+    <Providers><Conversation /></Providers>
+  </NextIntlClientProvider>)
+  act(() => {
+    if (change === 'account') holdAccount('replacement-account')
+    useChatStore.getState().setDraft('New draft')
+  })
+  await act(async () => { await vi.dynamicImportSettled() })
+  expect(useChatStore.getState().draft).toBe('New draft')
+  expect(useChatStore.getState().messages).toEqual(change === 'draft' ? [message] : [])
+})
+
 it('offers a newly raised floor and preserves the conversation until Restart is chosen', async () => {
   vi.useFakeTimers()
   vi.stubGlobal('__TAURI_INTERNALS__', {})

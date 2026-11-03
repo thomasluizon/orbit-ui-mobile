@@ -25,6 +25,16 @@ vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: vi.fn() }),
 }))
 
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabits: () => ({ data: { habitsById: new Map() }, isPending: false, isError: false, isRefetchError: false }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn() }) }
+})
+
 const summary = daySummaryCardSchema.parse({ date: '2026-09-29', due: 3, done: 2, completionRate: 67, overdueCount: 1, currentStreak: 4, surfaceId: 'today' })
 const pending = makePendingAgentOperation({ capabilityId: 'habits.write', displayName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', expiresAtUtc: '2099-01-01T00:00:00Z' })
 const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [makeAgentOperationResult('UnsupportedByPolicy', 1)] })).outcomes

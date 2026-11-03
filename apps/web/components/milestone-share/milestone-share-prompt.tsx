@@ -26,7 +26,7 @@ import {
   type MilestoneShareVariant,
 } from '@/components/milestone-share/milestone-share-card'
 
-const SETTLE_DELAY_MS = 500
+import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 
 function resolveVariant(
   milestoneKey: string,

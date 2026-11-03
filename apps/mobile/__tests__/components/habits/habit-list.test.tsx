@@ -1,3 +1,5 @@
+import * as habitQueries from '@/hooks/use-habit-queries'
+import { useHabits as useHabitQueryFixture } from '@/hooks/use-habits'
 import { withTimingCalls } from '@/test-mocks/react-native-reanimated'
 import { testI18n } from '@/__tests__/support/i18n'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
@@ -104,6 +106,21 @@ vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/use-habit-queries')>()),
   useHabitCountLoaded: () => accountHabitCount,
 }))
+
+function useHabitListFixture<Result>(render: () => Result): Result {
+  const [useRealHook] = React.useState(() => skipFlow.active)
+  if (useRealHook) return render()
+  const query = vi.spyOn(habitQueries, 'useHabits').mockImplementation(useHabitQueryFixture)
+  try { return render() } finally { query.mockRestore() }
+}
+
+vi.mock('@/components/habits/use-habit-list-state', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/use-habit-list-state')>()
+  return { ...actual,
+    useHabitListQueries: (...args: Parameters<typeof actual.useHabitListQueries>) => useHabitListFixture(() => actual.useHabitListQueries(...args)),
+    useHabitListMoveState: () => useHabitListFixture(() => actual.useHabitListMoveState()),
+  }
+})
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
@@ -402,6 +419,57 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
     useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }),
     useMoveHabitParent: () => ({ mutateAsync: moveHabitParentMutateAsync, isPending: false }),
   })
+})
+
+vi.mock('@/hooks/use-habit-logging', async (importOriginal) => {
+const actual = await importOriginal<typeof import('@/hooks/use-habit-logging')>()
+const { useState } = await import('react')
+return { ...actual,
+  useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: logMutateAsync }),
+  useSkipHabit: () => {
+      const [useRealHook] = useState(() => skipFlow.active)
+      return useRealHook ? actual.useSkipHabit() : ({ mutateAsync: skipMutateAsync })
+    } }
+})
+
+vi.mock('@/hooks/use-delete-habit', () => {
+
+return { useDeleteHabit: () => ({ mutateAsync: deleteMutateAsync, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-bulk-delete-habits', () => {
+
+return { useBulkDeleteHabits: () => ({ mutateAsync: bulkDeleteMutateAsync }) }
+})
+
+vi.mock('@/hooks/use-bulk-log-habits', () => {
+
+return { useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }) }
+})
+
+vi.mock('@/hooks/use-bulk-move-habit-parent', () => {
+
+return { useBulkMoveHabitParent: () => ({ mutateAsync: vi.fn() }) }
+})
+
+vi.mock('@/hooks/use-bulk-skip-habits', () => {
+
+return { useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }) }
+})
+
+vi.mock('@/hooks/use-duplicate-habit', () => {
+
+return { useDuplicateHabit: () => ({ mutateAsync: duplicateMutateAsync }) }
+})
+
+vi.mock('@/hooks/use-reorder-habits', () => {
+
+return { useReorderHabits: () => ({ mutateAsync: reorderMutateAsync }) }
+})
+
+vi.mock('@/hooks/use-move-habit-parent', () => {
+
+return { useMoveHabitParent: () => ({ mutateAsync: moveHabitParentMutateAsync, isPending: false }) }
 })
 
 vi.mock('@/hooks/use-profile', () => ({

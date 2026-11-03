@@ -3,7 +3,6 @@ import { createMockProactiveItem } from './factories'
 import type { ChatStoreState } from '../stores/chat-store'
 import { buildRecentChatHistory } from '../utils/chat-history'
 import {
-  clearContextualSuggestionIfCurrent,
   createChatStoreState,
   prepareChatRequest,
 } from '../stores/chat-store'
@@ -278,20 +277,6 @@ describe('shared chat store', () => {
 
     expect(store.getState().draft).toBe('Help me set a goal')
     expect(store.getState().contextualSuggestion).toEqual(existing)
-  })
-
-  it('clears a scoped suggestion only while it is still current', () => {
-    const store = createStoreHarness()
-    const suggestion = { id: 'habit-1', label: 'Ask Astra', prompt: 'Help with this habit' }
-    store.getState().setContextualSuggestion(suggestion)
-    expect(store.getState().contextualSuggestion).toEqual(suggestion)
-
-    store.getState().setContextualSuggestion({ id: 'habit-2', label: 'Ask Astra', prompt: 'Another habit' })
-    clearContextualSuggestionIfCurrent(store.getState(), 'habit-1')
-    expect(store.getState().contextualSuggestion?.id).toBe('habit-2')
-
-    clearContextualSuggestionIfCurrent(store.getState(), 'habit-2')
-    expect(store.getState().contextualSuggestion).toBeNull()
   })
 })
 

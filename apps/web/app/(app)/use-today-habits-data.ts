@@ -7,11 +7,7 @@ import { habitViewQueryOptions, habitListQueryFilters } from '@orbit/shared/util
 import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import type { ActiveView } from '@orbit/shared/stores'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
-import {
-  EMPTY_CHILDREN_BY_PARENT,
-  EMPTY_HABITS_BY_ID,
-  useHabits,
-} from '@/hooks/use-habits'
+import { EMPTY_CHILDREN_BY_PARENT, EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habit-queries'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
 import { buildTodayFilters } from './today-model'
