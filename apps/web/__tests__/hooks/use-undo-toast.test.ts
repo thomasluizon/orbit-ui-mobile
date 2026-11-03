@@ -3,6 +3,7 @@ import { act, fireEvent, render, renderHook, screen } from '@testing-library/rea
 import { createElement } from 'react'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useUndoToast } from '@/hooks/use-undo-toast'
+import { useUIStore } from '@/stores/ui-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -11,7 +12,7 @@ function pressKey(init: KeyboardEventInit) {
   act(() => { window.dispatchEvent(new KeyboardEvent('keydown', init)) })
 }
 
-beforeEach(() => useAppToastStore.setState({ currentToast: null, queue: [] }))
+beforeEach(() => { useAppToastStore.setState({ currentToast: null, queue: [] }); useUIStore.setState({ openOverlayIds: [] }) })
 
 describe('useUndoToast', () => {
   it('runs undo once on Ctrl+Z and removes the listener', () => {
@@ -74,4 +75,18 @@ describe('useUndoToast', () => {
     expect(secondPendingRestore).not.toHaveBeenCalled()
     expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Second pending undo')
   })
+})
+
+
+it('holds the undo shortcut through a parent modal and a menu above it', () => {
+  const { result } = renderHook(() => useUndoToast())
+  const restore = vi.fn()
+  act(() => { result.current('Child skipped', restore) })
+  act(() => { useUIStore.getState().registerOpenOverlay('modal:parent'); useUIStore.getState().registerOpenOverlay('menu:parent') })
+  pressKey({ key: 'z', ctrlKey: true })
+  expect(restore).not.toHaveBeenCalled()
+  expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Child skipped')
+  act(() => { useUIStore.getState().unregisterOpenOverlay('menu:parent'); useUIStore.getState().unregisterOpenOverlay('modal:parent') })
+  pressKey({ key: 'z', metaKey: true })
+  expect(restore).toHaveBeenCalledOnce()
 })
