@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-10-28",
+  "calibratedAt": "2026-11-02",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -143,8 +143,8 @@
     ".claude/skills/astra-eval/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "ea8b9accfef467fb",
-      "calibratedAt": "2026-10-24",
+      "digest": "1758c7a9632666fa",
+      "calibratedAt": "2026-11-02",
       "verdict": "undeclared, inherits the session: runs or extends the configured Astra eval corpus and distinguishes failed behavior from incomplete tool evidence; it declares no model or effort override."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
@@ -206,15 +206,15 @@
     ".claude/skills/flag/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "2fc022e19c4b229c",
-      "calibratedAt": "2026-10-18",
+      "digest": "1279be8ca9426377",
+      "calibratedAt": "2026-11-02",
       "verdict": "undeclared, inherits the session: it operates feature flags within the owner's explicit account or global scope and verifies live state before and after each write; scope judgment stays with the calling session."
     },
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "d1875891c027ab91",
-      "calibratedAt": "2026-10-25",
+      "digest": "a5dab8ac00888a04",
+      "calibratedAt": "2026-11-02",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -255,8 +255,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "aaac751eadd1e31b",
-      "calibratedAt": "2026-10-25",
+      "digest": "ec895d172ab191ac",
+      "calibratedAt": "2026-11-02",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -269,8 +269,8 @@
     ".claude/skills/progress/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "5a0333381e912e16",
-      "calibratedAt": "2026-10-17",
+      "digest": "643c781d0c659dbe",
+      "calibratedAt": "2026-11-02",
       "verdict": "current: medium effort; it reads live git and ticket state, resolves integration per repository, and distinguishes ancestry from stacked squash boundaries."
     },
     ".claude/skills/questions/SKILL.md": {
@@ -283,8 +283,8 @@
     ".claude/skills/release/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "90313e52d29d7ea9",
-      "calibratedAt": "2026-10-28",
+      "digest": "1d906cbb5539edde",
+      "calibratedAt": "2026-11-02",
       "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
     ".claude/skills/second-opinion/SKILL.md": {
@@ -297,8 +297,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "36283620a53472f4",
-      "calibratedAt": "2026-10-25",
+      "digest": "d129f22486743fee",
+      "calibratedAt": "2026-11-02",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {
@@ -318,8 +318,8 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "8a5b48d8e485fb5d",
-      "calibratedAt": "2026-10-25",
+      "digest": "20cffc414b05f2f3",
+      "calibratedAt": "2026-11-02",
       "verdict": "current: medium effort; the skill invokes three steps in order and waits for the owner between handovers, including under --sleep."
     },
     ".agents/skills/merge-prs/SKILL.md": {

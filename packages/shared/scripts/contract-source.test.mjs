@@ -198,4 +198,13 @@ describe('transactional generation and stale-output guard', () => {
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('40-character SHA')
   })
+
+  it('accepts the installed pinned generator before refusing investigation overrides', () => {
+    const result = spawnSync(process.execPath, [new URL('./generate-contract.mjs', import.meta.url).pathname, '--check'], {
+      encoding: 'utf8',
+      env: { ...process.env, ORBIT_OPENAPI_SPEC: new URL('./__fixtures__/openapi_v1-r2.json', import.meta.url).pathname },
+    })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('Investigation overrides cannot generate the committed contract')
+  })
 })

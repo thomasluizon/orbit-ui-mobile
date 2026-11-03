@@ -1,5 +1,5 @@
 import React from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { expect, it, vi } from 'vitest'
 import { FlowShell } from '@/components/shell/flow-shell'
@@ -18,6 +18,22 @@ const tokens = createTokensV2()
 const noop = () => {}
 const recap = createMockRecap({ metrics: createMockRetrospectiveMetrics({ activeDays: 2 }) })
 const activeDays = buildWrappedSlides(recap).find((slide) => slide.id === 'activeDays')!
+
+it.each([1, 2, 3])('spaces %i notices inside the standalone flow slot', async (count) => {
+  let tree!: ReturnType<typeof create>
+  await act(() => {
+    tree = create(<FlowShell nav={false} notice={<>{Array.from({ length: count }, (_, index) =>
+      <View key={index} testID={`notice-${index}`} style={{ height: 48 }} />)}</>}><View /></FlowShell>)
+  })
+  try {
+    const slot = tree.root.findAll(node => node.props.testID === 'notice-0')[0]!.parent!
+    expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ gap: 12 })
+    const boxes = measureSafeArea((tree as GeometryTree).toJSON(), (host) => host.props.testID)
+    for (let index = 1; index < count; index++) {
+      expect(boxes.get(`notice-${index}`)!.top - boxes.get(`notice-${index - 1}`)!.bottom).toBe(12)
+    }
+  } finally { await act(() => tree.unmount()) }
+})
 
 it.each([412, 1200, 1600])('centres standalone flow content and bounds its pinned action at %ipx', async (width) => {
   let tree!: GeometryTree

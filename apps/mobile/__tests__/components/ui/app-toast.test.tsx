@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppToast, Toast } from '@/components/ui/app-toast'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2 } from '@/lib/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 
@@ -45,6 +46,37 @@ describe('mobile Toast', () => {
     const close = tree.root.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'common.close')
     TestRenderer.act(() => close.props.onPress())
     expect(tree.root.findAllByType('Pressable')).toHaveLength(0)
+  })
+
+  it('centres the action text inside its target with the message line height', () => {
+    const tree = render(<Toast kind="neutral" message="Deleted" actionLabel="Undo" onAction={vi.fn()} />)
+    advance(0)
+    const surface = tree.root.findByProps({ testID: 'toast-neutral' })
+    const action = tree.root.findByProps({ testID: 'toast-action' })
+    const label = action.findByType('Text')
+    const message = surface.findAllByType('Text').find((node: { props: { children: unknown } }) => node.props.children === 'Deleted')
+    expect(StyleSheet.flatten(surface.props.style).alignItems).toBe('center')
+    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ alignItems: 'center', justifyContent: 'center' })
+    expect(StyleSheet.flatten(label.props.style).lineHeight).toBe(StyleSheet.flatten(message.props.style).lineHeight)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('retains centred action text in the active sheet placement', () => {
+    useUIStore.setState({ openOverlayIds: ['sheet:toast-stack'] })
+    useAppToastStore.getState().showQueued('Deleted', 'Undo', vi.fn())
+    const tree = render(<AppToast placement="sheet" sheetId="sheet:toast-stack" />)
+    try {
+      expect(tree.root.findByType(Toast).props.outlined).toBe(true)
+      expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'toast-action' }).props.style)).toMatchObject({
+        minHeight: 48, justifyContent: 'center', alignItems: 'center',
+      })
+      TestRenderer.act(() => tree.update(<AppToast placement="sheet" sheetId="sheet:another" />))
+      expect(tree.root.findAllByType(Toast)).toHaveLength(0)
+    } finally {
+      TestRenderer.act(() => tree.unmount())
+      useAppToastStore.setState({ currentToast: null, queue: [] })
+      useUIStore.setState({ openOverlayIds: [] })
+    }
   })
 
   const variants: ToastProps[] = [

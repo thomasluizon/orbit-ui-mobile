@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Page, Response } from '@playwright/test'
@@ -22,6 +22,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { subscriptionPlansFixture } from '@/test-support/hermetic/mock-api/fixtures/subscription-plans'
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
+import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { createSmokeHabit, expectAppNavigation, expectCheckout, logSmokeHabit } from '@/e2e/support/smoke-adapters'
 
 const mocks = vi.hoisted(() => ({
@@ -31,6 +32,8 @@ const mocks = vi.hoisted(() => ({
   pathname: '/', wide: false, expired: false, online: true,
   create: vi.fn(), dismissCalendarImport: vi.fn(), dismissImportPrompt: vi.fn(),
   checkout: vi.fn(), suggestion: vi.fn(), toast: vi.fn(),
+  consent: vi.fn(), invalidateProfile: vi.fn(),
+  leveledUp: false, crossedStreakMilestones: [] as number[], newAchievements: [], clearLevelUp: vi.fn(),
   router: { push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() },
   searchParams: new URLSearchParams(),
 }))
@@ -48,7 +51,10 @@ vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { c
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null, CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: mocks.profile, patchProfile: vi.fn() }),
+  useProfile: () => ({ profile: mocks.profile,
+    patchProfile: (patch: Partial<ReturnType<typeof createMockProfile>>) => { Object.assign(mocks.profile!, patch) },
+    invalidate: mocks.invalidateProfile,
+  }),
   useHasProAccess: () => false, useTrialExpired: () => mocks.expired,
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
@@ -64,7 +70,12 @@ vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
   useHabitCountLoaded: () => ({ count: 0, isLoaded: true }),
 }))
-vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ crossedStreakMilestones: [], newAchievements: [] }) }))
+vi.mock('@/hooks/use-gamification', () => ({
+  useGamificationProfile: () => ({ crossedStreakMilestones: mocks.crossedStreakMilestones, newAchievements: mocks.newAchievements,
+    leveledUp: mocks.leveledUp, newLevel: mocks.leveledUp ? 3 : null, clearLevelUp: mocks.clearLevelUp,
+  }),
+  useReportEvent: () => ({ mutate: vi.fn() }),
+}))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => ({ composerProps: {} }) }))
 vi.mock('@/stores/onboarding-draft-store', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/stores/onboarding-draft-store')>(),
@@ -73,14 +84,12 @@ vi.mock('@/stores/onboarding-draft-store', async (importOriginal) => ({
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError: mocks.toast, showError: mocks.toast, showSuccess: mocks.toast, showInfo: mocks.toast }) }))
 vi.mock('@/lib/actions/calendar', () => ({ dismissCalendarImport: mocks.dismissCalendarImport }))
 vi.mock('@/lib/actions/onboarding', () => ({ dismissImportPrompt: mocks.dismissImportPrompt }))
+vi.mock('@/lib/actions/profile', () => ({ updateMarketingConsent: mocks.consent }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
 vi.mock('@/components/ui/app-toast-host', () => ({ AppToastHost: () => null }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
 vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({ RetainedOnboardingOverlay: () => null }))
-vi.mock('@/components/referral/referral-prompt', () => ({ ReferralPrompt: () => null }))
-vi.mock('@/components/milestone-share/milestone-share-prompt', () => ({ MilestoneSharePrompt: () => null }))
-vi.mock('@/components/marketing-consent/marketing-consent-prompt', () => ({ MarketingConsentPrompt: () => null }))
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel: () => null }))
 vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => null }))
@@ -158,24 +167,104 @@ function mount(children: ReactNode, locale: 'en' | 'pt-BR') {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.router.push.mockReset()
   mocks.pathname = '/'
   mocks.loadingToday = false
   mocks.emptyToday = false
   mocks.wide = false
   mocks.expired = false
   mocks.online = true
+  mocks.leveledUp = false
+  mocks.clearLevelUp.mockImplementation(() => { mocks.leveledUp = false })
+  mocks.crossedStreakMilestones = []
   mocks.profile = createMockProfile({ hasCompletedOnboarding: true, hasImportedCalendar: true, hasSeenImportPrompt: true })
   mocks.create.mockResolvedValue(undefined)
   mocks.dismissCalendarImport.mockResolvedValue(undefined)
+  mocks.dismissImportPrompt.mockResolvedValue(undefined)
+  mocks.consent.mockResolvedValue(undefined)
   localStorage.clear()
   holdAccount('smoke-unit-account')
   useAuthStore.setState({ isAuthenticated: true, startExpiryMonitor: () => () => {} })
   useUIStore.setState(useUIStore.getInitialState())
+  useEngagementPromptStore.setState(useEngagementPromptStore.getInitialState())
 })
 
-afterEach(() => { cleanup(); useAuthStore.setState(useAuthStore.getInitialState()); localStorage.clear() })
+afterEach(() => { cleanup(); vi.useRealTimers(); useAuthStore.setState(useAuthStore.getInitialState()); localStorage.clear() })
 
 describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (locale) => {
+  it.each(['navigation', 'create', 'log', 'checkout'] as const)('declines real marketing consent before %s on a fresh page', async (entry) => {
+    mocks.profile!.marketingEmailConsent = null
+    if (entry === 'checkout') mocks.pathname = '/upgrade'
+    const page = new SmokeDomPage()
+    const content = entry === 'create' ? <HabitList view="today" filters={{}} onCreate={() => useUIStore.getState().setShowCreateModal(true)} />
+      : entry === 'log' ? <Logging page={page} /> : <Checkout />
+    vi.useFakeTimers()
+    const view = mount(<AppLayout>{content}</AppLayout>, locale)
+    if (entry === 'create') mocks.router.push.mockImplementation(() => {
+      mocks.pathname = '/habits/new'
+      view.rerender(<AppLayout><CreateHabitModal open presentation="screen" onOpenChange={() => {
+        mocks.pathname = '/'
+        view.rerender(<AppLayout>{content}</AppLayout>)
+      }} /></AppLayout>)
+    })
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    vi.useRealTimers()
+    const messages = locale === 'en' ? en : ptBR
+    expect(screen.getByRole('dialog', { name: messages.marketingConsent.prompt.title })).toBeVisible()
+    page.setReload(async () => { view.rerender(<AppLayout><Logging key="reload" page={page} completed /></AppLayout>) })
+
+    if (entry === 'navigation') await expectAppNavigation(page as unknown as Page)
+    else if (entry === 'create') await createSmokeHabit(page as unknown as Page, 'Smoke consent')
+    else if (entry === 'log') await logSmokeHabit(page as unknown as Page, 'Smoke log')
+    else await expectCheckout(page as unknown as Page)
+
+    await waitFor(() => expect(mocks.consent).toHaveBeenCalledExactlyOnceWith({ enabled: false }, 'smoke-unit-account'))
+    expect(mocks.profile!.marketingEmailConsent).toBe(false)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mocks.checkout).not.toHaveBeenCalled()
+  })
+
+  it('declines marketing consent that appears after navigation', async () => {
+    const page = new SmokeDomPage()
+    mocks.profile!.marketingEmailConsent = false
+    const view = mount(<AppLayout><Checkout /></AppLayout>, locale)
+    await expectAppNavigation(page as unknown as Page)
+    vi.useFakeTimers()
+    mocks.profile!.marketingEmailConsent = null
+    view.rerender(<AppLayout><Checkout /></AppLayout>)
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    vi.useRealTimers()
+    await page.getByRole('link', { name: (locale === 'en' ? en : ptBR).nav.today, exact: true }).click()
+    await waitFor(() => expect(mocks.consent).toHaveBeenCalledExactlyOnceWith({ enabled: false }, 'smoke-unit-account'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('dismisses the real habit import prompt without opening Astra', async () => {
+    mocks.profile!.hasSeenImportPrompt = false
+    mount(<AppLayout><Checkout /></AppLayout>, locale)
+    await screen.findByRole('dialog', { name: (locale === 'en' ? en : ptBR).onboarding.wizard.importTitle })
+    await expectCheckout(new SmokeDomPage() as unknown as Page)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mocks.dismissImportPrompt).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).not.toHaveBeenCalled()
+    expect(mocks.checkout).not.toHaveBeenCalled()
+  })
+
+  it.each(['referral', 'milestone-share'] as const)('dismisses a real %s prompt after a milestone', async (kind) => {
+    mocks.leveledUp = kind === 'referral'
+    mocks.crossedStreakMilestones = kind === 'milestone-share' ? [7] : []
+    vi.useFakeTimers()
+    mount(<AppLayout><Checkout /></AppLayout>, locale)
+    await act(async () => { useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    vi.useRealTimers()
+    expect(screen.getByRole('dialog')).toBeVisible()
+    await expectCheckout(new SmokeDomPage() as unknown as Page)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mocks.checkout).not.toHaveBeenCalled()
+    expect(mocks.router.push).not.toHaveBeenCalled()
+  })
+
   it.each([false, true])('requires real navigation with the current shell, wide=%s', async (wide) => {
     mocks.wide = wide
     mount(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>, locale)
