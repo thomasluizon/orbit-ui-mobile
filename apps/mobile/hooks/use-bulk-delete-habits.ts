@@ -1,3 +1,5 @@
+
+import { selectedDescendantsInSnapshots } from '@orbit/shared/hooks'
 import { type HabitAccount,withAccountGuard } from './use-habit-mutation-shared'
 import type { UseMutationOptions } from '@tanstack/react-query'
 import type { HabitListSnapshots } from '@orbit/shared/query'
@@ -6,7 +8,7 @@ import { useHabitMutation } from './use-habit-mutation'
 import { isCachedHabitDeleted,removeDeletedHabitQueries,habitKeys,cachedHabitDeletionIds } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { findHabitInList,plural } from '@orbit/shared/utils'
-import type { BulkDeleteResponse,HabitScheduleItem,HabitScheduleChild } from '@orbit/shared/types/habit'
+import type { BulkDeleteResponse,HabitScheduleItem } from '@orbit/shared/types/habit'
 import { isQueuedResult,OfflineMutationPreflightError,createQueuedAck,cancelQueuedDeleteForUndo } from '@/lib/offline-mutations'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { optimisticRemoveHabits,restoreDeletedHabits } from '@/lib/habit-optimistic-helpers'
@@ -37,21 +39,7 @@ function recordBulkFailure(
   rejectedIds.push(...habitIds)
 }
 
-function selectedDescendantsInSnapshots(
-  snapshots: HabitListSnapshots,
-  selectedIds: Set<string>,
-): Set<string> {
-  const descendants = new Set<string>()
-  const visit = (habit: HabitScheduleItem | HabitScheduleChild, selectedAncestor: boolean) => {
-    const selected = selectedIds.has(habit.id)
-    if (selected && selectedAncestor) descendants.add(habit.id)
-    for (const child of habit.children) visit(child, selectedAncestor || selected)
-  }
-  for (const [, habits] of snapshots) {
-    for (const habit of habits ?? []) visit(habit, false)
-  }
-  return descendants
-}
+
 
 function selectionRequiresCascadeDelete(snapshots: HabitListSnapshots, habitIds: string[]): boolean {
   return habitIds.some((habitId) => {

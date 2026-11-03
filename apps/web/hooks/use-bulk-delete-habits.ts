@@ -1,11 +1,13 @@
 'use client'
 
+import { selectedDescendantsInSnapshots } from '@orbit/shared/hooks'
+
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { isCachedHabitDeleted,removeDeletedHabitQueries,habitKeys,goalKeys,profileKeys } from '@orbit/shared/query'
 import { plural } from '@orbit/shared/utils'
-import { snapshotHabitLists,type HabitListSnapshots } from '@/lib/habit-mutation-helpers'
-import type { BulkMutationOutcome,BulkDeleteResponse,HabitScheduleItem,HabitScheduleChild } from '@orbit/shared/types/habit'
+import { snapshotHabitLists } from '@/lib/habit-mutation-helpers'
+import type { BulkMutationOutcome,BulkDeleteResponse,HabitScheduleItem } from '@orbit/shared/types/habit'
 import { deleteHabit as deleteHabitAction } from '@/lib/actions/habits'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { reportsAccountChanged } from '@/app/actions/action-result'
@@ -14,21 +16,7 @@ import { captureAccountIntent } from '@/lib/client-action'
 import { invalidateHabitInventoryQueries } from './use-habit-mutation-shared'
 import { useRestoreHabit } from './use-restore-habit'
 
-function selectedDescendantsInSnapshots(
-  snapshots: HabitListSnapshots,
-  selectedIds: Set<string>,
-): Set<string> {
-  const descendants = new Set<string>()
-  const visit = (habit: HabitScheduleItem | HabitScheduleChild, selectedAncestor: boolean) => {
-    const selected = selectedIds.has(habit.id)
-    if (selected && selectedAncestor) descendants.add(habit.id)
-    for (const child of habit.children) visit(child, selectedAncestor || selected)
-  }
-  for (const [, habits] of snapshots) {
-    for (const habit of habits ?? []) visit(habit, false)
-  }
-  return descendants
-}
+
 
 export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()

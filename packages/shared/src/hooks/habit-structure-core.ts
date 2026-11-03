@@ -1,10 +1,23 @@
 import type { QueryClient } from '@tanstack/query-core'
-import type { ChecklistItem,HabitDetail,HabitFullDetail,HabitScheduleItem,UpdateHabitRequest } from '../types/habit'
+import type { ChecklistItem,HabitDetail,HabitFullDetail,HabitScheduleItem,HabitScheduleChild,UpdateHabitRequest } from '../types/habit'
 import { habitKeys,type HabitListKey,type HabitListSnapshots } from '../query/keys'
 import { updateCachedHabitDetails } from '../query/habit-cache'
 import { updateCachedHabitLists } from '../query/habit-cache'
 import { optimisticPatchHabit } from '../utils/habit-optimistic'
 import { optimisticMoveHabitParent } from '../utils/habit-parent-optimistic'
+
+export function selectedDescendantsInSnapshots(snapshots: HabitListSnapshots, selectedIds: Set<string>): Set<string> {
+  const descendants = new Set<string>()
+  const visit = (habit: HabitScheduleItem | HabitScheduleChild, selectedAncestor: boolean) => {
+    const selected = selectedIds.has(habit.id)
+    if (selected && selectedAncestor) descendants.add(habit.id)
+    for (const child of habit.children) visit(child, selectedAncestor || selected)
+  }
+  for (const [, habits] of snapshots) {
+    for (const habit of habits ?? []) visit(habit, false)
+  }
+  return descendants
+}
 
 export function snapshotHabitMutationLists(queryClient: QueryClient): HabitListSnapshots {
   return queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })

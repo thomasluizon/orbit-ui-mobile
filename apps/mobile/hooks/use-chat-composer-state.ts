@@ -1,14 +1,14 @@
 import type { ComposerState } from '@orbit/shared/hooks'
 import { buildComposerAvailability,CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
-import { createAstraAllowanceTranslator } from '@orbit/shared/utils'
+
 import { useCallback,useEffect,useMemo,useRef } from "react"
 import { FlatList } from "react-native"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useTranslation } from "react-i18next"
-import { useQueryClient } from "@tanstack/react-query"
-import { resolveComposerChipSurface } from "@orbit/shared/chat"
+
+
 import type { ChatMessage } from "@orbit/shared/types"
-import { useProfile } from "@/hooks/use-profile"
+
 import { useHabitDetail,useHabits } from "@/hooks/use-habit-queries"
 import { useSpeechToText } from "@/hooks/use-speech-to-text"
 import { useChatStore } from "@/stores/chat-store"
@@ -18,16 +18,7 @@ import type { AttemptedSend } from './use-chat-composer-types'
 import type { useChatComposerAttachmentState } from './use-chat-composer-attachments'
 
 
-export type ChatComposerState = ComposerState<AttemptedSend> & Pick<ReturnType<typeof useSpeechToText>, 'isRecording' | 'isTranscribing' | 'transcript' | 'toggleRecording' | 'recordingDuration'> & {
-  profile: ReturnType<typeof useProfile>['profile']
-  queryClient: ReturnType<typeof useQueryClient>
-  allowanceText: ReturnType<typeof createAstraAllowanceTranslator>
-  contextualSuggestion: ReturnType<typeof useChatStore.getState>['contextualSuggestion']
-  calendarHasError: boolean
-  today: string
-  surface: ReturnType<typeof resolveComposerChipSurface>
-  habitsQuery: ReturnType<typeof useHabits>
-  detailQuery: ReturnType<typeof useHabitDetail>
+export type ChatComposerState = ComposerState<AttemptedSend, ReturnType<typeof useHabits>, ReturnType<typeof useHabitDetail>> & Pick<ReturnType<typeof useSpeechToText>, 'isRecording' | 'isTranscribing' | 'transcript' | 'toggleRecording' | 'recordingDuration'> & {
   speechSupported: ReturnType<typeof useSpeechToText>['isSupported']
   speechError: ReturnType<typeof useSpeechToText>['error']
   t: ReturnType<typeof useTranslation>['t']

@@ -1,4 +1,4 @@
-import { createUseCalendarRangeState,buildCalendarGridColumns,createCalendarDateActions,getCalendarEntryMutationKey } from '@orbit/shared/hooks'
+import { createUseCalendarEventState,createUseCalendarRangeState,buildCalendarGridColumns,createCalendarDateActions,getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import type { useCalendarNavigation } from './use-calendar-navigation'
 import { useOpenHabit } from '@/hooks/use-open-habit'
 import { buildCalendarHeaderState,resolveCalendarProfileSettings,type CalendarProfile,type CalendarView } from '@orbit/shared/utils/calendar-navigation'
@@ -8,7 +8,7 @@ import { View,FlatList } from "react-native"
 import { FadeInLeft,FadeInRight,ReduceMotion } from "react-native-reanimated"
 import { useTranslation } from "react-i18next"
 import { useLocalSearchParams,useRouter } from "expo-router"
-import { buildHabitCreateHref,formatCalendarSpanEnds,formatCalendarDayTitle,orderCalendarDayEntries,buildCalendarRangeModel,CALENDAR_MONTH_SWIPE_THRESHOLD,filterRecurringDayMap,filterRecurringEntries,filterCalendarSyncEventsByDate,isCalendarDayLoggable,buildCalendarMonthModel,formatWeekdayLabels,resolveCalendarMonthDisplayState,resolveCalendarEventsDisplayState,shouldOpenCalendarImportSheet,calendarImportRouteRequestKey } from "@orbit/shared/utils"
+import { buildHabitCreateHref,formatCalendarSpanEnds,formatCalendarDayTitle,orderCalendarDayEntries,buildCalendarRangeModel,CALENDAR_MONTH_SWIPE_THRESHOLD,filterRecurringDayMap,filterRecurringEntries,filterCalendarSyncEventsByDate,isCalendarDayLoggable,buildCalendarMonthModel,formatWeekdayLabels,resolveCalendarMonthDisplayState,shouldOpenCalendarImportSheet,calendarImportRouteRequestKey } from "@orbit/shared/utils"
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar"
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
@@ -121,40 +121,10 @@ function useCalendarScreenSession({ navigation, profile, view, selectedDay }: Ca
   return { hasProAccess, timeZone, autoSyncState, closeSheet, setIsDayDetailOpen, router, weekAnchor, todayKey, weekStartsOn, rangeOffset, agendaOffset, t, i18n, setMonthSlide, setWeekSlide, setWeekAnchor, setRangeOffset, setCalendarHasError, logHabit, monthSlide, openImport, setAgendaOffset, tokens, listRef, calendarGridRef, calendarDayRef, displayTime, styles, weekSlide, clearance, isDayDetailOpen, sheetRef, openDayDisclosure, setIsEventsOpen, openHabit, disclosedWeekDay, isEventsOpen, showImportSheet, importSheetRef, closeImport, reviewRequested, importActionState, commitCalendarImport, importRequested, params, initialImportEventId, importActionRef, setImportActionState, closeImportSheet, setIsImportOpen }
 }
 
-type CalendarEventStateInputs = Pick<ReturnType<typeof useCalendarScreenSession>, 'hasProAccess' | 'timeZone' | 'autoSyncState' | 'closeSheet' | 'setIsDayDetailOpen' | 'router'> & Pick<CalendarScreenContentProps, 'profile'>
-
-function useCalendarEventState({ hasProAccess, timeZone, autoSyncState, closeSheet, setIsDayDetailOpen, router, profile }: CalendarEventStateInputs) {
-  const { data: connectedCalendars } = useCalendars({ enabled: hasProAccess })
-  const showEventSource = (connectedCalendars?.length ?? 0) > 1
-  const showRecurring = useUIStore((state) => state.calendarShowRecurring)
-  const {
-    data: calendarEventsResult,
-    isPending: calendarEventsPending,
-    error: calendarEventsError,
-    refetch: refetchCalendarEvents,
-  } = useCalendarEvents({
-    enabled: hasProAccess,
-    timeZone: timeZone,
-  })
-  useCalendarAutoSyncState({
-    enabled: hasProAccess,
-    initialData: autoSyncState,
-  })
-  const openOrbitPro = useCallback(() => {
-    closeSheet(() => {
-      setIsDayDetailOpen(false)
-      router.push('/upgrade')
-    })
-  }, [closeSheet, router, setIsDayDetailOpen])
-  const calendarEventsState = resolveCalendarEventsDisplayState({
-    profileReady: Boolean(profile),
-    enabled: hasProAccess,
-    isPending: calendarEventsPending,
-    error: calendarEventsError,
-    resultStatus: calendarEventsResult?.status,
-  })
-  return { showRecurring, calendarEventsResult, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro }
-}
+const useCalendarEventState = createUseCalendarEventState({
+  useCalendars, useCalendarEvents, useCalendarAutoSyncState, useCallback,
+  useShowRecurring: () => useUIStore((state) => state.calendarShowRecurring),
+})
 
 const useCalendarRangeState = createUseCalendarRangeState({ useMemo, useCalendarRange })
 

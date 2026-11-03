@@ -5,6 +5,59 @@ import type { CalendarView } from '../utils/calendar-navigation'
 import type { StateSetter } from './state-adapter'
 import type { CalendarDayEntry } from '../types/calendar'
 import type { CalendarProfile } from '../utils/calendar-navigation'
+import type { CalendarAutoSyncState } from '../types/calendar'
+import { resolveCalendarEventsDisplayState } from '../utils/calendar-entries'
+
+interface CalendarEventsQuery {
+  data: { status: 'connected' | 'not-connected' } | undefined
+  isPending: boolean
+  error: Error | null
+  refetch: () => Promise<unknown>
+}
+
+interface CalendarEventStateInputs {
+  hasProAccess: boolean
+  timeZone: string | null
+  autoSyncState: CalendarAutoSyncState | undefined
+  profile: CalendarProfile | undefined
+  closeSheet: (onClosed: () => void) => unknown
+  setIsDayDetailOpen: (open: boolean) => void
+  router: { push: (href: '/upgrade') => unknown }
+}
+
+interface CalendarEventAdapters<Calendars extends { data: readonly unknown[] | undefined }, Events extends CalendarEventsQuery> {
+  useCalendars: (options: { enabled: boolean }) => Calendars
+  useCalendarEvents: (options: { enabled: boolean; timeZone: string | null }) => Events
+  useCalendarAutoSyncState: (options: { enabled: boolean; initialData: CalendarAutoSyncState | undefined }) => unknown
+  useShowRecurring: () => boolean
+  useCallback: (callback: () => void, dependencies: readonly unknown[]) => () => void
+}
+
+export function createUseCalendarEventState<Calendars extends { data: readonly unknown[] | undefined }, Events extends CalendarEventsQuery>(
+  { useCalendars, useCalendarEvents, useCalendarAutoSyncState, useShowRecurring, useCallback }: CalendarEventAdapters<Calendars, Events>,
+): (inputs: CalendarEventStateInputs) => {
+  showRecurring: boolean
+  calendarEventsResult: Events['data']
+  showEventSource: boolean
+  calendarEventsState: ReturnType<typeof resolveCalendarEventsDisplayState>
+  refetchCalendarEvents: Events['refetch']
+  openOrbitPro: () => void
+} {
+  return function useCalendarEventState({ hasProAccess, timeZone, autoSyncState, profile, closeSheet, setIsDayDetailOpen, router }) {
+    const { data: connectedCalendars } = useCalendars({ enabled: hasProAccess })
+    const showEventSource = (connectedCalendars?.length ?? 0) > 1
+    const showRecurring = useShowRecurring()
+    const { data: calendarEventsResult, isPending, error, refetch: refetchCalendarEvents } = useCalendarEvents({ enabled: hasProAccess, timeZone })
+    useCalendarAutoSyncState({ enabled: hasProAccess, initialData: autoSyncState })
+    const calendarEventsState = resolveCalendarEventsDisplayState({
+      profileReady: Boolean(profile), enabled: hasProAccess, isPending, error, resultStatus: calendarEventsResult?.status,
+    })
+    const openOrbitPro = useCallback(() => {
+      closeSheet(() => { setIsDayDetailOpen(false); router.push('/upgrade') })
+    }, [closeSheet, router, setIsDayDetailOpen])
+    return { showRecurring, calendarEventsResult, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro }
+  }
+}
 
 interface CalendarQueryState {
   dayMap: Map<string, CalendarDayEntry[]>

@@ -1,5 +1,5 @@
 import { describe,expect,it,vi } from 'vitest'
-import { buildCalendarGridColumns,buildCalendarRangeBounds,createCalendarDateActions,createUseCalendarRangeState } from '../hooks/calendar-screen-state-core'
+import { buildCalendarGridColumns,buildCalendarRangeBounds,createCalendarDateActions,createUseCalendarRangeState,createUseCalendarEventState } from '../hooks/calendar-screen-state-core'
 import { formatAPIDate } from '../utils/dates'
 import type { CalendarDayEntry } from '../types/calendar'
 import { createMockProfile } from './factories'
@@ -75,5 +75,49 @@ describe('shared calendar range query', () => {
     const state = useRange({ ...inputs, view: 'agenda' })
     expect(state.rangeLoading).toBe(true)
     expect(state.rangeLoadingLabel).toBe('calendar.loading')
+  })
+})
+
+describe('shared calendar event state', () => {
+  it.each([
+    { ready: false, enabled: false, pending: false, error: null, expected: 'loading' },
+    { ready: true, enabled: false, pending: false, error: null, expected: 'pro-boundary' },
+    { ready: true, enabled: true, pending: true, error: null, expected: 'loading' },
+    { ready: true, enabled: true, pending: false, error: new Error('Unavailable'), expected: 'failed' },
+    { ready: true, enabled: true, pending: false, error: null, expected: 'ready' },
+  ])('keeps the event source in $expected', ({ ready, enabled, pending, error, expected }) => {
+    const refetch = vi.fn(async () => {})
+    const useCalendarEvents = vi.fn(() => ({ data: { status: 'connected' as const, events: [] }, isPending: pending, error, refetch }))
+    const useCalendarAutoSyncState = vi.fn()
+    const useEvents = createUseCalendarEventState({
+      useCalendars: () => ({ data: undefined }), useCalendarEvents, useCalendarAutoSyncState,
+      useShowRecurring: () => false, useCallback: callback => callback,
+    })
+    const state = useEvents({ hasProAccess: enabled, timeZone: 'UTC', autoSyncState: undefined,
+      profile: ready ? createMockProfile() : undefined, closeSheet: vi.fn(), setIsDayDetailOpen: vi.fn(), router: { push: vi.fn() } })
+    expect(state.calendarEventsState).toBe(expected)
+    expect(state.showRecurring).toBe(false)
+    expect(state.showEventSource).toBe(false)
+    expect(state.refetchCalendarEvents).toBe(refetch)
+    expect(useCalendarEvents).toHaveBeenCalledExactlyOnceWith({ enabled, timeZone: 'UTC' })
+    expect(useCalendarAutoSyncState).toHaveBeenCalledExactlyOnceWith({ enabled, initialData: undefined })
+  })
+
+  it('finishes sheet dismissal before opening the upgrade destination', () => {
+    const closeSheet = vi.fn<(onClosed: () => void) => void>()
+    const push = vi.fn()
+    const setIsDayDetailOpen = vi.fn()
+    const useEvents = createUseCalendarEventState({
+      useCalendars: () => ({ data: undefined }),
+      useCalendarEvents: () => ({ data: undefined, isPending: false, error: null, refetch: vi.fn(async () => {}) }),
+      useCalendarAutoSyncState: vi.fn(), useShowRecurring: () => true, useCallback: callback => callback,
+    })
+    const state = useEvents({ hasProAccess: false, timeZone: 'UTC', autoSyncState: undefined, profile: createMockProfile(), closeSheet, setIsDayDetailOpen, router: { push } })
+    state.openOrbitPro()
+    expect(push).not.toHaveBeenCalled()
+    expect(setIsDayDetailOpen).not.toHaveBeenCalled()
+    closeSheet.mock.calls[0]?.[0]()
+    expect(setIsDayDetailOpen).toHaveBeenCalledExactlyOnceWith(false)
+    expect(push).toHaveBeenCalledExactlyOnceWith('/upgrade')
   })
 })

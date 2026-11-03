@@ -6,6 +6,7 @@ import { buildComposerChips,resolveComposerChipStatus,AI_MESSAGE_COUNTER_THRESHO
 import type { ChatStoreState } from '../stores/chat-store'
 import type { Profile } from '../types/profile'
 import type { HabitDetail,NormalizedHabit } from '../types/habit'
+import type { QueryClient } from '@tanstack/query-core'
 
 type Translate = (key: string, values?: Record<string, string | number | Date>) => string
 
@@ -223,10 +224,19 @@ function createComposerWords(t: Translate, isOnline: boolean, isSending: boolean
 
 type ToolStep = { domain: string; access: string }
 
-export interface ComposerState<Attempt> extends Pick<ChatStoreState,
+export interface ComposerState<Attempt, HabitsQuery = unknown, DetailQuery = unknown> extends Pick<ChatStoreState,
   'messages' | 'isTyping' | 'queuedPrompts' | 'queuePaused' | 'queueReady' | 'replyActive' |
   'streamingMessageId' | 'addMessage' | 'updateMessage' | 'appendToMessageContent' |
   'setIsTyping' | 'setStreamingMessageId' | 'draftHydrated' | 'hydrateDraft'> {
+  profile: Profile | undefined
+  queryClient: QueryClient
+  allowanceText: Translate
+  contextualSuggestion: ChatStoreState['contextualSuggestion']
+  calendarHasError: boolean
+  today: string
+  surface: ComposerChipSurface
+  habitsQuery: HabitsQuery
+  detailQuery: DetailQuery
   input: string
   setInput: ChatStoreState['setDraft']
   stopReply: { current: (() => void) | null }

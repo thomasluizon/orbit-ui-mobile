@@ -1,25 +1,12 @@
 'use client'
 
 import { useCallback } from 'react'
-import { collectSelectableDescendantIds } from '@orbit/shared/utils'
+import { getHabitDeleteConfirmation } from '@orbit/shared/hooks'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import type { useHabitListQueries,useHabitListModalState,useHabitListCollapse } from './use-habit-list-state'
 
-function getDeleteConfirmation(
-  habitId: string | null,
-  habitsById: ReadonlyMap<string, NormalizedHabit>,
-  childrenByParent: ReadonlyMap<string, string[]>,
-) {
-  if (!habitId) return { name: '', descendantCount: 0 }
-  return {
-    name: habitsById.get(habitId)?.title ?? '',
-    descendantCount: collectSelectableDescendantIds(
-      habitId,
-      (descendantId) => childrenByParent.get(descendantId) ?? [],
-    ).length,
-  }
-}
+
 
 type ConfirmationQueries = Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent' | 'deleteHabitMut' | 'duplicateHabitMut'>
 
@@ -30,7 +17,7 @@ export function useHabitListConfirmations(queries: { queries: ConfirmationQuerie
   const [habitToDelete, setHabitToDelete] = useAccountScopedState<{ id: string; name: string; descendantCount: number } | null>(null)
   const [habitToDuplicate, setHabitToDuplicate] = useAccountScopedState<NormalizedHabit | null>(null)
   const promptDelete = useCallback((habitId: string) => {
-    setHabitToDelete({ id: habitId, ...getDeleteConfirmation(habitId, habitsById, childrenByParent) })
+    setHabitToDelete({ id: habitId, ...getHabitDeleteConfirmation(habitId, habitsById, childrenByParent) })
     setShowDeleteConfirm(true)
   }, [habitsById, childrenByParent, setHabitToDelete, setShowDeleteConfirm])
   const confirmDelete = useCallback(async () => {
