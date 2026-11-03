@@ -18,11 +18,20 @@ vi.mock('@lodev09/react-native-true-sheet', async () => import('@/__tests__/supp
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ permission: 'granted' }) }))
 vi.mock('@/hooks/use-push-subscriptions', () => ({ usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }) }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: undefined, isSuccess: false, isFetching: false, isError: false }) }))
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabitDetail: () => ({ data: undefined, isPending: false, error: null, refetch: vi.fn() }),
+  useHabits: () => ({ data: undefined, isSuccess: false, isFetching: false, isError: false }) }
+})
 vi.mock('@/hooks/use-habits', () => ({
   useUpdateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useHabitDetail: () => ({ data: undefined, isPending: false, error: null, refetch: vi.fn() }),
 }))
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }), useHasProAccess: () => false }))
 vi.mock('@/hooks/use-config', async () => {
   const { DEFAULT_CONFIG } = await import('@orbit/shared/types/config')

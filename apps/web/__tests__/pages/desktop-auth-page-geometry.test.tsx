@@ -14,6 +14,24 @@ describe('desktop completion page geometry in Chromium', () => {
   registerChromeLaunchHook(beforeAll, async launch => { browserLaunch = launch; browser = await launch })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each(['light', 'dark'] as const)('follows system %s before standalone completion content paints', async mode => {
+    const result = await desktopAuthPage(new URL('org.useorbit.desktop://auth/callback?error=authentication_failed'), 'en', null)
+    const page = await browser.newPage({ colorScheme: mode })
+    try {
+      await page.setContent(await new Response(result.body).text())
+      const theme = await page.evaluate(() => ({
+        lightSystem: window.matchMedia('(prefers-color-scheme: light)').matches,
+        mode: document.documentElement.style.colorScheme,
+        canvas: getComputedStyle(document.body).backgroundColor,
+        meta: document.querySelector('meta[name="theme-color"]')?.getAttribute('content'),
+      }))
+      expect(theme.lightSystem).toBe(mode === 'light')
+      expect(theme.mode).toBe(mode)
+      expect(theme.canvas).toBe(mode === 'light' ? 'rgb(250, 250, 250)' : 'rgb(9, 9, 11)')
+      expect(theme.meta).toBe(mode === 'light' ? '#FAFAFA' : '#09090B')
+    } finally { await page.close() }
+  })
+
   it('follows the card radius token on the standalone page', async () => {
     const result = await desktopAuthPage(new URL('org.useorbit.desktop://auth/callback?error=authentication_failed'), 'en', 'dark')
     const document = new DOMParser().parseFromString(await new Response(result.body).text(), 'text/html')

@@ -1,3 +1,4 @@
+import { makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
 import { useChatStore } from '@/stores/chat-store'
 import { chatMessageSchema } from '@orbit/shared/types/chat'
 import { motionLayerTiming } from '@orbit/shared/theme'
@@ -26,6 +27,22 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }),
   useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
+
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }),
+  useHabits: () => ({ data: { habitsById: new Map() } }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn() }) }
+})
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, uses24HourClock: false } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value, displayClock: (value: string) => value }) }))
@@ -46,6 +63,50 @@ describe('Astra block layout in Chromium', () => {
   })
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 1352].flatMap(width => ['en', 'pt-BR'].map(locale => ({ width, locale }))))('keeps the live plan in the reply column without moving earlier content at $width in $locale', async ({ width, locale }) => {
+    const plan = makeAstraPlan(locale)
+    const reply = makeHeldHabitMessage({ id: 'planned', content: '', pendingOperations: [], plan, toolSteps: [{ domain: 'habits', access: 'read' }] })
+    const person = makeHeldHabitMessage({ id: 'request', role: 'user', content: 'Check my routine', pendingOperations: [] })
+    const chat = {
+      threadScroll: createChatThreadScroll(), chatContainerRef: createRef<HTMLDivElement>(), messages: [person, reply],
+      activeSteps: [{ domain: 'habits', access: 'read' }], showSuggestions: false, isTyping: false, streamingMessageId: reply.id, canShowFollowUps: false,
+      confirmAndExecutePendingOperation: vi.fn(), prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(),
+      scrollToBottom: vi.fn(), composerProps: { state: 'idle', value: '', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
+        words: { placeholder: en.shell.composer.placeholder, send: en.shell.composer.send, clear: en.shell.composer.clear, actions: en.shell.composer.actions, suggestionsLabel: en.shell.composer.suggestionsLabel },
+      },
+    } as unknown as ChatController
+    const surface = () => <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><div style={{ height: 915, width: width >= 1024 ? 740 : width }}><AstraConversation chat={chat} /></div></NextIntlClientProvider>
+    const { container, rerender } = render(surface())
+    expect(container.querySelectorAll('[data-astra-plan]')).toHaveLength(1)
+    expect(container.querySelector('[data-thinking-trace]')).toBeNull()
+    expect(container.querySelector('[data-astra-pending]')).toBeNull()
+    const planNode = container.querySelector('[data-astra-plan]')
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><main>${container.innerHTML}</main>`)
+      await loadAppFonts(page)
+      const before = await page.locator('article').first().boundingBox()
+      const bounds = await page.locator('[data-astra-plan]').boundingBox()
+      const replyBounds = await page.locator('article').last().boundingBox()
+      expect(bounds!.x).toBeCloseTo(replyBounds!.x, 1)
+      expect(bounds!.width).toBeCloseTo(replyBounds!.width, 1)
+      expect(await page.getByRole('progressbar').locator('div').evaluate(element => parseFloat(getComputedStyle(element).transitionDuration))).toBeLessThanOrEqual(0.00001)
+      for (const status of ['running', 'done']) {
+        chat.messages = [person, { ...reply, plan: { ...plan, steps: plan.steps.map(step => ({ ...step, status })) } }]
+        if (status === 'done') { chat.streamingMessageId = null; chat.activeSteps = [] }
+        rerender(surface())
+        expect(container.querySelector('[data-astra-plan]')).toBe(planNode)
+        expect(container.querySelector('[data-thinking-trace]')).toBeNull()
+        await page.locator('main').evaluate((element, markup) => { element.innerHTML = markup }, container.innerHTML)
+        expect(await page.locator('article').first().boundingBox()).toEqual(before)
+        const updated = await page.locator('[data-astra-plan]').boundingBox()
+        expect(updated!.y).toBeCloseTo(bounds!.y, 1)
+        expect(updated!.width).toBeCloseTo(bounds!.width, 1)
+        expect(await page.getByRole('progressbar').getAttribute('aria-valuenow')).toBe(status === 'done' ? '2' : '0')
+      }
+    } finally { await page.close() }
+  })
 
   it.each([320, 412, 1352])('withholds provisional prose and retains the scroll offset on final delivery at %s', async width => {
     const message = makeChatPartsLayoutMessage()

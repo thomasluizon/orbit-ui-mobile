@@ -1,22 +1,6 @@
-import { z } from 'zod'
-import { chatMessageSchema } from '@orbit/shared/types/chat'
+import { loadModule } from '@orbit/shared/utils/load-module'
 import type { ChatStoreState } from '@orbit/shared/stores'
 import { desktopChatCheckpointKey, forgetDesktopChatCheckpoint } from './web-reload-state'
-
-const checkpointSchema = z.object({
-  accountId: z.string(),
-  expiresAt: z.number(),
-  conversationOpen: z.boolean(),
-  chat: z.object({
-    conversationId: z.uuid().nullable().default(null),
-    dismissedOfferKeys: z.array(z.string()).default([]),
-    messages: z.array(chatMessageSchema.extend({ timestamp: z.coerce.date() })),
-    draft: z.string(),
-    proactiveEntryId: z.string().nullable(),
-    proactiveOutcomes: z.record(z.string(), z.enum(['opened', 'acted'])),
-    contextualSuggestion: z.object({ id: z.string(), label: z.string(), prompt: z.string() }).nullable(),
-  }),
-})
 
 async function durableImageUrl(url: string | null | undefined) {
   if (!url?.startsWith('blob:')) return url
@@ -33,24 +17,38 @@ async function durableImageUrl(url: string | null | undefined) {
 }
 
 export async function writeDesktopChatCheckpoint(accountId: string, chat: ChatStoreState, conversationOpen: boolean, persistent = false) {
+  const { checkpointSchema } = await loadModule(() => import('./desktop-chat-checkpoint-schema'))
+  const retained = readStoredCheckpoint(checkpointSchema, accountId)
+  if (retained) {
+    if (persistent) localStorage.setItem(desktopChatCheckpointKey, retained.stored)
+    return false
+  }
   const messages = await Promise.all(chat.messages.map(async message => ({
     ...message, imageUrl: await durableImageUrl(message.imageUrl),
   })))
   const checkpoint = { accountId, expiresAt: Date.now() + 5 * 60_000, conversationOpen,
     chat: { messages, conversationId: chat.conversationId, dismissedOfferKeys: chat.dismissedOfferKeys, draft: chat.draft, proactiveEntryId: chat.proactiveEntryId,
       proactiveOutcomes: chat.proactiveOutcomes, contextualSuggestion: chat.contextualSuggestion } }
-  checkpointSchema.parse(checkpoint)
+  checkpointSchema.parse(checkpoint, { jitless: true })
   const storage = persistent ? localStorage : sessionStorage
   storage.setItem(desktopChatCheckpointKey, JSON.stringify(checkpoint))
+  return true
 }
 
-export function takeDesktopChatCheckpoint(accountId: string) {
-  const stored = sessionStorage.getItem(desktopChatCheckpointKey) ?? localStorage.getItem(desktopChatCheckpointKey)
+export async function takeDesktopChatCheckpoint(accountId: string, isCurrent: () => boolean = () => true) {
+  const { checkpointSchema } = await loadModule(() => import('./desktop-chat-checkpoint-schema'))
+  if (!isCurrent()) return null
+  const retained = readStoredCheckpoint(checkpointSchema, accountId)
   forgetDesktopChatCheckpoint()
+  return retained?.checkpoint ?? null
+}
+
+function readStoredCheckpoint(checkpointSchema: typeof import('./desktop-chat-checkpoint-schema').checkpointSchema, accountId: string) {
+  const stored = sessionStorage.getItem(desktopChatCheckpointKey) ?? localStorage.getItem(desktopChatCheckpointKey)
   if (!stored) return null
   let parsed: unknown
   try { parsed = JSON.parse(stored) } catch { return null }
-  const checkpoint = checkpointSchema.safeParse(parsed)
+  const checkpoint = checkpointSchema.safeParse(parsed, { jitless: true })
   return checkpoint.success && checkpoint.data.accountId === accountId && checkpoint.data.expiresAt > Date.now()
-    ? checkpoint.data : null
+    ? { checkpoint: checkpoint.data, stored } : null
 }

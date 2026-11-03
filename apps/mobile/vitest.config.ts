@@ -91,7 +91,6 @@ export default defineConfig({
         'components/wrapped/wrapped-slide.tsx',
         'app/wrapped.tsx',
         'components/chat/conflict-warning.tsx',
-        'components/gamification/ring-motif.tsx',
         'components/goals/edit-goal-modal.tsx',
         'components/goals/edit-goal-modal/edit-goal-deadline-field.tsx',
         'components/goals/edit-goal-modal/edit-goal-target-fields.tsx',

@@ -36,6 +36,7 @@ const mocks = vi.hoisted(() => {
   const queryConfigs: { queryKey: readonly unknown[]; queryFn: () => unknown }[] = []
   const apiKeysResult: QueryResult = { data: [] }
   return {
+    limit: 5,
     store,
     queryClient,
     queryConfigs,
@@ -53,6 +54,8 @@ vi.mock('@tanstack/react-query', () => ({
   }),
   useMutation: vi.fn((config: unknown) => config),
 }))
+
+vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { limits: { maxActiveApiKeys: mocks.limit } } }) }))
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
@@ -120,6 +123,7 @@ function asMutation(mutation: unknown): CapturedMutation {
 
 describe('useApiKeyManagement', () => {
   beforeEach(() => {
+    mocks.limit = 5
     mocks.store.clear()
     mocks.queryConfigs = []
     mocks.apiKeysResult = { data: [] }
@@ -263,4 +267,12 @@ describe('useApiKeyManagement', () => {
       queryKey: profileKeys.all,
     })
   })
+})
+
+it('uses the configured cap to disable creation at three keys', () => {
+  mocks.limit = 3
+  mocks.apiKeysResult = { data: [apiKey('one'), apiKey('two'), apiKey('three')] }
+  expect(renderApiKeys().current.canCreateKey).toBe(false)
+  mocks.apiKeysResult = { data: [apiKey('one'), apiKey('two')] }
+  expect(renderApiKeys().current.canCreateKey).toBe(true)
 })

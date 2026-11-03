@@ -24,6 +24,12 @@ vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => ({
   isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn(),
 }) }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: vi.fn(), isPending: false }), useSkipHabit: () => ({ mutate: vi.fn(), isPending: false }) }))
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn(), isPending: false }),
+  useSkipHabit: () => ({ mutate: vi.fn(), isPending: false }) }
+})
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
 
 const cases = [1100, 1352, 1440].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>

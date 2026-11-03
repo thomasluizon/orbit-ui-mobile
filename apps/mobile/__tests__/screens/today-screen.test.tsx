@@ -163,6 +163,19 @@ vi.mock('@/hooks/use-habits', () => ({
   },
 }))
 
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
+  useHabits: (filters: HabitsFilter) => {
+    mocks.habitFilters.push(filters)
+    return {
+      data: mocks.habitsFailed ? undefined : { habitsById: new Map([[pendingHabit.id, pendingHabit]]) },
+      isFetching: mocks.habitsFetching,
+      isError: mocks.habitsFailed,
+    }
+  } }
+})
+
 vi.mock('@/components/habit-list', () => ({
   HabitList: React.forwardRef(function MockHabitList(
     props: Record<string, unknown>,

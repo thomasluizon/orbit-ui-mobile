@@ -1,5 +1,6 @@
-# Production and staging environment secrets: RENDER_API_KEY.
-# Repository secrets: SMOKE_TEST_EMAIL, SMOKE_TEST_CODE.
+# Production and staging environment secrets: RENDER_API_KEY, SMOKE_BOT_BYPASS (optional).
+# Repository secrets: SMOKE_TEST_EMAIL, SMOKE_TEST_CODE,
+# STAGING_SMOKE_TEST_EMAIL, STAGING_SMOKE_TEST_CODE.
 # Repository variables: RENDER_WEB_SERVICE_ID,
 # PRODUCTION_WEB_HOST,
 # PRODUCTION_NEXT_PUBLIC_GOOGLE_CLIENT_ID, PRODUCTION_NEXT_PUBLIC_VAPID_PUBLIC_KEY,
@@ -536,6 +537,7 @@ jobs:
           SMOKE_BASE_URL: ${{ steps.health.outputs.deployment_url }}
           SMOKE_TEST_EMAIL: ${{ secrets.STAGING_SMOKE_TEST_EMAIL }}
           SMOKE_TEST_CODE: ${{ secrets.STAGING_SMOKE_TEST_CODE }}
+          SMOKE_BOT_BYPASS: ${{ secrets.SMOKE_BOT_BYPASS }}
         run: npm --workspace @orbit/web run test:smoke
       - name: Record staging smoke pass
         env:
@@ -580,6 +582,9 @@ jobs:
 
   smoke:
     name: Post-deploy smoke
+    environment:
+      name: production
+      deployment: false
     needs: [build, production]
     if: inputs.environment == 'production'
     runs-on: ubuntu-latest
@@ -587,6 +592,7 @@ jobs:
       SMOKE_BASE_URL: ${{ needs.production.outputs.smoke_base_url }}
       SMOKE_TEST_EMAIL: ${{ secrets.SMOKE_TEST_EMAIL }}
       SMOKE_TEST_CODE: ${{ secrets.SMOKE_TEST_CODE }}
+      SMOKE_BOT_BYPASS: ${{ secrets.SMOKE_BOT_BYPASS }}
     steps:
       - uses: actions/checkout@v7
         with:

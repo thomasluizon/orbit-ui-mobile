@@ -48,6 +48,11 @@ vi.mock('@/hooks/use-calendar-auto-sync', () => ({
 }))
 vi.mock('@/components/calendar-sync/calendar-import-content', () => ({ CalendarImportContent: () => null }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutateAsync: vi.fn() }) }))
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutateAsync: vi.fn() }) }
+})
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: vi.fn() }) }))
 vi.mock('@/hooks/use-date-format', () => ({ useDateFormat: () => ({ displayWeekdayDate: vi.fn() }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))

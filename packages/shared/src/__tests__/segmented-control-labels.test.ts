@@ -10,7 +10,9 @@ describe.each(['web', 'mobile'] as const)('SegmentedControl labels on %s', (plat
   const sites = collectSegmentCallSites(repositoryRoot, platform)
 
   it('requires geometry coverage for every call site', () => {
-    const calendar = platform === 'web' ? 'app/(app)/calendar/page.tsx' : 'app/(tabs)/calendar.tsx'
+    const calendar = platform === 'web'
+      ? 'app/(app)/calendar/_components/use-calendar-screen-state.tsx'
+      : 'app/(tabs)/calendar/_components/use-calendar-screen-state.tsx'
     expect(sites.map((site) => site.path).sort((left, right) => left.localeCompare(right))).toEqual([
       ...SEGMENT_GEOMETRY_OWNERS,
       'components/onboarding/onboarding-create-habit.tsx',

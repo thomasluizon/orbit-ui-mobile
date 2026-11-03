@@ -14,6 +14,11 @@ const recoveryLocale = vi.hoisted((): { current: 'en' | 'pt-BR' } => ({ current:
 const recoveryMessages = { en, 'pt-BR': ptBR }
 const bulkCreate = vi.fn<(request: BulkCreateRequest) => Promise<BulkCreateResponse>>()
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }) }))
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }) }
+})
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, onConfirm, onCancel }: { open: boolean; onConfirm: () => void; onCancel: () => void }) => open ? React.createElement('ConfirmSheet', { onConfirm, onCancel }) : null,
 }))

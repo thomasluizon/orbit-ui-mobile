@@ -50,6 +50,26 @@ vi.mock('@/hooks/use-habits', () => ({
   useUpdateChecklist: () => ({ mutateAsync: vi.fn() }),
   useDeleteHabit: () => ({ mutateAsync: vi.fn() }),
 }))
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutateAsync: vi.fn() }) }
+})
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutateAsync: vi.fn() }) }
+})
+
+vi.mock('@/hooks/use-update-checklist', () => {
+
+return { useUpdateChecklist: () => ({ mutateAsync: vi.fn() }) }
+})
+
+vi.mock('@/hooks/use-delete-habit', () => {
+
+return { useDeleteHabit: () => ({ mutateAsync: vi.fn() }) }
+})
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC', language: mocks.language, weekStartDay: 1 } }),
 }))

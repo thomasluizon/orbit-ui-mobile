@@ -15,7 +15,8 @@ import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-are
 const safeArea = vi.hoisted(() => ({ top: 24, bottom: 16, left: 0, right: 0 }))
 vi.mock('@/lib/conversation-history', () => ({ conversationHistory: { latest: vi.fn(() => Promise.resolve(false)) } }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ ...safeArea }) }))
-vi.mock('@/hooks/use-habits', () => ({}))
+vi.mock('@/hooks/use-habit-queries', () => ({}))
+vi.mock('@/hooks/use-habit-logging', () => ({}))
 vi.mock('expo-clipboard', () => ({ }))
 await vi.hoisted(async () => {
   const { createRequire, Module } = await import('node:module')

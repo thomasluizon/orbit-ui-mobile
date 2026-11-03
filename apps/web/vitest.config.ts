@@ -82,7 +82,6 @@ export default defineConfig({
         'components/motion/route-transition-shell.tsx',
         'components/navigation/navigation-history-tracker.tsx',
         'components/calendar/calendar-week-view.tsx',
-        'components/ui/parent-ring.tsx',
         'components/onboarding/retained-onboarding-overlay.tsx',
         'stores/version-gate-store.ts',
       ],

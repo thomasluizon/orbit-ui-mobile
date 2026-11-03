@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { habitKeys } from '@orbit/shared/query'
+import type { MutationFunctionContext } from '@tanstack/react-query'
 import TodayScreen from '@/app/(tabs)/index'
 vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: vi.fn(async () => {}) }) }))
 
@@ -69,28 +70,30 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
     useQuery: vi.fn(),
     useQueryClient: () => queryClient,
     useMutation: (config: {
-      mutationFn: (variables: unknown) => Promise<unknown>
-      onMutate?: (variables: unknown) => unknown
-      onSuccess?: (result: unknown, variables: unknown, context: unknown) => unknown
-      onError?: (error: Error, variables: unknown, context: unknown) => unknown
+      mutationFn: (variables: unknown, functionContext: MutationFunctionContext) => Promise<unknown>
+      onMutate?: (variables: unknown, functionContext: MutationFunctionContext) => unknown
+      onSuccess?: (result: unknown, variables: unknown, context: unknown, functionContext: MutationFunctionContext) => unknown
+      onError?: (error: Error, variables: unknown, context: unknown, functionContext: MutationFunctionContext) => unknown
       onSettled?: (
         result: unknown,
         error: Error | null,
         variables: unknown,
         context: unknown,
+        functionContext: MutationFunctionContext,
       ) => unknown
     }) => ({
       mutateAsync: async (variables: unknown) => {
-        const context = await config.onMutate?.(variables)
+        const functionContext: MutationFunctionContext = { client: queryClient, meta: undefined, mutationKey: undefined }
+        const context = await config.onMutate?.(variables, functionContext)
         try {
-          const result = await config.mutationFn(variables)
-          await config.onSuccess?.(result, variables, context)
-          await config.onSettled?.(result, null, variables, context)
+          const result = await config.mutationFn(variables, functionContext)
+          await config.onSuccess?.(result, variables, context, functionContext)
+          await config.onSettled?.(result, null, variables, context, functionContext)
           return result
         } catch (error: unknown) {
           const mutationError = error instanceof Error ? error : new Error(String(error))
-          await config.onError?.(mutationError, variables, context)
-          await config.onSettled?.(undefined, mutationError, variables, context)
+          await config.onError?.(mutationError, variables, context, functionContext)
+          await config.onSettled?.(undefined, mutationError, variables, context, functionContext)
           throw mutationError
         }
       },
@@ -157,6 +160,13 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
     EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
     useHabits: () => ({ data: { habitsById: mocks.habitsById } }),
   }
+})
+
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
+const actual = await importOriginal<typeof import('@/hooks/use-habit-queries')>()
+return { ...actual,
+  EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
+  useHabits: () => ({ data: { habitsById: mocks.habitsById } }) }
 })
 
 vi.mock('@/hooks/use-app-toast', () => ({

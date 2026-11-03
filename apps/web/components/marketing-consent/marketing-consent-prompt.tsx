@@ -15,7 +15,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { updateMarketingConsent } from '@/lib/actions/profile'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 
-const SETTLE_DELAY_MS = 500
+import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 
 /**
  * One-time LGPD-lawful marketing-email consent nudge. Shows once onboarding is complete, the

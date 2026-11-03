@@ -49,6 +49,11 @@ vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
 } }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => mocks.queue }))
 vi.mock('@/hooks/use-habits', () => ({ useDeleteHabit: vi.fn() }))
+
+vi.mock('@/hooks/use-delete-habit', () => {
+
+return { useDeleteHabit: vi.fn() }
+})
 vi.mock('@/lib/offline-queue', () => ({
   enqueue: mocks.enqueue,
   enqueueWithCompaction: (mutation: PersistedQueuedMutation) => ({ id: mutation.id, compactedCreate: null }),

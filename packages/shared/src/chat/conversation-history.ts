@@ -1,9 +1,7 @@
-import { z } from 'zod'
+import { loadModule } from '../utils/load-module'
 import { API } from '../api/endpoints'
-import { chatResponseSchema, type ChatMessage } from '../types/chat'
-import { conversationPreviewOutcomeSchema, type ConversationPage } from '../types/conversation'
+import type { ConversationPage } from '../types/conversation'
 import type { ChatStoreState } from '../stores/chat-store'
-import { buildChatFinalMessageFields } from './final-message'
 
 export interface ConversationCursor { conversationId?: string; beforeOrder?: number | string }
 
@@ -14,29 +12,8 @@ export function conversationPagePath(cursor: ConversationCursor = {}): string {
   return `${API.chat.latestConversation}?${query.toString()}`
 }
 
-export function restoreConversationPage(page: ConversationPage): ChatMessage[] {
-  return page.turns.map(turn => {
-    const message: ChatMessage = {
-      id: `stored-${turn.turnId}-${turn.role}`, role: turn.role === 'user' ? 'user' : 'ai',
-      content: turn.content ?? '', timestamp: new Date(turn.createdAtUtc), restored: true,
-    }
-    if (turn.image) {
-      message.imageUrl = API.chat.conversationImage(page.conversationId, turn.turnId)
-      message.storedImage = { conversationId: page.conversationId, turnId: turn.turnId }
-    }
-    if (turn.role === 'assistant' && turn.responseJson) {
-      Object.assign(message, buildChatFinalMessageFields(chatResponseSchema.parse(JSON.parse(turn.responseJson)), []))
-      const outcomes = z.array(conversationPreviewOutcomeSchema).parse(JSON.parse(turn.previewOutcomesJson))
-      message.pendingOperationStates = Object.fromEntries(outcomes.flatMap(outcome => outcome.Outcome === 'pending' ? [] : [[
-        outcome.PendingOperationId, outcome.Outcome === 'rejected' ? { rejected: true, dismissed: true }
-          : { recordedOutcome: outcome.Outcome },
-      ]]))
-    }
-    return message
-  })
-}
-
 interface HistoryAdapter {
+  onModuleLoadError: (error: unknown) => void
   getState: () => ChatStoreState
   setState: (patch: Partial<ChatStoreState>) => void
   getAccountGeneration: () => number
@@ -72,8 +49,11 @@ export function createConversationHistory(adapter: HistoryAdapter): Conversation
     if (!refresh && snapshot.conversationLoaded && !snapshot.conversationBusy) return Promise.resolve(false)
     if (snapshot.replyActive || snapshot.isTyping) return Promise.resolve(false)
     return run(async isCurrent => {
+      const { restoreConversationPage } = await loadModule(() => import('./conversation-restore'), adapter.onModuleLoadError)
+      if (!isCurrent()) return false
+      const messagesBeforeRead = adapter.getState().messages
       const page = await adapter.read({})
-      if (!isCurrent() || adapter.getState().messages !== snapshot.messages) return false
+      if (!isCurrent() || adapter.getState().messages !== messagesBeforeRead) return false
       const messages = page ? restoreConversationPage(page) : null
       if (!page && snapshot.serverConversationId) {
         adapter.setState({ messages: [], conversationId: null, serverConversationId: null,
@@ -83,7 +63,7 @@ export function createConversationHistory(adapter: HistoryAdapter): Conversation
       adapter.setState({ conversationLoaded: true, ...(page && messages ? {
         conversationId: page.conversationId, serverConversationId: page.conversationId,
         conversationBeforeOrder: page.beforeOrder,
-        messages: [...snapshot.messages.filter(message => message.proactiveItem || message.id.startsWith('daily-summary-')), ...messages],
+        messages: [...messagesBeforeRead.filter(message => message.proactiveItem || message.id.startsWith('daily-summary-')), ...messages],
       } : {}) })
       return Boolean(page)
     })
@@ -92,6 +72,8 @@ export function createConversationHistory(adapter: HistoryAdapter): Conversation
     const snapshot = adapter.getState()
     if (!snapshot.serverConversationId || snapshot.conversationBeforeOrder === null || snapshot.conversationBusy) return Promise.resolve(false)
     return run(async isCurrent => {
+      const { restoreConversationPage } = await loadModule(() => import('./conversation-restore'), adapter.onModuleLoadError)
+      if (!isCurrent()) return false
       const page = await adapter.read({ conversationId: snapshot.serverConversationId!, beforeOrder: snapshot.conversationBeforeOrder! })
       if (!isCurrent() || !page || page.conversationId !== snapshot.serverConversationId) return false
       const current = adapter.getState().messages

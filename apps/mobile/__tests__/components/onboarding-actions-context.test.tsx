@@ -62,6 +62,26 @@ vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutateAsync: mocks.logHabitMutateAsync }),
 }))
 
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => ({ mutateAsync: mocks.createHabitMutateAsync }) }
+})
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutateAsync: mocks.updateHabitMutateAsync }) }
+})
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: mocks.bulkCreateHabitsMutateAsync }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutateAsync: mocks.logHabitMutateAsync }) }
+})
+
 vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: () => ({ mutateAsync: mocks.createGoalMutateAsync }),
 }))

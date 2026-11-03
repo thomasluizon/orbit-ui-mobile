@@ -17,7 +17,7 @@ import {
   hasApiKeyCreationGrant,
 } from '@/lib/step-up-storage'
 
-const MAX_API_KEYS = 5
+import { useConfig } from '@/hooks/use-config'
 
 async function fetchApiKeys(): Promise<ApiKey[]> {
   const res = await fetchWithThrottle(API.apiKeys.list)
@@ -47,7 +47,8 @@ export function useApiKeyManagement({
   })
 
   const apiKeys = apiKeysQuery.data ?? []
-  const canCreateKey = apiKeys.length < MAX_API_KEYS
+  const { config } = useConfig()
+  const canCreateKey = apiKeys.length < config.limits.maxActiveApiKeys
   const [createKeyError, setCreateKeyError] = useAccountScopedState<string | null>(null)
   const [createGrantAvailable, setCreateGrantAvailable] = useAccountScopedState(hasApiKeyCreationGrant)
   const [revokingKeyId, setRevokingKeyId] = useAccountScopedState<string | null>(null)

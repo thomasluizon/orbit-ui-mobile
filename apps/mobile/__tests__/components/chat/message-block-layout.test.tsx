@@ -1,3 +1,4 @@
+import { makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
 import { useChatStore } from '@/stores/chat-store'
 import { chatMessageSchema } from '@orbit/shared/types/chat'
 import { createChatThreadScroll } from '@orbit/shared/hooks'
@@ -24,6 +25,22 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }),
   useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
+
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }),
+  useHabits: () => ({ data: { habitsById: new Map() } }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn() }) }
+})
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, uses24HourClock: false } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value, displayClock: (value: string) => value }) }))
@@ -40,6 +57,38 @@ const cases = [390, 412, 480, 600, 840, 1100, 1280, 1352].flatMap(width => ['en'
 afterEach(async () => {
   __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
   await i18n.changeLanguage('en')
+})
+
+it.each(['en', 'pt-BR'])('renders one native plan during streaming and preserves single-tool traces in %s', async locale => {
+  await i18n.changeLanguage(locale)
+  const plan = makeAstraPlan(locale)
+  const message = makeHeldHabitMessage({ id: 'planned', content: '', pendingOperations: [], plan, toolSteps: [{ domain: 'habits', access: 'read' }] })
+  const chat = {
+    threadScroll: createChatThreadScroll(), flatListRef: { current: null }, messages: [message],
+    activeSteps: [{ domain: 'habits', access: 'read' }], showSuggestions: false, isTyping: false, streamingMessageId: message.id, canShowFollowUps: false,
+    confirmAndExecutePendingOperation: vi.fn(), prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(),
+    scrollToBottom: vi.fn(), composerProps: { suggestions: [] },
+  } as unknown as ChatController
+  let conversation!: ReturnType<typeof renderer.create>
+  let feed!: ReturnType<typeof renderer.create>
+  await renderer.act(() => { conversation = renderer.create(<AstraConversation chat={chat} />) })
+  try {
+    const list = conversation.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
+    const item = list.renderItem!({ item: message, index: 0, separators: { highlight: vi.fn(), unhighlight: vi.fn(), updateProps: vi.fn() } })
+    await renderer.act(() => { feed = renderer.create(<View>{item}{list.ListFooterComponent as React.ReactElement}</View>) })
+    const hosts = feed.root.findAll(node => typeof node.type === 'string')
+    expect(hosts.filter(node => node.props.testID === `astra-plan-${plan.id}`)).toHaveLength(1)
+    expect(hosts.filter(node => typeof node.props.testID === 'string' && node.props.testID.startsWith('thinking-trace-'))).toHaveLength(0)
+    expect(hosts.filter(node => node.props.testID === 'astra-pending')).toHaveLength(0)
+    await renderer.act(() => feed.unmount())
+    chat.messages = [{ ...message, plan: undefined }]
+    chat.streamingMessageId = null
+    chat.activeSteps = []
+    await renderer.act(() => conversation.update(<AstraConversation chat={chat} />))
+    const completedList = conversation.root.findAll(node => node.type === FlatList)[0]!.props as unknown as FlatListProps<ChatMessage>
+    await renderer.act(() => { feed = renderer.create(<>{completedList.renderItem!({ item: chat.messages[0]!, index: 0, separators: { highlight: vi.fn(), unhighlight: vi.fn(), updateProps: vi.fn() } })}</>) })
+    expect(feed.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'thinking-trace-completed')).toHaveLength(1)
+  } finally { await renderer.act(() => { feed.unmount(); conversation.unmount() }) }
 })
 
 it.each([412, 1352])('aligns Android first Astra avatars and continuation blocks at %s', async width => {

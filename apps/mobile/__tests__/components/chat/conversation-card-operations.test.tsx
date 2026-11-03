@@ -11,6 +11,8 @@ import { Composer } from '@/components/shell/composer'
 import { usePendingOperationExecution } from '@/hooks/use-pending-operation-execution'
 import { AstraConversation } from '@/components/chat/conversation'
 import { breakdownSubHabits, makeActionResult, makeAgentOperationResult, makeBulkCreateResponse, makeClarificationPreviewMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
+
 vi.mock('react-i18next', () => ({ initReactI18next: { type: '3rdParty', init: () => {} }, useTranslation: () => ({ i18n: { language: 'pt-BR' }, t: (key: string) => key }) }))
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(true) }))
 vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: string }) => React.createElement('Markdown', null, children) }))
@@ -31,6 +33,11 @@ const scrollToEnd = vi.fn(() => { scroll(viewport.height - viewport.visibleHeigh
 const scrollToOffset = vi.fn(({ offset }: { offset: number }) => { scroll(offset) })
 const mutations = vi.hoisted(() => ({ refresh: vi.fn(), revise: vi.fn(), breakdown: vi.fn(), clarification: vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: mutations.breakdown, isPending: false }) }))
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: mutations.breakdown, isPending: false }) }
+})
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: mutations.clarification, isPending: false }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))

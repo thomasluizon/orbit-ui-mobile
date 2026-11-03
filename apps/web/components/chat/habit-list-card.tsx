@@ -14,7 +14,8 @@ import { formatAPIDate } from '@orbit/shared/utils'
 import { BlockFrame, useReadActionScope } from './read-block-frame'
 import { HabitCheck } from '@/components/habits/habit-check'
 
-import { useHabits, useLogHabit } from '@/hooks/use-habits'
+import { useHabits } from '@/hooks/use-habit-queries'
+import { useLogHabit } from '@/hooks/use-habit-logging'
 
 const PAGE_SIZE = 20
 const useHabitBlockLog = createUseHabitBlockLog({ useState, useRef })

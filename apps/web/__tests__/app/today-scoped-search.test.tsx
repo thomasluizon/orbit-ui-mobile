@@ -35,6 +35,11 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   useBulkLogHabits: () => ({ mutateAsync: boundary.log }),
 }))
 
+vi.mock('@/hooks/use-bulk-log-habits', () => {
+
+return { useBulkLogHabits: () => ({ mutateAsync: boundary.log }) }
+})
+
 function TodaySearchSurface() {
   const view = useTodayPage(today, null)
   return <>

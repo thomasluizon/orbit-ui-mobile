@@ -17,7 +17,7 @@ import { Searching } from '@/components/search/search-results'
 
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOffline } from '@/hooks/use-offline'
-import { useLogHabit, useSkipHabit } from '@/hooks/use-habits'
+import { useLogHabit, useSkipHabit } from '@/hooks/use-habit-logging'
 import { CommandHabitItems, commandHabitValue } from './command-habit-items'
 import { CommandGroups } from './command-groups'
 import { CommandHabitSkeleton, CommandKeyHint, CommandSearchField, GROUP_CLASS } from './command-menu-chrome'

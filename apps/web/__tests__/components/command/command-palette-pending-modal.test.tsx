@@ -22,6 +22,12 @@ vi.mock('@/hooks/use-habits', () => ({
   useSkipHabit: () => ({ mutate: vi.fn() }),
 }))
 
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn() }),
+  useSkipHabit: () => ({ mutate: vi.fn() }) }
+})
+
 await Promise.all([import('@/components/command/command-palette'), import('@/components/ui/sheet')])
 
 let releaseMenu = () => {}

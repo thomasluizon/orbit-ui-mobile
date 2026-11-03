@@ -14,7 +14,10 @@ import type { Profile } from '@orbit/shared/types/profile'
 import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
 import { getOnboardingLoginUrl } from '@/lib/onboarding-login-route'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
-import { useBulkCreateHabits, useCreateHabit, useLogHabit, useUpdateHabit } from '@/hooks/use-habits'
+import { useBulkCreateHabits } from '@/hooks/use-bulk-create-habits'
+import { useCreateHabit } from '@/hooks/use-create-habit'
+import { useLogHabit } from '@/hooks/use-habit-logging'
+import { useUpdateHabit } from '@/hooks/use-update-habit'
 import { useCreateGoal } from '@/hooks/use-goals'
 import {
   updateWeekStartDay as updateWeekStartDayAction,

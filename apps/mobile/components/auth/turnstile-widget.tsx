@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 
 type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
 
@@ -24,7 +25,7 @@ export function TurnstileWidget({
   const [state, setState] = useState<WidgetState>('idle')
   const [attempt, setAttempt] = useState(0)
   const challengeHeight = state === 'solved' ? 0 : 160
-  const bridgeUrl = `https://app.useorbit.org/turnstile-bridge?siteKey=${encodeURIComponent(siteKey)}&theme=${currentTheme}&language=${encodeURIComponent(i18n.language)}`
+  const bridgeUrl = `${APP_LINK_ORIGIN}/turnstile-bridge?siteKey=${encodeURIComponent(siteKey)}&theme=${currentTheme}&language=${encodeURIComponent(i18n.language)}`
 
   useEffect(() => {
     let active = true

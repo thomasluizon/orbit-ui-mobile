@@ -1,5 +1,4 @@
 export {
-  clearContextualSuggestionIfCurrent,
   createChatStoreState,
   prepareChatRequest,
   type ChatStoreState,
@@ -9,11 +8,8 @@ export {
   type VersionGateStoreState,
 } from './version-gate-store'
 export {
-  ENGAGEMENT_PROMPT_PRIORITY,
   MARKETING_CONSENT_MILESTONE_KEY,
   STREAK_CROSSING_MILESTONES,
-  REVIEW_MOMENT_STREAK_MILESTONES,
-  REFERRAL_STREAK_MILESTONES,
   REFERRAL_PROMPT_COOLDOWN_DAYS,
   getMilestoneShareStreakKey,
   getMilestoneShareAchievementKey,

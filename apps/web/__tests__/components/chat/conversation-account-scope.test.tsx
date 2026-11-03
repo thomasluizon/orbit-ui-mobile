@@ -297,6 +297,8 @@ it.each(batchLabels)('keeps the feed busy through %s and clears it after failure
   expect(feed).toHaveAttribute('aria-busy', 'false')
   fireEvent.click(screen.getByRole('button', { name: label }))
   expect(feed).toHaveAttribute('aria-busy', 'true')
+  await act(async () => { await vi.dynamicImportSettled() })
+  expect(label === 'Verify batch' ? operationsApi.verify : operationsApi.confirm).toHaveBeenCalled()
   await act(async () => { finish({ ok: false, error: 'Failed', status: 500 }); await pending })
   expect(feed).toHaveAttribute('aria-busy', 'false')
 })

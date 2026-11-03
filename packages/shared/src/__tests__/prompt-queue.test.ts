@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ChatReplyLifecycle, enqueueChatPrompt, nextQueuedChatPrompt, sendQueuedChatPrompt } from '../chat/prompt-queue'
+import { ChatReplyLifecycle, enqueueChatPrompt, nextQueuedChatPrompt, resolveChatRequestContext, sendChatPrompt, sendQueuedChatPrompt } from '../chat/prompt-queue'
+import type { ChatStreamResult } from '../chat/block-answer-submission'
+import type { PreparedChatTurn } from '../chat/stream-turn'
 import { createChatStoreState, type ChatStoreState } from '../stores/chat-store'
+import { makeApprovalPlan } from '../test-support/astra-plan-fixtures'
 
 function setup() {
   let state = {} as ChatStoreState
@@ -20,6 +23,83 @@ function setup() {
 }
 
 const attempted = { content: 'Request with file content', draftContent: 'Request', textFile: null, restoreDraftOnFailure: true, clearDraftOnSuccess: true }
+
+function promptSendHarness() {
+  const { getChat } = setup()
+  let generation = 0
+  const contextualRequest = { id: 'goal-detail:reading', label: 'Reading goal', prompt: 'Review my reading goal' }
+  getChat().setContextualSuggestion(contextualRequest)
+  const prompt = { ...attempted, preview: 'image-preview', contextualRequest, turn: undefined as PreparedChatTurn<string> | undefined }
+  const turn = { key: 'turn-key', payload: 'Request' }
+  const run = vi.fn<(request: typeof prompt & { messageCost: 1 }) => Promise<ChatStreamResult>>(async request => {
+    request.turn = turn
+    return { kind: 'final' }
+  })
+  const context = { getChat, getAccountGeneration: () => generation, createMessageId: () => 'user-message',
+    conversation: { astraConversationOpen: false, setAstraConversationOpen: vi.fn() },
+    beginSend: vi.fn(() => getChat().beginReply()), run, onFailure: vi.fn(), retainRetry: vi.fn() }
+  return { context, prompt, turn, replaceAccount: () => { generation += 1 } }
+}
+
+describe('shared prompt sending', () => {
+  it('distinguishes the draft from follow-ups and explicit request context', () => {
+    expect(resolveChatRequestContext(undefined)).toEqual({ sendsComposerDraft: true, messageOrigin: undefined })
+    expect(resolveChatRequestContext('Read')).toMatchObject({ sendsComposerDraft: false })
+    expect(resolveChatRequestContext(undefined, 'followUp')).toEqual({ sendsComposerDraft: false, messageOrigin: 'followUp' })
+    expect(resolveChatRequestContext(undefined, { selectedOfferKey: 'morning-routine' }))
+      .toEqual({ selectedOfferKey: 'morning-routine', sendsComposerDraft: true })
+  })
+
+  it.each([false, true])('opens the conversation and preserves the prepared turn with retry=%s', async isRetry => {
+    const { context, prompt, turn } = promptSendHarness()
+    expect(await sendChatPrompt(prompt, isRetry, context)).toBe(true)
+    expect(context.conversation.setAstraConversationOpen).toHaveBeenCalledExactlyOnceWith(true)
+    expect(context.beginSend).toHaveBeenCalledOnce()
+    expect(context.run).toHaveBeenCalledExactlyOnceWith({ ...prompt, messageCost: 1 })
+    expect(prompt.turn).toBe(turn)
+    expect(context.getChat().messages).toEqual(isRetry ? [] : [expect.objectContaining({
+      id: 'user-message', role: 'user', content: prompt.content, imageUrl: 'image-preview',
+    })])
+    expect(context.getChat().contextualSuggestion).toBeNull()
+    expect(context.onFailure).not.toHaveBeenCalled()
+  })
+
+  it.each(['same reply', 'new reply', 'new account'] as const)('retains a stopped turn only for its owning account and reply: %s', async scenario => {
+    const { context, prompt, turn, replaceAccount } = promptSendHarness()
+    context.run.mockImplementationOnce(async request => {
+      request.turn = turn
+      if (scenario === 'new reply') context.getChat().beginReply()
+      if (scenario === 'new account') replaceAccount()
+      return { kind: 'cancelled' }
+    })
+    expect(await sendChatPrompt(prompt, false, context)).toBe(false)
+    expect(prompt.turn).toBe(turn)
+    expect(context.retainRetry.mock.calls).toEqual(scenario === 'same reply'
+      ? [[{ ...prompt, restoreDraftOnFailure: false, clearDraftOnSuccess: false }]] : [])
+    expect(context.getChat().contextualSuggestion).toBe(prompt.contextualRequest)
+  })
+
+  it('passes a failed stream and its draft to recovery without consuming the contextual request', async () => {
+    const { context, prompt } = promptSendHarness()
+    const failure = { status: 408, error: 'Timeout', code: null }
+    context.run.mockResolvedValueOnce({ kind: 'failed', failure, draftMessageId: 'draft' })
+    expect(await sendChatPrompt(prompt, false, context)).toBe(false)
+    expect(context.onFailure).toHaveBeenCalledExactlyOnceWith(failure, prompt, 'draft')
+    expect(context.getChat().contextualSuggestion).toBe(prompt.contextualRequest)
+    expect(context.retainRetry).not.toHaveBeenCalled()
+  })
+
+  it('keeps a newer contextual request when the earlier send succeeds', async () => {
+    const { context, prompt } = promptSendHarness()
+    const replacement = { id: 'goal-detail:walking', label: 'Walking goal', prompt: 'Review my walking goal' }
+    context.run.mockImplementationOnce(async () => {
+      context.getChat().setContextualSuggestion(replacement)
+      return { kind: 'final' }
+    })
+    expect(await sendChatPrompt(prompt, false, context)).toBe(true)
+    expect(context.getChat().contextualSuggestion).toBe(replacement)
+  })
+})
 
 describe('shared prompt queue', () => {
   it('caps the queue at three and sends the remaining prompts in order after removal', async () => {
@@ -88,6 +168,30 @@ describe('shared prompt queue', () => {
 })
 
 describe('reply settlement lifecycle', () => {
+  it.each(['stop', 'failure', 'success'] as const)('settles only unfinished work owned by the reply on %s', terminal => {
+    const { reply, getChat } = setup()
+    const plan = makeApprovalPlan()
+    plan.steps.splice(1, 0,
+      ...['pending', 'running', 'failed', 'skipped'].map(status => ({ ...plan.steps[0]!, id: status, status })),
+      { ...plan.steps[1]!, id: 'approval-running', status: 'running' },
+    )
+    getChat().addMessage({ id: 'draft', role: 'ai', content: '', timestamp: new Date(), plan })
+    getChat().addMessage({ id: 'unrelated', role: 'ai', content: '', timestamp: new Date(), plan })
+    getChat().setStreamingMessageId('draft')
+    if (terminal === 'stop') reply.stop()
+    else reply.finish(terminal === 'success')
+    expect(getChat().messages[0]?.plan?.steps.map(step => step.status)).toEqual(terminal === 'success'
+      ? ['done', 'pending', 'running', 'failed', 'skipped', 'running', 'pending']
+      : ['done', 'skipped', 'skipped', 'failed', 'skipped', 'skipped', 'pending'])
+    expect(getChat().messages[0]?.plan?.steps.at(-1)).toEqual(plan.steps.at(-1))
+    expect(getChat().messages[1]?.plan).toBe(plan)
+    expect(plan.steps.map(step => step.status)).toEqual(['done', 'pending', 'running', 'failed', 'skipped', 'running', 'pending'])
+    if (terminal === 'stop') {
+      reply.finish(true)
+      expect(getChat().messages[0]?.plan?.steps.some(step => step.status === 'running')).toBe(false)
+    }
+  })
+
   it('stops display and pauses the queue while keeping transport settlement alive', async () => {
     const { reply, getChat, abort } = setup()
     enqueueChatPrompt(getChat(), 'waiting', attempted, async () => true)

@@ -43,7 +43,7 @@ interface MoveInventoryQuery {
   isError: boolean
 }
 
-interface MoveParentInventory {
+export interface MoveParentInventory {
   habitsById: Map<string, NormalizedHabit>
   getChildren: (parentId: string) => NormalizedHabit[]
   topLevelHabits: NormalizedHabit[]

@@ -1,0 +1,174 @@
+import { describe,expect,it,vi } from 'vitest'
+import { buildCalendarGridColumns,buildCalendarRangeBounds,createCalendarDateActions,createUseCalendarRangeState,createUseCalendarEventState } from '../hooks/calendar-screen-state-core'
+import { formatAPIDate } from '../utils/dates'
+import type { CalendarDayEntry } from '../types/calendar'
+import { createMockProfile } from './factories'
+
+describe('calendar screen state', () => {
+  it.each(['month', 'week', 'range', 'agenda'] as const)('keeps the %s query on its selected range', view => {
+    const range = buildCalendarRangeBounds('2026-09-16', null, 1, -1, 2, view)
+    const bounds = view === 'week' ? [range.weekStart, range.weekEnd]
+      : view === 'agenda' ? [range.agendaStart, range.agendaEnd] : [range.rangeBounds.lo, range.rangeEnd]
+    expect([range.queryBounds.lo, range.queryBounds.hi]).toEqual(bounds)
+    expect(formatAPIDate(range.weekStart)).toBe('2026-09-14')
+    expect(formatAPIDate(range.weekEnd)).toBe('2026-09-20')
+    expect(formatAPIDate(range.agendaStart)).toBe('2026-09-30')
+    expect(buildCalendarGridColumns(range.weekStart, range.weekEnd, '2026-09-16').filter(day => day.isToday)).toHaveLength(1)
+  })
+
+  it('navigates months and clamps a range at today', () => {
+    let range = -1
+    const setSelectedDay = vi.fn()
+    const setMonthSlide = vi.fn()
+    const actions = createCalendarDateActions({ currentMonth: new Date(2026, 8, 1), todayKey: '2026-09-16', view: 'week',
+      setSelectedDay, setMonthSlide, setWeekSlide: vi.fn(), setWeekAnchor: vi.fn(), setIsDayDetailOpen: vi.fn(),
+      setRangeOffset: update => { range = typeof update === 'function' ? update(range) : update },
+    })
+    actions.nextMonth()
+    expect(setSelectedDay).toHaveBeenLastCalledWith('2026-10-01')
+    expect(setMonthSlide).toHaveBeenLastCalledWith('right')
+    actions.goToCurrentMonth()
+    expect(setSelectedDay).toHaveBeenLastCalledWith('2026-09-16')
+    actions.nextRange(); actions.nextRange()
+    expect(range).toBe(0)
+    actions.previousRange()
+    expect(range).toBe(-1)
+  })
+
+  it('navigates previous and selected months without retaining a slide direction', () => {
+    const setSelectedDay = vi.fn()
+    const setMonthSlide = vi.fn()
+    const actions = createCalendarDateActions({ currentMonth: new Date(2026, 0, 1), todayKey: '2026-09-16',
+      setSelectedDay, setMonthSlide, setWeekSlide: vi.fn(), setWeekAnchor: vi.fn(),
+      setIsDayDetailOpen: vi.fn(), setRangeOffset: vi.fn() })
+    actions.prevMonth()
+    expect(setSelectedDay).toHaveBeenLastCalledWith('2025-12-01')
+    expect(setMonthSlide).toHaveBeenLastCalledWith('left')
+    actions.selectMonth(3, 2027)
+    expect(setSelectedDay).toHaveBeenLastCalledWith('2027-04-01')
+    expect(setMonthSlide).toHaveBeenLastCalledWith(null)
+  })
+
+  it('navigates from today or the selected week and returns to the current week', () => {
+    let anchor: Date | null = null
+    const setWeekSlide = vi.fn()
+    const actions = createCalendarDateActions({ currentMonth: new Date(2026, 8, 1), todayKey: '2026-09-16',
+      setSelectedDay: vi.fn(), setMonthSlide: vi.fn(), setWeekSlide,
+      setWeekAnchor: update => { anchor = typeof update === 'function' ? update(anchor) : update },
+      setIsDayDetailOpen: vi.fn(), setRangeOffset: vi.fn() })
+    actions.prevWeek()
+    expect(formatAPIDate(anchor!)).toBe('2026-09-09')
+    expect(setWeekSlide).toHaveBeenLastCalledWith('left')
+    actions.prevWeek()
+    expect(formatAPIDate(anchor!)).toBe('2026-09-02')
+    actions.nextWeek()
+    expect(formatAPIDate(anchor!)).toBe('2026-09-09')
+    expect(setWeekSlide).toHaveBeenLastCalledWith('right')
+    anchor = null
+    actions.nextWeek()
+    expect(formatAPIDate(anchor!)).toBe('2026-09-23')
+    actions.goToCurrentWeek()
+    expect(formatAPIDate(anchor!)).toBe('2026-09-16')
+    expect(setWeekSlide).toHaveBeenLastCalledWith(null)
+  })
+
+  it.each([
+    { view: 'month' as const, openEveryDay: false, opens: false },
+    { view: 'week' as const, openEveryDay: false, opens: true },
+    { view: 'month' as const, openEveryDay: true, opens: true },
+  ])('selects a day in $view with openEveryDay=$openEveryDay', ({ view, openEveryDay, opens }) => {
+    const setSelectedDay = vi.fn()
+    const setIsDayDetailOpen = vi.fn()
+    const actions = createCalendarDateActions({ currentMonth: new Date(2026, 8, 1), todayKey: '2026-09-16', view, openEveryDay,
+      setSelectedDay, setIsDayDetailOpen, setMonthSlide: vi.fn(), setWeekSlide: vi.fn(), setWeekAnchor: vi.fn(), setRangeOffset: vi.fn() })
+    actions.openDay('2026-09-20')
+    expect(setSelectedDay).toHaveBeenCalledExactlyOnceWith('2026-09-20')
+    expect(setIsDayDetailOpen.mock.calls).toEqual(opens ? [[true]] : [])
+  })
+})
+
+function calendarRangeHarness() {
+  const monthQuery = { dayMap: new Map<string, CalendarDayEntry[]>(), isLoading: false, error: null, refresh: vi.fn(async () => {}) }
+  const rangeQuery = { ...monthQuery, dayMap: new Map<string, CalendarDayEntry[]>(), refresh: vi.fn(async () => {}), error: 'Unavailable' }
+  const useCalendarRange = vi.fn<(start: Date, end: Date, enabled: boolean) => typeof rangeQuery>(() => rangeQuery)
+  const useRange = createUseCalendarRangeState({ useCalendarRange, useMemo: calculate => calculate() })
+  const inputs = { monthQuery, weekAnchor: null, todayKey: '2026-09-16', weekStartsOn: 1 as const, rangeOffset: -1, agendaOffset: 2,
+    profile: createMockProfile(), t: (key: string) => key }
+  return { inputs, rangeQuery, useCalendarRange, useRange }
+}
+
+describe('shared calendar range query', () => {
+  it.each(['month', 'week', 'range', 'agenda'] as const)('loads the selected %s bounds and preserves query results', view => {
+    const { inputs, rangeQuery, useCalendarRange, useRange } = calendarRangeHarness()
+    const state = useRange({ ...inputs, view })
+    const bounds = buildCalendarRangeBounds(inputs.todayKey, inputs.weekAnchor, inputs.weekStartsOn, inputs.rangeOffset, inputs.agendaOffset, view)
+    expect(useCalendarRange).toHaveBeenCalledExactlyOnceWith(bounds.queryBounds.lo, bounds.queryBounds.hi, view !== 'month')
+    expect(state.dayMap).toBe(inputs.monthQuery.dayMap)
+    expect(state.refresh).toBe(inputs.monthQuery.refresh)
+    expect(state.rangeDayMap).toBe(rangeQuery.dayMap)
+    expect(state.rangeRefresh).toBe(rangeQuery.refresh)
+    expect(state.rangeError).toBe('Unavailable')
+    expect(state.rangeLoading).toBe(false)
+    expect(state.rangeLoadingLabel).toBeUndefined()
+  })
+
+  it('disables the range query and keeps its loading label until the profile is ready', () => {
+    const { inputs, useCalendarRange, useRange } = calendarRangeHarness()
+    const state = useRange({ ...inputs, profile: undefined, view: 'week' })
+    expect(useCalendarRange.mock.calls[0]?.[2]).toBe(false)
+    expect(state.rangeLoading).toBe(true)
+    expect(state.rangeLoadingLabel).toBe('calendar.loading')
+  })
+
+  it('retains the loading state of a pending range query with a ready profile', () => {
+    const { inputs, rangeQuery, useRange } = calendarRangeHarness()
+    rangeQuery.isLoading = true
+    const state = useRange({ ...inputs, view: 'agenda' })
+    expect(state.rangeLoading).toBe(true)
+    expect(state.rangeLoadingLabel).toBe('calendar.loading')
+  })
+})
+
+describe('shared calendar event state', () => {
+  it.each([
+    { ready: false, enabled: false, pending: false, error: null, expected: 'loading' },
+    { ready: true, enabled: false, pending: false, error: null, expected: 'pro-boundary' },
+    { ready: true, enabled: true, pending: true, error: null, expected: 'loading' },
+    { ready: true, enabled: true, pending: false, error: new Error('Unavailable'), expected: 'failed' },
+    { ready: true, enabled: true, pending: false, error: null, expected: 'ready' },
+  ])('keeps the event source in $expected', ({ ready, enabled, pending, error, expected }) => {
+    const refetch = vi.fn(async () => {})
+    const useCalendarEvents = vi.fn(() => ({ data: { status: 'connected' as const, events: [] }, isPending: pending, error, refetch }))
+    const useCalendarAutoSyncState = vi.fn()
+    const useEvents = createUseCalendarEventState({
+      useCalendars: () => ({ data: undefined }), useCalendarEvents, useCalendarAutoSyncState,
+      useShowRecurring: () => false, useCallback: callback => callback,
+    })
+    const state = useEvents({ hasProAccess: enabled, timeZone: 'UTC', autoSyncState: undefined,
+      profile: ready ? createMockProfile() : undefined, closeSheet: vi.fn(), setIsDayDetailOpen: vi.fn(), router: { push: vi.fn() } })
+    expect(state.calendarEventsState).toBe(expected)
+    expect(state.showRecurring).toBe(false)
+    expect(state.showEventSource).toBe(false)
+    expect(state.refetchCalendarEvents).toBe(refetch)
+    expect(useCalendarEvents).toHaveBeenCalledExactlyOnceWith({ enabled, timeZone: 'UTC' })
+    expect(useCalendarAutoSyncState).toHaveBeenCalledExactlyOnceWith({ enabled, initialData: undefined })
+  })
+
+  it('finishes sheet dismissal before opening the upgrade destination', () => {
+    const closeSheet = vi.fn<(onClosed: () => void) => void>()
+    const push = vi.fn()
+    const setIsDayDetailOpen = vi.fn()
+    const useEvents = createUseCalendarEventState({
+      useCalendars: () => ({ data: undefined }),
+      useCalendarEvents: () => ({ data: undefined, isPending: false, error: null, refetch: vi.fn(async () => {}) }),
+      useCalendarAutoSyncState: vi.fn(), useShowRecurring: () => true, useCallback: callback => callback,
+    })
+    const state = useEvents({ hasProAccess: false, timeZone: 'UTC', autoSyncState: undefined, profile: createMockProfile(), closeSheet, setIsDayDetailOpen, router: { push } })
+    state.openOrbitPro()
+    expect(push).not.toHaveBeenCalled()
+    expect(setIsDayDetailOpen).not.toHaveBeenCalled()
+    closeSheet.mock.calls[0]?.[0]()
+    expect(setIsDayDetailOpen).toHaveBeenCalledExactlyOnceWith(false)
+    expect(push).toHaveBeenCalledExactlyOnceWith('/upgrade')
+  })
+})

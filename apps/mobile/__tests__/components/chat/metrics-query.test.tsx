@@ -13,6 +13,11 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: false } }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabitMetrics: () => ({ isPending: false, isError: false, refetch: vi.fn() }) }))
+
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabitMetrics: () => ({ isPending: false, isError: false, refetch: vi.fn() }) }
+})
 afterEach(() => vi.unstubAllGlobals())
 
 it.each([3, 0])('preserves the saved window when the live recap has %s scheduled habits', async (scheduled) => {

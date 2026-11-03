@@ -16,7 +16,7 @@ export function reloadStaleBuildOnce(): boolean {
   return true
 }
 
-function isMissingBuildModule(error: unknown): boolean {
+export function isMissingBuildModule(error: unknown): boolean {
   if (!(error instanceof Error)) return false
   if (error.name === 'ChunkLoadError') return true
   return error instanceof TypeError && /^\w+\[\w+\] is not a function$/.test(error.message)

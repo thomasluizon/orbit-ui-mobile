@@ -104,6 +104,24 @@ vi.mock('@/hooks/use-habits', () => ({
   }),
 }))
 
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => ({
+    mutateAsync: mockCreateMutateAsync,
+    isPending: false,
+    error: null,
+  }) }
+})
+
+vi.mock('@/hooks/use-create-sub-habit', () => {
+
+return { useCreateSubHabit: () => ({
+    mutateAsync: mockCreateSubMutateAsync,
+    isPending: false,
+    error: null,
+  }) }
+})
+
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => mockProfileState.hasProAccess,
   useProfile: () => ({

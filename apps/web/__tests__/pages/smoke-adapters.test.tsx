@@ -2,8 +2,8 @@ import { useState, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Page, Response } from '@playwright/test'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { APIResponse, Page, Response } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockConfigResponse, createMockHabit, createMockHabitScheduleItem, createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -19,6 +19,9 @@ import { HabitList } from '@/components/habits/habit-list'
 import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import { Sheet } from '@/components/ui/sheet'
+import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+import { OnboardingActionsProvider } from '@/components/onboarding/onboarding-actions-context'
+import { STORAGE_STATE_PATH } from '@/e2e/support/env'
 import { subscriptionPlansFixture } from '@/test-support/hermetic/mock-api/fixtures/subscription-plans'
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -26,6 +29,13 @@ import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { createSmokeHabit, expectAppNavigation, expectCheckout, logSmokeHabit } from '@/e2e/support/smoke-adapters'
 
 const mocks = vi.hoisted(() => ({
+  setup: vi.fn<(name: string, run: (fixtures: { page: Page }) => Promise<void>) => void>(),
+  authenticate: vi.fn(),
+  onboardingActions: {
+    createHabit: vi.fn(), updateHabit: vi.fn(), createHabitsBulk: vi.fn(), logHabit: vi.fn(),
+    createGoal: vi.fn(), setWeekStartDay: vi.fn(), deferPushRegistration: vi.fn(),
+    recordCompletion: vi.fn(), finishOnboarding: vi.fn(),
+  },
   loadingToday: false,
   emptyToday: false,
   profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -38,7 +48,13 @@ const mocks = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
 }))
 
-vi.mock('@playwright/test', () => ({ expect: expectSmokeDom }))
+vi.mock('@playwright/test', () => ({
+  test: mocks.setup,
+  expect: (subject: unknown) => subject instanceof SmokeSetupDomPage
+    ? { toHaveURL: async (matches: (url: URL) => boolean) => { expect(matches(new URL(subject.url))).toBe(true) } }
+    : expectSmokeDom(subject),
+}))
+vi.mock('@/e2e/support/auth', () => ({ authenticate: mocks.authenticate }))
 vi.mock('next/navigation', () => ({
   usePathname: () => mocks.pathname, useParams: () => ({}),
   useRouter: () => mocks.router, useSearchParams: () => mocks.searchParams,
@@ -63,13 +79,16 @@ vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: () => {
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => null }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: () => {} }))
 vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: () => {} }))
-vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingGuard: () => false, useRetainedOnboardingSession: () => ({ open: false }) }))
+vi.mock('@/hooks/use-onboarding-suggestion', () => ({ useOnboardingSuggestion: () => ({ available: false, verification: null }) }))
+vi.mock('@/hooks/use-push-notification-preferences', () => ({ usePushNotificationPreferences: () => ({ supported: false }) }))
 vi.mock('@/hooks/use-onboarding-pro-pending', () => ({ useOnboardingProPending: () => false }))
 vi.mock('@/hooks/use-onboarding-completion-queue', () => ({ useOnboardingCompletionQueue: () => false }))
-vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
-  useHabitCountLoaded: () => ({ count: 0, isLoaded: true }),
-}))
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
+
+return { ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
+  useHabits: () => ({ data: normalizeHabitQueryData(mocks.emptyToday ? [] : [createMockHabitScheduleItem()]), isLoading: mocks.loadingToday, error: null, dataUpdatedAt: 1, getChildren: () => [] }),
+  useHabitCountLoaded: () => ({ count: 0, isLoaded: true }) }
+})
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => ({ crossedStreakMilestones: mocks.crossedStreakMilestones, newAchievements: mocks.newAchievements,
     leveledUp: mocks.leveledUp, newLevel: mocks.leveledUp ? 3 : null, clearLevelUp: mocks.clearLevelUp,
@@ -89,7 +108,10 @@ vi.mock('@/components/navigation/notification-delete-notice', () => ({ Notificat
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
 vi.mock('@/components/ui/app-toast-host', () => ({ AppToastHost: () => null }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
-vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({ RetainedOnboardingOverlay: () => null }))
+vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({
+  RetainedOnboardingOverlay: (props: Parameters<typeof OnboardingFlow>[0]) =>
+    <OnboardingActionsProvider actions={mocks.onboardingActions} isLive><OnboardingFlow {...props} /></OnboardingActionsProvider>,
+}))
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel: () => null }))
 vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => null }))
@@ -106,6 +128,43 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   useCreateHabit: () => ({ mutateAsync: mocks.create, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
+
+vi.mock('@/hooks/use-habit-logging', async (importOriginal) => {
+
+return { ...await importOriginal<typeof import('@/hooks/use-habit-logging')>(),
+  useLogHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSkipHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-delete-habit', () => {
+
+return { useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-duplicate-habit', () => {
+
+return { useDuplicateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-reorder-habits', () => {
+
+return { useReorderHabits: () => ({ mutate: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-move-habit-parent', () => {
+
+return { useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => ({ mutateAsync: mocks.create, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-create-sub-habit', () => {
+
+return { useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: mocks.suggestion, isPending: false }) }))
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: () => ({ requestPermission: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
@@ -165,6 +224,30 @@ function mount(children: ReactNode, locale: 'en' | 'pt-BR') {
   </NextIntlClientProvider> })
 }
 
+function smokeSetupResponse(): Pick<APIResponse, 'ok' | 'json'> {
+  return { ok: () => true, json: async () => ({ userId: 'smoke-unit-account' }) }
+}
+
+class SmokeSetupDomPage extends SmokeDomPage {
+  constructor(readonly locale: 'en' | 'pt-BR' = 'en') { super() }
+  url = 'https://orbit.test/'
+  request = {
+    post: vi.fn<(path: string) => Promise<ReturnType<typeof smokeSetupResponse>>>(async () => smokeSetupResponse()),
+    put: vi.fn<(path: string) => Promise<ReturnType<typeof smokeSetupResponse>>>(async () => smokeSetupResponse()),
+    get: vi.fn<(path: string) => Promise<ReturnType<typeof smokeSetupResponse>>>(async () => smokeSetupResponse()),
+  }
+  evaluate = vi.fn(async (write: (id: string) => void, id: string) => { write(id) })
+  storageState = vi.fn<(options: { path: string }) => Promise<void>>(async () => {
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('navigation', { name: (this.locale === 'en' ? en : ptBR).nav.mainNavigation })).toBeVisible()
+    expect(localStorage.getItem('orbit_trial_expired_seen:smoke-unit-account')).toBe('1')
+    expect(JSON.parse(localStorage.getItem('orbit_tour_sections:v1:smoke-unit-account')!)).toEqual({
+      habits: true, goals: true, chat: true, calendar: true, profile: true,
+    })
+  })
+  context() { return { storageState: this.storageState } }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.router.push.mockReset()
@@ -190,6 +273,71 @@ beforeEach(() => {
 })
 
 afterEach(() => { cleanup(); vi.useRealTimers(); useAuthStore.setState(useAuthStore.getInitialState()); localStorage.clear() })
+
+describe('smoke authentication setup', () => {
+  let runSetup: (fixtures: { page: Page }) => Promise<void>
+  beforeAll(async () => {
+    await import('@/e2e/global.setup')
+    runSetup = mocks.setup.mock.calls[0]![1]
+  })
+
+  it.each(['en', 'pt-BR'] as const)('prepares a reset account and reloads retained onboarding before saving its only sign-in in %s', async (locale) => {
+    mocks.profile = createMockProfile({ hasCompletedOnboarding: false, hasSeenImportPrompt: false })
+    const page = new SmokeSetupDomPage(locale)
+    const navigationName = (locale === 'en' ? en : ptBR).nav.mainNavigation
+    const view = mount(<AppLayout><h1>Today</h1></AppLayout>, locale)
+    expect(await screen.findByRole('dialog')).toBeVisible()
+    expect(screen.queryByRole('navigation', { name: navigationName })).toBeNull()
+    page.request.put.mockImplementation(async (path: string) => {
+      if (path === '/api/profile/onboarding') {
+        mocks.profile!.hasCompletedOnboarding = true
+        await act(async () => { view.rerender(<AppLayout><h1>Today</h1></AppLayout>) })
+        expect(screen.getByRole('dialog')).toBeVisible()
+        expect(screen.queryByRole('navigation', { name: navigationName })).toBeNull()
+      }
+      if (path === '/api/profile/import-prompt/dismiss') mocks.profile!.hasSeenImportPrompt = true
+      return smokeSetupResponse()
+    })
+    page.setReload(async () => {
+      expect(page.request.put.mock.calls.map(([path]) => path)).toEqual([
+        '/api/profile/onboarding', '/api/profile/tour', '/api/profile/import-prompt/dismiss',
+      ])
+      expect(localStorage.getItem('orbit_trial_expired_seen:smoke-unit-account')).toBe('1')
+      expect(localStorage.getItem('orbit_tour_sections:v1:smoke-unit-account')).toBeTruthy()
+      view.unmount()
+      mount(<AppLayout><h1>Today</h1></AppLayout>, locale)
+      expect(screen.queryByRole('dialog', { name: (locale === 'en' ? en : ptBR).onboarding.flow.what.title })).toBeNull()
+    })
+
+    await runSetup({ page: page as unknown as Page })
+
+    expect(mocks.authenticate).toHaveBeenCalledExactlyOnceWith(page)
+    expect(page.request.post).toHaveBeenCalledExactlyOnceWith('/api/profile/reset')
+    expect(page.storageState).toHaveBeenCalledExactlyOnceWith({ path: STORAGE_STATE_PATH })
+  })
+
+  it('rejects a sign-in still on login before preparing the account', async () => {
+    const page = new SmokeSetupDomPage()
+    page.url = 'https://orbit.test/login'
+
+    await expect(runSetup({ page: page as unknown as Page })).rejects.toThrow()
+
+    expect(mocks.authenticate).toHaveBeenCalledExactlyOnceWith(page)
+    expect(page.request.post).not.toHaveBeenCalled()
+    expect(page.storageState).not.toHaveBeenCalled()
+  })
+
+  it('rejects missing navigation after reloading without saving the session', async () => {
+    const page = new SmokeSetupDomPage()
+    const view = mount(<AppLayout><h1>Today</h1></AppLayout>, 'en')
+    page.setReload(async () => { view.unmount(); render(<h1>Navigation missing</h1>) })
+
+    await expect(runSetup({ page: page as unknown as Page })).rejects.toThrow(/0 matches/)
+
+    expect(mocks.authenticate).toHaveBeenCalledExactlyOnceWith(page)
+    expect(page.storageState).not.toHaveBeenCalled()
+  })
+})
 
 describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (locale) => {
   it.each(['navigation', 'create', 'log', 'checkout'] as const)('declines real marketing consent before %s on a fresh page', async (entry) => {

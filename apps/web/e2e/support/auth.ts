@@ -2,8 +2,10 @@ import { expect, type Page } from '@playwright/test'
 import { smokeEnv } from './env'
 import { openSignIn } from './sign-in-entry'
 import { installTurnstileStub } from './turnstile'
+import { installSmokeBypass } from './smoke-bypass'
 
 export async function authenticate(page: Page): Promise<void> {
+  await installSmokeBypass(page)
   await installTurnstileStub(page)
   await openSignIn(page)
 

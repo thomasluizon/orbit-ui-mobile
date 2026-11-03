@@ -22,6 +22,12 @@ vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide })
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => mocks.query() }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'UTC' } }) }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: vi.fn(), isPending: false }), useSkipHabit: () => ({ mutate: vi.fn(), isPending: false }) }))
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn(), isPending: false }),
+  useSkipHabit: () => ({ mutate: vi.fn(), isPending: false }) }
+})
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
 
 const cases = [320, 412, 640, 1352].flatMap((width) =>

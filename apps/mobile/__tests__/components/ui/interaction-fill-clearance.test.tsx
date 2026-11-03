@@ -46,6 +46,26 @@ vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutateAsync: vi.fn() }), useUpdateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateChecklist: () => ({ mutateAsync: vi.fn() }), useDeleteHabit: () => ({ mutateAsync: vi.fn() }),
 }))
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutateAsync: vi.fn() }) }
+})
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-update-checklist', () => {
+
+return { useUpdateChecklist: () => ({ mutateAsync: vi.fn() }) }
+})
+
+vi.mock('@/hooks/use-delete-habit', () => {
+
+return { useDeleteHabit: () => ({ mutateAsync: vi.fn() }) }
+})
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({ useRescheduleSuggestion: () => ({ suggestion: null }) }))
 vi.mock('@/app/(tabs)/use-today-date', () => ({ useCurrentDate: () => '2026-09-04' }))

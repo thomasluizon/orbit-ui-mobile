@@ -1,5 +1,7 @@
 'use client'
 
+import { PlanBlock, PlanAnnouncements } from './plan-block'
+
 import { ConversationDeleteAction } from './conversation-delete-action'
 import { useConversationHistory } from '@/hooks/use-conversation-history'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -17,7 +19,7 @@ import { AnimatePresence } from 'motion/react'
 import { useChatNavigation } from '@/hooks/use-chat-navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
-import { getChatCompletionText, resolveConversationSuggestions, chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, getChatReplyState } from '@orbit/shared/chat'
+import { unplannedToolSteps, getChatCompletionText, resolveConversationSuggestions, chatTraceLabelKey, stripChatDirectives, findPromptSlot, preparePromptTemplate, promptDisabledReason, getChatReplyState } from '@orbit/shared/chat'
 import { APP_BAR_CONTROL_CLASS, AppBar } from '@/components/ui/app-bar'
 import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
@@ -208,7 +210,9 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   }, [chatContainerRef, trackOperation, threadScroll])
 
   const [pendingVisible, setPendingVisible] = useState(true)
-  const { showPendingReply, replyWorking } = getChatReplyState({ isTyping, streamingMessageId, activeStepCount: activeSteps.length, atMessageLimit: chat.atMessageLimit })
+  const activePlan = messages.find(message => message.id === streamingMessageId)?.plan
+  const traceSteps = unplannedToolSteps(activePlan, activeSteps)
+  const { showPendingReply, replyWorking } = getChatReplyState({ isTyping, streamingMessageId, activeStepCount: activeSteps.length, hasPlan: Boolean(activePlan), atMessageLimit: chat.atMessageLimit })
   const [announcingWork, setAnnouncingWork] = useState(false)
   useEffect(() => {
     let mounted = true
@@ -342,6 +346,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         <ConversationHistoryFeedback failed={history.failed !== null} busy={historyBusy} onRetry={history.retry} />
       <span role="status" aria-live="polite" className="sr-only">{announcingWork ? t('chat.trace.working') : ''}</span>
 
+      <PlanAnnouncements messages={messages} />
       <div
         ref={registerChatContainer}
         onScroll={(event) => {
@@ -377,6 +382,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           </span> : null}
           <div className="flex min-w-0 w-full flex-col gap-4">
           {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={getChatCompletionText(msg, { ready: t('chat.replyReady'), unreadable: t('chat.unreadableReply') })} complete={!msg.restored && (!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
+          {msg.role === 'ai' && msg.plan ? <PlanBlock plan={msg.plan} /> : null}
           <MessageBubble
             senderLabelId={`${senderIdPrefix}-${msg.id}`}
             message={msg}
@@ -394,20 +400,20 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             onPendingOperationPrepareStepUp={prepareStepUpForBubble}
             onPendingOperationVerifyStepUp={verifyStepUpForBubble}
           />
-          {msg.role === 'ai' && msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
+          {msg.role === 'ai' && msg.toolSteps?.length ? <ThinkingTrace steps={unplannedToolSteps(msg.plan, msg.toolSteps)} running={false} /> : null}
           {msg.proactiveItem ? <ProactiveAction isOnline={chat.isOnline} item={msg.proactiveItem} acted={msg.proactiveActed ?? false} onSend={sendMessage} /> : null}
           {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps ? <FollowUpChips followUps={msg.followUps ?? []} followUpContext={msg.followUpContext} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
           </div>
           </article>
         ))}
-        {showPendingReply || activeSteps.length > 0 ? <ConversationReveal animate className="flex min-w-0 flex-col gap-2">
+        {showPendingReply || traceSteps.length > 0 ? <ConversationReveal animate className="flex min-w-0 flex-col gap-2">
           {messages.at(-1)?.role !== 'ai' ? <span aria-hidden="true" className="pointer-events-none block size-6 shrink-0 text-[var(--fg-1)]" data-astra-avatar="">
             <AstraGlyph size={24} />
           </span> : null}
           <div className="flex min-w-0 w-full flex-col gap-4">
             {showPendingReply ? <div data-astra-pending aria-hidden="true" className="pointer-events-none flex h-6 items-center">
               <span className="astra-pending-pulse" style={{ animationPlayState: pendingVisible ? 'running' : 'paused' }}><WorkingMark /></span>
-            </div> : <ThinkingTrace steps={activeSteps} running />}
+            </div> : <ThinkingTrace steps={traceSteps} running />}
           </div>
         </ConversationReveal> : null}
         </div>

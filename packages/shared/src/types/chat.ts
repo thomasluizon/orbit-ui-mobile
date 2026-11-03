@@ -1,6 +1,7 @@
 import { oneSmallStepCardSchema, startingStepSchema } from '../contracts/blocks/one-small-step'
 import { questionAnswerSchema, questionBlockSchema } from './question-block'
 import { z } from 'zod'
+import { astraPlanSchema, astraPlanStepSchema } from './astra-plan'
 import { astraNextActionSchema } from './astra-offer'
 import { habitSuggestionsCardSchema } from './habit-suggestions'
 import { utf16Length } from '../validation/utf16-length'
@@ -612,6 +613,7 @@ export const chatFollowUpSchema = z.object({
 export type ChatFollowUp = z.infer<typeof chatFollowUpSchema>
 
 const replyCardFieldsShape = {
+  plan: astraPlanSchema.nullish(),
   correlationId: z.string().nullable().optional(),
   relatedSurfaces: z.array(z.string()).nullable().optional(),
   habitList: habitListCardSchema.nullable().optional(),
@@ -699,6 +701,8 @@ export const chatStreamEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('delta'), text: z.string() }),
   z.object({ type: z.literal('reset') }),
   z.object({ type: z.literal('step'), domain: z.string(), access: z.string() }),
+  z.object({ type: z.literal('plan'), plan: astraPlanSchema }),
+  z.object({ type: z.literal('plan_step'), planId: z.uuid(), planStep: astraPlanStepSchema }),
   z.object({ type: z.literal('final'), response: chatResponseSchema, ...chatTurnIdentity }),
   z.object({
     type: z.literal('error'),

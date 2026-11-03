@@ -20,6 +20,11 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending }),
 }))
 
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending }) }
+})
+
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, onConfirm, onCancel, message }: { open: boolean; onConfirm: () => void; onCancel: () => void; message: string }) =>
     open ? React.createElement('ConfirmSheet', { onConfirm, onCancel, message }) : null,

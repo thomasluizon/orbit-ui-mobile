@@ -26,7 +26,8 @@ import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useTagSelection } from '@/hooks/use-tag-selection'
-import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
+import { useCreateHabit } from '@/hooks/use-create-habit'
+import { useCreateSubHabit } from '@/hooks/use-create-sub-habit'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import {
   applyHabitFormMode,

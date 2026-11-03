@@ -866,7 +866,7 @@
       "reminderMinutesAfter": "min depois",
       "reminderHourAfter": "hora depois",
       "reminderHoursAfter": "horas depois",
-      "relativeReminderMax": "No máximo 15 lembretes",
+      "relativeReminderMax": "{count, plural, =0 {No máximo # lembretes} one {No máximo # lembrete} other {No máximo # lembretes}}",
       "invalidRelativeReminder": "Escolha até 7 dias antes ou menos de 24 horas depois",
       "reminderMinutes": "min antes",
       "reminder5min": "5 min antes",
@@ -1273,6 +1273,10 @@
     }
   },
   "chat": {
+    "plan": {
+      "title": "Plano",
+      "count": "{done} de {total}"
+    },
     "conversation": {
       "delete": "Apagar conversa",
       "deleteTitle": "Apagar esta conversa?",

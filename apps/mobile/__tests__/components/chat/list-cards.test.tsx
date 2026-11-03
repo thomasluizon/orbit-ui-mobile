@@ -26,6 +26,17 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: mocks.occurrencesById } }),
   useLogHabit: () => ({ mutate: mocks.mutate, mutateAsync: mocks.mutate, isPending: mocks.pending }),
 }))
+
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }),
+  useHabits: () => ({ data: { habitsById: mocks.occurrencesById } }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: mocks.mutate, mutateAsync: mocks.mutate, isPending: mocks.pending }) }
+})
 vi.mock('@/components/ui/status-ring', () => ({ StatusRing: ({ status, label }: { status: string; label: string }) => <Text testID={`ring-${status}`}>{label}</Text> }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: () => <Text>Progress</Text> }))
 vi.mock('@/components/ui/block-frame', () => ({

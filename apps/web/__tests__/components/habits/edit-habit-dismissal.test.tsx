@@ -10,11 +10,20 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-push-notification-preferences', () => ({ ensurePushSubscription: vi.fn(), isPushNotificationSupported: () => false }))
 vi.mock('@/hooks/use-push-subscriptions', () => ({ usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }) }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: undefined, isSuccess: false, isFetching: false, isError: false }) }))
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabitDetail: () => ({ data: undefined, isPending: false, error: null, refetch: vi.fn() }),
+  useHabits: () => ({ data: undefined, isSuccess: false, isFetching: false, isError: false }) }
+})
 vi.mock('@/hooks/use-habits', () => ({
   useUpdateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useHabitDetail: () => ({ data: undefined, isPending: false, error: null, refetch: vi.fn() }),
 }))
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }), useHasProAccess: () => false }))
 vi.mock('@/hooks/use-config', async () => {
   const { DEFAULT_CONFIG } = await import('@orbit/shared/types/config')

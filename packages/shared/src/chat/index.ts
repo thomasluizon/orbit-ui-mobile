@@ -23,20 +23,15 @@ export * from './pending-operation-card-view'
 export * from './pending-operation-item-groups'
 export * from './pending-operation-message-state'
 export * from './related-surfaces'
-export * from './sse-stream'
-export * from './stream-turn'
+export type { ChatStreamCallbacks, ChatStreamOutcome } from './sse-stream'
+export { ChatTurnReconciliation, getChatTurnFailure, needsNewChatTurn, type PreparedChatTurn, type ChatTurnOptions } from './stream-turn'
 export * from './trace'
 export * from './account-rows-core'
 export * from './record-list-core'
 
 export const CHAT_VISUALIZER_BAR_OFFSETS = [0, 0.08, 0.16, 0.04, 0.12, 0.2, 0.06, 0.14, 0.22] as const
 
-/**
- * Maximum silence between chat stream events before the client aborts the send
- * and offers retry. Tool rounds emit keepalive `round` events, so a healthy
- * request never goes quiet this long.
- */
-export const CHAT_STREAM_IDLE_TIMEOUT_MS = 60_000
+export { CHAT_STREAM_IDLE_TIMEOUT_MS } from './stream-constants'
 
 /**
  * Voice-input auto-stop tuning shared by both platforms. Recording stops on its own after
@@ -157,3 +152,4 @@ export { createUseAstraOffer, canShowAstraOffer, astraOfferDestination, type Ast
 
 export * from './conversation-history'
 export * from './conversation-history-hook'
+export * from './astra-plan'

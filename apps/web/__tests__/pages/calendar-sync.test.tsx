@@ -82,6 +82,14 @@ vi.mock('@/hooks/use-habits', () => ({
   }),
 }))
 
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({
+    mutate: mockBulkMutate,
+    isPending: false,
+  }) }
+})
+
 vi.mock('@orbit/shared/api', () => ({
   API: {
     calendar: {

@@ -43,28 +43,18 @@ export function translateApiFetchMessage(key: string): string | null {
   return _translate?.(key) ?? null
 }
 
-const FALLBACK_TOAST_TITLES: Record<number, string> = {
-  400: 'Validation error',
-  404: 'Not found',
-  409: 'Conflict',
-  429: 'Too many requests',
-}
-
-const TRANSLATED_TOAST_TITLE_KEYS: Record<number, string> = {
-  400: 'toast.errors.validation',
-  404: 'toast.errors.notFound',
-  409: 'toast.errors.conflict',
-  429: 'toast.errors.tooManyRequests',
+const TOAST_TITLES: Record<number, { fallback: string; key: string }> = {
+  400: { fallback: 'Validation error', key: 'toast.errors.validation' },
+  404: { fallback: 'Not found', key: 'toast.errors.notFound' },
+  409: { fallback: 'Conflict', key: 'toast.errors.conflict' },
+  429: { fallback: 'Too many requests', key: 'toast.errors.tooManyRequests' },
 }
 
 function getToastTitle(status: number): string {
-  if (!_translate) {
-    if (status >= 500) return 'Server error'
-    return FALLBACK_TOAST_TITLES[status] ?? 'Something went wrong'
-  }
-
-  if (status >= 500) return _translate('toast.errors.server')
-  return _translate(TRANSLATED_TOAST_TITLE_KEYS[status] ?? 'toast.errors.unknown')
+  const title = status >= 500
+    ? { fallback: 'Server error', key: 'toast.errors.server' }
+    : TOAST_TITLES[status] ?? { fallback: 'Something went wrong', key: 'toast.errors.unknown' }
+  return _translate ? _translate(title.key) : title.fallback
 }
 
 export class ApiError extends Error {

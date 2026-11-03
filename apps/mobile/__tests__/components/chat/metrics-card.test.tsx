@@ -89,6 +89,17 @@ describe('Astra metrics card on mobile', () => {
 
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isPending: false, isError: false, isRefetchError: false }), useLogHabit: () => ({ mutate: vi.fn() }), useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
 
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabits: () => ({ data: { habitsById: new Map() }, isPending: false, isError: false, isRefetchError: false }),
+  useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn() }) }
+})
+
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
 vi.mock('@/hooks/use-recap', () => ({ useProgressRecap: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakInfo: null, streakQuery: { isPending: false, isError: false, isRefetchError: false } }) }))

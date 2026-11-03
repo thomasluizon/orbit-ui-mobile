@@ -18,7 +18,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { useUIStore } from '@/stores/ui-store'
 
-const SETTLE_DELAY_MS = 500
+import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 
 /**
  * Astra-branded review moment: presents once the armed review prompt's celebration has fully
