@@ -13,10 +13,9 @@ vi.mock('@/hooks/use-habits', async () => {
   return { useHabits: queries.useHabits, useLogHabit: () => ({ mutate: vi.fn() }) }
 })
 
-vi.mock('@/hooks/use-habit-queries', async () => {
-const queries = await import('@/hooks/use-habit-queries')
-return { useHabits: queries.useHabits }
-})
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
+}))
 
 vi.mock('@/hooks/use-habit-logging', () => {
 
