@@ -40,7 +40,7 @@ it('preserves real object URL images under the application CSP while unrelated c
         await checkpoint.writeDesktopChatCheckpoint('desktop-account', {
           ...chat, messages: [{ id: 'image', role: 'user', content: 'Look', imageUrl: preview, timestamp: new Date() }],
         }, true)
-        return { imageUrl: checkpoint.takeDesktopChatCheckpoint('desktop-account')?.chat.messages[0]?.imageUrl, error: null }
+        return { imageUrl: (await checkpoint.takeDesktopChatCheckpoint('desktop-account'))?.chat.messages[0]?.imageUrl, error: null }
       } catch (error) {
         return { imageUrl: null, error: String(error) }
       } finally { URL.revokeObjectURL(preview) }

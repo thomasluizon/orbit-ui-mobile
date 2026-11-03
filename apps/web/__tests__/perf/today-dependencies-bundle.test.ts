@@ -2,6 +2,67 @@
 import { execFileSync } from 'node:child_process'
 import { expect, it } from 'vitest'
 
+it.each(['lib/conversation-history.ts', 'lib/desktop-chat-checkpoint.ts'])('loads chat models when %s needs them', entryPoint => {
+  const chunks: { initial: boolean; models: boolean }[] = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', `
+    import { build, stop } from 'esbuild';
+    const { metafile } = await build({
+      entryPoints: [process.argv[1]], bundle: true, write: false, metafile: true, splitting: true,
+      format: 'esm', outdir: 'chat-model-bundle', platform: 'browser',
+      external: ['react', 'react-dom', 'next/*', '@/*', '@tanstack/*'],
+    });
+    process.stdout.write(JSON.stringify(Object.values(metafile.outputs).map(output => ({
+      initial: output.entryPoint?.endsWith(process.argv[1]) ?? false,
+      models: Object.keys(output.inputs).some(path => path.endsWith('/types/chat.ts')),
+    }))));
+    stop();
+  `, entryPoint], { encoding: 'utf8' }))
+  expect(chunks.filter(chunk => chunk.initial)).toHaveLength(1)
+  expect(chunks.find(chunk => chunk.initial)?.models).toBe(false)
+  expect(chunks.some(chunk => !chunk.initial && chunk.models)).toBe(true)
+})
+
+it.each([
+  { platform: 'web', hook: 'use-chat-pending-operations' },
+  { platform: 'mobile', hook: 'use-pending-operation-execution' },
+])('loads the $platform pending operation implementation on demand', ({ platform, hook }) => {
+  const chunks: { initial: boolean; actions: boolean }[] = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', `
+    import { build, stop } from 'esbuild';
+    const { metafile } = await build({
+      entryPoints: [process.argv[1]], bundle: true, write: false, metafile: true, splitting: true,
+      format: 'esm', outdir: 'pending-operation-bundle', platform: 'browser',
+      external: ['react', 'react-native', 'react-i18next', 'next-intl', '@/*', '@orbit/shared/*'],
+    });
+    process.stdout.write(JSON.stringify(Object.values(metafile.outputs).map(output => ({
+      initial: output.entryPoint?.endsWith(process.argv[1].split('/').at(-1)) ?? false,
+      actions: Object.keys(output.inputs).some(path => path.endsWith('hooks/chat-pending-operation-actions.ts')),
+    }))));
+    stop();
+  `, `../${platform}/hooks/${hook}.ts`], { encoding: 'utf8' }))
+  expect(chunks.filter(chunk => chunk.initial)).toHaveLength(1)
+  expect(chunks.find(chunk => chunk.initial)?.actions).toBe(false)
+  expect(chunks.some(chunk => !chunk.initial && chunk.actions)).toBe(true)
+})
+
+it('loads the stream protocol after sending starts', () => {
+  const protocolChunks: { entry: boolean; protocol: boolean }[] = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', `
+    import { build, stop } from 'esbuild';
+    const { metafile } = await build({
+      entryPoints: ['../../packages/shared/src/hooks/chat-send-stream-core.ts'],
+      bundle: true, write: false, metafile: true, splitting: true,
+      format: 'esm', outdir: 'composer-stream-bundle', platform: 'browser',
+      external: ['@tanstack/*', 'react'],
+    });
+    process.stdout.write(JSON.stringify(Object.values(metafile.outputs).map(output => ({
+      entry: output.entryPoint === '../../packages/shared/src/hooks/chat-send-stream-core.ts',
+      protocol: Object.keys(output.inputs).some(path => path.endsWith('/chat/sse-stream.ts')),
+    }))));
+    stop();
+  `], { encoding: 'utf8' }))
+
+  expect(protocolChunks.find(chunk => chunk.entry)?.protocol).toBe(false)
+  expect(protocolChunks.some(chunk => !chunk.entry && chunk.protocol)).toBe(true)
+})
+
 it.each([
   { owner: 'sheet and select', entryPoints: ['components/ui/sheet.tsx', 'components/ui/select.tsx'], allocation: 59000 },
   { owner: 'monitoring', entryPoints: ['instrumentation-client.ts'], allocation: 54800 },

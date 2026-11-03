@@ -7,6 +7,8 @@ import compatibility from '@/web-compatibility.json'
 import { desktopShellVersion, shellSupportsWeb } from '@/lib/desktop-web-release'
 import { watchDesktopUpdates, desktopOffersSupported } from '@/lib/desktop-updates'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
+import { blockDesktopWebReload } from '@/lib/web-reload-state'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { takeDesktopChatCheckpoint } from '@/lib/desktop-chat-checkpoint'
 import { useHeldAccountId } from '@/stores/auth-store'
 import { useChatStore } from '@/stores/chat-store'
@@ -37,16 +39,26 @@ export function DesktopReleaseShell({ onUpdateRequired, monitor = false, minimum
 function DesktopReleaseMonitor({ version, requireUpgrade }: Readonly<{ version: string; requireUpgrade: (minimum: string) => void }>) {
   const accountId = useHeldAccountId()
   useEffect(() => {
-    try {
-      const checkpoint = accountId ? takeDesktopChatCheckpoint(accountId) : null
-      if (checkpoint) {
-        useChatStore.setState({ ...checkpoint.chat, draftHydrated: true, isTyping: false, streamingMessageId: null })
-        useUIStore.getState().setAstraConversationOpen(checkpoint.conversationOpen)
-      }
-    } catch (error) { captureException(error) }
-    return watchDesktopUpdates(version, process.env.NEXT_PUBLIC_WEB_COMMIT_SHA ?? null, requireUpgrade)
+    let current = true
+    const unblockReload = blockDesktopWebReload()
+    if (accountId) void restoreDesktopCheckpoint(accountId, () => current).catch(captureException).finally(unblockReload)
+    else unblockReload()
+    const stopWatching = watchDesktopUpdates(version, process.env.NEXT_PUBLIC_WEB_COMMIT_SHA ?? null, requireUpgrade)
+    return () => { current = false; unblockReload(); stopWatching() }
   }, [accountId, requireUpgrade, version])
   return null
+}
+
+async function restoreDesktopCheckpoint(accountId: string, isCurrent: () => boolean) {
+  const accountGeneration = getAccountGeneration()
+  const snapshot = useChatStore.getState()
+  const conversationOpen = useUIStore.getState().astraConversationOpen
+  const checkpoint = await takeDesktopChatCheckpoint(accountId)
+  const current = useChatStore.getState()
+  if (!checkpoint || !isCurrent() || accountGeneration !== getAccountGeneration() || current.messages !== snapshot.messages) return
+  const draft = current.draftRevision === snapshot.draftRevision ? checkpoint.chat.draft : current.draft
+  useChatStore.setState({ ...checkpoint.chat, draft, draftHydrated: true, isTyping: false, streamingMessageId: null })
+  if (useUIStore.getState().astraConversationOpen === conversationOpen) useUIStore.getState().setAstraConversationOpen(checkpoint.conversationOpen)
 }
 
 function DesktopUpdateRequired() {

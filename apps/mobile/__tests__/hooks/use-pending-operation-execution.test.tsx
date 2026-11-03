@@ -1,5 +1,6 @@
 import { makeApprovalPlan, planOperationId } from '@orbit/shared/test-support/astra-plan-fixtures'
 import { useChatStore } from '@/stores/chat-store'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { offerConversationId } from '@orbit/shared/test-support/astra-offer-fixtures'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
@@ -71,13 +72,28 @@ describe('usePendingOperationExecution step-up flow', () => {
     mocks.apiClient.mockReset()
   })
 
+  it('retains the initiating account while the operation implementation loads', async () => {
+    const hook = await renderExecution(vi.fn(async () => {}))
+    let pending!: ReturnType<typeof hook.current.confirmAndExecutePendingOperation>
+    await TestRenderer.act(async () => {
+      pending = hook.current.confirmAndExecutePendingOperation(planOperationId)
+      advanceAccountGeneration()
+      await vi.dynamicImportSettled()
+    })
+    await expect(pending).resolves.toEqual({ ok: false, error: 'errors.api.accountChanged' })
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
   it.each([true, false])('keeps approval running until execution fails, with saved plan %s', async recorded => {
     useChatStore.setState({ messages: [{ id: 'original', role: 'ai', content: '', timestamp: new Date(), plan: makeApprovalPlan() }] })
     let finish!: (value: unknown) => void
     mocks.apiClient.mockResolvedValueOnce({ pendingOperationId: planOperationId, confirmationToken: 'token', expiresAtUtc: '2099-01-01T00:00:00Z', ...(recorded ? { plan: makeApprovalPlan('running') } : {}) }).mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
     const hook = await renderExecution(vi.fn(async () => {}))
     let pending!: Promise<unknown>
-    await TestRenderer.act(async () => { pending = hook.current.confirmAndExecutePendingOperation(planOperationId); await Promise.resolve() })
+    await TestRenderer.act(async () => {
+      pending = hook.current.confirmAndExecutePendingOperation(planOperationId)
+      await vi.dynamicImportSettled()
+    })
     expect(useChatStore.getState().messages[0]?.plan?.steps[1]?.status).toBe('running')
     await TestRenderer.act(async () => { finish({ ...makeExecution('Failed'), operation: { ...makeExecution('Failed').operation, status: 'Failed' }, ...(recorded ? { plan: makeApprovalPlan('failed') } : {}) }); await pending })
     expect(useChatStore.getState().messages[0]?.plan?.steps[1]?.status).toBe('failed')

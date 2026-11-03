@@ -1,8 +1,10 @@
 import type { QueryClient } from '@tanstack/query-core'
 import type { ChatStoreState } from '../stores/chat-store'
 import type { ChatClientContext,ChatResponse } from '../types/chat'
-import { type ChatStreamCallbacks,type ChatStreamRequest,type ChatStreamResult,type PreparedChatTurn,type ChatTurnReconciliation,updateMessagePlanStep,buildChatFinalMessageFields,CHAT_STREAM_IDLE_TIMEOUT_MS,sendChatStreamTurn,ChatReplyLifecycle,needsNewChatTurn,getChatTurnFailure } from '../chat'
-import { classifySendFailure,reconcileAgentQueries,settleChatResponse } from './chat-composer-core'
+import { CHAT_STREAM_IDLE_TIMEOUT_MS, ChatReplyLifecycle } from '../chat'
+import type { ChatStreamRequest, ChatStreamResult, PreparedChatTurn, ChatTurnReconciliation, sendChatStreamTurn } from '../chat'
+import type { ChatTurnOptions } from '../chat/stream-turn'
+import { classifySendFailure,reconcileAgentQueries } from './chat-composer-core'
 import type { createChatThreadScroll } from './chat-thread-scroll-core'
 import { getFriendlyErrorMessage } from '../utils/error-utils'
 
@@ -23,7 +25,7 @@ export interface ComposerAttempt<Image, Payload> {
   contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>
 }
 
-type ToolStep = { domain: string; access: string }
+export type ToolStep = { domain: string; access: string }
 type Translate = (key: string, values?: Record<string, string | number | Date>) => string
 type Current<Value> = { current: Value }
 interface ComposerReplyContext extends Pick<ChatStoreState, 'setStreamingMessageId' | 'setIsTyping' | 'addMessage'> {
@@ -36,12 +38,12 @@ interface ComposerReplyContext extends Pick<ChatStoreState, 'setStreamingMessage
   getChat: () => ChatStoreState
   createMessageId: () => string
 }
-interface ComposerSettlementContext extends Omit<ComposerReplyContext, 'stopReply' | 'getAccountGeneration' | 't'>, Pick<ChatStoreState, 'updateMessage'> {
+export interface ComposerSettlementContext extends Omit<ComposerReplyContext, 'stopReply' | 'getAccountGeneration' | 't'>, Pick<ChatStoreState, 'updateMessage'> {
   queryClient: QueryClient
   threadScroll: ReturnType<typeof createChatThreadScroll>
   setChat: (state: Partial<ChatStoreState>) => void
 }
-interface ComposerStreamContext<Image, Payload> extends ComposerReplyContext, Pick<ChatStoreState, 'appendToMessageContent' | 'updateMessage'> {
+export interface ComposerStreamContext<Image, Payload> extends ComposerReplyContext, Pick<ChatStoreState, 'appendToMessageContent' | 'updateMessage'> {
   createTurnKey: () => string
   queryClient: QueryClient
   turnReconciliation: ChatTurnReconciliation
@@ -53,7 +55,7 @@ interface ComposerStreamContext<Image, Payload> extends ComposerReplyContext, Pi
 }
 
 export async function runComposerStream<Image, Payload>(context: ComposerStreamContext<Image, Payload>, attempted: ChatStreamRequest<Image> & { turn?: PreparedChatTurn<Payload> }, onAccepted?: () => void): Promise<ChatStreamResult> {
-  const { t, activeStepsRef, setActiveSteps, stopReply, setIsTyping, scrollToBottom, turnReconciliation, queryClient, applyFinalResponse, getAccountGeneration, getChat, createMessageId, setStreamingMessageId, addMessage } = context
+  const { t, activeStepsRef, setActiveSteps, stopReply, setIsTyping, scrollToBottom, turnReconciliation, queryClient, getAccountGeneration, getChat, createMessageId, setStreamingMessageId, addMessage } = context
   const startingAccountGeneration = getAccountGeneration()
   const ownsAccount = () => getAccountGeneration() === startingAccountGeneration
   let controller = new AbortController()
@@ -69,7 +71,7 @@ export async function runComposerStream<Image, Payload>(context: ComposerStreamC
     stoppedMessage: t('shell.composer.queue.stopped'),
     clearActivity: () => { activeStepsRef.current = []; setActiveSteps([]) }, abort: () => controller.abort(),
   })
-  const { isCancelled, isHidden, stop } = reply
+  const { isHidden, stop } = reply
   stopReply.current = stop
   const ensureDraftMessage = () => {
     if (draftMessageId) return draftMessageId
@@ -85,31 +87,38 @@ export async function runComposerStream<Image, Payload>(context: ComposerStreamC
     if (turnReconciliation.isPending) await turnReconciliation.reconcile(() => reconcileAgentQueries(queryClient))
     if (isHidden()) return { kind: 'cancelled' }
     attempted.turn ??= { key: context.createTurnKey(), payload: context.buildChatFormData(attempted) }
-    const outcome = await sendChatStreamTurn({
-      turn: attempted.turn,
-      isCancelled,
-      open: context.createTransport(attempted, {
-        resetController: () => { controller = new AbortController(); return controller }, armIdleTimer, ownsAccount,
-      }, onAccepted),
-      callbacks: createComposerStreamCallbacks(context, isHidden, ensureDraftMessage, () => draftMessageId),
-    })
-    if (outcome.kind === 'cancelled') return outcome
-    if (needsNewChatTurn(outcome)) attempted.turn = undefined
-    await turnReconciliation.reconcileAfterTurn(outcome, () => reconcileAgentQueries(queryClient))
-    if (isHidden() && outcome.kind !== 'final') return { kind: 'cancelled' }
-    if (outcome.kind === 'final') {
-      if (ownsAccount() && attempted.selectedOfferKey) getChat().dismissOffer(attempted.selectedOfferKey)
-      await applyFinalResponse(outcome.response, draftMessageId, activeStepsRef.current, firstReveal, attempted.messageCost, reply)
-      finalReceived = reply.canComplete()
-      return finalReceived ? { kind: 'final' } : { kind: 'cancelled' }
-    }
-    return { kind: 'failed', failure: getChatTurnFailure(outcome, t('chat.sendError')), draftMessageId }
+    const open = prepareComposerTransport(context.createTransport(attempted, {
+      resetController: () => { controller = new AbortController(); return controller }, armIdleTimer, ownsAccount,
+    }, onAccepted), attempted.turn)
+    const { executeComposerStream } = await import('./chat-stream-execution-core')
+    const outcome = await executeComposerStream(context, attempted, attempted.turn, {
+      reply, ensureDraftMessage, getDraftMessageId: () => draftMessageId, getFirstReveal: () => firstReveal,
+      ownsAccount,
+    }, open)
+    finalReceived = outcome.kind === 'final'
+    return outcome
   } catch (error: unknown) {
     return resolveComposerStreamFailure(context, reply, error, draftMessageId)
   } finally {
     clearTimeout(idleTimer)
     if (stopReply.current === stop) stopReply.current = null
     reply.finish(finalReceived)
+  }
+}
+
+function prepareComposerTransport<Payload>(open: ChatTurnOptions<Payload>['open'], turn: PreparedChatTurn<Payload>): ChatTurnOptions<Payload>['open'] {
+  let firstConnection: Promise<
+    { ok: true; connection: Awaited<ReturnType<typeof open>> } | { ok: false; error: unknown }
+  > | null = (async () => {
+    try { return { ok: true, connection: await open(turn) } }
+    catch (error) { return { ok: false, error } }
+  })()
+  return async replayTurn => {
+    if (!firstConnection) return open(replayTurn)
+    const response = await firstConnection
+    firstConnection = null
+    if (response.ok) return response.connection
+    throw response.error
   }
 }
 
@@ -126,76 +135,9 @@ function resolveComposerStreamFailure(
   }, draftMessageId }
 }
 
-function createComposerStreamCallbacks(
-  { appendToMessageContent, scrollToBottom, updateMessage, setIsTyping, activeStepsRef, setActiveSteps, getChat }: Pick<ComposerStreamContext<never, never>, 'appendToMessageContent' | 'scrollToBottom' | 'updateMessage' | 'setIsTyping' | 'activeStepsRef' | 'setActiveSteps' | 'getChat'>,
-  isHidden: () => boolean,
-  ensureDraftMessage: () => string,
-  getDraftMessageId: () => string | null,
-): ChatStreamCallbacks {
-  return {
-    onDelta: (text: string) => {
-      if (isHidden()) return
-      appendToMessageContent(ensureDraftMessage(), text)
-      scrollToBottom()
-    },
-    onReset: () => {
-      if (isHidden()) return
-      const draftMessageId = getDraftMessageId()
-      if (draftMessageId) updateMessage(draftMessageId, { content: '' })
-      setIsTyping(true)
-    },
-    onPlan: (plan) => {
-      if (isHidden()) return
-      updateMessage(ensureDraftMessage(), { plan })
-      scrollToBottom()
-    },
-    onPlanStep: (planId, step) => {
-      const draftMessageId = getDraftMessageId()
-      if (isHidden() || !draftMessageId) return
-      getChat().transitionMessage(draftMessageId, message => updateMessagePlanStep(message, planId, step))
-    },
-    onStep: (step: ToolStep) => {
-      if (isHidden()) return
-      activeStepsRef.current = [...activeStepsRef.current, step]
-      setActiveSteps(activeStepsRef.current)
-    },
-  }
-}
-
-export async function settleComposerResponse(context: ComposerSettlementContext, response: ChatResponse, draftMessageId: string | null, toolSteps: ToolStep[], firstReveal: Promise<void>, messageCost: 0 | 1, reply: ChatReplyLifecycle) {
-  const { threadScroll, setIsTyping, activeStepsRef, setActiveSteps, updateMessage, addMessage, setStreamingMessageId, scrollToBottom, queryClient, getChat, setChat, createMessageId } = context
-    if (!reply.isHidden() && draftMessageId && response.parts?.some(part => part?.type === 'block')) {
-      await reply.waitForReveal(firstReveal)
-      if (!reply.isHidden()) threadScroll.holdPosition()
-    }
-    if (!reply.isCancelled() && response.conversationId) setChat({ conversationId: response.conversationId, serverConversationId: response.conversationId })
-    if (!reply.isHidden()) {
-      setIsTyping(false)
-      activeStepsRef.current = []
-      setActiveSteps([])
-
-      const finalFields = buildChatFinalMessageFields(response, toolSteps)
-      if (draftMessageId) {
-        updateMessage(draftMessageId, finalFields)
-      } else {
-        addMessage({
-          id: createMessageId(),
-          role: 'ai',
-          timestamp: new Date(),
-          ...finalFields,
-        })
-      }
-      if (getChat().streamingMessageId === draftMessageId) {
-        setStreamingMessageId(null)
-      }
-
-      scrollToBottom()
-    }
-    if (!reply.isCancelled()) {
-      const settlement = settleChatResponse(queryClient, response, messageCost)
-      reply.finish(true)
-      await settlement
-    }
+export async function settleComposerResponse(...args: Parameters<typeof import('./chat-stream-execution-core').settleComposerResponse>) {
+  const { settleComposerResponse: settle } = await import('./chat-stream-execution-core')
+  return settle(...args)
 }
 
 interface ComposerFailureContext<Attempt extends ComposerAttempt<unknown, unknown>> extends Pick<ChatStoreState, 'updateMessage' | 'addMessage' | 'setIsTyping'> {

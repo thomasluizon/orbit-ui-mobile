@@ -1,22 +1,5 @@
-import { z } from 'zod'
-import { chatMessageSchema } from '@orbit/shared/types/chat'
 import type { ChatStoreState } from '@orbit/shared/stores'
 import { desktopChatCheckpointKey, forgetDesktopChatCheckpoint } from './web-reload-state'
-
-const checkpointSchema = z.object({
-  accountId: z.string(),
-  expiresAt: z.number(),
-  conversationOpen: z.boolean(),
-  chat: z.object({
-    conversationId: z.uuid().nullable().default(null),
-    dismissedOfferKeys: z.array(z.string()).default([]),
-    messages: z.array(chatMessageSchema.extend({ timestamp: z.coerce.date() })),
-    draft: z.string(),
-    proactiveEntryId: z.string().nullable(),
-    proactiveOutcomes: z.record(z.string(), z.enum(['opened', 'acted'])),
-    contextualSuggestion: z.object({ id: z.string(), label: z.string(), prompt: z.string() }).nullable(),
-  }),
-})
 
 async function durableImageUrl(url: string | null | undefined) {
   if (!url?.startsWith('blob:')) return url
@@ -39,17 +22,19 @@ export async function writeDesktopChatCheckpoint(accountId: string, chat: ChatSt
   const checkpoint = { accountId, expiresAt: Date.now() + 5 * 60_000, conversationOpen,
     chat: { messages, conversationId: chat.conversationId, dismissedOfferKeys: chat.dismissedOfferKeys, draft: chat.draft, proactiveEntryId: chat.proactiveEntryId,
       proactiveOutcomes: chat.proactiveOutcomes, contextualSuggestion: chat.contextualSuggestion } }
+  const { checkpointSchema } = await import('./desktop-chat-checkpoint-schema')
   checkpointSchema.parse(checkpoint)
   const storage = persistent ? localStorage : sessionStorage
   storage.setItem(desktopChatCheckpointKey, JSON.stringify(checkpoint))
 }
 
-export function takeDesktopChatCheckpoint(accountId: string) {
+export async function takeDesktopChatCheckpoint(accountId: string) {
   const stored = sessionStorage.getItem(desktopChatCheckpointKey) ?? localStorage.getItem(desktopChatCheckpointKey)
   forgetDesktopChatCheckpoint()
   if (!stored) return null
   let parsed: unknown
   try { parsed = JSON.parse(stored) } catch { return null }
+  const { checkpointSchema } = await import('./desktop-chat-checkpoint-schema')
   const checkpoint = checkpointSchema.safeParse(parsed)
   return checkpoint.success && checkpoint.data.accountId === accountId && checkpoint.data.expiresAt > Date.now()
     ? checkpoint.data : null

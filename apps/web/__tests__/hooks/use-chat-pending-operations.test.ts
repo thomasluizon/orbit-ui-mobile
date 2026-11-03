@@ -69,6 +69,19 @@ describe('useChatPendingOperations', () => {
     vi.clearAllMocks()
   })
 
+  it('retains the initiating account while the operation implementation loads', async () => {
+    const { result } = renderHook(() => useChatPendingOperations(vi.fn(async () => {})))
+    let pending!: ReturnType<typeof result.current.confirmAndExecutePendingOperation>
+    await act(async () => {
+      pending = result.current.confirmAndExecutePendingOperation(planOperationId)
+      advanceAccountGeneration()
+      await vi.dynamicImportSettled()
+    })
+    await expect(pending).resolves.toEqual({ ok: false, error: 'errors.api.accountChanged' })
+    expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
+    expect(mocks.executePendingOperation).not.toHaveBeenCalled()
+  })
+
   it.each([true, false])('keeps approval running until explicit execution completes, with saved plan %s', async recorded => {
     useChatStore.setState({ messages: [{ id: 'original', role: 'ai', content: '', timestamp: new Date(), plan: makeApprovalPlan() }] })
     mocks.confirmPendingOperation.mockResolvedValue({ ok: true, data: { pendingOperationId: planOperationId, confirmationToken: 'token', expiresAtUtc: '2099-01-01T00:00:00Z', ...(recorded ? { plan: makeApprovalPlan('running') } : {}) } })
@@ -76,7 +89,10 @@ describe('useChatPendingOperations', () => {
     mocks.executePendingOperation.mockImplementation(() => new Promise(resolve => { finish = resolve }))
     const { result } = renderHook(() => useChatPendingOperations(vi.fn(async () => {})))
     let pending!: Promise<unknown>
-    await act(async () => { pending = result.current.confirmAndExecutePendingOperation(planOperationId) })
+    await act(async () => {
+      pending = result.current.confirmAndExecutePendingOperation(planOperationId)
+      await vi.dynamicImportSettled()
+    })
     expect(useChatStore.getState().messages[0]?.plan?.steps[1]?.status).toBe('running')
     await act(async () => { finish({ ok: true, data: { ...makeExecution('Failed'), operation: { ...makeExecution('Failed').operation, status: 'Failed' }, ...(recorded ? { plan: makeApprovalPlan('failed') } : {}) } }); await pending })
     expect(useChatStore.getState().messages[0]?.plan?.steps[1]?.status).toBe('failed')

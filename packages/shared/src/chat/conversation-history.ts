@@ -1,9 +1,6 @@
-import { z } from 'zod'
 import { API } from '../api/endpoints'
-import { chatResponseSchema, type ChatMessage } from '../types/chat'
-import { conversationPreviewOutcomeSchema, type ConversationPage } from '../types/conversation'
+import type { ConversationPage } from '../types/conversation'
 import type { ChatStoreState } from '../stores/chat-store'
-import { buildChatFinalMessageFields } from './final-message'
 
 export interface ConversationCursor { conversationId?: string; beforeOrder?: number | string }
 
@@ -14,28 +11,7 @@ export function conversationPagePath(cursor: ConversationCursor = {}): string {
   return `${API.chat.latestConversation}?${query.toString()}`
 }
 
-export function restoreConversationPage(page: ConversationPage): ChatMessage[] {
-  return page.turns.map(turn => {
-    const message: ChatMessage = {
-      id: `stored-${turn.turnId}-${turn.role}`, role: turn.role === 'user' ? 'user' : 'ai',
-      content: turn.content ?? '', timestamp: new Date(turn.createdAtUtc), restored: true,
-    }
-    if (turn.image) {
-      message.imageUrl = API.chat.conversationImage(page.conversationId, turn.turnId)
-      message.storedImage = { conversationId: page.conversationId, turnId: turn.turnId }
-    }
-    if (turn.role === 'assistant' && turn.responseJson) {
-      Object.assign(message, buildChatFinalMessageFields(chatResponseSchema.parse(JSON.parse(turn.responseJson)), []))
-      const outcomes = z.array(conversationPreviewOutcomeSchema).parse(JSON.parse(turn.previewOutcomesJson))
-      message.pendingOperationStates = Object.fromEntries(outcomes.flatMap(outcome => outcome.Outcome === 'pending' ? [] : [[
-        outcome.PendingOperationId, outcome.Outcome === 'rejected' ? { rejected: true, dismissed: true }
-          : { recordedOutcome: outcome.Outcome },
-      ]]))
-    }
-    if (turn.role === 'assistant' && turn.plan) message.plan = turn.plan
-    return message
-  })
-}
+export { restoreConversationPage } from './conversation-restore'
 
 interface HistoryAdapter {
   getState: () => ChatStoreState
@@ -75,7 +51,9 @@ export function createConversationHistory(adapter: HistoryAdapter): Conversation
     return run(async isCurrent => {
       const page = await adapter.read({})
       if (!isCurrent() || adapter.getState().messages !== snapshot.messages) return false
-      const messages = page ? restoreConversationPage(page) : null
+      const restore = page ? (await import('./conversation-restore')).restoreConversationPage : null
+      if (!isCurrent() || adapter.getState().messages !== snapshot.messages) return false
+      const messages = page && restore ? restore(page) : null
       if (!page && snapshot.serverConversationId) {
         adapter.setState({ messages: [], conversationId: null, serverConversationId: null,
           conversationBeforeOrder: null, dismissedOfferKeys: [], conversationLoaded: true })
@@ -95,6 +73,8 @@ export function createConversationHistory(adapter: HistoryAdapter): Conversation
     return run(async isCurrent => {
       const page = await adapter.read({ conversationId: snapshot.serverConversationId!, beforeOrder: snapshot.conversationBeforeOrder! })
       if (!isCurrent() || !page || page.conversationId !== snapshot.serverConversationId) return false
+      const { restoreConversationPage } = await import('./conversation-restore')
+      if (!isCurrent()) return false
       const current = adapter.getState().messages
       const ids = new Set(current.map(message => message.id))
       adapter.setState({ messages: [...restoreConversationPage(page).filter(message => !ids.has(message.id)), ...current], conversationBeforeOrder: page.beforeOrder })

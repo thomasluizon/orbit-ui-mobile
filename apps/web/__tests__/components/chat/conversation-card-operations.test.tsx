@@ -111,6 +111,8 @@ it.each(cardOperations.flatMap(operation => [false, true].map(failure => ({ oper
   expectBusy(false)
   start(operation)
   expectBusy(true)
+  await act(async () => { await vi.dynamicImportSettled() })
+  expect(mutations[operation]).toHaveBeenCalled()
   await act(async () => { deferred.finish(failure); await Promise.resolve() })
   expectBusy(false)
 })
