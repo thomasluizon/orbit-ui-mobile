@@ -127,7 +127,7 @@ type ChatStreamInputs = Pick<ChatComposerState, 't' | 'activeStepsRef' | 'setAct
 
 export function useChatStream(inputs: ChatStreamInputs) {
   const runStreamingSend = useCallback((attempted: ChatStreamRequest<ImagePicker.ImagePickerAsset> & { turn?: PreparedChatTurn<FormData> }, onAccepted?: () => void) => runComposerStream({
-    ...inputs, getAccountGeneration, getChat: useChatStore.getState, createMessageId: createChatMessageId, isAbortError,
+    ...inputs, getAccountGeneration, getChat: useChatStore.getState, createMessageId: createChatMessageId, createTurnKey: randomUUID, isAbortError,
     createTransport: (request, reply, accepted) => createComposerStreamTransport({ attempted: request, ...reply, onAccepted: accepted, t: inputs.t }),
   }, attempted, onAccepted), [inputs])
   return { runStreamingSend }

@@ -42,6 +42,7 @@ interface ComposerSettlementContext extends Omit<ComposerReplyContext, 'stopRepl
   setChat: (state: Partial<ChatStoreState>) => void
 }
 interface ComposerStreamContext<Image, Payload> extends ComposerReplyContext, Pick<ChatStoreState, 'appendToMessageContent' | 'updateMessage'> {
+  createTurnKey: () => string
   queryClient: QueryClient
   turnReconciliation: ChatTurnReconciliation
   buildChatFormData: (attempted: ChatStreamRequest<Image>) => Payload
@@ -83,7 +84,7 @@ export async function runComposerStream<Image, Payload>(context: ComposerStreamC
   try {
     if (turnReconciliation.isPending) await turnReconciliation.reconcile(() => reconcileAgentQueries(queryClient))
     if (isHidden()) return { kind: 'cancelled' }
-    attempted.turn ??= { key: createMessageId(), payload: context.buildChatFormData(attempted) }
+    attempted.turn ??= { key: context.createTurnKey(), payload: context.buildChatFormData(attempted) }
     const outcome = await sendChatStreamTurn({
       turn: attempted.turn,
       isCancelled,

@@ -122,7 +122,7 @@ type ChatStreamInputs = Pick<ChatComposerState, 't' | 'activeStepsRef' | 'setAct
 
 export function useChatStream(inputs: ChatStreamInputs) {
   const runStreamingSend = useCallback((attempted: ChatStreamRequest<File> & { turn?: PreparedChatTurn<FormData> }, onAccepted?: () => void) => runComposerStream({
-    ...inputs, getAccountGeneration, getChat: useChatStore.getState, createMessageId: () => crypto.randomUUID(), isAbortError,
+    ...inputs, getAccountGeneration, getChat: useChatStore.getState, createMessageId: () => crypto.randomUUID(), createTurnKey: () => crypto.randomUUID(), isAbortError,
     createTransport: (request, reply, accepted) => createComposerStreamTransport({ attempted: request, ...reply, onAccepted: accepted, t: inputs.t }),
   }, attempted, onAccepted), [inputs])
   return { runStreamingSend }

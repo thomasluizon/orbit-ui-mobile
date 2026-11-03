@@ -582,7 +582,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.composerProps.onRetry).toBeUndefined()
     const readKey = (index: number) => mocks.openChatStream.mock.calls[index]?.[2] as string
     expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
-    expect(readKey(0)).toBeTruthy()
+    expect(readKey(0)).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
     expect(readKey(1)).toBe(readKey(0))
     expect(mocks.openChatStream.mock.calls[1]?.[0]).toBe(mocks.openChatStream.mock.calls[0]?.[0])
     await TestRenderer.act(async () => {

@@ -27,7 +27,7 @@ function composerHarness() {
     t: (key: string) => key, allowanceText: (key: string) => key,
     activeStepsRef: { current: [] as { domain: string; access: string }[] }, setActiveSteps: vi.fn(),
     stopReply: { current: null as (() => void) | null }, scrollToBottom: (revealed?: () => void) => revealed?.(),
-    getAccountGeneration: () => generation, createMessageId: () => `message-${++nextId}`,
+    getAccountGeneration: () => generation, createTurnKey: () => '11111111-1111-4111-8111-111111111111', createMessageId: () => `message-${++nextId}`,
     threadScroll: createChatThreadScroll(), turnReconciliation: new ChatTurnReconciliation(),
     buildChatFormData: (attempt: { content: string }) => attempt.content,
     isAbortError: (error: unknown) => error instanceof Error && error.name === 'AbortError',
@@ -58,6 +58,8 @@ describe('shared composer stream', () => {
     expect(result).toEqual({ kind: 'final' })
     expect(open).toHaveBeenCalledTimes(2)
     expect(open.mock.calls[0]?.[0]).toBe(open.mock.calls[1]?.[0])
+    expect(open.mock.calls[0]?.[0].key).toBe(context.createTurnKey())
+    expect(context.getChat().messages[0]?.id).toMatch(/^message-/)
     expect(context.getChat().messages.map(message => message.content)).toEqual(['Saved'])
     expect(context.getChat().replyActive).toBe(false)
     expect(context.queryClient.getQueryData<ReturnType<typeof createMockProfile>>(profileKeys.detail())?.aiMessagesUsed).toBe(1)
