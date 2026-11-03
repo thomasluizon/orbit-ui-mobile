@@ -6,7 +6,7 @@ import type { BulkMoveHabitParentResult, NormalizedHabit } from '@orbit/shared/t
 import { createMoveParentActions, createMoveParentState } from '@orbit/shared/hooks/move-parent-core'
 import { getMoveParentInventory, getMoveParentSelection, getSharedMoveParentId, validateMoveTarget } from '@orbit/shared/utils/move-parent'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { useHabits } from '@/hooks/use-habit-queries'
+import { useHabits } from '@/hooks/use-habits'
 import { useMoveHabitParent } from '@/hooks/use-move-habit-parent'
 import { useConfig } from '@/hooks/use-config'
 import { getAccountGeneration } from '@/lib/session-epoch'

@@ -130,19 +130,10 @@ function SkipToastHost() {
     : <Toast {...toast} />
 }
 
-vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
-const actual = await importOriginal<typeof import('@/hooks/use-habit-queries')>()
-return { ...actual,
-  useHabits: (...args: Parameters<typeof actual.useHabits>) => skipFlow.active ? actual.useHabits(...args) : ({
-    ...moveQueryResult(args[0]),
-    isLoading: false,
-    error: null,
-    dataUpdatedAt: mockHabitsDataUpdatedAt,
-    refetch: habitListRefetch,
-
-  }),
-  useHabitCountLoaded: () => accountHabitCount }
-})
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/use-habit-queries')>()),
+  useHabitCountLoaded: () => accountHabitCount,
+}))
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { timeZone: accountDate.timeZone, hasProAccess: accountDate.hasProAccess } }),

@@ -100,24 +100,10 @@ function SkipToastHost() {
     : <Toast {...toast} />
 }
 
-vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
-const actual = await importOriginal<typeof import('@/hooks/use-habit-queries')>()
-const { useState } = await import('react')
-return { ...actual,
-  useHabits: (...args: Parameters<typeof actual.useHabits>) => {
-      const [useRealHook] = useState(() => skipFlow.active)
-      return useRealHook ? actual.useHabits(...args) : ({
-        ...moveQueryResult(args[0]),
-        data: listQueryState.isError ? undefined : moveQueryResult(args[0]).data,
-        isLoading: listQueryState.isLoading,
-        isError: listQueryState.isError || moveQueryResult(args[0]).isError,
-        dataUpdatedAt: mockHabitsDataUpdatedAt,
-        refetch: habitListRefetch,
-
-      })
-    },
-  useHabitCountLoaded: () => accountHabitCount }
-})
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/use-habit-queries')>()),
+  useHabitCountLoaded: () => accountHabitCount,
+}))
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
