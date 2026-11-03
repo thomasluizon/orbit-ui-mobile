@@ -185,3 +185,14 @@ export function habitDetailToNormalized(detail: HabitDetail): NormalizedHabit {
     instances: [],
   }
 }
+
+export function createHabitQueryNormalizer(): (items: HabitScheduleItem[]) => NormalizedHabitQueryData {
+  const normalizedSources = new WeakMap<HabitScheduleItem[], NormalizedHabitQueryData>()
+  return (items) => {
+    const cached = normalizedSources.get(items)
+    if (cached) return cached
+    const normalized = normalizeHabitQueryData(items)
+    normalizedSources.set(items, normalized)
+    return normalized
+  }
+}

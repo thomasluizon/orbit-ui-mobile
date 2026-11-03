@@ -438,6 +438,7 @@ export {
   buildChildrenIndex,
   habitDetailToNormalized,
   normalizeHabitQueryData,
+  createHabitQueryNormalizer,
   normalizeHabits,
   sortNormalizedHabits,
 } from './habit-normalization'
