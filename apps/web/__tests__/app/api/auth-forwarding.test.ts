@@ -107,6 +107,23 @@ describe.each(signInPaths)('%s authenticated visitor forwarding', (path) => {
     expect(upstreamHeaders().get('X-Orbit-Bff-Secret')).toBeNull()
   })
 
+  if (path === 'auth/send-code' || path === 'auth/verify-code') {
+    it('forwards only a valid incoming smoke bypass without exposing it', async () => {
+      const secret = 'test-smoke-bypass'
+      const spies = (['log', 'info', 'warn', 'error', 'debug'] as const)
+        .map((method) => vi.spyOn(console, method).mockImplementation(() => {}))
+      for (const value of [secret, undefined, '', 'first, second', 's'.repeat(257)]) {
+        mockFetch.mockClear()
+        const response = await callRoute(path, value === undefined ? {} : { 'X-Orbit-Smoke-Bypass': value })
+        expect(response.status).toBe(200)
+        expect(upstreamHeaders().get('X-Orbit-Smoke-Bypass')).toBe(value === secret ? secret : null)
+        expect(response.headers.get('X-Orbit-Smoke-Bypass')).toBeNull()
+        expect(await response.text()).not.toContain(secret)
+      }
+      for (const spy of spies) expect(spy).not.toHaveBeenCalled()
+    })
+  }
+
   it('does not expose the secret through error responses or logs', async () => {
     const logs = ['log', 'info', 'warn', 'error', 'debug'] as const
     const spies = logs.map((method) => vi.spyOn(console, method).mockImplementation(() => {}))

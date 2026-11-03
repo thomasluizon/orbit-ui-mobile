@@ -60,6 +60,7 @@ export default defineConfig({
       name: 'setup',
       testMatch: /global\.setup\.ts/,
       teardown: 'cleanup',
+      use: { trace: 'off' },
     },
     {
       name: 'cleanup',
