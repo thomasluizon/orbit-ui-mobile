@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import type { ChatMessage } from '@orbit/shared/types'
 import { makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
@@ -45,10 +45,22 @@ describe.each(['en', 'pt-BR'])('Astra plan in %s', locale => {
     const plan = makeAstraPlan(locale)
     const message: ChatMessage = { id: 'reply', role: 'ai', content: '', timestamp: new Date(), plan }
     const announcement = (messages: ChatMessage[]) => <NextIntlClientProvider locale={locale} messages={words}><PlanAnnouncements messages={messages} /></NextIntlClientProvider>
-    const { container, rerender } = render(announcement([{ ...message, restored: true, plan: { ...plan, steps: plan.steps.map(step => ({ ...step, status: 'running' })) } }]))
+    const { container, rerender } = render(announcement([{ ...message, restored: true, plan: { ...plan, id: '00000000-0000-4000-8000-000000000001', steps: plan.steps.map(step => ({ ...step, status: 'running' })) } }]))
     expect(container.querySelector('[data-plan-announcement]')).toHaveTextContent('')
     rerender(announcement([{ ...message, plan: { ...plan, steps: [{ ...plan.steps[0]!, status: 'running' }, plan.steps[1]!] } }]))
     await waitFor(() => expect(container.querySelector('[data-plan-announcement]')).toHaveTextContent(`${plan.steps[0]!.text}: ${words.blockFrame.status.acting}`))
     expect(container.querySelector('[data-plan-announcement]')).toHaveAttribute('aria-live', 'polite')
+  })
+
+  it('announces later running steps on a restored plan without replaying its saved activity', async () => {
+    const plan = makeAstraPlan(locale)
+    const message: ChatMessage = { id: 'restored', role: 'ai', content: '', timestamp: new Date(), restored: true, plan: { ...plan, steps: [{ ...plan.steps[0]!, status: 'running' }, plan.steps[1]!] } }
+    const announcement = (messages: ChatMessage[]) => <NextIntlClientProvider locale={locale} messages={words}><PlanAnnouncements messages={messages} /></NextIntlClientProvider>
+    const { container, rerender } = render(announcement([message]))
+    await act(async () => { await Promise.resolve() })
+    expect(container.querySelector('[data-plan-announcement]')).toHaveTextContent('')
+    rerender(announcement([{ ...message, plan: { ...plan, steps: plan.steps.map(step => ({ ...step, status: 'running' })) } }]))
+    await waitFor(() => expect(container.querySelector('[data-plan-announcement]')).toHaveTextContent(`${plan.steps[1]!.text}: ${words.blockFrame.status.acting}`))
+    expect(container.querySelector('[data-plan-announcement]')).not.toHaveTextContent(plan.steps[0]!.text)
   })
 })

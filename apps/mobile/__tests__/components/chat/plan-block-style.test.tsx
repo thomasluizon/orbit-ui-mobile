@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { Animated, StyleSheet, type TextStyle } from 'react-native'
-import { PlanBlock } from '@/components/chat/plan-block'
+import { PlanAnnouncements, PlanBlock } from '@/components/chat/plan-block'
+import type { ChatMessage } from '@orbit/shared/types'
 import { makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
@@ -15,6 +16,21 @@ vi.mock('@/lib/motion', async importOriginal => ({
 afterEach(async () => { await i18n.changeLanguage('en'); __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }) })
 
 describe.each(['en', 'pt-BR'])('native Astra plan in %s', locale => {
+  it('announces later running steps on a restored plan without replaying its saved activity', async () => {
+    await i18n.changeLanguage(locale)
+    const plan = makeAstraPlan(locale)
+    const message: ChatMessage = { id: 'restored', role: 'ai', content: '', timestamp: new Date(), restored: true, plan: { ...plan, steps: [{ ...plan.steps[0]!, status: 'running' }, plan.steps[1]!] } }
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<PlanAnnouncements messages={[message]} />) })
+    try {
+      const announcement = () => tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'plan-announcement')[0]!
+      expect(announcement().props.children).toBe('')
+      await act(() => tree.update(<PlanAnnouncements messages={[{ ...message, plan: { ...plan, steps: plan.steps.map(step => ({ ...step, status: 'running' })) } }]} />))
+      expect(announcement().props.children).toBe(`${plan.steps[1]!.text}: ${i18n.t('blockFrame.status.acting')}`)
+      expect(announcement().props.accessibilityLiveRegion).toBe('polite')
+    } finally { await act(() => tree.unmount()) }
+  })
+
   it('settles progress updates immediately with reduced motion', async () => {
     const timing = vi.spyOn(Animated, 'timing')
     const plan = makeAstraPlan(locale)

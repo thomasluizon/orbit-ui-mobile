@@ -29,13 +29,24 @@ describe('Astra plan contract and transitions', () => {
     const tracker = new PlanAnnouncementTracker()
     const message = makeMessage()
     message.plan.steps[0]!.status = 'running'
-    expect(tracker.next([{ ...message, restored: true }], 'In progress')).toBeNull()
+    expect(tracker.next([{ ...message, restored: true, plan: { ...message.plan, id: '00000000-0000-4000-8000-000000000001' } }], 'In progress')).toBeNull()
     expect(tracker.next([message], 'In progress')).toBe('Check habits: In progress')
     expect(tracker.next([message], 'In progress')).toBeNull()
     message.plan.steps[1]!.status = 'running'
     expect(tracker.next([message], 'In progress')).toBe('Check goals: In progress')
     message.plan.steps.forEach(step => { step.status = 'done' })
     expect(tracker.next([message], 'In progress')).toBeNull()
+  })
+  it('announces a new approval transition after restoring a pending plan without replaying saved running steps', () => {
+    const tracker = new PlanAnnouncementTracker()
+    const restored = { ...makeMessage(), restored: true, plan: makeApprovalPlan() }
+    const running = { ...restored, id: 'other-reply', plan: { ...makeApprovalPlan('running'), id: '00000000-0000-4000-8000-000000000001' } }
+    expect(tracker.next([running, restored], 'In progress')).toBeNull()
+    expect(tracker.next([running, restored], 'In progress')).toBeNull()
+    const approved = { ...restored, plan: makeApprovalPlan('running') }
+    expect(tracker.next([running, approved], 'In progress')).toBe('Save habits: In progress')
+    expect(tracker.next([running, approved], 'In progress')).toBeNull()
+    expect(tracker.next([{ ...approved, plan: makeApprovalPlan('done') }], 'In progress')).toBeNull()
   })
   it.each(['pending', 'running', 'done', 'failed', 'skipped', 'future'])('retains the API %s status and maps its presentation', status => {
     const plan = makeAstraPlan()

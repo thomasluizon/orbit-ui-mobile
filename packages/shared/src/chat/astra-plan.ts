@@ -12,16 +12,19 @@ export function planStepStatus(status: string): 'pending' | 'running' | 'done' |
 
 export class PlanAnnouncementTracker {
   private readonly announced = new Set<string>()
+  private readonly observedPlans = new Set<string>()
 
   next(messages: readonly ChatMessage[], runningLabel: string): string | null {
     const lines: string[] = []
     for (const message of messages) {
-      if (message.restored || !message.plan) continue
+      if (!message.plan) continue
+      const restoring = message.restored && !this.observedPlans.has(message.plan.id)
+      this.observedPlans.add(message.plan.id)
       for (const step of message.plan.steps) {
         const identity = `${message.plan.id}:${step.id}`
         if (step.status !== 'running' || this.announced.has(identity)) continue
         this.announced.add(identity)
-        lines.push(`${step.text}: ${runningLabel}`)
+        if (!restoring) lines.push(`${step.text}: ${runningLabel}`)
       }
     }
     return lines.length ? lines.join('. ') : null
