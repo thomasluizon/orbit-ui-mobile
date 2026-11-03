@@ -8,11 +8,6 @@ export interface SelectedChatTextFile {
   content: string
 }
 
-export interface StreamSendFailure {
-  status: number | null
-  error: string
-  code: string | null
-}
 
 interface ByteStreamReader {
   read(): Promise<{ done: boolean; value?: Uint8Array }>

@@ -1,17 +1,12 @@
 import type { QueryClient } from '@tanstack/query-core'
 import type { ChecklistItem,HabitDetail,HabitFullDetail,HabitScheduleItem,UpdateHabitRequest } from '../types/habit'
-import { habitKeys,type HabitListKey,type HabitListSnapshots } from '../query/keys'
+import { habitKeys } from '../query/keys'
 import { updateCachedHabitDetails } from '../query/habit-cache'
 import { updateCachedHabitLists } from '../query/habit-cache'
 import { optimisticPatchHabit } from '../utils/habit-optimistic'
 import { optimisticMoveHabitParent } from '../utils/habit-parent-optimistic'
 
 
-
-export function snapshotHabitMutationLists(queryClient: QueryClient): HabitListSnapshots {
-  return queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
-    .filter((entry): entry is [HabitListKey, HabitScheduleItem[] | undefined] => entry[0][0] === 'habits' && entry[0][1] === 'list')
-}
 
 export function applyHabitStructurePatch(queryClient: QueryClient, habitId: string, request: UpdateHabitRequest, patch: Partial<HabitScheduleItem>) {
   const parentId = request.clearParent === true ? null : request.parentId ?? undefined
