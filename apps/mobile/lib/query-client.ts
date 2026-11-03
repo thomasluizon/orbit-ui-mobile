@@ -1,5 +1,5 @@
 import { captureException } from '@sentry/react-native'
-import { extractBackendStatus } from '@orbit/shared/utils'
+import { extractBackendStatus, isNetworkUnavailableError } from '@orbit/shared/utils'
 import { configKeys, configureAccountQueryDefaults, habitKeys, shouldRetryQuery, queryRetryDelay } from '@orbit/shared/query'
 import { QueryClient, QueryCache, focusManager, onlineManager } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -27,7 +27,7 @@ onlineManager.setEventListener((setOnline) => {
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
-      if (query.queryKey[0] === configKeys.all[0] && extractBackendStatus(error) !== 401) captureException(error)
+      if (query.queryKey[0] === configKeys.all[0] && extractBackendStatus(error) !== 401 && !isNetworkUnavailableError(error)) captureException(error)
     },
   }),
   defaultOptions: {

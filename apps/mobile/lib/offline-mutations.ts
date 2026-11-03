@@ -33,7 +33,7 @@ import {
 } from '@orbit/shared/types/profile'
 import { bulkLogItemRequestSchema, bulkLogResultSchema, bulkSkipItemRequestSchema, bulkSkipResultSchema, habitDetailSchema, reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
 import { z } from 'zod'
-import { ApiClientError, extractBackendErrorCode, findHabitInList } from '@orbit/shared/utils'
+import { ApiClientError, isNetworkUnavailableError, extractBackendErrorCode, findHabitInList } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { validateResolvedHabitReferences } from './habit-update-request'
 import { apiClient } from './api-client'
@@ -591,7 +591,7 @@ function scheduleBackoffFlush(replaceTimer?: ReturnType<typeof setTimeout>): voi
         return
       }
       await flushQueuedMutations()
-    })().catch(captureError)
+    })().catch((error: unknown) => { if (!isNetworkUnavailableError(error)) captureError(error) })
   }, delay)
   setReplayControlState({
     status: 'waiting-on-backoff',
@@ -601,7 +601,8 @@ function scheduleBackoffFlush(replaceTimer?: ReturnType<typeof setTimeout>): voi
 }
 
 function isTransientNetworkError(error: unknown): boolean {
-  if (error instanceof TypeError) return true
+  // WHY: Queue retries retain their broader transport policy: https://github.com/thomasluizon/orbit-tickets/issues/1980.
+  if (error instanceof TypeError || isNetworkUnavailableError(error)) return true
   if (!(error instanceof Error)) return false
 
   const message = error.message.toLowerCase()
