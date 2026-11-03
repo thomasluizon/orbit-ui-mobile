@@ -2,11 +2,11 @@
 
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
 import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
-import type { useChatComposerState } from './use-chat-composer-state'
+import type { ChatComposerState } from './use-chat-composer-state'
 
-type ChatComposerAttachmentsInputs = Pick<ReturnType<typeof useChatComposerState>, 'setSendError'>
+type ChatComposerAttachmentsInputs = Pick<ChatComposerState, 'setSendError'>
 
-export function useChatComposerAttachments({ setSendError }: ChatComposerAttachmentsInputs) {
+export function useChatComposerAttachments(setSendError: ChatComposerAttachmentsInputs['setSendError']) {
   const {
     fileInputRef,
     selectedImage,

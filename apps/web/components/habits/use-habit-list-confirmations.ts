@@ -4,7 +4,7 @@ import { useCallback } from 'react'
 import { collectSelectableDescendantIds } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
-import type { useHabitListQueries, useHabitListModalState, useHabitListCollapse } from './use-habit-list-state'
+import type { useHabitListQueries,useHabitListModalState,useHabitListCollapse } from './use-habit-list-state'
 
 function getDeleteConfirmation(
   habitId: string | null,
@@ -23,7 +23,7 @@ function getDeleteConfirmation(
 
 type ConfirmationQueries = Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent' | 'deleteHabitMut' | 'duplicateHabitMut'>
 
-export function useHabitListConfirmations({ queries }: { queries: ConfirmationQueries }) {
+export function useHabitListConfirmations(queries: { queries: ConfirmationQueries }['queries']) {
   const { habitsById, childrenByParent, deleteHabitMut, duplicateHabitMut } = queries
   const [showDeleteConfirm, setShowDeleteConfirm] = useAccountScopedState(false)
   const [deletePending, setDeletePending] = useAccountScopedState(false)

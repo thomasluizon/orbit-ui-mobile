@@ -19,7 +19,7 @@ import { CommandGroups } from '@/components/command/command-groups'
 import { useOverlayBack } from '@/hooks/use-overlay-back'
 import { useHabitSearch } from '@/hooks/use-habit-search'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useLogHabit, useSkipHabit } from '@/hooks/use-habits'
+import { useLogHabit, useSkipHabit } from '@/hooks/use-habit-logging'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 

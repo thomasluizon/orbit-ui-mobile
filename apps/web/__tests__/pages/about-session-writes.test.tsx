@@ -78,6 +78,16 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
+
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-create-sub-habit', () => {
+
+return { useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-habit-form', () => ({ useHabitForm: () => ({
   form: {
     watch: (field: string) => field === 'title' ? 'Test Habit' : field === 'scheduledReminders' ? [] : undefined,
@@ -96,7 +106,11 @@ vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: {
 vi.mock('@/hooks/use-dismiss-guard', () => ({ useDismissGuard: () => ({ canDismiss: true, requestDismiss: vi.fn() }) }))
 vi.mock('@/components/habits/habit-form-fields', () => ({ HabitFormFields: () => <input aria-label="Habit title" defaultValue="Test Habit" /> }))
 vi.mock('@/components/habits/create-habit-modal/sub-habit-editor', () => ({ SubHabitEditor: () => null }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: 0, isLoaded: false }) }))
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useTotalHabitCount: () => 0,
+  useHabitCountLoaded: () => ({ count: 0, isLoaded: false }) }
+})
 vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ crossedStreakMilestones: [], newAchievements: [] }) }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => ({ composerProps: {} }) }))
 vi.mock('@/lib/actions/calendar', () => ({ dismissCalendarImport: vi.fn() }))

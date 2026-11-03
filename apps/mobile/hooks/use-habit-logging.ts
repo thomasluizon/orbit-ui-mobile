@@ -1,24 +1,23 @@
-import { withAccountGuard, type HabitAccount } from './use-habit-mutation-shared'
+import { applyHabitLogSuccess,checkTodayCompletionAfterLog,setOptimisticCalendarHabitLog,rollbackHabitLogCalendars } from '@orbit/shared/hooks'
+import { withAccountGuard,type HabitAccount } from './use-habit-mutation-shared'
 import type { UseMutationOptions } from '@tanstack/react-query'
 import { checkCompletionAfterSkip } from '@orbit/shared/query/skip-completion'
 import { randomUUID } from 'expo-crypto'
 import type { HabitListSnapshots } from '@orbit/shared/query'
 import { useQueryClient } from '@tanstack/react-query'
 import { useHabitMutation } from './use-habit-mutation'
-import { invalidateDerivedHabitLogQueries, habitKeys, goalKeys, gamificationKeys, profileKeys, applyCachedHabitSkip, rollbackDatedHabitLists, checkTodayAllDoneOrDefer, clearCachedOptimisticSkip, restoreCachedHabitSkip, getTodayHabitListAfterRefetch } from '@orbit/shared/query'
+import { invalidateDerivedHabitLogQueries,habitKeys,profileKeys,applyCachedHabitSkip,rollbackDatedHabitLists,clearCachedOptimisticSkip,restoreCachedHabitSkip,getTodayHabitListAfterRefetch } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { applyLinkedGoalUpdates, buildSuccessfulLogPatch, findHabitInList, getAccountDay, getFriendlyErrorMessage, normalizeHabits, buildChildrenIndex, optimisticSetCalendarHabitLog, rollbackOptimisticCalendarHabitLog, rollbackOptimisticHabitLogs } from '@orbit/shared/utils'
-import type { HabitScheduleItem, LogHabitResponse, CalendarMonthResponse } from '@orbit/shared/types/habit'
-import type { Goal } from '@orbit/shared/types/goal'
+import { findHabitInList,getAccountDay,getFriendlyErrorMessage,normalizeHabits,buildChildrenIndex,rollbackOptimisticHabitLogs } from '@orbit/shared/utils'
+import type { LogHabitResponse,CalendarMonthResponse } from '@orbit/shared/types/habit'
 import type { Profile } from '@orbit/shared/types/profile'
-import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import type { HabitLog } from '@orbit/shared/types/calendar'
-import { cancelQueuedSkipForUndo, executeSkipUndo, isQueuedResult, type QueuedMarker } from '@/lib/offline-mutations'
+import { cancelQueuedSkipForUndo,executeSkipUndo,isQueuedResult,type QueuedMarker } from '@/lib/offline-mutations'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { optimisticPatchHabit, optimisticSetDatedCompletion, optimisticToggleCompletion } from '@/lib/habit-optimistic-helpers'
-import { finalizeHabitMutation, restoreHabitLists, snapshotHabitLists, updateHabitListsForDate } from '@/lib/habit-mutation-helpers'
-import { getMilestoneShareStreakKey, getReviewMomentStreakKey, isStreakCelebrationMilestone } from '@orbit/shared/stores'
-import { isReviewMomentEligible, useReviewReminderStore } from '@/stores/review-reminder-store'
+import { optimisticSetDatedCompletion,optimisticToggleCompletion } from '@/lib/habit-optimistic-helpers'
+import { finalizeHabitMutation,restoreHabitLists,snapshotHabitLists,updateHabitListsForDate } from '@/lib/habit-mutation-helpers'
+import { getReviewMomentStreakKey } from '@orbit/shared/stores'
+import { isReviewMomentEligible,useReviewReminderStore } from '@/stores/review-reminder-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -41,47 +40,6 @@ type LogHabitSnapshot = {
   previousCalendars: readonly (readonly [readonly unknown[], CalendarMonthResponse | undefined])[]
   hadPendingListRefetch: boolean
   retryAllDoneDate: string | null
-}
-
-function refreshProfileAfterLog(
-  queryClient: ReturnType<typeof useQueryClient>,
-  response: LogHabitResponse,
-  intent: 'log' | 'unlog',
-): void {
-  if (intent === 'unlog' || response.xpEarned || response.newAchievementIds?.length) {
-    void queryClient.invalidateQueries({ queryKey: profileKeys.all })
-  }
-}
-
-function startsPositiveStreak(
-  countsTowardStreak: boolean,
-  response: Pick<LogHabitResponse, 'isFirstCompletionToday' | 'currentStreak'>,
-): boolean {
-  return countsTowardStreak && response.isFirstCompletionToday && response.currentStreak > 0
-}
-
-function shouldCelebrateStreak(startsStreak: boolean, streak: number, isTodayLog: boolean): boolean {
-  return startsStreak && isTodayLog && isStreakCelebrationMilestone(streak)
-}
-
-/** Returns the day to recheck after the list refetch, when the complete Today list is not settled yet. */
-function checkTodayCompletionAfterLog(
-  queryClient: ReturnType<typeof useQueryClient>,
-  variables: LogHabitMutationInput,
-  hadPendingListRefetch: boolean,
-  checkAllDoneCelebration: ReturnType<typeof useUIStore.getState>['checkAllDoneCelebration'],
-): string | null {
-  const timeZone = queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone
-  const today = getAccountDay(new Date(), timeZone)
-  if (variables.intent === 'unlog' || (variables.date && variables.date !== today)) return null
-  updateHabitListsForDate(queryClient, today, (habits) => {
-    const habit = findHabitInList(habits, variables.habitId)
-    return habit ? optimisticPatchHabit(habits, variables.habitId, buildSuccessfulLogPatch(habit)) : habits
-  })
-  return checkTodayAllDoneOrDefer(queryClient, today, variables.date, hadPendingListRefetch,
-    (...args) => checkAllDoneCelebration(...args, timeZone))
-    ? today
-    : null
 }
 
 export function useLogHabit() {
@@ -330,19 +288,7 @@ function createLogHabitOnMutate(context: ReturnType<typeof useLogHabitContext>) 
             createdAtUtc,
           }]
         })
-        queryClient.setQueriesData<CalendarMonthResponse>(
-          { queryKey: habitKeys.calendarPrefix() },
-          (old) => old
-            ? optimisticSetCalendarHabitLog(
-              old,
-              habitId,
-              date,
-              completed,
-              optimisticLogId,
-              createdAtUtc,
-            )
-            : old,
-        )
+      setOptimisticCalendarHabitLog(queryClient, habitId, date, completed, optimisticLogId, createdAtUtc)
         updateHabitListsForDate(queryClient, date, (items) =>
           optimisticSetDatedCompletion(
             items,
@@ -393,19 +339,7 @@ function createLogHabitOnError(context: ReturnType<typeof useLogHabitContext>) {
           optimisticLogId,
         ),
       )
-      for (const [key, previousCalendar] of context.previousCalendars) {
-        if (!previousCalendar) continue
-        queryClient.setQueryData<CalendarMonthResponse>(key, (currentCalendar) =>
-          currentCalendar
-            ? rollbackOptimisticCalendarHabitLog(
-              currentCalendar,
-              previousCalendar,
-              variables.habitId,
-              date,
-              optimisticLogId,
-            )
-            : currentCalendar)
-      }
+      rollbackHabitLogCalendars(queryClient, context.previousCalendars, variables.habitId, date)
     }
     showError(getFriendlyErrorMessage(error, (key, values) => t(key, values), 'habits.detail.logError'), t('common.dismiss'))
   }
@@ -431,38 +365,9 @@ function createLogHabitOnSuccess(context: ReturnType<typeof useLogHabitContext>)
 
     captureHabitLogged()
 
-    const loggedHabit = findHabitInList(
-      queryClient
-        .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
-        .flatMap(([, items]) => items ?? []),
-      variables.habitId,
-    )
-    /**
-     * The CELEBRATION still needs a known good habit, and deliberately so: a bad habit's
-     * "streak" is consecutive abstinence, the opposite semantics, and an unresolvable habit
-     * cannot be shown to be either. Celebrating on a guess is user-visible harm.
-     */
-    const countsTowardStreak = loggedHabit?.isBadHabit === false
-
-    showStreakMoment(
-      response.currentStreak,
-      response.previousStreak ?? undefined,
-      { ...variables, date: context?.occurrenceDate ?? variables.date, timeZone: queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone, countsTowardStreak },
-    )
-    const startsStreak = startsPositiveStreak(countsTowardStreak, response)
-    const today = getAccountDay(new Date(), queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone)
-    const isTodayLog = (context?.occurrenceDate ?? variables.date ?? today) === today
-    if (shouldCelebrateStreak(startsStreak, response.currentStreak, isTodayLog)) {
-      setStreakCelebration({ streak: response.currentStreak })
-    }
-    if (startsStreak) {
-      queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-        old ? { ...old, currentStreak: response.currentStreak } : old,
-      )
-      const milestoneShareKey = getMilestoneShareStreakKey(response.currentStreak)
-      if (milestoneShareKey) {
-        useEngagementPromptStore.getState().armMilestoneSharePrompt(milestoneShareKey)
-      }
+    applyHabitLogSuccess(queryClient, response, variables, context, { setStreakCelebration, showStreakMoment,
+      armMilestoneSharePrompt: useEngagementPromptStore.getState().armMilestoneSharePrompt,
+      onStartedStreak: () => {
       const reviewMomentKey = getReviewMomentStreakKey(response.currentStreak)
       if (
         reviewMomentKey &&
@@ -475,35 +380,8 @@ function createLogHabitOnSuccess(context: ReturnType<typeof useLogHabitContext>)
       ) {
         useEngagementPromptStore.getState().armReviewPrompt(reviewMomentKey)
       }
-    }
-
-    if (response.linkedGoalUpdates?.length) {
-      queryClient.setQueriesData<Goal[]>(
-        { queryKey: goalKeys.lists() },
-        (old) => old ? applyLinkedGoalUpdates(old, response.linkedGoalUpdates!) : old,
-      )
-      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      response.linkedGoalUpdates.forEach(({ goalId }) => {
-        void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
-        void queryClient.invalidateQueries({ queryKey: goalKeys.metrics(goalId) })
-      })
-    }
-
-    /**
-     * Rewards the server already granted are reconciled from the RESPONSE, with no list-cache
-     * requirement. The habit kind cannot change the answer here, so it is not consulted.
-     */
-    if (response.xpEarned || response.newAchievementIds?.length) {
-      queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
-        if (!old) return old
-        return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
-      })
-    }
-    refreshProfileAfterLog(queryClient, response, variables.intent)
-
-    if (response.isFirstCompletionToday || response.xpEarned || response.newAchievementIds?.length) {
-      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
-    }
+      },
+    })
 
     const retryAllDoneDate = checkTodayCompletionAfterLog(queryClient, { ...variables, date: context?.occurrenceDate ?? variables.date },
       context?.hadPendingListRefetch ?? false, checkAllDoneCelebration)

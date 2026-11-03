@@ -229,6 +229,11 @@ vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutateAsync: logHabitMutateAsync }),
 }))
 
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutateAsync: logHabitMutateAsync }) }
+})
+
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (time: string) => time }),
 }))

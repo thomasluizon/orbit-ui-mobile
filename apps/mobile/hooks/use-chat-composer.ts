@@ -1,9 +1,26 @@
+import { createComposerRuntime } from '@orbit/shared/hooks'
+import { useState } from 'react'
+import { buildComposerSuggestions,buildChatComposerProps } from '@orbit/shared/hooks'
+import { createAstraAllowanceTranslator,formatAPIDateInTimeZone } from '@orbit/shared/utils'
+import { useEffect,useMemo,useRef } from "react"
+import { FlatList,Linking } from "react-native"
+import { useTranslation } from "react-i18next"
+import { useQueryClient } from "@tanstack/react-query"
+import { resolveComposerChipSurface } from "@orbit/shared/chat"
+import type { ChatMessage } from "@orbit/shared/types"
+import { useProfile } from "@/hooks/use-profile"
+import { useHabitDetail,useHabits } from "@/hooks/use-habit-queries"
+import { useSpeechToText } from "@/hooks/use-speech-to-text"
+import { useChatStore } from "@/stores/chat-store"
+import { useUIStore } from "@/stores/ui-store"
+import { usePrefersReducedMotion } from "@/lib/motion"
+import type { AttemptedSend } from './use-chat-composer-types'
 import type { UseChatComposerOptions } from './use-chat-composer-types'
-import { useChatComposerState, useChatComposerSession, useChatComposerAvailability, useChatDraftPersistence, useChatComposerScroll, useChatComposerSuggestions, useChatComposerProps } from './use-chat-composer-state'
+import { useChatComposerSession,useChatComposerAvailability,useChatDraftPersistence,useChatComposerScroll } from './use-chat-composer-state'
 import { useChatComposerAttachments } from './use-chat-composer-attachments'
 import { useChatPendingBubbles } from './use-chat-pending-bubbles'
 import { usePendingOperationExecution } from './use-pending-operation-execution'
-import { useChatSendFailure, useChatResponseSettlement, useChatRequestPayload, useChatStream, useChatSendQueue, useChatSendMessage, useChatSendRetry, useChatBreakdownRefresh } from './use-chat-send-stream'
+import { useChatSendFailure,useChatResponseSettlement,useChatRequestPayload,useChatStream,useChatSendQueue,useChatSendMessage,useChatSendRetry,useChatBreakdownRefresh } from './use-chat-send-stream'
 
 /**
  * Mobile chat-composer hook. Wraps the framework-agnostic
@@ -12,82 +29,77 @@ import { useChatSendFailure, useChatResponseSettlement, useChatRequestPayload, u
  * the offline UI itself lives on the screen.
  */
 export function useChatComposer({ isOnline, offlineTitle, pathname = "/", selectedDate, today: currentDate, totalHabitCount, includeGeneral }: UseChatComposerOptions) {
-  const parameters = { isOnline, offlineTitle, pathname, selectedDate, currentDate, totalHabitCount, includeGeneral }
-  const chatComposerState = useChatComposerState({ ...parameters })
-  const chatComposerAttachments = useChatComposerAttachments({ ...chatComposerState })
-  useChatComposerSession({ ...chatComposerState, ...chatComposerAttachments })
-  const chatComposerAvailability = useChatComposerAvailability({ ...chatComposerState, ...chatComposerAttachments })
-  useChatDraftPersistence({ ...chatComposerState })
-  const chatComposerScroll = useChatComposerScroll({ ...chatComposerState })
-  const chatPendingBubbles = useChatPendingBubbles({ ...chatComposerState })
-  const chatSendFailure = useChatSendFailure({ ...chatComposerAttachments, ...chatComposerState, ...chatComposerScroll })
-  const chatResponseSettlement = useChatResponseSettlement({ ...chatComposerState, ...chatComposerScroll })
-  const chatRequestPayload = useChatRequestPayload({ ...chatComposerState })
-  const chatStream = useChatStream({ ...chatComposerState, ...chatComposerScroll, ...chatRequestPayload, ...chatResponseSettlement })
-  const chatSendQueue = useChatSendQueue({ ...chatComposerState, ...chatComposerScroll, ...chatStream, ...chatSendFailure, ...parameters, ...chatComposerAvailability, ...chatComposerAttachments })
-  const chatSendMessage = useChatSendMessage({ ...chatComposerState, ...chatComposerAttachments, ...chatComposerAvailability, ...parameters, ...chatComposerScroll, ...chatSendQueue })
-  const chatSendRetry = useChatSendRetry({ ...parameters, ...chatComposerAvailability, ...chatComposerState, ...chatSendQueue })
-  const chatComposerSuggestions = useChatComposerSuggestions({ ...chatComposerState, ...parameters, ...chatSendMessage, ...chatComposerAvailability, ...chatSendRetry })
-  const chatComposerProps = useChatComposerProps({ ...chatComposerState, ...parameters, ...chatComposerAvailability, ...chatComposerSuggestions, ...chatSendMessage, ...chatComposerAttachments, ...chatSendRetry })
-  const chatPendingBubbleActions = usePendingOperationExecution(chatPendingBubbles)
-  const chatBreakdownRefresh = useChatBreakdownRefresh({ ...chatComposerState })
-  const { profile, isTyping, streamingMessageId, messages, input, isRecording, transcript, setInput, threadScroll, flatListRef, allowanceText, speechError, sendError, toggleRecording, isTranscribing, speechSupported, activeSteps } = chatComposerState
-  const { selectedImage, selectedTextFile, imagePreview } = chatComposerAttachments
-  const { atMessageLimit, dailyBudgetReached, isSending, aiMessagesLimit, aiMessagesUsed, hasProAccess, showSuggestions } = chatComposerAvailability
-  const { scrollToBottom, recordingTime } = chatComposerScroll
-  const { openFilePicker, removeImage } = chatComposerAttachments
-  const { blockAnswerInteraction } = chatSendQueue
-  const { sendMessage } = chatSendMessage
-  const { canRetryLastSend, retryLastSend } = chatSendRetry
-  const { composerProps } = chatComposerProps
-  const { revisePendingOperationForBubble, refreshPendingOperationForBubble, isPendingOperationBusy, trackCardOperation, confirmAndExecutePendingOperation, prepareStepUpForBubble, verifyStepUpForBubble } = chatPendingBubbleActions
-  const { handleBreakdownConfirmed } = chatBreakdownRefresh
-  return {
-    blockAnswerInteraction,
-    activeSteps,
-    canShowFollowUps: isOnline && !isSending && !atMessageLimit && profile != null,
-    isOnline,
-    flatListRef,
-    threadScroll,
-    messages,
-    isTyping,
-    isSending,
-    streamingMessageId,
-    sendError,
-    input,
-    setInput,
-    selectedImage,
-    selectedTextFile,
-    imagePreview,
-    composerProps,
+  const { t, i18n } = useTranslation()
+  const queryClient = useQueryClient()
+  const { profile } = useProfile()
+  const allowanceText = useMemo(() => createAstraAllowanceTranslator(t, profile, i18n.language), [t, profile, i18n.language])
+
+  const contextualSuggestion = useChatStore((state) => state.contextualSuggestion)
+  const calendarHasError = useUIStore((state) => state.calendarHasError)
+  const today = currentDate ?? formatAPIDateInTimeZone(new Date(), profile?.timeZone)
+  const date = selectedDate ?? today
+  const surface = resolveComposerChipSurface(pathname)
+  const habitsQuery = useHabits(surface === "progress"
+    ? {}
+    : { dateFrom: date, dateTo: date, includeOverdue: date === today, includeGeneral: includeGeneral || undefined },
+    { completeDay: true })
+  const detailId = surface === "habitDetail" ? pathname.split("/")[2] ?? null : null
+  const detailQuery = useHabitDetail(detailId)
+
+  const {
     isRecording,
     isTranscribing,
-    speechSupported,
+    isSupported: speechSupported,
     transcript,
-    speechError,
+    error: speechError,
     toggleRecording,
-    recordingTime,
-    hasProAccess,
-    hasGoogleConnection: profile?.hasGoogleConnection ?? false,
-    aiMessagesUsed,
-    aiMessagesLimit,
-    allowanceReason: allowanceText('shell.composer.limit.reason', { allowance: aiMessagesLimit }),
-    atMessageLimit,
-    dailyBudgetReached,
-    showSuggestions,
-    openFilePicker,
-    removeImage,
-    sendMessage,
-    retryLastSend,
-    canRetryLastSend,
-    scrollToBottom,
-    handleBreakdownConfirmed,
-    revisePendingOperationForBubble,
-    refreshPendingOperationForBubble,
-    isPendingOperationBusy,
-    trackCardOperation,
-    confirmAndExecutePendingOperation,
-    prepareStepUpForBubble,
-    verifyStepUpForBubble,
+    recordingDuration,
+  } = useSpeechToText()
+
+  const flatListRef = useRef<FlatList<ChatMessage>>(null)
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const prefersReducedMotionRef = useRef(prefersReducedMotion)
+  useEffect(() => {
+    prefersReducedMotionRef.current = prefersReducedMotion
+  }, [prefersReducedMotion])
+  const { messages, isTyping, queuedPrompts, queuePaused, queueReady, replyActive, streamingMessageId, addMessage, updateMessage, appendToMessageContent, setIsTyping, setStreamingMessageId, draft: input, setDraft: setInput, draftHydrated, hydrateDraft } = useChatStore()
+  const [sendError, setSendError] = useState<string | null>(null)
+  const [activeSteps, setActiveSteps] = useState<{ domain: string; access: string }[]>([])
+  const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
+  const [dailyBudgetDate, setDailyBudgetDate] = useState<string | null>(null)
+  const [{ stopReply, pendingVoiceCommitRef, threadScroll, activeStepsRef, turnReconciliation, blockSubmission }] = useState(createComposerRuntime)
+  const { selectedImage, selectedTextFile, imagePreview, openFilePicker, removeImage, setSelectedImage, setImagePreview, setSelectedTextFile, imageSelectionVersionRef, openTextFilePicker, removeTextFile } = useChatComposerAttachments({ t, setSendError })
+  useChatComposerSession(turnReconciliation, blockSubmission, activeStepsRef, setActiveSteps, setLastFailedSend, setDailyBudgetDate, setSendError, setSelectedImage, setImagePreview, setSelectedTextFile, imageSelectionVersionRef)
+  const { atMessageLimit, dailyBudgetReached, isSending, aiMessagesLimit, aiMessagesUsed, hasProAccess, showSuggestions, attachments } = useChatComposerAvailability(profile, dailyBudgetDate, today, replyActive, isTyping, streamingMessageId, selectedImage, selectedTextFile, messages)
+  useChatDraftPersistence(draftHydrated, hydrateDraft, input, isRecording, pendingVoiceCommitRef, transcript, setInput)
+  const { scrollToBottom, recordingTime } = useChatComposerScroll(recordingDuration, threadScroll, flatListRef, prefersReducedMotionRef)
+  const chatPendingBubbles = useChatPendingBubbles(queryClient)
+  const { handleFailedSend, handleAllowanceExceeded, handleDailyBudgetExceeded } = useChatSendFailure({ setSelectedImage, setImagePreview, setSelectedTextFile, imageSelectionVersionRef, today, t, setSendError, activeStepsRef, setActiveSteps, setLastFailedSend, setDailyBudgetDate, setInput, allowanceText, updateMessage, addMessage, setIsTyping, scrollToBottom })
+  const { applyFinalResponse } = useChatResponseSettlement({ activeStepsRef, setActiveSteps, threadScroll, queryClient, updateMessage, addMessage, setIsTyping, setStreamingMessageId, scrollToBottom })
+  const { buildChatFormData } = useChatRequestPayload(i18n, profile)
+  const { runStreamingSend } = useChatStream({ t, turnReconciliation, activeStepsRef, setActiveSteps, queryClient, allowanceText, updateMessage, addMessage, setIsTyping, setStreamingMessageId, stopReply, appendToMessageContent, scrollToBottom, buildChatFormData, applyFinalResponse })
+  const { blockAnswerInteraction, reportHistoryFailure, sendPreparedAttempt, performSend } = useChatSendQueue(threadScroll, activeStepsRef, setActiveSteps, setSendError, setLastFailedSend, scrollToBottom, setIsTyping, runStreamingSend, handleFailedSend, blockSubmission, isOnline, atMessageLimit, dailyBudgetReached, handleAllowanceExceeded, handleDailyBudgetExceeded, i18n, queryClient, t, isSending, aiMessagesLimit, allowanceText, setInput, setSelectedImage, setImagePreview, setSelectedTextFile, imageSelectionVersionRef)
+  const { sendMessage } = useChatSendMessage(input, selectedTextFile, t, attachments, isOnline, setSendError, dailyBudgetReached, atMessageLimit, addMessage, allowanceText, scrollToBottom, reportHistoryFailure, selectedImage, imagePreview, sendPreparedAttempt)
+  const { canRetryLastSend, retryLastSend, sendQueuedPrompt } = useChatSendRetry(isOnline, atMessageLimit, queryClient, isSending, queuePaused, queueReady, queuedPrompts, lastFailedSend, setSendError, offlineTitle, performSend, setInput)
+  const speechRecovery = useMemo(() => speechError === t('speech.micDenied') ? { errorRecovery: { label: t('common.openSettings'), onSelect: () => { void Linking.openSettings() } } } : {}, [speechError, t])
+  const { queue, usageMessage, renewalHint, allowanceReason, composerSuggestions, messageLimitPlaceholder, messageLimitReason } = buildComposerSuggestions({ surface, habitsQuery, detailQuery, calendarHasError, today, totalHabitCount, profile, contextualSuggestion, t, sendMessage, aiMessagesLimit, aiMessagesUsed, dailyBudgetReached, allowanceText, queuedPrompts, queuePaused, isSending, isOnline, atMessageLimit, setSendError, sendQueuedPrompt, selectedDate: date, getChat: useChatStore.getState })
+  const composerProps = buildChatComposerProps({ t, isOnline, isSending, queue, stopReply, usageMessage, renewalHint, allowanceReason, input, speechError, sendError, setInput, sendMessage, composerSuggestions, openTextFilePicker, openFilePicker, attachments, removeTextFile, removeImage, canRetryLastSend, retryLastSend, isRecording, toggleRecording, isTranscribing, speechSupported, atMessageLimit, messageLimitPlaceholder, messageLimitReason }, speechRecovery)
+  const { revisePendingOperationForBubble, refreshPendingOperationForBubble, isPendingOperationBusy, trackCardOperation, confirmAndExecutePendingOperation, prepareStepUpForBubble, verifyStepUpForBubble } = usePendingOperationExecution(chatPendingBubbles)
+  const { handleBreakdownConfirmed } = useChatBreakdownRefresh(queryClient)
+
+
+  return {
+    blockAnswerInteraction, activeSteps, canShowFollowUps: isOnline && !isSending && !atMessageLimit && profile != null, isOnline,
+    flatListRef, threadScroll, messages, isTyping,
+    isSending, streamingMessageId, sendError, input,
+    setInput, selectedImage, selectedTextFile, imagePreview,
+    composerProps, isRecording, isTranscribing, speechSupported,
+    transcript, speechError, toggleRecording, recordingTime,
+    hasProAccess, hasGoogleConnection: profile?.hasGoogleConnection ?? false, aiMessagesUsed, aiMessagesLimit,
+    allowanceReason: allowanceText('shell.composer.limit.reason', { allowance: aiMessagesLimit }), atMessageLimit, dailyBudgetReached, showSuggestions,
+    openFilePicker, removeImage, sendMessage, retryLastSend,
+    canRetryLastSend, scrollToBottom, handleBreakdownConfirmed, revisePendingOperationForBubble,
+    refreshPendingOperationForBubble, isPendingOperationBusy, trackCardOperation, confirmAndExecutePendingOperation,
+    prepareStepUpForBubble, verifyStepUpForBubble,
   }
 }

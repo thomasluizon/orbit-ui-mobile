@@ -66,10 +66,12 @@ vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: () => {} })
 vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingGuard: () => false, useRetainedOnboardingSession: () => ({ open: false }) }))
 vi.mock('@/hooks/use-onboarding-pro-pending', () => ({ useOnboardingProPending: () => false }))
 vi.mock('@/hooks/use-onboarding-completion-queue', () => ({ useOnboardingCompletionQueue: () => false }))
-vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
-  useHabitCountLoaded: () => ({ count: 0, isLoaded: true }),
-}))
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
+
+return { ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
+  useHabits: () => ({ data: normalizeHabitQueryData(mocks.emptyToday ? [] : [createMockHabitScheduleItem()]), isLoading: mocks.loadingToday, error: null, dataUpdatedAt: 1, getChildren: () => [] }),
+  useHabitCountLoaded: () => ({ count: 0, isLoaded: true }) }
+})
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => ({ crossedStreakMilestones: mocks.crossedStreakMilestones, newAchievements: mocks.newAchievements,
     leveledUp: mocks.leveledUp, newLevel: mocks.leveledUp ? 3 : null, clearLevelUp: mocks.clearLevelUp,
@@ -106,6 +108,43 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   useCreateHabit: () => ({ mutateAsync: mocks.create, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
+
+vi.mock('@/hooks/use-habit-logging', async (importOriginal) => {
+
+return { ...await importOriginal<typeof import('@/hooks/use-habit-logging')>(),
+  useLogHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSkipHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-delete-habit', () => {
+
+return { useDeleteHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-duplicate-habit', () => {
+
+return { useDuplicateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-reorder-habits', () => {
+
+return { useReorderHabits: () => ({ mutate: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-move-habit-parent', () => {
+
+return { useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => ({ mutateAsync: mocks.create, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-create-sub-habit', () => {
+
+return { useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: mocks.suggestion, isPending: false }) }))
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: () => ({ requestPermission: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({

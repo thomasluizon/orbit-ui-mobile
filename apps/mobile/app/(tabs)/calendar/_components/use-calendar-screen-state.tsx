@@ -1,21 +1,21 @@
+import { buildCalendarRangeBounds,buildCalendarGridColumns,createCalendarDateActions,getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import type { useCalendarNavigation } from './use-calendar-navigation'
 import { useOpenHabit } from '@/hooks/use-open-habit'
-import { buildCalendarHeaderState, resolveCalendarProfileSettings, type CalendarProfile, type CalendarView } from '@orbit/shared/utils/calendar-navigation'
+import { buildCalendarHeaderState,resolveCalendarProfileSettings,type CalendarProfile,type CalendarView } from '@orbit/shared/utils/calendar-navigation'
 import { useCalendars } from '@/hooks/use-calendars'
-import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, type Dispatch, type SetStateAction } from "react"
-import { View, FlatList } from "react-native"
-import { FadeInLeft, FadeInRight, ReduceMotion } from "react-native-reanimated"
+import { useState,useMemo,useCallback,useEffect,useLayoutEffect,useRef,type Dispatch,type SetStateAction } from "react"
+import { View,FlatList } from "react-native"
+import { FadeInLeft,FadeInRight,ReduceMotion } from "react-native-reanimated"
 import { useTranslation } from "react-i18next"
-import { useLocalSearchParams, useRouter } from "expo-router"
-import { addMonths, addDays, subMonths, addWeeks, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns"
-import { buildHabitCreateHref, formatCalendarSpanEnds, formatCalendarDayTitle, orderCalendarDayEntries, buildCalendarRangeModel, CALENDAR_MONTH_SWIPE_THRESHOLD, filterRecurringDayMap, filterRecurringEntries, filterCalendarSyncEventsByDate, formatAPIDate, isCalendarDayLoggable, parseAPIDate, MAX_RANGE_DAYS, buildCalendarMonthModel, formatWeekdayLabels, resolveCalendarRangeEnd, resolveCalendarMonthDisplayState, resolveCalendarEventsDisplayState, shouldOpenCalendarImportSheet, calendarImportRouteRequestKey } from "@orbit/shared/utils"
-import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
+import { useLocalSearchParams,useRouter } from "expo-router"
+import { buildHabitCreateHref,formatCalendarSpanEnds,formatCalendarDayTitle,orderCalendarDayEntries,buildCalendarRangeModel,CALENDAR_MONTH_SWIPE_THRESHOLD,filterRecurringDayMap,filterRecurringEntries,filterCalendarSyncEventsByDate,isCalendarDayLoggable,buildCalendarMonthModel,formatWeekdayLabels,resolveCalendarMonthDisplayState,resolveCalendarEventsDisplayState,shouldOpenCalendarImportSheet,calendarImportRouteRequestKey } from "@orbit/shared/utils"
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar"
-import { useCalendarData, useCalendarRange, useLogHabit } from "@/hooks/use-habits"
+import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
+import { useLogHabit } from '@/hooks/use-habit-logging'
 import { useCalendarEvents } from "@/hooks/use-calendar-events"
 import { useCalendarAutoSyncState } from "@/hooks/use-calendar-auto-sync"
-import { useAccountBoundRouteRequest, useAccountScopedState } from '@/hooks/use-session-reset'
+import { useAccountBoundRouteRequest,useAccountScopedState } from '@/hooks/use-session-reset'
 import { useTimeFormat } from "@/hooks/use-time-format"
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe"
 import { createTokensV2 } from "@/lib/theme"
@@ -25,8 +25,7 @@ import { useAppTheme } from "@/lib/use-app-theme"
 import { useSheetHost } from '@/components/ui/sheet'
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { CalendarHeader } from "./calendar-shell"
-import { type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
-import type { TimeGridColumn } from "./calendar-time-grid"
+import { type CalendarImportActionHandle,type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 import { useCurrentDate } from "../../use-today-date"
 import { useUIStore } from "@/stores/ui-store"
 import { createStyles } from './calendar-screen-styles'
@@ -162,31 +161,10 @@ type CalendarRangeStateInputs = Pick<CalendarScreenContentProps, 'monthQuery' | 
 function useCalendarRangeState({ monthQuery, weekAnchor, todayKey, weekStartsOn, rangeOffset, agendaOffset, view, profile, t }: CalendarRangeStateInputs) {
   const { dayMap, isLoading, error, refresh } = monthQuery
 
-  const weekStart = useMemo(
-    () => startOfWeek(weekAnchor ?? parseAPIDate(todayKey), { weekStartsOn }),
-    [todayKey, weekAnchor, weekStartsOn],
+  const { weekStart, weekEnd, rangeEnd, agendaStart, agendaEnd, queryBounds } = useMemo(
+    () => buildCalendarRangeBounds(todayKey, weekAnchor, weekStartsOn, rangeOffset, agendaOffset, view),
+    [todayKey, weekAnchor, weekStartsOn, rangeOffset, agendaOffset, view],
   )
-  const weekEnd = useMemo(
-    () => endOfWeek(weekAnchor ?? parseAPIDate(todayKey), { weekStartsOn }),
-    [todayKey, weekAnchor, weekStartsOn],
-  )
-  const rangeEnd = useMemo(
-    () => resolveCalendarRangeEnd(parseAPIDate(todayKey), rangeOffset),
-    [rangeOffset, todayKey],
-  )
-  const rangeBounds = useMemo(() => {
-    return { lo: addDays(rangeEnd, -(MAX_RANGE_DAYS - 1)), hi: rangeEnd }
-  }, [rangeEnd])
-
-  const agendaStart = useMemo(() => addDays(parseAPIDate(todayKey), agendaOffset * 7), [agendaOffset, todayKey])
-  const agendaEnd = useMemo(() => addDays(agendaStart, 6), [agendaStart])
-
-  const queryBounds = {
-    week: { lo: weekStart, hi: weekEnd },
-    agenda: { lo: agendaStart, hi: agendaEnd },
-    month: rangeBounds,
-    range: rangeBounds,
-  }[view]
 
   const {
     dayMap: rangeDayMap,
@@ -210,18 +188,7 @@ function useCalendarRangeState({ monthQuery, weekAnchor, todayKey, weekStartsOn,
 type CalendarDisplayStateInputs = Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'weekEnd' | 'dayMap' | 'rangeDayMap'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'todayKey' | 't' | 'i18n'> & Pick<ReturnType<typeof useCalendarEventState>, 'showRecurring'>
 
 function useCalendarDisplayState({ weekStart, weekEnd, todayKey, dayMap, showRecurring, rangeDayMap, t, i18n }: CalendarDisplayStateInputs) {
-  const gridColumns = useMemo<TimeGridColumn[]>(() => {
-    const days = eachDayOfInterval({ start: weekStart, end: weekEnd })
-    return days.map((date) => {
-      const dateStr = formatAPIDate(date)
-      return {
-        date,
-        dateStr,
-        isToday: dateStr === todayKey,
-        isFuture: dateStr > todayKey,
-      }
-    })
-  }, [weekStart, weekEnd, todayKey])
+  const gridColumns = useMemo(() => buildCalendarGridColumns(weekStart, weekEnd, todayKey), [weekStart, weekEnd, todayKey])
 
   const displayMonthDayMap = useMemo(
     () => filterRecurringDayMap(dayMap, showRecurring),
@@ -238,68 +205,10 @@ function useCalendarDisplayState({ weekStart, weekEnd, todayKey, dayMap, showRec
 
 type CalendarDateActionsInputs = Pick<ReturnType<typeof useCalendarScreenSession>, 'setMonthSlide' | 'todayKey' | 'setWeekSlide' | 'setWeekAnchor' | 'setIsDayDetailOpen' | 'setRangeOffset'> & Pick<CalendarScreenContentProps, 'currentMonth' | 'setSelectedDay'>
 
-function useCalendarDateActions({ setMonthSlide, currentMonth, setSelectedDay, todayKey, setWeekSlide, setWeekAnchor, setIsDayDetailOpen, setRangeOffset }: CalendarDateActionsInputs) {
-  const prevMonth = useCallback(() => {
-    setMonthSlide("left")
-    const month = subMonths(currentMonth, 1)
-    setSelectedDay(formatAPIDate(month))
-  }, [currentMonth, setSelectedDay, setMonthSlide])
-
-  const nextMonth = useCallback(() => {
-    setMonthSlide("right")
-    const month = addMonths(currentMonth, 1)
-    setSelectedDay(formatAPIDate(month))
-  }, [currentMonth, setSelectedDay, setMonthSlide])
-
-  const selectMonth = useCallback((month: number, year: number) => {
-    setMonthSlide(null)
-    setSelectedDay(formatAPIDate(new Date(year, month, 1)))
-  }, [setSelectedDay, setMonthSlide])
-
-  const goToCurrentMonth = useCallback(() => {
-    setMonthSlide(null)
-    setSelectedDay(todayKey)
-  }, [setSelectedDay, todayKey, setMonthSlide])
-
-  const prevWeek = useCallback(() => {
-    setWeekSlide("left")
-    setWeekAnchor((a) => subWeeks(a ?? parseAPIDate(todayKey), 1))
-  }, [setWeekAnchor, setWeekSlide, todayKey])
-  const nextWeek = useCallback(() => {
-    setWeekSlide("right")
-    setWeekAnchor((a) => addWeeks(a ?? parseAPIDate(todayKey), 1))
-  }, [setWeekAnchor, setWeekSlide, todayKey])
-  const goToCurrentWeek = useCallback(() => {
-    setWeekSlide(null)
-    setWeekAnchor(parseAPIDate(todayKey))
-  }, [todayKey, setWeekAnchor, setWeekSlide])
-
-  const swipeGesture = useHorizontalSwipe({
-    onSwipeLeft: nextMonth,
-    onSwipeRight: prevMonth,
-    minDistance: CALENDAR_MONTH_SWIPE_THRESHOLD,
-    minVelocity: 0,
-  })
-
-  const onSelectDay = useCallback((dateStr: string) => {
-    setSelectedDay(dateStr)
-    setIsDayDetailOpen(true)
-  }, [setSelectedDay, setIsDayDetailOpen])
-  const selectMonthDay = useCallback((dateStr: string) => {
-    setSelectedDay(dateStr)
-  }, [setSelectedDay])
-
-  const closeDayDetail = useCallback(() => {
-    setIsDayDetailOpen(false)
-  }, [setIsDayDetailOpen])
-
-  const previousRange = useCallback(() => {
-    setRangeOffset((offset) => offset - 1)
-  }, [setRangeOffset])
-  const nextRange = useCallback(() => {
-    setRangeOffset((offset) => Math.min(0, offset + 1))
-  }, [setRangeOffset])
-  return { prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, prevMonth, nextMonth, goToCurrentMonth, selectMonth, swipeGesture, selectMonthDay, onSelectDay, closeDayDetail }
+function useCalendarDateActions(inputs: CalendarDateActionsInputs) {
+  const actions = useMemo(() => createCalendarDateActions({ ...inputs, openEveryDay: true }), [inputs])
+  const swipeGesture = useHorizontalSwipe({ onSwipeLeft: actions.nextMonth, onSwipeRight: actions.prevMonth, minDistance: CALENDAR_MONTH_SWIPE_THRESHOLD, minVelocity: 0 })
+  return { ...actions, onSelectDay: actions.openDay, swipeGesture, selectMonthDay: inputs.setSelectedDay, closeDayDetail: () => inputs.setIsDayDetailOpen(false) }
 }
 
 type CalendarViewModelInputs = Pick<ReturnType<typeof useCalendarScreenSession>, 't' | 'i18n' | 'weekStartsOn' | 'todayKey' | 'setCalendarHasError'> & Pick<CalendarScreenContentProps, 'currentMonth' | 'view'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'displayMonthDayMap' | 'displayRangeDayMap'> & Pick<ReturnType<typeof useCalendarRangeState>, 'isLoading' | 'rangeEnd' | 'dayMap' | 'error' | 'refresh' | 'rangeDayMap' | 'rangeError' | 'rangeRefresh'>

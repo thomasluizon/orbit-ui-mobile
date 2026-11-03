@@ -1,27 +1,35 @@
+import { computeHabitChildrenProgress,createUseHabitRecentCompletions } from '@orbit/shared/hooks'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRetainedHabitList } from '@/hooks/use-retained-habit-list'
 import { useListScrollReservation } from '@/hooks/use-list-scroll-reservation'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { createListCellMotion } from '@/lib/list-motion'
-import { getFriendlyErrorMessage, isTodayLaunchCache , getHabitInlineDepthLimit, buildHabitDateBuckets, filterHabitViewRoots, formatHabitDateBucketLabel, computeHabitDayProgress, collectSelectableDescendantIds, collectVisibleHabitTreeIds, formatAPIDate, formatAPIDateInTimeZone, getTodayBoundary } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage,isTodayLaunchCache,getHabitInlineDepthLimit,buildHabitDateBuckets,filterHabitViewRoots,formatHabitDateBucketLabel,collectSelectableDescendantIds,collectVisibleHabitTreeIds,formatAPIDate,formatAPIDateInTimeZone,getTodayBoundary } from '@orbit/shared/utils'
 import { getMoveParentInventory } from '@orbit/shared/utils/move-parent'
-import { createMoveParentActions, createMoveParentState } from '@orbit/shared/hooks/move-parent-core'
-import { useAccountGeneration, useAccountScopedState } from '@/hooks/use-session-reset'
+import { createMoveParentActions,createMoveParentState } from '@orbit/shared/hooks/move-parent-core'
+import { useAccountGeneration,useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { motionDurations, PADDING, SPACING } from '@orbit/shared/theme'
+import { motionDurations,PADDING,SPACING } from '@orbit/shared/theme'
 import { habitViewQueryOptions } from '@orbit/shared/utils/habit-list-pagination-core'
-import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useWindowDimensions, type FlatList, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
+import { useCallback,useEffect,useImperativeHandle,useLayoutEffect,useMemo,useRef,useState } from 'react'
+import { useWindowDimensions,type FlatList,type LayoutChangeEvent,type NativeScrollEvent,type NativeSyntheticEvent } from 'react-native'
 import type { FlatList as GHFlatList } from 'react-native-gesture-handler'
 import { useTranslation } from 'react-i18next'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useShellListFocus } from '@/components/shell/shell-focus-target'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { EMPTY_HABITS_BY_ID, EMPTY_NORMALIZED_HABITS, useHabits, useLogHabit, useBulkLogHabits, useBulkSkipHabits, useSkipHabit, useDeleteHabit, useDuplicateHabit, useReorderHabits, useMoveHabitParent } from '@/hooks/use-habits'
+import { EMPTY_HABITS_BY_ID,EMPTY_NORMALIZED_HABITS,useHabits } from '@/hooks/use-habit-queries'
+import { useLogHabit,useSkipHabit } from '@/hooks/use-habit-logging'
+import { useBulkLogHabits } from '@/hooks/use-bulk-log-habits'
+import { useBulkSkipHabits } from '@/hooks/use-bulk-skip-habits'
+import { useDeleteHabit } from '@/hooks/use-delete-habit'
+import { useDuplicateHabit } from '@/hooks/use-duplicate-habit'
+import { useReorderHabits } from '@/hooks/use-reorder-habits'
+import { useMoveHabitParent } from '@/hooks/use-move-habit-parent'
 import { useProfile } from '@/hooks/use-profile'
 import { useCurrentDate } from '@/app/(tabs)/use-today-date'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
-import { addRecentCompletion, getRecentlyCompletedIdsForDate, removeRecentCompletion } from '@orbit/shared/utils/drill-navigation'
+import { getRecentlyCompletedIdsForDate } from '@orbit/shared/utils/drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
@@ -29,14 +37,14 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
-import { buildFlatHabitItems, getMoveParentSelection, validateMoveTarget as computeMoveTargetValidation, type DragItem } from '../habit-list/tree-helpers'
+import { buildFlatHabitItems,getMoveParentSelection,validateMoveTarget as computeMoveTargetValidation,type DragItem } from '../habit-list/tree-helpers'
 import { createStyles } from '../habit-list/styles'
-import type { HabitListProps, HabitListHandleInputs } from '../habit-list'
+import type { HabitListProps,HabitListHandleInputs } from '../habit-list'
 import type { useHabitListDrag } from './use-habit-list-drag'
 
 type HabitListAccountInputs = { view: NonNullable<HabitListProps['view']> } & { requestedDate: HabitListProps['selectedDate'] }
 
-export function useHabitListAccount({ view, requestedDate }: HabitListAccountInputs) {
+export function useHabitListAccount({ view, requestedDate }: Pick<HabitListAccountInputs, 'view' | 'requestedDate'>) {
   const selectedDate = view === 'today' ? requestedDate : undefined
   const accountGeneration = useAccountGeneration()
   const { t, i18n } = useTranslation()
@@ -60,7 +68,7 @@ export function useHabitListAccount({ view, requestedDate }: HabitListAccountInp
 
 type HabitListScrollInputs = Pick<ReturnType<typeof useHabitListAccount>, 'accountGeneration' | 'selectedDateStr'> & { view: NonNullable<HabitListProps['view']> } & Pick<HabitListProps, 'isSelectMode' | 'onScroll'>
 
-export function useHabitListScroll({ accountGeneration, view, selectedDateStr, isSelectMode, onScroll }: HabitListScrollInputs) {
+export function useHabitListScroll({ accountGeneration, selectedDateStr }: Pick<HabitListScrollInputs, 'accountGeneration' | 'selectedDateStr'>, { view, isSelectMode, onScroll }: Pick<HabitListScrollInputs, 'view' | 'isSelectMode' | 'onScroll'>) {
   const clearance = useShellScrollerClearance()
   const { minimumHeight, onLayout: reserveViewport, onOffset: reserveOffset } = useListScrollReservation(`${accountGeneration}:${view}:${selectedDateStr}`)
   const bulkBarStyle = { minHeight: minimumHeight, paddingBottom: clearance + (isSelectMode ? SPACING.s24 : SPACING.s0) }
@@ -98,7 +106,7 @@ export function useHabitListScroll({ accountGeneration, view, selectedDateStr, i
 
 type HabitListQueriesInputs = Pick<HabitListProps, 'filters'> & { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitListAccount>, 'todayStr'>
 
-export function useHabitListQueries({ filters, view, todayStr }: HabitListQueriesInputs) {
+export function useHabitListQueries({ filters, view }: Pick<HabitListQueriesInputs, 'filters' | 'view'>, { todayStr }: Pick<HabitListQueriesInputs, 'todayStr'>) {
   const { config: appConfig } = useConfig()
   const maxHabitDepth = appConfig.limits.maxHabitDepth
   const habitsQuery = useHabits(filters, habitViewQueryOptions(view, todayStr))
@@ -142,7 +150,7 @@ export function useHabitListCollapseState() {
 
 type HabitRecentCompletionStateInputs = Pick<ReturnType<typeof useHabitListAccount>, 'selectedDateStr'>
 
-export function useHabitRecentCompletionState({ selectedDateStr }: HabitRecentCompletionStateInputs) {
+export function useHabitRecentCompletionState({ selectedDateStr }: Pick<HabitRecentCompletionStateInputs, 'selectedDateStr'>) {
   const [recentlyCompletedDates, setRecentlyCompletedDates] = useState(
     new Map<string, Set<string>>(),
   )
@@ -155,7 +163,7 @@ export function useHabitRecentCompletionState({ selectedDateStr }: HabitRecentCo
 
 type HabitListDrillInputs = Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'habitsQuery' | 'childrenByParent'> & Pick<ReturnType<typeof useHabitListAccount>, 'selectedDateStr' | 'todayStr'> & Pick<HabitListProps, 'searchQuery' | 'showCompleted' | 'onSurfaceOpenChange'> & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'recentlyCompletedIds' | 'recentlyCompletedDates'> & { view: NonNullable<HabitListProps['view']> }
 
-export function useHabitListDrill({ habitsById, habitsQuery, childrenByParent, selectedDateStr, searchQuery, showCompleted, recentlyCompletedIds, recentlyCompletedDates, view, todayStr, onSurfaceOpenChange }: HabitListDrillInputs) {
+export function useHabitListDrill({ habitsById, habitsQuery, childrenByParent }: Pick<HabitListDrillInputs, 'habitsById' | 'habitsQuery' | 'childrenByParent'>, { selectedDateStr, todayStr }: Pick<HabitListDrillInputs, 'selectedDateStr' | 'todayStr'>, { searchQuery, showCompleted, view, onSurfaceOpenChange }: Pick<HabitListDrillInputs, 'searchQuery' | 'showCompleted' | 'view' | 'onSurfaceOpenChange'>, { recentlyCompletedIds, recentlyCompletedDates }: Pick<HabitListDrillInputs, 'recentlyCompletedIds' | 'recentlyCompletedDates'>) {
   const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt, {
     habitsById,
     childrenByParent,
@@ -200,7 +208,7 @@ export function useHabitListMoveState() {
 
 type HabitListSelectionStateInputs = Pick<HabitListProps, 'selectedHabitIds' | 'isSelectMode'> & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'recentlyCompletedIds'>
 
-export function useHabitListSelectionState({ selectedHabitIds, isSelectMode, recentlyCompletedIds }: HabitListSelectionStateInputs) {
+export function useHabitListSelectionState({ selectedHabitIds, isSelectMode }: Pick<HabitListSelectionStateInputs, 'selectedHabitIds' | 'isSelectMode'>, { recentlyCompletedIds }: Pick<HabitListSelectionStateInputs, 'recentlyCompletedIds'>) {
   const selectedIds = useMemo(
     () => selectedHabitIds ?? new Set<string>(),
     [selectedHabitIds],
@@ -219,7 +227,7 @@ export function useHabitListSelectionState({ selectedHabitIds, isSelectMode, rec
 
 type HabitListVisibilityInputs = Pick<ReturnType<typeof useHabitListMoveState>, 'movingHabitId'> & Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent'> & Pick<ReturnType<typeof useHabitListAccount>, 'selectedDateStr'> & Pick<HabitListProps, 'searchQuery' | 'showCompleted'> & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'recentlyCompletedIds'>
 
-export function useHabitListVisibility({ movingHabitId, habitsById, childrenByParent, selectedDateStr, searchQuery, showCompleted, recentlyCompletedIds }: HabitListVisibilityInputs) {
+export function useHabitListVisibility({ movingHabitId }: Pick<HabitListVisibilityInputs, 'movingHabitId'>, { habitsById, childrenByParent }: Pick<HabitListVisibilityInputs, 'habitsById' | 'childrenByParent'>, { selectedDateStr }: Pick<HabitListVisibilityInputs, 'selectedDateStr'>, { searchQuery, showCompleted }: Pick<HabitListVisibilityInputs, 'searchQuery' | 'showCompleted'>, { recentlyCompletedIds }: Pick<HabitListVisibilityInputs, 'recentlyCompletedIds'>) {
   const movingHabit = movingHabitId
     ? (habitsById.get(movingHabitId) ?? null)
     : null
@@ -235,54 +243,11 @@ export function useHabitListVisibility({ movingHabitId, habitsById, childrenByPa
   return { visibility, movingHabit }
 }
 
-type HabitRecentCompletionsInputs = Pick<ReturnType<typeof useHabitListAccount>, 'selectedDateStr'> & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'setRecentlyCompletedDates'>
 
-export function useHabitRecentCompletions({ selectedDateStr, setRecentlyCompletedDates }: HabitRecentCompletionsInputs) {
-  const recentlyCompletedTimersRef = useRef(
-    new Map<string, ReturnType<typeof setTimeout>>(),
-  )
-
-  useEffect(() => {
-    const timers = recentlyCompletedTimersRef.current
-    return () => {
-      for (const timer of timers.values()) {
-        clearTimeout(timer)
-      }
-      timers.clear()
-    }
-  }, [])
-
-  const markRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
-    setRecentlyCompletedDates((previous) => addRecentCompletion(previous, habitId, date))
-    const timers = recentlyCompletedTimersRef.current
-    const timerKey = `${habitId}:${date}`
-    const existing = timers.get(timerKey)
-    if (existing) clearTimeout(existing)
-    timers.set(
-      timerKey,
-      setTimeout(() => {
-        timers.delete(timerKey)
-        setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
-      }, motionDurations.micro),
-    )
-  }, [selectedDateStr, setRecentlyCompletedDates])
-
-  const clearRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
-    const timers = recentlyCompletedTimersRef.current
-    const timerKey = `${habitId}:${date}`
-    const existing = timers.get(timerKey)
-    if (existing) {
-      clearTimeout(existing)
-      timers.delete(timerKey)
-    }
-    setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
-  }, [selectedDateStr, setRecentlyCompletedDates])
-  return { markRecentlyCompleted, clearRecentlyCompleted }
-}
 
 type HabitListRootsInputs = Pick<ReturnType<typeof useHabitListVisibility>, 'visibility'> & { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitListQueries>, 'topLevelHabits' | 'childrenByParent'> & Pick<HabitListProps, 'showCompleted'> & Pick<ReturnType<typeof useHabitRecentCompletionState>, 'recentlyCompletedIds'>
 
-export function useHabitListRoots({ visibility, view, topLevelHabits, showCompleted, recentlyCompletedIds, childrenByParent }: HabitListRootsInputs) {
+export function useHabitListRoots({ visibility }: Pick<HabitListRootsInputs, 'visibility'>, { view, showCompleted }: Pick<HabitListRootsInputs, 'view' | 'showCompleted'>, { topLevelHabits, childrenByParent }: Pick<HabitListRootsInputs, 'topLevelHabits' | 'childrenByParent'>, { recentlyCompletedIds }: Pick<HabitListRootsInputs, 'recentlyCompletedIds'>) {
   const getVisibleChildren = useCallback(
     (parentId: string): NormalizedHabit[] =>
       visibility.getVisibleChildren(parentId, view),
@@ -313,7 +278,7 @@ export function useHabitListRoots({ visibility, view, topLevelHabits, showComple
 
 type HabitListCollapseInputs = Pick<ReturnType<typeof useHabitListRoots>, 'getVisibleChildren' | 'visibleHabits' | 'allLoadedIds'> & Pick<ReturnType<typeof useHabitListCollapseState>, 'collapsedIds' | 'setCollapsedIds'> & Pick<HabitListProps, 'onAllCollapsedChange' | 'onAllLoadedIdsChange'>
 
-export function useHabitListCollapse({ getVisibleChildren, visibleHabits, collapsedIds, onAllCollapsedChange, onAllLoadedIdsChange, allLoadedIds, setCollapsedIds }: HabitListCollapseInputs) {
+export function useHabitListCollapse({ getVisibleChildren, visibleHabits, allLoadedIds }: Pick<HabitListCollapseInputs, 'getVisibleChildren' | 'visibleHabits' | 'allLoadedIds'>, { collapsedIds, setCollapsedIds }: Pick<HabitListCollapseInputs, 'collapsedIds' | 'setCollapsedIds'>, { onAllCollapsedChange, onAllLoadedIdsChange }: Pick<HabitListCollapseInputs, 'onAllCollapsedChange' | 'onAllLoadedIdsChange'>) {
   const expandableIds = useMemo(() => {
     const ids: string[] = []
 
@@ -375,7 +340,7 @@ export function useHabitListCollapse({ getVisibleChildren, visibleHabits, collap
 
 type HabitListItemsInputs = { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitListRoots>, 'visibleHabits' | 'getVisibleChildren'> & Pick<ReturnType<typeof useHabitListAccount>, 'todayStr' | 'i18n' | 't' | 'accountGeneration' | 'selectedDateStr'> & Pick<ReturnType<typeof useHabitListScroll>, 'reserveViewport'> & Pick<ReturnType<typeof useHabitListCollapseState>, 'collapsedIds'> & Pick<HabitListProps, 'searchQuery' | 'filters' | 'isSelectMode'>
 
-export function useHabitListItems({ view, visibleHabits, todayStr, i18n, t, reserveViewport, collapsedIds, getVisibleChildren, isSelectMode }: HabitListItemsInputs) {
+export function useHabitListItems({ view, isSelectMode }: Pick<HabitListItemsInputs, 'view' | 'isSelectMode'>, { visibleHabits, getVisibleChildren }: Pick<HabitListItemsInputs, 'visibleHabits' | 'getVisibleChildren'>, { todayStr, i18n, t }: Pick<HabitListItemsInputs, 'todayStr' | 'i18n' | 't'>, { reserveViewport }: Pick<HabitListItemsInputs, 'reserveViewport'>, { collapsedIds }: Pick<HabitListItemsInputs, 'collapsedIds'>) {
   const dateGroups = useMemo(() => view === 'all' ? buildHabitDateBuckets(visibleHabits, todayStr) : [], [view, visibleHabits, todayStr])
   const groupHeadings = useMemo(() => new Map(dateGroups.map((bucket) => [bucket.habits[0]!.id, formatHabitDateBucketLabel(bucket.key, todayStr, i18n.language, t)])), [dateGroups, todayStr, i18n.language, t])
   const { width: windowWidth, fontScale } = useWindowDimensions()
@@ -400,7 +365,7 @@ type HabitListPresentationInputs = {
   reducedListMotion: ReturnType<typeof useHabitListCollapseState>['reducedListMotion']
 } & Pick<HabitListProps, 'view' | 'searchQuery' | 'filters'>
 
-export function useHabitListPresentation({ drag, account, view, searchQuery, filters, reducedListMotion }: HabitListPresentationInputs) {
+export function useHabitListPresentation(drag: HabitListPresentationInputs['drag'], account: HabitListPresentationInputs['account'], { view, searchQuery, filters }: Pick<HabitListPresentationInputs, 'view' | 'searchQuery' | 'filters'>, reducedListMotion: HabitListPresentationInputs['reducedListMotion']) {
   const { activeDragItems, isDraggingList } = drag
   const { accountGeneration, selectedDateStr } = account
   const presentation = useRetainedHabitList(activeDragItems, `${accountGeneration}:${view}:${isDraggingList}:${selectedDateStr}:${searchQuery ?? ''}:${JSON.stringify(filters)}`, reducedListMotion)
@@ -410,55 +375,8 @@ export function useHabitListPresentation({ drag, account, view, searchQuery, fil
 
 type HabitListProgressInputs = Pick<ReturnType<typeof useHabitListVisibility>, 'visibility'> & { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitListQueries>, 'getChildren' | 'habitsById'>
 
-export function useHabitListProgress({ visibility, view, getChildren, habitsById }: HabitListProgressInputs) {
-  const childrenProgressMap = useMemo(() => {
-    const map = new Map<string, { done: number; total: number }>()
-
-    function computeChildProgress(
-      child: NormalizedHabit,
-      computeFn: (id: string) => { done: number; total: number },
-    ): { done: number; total: number } {
-      const ownProgress = computeHabitDayProgress([child], visibility.isDueOnSelectedDate, view)
-      const nested = computeFn(child.id)
-      return { done: ownProgress.done + nested.done, total: ownProgress.total + nested.total }
-    }
-
-    function compute(habitId: string): { done: number; total: number } {
-      const cached = map.get(habitId)
-      if (cached) {
-        return cached
-      }
-
-      const children = getChildren(habitId)
-      if (children.length === 0) {
-        const result = { done: 0, total: 0 }
-        map.set(habitId, result)
-        return result
-      }
-
-      let done = 0
-      let total = 0
-
-      for (const child of children) {
-        const progress = computeChildProgress(child, compute)
-        done += progress.done
-        total += progress.total
-      }
-
-      const result = { done, total }
-      map.set(habitId, result)
-      return result
-    }
-
-    for (const habit of habitsById.values()) {
-      if (!map.has(habit.id)) {
-        compute(habit.id)
-      }
-    }
-
-    return map
-    // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById are the extracted habitsQuery members and already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [getChildren, habitsById, visibility, view])
+export function useHabitListProgress({ visibility }: Pick<HabitListProgressInputs, 'visibility'>, { view }: Pick<HabitListProgressInputs, 'view'>, { getChildren, habitsById }: Pick<HabitListProgressInputs, 'getChildren' | 'habitsById'>) {
+  const childrenProgressMap = useMemo(() => computeHabitChildrenProgress(habitsById, getChildren, visibility, view), [habitsById, getChildren, visibility, view])
 
   const getChildrenProgress = useCallback(
     (habitId: string) => {
@@ -471,7 +389,7 @@ export function useHabitListProgress({ visibility, view, getChildren, habitsById
 
 type HabitMoveParentSelectionInputs = Pick<ReturnType<typeof useHabitListMoveState>, 'moveInventory' | 'bulkMovingIds' | 'movingHabitId' | 'selectedMoveParentId' | 'moveState' | 'isMovingParent'> & Pick<ReturnType<typeof useHabitListQueries>, 'maxHabitDepth' | 'moveParentMutation'> & Pick<ReturnType<typeof useHabitListAccount>, 't'>
 
-export function useHabitMoveParentSelection({ moveInventory, maxHabitDepth, t, bulkMovingIds, movingHabitId, selectedMoveParentId, moveState, isMovingParent, moveParentMutation }: HabitMoveParentSelectionInputs) {
+export function useHabitMoveParentSelection({ moveInventory, bulkMovingIds, movingHabitId, selectedMoveParentId, moveState, isMovingParent }: Pick<HabitMoveParentSelectionInputs, 'moveInventory' | 'bulkMovingIds' | 'movingHabitId' | 'selectedMoveParentId' | 'moveState' | 'isMovingParent'>, { maxHabitDepth, moveParentMutation }: Pick<HabitMoveParentSelectionInputs, 'maxHabitDepth' | 'moveParentMutation'>, { t }: Pick<HabitMoveParentSelectionInputs, 't'>) {
   const { moveIds, sharedMoveParentId, moveParentOptions, selectedMoveOption, inventoryState } = getMoveParentSelection(
     {
       ...moveInventory, maxHabitDepth, t, validateMoveTarget: (target, source) =>
@@ -487,7 +405,7 @@ export function useHabitMoveParentSelection({ moveInventory, maxHabitDepth, t, b
 
 type HabitListMoveActionsInputs = Pick<ReturnType<typeof useHabitListMoveState>, 'moveState' | 'setMoveState' | 'moveOperation'> & Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'moveParentMutation'> & Pick<HabitListProps, 'selectedHabitIds' | 'onBulkMove'> & Pick<ReturnType<typeof useHabitMoveParentSelection>, 'canSubmitMoveParent'> & Pick<ReturnType<typeof useHabitListAccount>, 't'>
 
-export function useHabitListMoveActions({ moveState, setMoveState, habitsById, selectedHabitIds, canSubmitMoveParent, onBulkMove, moveParentMutation, t, moveOperation }: HabitListMoveActionsInputs) {
+export function useHabitListMoveActions({ moveState, setMoveState, moveOperation }: Pick<HabitListMoveActionsInputs, 'moveState' | 'setMoveState' | 'moveOperation'>, { habitsById, moveParentMutation }: Pick<HabitListMoveActionsInputs, 'habitsById' | 'moveParentMutation'>, { selectedHabitIds, onBulkMove }: Pick<HabitListMoveActionsInputs, 'selectedHabitIds' | 'onBulkMove'>, { canSubmitMoveParent }: Pick<HabitListMoveActionsInputs, 'canSubmitMoveParent'>, { t }: Pick<HabitListMoveActionsInputs, 't'>) {
   const { openBulk: openBulkMove, openSingle: openMoveParentDialog, close: closeMoveParentDialog,
     confirm: executeMoveParent, select: selectMoveParent } = createMoveParentActions({
       state: moveState, applyState: setMoveState, habitsById, selectedHabitIds, canSubmit: canSubmitMoveParent, getAccountGeneration,
@@ -502,7 +420,7 @@ export function useHabitListMoveActions({ moveState, setMoveState, habitsById, s
 
 type HabitListSubHabitActionsInputs = Pick<ReturnType<typeof useHabitListCollapseState>, 'collapsedIds'> & Pick<ReturnType<typeof useHabitListCollapse>, 'toggleExpand'> & Pick<ReturnType<typeof useHabitListModalState>, 'setSubHabitParent' | 'setShowSubHabitModal'>
 
-export function useHabitListSubHabitActions({ collapsedIds, toggleExpand, setSubHabitParent, setShowSubHabitModal }: HabitListSubHabitActionsInputs) {
+export function useHabitListSubHabitActions({ collapsedIds }: Pick<HabitListSubHabitActionsInputs, 'collapsedIds'>, { toggleExpand }: Pick<HabitListSubHabitActionsInputs, 'toggleExpand'>, { setSubHabitParent, setShowSubHabitModal }: Pick<HabitListSubHabitActionsInputs, 'setSubHabitParent' | 'setShowSubHabitModal'>) {
   const startAddSubHabit = useCallback(
     (parentHabitCandidate: NormalizedHabit) => {
       const parentId = parentHabitCandidate.id
@@ -519,7 +437,7 @@ export function useHabitListSubHabitActions({ collapsedIds, toggleExpand, setSub
   return { startAddSubHabit }
 }
 
-export function useHabitListHandle({ ref, allCollapsed, allLoadedIds, collapseAll, expandAll, markRecentlyCompleted, checkAndPromptParentLog, settleBulkHabitResolutions, openBulkMove, refetch, scrollContainerRef, allListRef, drillListRef, stateListRef }: HabitListHandleInputs) {
+export function useHabitListHandle({ ref }: Pick<HabitListHandleInputs, 'ref'>, { allCollapsed, collapseAll, expandAll }: Pick<HabitListHandleInputs, 'allCollapsed' | 'collapseAll' | 'expandAll'>, { allLoadedIds }: Pick<HabitListHandleInputs, 'allLoadedIds'>, { markRecentlyCompleted }: Pick<HabitListHandleInputs, 'markRecentlyCompleted'>, { checkAndPromptParentLog, settleBulkHabitResolutions }: Pick<HabitListHandleInputs, 'checkAndPromptParentLog' | 'settleBulkHabitResolutions'>, { openBulkMove }: Pick<HabitListHandleInputs, 'openBulkMove'>, { refetch }: Pick<HabitListHandleInputs, 'refetch'>, { scrollContainerRef, allListRef, drillListRef, stateListRef }: Pick<HabitListHandleInputs, 'scrollContainerRef' | 'allListRef' | 'drillListRef' | 'stateListRef'>) {
   useImperativeHandle(
     ref,
     () => ({
@@ -544,3 +462,5 @@ export function useHabitListHandle({ ref, allCollapsed, allLoadedIds, collapseAl
   )
 
 }
+
+export const useHabitRecentCompletions = createUseHabitRecentCompletions({ useRef, useEffect, useCallback }, motionDurations.micro)

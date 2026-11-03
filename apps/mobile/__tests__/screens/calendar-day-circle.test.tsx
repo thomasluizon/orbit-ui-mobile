@@ -47,6 +47,17 @@ vi.mock('@/hooks/use-habits', () => ({
   useCalendarRange: () => ({ dayMap: source.dayMap, isLoading: source.loading, isFetching: false, error: null, refresh: vi.fn() }),
   useLogHabit: () => ({ mutate: vi.fn() }),
 }))
+
+vi.mock('@/hooks/use-calendar-data', () => {
+
+return { useCalendarData: () => ({ dayMap: source.dayMap, isLoading: source.loading, isFetching: false, error: null, refresh: vi.fn() }),
+  useCalendarRange: () => ({ dayMap: source.dayMap, isLoading: source.loading, isFetching: false, error: null, refresh: vi.fn() }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn() }) }
+})
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => null }))
 vi.mock('@/components/calendar-sync/calendar-import-content', () => ({ CalendarImportContent: () => null }))
 vi.mock('@/app/(tabs)/calendar/_components/calendar-day-detail', () => ({ CalendarDayDetail: () => <View /> }))

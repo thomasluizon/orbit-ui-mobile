@@ -18,6 +18,26 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkMoveHabitParent: () => ({ mutateAsync: vi.fn() }),
   useBulkSkipHabits: () => ({ mutateAsync: mutations.skip }),
 }))
+
+vi.mock('@/hooks/use-bulk-delete-habits', () => {
+
+return { useBulkDeleteHabits: () => ({ mutateAsync: mutations.delete }) }
+})
+
+vi.mock('@/hooks/use-bulk-log-habits', () => {
+
+return { useBulkLogHabits: () => ({ mutateAsync: mutations.log }) }
+})
+
+vi.mock('@/hooks/use-bulk-move-habit-parent', () => {
+
+return { useBulkMoveHabitParent: () => ({ mutateAsync: vi.fn() }) }
+})
+
+vi.mock('@/hooks/use-bulk-skip-habits', () => {
+
+return { useBulkSkipHabits: () => ({ mutateAsync: mutations.skip }) }
+})
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showToast: vi.fn(), showQueued: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))

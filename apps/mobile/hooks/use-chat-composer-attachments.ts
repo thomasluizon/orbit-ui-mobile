@@ -1,12 +1,12 @@
 import { resizeChatImage } from '@/lib/chat-image'
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback,useEffect,useRef,useState } from "react"
 import * as DocumentPicker from "expo-document-picker"
 import * as ImagePicker from "expo-image-picker"
 import { File } from "expo-file-system"
-import { CHAT_TEXT_FILE_PICKER_MIME_TYPES, getChatImageValidationError, getChatTextFileValidationError, resolveChatImageMimeType } from "@orbit/shared/chat"
+import { CHAT_TEXT_FILE_PICKER_MIME_TYPES,getChatImageValidationError,getChatTextFileValidationError,resolveChatImageMimeType } from "@orbit/shared/chat"
 import { getAccountGeneration } from "@/lib/session-epoch"
 import type { SelectedChatTextFile } from './use-chat-composer-types'
-import type { useChatComposerState } from './use-chat-composer-state'
+import type { ChatComposerState } from './use-chat-composer-state'
 
 export function buildImageFileName(asset: ImagePicker.ImagePickerAsset): string {
   const mimeType =
@@ -32,7 +32,7 @@ export function useChatComposerAttachmentState() {
   return { imageSelectionVersionRef, setSelectedImage, setImagePreview, setSelectedTextFile, selectedImage, selectedTextFile, imagePreview }
 }
 
-type ChatComposerImageInputs = Pick<ReturnType<typeof useChatComposerState>, 't' | 'setSendError'> & Pick<ReturnType<typeof useChatComposerAttachmentState>, 'setSelectedImage' | 'setImagePreview' | 'imageSelectionVersionRef'>
+type ChatComposerImageInputs = Pick<ChatComposerState, 't' | 'setSendError'> & Pick<ReturnType<typeof useChatComposerAttachmentState>, 'setSelectedImage' | 'setImagePreview' | 'imageSelectionVersionRef'>
 
 export function useChatComposerImage({ t, setSendError, setSelectedImage, setImagePreview, imageSelectionVersionRef }: ChatComposerImageInputs) {
   const validateImageAsset = useCallback(
@@ -102,7 +102,7 @@ export function useChatComposerImage({ t, setSendError, setSelectedImage, setIma
   return { openFilePicker, removeImage }
 }
 
-type ChatComposerTextFileInputs = Pick<ReturnType<typeof useChatComposerState>, 'setSendError' | 't'> & Pick<ReturnType<typeof useChatComposerAttachmentState>, 'setSelectedTextFile'>
+type ChatComposerTextFileInputs = Pick<ChatComposerState, 'setSendError' | 't'> & Pick<ReturnType<typeof useChatComposerAttachmentState>, 'setSelectedTextFile'>
 
 export function useChatComposerTextFile({ setSendError, t, setSelectedTextFile }: ChatComposerTextFileInputs) {
   const openTextFilePicker = useCallback(async () => {
@@ -150,7 +150,7 @@ export function useChatComposerTextFile({ setSendError, t, setSelectedTextFile }
   return { openTextFilePicker, removeTextFile }
 }
 
-export function useChatComposerAttachments(inputs: Pick<ReturnType<typeof useChatComposerState>, 't' | 'setSendError'>) {
+export function useChatComposerAttachments(inputs: Pick<ChatComposerState, 't' | 'setSendError'>) {
   const attachmentState = useChatComposerAttachmentState()
   const image = useChatComposerImage({ ...inputs, ...attachmentState })
   const textFile = useChatComposerTextFile({ ...inputs, ...attachmentState })

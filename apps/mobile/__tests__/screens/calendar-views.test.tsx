@@ -262,6 +262,37 @@ vi.mock("@/hooks/use-habits", async () => {
   },
   useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: state.logHabit }),
 });
+})
+
+vi.mock('@/hooks/use-calendar-data', async () => {
+const actual = await import('@/hooks/use-calendar-data')
+return { useCalendarData: (month: Date) => {
+    if (heldQueries.enabled) return actual.useCalendarData(month)
+    state.calendarDataCalls(month)
+    return ({
+      dayMap: state.monthMap,
+      isLoading: state.monthLoading,
+      isFetching: state.monthFetching,
+      error: state.monthError,
+      refresh: state.monthRefresh,
+    })
+  },
+  useCalendarRange: (start: Date, end: Date, enabled: boolean) => {
+    if (heldQueries.enabled) return actual.useCalendarRange(start, end, enabled)
+    state.calendarRangeCalls(start, end, enabled);
+    return {
+      dayMap: state.rangeMap,
+      isLoading: state.rangeLoading,
+      isFetching: state.rangeFetching,
+      error: null,
+      refresh: vi.fn(),
+    };
+  } }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: state.logHabit }) }
 });
 
 vi.mock("@/lib/use-app-theme", () => ({

@@ -22,6 +22,11 @@ const originalScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototy
 const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')
 const mutations = vi.hoisted(() => ({ refresh: vi.fn(), revise: vi.fn(), breakdown: vi.fn(), clarification: vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: mutations.breakdown, isPending: false }) }))
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: mutations.breakdown, isPending: false }) }
+})
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: mutations.clarification, isPending: false }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))

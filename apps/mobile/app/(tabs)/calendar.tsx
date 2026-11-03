@@ -25,7 +25,7 @@ import { calendarMonthForDay, calendarImportTitleKey } from "@orbit/shared/utils
 
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar"
 
-import { useCalendarData } from "@/hooks/use-habits"
+import { useCalendarData } from '@/hooks/use-calendar-data'
 
 import { useProfile } from "@/hooks/use-profile"
 

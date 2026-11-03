@@ -82,6 +82,16 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
+
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-create-sub-habit', () => {
+
+return { useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-habit-form', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/hooks/use-habit-form')>()
   return { ...actual, useHabitForm: (options: HabitFormOptions) => ({ ...actual.useHabitForm(options), validateAll: mocks.validateHabit }) }
@@ -95,7 +105,11 @@ vi.mock('@/components/habits/habit-form-fields', () => ({ HabitFormFields: ({ fo
   <input aria-label="Habit title" value={formHelpers.form.watch('title')} onChange={(event) => formHelpers.form.setValue('title', event.target.value)} />
 </> }))
 vi.mock('@/components/habits/create-habit-modal/sub-habit-editor', () => ({ SubHabitEditor: () => null }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: 0, isLoaded: false }) }))
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useTotalHabitCount: () => 0,
+  useHabitCountLoaded: () => ({ count: 0, isLoaded: false }) }
+})
 vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ crossedStreakMilestones: [], newAchievements: [] }) }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => ({ composerProps: {} }) }))
 vi.mock('@/stores/onboarding-draft-store', () => ({

@@ -29,6 +29,11 @@ import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mock
 
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }))
 
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabits: () => ({ data: { habitsById: new Map() }, isLoading: false, isError: false, refetch: vi.fn() }) }
+})
+
 const TestRenderer = require('react-test-renderer') as typeof import('react-test-renderer')
 type SegmentTree = ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }
 

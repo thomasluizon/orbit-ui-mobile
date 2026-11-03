@@ -27,6 +27,11 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending }),
 }))
 
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending }) }
+})
+
 const defaultProps = {
   parentName: 'House routine',
   subHabits,

@@ -18,6 +18,11 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: {} }) }))
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 let browserLaunch: BrowserLaunch | undefined

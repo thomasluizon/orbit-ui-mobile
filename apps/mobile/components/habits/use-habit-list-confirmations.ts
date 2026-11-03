@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback,useState } from 'react'
 import { collectSelectableDescendantIds } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { useHabitListQueries } from './use-habit-list-state'
@@ -20,7 +20,7 @@ function getDeleteConfirmation(
 
 type ConfirmationQueries = Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent' | 'deleteMutation' | 'duplicateMutation'>
 
-export function useHabitListConfirmations({ queries }: { queries: ConfirmationQueries }) {
+export function useHabitListConfirmations(queries: { queries: ConfirmationQueries }['queries']) {
   const { habitsById, childrenByParent, deleteMutation, duplicateMutation } = queries
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deletePending, setDeletePending] = useState(false)

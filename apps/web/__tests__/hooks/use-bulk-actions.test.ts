@@ -24,6 +24,26 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkMoveHabitParent: () => bulkMove,
 }))
 
+vi.mock('@/hooks/use-bulk-delete-habits', () => {
+
+return { useBulkDeleteHabits: () => bulkDelete }
+})
+
+vi.mock('@/hooks/use-bulk-log-habits', () => {
+
+return { useBulkLogHabits: () => bulkLog }
+})
+
+vi.mock('@/hooks/use-bulk-skip-habits', () => {
+
+return { useBulkSkipHabits: () => bulkSkip }
+})
+
+vi.mock('@/hooks/use-bulk-move-habit-parent', () => {
+
+return { useBulkMoveHabitParent: () => bulkMove }
+})
+
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showToast, showQueued }),
 }))

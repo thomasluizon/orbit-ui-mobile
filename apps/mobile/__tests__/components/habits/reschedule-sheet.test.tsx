@@ -36,6 +36,11 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mockS
 vi.mock('@/hooks/use-habits', () => ({
   useUpdateHabit: () => ({ mutateAsync: mockUpdateMutateAsync, isPending: mockUpdateIsPending }),
 }))
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutateAsync: mockUpdateMutateAsync, isPending: mockUpdateIsPending }) }
+})
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({
   useRescheduleSuggestion: () => mockReschedule,
 }))

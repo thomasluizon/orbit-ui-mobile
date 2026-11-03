@@ -20,7 +20,16 @@ vi.mock('@/hooks/use-habits', () => ({
   useUpdateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useHabitDetail: () => ({ data: null, isPending: false, error: null }),
 }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: undefined, isSuccess: false, isFetching: false, isError: false }) }))
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabitDetail: () => ({ data: null, isPending: false, error: null }),
+  useHabits: () => ({ data: undefined, isSuccess: false, isFetching: false, isError: false }) }
+})
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }), useHasProAccess: () => true }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-config', async () => {

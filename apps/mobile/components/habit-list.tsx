@@ -1,27 +1,27 @@
-import { KeyboardAwareFlatList, KeyboardAwareScrollHost } from '@/components/ui/keyboard-aware-scroll-view'
+import { KeyboardAwareFlatList,KeyboardAwareScrollHost } from '@/components/ui/keyboard-aware-scroll-view'
 import { HabitListMotionRow } from '@/components/motion/habit-list-row'
 import { ContentFade } from '@/components/motion/content-fade'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
 import { SPACING } from '@orbit/shared/theme'
-import { forwardRef, useCallback, useLayoutEffect, useMemo, useRef, type ReactElement, type RefObject } from 'react'
-import { View, Text, RefreshControl } from 'react-native'
-import DraggableFlatList, { type RenderItemParams } from 'react-native-draggable-flatlist'
+import { forwardRef,useCallback,useLayoutEffect,useMemo,useRef,type ReactElement,type RefObject } from 'react'
+import { View,Text,RefreshControl } from 'react-native'
+import DraggableFlatList,{ type RenderItemParams } from 'react-native-draggable-flatlist'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { canLogHabitOnDate, formatAPIDate, getAllDoneOnDate, type HabitResolution } from '@orbit/shared/utils'
-import type { NormalizedHabit, HabitsFilter, BulkMoveHabitParentResult } from '@orbit/shared/types/habit'
+import { canLogHabitOnDate,formatAPIDate,getAllDoneOnDate,type HabitResolution } from '@orbit/shared/utils'
+import type { NormalizedHabit,HabitsFilter,BulkMoveHabitParentResult } from '@orbit/shared/types/habit'
 import { useUIStore } from '@/stores/ui-store'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
-import { HabitRow, type HabitRowProps } from '@/components/habits/habit-row'
+import { HabitRow,type HabitRowProps } from '@/components/habits/habit-row'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
-import { HabitListAllDone, HabitListEmptyState, HabitListFrequencyEmptyState, HabitListNothingOpen } from './habit-list/empty-state'
+import { HabitListAllDone,HabitListEmptyState,HabitListFrequencyEmptyState,HabitListNothingOpen } from './habit-list/empty-state'
 import { HabitDrill } from './habit-list/habit-drill'
 import { MoveParentDialog } from './habit-list/move-parent-dialog'
 import type { DragItem } from './habit-list/tree-helpers'
 import type { createStyles } from './habit-list/styles'
 import { SearchEmpty } from '@/components/search/search-results'
-import { useHabitListCollapse, useHabitListRoots, useHabitRecentCompletions, useHabitListMoveActions, useHabitListQueries, useHabitListScroll, useHabitListModalState, useHabitListDrill, useHabitListSubHabitActions, useHabitListProgress, useHabitListAccount, useHabitListPresentation, useHabitListItems, useHabitListCollapseState, useHabitListSelectionState, useHabitRecentCompletionState, useHabitListMoveState, useHabitListVisibility, useHabitMoveParentSelection, useHabitListHandle } from './habits/use-habit-list-state'
+import { useHabitListCollapse,useHabitListRoots,useHabitRecentCompletions,useHabitListMoveActions,useHabitListQueries,useHabitListScroll,useHabitListModalState,useHabitListDrill,useHabitListSubHabitActions,useHabitListProgress,useHabitListAccount,useHabitListPresentation,useHabitListItems,useHabitListCollapseState,useHabitListSelectionState,useHabitRecentCompletionState,useHabitListMoveState,useHabitListVisibility,useHabitMoveParentSelection,useHabitListHandle } from './habits/use-habit-list-state'
 import { useParentPromptQueue } from './habits/use-parent-prompt-queue'
 import { useHabitListConfirmations } from './habits/use-habit-list-confirmations'
 import { useHabitListDrag } from './habits/use-habit-list-drag'
@@ -258,7 +258,7 @@ export type HabitListHandleInputs = { ref: React.ForwardedRef<HabitListHandle> }
 
 type HabitRowActionsInputs = Pick<ReturnType<typeof useParentPromptQueue>, 'handleDirectToggle' | 'skipHabit'> & Pick<ReturnType<typeof useHabitListModalState>, 'setHabitToReschedule' | 'setShowRescheduleSheet'> & Pick<ReturnType<typeof useHabitListCollapse>, 'toggleExpand'> & { confirmations: ReturnType<typeof useHabitListConfirmations> } & Pick<HabitListProps, 'onEditHabit' | 'isSelectMode' | 'onDetailHabit'> & Pick<ReturnType<typeof useHabitListDrill>, 'drill'> & Pick<ReturnType<typeof useHabitListMoveActions>, 'openMoveParentDialog'> & Pick<ReturnType<typeof useHabitListSubHabitActions>, 'startAddSubHabit'> & Pick<ReturnType<typeof useHabitListQueries>, 'toggleSelectMode' | 'toggleSelectionCascade'> & Pick<ReturnType<typeof useHabitListRoots>, 'getDescendantIds'>
 
-function useHabitRowActions({ handleDirectToggle, skipHabit, setHabitToReschedule, setShowRescheduleSheet, toggleExpand, confirmations, onEditHabit, drill, openMoveParentDialog, startAddSubHabit, isSelectMode, toggleSelectMode, toggleSelectionCascade, getDescendantIds, onDetailHabit }: HabitRowActionsInputs) {
+function useHabitRowActions({ handleDirectToggle, skipHabit }: Pick<HabitRowActionsInputs, 'handleDirectToggle' | 'skipHabit'>, { setHabitToReschedule, setShowRescheduleSheet }: Pick<HabitRowActionsInputs, 'setHabitToReschedule' | 'setShowRescheduleSheet'>, { toggleExpand }: Pick<HabitRowActionsInputs, 'toggleExpand'>, confirmations: HabitRowActionsInputs['confirmations'], { onEditHabit, isSelectMode, onDetailHabit }: Pick<HabitRowActionsInputs, 'onEditHabit' | 'isSelectMode' | 'onDetailHabit'>, { drill }: Pick<HabitRowActionsInputs, 'drill'>, { openMoveParentDialog }: Pick<HabitRowActionsInputs, 'openMoveParentDialog'>, { startAddSubHabit }: Pick<HabitRowActionsInputs, 'startAddSubHabit'>, { toggleSelectMode, toggleSelectionCascade }: Pick<HabitRowActionsInputs, 'toggleSelectMode' | 'toggleSelectionCascade'>, { getDescendantIds }: Pick<HabitRowActionsInputs, 'getDescendantIds'>) {
   const rowActionHandlers: RowActionHandlers = {
     toggle: (habit, intent) => { void handleDirectToggle(habit, intent) },
     skip: (habit) => { void skipHabit(habit) },
@@ -293,7 +293,7 @@ function useHabitRowActions({ handleDirectToggle, skipHabit, setHabitToReschedul
 
 type HabitRowRenderingInputs = Pick<ReturnType<typeof useHabitListProgress>, 'getChildrenProgress'> & Pick<ReturnType<typeof useHabitListAccount>, 'selectedDateStr' | 'todayStr' | 'rowDate'> & Pick<ReturnType<typeof useHabitListItems>, 'maxInlineDepth'> & Pick<ReturnType<typeof useHabitListCollapseState>, 'collapsedIds'> & Pick<HabitListProps, 'isSelectMode'> & Pick<ReturnType<typeof useHabitListSelectionState>, 'selectedIds'> & Pick<ReturnType<typeof useHabitRowActions>, 'rowActionHandlersRef'>
 
-function useHabitRowRendering({ getChildrenProgress, selectedDateStr, todayStr, rowDate, maxInlineDepth, collapsedIds, isSelectMode, selectedIds, rowActionHandlersRef }: HabitRowRenderingInputs) {
+function useHabitRowRendering({ getChildrenProgress }: Pick<HabitRowRenderingInputs, 'getChildrenProgress'>, { selectedDateStr, todayStr, rowDate }: Pick<HabitRowRenderingInputs, 'selectedDateStr' | 'todayStr' | 'rowDate'>, { maxInlineDepth }: Pick<HabitRowRenderingInputs, 'maxInlineDepth'>, { collapsedIds }: Pick<HabitRowRenderingInputs, 'collapsedIds'>, { isSelectMode }: Pick<HabitRowRenderingInputs, 'isSelectMode'>, { selectedIds }: Pick<HabitRowRenderingInputs, 'selectedIds'>, { rowActionHandlersRef }: Pick<HabitRowRenderingInputs, 'rowActionHandlersRef'>) {
   const renderHabitCard = useCallback(
     (
       habit: NormalizedHabit,
@@ -343,7 +343,7 @@ function useHabitRowRendering({ getChildrenProgress, selectedDateStr, todayStr, 
 
 type HabitListItemRenderingInputs = Pick<ReturnType<typeof useHabitListPresentation>, 'presentation'> & Pick<ReturnType<typeof useHabitListItems>, 'isDndEnabled'> & { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitListQueries>, 'launchFromCache'> & Pick<ReturnType<typeof useHabitRowRendering>, 'renderHabitCard'> & { drag: ReturnType<typeof useHabitListDrag> }
 
-function useHabitListItemRendering({ presentation, view, launchFromCache, renderHabitCard, isDndEnabled, drag: dragState }: HabitListItemRenderingInputs) {
+function useHabitListItemRendering({ presentation }: Pick<HabitListItemRenderingInputs, 'presentation'>, { view }: Pick<HabitListItemRenderingInputs, 'view'>, { launchFromCache }: Pick<HabitListItemRenderingInputs, 'launchFromCache'>, { renderHabitCard }: Pick<HabitListItemRenderingInputs, 'renderHabitCard'>, { isDndEnabled }: Pick<HabitListItemRenderingInputs, 'isDndEnabled'>, dragState: HabitListItemRenderingInputs['drag']) {
   const renderItem = useCallback(
     ({ item, drag, getIndex }: RenderItemParams<DragItem>) => {
       const index = getIndex() ?? 0
@@ -376,7 +376,7 @@ function useHabitListItemRendering({ presentation, view, launchFromCache, render
 
 type HabitListEmptyRenderingInputs = Pick<ReturnType<typeof useHabitListAccount>, 'styles' | 't'> & Pick<HabitListProps, 'searchQuery' | 'onClearSearch' | 'onCreatePress' | 'listHeader'> & { view: NonNullable<HabitListProps['view']> }
 
-function useHabitListEmptyRendering({ styles, t, searchQuery, onClearSearch, onCreatePress, view, listHeader }: HabitListEmptyRenderingInputs) {
+function useHabitListEmptyRendering({ styles, t }: Pick<HabitListEmptyRenderingInputs, 'styles' | 't'>, { searchQuery, onClearSearch, onCreatePress, view, listHeader }: Pick<HabitListEmptyRenderingInputs, 'searchQuery' | 'onClearSearch' | 'onCreatePress' | 'view' | 'listHeader'>) {
   const keyExtractor = useCallback((item: DragItem) => item.id, [])
 
   const renderSkeletonItem = useCallback(
@@ -415,7 +415,7 @@ function useHabitListEmptyRendering({ styles, t, searchQuery, onClearSearch, onC
 
 type HabitListRefreshInputs = Pick<ReturnType<typeof useHabitListQueries>, 'isFetching' | 'isLoading' | 'refetch'> & Pick<ReturnType<typeof useHabitListAccount>, 'tokens'>
 
-function useHabitListRefresh({ isFetching, isLoading, refetch, tokens }: HabitListRefreshInputs) {
+function useHabitListRefresh({ isFetching, isLoading, refetch }: Pick<HabitListRefreshInputs, 'isFetching' | 'isLoading' | 'refetch'>, { tokens }: Pick<HabitListRefreshInputs, 'tokens'>) {
   const insets = useSafeAreaInsets()
   const refreshControl = useMemo(
     () => (
@@ -434,7 +434,7 @@ function useHabitListRefresh({ isFetching, isLoading, refetch, tokens }: HabitLi
 
 type getHabitListCompletionInputs = { view: NonNullable<HabitListProps['view']> } & Pick<HabitListProps, 'filters' | 'onSeeUpcoming'> & Pick<ReturnType<typeof useHabitListAccount>, 'accountHabitCount' | 'selectedDateStr' | 'todayStr' | 'styles'> & Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'childrenByParent'> & Pick<ReturnType<typeof useHabitListEmptyRendering>, 'listHeaderComponent'>
 
-function getHabitListCompletion({ view, filters, accountHabitCount, selectedDateStr, todayStr, habitsById, childrenByParent, listHeaderComponent, styles, onSeeUpcoming }: getHabitListCompletionInputs) {
+function getHabitListCompletion({ view, filters, onSeeUpcoming }: Pick<getHabitListCompletionInputs, 'view' | 'filters' | 'onSeeUpcoming'>, { accountHabitCount, selectedDateStr, todayStr, styles }: Pick<getHabitListCompletionInputs, 'accountHabitCount' | 'selectedDateStr' | 'todayStr' | 'styles'>, { habitsById, childrenByParent }: Pick<getHabitListCompletionInputs, 'habitsById' | 'childrenByParent'>, { listHeaderComponent }: Pick<getHabitListCompletionInputs, 'listHeaderComponent'>) {
   const showAllDone = view === 'today' && !filters.frequencyUnit && !(accountHabitCount.isLoaded && accountHabitCount.count === 0) &&
     selectedDateStr === todayStr &&
     getAllDoneOnDate(habitsById, childrenByParent, selectedDateStr).allDone
@@ -465,36 +465,36 @@ function createHabitListRendering(context: HabitListRenderingContext) {
 type HabitListModelInputs = { view: NonNullable<HabitListProps['view']> } & Pick<HabitListProps, 'filters' | 'showCompleted' | 'onShowCompleted' | 'searchQuery' | 'onClearSearch' | 'isSelectMode' | 'selectedHabitIds' | 'onBulkMove' | 'listHeader' | 'onCreatePress' | 'onSeeUpcoming' | 'onDetailHabit' | 'onEditHabit' | 'onScrollBeginDrag' | 'onScroll' | 'onAllCollapsedChange' | 'onSurfaceOpenChange' | 'onAllLoadedIdsChange'> & { requestedDate: HabitListProps['selectedDate'] } & { ref: React.ForwardedRef<HabitListHandle> }
 
 function useHabitListModel(parameters: HabitListModelInputs) {
-  const habitListAccount = useHabitListAccount({ ...parameters })
-  const habitListScroll = useHabitListScroll({ ...habitListAccount, ...parameters })
-  const habitListQueries = useHabitListQueries({ ...parameters, ...habitListAccount })
+  const habitListAccount = useHabitListAccount(parameters)
+  const habitListScroll = useHabitListScroll(habitListAccount, parameters)
+  const habitListQueries = useHabitListQueries(parameters, habitListAccount)
   const habitListCollapseState = useHabitListCollapseState()
-  const habitRecentCompletionState = useHabitRecentCompletionState({ ...habitListAccount })
-  const habitListDrill = useHabitListDrill({ ...habitListQueries, ...habitListAccount, ...parameters, ...habitRecentCompletionState })
-  const confirmations = useHabitListConfirmations({ queries: habitListQueries })
+  const habitRecentCompletionState = useHabitRecentCompletionState(habitListAccount)
+  const habitListDrill = useHabitListDrill(habitListQueries, habitListAccount, parameters, habitRecentCompletionState)
+  const confirmations = useHabitListConfirmations(habitListQueries)
   const habitListModalState = useHabitListModalState()
   const habitListMoveState = useHabitListMoveState()
-  const habitListSelectionState = useHabitListSelectionState({ ...parameters, ...habitRecentCompletionState })
-  const habitListVisibility = useHabitListVisibility({ ...habitListMoveState, ...habitListQueries, ...habitListAccount, ...parameters, ...habitRecentCompletionState })
+  const habitListSelectionState = useHabitListSelectionState(parameters, habitRecentCompletionState)
+  const habitListVisibility = useHabitListVisibility(habitListMoveState, habitListQueries, habitListAccount, parameters, habitRecentCompletionState)
   const habitRecentCompletions = useHabitRecentCompletions({ ...habitListAccount, ...habitRecentCompletionState })
-  const habitListRoots = useHabitListRoots({ ...habitListVisibility, ...parameters, ...habitListQueries, ...habitRecentCompletionState })
-  const habitListCollapse = useHabitListCollapse({ ...habitListRoots, ...habitListCollapseState, ...parameters })
-  const habitListItems = useHabitListItems({ ...parameters, ...habitListRoots, ...habitListAccount, ...habitListScroll, ...habitListCollapseState })
-  const drag = useHabitListDrag({ collapse: habitListCollapseState, queries: habitListQueries, items: habitListItems })
-  const habitListPresentation = useHabitListPresentation({ ...parameters, account: habitListAccount, reducedListMotion: habitListCollapseState.reducedListMotion, drag })
-  const habitListProgress = useHabitListProgress({ ...habitListVisibility, ...parameters, ...habitListQueries })
-  const habitMoveParentSelection = useHabitMoveParentSelection({ ...habitListMoveState, ...habitListQueries, ...habitListAccount })
-  const habitListMoveActions = useHabitListMoveActions({ ...habitListMoveState, ...habitListQueries, ...parameters, ...habitMoveParentSelection, ...habitListAccount })
-  const habitListSubHabitActions = useHabitListSubHabitActions({ ...habitListCollapseState, ...habitListCollapse, ...habitListModalState })
-  const habitListEmptyRendering = useHabitListEmptyRendering({ ...habitListAccount, ...parameters })
-  const habitListRefresh = useHabitListRefresh({ ...habitListQueries, ...habitListAccount })
-  const habitListCompletion = getHabitListCompletion({ ...parameters, ...habitListAccount, ...habitListQueries, ...habitListEmptyRendering })
+  const habitListRoots = useHabitListRoots(habitListVisibility, parameters, habitListQueries, habitRecentCompletionState)
+  const habitListCollapse = useHabitListCollapse(habitListRoots, habitListCollapseState, parameters)
+  const habitListItems = useHabitListItems(parameters, habitListRoots, habitListAccount, habitListScroll, habitListCollapseState)
+  const drag = useHabitListDrag(habitListCollapseState, habitListItems, habitListQueries)
+  const habitListPresentation = useHabitListPresentation(drag, habitListAccount, parameters, habitListCollapseState.reducedListMotion)
+  const habitListProgress = useHabitListProgress(habitListVisibility, parameters, habitListQueries)
+  const habitMoveParentSelection = useHabitMoveParentSelection(habitListMoveState, habitListQueries, habitListAccount)
+  const habitListMoveActions = useHabitListMoveActions(habitListMoveState, habitListQueries, parameters, habitMoveParentSelection, habitListAccount)
+  const habitListSubHabitActions = useHabitListSubHabitActions(habitListCollapseState, habitListCollapse, habitListModalState)
+  const habitListEmptyRendering = useHabitListEmptyRendering(habitListAccount, parameters)
+  const habitListRefresh = useHabitListRefresh(habitListQueries, habitListAccount)
+  const habitListCompletion = getHabitListCompletion(parameters, habitListAccount, habitListQueries, habitListEmptyRendering)
   const habitListRendering = createHabitListRendering({ ...parameters, ...habitListEmptyRendering, ...habitListAccount, ...habitListCompletion })
   const parentPromptQueue = useParentPromptQueue({ ...habitListAccount, ...habitListQueries, ...habitListVisibility, ...parameters, ...habitRecentCompletions })
-  useHabitListHandle({ ...parameters, ...habitListCollapse, ...habitListRoots, ...habitRecentCompletions, ...parentPromptQueue, ...habitListMoveActions, ...habitListQueries, ...habitListScroll })
-  const habitRowActions = useHabitRowActions({ confirmations, ...parentPromptQueue, ...habitListModalState, ...habitListCollapse, ...parameters, ...habitListDrill, ...habitListMoveActions, ...habitListSubHabitActions, ...habitListQueries, ...habitListRoots })
-  const habitRowRendering = useHabitRowRendering({ ...habitListProgress, ...habitListAccount, ...habitListItems, ...habitListPresentation, ...habitListCollapseState, ...parameters, ...habitListSelectionState, ...habitRowActions })
-  const habitListItemRendering = useHabitListItemRendering({ ...habitListItems, ...habitListPresentation, ...parameters, ...habitListQueries, ...habitRowRendering, drag })
+  useHabitListHandle(parameters, habitListCollapse, habitListRoots, habitRecentCompletions, parentPromptQueue, habitListMoveActions, habitListQueries, habitListScroll)
+  const habitRowActions = useHabitRowActions(parentPromptQueue, habitListModalState, habitListCollapse, confirmations, parameters, habitListDrill, habitListMoveActions, habitListSubHabitActions, habitListQueries, habitListRoots)
+  const habitRowRendering = useHabitRowRendering(habitListProgress, habitListAccount, habitListItems, habitListCollapseState, parameters, habitListSelectionState, habitRowActions)
+  const habitListItemRendering = useHabitListItemRendering(habitListPresentation, parameters, habitListQueries, habitRowRendering, habitListItems, drag)
   return { drag, confirmations, parameters, account: habitListAccount, scroll: habitListScroll,
     queries: habitListQueries, drill: habitListDrill.drill, modals: habitListModalState,
     move: habitListMoveState, moveSelection: habitMoveParentSelection, moveActions: habitListMoveActions,

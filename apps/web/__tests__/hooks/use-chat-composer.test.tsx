@@ -3,21 +3,21 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import { conversationHistory } from '@/lib/conversation-history'
 import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
-import { makeOneSmallStepCard, questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
-import { describe, expect, it, vi, beforeEach, afterEach, onTestFinished } from 'vitest'
-import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { makeOneSmallStepCard,questionBlockFixture,questionAnswersFixture,choiceBlockFixture,pickListBlockFixture,makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { describe,expect,it,vi,beforeEach,afterEach,onTestFinished } from 'vitest'
+import { renderHook,act,fireEvent,render,screen,waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import userEvent from '@testing-library/user-event'
-import { CHAT_STREAM_IDLE_TIMEOUT_MS, createConversationHistory } from '@orbit/shared/chat'
-import { createMockHabit, createMockProfile, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { CHAT_STREAM_IDLE_TIMEOUT_MS,createConversationHistory } from '@orbit/shared/chat'
+import { createMockHabit,createMockProfile,createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import { buildComposerChips } from '@orbit/shared/chat'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { prepareChatRequest } from '@orbit/shared/stores'
-import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
-import { chatResponseSchema, type ChatResponse } from '@orbit/shared/types/chat'
+import { goalKeys,habitKeys,profileKeys,tagKeys } from '@orbit/shared/query'
+import { chatResponseSchema,type ChatResponse } from '@orbit/shared/types/chat'
 import partsFixture from '@orbit/shared/test-support/chat-parts.fixture.json'
 import type { Profile } from '@orbit/shared/types/profile'
-import type { HabitDetail, HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitDetail,HabitsFilter,NormalizedHabit } from '@orbit/shared/types/habit'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createTranslator } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
@@ -140,11 +140,13 @@ vi.mock('@/lib/query-client', () => ({
   getQueryClient: () => mocks.queryClient,
 }))
 
-vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
+
+return { ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
+  useTotalHabitCount: () => 0,
   useHabits: (filters: HabitsFilter) => { mocks.state.habitFilters.push(filters); return { data: mocks.state.habitData, isError: mocks.state.habitsError } },
-  useHabitDetail: () => ({ data: mocks.state.detail, isError: false }),
-}))
+  useHabitDetail: () => ({ data: mocks.state.detail, isError: false }) }
+})
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.state.profile }),
@@ -189,8 +191,8 @@ import { Composer } from '@/components/shell/composer'
 import AppLayout from '@/app/(app)/layout'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { AstraConversation } from '@/components/chat/conversation'
-import { setApiFetchTranslate, translateApiFetchMessage } from '@/lib/api-fetch'
-import { confirmPendingOperation, executePendingOperation } from '@/app/actions/chat'
+import { setApiFetchTranslate,translateApiFetchMessage } from '@/lib/api-fetch'
+import { confirmPendingOperation,executePendingOperation } from '@/app/actions/chat'
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   return {
@@ -300,7 +302,7 @@ describe('web useChatComposer streaming send', () => {
       replyActive: false, isTyping: false, streamingMessageId: null, input: '', messages: [],
       selectedTextFile: { name: 'notes.txt', content: 'Read' }, selectedImage: null, isOnline: true }
 
-    const { result, rerender } = renderHook(({ budgetDate }) => useChatComposerAvailability({ ...inputs, dailyBudgetDate: budgetDate }), { initialProps: { budgetDate: null as string | null } })
+    const { result, rerender } = renderHook(({ budgetDate }) => useChatComposerAvailability(inputs.profile, budgetDate, inputs.today, inputs.replyActive, inputs.isTyping, inputs.streamingMessageId, inputs.selectedTextFile, inputs.selectedImage, inputs.input, inputs.isOnline, inputs.messages), { initialProps: { budgetDate: null as string | null } })
     expect(result.current.atMessageLimit).toBe(false)
     expect(result.current.attachments).toEqual([{ id: 'chat-file', kind: 'file', name: 'notes.txt' }])
     rerender({ budgetDate: inputs.today })
@@ -318,7 +320,7 @@ describe('web useChatComposer streaming send', () => {
     const inputs = { isOnline: true, offlineTitle: 'offline', atMessageLimit: false, isSending: false, queuePaused: false,
       queueReady: true, queuedPrompts: [], lastFailedSend: attempted, performSend, setInput, setSendError: vi.fn(), queryClient: mocks.queryClient as never }
     useChatStore.setState({ draft: 'Newer text', draftRevision: 2, isTyping: false, streamingMessageId: null })
-    const { result } = renderHook(() => useChatSendRetry(inputs))
+    const { result } = renderHook(() => useChatSendRetry(inputs.isOnline, inputs.atMessageLimit, inputs.queryClient, inputs.isSending, inputs.queuePaused, inputs.queueReady, inputs.queuedPrompts, inputs.lastFailedSend, inputs.performSend, inputs.setInput))
     await act(async () => { await result.current.retryLastSend() })
     expect(performSend).toHaveBeenCalledWith(attempted, true)
     expect(setInput).not.toHaveBeenCalled()
@@ -331,7 +333,7 @@ describe('web useChatComposer streaming send', () => {
   it('refreshes agent queries only after a succeeded execution in the extracted pending hook', async () => {
     vi.mocked(confirmPendingOperation).mockResolvedValue({ ok: true, data: { pendingOperationId: 'pending-1', confirmationToken: 'token-1', expiresAtUtc: '2026-09-29T12:00:00Z' } })
     vi.mocked(executePendingOperation).mockResolvedValueOnce({ ok: true, data: agentExecuteOperationResponseSchema.parse({ operation: makeAgentOperationResult('Failed', 0) }) })
-    const { result } = renderHook(() => useChatPendingBubbles({ queryClient: mocks.queryClient as never, isRecording: false, isTranscribing: false, selectedImage: null, selectedTextFile: null, lastFailedSend: null, queuedPrompts: [] }))
+    const { result } = renderHook(() => useChatPendingBubbles(mocks.queryClient as never, false, false, null, null, null, []))
     mocks.queryClient.invalidateQueries.mockClear()
     await act(async () => { await result.current.confirmAndExecutePendingOperation('pending-1') })
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
@@ -2549,7 +2551,7 @@ describe('web useChatComposer streaming send', () => {
 
   it('rejects unsupported files in the extracted attachments hook without selecting them', async () => {
     const setSendError = vi.fn()
-    const { result } = renderHook(() => useChatComposerAttachments({ setSendError }))
+    const { result } = renderHook(() => useChatComposerAttachments(setSendError))
     await act(async () => { await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.pdf', 'text'))) })
     expect(setSendError).toHaveBeenCalledWith('chat.fileError')
     expect(result.current.selectedTextFile).toBeNull()

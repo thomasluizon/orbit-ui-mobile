@@ -119,4 +119,3 @@ export function rollbackHabitLogCalendars(queryClient: QueryClient, previousCale
       ? rollbackOptimisticCalendarHabitLog(currentCalendar, previousCalendar, habitId, date, `optimistic-log:${habitId}:${date}`) : currentCalendar)
   }
 }
-

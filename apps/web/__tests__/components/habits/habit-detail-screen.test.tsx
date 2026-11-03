@@ -143,6 +143,26 @@ vi.mock('@/hooks/use-habits', () => ({
   useDeleteHabit: () => ({ mutate: mocks.deleteHabit, mutateAsync: mocks.deleteHabit }),
 }))
 
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }) }
+})
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutate: mocks.update, mutateAsync: mocks.update, isPending: mocks.updatePending }) }
+})
+
+vi.mock('@/hooks/use-update-checklist', () => {
+
+return { useUpdateChecklist: () => ({ mutate: mocks.checklist, mutateAsync: mocks.checklist }) }
+})
+
+vi.mock('@/hooks/use-delete-habit', () => {
+
+return { useDeleteHabit: () => ({ mutate: mocks.deleteHabit, mutateAsync: mocks.deleteHabit }) }
+})
+
 vi.mock('@/hooks/use-tags', () => ({
   useTags: () => ({ tags: [] }),
   useCreateTag: () => ({ mutateAsync: vi.fn(), isPending: false }),

@@ -36,13 +36,17 @@ vi.mock('@/components/habits/habit-form-fields', async (original) => {
 })
 const habit = createMockHabit({ title: 'Walk every day' })
 const detailHabit = { ...makeHabitDetail(), title: 'Read', children: [], isGeneral: true, frequencyUnit: null, tags: [], linkedGoals: [], slipAlertEnabled: false, checklistItems: [{ text: 'Pack a bag', isChecked: true }, { text: 'Read a chapter', isChecked: false }] }
-vi.mock('@/hooks/use-habit-queries', () => ({
-  useHabitDetail: () => ({ data: detailHabit, isLoading: false, isError: false, refetch: vi.fn() }),
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { EMPTY_HABITS_BY_ID: new Map(),
+  EMPTY_CHILDREN_BY_PARENT: new Map(),
+  EMPTY_NORMALIZED_HABITS: [],
+  useHabitDetail: (id: string | null) => ({ data: editorParentState.detail && editorParentState.detail.id === id ? editorParentState.detail : null, isPending: false, error: null, refetch: detailRefetch }),
   useHabitCountLoaded: () => ({ count: 2, isLoaded: true }),
   useHabitLogs: () => ({ data: [] }),
   useHabitMetrics: () => ({ data: undefined, isLoading: false, isError: false }),
-  useHabits: (filters: { isGeneral?: boolean }) => ({ data: normalizeHabitQueryData(editorParentState.items.filter((item) => item.isGeneral === !!filters.isGeneral)), isSuccess: true, isFetching: false, isLoading: false, isError: false, refetch: vi.fn() }),
-}))
+  useHabits: () => { const items = editorParentState.items; const normalized = React.useMemo(() => normalizeHabitQueryData(items), [items]); return { data: normalized, isSuccess: true, isLoading: false, isError: false, refetch: vi.fn(), getChildren: (id: string) => (normalized.childrenByParent.get(id) ?? []).map((child) => normalized.habitsById.get(child)!) } } }
+})
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({ useRescheduleSuggestion: () => ({ suggestion: null, error: null }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 
@@ -64,6 +68,62 @@ vi.mock('@/hooks/use-habits', () => ({
   useUpdateHabit: () => useMutation({ mutationFn: mutation }),
   useHabitDetail: (id: string | null) => ({ data: editorParentState.detail && editorParentState.detail.id === id ? editorParentState.detail : null, isPending: false, error: null, refetch: detailRefetch }),
 }))
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useSkipHabit: () => ({ mutateAsync: completion, isPending: false }),
+  useLogHabit: () => ({ mutateAsync: completion }) }
+})
+
+vi.mock('@/hooks/use-bulk-log-habits', () => {
+
+return { useBulkLogHabits: () => ({ mutateAsync: completion, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-bulk-skip-habits', () => {
+
+return { useBulkSkipHabits: () => ({ mutateAsync: completion, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-duplicate-habit', () => {
+
+return { useDuplicateHabit: () => ({ mutateAsync: completion, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-reorder-habits', () => {
+
+return { useReorderHabits: () => ({ mutate: completion, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-move-habit-parent', () => {
+
+return { useMoveHabitParent: () => ({ mutateAsync: completion, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-update-checklist', () => {
+
+return { useUpdateChecklist: () => ({ mutateAsync: completion }) }
+})
+
+vi.mock('@/hooks/use-delete-habit', () => {
+
+return { useDeleteHabit: () => ({ mutateAsync: completion }) }
+})
+
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => useMutation({ mutationFn: mutation }) }
+})
+
+vi.mock('@/hooks/use-create-sub-habit', () => {
+
+return { useCreateSubHabit: () => useMutation({ mutationFn: mutation }) }
+})
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => useMutation({ mutationFn: mutation }) }
+})
 vi.mock('@/hooks/use-date-interpretation', () => ({ useDateInterpretation: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({
   useHabitSuggestion: () => ({ isPending: false, mutateAsync: suggest }),

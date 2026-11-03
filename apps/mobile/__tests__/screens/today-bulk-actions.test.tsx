@@ -162,6 +162,13 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
   }
 })
 
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
+const actual = await importOriginal<typeof import('@/hooks/use-habit-queries')>()
+return { ...actual,
+  EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
+  useHabits: () => ({ data: { habitsById: mocks.habitsById } }) }
+})
+
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showToast: mocks.showToast, showQueued: vi.fn() }),
 }))

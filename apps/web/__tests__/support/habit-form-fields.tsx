@@ -102,6 +102,26 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabitDetail: () => ({ data: null, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
 
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => ({ mutateAsync: modalFeedback.create, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-create-sub-habit', () => {
+
+return { useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabitDetail: () => ({ data: null, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }) }
+})
+
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 
 vi.mock('@/hooks/use-tags', () => ({

@@ -1,14 +1,14 @@
 'use client'
 
-import { useMemo, useCallback, useEffect, useRef } from 'react'
-import { buildHabitDateBuckets, computeHabitReorderPositions, sortNormalizedHabits } from '@orbit/shared/utils'
+import { useMemo,useCallback,useEffect,useRef } from 'react'
+import { buildHabitDateBuckets,computeHabitReorderPositions,sortNormalizedHabits } from '@orbit/shared/utils'
 import { useHabitInlineDepthLimit } from './use-habit-row-large-text'
-import { buildDragItemsFlat, groupDragItemsByPanel, type DragItem, type HabitView } from './habit-list/tree-helpers'
-import { PointerSensor, TouchSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core'
+import { buildDragItemsFlat,groupDragItemsByPanel,type DragItem,type HabitView } from './habit-list/tree-helpers'
+import { PointerSensor,TouchSensor,useSensor,useSensors,type DragStartEvent,type DragEndEvent } from '@dnd-kit/core'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { useAccountScopedState,useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { useHabitListScrollAnchor } from '@/hooks/use-habit-list-scroll-anchor'
-import type { useHabitListVisibility, useHabitListRoots, useHabitListQueries, useHabitListCollapse } from './use-habit-list-state'
+import type { useHabitListVisibility,useHabitListRoots,useHabitListQueries,useHabitListCollapse } from './use-habit-list-state'
 
 function getListViewPanelStyle(view: HabitView, rootCount: number, isDragging: boolean) {
   return view !== 'today' && rootCount >= 21 && !isDragging
@@ -37,7 +37,7 @@ type HabitListDragInputs = {
   isSelectMode: boolean
 }
 
-export function useHabitListDrag({ visibilityState, view, roots, queries, collapse, isSelectMode }: HabitListDragInputs) {
+export function useHabitListDrag(visibilityState: HabitListDragInputs['visibilityState'], view: HabitListDragInputs['view'], roots: HabitListDragInputs['roots'], queries: HabitListDragInputs['queries'], collapse: HabitListDragInputs['collapse'], isSelectMode: HabitListDragInputs['isSelectMode']) {
   const { drill, visibility } = visibilityState
   const { habits } = roots
   const { todayStr, habitsById, getChildren, reorderHabitsMut } = queries
@@ -142,7 +142,7 @@ export function useHabitListDrag({ visibilityState, view, roots, queries, collap
 
 type HabitListKeyboardReorderInputs = Pick<ReturnType<typeof useHabitListQueries>, 'dndContextId' | 'reorderHabitsMut' | 't' | 'habitsById' | 'getChildren'> & Pick<ReturnType<typeof useHabitListDrag>, 'isDragging' | 'dragItems'>
 
-export function useHabitListKeyboardReorder({ dndContextId, reorderHabitsMut, isDragging, dragItems, t, habitsById, getChildren }: HabitListKeyboardReorderInputs) {
+export function useHabitListKeyboardReorder({ dndContextId, reorderHabitsMut, t, habitsById, getChildren }: Pick<HabitListKeyboardReorderInputs, 'dndContextId' | 'reorderHabitsMut' | 't' | 'habitsById' | 'getChildren'>, { isDragging, dragItems }: Pick<HabitListKeyboardReorderInputs, 'isDragging' | 'dragItems'>) {
   const reorderInstructionsId = `${dndContextId}-habit-reorder-instructions`
   const [reorderAnnouncements, setReorderAnnouncements] = useAccountScopedState<readonly [string, string]>(['', ''])
   function announceReorder(message: string) {

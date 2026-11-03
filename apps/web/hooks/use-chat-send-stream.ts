@@ -1,19 +1,23 @@
 'use client'
 
-import { isChatReplyActive, prepareConversationSend, resolveChatRequestContext } from '@orbit/shared/chat'
+import { retryComposerSend } from '@orbit/shared/hooks'
+import { createComposerFailureHandlers } from '@orbit/shared/hooks'
+import { runComposerStream,settleComposerResponse } from '@orbit/shared/hooks'
+
+import { isChatReplyActive,prepareConversationSend,resolveChatRequestContext } from '@orbit/shared/chat'
 import { conversationHistory } from '@/lib/conversation-history'
 import { useThrottleStore } from '@/stores/throttle-store'
-import { useCallback, useEffect } from 'react'
+import { useCallback,useEffect } from 'react'
 import { useTranslations } from 'next-intl'
-import { habitKeys, profileKeys } from '@orbit/shared/query'
+import { habitKeys,profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type { ChatClientContext, ChatResponse } from '@orbit/shared/types/chat'
+import type { ChatClientContext } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import { hasComposerContent } from '@orbit/shared/contracts/composer'
-import { type ChatStreamRequest, type ChatStreamResult, type BlockAnswerRequest, type BlockAnswerResult, buildChatMessageWithFileContent, buildChatClientContext, buildChatFinalMessageFields, CHAT_STREAM_IDLE_TIMEOUT_MS, sendChatStreamTurn, ChatReplyLifecycle, enqueueChatPrompt, sendChatPrompt, sendQueuedChatPrompt, nextQueuedChatPrompt, needsNewChatTurn, getChatTurnFailure, type PreparedChatTurn } from '@orbit/shared/chat'
-import { CHAT_DRAFT_STORAGE_KEY, classifySendFailure, reconcileAgentQueries, settleChatResponse } from '@orbit/shared/hooks'
+import { type ChatStreamRequest,type BlockAnswerRequest,type BlockAnswerResult,buildChatMessageWithFileContent,buildChatClientContext,sendChatStreamTurn,enqueueChatPrompt,sendChatPrompt,sendQueuedChatPrompt,nextQueuedChatPrompt,type PreparedChatTurn } from '@orbit/shared/chat'
+import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { sessionAwareFetch } from '@/lib/api-fetch'
-import { buildRecentChatHistory, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { buildRecentChatHistory } from '@orbit/shared/utils'
 import { useChatStore } from '@/stores/chat-store'
 import type { ChatStoreState } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
@@ -21,8 +25,8 @@ import { getHeldAccountId } from '@/stores/auth-store'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import type { useChatComposerAttachments } from './use-chat-composer-attachments'
-import type { useChatComposerState, useChatComposerScroll, useChatComposerSession, useChatComposerAvailability } from './use-chat-composer-state'
-import type { AttemptedSend, StreamSendFailure } from './use-chat-composer-types'
+import type { ChatComposerState,useChatComposerScroll,useChatComposerSession,useChatComposerAvailability } from './use-chat-composer-state'
+import type { AttemptedSend } from './use-chat-composer-types'
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
@@ -67,144 +71,26 @@ function createComposerStreamTransport({ attempted, resetController, armIdleTime
   }
 }
 
-type ChatSendFailureInputs = Pick<ReturnType<typeof useChatComposerAttachments>, 'restoreImage' | 'restoreTextFile'> & Pick<ReturnType<typeof useChatComposerState>, 'setDailyBudgetDate' | 'today' | 'setSendError' | 'setLastFailedSend' | 'allowanceText' | 'updateMessage' | 'addMessage' | 'activeStepsRef' | 'setActiveSteps' | 'setIsTyping' | 'setInput' | 't'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'>
+type ChatSendFailureInputs = Pick<ReturnType<typeof useChatComposerAttachments>, 'restoreImage' | 'restoreTextFile'> & Pick<ChatComposerState, 'setDailyBudgetDate' | 'today' | 'setSendError' | 'setLastFailedSend' | 'allowanceText' | 'updateMessage' | 'addMessage' | 'activeStepsRef' | 'setActiveSteps' | 'setIsTyping' | 'setInput' | 't'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'>
 
-export function useChatSendFailure({ restoreImage, restoreTextFile, setDailyBudgetDate, today, setSendError, setLastFailedSend, allowanceText, updateMessage, addMessage, scrollToBottom, activeStepsRef, setActiveSteps, setIsTyping, setInput, t }: ChatSendFailureInputs) {
-  const handleDailyBudgetExceeded = useCallback((draftMessageId: string | null, attempted?: AttemptedSend) => {
-    if (attempted?.clearDraftOnSuccess && attempted.restoredDraftRevision === useChatStore.getState().draftRevision) {
-      restoreImage(attempted.image, attempted.preview)
-      restoreTextFile(attempted.textFile)
-    }
-    setDailyBudgetDate(today)
-    setSendError(null)
-    setLastFailedSend(null)
-    if (draftMessageId) useChatStore.setState(state => ({ messages: state.messages.filter(message => message.id !== draftMessageId) }))
-  }, [restoreImage, restoreTextFile, today, setDailyBudgetDate, setSendError, setLastFailedSend])
-
-  const handleAllowanceExceeded = useCallback((draftMessageId: string | null) => {
-    setSendError(null)
-    setLastFailedSend(null)
-    const limitReason = allowanceText('chat.limitReachedError')
-    if (draftMessageId) {
-      updateMessage(draftMessageId, { content: limitReason })
-    } else {
-      addMessage({
-        id: crypto.randomUUID(),
-        role: 'ai',
-        content: limitReason,
-        timestamp: new Date(),
-      })
-    }
-    scrollToBottom()
-  }, [addMessage, allowanceText, scrollToBottom, setSendError, setLastFailedSend, updateMessage])
-
-  const handleFailedSend = useCallback((
-    failureInput: StreamSendFailure,
-    attempted: AttemptedSend,
-    draftMessageId: string | null,
-  ) => {
-    activeStepsRef.current = []
-    setActiveSteps([])
-    setIsTyping(false)
-    let failedAttempt = attempted
-    if (attempted.restoreDraftOnFailure && !useChatStore.getState().draft) {
-      setInput(attempted.draftContent)
-      failedAttempt = {
-        ...attempted,
-        restoreDraftOnFailure: false,
-        restoredDraftRevision: useChatStore.getState().draftRevision,
-      }
-    }
-    if (failureInput.code === ACCOUNT_CHANGED_ERROR_CODE) {
-      const message = t('errors.api.accountChanged')
-      setSendError(message)
-      setLastFailedSend(null)
-      if (draftMessageId) updateMessage(draftMessageId, { content: message })
-      else addMessage({ id: crypto.randomUUID(), role: 'ai', content: message, timestamp: new Date() })
-      scrollToBottom()
-      return
-    }
-    const resolvedError = failureInput.error.trim() || t('chat.sendError')
-    const failure = classifySendFailure({
-      status: failureInput.status,
-      code: failureInput.code,
-      reason: resolvedError,
-    })
-
-    if (failure.kind === 'dailyBudget') {
-      handleDailyBudgetExceeded(draftMessageId, failedAttempt)
-      return
-    }
-
-    if (failure.kind === 'timeout') {
-      setSendError(t('chat.timeoutError'))
-      setLastFailedSend(failedAttempt)
-    } else if (failure.kind === 'limit') {
-      handleAllowanceExceeded(draftMessageId)
-      return
-    } else {
-      setSendError(t('chat.sendError'))
-      setLastFailedSend(failedAttempt)
-    }
-
-    if (draftMessageId) {
-      updateMessage(draftMessageId, { content: t('chat.aiError') })
-    } else {
-      addMessage({
-        id: crypto.randomUUID(),
-        role: 'ai',
-        content: t('chat.aiError'),
-        timestamp: new Date(),
-      })
-    }
-    scrollToBottom()
-  }, [activeStepsRef, setActiveSteps, setIsTyping, t, scrollToBottom, setInput, setSendError, setLastFailedSend, updateMessage, addMessage, handleDailyBudgetExceeded, handleAllowanceExceeded])
-  return { handleFailedSend, handleAllowanceExceeded, handleDailyBudgetExceeded }
+export function useChatSendFailure(inputs: ChatSendFailureInputs) {
+  return createComposerFailureHandlers<AttemptedSend>({ ...inputs,
+    getChat: useChatStore.getState, setChat: useChatStore.setState, createMessageId: () => crypto.randomUUID(), accountChangedCode: ACCOUNT_CHANGED_ERROR_CODE,
+  })
 }
 
-type ChatResponseSettlementInputs = Pick<ReturnType<typeof useChatComposerState>, 'threadScroll' | 'setIsTyping' | 'activeStepsRef' | 'setActiveSteps' | 'updateMessage' | 'addMessage' | 'setStreamingMessageId' | 'queryClient'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'>
+type ChatResponseSettlementInputs = Pick<ChatComposerState, 'threadScroll' | 'setIsTyping' | 'activeStepsRef' | 'setActiveSteps' | 'updateMessage' | 'addMessage' | 'setStreamingMessageId' | 'queryClient'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'>
 
-export function useChatResponseSettlement({ threadScroll, setIsTyping, activeStepsRef, setActiveSteps, updateMessage, addMessage, setStreamingMessageId, scrollToBottom, queryClient }: ChatResponseSettlementInputs) {
-  const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null, toolSteps: { domain: string; access: string }[], firstReveal: Promise<void>, messageCost: 0 | 1, reply: ChatReplyLifecycle) => {
-    if (!reply.isHidden() && draftMessageId && response.parts?.some(part => part?.type === 'block')) {
-      await reply.waitForReveal(firstReveal)
-      if (!reply.isHidden()) threadScroll.holdPosition()
-    }
-    if (!reply.isCancelled() && response.conversationId) useChatStore.setState({ conversationId: response.conversationId, serverConversationId: response.conversationId })
-    if (!reply.isHidden()) {
-      setIsTyping(false)
-      activeStepsRef.current = []
-      setActiveSteps([])
-
-      const finalFields = buildChatFinalMessageFields(response, toolSteps)
-      if (draftMessageId) {
-        updateMessage(draftMessageId, finalFields)
-      } else {
-        addMessage({
-          id: crypto.randomUUID(),
-          role: 'ai',
-          timestamp: new Date(),
-          ...finalFields,
-        })
-      }
-      if (useChatStore.getState().streamingMessageId === draftMessageId) {
-        setStreamingMessageId(null)
-      }
-
-      scrollToBottom()
-    }
-    if (!reply.isCancelled()) {
-      const settlement = settleChatResponse(queryClient, response, messageCost)
-      reply.finish(true)
-      await settlement
-    }
-  }, [activeStepsRef, addMessage, queryClient, scrollToBottom, setActiveSteps, setIsTyping, setStreamingMessageId, threadScroll, updateMessage])
+export function useChatResponseSettlement(inputs: ChatResponseSettlementInputs) {
+  const applyFinalResponse = useCallback((...args: Parameters<typeof settleComposerResponse> extends [unknown, ...infer Args] ? Args : never) => settleComposerResponse({
+    ...inputs, getChat: useChatStore.getState, setChat: useChatStore.setState, createMessageId: () => crypto.randomUUID(),
+  }, ...args), [inputs])
   return { applyFinalResponse }
 }
 
-type ChatRequestPayloadInputs = Pick<ReturnType<typeof useChatComposerState>, 'locale' | 'profile'>
+type ChatRequestPayloadInputs = Pick<ChatComposerState, 'locale' | 'profile'>
 
-export function useChatRequestPayload({ locale, profile }: ChatRequestPayloadInputs) {
+export function useChatRequestPayload(locale: ChatRequestPayloadInputs['locale'], profile: ChatRequestPayloadInputs['profile']) {
   const buildChatFormData = useCallback((attempted: ChatStreamRequest<File>) => {
     const formData = new FormData()
     formData.append('message', attempted.content)
@@ -232,74 +118,19 @@ export function useChatRequestPayload({ locale, profile }: ChatRequestPayloadInp
   return { buildChatFormData }
 }
 
-type ChatStreamInputs = Pick<ReturnType<typeof useChatComposerState>, 't' | 'activeStepsRef' | 'setActiveSteps' | 'stopReply' | 'setStreamingMessageId' | 'setIsTyping' | 'addMessage' | 'turnReconciliation' | 'queryClient' | 'appendToMessageContent' | 'updateMessage' | 'allowanceText'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'> & Pick<ReturnType<typeof useChatRequestPayload>, 'buildChatFormData'> & Pick<ReturnType<typeof useChatResponseSettlement>, 'applyFinalResponse'>
+type ChatStreamInputs = Pick<ChatComposerState, 't' | 'activeStepsRef' | 'setActiveSteps' | 'stopReply' | 'setStreamingMessageId' | 'setIsTyping' | 'addMessage' | 'turnReconciliation' | 'queryClient' | 'appendToMessageContent' | 'updateMessage' | 'allowanceText'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'> & Pick<ReturnType<typeof useChatRequestPayload>, 'buildChatFormData'> & Pick<ReturnType<typeof useChatResponseSettlement>, 'applyFinalResponse'>
 
-export function useChatStream({ t, activeStepsRef, setActiveSteps, stopReply, setStreamingMessageId, setIsTyping, addMessage, scrollToBottom, turnReconciliation, queryClient, buildChatFormData, appendToMessageContent, updateMessage, applyFinalResponse, allowanceText }: ChatStreamInputs) {
-  const runStreamingSend = useCallback(async (attempted: ChatStreamRequest<File> & { turn?: PreparedChatTurn<FormData> }, onAccepted?: () => void): Promise<ChatStreamResult> => {
-    const { ownsAccount, armIdleTimer, firstReveal, reply, isCancelled, isHidden, stop, ensureDraftMessage, acceptSelectedOffer, getDraftMessageId, resetController, clearIdleTimer } = createComposerReply({ t, activeStepsRef, setActiveSteps, stopReply, setStreamingMessageId, setIsTyping, addMessage, scrollToBottom }, attempted)
-    let finalReceived = false
-
-    try {
-      if (turnReconciliation.isPending) await turnReconciliation.reconcile(() => reconcileAgentQueries(queryClient))
-      if (isHidden()) return { kind: 'cancelled' }
-      attempted.turn ??= { key: crypto.randomUUID(), payload: buildChatFormData(attempted) }
-      const outcome = await sendChatStreamTurn({
-        turn: attempted.turn,
-        isCancelled,
-        open: createComposerStreamTransport({ attempted, resetController: resetController, armIdleTimer, ownsAccount, onAccepted, t }),
-        callbacks: {
-          onDelta: (text) => {
-            if (isHidden()) return
-            appendToMessageContent(ensureDraftMessage(), text)
-            scrollToBottom()
-          },
-          onReset: () => {
-            if (isHidden()) return
-            const draftMessageId = getDraftMessageId()
-            if (draftMessageId) updateMessage(draftMessageId, { content: '' })
-            setIsTyping(true)
-          },
-          onStep: (step) => {
-            if (isHidden()) return
-            activeStepsRef.current = [...activeStepsRef.current, step]
-            setActiveSteps(activeStepsRef.current)
-          },
-        },
-      })
-
-      if (outcome.kind === 'cancelled') return outcome
-      if (needsNewChatTurn(outcome)) attempted.turn = undefined
-      await turnReconciliation.reconcileAfterTurn(outcome, () => reconcileAgentQueries(queryClient))
-      if (isHidden() && outcome.kind !== 'final') return { kind: 'cancelled' }
-
-      if (outcome.kind === 'final') {
-        acceptSelectedOffer()
-        await applyFinalResponse(outcome.response, getDraftMessageId(), activeStepsRef.current, firstReveal.completion, attempted.messageCost, reply)
-        finalReceived = reply.canComplete()
-        return finalReceived ? { kind: 'final' } : { kind: 'cancelled' }
-      }
-      return { kind: 'failed', failure: getChatTurnFailure(outcome, t('chat.sendError')), draftMessageId: getDraftMessageId() }
-    } catch (error: unknown) {
-      if (isHidden()) return { kind: 'cancelled' }
-      return {
-        kind: 'failed', failure: {
-          status: isAbortError(error) ? 408 : null,
-          error: getFriendlyErrorMessage(error, allowanceText, 'chat.sendError', 'generic'),
-          code: null,
-        }, draftMessageId: getDraftMessageId()
-      }
-    } finally {
-      clearIdleTimer()
-      if (stopReply.current === stop) stopReply.current = null
-      reply.finish(finalReceived)
-    }
-  }, [t, activeStepsRef, setActiveSteps, stopReply, setStreamingMessageId, setIsTyping, addMessage, scrollToBottom, turnReconciliation, buildChatFormData, queryClient, appendToMessageContent, updateMessage, applyFinalResponse, allowanceText])
+export function useChatStream(inputs: ChatStreamInputs) {
+  const runStreamingSend = useCallback((attempted: ChatStreamRequest<File> & { turn?: PreparedChatTurn<FormData> }, onAccepted?: () => void) => runComposerStream({
+    ...inputs, getAccountGeneration, getChat: useChatStore.getState, createMessageId: () => crypto.randomUUID(), isAbortError,
+    createTransport: (request, reply, accepted) => createComposerStreamTransport({ attempted: request, ...reply, onAccepted: accepted, t: inputs.t }),
+  }, attempted, onAccepted), [inputs])
   return { runStreamingSend }
 }
 
-type ChatSendQueueInputs = Pick<ReturnType<typeof useChatComposerState>, 'threadScroll' | 'chatContainerRef' | 'activeStepsRef' | 'setActiveSteps' | 'setSendError' | 'setLastFailedSend' | 'setIsTyping' | 'blockSubmission' | 'locale' | 'queryClient' | 't' | 'allowanceText' | 'setInput'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'> & Pick<ReturnType<typeof useChatStream>, 'runStreamingSend'> & Pick<ReturnType<typeof useChatSendFailure>, 'handleFailedSend' | 'handleAllowanceExceeded' | 'handleDailyBudgetExceeded'> & Pick<ReturnType<typeof useChatComposerSession>, 'isOnline'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'atMessageLimit' | 'dailyBudgetReached' | 'isSending' | 'aiMessagesLimit'> & Pick<ReturnType<typeof useChatComposerAttachments>, 'clearImage' | 'removeTextFile'>
+type ChatSendQueueInputs = Pick<ChatComposerState, 'threadScroll' | 'chatContainerRef' | 'activeStepsRef' | 'setActiveSteps' | 'setSendError' | 'setLastFailedSend' | 'setIsTyping' | 'blockSubmission' | 'locale' | 'queryClient' | 't' | 'allowanceText' | 'setInput'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'> & Pick<ReturnType<typeof useChatStream>, 'runStreamingSend'> & Pick<ReturnType<typeof useChatSendFailure>, 'handleFailedSend' | 'handleAllowanceExceeded' | 'handleDailyBudgetExceeded'> & Pick<ReturnType<typeof useChatComposerSession>, 'isOnline'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'atMessageLimit' | 'dailyBudgetReached' | 'isSending' | 'aiMessagesLimit'> & Pick<ReturnType<typeof useChatComposerAttachments>, 'clearImage' | 'removeTextFile'>
 
-export function useChatSendQueue({ threadScroll, chatContainerRef, activeStepsRef, setActiveSteps, setSendError, setLastFailedSend, scrollToBottom, setIsTyping, runStreamingSend, handleFailedSend, blockSubmission, isOnline, atMessageLimit, dailyBudgetReached, handleAllowanceExceeded, handleDailyBudgetExceeded, locale, queryClient, t, isSending, aiMessagesLimit, allowanceText, setInput, clearImage, removeTextFile }: ChatSendQueueInputs) {
+export function useChatSendQueue(threadScroll: ChatSendQueueInputs['threadScroll'], chatContainerRef: ChatSendQueueInputs['chatContainerRef'], activeStepsRef: ChatSendQueueInputs['activeStepsRef'], setActiveSteps: ChatSendQueueInputs['setActiveSteps'], setSendError: ChatSendQueueInputs['setSendError'], setLastFailedSend: ChatSendQueueInputs['setLastFailedSend'], scrollToBottom: ChatSendQueueInputs['scrollToBottom'], setIsTyping: ChatSendQueueInputs['setIsTyping'], runStreamingSend: ChatSendQueueInputs['runStreamingSend'], handleFailedSend: ChatSendQueueInputs['handleFailedSend'], blockSubmission: ChatSendQueueInputs['blockSubmission'], isOnline: ChatSendQueueInputs['isOnline'], atMessageLimit: ChatSendQueueInputs['atMessageLimit'], dailyBudgetReached: ChatSendQueueInputs['dailyBudgetReached'], handleAllowanceExceeded: ChatSendQueueInputs['handleAllowanceExceeded'], handleDailyBudgetExceeded: ChatSendQueueInputs['handleDailyBudgetExceeded'], locale: ChatSendQueueInputs['locale'], queryClient: ChatSendQueueInputs['queryClient'], t: ChatSendQueueInputs['t'], isSending: ChatSendQueueInputs['isSending'], aiMessagesLimit: ChatSendQueueInputs['aiMessagesLimit'], allowanceText: ChatSendQueueInputs['allowanceText'], setInput: ChatSendQueueInputs['setInput'], clearImage: ChatSendQueueInputs['clearImage'], removeTextFile: ChatSendQueueInputs['removeTextFile']) {
   const beginSend = useCallback(() => {
     useChatStore.getState().beginReply()
     threadScroll.followLatest(chatContainerRef.current?.scrollTop)
@@ -363,9 +194,9 @@ export function useChatSendQueue({ threadScroll, chatContainerRef, activeStepsRe
   return { reportHistoryFailure, sendPreparedAttempt, performSend, blockAnswerInteraction }
 }
 
-type ChatSendMessageInputs = Pick<ReturnType<typeof useChatComposerState>, 'input' | 't' | 'setSendError' | 'addMessage' | 'allowanceText'> & Pick<ReturnType<typeof useChatComposerAttachments>, 'selectedTextFile' | 'selectedImage' | 'imagePreview'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'attachments' | 'dailyBudgetReached' | 'atMessageLimit'> & Pick<ReturnType<typeof useChatComposerSession>, 'isOnline'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'> & Pick<ReturnType<typeof useChatSendQueue>, 'reportHistoryFailure' | 'sendPreparedAttempt'>
+type ChatSendMessageInputs = Pick<ChatComposerState, 'input' | 't' | 'setSendError' | 'addMessage' | 'allowanceText'> & Pick<ReturnType<typeof useChatComposerAttachments>, 'selectedTextFile' | 'selectedImage' | 'imagePreview'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'attachments' | 'dailyBudgetReached' | 'atMessageLimit'> & Pick<ReturnType<typeof useChatComposerSession>, 'isOnline'> & Pick<ReturnType<typeof useChatComposerScroll>, 'scrollToBottom'> & Pick<ReturnType<typeof useChatSendQueue>, 'reportHistoryFailure' | 'sendPreparedAttempt'>
 
-export function useChatSendMessage({ input, selectedTextFile, t, attachments, isOnline, setSendError, dailyBudgetReached, atMessageLimit, addMessage, allowanceText, scrollToBottom, reportHistoryFailure, selectedImage, imagePreview, sendPreparedAttempt }: ChatSendMessageInputs) {
+export function useChatSendMessage(input: ChatSendMessageInputs['input'], selectedTextFile: ChatSendMessageInputs['selectedTextFile'], t: ChatSendMessageInputs['t'], attachments: ChatSendMessageInputs['attachments'], isOnline: ChatSendMessageInputs['isOnline'], setSendError: ChatSendMessageInputs['setSendError'], dailyBudgetReached: ChatSendMessageInputs['dailyBudgetReached'], atMessageLimit: ChatSendMessageInputs['atMessageLimit'], addMessage: ChatSendMessageInputs['addMessage'], allowanceText: ChatSendMessageInputs['allowanceText'], scrollToBottom: ChatSendMessageInputs['scrollToBottom'], reportHistoryFailure: ChatSendMessageInputs['reportHistoryFailure'], selectedImage: ChatSendMessageInputs['selectedImage'], imagePreview: ChatSendMessageInputs['imagePreview'], sendPreparedAttempt: ChatSendMessageInputs['sendPreparedAttempt']) {
   const sendMessage = useCallback(
     async (content?: string, requestContext?: 'followUp' | Pick<ChatClientContext, 'previousStartingStep' | 'selectedOfferKey'>, contextualRequest?: NonNullable<ChatStoreState['contextualSuggestion']>) => {
       const { messageOrigin, previousStartingStep, selectedOfferKey, sendsComposerDraft } = resolveChatRequestContext(content, requestContext)
@@ -439,9 +270,9 @@ export function useChatSendMessage({ input, selectedTextFile, t, attachments, is
   return { sendMessage }
 }
 
-type ChatSendRetryInputs = Pick<ReturnType<typeof useChatComposerSession>, 'isOnline'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'atMessageLimit' | 'isSending'> & Pick<ReturnType<typeof useChatComposerState>, 'queryClient' | 'queuePaused' | 'queueReady' | 'queuedPrompts' | 'lastFailedSend' | 'setInput'> & Pick<ReturnType<typeof useChatSendQueue>, 'performSend'>
+type ChatSendRetryInputs = Pick<ReturnType<typeof useChatComposerSession>, 'isOnline'> & Pick<ReturnType<typeof useChatComposerAvailability>, 'atMessageLimit' | 'isSending'> & Pick<ChatComposerState, 'queryClient' | 'queuePaused' | 'queueReady' | 'queuedPrompts' | 'lastFailedSend' | 'setInput'> & Pick<ReturnType<typeof useChatSendQueue>, 'performSend'>
 
-export function useChatSendRetry({ isOnline, atMessageLimit, queryClient, isSending, queuePaused, queueReady, queuedPrompts, lastFailedSend, performSend, setInput }: ChatSendRetryInputs) {
+export function useChatSendRetry(isOnline: ChatSendRetryInputs['isOnline'], atMessageLimit: ChatSendRetryInputs['atMessageLimit'], queryClient: ChatSendRetryInputs['queryClient'], isSending: ChatSendRetryInputs['isSending'], queuePaused: ChatSendRetryInputs['queuePaused'], queueReady: ChatSendRetryInputs['queueReady'], queuedPrompts: ChatSendRetryInputs['queuedPrompts'], lastFailedSend: ChatSendRetryInputs['lastFailedSend'], performSend: ChatSendRetryInputs['performSend'], setInput: ChatSendRetryInputs['setInput']) {
   const sendQueuedPrompt = useCallback((id: string) => sendQueuedChatPrompt(
     useChatStore.getState(), id, isOnline && !atMessageLimit, queryClient.getQueryData<Profile>(profileKeys.detail()),
   ), [atMessageLimit, isOnline, queryClient])
@@ -454,66 +285,19 @@ export function useChatSendRetry({ isOnline, atMessageLimit, queryClient, isSend
   const retryLastSend = useCallback(async () => {
     const sendState = useChatStore.getState()
     if (!lastFailedSend || sendState.isTyping || sendState.streamingMessageId !== null) return
-    const attempted = lastFailedSend
-    const startingAccountGeneration = getAccountGeneration()
-    const succeeded = await performSend(attempted, true)
-    if (
-      getAccountGeneration() === startingAccountGeneration &&
-      succeeded &&
-      attempted.clearDraftOnSuccess &&
-      attempted.restoredDraftRevision !== null &&
-      useChatStore.getState().draftRevision === attempted.restoredDraftRevision
-    ) {
-      setInput('')
-      globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
-    }
+    await retryComposerSend(lastFailedSend, performSend, useChatStore.getState, getAccountGeneration, () => { setInput(''); globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY) })
   }, [lastFailedSend, performSend, setInput])
 
   const canRetryLastSend = lastFailedSend !== null && !isSending
   return { sendQueuedPrompt, canRetryLastSend, retryLastSend }
 }
 
-type ChatBreakdownRefreshInputs = Pick<ReturnType<typeof useChatComposerState>, 'queryClient'>
+type ChatBreakdownRefreshInputs = Pick<ChatComposerState, 'queryClient'>
 
-export function useChatBreakdownRefresh({ queryClient }: ChatBreakdownRefreshInputs) {
+export function useChatBreakdownRefresh(queryClient: ChatBreakdownRefreshInputs['queryClient']) {
   function handleBreakdownConfirmed() {
     void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
     void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
   }
   return { handleBreakdownConfirmed }
-}
-
-function createComposerReply({ t, activeStepsRef, setActiveSteps, stopReply, setStreamingMessageId, setIsTyping, addMessage, scrollToBottom }: Pick<ChatStreamInputs, 't' | 'activeStepsRef' | 'setActiveSteps' | 'stopReply' | 'setStreamingMessageId' | 'setIsTyping' | 'addMessage' | 'scrollToBottom'>, attempted: ChatStreamRequest<File>) {
-
-  const startingAccountGeneration = getAccountGeneration()
-  const ownsAccount = () => getAccountGeneration() === startingAccountGeneration
-  let controller = new AbortController()
-  let idleTimer: ReturnType<typeof setTimeout> | undefined
-  const armIdleTimer = () => {
-    clearTimeout(idleTimer)
-    idleTimer = setTimeout(() => controller.abort(), CHAT_STREAM_IDLE_TIMEOUT_MS)
-  }
-
-  let draftMessageId: string | null = null
-  const firstReveal = { completion: Promise.resolve() }
-  const reply = new ChatReplyLifecycle({
-    getChat: useChatStore.getState, ownsAccount, getDraftMessageId: () => draftMessageId,
-    createMessageId: () => crypto.randomUUID(), stoppedMessage: t('shell.composer.queue.stopped'),
-    clearActivity: () => { activeStepsRef.current = []; setActiveSteps([]) }, abort: () => controller.abort(),
-  })
-  const acceptSelectedOffer = () => {
-    if (ownsAccount() && attempted.selectedOfferKey) useChatStore.getState().dismissOffer(attempted.selectedOfferKey)
-  }
-  const { isCancelled, isHidden, stop } = reply
-  stopReply.current = stop
-  const ensureDraftMessage = () => {
-    if (draftMessageId) return draftMessageId
-    draftMessageId = crypto.randomUUID()
-    setStreamingMessageId(draftMessageId)
-    setIsTyping(false)
-    addMessage({ id: draftMessageId, role: 'ai', content: '', timestamp: new Date(), answerToBlockId: attempted.blockAnswer?.blockId })
-    firstReveal.completion = new Promise<void>((resolve) => scrollToBottom(resolve))
-    return draftMessageId
-  }
-  return { ownsAccount, armIdleTimer, firstReveal, reply, isCancelled, isHidden, stop, ensureDraftMessage, acceptSelectedOffer, getDraftMessageId: () => draftMessageId, resetController: () => { controller = new AbortController(); return controller }, clearIdleTimer: () => clearTimeout(idleTimer) }
 }

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback,useEffect,useRef,useState } from 'react'
 import { computeHabitReorderPositions } from '@orbit/shared/utils'
 import type { DragItem } from '../habit-list/tree-helpers'
-import type { useHabitListCollapseState, useHabitListItems, useHabitListQueries } from './use-habit-list-state'
+import type { useHabitListCollapseState,useHabitListItems,useHabitListQueries } from './use-habit-list-state'
 
 type HabitListDragInputs = {
   collapse: Pick<ReturnType<typeof useHabitListCollapseState>, 'collapsedIds' | 'setCollapsedIds'>
@@ -9,7 +9,7 @@ type HabitListDragInputs = {
   queries: Pick<ReturnType<typeof useHabitListQueries>, 'habitsById' | 'getChildren' | 'reorderHabitsMutation'>
 }
 
-export function useHabitListDrag({ collapse, items, queries }: HabitListDragInputs) {
+export function useHabitListDrag(collapse: HabitListDragInputs['collapse'], items: HabitListDragInputs['items'], queries: HabitListDragInputs['queries']) {
   const { collapsedIds, setCollapsedIds } = collapse
   const { habitsById, getChildren, reorderHabitsMutation } = queries
   const [isDraggingList, setIsDraggingList] = useState(false)

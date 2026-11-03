@@ -1,24 +1,23 @@
-import { buildCalendarHeaderState, resolveCalendarProfileSettings, type CalendarProfile } from '@orbit/shared/utils/calendar-navigation'
+import { buildCalendarRangeBounds,buildCalendarGridColumns,createCalendarDateActions } from '@orbit/shared/hooks'
+import { buildCalendarHeaderState,resolveCalendarProfileSettings,type CalendarProfile } from '@orbit/shared/utils/calendar-navigation'
 import { useOpenHabit } from '@/hooks/use-open-habit'
 import { useCalendars } from '@/hooks/use-calendars'
-import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from 'react'
-import { addMonths, addDays, subMonths, addWeeks, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns'
-import { enUS, ptBR } from 'date-fns/locale'
-import { useLocale, useTranslations } from 'next-intl'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { formatAPIDate, formatWeekdayLabels, parseAPIDate, formatCalendarSpanEnds, formatCalendarDayTitle, orderCalendarDayEntries, filterCalendarSyncEventsByDate, isCalendarDayLoggable, buildCalendarRangeModel, CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO, CALENDAR_MONTH_SWIPE_THRESHOLD, filterRecurringDayMap, MAX_RANGE_DAYS, resolveCalendarRangeEnd, resolveCalendarMonthDisplayState, resolveCalendarEventsDisplayState, shouldOpenCalendarImportSheet, calendarImportRouteRequestKey } from '@orbit/shared/utils'
+import { useState,useMemo,useCallback,useEffect,useLayoutEffect,useRef,type Dispatch,type SetStateAction,type ReactNode } from 'react'
+import { enUS,ptBR } from 'date-fns/locale'
+import { useLocale,useTranslations } from 'next-intl'
+import { useRouter,useSearchParams } from 'next/navigation'
+import { formatWeekdayLabels,formatCalendarSpanEnds,formatCalendarDayTitle,orderCalendarDayEntries,filterCalendarSyncEventsByDate,isCalendarDayLoggable,buildCalendarRangeModel,CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,CALENDAR_MONTH_SWIPE_THRESHOLD,filterRecurringDayMap,resolveCalendarMonthDisplayState,resolveCalendarEventsDisplayState,shouldOpenCalendarImportSheet,calendarImportRouteRequestKey } from '@orbit/shared/utils'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
-import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
+import { useCalendarData,useCalendarRange } from '@/hooks/use-calendar-data'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
-import { useAccountBoundRouteRequest, useAccountScopedState } from '@/hooks/use-session-reset'
+import { useAccountBoundRouteRequest,useAccountScopedState } from '@/hooks/use-session-reset'
 import { useCalendarAutoSyncState } from '@/hooks/use-calendar-auto-sync'
-import { useLogHabit } from '@/hooks/use-habits'
+import { useLogHabit } from '@/hooks/use-habit-logging'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { buildCalendarMonthModel } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
-import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
+import { type CalendarImportActionHandle,type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 import { useSheetHost } from '@/components/ui/sheet'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -27,7 +26,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { useToday } from '../../today-provider'
 import { useAccountClockSeed } from '@/lib/account-clock'
 import { CalendarHeader } from './calendar-shell'
-import { useCalendarNavigation, type CalendarView } from '@/hooks/use-calendar-navigation'
+import { useCalendarNavigation,type CalendarView } from '@/hooks/use-calendar-navigation'
 
 type MonthSlide = 'left' | 'right' | null
 
@@ -175,33 +174,10 @@ type CalendarRangeStateInputs = Pick<CalendarPageContentProps, 'monthQuery' | 'v
 function useCalendarRangeState({ monthQuery, weekAnchor, todayKey, weekStartsOn, rangeOffset, agendaOffset, view, profile, t }: CalendarRangeStateInputs) {
   const { dayMap, isLoading, error, refresh } = monthQuery
 
-  const weekStart = useMemo(
-    () => startOfWeek(weekAnchor ?? parseAPIDate(todayKey), { weekStartsOn }),
-    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is derived from profile.weekStartDay every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [todayKey, weekAnchor, weekStartsOn],
+  const { weekStart, weekEnd, rangeEnd, agendaStart, agendaEnd, queryBounds } = useMemo(
+    () => buildCalendarRangeBounds(todayKey, weekAnchor, weekStartsOn, rangeOffset, agendaOffset, view),
+    [todayKey, weekAnchor, weekStartsOn, rangeOffset, agendaOffset, view],
   )
-  const weekEnd = useMemo(
-    () => endOfWeek(weekAnchor ?? parseAPIDate(todayKey), { weekStartsOn }),
-    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is derived from profile.weekStartDay every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [todayKey, weekAnchor, weekStartsOn],
-  )
-  const rangeEnd = useMemo(
-    () => resolveCalendarRangeEnd(parseAPIDate(todayKey), rangeOffset),
-    [rangeOffset, todayKey],
-  )
-  const rangeBounds = useMemo(() => {
-    return { lo: addDays(rangeEnd, -(MAX_RANGE_DAYS - 1)), hi: rangeEnd }
-  }, [rangeEnd])
-
-  const agendaStart = useMemo(() => addDays(parseAPIDate(todayKey), agendaOffset * 7), [agendaOffset, todayKey])
-  const agendaEnd = useMemo(() => addDays(agendaStart, 6), [agendaStart])
-
-  const [gridStartDate, gridEndDate] =
-    view === 'week'
-      ? [weekStart, weekEnd]
-      : view === 'agenda'
-        ? [agendaStart, agendaEnd]
-        : [rangeBounds.lo, rangeBounds.hi]
 
   const {
     dayMap: rangeDayMap,
@@ -209,8 +185,8 @@ function useCalendarRangeState({ monthQuery, weekAnchor, todayKey, weekStartsOn,
     error: rangeError,
     refresh: rangeRefresh,
   } = useCalendarRange(
-    gridStartDate,
-    gridEndDate,
+    queryBounds.lo,
+    queryBounds.hi,
     Boolean(profile) && (view === 'week' || view === 'range' || view === 'agenda'),
   )
 
@@ -225,18 +201,7 @@ function useCalendarRangeState({ monthQuery, weekAnchor, todayKey, weekStartsOn,
 type CalendarDisplayStateInputs = Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'weekEnd' | 'dayMap' | 'rangeDayMap' | 'error' | 'refresh' | 'rangeError' | 'rangeRefresh'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'todayKey' | 't' | 'locale' | 'setCalendarHasError'> & Pick<ReturnType<typeof useCalendarEventState>, 'showRecurring'> & Pick<CalendarPageContentProps, 'view'>
 
 function useCalendarDisplayState({ weekStart, weekEnd, todayKey, dayMap, showRecurring, rangeDayMap, t, locale, view, error, refresh, rangeError, rangeRefresh, setCalendarHasError }: CalendarDisplayStateInputs) {
-  const gridColumns = useMemo<TimeGridColumn[]>(() => {
-    const days = eachDayOfInterval({ start: weekStart, end: weekEnd })
-    return days.map((date) => {
-      const dateStr = formatAPIDate(date)
-      return {
-        date,
-        dateStr,
-        isToday: dateStr === todayKey,
-        isFuture: dateStr > todayKey,
-      }
-    })
-  }, [weekStart, weekEnd, todayKey])
+  const gridColumns = useMemo(() => buildCalendarGridColumns(weekStart, weekEnd, todayKey), [weekStart, weekEnd, todayKey])
 
   const displayMonthDayMap = useMemo(
     () => filterRecurringDayMap(dayMap, showRecurring),
@@ -271,57 +236,9 @@ function useCalendarDisplayState({ weekStart, weekEnd, todayKey, dayMap, showRec
 
 type CalendarDateActionsInputs = Pick<ReturnType<typeof useCalendarScreenSession>, 'setMonthSlide' | 'todayKey' | 'setWeekSlide' | 'setWeekAnchor' | 'setIsDayDetailOpen' | 'setRangeOffset'> & Pick<CalendarPageContentProps, 'currentMonth' | 'setSelectedDay' | 'view'>
 
-function useCalendarDateActions({ setMonthSlide, currentMonth, setSelectedDay, todayKey, setWeekSlide, setWeekAnchor, view, setIsDayDetailOpen, setRangeOffset }: CalendarDateActionsInputs) {
-  const prevMonth = useCallback(() => {
-    setMonthSlide('left')
-    const month = subMonths(currentMonth, 1)
-    setSelectedDay(formatAPIDate(month))
-  }, [currentMonth, setSelectedDay, setMonthSlide])
-
-  const nextMonth = useCallback(() => {
-    setMonthSlide('right')
-    const month = addMonths(currentMonth, 1)
-    setSelectedDay(formatAPIDate(month))
-  }, [currentMonth, setSelectedDay, setMonthSlide])
-
-  const selectMonth = useCallback((month: number, year: number) => {
-    setMonthSlide(null)
-    setSelectedDay(formatAPIDate(new Date(year, month, 1)))
-  }, [setSelectedDay, setMonthSlide])
-
-  const goToCurrentMonth = useCallback(() => {
-    setMonthSlide(null)
-    setSelectedDay(todayKey)
-  }, [setSelectedDay, todayKey, setMonthSlide])
-
-  const prevWeek = useCallback(() => {
-    setWeekSlide('left')
-    setWeekAnchor((a) => subWeeks(a ?? parseAPIDate(todayKey), 1))
-  }, [setWeekAnchor, setWeekSlide, todayKey])
-  const nextWeek = useCallback(() => {
-    setWeekSlide('right')
-    setWeekAnchor((a) => addWeeks(a ?? parseAPIDate(todayKey), 1))
-  }, [setWeekAnchor, setWeekSlide, todayKey])
-  const goToCurrentWeek = useCallback(() => {
-    setWeekSlide(null)
-    setWeekAnchor(parseAPIDate(todayKey))
-  }, [todayKey, setWeekAnchor, setWeekSlide])
-
-  const openDay = useCallback(
-    (dateStr: string) => {
-      setSelectedDay(dateStr)
-      if (view === 'week') setIsDayDetailOpen(true)
-    },
-    [setIsDayDetailOpen, setSelectedDay, view],
-  )
-
-  const previousRange = useCallback(() => {
-    setRangeOffset((offset) => offset - 1)
-  }, [setRangeOffset])
-  const nextRange = useCallback(() => {
-    setRangeOffset((offset) => Math.min(0, offset + 1))
-  }, [setRangeOffset])
-  return { nextMonth, prevMonth, prevWeek, nextWeek, goToCurrentWeek, previousRange, nextRange, goToCurrentMonth, selectMonth, openDay }
+function useCalendarDateActions(inputs: CalendarDateActionsInputs) {
+  const actions = useMemo(() => createCalendarDateActions({ ...inputs }), [inputs])
+  return actions
 }
 
 type CalendarEntryStateInputs = Pick<CalendarPageContentProps, 'selectedDay' | 'monthQuery'> & Pick<ReturnType<typeof useCalendarDisplayState>, 'activeDayMap'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'hasProAccess' | 'todayKey' | 'logHabit'> & Pick<ReturnType<typeof useCalendarEventState>, 'calendarEventsResult'>

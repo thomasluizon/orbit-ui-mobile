@@ -36,6 +36,8 @@ import { useUIStore } from '@/stores/ui-store'
 
 const renderer = require('react-test-renderer')
 const mountedTrees = new Set<ReturnType<typeof renderer.create>>()
+vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
+
 vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: false, openSettings: vi.fn() }) }))
 
 const TestRenderer = {
@@ -129,6 +131,26 @@ vi.mock('@/hooks/use-habits', () => ({
   useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }),
   useHabitDetail: () => ({ data: null, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
+
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => ({ mutateAsync: modalFeedback.create, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-create-sub-habit', () => {
+
+return { useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-habit-queries')>()
+  return { ...actual, useHabitDetail: () => ({ data: null, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }) }
+})
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-tags', () => ({
   useAssignTags: () => ({ mutateAsync: vi.fn(), isPending: false }),

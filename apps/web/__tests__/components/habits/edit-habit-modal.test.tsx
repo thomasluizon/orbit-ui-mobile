@@ -71,6 +71,20 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabitDetail: () => ({ ...mockHabitDetailResult, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
 
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({
+    mutateAsync: mockUpdateMutateAsync,
+    isPending: false,
+    error: null,
+  }) }
+})
+
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-habit-queries')>()
+  return { ...actual, useHabitDetail: () => ({ ...mockHabitDetailResult, refetch: vi.fn().mockResolvedValue(undefined) }) }
+})
+
 vi.mock('@/hooks/use-habit-form', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/hooks/use-habit-form')>()
   return { useHabitForm: () => {

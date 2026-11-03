@@ -12,6 +12,16 @@ vi.mock('@/hooks/use-habits', async () => {
   const queries = await import('@/hooks/use-habit-queries')
   return { useHabits: queries.useHabits, useLogHabit: () => ({ mutate: vi.fn() }) }
 })
+
+vi.mock('@/hooks/use-habit-queries', async () => {
+const queries = await import('@/hooks/use-habit-queries')
+return { useHabits: queries.useHabits }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn() }) }
+})
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('react-i18next', async (importOriginal) => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ i18n: { language: 'en' }, t: (key: string, values?: { name?: string }) => values?.name ? `${key}:${values.name}` : key }) }))
 

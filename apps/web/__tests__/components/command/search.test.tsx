@@ -21,6 +21,12 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }), useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }))
 
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }),
+  useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }
+})
+
 function result(habits: NormalizedHabit[], pending = false, error = false) {
   return { data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: habits.length, totalPages: habits.length === 20 ? 2 : 1, currentPage: 1 }, isPending: pending, isFetching: pending, isSuccess: !pending && !error, isError: error, refetch: mocks.retry }
 }

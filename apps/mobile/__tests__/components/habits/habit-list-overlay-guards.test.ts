@@ -56,7 +56,7 @@ describe('habit list overlay caller guards', () => {
   it.each(overlays)('$name mounts with an accessible name without a nested scroller', (overlay) => {
     const caller = source(overlay.sourcePath)
     const sheet = source('components/ui/sheet.tsx')
-    const habitList = source('components/habit-list.tsx') + source('components/habits/use-parent-prompt-queue.ts')
+    const habitList = source('components/habit-list.tsx') + source('../../packages/shared/src/hooks/parent-prompt-queue-core.ts')
     expect(caller).toMatch(overlay.mount)
     expect(caller).toContain(overlay.firstLine)
     if (overlay.name === 'move parent sheet') {
@@ -68,6 +68,6 @@ describe('habit list overlay caller guards', () => {
     expect(habitList).not.toContain('onConfirmSkip=')
     expect(habitList).toContain('onUndo: () => releaseOptimisticResolution(habitId, record, habit.parentId)')
     expect(habitList).toContain('await mutation')
-    expect(habitList).toMatch(/const mutation = skipMutation\.mutateAsync\(\{\s*habitId,\s*date: record\.date,\s*onUndo:/)
+    expect(habitList).toMatch(/const mutation = skipHabit\(\{\s*habitId,\s*date: record\.date,\s*onUndo:/)
   })
 })

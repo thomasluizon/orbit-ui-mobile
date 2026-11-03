@@ -99,6 +99,21 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }),
   useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
+
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabits: () => ({ data: { habitsById: new Map() } }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn() }) }
+})
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))

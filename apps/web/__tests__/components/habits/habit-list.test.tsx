@@ -130,10 +130,19 @@ function SkipToastHost() {
     : <Toast {...toast} />
 }
 
-vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/hooks/use-habit-queries')>()),
-  useHabitCountLoaded: () => accountHabitCount,
-}))
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
+const actual = await importOriginal<typeof import('@/hooks/use-habit-queries')>()
+return { ...actual,
+  useHabits: (...args: Parameters<typeof actual.useHabits>) => skipFlow.active ? actual.useHabits(...args) : ({
+    ...moveQueryResult(args[0]),
+    isLoading: false,
+    error: null,
+    dataUpdatedAt: mockHabitsDataUpdatedAt,
+    refetch: habitListRefetch,
+
+  }),
+  useHabitCountLoaded: () => accountHabitCount }
+})
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { timeZone: accountDate.timeZone, hasProAccess: accountDate.hasProAccess } }),
@@ -250,6 +259,43 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
   useReorderHabits: () => ({ mutate: reorderHabitsMutate, isPending: false }),
   useMoveHabitParent: () => ({ mutateAsync: moveHabitParentMutateAsync, isPending: false }),
 })
+})
+
+vi.mock('@/hooks/use-bulk-log-habits', () => {
+
+return { useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }) }
+})
+
+vi.mock('@/hooks/use-bulk-skip-habits', () => {
+
+return { useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', async (importOriginal) => {
+const actual = await importOriginal<typeof import('@/hooks/use-habit-logging')>()
+return { ...actual,
+  useLogHabit: () => ({ mutateAsync: logHabitMutateAsync, mutate: vi.fn(), isPending: false }),
+  useSkipHabit: () => skipFlow.active ? actual.useSkipHabit() : ({ mutateAsync: skipHabitMutateAsync, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-delete-habit', () => {
+
+return { useDeleteHabit: () => ({ mutateAsync: deleteHabitMutateAsync, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-duplicate-habit', () => {
+
+return { useDuplicateHabit: () => ({ mutateAsync: duplicateHabitMutateAsync, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-reorder-habits', () => {
+
+return { useReorderHabits: () => ({ mutate: reorderHabitsMutate, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-move-habit-parent', () => {
+
+return { useMoveHabitParent: () => ({ mutateAsync: moveHabitParentMutateAsync, isPending: false }) }
 })
 
 vi.mock('@/hooks/use-habit-visibility', async () => {
