@@ -1,7 +1,7 @@
 import { createElement, useEffect, useState } from 'react'
 import { act, create } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createUsePlanAnnouncement } from '../hooks'
+import { createUsePlanAnnouncement } from '@orbit/shared/hooks/plan-announcement-core'
 import type { StateHook } from '../hooks/state-adapter'
 import en from '../i18n/en.json'
 import pt from '../i18n/pt-BR.json'
