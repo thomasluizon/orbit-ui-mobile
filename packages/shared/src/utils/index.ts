@@ -1,3 +1,4 @@
+export { loadModule, MODULE_LOAD_TIMEOUT_MS } from './load-module'
 export { getSegmentedControlLayout } from './segmented-control'
 export { achievementEmoji } from './achievement-emoji'
 export { createStepUpSessionState, type StepUpSessionState } from './step-up-session'

@@ -3,7 +3,7 @@ import type { ChatStoreState } from '../stores/chat-store'
 import type { ChatClientContext,ChatResponse } from '../types/chat'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS, ChatReplyLifecycle } from '../chat'
 import type { ChatStreamRequest, ChatStreamResult, PreparedChatTurn, ChatTurnReconciliation, sendChatStreamTurn } from '../chat'
-import type { ChatTurnOptions } from '../chat/stream-turn'
+import { loadModule } from '../utils/load-module'
 import { classifySendFailure,reconcileAgentQueries } from './chat-composer-core'
 import type { createChatThreadScroll } from './chat-thread-scroll-core'
 import { getFriendlyErrorMessage } from '../utils/error-utils'
@@ -30,6 +30,7 @@ type Translate = (key: string, values?: Record<string, string | number | Date>) 
 type Current<Value> = { current: Value }
 interface ComposerReplyContext extends Pick<ChatStoreState, 'setStreamingMessageId' | 'setIsTyping' | 'addMessage'> {
   t: Translate
+  onModuleLoadError: (error: unknown) => void
   activeStepsRef: Current<ToolStep[]>
   setActiveSteps: (steps: ToolStep[]) => void
   stopReply: Current<(() => void) | null>
@@ -84,13 +85,14 @@ export async function runComposerStream<Image, Payload>(context: ComposerStreamC
   }
   let finalReceived = false
   try {
+    const { executeComposerStream } = await loadModule(() => import('./chat-stream-execution-core'), context.onModuleLoadError)
+    if (isHidden()) return { kind: 'cancelled' }
     if (turnReconciliation.isPending) await turnReconciliation.reconcile(() => reconcileAgentQueries(queryClient))
     if (isHidden()) return { kind: 'cancelled' }
     attempted.turn ??= { key: context.createTurnKey(), payload: context.buildChatFormData(attempted) }
-    const open = prepareComposerTransport(context.createTransport(attempted, {
-      resetController: () => { controller = new AbortController(); return controller }, armIdleTimer, ownsAccount,
-    }, onAccepted), attempted.turn)
-    const { executeComposerStream } = await import('./chat-stream-execution-core')
+    const open = context.createTransport(attempted, {
+      resetController: () => { controller.abort(); controller = new AbortController(); return controller }, armIdleTimer, ownsAccount,
+    }, onAccepted)
     const outcome = await executeComposerStream(context, attempted, attempted.turn, {
       reply, ensureDraftMessage, getDraftMessageId: () => draftMessageId, getFirstReveal: () => firstReveal,
       ownsAccount,
@@ -101,24 +103,9 @@ export async function runComposerStream<Image, Payload>(context: ComposerStreamC
     return resolveComposerStreamFailure(context, reply, error, draftMessageId)
   } finally {
     clearTimeout(idleTimer)
+    controller.abort()
     if (stopReply.current === stop) stopReply.current = null
     reply.finish(finalReceived)
-  }
-}
-
-function prepareComposerTransport<Payload>(open: ChatTurnOptions<Payload>['open'], turn: PreparedChatTurn<Payload>): ChatTurnOptions<Payload>['open'] {
-  let firstConnection: Promise<
-    { ok: true; connection: Awaited<ReturnType<typeof open>> } | { ok: false; error: unknown }
-  > | null = (async () => {
-    try { return { ok: true, connection: await open(turn) } }
-    catch (error) { return { ok: false, error } }
-  })()
-  return async replayTurn => {
-    if (!firstConnection) return open(replayTurn)
-    const response = await firstConnection
-    firstConnection = null
-    if (response.ok) return response.connection
-    throw response.error
   }
 }
 
@@ -136,7 +123,7 @@ function resolveComposerStreamFailure(
 }
 
 export async function settleComposerResponse(...args: Parameters<typeof import('./chat-stream-execution-core').settleComposerResponse>) {
-  const { settleComposerResponse: settle } = await import('./chat-stream-execution-core')
+  const { settleComposerResponse: settle } = await loadModule(() => import('./chat-stream-execution-core'), args[0].onModuleLoadError)
   return settle(...args)
 }
 

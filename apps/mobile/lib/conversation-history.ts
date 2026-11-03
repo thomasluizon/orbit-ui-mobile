@@ -1,3 +1,4 @@
+import { captureError } from '@/lib/sentry'
 import { API } from '@orbit/shared/api'
 import { createConversationHistory, conversationPagePath } from '@orbit/shared/chat'
 import { conversationKeys } from '@orbit/shared/query'
@@ -9,6 +10,7 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
 
 export const conversationHistory = createConversationHistory({
+  onModuleLoadError: captureError,
   getState: useChatStore.getState,
   setState: useChatStore.setState,
   getAccountGeneration,

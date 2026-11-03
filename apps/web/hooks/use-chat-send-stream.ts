@@ -1,5 +1,7 @@
 'use client'
 
+import { reportModuleLoadError } from '@/lib/report-module-load-error'
+
 import { retryComposerSend } from '@orbit/shared/hooks'
 import { createComposerFailureHandlers } from '@orbit/shared/hooks'
 import { runComposerStream,settleComposerResponse } from '@orbit/shared/hooks'
@@ -83,7 +85,7 @@ type ChatResponseSettlementInputs = Pick<ChatComposerState, 'threadScroll' | 'se
 
 export function useChatResponseSettlement(inputs: ChatResponseSettlementInputs) {
   const applyFinalResponse = useCallback((...args: Parameters<typeof settleComposerResponse> extends [unknown, ...infer Args] ? Args : never) => settleComposerResponse({
-    ...inputs, getChat: useChatStore.getState, setChat: useChatStore.setState, createMessageId: () => crypto.randomUUID(),
+    ...inputs, onModuleLoadError: reportModuleLoadError, getChat: useChatStore.getState, setChat: useChatStore.setState, createMessageId: () => crypto.randomUUID(),
   }, ...args), [inputs])
   return { applyFinalResponse }
 }
@@ -122,7 +124,7 @@ type ChatStreamInputs = Pick<ChatComposerState, 't' | 'activeStepsRef' | 'setAct
 
 export function useChatStream(inputs: ChatStreamInputs) {
   const runStreamingSend = useCallback((attempted: ChatStreamRequest<File> & { turn?: PreparedChatTurn<FormData> }, onAccepted?: () => void) => runComposerStream({
-    ...inputs, getAccountGeneration, getChat: useChatStore.getState, createMessageId: () => crypto.randomUUID(), createTurnKey: () => crypto.randomUUID(), isAbortError,
+    ...inputs, onModuleLoadError: reportModuleLoadError, getAccountGeneration, getChat: useChatStore.getState, createMessageId: () => crypto.randomUUID(), createTurnKey: () => crypto.randomUUID(), isAbortError,
     createTransport: (request, reply, accepted) => createComposerStreamTransport({ attempted: request, ...reply, onAccepted: accepted, t: inputs.t }),
   }, attempted, onAccepted), [inputs])
   return { runStreamingSend }

@@ -9,7 +9,7 @@ import { consumeChatSseStream, createChatSseParser } from '../chat/sse-stream'
 import { applyChatPlan, PlanAnnouncementTracker, planStepPresentation, planStepStatus, planStepStatusKey, reconcileChatPlanApproval, reconcileChatPlanExecution, reconcileChatPlanRevision, unplannedToolSteps, updateMessagePlanStep } from '../chat/astra-plan'
 import { getChatReplyState } from '../chat/reply-state'
 import { buildChatFinalMessageFields } from '../chat/final-message'
-import { restoreConversationPage } from '../chat/conversation-history'
+import { restoreConversationPage } from '../chat/conversation-restore'
 import { makeAstraPlan, makeApprovalPlan, planOperationId } from '../test-support/astra-plan-fixtures'
 import { makeConversationPage } from '../test-support/conversation-fixtures'
 

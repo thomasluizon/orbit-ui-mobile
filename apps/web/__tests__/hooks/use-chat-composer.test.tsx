@@ -356,7 +356,7 @@ describe('web useChatComposer streaming send', () => {
     act(() => useAuthStore.getState().setAuth({ userId: 'account-a', name: 'A', email: 'a@example.test' }))
     useChatStore.setState({ conversationLoaded: false })
     const history = createConversationHistory({
-      getState: useChatStore.getState, setState: useChatStore.setState, getAccountGeneration,
+      onModuleLoadError: vi.fn(), getState: useChatStore.getState, setState: useChatStore.setState, getAccountGeneration,
       read: async () => null, remove: async () => {},
     })
     vi.mocked(conversationHistory.isReady).mockReturnValueOnce(false)
@@ -1361,62 +1361,27 @@ describe('web useChatComposer streaming send', () => {
     expect(useChatStore.getState().queuePaused).toBe(true)
   })
 
-  it.each(['final', 'free final', 'error'] as const)('settles a stopped reply through the keyed replay path for %s', async terminal => {
-    const { QueryClient } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
-    const cache = new QueryClient()
-    cache.setQueryData(profileKeys.detail(), createMockProfile({ aiMessagesUsed: 2, aiMessagesLimit: 5 }))
-    mocks.queryClient.setQueryData.mockImplementation(cache.setQueryData.bind(cache))
-    onTestFinished(() => { cache.clear(); mocks.queryClient.setQueryData.mockReset() })
+  it('does not POST again after Stop aborts a running stream', async () => {
     const stream = controlledSseResponse()
-    const replay = controlledSseResponse()
-    mocks.fetch.mockResolvedValueOnce(stream.response).mockResolvedValueOnce(replay.response)
+    mocks.fetch.mockResolvedValueOnce(stream.response)
     const { result: composer } = renderHook(() => useChatComposer())
-    let firstSend!: Promise<void>
-    act(() => { firstSend = composer.current.sendMessage('running') })
+    let sending!: Promise<void>
+    act(() => { sending = composer.current.sendMessage('running') })
+    await act(async () => { await vi.dynamicImportSettled() })
     await act(async () => { await composer.current.sendMessage('waiting') })
     await act(async () => {
       composer.current.composerProps.replyControl!.onStop()
       stream.fail(new DOMException('Aborted', 'AbortError'))
+      await sending
     })
-    expect(useChatStore.getState()).toMatchObject({ replyActive: false, queuePaused: true, isTyping: false })
+    expect(mocks.fetch).toHaveBeenCalledTimes(1)
     expect(composer.current.isSending).toBe(false)
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
-    const request = (index: number) => mocks.fetch.mock.calls[index]![1] as RequestInit
-    expect(new Headers(request(1).headers).get('Idempotency-Key')).toBe(new Headers(request(0).headers).get('Idempotency-Key'))
-    expect(request(1).body).toBe(request(0).body)
-    await act(async () => {
-      replay.enqueue(frame('{"type":"delta","text":"Hidden replay text"}'))
-      replay.enqueue(frame('{"type":"step","domain":"habits","access":"write"}'))
-      replay.enqueue(terminal === 'error'
-        ? frame('{"type":"error","error":"Interrupted","status":503,"code":"CHAT_TURN_INTERRUPTED"}')
-        : finalFrame(makeChatResponse({
-          aiMessage: 'Hidden final text', messageAllowanceConsumed: terminal === 'final',
-          actions: [{ type: 'CreateHabit', status: 'Success' }, { type: 'CreateGoal', status: 'Success' }],
-          operations: [{ operationId: 'operation-1', sourceName: 'CreateHabit', riskClass: 'Low', confirmationRequirement: 'None', status: 'Succeeded' }],
-        })))
-      replay.close()
-      await firstSend
-    })
-    expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(terminal === 'final' ? 3 : 2)
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith(terminal === 'error'
-      ? { queryKey: habitKeys.all, refetchType: 'all' } : { queryKey: habitKeys.lists() },
-      ...(terminal === 'error' ? [{ throwOnError: true }] : []))
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith(terminal === 'error'
-      ? { queryKey: goalKeys.all, refetchType: 'all' } : { queryKey: goalKeys.lists() },
-      ...(terminal === 'error' ? [{ throwOnError: true }] : []))
-    if (terminal !== 'error') expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
-    expect(useChatStore.getState()).toMatchObject({ replyActive: false, queuePaused: true, queueReady: false, streamingMessageId: null })
-    expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['waiting'])
-    expect(composer.current.sendError).toBeNull()
-    expect(composer.current.activeSteps).toEqual([])
-    expect(useChatStore.getState().messages.filter(message => message.role === 'ai').map(message => message.content)).toEqual(['shell.composer.queue.stopped'])
-    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(useChatStore.getState().queuePaused).toBe(true)
   })
 
-  it('retains the stopped turn key for retry when its settlement replay disconnects', async () => {
+  it('retries a stopped turn only when requested and keeps its original key', async () => {
     const stream = controlledSseResponse()
     mocks.fetch.mockResolvedValueOnce(stream.response)
-      .mockRejectedValueOnce(new TypeError('Disconnected during settlement'))
       .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
     const { result: composer } = renderHook(() => useChatComposer())
     let firstSend!: Promise<void>
@@ -1432,8 +1397,9 @@ describe('web useChatComposer streaming send', () => {
     expect(useChatStore.getState().queuePaused).toBe(true)
     await act(async () => { await composer.current.retryLastSend() })
     const request = (index: number) => mocks.fetch.mock.calls[index]![1] as RequestInit
-    expect(new Headers(request(2).headers).get('Idempotency-Key')).toBe(new Headers(request(0).headers).get('Idempotency-Key'))
-    expect(request(2).body).toBe(request(0).body)
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(new Headers(request(1).headers).get('Idempotency-Key')).toBe(new Headers(request(0).headers).get('Idempotency-Key'))
+    expect(request(1).body).toBe(request(0).body)
     expect(useChatStore.getState().messages.filter(message => message.role === 'user').map(message => message.content)).toEqual(['running'])
     expect(useChatStore.getState().queuedPrompts.map(prompt => prompt.content)).toEqual(['waiting'])
     expect(mocks.queryClient.setQueryData).toHaveBeenCalledOnce()
@@ -2012,6 +1978,7 @@ describe('web useChatComposer streaming send', () => {
       ? new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000, userId: 'test-user', refreshFailed: false }))
       : sseResponse(finalFrame(makeChatResponse()))))
     render(<AppLayout><p>Support</p></AppLayout>)
+    await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(true))
 
     if (action === 'open') fireEvent.click(screen.getByRole('button', { name: 'todayAstra.openConversation' }))
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'my streak reset' } })

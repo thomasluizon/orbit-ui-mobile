@@ -1,5 +1,7 @@
 'use client'
 
+import { reportModuleLoadError } from '@/lib/report-module-load-error'
+
 import { createConversationHistory } from '@orbit/shared/chat'
 import { conversationKeys } from '@orbit/shared/query'
 import { createApiClientError } from '@orbit/shared/utils'
@@ -11,6 +13,7 @@ import { getHeldAccountId } from '@/stores/auth-store'
 import { useChatStore } from '@/stores/chat-store'
 
 export const conversationHistory = createConversationHistory({
+  onModuleLoadError: reportModuleLoadError,
   getState: useChatStore.getState,
   setState: useChatStore.setState,
   getAccountGeneration,

@@ -25,7 +25,7 @@ export async function executeComposerStream<Image, Payload>(
   const { turnReconciliation, queryClient, applyFinalResponse, activeStepsRef, getChat, t } = context
   const outcome = await sendChatStreamTurn({
     turn,
-    isCancelled: reply.isCancelled,
+    isCancelled: reply.isHidden,
     open,
     callbacks: createComposerStreamCallbacks(context, reply.isHidden, ensureDraftMessage, getDraftMessageId),
   })

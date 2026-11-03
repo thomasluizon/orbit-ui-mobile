@@ -1,4 +1,4 @@
-import { restoreConversationPage } from '../chat/conversation-history'
+import { restoreConversationPage } from '../chat/conversation-restore'
 import { makeRevisedConversationPage, storedOperationId } from '../test-support/conversation-fixtures'
 import { astraOfferFixture, makeOfferedPreview, makeOfferedTaskPreview } from '../test-support/astra-offer-fixtures'
 import { makePlacementPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeBulkCreateExecutionResponse, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, makeParentChoicePreview, resolveParentChoicePreview, makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'

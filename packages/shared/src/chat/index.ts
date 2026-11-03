@@ -158,3 +158,5 @@ export { createUseAstraOffer, canShowAstraOffer, astraOfferDestination, type Ast
 export * from './conversation-history'
 export * from './conversation-history-hook'
 export * from './astra-plan'
+
+export { restoreConversationPage } from './conversation-restore'

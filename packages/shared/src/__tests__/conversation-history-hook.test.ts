@@ -16,7 +16,7 @@ function setup() {
   let mounted = false
   let cleanup: (() => void) | undefined
   const getAccountGeneration = () => generation
-  const history = createConversationHistory({ getState: store.getState, setState: store.setState, getAccountGeneration, read, remove })
+  const history = createConversationHistory({ onModuleLoadError: vi.fn(), getState: store.getState, setState: store.setState, getAccountGeneration, read, remove })
   const useHistory = createUseConversationHistory({
     useState: state.useState, history, getAccountGeneration,
     useEffect: effect => {
@@ -115,7 +115,7 @@ describe('conversation history controls', () => {
     session.read.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail }))
     session.render()
     const pending = session.history.latest()
-    await Promise.resolve()
+    await vi.dynamicImportSettled()
     if (invalidation === 'unmount') session.unmount()
     else session.changeAccount()
     reject(new Error('Offline'))
@@ -130,7 +130,7 @@ describe('conversation history controls', () => {
     let reject!: (error: Error) => void
     session.read.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail }))
     const pending = session.render().loadEarlier()
-    await Promise.resolve()
+    await vi.dynamicImportSettled()
     session.changeAccount()
     reject(new Error('Offline'))
     expect(await pending).toBe(false)

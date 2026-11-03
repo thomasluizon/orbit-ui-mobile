@@ -1,3 +1,4 @@
+import { captureError } from '@/lib/sentry'
 import { retryComposerSend,createComposerFailureHandlers,runComposerStream,settleComposerResponse,CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { isChatReplyActive,prepareConversationSend,resolveChatRequestContext } from '@orbit/shared/chat'
 import { conversationHistory } from '@/lib/conversation-history'
@@ -79,7 +80,7 @@ type ChatResponseSettlementInputs = Pick<ChatComposerState, 'threadScroll' | 'se
 
 export function useChatResponseSettlement(inputs: ChatResponseSettlementInputs) {
   const applyFinalResponse = useCallback((...args: Parameters<typeof settleComposerResponse> extends [unknown, ...infer Args] ? Args : never) => settleComposerResponse({
-    ...inputs, getChat: useChatStore.getState, setChat: useChatStore.setState, createMessageId: createChatMessageId,
+    ...inputs, onModuleLoadError: captureError, getChat: useChatStore.getState, setChat: useChatStore.setState, createMessageId: createChatMessageId,
   }, ...args), [inputs])
   return { applyFinalResponse }
 }
@@ -127,7 +128,7 @@ type ChatStreamInputs = Pick<ChatComposerState, 't' | 'activeStepsRef' | 'setAct
 
 export function useChatStream(inputs: ChatStreamInputs) {
   const runStreamingSend = useCallback((attempted: ChatStreamRequest<ImagePicker.ImagePickerAsset> & { turn?: PreparedChatTurn<FormData> }, onAccepted?: () => void) => runComposerStream({
-    ...inputs, getAccountGeneration, getChat: useChatStore.getState, createMessageId: createChatMessageId, createTurnKey: randomUUID, isAbortError,
+    ...inputs, onModuleLoadError: captureError, getAccountGeneration, getChat: useChatStore.getState, createMessageId: createChatMessageId, createTurnKey: randomUUID, isAbortError,
     createTransport: (request, reply, accepted) => createComposerStreamTransport({ attempted: request, ...reply, onAccepted: accepted, t: inputs.t }),
   }, attempted, onAccepted), [inputs])
   return { runStreamingSend }

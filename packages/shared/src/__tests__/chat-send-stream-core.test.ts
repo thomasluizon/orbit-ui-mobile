@@ -24,7 +24,7 @@ function composerHarness() {
   const queryClient = new QueryClient()
   queryClient.setQueryData(profileKeys.detail(), createMockProfile({ aiMessagesUsed: 0 }))
   const context = {
-    ...chat, getChat: () => chat, setChat, queryClient,
+    ...chat, onModuleLoadError: vi.fn(), getChat: () => chat, setChat, queryClient,
     t: (key: string) => key, allowanceText: (key: string) => key,
     activeStepsRef: { current: [] as { domain: string; access: string }[] }, setActiveSteps: vi.fn(),
     stopReply: { current: null as (() => void) | null }, scrollToBottom: (revealed?: () => void) => revealed?.(),
