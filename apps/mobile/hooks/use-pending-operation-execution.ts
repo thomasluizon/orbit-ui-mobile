@@ -2,7 +2,8 @@ import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AgentExecuteOperationResponse, RevisePendingOperationRequest } from '@orbit/shared/types'
 import { buildChatClientContext } from '@orbit/shared/chat'
-import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { captureError } from '@/lib/sentry'
+import { getFriendlyErrorMessage, loadModule } from '@orbit/shared/utils'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
 export type { PendingExecutionResult, PreparedStepUpExecution } from './chat-pending-operation-actions'
@@ -23,11 +24,11 @@ export function usePendingOperationExecution({ handleExecutedOperation }: UsePen
   const loadOperations = useCallback(async () => {
     const intendedGeneration = getAccountGeneration()
     try {
-      const { createPendingOperations } = await import('./chat-pending-operation-actions')
+      const { createPendingOperations } = await loadModule(() => import('./chat-pending-operation-actions'), captureError)
       if (intendedGeneration !== getAccountGeneration()) return { ok: false as const, error: t('errors.api.accountChanged') }
       return { ok: true as const, operations: createPendingOperations(handleExecutedOperation, t, i18n, getClientContext, intendedGeneration) }
     } catch (error) {
-      return { ok: false as const, error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic') }
+      return { ok: false as const, error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'), stale: false }
     }
   }, [getClientContext, handleExecutedOperation, i18n, t])
   const revisePendingOperationForBubble = useCallback((id: string, request: RevisePendingOperationRequest) => trackBatch(async () => {

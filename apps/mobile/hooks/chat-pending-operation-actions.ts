@@ -34,37 +34,38 @@ interface UsePendingOperationExecutionOptions {
 
 
 export function createPendingOperations(handleExecutedOperation: UsePendingOperationExecutionOptions['handleExecutedOperation'], t: ReturnType<typeof useTranslation>['t'], i18n: ReturnType<typeof useTranslation>['i18n'], getClientContext: () => ReturnType<typeof buildChatClientContext>, intendedGeneration: number) {
- const results=createPendingOperationResults(handleExecutedOperation,t)
+ const results=createPendingOperationResults(handleExecutedOperation,t,intendedGeneration)
  const challenge=createPendingStepUpChallenge(getClientContext,i18n,results,intendedGeneration)
  const execution=createPendingStepUpExecution(getClientContext,results,intendedGeneration)
  return { ...createPendingBubbleRevisions(getClientContext,results,intendedGeneration), ...createPendingBubbleExecution(getClientContext,results,intendedGeneration), ...createPendingBubbleStepUp(challenge.preparePendingOperationStepUp,execution.verifyAndExecutePendingOperationStepUp) }
 }
 
-function createPendingOperationResults(handleExecutedOperation: UsePendingOperationExecutionOptions['handleExecutedOperation'], t: ReturnType<typeof useTranslation>['t']) {
-  const pendingOperationFailure = (error: unknown) => ({
+function createPendingOperationResults(handleExecutedOperation: UsePendingOperationExecutionOptions['handleExecutedOperation'], t: ReturnType<typeof useTranslation>['t'], intendedGeneration: number) {
+  const accountChangedResult = () => ({ ok: false as const, error: t('errors.api.accountChanged') })
+  const pendingOperationFailure = (error: unknown) => intendedGeneration !== getAccountGeneration() ? accountChangedResult() : ({
     ok: false as const,
     error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
     stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404),
   })
   const revisionResult = (id: string, accountGeneration: number, result: PendingOperationRevisionResult) => {
-    if (accountGeneration === getAccountGeneration()) {
-      reconcileChatPlanRevision(useChatStore.getState(), id, result)
-    }
+    if (accountGeneration !== getAccountGeneration()) return accountChangedResult()
+    reconcileChatPlanRevision(useChatStore.getState(), id, result)
     return { ok: true as const, result }
   }
   const executionResult = async (id: string, accountGeneration: number, execution: AgentExecuteOperationResponse): Promise<PendingExecutionResult> => {
-    if (accountGeneration === getAccountGeneration()) {
-      reconcileChatPlanExecution(useChatStore.getState(), id, execution)
-    }
+    if (accountGeneration !== getAccountGeneration()) return accountChangedResult()
+    reconcileChatPlanExecution(useChatStore.getState(), id, execution)
     await handleExecutedOperation(execution)
+    if (accountGeneration !== getAccountGeneration()) return accountChangedResult()
     return { ok: true, response: execution }
   }
-  return { pendingOperationFailure, revisionResult, executionResult }
+  return { accountChangedResult, pendingOperationFailure, revisionResult, executionResult }
 }
 
-function createPendingBubbleRevisions(getClientContext: () => ReturnType<typeof buildChatClientContext>, { pendingOperationFailure, revisionResult }: ReturnType<typeof createPendingOperationResults>, intendedGeneration: number) {
+function createPendingBubbleRevisions(getClientContext: () => ReturnType<typeof buildChatClientContext>, { accountChangedResult, pendingOperationFailure, revisionResult }: ReturnType<typeof createPendingOperationResults>, intendedGeneration: number) {
   const revisePendingOperationForBubble = async (id: string, request: RevisePendingOperationRequest) => {
     const accountGeneration = intendedGeneration
+    if (accountGeneration !== getAccountGeneration()) return accountChangedResult()
     try {
       const result = await apiClient<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
         method: 'POST',
@@ -78,6 +79,7 @@ function createPendingBubbleRevisions(getClientContext: () => ReturnType<typeof 
   }
   const refreshPendingOperationForBubble = async (id: string) => {
     const accountGeneration = intendedGeneration
+    if (accountGeneration !== getAccountGeneration()) return accountChangedResult()
     try {
       const result = await apiClient<PendingOperationRevisionResult>(`${API.ai.pendingOperationRefresh(id)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`, {
         method: 'POST',
@@ -91,15 +93,16 @@ function createPendingBubbleRevisions(getClientContext: () => ReturnType<typeof 
   return { revisePendingOperationForBubble, refreshPendingOperationForBubble }
 }
 
-function createPendingBubbleExecution(getClientContext: () => ReturnType<typeof buildChatClientContext>, { pendingOperationFailure, executionResult }: ReturnType<typeof createPendingOperationResults>, intendedGeneration: number) {
+function createPendingBubbleExecution(getClientContext: () => ReturnType<typeof buildChatClientContext>, { accountChangedResult, pendingOperationFailure, executionResult }: ReturnType<typeof createPendingOperationResults>, intendedGeneration: number) {
   const confirmAndExecutePendingOperation = async (pendingOperationId: string): Promise<PendingExecutionResult> => {
     const accountGeneration = intendedGeneration
+    if (accountGeneration !== getAccountGeneration()) return accountChangedResult()
     try {
       const confirmation = await apiClient<PendingAgentOperationConfirmation>(`${API.ai.pendingOperationConfirm(pendingOperationId)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`, {
         method: "POST",
       })
-      if (accountGeneration === getAccountGeneration())
-        reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.plan)
+      if (accountGeneration !== getAccountGeneration()) return accountChangedResult()
+      reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.plan)
       const execution = await apiClient<AgentExecuteOperationResponse>(API.ai.pendingOperationExecute(pendingOperationId), {
         method: "POST",
         body: JSON.stringify({
@@ -116,19 +119,21 @@ function createPendingBubbleExecution(getClientContext: () => ReturnType<typeof 
   return { confirmAndExecutePendingOperation }
 }
 
-function createPendingStepUpChallenge(getClientContext: () => ReturnType<typeof buildChatClientContext>, i18n: ReturnType<typeof useTranslation>['i18n'], { pendingOperationFailure }: ReturnType<typeof createPendingOperationResults>, intendedGeneration: number) {
+function createPendingStepUpChallenge(getClientContext: () => ReturnType<typeof buildChatClientContext>, i18n: ReturnType<typeof useTranslation>['i18n'], { accountChangedResult, pendingOperationFailure }: ReturnType<typeof createPendingOperationResults>, intendedGeneration: number) {
   const preparePendingOperationStepUp = async (pendingOperationId: string): Promise<PreparedStepUpExecution> => {
     const accountGeneration = intendedGeneration
+    if (accountGeneration !== getAccountGeneration()) return accountChangedResult()
     try {
       const confirmation = await apiClient<PendingAgentOperationConfirmation>(`${API.ai.pendingOperationConfirm(pendingOperationId)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`, {
         method: "POST",
       })
-      if (accountGeneration === getAccountGeneration())
-        reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.plan)
+      if (accountGeneration !== getAccountGeneration()) return accountChangedResult()
+      reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.plan)
       const challenge = await apiClient<AgentStepUpChallenge>(API.ai.pendingOperationStepUp(pendingOperationId), {
         method: "POST",
         body: JSON.stringify({ language: i18n.language }),
       })
+      if (accountGeneration !== getAccountGeneration()) return accountChangedResult()
       return {
         ok: true,
         challenge,
@@ -142,9 +147,10 @@ function createPendingStepUpChallenge(getClientContext: () => ReturnType<typeof 
   return { preparePendingOperationStepUp }
 }
 
-function createPendingStepUpExecution(getClientContext: () => ReturnType<typeof buildChatClientContext>, { pendingOperationFailure, executionResult }: ReturnType<typeof createPendingOperationResults>, intendedGeneration: number) {
+function createPendingStepUpExecution(getClientContext: () => ReturnType<typeof buildChatClientContext>, { accountChangedResult, pendingOperationFailure, executionResult }: ReturnType<typeof createPendingOperationResults>, intendedGeneration: number) {
   const verifyAndExecutePendingOperationStepUp = async (pendingOperationId: string, challengeId: string, code: string, confirmationToken: string): Promise<PendingExecutionResult> => {
     const accountGeneration = intendedGeneration
+    if (accountGeneration !== getAccountGeneration()) return accountChangedResult()
     try {
       await apiClient<{
         id: string
@@ -152,6 +158,7 @@ function createPendingStepUpExecution(getClientContext: () => ReturnType<typeof 
         method: "POST",
         body: JSON.stringify({ challengeId, code }),
       })
+      if (accountGeneration !== getAccountGeneration()) return accountChangedResult()
       const execution = await apiClient<AgentExecuteOperationResponse>(API.ai.pendingOperationExecute(pendingOperationId), {
         method: "POST",
         body: JSON.stringify({ confirmationToken, clientContext: getClientContext() }),

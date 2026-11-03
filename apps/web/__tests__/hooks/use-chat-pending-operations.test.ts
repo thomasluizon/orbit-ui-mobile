@@ -1,7 +1,9 @@
+import { captureException } from '@sentry/nextjs'
+import { reloadStaleBuildOnce } from '@/lib/stale-build-recovery'
 import { makeApprovalPlan, planOperationId } from '@orbit/shared/test-support/astra-plan-fixtures'
 import { useChatStore } from '@/stores/chat-store'
 import { offerConversationId } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
@@ -9,6 +11,9 @@ import { UnrecognizedActionError } from 'next/dist/client/components/unrecognize
 import { useVersionGateStore } from '@/stores/version-gate-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
+
+vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
+vi.mock('@/lib/stale-build-recovery', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/stale-build-recovery')>(), reloadStaleBuildOnce: vi.fn() }))
 
 const mocks = vi.hoisted(() => ({
   confirmPendingOperation: vi.fn(),
@@ -67,6 +72,27 @@ describe('useChatPendingOperations', () => {
   afterEach(() => {
     setAccountEventOrigin(null)
     vi.clearAllMocks()
+  })
+
+  it('returns a reported friendly error and recovers a rejected missing-build import', async () => {
+    const error = new Error('Loading chunk failed')
+    error.name = 'ChunkLoadError'
+    vi.doMock('@/hooks/chat-pending-operation-actions', () => ({ get then() { throw error } }))
+    onTestFinished(() => vi.doUnmock('@/hooks/chat-pending-operation-actions'))
+    const { result } = renderHook(() => useChatPendingOperations(vi.fn(async () => {})))
+    let outcome: unknown
+    let rejection: unknown
+    await act(async () => {
+      try { outcome = await result.current.confirmAndExecutePendingOperation(planOperationId) }
+      catch (failure) { rejection = failure }
+      await vi.dynamicImportSettled()
+    })
+    expect(rejection).toBeUndefined()
+    expect(captureException).toHaveBeenCalledExactlyOnceWith(error)
+    expect(reloadStaleBuildOnce).toHaveBeenCalledOnce()
+    expect(outcome).toEqual({ ok: false, error: 'chat.sendError', stale: false })
+    expect(result.current.isPendingOperationBusy).toBe(false)
+    expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
   })
 
   it('retains the initiating account while the operation implementation loads', async () => {

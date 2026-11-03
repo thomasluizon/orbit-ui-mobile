@@ -1,8 +1,9 @@
+import { captureError } from '@/lib/sentry'
 import { makeApprovalPlan, planOperationId } from '@orbit/shared/test-support/astra-plan-fixtures'
 import { useChatStore } from '@/stores/chat-store'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { offerConversationId } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { buildChatClientContext } from '@orbit/shared/chat'
 import { ApiClientError } from '@orbit/shared/utils'
@@ -17,6 +18,8 @@ const query = new URLSearchParams({ clientContext: JSON.stringify(clientContext)
 
 const TestRenderer = require('react-test-renderer')
 const React = require('react')
+
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const mocks = vi.hoisted(() => ({
   apiClient: vi.fn(),
@@ -70,6 +73,47 @@ async function renderExecution(
 describe('usePendingOperationExecution step-up flow', () => {
   beforeEach(() => {
     mocks.apiClient.mockReset()
+  })
+
+  it('returns a reported friendly error for a rejected actions import', async () => {
+    const error = new Error('Loading module failed')
+    vi.doMock('@/hooks/chat-pending-operation-actions', () => ({ get then() { throw error } }))
+    onTestFinished(() => vi.doUnmock('@/hooks/chat-pending-operation-actions'))
+    const hook = await renderExecution(vi.fn(async () => {}))
+    let outcome: unknown
+    await TestRenderer.act(async () => {
+      outcome = await hook.current.confirmAndExecutePendingOperation(planOperationId)
+      await vi.dynamicImportSettled()
+    })
+    expect(captureError).toHaveBeenCalledExactlyOnceWith(error)
+    expect(outcome).toEqual({ ok: false, error: 'chat.sendError', stale: false })
+    expect(hook.current.isPendingOperationBusy).toBe(false)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['revision', 1], ['refresh', 1], ['confirmation', 1], ['execution', 2],
+    ['step-up confirmation', 1], ['challenge', 2], ['verification', 1], ['verified execution', 2],
+  ] as const)('stops after the account changes during %s', async (stage, roundTrips) => {
+    const onExecuted = vi.fn(async () => {})
+    const revision = pendingOperationRevisionResultSchema.parse({ isSuccess: true, error: null, pendingOperationId: planOperationId, preview: null, cancelled: true })
+    const confirmation = { pendingOperationId: planOperationId, confirmationToken: 'token', expiresAtUtc: '2099-01-01T00:00:00Z' }
+    const response = stage === 'revision' || stage === 'refresh' ? revision
+      : stage === 'challenge' ? { challengeId: 'challenge' } : stage === 'execution' || stage === 'verified execution' ? makeExecution('Saved') : confirmation
+    if (roundTrips === 2) mocks.apiClient.mockResolvedValueOnce(confirmation)
+    mocks.apiClient.mockImplementationOnce(() => { advanceAccountGeneration(); return Promise.resolve(response) })
+    const hook = await renderExecution(onExecuted)
+    let outcome: unknown
+    await TestRenderer.act(async () => {
+      if (stage === 'revision') outcome = await hook.current.revisePendingOperationForBubble(planOperationId, { previewFingerprint: 'current', items: [] })
+      else if (stage === 'refresh') outcome = await hook.current.refreshPendingOperationForBubble(planOperationId)
+      else if (stage === 'step-up confirmation' || stage === 'challenge') outcome = await hook.current.prepareStepUpForBubble(planOperationId)
+      else if (stage === 'verification' || stage === 'verified execution') outcome = await hook.current.verifyStepUpForBubble(planOperationId, 'challenge', '123456', 'token')
+      else outcome = await hook.current.confirmAndExecutePendingOperation(planOperationId)
+    })
+    expect(outcome).toMatchObject({ ok: false, error: 'errors.api.accountChanged' })
+    expect(mocks.apiClient).toHaveBeenCalledTimes(roundTrips)
+    expect(onExecuted).not.toHaveBeenCalled()
   })
 
   it('retains the initiating account while the operation implementation loads', async () => {

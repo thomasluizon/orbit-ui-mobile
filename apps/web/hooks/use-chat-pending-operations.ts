@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import { getFriendlyErrorMessage, loadModule } from '@orbit/shared/utils'
+import { reportModuleLoadError } from '@/lib/report-module-load-error'
 import { useLocale, useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse, RevisePendingOperationRequest } from '@orbit/shared/types/ai'
 import { getHeldAccountId } from '@/stores/auth-store'
@@ -17,19 +19,40 @@ export function useChatPendingOperations(onExecuted: (response: AgentExecuteOper
   }, [])
   const loadOperations = useCallback(async () => {
     const intent = { intendedAccountId: getHeldAccountId(), accountGeneration: getAccountGeneration() }
-    const { createChatPendingOperations } = await import('./chat-pending-operation-actions')
-    return createChatPendingOperations(t, locale, onExecuted, intent)
+    try {
+      const { createChatPendingOperations } = await loadModule(() => import('./chat-pending-operation-actions'), reportModuleLoadError)
+      if (intent.intendedAccountId !== getHeldAccountId() || intent.accountGeneration !== getAccountGeneration())
+        return { ok: false as const, error: t('errors.api.accountChanged') }
+      return { ok: true as const, operations: createChatPendingOperations(t, locale, onExecuted, intent) }
+    } catch (error) {
+      return { ok: false as const, error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'), stale: false }
+    }
   }, [t, locale, onExecuted])
   const revisePendingOperationForBubble = useCallback((id: string, request: RevisePendingOperationRequest) =>
-    trackBatch(async () => (await loadOperations()).revisePendingOperationForBubble(id, request)), [loadOperations, trackBatch])
+    trackBatch(async () => {
+      const loaded = await loadOperations()
+      return loaded.ok ? loaded.operations.revisePendingOperationForBubble(id, request) : loaded
+    }), [loadOperations, trackBatch])
   const refreshPendingOperationForBubble = useCallback((id: string) =>
-    trackBatch(async () => (await loadOperations()).refreshPendingOperationForBubble(id)), [loadOperations, trackBatch])
+    trackBatch(async () => {
+      const loaded = await loadOperations()
+      return loaded.ok ? loaded.operations.refreshPendingOperationForBubble(id) : loaded
+    }), [loadOperations, trackBatch])
   const confirmAndExecutePendingOperation = useCallback((id: string) =>
-    trackBatch(async () => (await loadOperations()).confirmAndExecutePendingOperation(id)), [loadOperations, trackBatch])
+    trackBatch(async () => {
+      const loaded = await loadOperations()
+      return loaded.ok ? loaded.operations.confirmAndExecutePendingOperation(id) : loaded
+    }), [loadOperations, trackBatch])
   const prepareStepUpForBubble = useCallback((id: string) =>
-    trackBatch(async () => (await loadOperations()).prepareStepUpForBubble(id)), [loadOperations, trackBatch])
+    trackBatch(async () => {
+      const loaded = await loadOperations()
+      return loaded.ok ? loaded.operations.prepareStepUpForBubble(id) : loaded
+    }), [loadOperations, trackBatch])
   const verifyStepUpForBubble = useCallback((id: string, challengeId: string, code: string, token: string) =>
-    trackBatch(async () => (await loadOperations()).verifyStepUpForBubble(id, challengeId, code, token)), [loadOperations, trackBatch])
+    trackBatch(async () => {
+      const loaded = await loadOperations()
+      return loaded.ok ? loaded.operations.verifyStepUpForBubble(id, challengeId, code, token) : loaded
+    }), [loadOperations, trackBatch])
   return {
     isPendingOperationBusy: batchCount > 0,
     trackCardOperation: trackBatch,
