@@ -11,8 +11,10 @@ import * as motion from '@/lib/motion'
 import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
 
 vi.mock('expo-clipboard', () => ({ }))
+vi.mock('@/lib/conversation-history', () => ({ conversationHistory: { latest: vi.fn(() => Promise.resolve(false)) } }))
 vi.mock('@/components/ui/markdown', () => ({ Markdown: ({ children }: { children: string }) => <Text>{children}</Text> }))
-vi.mock('@/hooks/use-habits', () => ({}))
+vi.mock('@/hooks/use-habit-queries', () => ({}))
+vi.mock('@/hooks/use-habit-logging', () => ({}))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))

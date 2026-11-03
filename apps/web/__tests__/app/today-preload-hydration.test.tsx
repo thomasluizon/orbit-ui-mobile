@@ -220,7 +220,7 @@ describe('Today preload hydration', () => {
         totalCount: 1,
       },
     })
-    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    await act(async () => { await vi.dynamicImportSettled(); await vi.advanceTimersByTimeAsync(1) })
     expect(hydrated.recoverableError).not.toHaveBeenCalled()
     expect(hydrated.container).toHaveTextContent('Monthly result')
     expect(hydrated.container).not.toHaveTextContent('Unfiltered seed')

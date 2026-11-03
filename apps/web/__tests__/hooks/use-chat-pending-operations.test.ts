@@ -272,9 +272,12 @@ describe('useChatPendingOperations', () => {
     const { result } = renderHook(() => useChatPendingOperations(onExecuted))
     const onUnexpectedOutcome = vi.fn()
 
-    void result.current.confirmAndExecutePendingOperation('pending-1').then(onUnexpectedOutcome, onUnexpectedOutcome)
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await act(async () => {
+      void result.current.confirmAndExecutePendingOperation('pending-1').then(onUnexpectedOutcome, onUnexpectedOutcome)
+      await vi.dynamicImportSettled()
+    })
 
+    expect(mocks.confirmPendingOperation).toHaveBeenCalledOnce()
     expect(useVersionGateStore.getState().reloadReason).toBe('appUpdated')
     expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(mocks.executePendingOperation).not.toHaveBeenCalled()
