@@ -66,11 +66,9 @@ export function useHabitListAccount({ view, requestedDate }: Pick<HabitListAccou
   return { accountGeneration, selectedDateStr, todayStr, i18n, t, settlementDateIsReadOnly, profile, accountTimeZone, selectedDate, rowDate, styles, tokens, accountHabitCount }
 }
 
-type HabitListScrollInputs = Pick<ReturnType<typeof useHabitListAccount>, 'accountGeneration' | 'selectedDateStr'> & { view: NonNullable<HabitListProps['view']> } & Pick<HabitListProps, 'isSelectMode' | 'onScroll'>
-
-export function useHabitListScroll({ accountGeneration, selectedDateStr }: Pick<HabitListScrollInputs, 'accountGeneration' | 'selectedDateStr'>, { view, isSelectMode, onScroll }: Pick<HabitListScrollInputs, 'view' | 'isSelectMode' | 'onScroll'>) {
+export function useHabitListScroll({ isSelectMode, onScroll }: Pick<HabitListProps, 'isSelectMode' | 'onScroll'>) {
   const clearance = useShellScrollerClearance()
-  const { minimumHeight, onLayout: reserveViewport, onOffset: reserveOffset } = useListScrollReservation(`${accountGeneration}:${view}:${selectedDateStr}`)
+  const { minimumHeight, onLayout: reserveViewport } = useListScrollReservation()
   const bulkBarStyle = { minHeight: minimumHeight, paddingBottom: clearance + (isSelectMode ? SPACING.s24 : SPACING.s0) }
   const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
   const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
@@ -88,18 +86,16 @@ export function useHabitListScroll({ accountGeneration, selectedDateStr }: Pick<
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const target = allListRef.current ?? drillListRef.current ?? stateListRef.current
       if (target) listScrollOffsets.current.set(target, e.nativeEvent.contentOffset.y)
-      reserveOffset(e.nativeEvent.contentOffset.y)
       onScroll?.(e.nativeEvent.contentOffset.y)
     },
-    [onScroll, reserveOffset],
+    [onScroll],
   )
   const handleMainListOffsetChange = useCallback(
     (offsetY: number) => {
       if (scrollContainerRef.current) listScrollOffsets.current.set(scrollContainerRef.current, offsetY)
-      reserveOffset(offsetY)
       onScroll?.(offsetY)
     },
-    [onScroll, reserveOffset],
+    [onScroll],
   )
   return { reserveViewport, scrollContainerRef, allListRef, drillListRef, stateListRef, handleListScroll, revealListFocus, bulkBarStyle, handleMainListOffsetChange }
 }

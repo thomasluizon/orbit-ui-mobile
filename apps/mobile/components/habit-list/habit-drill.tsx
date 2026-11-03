@@ -94,7 +94,7 @@ export function HabitDrill({
   const reduced = usePrefersReducedMotion()
   const source = useMemo(() => drill.drillLoading || drill.drillError ? [] : drill.drillChildren, [drill.drillLoading, drill.drillError, drill.drillChildren])
   const presentation = useRetainedHabitList(source, drill.currentParentId ?? '', reduced)
-  const reservation = useListScrollReservation(drill.currentParentId ?? '')
+  const reservation = useListScrollReservation()
   const renderItem: ListRenderItem<NormalizedHabit> = ({ item: child, index }) => {
     const nestedChildren = drill.getDrillChildren(child.id)
     return <HabitListMotionRow id={child.id} phase={presentation.rows[index]!.phase} offset={presentation.rows[index]!.offset} itemIds={presentation.itemIds} measure={presentation.measure}>{renderHabitCard(
@@ -192,7 +192,7 @@ export function HabitDrill({
       ListFooterComponent={drill.drillChildren.length > 0 ? addRow : null}
       contentContainerStyle={[styles.listContent, bulkBarStyle, { minHeight: reservation.minimumHeight }]}
       refreshControl={refreshControl}
-      onScroll={(event) => { reservation.onOffset(event.nativeEvent.contentOffset.y); onListScroll(event) }}
+      onScroll={onListScroll}
       onFocus={onFocus}
       scrollEventThrottle={16}
       onScrollBeginDrag={onScrollBeginDrag}

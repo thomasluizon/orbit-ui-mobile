@@ -9,7 +9,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 
 for (const reducedMotion of ['no-preference', 'reduce'] as const) {
-  test(`bulk skip retains every row and the scrolled viewport with ${reducedMotion}`, async ({ page, context }) => {
+  test(`bulk skip retains departing rows and releases the scrolled viewport afterward with ${reducedMotion}`, async ({ page, context }) => {
     await page.setViewportSize({ width: 412, height: 915 })
     await page.emulateMedia({ reducedMotion })
     const date = '2026-09-04'
@@ -32,11 +32,11 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     const scroller = page.locator('[data-shell-scroller]')
     await scroller.evaluate((element) => { element.scrollTop = 650 })
     await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBe(650)
-    const observations = scroller.evaluate((element) => new Promise<{ departures: number; offsets: number[] }>((resolve) => {
-      const offsets: number[] = []
+    const observations = scroller.evaluate((element) => new Promise<{ departures: number; offsets: { offset: number; departing: boolean }[] }>((resolve) => {
+      const offsets: { offset: number; departing: boolean }[] = []
       let departures = 0
       const sample = () => {
-        offsets.push(element.scrollTop)
+        offsets.push({ offset: element.scrollTop, departing: element.querySelector('[data-list-motion][inert]') !== null })
         departures = Math.max(departures, element.querySelectorAll('[data-list-motion][inert] [data-testid="habit-row"]').length)
         if (departures > 0 && element.querySelectorAll('[data-testid="habit-row"]').length === 0) resolve({ departures, offsets })
         else requestAnimationFrame(sample)
@@ -46,7 +46,8 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await page.getByRole('button', { name: en.habits.bulkBar.skip, exact: true }).click()
     const observed = await observations
     expect(observed.departures).toBe(items.length)
-    expect(observed.offsets.every((offset) => Math.abs(offset - 650) < 1), JSON.stringify(observed)).toBe(true)
+    expect(observed.offsets.filter(sample => sample.departing).every(sample => Math.abs(sample.offset - 650) < 1), JSON.stringify(observed)).toBe(true)
+    expect(observed.offsets.at(-1)!.offset).toBe(0)
     await expect(rows).toHaveCount(0)
   })
 }

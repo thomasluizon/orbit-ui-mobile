@@ -466,7 +466,7 @@ type HabitListModelInputs = { view: NonNullable<HabitListProps['view']> } & Pick
 
 function useHabitListModel(parameters: HabitListModelInputs) {
   const habitListAccount = useHabitListAccount(parameters)
-  const habitListScroll = useHabitListScroll(habitListAccount, parameters)
+  const habitListScroll = useHabitListScroll(parameters)
   const habitListQueries = useHabitListQueries(parameters, habitListAccount)
   const habitListCollapseState = useHabitListCollapseState()
   const habitRecentCompletionState = useHabitRecentCompletionState(habitListAccount)

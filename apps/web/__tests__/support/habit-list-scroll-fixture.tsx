@@ -47,7 +47,8 @@ window.skipScrollFixture = async (path, options) => {
   if (path !== API.habits.bulkSkip) throw new Error(`Unexpected fixture write: ${path}`)
   const input = JSON.parse(options.body) as { items: BulkSkipItemRequest[] }
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-  items = []
+  const skipped = new Set(input.items.map(item => item.habitId))
+  items = items.filter(item => !skipped.has(item.id))
   return bulkSkipResultSchema.parse({ results: input.items.map(({ habitId }, index) => ({ index, status: 'Success', habitId, error: null })) })
 }
 

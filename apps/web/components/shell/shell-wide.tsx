@@ -434,7 +434,7 @@ function ShellWideBackground({
         data-shell-scroll-origin=""
         className="pointer-events-none absolute left-0 top-0 h-px w-px"
       />
-      <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-page-viewport]]:h-full">{props.children}</div>
+      <div data-shell-page-content="" className="mx-auto min-h-full w-full max-w-[740px] has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)] has-[[data-page-viewport]]:h-full">{props.children}</div>
     </main>
   )
   return (
