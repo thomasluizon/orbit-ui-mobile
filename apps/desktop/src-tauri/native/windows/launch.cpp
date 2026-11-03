@@ -59,7 +59,7 @@ static LRESULT CALLBACK paint(HWND window, UINT message, WPARAM word, LPARAM par
         if (launch.mark) {
             Gdiplus::Graphics graphics(context);
             int size = MulDiv(256, GetDpiForWindow(window), 96);
-            size = (std::min)(size, (std::min)(bounds.right, bounds.bottom));
+            size = (std::min)(size, static_cast<int>((std::min)(bounds.right, bounds.bottom)));
             graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
             graphics.DrawImage(launch.mark.get(), (bounds.right - size) / 2,
                 (bounds.bottom - size) / 2, size, size);
