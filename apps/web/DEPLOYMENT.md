@@ -35,6 +35,8 @@ In repository **Settings > Secrets and variables > Actions**, set the repository
 | `STAGING_NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `PRODUCTION_NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Public Turnstile site key |
 | `STAGING_NEXT_PUBLIC_SENTRY_DSN`, `PRODUCTION_NEXT_PUBLIC_SENTRY_DSN` | Public browser Sentry DSN |
 
+For smoke authentication under bot protection enforcement, set `SMOKE_BOT_BYPASS` in **Settings > Environments > staging > Environment secrets** to match the staging API's `BotProtection__SmokeBypassSecret`. The staging smoke email must match the API's `SMOKE_TEST_EMAIL`. Set the same secret key with the production API's own bypass value in **Settings > Environments > production > Environment secrets** if production enforcement needs it. This secret is optional in the workflow. Each smoke job reads its own environment's value and adds the `X-Orbit-Smoke-Bypass` header only to the smoke origin's `/api/auth/send-code` and `/api/auth/verify-code` requests; those two BFF routes forward one bounded value to the API without returning or logging it. A passing staging smoke suite under enforcement proves the configured bypass works, and the workflow records `web-staging-smoke` on the selected commit.
+
 These `NEXT_PUBLIC_*` values are embedded during the image build. Set server-only values such as `API_BASE`, Sentry server configuration, and auth credentials in **Render Dashboard > service > Environment**. Do not pass them as Docker build arguments. The Render services must have their own environment settings before deployment.
 
 Keep automatic deploys disabled on both Render services; releases use explicit digest deployments.
