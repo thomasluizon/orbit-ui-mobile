@@ -34,6 +34,57 @@ describe('calendar screen state', () => {
     actions.previousRange()
     expect(range).toBe(-1)
   })
+
+  it('navigates previous and selected months without retaining a slide direction', () => {
+    const setSelectedDay = vi.fn()
+    const setMonthSlide = vi.fn()
+    const actions = createCalendarDateActions({ currentMonth: new Date(2026, 0, 1), todayKey: '2026-09-16',
+      setSelectedDay, setMonthSlide, setWeekSlide: vi.fn(), setWeekAnchor: vi.fn(),
+      setIsDayDetailOpen: vi.fn(), setRangeOffset: vi.fn() })
+    actions.prevMonth()
+    expect(setSelectedDay).toHaveBeenLastCalledWith('2025-12-01')
+    expect(setMonthSlide).toHaveBeenLastCalledWith('left')
+    actions.selectMonth(3, 2027)
+    expect(setSelectedDay).toHaveBeenLastCalledWith('2027-04-01')
+    expect(setMonthSlide).toHaveBeenLastCalledWith(null)
+  })
+
+  it('navigates from today or the selected week and returns to the current week', () => {
+    let anchor: Date | null = null
+    const setWeekSlide = vi.fn()
+    const actions = createCalendarDateActions({ currentMonth: new Date(2026, 8, 1), todayKey: '2026-09-16',
+      setSelectedDay: vi.fn(), setMonthSlide: vi.fn(), setWeekSlide,
+      setWeekAnchor: update => { anchor = typeof update === 'function' ? update(anchor) : update },
+      setIsDayDetailOpen: vi.fn(), setRangeOffset: vi.fn() })
+    actions.prevWeek()
+    expect(formatAPIDate(anchor!)).toBe('2026-09-09')
+    expect(setWeekSlide).toHaveBeenLastCalledWith('left')
+    actions.prevWeek()
+    expect(formatAPIDate(anchor!)).toBe('2026-09-02')
+    actions.nextWeek()
+    expect(formatAPIDate(anchor!)).toBe('2026-09-09')
+    expect(setWeekSlide).toHaveBeenLastCalledWith('right')
+    anchor = null
+    actions.nextWeek()
+    expect(formatAPIDate(anchor!)).toBe('2026-09-23')
+    actions.goToCurrentWeek()
+    expect(formatAPIDate(anchor!)).toBe('2026-09-16')
+    expect(setWeekSlide).toHaveBeenLastCalledWith(null)
+  })
+
+  it.each([
+    { view: 'month' as const, openEveryDay: false, opens: false },
+    { view: 'week' as const, openEveryDay: false, opens: true },
+    { view: 'month' as const, openEveryDay: true, opens: true },
+  ])('selects a day in $view with openEveryDay=$openEveryDay', ({ view, openEveryDay, opens }) => {
+    const setSelectedDay = vi.fn()
+    const setIsDayDetailOpen = vi.fn()
+    const actions = createCalendarDateActions({ currentMonth: new Date(2026, 8, 1), todayKey: '2026-09-16', view, openEveryDay,
+      setSelectedDay, setIsDayDetailOpen, setMonthSlide: vi.fn(), setWeekSlide: vi.fn(), setWeekAnchor: vi.fn(), setRangeOffset: vi.fn() })
+    actions.openDay('2026-09-20')
+    expect(setSelectedDay).toHaveBeenCalledExactlyOnceWith('2026-09-20')
+    expect(setIsDayDetailOpen.mock.calls).toEqual(opens ? [[true]] : [])
+  })
 })
 
 function calendarRangeHarness() {
