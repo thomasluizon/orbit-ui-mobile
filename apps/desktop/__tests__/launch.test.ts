@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { describe, expect, it, vi } from 'vitest'
+import sharp from 'sharp'
 import { neutralColors } from '../../../packages/shared/src/theme/neutral-ramp.ts'
+import { schemes } from '../../../packages/shared/src/theme/color-schemes.ts'
 import { launchAsset } from '../scripts/launch-assets.ts'
 
 const origin = 'https://app.useorbit.org'
@@ -116,4 +118,18 @@ it.each(['dark', 'light'] as const)('keeps the %s native mark generated from the
   const native = readFileSync(new URL('../src-tauri/src/launch.rs', import.meta.url), 'utf8')
   const channels = [1, 3, 5].map(start => Number.parseInt(neutralColors[mode].bg.slice(start, start + 2), 16))
   expect(native).toContain(`Color(${channels.join(', ')}, 255)`)
+})
+
+it.each(['dark', 'light'] as const)('preserves the granted canvas and accent moon in the %s launch raster', async (mode) => {
+  const source = readFileSync(new URL('../../../design/brand/orbit-mark-accent.svg', import.meta.url), 'utf8')
+  const painted = source.replaceAll('var(--primary, currentColor)', schemes.orange.accent[mode].primary)
+    .replaceAll('currentColor', neutralColors[mode].fg1)
+  const expected = await sharp(Buffer.from(painted)).resize(512, 512)
+    .flatten({ background: neutralColors[mode].bg }).raw().toBuffer()
+  const generated = await launchAsset(mode)
+  const generatedPixels = await sharp(generated).flatten({ background: neutralColors[mode].bg }).raw().toBuffer()
+  expect(generatedPixels.equals(expected), 'generated pixels preserve the untrimmed brand canvas').toBe(true)
+  const committed = readFileSync(new URL(`../src-tauri/native/launch-${mode}.png`, import.meta.url))
+  const committedPixels = await sharp(committed).flatten({ background: neutralColors[mode].bg }).raw().toBuffer()
+  expect(committedPixels.equals(expected), 'committed pixels preserve the untrimmed brand canvas').toBe(true)
 })

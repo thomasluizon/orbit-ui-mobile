@@ -1,6 +1,27 @@
 #import "../src-tauri/native/macos/launch.m"
 #include <assert.h>
 
+@interface RecordingMark : NSImage
+@property NSRect target;
+@end
+
+@implementation RecordingMark
+- (void)drawInRect:(NSRect)rect { self.target = rect; }
+@end
+
+static void assertMarkFrame(OrbitLaunchView *launch, NSSize bounds, NSRect expected) {
+    launch.frame = NSMakeRect(0, 0, bounds.width, bounds.height);
+    NSImage *original = launch.mark;
+    RecordingMark *recording = [[RecordingMark alloc] initWithSize:NSMakeSize(512, 512)];
+    launch.mark = recording;
+    NSImage *surface = [[NSImage alloc] initWithSize:bounds];
+    [surface lockFocus];
+    [launch drawRect:launch.bounds];
+    [surface unlockFocus];
+    assert(NSEqualRects(recording.target, expected));
+    launch.mark = original;
+}
+
 int main(int count, const char *arguments[]) {
     assert(count == 3);
     @autoreleasepool {
@@ -23,6 +44,8 @@ int main(int count, const char *arguments[]) {
             assert(launch.deadline.fireDate.timeIntervalSinceNow <= 15);
             [parent setFrameSize:NSMakeSize(1000, 700)];
             assert(NSEqualRects(launch.frame, web.frame));
+            assertMarkFrame(launch, NSMakeSize(1000, 700), NSMakeRect(436, 286, 128, 128));
+            assertMarkFrame(launch, NSMakeSize(80, 100), NSMakeRect(0, 10, 80, 80));
             NSTimer *firstDeadline = launch.deadline;
             orbit_launch_set_visible((__bridge void *)web, false);
             assert(launch.hidden && !firstDeadline.valid);

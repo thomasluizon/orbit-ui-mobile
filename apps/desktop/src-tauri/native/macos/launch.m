@@ -15,7 +15,7 @@
     (void)rect;
     [self.canvas setFill];
     NSRectFill(self.bounds);
-    CGFloat size = MIN(256, MIN(NSWidth(self.bounds), NSHeight(self.bounds)));
+    CGFloat size = MIN(128, MIN(NSWidth(self.bounds), NSHeight(self.bounds)));
     NSRect target = NSMakeRect((NSWidth(self.bounds) - size) / 2,
         (NSHeight(self.bounds) - size) / 2, size, size);
     [self.mark drawInRect:target];

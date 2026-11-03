@@ -1,9 +1,17 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
+
+it.each([
+  ['macos/launch.m', 'MIN(128, MIN(NSWidth(self.bounds), NSHeight(self.bounds)))'],
+  ['windows/launch.cpp', 'MulDiv(128, GetDpiForWindow(window), 96)'],
+])('draws the granted mark at 128 logical pixels in %s', (path, sizing) => {
+  const source = readFileSync(new URL(`../src-tauri/native/${path}`, import.meta.url), 'utf8')
+  expect(source.includes(sizing)).toBe(true)
+})
 
 it.skipIf(process.platform !== 'darwin')('presents the native mark before display, resizes, releases on paint or timeout and returns on reload', () => {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-launch-'))
