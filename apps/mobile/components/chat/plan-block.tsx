@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { AstraPlan, AstraPlanStep, ChatMessage } from '@orbit/shared/types'
-import { PlanAnnouncementTracker, planStepPresentation, planStepStatus, planStepStatusKey, type PlanStepPresentation } from '@orbit/shared/chat'
+import { planStepPresentation, planStepStatus, planStepStatusKey, type PlanStepPresentation } from '@orbit/shared/chat'
+import { createUsePlanAnnouncement } from '@orbit/shared/hooks'
 import { SPACING } from '@orbit/shared/theme'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { Check, Minus, XCircle } from '@/components/ui/icons'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+const usePlanAnnouncement = createUsePlanAnnouncement({ useEffect, useState })
 
 function StepMarker({ kind, index, tokens }: Readonly<{ kind: PlanStepPresentation['markerKind']; index: number; tokens: AppTokensV2 }>) {
   if (kind === 'number') return <Text style={[styles.number, { color: tokens.fg3 }]}>{index + 1}</Text>
@@ -54,18 +57,7 @@ export function PlanBlock({ plan }: Readonly<{ plan: AstraPlan }>) {
 
 export function PlanAnnouncements({ messages }: Readonly<{ messages: readonly ChatMessage[] }>) {
   const { t } = useTranslation()
-  const runningLabel = t('blockFrame.status.acting')
-  const [tracker] = useState(() => new PlanAnnouncementTracker())
-  const [announcement, setAnnouncement] = useState('')
-  useEffect(() => {
-    let mounted = true
-    void Promise.resolve().then(() => {
-      if (!mounted) return
-      const next = tracker.next(messages, runningLabel)
-      if (next) setAnnouncement(next)
-    })
-    return () => { mounted = false }
-  }, [messages, runningLabel, tracker])
+  const announcement = usePlanAnnouncement(messages, t('blockFrame.status.acting'))
   return <Text testID="plan-announcement" accessibilityLiveRegion="polite" style={styles.announcement}>{announcement}</Text>
 }
 

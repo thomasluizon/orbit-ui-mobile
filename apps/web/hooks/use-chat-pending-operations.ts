@@ -5,7 +5,7 @@ import { reconcileChatPlanApproval, reconcileChatPlanExecution, reconcileChatPla
 import { useCallback, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
-import type { RevisePendingOperationRequest } from '@orbit/shared/types/ai'
+import type { PendingOperationRevisionResult, RevisePendingOperationRequest } from '@orbit/shared/types/ai'
 import type { ServerActionResult } from '@/app/actions/action-result'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import {
@@ -44,6 +44,19 @@ function isStalePreviewFailure(failure: { status?: number; error: string; code?:
   return (failure.status === 409 || failure.status === 404) && !reportsAccountChanged(failure)
 }
 
+function pendingOperationFailure(
+  failure: { status?: number; error: string; code?: string },
+  t: ReturnType<typeof useTranslations>,
+  includeNonStale = true,
+) {
+  const stale = isStalePreviewFailure(failure)
+  return {
+    ok: false as const,
+    error: pendingOperationError(failure, t),
+    ...(stale || includeNonStale ? { stale } : {}),
+  }
+}
+
 function accountChanged(id: string | null, generation: number): boolean {
   return getHeldAccountId() !== id || getAccountGeneration() !== generation
 }
@@ -78,41 +91,48 @@ export function useChatPendingOperations(
     finally { setBatchCount((count) => count - 1) }
   }, [])
 
+  const revisionResult = useCallback((
+    id: string, intendedAccountId: string | null, accountGeneration: number,
+    response: ServerActionResult<PendingOperationRevisionResult> | null,
+  ) => {
+    if (accountChanged(intendedAccountId, accountGeneration) || !response) return accountChangedResult(t)
+    if (!response.ok) return pendingOperationFailure(response, t)
+    reconcileChatPlanRevision(useChatStore.getState(), id, response.data)
+    return { ok: true as const, result: response.data }
+  }, [t])
+
+  const executionResult = useCallback(async (
+    id: string, intendedAccountId: string | null, accountGeneration: number,
+    execution: ServerActionResult<AgentExecuteOperationResponse> | null, includeNonStale = true,
+  ): Promise<PendingExecutionResult> => {
+    if (accountChanged(intendedAccountId, accountGeneration) || !execution) return accountChangedResult(t)
+    if (!execution.ok) return pendingOperationFailure(execution, t, includeNonStale)
+    reconcileChatPlanExecution(useChatStore.getState(), id, execution.data)
+    await onExecuted(execution.data)
+    return { ok: true, response: execution.data }
+  }, [onExecuted, t])
+
   const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
     const response = await runChatAction(revisePendingOperation(id, request, accountIntentWithOrigin(intendedAccountId), ...conversationArgument()))
-    if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
-    if (!response) return accountChangedResult(t)
-    if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
-    if (response.ok) reconcileChatPlanRevision(useChatStore.getState(), id, response.data)
-    return response.ok
-      ? { ok: true as const, result: response.data }
-      : { ok: false as const, error: pendingOperationError(response, t), stale: isStalePreviewFailure(response) }
-  }, [t])
+    return revisionResult(id, intendedAccountId, accountGeneration, response)
+  }, [revisionResult])
 
   const refreshPendingOperationForBubble = useCallback(async (id: string) => {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
     const response = await runChatAction(refreshPendingOperation(id, accountIntentWithOrigin(intendedAccountId), ...conversationArgument()))
-    if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-    if (!response) return accountChangedResult(t)
-    if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-    if (response.ok) reconcileChatPlanRevision(useChatStore.getState(), id, response.data)
-    return response.ok
-      ? { ok: true as const, result: response.data }
-      : { ok: false as const, error: pendingOperationError(response, t), stale: isStalePreviewFailure(response) }
-  }, [t])
+    return revisionResult(id, intendedAccountId, accountGeneration, response)
+  }, [revisionResult])
 
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
     const confirmation = await runChatAction(confirmPendingOperation(pendingOperationId, accountIntentWithOrigin(intendedAccountId), ...conversationArgument()))
-    if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-    if (!confirmation) return accountChangedResult(t)
-    if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+    if (accountChanged(intendedAccountId, accountGeneration) || !confirmation) return accountChangedResult(t)
     if (!confirmation.ok) {
-      return { ok: false, error: pendingOperationError(confirmation, t), ...(isStalePreviewFailure(confirmation) ? { stale: true } : {}) }
+      return pendingOperationFailure(confirmation, t, false)
     }
 
     reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.data.plan)
@@ -123,39 +143,25 @@ export function useChatPendingOperations(
       accountIntentWithOrigin(intendedAccountId),
       ...conversationArgument(),
     ))
-    if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-    if (!execution) return accountChangedResult(t)
-    if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-
-    if (!execution.ok) {
-      return { ok: false, error: pendingOperationError(execution, t), ...(isStalePreviewFailure(execution) ? { stale: true } : {}) }
-    }
-
-    reconcileChatPlanExecution(useChatStore.getState(), pendingOperationId, execution.data)
-    await onExecuted(execution.data)
-    return { ok: true, response: execution.data }
-  }, [onExecuted, t])
+    return executionResult(pendingOperationId, intendedAccountId, accountGeneration, execution, false)
+  }, [executionResult, t])
 
   const prepareStepUpForBubble = useCallback(
     async (pendingOperationId: string) => {
       const intendedAccountId = getHeldAccountId()
       const accountGeneration = getAccountGeneration()
       const confirmation = await runChatAction(confirmPendingOperation(pendingOperationId, accountIntentWithOrigin(intendedAccountId), ...conversationArgument()))
-      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-      if (!confirmation) return accountChangedResult(t)
-      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+      if (accountChanged(intendedAccountId, accountGeneration) || !confirmation) return accountChangedResult(t)
       if (!confirmation.ok) {
-        return { ok: false as const, error: pendingOperationError(confirmation, t), stale: isStalePreviewFailure(confirmation) }
+        return pendingOperationFailure(confirmation, t)
       }
 
       reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.data.plan)
 
       const challenge = await runChatAction(issuePendingOperationStepUp(pendingOperationId, locale, accountIntentWithOrigin(intendedAccountId)))
-      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-      if (!challenge) return accountChangedResult(t)
-      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+      if (accountChanged(intendedAccountId, accountGeneration) || !challenge) return accountChangedResult(t)
       if (!challenge.ok) {
-        return { ok: false as const, error: pendingOperationError(challenge, t), stale: isStalePreviewFailure(challenge) }
+        return pendingOperationFailure(challenge, t)
       }
 
       return {
@@ -182,12 +188,10 @@ export function useChatPendingOperations(
         code,
         accountIntentWithOrigin(intendedAccountId),
       ))
-      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-      if (!verification) return accountChangedResult(t)
-      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+      if (accountChanged(intendedAccountId, accountGeneration) || !verification) return accountChangedResult(t)
 
       if (!verification.ok) {
-        return { ok: false as const, error: pendingOperationError(verification, t), stale: isStalePreviewFailure(verification) }
+        return pendingOperationFailure(verification, t)
       }
 
       const execution = await runChatAction(executePendingOperation(
@@ -196,18 +200,9 @@ export function useChatPendingOperations(
         accountIntentWithOrigin(intendedAccountId),
         ...conversationArgument(),
       ))
-      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-      if (!execution) return accountChangedResult(t)
-      if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-      if (!execution.ok) {
-        return { ok: false as const, error: pendingOperationError(execution, t), stale: isStalePreviewFailure(execution) }
-      }
-
-      reconcileChatPlanExecution(useChatStore.getState(), pendingOperationId, execution.data)
-      await onExecuted(execution.data)
-      return { ok: true as const, response: execution.data }
+      return executionResult(pendingOperationId, intendedAccountId, accountGeneration, execution)
     },
-    [onExecuted, t],
+    [executionResult, t],
   )
 
   const trackedRevise = useCallback((...args: Parameters<typeof revisePendingOperationForBubble>) =>

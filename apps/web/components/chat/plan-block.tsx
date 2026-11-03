@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { AstraPlan, AstraPlanStep, ChatMessage } from '@orbit/shared/types'
-import { PlanAnnouncementTracker, planStepPresentation, planStepStatus, planStepStatusKey, type PlanStepPresentation } from '@orbit/shared/chat'
+import { planStepPresentation, planStepStatus, planStepStatusKey, type PlanStepPresentation } from '@orbit/shared/chat'
+import { createUsePlanAnnouncement } from '@orbit/shared/hooks'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { Check, Minus, XCircle } from '@/components/ui/icons'
 import { WorkingMark } from '@/components/ui/toast'
+
+const usePlanAnnouncement = createUsePlanAnnouncement({ useEffect, useState })
 
 const STEP_TEXT_COLORS: Record<PlanStepPresentation['textRole'], string> = {
   primary: 'var(--fg-1)', muted: 'var(--fg-3)', failed: 'var(--status-bad-text)',
@@ -48,17 +51,6 @@ export function PlanBlock({ plan }: Readonly<{ plan: AstraPlan }>) {
 
 export function PlanAnnouncements({ messages }: Readonly<{ messages: readonly ChatMessage[] }>) {
   const t = useTranslations()
-  const runningLabel = t('blockFrame.status.acting')
-  const [tracker] = useState(() => new PlanAnnouncementTracker())
-  const [announcement, setAnnouncement] = useState('')
-  useEffect(() => {
-    let mounted = true
-    void Promise.resolve().then(() => {
-      if (!mounted) return
-      const next = tracker.next(messages, runningLabel)
-      if (next) setAnnouncement(next)
-    })
-    return () => { mounted = false }
-  }, [messages, runningLabel, tracker])
+  const announcement = usePlanAnnouncement(messages, t('blockFrame.status.acting'))
   return <p data-plan-announcement aria-live="polite" aria-atomic="true" className="sr-only">{announcement}</p>
 }

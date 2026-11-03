@@ -50,6 +50,29 @@ export function usePendingOperationExecution({
     finally { setBatchCount((count) => count - 1); }
   }, []);
 
+  const pendingOperationFailure = useCallback((error: unknown) => ({
+    ok: false as const,
+    error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
+    stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404),
+  }), [t]);
+
+  const revisionResult = useCallback((id: string, accountGeneration: number, result: PendingOperationRevisionResult) => {
+    if (accountGeneration === getAccountGeneration()) {
+      reconcileChatPlanRevision(useChatStore.getState(), id, result);
+    }
+    return { ok: true as const, result };
+  }, []);
+
+  const executionResult = useCallback(async (
+    id: string, accountGeneration: number, execution: AgentExecuteOperationResponse,
+  ): Promise<PendingExecutionResult> => {
+    if (accountGeneration === getAccountGeneration()) {
+      reconcileChatPlanExecution(useChatStore.getState(), id, execution);
+    }
+    await handleExecutedOperation(execution);
+    return { ok: true, response: execution };
+  }, [handleExecutedOperation]);
+
   const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
     const accountGeneration = getAccountGeneration();
     try {
@@ -57,18 +80,11 @@ export function usePendingOperationExecution({
         method: 'POST',
         body: JSON.stringify({ ...request, clientContext: getClientContext() }),
       }, pendingOperationRevisionResultSchema);
-      if (accountGeneration === getAccountGeneration()) {
-        reconcileChatPlanRevision(useChatStore.getState(), id, result);
-      }
-      return { ok: true as const, result };
+      return revisionResult(id, accountGeneration, result);
     } catch (error: unknown) {
-      return {
-        ok: false as const,
-        error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
-        stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404),
-      };
+      return pendingOperationFailure(error);
     }
-  }, [getClientContext, t]);
+  }, [getClientContext, pendingOperationFailure, revisionResult]);
 
   const refreshPendingOperationForBubble = useCallback(async (id: string) => {
     const accountGeneration = getAccountGeneration();
@@ -76,18 +92,11 @@ export function usePendingOperationExecution({
       const result = await apiClient<PendingOperationRevisionResult>(`${API.ai.pendingOperationRefresh(id)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`, {
         method: 'POST',
       }, pendingOperationRevisionResultSchema);
-      if (accountGeneration === getAccountGeneration()) {
-        reconcileChatPlanRevision(useChatStore.getState(), id, result);
-      }
-      return { ok: true as const, result };
+      return revisionResult(id, accountGeneration, result);
     } catch (error: unknown) {
-      return {
-        ok: false as const,
-        error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
-        stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404),
-      };
+      return pendingOperationFailure(error);
     }
-  }, [getClientContext, t]);
+  }, [getClientContext, pendingOperationFailure, revisionResult]);
 
   const confirmAndExecutePendingOperation = useCallback(
     async (pendingOperationId: string): Promise<PendingExecutionResult> => {
@@ -113,14 +122,12 @@ export function usePendingOperationExecution({
           },
         );
 
-        if (accountGeneration === getAccountGeneration()) reconcileChatPlanExecution(useChatStore.getState(), pendingOperationId, execution);
-        await handleExecutedOperation(execution);
-        return { ok: true, response: execution };
+        return await executionResult(pendingOperationId, accountGeneration, execution);
       } catch (error: unknown) {
-        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404) };
+        return pendingOperationFailure(error);
       }
     },
-    [getClientContext, handleExecutedOperation, t],
+    [executionResult, getClientContext, pendingOperationFailure],
   );
 
   const preparePendingOperationStepUp = useCallback(
@@ -150,10 +157,10 @@ export function usePendingOperationExecution({
           confirmationToken: confirmation.confirmationToken,
         };
       } catch (error: unknown) {
-        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404) };
+        return pendingOperationFailure(error);
       }
     },
-    [getClientContext, i18n.language, t],
+    [getClientContext, i18n.language, pendingOperationFailure],
   );
 
   const verifyAndExecutePendingOperationStepUp = useCallback(
@@ -181,14 +188,12 @@ export function usePendingOperationExecution({
           },
         );
 
-        if (accountGeneration === getAccountGeneration()) reconcileChatPlanExecution(useChatStore.getState(), pendingOperationId, execution);
-        await handleExecutedOperation(execution);
-        return { ok: true, response: execution };
+        return await executionResult(pendingOperationId, accountGeneration, execution);
       } catch (error: unknown) {
-        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404) };
+        return pendingOperationFailure(error);
       }
     },
-    [getClientContext, handleExecutedOperation, t],
+    [executionResult, getClientContext, pendingOperationFailure],
   );
 
   const prepareStepUpForBubble = useCallback(
