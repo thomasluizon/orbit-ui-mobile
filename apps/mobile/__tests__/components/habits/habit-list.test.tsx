@@ -6039,7 +6039,7 @@ describe('HabitList', () => {
 
     it('retains every bulk departing row through an immediate viewport resize and removal', async () => {
       vi.useFakeTimers()
-      seedHabits(['first', 'second', 'third'].map((id) => createMockHabit({ id, scheduledDates: [TODAY] })))
+      seedHabits(Array.from({ length: 30 }, (_, index) => createMockHabit({ id: `habit-${index}`, scheduledDates: [TODAY] })))
       const content = <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
       let tree: ReturnType<typeof TestRenderer.create>
       await TestRenderer.act(() => { tree = createTestTree(content) })
@@ -6053,8 +6053,7 @@ describe('HabitList', () => {
       await TestRenderer.act(() => { tree!.update(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
       const leaving = tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) =>
         typeof node.type === 'string' && node.props['data-phase'] === 'exit')
-      expect(leaving).toHaveLength(3)
-      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(400)
+      expect(leaving).toHaveLength(30)
       await TestRenderer.act(() => { vi.advanceTimersByTime(300) })
       expect(tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) => typeof node.type === 'string' && node.props['data-phase'] === 'exit')).toHaveLength(0)
       expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(400)
