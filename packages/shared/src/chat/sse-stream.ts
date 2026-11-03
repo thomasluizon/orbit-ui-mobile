@@ -1,4 +1,5 @@
 import { chatStreamEventSchema, type ChatResponse, type ChatStreamEvent } from '../types/chat'
+import type { AstraPlan, AstraPlanStep } from '../types/astra-plan'
 
 /**
  * Incremental parser for the chat SSE stream. Frames on blank lines, joins multi-line
@@ -38,6 +39,8 @@ export interface ChatStreamCallbacks {
   onReset: () => void
   onRound?: (iteration: number) => void
   onStep?: (step: { domain: string; access: string }) => void
+  onPlan?: (plan: AstraPlan) => void
+  onPlanStep?: (planId: string, step: AstraPlanStep) => void
   onTerminal?: () => void
 }
 
@@ -72,6 +75,12 @@ export async function consumeChatSseStream(
           break
         case 'step':
           callbacks.onStep?.({ domain: event.domain, access: event.access })
+          break
+        case 'plan':
+          callbacks.onPlan?.(event.plan)
+          break
+        case 'plan_step':
+          callbacks.onPlanStep?.(event.planId, event.planStep)
           break
         case 'final':
           callbacks.onTerminal?.()

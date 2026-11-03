@@ -1,3 +1,4 @@
+import { makeApprovalPlan, makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { conversationHistory } from '@/lib/conversation-history'
 import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
@@ -382,6 +383,68 @@ describe('web useChatComposer streaming send', () => {
     await act(async () => { await result.current.retryLastSend() })
     expect(mocks.fetch).toHaveBeenCalledTimes(1)
     expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
+  it.each(['en', 'pt-BR'].flatMap(locale => ['stop', 'interrupted', 'error'].map(terminal => ({ locale, terminal }))))('settles the streamed plan after $terminal in $locale', async ({ locale, terminal }) => {
+    mocks.locale = locale
+    const plan = makeAstraPlan(locale)
+    plan.steps = [
+      ...['done', 'running', 'pending', 'failed', 'skipped'].map((status, index) => ({ ...plan.steps[0]!, id: `execution-${index}`, status })),
+      makeApprovalPlan().steps[1]!,
+    ]
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    const { result: composer } = renderHook(() => useChatComposer())
+    let pending!: Promise<void>
+    await act(async () => { pending = composer.current.sendMessage('Check my routine'); await Promise.resolve() })
+    await act(async () => { stream.enqueue(frame(JSON.stringify({ type: 'plan', plan }))); await Promise.resolve() })
+    const original = useChatStore.getState().messages.find(message => message.plan)!
+    expect(original.plan).toEqual(plan)
+    const displayed = () => useChatStore.getState().messages.find(message => message.id === original.id)!
+    const expected = ['done', 'skipped', 'skipped', 'failed', 'skipped', 'pending']
+    if (terminal === 'stop') {
+      act(() => { composer.current.composerProps.replyControl!.onStop() })
+      expect(displayed().plan?.steps.map(step => step.status)).toEqual(expected)
+      await act(async () => {
+        stream.enqueue(frame(JSON.stringify({ type: 'plan_step', planId: plan.id, planStep: { ...plan.steps[1], status: 'running' } })))
+        stream.enqueue(finalFrame(makeChatResponse({ plan: { ...plan, steps: plan.steps.map(step => ({ ...step, status: 'done' })) } })))
+        stream.close()
+        await pending
+      })
+      expect(displayed().content).toBe('shell.composer.queue.stopped')
+    } else {
+      await act(async () => {
+        stream.enqueue(frame(JSON.stringify({ type: 'error', status: 503, error: 'Reply failed', ...(terminal === 'interrupted' ? { code: 'CHAT_TURN_INTERRUPTED' } : {}) })))
+        stream.close()
+        await pending
+      })
+      expect(displayed().content).toBe('chat.aiError')
+    }
+    expect(displayed().plan?.steps.map(step => step.status)).toEqual(expected)
+    expect(displayed().plan?.steps.at(-1)).toEqual(plan.steps.at(-1))
+    expect(useChatStore.getState()).toMatchObject({ streamingMessageId: null, replyActive: false, isTyping: false })
+    expect(useChatStore.getState().messages.filter(message => message.plan)).toHaveLength(1)
+  })
+
+  it.each(['en', 'pt-BR'])('streams a plan into the original reply before completion in %s', async locale => {
+    mocks.locale = locale
+    const plan = makeAstraPlan(locale)
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+    let pending!: Promise<void>
+    await act(async () => { pending = result.current.sendMessage('Check my routine'); await Promise.resolve() })
+    await act(async () => { stream.enqueue(frame(JSON.stringify({ type: 'plan', plan }))) })
+    const original = useChatStore.getState().messages.find(message => message.plan)
+    expect(original?.plan).toEqual(plan)
+    expect(useChatStore.getState().streamingMessageId).toBe(original?.id)
+    await act(async () => { stream.enqueue(frame(JSON.stringify({ type: 'plan_step', planId: plan.id, planStep: { ...plan.steps[1], status: 'done', toolCallId: 'call-2' } }))) })
+    expect(useChatStore.getState().messages.find(message => message.id === original?.id)?.plan?.steps.map(step => step.status)).toEqual(['pending', 'done'])
+    const completed = { ...plan, steps: plan.steps.map(step => ({ ...step, status: 'done' })) }
+    await act(async () => { stream.enqueue(finalFrame(makeChatResponse({ plan: completed }))); stream.close(); await pending })
+    expect(useChatStore.getState().messages.filter(message => message.plan)).toHaveLength(1)
+    expect(useChatStore.getState().messages.find(message => message.id === original?.id)?.plan).toEqual(completed)
+    expect(useChatStore.getState().streamingMessageId).toBeNull()
   })
 
   it('keeps desktop reloads blocked through a real streamed send and voice input', async () => {

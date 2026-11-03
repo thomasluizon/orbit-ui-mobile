@@ -1,28 +1,14 @@
+import { getSavedTheme } from '@/stores/theme-store'
+import { mediaQueryMatches } from '@/lib/media-query'
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { API } from '@orbit/shared/api'
-import type { Profile, ThemeMode } from '@orbit/shared/types/profile'
+import type { Profile } from '@orbit/shared/types/profile'
 import { resolveSupportedLocale } from '@orbit/shared/utils'
-import { applyThemeTokensToDOM, normalizeColorScheme } from './theme-dom'
+import { applyThemeTokensToDOM, normalizeColorScheme, resolveInitialTheme } from './theme-dom'
 
 function setClientCookie(name: string, value: string) {
   if (typeof document === 'undefined') return
   document.cookie = `${name}=${encodeURIComponent(value)};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict;secure`
-}
-
-function resolveThemeMode(themePreference: string | null | undefined): ThemeMode {
-  if (themePreference === 'light' || themePreference === 'dark') {
-    return themePreference
-  }
-
-  if (
-    typeof window !== 'undefined' &&
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-color-scheme: light)').matches
-  ) {
-    return 'light'
-  }
-
-  return 'dark'
 }
 
 export function applyProfilePresentation(profile: Pick<
@@ -30,11 +16,12 @@ export function applyProfilePresentation(profile: Pick<
   'colorScheme' | 'themePreference' | 'language'
 >) {
   const colorScheme = normalizeColorScheme(profile.colorScheme)
-  const themeMode = resolveThemeMode(profile.themePreference)
+  const explicitTheme = resolveInitialTheme(getSavedTheme(), profile.themePreference)
+  const themeMode = explicitTheme ?? (mediaQueryMatches('(prefers-color-scheme: light)') ? 'light' : 'dark')
   const language = resolveSupportedLocale(profile.language)
 
   setClientCookie('orbit_color_scheme', colorScheme)
-  setClientCookie('orbit_theme_mode', themeMode)
+  if (explicitTheme) setClientCookie('orbit_theme_mode', explicitTheme)
   setClientCookie('i18n_locale', language)
   applyThemeTokensToDOM(colorScheme, themeMode, false)
 }

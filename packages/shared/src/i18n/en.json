@@ -1273,6 +1273,10 @@
     }
   },
   "chat": {
+    "plan": {
+      "title": "Plan",
+      "count": "{done} of {total}"
+    },
     "conversation": {
       "delete": "Delete conversation",
       "deleteTitle": "Delete this conversation?",

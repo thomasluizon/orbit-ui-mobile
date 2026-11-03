@@ -13,6 +13,7 @@ import {
   canvasColor,
   normalizeColorScheme,
   resolveWebThemeVariables,
+  resolveInitialTheme,
 } from '@/lib/theme-dom'
 import { RESPONSIVE_TYPE_BREAKPOINT, responsiveTypeRoles } from '@orbit/shared/theme'
 
@@ -189,5 +190,19 @@ describe('web theme variables', () => {
     expect(stylesheet).toContain(
       '.orbit-link-action-persistent::after {\n  content: none;',
     )
+  })
+})
+
+describe('initial theme resolution', () => {
+  it.each(['light', 'dark'] as const)('keeps an explicit %s cookie', (mode) => {
+    expect(resolveInitialTheme(mode)).toBe(mode)
+  })
+
+  it.each([['light', 'dark'], ['dark', 'light']] as const)('prefers account %s over cookie %s', (account, cookie) => {
+    expect(resolveInitialTheme(cookie, account)).toBe(account)
+  })
+
+  it.each([undefined, null, '', 'system', 'invalid'])('follows the system for %s', (value) => {
+    expect(resolveInitialTheme(value, value)).toBeNull()
   })
 })

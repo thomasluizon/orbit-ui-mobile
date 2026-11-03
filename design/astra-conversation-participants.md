@@ -10,6 +10,7 @@ reply replacement on web and Android.
 | Conversation feed | `apps/web/components/chat/conversation.tsx` | `apps/mobile/components/chat/conversation.tsx`, `conversation.styles.ts` | First Astra message, consecutive Astra messages, user messages and a new Astra run after a user message |
 | Reply content column | `apps/web/components/chat/message-bubble.tsx` within the feed | `apps/mobile/components/message-bubble.tsx` within the feed | Multi-paragraph prose, streaming prose, block-only replies, previews, clarification, breakdown, outcomes, actions, read lists and metrics |
 | Reply adjuncts | Conversation feed | Conversation feed | Running and completed tool traces and follow-up actions share the reply content edge |
+| Turn plan | `apps/web/components/chat/plan-block.tsx` | `apps/mobile/components/chat/plan-block.tsx` | Live and restored plans, all step states, approval transitions, localized counts and reduced motion |
 | Empty conversation | `apps/web/components/chat/chat-empty-state.tsx` | `apps/mobile/components/chat/chat-empty-state.tsx` | Retains the existing empty-state mark; no participant avatar without a message, pending reply or running tool activity |
 
 Both shell layouts mount this conversation once: `apps/web/app/(app)/layout.tsx` and
@@ -46,6 +47,16 @@ native styles through Yoga. The wider block matrix also covers both locales, blo
 previews, read lists, metrics, clarification, outcomes and actions.
 
 ## Lean answer placement
+
+A supplied turn plan stays before its answer in the same reply content column. Its shared
+BlockFrame and ProgressBar keep the existing inset, radius, track and fill tokens. The localized
+Plan heading precedes the supplied plan title and ordered steps. Only done steps enter the
+count and bar; done text strikes through, failed text retains the status text role, and skipped
+steps stay muted without a check. Unknown statuses present as pending. Stable plan and step
+identities retain the mounted rows through streaming, final delivery and preview outcomes.
+Plans replace that turn's running and completed tool trace. Turns without plans retain their
+trace. The stable polite plan announcement sits outside the busy feed and announces each
+running step once; restored plans do not replay announcements.
 
 Validated final parts lead with the API's selected answer block. Negotiated operation previews
 and terminal blocks precede external text. Completed tool steps use their existing collapsed

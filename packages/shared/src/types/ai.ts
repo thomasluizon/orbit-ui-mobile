@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { astraPlanSchema } from './astra-plan'
 import { astraNextActionSchema } from './astra-offer'
 
 const agentRiskClassSchema = z.enum(['Low', 'Destructive', 'High'])
@@ -149,6 +150,7 @@ export const revisePendingOperationRequestSchema = z.object({
 export type RevisePendingOperationRequest = z.infer<typeof revisePendingOperationRequestSchema>
 
 export const pendingOperationRevisionResultSchema = z.object({
+  plan: astraPlanSchema.nullish(),
   isSuccess: z.boolean(),
   error: z.string().nullable(),
   pendingOperationId: z.string().nullable(),
@@ -175,6 +177,7 @@ export const pendingAgentOperationSchema = z.object({
 export type PendingAgentOperation = z.infer<typeof pendingAgentOperationSchema>
 
 export const pendingAgentOperationConfirmationSchema = z.object({
+  plan: astraPlanSchema.nullish(),
   pendingOperationId: z.string(),
   confirmationToken: z.string(),
   expiresAtUtc: z.string(),
@@ -218,6 +221,7 @@ export const agentOperationResultSchema = z.object({
 export type AgentOperationResult = z.infer<typeof agentOperationResultSchema>
 
 export const agentExecuteOperationResponseSchema = z.object({
+  plan: astraPlanSchema.nullish(),
   operation: agentOperationResultSchema,
   pendingOperation: pendingAgentOperationSchema.nullable().optional(),
   policyDenial: agentPolicyDenialSchema.nullable().optional(),
