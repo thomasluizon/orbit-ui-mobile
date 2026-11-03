@@ -142,9 +142,9 @@ export function subscribeDroppedMutations(listener: DroppedMutationListener): ()
   }
 }
 
-function notifyDroppedMutation(dropped: DroppedMutation, reportFailure: boolean): void {
+function notifyDroppedMutation(dropped: DroppedMutation): void {
   useOfflineSyncStore.getState().addDrop(dropped)
-  if (reportFailure) captureError(new Error(`Offline mutation dropped: ${dropped.type}: ${dropped.lastError}`))
+  captureError(new Error(`Offline mutation dropped: ${dropped.type}: ${dropped.lastError}`))
   for (const listener of droppedMutationListeners) listener(dropped)
 }
 
@@ -600,6 +600,22 @@ function scheduleBackoffFlush(replaceTimer?: ReturnType<typeof setTimeout>): voi
   })
 }
 
+function isTransientNetworkError(error: unknown): boolean {
+  // WHY: Queue retries retain their broader transport policy: https://github.com/thomasluizon/orbit-tickets/issues/1980.
+  if (error instanceof TypeError || isNetworkUnavailableError(error)) return true
+  if (!(error instanceof Error)) return false
+
+  const message = error.message.toLowerCase()
+  return (
+    message.includes('network request failed') ||
+    message.includes('network error') ||
+    message.includes('failed to fetch') ||
+    message.includes('fetch failed') ||
+    message.includes('load failed') ||
+    message.includes('timed out')
+  )
+}
+
 function isAuthRefreshNetworkError(error: unknown): boolean {
   return error instanceof TypeError && error.name === 'AuthRefreshNetworkError'
 }
@@ -723,7 +739,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     if (resolvedMutation.type === 'setTimeZone') releaseAccountTimezoneDependencies(resolvedMutation.id)
     return result
   } catch (error: unknown) {
-    if (!isNetworkUnavailableError(error) || isAutomaticReplayBlocked(resolvedMutation.type)) {
+    if (!isTransientNetworkError(error) || isAutomaticReplayBlocked(resolvedMutation.type)) {
       throw error
     }
 
@@ -901,7 +917,7 @@ async function handleFlushFailure(
     }
     return { incrementFailed: true, stopReason: 'auth', dropped: null }
   }
-  const transientNetworkFailure = isNetworkUnavailableError(error)
+  const transientNetworkFailure = isTransientNetworkError(error)
   const nextRetries = isAuthRefreshNetworkError(error) ? mutation.retries : mutation.retries + 1
   const dropMutation = shouldDropMutation(error, nextRetries, mutation.maxRetries)
   let dropped: DroppedMutation | null = null
@@ -1172,7 +1188,7 @@ async function runQueueFlush(): Promise<FlushOutcome> {
     failed += step.failedDelta
     if (step.dropped) {
       droppedMutations.push(step.dropped)
-      notifyDroppedMutation(step.dropped, step.stopReason !== 'network')
+      notifyDroppedMutation(step.dropped)
     }
     if (step.stopReason) {
       stopReason = step.stopReason

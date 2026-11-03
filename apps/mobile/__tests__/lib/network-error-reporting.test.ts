@@ -18,7 +18,21 @@ afterEach(() => { queryClient.clear(); configCache.setAccount(null); vi.restoreA
 it.each([
   { error: dnsFailure, reports: false },
   { error: new TypeError('Network request failed'), reports: false },
+  ...[
+    'java.net.SocketTimeoutException: timeout',
+    'java.net.ConnectException: Failed to connect',
+    'javax.net.ssl.SSLHandshakeException: Connection closed',
+    'java.net.SocketException: Connection reset',
+    'java.io.InterruptedIOException: timeout',
+    'java.io.IOException: unexpected end of stream',
+    'okhttp3.internal.http2.StreamResetException: stream was reset: REFUSED_STREAM',
+  ].map((message) => ({
+    error: FetchError.createFromError(new CodedError('ERR_UNEXPECTED', message)), reports: false,
+  })),
   { error: createApiClientError(500, null, 'Internal server error'), reports: true },
+  { error: new FetchError('The operation was aborted.'), reports: true },
+  { error: new FetchError('Fetch request has been canceled'), reports: true },
+  { error: new TypeError('x is not a function'), reports: true },
   { error: new TypeError('Cannot read properties of undefined'), reports: true },
 ])('reports config failures only when actionable: $error.message', async ({ error, reports }) => {
   const scope = configCache.getSnapshot()

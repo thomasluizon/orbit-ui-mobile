@@ -9,6 +9,8 @@ import { calendarKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { ApiClientError, createApiClientError } from '@orbit/shared/utils'
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
+import { FetchError } from '../../../../node_modules/expo/build/winter/fetch/FetchErrors.js'
+import { CodedError } from '../../../../node_modules/expo-modules-core/build/errors/CodedError.js'
 
 import {
   buildQueuedMutation,
@@ -42,6 +44,28 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { consumePendingIdempotencyKey } from '@/lib/idempotency-key'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+const transientTransportFailures = [
+  new TypeError('Network request failed'),
+  new TypeError('x is not a function'),
+  ...[
+    'java.net.UnknownHostException: Unable to resolve host "example.invalid": No address associated with hostname',
+    'java.net.SocketTimeoutException: timeout',
+    'java.net.ConnectException: Failed to connect',
+    'javax.net.ssl.SSLHandshakeException: Connection closed',
+    'java.net.SocketException: Connection reset',
+    'java.io.InterruptedIOException: timeout',
+    'java.io.IOException: unexpected end of stream',
+    'okhttp3.internal.http2.StreamResetException: stream was reset: REFUSED_STREAM',
+  ].map((message) => FetchError.createFromError(new CodedError('ERR_UNEXPECTED', message))),
+  ...[
+    'Request: NETWORK REQUEST FAILED',
+    'A network error occurred',
+    'Request: FAILED TO FETCH',
+    'Request: FETCH FAILED',
+    'Request: LOAD FAILED',
+    'The request TIMED OUT',
+  ].map((message) => new Error(message)),
+]
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
@@ -2014,7 +2038,7 @@ describe('offline mutations', () => {
     })
   })
 
-  it('queues an online mutation when the execute fails with a transient network error', async () => {
+  it.each(transientTransportFailures)('queues an online mutation after a transient transport failure: $message', async (error) => {
     mocks.setOnline(true)
     const queuedAck = { queued: true as const }
 
@@ -2026,12 +2050,13 @@ describe('offline mutations', () => {
         method: 'PUT',
         payload: { title: 'Retry' },
       }),
-      execute: () => Promise.reject(new TypeError('Network request failed')),
+      execute: () => Promise.reject(error),
       queuedResult: queuedAck,
     })
 
     expect(result).toBe(queuedAck)
     expect(mocks.enqueue).toHaveBeenCalledTimes(1)
+    expect(mocks.queued).toMatchObject([{ status: 'failed', lastError: error.message, retries: 0 }])
   })
 
   it('does not persist a non-replayable mutation after an online network failure', async () => {
@@ -2280,9 +2305,11 @@ describe('offline mutations', () => {
       vi.useRealTimers()
     })
 
-    it('keeps offline retry exhaustion visible to the user without sending transport errors to Sentry', async () => {
+    it('reports a dropped mutation to Sentry when an offline request exhausts its retries', async () => {
       mocks.setOnline(true)
-      mocks.apiClient.mockRejectedValueOnce(new Error('fetch failed: java.net.UnknownHostException: Unable to resolve host "example.invalid": No address associated with hostname'))
+      const error = FetchError.createFromError(new CodedError('ERR_UNEXPECTED',
+        'java.net.UnknownHostException: Unable to resolve host "example.invalid": No address associated with hostname'))
+      mocks.apiClient.mockRejectedValueOnce(error)
       const mutation = { ...buildQueuedMutation({
         type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/habit-1', method: 'PUT',
         payload: { title: 'Updated' }, entityType: 'habit', targetEntityId: 'habit-1',
@@ -2291,7 +2318,40 @@ describe('offline mutations', () => {
       const result = await flushQueuedMutations()
       expect(result.droppedMutations.map((dropped) => dropped.id)).toEqual([mutation.id])
       expect(useOfflineSyncStore.getState().drops.map((dropped) => dropped.id)).toEqual([mutation.id])
+      expect(captureError).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+        message: `Offline mutation dropped: ${mutation.type}: ${error.message}`,
+      }))
+    })
+
+    it.each(transientTransportFailures)('backs off after a transient transport failure without draining later mutations: $message', async (error) => {
+      mocks.setOnline(true)
+      mocks.apiClient.mockRejectedValueOnce(error)
+      const mutation = buildQueuedMutation({
+        type: 'updateHabit', scope: 'habits', endpoint: API.habits.update('habit-1'),
+        method: 'PUT', payload: { title: 'Retry' },
+      })
+      const laterMutation = buildQueuedMutation({
+        type: 'updateHabit', scope: 'habits', endpoint: API.habits.update('habit-2'),
+        method: 'PUT', payload: { title: 'Later' },
+      })
+      mocks.queued.push(mutation, laterMutation)
+
+      expect(await flushQueuedMutations()).toEqual({
+        succeeded: 0, failed: 0, remaining: 2, droppedMutations: [], replayState: 'waiting-on-backoff',
+      })
+      expect(mocks.queued).toMatchObject([
+        { id: mutation.id, retries: 1, status: 'failed', lastError: error.message },
+        { id: laterMutation.id, retries: 0 },
+      ])
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
       expect(captureError).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(2_000)
+
+      expect(mocks.queued).toEqual([])
+      expect(mocks.apiClient).toHaveBeenCalledTimes(3)
+      expect(mocks.apiClient.mock.calls[1]?.[1]?.idempotencyKey).toBe(mutation.id)
+      expect(useOfflineSyncStore.getState().drops).toEqual([])
     })
 
     it('keeps the retry count when token refresh loses the network and retries with the same key', async () => {
