@@ -37,22 +37,22 @@ Finish the spec: an empty board except `#33`, `#1561`, `#1563`, `#1560` and `#18
 
 ## In flight
 
-UI `main` `b3db392ef`, API `main` `b82d5e77d`, landing `main` `bb7a3a846`. Production web `d205c67fa`, production API `b82d5e77d`, production landing `bb7a3a846`, staging web `d205c67fa`, staging API `b82d5e77d`, Android Open 1.3.135 (195), internal 1.3.134 (194). CI waiters stop at the relay; restart them.
+UI `main` `b3db392ef`, API `main` `ab0d988d7`, landing `main` `bb7a3a846`. Production web `d205c67fa`, production API `b82d5e77d`, production landing `bb7a3a846`, staging web `d205c67fa`, staging API `b82d5e77d`, Android Open 1.3.135 (195), internal 1.3.134 (194). CI waiters stop at the relay; restart them.
 
 | Item | Disposition |
 | --- | --- |
 | `#1970` `ui#2298` at `57c225662` (pushed), `88825d489` local | Round 3 at tier `max` from the scratchpad's `finding-2298-r3.md` (order `order-1970-rb3.md`): the split adds about 5 KB to the authed Hoje scripts (median 820,451 against 820,000; `main`-equivalent branches 815,339 to 815,625). Read every new commit with `git show` (and `--remerge-diff` for a merge), confirm `88825d489` (the Sentry report the ticket requires) and `57c225662` (the real mutation context) survive and no budget or allocation moved, correct the body line "A failed profile fetch stays silent" to the Sentry report. `SonarCloud Code Analysis` is also red on `57c225662` (14.1% duplicated new code against 3%, all web and mobile copies of the extracted hooks), so launch round 4 at tier `max` from the scratchpad's `finding-2298-r4.md` on top of round 3 before pushing (one push for both), then CI, fresh review, merge. Worktree `orca/workspaces/orbit-ui-mobile/ticket-1970-hook-split`. |
-| `#1976` `orbit-api#1071` at `7a0c1416c` | Pullfrog APPROVED at that head, 0 threads, required checks green. Mutation shards `application-chat-processing-1` and `-3` were cancelled at the 45-minute job timeout; one failed-job rerun of run 41559838430 is running. Green: merge with `--match-head-commit 7a0c1416c9476dd8cbc71f80456501f9f3dbdbb1`, staging API, production API (its workflow takes the export), close, then `#1977`. Timed out again: fix the shard split in `.github/scripts/mutation-matrix.mjs` at its root. |
+| `#1976` (merged as `orbit-api#1071`, API `main` `ab0d988d7`) | The mutation rerun passed, so it merged at its approved head. The detached poller `wait-push-runs.mjs` writes the scratchpad's `push-ab0d988d7-DONE` when the API Tests and Guards push runs finish (its start time is in the scratchpad's `push-ab0d988d7-STARTED`; pass it as `--started-at`): start a `tools/wait-file.mjs` waiter on it, then staging API, production API (its workflow takes the export), close, then launch `#1977`. |
 | `#1979` | Android Open 1.3.135 (195) released and posted. Resolve Sentry `ORBIT-MOBILE-J` and `ORBIT-MOBILE-M` once 1.3.135 is in use with no new event, then complete. |
 | `#1966` | Scratch sweep in the scratchpad's `sweep-1966-src/` (copy both files to `apps/web/e2e/sweep-1966/`, run `run-sweep-1966.sh`, delete the copies after). Run 2 timed out on the create sheet's Habit radio intercept; settle it with a red-capable check first (spec bullet). |
 | Turnstile | Off. Prerequisites are done except the enablement change itself; facts in the spec's first Current state paragraph (the `android-internal` environment lacks `EXPO_PUBLIC_TURNSTILE_SITE_KEY`). |
 
-Inventory: open pull requests ui `#1989` (relay docs), `#2298`; api `#1071`; landing none. Unpushed work: `#1970` `88825d489` plus the round 3 commits. Running at relay: the `#1970` round 3 launcher (it drains before the relay). Detached local checks: none. Stashes: none. Owner questions: none open.
+Inventory: open pull requests ui `#1989` (relay docs), `#2298`; api none; landing none. Unpushed work: `#1970` `88825d489` plus the round 3 commits. Running at relay: the `#1970` round 3 launcher (it drains before the relay). Detached local checks: the `wait-push-runs.mjs` poller for `ab0d988d7` (completion file `push-ab0d988d7-DONE` in the scratchpad; start time in `push-ab0d988d7-STARTED`). Stashes: none. Owner questions: none open.
 
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
-2. Restart CI waiters for `ui#2298` and `orbit-api#1071`; read and push `#1970` round 3; merge `orbit-api#1071` at the bar and release it.
+2. Restart the CI waiter for `ui#2298` and the file waiter on `push-ab0d988d7-DONE`; release `#1976` to staging and production API; read `#1970` round 3, launch round 4, push both.
 3. `#1966` sweep and close; resolve the two Sentry issues and complete `#1979`.
 4. Merge each pull request the moment it meets the bar; base-merge the others after each merge; release staging, then production; ship `#1970` on Android Open.
 5. Turnstile enforcement in the standing rule's order; the single live Astra gate once every other launch list ticket is done; complete `#315` with its verdict; then `#1977`.
