@@ -3,18 +3,8 @@ import { computeHabitDayProgress } from '../utils/habit-list-progress'
 import type { HabitVisibilityView } from '../utils/habit-visibility'
 import { addRecentCompletion,removeRecentCompletion } from '../utils/drill-navigation'
 import type { StateSetter } from './state-adapter'
-import { collectSelectableDescendantIds } from '../utils/habits'
 
-export function getHabitDeleteConfirmation(
-  habitId: string | null,
-  habitsById: ReadonlyMap<string, NormalizedHabit>,
-  childrenByParent: ReadonlyMap<string, string[]>,
-): { name: string; descendantCount: number } {
-  if (!habitId) return { name: '', descendantCount: 0 }
-  return { name: habitsById.get(habitId)?.title ?? '', descendantCount: collectSelectableDescendantIds(
-    habitId, descendantId => childrenByParent.get(descendantId) ?? [],
-  ).length }
-}
+
 
 export function computeHabitChildrenProgress(habitsById: ReadonlyMap<string, NormalizedHabit>, getChildren: (id: string) => NormalizedHabit[], visibility: { isDueOnSelectedDate: (habit: NormalizedHabit) => boolean }, view: HabitVisibilityView) {
     const map = new Map<string, { done: number; total: number }>()

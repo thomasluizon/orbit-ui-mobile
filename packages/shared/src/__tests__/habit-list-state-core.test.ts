@@ -1,18 +1,11 @@
 import { afterEach,expect,it,vi } from 'vitest'
-import { computeHabitChildrenProgress,createUseHabitRecentCompletions,getHabitDeleteConfirmation } from '../hooks/habit-list-state-core'
+import { computeHabitChildrenProgress,createUseHabitRecentCompletions } from '../hooks/habit-list-state-core'
 import { createHookStateHarness } from '../test-support/hook-state'
 import { createMockHabit } from './factories'
 
 afterEach(() => vi.useRealTimers())
 
-it('describes the selected delete subtree and clears a missing selection', () => {
-  const parent = createMockHabit({ id: 'parent', title: 'Read' })
-  const habits = new Map([[parent.id, parent]])
-  const children = new Map([['parent', ['child']], ['child', ['grandchild']]])
-  expect(getHabitDeleteConfirmation(parent.id, habits, children)).toEqual({ name: 'Read', descendantCount: 2 })
-  expect(getHabitDeleteConfirmation(null, habits, children)).toEqual({ name: '', descendantCount: 0 })
-  expect(getHabitDeleteConfirmation('missing', habits, children)).toEqual({ name: '', descendantCount: 0 })
-})
+
 
 it('counts nested child progress once per ancestor', () => {
   const parent = createMockHabit({ id: 'parent' })

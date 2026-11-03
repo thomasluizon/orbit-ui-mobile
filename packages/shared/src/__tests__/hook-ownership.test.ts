@@ -44,3 +44,17 @@ it('resolves both calendar range hooks to the same query-state owner', () => {
   expect(owners[0]).toBe(owners[1])
   expect(owners[0]).toContain('/packages/shared/src/')
 })
+
+it('keeps bulk deletion independent of update and checklist implementations', () => {
+  const path = fileURLToPath(new URL('../hooks/index.ts', import.meta.url))
+  const program = ts.createProgram([path], { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, target: ts.ScriptTarget.ESNext })
+  const checker = program.getTypeChecker()
+  const source = program.getSourceFile(path)!
+  const exports = checker.getExportsOfModule(checker.getSymbolAtLocation(source)!)
+  let symbol = exports.find(symbol => symbol.name === 'selectedDescendantsInSnapshots')!
+  if (symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol)
+  const owner = symbol.declarations![0]!.getSourceFile()
+  const ownerExports = checker.getExportsOfModule(checker.getSymbolAtLocation(owner)!).map(symbol => symbol.name)
+  expect(ownerExports).not.toContain('applyHabitStructurePatch')
+  expect(ownerExports).not.toContain('applyHabitChecklistDetails')
+})
