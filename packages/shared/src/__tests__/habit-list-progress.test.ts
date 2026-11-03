@@ -581,13 +581,13 @@ describe('computeParentPromptProgress', () => {
   })
 })
 
-it.each([false, true])('counts bad habits and their descendants in parent resolution with slip %s', (isCompleted) => {
+it.each([false, true])('excludes bad habits and their descendants from parent progress with slip %s', (isCompleted) => {
   const parent = createMockHabit({ id: 'parent', scheduledDates: [TODAY] })
   const good = createMockHabit({ id: 'good', parentId: parent.id, isCompleted: true })
   const bad = createMockHabit({ id: 'bad', parentId: parent.id, isBadHabit: true, isCompleted })
   const nested = createMockHabit({ id: 'nested', parentId: bad.id })
   const progress = computeParentPromptProgress({ parentId: parent.id, getChildren: makeGetChildren({ parent: [good, bad], bad: [nested] }), isRelevantToday: () => true, isDueOnSelectedDate: () => true, skippedIds: new Set() })
-  expect(progress).toEqual({ done: isCompleted ? 2 : 1, total: 3, loggedDone: isCompleted ? 2 : 1, slippedDone: isCompleted ? 1 : 0 })
+  expect(progress).toEqual({ done: 1, total: 1, loggedDone: 1, slippedDone: 0 })
   expect(computeParentSettlementDecision({ ...parent, isBadHabit: true }, progress, TODAY)).toBeNull()
 })
 

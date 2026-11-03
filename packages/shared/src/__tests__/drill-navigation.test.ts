@@ -6,7 +6,7 @@ import {
   canRevealCompletedDrillChildren,
   countCompletedDrillChildren,
   getDrillParent,
-  getDrillSettlementHabits,
+  mergeDrillSettlementHabits,
   getRecentlyCompletedIdsForDate,
   getVisibleDrillChildren,
   loadDrillChildren,
@@ -562,8 +562,19 @@ it('retains the complete normalized drill inventory for parent settlement', () =
   const child = makeDetailChild({ id: 'child', isCompleted: true, children: [makeDetailChild({ id: 'nested' })] })
   const normalized = normalizeHabitDetailForDrill(makeDetail({ children: [child] }), '2026-09-12')
   const parents = new Map([[normalized.parent.id, normalized.parent]])
-  const inventory = getDrillSettlementHabits(parents, normalized.childrenByParent)
+  const inventory = mergeDrillSettlementHabits(parents, normalized)
   expect([...inventory.keys()].sort((left, right) => left.localeCompare(right))).toEqual(['child', 'nested', 'parent-1'])
   expect(inventory.get('nested')?.parentId).toBe(child.id)
   expect(inventory.get(child.id)?.isCompleted).toBe(true)
+})
+
+it('replaces the fetched subtree without retaining removed children or losing other roots', () => {
+  const original = normalizeHabitDetailForDrill(makeDetail({ children: [makeDetailChild({
+    id: 'removed', children: [makeDetailChild({ id: 'removed-nested' })],
+  })] }), '2026-09-12')
+  const unrelated = createMockHabit({ id: 'unrelated' })
+  const previous = mergeDrillSettlementHabits(new Map([[unrelated.id, unrelated]]), original)
+  const refreshed = normalizeHabitDetailForDrill(makeDetail({ children: [makeDetailChild({ id: 'replacement' })] }), '2026-09-12')
+  const inventory = mergeDrillSettlementHabits(previous, refreshed)
+  expect([...inventory.keys()].sort((left, right) => left.localeCompare(right))).toEqual(['parent-1', 'replacement', 'unrelated'])
 })

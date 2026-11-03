@@ -4,7 +4,7 @@ import type {
   NormalizedHabit,
 } from '../types/habit'
 import { formatAPIDate } from './dates'
-import { fallbackChildOverdue } from './habit-normalization'
+import { buildChildrenIndex, fallbackChildOverdue } from './habit-normalization'
 import { isHabitLoggedOnDate } from './all-done'
 import {
   getChildrenFromIndex,
@@ -45,13 +45,22 @@ export function mergeDrillChildrenMap(
   return next
 }
 
-export function getDrillSettlementHabits(
-  parents: ReadonlyMap<string, NormalizedHabit>,
-  childrenByParent: ReadonlyMap<string, NormalizedHabit[]>,
+export function mergeDrillSettlementHabits(
+  previous: ReadonlyMap<string, NormalizedHabit>,
+  fetched: NormalizedDrillDetail,
 ): Map<string, NormalizedHabit> {
+  const retained = new Map(previous)
+  const previousChildren = buildChildrenIndex(retained)
+  const replacedIds = [...previousChildren.get(fetched.parent.id) ?? []]
+  while (replacedIds.length > 0) {
+    const id = replacedIds.pop()!
+    retained.delete(id)
+    replacedIds.push(...previousChildren.get(id) ?? [])
+  }
   return new Map([
-    ...[...childrenByParent.values()].flat().map(habit => [habit.id, habit] as const),
-    ...parents,
+    ...retained,
+    ...[...fetched.childrenByParent.values()].flat().map(habit => [habit.id, habit] as const),
+    [fetched.parent.id, fetched.parent],
   ])
 }
 

@@ -103,6 +103,7 @@ export interface HabitResolution {
 
 export interface ParentPromptProgressOptions {
   parentId: string
+  parentIsBadHabit?: boolean
   getChildren: (parentId: string) => NormalizedHabit[]
   isRelevantToday: (habit: NormalizedHabit) => boolean
   isDueOnSelectedDate: (habit: NormalizedHabit) => boolean
@@ -112,6 +113,12 @@ export interface ParentPromptProgressOptions {
 }
 
 export type ParentSettlementDecision = 'log' | 'skip' | null
+
+export function getPersistedHabitResolution(parent: NormalizedHabit): HabitResolutionMode | null {
+  if (parent.isCompleted || parent.isLoggedInRange) return 'log'
+  return parent.flexibleTarget != null && parent.flexibleCompleted != null &&
+    parent.flexibleCompleted >= parent.flexibleTarget ? 'skip' : null
+}
 
 export function computeParentSettlementDecision(
   parent: NormalizedHabit | null,
@@ -127,16 +134,8 @@ export function computeParentSettlementDecision(
     return null
   }
 
-  const isSkippedInRange =
-    parent.flexibleTarget != null &&
-    parent.flexibleCompleted != null &&
-    parent.flexibleCompleted >= parent.flexibleTarget &&
-    !parent.isLoggedInRange
-
   if (
-    parent.isCompleted ||
-    parent.isLoggedInRange ||
-    isSkippedInRange ||
+    getPersistedHabitResolution(parent) ||
     children.total === 0 ||
     children.done < children.total
   ) {
@@ -177,6 +176,7 @@ export function computeParentPromptProgress(
 ): ParentPromptProgress {
   const {
     parentId,
+    parentIsBadHabit = false,
     getChildren,
     isRelevantToday,
     isDueOnSelectedDate,
@@ -254,6 +254,7 @@ export function computeParentPromptProgress(
     let loggedDone = 0
     let slippedDone = 0
     for (const child of getChildren(currentParentId)) {
+      if (child.isBadHabit && !parentIsBadHabit) continue
       const progress = computeChild(child)
       done += progress.done
       total += progress.total

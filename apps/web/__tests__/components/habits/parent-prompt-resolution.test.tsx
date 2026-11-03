@@ -13,23 +13,37 @@ let tree: ReactTestRenderer | undefined
 beforeEach(() => { vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); vi.useFakeTimers(); vi.setSystemTime(new Date(`${date}T12:00:00Z`)) })
 afterEach(async () => { await act(() => tree?.unmount()); tree = undefined; vi.useRealTimers(); vi.unstubAllGlobals() })
 
-async function mountQueue(isBadHabit: boolean, view: 'today' | 'all' | 'general') {
+async function mountQueue(isBadHabit: boolean, view: 'today' | 'all' | 'general', options: { mixed?: boolean; root?: boolean; hiddenBadSibling?: boolean } = {}) {
   const isGeneral = view === 'general'
   let items = [createMockHabitScheduleItem({ id: 'parent', isBadHabit, isGeneral, scheduledDates: [date], hasSubHabits: true,
-    children: ['first', 'second'].map(id => createMockHabitScheduleChild({ id, isBadHabit, isGeneral, dueDate: date, scheduledDates: [date] })),
+    children: ['first', 'second'].map(id => createMockHabitScheduleChild({ id, isBadHabit: isBadHabit || (options.mixed === true && id === 'second'), isGeneral, dueDate: date, scheduledDates: [date] })),
   })]
-  let snapshot = normalizeHabitQueryData(items)
+  if (options.hiddenBadSibling) items[0]!.children.push(createMockHabitScheduleChild({ id: 'unscheduled', isBadHabit: true, dueDate: '2026-09-13', scheduledDates: [] }))
+  const scheduleSnapshot = () => normalizeHabitQueryData(items.map(item => ({ ...item, children: item.children.filter(child => child.id !== 'unscheduled') })))
+  if (options.root) items = [createMockHabitScheduleItem({ id: 'root', scheduledDates: [date], hasSubHabits: true, children: [
+    createMockHabitScheduleChild({ ...items[0]!, children: items[0]!.children }),
+    createMockHabitScheduleChild({ id: 'good', isCompleted: true, scheduledDates: [date] }),
+  ] })]
+  let snapshot = scheduleSnapshot()
   let updatedAt = 1
   let queue!: ReturnType<typeof useParentPromptQueue>
   const bulkLog = { mutateAsync: vi.fn(() => Promise.resolve({ results: [{ habitId: 'parent', status: 'Success' }] })) }
   const bulkSkip = { mutateAsync: vi.fn(() => Promise.resolve({ results: [{ habitId: 'parent', status: 'Success' }] })) }
-  const log = vi.fn(({ habitId }: { habitId: string }) => { items = optimisticSetDatedCompletion(items, habitId, date, true, 'child-log'); return Promise.resolve() })
+  const log = vi.fn(({ habitId }: { habitId: string }) => {
+    items = optimisticSetDatedCompletion(items, habitId, date, true, 'child-log')
+    const serverSnapshot = normalizeHabitQueryData(items)
+    const badChildren = (serverSnapshot.childrenByParent.get('parent') ?? []).filter(id => serverSnapshot.habitsById.get(id)?.isBadHabit)
+    if (isBadHabit && badChildren.length > 0 && badChildren.every(id => serverSnapshot.habitsById.get(id)?.isLoggedInRange)) {
+      items = optimisticSetDatedCompletion(items, 'parent', date, true, 'derived-parent-slip')
+    }
+    return Promise.resolve()
+  })
   const skip = vi.fn(({ habitId }: { habitId: string }) => {
     items = optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(findHabitInList(items, habitId)!, date))
     return Promise.resolve()
   })
   const refetch = vi.fn(() => {
-    snapshot = normalizeHabitQueryData(items)
+    snapshot = scheduleSnapshot()
     updatedAt += 1
     tree!.update(<QueryClientProvider client={client}><Probe /></QueryClientProvider>)
     return Promise.resolve()
@@ -50,7 +64,18 @@ async function mountQueue(isBadHabit: boolean, view: 'today' | 'all' | 'general'
   }
   await act(() => { tree = create(<QueryClientProvider client={client}><Probe /></QueryClientProvider>) })
   return {
-    current: () => queue, bulkLog, bulkSkip,
+    current: () => queue, bulkLog, bulkSkip, log,
+    callbackLog: async (id: string) => {
+      await act(async () => { await log({ habitId: id }); await refetch() })
+      await act(() => { queue.checkAndPromptParentLog(id) })
+    },
+    bulkLogChildren: async () => {
+      await act(async () => {
+        await log({ habitId: 'first' }); await log({ habitId: 'second' })
+        queue.settleBulkHabitResolutions(['first', 'second'].map(habitId => ({ habitId, mode: 'log' })), date)
+      })
+    },
+    settleParentOnServer: () => { items = optimisticSetDatedCompletion(items, 'parent', date, true, 'server-parent-log') },
     refetch: async () => { await act(refetch) },
     resolve: async (id: string, mode: 'log' | 'skip') => {
       const habit = snapshot.habitsById.get(id)!
@@ -68,6 +93,11 @@ describe.each([false, true])('parent resolution through list state, bad=%s', isB
       expect(queue.current().parentPrompt).toBeNull()
       if (refetchBetween) await queue.refetch()
       await queue.resolve('second', second)
+      if (isBadHabit && first === 'log' && second === 'log') {
+        expect(queue.current().parentPrompt).toBeNull()
+        expect(queue.bulkLog.mutateAsync).not.toHaveBeenCalled()
+        return
+      }
       const mode = first === 'skip' && second === 'skip' ? 'skip' : 'log'
       expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode, date })
       await queue.refetch()
@@ -78,4 +108,67 @@ describe.each([false, true])('parent resolution through list state, bad=%s', isB
     })
     })
   })
+})
+
+
+describe.each(['today', 'all', 'general'] as const)('mixed parent rules in %s', view => {
+  it('prompts a good parent after its good child logs while a bad child stays unslipped', async () => {
+    const queue = await mountQueue(false, view, { mixed: true })
+    await queue.resolve('first', 'log')
+    expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+    await act(() => queue.current().confirmParentSettlement())
+    expect(queue.bulkLog.mutateAsync).toHaveBeenCalledWith([{ habitId: 'parent', date }])
+  })
+})
+
+it('offers only the actionable root and confirms it after the API derives the bad parent slip', async () => {
+  const queue = await mountQueue(true, 'today', { root: true })
+  await queue.resolve('first', 'log')
+  await queue.refetch()
+  await queue.resolve('second', 'log')
+  expect(queue.current().parentPrompt?.ancestors.map(({ habit }) => habit.id)).toEqual(['root'])
+  await queue.refetch()
+  await act(() => queue.current().confirmParentSettlement())
+  expect(queue.bulkLog.mutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'root', date }])
+  expect(queue.bulkSkip.mutateAsync).not.toHaveBeenCalled()
+})
+
+
+it('keeps a selected higher ancestor when the nearer parent settles during refetch', async () => {
+  const queue = await mountQueue(false, 'today', { root: true })
+  await queue.resolve('first', 'log')
+  await queue.resolve('second', 'log')
+  expect(queue.current().parentPrompt?.ancestors.map(({ habit }) => habit.id)).toEqual(['parent', 'root'])
+  await act(() => queue.current().selectParentAncestor(1, true))
+  queue.settleParentOnServer()
+  await queue.refetch()
+  await act(() => queue.current().confirmParentSettlement())
+  expect(queue.bulkLog.mutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'root', date }])
+})
+
+
+it('prompts after refetch when an unscheduled bad sibling prevents API slip derivation', async () => {
+  const queue = await mountQueue(true, 'today', { hiddenBadSibling: true })
+  await queue.resolve('first', 'log')
+  await queue.resolve('second', 'log')
+  expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+  await act(() => queue.current().confirmParentSettlement())
+  expect(queue.bulkLog.mutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'parent', date }])
+})
+
+
+it('rechecks callback logs after the API derives the parent slip', async () => {
+  const queue = await mountQueue(true, 'today', { root: true })
+  await queue.callbackLog('first')
+  await queue.callbackLog('second')
+  expect(queue.current().parentPrompt?.ancestors.map(({ habit }) => habit.id)).toEqual(['root'])
+  await act(() => queue.current().confirmParentSettlement())
+  expect(queue.bulkLog.mutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: 'root', date }])
+})
+
+it('settles only the actionable root after bulk child slips refetch their derived parent', async () => {
+  const queue = await mountQueue(true, 'today', { root: true })
+  await queue.bulkLogChildren()
+  expect(queue.log.mock.calls.map(([input]) => input.habitId)).toEqual(['first', 'second', 'root'])
+  expect(queue.current().parentPrompt).toBeNull()
 })

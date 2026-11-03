@@ -10,7 +10,7 @@ import {
   canRevealCompletedDrillChildren,
   getVisibleDrillChildren,
   getDrillParent,
-  getDrillSettlementHabits,
+  mergeDrillSettlementHabits,
   loadDrillChildren,
   mergeDrillChildrenMap,
 } from '@orbit/shared/utils/drill-navigation'
@@ -73,7 +73,7 @@ export function useDrillNavigation(
   const [drillChildrenMap, setDrillChildrenMap] = useAccountScopedState(
     () => new Map<string, NormalizedHabit[]>(),
   )
-  const [drillParentInfo, setDrillParentInfo] = useAccountScopedState(() => new Map<string, NormalizedHabit>())
+  const [drillHabitsById, setDrillHabitsById] = useAccountScopedState(() => new Map<string, NormalizedHabit>())
   const [drillLoading, setDrillLoading] = useAccountScopedState(false)
   const [drillError, setDrillError] = useAccountScopedState('')
 
@@ -82,7 +82,7 @@ export function useDrillNavigation(
     setDrillView(view)
     setDrillStack([])
     setDrillChildrenMap(new Map())
-    setDrillParentInfo(new Map())
+    setDrillHabitsById(new Map())
     setDrillLoading(false)
     setDrillError('')
   }
@@ -103,11 +103,11 @@ export function useDrillNavigation(
     if (parentId) void queryClient.cancelQueries({ queryKey: habitKeys.detail(parentId), exact: true })
   }, [queryClient, view])
 
-  const settlementHabitsById = useMemo(() => getDrillSettlementHabits(drillParentInfo, drillChildrenMap), [drillParentInfo, drillChildrenMap])
+  const settlementHabitsById = drillHabitsById
 
   const currentParent = useMemo(() => {
-    return getDrillParent(currentParentId, habitsById, drillParentInfo, drillChildrenMap)
-  }, [currentParentId, habitsById, drillParentInfo, drillChildrenMap])
+    return getDrillParent(currentParentId, habitsById, drillHabitsById, drillChildrenMap)
+  }, [currentParentId, habitsById, drillHabitsById, drillChildrenMap])
 
   const drillChildren = useMemo(
     () => currentParentId
@@ -146,7 +146,7 @@ export function useDrillNavigation(
           retryDelay: queryRetryDelay,
         }), todayStr)
         if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return
-        setDrillParentInfo((parents) => new Map(parents).set(normalized.parent.id, normalized.parent))
+        setDrillHabitsById((previous) => mergeDrillSettlementHabits(previous, normalized))
         setDrillChildrenMap((prev) =>
           mergeDrillChildrenMap(prev, normalized.childrenByParent),
         )
@@ -162,7 +162,7 @@ export function useDrillNavigation(
         }
       }
     },
-    [queryClient, setDrillChildrenMap, setDrillError, setDrillLoading, setDrillParentInfo, t, todayStr],
+    [queryClient, setDrillChildrenMap, setDrillError, setDrillLoading, setDrillHabitsById, t, todayStr],
   )
 
   const drillInto = useCallback(
@@ -195,8 +195,8 @@ export function useDrillNavigation(
     setDrillLoading(false)
     setDrillStack([])
     setDrillChildrenMap(new Map())
-    setDrillParentInfo(new Map())
-  }, [setDrillChildrenMap, setDrillLoading, setDrillParentInfo, setDrillStack])
+    setDrillHabitsById(new Map())
+  }, [setDrillChildrenMap, setDrillLoading, setDrillHabitsById, setDrillStack])
 
   const refreshCurrent = useCallback(async () => {
     if (!currentParentId) return

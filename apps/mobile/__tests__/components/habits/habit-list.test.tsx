@@ -3421,7 +3421,7 @@ describe('HabitList', () => {
     TestRenderer.act(() => { mockHabitsDataUpdatedAt += 1; tree.update(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
     await pressDrillChild(second.id, first === 'log' ? 'skip' : 'log')
     expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(1)
-    await TestRenderer.act(async () => { pressConfirm(tree, 'chat.pendingOp.action.applyChanges'); await Promise.resolve() })
+    await TestRenderer.act(async () => { pressConfirm(tree, isBadHabit ? 'habits.autoLogParentConfirm' : 'chat.pendingOp.action.applyChanges'); await Promise.resolve() })
     expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }])
   })
 
@@ -3448,18 +3448,18 @@ describe('HabitList', () => {
     TestRenderer.act(() => { mockHabitsDataUpdatedAt += 1; tree.update(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
     await pressDrillChild(second.id, first === 'log' ? 'skip' : 'log')
     expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(1)
-    await TestRenderer.act(async () => { pressConfirm(tree, 'chat.pendingOp.action.applyChanges'); await Promise.resolve() })
+    await TestRenderer.act(async () => { pressConfirm(tree, isBadHabit ? 'habits.autoLogParentConfirm' : 'chat.pendingOp.action.applyChanges'); await Promise.resolve() })
     expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }])
   })
 
-  it.each([true, false])('waits for the remaining bad child with bad parent %s', async (badParent) => {
+  it.each([true, false])('counts the remaining bad child only under a bad parent, bad=%s', async (badParent) => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', isBadHabit: badParent, hasSubHabits: true, scheduledDates: [TODAY] })
     const child = createMockHabit({ id: 'child', title: 'Child', isBadHabit: badParent, parentId: parent.id, scheduledDates: [TODAY] })
     const bad = createMockHabit({ id: 'bad', isBadHabit: true, parentId: parent.id, scheduledDates: [TODAY] })
     seedHabits([parent, child, bad])
     const tree = mountPromptChain()
     await TestRenderer.act(async () => { promptChildAction(tree, 'log'); await Promise.resolve() })
-    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(0)
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(badParent ? 0 : 1)
   })
 
   it.each(['log', 'skip'] as const)('keeps higher ancestors unselected when a queued %s confirmation replays', async (mode) => {
@@ -3532,14 +3532,14 @@ describe('HabitList', () => {
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('prompts when a bad child slips after its good sibling is complete', async () => {
+  it('does not prompt when a bad child slips after its good sibling is complete', async () => {
     const { root, parent, child } = seedPromptChain()
     const slip = { ...child, isBadHabit: true }
     const good = createMockHabit({ id: 'good', parentId: parent.id, isCompleted: true, scheduledDates: [TODAY] })
     seedHabits([root, parent, slip, good])
     const tree = mountPromptChain()
     await TestRenderer.act(async () => { promptChildAction(tree, 'log'); await Promise.resolve() })
-    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(1)
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(0)
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
   })
 

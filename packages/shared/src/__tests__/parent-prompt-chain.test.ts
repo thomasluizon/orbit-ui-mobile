@@ -43,13 +43,13 @@ describe('parent prompt chains', () => {
     expect(computeParentPromptChain(child.id, habitsById, date, options)).toEqual([])
   })
 
-  it('starts a chain after a bad child slips when its good siblings are already complete', () => {
+  it('does not start a chain from a bad child when its good siblings are already complete', () => {
     const { child, habitsById, options } = chainFixture()
     habitsById.set(child.id, { ...child, isBadHabit: true })
     const good = createMockHabit({ id: 'good', parentId: 'parent', isCompleted: true })
     expect(computeParentPromptChain(child.id, habitsById, date, { ...options,
       getChildren: (id) => id === 'parent' ? [habitsById.get(child.id)!, good] : options.getChildren(id),
-    }).map(({ habit }) => habit.id)).toEqual(['parent', 'root'])
+    })).toEqual([])
   })
 
   it('retains a resolved child omitted by the next query and trusts current rows when they return', () => {
