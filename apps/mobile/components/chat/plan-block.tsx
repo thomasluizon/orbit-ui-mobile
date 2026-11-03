@@ -14,7 +14,7 @@ function StepMarker({ status, index, tokens }: Readonly<{ status: string; index:
   if (status === 'pending') return <Text style={[styles.number, { color: tokens.fg3 }]}>{index + 1}</Text>
   if (status === 'running') return <View style={styles.working}>{[0, 1, 2].map(dot => <View key={dot} style={[styles.dot, { backgroundColor: tokens.fg2 }]} />)}</View>
   const Glyph = status === 'done' ? Check : status === 'failed' ? XCircle : Minus
-  return <Glyph size={16} strokeWidth={1.5} color={status === 'failed' ? tokens.statusBad : status === 'done' ? tokens.fg1 : tokens.fg3} />
+  return <Glyph size={16} strokeWidth={1.5} color={status === 'failed' ? tokens.statusBadText : status === 'done' ? tokens.fg1 : tokens.fg3} />
 }
 
 function PlanStep({ step, index }: Readonly<{ step: AstraPlanStep; index: number }>) {

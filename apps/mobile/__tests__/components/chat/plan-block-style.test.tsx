@@ -60,7 +60,11 @@ describe.each(['en', 'pt-BR'])('native Astra plan in %s', locale => {
       const progress = hosts.find(node => node.props.accessibilityRole === 'progressbar')!
       expect(progress.props.accessibilityValue).toEqual({ min: 0, max: 2, now: status === 'done' ? 1 : 0 })
       expect(progress.props.accessibilityLabel).toBe(`${status === 'done' ? 1 : 0} ${locale === 'en' ? 'of' : 'de'} 2`)
-      if (status === 'failed') expect(StyleSheet.flatten(text.props.style as TextStyle).color).toBe(createTokensV2('purple', 'dark').statusBadText)
+      if (status === 'failed') {
+        const color = createTokensV2('purple', 'dark').statusBadText
+        expect(StyleSheet.flatten(text.props.style as TextStyle).color).toBe(color)
+        expect(row.findAll(node => node.props.size === 16 && node.props.strokeWidth === 1.5)[0]!.props.color).toBe(color)
+      }
     } finally { await act(() => tree.unmount()) }
   })
 

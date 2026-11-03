@@ -30,6 +30,15 @@ describe.each(['en', 'pt-BR'])('Astra plan in %s', locale => {
     expect(container.textContent).not.toContain('get_habits')
   })
 
+  it('uses the text status role for failed step text and marker', () => {
+    const plan = makeAstraPlan(locale)
+    plan.steps[0]!.status = 'failed'
+    render(surface(plan))
+    const row = screen.getAllByRole('listitem')[0]!
+    expect(row).toHaveStyle({ color: 'var(--status-bad-text)' })
+    expect(row.querySelector('svg')).toHaveAttribute('stroke', 'var(--status-bad-text)')
+  })
+
   it('updates the mounted list and count through completion', () => {
     const plan = makeAstraPlan(locale)
     const { rerender } = render(surface(plan))

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ChatReplyLifecycle, enqueueChatPrompt, nextQueuedChatPrompt, sendQueuedChatPrompt } from '../chat/prompt-queue'
 import { createChatStoreState, type ChatStoreState } from '../stores/chat-store'
+import { makeApprovalPlan } from '../test-support/astra-plan-fixtures'
 
 function setup() {
   let state = {} as ChatStoreState
@@ -88,6 +89,30 @@ describe('shared prompt queue', () => {
 })
 
 describe('reply settlement lifecycle', () => {
+  it.each(['stop', 'failure', 'success'] as const)('settles only unfinished work owned by the reply on %s', terminal => {
+    const { reply, getChat } = setup()
+    const plan = makeApprovalPlan()
+    plan.steps.splice(1, 0,
+      ...['pending', 'running', 'failed', 'skipped'].map(status => ({ ...plan.steps[0]!, id: status, status })),
+      { ...plan.steps[1]!, id: 'approval-running', status: 'running' },
+    )
+    getChat().addMessage({ id: 'draft', role: 'ai', content: '', timestamp: new Date(), plan })
+    getChat().addMessage({ id: 'unrelated', role: 'ai', content: '', timestamp: new Date(), plan })
+    getChat().setStreamingMessageId('draft')
+    if (terminal === 'stop') reply.stop()
+    else reply.finish(terminal === 'success')
+    expect(getChat().messages[0]?.plan?.steps.map(step => step.status)).toEqual(terminal === 'success'
+      ? ['done', 'pending', 'running', 'failed', 'skipped', 'running', 'pending']
+      : ['done', 'skipped', 'skipped', 'failed', 'skipped', 'skipped', 'pending'])
+    expect(getChat().messages[0]?.plan?.steps.at(-1)).toEqual(plan.steps.at(-1))
+    expect(getChat().messages[1]?.plan).toBe(plan)
+    expect(plan.steps.map(step => step.status)).toEqual(['done', 'pending', 'running', 'failed', 'skipped', 'running', 'pending'])
+    if (terminal === 'stop') {
+      reply.finish(true)
+      expect(getChat().messages[0]?.plan?.steps.some(step => step.status === 'running')).toBe(false)
+    }
+  })
+
   it('stops display and pauses the queue while keeping transport settlement alive', async () => {
     const { reply, getChat, abort } = setup()
     enqueueChatPrompt(getChat(), 'waiting', attempted, async () => true)

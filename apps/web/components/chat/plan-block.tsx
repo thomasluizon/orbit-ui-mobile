@@ -11,7 +11,7 @@ import { WorkingMark } from '@/components/ui/toast'
 
 function StepMarker({ status, index }: Readonly<{ status: string; index: number }>) {
   if (status === 'done') return <Check size={16} strokeWidth={1.5} />
-  if (status === 'failed') return <XCircle size={16} strokeWidth={1.5} color="var(--status-bad)" />
+  if (status === 'failed') return <XCircle size={16} strokeWidth={1.5} color="var(--status-bad-text)" />
   if (status === 'skipped') return <Minus size={16} strokeWidth={1.5} />
   if (status === 'running') return <WorkingMark />
   return index + 1
