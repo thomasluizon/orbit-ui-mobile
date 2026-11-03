@@ -229,6 +229,7 @@ export function useSkipHabit() {
       return withAccountGuard(async (guardedAccount) => {
         const account = guardedAccount
         const result = await mutation.mutateAsync({ ...input, account }, scopeOptions(options, account))
+        account.assertCurrent()
         return result
 
       })

@@ -83,6 +83,7 @@ export function useUpdateHabit() {
       return withAccountGuard(async (guardedAccount) => {
         const account = guardedAccount
         const result = await mutation.mutateAsync({ ...input, account })
+        account.assertCurrent()
         return result
 
       })

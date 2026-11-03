@@ -4187,7 +4187,7 @@ describe('pending habit writes across account replacement', () => {
     await settleAfterAccountReplacement(name, useWrite, input(), response, false)
   })
 
-  it.each(scenarios.slice(0, 5))('preserves a real $name hook result and suppresses stale caller callbacks after rerender', async ({ name, useWrite, input, response }) => {
+  it.each(scenarios.slice(0, 5))('preserves the real $name caller contract and suppresses stale callbacks after account replacement', async ({ name, useWrite, input, response }) => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
     setAccountId('account-a')
     client.setQueryData(habitKeys.list({}), [makeHabit({ id: 'habit-1' })])
@@ -4223,8 +4223,9 @@ describe('pending habit writes across account replacement', () => {
       expect(client.getQueryCache().getAll().map(query => [query.queryKey, query.state])).toEqual(before)
       expect(invalidate).not.toHaveBeenCalled()
       expect(completed).not.toHaveBeenCalled()
-      expect(outcome).toHaveProperty('value')
-      if (name === 'log' || name === 'update') expect(outcome).toEqual({ value: response })
+      if (name === 'update' || name === 'skip') expect(outcome).toEqual({ error: new Error('Account changed') })
+      else expect(outcome).toHaveProperty('value')
+      if (name === 'log') expect(outcome).toEqual({ value: response })
     } finally {
       await TestRenderer.act(async () => { settle(); await pending; renderer?.unmount() })
       mocks.useRealQueryHooks = false
