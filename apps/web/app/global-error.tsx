@@ -8,7 +8,8 @@ import enMessages from '@orbit/shared/i18n/en.json'
 import ptMessages from '@orbit/shared/i18n/pt-BR.json'
 import { FailureScreen } from '@/components/ui/failure-screen'
 import { mediaQueryMatches } from '@/lib/media-query'
-import { resolveInitialTheme, resolveWebThemeVariables } from '@/lib/theme-dom'
+import { getSavedTheme } from '@/stores/theme-store'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import './globals.css'
 
 function readCookie(name: string): string | null {
@@ -23,7 +24,7 @@ const emptySubscribe = () => () => {}
 
 function readClientPrefs(): string {
   const locale = readCookie('i18n_locale') === 'pt-BR' ? 'pt-BR' : 'en'
-  const theme = resolveInitialTheme(readCookie('orbit_theme_mode'))
+  const theme = getSavedTheme()
     ?? (mediaQueryMatches('(prefers-color-scheme: light)') ? 'light' : 'dark')
   return `${locale}|${theme}`
 }

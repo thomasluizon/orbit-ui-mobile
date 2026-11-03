@@ -47,6 +47,18 @@ describe('standalone global error screen', () => {
     expect(document.cookie).not.toContain('orbit_theme_mode')
   })
 
+  it.each([
+    ['%', true], ['%6cight', false],
+  ] as const)('handles theme cookie %s with the same decoding rule as the app', (value, systemLight) => {
+    document.cookie = `orbit_theme_mode=${value};path=/`
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: systemLight } as MediaQueryList)
+    render(<GlobalError error={new Error('startup failure')} reset={vi.fn()} />)
+    const root = screen.getByRole('heading', { name: en.errorScreen.title }).closest('html')!
+    expect(root.style.colorScheme).toBe('light')
+    expect(root.style.getPropertyValue('--bg')).toBe(resolveWebThemeVariables('orange', 'light')['--bg'])
+    expect(document.cookie).toContain(`orbit_theme_mode=${value}`)
+  })
+
   it('renders with default tokens when theme preferences are missing', () => {
     render(<GlobalError error={new Error('private startup failure')} reset={vi.fn()} />)
 
