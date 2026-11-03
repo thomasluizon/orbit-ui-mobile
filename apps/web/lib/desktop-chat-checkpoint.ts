@@ -18,26 +18,37 @@ async function durableImageUrl(url: string | null | undefined) {
 
 export async function writeDesktopChatCheckpoint(accountId: string, chat: ChatStoreState, conversationOpen: boolean, persistent = false) {
   const { checkpointSchema } = await loadModule(() => import('./desktop-chat-checkpoint-schema'))
+  const retained = readStoredCheckpoint(checkpointSchema, accountId)
+  if (retained) {
+    if (persistent) localStorage.setItem(desktopChatCheckpointKey, retained.stored)
+    return false
+  }
   const messages = await Promise.all(chat.messages.map(async message => ({
     ...message, imageUrl: await durableImageUrl(message.imageUrl),
   })))
   const checkpoint = { accountId, expiresAt: Date.now() + 5 * 60_000, conversationOpen,
     chat: { messages, conversationId: chat.conversationId, dismissedOfferKeys: chat.dismissedOfferKeys, draft: chat.draft, proactiveEntryId: chat.proactiveEntryId,
       proactiveOutcomes: chat.proactiveOutcomes, contextualSuggestion: chat.contextualSuggestion } }
-  checkpointSchema.parse(checkpoint)
+  checkpointSchema.parse(checkpoint, { jitless: true })
   const storage = persistent ? localStorage : sessionStorage
   storage.setItem(desktopChatCheckpointKey, JSON.stringify(checkpoint))
+  return true
 }
 
 export async function takeDesktopChatCheckpoint(accountId: string, isCurrent: () => boolean = () => true) {
   const { checkpointSchema } = await loadModule(() => import('./desktop-chat-checkpoint-schema'))
   if (!isCurrent()) return null
-  const stored = sessionStorage.getItem(desktopChatCheckpointKey) ?? localStorage.getItem(desktopChatCheckpointKey)
+  const retained = readStoredCheckpoint(checkpointSchema, accountId)
   forgetDesktopChatCheckpoint()
+  return retained?.checkpoint ?? null
+}
+
+function readStoredCheckpoint(checkpointSchema: typeof import('./desktop-chat-checkpoint-schema').checkpointSchema, accountId: string) {
+  const stored = sessionStorage.getItem(desktopChatCheckpointKey) ?? localStorage.getItem(desktopChatCheckpointKey)
   if (!stored) return null
   let parsed: unknown
   try { parsed = JSON.parse(stored) } catch { return null }
-  const checkpoint = checkpointSchema.safeParse(parsed)
+  const checkpoint = checkpointSchema.safeParse(parsed, { jitless: true })
   return checkpoint.success && checkpoint.data.accountId === accountId && checkpoint.data.expiresAt > Date.now()
-    ? checkpoint.data : null
+    ? { checkpoint: checkpoint.data, stored } : null
 }

@@ -5,7 +5,7 @@ import { captureException } from '@sentry/nextjs'
 import { MODULE_LOAD_TIMEOUT_MS } from '@orbit/shared/utils'
 import { DesktopReleaseShell } from '@/components/desktop-release-shell'
 import { takeDesktopChatCheckpoint, writeDesktopChatCheckpoint } from '@/lib/desktop-chat-checkpoint'
-import { canReloadDesktopWeb } from '@/lib/desktop-web-release'
+import { canReloadDesktopWeb, reloadDesktopWeb } from '@/lib/desktop-web-release'
 import { desktopChatCheckpointKey, hasWebReloadBlockers } from '@/lib/web-reload-state'
 import { reloadStaleBuildOnce } from '@/lib/stale-build-recovery'
 import { useChatStore } from '@/stores/chat-store'
@@ -104,6 +104,28 @@ it('settles the reload block on a stalled schema import and leaves saved content
   expect(sessionStorage.getItem(desktopChatCheckpointKey)).toBe(stored)
   await act(async () => { finish(); await vi.dynamicImportSettled() })
   expect(useChatStore.getState().draft).toBe('')
+})
+
+it.each([false, true])('recovers an unconsumed checkpoint after a failed restore and a subsequent restart, persistent %s', async persistent => {
+  const stored = await saveCheckpoint()
+  const finish = await delaySchema()
+  const mounted = monitor()
+  await act(async () => { await vi.advanceTimersByTimeAsync(MODULE_LOAD_TIMEOUT_MS) })
+  await act(async () => { finish(); await vi.dynamicImportSettled() })
+  expect(canReloadDesktopWeb()).toBe(true)
+  const reload = vi.fn()
+  await expect(reloadDesktopWeb(reload, persistent)).resolves.toBe(true)
+  expect(reload).toHaveBeenCalledOnce()
+  expect(sessionStorage.getItem(desktopChatCheckpointKey)).toBe(stored)
+  if (persistent) expect(localStorage.getItem(desktopChatCheckpointKey)).toBe(stored)
+  mounted.unmount()
+  monitor()
+  await act(async () => { await vi.dynamicImportSettled() })
+  expect(useChatStore.getState().draft).toBe('Saved draft')
+  expect(useChatStore.getState().messages.map(message => message.content)).toEqual(['Saved thread'])
+  expect(sessionStorage.getItem(desktopChatCheckpointKey)).toBeNull()
+  expect(localStorage.getItem(desktopChatCheckpointKey)).toBeNull()
+  expect(hasWebReloadBlockers()).toBe(false)
 })
 
 it('reports a missing schema chunk and invokes stale-build recovery', async () => {
