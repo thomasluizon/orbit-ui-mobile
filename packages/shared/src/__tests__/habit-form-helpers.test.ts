@@ -3,7 +3,7 @@ import { IntlMessageFormat } from 'intl-messageformat'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 import { readHabitPhrase, readTypedHabitPhrase } from '../utils/habit-phrase-parser'
-import { buildCreateHabitRequest } from '../utils/habit-request-builders'
+import { buildCreateHabitRequest, buildUpdateHabitRequest } from '../utils/habit-request-builders'
 import {
   EMPTY_HABIT_FORM_PROPOSAL,
   HABIT_REMINDER_PRESETS,
@@ -85,6 +85,27 @@ describe('habit form helpers', () => {
     })
     expect(values.emoji).toBe('')
     expect(buildCreateHabitRequest(values, [], [], [], [])).not.toHaveProperty('emoji')
+  })
+
+  it.each([
+    ['Escolher aneis corretos', 'pt-BR'],
+    ['Get ready for the run', 'en'],
+  ] as const)('preserves a stored emoji and its explicit removal while parsing %s', (title, locale) => {
+    const values = normalizeHabitFormData({ title, emoji: '🌱' })
+    const target = {
+      setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(), setGeneral: vi.fn(),
+      setField: (field: string, value: string | number | string[]) => { Object.assign(values, { [field]: value }) },
+    }
+    const read = readHabitPhrase(title, locale)
+    applyHabitPhraseRead(true, read, false, { cadence: false, dueTime: false }, target)
+    expect(buildCreateHabitRequest(values, [], [], [], []).emoji).toBe('🌱')
+    expect(buildUpdateHabitRequest(values, true, '', [], []).emoji).toBe('🌱')
+
+    values.emoji = ''
+    applyHabitPhraseRead(true, read, false, { cadence: false, dueTime: false }, target)
+    expect(values.emoji).toBe('')
+    expect(buildCreateHabitRequest(values, [], [], [], [])).not.toHaveProperty('emoji')
+    expect(buildUpdateHabitRequest(values, true, '', [], []).emoji).toBeNull()
   })
 
   it('normalizes missing habit form values', () => {
