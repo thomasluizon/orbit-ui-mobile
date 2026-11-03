@@ -435,6 +435,7 @@ export {
   buildChildrenIndex,
   habitDetailToNormalized,
   normalizeHabitQueryData,
+  createHabitQueryNormalizer,
   normalizeHabits,
   sortNormalizedHabits,
 } from './habit-normalization'
@@ -845,3 +846,4 @@ export { computeParentResolutionProgress, computeParentPromptChain, selectParent
 export type { ParentPromptChain } from './parent-prompt-chain'
 
 export { SETTLE_DELAY_MS } from './engagement-prompt-timing'
+export { AuthRefreshNetworkError, isNetworkUnavailableError } from './network-error'

@@ -261,6 +261,22 @@ describe('useOffline', () => {
     )
   })
 
+  it.each([
+    new TypeError('Network request failed'),
+    new Error('fetch failed: java.net.UnknownHostException: Unable to resolve host "example.invalid": No address associated with hostname'),
+  ])('does not report an offline flush failure: $message', async (error) => {
+    mocks.flushQueuedMutations.mockRejectedValueOnce(error)
+    mocks.state.queueCount = 1
+    await mountHook()
+    await TestRenderer.act(async () => {
+      mocks.state.netInfoListener?.({ isConnected: true, isInternetReachable: true })
+      mocks.state.queueListener?.(1)
+      await Promise.resolve()
+    })
+    expect(mocks.flushQueuedMutations).toHaveBeenCalledOnce()
+    expect(mocks.captureError).not.toHaveBeenCalled()
+  })
+
   it('keeps auth-stopped work closed when connectivity returns', async () => {
     mocks.state.queueCount = 1
     mocks.state.allowFlush = false

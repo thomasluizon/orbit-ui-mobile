@@ -63,10 +63,10 @@ describe('getHabitPhraseTitle', () => {
       setGeneral: vi.fn(),
       setField: vi.fn(),
     }
-    const applied = applyHabitPhraseRead(true, readHabitPhrase('Run Monday every 2 weeks', 'en'), '', false,
+    const applied = applyHabitPhraseRead(true, readHabitPhrase('Run Monday every 2 weeks', 'en'), false,
       { cadence: false, dueTime: false }, target)
     const finalPhrase = 'Run every 2 weeks'
-    const ownership = applyHabitPhraseRead(true, readHabitPhrase(finalPhrase, 'en'), '', false, applied, target)
+    const ownership = applyHabitPhraseRead(true, readHabitPhrase(finalPhrase, 'en'), false, applied, target)
 
     expect(setOneTime).toHaveBeenCalledOnce()
     expect(ownership.cadence).toBe(true)

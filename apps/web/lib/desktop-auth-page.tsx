@@ -7,6 +7,8 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { AuthPagePanel } from '@/components/auth/auth-page-panel'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { PillAnchor } from '@/components/ui/pill-anchor'
+import { neutralColors } from '@orbit/shared/theme'
+import { buildThemeBootstrapScript } from '@/lib/theme-bootstrap'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 const fonts = `
@@ -35,17 +37,19 @@ p { font-size:16px; line-height:1.55; color:var(--fg-2); overflow-wrap:anywhere;
 `
 const openAppScript = `window.addEventListener('load',function(){window.location.href=document.querySelector('a').href;},{once:true});`
 
-export async function desktopAuthPage(destination: URL, locale: string, mode: 'light' | 'dark', nonce: string | null = null) {
+export async function desktopAuthPage(destination: URL, locale: string, mode: 'light' | 'dark' | null, nonce: string | null = null) {
   const language = locale === 'pt-BR' ? 'pt-BR' : 'en'
   const t = createTranslator({ locale: language, messages: language === 'pt-BR' ? ptBR : en, namespace: 'auth.desktopCallback' })
   const failed = destination.searchParams.has('error')
   const title = t(failed ? 'failureTitle' : 'successTitle')
   const stream = await renderToReadableStream(
-    <html lang={language} className={mode}>
+    <html lang={language} className={mode ?? 'dark'}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="referrer" content="no-referrer" />
+        <meta name="theme-color" content={neutralColors[mode ?? 'dark'].bg} />
+        {mode === null ? <script nonce={nonce ?? undefined} dangerouslySetInnerHTML={{ __html: buildThemeBootstrapScript(null) }} /> : null}
         <title>{`${title} | Orbit`}</title>
         <style>{styles}</style>
       </head>

@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/query-core'
 import type { ChatStoreState } from '../stores/chat-store'
 import type { ChatClientContext,ChatResponse } from '../types/chat'
-import { type ChatStreamRequest,type ChatStreamResult,type PreparedChatTurn,type ChatTurnReconciliation,buildChatFinalMessageFields,CHAT_STREAM_IDLE_TIMEOUT_MS,sendChatStreamTurn,ChatReplyLifecycle,needsNewChatTurn,getChatTurnFailure } from '../chat'
+import { type ChatStreamCallbacks,type ChatStreamRequest,type ChatStreamResult,type PreparedChatTurn,type ChatTurnReconciliation,updateMessagePlanStep,buildChatFinalMessageFields,CHAT_STREAM_IDLE_TIMEOUT_MS,sendChatStreamTurn,ChatReplyLifecycle,needsNewChatTurn,getChatTurnFailure } from '../chat'
 import { classifySendFailure,reconcileAgentQueries,settleChatResponse } from './chat-composer-core'
 import type { createChatThreadScroll } from './chat-thread-scroll-core'
 import { getFriendlyErrorMessage } from '../utils/error-utils'
@@ -127,11 +127,11 @@ function resolveComposerStreamFailure(
 }
 
 function createComposerStreamCallbacks(
-  { appendToMessageContent, scrollToBottom, updateMessage, setIsTyping, activeStepsRef, setActiveSteps }: Pick<ComposerStreamContext<never, never>, 'appendToMessageContent' | 'scrollToBottom' | 'updateMessage' | 'setIsTyping' | 'activeStepsRef' | 'setActiveSteps'>,
+  { appendToMessageContent, scrollToBottom, updateMessage, setIsTyping, activeStepsRef, setActiveSteps, getChat }: Pick<ComposerStreamContext<never, never>, 'appendToMessageContent' | 'scrollToBottom' | 'updateMessage' | 'setIsTyping' | 'activeStepsRef' | 'setActiveSteps' | 'getChat'>,
   isHidden: () => boolean,
   ensureDraftMessage: () => string,
   getDraftMessageId: () => string | null,
-) {
+): ChatStreamCallbacks {
   return {
     onDelta: (text: string) => {
       if (isHidden()) return
@@ -143,6 +143,16 @@ function createComposerStreamCallbacks(
       const draftMessageId = getDraftMessageId()
       if (draftMessageId) updateMessage(draftMessageId, { content: '' })
       setIsTyping(true)
+    },
+    onPlan: (plan) => {
+      if (isHidden()) return
+      updateMessage(ensureDraftMessage(), { plan })
+      scrollToBottom()
+    },
+    onPlanStep: (planId, step) => {
+      const draftMessageId = getDraftMessageId()
+      if (isHidden() || !draftMessageId) return
+      getChat().transitionMessage(draftMessageId, message => updateMessagePlanStep(message, planId, step))
     },
     onStep: (step: ToolStep) => {
       if (isHidden()) return

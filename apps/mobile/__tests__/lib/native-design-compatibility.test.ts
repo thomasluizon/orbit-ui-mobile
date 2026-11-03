@@ -102,6 +102,20 @@ function requireThemeKeys(source: string) {
 
 const iosOnlyPlugins = new Set(['./plugins/with-ios-widget'])
 
+function auditedAppUpdateSource(source: string) {
+  const unavailableCodes = `error.errorCode in setOf(
+              InstallErrorCode.ERROR_API_NOT_AVAILABLE,
+              InstallErrorCode.ERROR_INSTALL_UNAVAILABLE,
+              InstallErrorCode.ERROR_INSTALL_NOT_ALLOWED,
+              -8,
+              InstallErrorCode.ERROR_PLAY_STORE_NOT_FOUND,
+              InstallErrorCode.ERROR_APP_NOT_OWNED,
+            )`
+  expect(source).toContain(unavailableCodes)
+  return source.replace(unavailableCodes, `error.errorCode == InstallErrorCode.ERROR_API_NOT_AVAILABLE ||
+              error.errorCode == InstallErrorCode.ERROR_PLAY_STORE_NOT_FOUND`)
+}
+
 describe('native union accepts both widget callers', () => {
   it('enables the billing library BuildConfig used by its Android logger', () => {
     const billingGradle = readFileSync(require.resolve('expo-iap/android/build.gradle'), 'utf8')
@@ -135,10 +149,16 @@ describe('native union accepts both widget callers', () => {
         const publication = "\ngroup = 'org.useorbit.app.update'\nversion = '1.0.0'\n"
         expect(contents.toString()).toContain(publication)
         expect(createHash('sha256').update(contents.toString().replace(publication, '')).digest('hex'), path).toBe(hash)
+      } else if (path === 'apps/mobile/modules/orbit-app-update/android/src/main/java/org/useorbit/app/update/OrbitAppUpdateModule.kt') {
+        expect(createHash('sha256').update(auditedAppUpdateSource(contents.toString())).digest('hex'), path).toBe(hash)
       } else {
         expect(createHash('sha256').update(contents).digest('hex'), path).toBe(hash)
       }
     }
+  })
+  it('rejects a native Play classifier that omits the device-state code', () => {
+    const source = read('modules/orbit-app-update/android/src/main/java/org/useorbit/app/update/OrbitAppUpdateModule.kt')
+    expect(() => auditedAppUpdateSource(source.replace('InstallErrorCode.ERROR_INSTALL_NOT_ALLOWED,', ''))).toThrow()
   })
   it('registers the audited config plugins', () => {
     const require = createRequire(import.meta.url)

@@ -111,8 +111,8 @@ vi.mock('@/components/onboarding/onboarding-create-habit', async (importOriginal
   return {
   OnboardingCreateHabit: (props: React.ComponentProps<typeof original.OnboardingCreateHabit>) => {
     if (mocks.realProposal) return <original.OnboardingCreateHabit {...props} />
-    const { proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange } = props
-    return React.createElement('Schedule', { proposed, intervalWeeks: schedule.intervalWeeks, canSaveRepeatWeeks, onToggleDay, onTimeChange })
+    const { emoji, proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange } = props
+    return React.createElement('Schedule', { emoji, proposed, intervalWeeks: schedule.intervalWeeks, canSaveRepeatWeeks, onToggleDay, onTimeChange })
   }
 } })
 vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => React.createElement('ReminderState', { state }) }))
@@ -211,6 +211,7 @@ describe('OnboardingFlow state model', () => {
     I18nManager.isRTL = false
     __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
     vi.clearAllMocks()
+    mocks.suggest.mockReset()
     vi.useRealTimers()
     useUIStore.setState({ openOverlayIds: [], astraConversationOpen: false })
     Object.assign(mocks.profile, createMockProfile({ hasProAccess: true, isTrialActive: false, plan: 'pro' }))
@@ -464,6 +465,19 @@ describe('OnboardingFlow state model', () => {
 
     expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
     expect(prop<boolean>(oneByType(tree.root, 'Modal'), 'visible')).toBe(false)
+  })
+
+  it.each(['signed-out', 'at-limit', 'failed', 'empty', 'suggested'])('keeps onboarding emoji explicit on the %s path', async (path) => {
+    if (path === 'at-limit') mocks.profile.aiMessagesUsed = mocks.profile.aiMessagesLimit
+    mocks.suggest.mockResolvedValue({ emoji: path === 'suggested' ? '🌱' : null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    if (path === 'failed') mocks.suggest.mockRejectedValue(new Error('Unavailable'))
+    const tree = await mount(path !== 'signed-out')
+    await enterSentence(tree, 'Get ready for the run')
+    await click(tree, 'onboarding.flow.continue')
+    expect(oneByType(tree.root, 'Schedule').props).toMatchObject({ emoji: path === 'suggested' ? '🌱' : '◎', proposed: path === 'empty' || path === 'suggested' })
+    expect(mocks.createHabit).not.toHaveBeenCalled()
+    await click(tree, 'onboarding.flow.create')
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ emoji: path === 'suggested' ? '🌱' : null }))
   })
 
   it('never shows or saves a repeat interval a signed-out draft cannot carry', async () => {

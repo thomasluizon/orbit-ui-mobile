@@ -648,3 +648,22 @@ it('aborts a pending ticket on pagehide and reconnects when the page is restored
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
   } finally { view.unmount() }
 })
+
+it.each(['Failed to fetch', 'Load failed', 'Network request failed'])('retries an offline browser stream without reporting %s', async (message) => {
+  vi.useFakeTimers()
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  vi.mocked(Sentry.captureException).mockClear()
+  const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError(message)).mockImplementation(() => new Promise(() => {}))
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<AccountEventConnection />)
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(Sentry.captureException).not.toHaveBeenCalled()
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(Sentry.captureException).not.toHaveBeenCalled()
+  } finally {
+    view.unmount()
+    vi.useRealTimers()
+  }
+})

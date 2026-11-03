@@ -10,6 +10,7 @@ type ComposerAttempt,
 } from '../hooks/chat-send-stream-core'
 import { createChatThreadScroll } from '../hooks/chat-thread-scroll-core'
 import { createMockProfile } from './factories'
+import { makeAstraPlan } from '../test-support/astra-plan-fixtures'
 
 function composerHarness() {
   let chat: ChatStoreState
@@ -44,6 +45,34 @@ function attemptedSend(): ComposerAttempt<string, string> {
 afterEach(() => vi.useRealTimers())
 
 describe('shared composer stream', () => {
+  it('renders a plan before text and applies only matching live step updates', async () => {
+    const { context } = composerHarness()
+    const plan = makeAstraPlan()
+    const step = { ...plan.steps[0]!, status: 'done' }
+    const observations: ChatStoreState['messages'][] = []
+    const frame = (event: unknown) => `data: ${JSON.stringify(event)}\n\n`
+    const result = await runComposerStream({ ...context, createTransport: () => async () => ({ kind: 'stream', chunks: (async function* () {
+      yield frame({ type: 'plan_step', planId: plan.id, planStep: step })
+      observations.push(context.getChat().messages)
+      yield frame({ type: 'plan', plan })
+      observations.push(context.getChat().messages)
+      yield frame({ type: 'plan_step', planId: 'another-plan', planStep: step })
+      observations.push(context.getChat().messages)
+      yield frame({ type: 'plan_step', planId: plan.id, planStep: step })
+      observations.push(context.getChat().messages)
+      yield frame({ type: 'final', response: chatResponseSchema.parse({ aiMessage: 'Saved', actions: [], plan: { ...plan, steps: [step, ...plan.steps.slice(1)] } }) })
+    })() }) }, { ...attemptedSend(), messageCost: 0 })
+    expect(observations[0]).toEqual([])
+    expect(observations[1]?.[0]?.plan).toEqual(plan)
+    expect(observations[2]?.[0]?.plan).toEqual(plan)
+    expect(observations[3]?.[0]?.id).toBe(observations[1]?.[0]?.id)
+    expect(observations[3]?.[0]?.plan?.steps[0]).toEqual(step)
+    expect(result).toEqual({ kind: 'final' })
+    expect(context.getChat().messages).toHaveLength(1)
+    expect(context.getChat().messages[0]?.plan?.steps[0]).toEqual(step)
+    context.queryClient.clear()
+  })
+
   it('reuses the prepared turn across transport retries and settles its final response once', async () => {
     const { context } = composerHarness()
     const response = chatResponseSchema.parse({ aiMessage: 'Saved', actions: [] })

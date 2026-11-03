@@ -1,8 +1,9 @@
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
 import { useCallback, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { API } from "@orbit/shared/api"
-import { buildChatClientContext } from "@orbit/shared/chat"
+import { reconcileChatPlanApproval, reconcileChatPlanExecution, reconcileChatPlanRevision, buildChatClientContext } from "@orbit/shared/chat"
 import { pendingOperationRevisionResultSchema } from "@orbit/shared/types"
 import type {
   AgentExecuteOperationResponse,
@@ -48,10 +49,11 @@ export function usePendingOperationExecution({
     try { return await operation() }
     finally { setBatchCount((count) => count - 1) }
   }, [])
-  const { revisePendingOperationForBubble, refreshPendingOperationForBubble } = usePendingBubbleRevisions(getClientContext, t)
-  const { confirmAndExecutePendingOperation } = usePendingBubbleExecution(getClientContext, handleExecutedOperation, t)
-  const { preparePendingOperationStepUp } = usePendingStepUpChallenge(getClientContext, i18n, t)
-  const { verifyAndExecutePendingOperationStepUp } = usePendingStepUpExecution(getClientContext, handleExecutedOperation, t)
+  const results = usePendingOperationResults(handleExecutedOperation, t)
+  const { revisePendingOperationForBubble, refreshPendingOperationForBubble } = usePendingBubbleRevisions(getClientContext, results)
+  const { confirmAndExecutePendingOperation } = usePendingBubbleExecution(getClientContext, results)
+  const { preparePendingOperationStepUp } = usePendingStepUpChallenge(getClientContext, i18n, results)
+  const { verifyAndExecutePendingOperationStepUp } = usePendingStepUpExecution(getClientContext, results)
   const { prepareStepUpForBubble, verifyStepUpForBubble } = usePendingBubbleStepUp(preparePendingOperationStepUp, verifyAndExecutePendingOperationStepUp)
 
   const trackedRevise = useCallback((...args: Parameters<typeof revisePendingOperationForBubble>) =>
@@ -77,51 +79,75 @@ export function usePendingOperationExecution({
 }
 
 
-function usePendingBubbleRevisions(getClientContext: () => ReturnType<typeof buildChatClientContext>, t: ReturnType<typeof useTranslation>['t']) {
+function usePendingOperationResults(handleExecutedOperation: UsePendingOperationExecutionOptions['handleExecutedOperation'], t: ReturnType<typeof useTranslation>['t']) {
+  const pendingOperationFailure = useCallback((error: unknown) => ({
+    ok: false as const,
+    error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
+    stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404),
+  }), [t]);
+
+  const revisionResult = useCallback((id: string, accountGeneration: number, result: PendingOperationRevisionResult) => {
+    if (accountGeneration === getAccountGeneration()) {
+      reconcileChatPlanRevision(useChatStore.getState(), id, result);
+    }
+    return { ok: true as const, result };
+  }, []);
+
+  const executionResult = useCallback(async (
+    id: string, accountGeneration: number, execution: AgentExecuteOperationResponse,
+  ): Promise<PendingExecutionResult> => {
+    if (accountGeneration === getAccountGeneration()) {
+      reconcileChatPlanExecution(useChatStore.getState(), id, execution);
+    }
+    await handleExecutedOperation(execution);
+    return { ok: true, response: execution };
+  }, [handleExecutedOperation]);
+
+  return { pendingOperationFailure, revisionResult, executionResult }
+}
+
+function usePendingBubbleRevisions(getClientContext: () => ReturnType<typeof buildChatClientContext>, { pendingOperationFailure, revisionResult }: ReturnType<typeof usePendingOperationResults>) {
   const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
+    const accountGeneration = getAccountGeneration();
     try {
       const result = await apiClient<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
         method: 'POST',
         body: JSON.stringify({ ...request, clientContext: getClientContext() }),
-      }, pendingOperationRevisionResultSchema)
-      return { ok: true as const, result }
+      }, pendingOperationRevisionResultSchema);
+      return revisionResult(id, accountGeneration, result);
     } catch (error: unknown) {
-      return {
-        ok: false as const,
-        error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
-        stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404),
-      }
+      return pendingOperationFailure(error);
     }
-  }, [getClientContext, t])
+  }, [getClientContext, pendingOperationFailure, revisionResult]);
 
   const refreshPendingOperationForBubble = useCallback(async (id: string) => {
+    const accountGeneration = getAccountGeneration();
     try {
       const result = await apiClient<PendingOperationRevisionResult>(`${API.ai.pendingOperationRefresh(id)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`, {
         method: 'POST',
-      }, pendingOperationRevisionResultSchema)
-      return { ok: true as const, result }
+      }, pendingOperationRevisionResultSchema);
+      return revisionResult(id, accountGeneration, result);
     } catch (error: unknown) {
-      return {
-        ok: false as const,
-        error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
-        stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404),
-      }
+      return pendingOperationFailure(error);
     }
-  }, [getClientContext, t])
+  }, [getClientContext, pendingOperationFailure, revisionResult]);
+
   return { revisePendingOperationForBubble, refreshPendingOperationForBubble }
 }
 
-
-function usePendingBubbleExecution(getClientContext: () => ReturnType<typeof buildChatClientContext>, handleExecutedOperation: UsePendingOperationExecutionOptions['handleExecutedOperation'], t: ReturnType<typeof useTranslation>['t']) {
+function usePendingBubbleExecution(getClientContext: () => ReturnType<typeof buildChatClientContext>, { pendingOperationFailure, executionResult }: ReturnType<typeof usePendingOperationResults>) {
   const confirmAndExecutePendingOperation = useCallback(
     async (pendingOperationId: string): Promise<PendingExecutionResult> => {
+      const accountGeneration = getAccountGeneration();
       try {
         const confirmation = await apiClient<PendingAgentOperationConfirmation>(
           `${API.ai.pendingOperationConfirm(pendingOperationId)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`,
           {
             method: "POST",
           },
-        )
+        );
+
+        if (accountGeneration === getAccountGeneration()) reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.plan);
 
         const execution = await apiClient<AgentExecuteOperationResponse>(
           API.ai.pendingOperationExecute(pendingOperationId),
@@ -132,30 +158,32 @@ function usePendingBubbleExecution(getClientContext: () => ReturnType<typeof bui
               clientContext: getClientContext(),
             }),
           },
-        )
+        );
 
-        await handleExecutedOperation(execution)
-        return { ok: true, response: execution }
+        return await executionResult(pendingOperationId, accountGeneration, execution);
       } catch (error: unknown) {
-        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404) }
+        return pendingOperationFailure(error);
       }
     },
-    [getClientContext, handleExecutedOperation, t],
-  )
+    [executionResult, getClientContext, pendingOperationFailure],
+  );
+
   return { confirmAndExecutePendingOperation }
 }
 
-
-function usePendingStepUpChallenge(getClientContext: () => ReturnType<typeof buildChatClientContext>, i18n: ReturnType<typeof useTranslation>['i18n'], t: ReturnType<typeof useTranslation>['t']) {
+function usePendingStepUpChallenge(getClientContext: () => ReturnType<typeof buildChatClientContext>, i18n: ReturnType<typeof useTranslation>['i18n'], { pendingOperationFailure }: ReturnType<typeof usePendingOperationResults>) {
   const preparePendingOperationStepUp = useCallback(
     async (pendingOperationId: string): Promise<PreparedStepUpExecution> => {
+      const accountGeneration = getAccountGeneration();
       try {
         const confirmation = await apiClient<PendingAgentOperationConfirmation>(
           `${API.ai.pendingOperationConfirm(pendingOperationId)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`,
           {
             method: "POST",
           },
-        )
+        );
+
+        if (accountGeneration === getAccountGeneration()) reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.plan);
 
         const challenge = await apiClient<AgentStepUpChallenge>(
           API.ai.pendingOperationStepUp(pendingOperationId),
@@ -163,24 +191,24 @@ function usePendingStepUpChallenge(getClientContext: () => ReturnType<typeof bui
             method: "POST",
             body: JSON.stringify({ language: i18n.language }),
           },
-        )
+        );
 
         return {
           ok: true,
           challenge,
           confirmationToken: confirmation.confirmationToken,
-        }
+        };
       } catch (error: unknown) {
-        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404) }
+        return pendingOperationFailure(error);
       }
     },
-    [getClientContext, i18n.language, t],
-  )
+    [getClientContext, i18n.language, pendingOperationFailure],
+  );
+
   return { preparePendingOperationStepUp }
 }
 
-
-function usePendingStepUpExecution(getClientContext: () => ReturnType<typeof buildChatClientContext>, handleExecutedOperation: UsePendingOperationExecutionOptions['handleExecutedOperation'], t: ReturnType<typeof useTranslation>['t']) {
+function usePendingStepUpExecution(getClientContext: () => ReturnType<typeof buildChatClientContext>, { pendingOperationFailure, executionResult }: ReturnType<typeof usePendingOperationResults>) {
   const verifyAndExecutePendingOperationStepUp = useCallback(
     async (
       pendingOperationId: string,
@@ -188,6 +216,7 @@ function usePendingStepUpExecution(getClientContext: () => ReturnType<typeof bui
       code: string,
       confirmationToken: string,
     ): Promise<PendingExecutionResult> => {
+      const accountGeneration = getAccountGeneration();
       try {
         await apiClient<{ id: string } | null>(
           API.ai.pendingOperationVerifyStepUp(pendingOperationId),
@@ -195,7 +224,7 @@ function usePendingStepUpExecution(getClientContext: () => ReturnType<typeof bui
             method: "POST",
             body: JSON.stringify({ challengeId, code }),
           },
-        )
+        );
 
         const execution = await apiClient<AgentExecuteOperationResponse>(
           API.ai.pendingOperationExecute(pendingOperationId),
@@ -203,19 +232,18 @@ function usePendingStepUpExecution(getClientContext: () => ReturnType<typeof bui
             method: "POST",
             body: JSON.stringify({ confirmationToken, clientContext: getClientContext() }),
           },
-        )
+        );
 
-        await handleExecutedOperation(execution)
-        return { ok: true, response: execution }
+        return await executionResult(pendingOperationId, accountGeneration, execution);
       } catch (error: unknown) {
-        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic"), stale: error instanceof ApiClientError && (error.status === 409 || error.status === 404) }
+        return pendingOperationFailure(error);
       }
     },
-    [getClientContext, handleExecutedOperation, t],
-  )
+    [executionResult, getClientContext, pendingOperationFailure],
+  );
+
   return { verifyAndExecutePendingOperationStepUp }
 }
-
 
 function usePendingBubbleStepUp(preparePendingOperationStepUp: ReturnType<typeof usePendingStepUpChallenge>['preparePendingOperationStepUp'], verifyAndExecutePendingOperationStepUp: ReturnType<typeof usePendingStepUpExecution>['verifyAndExecutePendingOperationStepUp']) {
   const prepareStepUpForBubble = useCallback(

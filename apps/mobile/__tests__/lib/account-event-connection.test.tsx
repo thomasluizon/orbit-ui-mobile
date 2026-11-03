@@ -565,3 +565,23 @@ it('cancels a pending native stream read on background and unmount without repor
     vi.useRealTimers()
   }
 })
+
+it.each([
+  new TypeError('Network request failed'),
+  new Error('fetch failed: java.net.UnknownHostException: Unable to resolve host "example.invalid": No address associated with hostname'),
+])('retries an offline native stream without reporting $message', async (error) => {
+  vi.useFakeTimers()
+  vi.mocked(captureError).mockClear()
+  mocks.expoFetch.mockRejectedValueOnce(error).mockResolvedValueOnce(idleStream())
+  let tree!: TestRenderer.ReactTestRenderer
+  try {
+    await act(async () => { tree = TestRenderer.create(<AccountEventConnection />); await vi.advanceTimersByTimeAsync(0) })
+    expect(captureError).not.toHaveBeenCalled()
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+    expect(mocks.expoFetch).toHaveBeenCalledTimes(2)
+    expect(captureError).not.toHaveBeenCalled()
+  } finally {
+    await act(() => tree.unmount())
+    vi.useRealTimers()
+  }
+})

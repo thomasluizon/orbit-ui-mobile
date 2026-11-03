@@ -70,7 +70,17 @@ it('preserves complete reads from the existing corpus across normalized variants
     `  ${input}  `, `🧘 ${input}`,
   ].map((variant) => ({ input: variant, locale, read: readHabitPhrase(variant, locale) })))
   expect(reads).toHaveLength(248)
-  expect(createHash('sha256').update(JSON.stringify(reads)).digest('hex')).toMatchInlineSnapshot(`"9524ac25d0db40f726d9378f732d6fc46a521054606015725b39be6dd9244566"`)
+  expect(createHash('sha256').update(JSON.stringify(reads)).digest('hex')).toMatchInlineSnapshot(`"12555b713cff953f06d325d56678c7baf57ddf4f8fd362961a46be9f75a81292"`)
+})
+
+it.each([
+  ['Escolher aneis corretos', 'pt-BR'],
+  ['Get ready for the run', 'en'],
+  ['Ler todos os dias exceto segunda', 'pt-BR'],
+  ['Run except Monday', 'en'],
+  ['Read next Monday', 'en'],
+] as const)('reads scheduling without guessing an emoji for %s', (phrase, locale) => {
+  expect(readHabitPhrase(phrase, locale)).not.toHaveProperty('emoji')
 })
 
 describe('recurrence-only wording', () => {

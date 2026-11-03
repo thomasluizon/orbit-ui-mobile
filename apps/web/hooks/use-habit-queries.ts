@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { CancelledError, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deduplicateHabitList, isCachedHabitDeleted, habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
@@ -11,6 +11,7 @@ import {
   fetchAllPaginatedItems,
   habitListQueryFilters,
   normalizeHabitQueryData,
+  createHabitQueryNormalizer,
   loadHabitListSchedule,
   shouldFetchAllHabitPages,
   sortNormalizedHabits,
@@ -42,9 +43,6 @@ export interface NormalizedHabitsData {
 
 const habitPageSchema = createPaginatedSchema(habitScheduleItemSchema)
 
-const selectNormalizedHabits = (items: HabitScheduleItem[]): NormalizedHabitsData =>
-  normalizeHabitQueryData(items)
-
 export const EMPTY_HABITS_BY_ID: Map<string, NormalizedHabit> = new Map()
 export const EMPTY_CHILDREN_BY_PARENT: Map<string, string[]> = new Map()
 export const EMPTY_NORMALIZED_HABITS: NormalizedHabit[] = []
@@ -55,6 +53,7 @@ function withDefaultPageSize(filters: HabitsFilter): HabitsFilter {
 }
 
 export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleItem[], options: { completeDay?: boolean; scheduleDate?: string; enabled?: boolean } = {}) {
+  const selectNormalizedHabits = useMemo<(items: HabitScheduleItem[]) => NormalizedHabitsData>(() => createHabitQueryNormalizer(), [])
   const completeDay = options.completeDay ?? false
   const queryClient = useQueryClient()
   const scheduleDate = filters.dateFrom || filters.isGeneral ? undefined : options.scheduleDate
@@ -92,9 +91,9 @@ export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleIte
       }
       return loadHabitListSchedule(readList(), scheduleDate, readPage)
     },
+    select: selectNormalizedHabits,
     staleTime: QUERY_STALE_TIMES.habits,
     initialData: initialItems,
-    select: selectNormalizedHabits,
     refetchOnReconnect: true,
   })
 
