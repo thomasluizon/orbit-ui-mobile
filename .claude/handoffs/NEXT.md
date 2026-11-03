@@ -33,7 +33,7 @@ New this relay (scratchpad): `repoint-sub-baded684.sh` (the successor adapts it 
 
 ## Goal
 
-Finish the spec: an empty board except `#33`, `#1561`, `#1563`, `#1560` and `#1861`, with verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict, then `#1976` and `#1977`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff (`## The order`): 11 open, 11 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33`, `#1561`, `#1563`, `#1560` and `#1861`, with verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict, then `#1976` and `#1977`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff (`## The order`): 12 open, 12 placed, 0 unplaced, 0 placed twice.
 
 ## In flight
 
@@ -41,6 +41,7 @@ UI `main` `b3db392ef`, API `main` `ab0d988d7`, landing `main` `bb7a3a846`. Produ
 
 | Item | Disposition |
 | --- | --- |
+| `#1980` (owner order: fix the new Sentry errors) | Filed from a read-only triage of `ORBIT-MOBILE-N` (Hoje habit list render loop on Android 1.3.131) and the new `ORBIT-MOBILE-J` events (an offline `expo/fetch` UnknownHostException reported as an app error). Worktree `orca/workspaces/orbit-ui-mobile/ticket-1980-sentry-render-loop` on `fix/ticket-1980-sentry-render-loop` from `main`, order composed in the scratchpad's `order-1980.md`. The launch was refused by `RELAY_DRAIN`: launch it at tier `deep` first (`--hard-ceiling-minutes 120`), read its diff, push, CI, review, merge, staging and production web, Android Open, resolve both Sentry issues after the release shows no new event. |
 | `#1970` `ui#2298` at `57c225662` (pushed), `88825d489` local | Round 3 at tier `max` from the scratchpad's `finding-2298-r3.md` (order `order-1970-rb3.md`): the split adds about 5 KB to the authed Hoje scripts (median 820,451 against 820,000; `main`-equivalent branches 815,339 to 815,625). Read every new commit with `git show` (and `--remerge-diff` for a merge), confirm `88825d489` (the Sentry report the ticket requires) and `57c225662` (the real mutation context) survive and no budget or allocation moved, correct the body line "A failed profile fetch stays silent" to the Sentry report. `SonarCloud Code Analysis` is also red on `57c225662` (14.1% duplicated new code against 3%, all web and mobile copies of the extracted hooks), so launch round 4 at tier `max` from the scratchpad's `finding-2298-r4.md` on top of round 3 before pushing (one push for both), then CI, fresh review, merge. Worktree `orca/workspaces/orbit-ui-mobile/ticket-1970-hook-split`. |
 | `#1976` (merged as `orbit-api#1071`, API `main` `ab0d988d7`) | The mutation rerun passed, so it merged at its approved head. The detached poller `wait-push-runs.mjs` writes the scratchpad's `push-ab0d988d7-DONE` when the API Tests and Guards push runs finish (its start time is in the scratchpad's `push-ab0d988d7-STARTED`; pass it as `--started-at`): start a `tools/wait-file.mjs` waiter on it, then staging API, production API (its workflow takes the export), close, then launch `#1977`. |
 | `#1979` | Android Open 1.3.135 (195) released and posted. Resolve Sentry `ORBIT-MOBILE-J` and `ORBIT-MOBILE-M` once 1.3.135 is in use with no new event, then complete. |
@@ -52,7 +53,7 @@ Inventory: open pull requests ui `#1989` (relay docs), `#2298`; api none; landin
 ## Then, in this order
 
 1. Answer any owner message first, in his language, and give each order a ticket or a rescope before the turn ends.
-2. Restart the CI waiter for `ui#2298` and the file waiter on `push-ab0d988d7-DONE`; release `#1976` to staging and production API; read `#1970` round 3, launch round 4, push both.
+2. Launch `#1980` (owner order); restart the CI waiter for `ui#2298` and the file waiter on `push-ab0d988d7-DONE`; release `#1976` to staging and production API; read `#1970` round 3, launch round 4, push both.
 3. `#1966` sweep and close; resolve the two Sentry issues and complete `#1979`.
 4. Merge each pull request the moment it meets the bar; base-merge the others after each merge; release staging, then production; ship `#1970` on Android Open.
 5. Turnstile enforcement in the standing rule's order; the single live Astra gate once every other launch list ticket is done; complete `#315` with its verdict; then `#1977`.
