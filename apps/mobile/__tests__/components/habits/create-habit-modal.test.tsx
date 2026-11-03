@@ -78,6 +78,16 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateSubHabit: () => ({ mutateAsync: mockCreateSubMutateAsync, isPending: false }),
 }))
 
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => ({ mutateAsync: mockCreateMutateAsync, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-create-sub-habit', () => {
+
+return { useCreateSubHabit: () => ({ mutateAsync: mockCreateSubMutateAsync, isPending: false }) }
+})
+
 vi.mock('@orbit/shared/validation', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@orbit/shared/validation')>()
   return {

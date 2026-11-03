@@ -13,7 +13,7 @@ import {
 } from '@/lib/step-up-storage'
 import { extractBackendErrorCode, extractBackendStatus } from '@orbit/shared/utils'
 
-const MAX_API_KEYS = 5
+import { useConfig } from '@/hooks/use-config'
 
 interface UseApiKeyManagementParams {
   hasProAccess: boolean
@@ -37,7 +37,8 @@ export function useApiKeyManagement({
   })
 
   const apiKeys = apiKeysQuery.data ?? []
-  const canCreateKey = apiKeys.length < MAX_API_KEYS
+  const { config } = useConfig()
+  const canCreateKey = apiKeys.length < config.limits.maxActiveApiKeys
   const [createKeyError, setCreateKeyError] = useState<string | null>(null)
   const [createGrantAvailable, setCreateGrantAvailable] = useState(hasApiKeyCreationGrant)
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)

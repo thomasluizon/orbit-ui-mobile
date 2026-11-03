@@ -16,6 +16,11 @@ import en from '@orbit/shared/i18n/en.json'
 vi.unmock('react-i18next')
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: vi.fn(), useLogHabit: vi.fn(), useHabitMetrics: vi.fn() }))
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: vi.fn() }
+})
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 const mocks = vi.hoisted(() => ({ refine: vi.fn(), preview: vi.fn(), confirm: vi.fn(), revise: vi.fn(), relationshipsLoaded: true, scheduleLoaded: true, scheduleError: false, refetch: vi.fn(), create: vi.fn(), edit: vi.fn() }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
@@ -24,7 +29,12 @@ vi.mock('@/hooks/use-habit-suggestion-actions', () => ({ useHabitSuggestionActio
   refine: mocks.refine, preview: mocks.preview, isCurrent: () => true,
   transition: (update: Parameters<ReturnType<typeof useChatStore.getState>['transitionMessage']>[1]) => useChatStore.getState().transitionMessage(id, update),
 }) }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabitDetail: () => ({ data: mocks.scheduleLoaded ? { ...createMockHabit({ id: 'existing', dueTime: '06:00:00', dueEndTime: '06:15:00' }), children: [], ...(!mocks.relationshipsLoaded ? { linkedGoals: undefined, slipAlertEnabled: undefined } : {}) } : undefined, isError: mocks.scheduleError, refetch: mocks.refetch }) }))
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabits: vi.fn(),
+  useHabitMetrics: vi.fn(),
+  useHabitDetail: () => ({ data: mocks.scheduleLoaded ? { ...createMockHabit({ id: 'existing', dueTime: '06:00:00', dueEndTime: '06:15:00' }), children: [], ...(!mocks.relationshipsLoaded ? { linkedGoals: undefined, slipAlertEnabled: undefined } : {}) } : undefined, isError: mocks.scheduleError, refetch: mocks.refetch }) }
+})
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (props: unknown) => { mocks.create(props); return <View testID="suggestion-editor" /> } }))
 vi.mock('@/components/habits/edit-habit-modal', () => ({ EditHabitModal: (props: unknown) => { mocks.edit(props); return null } }))
 let tree: ReactTestRenderer & { toJSON: () => unknown; unmount: () => void }

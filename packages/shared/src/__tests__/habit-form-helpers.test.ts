@@ -25,7 +25,6 @@ import {
   habitFeaturePlan,
   hasHabitFormProposal,
   isHabitAstraLimitReached,
-  isValidHabitTimeInput,
   normalizeHabitFormData,
   releaseHabitPhraseOwnership,
   requestHabitFormProposal,
@@ -262,13 +261,6 @@ describe('habit form helpers', () => {
     expect(formatHabitTimeInput('1234')).toBe('12:34')
     expect(formatHabitTimeInput('12a3b4')).toBe('12:34')
     expect(formatHabitTimeInput('12345')).toBe('12:34')
-  })
-
-  it('validates time input only when it is complete', () => {
-    expect(isValidHabitTimeInput('')).toBe(true)
-    expect(isValidHabitTimeInput('09:30')).toBe(true)
-    expect(isValidHabitTimeInput('25:00')).toBe(false)
-    expect(isValidHabitTimeInput('9:30')).toBe(false)
   })
 
   it('exports the expected reminder presets', () => {

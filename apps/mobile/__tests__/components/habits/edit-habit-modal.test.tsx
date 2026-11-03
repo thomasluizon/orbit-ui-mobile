@@ -67,7 +67,11 @@ vi.mock('react-hook-form', async (importOriginal) => {
   return { ...original, useWatch: (args: { name: string }) => realEditor.enabled ? original.useWatch(args) : watchFieldsMock(args) }
 })
 
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabits: () => ({ data: undefined, isSuccess: false, isFetching: false, isError: false }) }))
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabitDetail: () => ({ ...mockHabitDetailResult, refetch: vi.fn().mockResolvedValue(undefined) }),
+  useHabits: () => ({ data: undefined, isSuccess: false, isFetching: false, isError: false }) }
+})
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }), useHasProAccess: () => false }))
 vi.mock('@/hooks/use-config', async () => { const { DEFAULT_CONFIG } = await import('@orbit/shared/types/config'); return { useConfig: () => ({ config: DEFAULT_CONFIG }) } })
 
@@ -78,6 +82,14 @@ vi.mock('@/hooks/use-habits', () => ({
   }),
   useHabitDetail: () => ({ ...mockHabitDetailResult, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({
+    mutateAsync: mockUpdateMutateAsync,
+    isPending: false,
+  }) }
+})
 
 vi.mock('@/hooks/use-tags', () => ({
   useAssignTags: () => ({

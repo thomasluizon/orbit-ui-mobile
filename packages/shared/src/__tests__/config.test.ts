@@ -75,3 +75,10 @@ describe('isFeatureEnabled', () => {
     expect(isFeatureEnabled(disabled, 'sub_habits', 'pro')).toBe(false)
   })
 })
+
+it('reads the configured API key cap and defaults when its row is absent', () => {
+  const configured = appConfigSchema.parse(createMockConfigResponse(undefined, { MaxActiveApiKeys: '3' }))
+  expect(configured.limits).toHaveProperty('maxActiveApiKeys', 3)
+  const legacy = appConfigSchema.parse(createMockConfigResponse())
+  expect(legacy.limits).toHaveProperty('maxActiveApiKeys', 5)
+})

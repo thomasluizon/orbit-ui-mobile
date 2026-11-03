@@ -36,7 +36,7 @@ function ReminderSection({ onToggleReminder, ...props }: Parameters<typeof Offse
 }
 
 const translate = (key: string, params?: Record<string, unknown>) =>
-  params ? `${key}(${JSON.stringify(params)})` : key
+  params && key !== 'habits.form.relativeReminderMax' ? `${key}(${JSON.stringify(params)})` : key
 const t = translate as unknown as Parameters<typeof ReminderSection>[0]['t']
 
 type Props = Parameters<typeof ReminderSection>[0]
@@ -215,4 +215,13 @@ describe('ReminderSection', () => {
     expect(screen.queryByRole('button', { name: 'habits.form.reminderAdd' })).toBeNull()
     expect(props.onReminderTimesChange).not.toHaveBeenCalled()
   })
+})
+
+it.each(['en', 'pt-BR'])('renders the reminder cap in %s', async (locale) => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const en = (await import('@orbit/shared/i18n/en.json')).default
+  const ptBR = (await import('@orbit/shared/i18n/pt-BR.json')).default
+  const realTranslate = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+  renderSection({ reminderTimes: Array.from({ length: 15 }, (_, index) => index), t: realTranslate })
+  expect(screen.getByText(locale === 'en' ? 'Maximum 15 reminders' : 'No máximo 15 lembretes')).toBeInTheDocument()
 })

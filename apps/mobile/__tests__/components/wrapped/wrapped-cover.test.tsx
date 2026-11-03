@@ -31,10 +31,6 @@ type TestNode = {
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
-vi.mock('@/components/gamification/ring-motif', () => ({
-  RingMotif: ({ eyebrow, anchor }: { eyebrow: string; anchor: React.ReactNode }) =>
-    React.createElement('RingMotif', { eyebrow }, anchor),
-}))
 vi.mock('@/components/ui/pill-button', () => ({
   Button: ({ disabled, onClick, children, size = 'md', variant = 'primary' }: {
     disabled?: boolean

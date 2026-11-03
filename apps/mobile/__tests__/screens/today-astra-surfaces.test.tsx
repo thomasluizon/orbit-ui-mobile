@@ -67,6 +67,18 @@ vi.mock('@/hooks/use-habits', () => ({
     refetch: vi.fn(),
   }),
 }))
+
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { EMPTY_HABITS_BY_ID: new Map(),
+  useHabits: () => ({
+    data: mocks.hasData ? { habitsById: mocks.noHabits ? new Map() : new Map([[mocks.habit.id, mocks.habit]]) } : undefined,
+    isLoading: !mocks.hasData && mocks.isFetching,
+    isFetching: mocks.isFetching,
+    isError: mocks.isError,
+    refetch: vi.fn(),
+  }) }
+})
 vi.mock('@/components/habit-list', () => ({
   HabitList: React.forwardRef((props: Record<string, unknown>, _ref) => {
     mocks.habitListProps = props

@@ -14,6 +14,11 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
 let browserLaunch: BrowserLaunch | undefined
 let browser: Browser
 let stylesheet: string

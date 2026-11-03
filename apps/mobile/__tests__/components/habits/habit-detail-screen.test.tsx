@@ -202,6 +202,26 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
   }
 })
 
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }) }
+})
+
+vi.mock('@/hooks/use-update-habit', async (importOriginal) => {
+const original = await importOriginal<typeof import('@/hooks/use-update-habit')>()
+return { useUpdateHabit: () => mocks.realUpdateHook ? original.useUpdateHabit() : ({ mutate: mocks.update, mutateAsync: mocks.update, isPending: mocks.updatePending }) }
+})
+
+vi.mock('@/hooks/use-update-checklist', () => {
+
+return { useUpdateChecklist: () => ({ mutate: mocks.checklist, mutateAsync: mocks.checklist }) }
+})
+
+vi.mock('@/hooks/use-delete-habit', () => {
+
+return { useDeleteHabit: () => ({ mutate: mocks.deleteHabit, mutateAsync: mocks.deleteHabit }) }
+})
+
 interface OfflineQueueRow {
   id: string
   timestamp: number

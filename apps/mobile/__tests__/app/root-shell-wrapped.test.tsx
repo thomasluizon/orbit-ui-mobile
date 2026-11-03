@@ -108,7 +108,13 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: createState.profile, isError: createState.profileError, refetch: vi.fn() }),
 }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: createState.count, isLoaded: createState.countLoaded }) }))
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { EMPTY_HABITS_BY_ID: new Map(),
+  useTotalHabitCount: () => createState.count,
+  useHabits: () => ({ data: routeState.hasData ? { habitsById: routeState.habits } : undefined, isFetching: !routeState.hasData && !routeState.hasError, isError: routeState.hasError }),
+  useHabitCountLoaded: () => ({ count: createState.count, isLoaded: createState.countLoaded }) }
+})
 vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map(),
   useTotalHabitCount: () => createState.count,

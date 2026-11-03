@@ -20,7 +20,7 @@ const reload = vi.fn()
 const cleanups: (() => void)[] = []
 
 beforeEach(() => {
-  vi.useFakeTimers()
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
   sessionStorage.clear()
   localStorage.clear()
   getQueryClient().clear()
@@ -70,12 +70,12 @@ it('waits for streaming to settle and offers the update without reloading the co
   expect(reload).not.toHaveBeenCalled()
   expect(available).toHaveBeenCalledExactlyOnceWith({ commit: nextCommit, ...compatibility })
   expect(await reloadDesktopWeb(reload)).toBe(true)
-  const checkpoint = takeDesktopChatCheckpoint('desktop-account')
+  const checkpoint = await takeDesktopChatCheckpoint('desktop-account')
   expect(checkpoint?.conversationOpen).toBe(true)
   expect(checkpoint?.chat.messages.map(message => message.content)).toEqual(['Help me plan', 'Start with water'])
   expect(checkpoint?.chat.messages[0]!.timestamp).toBeInstanceOf(Date)
   expect(checkpoint?.chat.draft).toBe('A follow-up')
-  expect(takeDesktopChatCheckpoint('desktop-account')).toBeNull()
+  expect(await takeDesktopChatCheckpoint('desktop-account')).toBeNull()
 })
 
 it('does not reload for the same build, and retries an offline or malformed metadata read', async () => {
@@ -144,10 +144,10 @@ it('waits for an actual query mutation to finish', async () => {
 
 it('drops an expired or foreign checkpoint and clears it on account reset', async () => {
   await writeDesktopChatCheckpoint('desktop-account', useChatStore.getState(), true)
-  expect(takeDesktopChatCheckpoint('other-account')).toBeNull()
+  expect(await takeDesktopChatCheckpoint('other-account')).toBeNull()
   await writeDesktopChatCheckpoint('desktop-account', useChatStore.getState(), true)
   vi.advanceTimersByTime(5 * 60_000)
-  expect(takeDesktopChatCheckpoint('desktop-account')).toBeNull()
+  expect(await takeDesktopChatCheckpoint('desktop-account')).toBeNull()
   await writeDesktopChatCheckpoint('desktop-account', useChatStore.getState(), true)
   const removeItem = Storage.prototype.removeItem
   vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key: string) {
@@ -156,7 +156,7 @@ it('drops an expired or foreign checkpoint and clears it on account reset', asyn
   })
   holdAccount('replacement-account')
   expect(sessionStorage.length).toBe(0)
-  expect(takeDesktopChatCheckpoint('desktop-account')).toBeNull()
+  expect(await takeDesktopChatCheckpoint('desktop-account')).toBeNull()
 })
 
 it('does not reload or retain a checkpoint when the account changes during image persistence', async () => {
@@ -164,22 +164,23 @@ it('does not reload or retain a checkpoint when the account changes during image
   vi.mocked(fetch).mockImplementationOnce(() => new Promise(resolve => { complete = resolve }))
   useChatStore.getState().addMessage({ id: 'image', role: 'user', content: 'Look', imageUrl: 'blob:preview', timestamp: new Date() })
   const pending = reloadDesktopWeb(reload)
+  await vi.dynamicImportSettled()
   holdAccount('replacement-account')
   complete(new Response('image', { headers: { 'Content-Type': 'image/png' } }))
-  await vi.advanceTimersByTimeAsync(50)
+  await vi.dynamicImportSettled()
   expect(await pending).toBe(false)
   expect(reload).not.toHaveBeenCalled()
-  expect(takeDesktopChatCheckpoint('desktop-account')).toBeNull()
+  expect(await takeDesktopChatCheckpoint('desktop-account')).toBeNull()
 })
 
 it('retains image bytes and MIME type across a successful reload checkpoint', async () => {
   vi.mocked(fetch).mockResolvedValueOnce(new Response('image', { headers: { 'Content-Type': 'image/png' } }))
   useChatStore.getState().addMessage({ id: 'image', role: 'user', content: 'Look', imageUrl: 'blob:preview', timestamp: new Date() })
   const pending = reloadDesktopWeb(reload)
-  await vi.advanceTimersByTimeAsync(50)
+  await vi.dynamicImportSettled()
   expect(await pending).toBe(true)
   expect(reload).toHaveBeenCalledOnce()
-  expect(takeDesktopChatCheckpoint('desktop-account')?.chat.messages[0]?.imageUrl).toBe('data:image/png;base64,aW1hZ2U=')
+  expect((await takeDesktopChatCheckpoint('desktop-account'))?.chat.messages[0]?.imageUrl).toBe('data:image/png;base64,aW1hZ2U=')
 })
 
 it('stops checks and reloads after unmount', async () => {
@@ -206,10 +207,10 @@ it('retains independent reload blockers until each owner releases its work', () 
 })
 
 it.each(['not json', '{}', '{"accountId":"desktop-account","expiresAt":"later"}'])(
-  'consumes malformed checkpoints from both storage scopes: %s', stored => {
+  'consumes malformed checkpoints from both storage scopes: %s', async stored => {
     sessionStorage.setItem(desktopChatCheckpointKey, stored)
     localStorage.setItem(desktopChatCheckpointKey, stored)
-    expect(takeDesktopChatCheckpoint('desktop-account')).toBeNull()
+    expect(await takeDesktopChatCheckpoint('desktop-account')).toBeNull()
     expect(sessionStorage.getItem(desktopChatCheckpointKey)).toBeNull()
     expect(localStorage.getItem(desktopChatCheckpointKey)).toBeNull()
   },
@@ -231,8 +232,8 @@ it('does not reload or persist an incomplete conversation when image retention f
   useChatStore.getState().addMessage({ id: 'image', role: 'user', content: 'Look', imageUrl: 'blob:missing', timestamp: new Date() })
   const retained = reloadDesktopWeb(reload)
   const rejected = expect(retained).rejects.toThrow('Cannot retain conversation image across web release')
-  await vi.advanceTimersByTimeAsync(50)
+  await vi.dynamicImportSettled()
   await rejected
   expect(reload).not.toHaveBeenCalled()
-  expect(takeDesktopChatCheckpoint('desktop-account')).toBeNull()
+  expect(await takeDesktopChatCheckpoint('desktop-account')).toBeNull()
 })

@@ -3201,3 +3201,62 @@ describe('API-owned bad parent slips', () => {
     }
   })
 })
+
+
+describe('habit optimism after account replacement', () => {
+  it.each([
+    { name: 'update', useWrite: useUpdateHabit, input: { habitId: 'h-1', data: { title: 'Private A update', isBadHabit: false } } },
+    { name: 'delete', useWrite: useDeleteHabit, input: 'h-1' },
+    { name: 'reorder', useWrite: useReorderHabits, input: { positions: [{ habitId: 'h-1', position: 4 }] } },
+    { name: 'checklist', useWrite: useUpdateChecklist, input: { habitId: 'h-1', items: [] } },
+    { name: 'sub-habit', useWrite: useCreateSubHabit, input: { parentId: 'h-1', data: { title: 'Private A child' } } },
+    { name: 'skip', useWrite: useSkipHabit, input: { habitId: 'h-1' } },
+    { name: 'bulk delete', useWrite: useBulkDeleteHabits, input: ['h-1'] },
+    { name: 'bulk log', useWrite: useBulkLogHabits, input: [{ habitId: 'h-1' }] },
+    { name: 'bulk skip', useWrite: useBulkSkipHabits, input: [{ habitId: 'h-1' }] },
+  ])('stops $name before touching the new account when cancellation resumes', async ({ useWrite, input }) => {
+    const client = createQueryClient()
+    let release!: () => void
+    const cancelled = new Promise<void>(resolve => { release = resolve })
+    const cancel = vi.spyOn(client, 'cancelQueries').mockReturnValue(cancelled)
+    const { result, unmount } = renderHook(() => useWrite(), { wrapper: createWrapper(client) })
+    const mutation = result.current as { mutateAsync: (input: unknown) => Promise<unknown> }
+    let pending!: Promise<unknown>
+    act(() => { pending = mutation.mutateAsync(input).catch(error => error) })
+    await waitFor(() => expect(cancel).toHaveBeenCalled())
+    useAuthStore.getState().setAuth({ userId: 'account-b', name: 'B', email: 'b@example.com' })
+    client.clear()
+    const replacement = [makeScheduleItem({ title: 'Private B habit' })]
+    client.setQueryData(habitKeys.list({}), replacement)
+    client.setQueryData(profileKeys.detail(), createMockProfile())
+    const before = client.getQueryCache().getAll().map(query => [query.queryKey, query.state])
+    let outcome: unknown
+    await act(async () => { release(); outcome = await pending })
+    expect(client.getQueryCache().getAll().map(query => [query.queryKey, query.state])).toEqual(before)
+    expect(outcome).toEqual(new Error('Account changed'))
+    unmount()
+    client.clear()
+  })
+})
+
+
+it('stops later bulk delete batches after account replacement while returning completed writes', async () => {
+  const { deleteHabit } = await import('@/lib/actions/habits')
+  const finishes: (() => void)[] = []
+  vi.mocked(deleteHabit).mockReset()
+  vi.mocked(deleteHabit).mockImplementation(() => finishes.length < 4
+    ? new Promise<void>(resolve => { finishes.push(resolve) }) : Promise.resolve())
+  const client = createQueryClient()
+  const { result, unmount } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper(client) })
+  const ids = Array.from({ length: 5 }, (_, index) => `habit-${index}`)
+  let pending!: ReturnType<typeof result.current.mutateAsync>
+  act(() => { pending = result.current.mutateAsync(ids) })
+  await waitFor(() => expect(finishes).toHaveLength(4))
+  useAuthStore.getState().setAuth({ userId: 'account-b', name: 'B', email: 'b@example.com' })
+  let outcome!: Awaited<typeof pending>
+  await act(async () => { for (const finish of finishes) finish(); outcome = await pending })
+  expect(deleteHabit).toHaveBeenCalledTimes(4)
+  expect(outcome.results.map(result => result.habitId)).toEqual(ids.slice(0, 4))
+  unmount()
+  client.clear()
+})

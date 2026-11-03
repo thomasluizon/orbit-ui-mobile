@@ -24,6 +24,12 @@ vi.mock('@/hooks/use-habit-queries', () => ({
 }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: vi.fn() }), useSkipHabit: () => ({ mutate: vi.fn() }) }))
 
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn() }),
+  useSkipHabit: () => ({ mutate: vi.fn() }) }
+})
+
 it('contains a rejected App Router chunk, announces the failure and imports again on the next open', async () => {
   useShellStore.setState({ paletteOpen: false })
   useUIStore.setState({ openOverlayIds: [] })

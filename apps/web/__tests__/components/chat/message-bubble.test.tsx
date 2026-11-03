@@ -1,5 +1,5 @@
 import { makeConversationPage } from '@orbit/shared/test-support/conversation-fixtures'
-import { restoreConversationPage } from '@orbit/shared/chat'
+import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
 import { useUIStore } from '@/stores/ui-store'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'

@@ -1,3 +1,4 @@
+import { MAX_REMINDERS_PER_HABIT, MIN_RELATIVE_REMINDER_MINUTES, MAX_RELATIVE_REMINDER_MINUTES } from '@orbit/shared/validation'
 import { IconButton } from '@/components/ui/icon-button'
 import { useHabitFormInteraction } from './habit-form-interaction'
 import { Select } from '@/components/ui/select'
@@ -46,11 +47,11 @@ export function ReminderSection({
     () => HABIT_REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
     [reminderTimes],
   );
-  const atLimit = reminderTimes.length + scheduledReminderCount >= 15;
+  const atLimit = reminderTimes.length + scheduledReminderCount >= MAX_REMINDERS_PER_HABIT;
 
   function addPreset(value: number) {
-    if (reminderTimes.length + scheduledReminderCount >= 15) {
-      onValidationError?.(t("habits.form.relativeReminderMax"));
+    if (reminderTimes.length + scheduledReminderCount >= MAX_REMINDERS_PER_HABIT) {
+      onValidationError?.(t("habits.form.relativeReminderMax", { count: MAX_REMINDERS_PER_HABIT }));
       return;
     }
     if (!reminderTimes.includes(value)) {
@@ -69,12 +70,12 @@ export function ReminderSection({
     if (customUnit === "days") multiplier = 1440;
     else if (customUnit === "hours") multiplier = 60;
     const minutes = num * multiplier * (customDirection === "after" ? -1 : 1);
-    if (minutes < -1439 || minutes > 10080) {
+    if (minutes < MIN_RELATIVE_REMINDER_MINUTES || minutes > MAX_RELATIVE_REMINDER_MINUTES) {
       onValidationError?.(t("habits.form.invalidRelativeReminder"));
       return;
     }
-    if (reminderTimes.length + scheduledReminderCount >= 15) {
-      onValidationError?.(t("habits.form.relativeReminderMax"));
+    if (reminderTimes.length + scheduledReminderCount >= MAX_REMINDERS_PER_HABIT) {
+      onValidationError?.(t("habits.form.relativeReminderMax", { count: MAX_REMINDERS_PER_HABIT }));
       return;
     }
     if (!reminderTimes.includes(minutes)) {
@@ -123,7 +124,7 @@ export function ReminderSection({
             </Text>
           ) : null}
 
-          {atLimit ? <Text style={sectionStyles.limitText}>{t("habits.form.relativeReminderMax")}</Text> : null}
+          {atLimit ? <Text style={sectionStyles.limitText}>{t("habits.form.relativeReminderMax", { count: MAX_REMINDERS_PER_HABIT })}</Text> : null}
           {!atLimit ? <IconButton label={t("habits.form.reminderAdd")} disabled={disabled} onPress={() => {
               setShowAddReminder(!showAddReminder);
               setShowCustomInput(false);

@@ -1,3 +1,5 @@
+import * as habitQueries from '@/hooks/use-habit-queries'
+import { useHabits as useHabitQueryFixture } from '@/hooks/use-habits'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { resetAccountQueries } from '@orbit/shared/query'
 import { createMoveInventoryFixture } from '@orbit/shared/__tests__/move-inventory-fixtures'
@@ -95,7 +97,7 @@ vi.mock('@/components/habits/habit-list/move-parent-controller', async (importOr
   const { useEffect } = await import('react')
   return { ...actual, MoveParentController: function MountedController(props: React.ComponentProps<typeof actual.MoveParentController>) {
     useEffect(() => { moveControllerOwner.mounted() }, [])
-    return <actual.MoveParentController {...props} />
+    return useHabitListFixture(() => actual.MoveParentController(props))
   } }
 })
 
@@ -134,6 +136,19 @@ vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/use-habit-queries')>()),
   useHabitCountLoaded: () => accountHabitCount,
 }))
+
+function useHabitListFixture<Result>(render: () => Result): Result {
+  const [useRealHook] = React.useState(() => skipFlow.active)
+  if (useRealHook) return render()
+  const query = vi.spyOn(habitQueries, 'useHabits').mockImplementation(useHabitQueryFixture)
+  try { return render() } finally { query.mockRestore() }
+}
+
+vi.mock('@/components/habits/use-habit-list-state', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/use-habit-list-state')>()
+  return { ...actual, useHabitListQueries: (...args: Parameters<typeof actual.useHabitListQueries>) =>
+    useHabitListFixture(() => actual.useHabitListQueries(...args)) }
+})
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { timeZone: accountDate.timeZone, hasProAccess: accountDate.hasProAccess } }),
@@ -250,6 +265,43 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
   useReorderHabits: () => ({ mutate: reorderHabitsMutate, isPending: false }),
   useMoveHabitParent: () => ({ mutateAsync: moveHabitParentMutateAsync, isPending: false }),
 })
+})
+
+vi.mock('@/hooks/use-bulk-log-habits', () => {
+
+return { useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }) }
+})
+
+vi.mock('@/hooks/use-bulk-skip-habits', () => {
+
+return { useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', async (importOriginal) => {
+const actual = await importOriginal<typeof import('@/hooks/use-habit-logging')>()
+return { ...actual,
+  useLogHabit: () => ({ mutateAsync: logHabitMutateAsync, mutate: vi.fn(), isPending: false }),
+  useSkipHabit: () => skipFlow.active ? actual.useSkipHabit() : ({ mutateAsync: skipHabitMutateAsync, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-delete-habit', () => {
+
+return { useDeleteHabit: () => ({ mutateAsync: deleteHabitMutateAsync, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-duplicate-habit', () => {
+
+return { useDuplicateHabit: () => ({ mutateAsync: duplicateHabitMutateAsync, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-reorder-habits', () => {
+
+return { useReorderHabits: () => ({ mutate: reorderHabitsMutate, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-move-habit-parent', () => {
+
+return { useMoveHabitParent: () => ({ mutateAsync: moveHabitParentMutateAsync, isPending: false }) }
 })
 
 vi.mock('@/hooks/use-habit-visibility', async () => {

@@ -26,11 +26,6 @@ it('keeps unrelated connection schemas out of theme startup', async () => {
   expect(loaded.notionImports).toBe(0)
 })
 
-it('keeps unrelated connection schemas out of upload startup', async () => {
-  await import('@/lib/upload-file')
-  expect(loaded.notionImports).toBe(0)
-})
-
 it('keeps unrelated connection schemas out of push preference startup', async () => {
   await import('@/hooks/use-push-notification-preferences')
   expect(loaded.notionImports).toBe(0)

@@ -79,6 +79,12 @@ vi.mock('@/hooks/use-habits', () => ({
   useSkipHabit: () => ({ mutate: mockSkipHabitMutate }),
 }))
 
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: mockLogHabitMutate }),
+  useSkipHabit: () => ({ mutate: mockSkipHabitMutate }) }
+})
+
 import {
   CommandPalette,
   CommandPaletteBackground,

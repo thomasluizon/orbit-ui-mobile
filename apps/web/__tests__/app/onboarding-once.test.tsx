@@ -86,7 +86,11 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => {
   return { profile: query.data, patchProfile: (patch: Partial<Profile>) => client.setQueryData<Profile>(profileKeys.detail(), (old) => old ? { ...old, ...patch } : old) }
 } }))
 vi.mock('@/lib/actions/onboarding', () => ({ applyOnboarding: apply }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: state.count, isLoaded: state.countLoaded }) }))
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useTotalHabitCount: () => state.count,
+  useHabitCountLoaded: () => ({ count: state.count, isLoaded: state.countLoaded }) }
+})
 vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => state.count }))
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => ({ leveledUp: false, newLevel: null, crossedStreakMilestones: [], newAchievements: [] }),

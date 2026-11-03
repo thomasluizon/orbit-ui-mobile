@@ -3,7 +3,7 @@ import { findPromptSlot } from './composer-controls'
 export const PROMPT_CATEGORIES = ['start', 'remember', 'many', 'restart', 'understand', 'calendar'] as const
 export type PromptCategory = (typeof PROMPT_CATEGORIES)[number]
 export type PromptTemplate = (typeof PROMPT_TEMPLATES)[number]
-export const PROMPT_PAGE_SIZE = 8
+const PROMPT_PAGE_SIZE = 8
 
 export type PromptFilters = { category: PromptCategory; query: string; page: number }
 export type PromptFilterAction =

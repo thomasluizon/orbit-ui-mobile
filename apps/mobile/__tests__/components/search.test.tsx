@@ -32,6 +32,12 @@ vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsF
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: mocks.timeZone } }) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }), useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }))
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }),
+  useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }
+})
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')

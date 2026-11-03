@@ -86,6 +86,29 @@ vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutateAsync: mockLogHabit }),
 }))
 
+vi.mock('@/hooks/use-calendar-data', () => {
+
+return { useCalendarData: () => ({
+    dayMap: calendarDayMap,
+    isLoading: calendarIsLoading,
+    isFetching: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
+  useCalendarRange: () => ({
+    dayMap: new Map(),
+    isLoading: false,
+    isFetching: false,
+    error: null,
+    refresh: vi.fn(),
+  }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutateAsync: mockLogHabit }) }
+})
+
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
     profile: {

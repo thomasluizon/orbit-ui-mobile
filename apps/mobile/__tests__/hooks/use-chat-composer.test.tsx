@@ -1,33 +1,39 @@
+import { useTranslation } from 'react-i18next'
 import { makeApprovalPlan, makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
 import { conversationHistory } from '@/lib/conversation-history'
 import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
-import { makeOneSmallStepCard, questionBlockFixture, questionAnswersFixture, choiceBlockFixture, pickListBlockFixture, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
+import { makeOneSmallStepCard,questionBlockFixture,questionAnswersFixture,choiceBlockFixture,pickListBlockFixture,makeHeldHabitMessage,makeAgentOperationResult } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
+import { useChatComposerAttachments } from '@/hooks/use-chat-composer-attachments'
 import Animated from 'react-native-reanimated'
-import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { afterEach,beforeEach,describe,expect,it,onTestFinished,vi } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { buildChatClientContext, buildComposerChips, CHAT_STREAM_IDLE_TIMEOUT_MS, createConversationHistory } from '@orbit/shared/chat'
-import { createMockHabit, createMockProfile, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
-import { goalKeys, habitKeys, profileKeys } from '@orbit/shared/query'
-import { chatResponseSchema, type ChatMessage, type ChatResponse } from '@orbit/shared/types/chat'
+import { buildChatClientContext,buildComposerChips,CHAT_STREAM_IDLE_TIMEOUT_MS,createConversationHistory } from '@orbit/shared/chat'
+import { createMockHabit,createMockProfile,createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { goalKeys,habitKeys,profileKeys } from '@orbit/shared/query'
+import { chatResponseSchema,type ChatMessage,type ChatResponse } from '@orbit/shared/types/chat'
 import partsFixture from '@orbit/shared/test-support/chat-parts.fixture.json'
 import type { Profile } from '@orbit/shared/types/profile'
-import type { HabitDetail, HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitDetail,HabitsFilter,NormalizedHabit } from '@orbit/shared/types/habit'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { i18n } from '@/lib/i18n'
 import type { DocumentPickerAsset } from 'expo-document-picker'
 
-import { Linking, StyleSheet, type FlatList } from 'react-native'
+import { Linking,StyleSheet,type FlatList } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { prepareChatRequest } from '@orbit/shared/stores'
 import { useChatComposer } from '@/hooks/use-chat-composer'
-import { getAccountGeneration, advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
+import { useChatComposerAvailability } from '@/hooks/use-chat-composer-state'
+import { useChatSendRetry } from '@/hooks/use-chat-send-stream'
+import { useChatPendingBubbles } from '@/hooks/use-chat-pending-bubbles'
+import { agentExecuteOperationResponseSchema } from '@orbit/shared/types/ai'
+import { getAccountGeneration,advanceAccountGeneration,advanceSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import RootLayout from '@/app/_layout'
-import { AccessibilityInfo as TestAccessibilityInfo, __focusHost, __getFocusedNativeTag, __setFocusImpl, __setTouchMode, __resetTestHostConfig } from '../../test-mocks/react-native'
+import { AccessibilityInfo as TestAccessibilityInfo,__focusHost,__getFocusedNativeTag,__setFocusImpl,__setTouchMode,__resetTestHostConfig } from '../../test-mocks/react-native'
 
 const { Composer: ShellComposer } = await vi.importActual<typeof import('@/components/shell/composer')>('@/components/shell/composer')
 const { Shell412: ConversationShell } = await vi.importActual<typeof import('@/components/shell/shell-412')>('@/components/shell/shell-412')
@@ -166,7 +172,7 @@ vi.mock('react-native-svg', () => ({
 vi.mock('expo-status-bar', () => ({ StatusBar: () => null }))
 vi.mock('expo-router/react-navigation', () => ({}))
 vi.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: ({ children }: { children?: React.ReactNode }) => children }))
-vi.mock('@sentry/react-native', () => ({ wrap: (component: unknown) => component }))
+vi.mock('@sentry/react-native', () => ({ captureException: vi.fn(), wrap: (component: unknown) => component }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children?: React.ReactNode }) => children, useCaptureReady: () => false }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: true }) }))
 vi.mock('@/hooks/use-gamification', () => ({
@@ -246,11 +252,13 @@ vi.mock('expo-file-system', () => ({
   },
 }))
 
-vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
+
+return { ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
+  useTotalHabitCount: () => 0,
   useHabits: (filters: HabitsFilter) => { mocks.state.habitFilters.push(filters); return { data: mocks.state.habitData, isError: mocks.state.habitsError } },
-  useHabitDetail: () => ({ data: mocks.state.detail, isError: false }),
-}))
+  useHabitDetail: () => ({ data: mocks.state.detail, isError: false }) }
+})
 
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => false,
@@ -422,10 +430,76 @@ function inputHosts(tree: ReturnType<typeof TestRenderer.create>) {
 
 describe('mobile useChatComposer', () => {
 
+  it.each([
+    ['draft', true, null, true], ['', true, null, false], ['draft', false, null, false],
+    ['', true, { name: 'notes.txt', content: 'Read' }, true],
+    ['', false, { name: 'notes.txt', content: 'Read' }, false],
+  ] as const)('derives availability from the actual draft and network: %s, online=%s', (input, isOnline, selectedTextFile, canSend) => {
+    let availability!: ReturnType<typeof useChatComposerAvailability>
+    function Harness() {
+      availability = useChatComposerAvailability(createMockProfile(), null, '2026-09-12', false, false, null, null, selectedTextFile, [], input, isOnline)
+      return null
+    }
+    TestRenderer.act(() => { mountedTrees.push(TestRenderer.create(<Harness />)) })
+    expect(availability.canSend).toBe(canSend)
+  })
+
+  it('keeps attachments while the extracted state hook enters and leaves a daily budget limit', () => {
+    const inputs = { profile: createMockProfile({ aiMessagesUsed: 0, aiMessagesLimit: 5 }), today: '2026-09-12',
+      replyActive: false, isTyping: false, streamingMessageId: null, input: '', messages: [],
+      selectedTextFile: { name: 'notes.txt', content: 'Read' }, selectedImage: null, isOnline: true }
+
+    let budgetDate: string | null = null
+    let availability!: ReturnType<typeof useChatComposerAvailability>
+    function Harness() { availability = useChatComposerAvailability(inputs.profile, budgetDate, inputs.today, inputs.replyActive, inputs.isTyping, inputs.streamingMessageId, inputs.selectedImage, inputs.selectedTextFile, inputs.messages, inputs.input, inputs.isOnline); return null }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<Harness />); mountedTrees.push(tree) })
+    expect(availability.atMessageLimit).toBe(false)
+    expect(availability.attachments).toEqual([{ id: 'chat-file', kind: 'file', name: 'notes.txt' }])
+    budgetDate = inputs.today
+    TestRenderer.act(() => tree.update(<Harness />))
+    expect(availability.atMessageLimit).toBe(true)
+    expect(availability.attachments).toHaveLength(1)
+    budgetDate = '2026-09-11'
+    TestRenderer.act(() => tree.update(<Harness />))
+    expect(availability.atMessageLimit).toBe(false)
+  })
+
+  it('preserves a newer draft in the extracted retry hook and clears the matching restored revision', async () => {
+    const attempted = { intendedAccountId: null, content: 'Retry this', draftContent: 'Retry this', image: null, preview: null,
+      textFile: null, restoreDraftOnFailure: false, clearDraftOnSuccess: true, restoredDraftRevision: 1 }
+    const performSend = vi.fn(() => Promise.resolve(true))
+    const setInput = vi.fn()
+    const inputs = { isOnline: true, offlineTitle: 'offline', atMessageLimit: false, isSending: false, queuePaused: false,
+      queueReady: true, queuedPrompts: [], lastFailedSend: attempted, performSend, setInput, setSendError: vi.fn(), queryClient: mocks.queryClient as never }
+    useChatStore.setState({ draft: 'Newer text', draftRevision: 2, isTyping: false, streamingMessageId: null })
+    let retry!: ReturnType<typeof useChatSendRetry>
+    function Harness() { retry = useChatSendRetry(inputs.isOnline, inputs.atMessageLimit, inputs.queryClient, inputs.isSending, inputs.queuePaused, inputs.queueReady, inputs.queuedPrompts, inputs.lastFailedSend, inputs.setSendError, inputs.offlineTitle, inputs.performSend, inputs.setInput); return null }
+    await TestRenderer.act(async () => { mountedTrees.push(TestRenderer.create(<Harness />)); await Promise.resolve() })
+    await TestRenderer.act(async () => { await retry.retryLastSend() })
+    expect(performSend).toHaveBeenCalledWith(attempted, true)
+    expect(setInput).not.toHaveBeenCalled()
+    expect(useChatStore.getState().draft).toBe('Newer text')
+    useChatStore.setState({ draftRevision: 1 })
+    await TestRenderer.act(async () => { await retry.retryLastSend() })
+    expect(setInput).toHaveBeenCalledWith('')
+  })
+
+  it('refreshes agent queries only after a succeeded execution in the extracted pending hook', async () => {
+    let pending!: ReturnType<typeof useChatPendingBubbles>
+    function Harness() { pending = useChatPendingBubbles(mocks.queryClient as never); return null }
+    await TestRenderer.act(async () => { mountedTrees.push(TestRenderer.create(<Harness />)); await Promise.resolve() })
+    mocks.queryClient.invalidateQueries.mockClear()
+    await TestRenderer.act(async () => { await pending.handleExecutedOperation(agentExecuteOperationResponseSchema.parse({ operation: makeAgentOperationResult('Failed', 0) })) })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { await pending.handleExecutedOperation(agentExecuteOperationResponseSchema.parse({ operation: makeAgentOperationResult('Succeeded', 0) })) })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all })
+  })
+
   it('rejects an account switch after history preparation completes before the composer resumes', async () => {
     useChatStore.setState({ conversationLoaded: false })
     const history = createConversationHistory({
-      getState: useChatStore.getState, setState: useChatStore.setState, getAccountGeneration,
+      onModuleLoadError: vi.fn(), getState: useChatStore.getState, setState: useChatStore.setState, getAccountGeneration,
       read: () => Promise.resolve(null), remove: () => Promise.resolve(),
     })
     vi.mocked(conversationHistory.isReady).mockReturnValueOnce(false)
@@ -523,7 +597,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.composerProps.onRetry).toBeUndefined()
     const readKey = (index: number) => mocks.openChatStream.mock.calls[index]?.[2] as string
     expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
-    expect(readKey(0)).toBeTruthy()
+    expect(readKey(0)).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
     expect(readKey(1)).toBe(readKey(0))
     expect(mocks.openChatStream.mock.calls[1]?.[0]).toBe(mocks.openChatStream.mock.calls[0]?.[0])
     await TestRenderer.act(async () => {
@@ -1459,6 +1533,7 @@ describe('mobile useChatComposer', () => {
     const composer = await renderComposer()
     let firstSend!: Promise<void>
     await TestRenderer.act(() => { firstSend = composer.current.sendMessage('running') })
+    await TestRenderer.act(async () => { await vi.dynamicImportSettled() })
     await TestRenderer.act(async () => { await composer.current.sendMessage('waiting') })
     await TestRenderer.act(async () => {
       composer.current.composerProps.replyControl!.onStop()
@@ -1507,6 +1582,7 @@ describe('mobile useChatComposer', () => {
     const composer = await renderComposer()
     let firstSend!: Promise<void>
     await TestRenderer.act(() => { firstSend = composer.current.sendMessage('running') })
+    await TestRenderer.act(async () => { await vi.dynamicImportSettled() })
     await TestRenderer.act(async () => { await composer.current.sendMessage('waiting') })
     await TestRenderer.act(async () => {
       composer.current.composerProps.replyControl!.onStop()
@@ -1941,7 +2017,8 @@ describe('mobile useChatComposer', () => {
 
     let send!: Promise<void>
     TestRenderer.act(() => { send = composer.current.sendMessage('hello') })
-    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    await vi.dynamicImportSettled()
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
     TestRenderer.act(() => { for (const listener of listeners) listener(true) })
     await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
 
@@ -2053,7 +2130,8 @@ describe('mobile useChatComposer', () => {
 
     let send!: Promise<void>
     TestRenderer.act(() => { send = composer.current.sendMessage('hello') })
-    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    await vi.dynamicImportSettled()
+    expect(mocks.openChatStream).toHaveBeenCalledOnce()
     composer.current.threadScroll.recordScroll(100, 900)
     TestRenderer.act(() => stream.enqueue(frame('{"type":"delta","text":"First"}')))
     await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
@@ -2911,6 +2989,24 @@ describe('mobile useChatComposer', () => {
     )
     expect(composer.current.selectedTextFile).toBeNull()
     appendFormPart.mockRestore()
+  })
+
+  it('rejects unsupported files in the extracted attachments hook without selecting them', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [documentPickerAsset({ name: 'notes.pdf', uri: 'file:///notes.pdf' })] })
+    const setSendError = vi.fn()
+    let attachments!: ReturnType<typeof useChatComposerAttachments>
+    function Harness() {
+      const { t } = useTranslation()
+      attachments = useChatComposerAttachments({ t, setSendError })
+      return null
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<Harness />); mountedTrees.push(tree); await Promise.resolve() })
+    await TestRenderer.act(async () => { await attachments.openTextFilePicker() })
+    expect(setSendError).toHaveBeenCalledWith('chat.fileError')
+    expect(attachments.selectedTextFile).toBeNull()
+    expect(attachments.selectedImage).toBeNull()
+    expect(mocks.readFileText).not.toHaveBeenCalled()
   })
 
   it('rejects an unsupported text-file extension', async () => {

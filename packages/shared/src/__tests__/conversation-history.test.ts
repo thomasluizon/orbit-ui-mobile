@@ -1,8 +1,9 @@
+import { restoreConversationPage } from '../chat/conversation-restore'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createStore } from 'zustand/vanilla'
 import { createChatStoreState } from '../stores/chat-store'
 import type { ConversationPage } from '../types/conversation'
-import { conversationPagePath, createConversationHistory, prepareConversationSend, restoreConversationPage } from '../chat/conversation-history'
+import { conversationPagePath, createConversationHistory, prepareConversationSend } from '../chat/conversation-history'
 import { buildChatClientContext } from '../chat/client-context'
 import { makeConversationPage, storedOperationId, storedConversationId } from '../test-support/conversation-fixtures'
 
@@ -10,7 +11,7 @@ const store = createStore(createChatStoreState)
 const read = vi.fn(async (): Promise<ConversationPage | null> => makeConversationPage())
 const remove = vi.fn(async () => {})
 let generation = 0
-const history = createConversationHistory({ getState: store.getState, setState: store.setState, getAccountGeneration: () => generation, read, remove })
+const history = createConversationHistory({ onModuleLoadError: vi.fn(), getState: store.getState, setState: store.setState, getAccountGeneration: () => generation, read, remove })
 beforeEach(() => { store.setState(createChatStoreState(store.setState)); vi.clearAllMocks(); read.mockResolvedValue(makeConversationPage()); generation++ })
 
 describe('conversation restoration', () => {
@@ -84,7 +85,7 @@ describe('conversation restoration', () => {
     let finish!: (page: ConversationPage) => void
     read.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
     const pending = history.prepareSend()
-    await Promise.resolve()
+    await vi.dynamicImportSettled()
     generation++
     store.setState(createChatStoreState(store.setState))
     finish(makeConversationPage())
@@ -96,7 +97,7 @@ describe('conversation restoration', () => {
     let finish!: (page: ReturnType<typeof makeConversationPage>) => void
     read.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
     const pending = history.latest()
-    await Promise.resolve()
+    await vi.dynamicImportSettled()
     generation++
     store.setState(createChatStoreState(store.setState))
     finish(makeConversationPage())

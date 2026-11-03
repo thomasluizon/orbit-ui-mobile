@@ -46,6 +46,11 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkCreateHabits: () => ({ mutate: bulkMutateMock }),
 }))
 
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutate: bulkMutateMock }) }
+})
+
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
 }))

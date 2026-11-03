@@ -473,3 +473,10 @@ describe('validateHabitForm', () => {
     expect(validateHabitForm(data)).toBe('habits.form.generalBadHabit')
   })
 })
+
+it.each([
+  ['', null], ['09:30', null],
+  ['25:00', 'habits.form.invalidTime'], ['9:30', 'habits.form.invalidTime'],
+])('validates the complete habit time input %s', (time, error) => {
+  expect(validateTime(time!)).toBe(error)
+})

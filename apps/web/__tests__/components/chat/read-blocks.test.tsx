@@ -24,6 +24,17 @@ const state = vi.hoisted(() => ({ isError: false, aiMessagesPeriod: 'day' as 'da
 vi.mock('@/app/actions/chat', () => ({ dismissChatOffers: vi.fn(), refreshReadBlock: vi.fn(), refreshHabitMonth: vi.fn(), refreshGamification: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }), useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }), useHabitMetrics: () => ({}) }))
+
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabits: () => ({ data: state.isError ? undefined : { habitsById: state.habits }, isError: state.isError, isPending: false }),
+  useHabitMetrics: () => ({}) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: state.mutate, mutateAsync: state.mutate }) }
+})
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, timeZone: 'UTC', aiMessagesPeriod: state.aiMessagesPeriod } }) }))

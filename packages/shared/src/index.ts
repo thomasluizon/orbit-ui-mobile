@@ -72,7 +72,6 @@ export {
   APP_VERSION_HEADER,
   buildClientTimeZoneHeaders,
   CLIENT_TIME_ZONE_HEADER,
-  isValidHabitTimeInput,
   isVersionBelow,
   getClientTimeZone,
   parseShowGeneralOnTodayPreference,

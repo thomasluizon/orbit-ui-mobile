@@ -1891,6 +1891,15 @@
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
     },
+    "web:control:calendar.emptyStat": {
+      "targets": [
+        "web:content:calendar.emptyStat"
+      ],
+      "owners": [
+        "apps/web/components/calendar/calendar-stats.tsx"
+      ],
+      "reason": "The calendar router supplies the unchanged empty-state label to the rendered calendar figures."
+    },
     "web:control:calendar.goToCurrentMonth": {
       "targets": [
         "web:control:calendar.period.goToCurrent"
@@ -2082,6 +2091,15 @@
         "web:control:common.back"
       ],
       "reason": "The retained behavior has this source-backed label or entry in the redesign."
+    },
+    "web:control:common.loading": {
+      "targets": [
+        "web:content:common.loading"
+      ],
+      "owners": [
+        "apps/web/components/ui/skeleton.tsx"
+      ],
+      "reason": "The extracted range and agenda routes still supply the loading label to their rendered skeletons."
     },
     "web:control:common.nextWeek": {
       "targets": [

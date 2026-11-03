@@ -155,7 +155,14 @@ vi.mock("@/hooks/use-habits", () => ({
   useBulkCreateHabits: () => ({
     mutateAsync: mocks.bulkMutateAsync,
   }),
-}));
+}))
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({
+    mutateAsync: mocks.bulkMutateAsync,
+  }) }
+});
 
 vi.mock("@/hooks/use-calendar-auto-sync", () => ({
   useCalendarAutoSyncState: () => ({

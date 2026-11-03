@@ -16,6 +16,11 @@ const recoveryLocale = vi.hoisted((): { current: 'en' | 'pt-BR' } => ({ current:
 const recoveryMessages = { en, 'pt-BR': ptBR }
 const bulkCreate = vi.fn<(request: BulkCreateRequest) => Promise<BulkCreateResponse>>()
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }) }))
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }) }
+})
 const onConfirmed = vi.fn()
 const props = { parentName: 'House routine', subHabits: breakdownSubHabits, onConfirmed, onCancelled: vi.fn() }
 const grouping = () => screen.getByRole('checkbox', { name: 'habits.breakdown.createAsParent' })

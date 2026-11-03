@@ -48,6 +48,8 @@ const createState = vi.hoisted(() => ({
   setLastDestination: vi.fn(),
 }))
 
+vi.mock('expo-crypto', () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }))
+
 vi.mock('expo-router', () => {
   const navigation = { dispatch: routeState.dispatch }
   const Stack = Object.assign(
@@ -105,7 +107,11 @@ vi.mock('@/hooks/use-gamification', () => ({
   }),
 }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
-vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: createState.count, isLoaded: createState.countLoaded }) }))
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useTotalHabitCount: () => createState.count,
+  useHabitCountLoaded: () => ({ count: createState.count, isLoaded: createState.countLoaded }) }
+})
 vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => createState.count }))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({

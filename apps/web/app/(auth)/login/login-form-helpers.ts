@@ -1,3 +1,5 @@
+import { isRecord } from '@orbit/shared/utils'
+
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { applySessionRefreshFailure, fetchWithUpgradeGuidance } from '@/lib/api-fetch'
 import { getAccountEventOrigin } from '@/lib/account-event-origin'
@@ -43,10 +45,6 @@ export function isAuthFetchError(err: unknown): err is AuthFetchError {
     typeof err === 'object' &&
     typeof (err as { status?: unknown }).status === 'number'
   )
-}
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object'
 }
 
 export function mergeRequestIdIntoBody(body: unknown, requestId: string | null): unknown {

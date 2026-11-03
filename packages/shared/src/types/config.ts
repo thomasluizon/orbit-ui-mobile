@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+const DEFAULT_MAX_ACTIVE_API_KEYS = 5
+
 export const featureFlagSchema = z.object({
   enabled: z.boolean(),
   planRequirement: z.string().nullable(),
@@ -37,6 +39,7 @@ export type FeatureKey =
   | 'astra_account_rows_disabled'
 
 const configLimitsSchema = z.object({
+  maxActiveApiKeys: z.number().default(DEFAULT_MAX_ACTIVE_API_KEYS),
   maxHabitDepth: z.number(),
   maxTagsPerHabit: z.number(),
   maxReferrals: z.number(),
@@ -44,11 +47,13 @@ const configLimitsSchema = z.object({
 })
 
 const storedConfigLimitsSchema = z.object({
+  MaxActiveApiKeys: z.string().pipe(z.coerce.number<string>()).default(DEFAULT_MAX_ACTIVE_API_KEYS),
   MaxHabitDepth: z.string().pipe(z.coerce.number<string>()).default(5),
   MaxTagsPerHabit: z.string().pipe(z.coerce.number<string>()).default(5),
   MaxReferrals: z.string().pipe(z.coerce.number<string>()).default(10),
   ReferralRewardDays: z.string().pipe(z.coerce.number<string>()).default(10),
 }).catchall(z.string()).transform((limits) => ({
+  maxActiveApiKeys: limits.MaxActiveApiKeys,
   maxHabitDepth: limits.MaxHabitDepth,
   maxTagsPerHabit: limits.MaxTagsPerHabit,
   maxReferrals: limits.MaxReferrals,
@@ -74,6 +79,7 @@ export type UpgradeRequiredResponse = z.infer<typeof upgradeRequiredSchema>
 
 export const DEFAULT_CONFIG: AppConfig = {
   limits: {
+    maxActiveApiKeys: DEFAULT_MAX_ACTIVE_API_KEYS,
     maxHabitDepth: 5,
     maxTagsPerHabit: 5,
     maxReferrals: 10,

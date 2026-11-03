@@ -1,7 +1,9 @@
+import { captureException } from '@sentry/nextjs'
+import { reloadStaleBuildOnce } from '@/lib/stale-build-recovery'
 import { makeApprovalPlan, planOperationId } from '@orbit/shared/test-support/astra-plan-fixtures'
 import { useChatStore } from '@/stores/chat-store'
 import { offerConversationId } from '@orbit/shared/test-support/astra-offer-fixtures'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
@@ -9,6 +11,9 @@ import { UnrecognizedActionError } from 'next/dist/client/components/unrecognize
 import { useVersionGateStore } from '@/stores/version-gate-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
+
+vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
+vi.mock('@/lib/stale-build-recovery', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/stale-build-recovery')>(), reloadStaleBuildOnce: vi.fn() }))
 
 const mocks = vi.hoisted(() => ({
   confirmPendingOperation: vi.fn(),
@@ -69,6 +74,40 @@ describe('useChatPendingOperations', () => {
     vi.clearAllMocks()
   })
 
+  it('returns a reported friendly error and recovers a rejected missing-build import', async () => {
+    const error = new Error('Loading chunk failed')
+    error.name = 'ChunkLoadError'
+    vi.doMock('@/hooks/chat-pending-operation-actions', () => ({ get then() { throw error } }))
+    onTestFinished(() => vi.doUnmock('@/hooks/chat-pending-operation-actions'))
+    const { result } = renderHook(() => useChatPendingOperations(vi.fn(async () => {})))
+    let outcome: unknown
+    let rejection: unknown
+    await act(async () => {
+      try { outcome = await result.current.confirmAndExecutePendingOperation(planOperationId) }
+      catch (failure) { rejection = failure }
+      await vi.dynamicImportSettled()
+    })
+    expect(rejection).toBeUndefined()
+    expect(captureException).toHaveBeenCalledExactlyOnceWith(error)
+    expect(reloadStaleBuildOnce).toHaveBeenCalledOnce()
+    expect(outcome).toEqual({ ok: false, error: 'chat.sendError', stale: false })
+    expect(result.current.isPendingOperationBusy).toBe(false)
+    expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
+  })
+
+  it('retains the initiating account while the operation implementation loads', async () => {
+    const { result } = renderHook(() => useChatPendingOperations(vi.fn(async () => {})))
+    let pending!: ReturnType<typeof result.current.confirmAndExecutePendingOperation>
+    await act(async () => {
+      pending = result.current.confirmAndExecutePendingOperation(planOperationId)
+      advanceAccountGeneration()
+      await vi.dynamicImportSettled()
+    })
+    await expect(pending).resolves.toEqual({ ok: false, error: 'errors.api.accountChanged' })
+    expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
+    expect(mocks.executePendingOperation).not.toHaveBeenCalled()
+  })
+
   it.each([true, false])('keeps approval running until explicit execution completes, with saved plan %s', async recorded => {
     useChatStore.setState({ messages: [{ id: 'original', role: 'ai', content: '', timestamp: new Date(), plan: makeApprovalPlan() }] })
     mocks.confirmPendingOperation.mockResolvedValue({ ok: true, data: { pendingOperationId: planOperationId, confirmationToken: 'token', expiresAtUtc: '2099-01-01T00:00:00Z', ...(recorded ? { plan: makeApprovalPlan('running') } : {}) } })
@@ -76,7 +115,10 @@ describe('useChatPendingOperations', () => {
     mocks.executePendingOperation.mockImplementation(() => new Promise(resolve => { finish = resolve }))
     const { result } = renderHook(() => useChatPendingOperations(vi.fn(async () => {})))
     let pending!: Promise<unknown>
-    await act(async () => { pending = result.current.confirmAndExecutePendingOperation(planOperationId) })
+    await act(async () => {
+      pending = result.current.confirmAndExecutePendingOperation(planOperationId)
+      await vi.dynamicImportSettled()
+    })
     expect(useChatStore.getState().messages[0]?.plan?.steps[1]?.status).toBe('running')
     await act(async () => { finish({ ok: true, data: { ...makeExecution('Failed'), operation: { ...makeExecution('Failed').operation, status: 'Failed' }, ...(recorded ? { plan: makeApprovalPlan('failed') } : {}) } }); await pending })
     expect(useChatStore.getState().messages[0]?.plan?.steps[1]?.status).toBe('failed')
@@ -230,9 +272,12 @@ describe('useChatPendingOperations', () => {
     const { result } = renderHook(() => useChatPendingOperations(onExecuted))
     const onUnexpectedOutcome = vi.fn()
 
-    void result.current.confirmAndExecutePendingOperation('pending-1').then(onUnexpectedOutcome, onUnexpectedOutcome)
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await act(async () => {
+      void result.current.confirmAndExecutePendingOperation('pending-1').then(onUnexpectedOutcome, onUnexpectedOutcome)
+      await vi.dynamicImportSettled()
+    })
 
+    expect(mocks.confirmPendingOperation).toHaveBeenCalledOnce()
     expect(useVersionGateStore.getState().reloadReason).toBe('appUpdated')
     expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(mocks.executePendingOperation).not.toHaveBeenCalled()

@@ -15,7 +15,7 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 
-const SETTLE_DELAY_MS = 500
+import { SETTLE_DELAY_MS } from '@orbit/shared/utils'
 
 /**
  * One-time LGPD-lawful marketing-email consent nudge. Shows once onboarding is complete, the

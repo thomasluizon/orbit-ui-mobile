@@ -57,11 +57,6 @@ export interface ChatStoreState {
 }
 
 type ContextualSuggestion = NonNullable<ChatStoreState['contextualSuggestion']>
-type ContextualChat = Pick<ChatStoreState, 'contextualSuggestion' | 'setContextualSuggestion'>
-
-export function clearContextualSuggestionIfCurrent(chat: ContextualChat, id: string): void {
-  if (chat.contextualSuggestion?.id === id) chat.setContextualSuggestion(null)
-}
 
 export function prepareChatRequest(
   chat: Pick<ChatStoreState, 'draft' | 'setDraft' | 'setContextualSuggestion'>,

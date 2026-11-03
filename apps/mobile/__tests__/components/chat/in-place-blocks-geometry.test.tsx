@@ -21,6 +21,17 @@ vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: vi.fn() }),
   useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }),
 }))
+
+vi.mock('@/hooks/use-habit-queries', () => {
+
+return { useHabits: () => ({ isPending: false, isError: false, isRefetchError: false, data: { habitsById: new Map((inPlaceDayFixture.rows ?? []).map(item => [item.id, createMockHabit({ id: item.id, title: item.title })])) } }),
+  useHabitMetrics: () => ({ isPending: false, isError: false, isRefetchError: false }) }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn() }) }
+})
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true, uses24HourClock: true } }) }))
 vi.mock('@/hooks/use-recap', () => ({ useProgressRecap: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))

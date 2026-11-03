@@ -20,7 +20,7 @@ import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { AlertTriangle, MoreVertical, Plus, Trash2, RefreshCw } from '@/components/ui/icons'
-import { useBulkCreateHabits } from '@/hooks/use-habits'
+import { useBulkCreateHabits } from '@/hooks/use-bulk-create-habits'
 
 function buildBreakdownRows({ card, t, editingDisabled }: Readonly<{ card: ReturnType<typeof useBreakdownSuggestionState>; t: ReturnType<typeof useTranslations>; editingDisabled: boolean }>) {
   const visibleHabits = card.completed ? card.habits.filter((habit) => card.results[habit.id] === 'done') : card.habits

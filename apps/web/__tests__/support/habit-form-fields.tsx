@@ -95,10 +95,23 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: modalFeedback.showError }) }))
 
-vi.mock('@/hooks/use-habits', () => ({
-  useCreateHabit: () => ({ mutateAsync: modalFeedback.create, isPending: false }),
-  useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }),
+vi.mock('@/hooks/use-create-habit', () => {
+
+return { useCreateHabit: () => ({ mutateAsync: modalFeedback.create, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-create-sub-habit', () => {
+
+return { useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }) }
+})
+
+vi.mock('@/hooks/use-update-habit', () => {
+
+return { useUpdateHabit: () => ({ mutateAsync: modalFeedback.update, isPending: false }) }
+})
+
+vi.mock('@/hooks/use-habit-queries', async importOriginal => ({
+  ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
   useHabitDetail: () => ({ data: null, isPending: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) }),
 }))
 

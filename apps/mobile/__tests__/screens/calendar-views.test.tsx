@@ -262,6 +262,37 @@ vi.mock("@/hooks/use-habits", async () => {
   },
   useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: state.logHabit }),
 });
+})
+
+vi.mock('@/hooks/use-calendar-data', async () => {
+const actual = await import('@/hooks/use-calendar-data')
+return { useCalendarData: (month: Date) => {
+    if (heldQueries.enabled) return actual.useCalendarData(month)
+    state.calendarDataCalls(month)
+    return ({
+      dayMap: state.monthMap,
+      isLoading: state.monthLoading,
+      isFetching: state.monthFetching,
+      error: state.monthError,
+      refresh: state.monthRefresh,
+    })
+  },
+  useCalendarRange: (start: Date, end: Date, enabled: boolean) => {
+    if (heldQueries.enabled) return actual.useCalendarRange(start, end, enabled)
+    state.calendarRangeCalls(start, end, enabled);
+    return {
+      dayMap: state.rangeMap,
+      isLoading: state.rangeLoading,
+      isFetching: state.rangeFetching,
+      error: null,
+      refresh: vi.fn(),
+    };
+  } }
+})
+
+vi.mock('@/hooks/use-habit-logging', () => {
+
+return { useLogHabit: () => ({ mutate: vi.fn(), mutateAsync: state.logHabit }) }
 });
 
 vi.mock("@/lib/use-app-theme", () => ({
@@ -2152,6 +2183,22 @@ describe("CalendarScreen views (mobile)", () => {
     } finally { sheetTestControls.defer(false); TestRenderer.act(() => { tree.update(<></>); }); }
   });
 
+  it.each(['month', 'week', 'range', 'agenda'] as const)('routes %s without losing the selected date or range', (view) => {
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const selectedDay = calendarGridProps.current!.selectedDay;
+    pressView(tree, 'range');
+    const rangeView = () => tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarRangeView')[0]!;
+    const span = rangeView().props.model;
+    pressView(tree, view);
+    pressView(tree, 'range');
+    expect(rangeView().props.model.start).toEqual(span.start);
+    expect(rangeView().props.model.end).toEqual(span.end);
+    pressView(tree, 'month');
+    expect(calendarGridProps.current!.selectedDay).toBe(selectedDay);
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
   it('returns from a later week to the month containing the selected day', () => {
     let tree!: Tree;
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
@@ -2252,6 +2299,9 @@ describe("CalendarScreen views (mobile)", () => {
     __setScrollToImpl(scrollTo)
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><CalendarScreen /><DestinationTabBar pathname="/calendar" /></RootScrollProvider>) })
+    const calendarList = tree.root.findAll((node: TestNode) => node.type === 'FlatList')[0]!
+    if (surface === 'profile-loading') expect(calendarList.props.ListFooterComponent).toBeDefined()
+    else expect(calendarList.props.ListFooterComponent).toBeUndefined()
     scrollTo.mockClear()
     rootScrollMocks.scrollToOffset.mockClear()
     TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === 'tab-calendario-current')[0]!.props.onPress() })

@@ -103,6 +103,11 @@ vi.mock('@/components/ui/pill-button', () => ({
 vi.mock('@/lib/motion', () => ({ toAnimatedEasing: (value: unknown) => value, usePrefersReducedMotion: () => true }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { hasProAccess: true }, isLoading: false }) }))
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: vi.fn() }) }))
+
+vi.mock('@/hooks/use-bulk-create-habits', () => {
+
+return { useBulkCreateHabits: () => ({ mutateAsync: vi.fn() }) }
+})
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ data: { status: 'not-connected' }, refetch: vi.fn() }) }))
 vi.mock('@/hooks/use-calendar-auto-sync', () => ({
   useCalendarAutoSyncState: () => ({ data: { hasGoogleConnection: false }, isLoading: false }),

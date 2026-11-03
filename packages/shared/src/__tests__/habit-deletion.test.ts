@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryObserver } from '@tanstack/query-core'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from './factories'
 import { habitDetailSchema } from '../types/habit'
@@ -80,4 +80,23 @@ describe('habit deletion cache lifecycle', () => {
     client.clear()
     expect(isCachedHabitDeleted(client, 'local')).toBe(false)
   })
+})
+
+
+it('keeps a deletion resumed after cancellation out of the replacement account cache', async () => {
+  const client = new QueryClient()
+  let current = true
+  let release!: () => void
+  vi.spyOn(client, 'cancelQueries').mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve }))
+  const pending = removeDeletedHabitQueries(client, 'shared-id', undefined, () => current)
+  current = false
+  client.clear()
+  const replacement = createMockHabitScheduleItem({ id: 'shared-id', title: 'Replacement account' })
+  client.setQueryData(habitKeys.list({}), [replacement])
+  client.setQueryData(habitKeys.detail('shared-id'), habitDetailSchema.parse(replacement))
+  const before = client.getQueryCache().getAll().map(query => [query.queryKey, query.state])
+  release()
+  await pending
+  expect(client.getQueryCache().getAll().map(query => [query.queryKey, query.state])).toEqual(before)
+  client.clear()
 })

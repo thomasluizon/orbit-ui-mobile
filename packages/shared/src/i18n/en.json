@@ -866,7 +866,7 @@
       "reminderMinutesAfter": "min after",
       "reminderHourAfter": "hour after",
       "reminderHoursAfter": "hours after",
-      "relativeReminderMax": "Maximum 15 reminders",
+      "relativeReminderMax": "{count, plural, one {Maximum # reminder} other {Maximum # reminders}}",
       "invalidRelativeReminder": "Choose up to 7 days before or less than 24 hours after",
       "reminderMinutes": "min before",
       "reminder5min": "5 min before",
