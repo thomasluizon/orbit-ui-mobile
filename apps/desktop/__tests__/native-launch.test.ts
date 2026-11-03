@@ -29,7 +29,7 @@ it.skipIf(process.platform !== 'darwin')('presents the native mark before displa
   }
 }, 120_000)
 
-it.skipIf(process.platform !== 'win32')('keeps the WebView2 cover above the page and handles resize, timeout and stale timers', () => {
+it.skipIf(process.platform !== 'win32')('repaints the centered mark without stale pixels on Windows resize and handles timeout and stale timers', () => {
   const directory = mkdtempSync(join(tmpdir(), 'orbit-launch-'))
   try {
     const executable = join(directory, 'launch.exe')
@@ -39,7 +39,7 @@ it.skipIf(process.platform !== 'win32')('keeps the WebView2 cover above the page
     expect(compiled.status, compiled.stderr).toBe(0)
     for (const mode of ['dark', 'light']) {
       const asset = fileURLToPath(new URL(`../src-tauri/native/launch-${mode}.png`, import.meta.url))
-      const result = spawnSync(executable, [asset], { encoding: 'utf8' })
+      const result = spawnSync(executable, [asset, mode], { encoding: 'utf8' })
       expect(result.error, result.stderr).toBeUndefined()
       expect(result.status, result.stderr).toBe(0)
     }

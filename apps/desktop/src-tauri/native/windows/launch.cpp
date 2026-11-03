@@ -110,6 +110,7 @@ extern "C" bool orbit_launch_install(void *parent, const unsigned char *png, siz
         return true;
     }
     WNDCLASSW definition{};
+    definition.style = CS_HREDRAW | CS_VREDRAW;
     definition.lpfnWndProc = paint;
     definition.hInstance = GetModuleHandleW(nullptr);
     definition.lpszClassName = L"OrbitLaunchSurface";

@@ -93,6 +93,34 @@ describe('desktop launch bridge', () => {
     expect(invoke).toHaveBeenLastCalledWith('desktop_launch', { generation: 7, mode: null })
   })
 
+  it.each(['dark', 'light'] as const)('synchronizes in-session appearance changes after a %s first paint without another reveal', async initial => {
+    applyThemeTokensToDOM('orange', initial)
+    await loadLaunch()
+    painted(['first-contentful-paint'])
+    await Promise.resolve()
+    const changed = initial === 'dark' ? 'light' : 'dark'
+    applyThemeTokensToDOM('orange', changed)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(invoke).toHaveBeenLastCalledWith('desktop_launch', { generation: 7, mode: changed, reveal: false })
+    expect(invoke).toHaveBeenCalledTimes(3)
+    document.documentElement.classList.add('theme-transitioning')
+    applyThemeTokensToDOM('orange', changed)
+    painted(['first-contentful-paint'])
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(invoke).toHaveBeenCalledTimes(3)
+    applyThemeTokensToDOM('orange', initial)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(invoke).toHaveBeenLastCalledWith('desktop_launch', { generation: 7, mode: initial, reveal: false })
+    window.dispatchEvent(new Event('pagehide'))
+    applyThemeTokensToDOM('orange', changed)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(invoke).toHaveBeenCalledTimes(4)
+  })
+
   it('disconnects and ignores paint after pagehide', async () => {
     await loadLaunch()
     window.dispatchEvent(new Event('pagehide'))
@@ -196,7 +224,7 @@ describe('desktop launch without Paint Timing', () => {
     expect(invoke).toHaveBeenCalledTimes(2)
     expect(disconnected).toHaveBeenCalledOnce()
     window.dispatchEvent(new Event('pagehide'))
-    expect(disconnected).toHaveBeenCalledTimes(2)
+    expect(disconnected).toHaveBeenCalledTimes(3)
   })
 
   it('ignores a pending fallback paint after pagehide', async () => {

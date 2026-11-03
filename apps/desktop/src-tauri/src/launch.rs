@@ -60,6 +60,7 @@ pub fn desktop_launch(
     window: WebviewWindow,
     generation: Option<u64>,
     mode: Option<String>,
+    reveal: Option<bool>,
 ) -> Result<u64, String> {
     let tauri::utils::config::WebviewUrl::External(origin) = &window.config().app.windows[0].url
     else {
@@ -84,7 +85,9 @@ pub fn desktop_launch(
                 install_canvas(&window, color).map_err(|error| error.to_string())
             },
         )?;
-        set_visible(&window, false).map_err(|error| error.to_string())?;
+        if reveal != Some(false) {
+            set_visible(&window, false).map_err(|error| error.to_string())?;
+        }
     }
     Ok(*current_generation)
 }
@@ -152,7 +155,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn persisted_page_mode_overrides_the_system_canvas_and_mark_before_window_creation() {
+    fn the_latest_page_mode_overrides_the_system_canvas_and_mark_before_window_creation() {
         for (mode, reported, system, expected, png) in [
             (
                 LaunchMode::Dark,
@@ -172,6 +175,13 @@ mod tests {
             let directory = tempfile::tempdir().unwrap();
             let path = directory.path().join("settings.json");
             let mut settings = DesktopSettings::load(&path).unwrap();
+            settings
+                .report_launch_mode(
+                    Some(if reported == "dark" { "light" } else { "dark" }),
+                    &path,
+                    |_| Ok(()),
+                )
+                .unwrap();
             settings
                 .report_launch_mode(Some(reported), &path, |_| Ok(()))
                 .unwrap();

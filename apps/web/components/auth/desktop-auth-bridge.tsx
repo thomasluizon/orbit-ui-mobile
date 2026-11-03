@@ -8,6 +8,7 @@ import { getHeldAccountId, useAuthStore, withCookieSettingLogin } from '@/stores
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { fetchWithUpgradeGuidance } from '@/lib/api-fetch'
+import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 
 const notificationSchema = z.object({ phase: z.enum(['begin', 'ready']), state: z.string().regex(/^[a-f0-9]{64}$/) })
 const sessionSchema = z.object({ userId: z.string().min(1), expiresAt: z.number(), refreshFailed: z.literal(false) })
@@ -35,6 +36,10 @@ export function DesktopAuthBridge() {
         useOnboardingDraftStore.getState().setAccountScope(session.userId, preserveAnonymousDraft)
         await useAuthStore.getState().checkSession()
         if (pending !== attempt || getHeldAccountId() !== session.userId) return
+        const generation = getAccountGeneration()
+        const isCurrent = () => pending === attempt && getHeldAccountId() === session.userId && generation === getAccountGeneration()
+        await hydrateProfilePresentation(isCurrent)
+        if (!isCurrent()) return
         pending = null
         router.replace('/')
       })

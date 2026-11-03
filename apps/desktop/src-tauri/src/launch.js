@@ -3,18 +3,31 @@
   const generation = window.__TAURI_INTERNALS__.invoke('desktop_launch', { generation: null });
   let active = true;
   let finished = false;
+  let reportedMode;
+  let pending = Promise.resolve();
+  const report = (reveal = false) => {
+    if (!active) return pending;
+    const modes = ['dark', 'light'].filter(mode => document.documentElement?.classList.contains(mode));
+    const mode = modes.length === 1 ? modes[0] : null;
+    if (!reveal && (mode === null || mode === reportedMode)) return pending;
+    reportedMode = mode;
+    pending = generation.then(value => {
+      if (active) {
+        return window.__TAURI_INTERNALS__.invoke('desktop_launch', {
+          generation: value, mode, ...(reveal ? {} : { reveal: false }),
+        });
+      }
+    }).catch(error => console.error('Cannot finish desktop launch', error));
+    return pending;
+  };
+  window.__ORBIT_DESKTOP_LAUNCH__ = () => report();
   const reveal = () => {
     if (!active || finished) return;
     finished = true;
-    generation.then(value => {
-      if (active) {
-        const modes = ['dark', 'light'].filter(mode => document.documentElement.classList.contains(mode));
-        return window.__TAURI_INTERNALS__.invoke('desktop_launch', {
-          generation: value, mode: modes.length === 1 ? modes[0] : null,
-        });
-      }
-    })
-      .catch(error => console.error('Cannot finish desktop launch', error));
+    const appearance = new MutationObserver(() => report());
+    appearance.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('pagehide', () => appearance.disconnect(), { once: true });
+    report(true);
   };
   window.addEventListener('pagehide', () => { active = false; }, { once: true });
   if (typeof PerformanceObserver !== 'undefined' && PerformanceObserver.supportedEntryTypes.includes('paint')) {
