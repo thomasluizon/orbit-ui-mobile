@@ -2,9 +2,12 @@ import { test as setup, expect } from '@playwright/test'
 import { authenticate } from './support/auth'
 import { resetSmokeAccount, warmBackend } from './support/api'
 import { STORAGE_STATE_PATH } from './support/env'
+import { expectAppNavigation } from './support/smoke-adapters'
 
 setup('authenticate and reset the smoke account', async ({ page }) => {
   await authenticate(page)
+  await expect(page).toHaveURL((url) => !url.pathname.startsWith('/login'))
+  await expectAppNavigation(page)
 
   await resetSmokeAccount(page.request)
 
