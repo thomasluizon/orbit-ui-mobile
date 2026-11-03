@@ -1,6 +1,6 @@
 export const MODULE_LOAD_TIMEOUT_MS = 60_000
 
-export async function loadModule<Module>(load: () => Promise<Module>, onFailure: (error: unknown) => void): Promise<Module> {
+export async function loadModule<Module>(load: () => Promise<Module>, onFailure?: (error: unknown) => void): Promise<Module> {
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race([
@@ -10,7 +10,7 @@ export async function loadModule<Module>(load: () => Promise<Module>, onFailure:
       }),
     ])
   } catch (error) {
-    onFailure(error)
+    onFailure?.(error)
     throw error
   } finally {
     clearTimeout(timer)

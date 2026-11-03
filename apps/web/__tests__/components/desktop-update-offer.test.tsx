@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, expect, it, onTestFinished, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -13,6 +13,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { getQueryClient } from '@/lib/query-client'
 import { takeDesktopChatCheckpoint, writeDesktopChatCheckpoint } from '@/lib/desktop-chat-checkpoint'
+import { desktopChatCheckpointKey } from '@/lib/web-reload-state'
 import { blockDesktopWebReload } from '@/lib/web-reload-state'
 import { desktopOffersSupported } from '@/lib/desktop-updates'
 import { holdAccount, retireHeldAccount } from '@/__tests__/support/account-change'
@@ -536,4 +537,21 @@ it('the native Update available item reveals a deferred notice without restartin
   expect(reload).not.toHaveBeenCalled()
   expect(actions()).not.toContain('download')
   expect(actions()).not.toContain('install')
+})
+
+it('retains an existing checkpoint when a restart schema import fails before the reload starts', async () => {
+  mount()
+  await tick()
+  vi.stubEnv('WEB_COMMIT_SHA', nextCommit)
+  await act(async () => { window.dispatchEvent(new Event('focus')) })
+  await tick()
+  await writeDesktopChatCheckpoint('desktop-account', { ...useChatStore.getState(), draft: 'Saved before restart' }, true)
+  const stored = sessionStorage.getItem(desktopChatCheckpointKey)
+  const error = new Error('Schema unavailable')
+  vi.doMock('@/lib/desktop-chat-checkpoint-schema', () => ({ get then() { throw error } }))
+  onTestFinished(() => vi.doUnmock('@/lib/desktop-chat-checkpoint-schema'))
+  await click(en.versionUpdate.restartCta)
+  expect(screen.getByRole('status')).toHaveTextContent(en.desktopUpdate.failed)
+  expect(reload).not.toHaveBeenCalled()
+  expect(sessionStorage.getItem(desktopChatCheckpointKey)).toBe(stored)
 })

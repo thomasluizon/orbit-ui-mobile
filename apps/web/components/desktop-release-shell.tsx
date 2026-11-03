@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { captureException } from '@sentry/nextjs'
+import { reportModuleLoadError } from '@/lib/report-module-load-error'
 import compatibility from '@/web-compatibility.json'
 import { desktopShellVersion, shellSupportsWeb } from '@/lib/desktop-web-release'
 import { watchDesktopUpdates, desktopOffersSupported } from '@/lib/desktop-updates'
@@ -41,7 +41,7 @@ function DesktopReleaseMonitor({ version, requireUpgrade }: Readonly<{ version: 
   useEffect(() => {
     let current = true
     const unblockReload = blockDesktopWebReload()
-    if (accountId) void restoreDesktopCheckpoint(accountId, () => current).catch(captureException).finally(unblockReload)
+    if (accountId) void restoreDesktopCheckpoint(accountId, () => current).catch(reportModuleLoadError).finally(unblockReload)
     else unblockReload()
     const stopWatching = watchDesktopUpdates(version, process.env.NEXT_PUBLIC_WEB_COMMIT_SHA ?? null, requireUpgrade)
     return () => { current = false; unblockReload(); stopWatching() }
@@ -53,11 +53,14 @@ async function restoreDesktopCheckpoint(accountId: string, isCurrent: () => bool
   const accountGeneration = getAccountGeneration()
   const snapshot = useChatStore.getState()
   const conversationOpen = useUIStore.getState().astraConversationOpen
-  const checkpoint = await takeDesktopChatCheckpoint(accountId)
+  const checkpoint = await takeDesktopChatCheckpoint(accountId, () => isCurrent() && accountGeneration === getAccountGeneration())
   const current = useChatStore.getState()
-  if (!checkpoint || !isCurrent() || accountGeneration !== getAccountGeneration() || current.messages !== snapshot.messages) return
+  if (!checkpoint || !isCurrent() || accountGeneration !== getAccountGeneration()) return
   const draft = current.draftRevision === snapshot.draftRevision ? checkpoint.chat.draft : current.draft
-  useChatStore.setState({ ...checkpoint.chat, draft, draftHydrated: true, isTyping: false, streamingMessageId: null })
+  useChatStore.setState({
+    ...(current.messages === snapshot.messages ? { ...checkpoint.chat, isTyping: false, streamingMessageId: null } : {}),
+    draft, draftHydrated: true,
+  })
   if (useUIStore.getState().astraConversationOpen === conversationOpen) useUIStore.getState().setAstraConversationOpen(checkpoint.conversationOpen)
 }
 

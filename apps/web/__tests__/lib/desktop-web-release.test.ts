@@ -20,7 +20,7 @@ const reload = vi.fn()
 const cleanups: (() => void)[] = []
 
 beforeEach(() => {
-  vi.useFakeTimers()
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
   sessionStorage.clear()
   localStorage.clear()
   getQueryClient().clear()
@@ -164,9 +164,10 @@ it('does not reload or retain a checkpoint when the account changes during image
   vi.mocked(fetch).mockImplementationOnce(() => new Promise(resolve => { complete = resolve }))
   useChatStore.getState().addMessage({ id: 'image', role: 'user', content: 'Look', imageUrl: 'blob:preview', timestamp: new Date() })
   const pending = reloadDesktopWeb(reload)
+  await vi.dynamicImportSettled()
   holdAccount('replacement-account')
   complete(new Response('image', { headers: { 'Content-Type': 'image/png' } }))
-  await vi.advanceTimersByTimeAsync(50)
+  await vi.dynamicImportSettled()
   expect(await pending).toBe(false)
   expect(reload).not.toHaveBeenCalled()
   expect(await takeDesktopChatCheckpoint('desktop-account')).toBeNull()
@@ -176,7 +177,7 @@ it('retains image bytes and MIME type across a successful reload checkpoint', as
   vi.mocked(fetch).mockResolvedValueOnce(new Response('image', { headers: { 'Content-Type': 'image/png' } }))
   useChatStore.getState().addMessage({ id: 'image', role: 'user', content: 'Look', imageUrl: 'blob:preview', timestamp: new Date() })
   const pending = reloadDesktopWeb(reload)
-  await vi.advanceTimersByTimeAsync(50)
+  await vi.dynamicImportSettled()
   expect(await pending).toBe(true)
   expect(reload).toHaveBeenCalledOnce()
   expect((await takeDesktopChatCheckpoint('desktop-account'))?.chat.messages[0]?.imageUrl).toBe('data:image/png;base64,aW1hZ2U=')
@@ -231,7 +232,7 @@ it('does not reload or persist an incomplete conversation when image retention f
   useChatStore.getState().addMessage({ id: 'image', role: 'user', content: 'Look', imageUrl: 'blob:missing', timestamp: new Date() })
   const retained = reloadDesktopWeb(reload)
   const rejected = expect(retained).rejects.toThrow('Cannot retain conversation image across web release')
-  await vi.advanceTimersByTimeAsync(50)
+  await vi.dynamicImportSettled()
   await rejected
   expect(reload).not.toHaveBeenCalled()
   expect(await takeDesktopChatCheckpoint('desktop-account')).toBeNull()
