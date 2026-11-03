@@ -67,7 +67,8 @@ const mocks = vi.hoisted(() => {
   }
 })
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async importOriginal => ({
+  ...await importOriginal<typeof import('@tanstack/react-query')>(),
   useQuery: mocks.useQuery,
   useQueryClient: () => ({ getQueryData: () => undefined, setQueryData: mocks.setQueryData }),
 }))

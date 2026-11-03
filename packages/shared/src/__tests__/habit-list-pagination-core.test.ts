@@ -10,7 +10,7 @@ describe('habit list pagination for detail', () => {
     { view: 'general', completeDay: false, scheduleDate: undefined },
   ] as const)('keeps the $view query in its own cache with the right schedule enrichment', ({ view, completeDay, scheduleDate }) => {
     const options = habitViewQueryOptions(view, day.dateFrom)
-    expect(options).toEqual({ completeDay, scheduleDate })
+    expect(options).toEqual({ completeDay, scheduleDate, prefetchAroundToday: view === 'today' ? day.dateFrom : undefined })
     expect(habitListQueryFilters({}, options.completeDay, options.scheduleDate)).toEqual(
       view === 'today' ? { completeDay: true } : view === 'all' ? { scheduleDate: day.dateFrom } : {},
     )

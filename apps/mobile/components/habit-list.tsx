@@ -218,7 +218,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const { isDraggingList, handleDragEnd } = state.drag
     const commonOverlays = <HabitListOverlays state={state} />
     if (drill.currentParentId) return renderHabitDrillState({ ...state, commonOverlays })
-    if (isLoading) return renderHabitLoadingState({ ...state, commonOverlays })
+    if (isLoading) return habitsQuery.showLoading ? renderHabitLoadingState({ ...state, commonOverlays }) : <>{state.empty.listHeaderComponent}{commonOverlays}</>
     if (isError && !habitsQuery.data) return renderHabitErrorState({ ...state, commonOverlays })
     if (view === 'all') return renderHabitAllState({ ...state, commonOverlays })
     return (

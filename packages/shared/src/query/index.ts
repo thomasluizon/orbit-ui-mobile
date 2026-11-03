@@ -67,3 +67,6 @@ export type { HabitDetailSnapshots, HabitDetailUpdates } from './habit-cache'
 export { cachedHabitDeletionIds, isCachedHabitDeleted, removeDeletedHabitQueries, restoreDeletedHabitQueries } from './habit-deletion'
 
 export { conversationKeys } from './keys'
+
+export { habitListQueryOptions, adjacentHabitDayFilters } from './habit-list'
+export type { HabitListOptions } from './habit-list'
