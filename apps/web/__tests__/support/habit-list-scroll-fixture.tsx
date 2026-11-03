@@ -10,6 +10,7 @@ import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-f
 import { bulkSkipResultSchema, type BulkSkipItemRequest } from '@orbit/shared/types/habit'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { ShellHeaderHostContext } from '@/components/shell/shell-header'
 import { Composer } from '@/components/shell/composer'
 import { useUIStore } from '@/stores/ui-store'
@@ -20,7 +21,7 @@ import { TodayHabitsPanel, TodayHeaderRegion } from '@/app/(app)/today-page-view
 import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
 
 const date = getAccountDay(new Date(), 'UTC')
-let items = Array.from({ length: 30 }, (_, index) => makeHabitScheduleItem({
+let items = Array.from({ length: Number(document.getElementById('root')!.dataset.count ?? 30) }, (_, index) => makeHabitScheduleItem({
   id: `skip-${index}`, title: `Habit ${index}`, position: index, dueDate: date, scheduledDates: [date],
   children: [], hasSubHabits: false,
 }))
@@ -65,10 +66,12 @@ function Fixture() {
       onBulkMove={() => {}} onBulkDelete={() => {}} onCancel={view.toggleSelectMode}
       onBulkSkip={() => { void view.selection.confirmBulkSkip() }} /> : undefined}
     compactComposer={selecting ? undefined : <Composer state="idle" words={en.shell.composer} value="" onChangeValue={() => {}} onSend={() => {}} suggestions={[]} collapsible collapseScope="today" />}>
-    <div id="orbit-main" className="flex min-h-full flex-col gap-6">
-      <TodayHeaderRegion view={view} />
-      <TodayHabitsPanel view={view} />
-    </div>
+    <div id="orbit-main" className="flex min-h-full flex-col"><RouteTransitionShell className="flex flex-1 flex-col">
+      <div className="relative mx-auto w-full max-w-[740px]"><div className="flex min-w-0 flex-col gap-6">
+        <TodayHeaderRegion view={view} />
+        <TodayHabitsPanel view={view} />
+      </div></div>
+    </RouteTransitionShell></div>
   </ShellWide></ShellHeaderHostContext.Provider>
 }
 

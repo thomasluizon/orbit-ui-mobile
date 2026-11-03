@@ -4,6 +4,8 @@ import { resolve } from 'node:path'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import postcss from 'postcss'
 import en from '@orbit/shared/i18n/en.json'
+import { SPACING } from '@orbit/shared/theme'
+import { measureShellScrollEnd, shellScrollViewports } from '@/e2e/layout/shell-scroll-extent'
 import { settleAnimations } from '@/e2e/layout/settle-animations'
 import tailwind from '@tailwindcss/postcss'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
@@ -127,3 +129,31 @@ it.each(([
     expect(errors).toEqual([])
   } finally { await page.close() }
 })
+
+
+it.each(shellScrollViewports.flatMap(viewport => (['today', 'all'] as const).map(view => ({ ...viewport, view }))))(
+  'bounds the mounted Hoje $view scroll extent at $width x $height', async ({ width, height, view }) => {
+    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' })
+    const errors: string[] = []
+    page.on('pageerror', error => errors.push(error.message))
+    try {
+      await page.route('https://habit-list.test/', route => route.fulfill({ contentType: 'text/html',
+        body: `<!doctype html><style>${stylesheet}</style><div id="root" data-count="100"></div>` }))
+      await page.goto('https://habit-list.test/')
+      await page.addScriptTag({ content: script })
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 100)
+      if (view === 'all') {
+        await page.getByRole('radio', { name: en.habits.viewAll, exact: true }).click()
+        await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 100)
+      }
+      await page.evaluate(() => document.fonts.ready)
+      const geometry = await page.locator('[data-shell-scroller]').evaluate(measureShellScrollEnd)
+      const evidence = JSON.stringify(geometry)
+      expect(geometry.scrollTop, evidence).toBeGreaterThan(0)
+      expect(geometry.scrollTop, evidence).toBe(geometry.scrollHeight - geometry.clientHeight)
+      expect(geometry.lastTop, evidence).toBeGreaterThanOrEqual(geometry.scrollerTop)
+      expect(geometry.scrollerBottom - geometry.lastBottom, evidence).toBeCloseTo(width >= 1024 ? SPACING.s32 : SPACING.s96, 0)
+      expect(errors).toEqual([])
+    } finally { await page.close() }
+  },
+)
