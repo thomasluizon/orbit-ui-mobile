@@ -74,6 +74,19 @@ describe('habit form helpers', () => {
     })).toBe(expected)
   })
 
+  it.each([
+    ['Escolher aneis corretos', 'pt-BR'],
+    ['Get ready for the run', 'en'],
+  ] as const)('leaves an empty emoji empty through phrase application and creation for %s', (title, locale) => {
+    const values = normalizeHabitFormData({ title })
+    applyHabitPhraseRead(true, readHabitPhrase(title, locale), false, { cadence: false, dueTime: false }, {
+      setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(), setGeneral: vi.fn(),
+      setField: (field, value) => { Object.assign(values, { [field]: value }) },
+    })
+    expect(values.emoji).toBe('')
+    expect(buildCreateHabitRequest(values, [], [], [], [])).not.toHaveProperty('emoji')
+  })
+
   it('normalizes missing habit form values', () => {
     expect(normalizeHabitFormData({ title: 'Exercise' })).toMatchObject({
       title: 'Exercise',
@@ -258,9 +271,8 @@ describe('habit form helpers', () => {
       frequencyQuantity: null,
       intervalWeeks: null,
       dueTime: '15:00',
-      emoji: null,
       consumed: [],
-    }, '', false, { cadence: false, dueTime: false }, {
+    }, false, { cadence: false, dueTime: false }, {
       setOneTime: () => calls.push('one-time'),
       setRecurring: () => calls.push('recurring'),
       setFlexible: () => calls.push('flexible'),
@@ -283,9 +295,8 @@ describe('habit form helpers', () => {
       frequencyQuantity: null,
       intervalWeeks: null,
       dueTime: '08:00',
-      emoji: '🏃',
       consumed: [],
-    }, '', true, { cadence: false, dueTime: false }, {
+    }, true, { cadence: false, dueTime: false }, {
       setOneTime: () => calls.push('one-time'),
       setRecurring: () => calls.push('recurring'),
       setFlexible: () => calls.push('flexible'),
@@ -604,9 +615,8 @@ describe('habit form helpers', () => {
       frequencyQuantity: null,
       intervalWeeks: null,
       dueTime: '15:00',
-      emoji: null,
       consumed: [],
-    }, '')
+    })
     expect(fields.get('dueTime')?.value).toBe('15:00')
     fields.set('dueEndTime', { value: '17:00', validate: false })
     controller.setDueTime('16:00')
@@ -774,9 +784,8 @@ describe('habit form helpers', () => {
       frequencyQuantity,
       intervalWeeks,
       dueTime: null,
-      emoji: null,
       consumed: [],
-    }, '', false, { cadence: false, dueTime: true }, {
+    }, false, { cadence: false, dueTime: true }, {
       setOneTime: () => calls.push('oneTime'),
       setRecurring: () => calls.push('recurring'),
       setFlexible: () => calls.push('flexible'),
@@ -795,7 +804,7 @@ describe('habit form helpers', () => {
   ])('keeps a daily phrase daily through the form, request, and understanding in $locale', ({ phrase, locale, messages, sentence }) => {
     const read = readHabitPhrase(phrase, locale)
     const fields: Record<string, string | number | string[]> = {}
-    applyHabitPhraseRead(true, read, '', false, { cadence: false, dueTime: false }, {
+    applyHabitPhraseRead(true, read, false, { cadence: false, dueTime: false }, {
       setOneTime: () => {},
       setRecurring: () => {},
       setFlexible: () => {},

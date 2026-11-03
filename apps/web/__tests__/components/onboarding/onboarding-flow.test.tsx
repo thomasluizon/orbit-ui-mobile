@@ -130,8 +130,8 @@ vi.mock('@/components/onboarding/onboarding-create-habit', async (importOriginal
   return {
   OnboardingCreateHabit: (props: React.ComponentProps<typeof original.OnboardingCreateHabit>) => {
     if (mocks.realProposal) return <original.OnboardingCreateHabit {...props} />
-    const { proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange } = props
-    return <div data-testid="schedule" data-proposed={proposed} data-can-save-repeat-weeks={String(canSaveRepeatWeeks)} data-interval-weeks={String(schedule.intervalWeeks)}><button type="button" onClick={() => onToggleDay('Monday')}>Monday</button><input aria-label="time" onChange={(event) => onTimeChange(event.target.value)} /></div>
+    const { emoji, proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange } = props
+    return <div data-testid="schedule" data-emoji={emoji} data-proposed={proposed} data-can-save-repeat-weeks={String(canSaveRepeatWeeks)} data-interval-weeks={String(schedule.intervalWeeks)}><button type="button" onClick={() => onToggleDay('Monday')}>Monday</button><input aria-label="time" onChange={(event) => onTimeChange(event.target.value)} /></div>
   }
 } })
 vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => <div data-testid="reminder-state">{state}</div> }))
@@ -470,6 +470,21 @@ describe('OnboardingFlow state model', () => {
     expect(screen.getByLabelText('sentence')).toHaveValue('')
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it.each(['signed-out', 'at-limit', 'failed', 'empty', 'suggested'])('keeps onboarding emoji explicit on the %s path', async (path) => {
+    if (path === 'at-limit') mocks.profile.aiMessagesUsed = mocks.profile.aiMessagesLimit
+    mocks.suggest.mockResolvedValue({ emoji: path === 'suggested' ? '🌱' : null, frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
+    if (path === 'failed') mocks.suggest.mockRejectedValue(new Error('Unavailable'))
+    mount(path !== 'signed-out')
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Get ready for the run' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    const create = await screen.findByRole('button', { name: 'create' })
+    expect(screen.getByTestId('schedule')).toHaveAttribute('data-emoji', path === 'suggested' ? '🌱' : '◎')
+    expect(screen.getByTestId('schedule')).toHaveAttribute('data-proposed', String(path === 'empty' || path === 'suggested'))
+    expect(mocks.createHabit).not.toHaveBeenCalled()
+    fireEvent.click(create)
+    await waitFor(() => expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ emoji: path === 'suggested' ? '🌱' : null })))
   })
 
   it('never shows or saves a repeat interval a signed-out draft cannot carry', async () => {
