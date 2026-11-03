@@ -53,6 +53,7 @@ pub fn create_main(
     build: impl FnOnce(&tauri::utils::config::WindowConfig) -> tauri::Result<()>,
     show: impl FnOnce() -> tauri::Result<()>,
 ) -> tauri::Result<()> {
+    crate::launch::configure(&mut config);
     config.visible = false;
     config.focus = false;
     build(&config)?;
@@ -208,6 +209,34 @@ mod tests {
         fn exit_process(&self) {
             assert!(self.saved.get());
             self.running.set(false);
+        }
+    }
+
+    #[test]
+    fn creation_paints_the_canvas_before_showing_in_both_appearances() {
+        use tauri::{utils::config::Color, Theme};
+        for (theme, color) in [
+            (Theme::Dark, Color(9, 9, 11, 255)),
+            (Theme::Light, Color(250, 250, 250, 255)),
+        ] {
+            let mut config = super::super::context().config().app.windows[0].clone();
+            config.theme = Some(theme);
+            let built = Cell::new(false);
+            create_main(
+                config,
+                false,
+                |config| {
+                    assert_eq!(config.background_color, Some(color));
+                    assert!(!config.visible);
+                    built.set(true);
+                    Ok(())
+                },
+                || {
+                    assert!(built.get());
+                    Ok(())
+                },
+            )
+            .unwrap();
         }
     }
 

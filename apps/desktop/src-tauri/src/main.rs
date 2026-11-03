@@ -9,6 +9,7 @@ mod auth;
 mod bench_viewport;
 mod command_origin;
 mod desktop_login;
+mod launch;
 mod lifecycle;
 mod links;
 mod localization;

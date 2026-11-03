@@ -5,6 +5,7 @@ fn main() {
         "macos" => {
             cc::Build::new()
                 .file("native/macos/push.m")
+                .file("native/macos/launch.m")
                 .flag("-fobjc-arc")
                 .flag("-fblocks")
                 .flag("-mmacosx-version-min=10.13")
@@ -57,6 +58,7 @@ fn build_windows() {
         .cpp(true)
         .std("c++20")
         .file("native/windows/push.cpp")
+        .file("native/windows/launch.cpp")
         .include(output.join("projection"))
         .include(output.join("sdk/include"))
         .flag("/EHsc")
