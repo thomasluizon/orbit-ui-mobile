@@ -493,7 +493,7 @@ function useHabitListModel(parameters: HabitListModelInputs) {
   const habitListEditState = useHabitListEditState(habitListModalState, habitListQueries)
   const habitListCompletion = getHabitListCompletion(parameters, habitListQueries)
   const habitListActions = createHabitListSubHabitActions({ ...habitListQueries, ...habitListModalState, ...habitListCollapse })
-  const parentPromptQueue = useParentPromptQueue({ ...habitListQueries, ...habitListVisibility, ...parameters, ...habitRecentCompletions })
+  const parentPromptQueue = useParentPromptQueue({ additionalHabitsById: habitListVisibility.drill.settlementHabitsById, ...habitListQueries, ...habitListVisibility, ...parameters, ...habitRecentCompletions })
   useHabitListSurfaceState(habitRecentCompletions, confirmations, habitListVisibility, habitListModalState, parentPromptQueue, habitListMoveState, parameters)
   useHabitListHandle(parameters, habitListCollapse, habitListRoots, habitRecentCompletions, parentPromptQueue, habitListMoveState, drag)
   const habitListRendering = createHabitListRendering({ ...habitListModalState, ...habitListQueries, ...habitListProgress, ...habitRecentCompletionState, drag, ...parameters, ...habitListCollapse, ...parentPromptQueue, confirmations, ...habitListVisibility, ...habitListMoveState, ...habitListActions, ...habitListEditState, ...habitListKeyboardReorder, ...habitListRoots, ...habitListCompletion })

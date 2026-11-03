@@ -6,6 +6,7 @@ import {
   canRevealCompletedDrillChildren,
   countCompletedDrillChildren,
   getDrillParent,
+  getDrillSettlementHabits,
   getRecentlyCompletedIdsForDate,
   getVisibleDrillChildren,
   loadDrillChildren,
@@ -554,4 +555,15 @@ describe('getDrillParent', () => {
   it('returns null for an unknown parent', () => {
     expect(getDrillParent('missing', habitsById, fetchedParents, drillChildrenMap)).toBeNull()
   })
+})
+
+
+it('retains the complete normalized drill inventory for parent settlement', () => {
+  const child = makeDetailChild({ id: 'child', isCompleted: true, children: [makeDetailChild({ id: 'nested' })] })
+  const normalized = normalizeHabitDetailForDrill(makeDetail({ children: [child] }), '2026-09-12')
+  const parents = new Map([[normalized.parent.id, normalized.parent]])
+  const inventory = getDrillSettlementHabits(parents, normalized.childrenByParent)
+  expect([...inventory.keys()].sort((left, right) => left.localeCompare(right))).toEqual(['child', 'nested', 'parent-1'])
+  expect(inventory.get('nested')?.parentId).toBe(child.id)
+  expect(inventory.get(child.id)?.isCompleted).toBe(true)
 })

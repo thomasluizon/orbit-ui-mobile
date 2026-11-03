@@ -203,6 +203,7 @@ const mockDrillState = {
   currentParentId: null as string | null,
   currentParent: null as NormalizedHabit | null,
   drillChildren: [] as NormalizedHabit[],
+  settlementHabitsById: new Map<string, NormalizedHabit>(),
   completedCount: 0,
   hasUnfilteredChildren: false,
   canRevealCompletedChildren: false,
@@ -635,6 +636,7 @@ describe('HabitList', () => {
     mockDrillState.currentParentId = null
     mockDrillState.currentParent = null
     mockDrillState.drillChildren = []
+    mockDrillState.settlementHabitsById = new Map()
     mockDrillState.completedCount = 0
     mockDrillState.hasUnfilteredChildren = false
     mockDrillState.canRevealCompletedChildren = false
@@ -2749,6 +2751,25 @@ describe('HabitList', () => {
     expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }])
   })
 
+  it.each([false, true].flatMap(isBadHabit => (['log', 'skip'] as const).map(first => ({ isBadHabit, first }))))('prompts in the drill for children absent from the schedule, bad=$isBadHabit first=$first', async ({ isBadHabit, first }) => {
+    const { root, parent: originalParent, child: originalChild } = seedPromptChain()
+    const parent = { ...originalParent, isBadHabit }
+    const child = { ...originalChild, isBadHabit }
+    const second = createMockHabit({ id: 'second', title: 'Second', parentId: parent.id, isBadHabit, scheduledDates: [TODAY], dueDate: TODAY })
+    for (const habit of [parent, child, second]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.habitsById.delete(child.id)
+    mockHabitsData.habitsById.delete(second.id)
+    mockHabitsData.childrenByParent.set(parent.id, [])
+    Object.assign(mockDrillState, { currentParentId: parent.id, currentParent: parent, drillStack: [root.id, parent.id], drillChildren: [child, second], settlementHabitsById: new Map([[child.id, child], [second.id, second]]) })
+    const rendered = renderWithProviders(<HabitList filters={defaultFilters} />)
+    await act(async () => { fireEvent.click(screen.getByTestId(`${first}-child`)) })
+    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+    act(() => { mockHabitsDataUpdatedAt += 1; rendered.rerenderWithProviders(<HabitList filters={defaultFilters} />) })
+    await act(async () => { fireEvent.click(screen.getByTestId(`${first === 'log' ? 'skip' : 'log'}-second`)) })
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'chat.pendingOp.action.applyChanges')
+    expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }])
+  })
+
   it.each([true, false])('waits for the remaining bad child with bad parent %s', async (badParent) => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', isBadHabit: badParent, hasSubHabits: true, scheduledDates: [TODAY] })
     const child = createMockHabit({ id: 'child', title: 'Child', isBadHabit: badParent, parentId: parent.id, scheduledDates: [TODAY] })
@@ -2775,6 +2796,7 @@ describe('HabitList', () => {
       mockHabitsData.habitsById.delete('child')
       mockHabitsData.childrenByParent.set('parent', [])
       mockDrillState.drillChildren = []
+    mockDrillState.settlementHabitsById = new Map()
       mockHabitsDataUpdatedAt += 1
       rendered.rerenderWithProviders(<HabitList filters={defaultFilters} />)
     })

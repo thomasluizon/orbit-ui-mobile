@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { BackHandler } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { extractBackendStatus, formatAPIDate, getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { canRevealCompletedDrillChildren, countCompletedDrillChildren, getVisibleDrillChildren, getDrillParent, normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
+import { canRevealCompletedDrillChildren, countCompletedDrillChildren, getVisibleDrillChildren, getDrillParent, getDrillSettlementHabits, normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
 import type { HabitVisibilityOptions, HabitVisibilityView } from '@orbit/shared/utils/habit-visibility'
 import { API } from '@orbit/shared/api'
 
@@ -20,6 +20,7 @@ export interface DrillNavigationState {
   currentParentId: string | null
   currentParent: NormalizedHabit | null
   drillChildren: NormalizedHabit[]
+  settlementHabitsById: Map<string, NormalizedHabit>
   hasUnfilteredChildren: boolean
   canRevealCompletedChildren: boolean
   completedCount: number
@@ -74,6 +75,8 @@ export function useDrillNavigation(
     activeParentIdRef.current = null
     if (parentId) void queryClient.cancelQueries({ queryKey: habitKeys.detail(parentId), exact: true })
   }, [queryClient, view])
+
+  const settlementHabitsById = useMemo(() => getDrillSettlementHabits(drillParentInfo, drillChildrenMap), [drillParentInfo, drillChildrenMap])
 
   const currentParent = useMemo(() => {
     return getDrillParent(currentParentId, habitsById, drillParentInfo, drillChildrenMap)
@@ -217,6 +220,7 @@ export function useDrillNavigation(
     currentParentId,
     currentParent,
     drillChildren,
+    settlementHabitsById,
     hasUnfilteredChildren,
     canRevealCompletedChildren,
     completedCount,

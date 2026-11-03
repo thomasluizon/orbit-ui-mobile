@@ -26,7 +26,7 @@ describe('typed drill heading', () => {
     const drillBack = vi.fn()
     const drill = {
       drillStack: ['habit-1'], currentParentId: 'habit-1', currentParent: createMockHabit({ title: name }),
-      drillChildren: [], hasUnfilteredChildren: false, canRevealCompletedChildren: false, completedCount: 0,
+      drillChildren: [], settlementHabitsById: new Map(), hasUnfilteredChildren: false, canRevealCompletedChildren: false, completedCount: 0,
       drillLoading: false, drillError: '', drillInto: vi.fn(async () => {}), drillBack, drillReset: vi.fn(),
       refreshCurrent: vi.fn(async () => {}), getDrillChildren: () => [],
     }
@@ -48,7 +48,7 @@ it.each(['scroll', 'header'] as const)('keeps drill %s scoped to the current par
   const parent = createMockHabit({ id: 'parent', title: 'General' })
   const drill = {
     drillStack: [parent.id], currentParentId: parent.id, currentParent: parent,
-    drillChildren: [], hasUnfilteredChildren: false, canRevealCompletedChildren: false, completedCount: 0,
+    drillChildren: [], settlementHabitsById: new Map(), hasUnfilteredChildren: false, canRevealCompletedChildren: false, completedCount: 0,
     drillLoading: false, drillError: '', drillInto: vi.fn(async () => {}), drillBack: vi.fn(), drillReset: vi.fn(),
     refreshCurrent: vi.fn(async () => {}), getDrillChildren: () => [],
   }

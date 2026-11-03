@@ -1,3 +1,5 @@
+import { buildChildrenIndex } from '../utils/habit-normalization'
+import { getChildrenFromIndex } from '../utils/habit-visibility'
 import { canLogHabitOnDate,getFriendlyErrorMessage,computeParentPromptChain,selectParentPromptAncestor,settleParentPromptChain,type ParentPromptChain,computeParentPromptDecision,computeParentResolutionProgress,formatAPIDateInTimeZone,getTodayBoundary,hasAncestorInSet,type HabitResolution,type HabitResolutionMode,type ParentPromptProgressOptions } from '../utils'
 import type { NormalizedHabit } from '../types/habit'
 import type { Profile } from '../types/profile'
@@ -11,6 +13,7 @@ export interface ParentPromptInputs {
   profile: Pick<Profile, 'timeZone'> | null | undefined
   getChildren: ParentSettlementData['getChildren']
   habitsById: Map<string, NormalizedHabit>
+  additionalHabitsById?: ReadonlyMap<string, NormalizedHabit>
   visibility: ParentSettlementData['visibility']
   view: 'today' | 'all' | 'general'
   updatedAt: number
@@ -41,6 +44,18 @@ export interface ParentSettlementData {
   habitsById: Map<string, NormalizedHabit>
   selectedDateStr: string
   isListView: boolean
+}
+
+function createParentSettlementData(inputs: ParentPromptInputs): ParentSettlementData {
+  const { habitsById, getChildren, visibility, selectedDateStr, view, additionalHabitsById } = inputs
+  if (!additionalHabitsById?.size) return { habitsById, getChildren, visibility, selectedDateStr, isListView: view !== 'today' }
+  const knownHabits = new Map([...additionalHabitsById, ...habitsById])
+  const childrenByParent = buildChildrenIndex(knownHabits)
+  return {
+    habitsById: knownHabits,
+    getChildren: id => getChildrenFromIndex(id, knownHabits, childrenByParent),
+    visibility, selectedDateStr, isListView: view !== 'today',
+  }
 }
 
 interface ParentSettlementOperation {
@@ -294,7 +309,7 @@ function checkAndPromptParentLog(context: ParentPromptContext, childHabitId: str
 }
 
 function settleBulkHabitResolutions(context: ParentPromptContext, resolutions: readonly HabitResolution[], date: string, settleParents = true) {
-  const { promptDataRef, markRecentlyCompleted, selectedDateStr, confirmedResolutionsRef, habitsById } = context
+  const { promptDataRef, markRecentlyCompleted, selectedDateStr, confirmedResolutionsRef } = context
 
   const settlementData = promptDataRef.current
   if (!settlementData) return
@@ -303,6 +318,7 @@ function settleBulkHabitResolutions(context: ParentPromptContext, resolutions: r
   }
   if (selectedDateStr !== date || settlementData.selectedDateStr !== date) return
   const confirmedResolutions = confirmedResolutionsRef.current
+  const habitsById = settlementData.habitsById
   const resolvedIds = new Set(resolutions.map((resolution) => resolution.habitId))
   for (const resolution of resolutions) {
     recordHabitResolution(context,
@@ -539,7 +555,7 @@ interface ParentPromptAdapters {
 
 export function createUseParentPromptQueue({ useState, useRef, useEffect, useLayoutEffect, useResetOnAccountChange }: ParentPromptAdapters) {
   return function useParentPromptQueue(inputs: ParentPromptInputs) {
-    const { selectedDateStr, getChildren, visibility, habitsById, view, updatedAt } = inputs
+    const { selectedDateStr, getChildren, visibility, habitsById, additionalHabitsById, view, updatedAt } = inputs
     const pendingToggleHabitIdsRef = useRef(new Set<string>())
     const promptedParentIdsRef = useRef(new Set<string>())
     const confirmedResolutionsRef = useRef(createConfirmedResolutionRecord(selectedDateStr))
@@ -558,17 +574,17 @@ export function createUseParentPromptQueue({ useState, useRef, useEffect, useLay
       confirmedResolutionsRef.current = createConfirmedResolutionRecord(selectedDateStr)
     }, [selectedDateStr])
     useLayoutEffect(() => {
-      promptDataRef.current = { getChildren, visibility, habitsById, selectedDateStr, isListView: view !== 'today' }
-    }, [getChildren, visibility, habitsById, selectedDateStr, view])
+      promptDataRef.current = createParentSettlementData(inputs)
+    }, [getChildren, visibility, habitsById, additionalHabitsById, selectedDateStr, view, updatedAt])
     useLayoutEffect(() => {
       const record = confirmedResolutionsRef.current
-      refreshConfirmedResolutions(record, habitsById)
+      refreshConfirmedResolutions(record, promptDataRef.current?.habitsById ?? habitsById)
       for (const id of promptedParentIdsRef.current) {
-        const decision = computeParentPromptDecision(habitsById.get(id) ?? null,
+        const decision = computeParentPromptDecision(promptDataRef.current?.habitsById.get(id) ?? null,
           getParentPromptProgress(id, record, promptDataRef.current), selectedDateStr, promptedParentIdsRef.current)
         if (decision.type === 'release') promptedParentIdsRef.current.delete(id)
       }
-    }, [updatedAt, parentPrompt !== null, selectedDateStr])
+    }, [updatedAt, parentPrompt !== null, selectedDateStr, additionalHabitsById])
     const context = { ...inputs, promptDataRef, promptedParentIdsRef,
       confirmedResolutionsRef, pendingToggleHabitIdsRef, parentPrompt, setParentPromptQueue }
     const latestContext = useRef(context)

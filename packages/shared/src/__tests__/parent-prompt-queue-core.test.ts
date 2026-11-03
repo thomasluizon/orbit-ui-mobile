@@ -193,3 +193,23 @@ describe('parent prompt controller', () => {
     expect(queue.render().parentPrompt).toBeNull()
   })
 })
+
+
+it('prompts for a resolved child loaded only in the drill inventory', async () => {
+  const queue = parentPromptHarness()
+  queue.inputs.habitsById = new Map([[queue.parent.id, queue.parent]])
+  queue.inputs.getChildren = () => []
+  Object.assign(queue.inputs, { additionalHabitsById: new Map([[queue.child.id, queue.child]]) })
+  await queue.render().handleDirectToggle(queue.child, 'log')
+  expect(queue.render().parentPrompt?.habit.id).toBe(queue.parent.id)
+})
+
+
+it('keeps current schedule facts ahead of a stale drill child', async () => {
+  const queue = parentPromptHarness()
+  const sibling = createMockHabit({ id: 'sibling', parentId: queue.parent.id, scheduledDates: [queue.inputs.selectedDateStr] })
+  queue.inputs.habitsById.set(sibling.id, sibling)
+  queue.inputs.additionalHabitsById = new Map([[sibling.id, { ...sibling, isCompleted: true }]])
+  await queue.render().handleDirectToggle(queue.child, 'log')
+  expect(queue.render().parentPrompt).toBeNull()
+})

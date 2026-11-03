@@ -490,7 +490,7 @@ function useHabitListModel(parameters: HabitListModelInputs) {
   const habitListRefresh = useHabitListRefresh(habitListQueries, habitListAccount)
   const habitListCompletion = getHabitListCompletion(parameters, habitListAccount, habitListQueries, habitListEmptyRendering)
   const habitListRendering = createHabitListRendering({ ...parameters, ...habitListEmptyRendering, ...habitListAccount, ...habitListCompletion })
-  const parentPromptQueue = useParentPromptQueue({ ...habitListAccount, ...habitListQueries, ...habitListVisibility, ...parameters, ...habitRecentCompletions })
+  const parentPromptQueue = useParentPromptQueue({ additionalHabitsById: habitListDrill.drill.settlementHabitsById, ...habitListAccount, ...habitListQueries, ...habitListVisibility, ...parameters, ...habitRecentCompletions })
   useHabitListHandle(parameters, habitListCollapse, habitListRoots, habitRecentCompletions, parentPromptQueue, habitListMoveActions, habitListQueries, habitListScroll)
   const habitRowActions = useHabitRowActions(parentPromptQueue, habitListModalState, habitListCollapse, confirmations, parameters, habitListDrill, habitListMoveActions, habitListSubHabitActions, habitListQueries, habitListRoots)
   const habitRowRendering = useHabitRowRendering(habitListProgress, habitListAccount, habitListItems, habitListCollapseState, parameters, habitListSelectionState, habitRowActions)

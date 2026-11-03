@@ -350,6 +350,7 @@ const mockDrillState = {
   currentParentId: null as string | null,
   currentParent: null as NormalizedHabit | null,
   drillChildren: [] as NormalizedHabit[],
+  settlementHabitsById: new Map<string, NormalizedHabit>(),
   hasUnfilteredChildren: false,
   canRevealCompletedChildren: false,
   drillStack: [] as string[],
@@ -778,6 +779,7 @@ describe('HabitList', () => {
     mockDrillState.currentParentId = null
     mockDrillState.currentParent = null
     mockDrillState.drillChildren = []
+    mockDrillState.settlementHabitsById = new Map()
     mockDrillState.hasUnfilteredChildren = false
     mockDrillState.canRevealCompletedChildren = false
     mockDrillState.drillStack = []
@@ -3403,6 +3405,33 @@ describe('HabitList', () => {
     const second = createMockHabit({ id: 'second', title: 'Second', parentId: parent.id, isBadHabit, scheduledDates: [TODAY], dueDate: TODAY })
     seedHabits([root, parent, child, second])
     Object.assign(mockDrillState, { currentParentId: parent.id, currentParent: parent, drillStack: [root.id, parent.id], drillChildren: [child, second] })
+    const tree = mountPromptChain()
+    const pressDrillChild = async (id: string, mode: 'log' | 'skip') => {
+      const list = tree.root.findByType('FlatList')
+      const index = list.props.data.findIndex((habit: NormalizedHabit) => habit.id === id)
+      let composition!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { composition = createTestTree(list.props.renderItem({ item: list.props.data[index], index })) })
+      await TestRenderer.act(async () => {
+        composition.root.findAllByType(HabitRow).filter(isInteractiveRow)[0]!.props.actions[mode === 'log' ? 'onLog' : 'onSkip']()
+        await Promise.resolve()
+      })
+    }
+    await pressDrillChild(child.id, first)
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(0)
+    TestRenderer.act(() => { mockHabitsDataUpdatedAt += 1; tree.update(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
+    await pressDrillChild(second.id, first === 'log' ? 'skip' : 'log')
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(1)
+    await TestRenderer.act(async () => { pressConfirm(tree, 'chat.pendingOp.action.applyChanges'); await Promise.resolve() })
+    expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }])
+  })
+
+  it.each([false, true].flatMap(isBadHabit => (['log', 'skip'] as const).map(first => ({ isBadHabit, first }))))('prompts in the drill for children absent from the schedule, bad=$isBadHabit first=$first', async ({ isBadHabit, first }) => {
+    const { root, parent: originalParent, child: originalChild } = seedPromptChain()
+    const parent = { ...originalParent, isBadHabit }
+    const child = { ...originalChild, isBadHabit }
+    const second = createMockHabit({ id: 'second', title: 'Second', parentId: parent.id, isBadHabit, scheduledDates: [TODAY], dueDate: TODAY })
+    seedHabits([root, parent])
+    Object.assign(mockDrillState, { currentParentId: parent.id, currentParent: parent, drillStack: [root.id, parent.id], drillChildren: [child, second], settlementHabitsById: new Map([[child.id, child], [second.id, second]]) })
     const tree = mountPromptChain()
     const pressDrillChild = async (id: string, mode: 'log' | 'skip') => {
       const list = tree.root.findByType('FlatList')

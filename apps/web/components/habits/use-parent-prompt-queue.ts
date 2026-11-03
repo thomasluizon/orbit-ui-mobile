@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect,useLayoutEffect,useRef } from 'react'
-import { createUseParentPromptQueue } from '@orbit/shared/hooks'
+import { createUseParentPromptQueue, type ParentPromptInputs } from '@orbit/shared/hooks'
 import { useAccountScopedState,useResetOnAccountChange } from '@/hooks/use-session-reset'
 import type { useHabitListQueries,useHabitListVisibility,useHabitRecentCompletions } from './use-habit-list-state'
 import type { HabitView } from './habit-list/tree-helpers'
@@ -9,7 +9,7 @@ export { createParentPromptQueue, transitionParentPromptQueue } from '@orbit/sha
 
 const useSharedParentPromptQueue = createUseParentPromptQueue({ useState: useAccountScopedState, useEffect, useLayoutEffect, useRef, useResetOnAccountChange })
 
-type ParentPromptQueueInputs = Pick<ReturnType<typeof useHabitListQueries>, 'selectedDateStr' | 'getChildren' | 'habitsById' | 'habitsQuery' | 'profile' | 'skipHabit' | 'logHabit' | 'bulkLog' | 'bulkSkip' | 'showError' | 't' | 'selectedDate'> & Pick<ReturnType<typeof useHabitListVisibility>, 'visibility'> & { view: HabitView } & Pick<ReturnType<typeof useHabitRecentCompletions>, 'markRecentlyCompleted' | 'clearRecentlyCompleted'>
+type ParentPromptQueueInputs = Pick<ParentPromptInputs, 'additionalHabitsById'> & Pick<ReturnType<typeof useHabitListQueries>, 'selectedDateStr' | 'getChildren' | 'habitsById' | 'habitsQuery' | 'profile' | 'skipHabit' | 'logHabit' | 'bulkLog' | 'bulkSkip' | 'showError' | 't' | 'selectedDate'> & Pick<ReturnType<typeof useHabitListVisibility>, 'visibility'> & { view: HabitView } & Pick<ReturnType<typeof useHabitRecentCompletions>, 'markRecentlyCompleted' | 'clearRecentlyCompleted'>
 
 export function useParentPromptQueue(inputs: ParentPromptQueueInputs) {
   return useSharedParentPromptQueue({ ...inputs, updatedAt: inputs.habitsQuery.dataUpdatedAt,

@@ -45,6 +45,16 @@ export function mergeDrillChildrenMap(
   return next
 }
 
+export function getDrillSettlementHabits(
+  parents: ReadonlyMap<string, NormalizedHabit>,
+  childrenByParent: ReadonlyMap<string, NormalizedHabit[]>,
+): Map<string, NormalizedHabit> {
+  return new Map([
+    ...[...childrenByParent.values()].flat().map(habit => [habit.id, habit] as const),
+    ...parents,
+  ])
+}
+
 function enrichDrillChild(
   child: NormalizedHabit,
   listChild: NormalizedHabit | undefined,
