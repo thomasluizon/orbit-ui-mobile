@@ -2732,7 +2732,24 @@ describe('HabitList', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeNull())
   })
 
-  it.each([true, false])('excludes bad habits from completion prompts with bad parent %s', async (badParent) => {
+  it.each([false, true].flatMap(isBadHabit => (['log', 'skip'] as const).map(first => ({ isBadHabit, first }))))('prompts in the drill after both children resolve, bad=$isBadHabit first=$first', async ({ isBadHabit, first }) => {
+    const { root, parent: originalParent, child: originalChild } = seedPromptChain()
+    const parent = { ...originalParent, isBadHabit }
+    const child = { ...originalChild, isBadHabit }
+    const second = createMockHabit({ id: 'second', title: 'Second', parentId: parent.id, isBadHabit, scheduledDates: [TODAY], dueDate: TODAY })
+    for (const habit of [parent, child, second]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id, second.id])
+    Object.assign(mockDrillState, { currentParentId: parent.id, currentParent: parent, drillStack: [root.id, parent.id], drillChildren: [child, second] })
+    const rendered = renderWithProviders(<HabitList filters={defaultFilters} />)
+    await act(async () => { fireEvent.click(screen.getByTestId(`${first}-child`)) })
+    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+    act(() => { mockHabitsDataUpdatedAt += 1; rendered.rerenderWithProviders(<HabitList filters={defaultFilters} />) })
+    await act(async () => { fireEvent.click(screen.getByTestId(`${first === 'log' ? 'skip' : 'log'}-second`)) })
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'chat.pendingOp.action.applyChanges')
+    expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }])
+  })
+
+  it.each([true, false])('waits for the remaining bad child with bad parent %s', async (badParent) => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', isBadHabit: badParent, hasSubHabits: true, scheduledDates: [TODAY] })
     const child = createMockHabit({ id: 'child', title: 'Child', isBadHabit: badParent, parentId: parent.id, scheduledDates: [TODAY] })
     const bad = createMockHabit({ id: 'bad', isBadHabit: true, parentId: parent.id, scheduledDates: [TODAY] })
@@ -2745,8 +2762,7 @@ describe('HabitList', () => {
     mockDrillState.drillChildren = [child, bad]
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('log-child')) })
-    if (badParent) expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
-    else expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
   })
 
   it('settles a skip chain after the refreshed list omits the skipped child', async () => {
@@ -2786,7 +2802,7 @@ describe('HabitList', () => {
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('does not prompt when a bad child slips after its good sibling is complete', async () => {
+  it('prompts when a bad child slips after its good sibling is complete', async () => {
     const { parent, child } = seedPromptChain()
     const slip = { ...child, isBadHabit: true }
     const good = createMockHabit({ id: 'good', parentId: parent.id, isCompleted: true, scheduledDates: [TODAY] })
@@ -2797,7 +2813,7 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} />)
     await act(async () => { fireEvent.click(screen.getByTestId('log-child')) })
     await act(async () => { await import('@/components/habits/habit-list/confirm-dialogs'); await Promise.resolve() })
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
+    expect(await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeTruthy()
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
   })
 

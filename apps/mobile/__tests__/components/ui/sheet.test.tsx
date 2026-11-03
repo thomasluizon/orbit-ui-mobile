@@ -19,6 +19,7 @@ import { NotificationDetailModal } from '@/components/navigation/notification-de
 import { useUIStore } from '@/stores/ui-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { Toast } from '@/components/ui/app-toast'
+import { ErrorState } from '@/components/ui/error-state'
 import { habitFormSchema } from '@orbit/shared/validation'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { PillButton } from '@/components/ui/pill-button'
@@ -497,7 +498,8 @@ describe('Sheet (mobile)', () => {
     expect(habitMocks.validateAll).toHaveBeenCalledOnce()
     expect(useAppToastStore.getState().currentToast?.toast.message).toBe(issue.message)
     expect(tree!.root.findByType(TrueSheet).props.footer).toBeDefined()
-    expect(tree!.root.findAllByType(Toast)).toHaveLength(1)
+    expect(tree!.root.findAllByType(Toast)).toHaveLength(0)
+    expect(tree!.root.findAllByType(ErrorState)).toHaveLength(1)
     expect(habitMocks.createHabit).not.toHaveBeenCalled()
     expect(onClose).not.toHaveBeenCalled()
     TestRenderer.act(() => tree!.unmount())
@@ -764,7 +766,7 @@ describe('Sheet (mobile)', () => {
     }
   })
 
-  it('clears the bottom inset for a sheet toast that has no actions', async () => {
+  it('keeps a persistent sheet error clear of the bottom inset', async () => {
     let tree: any
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(<Sheet open title="Title"><Text>Body</Text></Sheet>)

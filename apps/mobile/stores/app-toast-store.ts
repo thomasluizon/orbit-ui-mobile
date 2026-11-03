@@ -8,9 +8,9 @@ export const useAppToastStore = create<AppToastStore>((set, get) => {
   const shared = createAppToastStoreState(set, get)
   return {
     ...shared,
-    showError: (message, dismissLabel) => {
+    showError: (message, dismissLabel, onAction) => {
       void triggerHaptic('warning')
-      return shared.showError(message, dismissLabel)
+      return shared.showError(message, dismissLabel, onAction)
     },
     showSuccess: (message) => {
       void triggerHaptic('success')

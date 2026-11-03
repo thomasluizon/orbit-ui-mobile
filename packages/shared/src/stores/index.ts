@@ -66,7 +66,7 @@ export {
 
 export * from './throttle-store'
 export { createAccountScope, type AccountScope } from './account-scope'
-export { createAppToastStoreState, type AppToastStore, type AppToastItem, type StoredToast } from './app-toast-store'
+export { getModalError, createAppToastStoreState, type AppToastStore, type AppToastItem, type StoredToast } from './app-toast-store'
 
 export { DAILY_STREAK_MOMENT_DURATION } from "./celebration-queue";
 

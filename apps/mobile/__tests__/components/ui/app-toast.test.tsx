@@ -61,15 +61,13 @@ describe('mobile Toast', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
-  it('retains centred action text in the active sheet placement', () => {
+  it('holds the undo outside the active sheet placement', () => {
     useUIStore.setState({ openOverlayIds: ['sheet:toast-stack'] })
     useAppToastStore.getState().showQueued('Deleted', 'Undo', vi.fn())
     const tree = render(<AppToast placement="sheet" sheetId="sheet:toast-stack" />)
     try {
-      expect(tree.root.findByType(Toast).props.outlined).toBe(true)
-      expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'toast-action' }).props.style)).toMatchObject({
-        minHeight: 48, justifyContent: 'center', alignItems: 'center',
-      })
+      expect(tree.root.findAllByType(Toast)).toHaveLength(0)
+      expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Deleted')
       TestRenderer.act(() => tree.update(<AppToast placement="sheet" sheetId="sheet:another" />))
       expect(tree.root.findAllByType(Toast)).toHaveLength(0)
     } finally {
