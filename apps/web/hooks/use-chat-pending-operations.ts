@@ -1,5 +1,7 @@
 'use client'
 
+import { applyChatPlan, reconcileChatPlanApproval, reconcileChatPlanExecution } from '@orbit/shared/chat'
+
 import { useCallback, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
@@ -83,6 +85,10 @@ export function useChatPendingOperations(
     if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
     if (!response) return accountChangedResult(t)
     if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
+    if (response.ok) {
+      if (response.data.cancelled) reconcileChatPlanApproval(useChatStore.getState(), id, 'skipped', response.data.plan)
+      else applyChatPlan(useChatStore.getState(), response.data.plan)
+    }
     return response.ok
       ? { ok: true as const, result: response.data }
       : { ok: false as const, error: pendingOperationError(response, t), stale: isStalePreviewFailure(response) }
@@ -95,6 +101,10 @@ export function useChatPendingOperations(
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
     if (!response) return accountChangedResult(t)
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
+    if (response.ok) {
+      if (response.data.cancelled) reconcileChatPlanApproval(useChatStore.getState(), id, 'skipped', response.data.plan)
+      else applyChatPlan(useChatStore.getState(), response.data.plan)
+    }
     return response.ok
       ? { ok: true as const, result: response.data }
       : { ok: false as const, error: pendingOperationError(response, t), stale: isStalePreviewFailure(response) }
@@ -111,6 +121,8 @@ export function useChatPendingOperations(
       return { ok: false, error: pendingOperationError(confirmation, t), ...(isStalePreviewFailure(confirmation) ? { stale: true } : {}) }
     }
 
+    reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.data.plan)
+
     const execution = await runChatAction(executePendingOperation(
       pendingOperationId,
       confirmation.data.confirmationToken,
@@ -125,6 +137,7 @@ export function useChatPendingOperations(
       return { ok: false, error: pendingOperationError(execution, t), ...(isStalePreviewFailure(execution) ? { stale: true } : {}) }
     }
 
+    reconcileChatPlanExecution(useChatStore.getState(), pendingOperationId, execution.data)
     await onExecuted(execution.data)
     return { ok: true, response: execution.data }
   }, [onExecuted, t])
@@ -140,6 +153,8 @@ export function useChatPendingOperations(
       if (!confirmation.ok) {
         return { ok: false as const, error: pendingOperationError(confirmation, t), stale: isStalePreviewFailure(confirmation) }
       }
+
+      reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.data.plan)
 
       const challenge = await runChatAction(issuePendingOperationStepUp(pendingOperationId, locale, accountIntentWithOrigin(intendedAccountId)))
       if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
@@ -194,6 +209,7 @@ export function useChatPendingOperations(
         return { ok: false as const, error: pendingOperationError(execution, t), stale: isStalePreviewFailure(execution) }
       }
 
+      reconcileChatPlanExecution(useChatStore.getState(), pendingOperationId, execution.data)
       await onExecuted(execution.data)
       return { ok: true as const, response: execution.data }
     },

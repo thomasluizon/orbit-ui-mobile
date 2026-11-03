@@ -5,7 +5,8 @@ import { chatResponseSchema } from '../types/chat'
 import { conversationPageSchema } from '../types/conversation'
 import { createChatStoreState } from '../stores/chat-store'
 import { consumeChatSseStream, createChatSseParser } from '../chat/sse-stream'
-import { applyChatPlan, planStepStatus, planStepStatusKey, reconcileChatPlanApproval, updateMessagePlanStep } from '../chat/astra-plan'
+import { applyChatPlan, PlanAnnouncementTracker, planStepStatus, planStepStatusKey, reconcileChatPlanApproval, unplannedToolSteps, updateMessagePlanStep } from '../chat/astra-plan'
+import { getChatReplyState } from '../chat/reply-state'
 import { buildChatFinalMessageFields } from '../chat/final-message'
 import { restoreConversationPage } from '../chat/conversation-history'
 import { makeAstraPlan, makeApprovalPlan, planOperationId } from '../test-support/astra-plan-fixtures'
@@ -15,6 +16,26 @@ const frame = (event: unknown) => `data: ${JSON.stringify(event)}\n\n`
 const makeMessage = () => ({ id: 'reply', role: 'ai' as const, content: '', timestamp: new Date(), plan: makeAstraPlan() })
 
 describe('Astra plan contract and transitions', () => {
+  it('replaces activity with a supplied plan and retains unplanned tool traces', () => {
+    const steps = [{ domain: 'habits', access: 'read' }]
+    expect(unplannedToolSteps(makeAstraPlan(), steps)).toEqual([])
+    expect(unplannedToolSteps(undefined, steps)).toBe(steps)
+    expect(unplannedToolSteps(undefined, undefined)).toEqual([])
+    expect(getChatReplyState({ isTyping: false, streamingMessageId: 'reply', activeStepCount: 0, atMessageLimit: false, hasPlan: true }))
+      .toEqual({ showPendingReply: false, replyWorking: true })
+  })
+  it('announces each running step once without replaying restored or repeated updates', () => {
+    const tracker = new PlanAnnouncementTracker()
+    const message = makeMessage()
+    message.plan.steps[0]!.status = 'running'
+    expect(tracker.next([{ ...message, restored: true }], 'In progress')).toBeNull()
+    expect(tracker.next([message], 'In progress')).toBe('Check habits: In progress')
+    expect(tracker.next([message], 'In progress')).toBeNull()
+    message.plan.steps[1]!.status = 'running'
+    expect(tracker.next([message], 'In progress')).toBe('Check goals: In progress')
+    message.plan.steps.forEach(step => { step.status = 'done' })
+    expect(tracker.next([message], 'In progress')).toBeNull()
+  })
   it.each(['pending', 'running', 'done', 'failed', 'skipped', 'future'])('retains the API %s status and maps its presentation', status => {
     const plan = makeAstraPlan()
     plan.steps[0]!.status = status

@@ -1,8 +1,9 @@
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { API } from "@orbit/shared/api";
-import { buildChatClientContext } from "@orbit/shared/chat";
+import { applyChatPlan, reconcileChatPlanApproval, reconcileChatPlanExecution, buildChatClientContext } from "@orbit/shared/chat";
 import { pendingOperationRevisionResultSchema } from "@orbit/shared/types";
 import type {
   AgentExecuteOperationResponse,
@@ -50,11 +51,16 @@ export function usePendingOperationExecution({
   }, []);
 
   const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
+    const accountGeneration = getAccountGeneration();
     try {
       const result = await apiClient<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
         method: 'POST',
         body: JSON.stringify({ ...request, clientContext: getClientContext() }),
       }, pendingOperationRevisionResultSchema);
+      if (accountGeneration === getAccountGeneration()) {
+        if (result.cancelled) reconcileChatPlanApproval(useChatStore.getState(), id, 'skipped', result.plan);
+        else applyChatPlan(useChatStore.getState(), result.plan);
+      }
       return { ok: true as const, result };
     } catch (error: unknown) {
       return {
@@ -66,10 +72,15 @@ export function usePendingOperationExecution({
   }, [getClientContext, t]);
 
   const refreshPendingOperationForBubble = useCallback(async (id: string) => {
+    const accountGeneration = getAccountGeneration();
     try {
       const result = await apiClient<PendingOperationRevisionResult>(`${API.ai.pendingOperationRefresh(id)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`, {
         method: 'POST',
       }, pendingOperationRevisionResultSchema);
+      if (accountGeneration === getAccountGeneration()) {
+        if (result.cancelled) reconcileChatPlanApproval(useChatStore.getState(), id, 'skipped', result.plan);
+        else applyChatPlan(useChatStore.getState(), result.plan);
+      }
       return { ok: true as const, result };
     } catch (error: unknown) {
       return {
@@ -82,6 +93,7 @@ export function usePendingOperationExecution({
 
   const confirmAndExecutePendingOperation = useCallback(
     async (pendingOperationId: string): Promise<PendingExecutionResult> => {
+      const accountGeneration = getAccountGeneration();
       try {
         const confirmation = await apiClient<PendingAgentOperationConfirmation>(
           `${API.ai.pendingOperationConfirm(pendingOperationId)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`,
@@ -89,6 +101,8 @@ export function usePendingOperationExecution({
             method: "POST",
           },
         );
+
+        if (accountGeneration === getAccountGeneration()) reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.plan);
 
         const execution = await apiClient<AgentExecuteOperationResponse>(
           API.ai.pendingOperationExecute(pendingOperationId),
@@ -101,6 +115,7 @@ export function usePendingOperationExecution({
           },
         );
 
+        if (accountGeneration === getAccountGeneration()) reconcileChatPlanExecution(useChatStore.getState(), pendingOperationId, execution);
         await handleExecutedOperation(execution);
         return { ok: true, response: execution };
       } catch (error: unknown) {
@@ -112,6 +127,7 @@ export function usePendingOperationExecution({
 
   const preparePendingOperationStepUp = useCallback(
     async (pendingOperationId: string): Promise<PreparedStepUpExecution> => {
+      const accountGeneration = getAccountGeneration();
       try {
         const confirmation = await apiClient<PendingAgentOperationConfirmation>(
           `${API.ai.pendingOperationConfirm(pendingOperationId)}?${new URLSearchParams({ clientContext: JSON.stringify(getClientContext()) }).toString()}`,
@@ -119,6 +135,8 @@ export function usePendingOperationExecution({
             method: "POST",
           },
         );
+
+        if (accountGeneration === getAccountGeneration()) reconcileChatPlanApproval(useChatStore.getState(), pendingOperationId, 'running', confirmation.plan);
 
         const challenge = await apiClient<AgentStepUpChallenge>(
           API.ai.pendingOperationStepUp(pendingOperationId),
@@ -147,6 +165,7 @@ export function usePendingOperationExecution({
       code: string,
       confirmationToken: string,
     ): Promise<PendingExecutionResult> => {
+      const accountGeneration = getAccountGeneration();
       try {
         await apiClient<{ id: string } | null>(
           API.ai.pendingOperationVerifyStepUp(pendingOperationId),
@@ -164,6 +183,7 @@ export function usePendingOperationExecution({
           },
         );
 
+        if (accountGeneration === getAccountGeneration()) reconcileChatPlanExecution(useChatStore.getState(), pendingOperationId, execution);
         await handleExecutedOperation(execution);
         return { ok: true, response: execution };
       } catch (error: unknown) {

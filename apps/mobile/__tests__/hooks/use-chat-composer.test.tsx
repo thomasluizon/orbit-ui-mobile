@@ -1,3 +1,4 @@
+import { makeAstraPlan } from '@orbit/shared/test-support/astra-plan-fixtures'
 import { conversationHistory } from '@/lib/conversation-history'
 import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusals.fixture.json'
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
@@ -1655,6 +1656,27 @@ describe('mobile useChatComposer', () => {
     expect(cache.getQueryData<Profile>(profileKeys.detail())?.aiMessagesUsed).toBe(5)
   })
 
+
+  it.each(['en', 'pt-BR'])('streams a plan into the original reply before completion in %s', async locale => {
+    mocks.locale = locale
+    const plan = makeAstraPlan(locale)
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValueOnce(stream.response)
+    const composer = await renderComposer()
+    let pending!: Promise<void>
+    await TestRenderer.act(async () => { pending = composer.current.sendMessage('Check my routine'); await Promise.resolve() })
+    await TestRenderer.act(async () => { stream.enqueue(frame(JSON.stringify({ type: 'plan', plan }))); await Promise.resolve() })
+    const original = useChatStore.getState().messages.find(message => message.plan)
+    expect(original?.plan).toEqual(plan)
+    expect(useChatStore.getState().streamingMessageId).toBe(original?.id)
+    await TestRenderer.act(async () => { stream.enqueue(frame(JSON.stringify({ type: 'plan_step', planId: plan.id, planStep: { ...plan.steps[1], status: 'done', toolCallId: 'call-2' } }))); await Promise.resolve() })
+    expect(useChatStore.getState().messages.find(message => message.id === original?.id)?.plan?.steps.map(step => step.status)).toEqual(['pending', 'done'])
+    const completed = { ...plan, steps: plan.steps.map(step => ({ ...step, status: 'done' })) }
+    await TestRenderer.act(async () => { stream.enqueue(finalFrame(makeChatResponse({ plan: completed }))); stream.close(); await pending })
+    expect(useChatStore.getState().messages.filter(message => message.plan)).toHaveLength(1)
+    expect(useChatStore.getState().messages.find(message => message.id === original?.id)?.plan).toEqual(completed)
+    expect(useChatStore.getState().streamingMessageId).toBeNull()
+  })
 
   it('sends typed question answers through native multipart and persists the terminal summary', async () => {
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
