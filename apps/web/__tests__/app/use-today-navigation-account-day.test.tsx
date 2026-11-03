@@ -7,7 +7,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { TodayProvider } from '@/app/(app)/today-provider'
 import { useTodayNavigation } from '@/app/(app)/use-today-navigation'
 
-const dateTestState = vi.hoisted(() => ({ locale: 'en', selected: '' }))
+const dateTestState = vi.hoisted(() => ({ locale: 'en', selected: '', push: vi.fn() }))
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
     const messages = dateTestState.locale === 'en' ? en : ptBR
@@ -17,7 +17,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => dateTestState.locale,
 }))
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: dateTestState.push }),
   useSearchParams: () => new URLSearchParams(dateTestState.selected ? { date: dateTestState.selected } : {}),
 }))
 vi.mock('@/stores/ui-store', () => ({
@@ -36,6 +36,8 @@ describe('Today navigation account day', () => {
     vi.setSystemTime(new Date('2026-09-11T09:59:59Z'))
     dateTestState.locale = 'en'
     dateTestState.selected = ''
+    dateTestState.push.mockClear()
+    window.history.replaceState(null, '', '/')
   })
 
   afterEach(() => {
@@ -66,6 +68,37 @@ describe('Today navigation account day', () => {
     const { result } = renderHook(() => useTodayNavigation('2026-09-12'), { wrapper })
     expect(result.current.dateNav.dayName).toBe(expected)
     expect(result.current.dateNav.numericDate).toBe(locale === 'en' ? `September ${Number(selected.slice(-2))}` : `${Number(selected.slice(-2))} de setembro`)
+  })
+
+  it('changes days immediately through history without a server navigation, including rapid presses', () => {
+    vi.setSystemTime(new Date('2026-09-11T10:00:00Z'))
+    const client = new QueryClient()
+    const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}><TodayProvider>{children}</TodayProvider></QueryClientProvider>
+    const { result, rerender } = renderHook(() => useTodayNavigation('2026-09-12'), { wrapper })
+    act(() => {
+      result.current.dateNav.onGoToPreviousDay()
+      result.current.dateNav.onGoToPreviousDay()
+    })
+    expect(window.location.search).toBe('?date=2026-09-10')
+    expect(dateTestState.push).not.toHaveBeenCalled()
+    dateTestState.selected = '2026-09-10'
+    rerender()
+    expect(result.current.dateStr).toBe('2026-09-10')
+    act(() => result.current.dateNav.onGoToNextDay())
+    expect(window.location.search).toBe('?date=2026-09-11')
+    act(() => result.current.dateNav.onGoToToday())
+    expect(window.location.search).toBe('')
+    act(() => result.current.dateNav.onGoToNextDay())
+    expect(window.location.search).toBe('?date=2026-09-13')
+    act(() => result.current.dateNav.onGoToNextDay())
+    expect(window.location.search).toBe('?date=2026-09-14')
+    dateTestState.selected = '2099-01-01'
+    window.history.replaceState(null, '', '/?date=2099-01-01')
+    rerender()
+    expect(result.current.dateNav.nextDisabled).toBe(true)
+    act(() => result.current.dateNav.onGoToNextDay())
+    expect(window.location.search).toBe('?date=2099-01-01')
+    expect(dateTestState.push).not.toHaveBeenCalled()
   })
 
   it('moves Today at account midnight while the device stays on yesterday', () => {

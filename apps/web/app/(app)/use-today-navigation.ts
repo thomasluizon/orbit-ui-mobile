@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import { addDays, subDays } from 'date-fns'
 import { useTranslations, useLocale } from 'next-intl'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { canNavigateToNextDay, formatAPIDate, formatLocaleDate, formatLocaleDayMonth } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
@@ -37,6 +37,14 @@ function subscribeToHydrationToday() {
   return () => {}
 }
 
+function moveSelectedDay(offset: number, today: string) {
+  const dateParam = new URLSearchParams(window.location.search).get('date')
+  const selectedDay = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : today
+  if (offset > 0 && !canNavigateToNextDay(selectedDay, today)) return
+  const destination = addDays(new Date(`${selectedDay}T00:00:00`), offset)
+  window.history.pushState(null, '', `/?date=${formatAPIDate(destination)}`)
+}
+
 /**
  * Owns the Today screen's selected day and its navigation controls: resolves the
  * `?date=` deep link over the rolling `today`, derives the humanised date label,
@@ -46,7 +54,6 @@ function subscribeToHydrationToday() {
 export function useTodayNavigation(initialToday: string): TodayNavigation {
   const t = useTranslations()
   const locale = useLocale()
-  const router = useRouter()
   const searchParams = useSearchParams()
   const setActiveView = useUIStore((s) => s.setActiveView)
   const { profile } = useProfile()
@@ -71,18 +78,17 @@ export function useTodayNavigation(initialToday: string): TodayNavigation {
   )
 
   const goToPreviousDay = useCallback(() => {
-    router.push(`/?date=${formatAPIDate(subDays(selectedDate, 1))}`)
-  }, [router, selectedDate])
+    moveSelectedDay(-1, today)
+  }, [today])
 
   const goToNextDay = useCallback(() => {
-    if (!canNavigateToNextDay(formatAPIDate(selectedDate), today)) return
-    router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`)
-  }, [router, selectedDate, today])
+    moveSelectedDay(1, today)
+  }, [today])
 
   const goToToday = useCallback(() => {
     setActiveView('today')
-    router.push('/')
-  }, [router, setActiveView])
+    window.history.pushState(null, '', '/')
+  }, [setActiveView])
 
   const dayName = useMemo(() => {
     if (selectedDateStr === today) return t('dates.today')
