@@ -19,8 +19,14 @@ int main(int count, char *arguments[]) {
     assert(shown() && launch.mark->GetLastStatus() == Gdiplus::Ok);
     assert(GetWindow(parent, GW_CHILD) == launch.window);
     auto first = launch.timer;
+    assert(orbit_launch_install(parent, png.data(), png.size(), 250, 250, 250));
+    assert(shown() && launch.timer == first);
+    assert(launch.canvas == RGB(250, 250, 250));
+    assert(GetWindow(launch.window, GW_HWNDNEXT) == nullptr);
     orbit_launch_set_visible(parent, false);
     assert(!shown() && !launch.timer);
+    assert(orbit_launch_install(parent, png.data(), png.size(), 9, 9, 11));
+    assert(!shown() && !launch.timer && launch.canvas == RGB(9, 9, 11));
     orbit_launch_set_visible(parent, true);
     assert(shown() && launch.timer != first);
     SendMessageW(launch.window, WM_TIMER, first, 0);

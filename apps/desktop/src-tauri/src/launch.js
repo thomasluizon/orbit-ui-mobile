@@ -7,7 +7,12 @@
     if (!active || finished) return;
     finished = true;
     generation.then(value => {
-      if (active) return window.__TAURI_INTERNALS__.invoke('desktop_launch', { generation: value });
+      if (active) {
+        const modes = ['dark', 'light'].filter(mode => document.documentElement.classList.contains(mode));
+        return window.__TAURI_INTERNALS__.invoke('desktop_launch', {
+          generation: value, mode: modes.length === 1 ? modes[0] : null,
+        });
+      }
     })
       .catch(error => console.error('Cannot finish desktop launch', error));
   };

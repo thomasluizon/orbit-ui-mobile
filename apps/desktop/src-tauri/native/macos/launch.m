@@ -46,10 +46,18 @@ bool orbit_launch_install(void *webview, const unsigned char *png, size_t length
     NSView *web = (__bridge NSView *)webview;
     NSImage *mark = [[NSImage alloc] initWithData:[NSData dataWithBytes:png length:length]];
     if (!web.superview || !mark) return false;
+    NSColor *canvas = [NSColor colorWithSRGBRed:red / 255.0 green:green / 255.0 blue:blue / 255.0 alpha:1];
+    OrbitLaunchView *existing = objc_getAssociatedObject(web, &launch_view_key);
+    if (existing) {
+        existing.mark = mark;
+        existing.canvas = canvas;
+        [existing setNeedsDisplay:YES];
+        return true;
+    }
     OrbitLaunchView *launch = [[OrbitLaunchView alloc] initWithFrame:web.frame];
     launch.autoresizingMask = web.autoresizingMask;
     launch.mark = mark;
-    launch.canvas = [NSColor colorWithSRGBRed:red / 255.0 green:green / 255.0 blue:blue / 255.0 alpha:1];
+    launch.canvas = canvas;
     launch.accessibilityElement = NO;
     [web.superview addSubview:launch positioned:NSWindowAbove relativeTo:web];
     objc_setAssociatedObject(web, &launch_view_key, launch, OBJC_ASSOCIATION_RETAIN_NONATOMIC);

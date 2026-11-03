@@ -10,7 +10,7 @@ const origin = 'https://app.useorbit.org'
 const script = readFileSync(new URL('../src-tauri/src/launch.js', import.meta.url), 'utf8')
   .replace('__ORBIT_LAUNCH_ORIGIN__', JSON.stringify(origin))
 
-function documentLaunch({ paint = true, nested = false, url = origin, loading = true, content = 'Hoje' } = {}) {
+function documentLaunch({ paint = true, nested = false, url = origin, loading = true, content = 'Hoje', mode = 'dark' } = {}) {
   const invoke = vi.fn(async (_command: string, _payload: { generation: number | null }) => 7)
   const windowEvents = new Map<string, Array<() => void>>()
   const documentEvents = new Map<string, () => void>()
@@ -42,6 +42,7 @@ function documentLaunch({ paint = true, nested = false, url = origin, loading = 
     },
     document: {
       body,
+      documentElement: { classList: { contains: (value: string) => value === mode } },
       readyState: loading ? 'loading' : 'complete',
       addEventListener: (event: string, callback: () => void) => documentEvents.set(event, callback),
     },
@@ -65,7 +66,7 @@ describe('native launch handoff', () => {
     expect(launch.invoke).toHaveBeenCalledTimes(1)
     launch.painted('first-contentful-paint')
     await Promise.resolve()
-    expect(launch.invoke).toHaveBeenLastCalledWith('desktop_launch', { generation: 7 })
+    expect(launch.invoke).toHaveBeenLastCalledWith('desktop_launch', { generation: 7, mode: 'dark' })
     expect(launch.observer()?.disconnected).toBe(true)
     launch.painted('first-contentful-paint')
     await Promise.resolve()
@@ -95,7 +96,7 @@ describe('native launch handoff', () => {
     expect(launch.invoke).toHaveBeenCalledTimes(1)
     launch.frames.shift()?.()
     await Promise.resolve()
-    expect(launch.invoke).toHaveBeenLastCalledWith('desktop_launch', { generation: 7 })
+    expect(launch.invoke).toHaveBeenLastCalledWith('desktop_launch', { generation: 7, mode: 'dark' })
   })
 
   it('keeps the mark over an empty WebKit document until content arrives', async () => {
@@ -108,7 +109,7 @@ describe('native launch handoff', () => {
     launch.frames.shift()?.()
     launch.frames.shift()?.()
     await Promise.resolve()
-    expect(launch.invoke).toHaveBeenLastCalledWith('desktop_launch', { generation: 7 })
+    expect(launch.invoke).toHaveBeenLastCalledWith('desktop_launch', { generation: 7, mode: 'dark' })
   })
 })
 

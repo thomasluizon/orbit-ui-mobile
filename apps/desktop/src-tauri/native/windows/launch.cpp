@@ -89,13 +89,26 @@ extern "C" void orbit_launch_set_visible(void *parent, bool visible) {
 
 extern "C" bool orbit_launch_install(void *parent, const unsigned char *png, size_t length,
     unsigned char red, unsigned char green, unsigned char blue) {
-    Gdiplus::GdiplusStartupInput input;
-    if (Gdiplus::GdiplusStartup(&launch.graphics, &input, nullptr) != Gdiplus::Ok) return false;
-    launch.stream = SHCreateMemStream(png, static_cast<UINT>(length));
-    if (!launch.stream) return false;
-    launch.mark.reset(Gdiplus::Bitmap::FromStream(launch.stream));
-    if (!launch.mark || launch.mark->GetLastStatus() != Gdiplus::Ok) return false;
+    if (!launch.graphics) {
+        Gdiplus::GdiplusStartupInput input;
+        if (Gdiplus::GdiplusStartup(&launch.graphics, &input, nullptr) != Gdiplus::Ok) return false;
+    }
+    IStream *stream = SHCreateMemStream(png, static_cast<UINT>(length));
+    if (!stream) return false;
+    std::unique_ptr<Gdiplus::Bitmap> mark(Gdiplus::Bitmap::FromStream(stream));
+    if (!mark || mark->GetLastStatus() != Gdiplus::Ok) {
+        mark.reset();
+        stream->Release();
+        return false;
+    }
+    launch.mark = std::move(mark);
+    if (launch.stream) launch.stream->Release();
+    launch.stream = stream;
     launch.canvas = RGB(red, green, blue);
+    if (launch.window) {
+        InvalidateRect(launch.window, nullptr, FALSE);
+        return true;
+    }
     WNDCLASSW definition{};
     definition.lpfnWndProc = paint;
     definition.hInstance = GetModuleHandleW(nullptr);

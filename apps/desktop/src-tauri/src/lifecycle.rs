@@ -50,10 +50,11 @@ fn restore(host: &impl DesktopHost) -> tauri::Result<()> {
 pub fn create_main(
     mut config: tauri::utils::config::WindowConfig,
     notification_launch: bool,
+    launch_mode: Option<crate::settings::LaunchMode>,
     build: impl FnOnce(&tauri::utils::config::WindowConfig) -> tauri::Result<()>,
     show: impl FnOnce() -> tauri::Result<()>,
 ) -> tauri::Result<()> {
-    crate::launch::configure(&mut config);
+    crate::launch::configure(&mut config, launch_mode);
     config.visible = false;
     config.focus = false;
     build(&config)?;
@@ -225,6 +226,7 @@ mod tests {
             create_main(
                 config,
                 false,
+                None,
                 |config| {
                     assert_eq!(config.background_color, Some(color));
                     assert!(!config.visible);
@@ -387,6 +389,7 @@ mod tests {
                 create_main(
                     config,
                     true,
+                    None,
                     |config| {
                         host.visible.set(config.visible);
                         host.focused.set(config.focus && config.visible);
@@ -477,6 +480,7 @@ mod tests {
             create_main(
                 config,
                 true,
+                None,
                 |config| {
                     host.visible.set(config.visible);
                     host.focused.set(config.focus && config.visible);
@@ -523,6 +527,7 @@ mod tests {
         create_main(
             config,
             false,
+            None,
             |config| {
                 host.visible.set(config.visible);
                 Ok(())

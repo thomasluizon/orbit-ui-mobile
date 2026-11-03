@@ -118,6 +118,15 @@ fn build_main_window(
     flow: desktop_login::SharedAuth,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut window_config = app.config().app.windows[0].clone();
+    let settings = match settings::DesktopSettings::load(&settings::path(app.handle())?) {
+        Ok(settings) => settings,
+        Err(error) => {
+            eprintln!("Cannot read desktop settings: {error}");
+            settings::DesktopSettings::default()
+        }
+    };
+    let launch_mode = settings.launch_mode;
+    app.manage(Mutex::new(settings));
     #[cfg(feature = "bench-loopback")]
     bench_viewport::configure(&mut window_config)?;
     match update_resume::take(app.handle(), origin) {
@@ -130,6 +139,7 @@ fn build_main_window(
     lifecycle::create_main(
         window_config,
         push::notification_launch(),
+        launch_mode,
         |config| construct_window(app, config, origin, flow),
         || lifecycle::show_main(app.handle()),
     )
