@@ -13,7 +13,7 @@ for (const viewport of shellScrollViewports) {
   test.describe(`Hoje end of list at ${viewport.width} by ${viewport.height}`, () => {
     test.use({ appLocale: 'en', viewport })
 
-    test('stops at the last row and shell clearance', async ({ page, context }) => {
+    test('stops at the last row and shell clearance', async ({ page, context }, testInfo) => {
       const date = getAccountDay(new Date(), 'UTC')
       const items = Array.from({ length: 32 }, (_, index) => makeHabitScheduleItem({
         id: `scroll-extent-${index}`, title: `Read chapter ${index}`, position: index,
@@ -29,6 +29,7 @@ for (const viewport of shellScrollViewports) {
       await expect(scroller.locator('[data-testid="habit-row"]')).toHaveCount(items.length)
       await page.evaluate(() => document.fonts.ready)
       const measured = await scroller.evaluate(measureShellScrollEnd)
+      await testInfo.attach('initial-scroll-extent', { body: JSON.stringify({ ...viewport, ...measured }), contentType: 'application/json' })
       const clearance = viewport.width >= 1024 ? SPACING.s32 : SPACING.s96
       expect(measured.scrollTop).toBeGreaterThan(0)
       expect(measured.scrollTop).toBe(measured.scrollHeight - measured.clientHeight)
@@ -45,6 +46,7 @@ for (const viewport of shellScrollViewports) {
       await page.getByRole('button', { name: en.habits.bulkBar.skip, exact: true }).click()
       await expect(scroller.locator('[data-testid="habit-row"]')).toHaveCount(items.length - 10)
       const afterRemoval = await scroller.evaluate(measureShellScrollEnd)
+      await testInfo.attach('settled-scroll-extent', { body: JSON.stringify({ ...viewport, ...afterRemoval }), contentType: 'application/json' })
       expect(afterRemoval.lastTop).toBeGreaterThanOrEqual(afterRemoval.scrollerTop)
       expect(afterRemoval.scrollerBottom - afterRemoval.lastBottom).toBeCloseTo(clearance, 0)
       if (viewport.width < 1024) {

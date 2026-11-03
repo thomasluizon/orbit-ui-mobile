@@ -64,6 +64,7 @@ it.each(shellScrollViewports)('bounds Hoje after rows leave at $width x $height'
     await page.getByRole('button', { name: 'Skip selected', exact: true }).click()
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 20)
     const measured = await page.locator('[data-shell-scroller]').evaluate(measureShellScrollEnd)
+    process.stdout.write(`${JSON.stringify({ width, height, ...measured })}\n`)
     expect(measured.scrollerBottom - measured.lastBottom, JSON.stringify(measured)).toBeCloseTo(width >= 1024 ? SPACING.s32 : SPACING.s96, 0)
   } finally { await page.close() }
 })

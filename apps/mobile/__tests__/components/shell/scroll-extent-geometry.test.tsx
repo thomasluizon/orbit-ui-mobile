@@ -1,22 +1,30 @@
 import React from 'react'
-import { ScrollView, View, type LayoutChangeEvent } from 'react-native'
+import { ScrollView, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { expect, it, vi } from 'vitest'
 import { Shell412 } from '@/components/shell/shell-412'
-import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
-import { useListScrollReservation } from '@/hooks/use-list-scroll-reservation'
+import { useHabitListScroll } from '@/components/habits/use-habit-list-state'
 import { measureSafeArea, type GeometryHost, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { SPACING } from '@orbit/shared/theme'
 
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 24, bottom: 24, left: 0, right: 0 }) }))
+vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: vi.fn() }))
+vi.mock('expo-crypto', () => ({ randomUUID: () => '22222222-2222-4222-8222-222222222222' }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: vi.fn() }))
+vi.mock('@/hooks/use-habits', () => ({}))
+vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: vi.fn() }))
+vi.mock('@/hooks/use-config', () => ({ useConfig: vi.fn() }))
+vi.mock('@/hooks/use-habit-queries', () => ({}))
+vi.mock('@/app/(tabs)/use-today-date', () => ({ useCurrentDate: vi.fn() }))
 
 function LongList({ height = 1600 }: Readonly<{ height?: number }>) {
-  const clearance = useShellScrollerClearance()
-  const reservation = useListScrollReservation()
-  return <ScrollView testID="list" style={{ flex: 1 }} onLayout={reservation.onLayout}
-    contentContainerStyle={{ minHeight: reservation.minimumHeight, paddingBottom: clearance }}>
+  const scroll = useHabitListScroll({})
+  return <ScrollView testID="list" style={{ flex: 1 }} onLayout={scroll.reserveViewport}
+    onScroll={scroll.handleListScroll} contentContainerStyle={scroll.bulkBarStyle}>
     <View testID="last-content" style={{ height }} />
   </ScrollView>
 }
@@ -30,7 +38,8 @@ function exposeContent(host: GeometryHost): GeometryHost {
 
 const destinations = ['hoje', 'calendar', 'progress', 'profile', 'habit-detail'] as const
 const viewports = [{ width: 390, height: 915 }, { width: 840, height: 915 }, { width: 1024, height: 915 },
-  { width: 1280, height: 915 }, { width: 1440, height: 915 }, { width: 900, height: 600 }]
+  { width: 1280, height: 915 }, { width: 1440, height: 915 }, { width: 800, height: 600 },
+  { width: 900, height: 600 }, { width: 1100, height: 706 }, { width: 1352, height: 706 }]
 
 it.each(viewports.flatMap(viewport => destinations.map(destination => ({ ...viewport, destination }))))(
   'bounds native $destination content at $width by $height', async ({ width, height, destination }) => {
@@ -72,8 +81,16 @@ it.each(viewports)('releases native minimum height after rows leave at $width by
     const host = tree.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'list')[0]!
     const onLayout = host.props.onLayout as (event: LayoutChangeEvent) => void
     await act(() => onLayout({ nativeEvent: { layout: { x: 0, y: 0, width, height: list.bottom - list.top } } } as LayoutChangeEvent))
+    const scrollHeight = measure().get('list-content')!.bottom - list.top
+    const onScroll = host.props.onScroll as (event: NativeSyntheticEvent<NativeScrollEvent>) => void
+    await act(() => onScroll({ nativeEvent: { contentOffset: { x: 0, y: scrollHeight - (list.bottom - list.top) } } } as NativeSyntheticEvent<NativeScrollEvent>))
     await act(() => tree.update(shell(1000)))
-    const content = measure().get('list-content')!
-    expect(content.bottom - content.top).toBe(1000 + SPACING.s96)
+    const boxes = measure()
+    const content = boxes.get('list-content')!
+    const measured = { width, height, scrollHeight: content.bottom - content.top, clientHeight: list.bottom - list.top,
+      lastBottom: boxes.get('last-content')!.bottom - (content.bottom - content.top - (list.bottom - list.top)), scrollerBottom: list.bottom }
+    process.stdout.write(`${JSON.stringify(measured)}\n`)
+    expect(measured.scrollHeight, JSON.stringify(measured)).toBe(1000 + SPACING.s96)
+    expect(measured.scrollerBottom - measured.lastBottom, JSON.stringify(measured)).toBe(SPACING.s96)
   } finally { await act(() => tree.unmount()) }
 })
