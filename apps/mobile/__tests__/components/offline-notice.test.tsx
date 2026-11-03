@@ -9,6 +9,8 @@ import { useAppToastNavigation } from '@/hooks/use-app-toast-navigation'
 import { OfflineNotice } from '@/components/offline-notice'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Toast } from '@/components/ui/app-toast'
+import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
+import { clearPendingNotificationDeletes, queuePendingNotificationDelete } from '@/lib/pending-notification-deletes'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -106,6 +108,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
   })
   afterEach(() => {
     TestRenderer.act(() => tree.unmount())
+    clearPendingNotificationDeletes()
     unsubscribeToasts()
     cancelScheduledFlush()
     vi.useRealTimers()
@@ -128,6 +131,16 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     expect(tree.root.findAllByType(Toast)).toHaveLength(1)
     return tree.root.findByType(Toast).props
   }
+
+  it('keeps an offline notice beside a pending delete in the shell stack', () => {
+    mocks.queue.pendingCount = 1
+    queuePendingNotificationDelete('offline-delete', () => {})
+    TestRenderer.act(() => tree.update(<Shell412 nav={false} notice={<><NotificationDeleteNotice /><OfflineNotice /></>} />))
+    const slot = tree.root.findAllByProps({ testID: 'shell-notice' })[0]!
+    expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ gap: 12 })
+    expect(tree.root.findAllByType(Toast)).toHaveLength(2)
+    expect(tree.root.findAllByType('View').filter((node) => node.props.testID === 'offline-notice')).toHaveLength(1)
+  })
 
   it.each([1, 2])('shows the queued and sending notice for %s changes through ICU', (count) => {
     const expected = countedMessageExamples.find((example) => example.locale === locale)!

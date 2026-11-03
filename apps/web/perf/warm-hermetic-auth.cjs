@@ -41,7 +41,7 @@ module.exports = async (browser, context) => {
     try {
       page = await browser.newPage()
       await page.setCacheEnabled(false)
-      const response = await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 })
+      const response = await page.goto(url, { waitUntil: 'load', timeout: 60000 })
       const html = response ? await response.text() : ''
       const serverRendered = html.includes(TODAY_EMPTY_STATE_MARKUP)
       if (serverRendered) serverRenderedCount++
