@@ -1,6 +1,7 @@
 import i18n from 'i18next'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getToken } from './secure-store'
+import { AuthRefreshNetworkError } from '@orbit/shared/utils'
 import { buildClientTimeZoneHeaders, createApiClientError, validateApiResponse } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { buildAppVersionHeaders } from './app-version'
@@ -24,13 +25,6 @@ interface ApiErrorPayload {
   error?: string
   message?: string
   requestId?: string
-}
-
-class AuthRefreshNetworkError extends TypeError {
-  constructor() {
-    super('Network request failed')
-    this.name = 'AuthRefreshNetworkError'
-  }
 }
 
 type RequestExecution = {

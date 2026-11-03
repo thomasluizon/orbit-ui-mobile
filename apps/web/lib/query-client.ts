@@ -1,5 +1,5 @@
 import { captureException } from '@sentry/nextjs'
-import { extractBackendStatus } from '@orbit/shared/utils/error-utils'
+import { extractBackendStatus, isNetworkUnavailableError } from '@orbit/shared/utils'
 import { focusManager, QueryCache, QueryClient } from '@tanstack/react-query'
 import { configKeys, configureAccountQueryDefaults, shouldRetryQuery, queryRetryDelay } from '@orbit/shared/query'
 import { getQueryGcTime } from './query-gc-time'
@@ -19,7 +19,7 @@ export function createQueryClient(): QueryClient {
   const queryClient = new QueryClient({
     queryCache: new QueryCache({
       onError: (error, query) => {
-        if (query.queryKey[0] === configKeys.all[0] && extractBackendStatus(error) !== 401) captureException(error)
+        if (query.queryKey[0] === configKeys.all[0] && extractBackendStatus(error) !== 401 && !isNetworkUnavailableError(error)) captureException(error)
       },
     }),
     defaultOptions: {

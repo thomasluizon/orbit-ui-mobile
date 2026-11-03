@@ -11,7 +11,6 @@ export interface HabitPhraseRead {
   frequencyQuantity: number | null
   intervalWeeks: number | null
   dueTime: string | null
-  emoji: string | null
   consumed: HabitPhraseToken[]
 }
 export interface HabitPhraseSegment { text: string; consumed: boolean }
@@ -116,14 +115,6 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     numberWords: ENGLISH_NUMBERS,
   },
 }
-
-const EMOJI_HINTS: ReadonlyArray<{ pattern: RegExp; emoji: string }> = [
-  { pattern: /corr|run/iu, emoji: '🏃' },
-  { pattern: /ler|leitur|read|livro|book/iu, emoji: '📖' },
-  { pattern: /[áa]gua|water|beber|drink/iu, emoji: '💧' },
-  { pattern: /casa|house|lou[çc]|dish|limp|clean/iu, emoji: '🧹' },
-  { pattern: /along|stretch|yoga/iu, emoji: '🧘' },
-]
 
 function normalizePhrase(original: string): NormalizedPhrase {
   let text = ''
@@ -397,7 +388,6 @@ function subtractConsumedTokens(token: HabitPhraseToken, consumed: HabitPhraseTo
 
 function buildWeekdayExclusionRead(
   exclusion: { days: string[]; consumed: HabitPhraseToken[] } | 'unresolved',
-  text: string,
   dueTime: string | null,
   consumed: HabitPhraseToken[],
 ): HabitPhraseRead {
@@ -405,7 +395,6 @@ function buildWeekdayExclusionRead(
   return {
     cadence: resolved ? 'fixed' : null, days: resolved ? exclusion.days : [],
     frequencyQuantity: null, intervalWeeks: null, dueTime,
-    emoji: EMOJI_HINTS.find(({ pattern }) => pattern.test(text))?.emoji ?? null,
     consumed: resolved
       ? [...consumed, ...exclusion.consumed.flatMap((token) => subtractConsumedTokens(token, consumed))].sort((left, right) => left.start - right.start)
       : consumed,
@@ -463,16 +452,16 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   remaining = time.remaining
 
   const alternating = extractAlternatingWeekdays(remaining, phrase, patterns, locale)
-  if (alternating.mixed) return buildWeekdayExclusionRead('unresolved', text, dueTime, consumed)
+  if (alternating.mixed) return buildWeekdayExclusionRead('unresolved', dueTime, consumed)
   remaining = alternating.remaining
-  if (hasUnmodeledWeekday(remaining, patterns)) return buildWeekdayExclusionRead('unresolved', text, dueTime, consumed)
+  if (hasUnmodeledWeekday(remaining, patterns)) return buildWeekdayExclusionRead('unresolved', dueTime, consumed)
   const exclusion = readWeekdayExclusion(remaining, phrase, patterns, locale)
-  if (exclusion) return buildWeekdayExclusionRead(alternating.consumed.length > 0 ? 'unresolved' : exclusion, text, dueTime, consumed)
+  if (exclusion) return buildWeekdayExclusionRead(alternating.consumed.length > 0 ? 'unresolved' : exclusion, dueTime, consumed)
 
   const interval = extractInterval(remaining, phrase, patterns)
   const hasAlternation = alternating.consumed.length > 0
   if (hasAlternation && interval.intervalWeeks !== null && interval.intervalWeeks !== 2) {
-    return buildWeekdayExclusionRead('unresolved', text, dueTime, consumed)
+    return buildWeekdayExclusionRead('unresolved', dueTime, consumed)
   }
   const intervalWeeks = hasAlternation ? 2 : interval.intervalWeeks
   consumed.push(...alternating.consumed)
@@ -489,7 +478,6 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
     frequencyQuantity: cadenceRead.frequencyQuantity,
     intervalWeeks,
     dueTime,
-    emoji: EMOJI_HINTS.find(({ pattern }) => pattern.test(text))?.emoji ?? null,
     consumed,
   }
 }

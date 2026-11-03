@@ -361,8 +361,8 @@ export function HabitFormFields({
       return
     }
     if (!previous && formHelpers.retiredCadenceTitle === title) return
-    controller.readPhrase(readPhraseLocally, localRead, emoji)
-  }, [controller, emoji, formHelpers.isGeneral, formHelpers.retiredCadenceTitle, itemType, localRead, readPhraseLocally, title])
+    controller.readPhrase(readPhraseLocally, localRead)
+  }, [controller, formHelpers.isGeneral, formHelpers.retiredCadenceTitle, itemType, localRead, readPhraseLocally, title])
 
   useEffect(() => {
     if (!onResolveSubHabitProposalReady) return

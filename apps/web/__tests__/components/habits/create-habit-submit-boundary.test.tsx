@@ -127,7 +127,7 @@ describe('nested habit submit ownership through the goal picker', () => {
     await fillHabit(user, child)
     await user.click(within(child).getByRole('button', { name: new RegExp(`${en.habits.createHabit}|${en.habits.createTask}`) }))
     const picker = await screen.findByRole('dialog', { name: en.goals.linkedHabits })
-    expect(mocks.createHabit).toHaveBeenCalledExactlyOnceWith({ title: 'Read', emoji: '📖', frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 1, isBadHabit: false, startDate: '2030-01-15', relativeReminders: [] })
+    expect(mocks.createHabit).toHaveBeenCalledExactlyOnceWith({ title: 'Read', frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 1, isBadHabit: false, startDate: '2030-01-15', relativeReminders: [] })
     expect(mocks.createGoal).not.toHaveBeenCalled()
     expect(mocks.createSubHabit).not.toHaveBeenCalled()
     expect(parentSubmit, `child mutations: ${mocks.createHabit.mock.calls.length}; parent submissions: ${parentSubmit.mock.calls.length}`).not.toHaveBeenCalled()

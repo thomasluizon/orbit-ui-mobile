@@ -109,6 +109,7 @@ These back required CI checks. They fail a merge.
 | `check-root-allowlist.mjs` | Fails when an undeclared file OR directory exists at the repository root, including ignored and untracked ones. Backs `Root Allowlist`; declarations live in `root-allowlist.json`. | `node tools/check-root-allowlist.mjs [--changed-files-file <path>]` |
 | `check-sonar-paths.mjs` | Fails when a Sonar source, test, exclusion, or inclusion names a missing literal path or source directory prefix. Generated output globs remain valid before a build. Backs `Sonar Paths`. | `node tools/check-sonar-paths.mjs` |
 | `check-workspace-overrides.mjs` | Fails when an npm workspace declares an `overrides` key that npm would ignore. Backs `Root Allowlist`. | `node tools/check-workspace-overrides.mjs` |
+| `check-native-module-copies.mjs` | Discovers native packages from installed Android, iOS and Expo sources and rejects multiple lockfile paths, including copies of the same version. Run after `npm ci`. Backs `Dependency Audit`. | `node tools/check-native-module-copies.mjs` |
 | `check-docker-registries.mjs` | Requires explicit registry hosts in tracked Dockerfile FROM images and workflow build-args overriding global image ARGs, and rejects quoted build-args forms and CSV-quoted build-args entries it cannot decode. Allows scratch, earlier stages and global ARG defaults with explicit hosts. Requires disabled provenance on workflow pushes using the docker driver. Backs `Root Allowlist`. | `node tools/check-docker-registries.mjs [--root <path>]` |
 
 ## Architecture map and visual evidence

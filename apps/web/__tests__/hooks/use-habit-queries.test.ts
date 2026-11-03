@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
-import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import {
   useHabits,
@@ -135,6 +135,24 @@ afterEach(async () => {
 })
 
 describe('useHabits (query hook)', () => {
+  it('keeps nested cached query transitions stable and shows later edits', async () => {
+    const wrapper = createWrapper()
+    const initial = createMockHabitScheduleItem({ id: 'parent', children: [createMockHabitScheduleChild({ id: 'child', title: 'First child' })] })
+    const next = createMockHabitScheduleItem({ id: 'parent', children: [createMockHabitScheduleChild({ id: 'child', title: 'Cached child' })] })
+    queryClient.setQueryData(habitKeys.list({ search: '' }), [initial])
+    queryClient.setQueryData(habitKeys.list({ search: 'cached' }), [next])
+    const { result, rerender } = renderHook(({ search }) => useHabits({ search }), {
+      wrapper, initialProps: { search: '' },
+    })
+    expect(result.current.getChildren('parent').map((child) => child.title)).toEqual(['First child'])
+    rerender({ search: 'cached' })
+    expect(result.current.getChildren('parent').map((child) => child.title)).toEqual(['Cached child'])
+    act(() => { queryClient.setQueryData(habitKeys.list({ search: 'cached' }), [
+      { ...next, children: [{ ...next.children[0]!, title: 'Edited child' }] },
+    ]) })
+    await waitFor(() => expect(result.current.getChildren('parent').map((child) => child.title)).toEqual(['Edited child']))
+  })
+
   it.each([false, true])('loads every unfiltered inventory page, General=%s', async (isGeneral) => {
     const fixture = createMoveInventoryFixture('2026-09-12')
     mockFetch.mockImplementation(async (url: string) => Response.json(fixture.response(url)))

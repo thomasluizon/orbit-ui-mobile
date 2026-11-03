@@ -438,6 +438,7 @@ export {
   buildChildrenIndex,
   habitDetailToNormalized,
   normalizeHabitQueryData,
+  createHabitQueryNormalizer,
   normalizeHabits,
   sortNormalizedHabits,
 } from './habit-normalization'
@@ -846,3 +847,5 @@ export { createAstraAllowanceTranslator, type AstraAllowance } from './astra-all
 
 export { computeParentResolutionProgress, computeParentPromptChain, selectParentPromptAncestor, settleParentPromptChain } from './parent-prompt-chain'
 export type { ParentPromptChain } from './parent-prompt-chain'
+
+export { AuthRefreshNetworkError, isNetworkUnavailableError } from './network-error'

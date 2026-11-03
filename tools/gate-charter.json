@@ -583,5 +583,10 @@
     "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"
+  },
+  "tools/check-native-module-copies.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
   }
 }

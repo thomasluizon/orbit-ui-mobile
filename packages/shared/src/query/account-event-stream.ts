@@ -1,3 +1,4 @@
+import { isNetworkUnavailableError } from '../utils/network-error'
 import { createApiClientError, extractBackendStatus } from '../utils/error-utils'
 import { errorRetryAfter, isUpstreamStarting, parseRetryAfter } from './retry'
 import { accountEventPayloadSchema, type AccountEventPayload } from '../types/account-event'
@@ -98,7 +99,7 @@ interface ConnectionState {
 function isRetryingStreamTransport(error: unknown): boolean {
   const status = extractBackendStatus(error)
   return (status !== undefined && [502, 503, 504, 520, 521, 522, 523, 524].includes(status))
-    || (error instanceof TypeError && ['Failed to fetch', 'Load failed', 'Network request failed'].includes(error.message))
+    || isNetworkUnavailableError(error)
 }
 
 function handleStreamFailure(error: unknown, opened: boolean, options: AccountEventStreamOptions, state: ConnectionState): void {
