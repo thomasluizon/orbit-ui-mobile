@@ -6,7 +6,7 @@ import { chatResponseSchema } from '../types/chat'
 import { conversationPageSchema } from '../types/conversation'
 import { createChatStoreState } from '../stores/chat-store'
 import { consumeChatSseStream, createChatSseParser } from '../chat/sse-stream'
-import { applyChatPlan, PlanAnnouncementTracker, planStepStatus, planStepStatusKey, reconcileChatPlanApproval, reconcileChatPlanExecution, unplannedToolSteps, updateMessagePlanStep } from '../chat/astra-plan'
+import { applyChatPlan, PlanAnnouncementTracker, planStepPresentation, planStepStatus, planStepStatusKey, reconcileChatPlanApproval, reconcileChatPlanExecution, reconcileChatPlanRevision, unplannedToolSteps, updateMessagePlanStep } from '../chat/astra-plan'
 import { getChatReplyState } from '../chat/reply-state'
 import { buildChatFinalMessageFields } from '../chat/final-message'
 import { restoreConversationPage } from '../chat/conversation-history'
@@ -54,6 +54,17 @@ describe('Astra plan contract and transitions', () => {
     expect(astraPlanSchema.parse(plan)).toEqual(plan)
     expect(planStepStatus(status)).toBe(status === 'future' ? 'pending' : status)
     expect(planStepStatusKey(status)).toBe({ pending: 'chat.habitList.pending', running: 'blockFrame.status.acting', done: 'blockFrame.status.done', failed: 'blockFrame.status.failed', skipped: 'habits.statusDot.skip', future: 'chat.habitList.pending' }[status])
+  })
+
+  it.each([
+    ['pending', 'number', 'primary', false],
+    ['running', 'working', 'primary', false],
+    ['done', 'done', 'muted', true],
+    ['failed', 'failed', 'failed', false],
+    ['skipped', 'skipped', 'muted', false],
+    ['future', 'number', 'primary', false],
+  ] as const)('shares the %s step presentation across platforms', (status, markerKind, textRole, lineThrough) => {
+    expect(planStepPresentation(status)).toEqual({ markerKind, textRole, lineThrough })
   })
 
   it('replaces bound steps by plan and step identity without inserting unknown steps', () => {
@@ -144,5 +155,24 @@ describe('Astra plan contract and transitions', () => {
     expect(store.getState().messages[0]?.plan?.steps.map(step => step.status)).toEqual(['done', status])
     reconcileChatPlanApproval(store.getState(), planOperationId, 'done', makeApprovalPlan('failed'))
     expect(store.getState().messages[0]?.plan?.steps[1]?.status).toBe('failed')
+  })
+
+  it.each([true, false])('reconciles a preview revision with cancelled=%s without changing unrelated steps', cancelled => {
+    for (const plan of [undefined, null, makeApprovalPlan('failed')]) {
+      const store = createStore(createChatStoreState)
+      const original = { ...makeMessage(), plan: makeApprovalPlan('running') }
+      const unrelated = { ...makeMessage(), id: 'unrelated', plan: { ...makeAstraPlan(), id: '00000000-0000-4000-8000-000000000001' } }
+      store.setState({ messages: [original, unrelated] })
+      const revision = pendingOperationRevisionResultSchema.parse({
+        isSuccess: true, error: null, pendingOperationId: planOperationId, preview: null, cancelled, plan,
+      })
+      reconcileChatPlanRevision(store.getState(), planOperationId, revision)
+      let expected = 'running'
+      if (cancelled) expected = 'skipped'
+      if (plan) expected = 'failed'
+      expect(store.getState().messages[0]?.plan?.steps.map(step => step.status)).toEqual(['done', expected])
+      expect(store.getState().messages[1]).toBe(unrelated)
+      expect(original.plan.steps[1]?.status).toBe('running')
+    }
   })
 })

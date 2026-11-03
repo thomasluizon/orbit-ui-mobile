@@ -3,7 +3,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { API } from "@orbit/shared/api";
-import { applyChatPlan, reconcileChatPlanApproval, reconcileChatPlanExecution, buildChatClientContext } from "@orbit/shared/chat";
+import { reconcileChatPlanApproval, reconcileChatPlanExecution, reconcileChatPlanRevision, buildChatClientContext } from "@orbit/shared/chat";
 import { pendingOperationRevisionResultSchema } from "@orbit/shared/types";
 import type {
   AgentExecuteOperationResponse,
@@ -58,8 +58,7 @@ export function usePendingOperationExecution({
         body: JSON.stringify({ ...request, clientContext: getClientContext() }),
       }, pendingOperationRevisionResultSchema);
       if (accountGeneration === getAccountGeneration()) {
-        if (result.cancelled) reconcileChatPlanApproval(useChatStore.getState(), id, 'skipped', result.plan);
-        else applyChatPlan(useChatStore.getState(), result.plan);
+        reconcileChatPlanRevision(useChatStore.getState(), id, result);
       }
       return { ok: true as const, result };
     } catch (error: unknown) {
@@ -78,8 +77,7 @@ export function usePendingOperationExecution({
         method: 'POST',
       }, pendingOperationRevisionResultSchema);
       if (accountGeneration === getAccountGeneration()) {
-        if (result.cancelled) reconcileChatPlanApproval(useChatStore.getState(), id, 'skipped', result.plan);
-        else applyChatPlan(useChatStore.getState(), result.plan);
+        reconcileChatPlanRevision(useChatStore.getState(), id, result);
       }
       return { ok: true as const, result };
     } catch (error: unknown) {

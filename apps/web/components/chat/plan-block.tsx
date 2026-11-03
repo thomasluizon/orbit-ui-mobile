@@ -3,26 +3,31 @@
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { AstraPlan, AstraPlanStep, ChatMessage } from '@orbit/shared/types'
-import { PlanAnnouncementTracker, planStepStatus, planStepStatusKey } from '@orbit/shared/chat'
+import { PlanAnnouncementTracker, planStepPresentation, planStepStatus, planStepStatusKey, type PlanStepPresentation } from '@orbit/shared/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { Check, Minus, XCircle } from '@/components/ui/icons'
 import { WorkingMark } from '@/components/ui/toast'
 
-function StepMarker({ status, index }: Readonly<{ status: string; index: number }>) {
-  if (status === 'done') return <Check size={16} strokeWidth={1.5} />
-  if (status === 'failed') return <XCircle size={16} strokeWidth={1.5} color="var(--status-bad-text)" />
-  if (status === 'skipped') return <Minus size={16} strokeWidth={1.5} />
-  if (status === 'running') return <WorkingMark />
+const STEP_TEXT_COLORS: Record<PlanStepPresentation['textRole'], string> = {
+  primary: 'var(--fg-1)', muted: 'var(--fg-3)', failed: 'var(--status-bad-text)',
+}
+
+function StepMarker({ kind, index }: Readonly<{ kind: PlanStepPresentation['markerKind']; index: number }>) {
+  if (kind === 'done') return <Check size={16} strokeWidth={1.5} />
+  if (kind === 'failed') return <XCircle size={16} strokeWidth={1.5} color={STEP_TEXT_COLORS.failed} />
+  if (kind === 'skipped') return <Minus size={16} strokeWidth={1.5} />
+  if (kind === 'working') return <WorkingMark />
   return index + 1
 }
 
 function PlanStep({ step, index }: Readonly<{ step: AstraPlanStep; index: number }>) {
   const t = useTranslations()
   const status = planStepStatus(step.status)
-  return <li data-plan-step={step.id} data-status={status} className="flex min-w-0 items-start gap-3 text-sm leading-6" style={{ color: status === 'failed' ? 'var(--status-bad-text)' : status === 'done' || status === 'skipped' ? 'var(--fg-3)' : 'var(--fg-1)' }}>
-    <span aria-hidden="true" className="flex h-6 w-5 shrink-0 items-center justify-center text-xs tabular-nums" style={{ color: status === 'done' ? 'var(--fg-1)' : 'var(--fg-3)' }}><StepMarker status={status} index={index} /></span>
-    <span className="min-w-0 flex-1 break-words" style={{ textDecorationLine: status === 'done' ? 'line-through' : undefined }}>{step.text}<span className="sr-only">{`, ${t(planStepStatusKey(status))}`}</span></span>
+  const { markerKind, textRole, lineThrough } = planStepPresentation(status)
+  return <li data-plan-step={step.id} data-status={status} className="flex min-w-0 items-start gap-3 text-sm leading-6" style={{ color: STEP_TEXT_COLORS[textRole] }}>
+    <span aria-hidden="true" className="flex h-6 w-5 shrink-0 items-center justify-center text-xs tabular-nums" style={{ color: markerKind === 'done' ? STEP_TEXT_COLORS.primary : STEP_TEXT_COLORS.muted }}><StepMarker kind={markerKind} index={index} /></span>
+    <span className="min-w-0 flex-1 break-words" style={{ textDecorationLine: lineThrough ? 'line-through' : undefined }}>{step.text}<span className="sr-only">{`, ${t(planStepStatusKey(status))}`}</span></span>
   </li>
 }
 

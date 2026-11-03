@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { AstraPlan, AstraPlanStep, ChatMessage } from '@orbit/shared/types'
-import { PlanAnnouncementTracker, planStepStatus, planStepStatusKey } from '@orbit/shared/chat'
+import { PlanAnnouncementTracker, planStepPresentation, planStepStatus, planStepStatusKey, type PlanStepPresentation } from '@orbit/shared/chat'
 import { SPACING } from '@orbit/shared/theme'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -10,11 +10,12 @@ import { Check, Minus, XCircle } from '@/components/ui/icons'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-function StepMarker({ status, index, tokens }: Readonly<{ status: string; index: number; tokens: AppTokensV2 }>) {
-  if (status === 'pending') return <Text style={[styles.number, { color: tokens.fg3 }]}>{index + 1}</Text>
-  if (status === 'running') return <View style={styles.working}>{[0, 1, 2].map(dot => <View key={dot} style={[styles.dot, { backgroundColor: tokens.fg2 }]} />)}</View>
-  const Glyph = status === 'done' ? Check : status === 'failed' ? XCircle : Minus
-  return <Glyph size={16} strokeWidth={1.5} color={status === 'failed' ? tokens.statusBadText : status === 'done' ? tokens.fg1 : tokens.fg3} />
+function StepMarker({ kind, index, tokens }: Readonly<{ kind: PlanStepPresentation['markerKind']; index: number; tokens: AppTokensV2 }>) {
+  if (kind === 'number') return <Text style={[styles.number, { color: tokens.fg3 }]}>{index + 1}</Text>
+  if (kind === 'working') return <View style={styles.working}>{[0, 1, 2].map(dot => <View key={dot} style={[styles.dot, { backgroundColor: tokens.fg2 }]} />)}</View>
+  if (kind === 'done') return <Check size={16} strokeWidth={1.5} color={tokens.fg1} />
+  if (kind === 'failed') return <XCircle size={16} strokeWidth={1.5} color={tokens.statusBadText} />
+  return <Minus size={16} strokeWidth={1.5} color={tokens.fg3} />
 }
 
 function PlanStep({ step, index }: Readonly<{ step: AstraPlanStep; index: number }>) {
@@ -22,12 +23,15 @@ function PlanStep({ step, index }: Readonly<{ step: AstraPlanStep; index: number
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const status = planStepStatus(step.status)
-  const color = status === 'failed' ? tokens.statusBadText : status === 'done' || status === 'skipped' ? tokens.fg3 : tokens.fg1
+  const { markerKind, textRole, lineThrough } = planStepPresentation(status)
+  const textColors: Record<PlanStepPresentation['textRole'], string> = {
+    primary: tokens.fg1, muted: tokens.fg3, failed: tokens.statusBadText,
+  }
   return <View role="listitem" accessible accessibilityLabel={`${step.text}, ${t(planStepStatusKey(status))}`} testID={`plan-step-${step.id}-${status}`} style={styles.row}>
     <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.marker}>
-      <StepMarker status={status} index={index} tokens={tokens} />
+      <StepMarker kind={markerKind} index={index} tokens={tokens} />
     </View>
-    <Text accessible={false} style={[styles.step, { color, textDecorationLine: status === 'done' ? 'line-through' : 'none' }]}>{step.text}</Text>
+    <Text accessible={false} style={[styles.step, { color: textColors[textRole], textDecorationLine: lineThrough ? 'line-through' : 'none' }]}>{step.text}</Text>
   </View>
 }
 

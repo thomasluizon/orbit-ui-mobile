@@ -1,6 +1,6 @@
 'use client'
 
-import { applyChatPlan, reconcileChatPlanApproval, reconcileChatPlanExecution } from '@orbit/shared/chat'
+import { reconcileChatPlanApproval, reconcileChatPlanExecution, reconcileChatPlanRevision } from '@orbit/shared/chat'
 
 import { useCallback, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -85,10 +85,7 @@ export function useChatPendingOperations(
     if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
     if (!response) return accountChangedResult(t)
     if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
-    if (response.ok) {
-      if (response.data.cancelled) reconcileChatPlanApproval(useChatStore.getState(), id, 'skipped', response.data.plan)
-      else applyChatPlan(useChatStore.getState(), response.data.plan)
-    }
+    if (response.ok) reconcileChatPlanRevision(useChatStore.getState(), id, response.data)
     return response.ok
       ? { ok: true as const, result: response.data }
       : { ok: false as const, error: pendingOperationError(response, t), stale: isStalePreviewFailure(response) }
@@ -101,10 +98,7 @@ export function useChatPendingOperations(
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
     if (!response) return accountChangedResult(t)
     if (accountChanged(intendedAccountId, accountGeneration)) return accountChangedResult(t)
-    if (response.ok) {
-      if (response.data.cancelled) reconcileChatPlanApproval(useChatStore.getState(), id, 'skipped', response.data.plan)
-      else applyChatPlan(useChatStore.getState(), response.data.plan)
-    }
+    if (response.ok) reconcileChatPlanRevision(useChatStore.getState(), id, response.data)
     return response.ok
       ? { ok: true as const, result: response.data }
       : { ok: false as const, error: pendingOperationError(response, t), stale: isStalePreviewFailure(response) }

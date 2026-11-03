@@ -1,13 +1,31 @@
 import type { AstraPlan, AstraPlanStep } from '../types/astra-plan'
 import type { ChatMessage } from '../types/chat'
 import type { ChatStoreState } from '../stores/chat-store'
-import type { AgentExecuteOperationResponse } from '../types/ai'
+import type { AgentExecuteOperationResponse, PendingOperationRevisionResult } from '../types/ai'
 
 export function planStepStatus(status: string): 'pending' | 'running' | 'done' | 'failed' | 'skipped' {
   switch (status) {
     case 'running': case 'done': case 'failed': case 'skipped': return status
     default: return 'pending'
   }
+}
+
+export interface PlanStepPresentation {
+  readonly markerKind: 'number' | 'working' | 'done' | 'failed' | 'skipped'
+  readonly textRole: 'primary' | 'muted' | 'failed'
+  readonly lineThrough: boolean
+}
+
+const PLAN_STEP_PRESENTATIONS: Record<ReturnType<typeof planStepStatus>, PlanStepPresentation> = {
+  pending: { markerKind: 'number', textRole: 'primary', lineThrough: false },
+  running: { markerKind: 'working', textRole: 'primary', lineThrough: false },
+  done: { markerKind: 'done', textRole: 'muted', lineThrough: true },
+  failed: { markerKind: 'failed', textRole: 'failed', lineThrough: false },
+  skipped: { markerKind: 'skipped', textRole: 'muted', lineThrough: false },
+}
+
+export function planStepPresentation(status: string): PlanStepPresentation {
+  return PLAN_STEP_PRESENTATIONS[planStepStatus(status)]
 }
 
 export class PlanAnnouncementTracker {
@@ -74,7 +92,16 @@ export function reconcileChatPlanApproval(
 }
 
 export function reconcileChatPlanExecution(chat: PlanChat, pendingOperationId: string, response: AgentExecuteOperationResponse): void {
-  const status = response.operation.status === 'Succeeded' ? 'done'
-    : response.operation.status === 'PendingConfirmation' ? 'pending' : 'failed'
+  let status: ReturnType<typeof planStepStatus>
+  switch (response.operation.status) {
+    case 'Succeeded': status = 'done'; break
+    case 'PendingConfirmation': status = 'pending'; break
+    default: status = 'failed'
+  }
   reconcileChatPlanApproval(chat, pendingOperationId, status, response.plan)
+}
+
+export function reconcileChatPlanRevision(chat: PlanChat, pendingOperationId: string, revision: PendingOperationRevisionResult): void {
+  if (revision.cancelled) reconcileChatPlanApproval(chat, pendingOperationId, 'skipped', revision.plan)
+  else applyChatPlan(chat, revision.plan)
 }
