@@ -280,6 +280,10 @@ jobs:
         name: "Dependency Audit: Verify installed packages against locked archives"
         if: ${{ !cancelled() }}
         run: node tools/check-dependency-edits.mjs
+      - id: dependency-audit__5
+        name: "Dependency Audit: Require one copy of each native module"
+        if: ${{ !cancelled() }}
+        run: node tools/check-native-module-copies.mjs
       - id: contract-drift__1
         name: "Contract Drift: Regenerate Zod contract snapshot from the pinned orbit-api commit"
         working-directory: packages/shared
