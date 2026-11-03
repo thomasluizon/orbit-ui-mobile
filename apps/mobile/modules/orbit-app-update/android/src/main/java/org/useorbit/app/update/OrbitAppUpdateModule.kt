@@ -21,8 +21,14 @@ class OrbitAppUpdateModule : Module() {
         }
         .addOnFailureListener { error ->
           val serviceUnavailable = (error is InstallException && (
-            error.errorCode == InstallErrorCode.ERROR_API_NOT_AVAILABLE ||
-              error.errorCode == InstallErrorCode.ERROR_PLAY_STORE_NOT_FOUND
+            error.errorCode in setOf(
+              InstallErrorCode.ERROR_API_NOT_AVAILABLE,
+              InstallErrorCode.ERROR_INSTALL_UNAVAILABLE,
+              InstallErrorCode.ERROR_INSTALL_NOT_ALLOWED,
+              -8,
+              InstallErrorCode.ERROR_PLAY_STORE_NOT_FOUND,
+              InstallErrorCode.ERROR_APP_NOT_OWNED,
+            )
             )) || error.message == "Failed to bind to the service."
           val code = if (serviceUnavailable) "ERR_APP_UPDATE_SERVICE_UNAVAILABLE" else "ERR_APP_UPDATE_CHECK"
           promise.reject(code, error.message, error)
