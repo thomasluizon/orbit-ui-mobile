@@ -52,60 +52,70 @@ function compareVersionCodes(offered: string, installed: string): -1 | 0 | 1 {
 function classifyAndroidUpdateError(error: unknown) {
   const codeMatch = error instanceof Error ? /Install Error\((-?\d+)\)/.exec(error.message) : null
   const playErrorCode = codeMatch ? Number(codeMatch[1]) : null
-  const serviceUnavailable = (error instanceof Error && 'code' in error && error.code === 'ERR_APP_UPDATE_SERVICE_UNAVAILABLE') ||
-    playErrorCode === -3 || playErrorCode === -9 ||
-    (error instanceof Error && error.message.endsWith(': Failed to bind to the service.'))
+  const serviceUnavailable = playErrorCode !== null
+    ? [-3, -5, -6, -8, -9, -10].includes(playErrorCode)
+    : error instanceof Error && (
+      ('code' in error && error.code === 'ERR_APP_UPDATE_SERVICE_UNAVAILABLE') ||
+      error.message.endsWith(': Failed to bind to the service.')
+    )
   return { playErrorCode, serviceUnavailable }
 }
 
 async function checkAndroidUpdate(inAppUpdates: SpInAppUpdates): Promise<NeedsUpdateResponse | null> {
   const installedCode = Number(nativeBuildVersion)
   if (!Number.isSafeInteger(installedCode) || installedCode <= 0) return null
-  try {
-    const result = await inAppUpdates.checkNeedsUpdate({
-      curVersion: String(installedCode),
-      customVersionComparator: compareVersionCodes,
-    })
-    const extras = 'updateAvailability' in result.other ? result.other : null
+  return inAppUpdates.checkNeedsUpdate({
+    curVersion: String(installedCode),
+    customVersionComparator: compareVersionCodes,
+  })
+}
+
+function reportAndroidUpdateFailure(result: PromiseSettledResult<unknown>, operation: 'android_update_check' | 'android_update_install_status') {
+  if (result.status === 'fulfilled') return null
+  const classification = classifyAndroidUpdateError(result.reason)
+  if (!classification.serviceUnavailable) {
+    const tags = { operation }
+    Sentry.captureException(result.reason, operation === 'android_update_check' ? {
+      tags,
+      extra: { installed_version_code: Number(nativeBuildVersion), play_error_code: classification.playErrorCode },
+    } : { tags })
+  }
+  return classification
+}
+
+async function resolveAndroidVersionSources(inAppUpdates: SpInAppUpdates): Promise<QueryResult> {
+  const [check, downloaded] = await Promise.allSettled([
+    checkAndroidUpdate(inAppUpdates),
+    Promise.resolve().then(isAndroidUpdateDownloaded),
+  ])
+  const installedCode = Number(nativeBuildVersion)
+  const failures = [
+    reportAndroidUpdateFailure(check, 'android_update_check'),
+    reportAndroidUpdateFailure(downloaded, 'android_update_install_status'),
+  ].filter((classification) => classification !== null)
+  const failure = failures.find(({ serviceUnavailable }) => !serviceUnavailable) ?? failures[0]
+  const failureOutcome = failure?.serviceUnavailable ? 'service_unavailable' : 'error'
+  const result = check.status === 'fulfilled' ? check.value : null
+  const extras = result && 'updateAvailability' in result.other ? result.other : null
+  if (Number.isSafeInteger(installedCode) && installedCode > 0) {
     captureAndroidUpdateCheck({
-      outcome: 'success',
-      play_status: extras?.updateAvailability ?? null,
-      available_version_code: extras?.versionCode ?? null,
+      outcome: failure ? failureOutcome : 'success',
+      play_status: failure ? null : extras?.updateAvailability ?? null,
+      available_version_code: failure ? null : extras?.versionCode ?? null,
       installed_version_code: installedCode,
-      play_error_code: null,
+      play_error_code: failure?.playErrorCode ?? null,
     })
-    return result
-  } catch (error) {
-    const { playErrorCode, serviceUnavailable } = classifyAndroidUpdateError(error)
-    if (!serviceUnavailable) {
-      Sentry.captureException(error, {
-        tags: { operation: 'android_update_check' },
-        extra: { installed_version_code: installedCode, play_error_code: playErrorCode },
-      })
-    }
-    captureAndroidUpdateCheck({
-      outcome: serviceUnavailable ? 'service_unavailable' : 'error', play_status: null, available_version_code: null,
-      installed_version_code: installedCode, play_error_code: playErrorCode,
-    })
-    return null
+  }
+  return {
+    androidCheck: downloaded.status === 'fulfilled' ? result : null,
+    androidDownloaded: downloaded.status === 'fulfilled' && downloaded.value,
+    latestIosVersion: null,
+    iosStoreUrl: null,
   }
 }
 
 async function resolveVersionSources(bundleId: string | null, inAppUpdates: SpInAppUpdates | null): Promise<QueryResult> {
-  if (inAppUpdates) {
-    try {
-      const [result, downloaded] = await Promise.all([
-        checkAndroidUpdate(inAppUpdates),
-        isAndroidUpdateDownloaded(),
-      ])
-      return { androidCheck: result, androidDownloaded: downloaded, latestIosVersion: null, iosStoreUrl: null }
-    } catch (error) {
-      if (!classifyAndroidUpdateError(error).serviceUnavailable) {
-        Sentry.captureException(error, { tags: { operation: 'android_update_install_status' } })
-      }
-      return { androidCheck: null, androidDownloaded: false, latestIosVersion: null, iosStoreUrl: null }
-    }
-  }
+  if (inAppUpdates) return resolveAndroidVersionSources(inAppUpdates)
 
   if (Platform.OS === 'ios' && bundleId) {
     const lookup = await getAppStoreLookup(bundleId)

@@ -244,7 +244,11 @@ describe('Play update sheet selection', () => {
   })
   it.each([
     [-3, 'The API is not available on this device.'],
+    [-5, 'The install is unavailable to this user or device.'],
+    [-6, 'The download/install is not allowed, due to the current device state (e.g. low battery, low disk space, ...).'],
+    [-8, 'The install is already in progress and there is no UI flow to resume.'],
     [-9, 'The Play Store app is either not installed or not the official version.'],
+    [-10, 'The app is not owned by any user on this device. An app is "owned" if it has been acquired from Play.'],
   ] as const)('records unavailable Play service code %s without reporting it to Sentry or retrying', async (code, message) => {
     const error = new Error(`com.google.android.play.core.install.InstallException: Install Error(${code}): ${message}`)
     mocks.checkNeedsUpdate.mockRejectedValue(error)
@@ -263,7 +267,7 @@ describe('Play update sheet selection', () => {
     expect(sheetTitles()).toEqual([])
     expect(captureAndroidUpdateSheetShown).not.toHaveBeenCalled()
   })
-  it.each([-2, -4, -5, -6, -7, -10, -100, -90, null])('reports unexpected Play failure code %s once without retrying', async (code) => {
+  it.each([-2, -4, -7, -100, -90, null])('reports unexpected Play failure code %s once without retrying', async (code) => {
     const message = code === null ? 'Unexpected Play failure' : `Install Error(${code}): unexpected failure`
     mocks.checkNeedsUpdate.mockRejectedValue(new Error(message))
     await mount()
@@ -281,6 +285,69 @@ describe('Play update sheet selection', () => {
     expect(Sentry.captureException).toHaveBeenCalledOnce()
     expect(sheetTitles()).toEqual([])
     expect(captureAndroidUpdateSheetShown).not.toHaveBeenCalled()
+  })
+  it.each([-3, -5, -6, -8, -9, -10])('records update-check unavailability code %s when install status succeeds', async (code) => {
+    mocks.checkNeedsUpdate.mockRejectedValue(new Error(`Install Error(${code}): unavailable`))
+    await mount()
+    expect(Sentry.captureException).not.toHaveBeenCalled()
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'service_unavailable', play_status: null, available_version_code: null,
+      installed_version_code: 140, play_error_code: code,
+    })
+    expect(sheetTitles()).toEqual([])
+  })
+  it.each([-3, -5, -6, -8, -9, -10])('records native install-status unavailability code %s when the update check succeeds', async (code) => {
+    mocks.readDownloaded.mockRejectedValue(new CodedError('ERR_APP_UPDATE_SERVICE_UNAVAILABLE', `Install Error(${code}): unavailable`))
+    await mount()
+    expect(Sentry.captureException).not.toHaveBeenCalled()
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'service_unavailable', play_status: null, available_version_code: null,
+      installed_version_code: 140, play_error_code: code,
+    })
+    expect(sheetTitles()).toEqual([])
+    expect(mocks.present).not.toHaveBeenCalled()
+  })
+  it.each([-3, -5, -6, -8, -9, -10])('classifies native install-status code %s without a bridge error code', async (code) => {
+    mocks.readDownloaded.mockRejectedValue(new Error(`Install Error(${code}): unavailable`))
+    await mount()
+    expect(Sentry.captureException).not.toHaveBeenCalled()
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'service_unavailable', play_status: null, available_version_code: null,
+      installed_version_code: 140, play_error_code: code,
+    })
+    expect(sheetTitles()).toEqual([])
+  })
+  it.each([-2, -4, -7, -100, -90, null])('reports native install-status failure code %s with its operation tag', async (code) => {
+    const message = code === null ? 'Unexpected Play failure' : `Install Error(${code}): unexpected failure`
+    const error = new CodedError('ERR_APP_UPDATE_CHECK', message)
+    mocks.readDownloaded.mockRejectedValue(error)
+    await mount()
+    expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(error, {
+      tags: { operation: 'android_update_install_status' },
+    })
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'error', play_status: null, available_version_code: null,
+      installed_version_code: 140, play_error_code: code,
+    })
+    expect(sheetTitles()).toEqual([])
+  })
+  it.each(['check', 'install'] as const)('preserves a real %s failure alongside expected device unavailability', async (source) => {
+    const unavailable = new CodedError('ERR_APP_UPDATE_SERVICE_UNAVAILABLE', 'Install Error(-6): device unavailable')
+    const failure = new Error('Install Error(-4): malformed request')
+    mocks.checkNeedsUpdate.mockRejectedValue(source === 'check' ? failure : unavailable)
+    mocks.readDownloaded.mockRejectedValue(source === 'install' ? failure : unavailable)
+    await mount()
+    expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(
+      source === 'install' ? failure : expect.objectContaining({ message: expect.stringContaining(failure.message) }),
+      source === 'install'
+        ? { tags: { operation: 'android_update_install_status' } }
+        : { tags: { operation: 'android_update_check' }, extra: { installed_version_code: 140, play_error_code: -4 } },
+    )
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'error', play_status: null, available_version_code: null,
+      installed_version_code: 140, play_error_code: -4,
+    })
+    expect(sheetTitles()).toEqual([])
   })
   it('records an unavailable Play result without inventing a store version', async () => {
     mocks.checkNeedsUpdate.mockResolvedValue({
@@ -402,9 +469,22 @@ describe('Play update sheet selection', () => {
       tags: { operation: 'android_update_install_status' },
     })
     expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
-      outcome: 'success', play_status: 2, available_version_code: 141,
+      outcome: 'error', play_status: null, available_version_code: null,
       installed_version_code: 140, play_error_code: null,
     })
+  })
+  it('reports a synchronous install-status bridge failure', async () => {
+    const error = new Error('Native module unavailable')
+    mocks.readDownloaded.mockImplementation(() => { throw error })
+    await mount()
+    expect(Sentry.captureException).toHaveBeenCalledExactlyOnceWith(error, {
+      tags: { operation: 'android_update_install_status' },
+    })
+    expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
+      outcome: 'error', play_status: null, available_version_code: null,
+      installed_version_code: 140, play_error_code: null,
+    })
+    expect(sheetTitles()).toEqual([])
   })
   it.each([
     'Failed to bind to the service.',
@@ -429,8 +509,8 @@ describe('Play update sheet selection', () => {
     await mount()
     expect(Sentry.captureException).not.toHaveBeenCalled()
     expect(captureAndroidUpdateCheck).toHaveBeenCalledExactlyOnceWith({
-      outcome: 'success', play_status: 2, available_version_code: 141,
-      installed_version_code: 140, play_error_code: null,
+      outcome: 'service_unavailable', play_status: null, available_version_code: null,
+      installed_version_code: 140, play_error_code: message.includes('Install Error(-3)') ? -3 : message.includes('Install Error(-9)') ? -9 : null,
     })
     expect(sheetTitles()).toEqual([])
   })
