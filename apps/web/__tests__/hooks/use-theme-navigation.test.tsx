@@ -1,3 +1,4 @@
+import { RequestCookies } from 'next/dist/server/web/spec-extension/cookies'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
@@ -63,12 +64,23 @@ describe('theme choice across profile consumers', () => {
     expect(document.cookie).not.toContain('orbit_theme_mode')
   })
 
-  it.each(['invalid', '%', '%6cight'])('ignores the invalid theme cookie %s during system detection', (value) => {
+  it.each(['invalid', '%'])('ignores the invalid theme cookie %s during system detection', (value) => {
     const { chooser } = setup('light')
     document.cookie = `orbit_theme_mode=${value};path=/`
     expect(() => act(() => chooser.result.current.detectAndSaveThemeIfNeeded(null))).not.toThrow()
     expect(chooser.result.current.currentTheme).toBe('dark')
     expect(document.cookie).toContain(`orbit_theme_mode=${value}`)
+  })
+
+  it.each([['light', '%6cight'], ['dark', '%64ark']] as const)('matches the server decoding of an encoded %s cookie', (mode, value) => {
+    const { chooser } = setup(mode)
+    document.cookie = `orbit_theme_mode=${value};path=/`
+    const serverCookies = new RequestCookies(new Headers({ cookie: document.cookie }))
+    const serverTheme = serverCookies.get('orbit_theme_mode')?.value
+    expect(serverTheme).toBe(mode)
+    act(() => chooser.result.current.detectAndSaveThemeIfNeeded(null))
+    expect(chooser.result.current.currentTheme).toBe(serverTheme)
+    expect(updateThemePreference).not.toHaveBeenCalled()
   })
 
   it('keeps an explicit cookie when a profile has no theme preference', () => {
