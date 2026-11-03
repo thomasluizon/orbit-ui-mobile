@@ -33,22 +33,22 @@ New this relay (scratchpad): `repoint-sub-baded684.sh` (the successor adapts it 
 
 ## Goal
 
-Finish the spec: an empty board except `#33`, `#1561`, `#1563`, `#1560` and `#1861`, with verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict, then `#1976` and `#1977`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff (`## The order`): 12 open, 12 placed, 0 unplaced, 0 placed twice.
+Finish the spec: an empty board except `#33`, `#1561`, `#1563`, `#1560` and `#1861`, with verified releases, every `#315` launch list ticket closed, then `#315` closed with its verdict, then `#1976` and `#1977`. Re-derive what remains with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`. Reconciliation at this handoff (`## The order`): 11 open, 11 placed, 0 unplaced, 0 placed twice.
 
 ## In flight
 
-UI `main` `b3db392ef`, API `main` `ab0d988d7`, landing `main` `bb7a3a846`. Production web `d205c67fa`, production API `b82d5e77d`, production landing `bb7a3a846`, staging web `d205c67fa`, staging API `b82d5e77d`, Android Open 1.3.135 (195), internal 1.3.134 (194). CI waiters stop at the relay; restart them.
+UI `main` `b3db392ef`, API `main` `ab0d988d7`, landing `main` `bb7a3a846`. Production web `d205c67fa`, production API `ab0d988d7`, production landing `bb7a3a846`, staging web `d205c67fa`, staging API `ab0d988d7`, Android Open 1.3.135 (195), internal 1.3.134 (194). CI waiters stop at the relay; restart them.
 
 | Item | Disposition |
 | --- | --- |
 | `#1980` (owner order: fix the new Sentry errors) | Filed from a read-only triage of `ORBIT-MOBILE-N` (Hoje habit list render loop on Android 1.3.131) and the new `ORBIT-MOBILE-J` events (an offline `expo/fetch` UnknownHostException reported as an app error). Worktree `orca/workspaces/orbit-ui-mobile/ticket-1980-sentry-render-loop` on `fix/ticket-1980-sentry-render-loop` from `main`, order composed in the scratchpad's `order-1980.md`. The launch was refused by `RELAY_DRAIN`: launch it at tier `deep` first (`--hard-ceiling-minutes 120`), read its diff, push, CI, review, merge, staging and production web, Android Open, resolve both Sentry issues after the release shows no new event. |
 | `#1970` `ui#2298` at `57c225662` (pushed), `88825d489` local | Round 3 at tier `max` from the scratchpad's `finding-2298-r3.md` (order `order-1970-rb3.md`): the split adds about 5 KB to the authed Hoje scripts (median 820,451 against 820,000; `main`-equivalent branches 815,339 to 815,625). Read every new commit with `git show` (and `--remerge-diff` for a merge), confirm `88825d489` (the Sentry report the ticket requires) and `57c225662` (the real mutation context) survive and no budget or allocation moved, correct the body line "A failed profile fetch stays silent" to the Sentry report. `SonarCloud Code Analysis` is also red on `57c225662` (14.1% duplicated new code against 3%, all web and mobile copies of the extracted hooks), so launch round 4 at tier `max` from the scratchpad's `finding-2298-r4.md` on top of round 3 before pushing (one push for both), then CI, fresh review, merge. Worktree `orca/workspaces/orbit-ui-mobile/ticket-1970-hook-split`. |
-| `#1976` (merged as `orbit-api#1071`, API `main` `ab0d988d7`) | The mutation rerun passed, so it merged at its approved head. The detached poller `wait-push-runs.mjs` writes the scratchpad's `push-ab0d988d7-DONE` when the API Tests and Guards push runs finish (its start time is in the scratchpad's `push-ab0d988d7-STARTED`; pass it as `--started-at`): start a `tools/wait-file.mjs` waiter on it, then staging API, production API (its workflow takes the export), close, then launch `#1977`. |
+| `#1976` | Done: production API `ab0d988d7`, completed. Launch `#1977` (the live Plan block on web and Android) right after `#1980`. |
 | `#1979` | Android Open 1.3.135 (195) released and posted. Resolve Sentry `ORBIT-MOBILE-J` and `ORBIT-MOBILE-M` once 1.3.135 is in use with no new event, then complete. |
 | `#1966` | Scratch sweep in the scratchpad's `sweep-1966-src/` (copy both files to `apps/web/e2e/sweep-1966/`, run `run-sweep-1966.sh`, delete the copies after). Run 2 timed out on the create sheet's Habit radio intercept; settle it with a red-capable check first (spec bullet). |
 | Turnstile | Off. Prerequisites are done except the enablement change itself; facts in the spec's first Current state paragraph (the `android-internal` environment lacks `EXPO_PUBLIC_TURNSTILE_SITE_KEY`). |
 
-Inventory: open pull requests ui `#1989` (relay docs), `#2298`; api none; landing none. Unpushed work: `#1970` `88825d489` plus the round 3 commits. Running at relay: the `#1970` round 3 launcher (it drains before the relay). Detached local checks: the `wait-push-runs.mjs` poller for `ab0d988d7` (completion file `push-ab0d988d7-DONE` in the scratchpad; start time in `push-ab0d988d7-STARTED`). Stashes: none. Owner questions: none open.
+Inventory: open pull requests ui `#1989` (relay docs), `#2298`; api none; landing none. Unpushed work: `#1970` `88825d489` plus the round 3 commits. Running at relay: the `#1970` round 3 launcher (it drains before the relay). Detached local checks: none. Stashes: none. Owner questions: none open.
 
 ## Then, in this order
 
