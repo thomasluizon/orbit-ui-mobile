@@ -218,7 +218,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const { isDraggingList, handleDragEnd } = state.drag
     const commonOverlays = <HabitListOverlays state={state} />
     if (drill.currentParentId) return renderHabitDrillState({ ...state, commonOverlays })
-    if (isLoading) return habitsQuery.showLoading ? renderHabitLoadingState({ ...state, commonOverlays }) : <>{state.empty.listHeaderComponent}{commonOverlays}</>
+    if (isLoading) return renderHabitLoadingState({ ...state, commonOverlays })
     if (isError && !habitsQuery.data) return renderHabitErrorState({ ...state, commonOverlays })
     if (view === 'all') return renderHabitAllState({ ...state, commonOverlays })
     return (
@@ -620,7 +620,7 @@ function renderHabitLoadingState(state: Readonly<HabitListScreenState & { common
         onFocus={revealListFocus}
         onScroll={handleListScroll}
         scrollEventThrottle={16}
-        data={SKELETON_KEYS}
+        data={state.queries.habitsQuery.showLoading ? SKELETON_KEYS : []}
         keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
         keyExtractor={(item) => item}
         renderItem={renderSkeletonItem}
