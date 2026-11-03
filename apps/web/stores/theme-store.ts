@@ -9,7 +9,7 @@ const listeners = new Set<() => void>()
 export function getSavedTheme(): ThemeMode | null {
   if (typeof document === 'undefined') return null
   const match = /(?:^|; )orbit_theme_mode=([^;]*)/.exec(document.cookie)
-  return resolveInitialTheme(match?.[1] ? decodeURIComponent(match[1]) : null)
+  return resolveInitialTheme(match?.[1])
 }
 
 export function getCurrentTheme(): ThemeMode {

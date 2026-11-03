@@ -63,6 +63,14 @@ describe('theme choice across profile consumers', () => {
     expect(document.cookie).not.toContain('orbit_theme_mode')
   })
 
+  it.each(['invalid', '%', '%6cight'])('ignores the invalid theme cookie %s during system detection', (value) => {
+    const { chooser } = setup('light')
+    document.cookie = `orbit_theme_mode=${value};path=/`
+    expect(() => act(() => chooser.result.current.detectAndSaveThemeIfNeeded(null))).not.toThrow()
+    expect(chooser.result.current.currentTheme).toBe('dark')
+    expect(document.cookie).toContain(`orbit_theme_mode=${value}`)
+  })
+
   it('keeps an explicit cookie when a profile has no theme preference', () => {
     const { chooser } = setup('light')
     act(() => chooser.result.current.detectAndSaveThemeIfNeeded(null))
