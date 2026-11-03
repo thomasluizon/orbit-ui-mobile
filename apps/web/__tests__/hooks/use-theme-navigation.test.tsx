@@ -41,6 +41,17 @@ function expectTheme(client: QueryClient, theme: ThemeMode) {
 afterEach(() => vi.clearAllMocks())
 
 describe('theme choice across profile consumers', () => {
+  it('does not persist the system mode when a theme consumer mounts', () => {
+    document.cookie = 'orbit_theme_mode=;max-age=0;path=/'
+    document.documentElement.style.colorScheme = 'light'
+    const client = new QueryClient()
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    const chooser = renderHook(() => useColorScheme(), { wrapper })
+    expect(chooser.result.current.currentTheme).toBe('light')
+    expect(document.cookie).not.toContain('orbit_theme_mode')
+  })
+
   it.each([['dark', 'light'], ['light', 'dark']] as const)(
     'keeps %s to %s after navigation and a successful save', async (previous, chosen) => {
       let resolveSave: () => void = () => {}

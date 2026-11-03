@@ -12,7 +12,8 @@ import { PwaLaunchHandler } from '@/components/pwa-launch-handler'
 import { PostHogProvider } from '@/components/posthog-provider'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import { RouteContext } from '@/components/navigation/route-context'
-import { normalizeThemeMode, resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
+import { resolveInitialTheme, resolveWebThemeVariables } from '@/lib/theme-dom'
+import { buildThemeBootstrapScript } from '@/lib/theme-bootstrap'
 import { serverRenderFetch } from '@/lib/server-fetch'
 import { ThrottleScreen } from '@/components/ui/throttle-screen'
 import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
@@ -24,33 +25,17 @@ import { NotificationsPreload } from '@/lib/notifications-preload'
 import { loadInitialNotifications } from '@/lib/server-notifications'
 import './globals.css'
 
-const schemeNames = Array.from(VALID_COLOR_SCHEMES)
-const canvasByScheme = Object.fromEntries(
-  schemeNames.map((scheme) => [
-    scheme,
-    { dark: neutralColors.dark.bg, light: neutralColors.light.bg },
-  ]),
-)
-const variablesByScheme = Object.fromEntries(
-  schemeNames.map((scheme) => [
-    scheme,
-    {
-      dark: resolveWebThemeVariables(scheme, 'dark'),
-      light: resolveWebThemeVariables(scheme, 'light'),
-    },
-  ]),
-)
 async function loadInitialAccount(hasSessionCookie: boolean, cookieTheme: string | undefined) {
   if (hasSessionCookie) {
     try {
       const profile = await serverRenderFetch(API.profile.get, { cache: 'no-store', signal: AbortSignal.timeout(10000) }, profileSchema)
-      return { theme: normalizeThemeMode(profile?.themePreference ?? cookieTheme), timeZone: profile?.timeZone ?? null, now: Date.now() }
+      return { theme: resolveInitialTheme(cookieTheme, profile?.themePreference), timeZone: profile?.timeZone ?? null, now: Date.now() }
     } catch (error) {
       // WHY: Public routes must still render when the profile API or session is unavailable; https://github.com/thomasluizon/orbit-tickets/issues/1311.
       captureException(error)
     }
   }
-  return { theme: normalizeThemeMode(cookieTheme), timeZone: null, now: Date.now() }
+  return { theme: resolveInitialTheme(cookieTheme), timeZone: null, now: Date.now() }
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -111,43 +96,14 @@ export default async function RootLayout({
     loadInitialAccount(hasSessionCookie, cookieStore.get('orbit_theme_mode')?.value),
     loadInitialNotifications(hasSessionCookie),
   ])
-  const initialTheme = initialAccount.theme
+  const initialTheme = initialAccount.theme ?? 'dark'
   const initialNow = initialAccount.now
   const initialThemeStyle = {
     ...resolveWebThemeVariables('orange', initialTheme),
     colorScheme: initialTheme,
     '--skeleton-pulse-iterations': skeletonPulseIterations,
   } as CSSProperties
-  const themeBootstrapScript = `
-    try {
-      const themeName = ${JSON.stringify(initialTheme)}
-      const root = document.documentElement
-
-      if (themeName === 'dark') {
-        root.classList.add('dark')
-        root.classList.remove('light')
-      } else {
-        root.classList.add('light')
-        root.classList.remove('dark')
-      }
-
-      const schemeNames = ${JSON.stringify(schemeNames)}
-      schemeNames.forEach((s) => root.classList.remove('scheme-' + s))
-      const activeScheme = 'orange'
-      root.classList.add('scheme-' + activeScheme)
-
-      root.style.setProperty('color-scheme', themeName)
-      const variables = ${JSON.stringify(variablesByScheme)}
-      Object.entries(variables[activeScheme][themeName]).forEach(([property, value]) => {
-        root.style.setProperty(property, value)
-      })
-
-      const canvases = ${JSON.stringify(canvasByScheme)}
-      document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
-        meta.setAttribute('content', canvases[activeScheme][themeName])
-      })
-    } catch {}
-  `
+  const themeBootstrapScript = buildThemeBootstrapScript(initialAccount.theme)
 
   return (
     <html

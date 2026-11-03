@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
+import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
@@ -8,6 +8,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { notificationsFixture } from '../../test-support/hermetic/mock-api/fixtures/secondary'
 import { mintHermeticJwt } from '../../test-support/hermetic/hermetic-session'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { getCurrentTheme } from '@/stores/theme-store'
 import { useAccountClockSeed } from '@/lib/account-clock'
 import { getAccountDay } from '@orbit/shared/utils'
 import RootLayout from '@/app/layout'
@@ -127,6 +128,45 @@ describe('root theme before hydration', () => {
     expect(page.documentElement.classList.contains(theme)).toBe(true)
     expect(page.documentElement.style.colorScheme).toBe(theme)
     expect(upstream).not.toHaveBeenCalled()
+  })
+
+  it.each(['light', 'dark'] as const)('follows the system %s mode before hydration without saving a cookie', async (mode) => {
+    const page = await serverDocument()
+    const bootstrapped = new JSDOM(page.documentElement.outerHTML, {
+      runScripts: 'dangerously', url: 'https://theme.test',
+      beforeParse: (window) => {
+        window.matchMedia = vi.fn().mockReturnValue({ matches: mode === 'light' })
+      },
+    })
+    try {
+      const root = bootstrapped.window.document.documentElement
+      expect(root.classList.contains(mode)).toBe(true)
+      expect(root.style.colorScheme).toBe(mode)
+      for (const [property, value] of Object.entries(resolveWebThemeVariables('orange', mode))) {
+        expect(root.style.getPropertyValue(property)).toBe(value)
+      }
+      expect(bootstrapped.window.document.cookie).not.toContain('orbit_theme_mode')
+    } finally {
+      bootstrapped.window.close()
+    }
+  })
+
+  it('keeps the bootstrapped light mode through hydration and a render with the same props', async () => {
+    const tree = await RootLayout({ children: <main>Theme fixture</main> })
+    document.open()
+    document.write(renderToString(tree))
+    document.close()
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
+    const script = document.querySelector('script')!.textContent!
+    window.eval(script)
+    expect(getCurrentTheme()).toBe('light')
+    const view = render(tree, { container: document, hydrate: true })
+    view.rerender(tree)
+    expect(document.documentElement.classList.contains('light')).toBe(true)
+    expect(document.documentElement.style.colorScheme).toBe('light')
+    expect(getCurrentTheme()).toBe('light')
+    expect(document.cookie).not.toContain('orbit_theme_mode')
+    view.unmount()
   })
 
   it.each(['refresh-only', 'expired', 'near-expiry', 'rejected-fresh'] as const)(

@@ -37,7 +37,6 @@ export function useColorScheme() {
   useEffect(() => {
     if (currentTheme !== getCurrentTheme()) return
     setCookie('orbit_color_scheme', currentScheme)
-    setCookie('orbit_theme_mode', currentTheme)
     applyThemeTokensToDOM(currentScheme, currentTheme, false)
   }, [currentScheme, currentTheme])
 
