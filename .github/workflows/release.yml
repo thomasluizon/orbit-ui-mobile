@@ -582,7 +582,9 @@ jobs:
 
   smoke:
     name: Post-deploy smoke
-    environment: production
+    environment:
+      name: production
+      deployment: false
     needs: [build, production]
     if: inputs.environment == 'production'
     runs-on: ubuntu-latest
