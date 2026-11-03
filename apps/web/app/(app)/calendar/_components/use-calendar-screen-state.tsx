@@ -1,4 +1,4 @@
-import { buildCalendarRangeBounds,buildCalendarGridColumns,createCalendarDateActions } from '@orbit/shared/hooks'
+import { createUseCalendarRangeState,buildCalendarGridColumns,createCalendarDateActions } from '@orbit/shared/hooks'
 import { buildCalendarHeaderState,resolveCalendarProfileSettings,type CalendarProfile } from '@orbit/shared/utils/calendar-navigation'
 import { useOpenHabit } from '@/hooks/use-open-habit'
 import { useCalendars } from '@/hooks/use-calendars'
@@ -169,34 +169,7 @@ function useCalendarEventState({ hasProAccess, timeZone, autoSyncState, closeShe
   return { showRecurring, calendarEventsResult, showEventSource, calendarEventsState, refetchCalendarEvents, openOrbitPro }
 }
 
-type CalendarRangeStateInputs = Pick<CalendarPageContentProps, 'monthQuery' | 'view' | 'profile'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'weekAnchor' | 'todayKey' | 'weekStartsOn' | 'rangeOffset' | 'agendaOffset' | 't'>
-
-function useCalendarRangeState({ monthQuery, weekAnchor, todayKey, weekStartsOn, rangeOffset, agendaOffset, view, profile, t }: CalendarRangeStateInputs) {
-  const { dayMap, isLoading, error, refresh } = monthQuery
-
-  const { weekStart, weekEnd, rangeEnd, agendaStart, agendaEnd, queryBounds } = useMemo(
-    () => buildCalendarRangeBounds(todayKey, weekAnchor, weekStartsOn, rangeOffset, agendaOffset, view),
-    [todayKey, weekAnchor, weekStartsOn, rangeOffset, agendaOffset, view],
-  )
-
-  const {
-    dayMap: rangeDayMap,
-    isLoading: rangeQueryLoading,
-    error: rangeError,
-    refresh: rangeRefresh,
-  } = useCalendarRange(
-    queryBounds.lo,
-    queryBounds.hi,
-    Boolean(profile) && (view === 'week' || view === 'range' || view === 'agenda'),
-  )
-
-  const rangeLoading = !profile || rangeQueryLoading
-  const rangeLoadingLabel = useMemo(
-    () => rangeLoading ? t('calendar.loading') : undefined,
-    [rangeLoading, t],
-  )
-  return { weekStart, weekEnd, dayMap, rangeDayMap, error, refresh, rangeError, rangeRefresh, isLoading, rangeEnd, agendaStart, agendaEnd, rangeLoading, rangeLoadingLabel }
-}
+const useCalendarRangeState = createUseCalendarRangeState({ useMemo, useCalendarRange })
 
 type CalendarDisplayStateInputs = Pick<ReturnType<typeof useCalendarRangeState>, 'weekStart' | 'weekEnd' | 'dayMap' | 'rangeDayMap' | 'error' | 'refresh' | 'rangeError' | 'rangeRefresh'> & Pick<ReturnType<typeof useCalendarScreenSession>, 'todayKey' | 't' | 'locale' | 'setCalendarHasError'> & Pick<ReturnType<typeof useCalendarEventState>, 'showRecurring'> & Pick<CalendarPageContentProps, 'view'>
 

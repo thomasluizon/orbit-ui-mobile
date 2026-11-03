@@ -3,6 +3,62 @@ import { formatAPIDate,parseAPIDate } from '../utils/dates'
 import { MAX_RANGE_DAYS,resolveCalendarRangeEnd } from '../utils/calendar-range'
 import type { CalendarView } from '../utils/calendar-navigation'
 import type { StateSetter } from './state-adapter'
+import type { CalendarDayEntry } from '../types/calendar'
+import type { CalendarProfile } from '../utils/calendar-navigation'
+
+interface CalendarQueryState {
+  dayMap: Map<string, CalendarDayEntry[]>
+  isLoading: boolean
+  error: string | null
+  refresh: () => Promise<unknown>
+}
+
+interface CalendarRangeInputs<MonthQuery extends CalendarQueryState> {
+  monthQuery: MonthQuery
+  weekAnchor: Date | null
+  todayKey: string
+  weekStartsOn: 0 | 1
+  rangeOffset: number
+  agendaOffset: number
+  view: CalendarView
+  profile: CalendarProfile | undefined
+  t: (key: string) => string
+}
+
+type CalendarRangeState<MonthQuery extends CalendarQueryState, RangeQuery extends CalendarQueryState> =
+  Pick<ReturnType<typeof buildCalendarRangeBounds>, 'weekStart' | 'weekEnd' | 'rangeEnd' | 'agendaStart' | 'agendaEnd'> &
+  Pick<MonthQuery, 'dayMap' | 'isLoading' | 'error' | 'refresh'> & {
+    rangeDayMap: RangeQuery['dayMap']
+    rangeError: RangeQuery['error']
+    rangeRefresh: RangeQuery['refresh']
+    rangeLoading: boolean
+    rangeLoadingLabel: string | undefined
+  }
+
+interface CalendarRangeAdapters<RangeQuery extends CalendarQueryState> {
+  useMemo: <Value>(calculate: () => Value, dependencies: readonly unknown[]) => Value
+  useCalendarRange: (start: Date, end: Date, enabled: boolean) => RangeQuery
+}
+
+export function createUseCalendarRangeState<RangeQuery extends CalendarQueryState>(
+  { useMemo, useCalendarRange }: CalendarRangeAdapters<RangeQuery>,
+): <MonthQuery extends CalendarQueryState>(inputs: CalendarRangeInputs<MonthQuery>) => CalendarRangeState<MonthQuery, RangeQuery> {
+  return function useCalendarRangeState<MonthQuery extends CalendarQueryState>(
+    { monthQuery, weekAnchor, todayKey, weekStartsOn, rangeOffset, agendaOffset, view, profile, t }: CalendarRangeInputs<MonthQuery>,
+  ): CalendarRangeState<MonthQuery, RangeQuery> {
+    const { dayMap, isLoading, error, refresh } = monthQuery
+    const { weekStart, weekEnd, rangeEnd, agendaStart, agendaEnd, queryBounds } = useMemo(
+      () => buildCalendarRangeBounds(todayKey, weekAnchor, weekStartsOn, rangeOffset, agendaOffset, view),
+      [todayKey, weekAnchor, weekStartsOn, rangeOffset, agendaOffset, view],
+    )
+    const { dayMap: rangeDayMap, isLoading: rangeQueryLoading, error: rangeError, refresh: rangeRefresh } = useCalendarRange(
+      queryBounds.lo, queryBounds.hi, Boolean(profile) && (view === 'week' || view === 'range' || view === 'agenda'),
+    )
+    const rangeLoading = !profile || rangeQueryLoading
+    const rangeLoadingLabel = useMemo(() => rangeLoading ? t('calendar.loading') : undefined, [rangeLoading, t])
+    return { weekStart, weekEnd, dayMap, rangeDayMap, error, refresh, rangeError, rangeRefresh, isLoading, rangeEnd, agendaStart, agendaEnd, rangeLoading, rangeLoadingLabel }
+  }
+}
 
 interface CalendarDateActionsInputs {
   setMonthSlide: StateSetter<'left' | 'right' | null>
