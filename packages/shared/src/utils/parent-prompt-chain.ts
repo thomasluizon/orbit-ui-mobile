@@ -58,7 +58,6 @@ export function computeParentPromptChain(
   resolutionSources: ReadonlyMap<string, ParentPromptAncestor> = new Map(),
 ): ParentPromptAncestor[] {
   const { knownHabits, progress } = parentPromptResolutionContext(habitsById, options, resolutionSources)
-  if (knownHabits.get(childId)?.isBadHabit) return []
   const ancestors: ParentPromptAncestor[] = []
   let parentId = knownHabits.get(childId)?.parentId
   while (parentId) {

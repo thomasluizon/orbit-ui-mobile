@@ -97,20 +97,16 @@ describe('parent prompt transitions', () => {
 
 
 describe('confirmed parent resolutions', () => {
-  it('retains in-flight resolutions until settlement becomes idle', () => {
+  it('retains day resolutions across idle refetches', () => {
     const record = createConfirmedResolutionRecord('2026-09-12')
     const habit = createMockHabit({ id: 'child' })
     record.sources.set(habit.id, { habit, mode: 'log' })
     record.modes.set(habit.id, 'log')
-    record.activeSettlements = 1
-    refreshConfirmedResolutions(record, false, new Map())
-    expect(record.clearWhenIdle).toBe(true)
+    refreshConfirmedResolutions(record, new Map())
     expect(record.modes.get(habit.id)).toBe('log')
-    record.activeSettlements = 0
-    refreshConfirmedResolutions(record, false, new Map())
-    expect(record.modes.size).toBe(0)
-    expect(record.sources.size).toBe(0)
-    expect(record.clearWhenIdle).toBe(false)
+    refreshConfirmedResolutions(record, new Map())
+    expect(record.modes.get(habit.id)).toBe('log')
+    expect(record.sources.has(habit.id)).toBe(true)
   })
 
   it('drops persisted optimistic modes while retaining the source for a queued ancestor', () => {
@@ -119,7 +115,7 @@ describe('confirmed parent resolutions', () => {
     record.sources.set(child.id, { habit: child, mode: 'skip' })
     record.modes.set(child.id, 'skip')
     record.skippedIds.add(child.id)
-    refreshConfirmedResolutions(record, true, new Map([[child.id, child]]))
+    refreshConfirmedResolutions(record, new Map([[child.id, child]]))
     expect(record.modes.size).toBe(0)
     expect(record.skippedIds.size).toBe(0)
     expect(record.sources.has(child.id)).toBe(true)

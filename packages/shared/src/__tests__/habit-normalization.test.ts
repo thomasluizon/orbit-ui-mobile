@@ -154,7 +154,7 @@ describe('habit normalization utils', () => {
       skippedIds: new Set(),
     })
 
-    expect(progress).toEqual({ done: 1, total: 2, loggedDone: 0 })
+    expect(progress).toEqual({ done: 1, total: 2, loggedDone: 0, slippedDone: 0 })
   })
 
   it('does not treat a completed skip instance as a positive log', () => {

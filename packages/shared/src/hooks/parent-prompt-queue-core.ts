@@ -85,7 +85,7 @@ function getParentPromptProgress(
   confirmedResolutions: ConfirmedResolutionRecord,
   settlementData: ParentSettlementData | null,
 ) {
-  if (!settlementData) return { done: 0, total: 0, loggedDone: 0 }
+  if (!settlementData) return { done: 0, total: 0, loggedDone: 0, slippedDone: 0 }
   return computeParentResolutionProgress(habitId, settlementData.habitsById, {
     getChildren: settlementData.getChildren,
     isRelevantToday: settlementData.visibility.isRelevantToday,
@@ -125,22 +125,9 @@ function clearPersistedResolutions(
 
 export function refreshConfirmedResolutions(
   confirmedResolutions: ConfirmedResolutionRecord,
-  hasQueuedParentPrompt: boolean,
   habitsById: ReadonlyMap<string, NormalizedHabit>,
 ) {
-  if (hasQueuedParentPrompt) {
-    clearPersistedResolutions(confirmedResolutions, habitsById)
-    confirmedResolutions.clearWhenIdle = false
-    return
-  }
-  if (confirmedResolutions.activeSettlements === 0) {
-    confirmedResolutions.sources.clear()
-    confirmedResolutions.modes.clear()
-    confirmedResolutions.skippedIds.clear()
-    confirmedResolutions.clearWhenIdle = false
-    return
-  }
-  confirmedResolutions.clearWhenIdle = true
+  clearPersistedResolutions(confirmedResolutions, habitsById)
 }
 
 export function createConfirmedResolutionRecord(date: string): ConfirmedResolutionRecord {
@@ -150,8 +137,6 @@ export function createConfirmedResolutionRecord(date: string): ConfirmedResoluti
     pending: new Map(),
     modes: new Map(),
     skippedIds: new Set(),
-    activeSettlements: 0,
-    clearWhenIdle: false,
   }
 }
 
@@ -169,16 +154,6 @@ function recordHabitResolution(context: ParentPromptContext,
     confirmedResolutions.skippedIds.add(habitId)
   } else {
     confirmedResolutions.skippedIds.delete(habitId)
-  }
-}
-
-function finishParentSettlement(context: ParentPromptContext, confirmedResolutions: ConfirmedResolutionRecord) {
-  confirmedResolutions.activeSettlements -= 1
-  if (confirmedResolutions.activeSettlements === 0 && confirmedResolutions.clearWhenIdle) {
-    confirmedResolutions.sources.clear()
-    confirmedResolutions.modes.clear()
-    confirmedResolutions.skippedIds.clear()
-    confirmedResolutions.clearWhenIdle = false
   }
 }
 
@@ -218,7 +193,6 @@ function checkAndSettleParent(context: ParentPromptContext,
   if (decision.type === 'open') {
     const ancestors = getParentPromptChain(childHabitId, confirmedResolutions, settlementData)
     if (ancestors.length === 0) return
-    confirmedResolutions.clearWhenIdle = false
     for (const { habit } of ancestors) promptedParentIdsRef.current.add(habit.id)
     setParentPromptQueue((current) => transitionParentPromptQueue(current, {
       type: 'enqueue', prompt: {
@@ -282,36 +256,31 @@ async function settleCompletedParent(context: ParentPromptContext,
     promptedParentIdsRef.current.delete(parentId)
     return
   }
-  operation.confirmedResolutions.activeSettlements += 1
   if (mode === 'log') markRecentlyCompleted(parentId, operation.date)
   try {
-    try {
-      if (mode === 'skip') {
-        await skipHabit({ habitId: parentId, date: operation.date })
-      } else {
-        await logHabit({
-          habitId: parentId,
-          date: operation.date,
-          intent: 'log',
-        })
-      }
-    } catch {
-      if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
-        promptedParentIdsRef.current.delete(parentId)
-        clearRecentlyCompleted(parentId, operation.date)
-      }
-      return
+    if (mode === 'skip') {
+      await skipHabit({ habitId: parentId, date: operation.date })
+    } else {
+      await logHabit({
+        habitId: parentId,
+        date: operation.date,
+        intent: 'log',
+      })
     }
-
-    if (
-      promptDataRef.current?.selectedDateStr !== operation.date ||
-      confirmedResolutionsRef.current !== operation.confirmedResolutions
-    ) return
-    recordHabitResolution(context, operation.confirmedResolutions, parentId, mode)
-    settleParentAutomatically(context, parentId, operation)
-  } finally {
-    finishParentSettlement(context, operation.confirmedResolutions)
+  } catch {
+    if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
+      promptedParentIdsRef.current.delete(parentId)
+      clearRecentlyCompleted(parentId, operation.date)
+    }
+    return
   }
+
+  if (
+    promptDataRef.current?.selectedDateStr !== operation.date ||
+    confirmedResolutionsRef.current !== operation.confirmedResolutions
+  ) return
+  recordHabitResolution(context, operation.confirmedResolutions, parentId, mode)
+  settleParentAutomatically(context, parentId, operation)
 }
 
 function checkAndPromptParentLog(context: ParentPromptContext, childHabitId: string) {
@@ -376,7 +345,6 @@ const releaseOptimisticResolution = releaseParentResolution.bind(null, context)
   const habitId = habit.id
   const record = confirmedResolutionsRef.current
   if (record.pending.has(habitId)) return
-  record.activeSettlements += 1
   recordHabitResolution(context, record, habitId, 'skip')
   checkAndSettleParent(context, habitId, record)
   try {
@@ -390,7 +358,6 @@ const releaseOptimisticResolution = releaseParentResolution.bind(null, context)
     releaseOptimisticResolution(habitId, record, habit.parentId)
   } finally {
     record.pending.delete(habitId)
-    finishParentSettlement(context, record)
   }
 }
 
@@ -404,7 +371,6 @@ async function confirmParentSettlement(context: ParentPromptContext) {
   setParentPromptQueue((current) => transitionParentPromptQueue(current, { type: 'remove', habitId: prompt.habit.id, date: prompt.date }))
   const isCurrent = () => confirmedResolutionsRef.current === record &&
     promptDataRef.current?.selectedDateStr === prompt.date && !settlementDateIsReadOnly(context, prompt.date)
-  record.activeSettlements += 1
   const settledIds = new Set<string>()
   try {
     const selectedIds = new Set(prompt.ancestors.slice(0, prompt.selectedCount).map(({ habit }) => habit.id))
@@ -434,7 +400,6 @@ async function confirmParentSettlement(context: ParentPromptContext) {
         if (!settledIds.has(habit.id)) promptedParentIdsRef.current.delete(habit.id)
       }
     }
-    finishParentSettlement(context, record)
   }
 }
 
@@ -487,7 +452,6 @@ async function handleDirectToggle(context: ParentPromptContext, habit: Normalize
 
   pendingHabitIds.add(key)
   const confirmedResolutions = confirmedResolutionsRef.current
-  confirmedResolutions.activeSettlements += 1
   if (intent === 'log') {
     markRecentlyCompleted(habitId)
     handleLogged(context, habitId, false)
@@ -501,12 +465,12 @@ async function handleDirectToggle(context: ParentPromptContext, habit: Normalize
     confirmedResolutions.pending.set(habitId, Promise.resolve(mutation).then(() => true, () => false))
     await mutation
     mutationSucceeded = true
+    if (intent === 'unlog') releaseParentResolution(context, habitId, confirmedResolutions, habit.parentId)
     await refetch()
   } catch {
     if (!mutationSucceeded && intent === 'log') releaseParentResolution(context, habitId, confirmedResolutions, habit.parentId)
   } finally {
     confirmedResolutions.pending.delete(habitId)
-    finishParentSettlement(context, confirmedResolutions)
     pendingHabitIds.delete(key)
   }
 }
@@ -536,8 +500,6 @@ interface ParentPromptState {
     pending: Map<string, Promise<boolean>>
     modes: Map<string, HabitResolutionMode>
     skippedIds: Set<string>
-    activeSettlements: number
-    clearWhenIdle: boolean
   }
 }
 
@@ -600,7 +562,7 @@ export function createUseParentPromptQueue({ useState, useRef, useEffect, useLay
     }, [getChildren, visibility, habitsById, selectedDateStr, view])
     useLayoutEffect(() => {
       const record = confirmedResolutionsRef.current
-      refreshConfirmedResolutions(record, parentPrompt !== null, habitsById)
+      refreshConfirmedResolutions(record, habitsById)
       for (const id of promptedParentIdsRef.current) {
         const decision = computeParentPromptDecision(habitsById.get(id) ?? null,
           getParentPromptProgress(id, record, promptDataRef.current), selectedDateStr, promptedParentIdsRef.current)

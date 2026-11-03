@@ -72,6 +72,7 @@ describe('computeParentSettlementDecision', () => {
           done: 2,
           total: 2,
           loggedDone: 1,
+          slippedDone: 0,
         },
         TODAY,
       ),
@@ -86,6 +87,7 @@ describe('computeParentSettlementDecision', () => {
           done: 2,
           total: 2,
           loggedDone: 0,
+          slippedDone: 0,
         },
         TODAY,
       ),
@@ -93,7 +95,7 @@ describe('computeParentSettlementDecision', () => {
   })
 
   it('does nothing when the parent is missing, settled, or has incomplete children', () => {
-    const completeChildren = { done: 1, total: 1, loggedDone: 1 }
+    const completeChildren = { done: 1, total: 1, loggedDone: 1, slippedDone: 0 }
 
     expect(computeParentSettlementDecision(null, completeChildren, TODAY)).toBeNull()
     expect(
@@ -131,6 +133,7 @@ describe('computeParentSettlementDecision', () => {
           done: 0,
           total: 1,
           loggedDone: 0,
+          slippedDone: 0,
         },
         TODAY,
       ),
@@ -142,6 +145,7 @@ describe('computeParentSettlementDecision', () => {
           done: 0,
           total: 0,
           loggedDone: 0,
+          slippedDone: 0,
         },
         TODAY,
       ),
@@ -164,7 +168,7 @@ describe('computeParentSettlementDecision', () => {
     expect(
       computeParentSettlementDecision(
         movedParent,
-        { done: 1, total: 1, loggedDone: 1 },
+        { done: 1, total: 1, loggedDone: 1, slippedDone: 0 },
         TODAY,
       ),
     ).toBeNull()
@@ -173,7 +177,7 @@ describe('computeParentSettlementDecision', () => {
 
 describe('computeParentPromptDecision', () => {
   const parent = createMockHabit({ id: 'parent', scheduledDates: [TODAY] })
-  const resolved = { done: 2, total: 2, loggedDone: 1 }
+  const resolved = { done: 2, total: 2, loggedDone: 1, slippedDone: 0 }
 
   it.each([
     [1, 'log'],
@@ -198,7 +202,7 @@ describe('computeParentPromptDecision', () => {
 
   it('releases a parent with no eligible children', () => {
     expect(computeParentPromptDecision(
-      parent, { done: 0, total: 0, loggedDone: 0 }, TODAY, new Set([parent.id]),
+      parent, { done: 0, total: 0, loggedDone: 0, slippedDone: 0 }, TODAY, new Set([parent.id]),
     )).toEqual({ type: 'release' })
   })
 
@@ -279,7 +283,7 @@ describe('computeParentPromptProgress', () => {
       resolvedModes: new Map([[loggedAfterSkip.id, 'log']]),
     })
 
-    expect(progress).toEqual({ done: 1, total: 1, loggedDone: 1 })
+    expect(progress).toEqual({ done: 1, total: 1, loggedDone: 1, slippedDone: 0 })
   })
 
   it('reports no logged children when every sub-habit was skipped before this mount', () => {
@@ -306,7 +310,7 @@ describe('computeParentPromptProgress', () => {
       skippedIds: new Set(),
     })
 
-    expect(progress).toEqual({ done: 2, total: 2, loggedDone: 0 })
+    expect(progress).toEqual({ done: 2, total: 2, loggedDone: 0, slippedDone: 0 })
   })
 
   it('counts in-session and server-known skips once each', () => {
@@ -327,7 +331,7 @@ describe('computeParentPromptProgress', () => {
       skippedIds: new Set(['a', 'b']),
     })
 
-    expect(progress).toEqual({ done: 2, total: 2, loggedDone: 0 })
+    expect(progress).toEqual({ done: 2, total: 2, loggedDone: 0, slippedDone: 0 })
   })
 
   it('counts a nested server-known skip below a child with no work today', () => {
@@ -352,7 +356,7 @@ describe('computeParentPromptProgress', () => {
       skippedIds: new Set(),
     })
 
-    expect(progress).toEqual({ done: 1, total: 1, loggedDone: 0 })
+    expect(progress).toEqual({ done: 1, total: 1, loggedDone: 0, slippedDone: 0 })
   })
 
   it('does not resolve a flexible child with partial window progress', () => {
@@ -373,7 +377,7 @@ describe('computeParentPromptProgress', () => {
       skippedIds: new Set(),
     })
 
-    expect(progress).toEqual({ done: 0, total: 1, loggedDone: 0 })
+    expect(progress).toEqual({ done: 0, total: 1, loggedDone: 0, slippedDone: 0 })
   })
 
   it('keeps a pending non-flexible child unresolved', () => {
@@ -394,7 +398,7 @@ describe('computeParentPromptProgress', () => {
       skippedIds: new Set(),
     })
 
-    expect(progress).toEqual({ done: 0, total: 1, loggedDone: 0 })
+    expect(progress).toEqual({ done: 0, total: 1, loggedDone: 0, slippedDone: 0 })
   })
 
   it('keeps a pending non-flexible child with zero flexible progress unresolved', () => {
@@ -416,7 +420,7 @@ describe('computeParentPromptProgress', () => {
       skippedIds: new Set(),
     })
 
-    expect(progress).toEqual({ done: 0, total: 1, loggedDone: 0 })
+    expect(progress).toEqual({ done: 0, total: 1, loggedDone: 0, slippedDone: 0 })
     expect(computeParentSettlementDecision(
       createMockHabit({ id: 'parent', scheduledDates: [TODAY] }),
       progress,
@@ -498,7 +502,7 @@ describe('computeParentPromptProgress', () => {
       ]),
     })
 
-    expect(progress).toEqual({ done: 2, total: 2, loggedDone: 2 })
+    expect(progress).toEqual({ done: 2, total: 2, loggedDone: 2, slippedDone: 0 })
   })
 
   it('reports all-done with no logged children when every sub-habit was skipped', () => {
@@ -577,12 +581,20 @@ describe('computeParentPromptProgress', () => {
   })
 })
 
-it.each([false, true])('excludes bad habits and their descendants from parent progress with slip %s', (isCompleted) => {
+it.each([false, true])('counts bad habits and their descendants in parent resolution with slip %s', (isCompleted) => {
   const parent = createMockHabit({ id: 'parent', scheduledDates: [TODAY] })
   const good = createMockHabit({ id: 'good', parentId: parent.id, isCompleted: true })
   const bad = createMockHabit({ id: 'bad', parentId: parent.id, isBadHabit: true, isCompleted })
   const nested = createMockHabit({ id: 'nested', parentId: bad.id })
   const progress = computeParentPromptProgress({ parentId: parent.id, getChildren: makeGetChildren({ parent: [good, bad], bad: [nested] }), isRelevantToday: () => true, isDueOnSelectedDate: () => true, skippedIds: new Set() })
-  expect(progress).toEqual({ done: 1, total: 1, loggedDone: 1 })
+  expect(progress).toEqual({ done: isCompleted ? 2 : 1, total: 3, loggedDone: isCompleted ? 2 : 1, slippedDone: isCompleted ? 1 : 0 })
   expect(computeParentSettlementDecision({ ...parent, isBadHabit: true }, progress, TODAY)).toBeNull()
+})
+
+
+it('requires every logged child of a bad parent to be a slip', () => {
+  const parent = createMockHabit({ isBadHabit: true, scheduledDates: [TODAY] })
+  expect(computeParentSettlementDecision(parent, { done: 2, total: 2, loggedDone: 1, slippedDone: 1 }, TODAY)).toBe('log')
+  expect(computeParentSettlementDecision(parent, { done: 2, total: 2, loggedDone: 2, slippedDone: 1 }, TODAY)).toBeNull()
+  expect(computeParentSettlementDecision(parent, { done: 2, total: 2, loggedDone: 0, slippedDone: 0 }, TODAY)).toBe('skip')
 })

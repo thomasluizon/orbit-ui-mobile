@@ -91,6 +91,7 @@ export interface ParentPromptProgress {
   done: number
   total: number
   loggedDone: number
+  slippedDone: number
 }
 
 export type HabitResolutionMode = 'log' | 'skip'
@@ -118,7 +119,7 @@ export function computeParentSettlementDecision(
   promptDate: string,
 ): ParentSettlementDecision {
   if (
-    !parent || parent.isBadHabit ||
+    !parent ||
     (!parent.isGeneral &&
       !parent.isOverdue &&
       !hasHabitScheduleOnDate(parent, promptDate))
@@ -142,6 +143,7 @@ export function computeParentSettlementDecision(
     return null
   }
 
+  if (parent.isBadHabit && children.loggedDone !== children.slippedDone) return null
   return children.loggedDone > 0 ? 'log' : 'skip'
 }
 
@@ -184,10 +186,10 @@ export function computeParentPromptProgress(
   } = options
 
   function computeChild(child: NormalizedHabit): ParentPromptProgress {
-    if (child.isBadHabit) return { done: 0, total: 0, loggedDone: 0 }
     let done = 0
     let total = 0
     let loggedDone = 0
+    let slippedDone = 0
 
     // WHY: API dateFrom/user-today populates flexible progress; general habits cannot be skipped. https://linear.app/useorbitai/issue/ORB-86
     const isServerKnownSkip =
@@ -231,7 +233,10 @@ export function computeParentPromptProgress(
       total += 1
       if (isResolved) {
         done += 1
-        if (!isSkipped) loggedDone += 1
+        if (!isSkipped) {
+          loggedDone += 1
+          if (child.isBadHabit) slippedDone += 1
+        }
       }
     }
 
@@ -239,20 +244,23 @@ export function computeParentPromptProgress(
     done += nested.done
     total += nested.total
     loggedDone += nested.loggedDone
-    return { done, total, loggedDone }
+    slippedDone += nested.slippedDone
+    return { done, total, loggedDone, slippedDone }
   }
 
   function computeNested(currentParentId: string): ParentPromptProgress {
     let done = 0
     let total = 0
     let loggedDone = 0
+    let slippedDone = 0
     for (const child of getChildren(currentParentId)) {
       const progress = computeChild(child)
       done += progress.done
       total += progress.total
       loggedDone += progress.loggedDone
+      slippedDone += progress.slippedDone
     }
-    return { done, total, loggedDone }
+    return { done, total, loggedDone, slippedDone }
   }
 
   return computeNested(parentId)

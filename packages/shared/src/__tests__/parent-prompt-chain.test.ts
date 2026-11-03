@@ -43,13 +43,13 @@ describe('parent prompt chains', () => {
     expect(computeParentPromptChain(child.id, habitsById, date, options)).toEqual([])
   })
 
-  it('does not start a chain from a bad child when its good siblings are already complete', () => {
+  it('starts a chain after a bad child slips when its good siblings are already complete', () => {
     const { child, habitsById, options } = chainFixture()
     habitsById.set(child.id, { ...child, isBadHabit: true })
     const good = createMockHabit({ id: 'good', parentId: 'parent', isCompleted: true })
     expect(computeParentPromptChain(child.id, habitsById, date, { ...options,
       getChildren: (id) => id === 'parent' ? [habitsById.get(child.id)!, good] : options.getChildren(id),
-    })).toEqual([])
+    }).map(({ habit }) => habit.id)).toEqual(['parent', 'root'])
   })
 
   it('retains a resolved child omitted by the next query and trusts current rows when they return', () => {
@@ -58,7 +58,7 @@ describe('parent prompt chains', () => {
     const current = new Map(habitsById)
     current.delete(child.id)
     const omitted = { ...options, resolvedModes: new Map(), getChildren: (id: string) => options.getChildren(id).filter((habit) => habit.id !== child.id) }
-    expect(computeParentResolutionProgress('parent', current, omitted, sources)).toEqual({ done: 1, total: 1, loggedDone: 0 })
+    expect(computeParentResolutionProgress('parent', current, omitted, sources)).toEqual({ done: 1, total: 1, loggedDone: 0, slippedDone: 0 })
     expect(computeParentPromptChain(child.id, current, date, omitted, sources).map(({ habit, mode }) => [habit.id, mode]))
       .toEqual([['parent', 'skip'], ['root', 'log']])
     expect(computeParentPromptChain(child.id, habitsById, date, { ...options, resolvedModes: new Map() }, sources)).toEqual([])
