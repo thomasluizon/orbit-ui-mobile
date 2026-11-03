@@ -161,7 +161,7 @@ describe('root theme before hydration', () => {
     window.eval(script)
     expect(getCurrentTheme()).toBe('light')
     const view = render(tree, { container: document, hydrate: true })
-    view.rerender(tree)
+    view.rerender(await RootLayout({ children: <main>Theme fixture</main> }))
     expect(document.documentElement.classList.contains('light')).toBe(true)
     expect(document.documentElement.style.colorScheme).toBe('light')
     expect(getCurrentTheme()).toBe('light')
