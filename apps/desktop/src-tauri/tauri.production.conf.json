@@ -8,7 +8,7 @@
         "local": false,
         "remote": { "urls": ["https://app.useorbit.org/*"] },
         "windows": ["main"],
-        "permissions": ["allow-commit-desktop-login", "allow-desktop-push", "allow-desktop-update"]
+        "permissions": ["allow-commit-desktop-login", "allow-desktop-push", "allow-desktop-update", "allow-desktop-launch"]
       }]
     },
     "windows": [
