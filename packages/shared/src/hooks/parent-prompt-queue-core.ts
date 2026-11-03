@@ -511,8 +511,15 @@ async function handleDirectToggle(context: ParentPromptContext, habit: Normalize
   }
 }
 
-function createParentPromptController(context: ParentPromptContext) {
-  return { cancelParentPrompt: cancelParentPrompt.bind(null, context), checkAndPromptParentLog: checkAndPromptParentLog.bind(null, context), settleBulkHabitResolutions: settleBulkHabitResolutions.bind(null, context), skipFromRow: skipFromRow.bind(null, context), confirmParentSettlement: confirmParentSettlement.bind(null, context), selectParentAncestor: selectParentAncestor.bind(null, context), handleDirectToggle: handleDirectToggle.bind(null, context) }
+function createParentPromptController(context: Current<ParentPromptContext>) {
+  const bind = <Arguments extends unknown[], Result>(action: (context: ParentPromptContext, ...arguments_: Arguments) => Result) =>
+    (...arguments_: Arguments) => action(context.current, ...arguments_)
+  return {
+    cancelParentPrompt: bind(cancelParentPrompt), checkAndPromptParentLog: bind(checkAndPromptParentLog),
+    settleBulkHabitResolutions: bind(settleBulkHabitResolutions), skipFromRow: bind(skipFromRow),
+    confirmParentSettlement: bind(confirmParentSettlement), selectParentAncestor: bind(selectParentAncestor),
+    handleDirectToggle: bind(handleDirectToggle),
+  }
 }
 
 function cancelParentPrompt(context: ParentPromptContext) {
@@ -600,7 +607,11 @@ export function createUseParentPromptQueue({ useState, useRef, useEffect, useLay
         if (decision.type === 'release') promptedParentIdsRef.current.delete(id)
       }
     }, [updatedAt, parentPrompt !== null, selectedDateStr])
-    return { parentPrompt, ...createParentPromptController({ ...inputs, promptDataRef, promptedParentIdsRef,
-      confirmedResolutionsRef, pendingToggleHabitIdsRef, parentPrompt, setParentPromptQueue }) }
+    const context = { ...inputs, promptDataRef, promptedParentIdsRef,
+      confirmedResolutionsRef, pendingToggleHabitIdsRef, parentPrompt, setParentPromptQueue }
+    const latestContext = useRef(context)
+    useLayoutEffect(() => { latestContext.current = context }, [context])
+    const [controller] = useState(() => createParentPromptController(latestContext))
+    return { parentPrompt, ...controller }
   }
 }
