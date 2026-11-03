@@ -399,6 +399,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
         ...moveQueryResult(args[0]),
         data: listQueryState.isError ? undefined : moveQueryResult(args[0]).data,
         isLoading: listQueryState.isLoading,
+        showLoading: listQueryState.isLoading,
         isError: listQueryState.isError || moveQueryResult(args[0]).isError,
         dataUpdatedAt: mockHabitsDataUpdatedAt,
         refetch: habitListRefetch,

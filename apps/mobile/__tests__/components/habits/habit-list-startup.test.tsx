@@ -38,6 +38,7 @@ afterEach(async () => {
 it.each([480, 840])('settles Hoje through startup query failures and layout at %s dp', async (width) => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
   vi.useFakeTimers()
+  request.mockClear()
   vi.setSystemTime(new Date('2026-09-12T09:00:00Z'))
   __setWindowDimensions({ width, height: 751, scale: 2.625, fontScale: 1 })
   await testI18n.changeLanguage('pt-BR')
@@ -79,5 +80,6 @@ it.each([480, 840])('settles Hoje through startup query failures and layout at %
   expect(rows().map((row) => row.id)).toContain(habit.id)
   expect(attempts.get(API.profile.get)).toBe(3)
   expect(attempts.get(API.config.get)).toBe(3)
-  expect(attempts.get(API.habits.list)).toBe(3)
+  const selectedReads = request.mock.calls.filter(([url]) => String(url).includes('dateFrom=2026-09-12'))
+  expect(selectedReads).toHaveLength(3)
 })

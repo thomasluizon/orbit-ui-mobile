@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { buildHabitViewFilters, habitViewQueryOptions } from '@orbit/shared/utils'
+import { habitKeys, resetAccountQueries } from '@orbit/shared/query'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { useHabits } from '@/hooks/use-habit-queries'
 
 const requests = vi.hoisted(() => ({ read: vi.fn() }))
@@ -68,6 +70,41 @@ describe('Today day cache', () => {
     expect(requests.read.mock.calls.filter(([url]) => String(url).includes(`dateFrom=${neighbour}`))).toHaveLength(readsBefore)
     renderDay(today)
     expect(tree?.root.findAllByType('output')[0]!.props.children).toContain(`${today} habit 0`)
+  })
+
+  it('warms every page for a 450-habit day before publishing the neighbour', async () => {
+    requests.read.mockImplementation(async (url: string) => {
+      const parameters = new URL(url, 'https://fixture.invalid').searchParams
+      const date = parameters.get('dateFrom')!
+      const page = Number(parameters.get('page') ?? 1)
+      await new Promise(resolve => setTimeout(resolve, 3_000))
+      const items = Array.from({ length: 50 }, (_, index) => createMockHabitScheduleItem({
+        id: `${date}-${(page - 1) * 50 + index}`, title: `${date} habit ${(page - 1) * 50 + index}`,
+      }))
+      return { items, page, pageSize: 50, totalCount: 450, totalPages: 9 }
+    })
+    renderDay(today)
+    await advance(3_010)
+    expect(current.data).toBeUndefined()
+    await advance(3_010)
+    expect(current.data?.topLevelHabits).toHaveLength(450)
+    await advance(6_010)
+    renderDay('2026-09-13')
+    expect(current.data?.topLevelHabits).toHaveLength(450)
+    expect(tree?.root.findAllByType('output')[0]!.props.children).toContain('2026-09-13 habit 449')
+    expect(requests.read.mock.calls.filter(([url]) => String(url).includes('dateFrom=2026-09-13'))).toHaveLength(9)
+  })
+
+  it('fences pending neighbour pages across an account reset', async () => {
+    renderDay(today)
+    await advance(3_010)
+    expect(requests.read).toHaveBeenCalledTimes(3)
+    renderDay(today, false)
+    await act(async () => { advanceAccountGeneration(); await resetAccountQueries(client, 'signed-out') })
+    await advance(3_010)
+    expect(current.data).toBeUndefined()
+    expect(client.getQueriesData({ queryKey: habitKeys.lists() }).every(([, items]) => items === undefined)).toBe(true)
+    expect(client.getQueriesData({ queryKey: habitKeys.all }).every(([, count]) => count === undefined)).toBe(true)
   })
 
   it('never replaces the newest day with a late result', async () => {

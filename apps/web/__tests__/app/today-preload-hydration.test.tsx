@@ -224,7 +224,9 @@ describe('Today preload hydration', () => {
     expect(hydrated.recoverableError).not.toHaveBeenCalled()
     expect(hydrated.container).toHaveTextContent('Monthly result')
     expect(hydrated.container).not.toHaveTextContent('Unfiltered seed')
-    expect(fetchMock.mock.calls[0]?.[0]).toContain('frequencyUnit=Month')
+    const selectedReads = fetchMock.mock.calls.filter(([url]) => String(url).includes('dateFrom=2026-08-29'))
+    expect(selectedReads).toHaveLength(1)
+    expect(selectedReads[0]?.[0]).toContain('frequencyUnit=Month')
     await act(async () => hydrated.root.unmount())
   })
 
@@ -266,7 +268,7 @@ describe('Today preload hydration', () => {
         else expect(hydrated.container).toHaveTextContent(en.habits.noHabitsBody)
       }
       expect(hydrated.recoverableError).not.toHaveBeenCalled()
-      expect(fetchMock).not.toHaveBeenCalled()
+      expect(fetchMock.mock.calls.filter(([url]) => String(url).includes(`dateFrom=${today}`))).toEqual([])
     } finally {
       await act(async () => hydrated.root.unmount())
     }
@@ -378,11 +380,15 @@ describe('Today preload hydration', () => {
 
     expect(hydrated.recoverableError).not.toHaveBeenCalled()
     expect(hydrated.serverHtml).toContain(en.habits.noHabitsBody)
-    expect(hydrated.queryClient.getQueriesData({ queryKey: habitKeys.lists() })).toHaveLength(1)
+    expect(hydrated.queryClient.getQueriesData({ queryKey: habitKeys.lists() })).toHaveLength(3)
     expect(hydrated.queryClient.getQueryData(habitKeys.listTotalCount({
       dateFrom: '2026-08-29', dateTo: '2026-08-29', includeOverdue: true, includeGeneral: undefined,
     }))).toBe(0)
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(new Set(fetchMock.mock.calls.map(([url]) => url))).toEqual(new Set([
+      '/api/habits?dateFrom=2026-08-28&dateTo=2026-08-28',
+      '/api/habits?dateFrom=2026-08-30&dateTo=2026-08-30',
+    ]))
 
     await act(async () => hydrated.root.unmount())
   })

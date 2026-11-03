@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { adjacentHabitDayFilters } from '../query/habit-list'
 import { habitListQueryFilters, habitViewQueryOptions, shouldFetchAllHabitPages } from '../utils/habit-list-pagination-core'
 
 const day = { dateFrom: '2026-08-28', dateTo: '2026-08-28' }
@@ -26,5 +27,27 @@ describe('habit list pagination for detail', () => {
   it('keeps ordinary day lists on one page and loads unbounded lists completely', () => {
     expect(shouldFetchAllHabitPages(day, false, 2)).toBe(false)
     expect(shouldFetchAllHabitPages({}, false, 2)).toBe(true)
+  })
+})
+
+
+describe('adjacent habit days', () => {
+  it.each([
+    ['2026-01-01', '2025-12-31', '2026-01-02'],
+    ['2024-03-01', '2024-02-29', '2024-03-02'],
+    ['2026-11-01', '2026-10-31', '2026-11-02'],
+  ])('preserves filters across the boundaries around %s', (date, previous, next) => {
+    const filters = { dateFrom: date, dateTo: date, includeOverdue: false, includeGeneral: true,
+      frequencyUnit: 'Month' as const, tagIds: ['tag'], search: 'Read', isCompleted: false }
+    expect(adjacentHabitDayFilters(filters, previous!)).toEqual([
+      { ...filters, dateFrom: previous, dateTo: previous, includeOverdue: true },
+      { ...filters, dateFrom: next, dateTo: next, includeOverdue: false },
+    ])
+  })
+
+  it('does not turn inventories or date ranges into day queries', () => {
+    expect(adjacentHabitDayFilters({}, day.dateFrom)).toEqual([])
+    expect(adjacentHabitDayFilters({ isGeneral: true, ...day }, day.dateFrom)).toEqual([])
+    expect(adjacentHabitDayFilters({ ...day, dateTo: '2026-08-29' }, day.dateFrom)).toEqual([])
   })
 })
