@@ -9,7 +9,7 @@ import * as ImagePicker from "expo-image-picker"
 import { File } from "expo-file-system"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useTranslation } from "react-i18next"
-import { type ChatStreamRequest,type BlockAnswerRequest,type BlockAnswerResult,buildChatMessageWithFileContent,buildChatClientContext,sendChatStreamTurn,enqueueChatPrompt,sendChatPrompt,sendQueuedChatPrompt,nextQueuedChatPrompt,type PreparedChatTurn,resolveChatImageMimeType } from "@orbit/shared/chat"
+import { type ChatStreamRequest,type BlockAnswerRequest,type BlockAnswerResult,buildChatMessageWithFileContent,buildChatClientContext,type ChatTurnOptions,enqueueChatPrompt,sendChatPrompt,sendQueuedChatPrompt,nextQueuedChatPrompt,type PreparedChatTurn,resolveChatImageMimeType } from "@orbit/shared/chat"
 import { hasComposerContent } from "@orbit/shared/contracts/composer"
 import { habitKeys,profileKeys } from "@orbit/shared/query"
 import type { ChatClientContext } from "@orbit/shared/types"
@@ -54,7 +54,7 @@ async function* streamTextChunks(
   }
 }
 
-function createComposerStreamTransport({ attempted: _attempted, resetController, armIdleTimer, ownsAccount, onAccepted, t }: { attempted: ChatStreamRequest<ImagePicker.ImagePickerAsset>; resetController: () => AbortController; armIdleTimer: () => void; ownsAccount: () => boolean; onAccepted: (() => void) | undefined; t: ReturnType<typeof useTranslation>['t'] }): Parameters<typeof sendChatStreamTurn<FormData>>[0]['open'] {
+function createComposerStreamTransport({ attempted: _attempted, resetController, armIdleTimer, ownsAccount, onAccepted, t }: { attempted: ChatStreamRequest<ImagePicker.ImagePickerAsset>; resetController: () => AbortController; armIdleTimer: () => void; ownsAccount: () => boolean; onAccepted: (() => void) | undefined; t: ReturnType<typeof useTranslation>['t'] }): ChatTurnOptions<FormData>['open'] {
   return async (turn) => {
     const controller = resetController()
     armIdleTimer()

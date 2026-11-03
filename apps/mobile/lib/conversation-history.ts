@@ -1,6 +1,6 @@
 import { captureError } from '@/lib/sentry'
 import { API } from '@orbit/shared/api'
-import { createConversationHistory, conversationPagePath } from '@orbit/shared/chat'
+import { createConversationHistory, conversationPagePath } from '@orbit/shared/chat/conversation-history'
 import { conversationKeys } from '@orbit/shared/query'
 import { conversationPageSchema } from '@orbit/shared/types'
 import { ApiClientError } from '@orbit/shared/utils'

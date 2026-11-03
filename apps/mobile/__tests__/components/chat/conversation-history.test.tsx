@@ -41,7 +41,10 @@ function Conversation() {
   } as unknown as ChatController
   return <AstraConversation chat={chat} />
 }
-async function open() { await TestRenderer.act(() => { tree = TestRenderer.create(<Conversation />) }) }
+async function open() {
+  await TestRenderer.act(() => { tree = TestRenderer.create(<Conversation />) })
+  await TestRenderer.act(async () => { await vi.dynamicImportSettled() })
+}
 function button(label: string) { return tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]! }
 function confirmation() { return tree!.root.findByType('Confirmation' as React.ElementType) }
 function text(content: string) { return tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === content) }
@@ -63,7 +66,10 @@ it('reopens the latest thread and requests earlier turns with a native scroll an
   const list = tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'FlatList')[0]!
   expect(list.props.maintainVisibleContentPosition).toEqual({ minIndexForVisible: 0 })
   requests.read.mockResolvedValueOnce(makeConversationPage({ turns: [], beforeOrder: null }))
-  await TestRenderer.act(() => { list.props.onScroll({ nativeEvent: { contentOffset: { y: 0 }, contentSize: { height: 900 }, layoutMeasurement: { height: 400 } } }) })
+  await TestRenderer.act(async () => {
+    list.props.onScroll({ nativeEvent: { contentOffset: { y: 0 }, contentSize: { height: 900 }, layoutMeasurement: { height: 400 } } })
+    await vi.dynamicImportSettled()
+  })
   expect(requests.read.mock.calls[1]![0]).toContain(`conversationId=${storedConversationId}&beforeOrder=3`)
   expect(useChatStore.getState().conversationBeforeOrder).toBeNull()
 })

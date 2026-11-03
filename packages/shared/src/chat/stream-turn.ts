@@ -20,8 +20,6 @@ export interface ChatTurnOptions<Payload> {
   isCancelled: () => boolean
 }
 
-export { sendChatStreamTurn } from './send-stream-turn'
-
 export function isDailyBudgetRefusal(outcome: ChatTurnOutcome): boolean {
   return (outcome.kind === 'error' || outcome.kind === 'httpError') && outcome.code === 'AI_DAILY_BUDGET_EXCEEDED'
 }

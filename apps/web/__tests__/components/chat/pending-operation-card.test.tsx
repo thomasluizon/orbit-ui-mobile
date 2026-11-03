@@ -1,4 +1,4 @@
-import { restoreConversationPage } from '@orbit/shared/chat'
+import { restoreConversationPage } from '@orbit/shared/chat/conversation-restore'
 import { makeRevisedConversationPage, storedOperationId } from '@orbit/shared/test-support/conversation-fixtures'
 import { makeOfferedPreview, makeOfferedTaskPreview, makeOfferedChildPreview } from '@orbit/shared/test-support/astra-offer-fixtures'
 import { makeDatedTaskPreview, makeRestartPlanPreview, makeTypedHabitsPreview, makeReminderHabitPreview, makeExistingHabitPreview, makeSuggestionBatchPreview, makePlacementPreview, makeNestedHabitPreview, childSchedulePreviewCases, makeChildSchedulePreview, makeEveningRoutinePreview, resolveParentChoicePreview, makeParentChoicePreview, makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'

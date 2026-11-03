@@ -1,8 +1,9 @@
 import type { QueryClient } from '@tanstack/query-core'
 import type { ChatStoreState } from '../stores/chat-store'
 import type { ChatClientContext,ChatResponse } from '../types/chat'
-import { CHAT_STREAM_IDLE_TIMEOUT_MS, ChatReplyLifecycle } from '../chat'
-import type { ChatStreamRequest, ChatStreamResult, PreparedChatTurn, ChatTurnReconciliation, sendChatStreamTurn } from '../chat'
+import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '../chat/stream-constants'
+import { ChatReplyLifecycle } from '../chat/prompt-queue'
+import type { ChatStreamRequest, ChatStreamResult, PreparedChatTurn, ChatTurnReconciliation, ChatTurnOptions } from '../chat'
 import { loadModule } from '../utils/load-module'
 import { classifySendFailure,reconcileAgentQueries } from './chat-composer-core'
 import type { createChatThreadScroll } from './chat-thread-scroll-core'
@@ -49,7 +50,7 @@ export interface ComposerStreamContext<Image, Payload> extends ComposerReplyCont
   queryClient: QueryClient
   turnReconciliation: ChatTurnReconciliation
   buildChatFormData: (attempted: ChatStreamRequest<Image>) => Payload
-  createTransport: (attempted: ChatStreamRequest<Image>, reply: { resetController: () => AbortController; armIdleTimer: () => void; ownsAccount: () => boolean }, onAccepted?: () => void) => Parameters<typeof sendChatStreamTurn<Payload>>[0]['open']
+  createTransport: (attempted: ChatStreamRequest<Image>, reply: { resetController: () => AbortController; armIdleTimer: () => void; ownsAccount: () => boolean }, onAccepted?: () => void) => ChatTurnOptions<Payload>['open']
   applyFinalResponse: (response: ChatResponse, draftMessageId: string | null, toolSteps: ToolStep[], firstReveal: Promise<void>, messageCost: 0 | 1, reply: ChatReplyLifecycle) => Promise<void>
   allowanceText: Translate
   isAbortError: (error: unknown) => boolean

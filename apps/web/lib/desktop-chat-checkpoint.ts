@@ -1,4 +1,4 @@
-import { loadModule } from '@orbit/shared/utils'
+import { loadModule } from '@orbit/shared/utils/load-module'
 import type { ChatStoreState } from '@orbit/shared/stores'
 import { desktopChatCheckpointKey, forgetDesktopChatCheckpoint } from './web-reload-state'
 

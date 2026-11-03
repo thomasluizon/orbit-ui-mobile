@@ -16,7 +16,7 @@ import { API } from '@orbit/shared/api'
 import type { ChatClientContext } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import { hasComposerContent } from '@orbit/shared/contracts/composer'
-import { type ChatStreamRequest,type BlockAnswerRequest,type BlockAnswerResult,buildChatMessageWithFileContent,buildChatClientContext,sendChatStreamTurn,enqueueChatPrompt,sendChatPrompt,sendQueuedChatPrompt,nextQueuedChatPrompt,type PreparedChatTurn } from '@orbit/shared/chat'
+import { type ChatStreamRequest,type BlockAnswerRequest,type BlockAnswerResult,buildChatMessageWithFileContent,buildChatClientContext,type ChatTurnOptions,enqueueChatPrompt,sendChatPrompt,sendQueuedChatPrompt,nextQueuedChatPrompt,type PreparedChatTurn } from '@orbit/shared/chat'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { sessionAwareFetch } from '@/lib/api-fetch'
 import { buildRecentChatHistory } from '@orbit/shared/utils'
@@ -53,7 +53,7 @@ async function* streamTextChunks(
   }
 }
 
-function createComposerStreamTransport({ attempted, resetController, armIdleTimer, ownsAccount, onAccepted, t }: { attempted: ChatStreamRequest<File>; resetController: () => AbortController; armIdleTimer: () => void; ownsAccount: () => boolean; onAccepted: (() => void) | undefined; t: ReturnType<typeof useTranslations> }): Parameters<typeof sendChatStreamTurn<FormData>>[0]['open'] {
+function createComposerStreamTransport({ attempted, resetController, armIdleTimer, ownsAccount, onAccepted, t }: { attempted: ChatStreamRequest<File>; resetController: () => AbortController; armIdleTimer: () => void; ownsAccount: () => boolean; onAccepted: (() => void) | undefined; t: ReturnType<typeof useTranslations> }): ChatTurnOptions<FormData>['open'] {
   return async (turn) => {
     const controller = resetController()
     armIdleTimer()
