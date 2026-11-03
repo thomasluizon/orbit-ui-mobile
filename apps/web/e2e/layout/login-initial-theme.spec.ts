@@ -31,10 +31,11 @@ for (const colorScheme of ['light', 'dark'] as const) {
         }
         try {
           await page.goto('/login', { waitUntil: 'commit' })
-          await expect(page.locator('main')).toBeVisible()
+          await expect(page.locator('body')).toBeAttached()
           await assertTheme()
           releaseScripts()
           await page.waitForLoadState('load')
+          await expect(page.locator('main')).toBeVisible()
           await assertTheme()
           if (!cookieTheme) {
             const nextMode = colorScheme === 'light' ? 'dark' : 'light'
