@@ -7,7 +7,7 @@ import { buildBffForwardingHeaders } from '@/app/api/_utils/bff-forwarding'
 import { desktopAttemptSchema, desktopRedirectUri } from '@/lib/desktop-auth'
 import { desktopAuthPage } from '@/lib/desktop-auth-page'
 import { resolveRequestLanguage } from '@/lib/resolve-request-language'
-import { normalizeThemeMode } from '@/lib/theme-dom'
+import { resolveInitialTheme } from '@/lib/theme-dom'
 import { GOOGLE_OAUTH_COOKIE } from '@/lib/google-oauth-cookie'
 
 const pendingSchema = z.object({
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
   }
   const page = await desktopAuthPage(destination,
     resolveRequestLanguage(request.cookies.get('i18n_locale')?.value, request.headers.get('accept-language')),
-    normalizeThemeMode(request.cookies.get('orbit_theme_mode')?.value), request.headers.get('x-nonce'))
+    resolveInitialTheme(request.cookies.get('orbit_theme_mode')?.value), request.headers.get('x-nonce'))
   const response = new NextResponse(page.body, { status: 200, headers: { ...headers, ...page.headers } })
   response.cookies.delete(GOOGLE_OAUTH_COOKIE)
   return response

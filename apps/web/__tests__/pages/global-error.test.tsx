@@ -13,6 +13,7 @@ vi.mock('@/app/fonts', () => ({
 }))
 
 afterEach(() => {
+  vi.restoreAllMocks()
   cleanup()
   document.cookie = 'orbit_theme_mode=;max-age=0;path=/'
   document.cookie = 'i18n_locale=;max-age=0;path=/'
@@ -35,6 +36,15 @@ describe('standalone global error screen', () => {
     expect(heading.closest('html')?.style.getPropertyValue('--bg')).toBe(resolveWebThemeVariables('orange', themeMode)['--bg'])
     fireEvent.click(screen.getByRole('button', { name: messages.errorScreen.retry }))
     expect(retry).toHaveBeenCalledOnce()
+  })
+
+  it.each(['light', 'dark'] as const)('uses system %s tokens when no cookie exists', (mode) => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: mode === 'light' } as MediaQueryList)
+    render(<GlobalError error={new Error('startup failure')} reset={vi.fn()} />)
+    const root = screen.getByRole('heading', { name: en.errorScreen.title }).closest('html')!
+    expect(root.style.getPropertyValue('--bg')).toBe(resolveWebThemeVariables('orange', mode)['--bg'])
+    expect(root.style.colorScheme).toBe(mode)
+    expect(document.cookie).not.toContain('orbit_theme_mode')
   })
 
   it('renders with default tokens when theme preferences are missing', () => {

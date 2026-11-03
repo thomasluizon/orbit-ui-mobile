@@ -52,8 +52,15 @@ describe('profile presentation helpers', () => {
     expect(document.documentElement).toHaveClass('scheme-orange', 'light')
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('#C4530F')
     expect(document.cookie).toContain('orbit_color_scheme=orange')
-    expect(document.cookie).toContain('orbit_theme_mode=light')
+    expect(document.cookie).not.toContain('orbit_theme_mode')
     expect(document.cookie).toContain('i18n_locale=pt-BR')
+  })
+
+  it('keeps a chosen cookie when the profile has no theme preference', () => {
+    document.cookie = 'orbit_theme_mode=light;path=/'
+    applyProfilePresentation({ colorScheme: 'orange', themePreference: null, language: 'en' })
+    expect(document.documentElement.style.colorScheme).toBe('light')
+    expect(document.cookie).toContain('orbit_theme_mode=light')
   })
 
   it('falls back to the dark theme when a system preference is unavailable', () => {
@@ -99,7 +106,7 @@ describe('profile presentation helpers', () => {
     await expect(hydrateProfilePresentation()).resolves.toEqual(profile)
 
     expect(document.documentElement).toHaveClass(themeMode)
-    expect(document.cookie).toContain(`orbit_theme_mode=${themeMode}`)
+    expect(document.cookie).not.toContain('orbit_theme_mode')
     const variables = resolveWebThemeVariables('orange', themeMode)
     for (const [property, value] of Object.entries(variables)) {
       expect(document.documentElement.style.getPropertyValue(property)).toBe(value)

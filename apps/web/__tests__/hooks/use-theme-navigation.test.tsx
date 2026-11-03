@@ -8,7 +8,7 @@ import type { Profile, ThemeMode } from '@orbit/shared/types/profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { useProfile } from '@/hooks/use-profile'
 import { updateThemePreference } from '@/lib/actions/profile'
-import { canvasColor } from '@/lib/theme-dom'
+import { applyThemeTokensToDOM, canvasColor } from '@/lib/theme-dom'
 
 vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError: vi.fn() }) }))
@@ -21,6 +21,7 @@ vi.mock('@/lib/actions/profile', () => ({ updateThemePreference: vi.fn().mockRes
 vi.mock('@/lib/api-fetch', () => ({ fetchJson: vi.fn() }))
 
 function setup(previous: ThemeMode) {
+  applyThemeTokensToDOM('orange', previous)
   document.cookie = `orbit_theme_mode=${previous}; path=/`
   const profile = createMockProfile({ themePreference: previous })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -50,6 +51,23 @@ describe('theme choice across profile consumers', () => {
     const chooser = renderHook(() => useColorScheme(), { wrapper })
     expect(chooser.result.current.currentTheme).toBe('light')
     expect(document.cookie).not.toContain('orbit_theme_mode')
+  })
+
+  it('does not turn system detection into a theme cookie', () => {
+    document.cookie = 'orbit_theme_mode=;max-age=0;path=/'
+    const client = new QueryClient()
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    const chooser = renderHook(() => useColorScheme(), { wrapper })
+    act(() => chooser.result.current.detectAndSaveThemeIfNeeded(null))
+    expect(document.cookie).not.toContain('orbit_theme_mode')
+  })
+
+  it('keeps an explicit cookie when a profile has no theme preference', () => {
+    const { chooser } = setup('light')
+    act(() => chooser.result.current.detectAndSaveThemeIfNeeded(null))
+    expect(chooser.result.current.currentTheme).toBe('light')
+    expect(updateThemePreference).not.toHaveBeenCalled()
   })
 
   it.each([['dark', 'light'], ['light', 'dark']] as const)(

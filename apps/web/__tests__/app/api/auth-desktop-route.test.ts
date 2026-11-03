@@ -87,7 +87,8 @@ describe('desktop Google BFF handoff', () => {
     const returned = await callback(new NextRequest(redirect.headers.get('location')!, { headers: browserHeaders }))
     expect(returned.status).toBe(200)
     const document = new DOMParser().parseFromString(await returned.clone().text(), 'text/html')
-    expect(document.querySelectorAll('script')).toHaveLength(0)
+    expect(document.querySelectorAll('head script')).toHaveLength(1)
+    expect(document.querySelectorAll('body script')).toHaveLength(0)
     const destination = await pageDestination(returned)
     expect(destination.toString()).toBe(`${redirectUri}?state=${state}&code=${handoffCode}`)
     expect(api.mock.calls[0]?.[0]).toBe('http://localhost:5000/api/auth/google/code')
@@ -143,8 +144,9 @@ describe('desktop Google BFF handoff', () => {
     const response = await callback(new NextRequest(incoming.url, { headers: forwarded }))
     const document = new DOMParser().parseFromString(await response.clone().text(), 'text/html')
     const scripts = document.querySelectorAll('script')
-    expect(scripts).toHaveLength(1)
+    expect(scripts).toHaveLength(2)
     const nonce = scripts[0]!.nonce
+    expect(scripts[1]!.nonce).toBe(nonce)
     const policies = [secured.headers.get('content-security-policy')!, response.headers.get('content-security-policy')]
       .filter((policy): policy is string => policy !== null)
     for (const policy of policies) {
@@ -179,7 +181,8 @@ describe('desktop Google BFF handoff', () => {
     const pending = attempt()
     const response = await callback(pending.request(`error=access_denied&state=${pending.googleState}`))
     const document = new DOMParser().parseFromString(await response.clone().text(), 'text/html')
-    expect(document.querySelectorAll('script')).toHaveLength(0)
+    expect(document.querySelectorAll('head script')).toHaveLength(1)
+    expect(document.querySelectorAll('body script')).toHaveLength(0)
     expect((await pageDestination(response)).toString()).toBe(`${redirectUri}?state=${state}&error=authentication_failed`)
     expect(api).not.toHaveBeenCalled()
   })
