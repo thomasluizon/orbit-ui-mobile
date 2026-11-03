@@ -523,7 +523,7 @@ describe('counted message grammar', () => {
       'habits.moveParent.invalidDepth', 'habits.rowProgress', 'habits.frequency.flexibleProgress',
       'habits.form.checklistItemLabel', 'calendar.showingCount',
       'charts.bar.selectedDay', 'charts.bar.readout', 'chat.choice.position',
-      'chat.habitList.count', 'chat.insight.pageAnnounce', 'chat.streakCard.xp',
+      'chat.habitList.count', 'chat.plan.count', 'chat.insight.pageAnnounce', 'chat.streakCard.xp',
       'chat.recordList.count', 'chat.preview.summary.repeatInterval',
       'wrapped.progressLabel', 'onboarding.flow.step', 'upgrade.billing.usage.aiMessagesOf',
       'goals.streak.ofTarget', 'progressScreen.streak.freezesCount',

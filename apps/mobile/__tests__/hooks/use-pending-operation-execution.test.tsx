@@ -1,3 +1,4 @@
+import { makeApprovalPlan, planOperationId } from '@orbit/shared/test-support/astra-plan-fixtures'
 import { useChatStore } from '@/stores/chat-store'
 import { offerConversationId } from '@orbit/shared/test-support/astra-offer-fixtures'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -68,6 +69,28 @@ async function renderExecution(
 describe('usePendingOperationExecution step-up flow', () => {
   beforeEach(() => {
     mocks.apiClient.mockReset()
+  })
+
+  it.each([true, false])('keeps approval running until execution fails, with saved plan %s', async recorded => {
+    useChatStore.setState({ messages: [{ id: 'original', role: 'ai', content: '', timestamp: new Date(), plan: makeApprovalPlan() }] })
+    let finish!: (value: unknown) => void
+    mocks.apiClient.mockResolvedValueOnce({ pendingOperationId: planOperationId, confirmationToken: 'token', expiresAtUtc: '2099-01-01T00:00:00Z', ...(recorded ? { plan: makeApprovalPlan('running') } : {}) }).mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const hook = await renderExecution(vi.fn(async () => {}))
+    let pending!: Promise<unknown>
+    await TestRenderer.act(async () => { pending = hook.current.confirmAndExecutePendingOperation(planOperationId); await Promise.resolve() })
+    expect(useChatStore.getState().messages[0]?.plan?.steps[1]?.status).toBe('running')
+    await TestRenderer.act(async () => { finish({ ...makeExecution('Failed'), operation: { ...makeExecution('Failed').operation, status: 'Failed' }, ...(recorded ? { plan: makeApprovalPlan('failed') } : {}) }); await pending })
+    expect(useChatStore.getState().messages[0]?.plan?.steps[1]?.status).toBe('failed')
+    useChatStore.setState({ messages: [] })
+  })
+
+  it.each([true, false])('marks rejected approval skipped, with saved plan %s', async recorded => {
+    useChatStore.setState({ messages: [{ id: 'original', role: 'ai', content: '', timestamp: new Date(), plan: makeApprovalPlan() }] })
+    mocks.apiClient.mockResolvedValueOnce({ isSuccess: true, error: null, pendingOperationId: planOperationId, preview: null, cancelled: true, ...(recorded ? { plan: makeApprovalPlan('skipped') } : {}) })
+    const hook = await renderExecution(vi.fn(async () => {}))
+    await TestRenderer.act(async () => { await hook.current.revisePendingOperationForBubble(planOperationId, { previewFingerprint: 'current', items: [] }) })
+    expect(useChatStore.getState().messages[0]?.plan?.steps.map(step => step.status)).toEqual(['done', 'skipped'])
+    useChatStore.setState({ messages: [] })
   })
 
   it.each([404, 409])('treats a %s placement revision or refresh as stale', async (status) => {

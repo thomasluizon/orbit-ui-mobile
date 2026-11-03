@@ -26,3 +26,25 @@ it.each([
   expect(compressedBytes).toBeGreaterThan(0)
   expect(compressedBytes).toBeLessThanOrEqual(allocation)
 })
+
+it.each(['web', 'mobile'])('loads only the plan announcement hook in the %s plan block dependency graph', (platform) => {
+  const sharedHooks: string[] = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', `
+    import { build, stop } from 'esbuild';
+    const bundle = await build({
+      entryPoints: [process.argv[1]],
+      bundle: true, write: false, metafile: true,
+      format: 'esm', platform: 'browser', jsx: 'automatic',
+      external: [
+        'react', 'react-dom', 'react-native', 'react-i18next', 'next-intl', '@/*',
+        '@orbit/shared/types', '@orbit/shared/chat', '@orbit/shared/theme',
+      ],
+    });
+    const hooks = Object.keys(bundle.metafile.inputs)
+      .filter(path => path.includes('/shared/src/hooks/'))
+      .map(path => path.split('/').at(-1));
+    process.stdout.write(JSON.stringify(hooks));
+    stop();
+  `, `../${platform}/components/chat/plan-block.tsx`], { encoding: 'utf8' }))
+
+  expect(sharedHooks).toEqual(['plan-announcement-core.ts'])
+})

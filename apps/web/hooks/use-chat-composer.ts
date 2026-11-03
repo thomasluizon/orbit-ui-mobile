@@ -1,6 +1,7 @@
 'use client'
 
-import { isChatReplyActive, prepareConversationSend, resolveChatRequestContext } from '@orbit/shared/chat'
+
+import { updateMessagePlanStep, isChatReplyActive, prepareConversationSend, resolveChatRequestContext } from '@orbit/shared/chat'
 
 import { conversationHistory } from '@/lib/conversation-history'
 
@@ -561,6 +562,15 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
             if (isHidden()) return
             if (draftMessageId) updateMessage(draftMessageId, { content: '' })
             setIsTyping(true)
+          },
+          onPlan: (plan) => {
+            if (isHidden()) return
+            updateMessage(ensureDraftMessage(), { plan })
+            scrollToBottom()
+          },
+          onPlanStep: (planId, step) => {
+            if (isHidden() || !draftMessageId) return
+            useChatStore.getState().transitionMessage(draftMessageId, message => updateMessagePlanStep(message, planId, step))
           },
           onStep: (step) => {
             if (isHidden()) return

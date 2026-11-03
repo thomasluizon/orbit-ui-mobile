@@ -32,6 +32,7 @@ export function restoreConversationPage(page: ConversationPage): ChatMessage[] {
           : { recordedOutcome: outcome.Outcome },
       ]]))
     }
+    if (turn.role === 'assistant' && turn.plan) message.plan = turn.plan
     return message
   })
 }

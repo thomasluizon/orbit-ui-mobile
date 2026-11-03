@@ -101,6 +101,15 @@ export class ChatReplyLifecycle {
     if (!this.ownsReply()) return
     const chat = this.options.getChat()
     if (!succeeded || this.stopped) {
+      const draftMessageId = this.options.getDraftMessageId()
+      if (draftMessageId) chat.transitionMessage(draftMessageId, message => message.plan ? {
+        ...message,
+        plan: {
+          ...message.plan,
+          steps: message.plan.steps.map(step => step.status === 'running' || (step.status === 'pending' && step.phase === 'execution')
+            ? { ...step, status: 'skipped' } : step),
+        },
+      } : message)
       chat.setIsTyping(false)
       this.options.clearActivity()
     }
