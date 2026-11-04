@@ -229,7 +229,11 @@ export async function acceptance({ repository, output }) {
     checkpoint('signed-in-hoje')
     if (hoje.nativeVersion !== '1.0.0') throw new Error('Installed shell has the wrong version')
     report.email = updates.cookieEvidence()
-    await inspectSurfaces(proxy, native, handle, output, report)
+    try { await inspectSurfaces(proxy, native, handle, output, report) }
+    finally {
+      report.paletteInput = proxy.events().filter((event) => ['palette', 'palette-key'].includes(event.kind))
+      report.paletteFocus ??= proxy.events().filter((event) => event.kind === 'focus')
+    }
     const beforeReload = proxy.events().filter((event) => event.kind === 'hoje').length
     checkpoint('reload')
     proxy.send('reload')

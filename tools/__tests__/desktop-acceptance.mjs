@@ -197,6 +197,21 @@ async function installedLaunchCases() {
     recorded.launchChecks.map(checkpoint => checkpoint.event).join(',') ===
       'first-launch,email-completed,signed-in-hoje,reload,reloaded-hoje,relaunch-bad,relaunched-hoje-bad,relaunch-valid,relaunched-hoje-valid' &&
       recorded.launchChecks.every(checkpoint => Number.isFinite(checkpoint.recordingSeconds) && checkpoint.recordingSeconds >= 0))
+  const palette = { kind: 'palette', busy: false, inputFocused: true, selected: 0, results: ['Habit 1', 'Habit 3', 'Habit 4'] }
+  const delivered = { kind: 'palette-key', key: 'ArrowDown', code: 'ArrowDown', trusted: true, targetInput: true,
+    documentFocused: true, before: palette }
+  const focus = { ...palette, kind: 'focus', selected: 1 }
+  events.length = 0
+  context.inspectSurfaces = async () => {
+    events.push(palette, delivered, focus)
+    throw new Error('Timed out waiting for palette result focus')
+  }
+  let failure
+  try { await context.acceptance({ repository: '/fixture', output: '/output' }) } catch (error) { failure = error }
+  T('a failed traversal retains its page readiness and key delivery receipts in the report',
+    failure?.message.includes('palette result focus') && JSON.stringify(recorded.paletteInput) === JSON.stringify([palette, delivered]))
+  T('a failed traversal retains completed palette focus steps for recording review',
+    JSON.stringify(recorded.paletteFocus) === JSON.stringify([focus]))
 }
 
 async function servedProbe(expectAuthenticated) {
@@ -359,6 +374,27 @@ async function paletteTimingCases(dom, readState) {
   }
 }
 
+async function pendingPaletteCases({ dom, context, reports, mount, Palette, createElement, flushSync }) {
+  flushSync(() => mount.render(createElement(Palette, { key: 'pending', loading: true })))
+  reports.length = 0
+  const ready = context.screen('palette-ready')
+  await Promise.resolve()
+  T('busy command rows never publish palette readiness before habits settle', !reports.some(event => event.kind === 'palette'))
+  const input = dom.window.document.querySelector('[cmdk-input]')
+  flushSync(() => input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true })))
+  const delivered = reports.find(event => event.kind === 'palette-key')
+  T('palette input receipts record the real key, target, document focus and pending selection before cmdk handles Down',
+    delivered?.key === 'ArrowDown' && delivered.code === 'ArrowDown' && delivered.trusted === false && delivered.targetInput && delivered.documentFocused &&
+      !delivered.metaKey && !delivered.ctrlKey && !delivered.altKey && !delivered.shiftKey &&
+      delivered.before.busy && delivered.before.inputFocused && delivered.before.selected === 0 &&
+      delivered.before.results.join(',') === 'Create habit,Log a habit,Skip a habit', JSON.stringify(delivered))
+  flushSync(() => mount.render(createElement(Palette, { key: 'settled' })))
+  await ready
+  const settled = reports.filter(event => event.kind === 'palette').at(-1)
+  T('palette readiness uses settled habit rows and the selected enabled result from the real cmdk producer',
+    settled?.busy === false && settled.inputFocused && settled.selected === 0 && settled.results.join(',') === 'Habit 1,Habit 3,Habit 4', JSON.stringify(settled))
+}
+
 async function controlledPaletteCases() {
   const nativeDown = process.platform === 'darwin' ? macKeyboardEvents().filter((event) => event.command === 'down' && event.pressed) : undefined
   const dom = new JSDOM('<div id="palette"></div>', { pretendToBeVisual: true })
@@ -376,12 +412,14 @@ async function controlledPaletteCases() {
   const { flushSync } = await import('react-dom')
   const { Command } = await import('cmdk')
   const mount = createRoot(dom.window.document.getElementById('palette'))
-  function Palette() {
-    const [selected, setSelected] = useState('habit-1')
+  function Palette({ loading = false }) {
+    const [selected, setSelected] = useState(loading ? 'create' : 'habit-1')
+    const items = loading
+      ? [['create', 'Create habit'], ['log', 'Log a habit'], ['skip', 'Skip a habit']].map(([value, label]) => createElement(Command.Item, { key: value, value }, label))
+      : [1, 2, 3, 4].map((index) => createElement(Command.Item, { key: index, value: `habit-${index}`, disabled: index === 2 }, `Habit ${index}`))
     return createElement(Command, { shouldFilter: false, value: selected, onValueChange: setSelected, label: 'Search or run' },
       createElement(Command.Input, { autoFocus: true, 'aria-label': 'Search or run' }),
-      createElement(Command.List, null, [1, 2, 3, 4].map((index) => createElement(Command.Item,
-        { key: index, value: `habit-${index}`, disabled: index === 2 }, `Habit ${index}`))))
+      createElement(Command.List, { 'aria-busy': loading }, items))
   }
   const reports = []
   const source = readFileSync(join(REPO_ROOT, 'tools/desktop-bench/acceptance-probe.js'), 'utf8')
@@ -412,6 +450,7 @@ async function controlledPaletteCases() {
       previous = current
     }
     await paletteTimingCases(dom, context.paletteState)
+    await pendingPaletteCases({ dom, context, reports, mount, Palette, createElement, flushSync })
   } finally {
     flushSync(() => mount.unmount())
     await new Promise((resolve) => setImmediate(resolve))

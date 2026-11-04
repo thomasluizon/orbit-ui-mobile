@@ -4,7 +4,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { ActionRow } from '@/components/ui/action-row'
 
-import { type KeyboardEvent, useEffect, useState } from 'react'
+import { type KeyboardEvent, useEffect } from 'react'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { useRouter } from 'next/navigation'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
@@ -65,16 +65,13 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
   const sections = buildSearchSections(entries)
   const pageLabel = page === 'log' ? t('command.page.log') : t('command.page.skip')
   const visibleEntries = !search.busy && !search.isError ? entries : []
-  const firstCommand = page === null
-    ? searchCommands(search.text, null, t).filter((command) => command.group !== 'destinations')[0]
-    : undefined
-  const firstDestination = navItems.find((item) => item.label.toLocaleLowerCase().includes(search.text.trim().toLocaleLowerCase()))
-  const firstValue = visibleEntries.length > 0
-    ? commandHabitValue(visibleEntries[0]!)
-    : firstCommand?.id ?? firstDestination?.id ?? ''
-  const [selection, setSelection] = useState({ first: firstValue, selected: firstValue })
-  if (selection.first !== firstValue) setSelection({ first: firstValue, selected: firstValue })
-  const selectedValue = selection.first === firstValue ? selection.selected : firstValue
+  const commands = page === null ? searchCommands(search.text, null, t).filter((command) => command.group !== 'destinations') : []
+  const destinations = page === null ? navItems.filter((item) => item.label.toLocaleLowerCase().includes(search.text.trim().toLocaleLowerCase())) : []
+  const values = [...visibleEntries.map(commandHabitValue), ...commands.map((command) => command.id), ...destinations.map((item) => item.id)]
+  const [selection, setSelection] = useAccountScopedState({ text: search.text, page, resultPage: search.page, value: '' })
+  const selectionMatchesSearch = selection.text === search.text && selection.page === page && selection.resultPage === search.page
+  if (!selectionMatchesSearch) setSelection({ text: search.text, page, resultPage: search.page, value: '' })
+  const selectedValue = selectionMatchesSearch && values.includes(selection.value) ? selection.value : values[0] ?? ''
   function run(action: () => void) { setRouteTransitionIntent('instant'); action(); onClose() }
   function back() { setPage(null); search.changeText('') }
   function chooseCommand(id: SearchCommandId) {
@@ -92,7 +89,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
       event.preventDefault(); event.stopPropagation(); back()
     }
   }
-  return <Command shouldFilter={false} value={selectedValue} onValueChange={(selected) => setSelection({ first: firstValue, selected })} label={t('command.placeholder')} role="group" aria-label={t('command.title')} className="flex min-h-0 flex-1 flex-col overflow-hidden" onKeyDown={handleKeyDown}>
+  return <Command shouldFilter={false} value={selectedValue} onValueChange={(value) => setSelection({ text: search.text, page, resultPage: search.page, value })} label={t('command.placeholder')} role="group" aria-label={t('command.title')} className="flex min-h-0 flex-1 flex-col overflow-hidden" onKeyDown={handleKeyDown}>
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={page === null ? null : pageLabel} onBack={back} />
     <CommandList label={t('command.title')} aria-busy={search.busy} className="h-[min(60vh,400px)] min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-2">
       {search.isSuccess && !search.busy && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}

@@ -40,20 +40,29 @@
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', code: 'KeyK', metaKey: /Mac/.test(navigator.platform), ctrlKey: !/Mac/.test(navigator.platform), bubbles: true }))
     }
     if (name === 'palette' || name === 'palette-ready') {
+      document.addEventListener('keydown', recordPaletteKey, true)
       const state = await until(() => {
         const current = paletteState()
-        return current.inputFocused && current.results.length >= 3 && current.selected >= 0 && current
+        return !current.busy && current.inputFocused && current.results.length >= 3 && current.selected >= 0 && current
       }, 'palette input and selection')
       await report('palette', state)
       return
     }
     await report(name, name === 'palette' ? paletteState() : {})
   }
+  function recordPaletteKey(event) {
+    const input = document.querySelector('[cmdk-input]')
+    if (event.key !== 'ArrowDown' || !input) return
+    void report('palette-key', { key: event.key, code: event.code, trusted: event.isTrusted,
+      targetInput: event.target === input, documentFocused: document.hasFocus(), before: paletteState(),
+      metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey })
+  }
   function paletteState() {
     const input = document.querySelector('[cmdk-input]')
     const results = [...document.querySelectorAll('[cmdk-item]:not([aria-disabled="true"])')]
     const selected = results.findIndex((result) => result.getAttribute('aria-selected') === 'true')
-    return { inputFocused: document.activeElement === input, selected, results: results.map((result) => result.getAttribute('aria-label') || result.textContent.trim()),
+    return { busy: document.querySelector('[cmdk-list]')?.getAttribute('aria-busy') === 'true',
+      inputFocused: document.activeElement === input, selected, results: results.map((result) => result.getAttribute('aria-label') || result.textContent.trim()),
       inputName: input?.getAttribute('aria-label'), listId: input?.getAttribute('aria-controls'), activeDescendantId: input?.getAttribute('aria-activedescendant') }
   }
   async function update(expected) {
