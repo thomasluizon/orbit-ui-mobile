@@ -120,11 +120,13 @@ it.each(([
       await page.keyboard.press('Enter')
     }
     await page.getByRole('button', { name: 'Select all', exact: true }).click()
-    const before = await page.locator('[data-shell-scroller]').evaluate((element) => {
-      element.scrollTop = 650
-      return { offset: element.scrollTop, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-shell-page-content]')!.style.minHeight }
+    const before = await page.locator('[data-shell-scroller]').evaluate(async (element) => {
+      element.scrollTop = element.scrollHeight
+      await new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())))
+      return { offset: element.scrollTop, maximum: element.scrollHeight - element.clientHeight, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-shell-page-content]')!.style.minHeight }
     })
-    expect(before.offset).toBe(650)
+    expect(before.offset).toBe(before.maximum)
+    expect(before.offset).toBeGreaterThan(650)
     const observations = await page.locator('[data-shell-scroller]').evaluateHandle(observeBulkSkip, frameDelay)
     const skip = page.getByRole('button', { name: 'Skip selected', exact: true })
     if (activation === 'pointer') await skip.click()
@@ -134,10 +136,10 @@ it.each(([
     expect(observed.departures, JSON.stringify({ observed, errors })).toBe(30)
     expect(observed.remaining).toBe(0)
     expect(observed.offsets.some(sample => sample.departing)).toBe(true)
-    expect(observed.offsets.filter(sample => sample.departing).every(sample => Math.abs(sample.offset - 650) < 1), JSON.stringify({ before, observed })).toBe(true)
+    expect(observed.offsets.filter(sample => sample.departing).every(sample => Math.abs(sample.offset - before.offset) < 1), JSON.stringify({ before, observed })).toBe(true)
     expect(observed.offsets.at(-1)!.offset).toBe(observed.maximum)
     if (height > width) expect(observed.offsets.at(-1)!.offset, JSON.stringify(observed)).toBe(0)
-    expect(observed.maximum).toBeLessThan(650)
+    expect(observed.maximum).toBeLessThan(before.offset)
     await page.locator('[data-shell-scroller]').evaluate((element) => { element.scrollTop = 0 })
     await page.waitForFunction(() => {
       const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
