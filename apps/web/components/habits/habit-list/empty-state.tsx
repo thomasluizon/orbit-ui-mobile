@@ -140,9 +140,15 @@ export function HabitListEmptyState({
 export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: () => void }>) {
   const t = useTranslations()
   return (
-    <div data-testid="habit-list-all-done" className="flex flex-col items-start" style={{ gap: 24, paddingBlock: SPACING.s8 }}>
-      <div className="flex flex-col" style={{ gap: 8 }}>
-        <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--fg-1)' }}>
+    <div data-testid="habit-list-all-done" className="flex min-w-0 flex-col items-center text-center" style={{ gap: 24, padding: 'var(--orbit-space-48) var(--orbit-space-24)' }}>
+      <div data-testid="completed-day-mark" className="relative flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }} aria-hidden="true">
+        <svg width={44} height={44} viewBox="0 0 44 44" fill="none" className="absolute inset-0">
+          <circle cx={22} cy={22} r={20.5} stroke="var(--fg-1)" strokeWidth={1.5} />
+        </svg>
+        <OrbitMark size={16} accent={false} />
+      </div>
+      <div className="flex min-w-0 flex-col items-center" style={{ gap: 8 }}>
+        <p style={{ fontFamily: 'var(--font-display)', fontSize: 22, lineHeight: 1.2, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--fg-1)', textWrap: 'balance' }}>
           {t('habits.allDoneToday')}
         </p>
         <p style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--fg-2)', textWrap: 'pretty' }}>

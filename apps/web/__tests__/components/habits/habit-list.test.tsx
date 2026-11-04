@@ -2274,9 +2274,8 @@ describe('HabitList', () => {
 
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
     const title = screen.getByText('habits.allDoneToday')
-    expect(title.parentElement?.className).not.toMatch(/items-center|text-center/)
-    expect(title).toHaveStyle({ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '500' })
-    expect(title.parentElement?.querySelector('[data-asset="orbit-mark"]')).toBeNull()
+    expect(title).toHaveStyle({ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: '500' })
+    expect(screen.getByTestId('habit-list-all-done').querySelector('[data-asset="orbit-mark-16"]')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'habits.seeUpcoming' })).toHaveAttribute('data-size', 'sm')
     expect(screen.getByRole('button', { name: 'habits.seeUpcoming' })).toHaveAttribute('data-variant', 'ghost')
   })
