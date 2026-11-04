@@ -38,6 +38,7 @@ var catalog = Boundary<IAgentCatalogService>.Create((method, _) => method.Name i
 var pending = Boundary<IPendingAgentOperationStore>.Create((method, _) => method.Name switch
 {
     "GetAwaiting" => Array.Empty<PendingAgentOperationExecution>(),
+    "GetAwaitingAsync" => Task.FromResult<IReadOnlyList<PendingAgentOperationExecution>>([]),
     "GetLastConversationPreviewsAsync" => Task.FromResult<IReadOnlyList<PendingAgentOperationPreview>>([]),
     _ => throw new InvalidOperationException(method.Name),
 });
