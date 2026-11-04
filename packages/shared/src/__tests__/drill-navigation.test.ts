@@ -6,6 +6,7 @@ import {
   canRevealCompletedDrillChildren,
   countCompletedDrillChildren,
   getDrillParent,
+  getDrillRefreshIds,
   mergeDrillSettlementHabits,
   getRecentlyCompletedIdsForDate,
   getVisibleDrillChildren,
@@ -207,6 +208,52 @@ describe('drill navigation utils', () => {
     ])
     expect(normalized.childrenByParent.has('child-2')).toBe(false)
   })
+})
+
+describe('getDrillRefreshIds', () => {
+  const retainedHabits = new Map([
+    createMockHabit({ id: 'child', parentId: 'root' }),
+    createMockHabit({ id: 'root' }),
+    createMockHabit({ id: 'grandchild', parentId: 'child' }),
+    createMockHabit({ id: 'other-root' }),
+    createMockHabit({ id: 'orphan', parentId: 'unretained-parent' }),
+    createMockHabit({ id: 'orphan-child', parentId: 'orphan' }),
+  ].map((habit) => [habit.id, habit]))
+
+  it.each([
+    { habitId: 'entered', expected: ['entered'] },
+    { habitId: null, expected: [] },
+  ])('refreshes only the entered habit without settlement refresh: $habitId', ({ habitId, expected }) => {
+    expect(getDrillRefreshIds(habitId, retainedHabits, false)).toEqual(expected)
+  })
+
+  it.each([
+    { habitId: 'entered', expected: ['entered'] },
+    { habitId: null, expected: [] },
+  ])('refreshes only the entered habit when no habits are retained: $habitId', ({ habitId, expected }) => {
+    expect(getDrillRefreshIds(habitId, new Map(), true)).toEqual(expected)
+  })
+
+  it('refreshes every retained root and excludes retained children during settlement', () => {
+    expect(getDrillRefreshIds(null, retainedHabits, true)).toEqual([
+      'root', 'other-root', 'orphan',
+    ])
+  })
+
+  it('appends an unretained entered habit after the settlement roots', () => {
+    expect(getDrillRefreshIds('entered', retainedHabits, true)).toEqual([
+      'root', 'other-root', 'orphan', 'entered',
+    ])
+  })
+
+  it.each(['root', 'other-root', 'child', 'grandchild', 'orphan', 'orphan-child'])(
+    'does not append a retained entered habit during settlement: %s',
+    (habitId) => {
+      expect(getDrillRefreshIds(habitId, retainedHabits, true)).toEqual([
+        'root', 'other-root', 'orphan',
+      ])
+    },
+  )
 })
 
 describe('getVisibleDrillChildren', () => {
