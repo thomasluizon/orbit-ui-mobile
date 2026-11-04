@@ -146,7 +146,9 @@ failures on 6; none is successful CI. Exit 3 is the ceiling; 1 or 2 is a read or
   cooldown. Never invoke `/questions` or ask the owner during the relay.
 - When the owner says stop, clear `sleep` for this session and report. On queue exhaustion write
   `remaining: []` and retain the ledger. Finish only with READY receipts or recorded named blockers,
-  following the canonical protocol; report blocked work as blocked.
+  following the canonical protocol; report blocked work as blocked. With `autoWork: true`,
+  queue exhaustion returns to `.claude/skills/auto-work/SKILL.md` for intake and a registered
+  idle waiter; it never ends the run. Only an explicit disable restores this completion condition.
 
 The Stop hook is a guard against missing continuation, not a scheduler. Standalone `/sleep` has no
 separate scheduler: its continuation promise applies only after the `/orchestrate --sleep` entry

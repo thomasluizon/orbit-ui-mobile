@@ -1313,7 +1313,9 @@ watches; zero tokens burn while it waits. **With `--sleep`: go straight to the n
 
 ## Step 11. The report
 
-Once the queue is exhausted, print one summary and stop:
+With `autoWork: true` in the current run, queue exhaustion returns to
+`.claude/skills/auto-work/SKILL.md` for the next intake cycle and a registered idle waiter.
+The same run, ledger and canonical gates continue. Otherwise, print one summary and stop:
 
 - Every pull request opened, with repository, number, current base/head SHAs, advisory diff size,
   behind count and receipt verdict.
@@ -1606,7 +1608,8 @@ as a finished queue even if a fallible session clears the active list.
 match is ignored. When the queue really is done, write `remaining: []`; `pullRequests` may be empty,
 but never remove `readinessLedger`. READY receipts, merged rows, or closed rows with recorded blockers let the
 hook distinguish a completed or BLOCKED run from a mistakenly cleared queue, then the run may
-print the step 11 report.
+print the step 11 report. With `autoWork: true`, an empty queue still requires a live wake
+source; continue the auto-work skill's intake and idle path until the owner disables it.
 
 What the gate can prove is that a registered pid is still alive, which is real evidence rather than a
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke

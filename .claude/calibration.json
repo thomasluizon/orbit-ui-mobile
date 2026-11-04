@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-02",
+  "calibratedAt": "2026-11-04",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -175,6 +175,13 @@
       "calibratedAt": "2026-10-17",
       "verdict": "undeclared, inherits the session: the test audit judges coverage and opens tickets."
     },
+    ".claude/skills/auto-work/SKILL.md": {
+      "model": null,
+      "effort": null,
+      "digest": "78556e66c7c45f96",
+      "calibratedAt": "2026-11-04",
+      "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
+    },
     ".claude/skills/crank/SKILL.md": {
       "model": null,
       "effort": null,
@@ -213,8 +220,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "a5dab8ac00888a04",
-      "calibratedAt": "2026-11-02",
+      "digest": "4f01d5dce7415dde",
+      "calibratedAt": "2026-11-04",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -255,8 +262,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "ec895d172ab191ac",
-      "calibratedAt": "2026-11-02",
+      "digest": "fc91a4c8c7e19b89",
+      "calibratedAt": "2026-11-04",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -283,8 +290,8 @@
     ".claude/skills/release/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "1d906cbb5539edde",
-      "calibratedAt": "2026-11-02",
+      "digest": "713e04fb9e66892a",
+      "calibratedAt": "2026-11-04",
       "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
     ".claude/skills/second-opinion/SKILL.md": {
@@ -297,8 +304,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "d129f22486743fee",
-      "calibratedAt": "2026-11-02",
+      "digest": "f00be2b1481369b1",
+      "calibratedAt": "2026-11-04",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {

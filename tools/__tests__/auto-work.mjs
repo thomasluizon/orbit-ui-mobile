@@ -43,4 +43,7 @@ export const cases = async () => {
     readRunState(installation.base).autoWork === false && readRunState(installation.base).sleep === true)
   T("auto-work: foreign session cannot change mode", run("auto-work-state.mjs", ["--enable"], { path: installation.path,
     env: { CLAUDE_CODE_SESSION_ID: "foreign" } }).status === 1)
+  writeRunState({ sessionId: "auto", sleep: true, crank: false }, installation.base)
+  T("auto-work: fresh default entry leaves crank off", run("auto-work-state.mjs", ["--enable"], { path: installation.path, env }).status === 0 && readRunState(installation.base).crank === false)
+  T("auto-work: crank requires its explicit option", run("auto-work-state.mjs", ["--enable", "--crank"], { path: installation.path, env }).status === 0 && readRunState(installation.base).crank === true)
 }
