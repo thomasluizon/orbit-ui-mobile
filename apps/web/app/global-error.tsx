@@ -4,16 +4,16 @@ import { useEffect, useSyncExternalStore } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { geist, geistMono, spaceGrotesk } from './fonts'
 import { NextIntlClientProvider } from 'next-intl'
-import { errorScreen as enErrorScreen, errors as enErrors } from '@orbit/shared/i18n/en.json'
-import { errorScreen as ptErrorScreen, errors as ptErrors } from '@orbit/shared/i18n/pt-BR.json'
+import enCatalog from '@orbit/shared/i18n/en.json'
+import ptCatalog from '@orbit/shared/i18n/pt-BR.json'
 import { FailureScreen } from '@/components/ui/failure-screen'
 import { mediaQueryMatches } from '@/lib/media-query'
 import { getSavedTheme } from '@/stores/theme-store'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import './globals.css'
 
-const enMessages = { errorScreen: enErrorScreen, errors: { api: { accountChanged: enErrors.api.accountChanged } } }
-const ptMessages = { errorScreen: ptErrorScreen, errors: { api: { accountChanged: ptErrors.api.accountChanged } } }
+const enMessages = { errorScreen: enCatalog.errorScreen, errors: { api: { accountChanged: enCatalog.errors.api.accountChanged } } }
+const ptMessages = { errorScreen: ptCatalog.errorScreen, errors: { api: { accountChanged: ptCatalog.errors.api.accountChanged } } }
 
 function readCookie(name: string): string | null {
   const match = new RegExp('(?:^|; )' + name + '=([^;]+)').exec(document.cookie)
