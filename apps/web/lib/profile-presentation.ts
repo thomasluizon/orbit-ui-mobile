@@ -26,12 +26,15 @@ export function applyProfilePresentation(profile: Pick<
   applyThemeTokensToDOM(colorScheme, themeMode, false)
 }
 
-export async function hydrateProfilePresentation(): Promise<Profile | null> {
+export async function hydrateProfilePresentation(isCurrent: () => boolean = () => true): Promise<Profile | null> {
   try {
     const response = await fetchWithThrottle(API.profile.get, { cache: 'no-store' })
     if (!response.ok) return null
     const profile = await response.json() as Profile
+    if (!isCurrent()) return null
     applyProfilePresentation(profile)
+    const syncLaunchAppearance = (window as Window & { __ORBIT_DESKTOP_LAUNCH__?: () => Promise<unknown> }).__ORBIT_DESKTOP_LAUNCH__
+    await syncLaunchAppearance?.()
     return profile
   } catch {
     return null

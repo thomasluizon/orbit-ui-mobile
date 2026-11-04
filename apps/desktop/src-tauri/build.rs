@@ -5,6 +5,7 @@ fn main() {
         "macos" => {
             cc::Build::new()
                 .file("native/macos/push.m")
+                .file("native/macos/launch.m")
                 .flag("-fobjc-arc")
                 .flag("-fblocks")
                 .flag("-mmacosx-version-min=10.13")
@@ -22,6 +23,7 @@ fn main() {
             "commit_desktop_login",
             "desktop_push",
             "desktop_update",
+            "desktop_launch",
             #[cfg(feature = "bench-loopback")]
             "fit_bench_viewport",
         ]),
@@ -57,6 +59,7 @@ fn build_windows() {
         .cpp(true)
         .std("c++20")
         .file("native/windows/push.cpp")
+        .file("native/windows/launch.cpp")
         .include(output.join("projection"))
         .include(output.join("sdk/include"))
         .flag("/EHsc")
@@ -64,6 +67,9 @@ fn build_windows() {
     println!("cargo:rustc-link-lib=windowsapp");
     println!("cargo:rustc-link-lib=ole32");
     println!("cargo:rustc-link-lib=advapi32");
+    for library in ["gdiplus", "shlwapi", "comctl32", "gdi32"] {
+        println!("cargo:rustc-link-lib={library}");
+    }
     println!(
         "cargo:rustc-env=ORBIT_WNS_BOOTSTRAP={}",
         output

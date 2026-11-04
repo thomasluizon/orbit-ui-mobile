@@ -1,0 +1,17 @@
+{
+  "id": "0/0/0/0/0/0/13",
+  "AXRoleDescription": "alert",
+  "AXEnabled": true,
+  "actions": ["AXPress", "AXShowMenu", "AXScrollToVisible"],
+  "AXDescription": "",
+  "interactive": true,
+  "focused": false,
+  "focusable": false,
+  "AXTitle": "",
+  "AXDOMIdentifier": "__next-route-announcer__",
+  "role": "AXGroup",
+  "AXSubrole": "AXApplicationAlert",
+  "selected": false,
+  "name": "",
+  "AXDOMClassList": []
+}

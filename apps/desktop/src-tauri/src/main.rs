@@ -9,6 +9,7 @@ mod auth;
 mod bench_viewport;
 mod command_origin;
 mod desktop_login;
+mod launch;
 mod lifecycle;
 mod links;
 mod localization;
@@ -50,6 +51,7 @@ fn desktop_builder(identifier: String) -> tauri::Builder<tauri::Wry> {
             desktop_login::commit_desktop_login,
             push::desktop_push,
             updates::desktop_update,
+            launch::desktop_launch,
             #[cfg(feature = "bench-loopback")]
             bench_viewport::fit_bench_viewport
         ])
@@ -116,6 +118,15 @@ fn build_main_window(
     flow: desktop_login::SharedAuth,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut window_config = app.config().app.windows[0].clone();
+    let settings = match settings::DesktopSettings::load(&settings::path(app.handle())?) {
+        Ok(settings) => settings,
+        Err(error) => {
+            eprintln!("Cannot read desktop settings: {error}");
+            settings::DesktopSettings::default()
+        }
+    };
+    let launch_mode = settings.launch_mode;
+    app.manage(Mutex::new(settings));
     #[cfg(feature = "bench-loopback")]
     bench_viewport::configure(&mut window_config)?;
     match update_resume::take(app.handle(), origin) {
@@ -128,6 +139,7 @@ fn build_main_window(
     lifecycle::create_main(
         window_config,
         push::notification_launch(),
+        launch_mode,
         |config| construct_window(app, config, origin, flow),
         || lifecycle::show_main(app.handle()),
     )
@@ -140,9 +152,11 @@ fn construct_window(
     origin: &tauri::Url,
     flow: desktop_login::SharedAuth,
 ) -> tauri::Result<()> {
+    app.manage(launch::LaunchState::default());
     let navigation_origin = origin.clone();
     let handle = app.handle().clone();
     let window = tauri::WebviewWindowBuilder::from_config(app, window_config)?
+        .initialization_script(launch::initialization_script(origin))
         .initialization_script(web_release::initialization_script(
             origin,
             &app.package_info().version.to_string(),
@@ -158,6 +172,7 @@ fn construct_window(
             )
         })
         .on_page_load(|window, payload| {
+            launch::page_loading(&window, payload.event());
             push::page_loaded(&window, payload);
         })
         .on_new_window(|url, _features| {
@@ -168,6 +183,7 @@ fn construct_window(
     {
         window.remove_menu()?;
     }
+    launch::install(&window, window_config)?;
     drop(window);
     Ok(())
 }
@@ -283,7 +299,12 @@ mod tests {
             panic!("desktop must load the deployed web app");
         };
         let authority = context.runtime_authority_mut();
-        for command in ["commit_desktop_login", "desktop_push", "desktop_update"] {
+        for command in [
+            "commit_desktop_login",
+            "desktop_push",
+            "desktop_update",
+            "desktop_launch",
+        ] {
             for path in ["/", "/auth-callback?desktop=ready", "/profile/preferences"] {
                 let url = origin.join(path).unwrap();
                 // Match Tauri's release frontendDist classification before resolving the generated ACL.

@@ -2,7 +2,7 @@
 
 A Tauri 2 webview loads the deployed Orbit app directly. Staging opens `https://app-staging.useorbit.org`; production opens `https://app.useorbit.org`. There is no bundled copy of the UI or local server. Requests, Server Actions and Astra streaming stay on the web app's BFF, using its secure httpOnly cookies. A persistent webview retains sign-in between launches. Separate application identifiers isolate staging and production storage.
 
-Links requesting a new window, including invoice downloads, open HTTP and HTTPS destinations in the system browser on both platforms. Rust attaches the handler before creating the configured window. Other schemes cannot launch local files or protocol handlers. The pinned opener crate supplies only its Rust function; its plugin is never registered. IPC capabilities cover native sign-in completion, push registration and guarded update actions, restricted to the exact environment origin and main window.
+Links requesting a new window, including invoice downloads, open HTTP and HTTPS destinations in the system browser on both platforms. Rust attaches the handler before creating the configured window. Other schemes cannot launch local files or protocol handlers. The pinned opener crate supplies only its Rust function; its plugin is never registered. IPC capabilities cover native sign-in completion, push registration, guarded update actions and launch paint completion, restricted to the exact environment origin and main window.
 
 ## Google sign-in
 
@@ -15,6 +15,8 @@ Rust accepts only the current in-memory attempt, the exact callback and a valid 
 The deep-link plugin registers separate environment schemes. The single-instance plugin forwards Windows protocol launches to the running shell; macOS delivers open-URL events. These plugins receive no JavaScript permissions. Cancellation and exchange failure return to the existing translated authentication failure screen. Email-code sign-in remains on the ordinary BFF path.
 
 ## Desktop lifecycle
+
+Before showing the window, the shell sets the native and webview canvas from the system appearance and places a still orbital mark over the webview. The native cover survives document replacement and returns on every full navigation, including web release reloads and sign-in returns. Contentful paint dismisses it through a generation-bound command; older WebKit versions use the parsed content's next paint. A native 15 second deadline dismisses the cover even when the page cannot execute JavaScript, leaving the webview's existing failure surface and reload behavior available. Notification launches retain their hidden-window policy. The two bundled 512 pixel mark images preserve the canonical accent SVG's full canvas and shared tokens. Both platforms draw them centred in a 128 logical pixel box, clamped only for smaller windows; regenerate them with `node --import tsx apps/desktop/scripts/launch-assets.ts`.
 
 A second launch restores the existing window, including when hidden or minimized. The single-instance plugin forwards a protocol launch to the deep-link plugin before restoring focus. macOS Dock reopen also restores the window. Closing the window hides it while the webview and session remain alive. The menu bar or system tray has Open Orbit and Quit; Quit saves window geometry and exits the process.
 

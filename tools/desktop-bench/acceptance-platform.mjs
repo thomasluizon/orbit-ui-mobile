@@ -96,18 +96,21 @@ export async function startRecording(output) {
     input = ['-f', 'avfoundation', '-framerate', '2', '-i', `${screen[1]}:none`]
   }
   const video = join(output, 'screen.mp4')
+  const startedAt = Date.now()
   const recording = start('ffmpeg', ['-hide_banner', '-y', ...input, '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
     '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', '-pix_fmt', 'yuv420p', video], { log, stdio: ['pipe', 'pipe', 'pipe'] })
   await waitFor(async () => {
     if (recording.child.exitCode !== null) throw new Error(`Screen capture exited; see ${log}`)
     return (await readFile(log, 'utf8')).includes('Output #0')
   }, 'screen capture output', 30000)
-  return async () => {
+  const finish = async () => {
     recording.child.stdin.end('q\n')
     await recording.done
     if ((await stat(video)).size < 10000) throw new Error('Screen recording is empty')
     await execute('ffmpeg', ['-hide_banner', '-v', 'error', '-xerror', '-i', video, '-f', 'null', '-'], { log: join(output, 'capture-decode.log') })
   }
+  finish.startedAt = startedAt
+  return finish
 }
 
 export async function isolateOrigins(output) {

@@ -59,14 +59,14 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     expect(entrypoint).toContain('.setup(setup)')
     expect(entrypoint).toMatch(/fn construct_window[\s\S]*WebviewWindowBuilder::from_config[\s\S]*\.on_new_window\([\s\S]*open_new_window\([\s\S]*tauri_plugin_opener::open_url[\s\S]*\.build\(\)/)
     expect(entrypoint).toContain('.on_navigation(')
-    expect(entrypoint).toMatch(/\.invoke_handler\(tauri::generate_handler!\[\s*desktop_login::commit_desktop_login,\s*push::desktop_push,\s*updates::desktop_update,\s*#\[cfg\(feature = "bench-loopback"\)\]\s*bench_viewport::fit_bench_viewport\s*\]\)/)
+    expect(entrypoint).toMatch(/\.invoke_handler\(tauri::generate_handler!\[\s*desktop_login::commit_desktop_login,\s*push::desktop_push,\s*updates::desktop_update,\s*launch::desktop_launch,\s*#\[cfg\(feature = "bench-loopback"\)\]\s*bench_viewport::fit_bench_viewport\s*\]\)/)
   })
 
   it('grants only session completion to its own origin and registers its callback scheme', () => {
     expect(config.app.withGlobalTauri).toBe(false)
     expect(config.app.security.capabilities).toEqual([{
       identifier: 'desktop-auth', local: false, remote: { urls: [`${origin}/*`] },
-      windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update'],
+      windows: ['main'], permissions: ['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update', 'allow-desktop-launch'],
     }])
     expect(config.plugins['deep-link']).toEqual({ desktop: { schemes: [identifier] } })
     expect(existsSync(new URL('../src-tauri/capabilities', import.meta.url))).toBe(false)
@@ -89,7 +89,7 @@ describe.each(environments)('$name desktop', ({ config, origin, identifier }) =>
     expect(entrypoint).toContain('.on_window_event(lifecycle::on_window_event)')
     expect(entrypoint.indexOf('tauri_plugin_single_instance::init')).toBeLessThan(entrypoint.indexOf('tauri_plugin_deep_link::init'))
     const permissions = config.app.security.capabilities.flatMap((capability) => capability.permissions)
-    expect(permissions).toEqual(['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update'])
+    expect(permissions).toEqual(['allow-commit-desktop-login', 'allow-desktop-push', 'allow-desktop-update', 'allow-desktop-launch'])
   })
 
   it('observes native launch intent before startup and gates window creation with it', () => {
@@ -124,7 +124,7 @@ describe.each(environments)('$name release', ({ name, origin }) => {
       expect(capability.local).toBe(false)
       expect(capability.remote.urls).toEqual([`${origin}/*`])
       expect(capability.windows).toEqual(['main'])
-      expect(capability.permissions).toEqual(commands.map((command) => `allow-${command.replaceAll('_', '-')}`))
+      expect(capability.permissions).toEqual([...commands.map((command) => `allow-${command.replaceAll('_', '-')}`), 'allow-desktop-launch'])
     },
   )
 })
