@@ -7,12 +7,15 @@ vi.mock('@/components/ui/toast', () => { throw new Error('Toast chunk unavailabl
 
 afterEach(cleanup)
 
-it('reports a failed notification preload through browser error handling', async () => {
+it.each(['application', 'notification'])('reports a failed %s preload through browser error handling', async name => {
   const reported: ErrorEvent[] = []
   const receiveError = (event: ErrorEvent) => { event.preventDefault(); reported.push(event) }
   window.addEventListener('error', receiveError)
   try {
-    render(<NotificationDeleteNotice />)
+    const ToastHost = name === 'application'
+      ? (await import('@/components/ui/app-toast-host')).AppToastHost
+      : NotificationDeleteNotice
+    render(<ToastHost />)
     await act(async () => { await vi.dynamicImportSettled() })
     expect(reported).toHaveLength(1)
     expect(reported[0]?.error).toBeInstanceOf(Error)

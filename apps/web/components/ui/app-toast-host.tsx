@@ -1,19 +1,28 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getModalError, type AppToastItem } from '@orbit/shared/stores'
 import { ActionRow } from './action-row'
 import { ErrorState } from './error-state'
 import { PillButton } from './pill-button'
 import { IconButton } from './icon-button'
 import { X } from './icons'
-import { Toast } from './toast'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence } from 'motion/react'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
 
 export function AppToastHost({ placement = 'slot', modalId }: Readonly<{ placement?: 'slot' | 'page' | 'modal'; modalId?: string }>) {
+  const [presentation, setPresentation] = useState<typeof import('@/components/ui/toast') | null>(null)
+  useEffect(() => {
+    let mounted = true
+    void import('@/components/ui/toast').then(module => {
+      if (mounted) setPresentation(module)
+    }).catch((error: unknown) => {
+      window.dispatchEvent(new ErrorEvent('error', { error, message: String(error), cancelable: true }))
+    })
+    return () => { mounted = false }
+  }, [])
   const currentToast = useAppToastStore((state) => state.currentToast)
   const queue = useAppToastStore((state) => state.queue)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
@@ -31,7 +40,7 @@ export function AppToastHost({ placement = 'slot', modalId }: Readonly<{ placeme
     ? { ...toast, onAction: triggerAction }
     : toast
 
-  const content = currentToast && hostedToast ? <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} /> : null
+  const content = presentation && currentToast && hostedToast ? <presentation.Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} /> : null
   if (placement !== 'page') return <AnimatePresence>{content}</AnimatePresence>
   return (
     <div className="pointer-events-none fixed left-[var(--safe-left)] right-[var(--safe-right)] bottom-0 z-toast mx-auto max-w-[440px] px-4 pb-[var(--safe-bottom)] [&>*]:pointer-events-auto" data-toast-page-host="">

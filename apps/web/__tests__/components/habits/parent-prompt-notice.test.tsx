@@ -112,3 +112,34 @@ it('holds undo while the owning confirmation chunk is pending, then releases a f
   fireEvent.click(screen.getByRole('button', { name: 'Undo child' }))
   expect(childUndo).toHaveBeenCalledOnce()
 })
+
+it('holds child undo after the parent closes until Toast has loaded, then gives it a full timer', async () => {
+  let release!: () => void
+  const presentationReady = new Promise<void>(resolve => { release = resolve })
+  vi.doMock('@/components/ui/toast', async () => {
+    await presentationReady
+    return vi.importActual<typeof import('@/components/ui/toast')>('@/components/ui/toast')
+  })
+  const childUndo = vi.fn()
+  try {
+    render(<ParentNoticeSurface confirm={vi.fn()} />)
+    act(() => { useAppToastStore.getState().showQueued('Child skipped', 'Undo child', childUndo) })
+    await act(() => vi.advanceTimersByTimeAsync(20000))
+    expect(document.querySelector('[data-kind]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'common.notNow' }))
+    await act(() => vi.advanceTimersByTimeAsync(0))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.querySelector('[data-kind]')).toBeNull()
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Child skipped')
+    release()
+    await act(async () => { await vi.dynamicImportSettled() })
+    expect(document.querySelector('[data-shell-notice-content] [data-kind]')).toHaveTextContent('Child skipped')
+    await act(() => vi.advanceTimersByTimeAsync(4999))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo child' }))
+    expect(childUndo).toHaveBeenCalledOnce()
+  } finally {
+    release()
+    await act(async () => { await vi.dynamicImportSettled() })
+    vi.doUnmock('@/components/ui/toast')
+  }
+})

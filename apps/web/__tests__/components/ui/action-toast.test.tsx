@@ -80,33 +80,35 @@ describe('action toast dismissal', () => {
     void act(() => vi.advanceTimersByTime(1999))
     expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
     void act(() => vi.advanceTimersByTime(1))
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('group')).toBeNull()
     expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(dismissed).toHaveBeenCalledOnce()
     expect(undo).not.toHaveBeenCalled()
   })
 
-  it('closes a hosted undo manually without running undo', () => {
+  it('closes a hosted undo manually without running undo', async () => {
     const undo = vi.fn()
     useAppToastStore.getState().showQueued('Habit skipped', 'Undo', undo)
     render(<NavigationOwner />)
+    await act(async () => { await vi.dynamicImportSettled() })
     fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('group')).toBeNull()
     expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(undo).not.toHaveBeenCalled()
   })
 
-  it('clears visible and queued undos when the destination changes', () => {
+  it('clears visible and queued undos when the destination changes', async () => {
     const undo = vi.fn()
     const dismissed = vi.fn()
     useAppToastStore.getState().showQueued('Habit skipped', 'Undo', undo, dismissed)
     useAppToastStore.getState().showQueued('Habit archived', 'Undo', undo, dismissed)
     const view = render(<NavigationOwner />)
+    await act(async () => { await vi.dynamicImportSettled() })
     view.rerender(<NavigationOwner />)
-    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Habit skipped' })).toBeInTheDocument()
     route.pathname = '/profile'
     view.rerender(<NavigationOwner />)
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('group')).toBeNull()
     expect(useAppToastStore.getState().queue).toEqual([])
     expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(dismissed).toHaveBeenCalledTimes(2)
@@ -116,7 +118,7 @@ describe('action toast dismissal', () => {
   it('expires a directly rendered action toast without a supplied completion callback', () => {
     render(<Toast kind="neutral" message="Deleted" actionLabel="Undo" onAction={vi.fn()} />)
     void act(() => vi.advanceTimersByTime(5000))
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('group')).toBeNull()
   })
   it('clears the queue when a destination remounts the toast host', () => {
     const dismissed = vi.fn()
@@ -124,7 +126,7 @@ describe('action toast dismissal', () => {
     const view = render(<NavigationOwner><AppToastHost key="calendar" /></NavigationOwner>)
     route.pathname = '/wrapped'
     view.rerender(<NavigationOwner><AppToastHost key="wrapped" placement="page" /></NavigationOwner>)
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('group')).toBeNull()
     expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(dismissed).toHaveBeenCalledOnce()
   })
@@ -136,7 +138,7 @@ describe('action toast dismissal', () => {
     view.rerender(<Toast kind="neutral" message="Deleted" actionLabel="Undo" onAction={vi.fn()} onDone={() => completed()} />)
     void act(() => vi.advanceTimersByTime(2000))
     expect(completed).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('group')).toBeNull()
   })
 
   it('keeps a dismissed notification undo hidden across remounts while its delete still executes', async () => {
@@ -146,7 +148,7 @@ describe('action toast dismissal', () => {
     await act(async () => { await vi.dynamicImportSettled() })
     fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
     view.rerender(<NavigationOwner><NotificationDeleteNotice key="second" /></NavigationOwner>)
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('group')).toBeNull()
     expect(getPendingNotificationDeleteIdsSnapshot()).toEqual(['notification'])
     expect(execute).not.toHaveBeenCalled()
     void act(() => vi.advanceTimersByTime(5000))
@@ -162,7 +164,7 @@ describe('action toast dismissal', () => {
     view.rerender(<NavigationOwner><div /></NavigationOwner>)
     route.pathname = '/calendar'
     view.rerender(<NavigationOwner><NotificationDeleteNotice /></NavigationOwner>)
-    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('group')).toBeNull()
   })
 
 })
