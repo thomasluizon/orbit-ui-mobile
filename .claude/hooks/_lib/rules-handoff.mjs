@@ -22,7 +22,7 @@ const describe = (missing, mode) =>
 
 const modeOf = (request, state) => {
   const mode = request?.origin === "context-relay" ? "context-relay --sleep" : request?.sleep ? "--sleep" : request ? "attended" : "unrecorded"
-  return handoffCrank(request, state) ? `${mode} --crank` : mode
+  return `${mode}${handoffAutoWork(request, state) ? " --auto-work" : ""}${handoffCrank(request, state) ? " --crank" : ""}`
 }
 
 /**

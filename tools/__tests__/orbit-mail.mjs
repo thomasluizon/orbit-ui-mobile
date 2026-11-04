@@ -60,4 +60,11 @@ export const cases = async () => {
   await collectMail(client, checkout)
   T("mail: cached pending messages are not read again", calls.slice(before).every(({ url }) => url.pathname.endsWith("/messages")))
   T("mail: no operation calls messages.send or drafts.send", calls.every(({ url }) => !/\/(messages|drafts)\/send$/.test(url.pathname)))
+  const unsafe = intakeSource("gmail", checkout)
+  unsafe.pending.m2.replyTo = "person@example.org\r\nBcc: someone@example.org"
+  writeRunState({ sessionId: "mail-child", sleep: true, intake: { gmail: unsafe } }, checkout)
+  let unsafePost = false
+  let unsafeRefused = false
+  try { await draftReply({ listDrafts: async () => ({}), createDraft: async () => { unsafePost = true } }, { id: "m2", text: "Reply" }, checkout) } catch { unsafeRefused = true }
+  T("mail: an injected header is refused before draft creation", unsafeRefused && !unsafePost)
 }

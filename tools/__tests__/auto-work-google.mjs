@@ -41,6 +41,9 @@ export const cases = async () => {
   let failure
   try { await googleToken({}, async () => new Response("secret response", { status: 400 })) } catch (error) { failure = error.message }
   T("google: token failure contains only status and recovery", failure.includes("400") && !failure.includes("secret response"))
+  let malformed
+  try { await googleToken({}, async () => new Response('access_token: "private-token"')) } catch (error) { malformed = error.message }
+  T("google: malformed token responses cannot leak their body", malformed === "Google token response is not valid JSON")
   const isolated = gmailClient("token", async () => Response.json({}))
   T("google: sending cannot be selected through the client", isolated.send === undefined && isolated.messages === undefined && isolated.drafts === undefined)
   for (const relative of ["../lib/auto-work-google.mjs", "../orbit-mail.mjs", "../authorize-orbit-mail.mjs"]) {

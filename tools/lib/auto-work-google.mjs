@@ -28,7 +28,8 @@ export const googleToken = async (parameters, request = fetch) => {
     headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(parameters),
     signal: AbortSignal.timeout(30_000) })
   if (!response.ok) throw new Error(`Google token exchange failed (HTTP ${response.status}); reauthorize if revoked`)
-  const token = await response.json()
+  let token
+  try { token = await response.json() } catch { throw new Error("Google token response is not valid JSON") }
   if (typeof token.access_token !== "string" || !token.access_token) throw new Error("Google token response has no access token")
   return token
 }
