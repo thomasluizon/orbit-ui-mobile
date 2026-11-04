@@ -1,0 +1,67 @@
+name: Orbit review intake
+run-name: Orbit review intake ${{ inputs.cycle }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: Durable auto-work cycle identifier
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: orbit-review-intake
+  cancel-in-progress: false
+
+jobs:
+  reviews:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Read Google Play reviews
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          REVIEW_OUTPUT: ${{ runner.temp }}/orbit-play-reviews.json
+        run: node tools/orbit-play-reviews.mjs --collect --output "$REVIEW_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: orbit-play-reviews
+          path: ${{ runner.temp }}/orbit-play-reviews.json
+          if-no-files-found: error
+          retention-days: 1
+  app-store-reviews:
+    if: github.ref == 'refs/heads/main' && vars.ORBIT_IOS_APP_STORE_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Read App Store customer reviews
+        env:
+          ORBIT_IOS_APP_STORE_ID: ${{ vars.ORBIT_IOS_APP_STORE_ID }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+          REVIEW_OUTPUT: ${{ runner.temp }}/orbit-app-store-reviews.json
+        run: node tools/orbit-app-store-reviews.mjs --collect --output "$REVIEW_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: orbit-app-store-reviews
+          path: ${{ runner.temp }}/orbit-app-store-reviews.json
+          if-no-files-found: error
+          retention-days: 1
