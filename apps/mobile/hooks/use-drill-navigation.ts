@@ -21,6 +21,7 @@ export interface DrillNavigationState {
   currentParent: NormalizedHabit | null
   drillChildren: NormalizedHabit[]
   settlementHabitsById: Map<string, NormalizedHabit>
+  settlementUpdatedAtById: Map<string, number>
   hasUnfilteredChildren: boolean
   canRevealCompletedChildren: boolean
   completedCount: number
@@ -47,6 +48,7 @@ export function useDrillNavigation(
     new Map<string, NormalizedHabit[]>(),
   )
   const [drillHabitsById, setDrillHabitsById] = useState(() => new Map<string, NormalizedHabit>())
+  const [settlementUpdatedAtById, setSettlementUpdatedAtById] = useState(() => new Map<string, number>())
   const [drillLoading, setDrillLoading] = useState(false)
   const [drillError, setDrillError] = useState('')
 
@@ -56,6 +58,7 @@ export function useDrillNavigation(
     setDrillStack([])
     setDrillChildrenMap(new Map())
     setDrillHabitsById(new Map())
+    setSettlementUpdatedAtById(new Map())
     setDrillLoading(false)
     setDrillError('')
   }
@@ -103,8 +106,12 @@ export function useDrillNavigation(
   )
 
   const fetchDrillChildren = useCallback(
-    async (habitId: string, silent = false) => {
+    async (habitId: string | null, silent = false, refreshSettlement = false) => {
       if (activeParentIdRef.current !== habitId) return
+      const detailIds = refreshSettlement && drillHabitsById.size > 0
+        ? [...drillHabitsById.values()].filter(habit => !habit.parentId || !drillHabitsById.has(habit.parentId)).map(habit => habit.id)
+        : habitId ? [habitId] : []
+      if (detailIds.length === 0) return
       const requestId = ++requestIdRef.current
       const showFeedback = !silent || feedbackPendingRef.current
       feedbackPendingRef.current = showFeedback
@@ -112,22 +119,34 @@ export function useDrillNavigation(
         setDrillLoading(true)
       }
       try {
-        void queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId), exact: true })
-        const detail = await queryClient.fetchQuery({
-          queryKey: habitKeys.detail(habitId),
-          queryFn: () => fetchHabitDetail(habitId),
-          staleTime: 0,
-          retry: (failureCount, error) => extractBackendStatus(error) === 429 && shouldRetryQuery(failureCount, error),
-          retryDelay: queryRetryDelay,
-        })
-        const normalized = normalizeHabitDetailForDrill(detail, todayStr)
+        const refreshed = await Promise.all(detailIds.map(async detailId => {
+          void queryClient.cancelQueries({ queryKey: habitKeys.detail(detailId), exact: true })
+          const detail = await queryClient.fetchQuery({
+            queryKey: habitKeys.detail(detailId),
+            queryFn: () => fetchHabitDetail(detailId),
+            staleTime: 0,
+            retry: (failureCount, error) => extractBackendStatus(error) === 429 && shouldRetryQuery(failureCount, error),
+            retryDelay: queryRetryDelay,
+          })
+          return normalizeHabitDetailForDrill(detail, todayStr)
+        }))
         if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return
-        setDrillHabitsById((previous) => mergeDrillSettlementHabits(previous, normalized))
+        setDrillHabitsById((previous) => refreshed.reduce(mergeDrillSettlementHabits, previous))
+        setSettlementUpdatedAtById((previous) => {
+          const next = new Map(previous)
+          for (const normalized of refreshed) {
+            next.set(normalized.parent.id, lastUpdated)
+            for (const children of normalized.childrenByParent.values()) {
+              for (const child of children) next.set(child.id, lastUpdated)
+            }
+          }
+          return next
+        })
 
         setDrillChildrenMap((prev) => {
           const next = new Map(prev)
-          for (const [parentId, children] of normalized.childrenByParent.entries()) {
-            next.set(parentId, children)
+          for (const normalized of refreshed) {
+            for (const [parentId, children] of normalized.childrenByParent.entries()) next.set(parentId, children)
           }
           return next
         })
@@ -145,7 +164,7 @@ export function useDrillNavigation(
         }
       }
     },
-    [queryClient, t, todayStr],
+    [queryClient, drillHabitsById, lastUpdated, t, todayStr],
   )
 
   const drillInto = useCallback(
@@ -179,6 +198,7 @@ export function useDrillNavigation(
     setDrillStack([])
     setDrillChildrenMap(new Map())
     setDrillHabitsById(new Map())
+    setSettlementUpdatedAtById(new Map())
   }, [])
 
   const refreshCurrent = useCallback(async () => {
@@ -199,9 +219,8 @@ export function useDrillNavigation(
   useEffect(() => {
     if (lastUpdated === lastUpdatedRef.current) return
     lastUpdatedRef.current = lastUpdated
-    if (!currentParentId) return
     const parentId = currentParentId
-    void Promise.resolve().then(() => fetchDrillChildren(parentId, true))
+    void Promise.resolve().then(() => fetchDrillChildren(parentId, true, true))
   }, [lastUpdated, currentParentId, fetchDrillChildren])
 
   useEffect(() => {
@@ -221,6 +240,7 @@ export function useDrillNavigation(
     currentParent,
     drillChildren,
     settlementHabitsById,
+    settlementUpdatedAtById,
     hasUnfilteredChildren,
     canRevealCompletedChildren,
     completedCount,

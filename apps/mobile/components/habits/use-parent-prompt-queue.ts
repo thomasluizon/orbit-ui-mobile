@@ -9,7 +9,7 @@ export { createParentPromptQueue, transitionParentPromptQueue } from '@orbit/sha
 
 const useSharedParentPromptQueue = createUseParentPromptQueue({ useState, useEffect, useLayoutEffect, useRef, useResetOnAccountChange })
 
-type ParentPromptQueueInputs = Pick<ParentPromptInputs, 'additionalHabitsById'> & Pick<ReturnType<typeof useHabitListAccount>, 'selectedDateStr' | 'settlementDateIsReadOnly' | 't' | 'profile' | 'accountTimeZone' | 'selectedDate'> & Pick<ReturnType<typeof useHabitListQueries>, 'getChildren' | 'habitsById' | 'habitsQuery' | 'skipMutation' | 'logMutateAsync' | 'bulkLog' | 'bulkSkip' | 'showError' | 'refetch'> & Pick<ReturnType<typeof useHabitListVisibility>, 'visibility'> & { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitRecentCompletions>, 'markRecentlyCompleted' | 'clearRecentlyCompleted'>
+type ParentPromptQueueInputs = Pick<ParentPromptInputs, 'additionalHabitsById' | 'additionalHabitsUpdatedAtById'> & Pick<ReturnType<typeof useHabitListAccount>, 'selectedDateStr' | 'settlementDateIsReadOnly' | 't' | 'profile' | 'accountTimeZone' | 'selectedDate'> & Pick<ReturnType<typeof useHabitListQueries>, 'getChildren' | 'habitsById' | 'habitsQuery' | 'skipMutation' | 'logMutateAsync' | 'bulkLog' | 'bulkSkip' | 'showError' | 'refetch'> & Pick<ReturnType<typeof useHabitListVisibility>, 'visibility'> & { view: NonNullable<HabitListProps['view']> } & Pick<ReturnType<typeof useHabitRecentCompletions>, 'markRecentlyCompleted' | 'clearRecentlyCompleted'>
 
 export function useParentPromptQueue(inputs: ParentPromptQueueInputs) {
   const { habitsById, additionalHabitsById, selectedDateStr } = inputs

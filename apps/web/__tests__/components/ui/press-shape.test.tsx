@@ -243,7 +243,7 @@ describe('interaction fill parity in Chromium', () => {
   it.each([{ mode: 'dark', hasTouch: false }, { mode: 'light', hasTouch: false }, { mode: 'dark', hasTouch: true }, { mode: 'light', hasTouch: true }] as const)('paints the neutral role in $mode mode with touch: $hasTouch', async ({ mode, hasTouch }) => {
     const noop = () => {}
     const drill: React.ComponentProps<typeof HabitDrill>['drill'] = {
-      drillStack: ['parent'], currentParentId: null, currentParent: null, drillChildren: [], settlementHabitsById: new Map(),
+      drillStack: ['parent'], currentParentId: null, currentParent: null, drillChildren: [], settlementHabitsById: new Map(), settlementUpdatedAtById: new Map(),
       hasUnfilteredChildren: false, canRevealCompletedChildren: false, completedCount: 0,
       drillLoading: false, drillError: '', drillInto: async () => {}, drillBack: noop,
       drillReset: noop, refreshCurrent: async () => {}, getDrillChildren: () => [],

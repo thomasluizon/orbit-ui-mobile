@@ -2,7 +2,7 @@
 
 import { ContentFade,ListMotionItem,ListPresence,MotionDisclosure } from '@/components/motion/list-motion'
 import { TodayLaunchContent } from '@/components/today/today-launch-content'
-import { Fragment,Suspense,useEffect,useState,type ComponentProps,type Ref } from 'react'
+import { Fragment,Suspense,useEffect,type ComponentProps,type Ref } from 'react'
 import dynamic from 'next/dynamic'
 import { buildHabitDateBuckets,formatHabitDateBucketLabel,buildHabitRowDateModel,computeHabitCardStatus,computeHabitFutureHint,getAllDoneOnDate,isHabitDoneForRange,type HabitResolution } from '@orbit/shared/utils'
 import { HabitRow,type HabitRowMetaToken } from './habit-row'
@@ -18,6 +18,8 @@ import type { NormalizedHabit,HabitsFilter,BulkMoveHabitParentResult } from '@or
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useUIStore } from '@/stores/ui-store'
 import { useParentPromptQueue } from './use-parent-prompt-queue'
+import { DeferredConfirmDialogs } from './habit-list/deferred-confirm-dialogs'
+import { DeferredModal } from '@/components/ui/deferred-modal'
 import { useHabitListConfirmations,createHabitListSubHabitActions } from './use-habit-list-confirmations'
 import { useHabitListCollapse,useHabitListRoots,useHabitRecentCompletions,useHabitListMoveState,useHabitListQueries,useHabitListModalState,useHabitListProgress,useHabitRecentCompletionState,useHabitListVisibility,useHabitListEditState,useHabitListSurfaceState,useHabitListHandle } from './use-habit-list-state'
 import { useHabitListDrag,useHabitListKeyboardReorder } from './use-habit-list-drag'
@@ -34,37 +36,20 @@ const RescheduleSheet = dynamic(() =>
   import('./reschedule-sheet').then((module) => module.RescheduleSheet),
 )
 
-const HabitListConfirmDialogs = dynamic(() =>
-  import('./habit-list/confirm-dialogs').then((module) => module.HabitListConfirmDialogs),
-)
-
 const MoveParentController = dynamic(() =>
   import('./habit-list/move-parent-controller').then((module) => module.MoveParentController),
 )
 
 function DeferredEditHabitModal(props: Readonly<ComponentProps<typeof EditHabitModal>>) {
-  return props.open ? <EditHabitModal {...props} /> : null
+  return <DeferredModal open={props.open}>{props.open ? <EditHabitModal {...props} /> : null}</DeferredModal>
 }
 
 function DeferredRescheduleSheet(props: Readonly<ComponentProps<typeof RescheduleSheet>>) {
-  return props.open ? <RescheduleSheet {...props} /> : null
+  return <DeferredModal open={props.open}>{props.open ? <RescheduleSheet {...props} /> : null}</DeferredModal>
 }
 
 function DeferredCreateHabitModal(props: Readonly<ComponentProps<typeof CreateHabitModal>>) {
-  return props.open ? <CreateHabitModal {...props} /> : null
-}
-
-function DeferredConfirmDialogs(
-  props: Readonly<ComponentProps<typeof HabitListConfirmDialogs>>,
-) {
-  const [activated, setActivated] = useState(false)
-  const open =
-    props.showDeleteConfirm ||
-    props.deletePending ||
-    props.duplicateHabitName !== null ||
-    props.parentPrompt !== null
-  if (open && !activated) setActivated(true)
-  return open || activated ? <HabitListConfirmDialogs {...props} /> : null
+  return <DeferredModal open={props.open}>{props.open ? <CreateHabitModal {...props} /> : null}</DeferredModal>
 }
 
 function PendingMoveParent({ onClose }: Readonly<{ onClose: () => void }>) {
@@ -493,7 +478,7 @@ function useHabitListModel(parameters: HabitListModelInputs) {
   const habitListEditState = useHabitListEditState(habitListModalState, habitListQueries)
   const habitListCompletion = getHabitListCompletion(parameters, habitListQueries)
   const habitListActions = createHabitListSubHabitActions({ ...habitListQueries, ...habitListModalState, ...habitListCollapse })
-  const parentPromptQueue = useParentPromptQueue({ additionalHabitsById: habitListVisibility.drill.settlementHabitsById, ...habitListQueries, ...habitListVisibility, ...parameters, ...habitRecentCompletions })
+  const parentPromptQueue = useParentPromptQueue({ additionalHabitsById: habitListVisibility.drill.settlementHabitsById, additionalHabitsUpdatedAtById: habitListVisibility.drill.settlementUpdatedAtById, ...habitListQueries, ...habitListVisibility, ...parameters, ...habitRecentCompletions })
   useHabitListSurfaceState(habitRecentCompletions, confirmations, habitListVisibility, habitListModalState, parentPromptQueue, habitListMoveState, parameters)
   useHabitListHandle(parameters, habitListCollapse, habitListRoots, habitRecentCompletions, parentPromptQueue, habitListMoveState, drag)
   const habitListRendering = createHabitListRendering({ ...habitListModalState, ...habitListQueries, ...habitListProgress, ...habitRecentCompletionState, drag, ...parameters, ...habitListCollapse, ...parentPromptQueue, confirmations, ...habitListVisibility, ...habitListMoveState, ...habitListActions, ...habitListEditState, ...habitListKeyboardReorder, ...habitListRoots, ...habitListCompletion })

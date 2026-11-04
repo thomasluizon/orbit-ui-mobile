@@ -349,8 +349,7 @@ vi.mock('@/stores/ui-store', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/stores/ui-store')>()
   return {
     setUIAccountScope: vi.fn(),
-    useUIStore: Object.assign(() => null, { getState: () => ({ setFilters: setFrequencyFilters,
-      checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration }) }),
+    useUIStore: Object.assign(() => null, { getState: () => ({ ...actual.useUIStore.getState(), setFilters: setFrequencyFilters }) }),
   }
 })
 
@@ -3054,13 +3053,14 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList())
 
     act(() => ref.current?.checkAndPromptParentLog(child.id))
+    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
 
     act(() => {
       mockHabitsData.habitsById.set(child.id, { ...child, isCompleted: false })
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList())
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -3088,6 +3088,7 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList())
 
     act(() => ref.current?.checkAndPromptParentLog(child.id))
+    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
 
     act(() => {
       mockHabitsData.habitsById.set(parent.id, {
@@ -3098,7 +3099,7 @@ describe('HabitList', () => {
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList())
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -3132,13 +3133,14 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList())
 
     act(() => ref.current?.checkAndPromptParentLog(child.id))
+    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
 
     act(() => {
       mockHabitsData.habitsById.set(parent.id, { ...parent, dueDate: TOMORROW })
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList())
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -3209,7 +3211,7 @@ describe('HabitList', () => {
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList(timing === 'before effects'))
     })
-    if (timing === 'after effects') await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    if (timing === 'after effects') await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
 
     if (timing === 'after delayed dismissal') await act(async () => { sheetTestControls.completeDismissal(); await Promise.resolve() })
 

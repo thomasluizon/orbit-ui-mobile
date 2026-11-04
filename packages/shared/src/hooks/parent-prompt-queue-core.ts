@@ -15,6 +15,7 @@ export interface ParentPromptInputs {
   getChildren: ParentSettlementData['getChildren']
   habitsById: Map<string, NormalizedHabit>
   additionalHabitsById?: ReadonlyMap<string, NormalizedHabit>
+  additionalHabitsUpdatedAtById?: ReadonlyMap<string, number>
   visibility: ParentSettlementData['visibility']
   view: 'today' | 'all' | 'general'
   updatedAt: number
@@ -46,17 +47,20 @@ export interface ParentSettlementData {
   selectedDateStr: string
   isListView: boolean
   updatedAt: number
+  isFresh: boolean
 }
 
 function createParentSettlementData(inputs: ParentPromptInputs): ParentSettlementData {
-  const { habitsById, getChildren, visibility, selectedDateStr, view, additionalHabitsById } = inputs
-  if (!additionalHabitsById?.size) return { habitsById, getChildren, visibility, selectedDateStr, isListView: view !== 'today', updatedAt: inputs.updatedAt }
+  const { habitsById, getChildren, visibility, selectedDateStr, view, additionalHabitsById, additionalHabitsUpdatedAtById } = inputs
+  if (!additionalHabitsById?.size) return { habitsById, getChildren, visibility, selectedDateStr, isListView: view !== 'today', updatedAt: inputs.updatedAt, isFresh: true }
   const knownHabits = new Map([...additionalHabitsById, ...habitsById])
   const childrenByParent = buildChildrenIndex(knownHabits)
   return {
     habitsById: knownHabits,
     getChildren: id => getChildrenFromIndex(id, knownHabits, childrenByParent),
     visibility, selectedDateStr, isListView: view !== 'today', updatedAt: inputs.updatedAt,
+    isFresh: !additionalHabitsUpdatedAtById || [...additionalHabitsById.keys()].every(id =>
+      habitsById.has(id) || additionalHabitsUpdatedAtById.get(id) === inputs.updatedAt),
   }
 }
 
@@ -122,6 +126,22 @@ function getParentPromptChain(childId: string, record: ConfirmedResolutionRecord
     skippedIds: record.skippedIds,
     resolvedModes: record.modes,
   }, record.sources, deferBadParentSlips)
+}
+
+function reconcileParentPromptQueue(queue: ParentPromptQueue, record: ConfirmedResolutionRecord, settlement: ParentSettlementData): ParentPromptQueue {
+  if (queue.date !== settlement.selectedDateStr || !settlement.isFresh) return queue
+  const prompts = queue.prompts.flatMap(prompt => {
+    const offeredIds = new Set(prompt.ancestors.map(({ habit }) => habit.id))
+    const selectedIds = new Set(prompt.ancestors.slice(0, prompt.selectedCount).map(({ habit }) => habit.id))
+    const ancestors = getParentPromptChain(prompt.childId, record, settlement).filter(({ habit }) => offeredIds.has(habit.id))
+    const first = ancestors[0]
+    if (!first) return []
+    const selectedCount = ancestors.filter(({ habit }) => selectedIds.has(habit.id)).length
+    if (selectedCount === prompt.selectedCount && ancestors.length === prompt.ancestors.length && ancestors.every((ancestor, index) =>
+      ancestor.habit === prompt.ancestors[index]?.habit && ancestor.mode === prompt.ancestors[index].mode)) return [prompt]
+    return [{ ...prompt, ...first, ancestors, selectedCount }]
+  })
+  return prompts.length === queue.prompts.length && prompts.every((prompt, index) => prompt === queue.prompts[index]) ? queue : { ...queue, prompts }
 }
 
 function clearPersistedResolutions(
@@ -193,6 +213,10 @@ function checkAndSettleParent(context: ParentPromptContext,
   const { promptedParentIdsRef, setParentPromptQueue } = context
 
   if (!settlementData) return
+  if (!settlementData.isFresh) {
+    afterParentRefetch(context, confirmedResolutions, null, settlement => checkAndSettleParent(context, childHabitId, confirmedResolutions, settlement, deferBadParentSlips))
+    return
+  }
   const child = settlementData.habitsById.get(childHabitId)
   if (!child?.parentId) return
   const parent = settlementData.habitsById.get(child.parentId)
@@ -235,6 +259,11 @@ function settleParentAutomatically(context: ParentPromptContext,
   operation: ParentSettlementOperation,
 ) {
   const { promptedParentIdsRef } = context
+
+  if (!operation.data.isFresh) {
+    afterParentRefetch(context, operation.confirmedResolutions, null, settlement => settleParentAutomatically(context, childHabitId, { ...operation, data: settlement }))
+    return
+  }
 
   const child = operation.data.habitsById.get(childHabitId)
   if (!child?.parentId) return
@@ -307,10 +336,10 @@ async function settleCompletedParent(context: ParentPromptContext,
   } else settle(promptDataRef.current)
 }
 
-function afterParentRefetch(context: ParentPromptContext, record: ConfirmedResolutionRecord, updatedAt: number, settle: (settlement: ParentSettlementData) => void) {
+function afterParentRefetch(context: ParentPromptContext, record: ConfirmedResolutionRecord, updatedAt: number | null, settle: (settlement: ParentSettlementData) => void) {
   const settlement = context.promptDataRef.current
   if (context.confirmedResolutionsRef.current !== record || settlement?.selectedDateStr !== record.date) return
-  if (settlement.updatedAt === updatedAt) record.afterRefetch.push({ updatedAt, settle })
+  if (settlement.updatedAt === updatedAt || !settlement.isFresh) record.afterRefetch.push({ updatedAt, settle })
   else settle(settlement)
 }
 
@@ -551,7 +580,7 @@ interface ParentPromptState {
     pending: Map<string, Promise<boolean>>
     modes: Map<string, HabitResolutionMode>
     skippedIds: Set<string>
-    afterRefetch: { updatedAt: number; settle: (settlement: ParentSettlementData) => void }[]
+    afterRefetch: { updatedAt: number | null; settle: (settlement: ParentSettlementData) => void }[]
   }
 }
 
@@ -591,7 +620,7 @@ interface ParentPromptAdapters {
 
 export function createUseParentPromptQueue({ useState, useRef, useEffect, useLayoutEffect, useResetOnAccountChange }: ParentPromptAdapters) {
   return function useParentPromptQueue(inputs: ParentPromptInputs) {
-    const { selectedDateStr, getChildren, visibility, habitsById, additionalHabitsById, view, updatedAt } = inputs
+    const { selectedDateStr, getChildren, visibility, habitsById, additionalHabitsById, additionalHabitsUpdatedAtById, view, updatedAt } = inputs
     const pendingToggleHabitIdsRef = useRef(new Set<string>())
     const promptedParentIdsRef = useRef(new Set<string>())
     const confirmedResolutionsRef = useRef(createConfirmedResolutionRecord(selectedDateStr))
@@ -611,7 +640,7 @@ export function createUseParentPromptQueue({ useState, useRef, useEffect, useLay
     }, [selectedDateStr])
     useLayoutEffect(() => {
       promptDataRef.current = createParentSettlementData(inputs)
-    }, [getChildren, visibility, habitsById, additionalHabitsById, selectedDateStr, view, updatedAt])
+    }, [getChildren, visibility, habitsById, additionalHabitsById, additionalHabitsUpdatedAtById, selectedDateStr, view, updatedAt])
     useLayoutEffect(() => {
       const record = confirmedResolutionsRef.current
       refreshConfirmedResolutions(record, promptDataRef.current?.habitsById ?? habitsById)
@@ -620,7 +649,9 @@ export function createUseParentPromptQueue({ useState, useRef, useEffect, useLay
           getParentPromptProgress(id, record, promptDataRef.current), selectedDateStr, promptedParentIdsRef.current)
         if (decision.type === 'release') promptedParentIdsRef.current.delete(id)
       }
-    }, [updatedAt, parentPrompt !== null, selectedDateStr, additionalHabitsById])
+      const settlement = promptDataRef.current
+      if (settlement) setParentPromptQueue(current => reconcileParentPromptQueue(current, record, settlement))
+    }, [updatedAt, parentPrompt !== null, selectedDateStr, additionalHabitsById, additionalHabitsUpdatedAtById])
     const context = { ...inputs, promptDataRef, promptedParentIdsRef,
       confirmedResolutionsRef, pendingToggleHabitIdsRef, parentPrompt, setParentPromptQueue }
     const latestContext = useRef(context)
@@ -629,7 +660,7 @@ export function createUseParentPromptQueue({ useState, useRef, useEffect, useLay
       const record = confirmedResolutionsRef.current
       const pending = record.afterRefetch.splice(0)
       for (const operation of pending) afterParentRefetch(latestContext.current, record, operation.updatedAt, operation.settle)
-    }, [updatedAt])
+    }, [updatedAt, additionalHabitsById, additionalHabitsUpdatedAtById])
     const [controller] = useState(() => createParentPromptController(latestContext))
     return { parentPrompt, ...controller }
   }

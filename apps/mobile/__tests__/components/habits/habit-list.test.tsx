@@ -4008,15 +4008,13 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog(child.id)
       await Promise.resolve()
     })
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(1)
     TestRenderer.act(() => {
       seedHabits([parent, { ...child, isCompleted: false }])
       mockHabitsDataUpdatedAt += 1
       tree.update(renderList())
     })
-    await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.autoLogParentConfirm')
-      await Promise.resolve()
-    })
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(0)
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -4055,6 +4053,7 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog(child.id)
       await Promise.resolve()
     })
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(1)
     TestRenderer.act(() => {
       seedHabits([
         { ...parent, isCompleted: false, isLoggedInRange: true },
@@ -4063,10 +4062,7 @@ describe('HabitList', () => {
       mockHabitsDataUpdatedAt += 1
       tree.update(renderList())
     })
-    await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.autoLogParentConfirm')
-      await Promise.resolve()
-    })
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(0)
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -4111,15 +4107,13 @@ describe('HabitList', () => {
       ref.current?.checkAndPromptParentLog(child.id)
       await Promise.resolve()
     })
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(1)
     TestRenderer.act(() => {
       seedHabits([{ ...parent, dueDate: TOMORROW }, child])
       mockHabitsDataUpdatedAt += 1
       tree.update(renderList())
     })
-    await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.autoLogParentConfirm')
-      await Promise.resolve()
-    })
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(0)
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -4199,7 +4193,7 @@ describe('HabitList', () => {
       tree.update(renderList(timing === 'before effects'))
     })
     await TestRenderer.act(async () => {
-      if (timing === 'after effects') pressConfirm(tree, 'habits.autoLogParentConfirm')
+      if (timing === 'after effects') pressConfirm(tree, 'habits.autoSkipParentConfirm')
       if (timing === 'after delayed dismissal') sheetTestControls.completeDismissal()
       await Promise.resolve()
     })
