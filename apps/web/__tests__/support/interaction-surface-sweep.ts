@@ -186,7 +186,13 @@ export function interactionSurfaceSweep(route: '/' | '/calendar' | '/progress' |
       await page.exposeFunction('surfaceFixture', (path: string) => fixture(path.replace(/^\/api\/proxy/, '')))
       try {
         const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
-        await page.setContent(`<!doctype html><html class="dark" lang="${locale}" style="${variables}"><head><base href="https://surface.example.test"><style>${stylesheet}</style></head><body><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ route, locale, collapsed })}</script></body></html>`)
+        const documentUrl = `https://surface.example.test${route}`
+        await page.route(documentUrl, request => request.fulfill({
+          contentType: 'text/html',
+          body: `<!doctype html><html class="dark" lang="${locale}" style="${variables}"><head><style>${stylesheet}</style></head><body><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ route, locale, collapsed })}</script></body></html>`,
+        }))
+        await page.goto(documentUrl)
+        expect(await page.evaluate(() => window.location.origin)).toBe('https://surface.example.test')
         await page.evaluate(() => {
           let cookie = ''
           Object.defineProperty(document, 'cookie', { configurable: true, get: () => cookie, set: value => { cookie = value } })

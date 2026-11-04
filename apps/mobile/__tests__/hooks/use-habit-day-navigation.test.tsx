@@ -4,12 +4,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { buildHabitViewFilters, habitViewQueryOptions } from '@orbit/shared/utils'
-import { habitKeys, resetAccountQueries } from '@orbit/shared/query'
+import { habitKeys, invalidateAccountEvent, resetAccountQueries } from '@orbit/shared/query'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { useHabits } from '@/hooks/use-habit-queries'
+import { invalidateHabitMutationQueries } from '@/lib/habit-mutation-helpers'
 
 const requests = vi.hoisted(() => ({ read: vi.fn() }))
 vi.mock('@/lib/api-client', () => ({ apiClient: (url: string) => requests.read(url) }))
+vi.mock('@/lib/orbit-widget', () => ({ syncWidgetData: vi.fn() }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: () => true }))
 
 const today = '2026-09-12'
@@ -106,6 +108,32 @@ describe('Today day cache', () => {
     expect(current.data).toBeUndefined()
     expect(client.getQueriesData({ queryKey: habitKeys.lists() }).every(([, items]) => items === undefined)).toBe(true)
     expect(client.getQueriesData({ queryKey: habitKeys.all }).every(([, count]) => count === undefined)).toBe(true)
+  })
+
+  it.each(['write', 'account event'])('discards a pending neighbour snapshot after %s invalidation', async source => {
+    let created = false
+    requests.read.mockImplementation(async (url: string) => {
+      const date = new URL(url, 'https://fixture.invalid').searchParams.get('dateFrom')!
+      const items = created ? [createMockHabitScheduleItem({ id: 'created', title: 'Created habit', scheduledDates: [date] })] : []
+      await new Promise(resolve => setTimeout(resolve, 3_000))
+      return { items, page: 1, pageSize: 50, totalCount: items.length, totalPages: 1 }
+    })
+    renderDay(today)
+    await advance(3_010)
+    expect(requests.read).toHaveBeenCalledTimes(3)
+    created = true
+    await act(() => {
+      if (source === 'write') invalidateHabitMutationQueries(client)
+      else invalidateAccountEvent(client, { type: 'resync', payload: { v: 1, changes: [], origin: null } }, null)
+    })
+    await advance(3_010)
+    expect(current.data?.topLevelHabits.map(habit => habit.id)).toEqual(['created'])
+    await advance(3_010)
+    renderDay('2026-09-13')
+    expect(current.isSuccess).toBe(true)
+    expect(current.isFetching).toBe(false)
+    expect(tree?.root.findAllByType('output')[0]!.props.children).toBe('Created habit')
+    expect(requests.read.mock.calls.filter(([url]) => String(url).includes('dateFrom=2026-09-13'))).toHaveLength(2)
   })
 
   it('never replaces the newest day with a late result', async () => {

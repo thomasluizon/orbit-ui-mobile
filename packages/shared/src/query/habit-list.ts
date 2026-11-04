@@ -26,14 +26,29 @@ export function habitListQueryOptions(
   queryClient: QueryClient,
   adapters: HabitListAdapters,
 ): FetchQueryOptions<HabitScheduleItem[]> {
+  const queryKey = habitKeys.list(habitListQueryFilters(filters, completeDay, scheduleDate))
   return {
-    queryKey: habitKeys.list(habitListQueryFilters(filters, completeDay, scheduleDate)),
+    queryKey,
     staleTime: QUERY_STALE_TIMES.habits,
-    queryFn: async (): Promise<HabitScheduleItem[]> => {
+    queryFn: async ({ signal }): Promise<HabitScheduleItem[]> => {
       const generation = adapters.getAccountGeneration()
+      const query = queryClient.getQueryCache().find({ queryKey, exact: true })!
+      /** https://github.com/thomasluizon/orbit-tickets/issues/1985: a new read consumes the prior invalidation so another write can invalidate it. */
+      query.setState({ isInvalidated: false })
+      const unsubscribe = queryClient.getQueryCache().subscribe(event => {
+        if (event.type !== 'updated' || event.action.type !== 'invalidate' || event.query !== query) return
+        unsubscribe()
+        /** https://github.com/thomasluizon/orbit-tickets/issues/1985: invalidation must also fence inactive, empty prefetches. */
+        void queryClient.cancelQueries({ queryKey, exact: true })
+        event.query.invalidate()
+      })
+      signal.addEventListener('abort', unsubscribe, { once: true })
+      const assertCurrent = () => {
+        if (signal.aborted || adapters.getAccountGeneration() !== generation) throw new CancelledError({ silent: true })
+      }
       const readPage = async (pageFilters: HabitsFilter) => {
         const page = await adapters.readPage(pageFilters)
-        if (adapters.getAccountGeneration() !== generation) throw new CancelledError({ silent: true })
+        assertCurrent()
         return page
       }
       const readList = async () => {
@@ -44,10 +59,16 @@ export function habitListQueryOptions(
             page => page === 1 ? Promise.resolve(firstPage) : readPage({ ...requestFilters, page }),
           ))
           : firstPage.items
+        assertCurrent()
         queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
         return items
       }
-      return loadHabitListSchedule(readList(), scheduleDate, readPage)
+      try {
+        return await loadHabitListSchedule(readList(), scheduleDate, readPage)
+      } finally {
+        unsubscribe()
+        signal.removeEventListener('abort', unsubscribe)
+      }
     },
   }
 }
