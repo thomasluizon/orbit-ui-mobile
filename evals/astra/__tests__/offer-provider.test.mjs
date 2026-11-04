@@ -9,12 +9,6 @@ import { configureOffers } from '../offer-context.mjs'
 import { chatResponse, habitAccountRead, habitBlock, preview, toolCall } from './fixtures/producer.mjs'
 import { offlineCredentials, refreshResponse } from './fixtures/credentials.mjs'
 
-// ProactiveProposal.Schema only changes supported writes; read declarations are unchanged.
-vi.mock('../trace-policy.mjs', async (original) => {
-  const catalog = await original()
-  return { ...catalog, offerTools: catalog.tools.filter((tool) => !tool.writes),
-    offerPostReadTools: catalog.postReadTools.filter((tool) => !tool.writes) }
-})
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const configuration = parse(readFileSync(new URL('../promptfooconfig.yaml', import.meta.url), 'utf8'))
 const scenarios = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
