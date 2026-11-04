@@ -843,6 +843,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --bg-elev         #1C1C1E                     /* OPAQUE. Overlay panel, menus, popovers */
 --bg-elev-2       rgba(250,250,250,0.12)      /* the highest inline step -> #262628 */
 --bg-hover        rgba(250,250,250,0.13)      /* THE hover surface -> #28282A. 1.26:1 against the resting card */
+--bg-row-action   #09090B                    /* opaque action feedback on a lit row; preserves status-bad contrast */
 --bg-hover-opaque rgba(250,250,250,0.13)      /* overlay on an opaque control -> #39393B over elev. 1.477:1 step */
 --bg-sunk         rgba(0,0,0,0.28)            /* recessed wells -> #060608 */
 --hairline        rgba(255,255,255,0.08)      /* separator: divides content */
@@ -895,6 +896,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg-field #FFFFFF · --bg-well rgba(9,9,11,0.04)
 --bg-sunk rgba(9,9,11,0.04)
 --bg-hover rgba(9,9,11,0.11) /* #E4E4E4 over white, 1.271:1 step; #DFDFE0 over canvas, 1.276:1 step */
+--bg-row-action #FFFFFF /* opaque action feedback on a lit row; preserves status-bad contrast */
 --bg-hover-opaque rgba(9,9,11,0.11) /* overlay on an opaque control -> #E4E4E4 over white. 1.271:1 step */
 --status-done var(--fg-1) · empty var(--track-empty) · frozen var(--fg-2)
 --status-overdue #7D5700   /* 6.219:1 on canvas, 4.510:1 on well hover. White on it 6.491:1 */
@@ -1023,9 +1025,9 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 5.46 and 2
 1. **Replacement, the normal case.** One element carries `--bg-card` at rest and `--bg-hover` on
    hover. CSS `background-color` and React Native `backgroundColor` swap the value; neither
    composites. The stack is `--bg` under `--bg-hover`, `#28282A`, and `--fg-3` measures **4.57**.
-2. **Child over parent, one shipped case.** A hover child painted inside a card wrapper composites:
+2. **Row overlay over its resting card.** A hover child painted inside a card wrapper composites:
    `--bg` under `--bg-card` under `--bg-hover`, `#313133`. `--fg-3` measures **4.03** there and does
-   NOT clear the text floor. The unread notification row is that case, on both platforms: the
+   NOT clear the text floor. The unread notification row uses this stack on both platforms: the
    wrapper carries `--bg-card` and its full-row overlay paints hover, press and focus, including
    behind the independent delete control.
 

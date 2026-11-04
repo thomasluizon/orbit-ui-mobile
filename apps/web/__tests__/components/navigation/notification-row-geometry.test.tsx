@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
-import { NextIntlClientProvider } from 'next-intl'
+import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -8,18 +8,35 @@ import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { contrastOnSurface, controlContrast } from '@orbit/shared/__tests__/contrast'
-import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { createMockNotification, createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { measureNotificationFill } from '../../../e2e/layout/notification-fill-geometry'
 import { measureTitleWords } from '../../../e2e/layout/title-word-geometry'
 import { FailureScreen } from '@/components/ui/failure-screen'
 import { NotFoundContent } from '@/components/ui/not-found-content'
+import { PickerRow } from '@/components/ui/picker-row'
+import { ListRow } from '@/components/ui/list-row'
+import { HabitBlockRow } from '@/components/chat/habit-block-row'
+import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
 import { NotificationRow } from '@/components/navigation/notification-row'
 import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => '/notifications' }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 2 }) }))
+
+vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (time: string) => time }) }))
+vi.mock('@/hooks/use-date-format', () => ({ useDateFormat: () => ({ displayDate: (date: string) => date }) }))
+
+function RelatedRows() {
+  const t = useTranslations()
+  return <div style={{ display: 'grid', gap: 16, padding: 16 }}>
+    <PickerRow name="Picker" selected={false} disabled={false} onToggle={vi.fn()} value="Value" valueClassName="text-sm" controlClassName="orbit-list-row-body rounded-[12px] p-2" actionsClassName="flex items-center gap-2" />
+    <ListRow title="Row" description="Description" onClick={vi.fn()} action={{ icon: 'trash', label: 'Delete', onPress: vi.fn() }} />
+    <HabitBlockRow title="Habit" meta="Metadata" onOpen={vi.fn()} control={<button type="button">Action</button>} />
+    <CalendarSyncEventRow event={createMockCalendarSyncEvent()} weekStartDay={1} selected={false} isReviewMode suggestionId="suggestion" dismissPending={false} t={t} onToggle={vi.fn()} onDismiss={vi.fn()} />
+  </div>
+}
 
 const CASES = [320, 412, 1352].flatMap((width) => (['en', 'pt-BR'] as const)
   .flatMap((locale) => (['dark', 'light'] as const).map((mode) => ({ width, locale, mode }))))
@@ -98,7 +115,7 @@ describe('notification row targets in Chromium', () => {
   })
   it.each(CASES)('fills the whole read and unread row at $width in $locale and $mode', async ({ width, locale, mode }) => {
     const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}>
-      <ul style={{ padding: 16 }}>{[false, true].map((isRead) => <NotificationRow key={String(isRead)} item={createMockNotification({ isRead })} onOpen={vi.fn()} onDelete={vi.fn()} />)}</ul>
+      <ul style={{ padding: 16 }}>{[false, true].map((isRead) => <NotificationRow key={String(isRead)} item={createMockNotification({ isRead, habitId: 'notification-fill', url: '/habits/notification-fill' })} onOpen={vi.fn()} onDelete={vi.fn()} />)}</ul>
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
     try {
@@ -114,9 +131,11 @@ describe('notification row targets in Chromium', () => {
             const style = getComputedStyle(element)
             const remove = element.querySelector('button:last-child')!
             const text = Array.from(element.querySelectorAll('*')).filter((child) => Array.from(child.childNodes).some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map((child) => getComputedStyle(child).color)
-            return { text, layers: [style.getPropertyValue('--bg').trim(), style.backgroundColor, getComputedStyle(element, '::before').backgroundColor],
+            const graphics = Array.from(element.querySelectorAll('svg')).map((glyph) => getComputedStyle(glyph).color)
+            return { text, graphics, layers: [style.getPropertyValue('--bg').trim(), style.backgroundColor, getComputedStyle(element, '::before').backgroundColor],
               glyph: getComputedStyle(remove.querySelector('svg')!).color, actionFill: getComputedStyle(remove, '::before').backgroundColor }
           })
+          for (const color of colors.graphics) expect(contrastOnSurface(color, colors.layers)).toBeGreaterThanOrEqual(3)
           for (const color of colors.text) expect(contrastOnSurface(color, colors.layers)).toBeGreaterThanOrEqual(4.5)
           expect(contrastOnSurface(colors.glyph, [...colors.layers, colors.actionFill])).toBeGreaterThanOrEqual(3)
           if (control === remove) expect(controlContrast(colors.glyph, colors.actionFill, colors.layers).step).toBeGreaterThanOrEqual(1.25)
@@ -132,6 +151,27 @@ describe('notification row targets in Chromium', () => {
         await remove!.focus()
         expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
         await remove!.evaluate((element) => element.blur())
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([320, 1352].flatMap((width) => (['light', 'dark'] as const).map((mode) => ({ width, mode }))))('fills sibling-action list surfaces at $width in $mode', async ({ width, mode }) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}><RelatedRows /></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
+    try {
+      const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
+      await page.setContent(`<style>${stylesheet} :root { ${theme} }</style><div class="${mode}">${container.innerHTML}</div>`)
+      const rows = await page.locator('.orbit-list-row-shell, [data-habit-block-row], .orbit-list-row-column, [data-picker-row]').all()
+      expect(rows).toHaveLength(4)
+      for (const row of rows) {
+        const body = row.locator('button').first()
+        await body.hover()
+        await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
+        await page.mouse.down()
+        expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
+        await page.mouse.move(0, 0)
+        expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
+        await page.mouse.up()
       }
     } finally { await page.close() }
   })

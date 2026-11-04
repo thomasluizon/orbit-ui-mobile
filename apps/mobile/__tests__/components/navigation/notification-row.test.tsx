@@ -39,7 +39,7 @@ it.each(['W'.repeat(60), 'Extraordinarily comprehensive internationalization res
 it.each((['dark', 'light'] as const).flatMap((mode) => [false, true].map((isRead) => ({ mode, isRead }))))('paints the complete row through body and delete feedback, read=$isRead in $mode', async ({ mode, isRead }) => {
   theme.mode = mode
   const tokens = createTokensV2('orange', mode)
-  const item = createMockNotification({ isRead })
+  const item = createMockNotification({ isRead, habitId: 'notification-fill', url: '/habits/notification-fill' })
   const onOpen = vi.fn()
   const onDelete = vi.fn()
   await act(() => { tree = create(<NotificationRow item={item} onOpen={onOpen} onDelete={onDelete} />) })

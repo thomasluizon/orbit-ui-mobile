@@ -1,6 +1,8 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { measureClampedPersonalText, expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import React from 'react'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
 import { ChecklistTemplates } from '@/components/habits/checklist-templates'
@@ -93,6 +95,18 @@ describe('ChecklistTemplates mobile', () => {
     mocks.showError.mockReset()
     mocks.isPending = false
     mocks.closeSheet.mockReset()
+  })
+
+  it('fills the template row behind its sibling delete when loading is pressed', () => {
+    mocks.templates = [{ id: 'template-1', name: 'Workout', items: ['Run'] }]
+    const { tree } = renderTemplates()
+    press(listRow(tree, 'habits.form.useTemplate'))
+    const load = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Workout')[0]!
+    press(load, 'onPressIn')
+    const fill = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'template-row-feedback')
+    expect(fill).toHaveLength(1)
+    expect(StyleSheet.flatten(fill[0]!.props.style as StyleProp<ViewStyle>)).toMatchObject({ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12, backgroundColor: createTokensV2('orange', 'light').bgHover })
+    expect(mocks.remove).not.toHaveBeenCalled()
   })
 
   it('shows a template entry without a count', () => {

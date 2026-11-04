@@ -274,14 +274,19 @@ describe('Android interaction fill clearance', () => {
       await setInteraction(tree, label, state)
       const parts = measureInteractionFills(tree.toJSON(), 320, state === 'pressed')
       const control = parts.find((part) => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === label)!
-      const paints = parts.filter((part) => (part.slot === control.slot || part.ancestors.includes(control.slot)) && hasPaint(part.style))
+      const rowOwner = surface === 'rowsWithAction' ? control.ancestors.at(-1) : undefined
+      const paints = parts.filter((part) => (part.slot === control.slot || part.ancestors.includes(control.slot) || rowOwner && part.host.props['data-slot'] === 'list-row-fill' && part.ancestors.at(-1) === rowOwner) && hasPaint(part.style))
       expect(paints.length, label).toBeGreaterThan(0)
       const fill = { left: Math.min(...paints.map((part) => part.left - paintedExtent(part.style))), right: Math.max(...paints.map((part) => part.right + paintedExtent(part.style))), top: Math.min(...paints.map((part) => part.top - paintedExtent(part.style))), bottom: Math.max(...paints.map((part) => part.bottom + paintedExtent(part.style))) }
-      if (surface === 'rows' || surface === 'rowsWithAction') {
+      if (surface === 'rows') {
         for (const gap of [fill.left - control.left, control.right - fill.right, fill.top - control.top, control.bottom - fill.bottom]) expect(gap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
       }
-      const neighbour = parts.find((part) => part.host.type === 'Pressable' && Number(part.slot) > Number(control.slot) && !part.ancestors.includes(control.slot))!
-      const neighbourPaints = parts.filter((part) => part.ancestors.includes(neighbour.slot) && (hasPaint(part.style) || Number(part.style.borderWidth) > 0))
+      if (rowOwner) {
+        const row = parts.find(part => part.slot === rowOwner)!
+        expect(fill).toEqual({ left: row.left, right: row.right, top: row.top, bottom: row.bottom })
+      }
+      const neighbour = parts.find((part) => part.host.type === 'Pressable' && Number(part.slot) > Number(control.slot) && !part.ancestors.includes(rowOwner ?? control.slot))!
+      const neighbourPaints = parts.filter((part) => part.ancestors.includes(neighbour.slot) && (hasPaint(part.style) || Number(part.style.borderWidth) > 0 || part.host.props['data-slot'] === 'list-row-fill'))
       const neighbourBounds = neighbourPaints.length ? { left: Math.min(...neighbourPaints.map((part) => part.left)), top: Math.min(...neighbourPaints.map((part) => part.top)) } : neighbour
       const target = measureProfileRow(tree.toJSON(), 320, 1).controls.find(control => control.accessibilityLabel === label)!
       expect(target.targetWidth).toBeGreaterThanOrEqual(48)

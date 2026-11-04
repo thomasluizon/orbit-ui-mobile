@@ -105,7 +105,7 @@ describe('calendar import row press contrast', () => {
       expect(paint).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
       expect(paint.left).toBe(-12)
       expect(paint.right).toBe(-12)
-      expect(paint.backgroundColor).toBe(pressed && !blocked ? tokens.bgHover : blocked ? tokens.bgElev : state === 'selected' ? tintFromPrimary(tokens, 0.06) : 'transparent')
+      expect(paint.backgroundColor).toBe(pressed && !blocked ? 'transparent' : blocked ? tokens.bgElev : state === 'selected' ? tintFromPrimary(tokens, 0.06) : 'transparent')
     }
   })
 
@@ -174,7 +174,7 @@ describe('calendar import row press contrast', () => {
     if (blocked) expect(row.props.accessibilityHint).toBe('calendar.importIssue.utcUntilOffsetShift')
     for (const pressed of blocked ? [false] : [false, true]) {
       void act(() => { (pressed ? row.props.onPressIn : row.props.onPressOut)?.() })
-      const painted = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-event-fill')[0]!
+      const painted = tree.root.findAll((node) => node.type === 'View' && node.props.testID === (pressed ? 'calendar-event-feedback' : 'calendar-event-fill'))[0]!
       const fill = String(StyleSheet.flatten(painted.props.style as StyleProp<ViewStyle>).backgroundColor)
       expect(fill).toBe(pressed ? tokens.bgHover : blocked ? tokens.bgElev : selected ? tintFromPrimary(tokens, 0.06) : 'transparent')
       expectTextContrast(tree, row, [tokens.bgSheet, fill], `${mode}, selected: ${selected}, pressed: ${pressed}`)
