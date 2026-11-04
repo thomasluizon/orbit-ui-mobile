@@ -12,7 +12,7 @@ const KEPT_REQUESTS = 20
 const SLEEP_TOKEN = /(?:^|[\s(])(?:--sleep|\/sleep)(?=$|[\s),;!?])/
 const CRANK_TOKEN = /(?:^|[\s(])(?:--crank|\/crank)(?=$|[\s),;!?])/
 // The hook documentation gives the typed text; the transcript stores the expanded command tags. Accept both.
-const HANDOFF_COMMAND = /<command-name>\/(handoff|wrap-up)<\/command-name>|(?:^|[\s(])\/(handoff|wrap-up)(?=$|[\s),;!?])/g
+const HANDOFF_COMMAND = /<command-name>\/(handoff|wrap-up)<\/command-name>|^[\t ]*\/(handoff|wrap-up)(?=$|[\s),;!?])/gm
 const TAGGED_ARGS = /<command-args>([\s\S]*?)<\/command-args>/
 const QUOTED_CONTENT = /(<pasted_content\b[^>]*>)|^[ \t]{0,3}(`{3,}|~{3,})[^\n]*(?:\n|$)|(`+)/gm
 const PASTED_TAG = /<(\/?)pasted_content\b([^>]*)>/g
@@ -62,7 +62,7 @@ export const parseHandoffRequest = (prompt) => {
   if (!first) return null
   const command = first[1] ?? first[2]
   const trailing = text.slice(first.index + first[0].length, next?.index ?? text.length)
-  const args = first[1] ? (TAGGED_ARGS.exec(trailing)?.[1] ?? "") : trailing
+  const args = first[1] ? (TAGGED_ARGS.exec(trailing)?.[1] ?? "") : trailing.split(/\r?\n|\s+\/(?:handoff|wrap-up)\b/)[0]
   const crank = CRANK_TOKEN.test(args)
   return { command, sleep: crank || SLEEP_TOKEN.test(args), crank }
 }
