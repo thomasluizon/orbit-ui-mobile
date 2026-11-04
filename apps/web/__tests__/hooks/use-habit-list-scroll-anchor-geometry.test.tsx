@@ -1,12 +1,19 @@
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 let browser: Browser
 let launch: BrowserLaunch | undefined
 let script: string
+let stylesheet: string
 registerChromeLaunchHook(beforeAll, async (pending) => { launch = pending; browser = await pending })
-beforeAll(() => {
+beforeAll(async () => {
+  const source = resolve(process.cwd(), 'app/globals.css')
+  stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   script = execFileSync(process.execPath, ['--input-type=module', '-e', `
     import { build } from 'esbuild';
     const result = await build({ entryPoints: ['./__tests__/support/habit-list-scroll-anchor-fixture.tsx'],
@@ -20,7 +27,7 @@ afterAll(async () => { await closeChrome(launch) })
 it.each([320, 412, 1024, 1440])('reaches the real end without growing the list at width %s', async (width) => {
   const page = await browser.newPage({ viewport: { width, height: 915 } })
   try {
-    await page.setContent('<!doctype html><div id="root"></div>')
+    await page.setContent(`<!doctype html><style>${stylesheet}</style><div id="root"></div>`)
     await page.addScriptTag({ content: script })
     await page.waitForFunction(() => document.querySelectorAll('[data-row]').length === 200)
     const observed = await page.locator('[data-shell-scroller]').evaluate(async (element) => {
@@ -50,28 +57,30 @@ it.each([320, 412, 1024, 1440])('reaches the real end without growing the list a
   } finally { await page.close() }
 })
 
-it.each(['no-preference', 'reduce'] as const)('holds the offset when rows leave and releases space while scrolling up, motion=%s', async (reducedMotion) => {
+it.each(['no-preference', 'reduce'] as const)('holds the offset during departures and releases it when they finish, motion=%s', async (reducedMotion) => {
   const page = await browser.newPage({ viewport: { width: 412, height: 915 }, reducedMotion })
   try {
-    await page.setContent('<!doctype html><div id="root"></div>')
+    await page.setContent(`<!doctype html><style>${stylesheet}</style><div id="root"></div>`)
     await page.addScriptTag({ content: script })
     await page.waitForFunction(() => document.querySelectorAll('[data-row]').length === 200)
     await page.locator('[data-shell-scroller]').evaluate(async (element) => {
       element.scrollTop = 10500
       await new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done())))
     })
-    const observations = page.locator('[data-shell-scroller]').evaluate((element) => new Promise<number[]>((done) => {
-      const offsets: number[] = []
+    const observations = page.locator('[data-shell-scroller]').evaluate((element) => new Promise<{ offset: number; departing: boolean }[]>((done) => {
+      const offsets: { offset: number; departing: boolean }[] = []
       const start = performance.now()
       const sample = () => {
-        offsets.push(element.scrollTop)
+        offsets.push({ offset: element.scrollTop, departing: element.querySelector('[data-list-motion][inert]') !== null })
         if (performance.now() - start > 800) done(offsets)
         else requestAnimationFrame(sample)
       }
       requestAnimationFrame(sample)
     }))
     await page.evaluate(() => document.querySelector<HTMLButtonElement>('button')!.click())
-    expect((await observations).every((offset) => offset === 10500)).toBe(true)
+    const samples = await observations
+    expect(samples.filter(sample => sample.departing).every(sample => sample.offset === 10500), JSON.stringify(samples)).toBe(true)
+    expect(samples.at(-1)!.offset).toBe(776)
     expect(await page.locator('[data-row]').count()).toBe(20)
     await page.locator('[data-shell-scroller]').evaluate((element) => { element.scrollTop = 0 })
     await page.waitForFunction(() => document.querySelector('[data-shell-scroller]')!.scrollHeight === 1376)
@@ -79,11 +88,11 @@ it.each(['no-preference', 'reduce'] as const)('holds the offset when rows leave 
 })
 
 it.each([1, 1.1].flatMap((zoom) => (['no-preference', 'reduce'] as const).map((reducedMotion) => ({ zoom, reducedMotion }))))(
-  'holds the bulk removal offset while the viewport grows, zoom=$zoom motion=$reducedMotion', async ({ zoom, reducedMotion }) => {
+  'releases the bulk removal offset before the viewport grows, zoom=$zoom motion=$reducedMotion', async ({ zoom, reducedMotion }) => {
     const page = await browser.newPage({ viewport: { width: 412, height: 1100 }, reducedMotion })
     try {
       page.setDefaultTimeout(3000)
-      await page.setContent('<!doctype html><div id="root" data-count="30" data-remaining="0"></div>')
+      await page.setContent(`<!doctype html><style>${stylesheet}</style><div id="root" data-count="30" data-remaining="0"></div>`)
       await page.addScriptTag({ content: script })
       await page.waitForFunction(() => document.querySelectorAll('[data-row]').length === 30)
       const scroller = page.locator('[data-shell-scroller]')
@@ -108,10 +117,11 @@ it.each([1, 1.1].flatMap((zoom) => (['no-preference', 'reduce'] as const).map((r
       await page.waitForFunction(() => document.querySelectorAll('[data-row]').length === 0)
       await page.evaluate((zoom) => { document.body.style.zoom = String(zoom); document.getElementById('grow-viewport')!.click() }, zoom)
       const samples = await observations
-      expect(samples.every(({ offset }) => Math.abs(offset - 650) < 1), JSON.stringify(samples)).toBe(true)
+      expect(samples.filter(sample => sample.departures > 0).every(sample => Math.abs(sample.offset - 650) < 1), JSON.stringify(samples)).toBe(true)
+      expect(samples.at(-1)!.offset).toBe(0)
       expect(await page.locator('[data-row]').count()).toBe(0)
       await scroller.evaluate((element) => { element.scrollTop = 240 })
-      await page.waitForFunction(() => Math.abs(document.querySelector('[data-shell-scroller]')!.scrollTop - 240) < 1)
+      await page.waitForFunction(() => document.querySelector('[data-shell-scroller]')!.scrollTop === 0)
       await scroller.evaluate((element) => { element.scrollTop = 0 })
       await page.waitForFunction(() => document.querySelector('[data-shell-scroller]')!.scrollHeight === 832)
     } finally { await page.close() }

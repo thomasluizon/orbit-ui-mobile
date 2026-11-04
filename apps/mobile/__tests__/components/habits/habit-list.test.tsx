@@ -10,7 +10,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
 import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
-import { FlatList, LayoutAnimation, StyleSheet, View, type ViewStyle, type HostInstance } from 'react-native'
+import { FlatList, LayoutAnimation, StyleSheet, View, type FlatListProps, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, type ViewStyle, type HostInstance } from 'react-native'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
 import { makeMonthlyChildDaySchedule } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -399,6 +399,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
         ...moveQueryResult(args[0]),
         data: listQueryState.isError ? undefined : moveQueryResult(args[0]).data,
         isLoading: listQueryState.isLoading,
+        showLoading: listQueryState.isLoading,
         isError: listQueryState.isError || moveQueryResult(args[0]).isError,
         dataUpdatedAt: mockHabitsDataUpdatedAt,
         refetch: habitListRefetch,
@@ -1281,6 +1282,33 @@ describe('HabitList', () => {
       && resolvedStyle(node.props.style ?? {}).paddingLeft === 8)[0]!
     expect(resolvedStyle(body.props.style)).toMatchObject({ paddingLeft: 8, paddingVertical: 8 })
     } finally { dimensions.mockRestore() }
+  })
+
+  it('keeps the loading scroller mounted while the skeleton delay expires', async () => {
+    const { queryClient } = await vi.importActual<typeof import('@/lib/query-client')>('@/lib/query-client')
+    vi.useFakeTimers()
+    skipFlow.active = true
+    queryClient.clear()
+    offlineMocks.apiClient.mockImplementation(() => new Promise(() => undefined))
+    let tree: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(() => {
+        tree = createTestTree(<QueryClientProvider client={queryClient}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} /></QueryClientProvider>)
+      })
+      const loadingList = tree!.root.findAllByType(FlatList)[0]
+      expect(loadingList).toBeDefined()
+      expect(loadingList.props.data).toEqual([])
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(299) })
+      expect(loadingList.props.data).toEqual([])
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(tree!.root.findAllByType(FlatList)[0]).toBe(loadingList)
+      expect(loadingList.props.data).toHaveLength(5)
+      expect(loadingList.props.accessibilityState).toEqual({ busy: true })
+    } finally {
+      if (tree) TestRenderer.act(() => tree.unmount())
+      queryClient.clear()
+      vi.useRealTimers()
+    }
   })
 
   it('keeps the Hoje habit list loading through 429 then renders the list', async () => {
@@ -3119,6 +3147,62 @@ describe('HabitList', () => {
       expect(rowIndex).toBe(2)
       expect(geometry.get('habit-row-1')!.top - geometry.get('habit-row-0')!.bottom).toBe(12)
     }
+  })
+
+  it('preserves drill bottom extent through retained exits and releases it afterward', async () => {
+    vi.useFakeTimers()
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    const children = Array.from({ length: 30 }, (_, index) => createMockHabit({
+      id: `child-${index}`, title: `Child ${index}`, parentId: parent.id,
+    }))
+    seedHabits([parent, ...children])
+    Object.assign(mockDrillState, { currentParentId: parent.id, currentParent: parent,
+      drillStack: [parent.id], drillChildren: children })
+    const content = () => <HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = createTestTree(content()) as GeometryTree })
+    const list = () => tree.root.findAllByType('FlatList')[0]!.props as unknown as FlatListProps<NormalizedHabit>
+    const renderSlot = (slot: FlatListProps<NormalizedHabit>['ListHeaderComponent']) =>
+      typeof slot === 'function' ? React.createElement(slot) : slot
+    await TestRenderer.act(() => list().onLayout!({ nativeEvent: { layout: { x: 0, y: 0, width: 412, height: 400 } } } as LayoutChangeEvent))
+    const measureContent = () => {
+      const props = list()
+      let composition!: GeometryTree
+      TestRenderer.act(() => {
+        composition = createTestTree(<View><View testID="drill-content" style={props.contentContainerStyle}>
+          {renderSlot(props.ListHeaderComponent)}
+          {props.data!.length > 0
+            ? Array.from(props.data!).map((item, index) => <React.Fragment key={item.id}>{props.renderItem!({ item, index,
+              separators: { highlight: () => {}, unhighlight: () => {}, updateProps: () => {} },
+            })}</React.Fragment>)
+            : renderSlot(props.ListEmptyComponent)}
+          {renderSlot(props.ListFooterComponent)}
+        </View></View>) as GeometryTree
+      })
+      const boxes = measureSafeArea(composition.toJSON(), host => host.props.testID, { width: 412, height: 400 })
+      const measured = boxes.get('drill-content')!
+      TestRenderer.act(() => composition.unmount())
+      return measured.bottom - measured.top
+    }
+    const before = measureContent()
+    const bottomOffset = before - 400
+    expect(bottomOffset).toBeGreaterThan(0)
+    await TestRenderer.act(() => list().onScroll!({ nativeEvent: {
+      contentOffset: { x: 0, y: bottomOffset }, contentSize: { width: 412, height: before },
+      layoutMeasurement: { width: 412, height: 400 },
+    } } as NativeSyntheticEvent<NativeScrollEvent>))
+    mockDrillState.drillChildren = []
+    await TestRenderer.act(() => tree.update(content()))
+    expect(list().data).toHaveLength(children.length)
+    const during = measureContent()
+    expect(during, JSON.stringify({ before, during, bottomOffset, maximumOffset: during - 400 })).toBe(before)
+    expect(list().ListFooterComponent).not.toBeNull()
+    await TestRenderer.act(() => { vi.advanceTimersByTime(300) })
+    expect(list().data).toHaveLength(0)
+    expect(list().ListFooterComponent).toBeNull()
+    const settled = measureContent()
+    expect(settled).toBe(400)
+    expect(settled).toBeLessThan(before)
   })
 
   it('uses a plain list for drill view', () => {
@@ -6033,13 +6117,13 @@ describe('HabitList', () => {
       await TestRenderer.act(() => { tree.update(content(date)) })
       expect(StyleSheet.flatten(tree.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(300)
       TestRenderer.act(() => { tree.root.findByType('DraggableFlatList').props.onScrollOffsetChange(100) })
-      expect(StyleSheet.flatten(tree.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(400)
+      expect(StyleSheet.flatten(tree.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(300)
       await TestRenderer.act(() => tree.unmount())
     })
 
     it('retains every bulk departing row through an immediate viewport resize and removal', async () => {
       vi.useFakeTimers()
-      seedHabits(['first', 'second', 'third'].map((id) => createMockHabit({ id, scheduledDates: [TODAY] })))
+      seedHabits(Array.from({ length: 30 }, (_, index) => createMockHabit({ id: `habit-${index}`, scheduledDates: [TODAY] })))
       const content = <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
       let tree: ReturnType<typeof TestRenderer.create>
       await TestRenderer.act(() => { tree = createTestTree(content) })
@@ -6053,14 +6137,13 @@ describe('HabitList', () => {
       await TestRenderer.act(() => { tree!.update(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />) })
       const leaving = tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) =>
         typeof node.type === 'string' && node.props['data-phase'] === 'exit')
-      expect(leaving).toHaveLength(3)
-      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(1050)
+      expect(leaving).toHaveLength(30)
       await TestRenderer.act(() => { vi.advanceTimersByTime(300) })
       expect(tree!.root.findAll((node: import('react-test-renderer').ReactTestInstance) => typeof node.type === 'string' && node.props['data-phase'] === 'exit')).toHaveLength(0)
-      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(1050)
+      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(400)
       expect(rootListScroll.scrollToOffset).not.toHaveBeenCalled()
       TestRenderer.act(() => { tree!.root.findByType('DraggableFlatList').props.onScrollOffsetChange(240) })
-      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(640)
+      expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(400)
       TestRenderer.act(() => { tree!.root.findByType('DraggableFlatList').props.onScrollOffsetChange(0) })
       expect(StyleSheet.flatten(tree!.root.findByType('DraggableFlatList').props.contentContainerStyle).minHeight).toBe(400)
       await TestRenderer.act(() => tree!.unmount())

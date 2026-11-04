@@ -42,3 +42,5 @@ export * from './habit-list-state-core'
 export * from './habit-logging-core'
 export * from './habit-structure-core'
 export * from './habit-delete-core'
+
+export { createUseDelayedLoading } from './delayed-loading-core'

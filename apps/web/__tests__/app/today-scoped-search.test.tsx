@@ -96,7 +96,13 @@ it.each([false, true])('scopes Hoje search with general habits enabled, matching
       expect(screen.queryByRole('textbox', { name: en.habits.search.title })).not.toBeInTheDocument()
       expect(screen.getAllByTestId('habit-row')).toHaveLength(4)
     }
-    expect(boundary.fetch).not.toHaveBeenCalled()
+    const requestedDays = boundary.fetch.mock.calls.map(([url]) => new URL(String(url), 'https://fixture.invalid').searchParams.get('dateFrom'))
+    expect(new Set(requestedDays)).toEqual(new Set(['2026-09-03', '2026-09-05']))
+    for (const [url] of boundary.fetch.mock.calls) {
+      const parameters = new URL(String(url), 'https://fixture.invalid').searchParams
+      expect(parameters.get('includeGeneral')).toBe('true')
+      expect([null, query]).toContain(parameters.get('search'))
+    }
   } finally {
     rendered.unmount()
     client.clear()
@@ -161,7 +167,13 @@ it.each([
     fireEvent.click(screen.getByRole('button', { name: en.habits.bulkBar.log }))
     await act(async () => {})
     expect(boundary.log).toHaveBeenCalledWith([{ habitId: target, date: view === 'today' ? selectedDay : today }])
-    expect(boundary.fetch).not.toHaveBeenCalled()
+    const requestedDays = boundary.fetch.mock.calls.map(([url]) => new URL(String(url), 'https://fixture.invalid').searchParams.get('dateFrom'))
+    expect(new Set(requestedDays)).toEqual(new Set(view === 'today' ? ['2026-09-02', '2026-09-04'] : []))
+    for (const [url] of boundary.fetch.mock.calls) {
+      const parameters = new URL(String(url), 'https://fixture.invalid').searchParams
+      expect(parameters.get('frequencyUnit')).toBe('Day')
+      expect(parameters.get('includeOverdue')).toBe(parameters.get('dateFrom') === today ? 'true' : null)
+    }
   } finally {
     rendered.unmount()
     client.clear()

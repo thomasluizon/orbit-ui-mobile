@@ -10,6 +10,6 @@ export function shouldFetchAllHabitPages(filters: HabitsFilter, completeDay: boo
   return totalPages > 1 && (!filters.dateFrom || completeDay)
 }
 
-export function habitViewQueryOptions(view: HabitVisibilityView, today: string): { completeDay: boolean; scheduleDate: string | undefined } {
-  return { completeDay: view === 'today', scheduleDate: view === 'all' ? today : undefined }
+export function habitViewQueryOptions(view: HabitVisibilityView, today: string): { completeDay: boolean; scheduleDate: string | undefined; prefetchAroundToday: string | undefined } {
+  return { completeDay: view === 'today', scheduleDate: view === 'all' ? today : undefined, prefetchAroundToday: view === 'today' ? today : undefined }
 }

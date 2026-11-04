@@ -2739,6 +2739,11 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   --shell-safe-right: var(--safe-right);
 }
 
+[data-shell-page-content] {
+  --shell-scroll-min-height: 100%;
+  transition-property: none;
+}
+
 [data-shell-column],
 [data-shell-page] {
   max-width: calc(740px + var(--shell-safe-left, 0px) + var(--shell-safe-right, 0px));

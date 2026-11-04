@@ -74,6 +74,13 @@ function titlesOf(habitsById: Map<string, { title: string }>): string[] {
   return [...habitsById.values()].map((habit) => habit.title)
 }
 
+function expectNeighbourReadsOnly() {
+  expect(new Set(mocks.fetchJson.mock.calls.map(([url]) => url))).toEqual(new Set([
+    '/api/habits?dateFrom=2024-12-31&dateTo=2024-12-31',
+    '/api/habits?dateFrom=2025-01-02&dateTo=2025-01-02',
+  ]))
+}
+
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn())
   getQueryClient().clear()
@@ -92,7 +99,7 @@ afterEach(() => {
 it('never shows the next account the habits the server rendered for the previous one', async () => {
   const rendered = renderToday()
   expect(titlesOf(rendered.result.current.habitsById)).toEqual(['Take lithium at 9pm'])
-  expect(mocks.fetchJson).not.toHaveBeenCalled()
+  expectNeighbourReadsOnly()
 
   mocks.fetchJson.mockResolvedValue({
     items: [scheduleItem('habit-b', 'Walk the dog')],
@@ -134,7 +141,7 @@ it('keeps preloaded Today data through the first check for the rendered account'
   await act(async () => { await useAuthStore.getState().checkSession() })
 
   expect(titlesOf(rendered.result.current.habitsById)).toEqual(['Take lithium at 9pm'])
-  expect(mocks.fetchJson).not.toHaveBeenCalled()
+  expectNeighbourReadsOnly()
 })
 
 it('keeps the rendered habits when the same account recovers from a rejected refresh', async () => {
@@ -144,5 +151,5 @@ it('keeps the rendered habits when the same account recovers from a rejected ref
   await recoverSameAccount('user-1')
 
   expect(titlesOf(rendered.result.current.habitsById)).toEqual(['Take lithium at 9pm'])
-  expect(mocks.fetchJson).not.toHaveBeenCalled()
+  expectNeighbourReadsOnly()
 })

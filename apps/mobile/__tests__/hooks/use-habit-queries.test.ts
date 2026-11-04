@@ -6,7 +6,7 @@ import { createHabitViewItems, createHabitViewScheduleItems } from '@orbit/share
 import { buildHabitDateBuckets, canLogHabitOnDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { habitKeys, resetAccountQueries } from '@orbit/shared/query'
 
@@ -53,6 +53,8 @@ interface CapturedQuery {
   select?: (data: unknown) => unknown
 }
 
+let queryClient: CoreQueryClient
+
 const mocks = vi.hoisted(() => {
   return {
     captured: [] as CapturedQuery[],
@@ -60,6 +62,7 @@ const mocks = vi.hoisted(() => {
     setQueryData: vi.fn(),
     isAuthenticated: true,
     useQuery: vi.fn((options: CapturedQuery) => {
+      queryClient.getQueryCache().build(queryClient, options)
       const queryFn = options.queryFn
       mocks.captured.push({ ...options, queryFn: (context) => queryFn(context ?? { signal: new AbortController().signal }) })
       return { data: undefined, isLoading: false, isSuccess: false, isError: false }
@@ -67,9 +70,10 @@ const mocks = vi.hoisted(() => {
   }
 })
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async importOriginal => ({
+  ...await importOriginal<typeof import('@tanstack/react-query')>(),
   useQuery: mocks.useQuery,
-  useQueryClient: () => ({ getQueryData: () => undefined, setQueryData: mocks.setQueryData }),
+  useQueryClient: () => queryClient,
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -103,7 +107,11 @@ beforeEach(() => {
   mocks.setQueryData.mockReset()
   mocks.useQuery.mockClear()
   mocks.isAuthenticated = true
+  queryClient = new CoreQueryClient()
+  vi.spyOn(queryClient, 'setQueryData').mockImplementation(mocks.setQueryData)
 })
+
+afterEach(() => queryClient.clear())
 
 describe('useHabits (mobile query hook)', () => {
   it.each([false, true])('loads every unfiltered inventory page, General=%s', async (isGeneral) => {

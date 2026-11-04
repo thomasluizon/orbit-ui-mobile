@@ -146,7 +146,7 @@ export function HabitList({
   const { listContainerRef } = state.drag
   const { showDeleteConfirm, deletePending, habitToDuplicate, deleteConfirmation, confirmDuplicate, confirmDelete, closeDelete, cancelDelete, cancelDuplicate } = state.confirmations
   return <>
-    <ListPresence>{habitsQuery.isLoading ? <ContentFade key="loading"><HabitListSkeleton /></ContentFade> : null}</ListPresence>
+    <ListPresence>{habitsQuery.showLoading ? <ContentFade key="loading"><HabitListSkeleton /></ContentFade> : null}</ListPresence>
     {renderList()}
     <DeferredEditHabitModal
       open={showEditModal}

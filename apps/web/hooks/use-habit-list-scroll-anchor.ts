@@ -9,7 +9,7 @@ export function useHabitListScrollAnchor(parentId: string | null = null) {
     if (!list || !scroller) return
     let content: HTMLElement = list
     while (content.parentElement !== scroller) content = content.parentElement!
-    const initialMinimumHeight = content.style.minHeight
+    const initialMinimumHeight = content.style.getPropertyValue('--shell-scroll-min-height')
     const initialOverflowAnchor = scroller.style.overflowAnchor
     scroller.style.overflowAnchor = 'none'
     if (parentId) scroller.scrollTop = 0
@@ -18,7 +18,7 @@ export function useHabitListScrollAnchor(parentId: string | null = null) {
     const reserve = () => {
       viewport = scroller.clientHeight
       const contentTop = content.offsetTop - Number.parseFloat(getComputedStyle(scroller).paddingTop)
-      content.style.minHeight = `calc(100% + ${Math.ceil(offset) - contentTop}px)`
+      content.style.setProperty('--shell-scroll-min-height', `calc(100% + ${Math.ceil(offset) - contentTop}px)`)
       scroller.scrollTop = offset
     }
     const onScroll = () => {
@@ -34,7 +34,8 @@ export function useHabitListScrollAnchor(parentId: string | null = null) {
     return () => {
       stopObservingScroll()
       observer.disconnect()
-      content.style.minHeight = initialMinimumHeight
+      if (initialMinimumHeight) content.style.setProperty('--shell-scroll-min-height', initialMinimumHeight)
+      else content.style.removeProperty('--shell-scroll-min-height')
       scroller.style.overflowAnchor = initialOverflowAnchor
     }
   }, [parentId])

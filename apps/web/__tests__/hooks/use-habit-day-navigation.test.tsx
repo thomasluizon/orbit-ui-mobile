@@ -1,0 +1,189 @@
+import React from 'react'
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import { buildHabitViewFilters, habitViewQueryOptions } from '@orbit/shared/utils'
+import { habitKeys, invalidateAccountEvent, resetAccountQueries } from '@orbit/shared/query'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { useHabits } from '@/hooks/use-habit-queries'
+import { invalidateHabitInventoryQueries } from '@/hooks/use-habit-mutation-shared'
+
+const requests = vi.hoisted(() => ({ read: vi.fn() }))
+vi.mock('@/lib/api-fetch', () => ({ fetchJson: (url: string) => requests.read(url) }))
+
+const today = '2026-09-12'
+let client: QueryClient
+let tree: ReactTestRenderer | undefined
+let current: ReturnType<typeof useHabits>
+
+function Day({ date, enabled = true }: { date: string; enabled?: boolean }) {
+  const filters = buildHabitViewFilters({ dateStr: date, isTodayDate: date === today,
+    searchQuery: '', selectedFrequency: null, selectedTagIds: [], showGeneralOnToday: false })
+  const query = useHabits(filters, undefined, { ...habitViewQueryOptions('today', today), enabled })
+  React.useEffect(() => { current = query })
+  return React.createElement('output', null, query.data?.topLevelHabits.map(habit => habit.title).join(','))
+}
+
+function renderDay(date: string, enabled = true) {
+  const content = <QueryClientProvider client={client}><Day date={date} enabled={enabled} /></QueryClientProvider>
+  void act(() => { if (tree) tree.update(content); else tree = create(content) })
+}
+
+async function advance(milliseconds = 1) {
+  await act(async () => { await vi.advanceTimersByTimeAsync(milliseconds) })
+}
+
+beforeEach(() => {
+  vi.useFakeTimers()
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  requests.read.mockReset()
+  requests.read.mockImplementation(async (url: string) => {
+    const date = new URL(url, 'https://fixture.invalid').searchParams.get('dateFrom')!
+    await new Promise(resolve => setTimeout(resolve, 3_000))
+    const items = Array.from({ length: 50 }, (_, index) => createMockHabitScheduleItem({
+      id: `${date}-${index}`, title: `${date} habit ${index}`, scheduledDates: [date],
+    }))
+    return { items, page: 1, pageSize: 50, totalCount: 50, totalPages: 1 }
+  })
+})
+
+afterEach(() => {
+  void act(() => tree?.unmount())
+  tree = undefined
+  client.clear()
+  vi.useRealTimers()
+})
+
+describe('Today day cache', () => {
+  it.each(['2026-09-11', '2026-09-13'])('renders settled neighbour %s synchronously without requesting it again', async neighbour => {
+    renderDay(today)
+    expect(requests.read).toHaveBeenCalledTimes(1)
+    await advance(3_010)
+    expect(current.isSuccess).toBe(true)
+    await advance(3_010)
+    const readsBefore = requests.read.mock.calls.filter(([url]) => String(url).includes(`dateFrom=${neighbour}`)).length
+    expect(readsBefore).toBe(1)
+    renderDay(neighbour)
+    expect(current.isSuccess).toBe(true)
+    expect(tree?.root.findAllByType('output')[0]!.props.children).toContain(`${neighbour} habit 0`)
+    expect(requests.read.mock.calls.filter(([url]) => String(url).includes(`dateFrom=${neighbour}`))).toHaveLength(readsBefore)
+    renderDay(today)
+    expect(tree?.root.findAllByType('output')[0]!.props.children).toContain(`${today} habit 0`)
+  })
+
+  it('warms every page for a 450-habit day before publishing the neighbour', async () => {
+    requests.read.mockImplementation(async (url: string) => {
+      const parameters = new URL(url, 'https://fixture.invalid').searchParams
+      const date = parameters.get('dateFrom')!
+      const page = Number(parameters.get('page') ?? 1)
+      await new Promise(resolve => setTimeout(resolve, 3_000))
+      const items = Array.from({ length: 50 }, (_, index) => createMockHabitScheduleItem({
+        id: `${date}-${(page - 1) * 50 + index}`, title: `${date} habit ${(page - 1) * 50 + index}`,
+        dueDate: date, scheduledDates: [date],
+      }))
+      return { items, page, pageSize: 50, totalCount: 450, totalPages: 9 }
+    })
+    renderDay(today)
+    await advance(3_010)
+    expect(current.data).toBeUndefined()
+    await advance(3_010)
+    expect(current.data?.topLevelHabits).toHaveLength(450)
+    await advance(6_010)
+    renderDay('2026-09-13')
+    expect(current.data?.topLevelHabits).toHaveLength(450)
+    expect(tree?.root.findAllByType('output')[0]!.props.children).toContain('2026-09-13 habit 449')
+    expect(requests.read.mock.calls.filter(([url]) => String(url).includes('dateFrom=2026-09-13'))).toHaveLength(9)
+  })
+
+  it('fences pending neighbour pages across an account reset', async () => {
+    renderDay(today)
+    await advance(3_010)
+    expect(requests.read).toHaveBeenCalledTimes(3)
+    renderDay(today, false)
+    await act(async () => { advanceAccountGeneration(); await resetAccountQueries(client, 'signed-out') })
+    await advance(3_010)
+    expect(current.data).toBeUndefined()
+    expect(client.getQueriesData({ queryKey: habitKeys.lists() }).every(([, items]) => items === undefined)).toBe(true)
+    expect(client.getQueriesData({ queryKey: habitKeys.all }).every(([, count]) => count === undefined)).toBe(true)
+  })
+
+  it.each(['write', 'account event'])('discards a pending neighbour snapshot after %s invalidation', async source => {
+    let created = false
+    requests.read.mockImplementation(async (url: string) => {
+      const date = new URL(url, 'https://fixture.invalid').searchParams.get('dateFrom')!
+      const items = created ? [createMockHabitScheduleItem({ id: 'created', title: 'Created habit', scheduledDates: [date] })] : []
+      await new Promise(resolve => setTimeout(resolve, 3_000))
+      return { items, page: 1, pageSize: 50, totalCount: items.length, totalPages: 1 }
+    })
+    renderDay(today)
+    await advance(3_010)
+    expect(requests.read).toHaveBeenCalledTimes(3)
+    created = true
+    await act(() => {
+      if (source === 'write') invalidateHabitInventoryQueries(client)
+      else invalidateAccountEvent(client, { type: 'resync', payload: { v: 1, changes: [], origin: null } }, null)
+    })
+    await advance(3_010)
+    expect(current.data?.topLevelHabits.map(habit => habit.id)).toEqual(['created'])
+    await advance(3_010)
+    renderDay('2026-09-13')
+    expect(current.isSuccess).toBe(true)
+    expect(current.isFetching).toBe(false)
+    expect(tree?.root.findAllByType('output')[0]!.props.children).toBe('Created habit')
+    expect(requests.read.mock.calls.filter(([url]) => String(url).includes('dateFrom=2026-09-13'))).toHaveLength(2)
+  })
+
+  it('never replaces the newest day with a late result', async () => {
+    renderDay(today)
+    await advance(3_010)
+    renderDay('2026-09-01')
+    await advance(1_000)
+    renderDay('2026-09-02')
+    expect(current.data).toBeUndefined()
+    await advance(2_010)
+    expect(current.data).toBeUndefined()
+    expect(tree?.root.findAllByType('output')[0]!.props.children).toBeUndefined()
+    await advance(1_000)
+    expect(tree?.root.findAllByType('output')[0]!.props.children).toContain('2026-09-02 habit 0')
+    expect(tree?.root.findAllByType('output')[0]!.props.children).not.toContain('2026-09-01 habit 0')
+  })
+
+  it('does not prefetch before the selected day settles or when disabled', async () => {
+    renderDay(today, false)
+    await advance(4_000)
+    expect(requests.read).not.toHaveBeenCalled()
+    renderDay(today)
+    await advance(2_000)
+    expect(requests.read).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows loading only after 300 ms and resets that delay on a new day', async () => {
+    renderDay(today)
+    expect(current.showLoading).toBe(false)
+    await advance(299)
+    expect(current.showLoading).toBe(false)
+    await advance(1)
+    expect(current.showLoading).toBe(true)
+    renderDay('2026-09-01')
+    expect(current.showLoading).toBe(false)
+    expect(current.data).toBeUndefined()
+    await advance(300)
+    expect(current.showLoading).toBe(true)
+    await advance(3_010)
+    expect(current.showLoading).toBe(false)
+  })
+
+  it('keeps a failed prefetch retryable when that day is selected', async () => {
+    const read = requests.read.getMockImplementation()!
+    requests.read.mockImplementation((url: string) => url.includes('dateFrom=2026-09-13')
+      ? Promise.reject(new Error('unavailable neighbour')) : read(url))
+    renderDay(today)
+    await advance(3_010)
+    await advance(1)
+    requests.read.mockImplementation(read)
+    renderDay('2026-09-13')
+    await advance(3_010)
+    expect(tree?.root.findAllByType('output')[0]!.props.children).toContain('2026-09-13 habit 0')
+  })
+})

@@ -17,6 +17,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { expectCompactFabNoticeGeometry } from '@/e2e/layout/fab-notice-geometry'
 import { measureChromePaint } from '@/e2e/layout/composer-column-paint'
 import { measureScrollbarGutter } from '@/e2e/layout/scrollbar-geometry'
+import { measureShellScrollEnd, shellScrollViewports } from '@/e2e/layout/shell-scroll-extent'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -35,6 +36,27 @@ describe('Shell bottom column geometry', () => {
     stylesheet += `:root{${theme}}`
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(shellScrollViewports.flatMap(viewport => ['hoje', 'calendar', 'progress', 'profile', 'habit-detail'].map(destination => ({ ...viewport, destination }))))('bounds $destination end clearance at $width by $height', async ({ width, height, destination }) => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    const composer = <Composer state="idle" value="" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />
+    const view = render(<ShellWide items={[]} activeId={destination} navLabel={en.nav.mainNavigation}
+      astraRow={{ label: 'Astra', onOpen: vi.fn() }} header={<div style={{ height: 56 }} />}
+      compactComposer={destination === 'hoje' ? composer : undefined}
+      composer={destination === 'habit-detail' ? composer : undefined}
+      tabBar={<nav style={{ height: 80 }}>Tabs</nav>}
+      fab={destination === 'hoje' ? <Fab label="Create" onClick={vi.fn()}><span>+</span></Fab> : undefined}>
+      <div data-testid="habit-row" style={{ height: 1600 }} />
+    </ShellWide>)
+    const page = await browser.newPage({ reducedMotion: 'reduce', viewport: { width, height } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+      const measured = await page.locator('[data-shell-scroller]').evaluate(measureShellScrollEnd)
+      const clearance = width < 1024 && (destination === 'hoje' || destination === 'habit-detail') ? 96 : 32
+      expect(measured.scrollTop, JSON.stringify(measured)).toBe(measured.scrollHeight - measured.clientHeight)
+      expect(measured.scrollerBottom - measured.lastBottom, JSON.stringify(measured)).toBeCloseTo(clearance, 0)
+    } finally { await page.close(); view.unmount(); vi.unstubAllGlobals() }
+  })
 
   it.each([390, 1280])('keeps the last Hoje row clear through collapse and expansion at %ipx', async width => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: width >= Number(query.match(/min-width: (\d+)px/)?.[1]), addEventListener: vi.fn(), removeEventListener: vi.fn() }))

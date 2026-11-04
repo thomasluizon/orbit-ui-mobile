@@ -315,7 +315,12 @@ describe('Today server preload', () => {
       expect(container.querySelector('[aria-busy="true"]')).toBeNull()
       const accountRequests = vi.mocked(globalThis.fetch).mock.calls.filter(([url]) =>
         typeof url === 'string' && (url.startsWith('/api/habits') || url === '/api/profile'))
-      expect(accountRequests.map(([url]) => url)).toEqual(['/api/habits/count'])
+      expect(accountRequests).toHaveLength(3)
+      expect(new Set(accountRequests.map(([url]) => url))).toEqual(new Set([
+        '/api/habits/count',
+        '/api/habits?dateFrom=2026-08-28&dateTo=2026-08-28',
+        '/api/habits?dateFrom=2026-08-30&dateTo=2026-08-30',
+      ]))
     } finally {
       await act(async () => root?.unmount())
       container.remove()
