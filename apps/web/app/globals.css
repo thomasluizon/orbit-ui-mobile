@@ -385,9 +385,9 @@ select[aria-hidden="true"] {
   background: var(--bg-hover);
 }
 
-.orbit-list-action-surface .orbit-list-row-body:is(:hover, :active, :focus-visible),
-.orbit-list-action-surface .orbit-list-row-body:is(:hover, :active, :focus-visible)::before,
-.orbit-list-action-surface .orbit-list-row-body:is(:hover, :active, :focus-visible) > .orbit-list-row-outset {
+.orbit-list-action-surface .orbit-list-row-body:is(:active, :focus-visible),
+.orbit-list-action-surface .orbit-list-row-body:is(:active, :focus-visible)::before,
+.orbit-list-action-surface .orbit-list-row-body:is(:active, :focus-visible) > .orbit-list-row-outset {
   background: transparent;
   outline: none;
 }
@@ -403,6 +403,13 @@ select[aria-hidden="true"] {
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .orbit-list-action-surface .orbit-list-row-body:hover,
+  .orbit-list-action-surface .orbit-list-row-body:hover::before,
+  .orbit-list-action-surface .orbit-list-row-body:hover > .orbit-list-row-outset {
+    background: transparent;
+    outline: none;
+  }
+
   .orbit-list-action-surface:has(:is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):hover:not(:disabled)) {
     --fg-3: var(--fg-2);
     --orbit-list-row-secondary: var(--fg-2);
