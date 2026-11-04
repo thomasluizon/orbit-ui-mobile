@@ -112,13 +112,13 @@ vi.mock('@/hooks/use-habit-queries', () => {
 
 return { EMPTY_HABITS_BY_ID: new Map(),
   useTotalHabitCount: () => createState.count,
-  useHabits: () => ({ data: routeState.hasData ? { habitsById: routeState.habits } : undefined, isFetching: !routeState.hasData && !routeState.hasError, isError: routeState.hasError }),
+  useHabits: () => ({ data: routeState.hasData ? { habitsById: routeState.habits, childrenByParent: new Map() } : undefined, isFetching: !routeState.hasData && !routeState.hasError, isError: routeState.hasError }),
   useHabitCountLoaded: () => ({ count: createState.count, isLoaded: createState.countLoaded }) }
 })
 vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map(),
   useTotalHabitCount: () => createState.count,
-  useHabits: () => ({ data: routeState.hasData ? { habitsById: routeState.habits } : undefined, isFetching: !routeState.hasData && !routeState.hasError, isError: routeState.hasError }),
+  useHabits: () => ({ data: routeState.hasData ? { habitsById: routeState.habits, childrenByParent: new Map() } : undefined, isFetching: !routeState.hasData && !routeState.hasError, isError: routeState.hasError }),
 }))
 vi.mock('@/components/navigation/root-stack-screens', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/navigation/root-stack-screens')>()
