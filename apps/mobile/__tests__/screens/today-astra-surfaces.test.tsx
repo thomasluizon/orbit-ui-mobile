@@ -1,4 +1,4 @@
-import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
 import type { ProactiveItem } from '@orbit/shared/types/proactive'
 import { View } from 'react-native'
 import React from 'react'
@@ -60,7 +60,7 @@ vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map(),
   useHabits: () => ({
-    data: mocks.hasData ? { habitsById: mocks.noHabits ? new Map() : new Map([[mocks.habit.id, mocks.habit]]) } : undefined,
+    data: mocks.hasData ? { habitsById: mocks.noHabits ? new Map() : new Map([[mocks.habit.id, mocks.habit]]), childrenByParent: new Map() } : undefined,
     isLoading: !mocks.hasData && mocks.isFetching,
     isFetching: mocks.isFetching,
     isError: mocks.isError,
@@ -72,7 +72,7 @@ vi.mock('@/hooks/use-habit-queries', () => {
 
 return { EMPTY_HABITS_BY_ID: new Map(),
   useHabits: () => ({
-    data: mocks.hasData ? { habitsById: mocks.noHabits ? new Map() : new Map([[mocks.habit.id, mocks.habit]]) } : undefined,
+    data: mocks.hasData ? { habitsById: mocks.noHabits ? new Map() : new Map([[mocks.habit.id, mocks.habit]]), childrenByParent: new Map() } : undefined,
     isLoading: !mocks.hasData && mocks.isFetching,
     isFetching: mocks.isFetching,
     isError: mocks.isError,
@@ -170,6 +170,23 @@ function isSuppressed(tree: ReturnType<typeof TestRenderer.create>): boolean {
 }
 
 describe('mobile Today Astra owned surfaces', () => {
+  it.each([false, true])('clears the Astra slot for completion and restores it on undo, proactive=%s', async (proactive) => {
+    mocks.hasProAccess = false
+    mocks.proactiveItem = proactive ? createMockProactiveItem({ text: 'Day complete' }) : null
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = createTestTree(<TodayScreen />) })
+    const line = () => tree.root.findAll(node => node.props.accessibilityLabel === (proactive ? 'Day complete' : 'summary.freePrompt'))
+    try {
+      expect(line().length).toBeGreaterThan(0)
+      const habit = mocks.habit
+      mocks.habit = { ...habit, isLoggedInRange: true }
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+      expect(line()).toHaveLength(0)
+      mocks.habit = habit
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+      expect(line().length).toBeGreaterThan(0)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
   it.each(['past day', 'create', 'edit', 'select', 'list', 'first load', 'load error'])('withholds the reachable daily summary during %s', async (state) => {
     mocks.hasProAccess = false
     let tree!: GeometryTree
@@ -280,6 +297,7 @@ describe('mobile Today Astra owned surfaces', () => {
     mocks.routerPush.mockReset()
     mocks.lastCompletionDate = undefined
     mocks.noHabits = false
+    mocks.habit = createMockHabit({ id: 'habit-1', title: 'Walk', scheduledDates: ['2026-08-29'] })
     mocks.hasData = true
     mocks.isFetching = false
     mocks.isError = false

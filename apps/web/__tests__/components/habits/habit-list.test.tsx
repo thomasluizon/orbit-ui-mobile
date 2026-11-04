@@ -2320,6 +2320,22 @@ describe('HabitList', () => {
     expect(screen.getByTestId('habit-card-done-due')).toBeInTheDocument()
   })
 
+  it('restores the due list immediately when completion is undone', () => {
+    useActualHabitVisibility = true
+    accountHabitCount.count = 1
+    const due = createMockHabit({ id: 'due', scheduledDates: [TODAY], isLoggedInRange: true })
+    mockHabitsData.habitsById = new Map([[due.id, due]])
+    mockHabitsData.topLevelHabits = [due]
+    const page = renderWithProviders(<HabitList filters={defaultFilters} showCompleted={false} />)
+    expect(screen.getByTestId('habit-list-all-done')).toBeInTheDocument()
+    const undone = { ...due, isLoggedInRange: false }
+    mockHabitsData.habitsById = new Map([[undone.id, undone]])
+    mockHabitsData.topLevelHabits = [undone]
+    page.rerenderWithProviders(<HabitList filters={defaultFilters} showCompleted={false} />)
+    expect(screen.queryByTestId('habit-list-all-done')).not.toBeInTheDocument()
+    expect(screen.getByTestId('habit-card-due')).toBeInTheDocument()
+  })
+
   it('shows all-done when a due row is completed without a range log flag', () => {
     useActualHabitVisibility = true
     accountHabitCount.count = 1

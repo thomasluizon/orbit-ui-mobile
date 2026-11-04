@@ -33,6 +33,9 @@ with 8px. The mark, text group and optional See tomorrow ghost pill use a 24px s
 entrance animation, including under reduced motion. Web owns it in
 `habits/habit-list/empty-state.tsx`; Android owns it in `habit-list/empty-state.tsx`.
 Both retain the same navigation callback and the existing completed-day eligibility.
+The Hoje screen owner suppresses its Astra slot while this completion state applies,
+so a proactive item or summary cannot repeat the completion message. Undo restores the
+normal line and list in the next render, without a dismissal delay.
 
 Web `chat-empty-state-geometry.test.tsx` mounts the conversation owner and measures the
 visible group's centre, 48px mark and 24px disclosure gap, including compact, foldable and

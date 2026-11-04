@@ -1,4 +1,5 @@
-import { createMockNotification, createMockProactiveItem, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockNotification, createMockProactiveItem, createMockProfile } from '@orbit/shared/__tests__/factories'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { ProactiveItem } from '@orbit/shared/types'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -31,7 +32,8 @@ const mocks = vi.hoisted(() => ({
     showCreateModal: false,
     listSurfaceOpen: false,
     data: {
-      habitsById: new Map([['habit-1', { id: 'habit-1' }]]),
+      habitsById: new Map<string, NormalizedHabit>(),
+      childrenByParent: new Map<string, string[]>(),
       filters: {},
       hasFetched: true,
       isFetching: false,
@@ -128,6 +130,20 @@ vi.mock('motion/react', async () => {
 })
 
 describe('web Today Astra owned surfaces', () => {
+  it.each([false, true])('clears the Astra slot for completion and restores it on undo, proactive=%s', (proactive) => {
+    mocks.hasProAccess = false
+    mocks.proactiveItem = proactive ? createMockProactiveItem({ text: 'Day complete' }) : null
+    const page = render(<TodayPageClient initialToday={mocks.view.nav.today} initialHabits={null} />)
+    const line = () => screen.queryByRole(proactive ? 'button' : 'link', { name: proactive ? 'Day complete' : 'summary.freePrompt' })
+    expect(line()).toBeInTheDocument()
+    const habit = mocks.view.data.habitsById.get('habit-1')!
+    mocks.view.data.habitsById = new Map([[habit.id, { ...habit, isLoggedInRange: true }]])
+    page.rerender(<TodayPageClient initialToday={mocks.view.nav.today} initialHabits={null} />)
+    expect(line()).not.toBeInTheDocument()
+    mocks.view.data.habitsById = new Map([[habit.id, habit]])
+    page.rerender(<TodayPageClient initialToday={mocks.view.nav.today} initialHabits={null} />)
+    expect(line()).toBeInTheDocument()
+  })
   it.each(['past day', 'create', 'select', 'list', 'first load', 'load error'])('withholds the reachable daily summary during %s', (state) => {
     mocks.hasProAccess = false
     const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
@@ -160,6 +176,7 @@ describe('web Today Astra owned surfaces', () => {
     mocks.view.data.isRefetching = false
     mocks.view.data.showLoadError = false
     mocks.view.data.habitsCount = 1
+    mocks.view.data.habitsById = new Map([['habit-1', createMockHabit({ id: 'habit-1', scheduledDates: ['2026-08-29'] })]])
     mocks.lastCompletionDate = undefined
     mocks.hasProAccess = true
     mocks.profileReady = true
