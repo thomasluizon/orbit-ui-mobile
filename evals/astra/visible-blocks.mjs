@@ -6,7 +6,7 @@ const shared = Object.assign({}, ...await Promise.all([
   'chat/account-rows-core', 'chat/metrics-card-core', 'chat/habit-ranking-core', 'chat/habit-list-core',
   'chat/day-summary-core', 'chat/read-block-core', 'chat/record-list-core', 'chat/answer-block-controller',
   'chat/gamification-card-core', 'utils/goal-metrics', 'utils/progress', 'utils/streak-week', 'utils/completion-series', 'types/chat',
-  'chat/block-kinds', 'chat/habit-month', 'utils/calendar-month',
+  'chat/block-kinds', 'chat/habit-month', 'utils/calendar-month', 'chat/figure-card-core',
 ].map((path) => tsImport(`../../packages/shared/src/${path}.ts`, import.meta.url))))
 
 function habitList(card, { t }) {
@@ -54,13 +54,10 @@ function periodTotal(card, { t, locale }) {
 }
 function periodComparison(card, { t, locale }) {
   const number = new Intl.NumberFormat(locale)
-  const relative = card.baselineValue !== 0 && card.relativeDelta != null
-    ? new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1, signDisplay: 'exceptZero' }).format(card.relativeDelta) : null
-  return { title: t(`chat.readBlock.metric.${card.metric}`),
-    current: { window: shared.formatReadWindow(card.current.window, locale), value: number.format(card.currentValue) },
-    baseline: { window: shared.formatReadWindow(card.baseline.window, locale), value: number.format(card.baselineValue) },
-    delta: { label: t('chat.readBlock.delta'), value: new Intl.NumberFormat(locale, { signDisplay: 'exceptZero' }).format(card.absoluteDelta), relative },
-    unit: t(`chat.readBlock.unit.${card.unit}`, { count: card.currentValue }),
+  const presentation = shared.comparisonPresentation(card, locale, t)
+  return { title: presentation.verdict, metric: t(`chat.readBlock.metric.${card.metric}`),
+    bars: presentation.bars.map(({ label, value }) => ({ label, value: number.format(value),
+      unit: t(`chat.readBlock.unit.${card.unit}`, { count: value }) })),
   }
 }
 function periodInsight(card, { t, locale }) {

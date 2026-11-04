@@ -44,10 +44,9 @@ it.each(['choice', 'pickList', 'question'])('keeps the actual request declaratio
     questions: [{ id: 'energy', type: 'yesNo', prompt: 'Feeling ready?', allowFreeText: false }],
   }), draft_call_id: null, missing_field: null }
   for (const offers of [false, true]) {
-    const read = habitAccountRead(true)
+    const read = habitAccountRead(true, 'read', { ...clientContext, supportsProactiveOffers: offers })
     const candidate = structuredClone(call)
     if (offers) {
-      read.arguments.orbit_dismissed_offer_keys = []
       candidate.arguments.orbit_dismissed_offer_keys = []
     }
     const grade = (entry) => structural(response([read, entry]), { ...context,
@@ -63,6 +62,25 @@ it.each(['choice', 'pickList', 'question'])('keeps the actual request declaratio
     extra.arguments.input.invented = true
     expect((await grade(extra)).pass).toBe(false)
   }
+})
+
+it.each(['none', 'aim', 'dated_event', 'inspect'])('retains the producer offer read intent %s under strict validation', async (intent) => {
+  const offerContext = { ...clientContext, supportsProactiveOffers: true }
+  const read = habitAccountRead(false, 'read', offerContext)
+  expect(read.arguments.orbit_offer_intent).toBe('none')
+  read.arguments.orbit_offer_intent = intent
+  const offerGrade = (call) => structural(response([call]), {
+    ...context, vars: { ...context.vars, clientContext: offerContext },
+  })
+  const valid = await offerGrade(read)
+  expect(valid.pass, valid.reason).toBe(true)
+  expect(response([read]).trace.calls[0].arguments.orbit_offer_intent).toBe(intent)
+  delete read.arguments.orbit_offer_intent
+  const missing = await offerGrade(read)
+  expect(missing.pass).toBe(false)
+  expect(missing.reason).toContain('orbit_offer_intent')
+  expect(missing.reason).toContain('required')
+  expect(habitAccountRead().arguments).not.toHaveProperty('orbit_offer_intent')
 })
 
 it('accepts a typed account read from another tool', async () => {

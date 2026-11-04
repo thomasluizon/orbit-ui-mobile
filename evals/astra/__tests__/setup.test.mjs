@@ -14,11 +14,6 @@ afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true })
 })
 
-// ProactiveProposal.Schema retains these ordinary arguments when no suggested_fields are supplied.
-vi.mock('../trace-policy.mjs', async (original) => {
-  const catalog = await original()
-  return { ...catalog, offerTools: catalog.tools }
-})
 it.each([false, true])('verifies the real setup turn before a correction; wrongRequest=%s', async (wrongRequest) => {
   offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://orbit-api-staging-uqu2.onrender.com')

@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Orbit.Application.Chat;
 using Orbit.Application.Chat.Commands;
 using Orbit.Application.Chat.Models;
 using Orbit.Application.Common;
@@ -38,6 +39,7 @@ var catalog = Boundary<IAgentCatalogService>.Create((method, _) => method.Name i
 var pending = Boundary<IPendingAgentOperationStore>.Create((method, _) => method.Name switch
 {
     "GetAwaiting" => Array.Empty<PendingAgentOperationExecution>(),
+    "GetAwaitingAsync" => Task.FromResult<IReadOnlyList<PendingAgentOperationExecution>>([]),
     "GetLastConversationPreviewsAsync" => Task.FromResult<IReadOnlyList<PendingAgentOperationPreview>>([]),
     _ => throw new InvalidOperationException(method.Name),
 });
@@ -115,13 +117,20 @@ async Task<object[]> ExportTools(bool supportsParts, bool afterAccountRead = fal
     {
         var sdk = sdkCatalog[key]!;
         var name = (string)Property(sdk, "FunctionName")!;
-        var tool = registry.GetTool(name)!;
+        var tool = registry.GetTool(name);
+        // ProcessUserChatCommand.Plans.cs:15-16 removes the producer-owned plan before account actions.
+        if (tool is null && name != PlanToolDeclaration.Name)
+            throw new InvalidOperationException($"No registry metadata for tool declaration '{name}'.");
         var sensitiveFields = new HashSet<string>(StringComparer.Ordinal);
-        collectSensitiveFields.Invoke(null, [JsonSerializer.SerializeToElement(tool.GetParameterSchema()), sensitiveFields]);
-        if (tool.GetResultSchema() is { } resultSchema)
-            collectSensitiveFields.Invoke(null, [JsonSerializer.SerializeToElement(resultSchema), sensitiveFields]);
+        // ProcessUserChatCommand.EvalTrace.cs:17-28 collects schema sensitivity only for registered tools.
+        if (tool is not null)
+        {
+            collectSensitiveFields.Invoke(null, [JsonSerializer.SerializeToElement(tool.GetParameterSchema()), sensitiveFields]);
+            if (tool.GetResultSchema() is { } resultSchema)
+                collectSensitiveFields.Invoke(null, [JsonSerializer.SerializeToElement(resultSchema), sensitiveFields]);
+        }
         using var parameters = JsonDocument.Parse(((BinaryData)Property(sdk, "FunctionParameters")!).ToString());
-        return (object)new { type = "function", writes = !tool.IsReadOnly,
+        return (object)new { type = "function", writes = tool is { IsReadOnly: false },
             sensitiveFields = sensitiveFields.Order(StringComparer.Ordinal).ToArray(),
             function = new { name, description = (string?)Property(sdk, "FunctionDescription"),
                 strict = (bool?)Property(sdk, "StrictModeEnabled"), parameters = parameters.RootElement.Clone() } };

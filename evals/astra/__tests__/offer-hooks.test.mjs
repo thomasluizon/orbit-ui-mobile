@@ -16,11 +16,6 @@ vi.mock('node:fs', async (original) => {
 })
 
 vi.mock('../fixtures/reset.mjs', async (original) => ({ ...await original(), resetFixture: vi.fn() }))
-vi.mock('../trace-policy.mjs', async (original) => {
-  const catalog = await original()
-  return { ...catalog, offerTools: catalog.tools.filter((tool) => !tool.writes),
-    offerPostReadTools: catalog.postReadTools.filter((tool) => !tool.writes) }
-})
 afterEach(() => { catalogFault.missing = false; vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 const corpus = parse(readFileSync(new URL('../composition-scenarios.yaml', import.meta.url), 'utf8'), { merge: true })
 
