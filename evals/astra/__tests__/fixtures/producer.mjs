@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { completionControls, nullableSchema, resolveSchema, schemaVariants } from '../../tool-schema.mjs'
 
-const { tools, legacyTools, postReadTools } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
+const { tools, legacyTools, postReadTools, offerTools, offerPostReadTools } = parse(readFileSync(new URL('../../catalog.yaml', import.meta.url), 'utf8'))
 const normalizeField = (name) => name.replaceAll('_', '').replaceAll('-', '').toLowerCase()
 
 // StrictToolSchema requires nullable properties; composition reads require completion; traces omit marked fields.
@@ -32,12 +32,18 @@ function omitSensitiveFields(value, sensitiveFields) {
 
 // Contract: orbit-api 5e376417, ChatResponse, ChatEvalTrace and AiToolCallResult.
 export function toolCall(name, arguments_, status = 'Succeeded', id = 'call-1', clientContext = {}, complete = false) {
-  const catalog = clientContext.supportsParts === true ? [...tools, ...postReadTools] : legacyTools
+  const catalog = clientContext.supportsProactiveOffers === true ? [...offerTools, ...offerPostReadTools]
+    : clientContext.supportsParts === true ? [...tools, ...postReadTools] : legacyTools
   const tool = catalog.find((entry) => entry.function.name === name)
   const schema = tool?.function.parameters
+  // Producer: ProactiveReadOffer.Instruction and ProactiveOfferDismissal.Instruction retain raw model arguments in traces.
+  const controls = {
+    ...(schema?.properties?.orbit_offer_intent ? { orbit_offer_intent: 'none' } : {}),
+    ...(schema?.properties?.orbit_dismissed_offer_keys ? { orbit_dismissed_offer_keys: [] } : {}),
+  }
   const sensitiveFields = new Set(tool?.sensitiveFields)
   return {
-    id, name, arguments: omitSensitiveFields(strictArguments(schema, arguments_, schema, complete), sensitiveFields), status,
+    id, name, arguments: omitSensitiveFields(strictArguments(schema, { ...controls, ...arguments_ }, schema, complete), sensitiveFields), status,
     result: omitSensitiveFields({
       name, id, success: status === 'Succeeded' || status === 'PendingConfirmation',
       entityId: null,
