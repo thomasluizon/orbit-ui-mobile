@@ -12,7 +12,7 @@ function Fixture() {
     <button onClick={() => setCount(Number(root.dataset.remaining ?? 20))}>Remove rows</button>
     <button id="grow-viewport" onClick={() => setHeight(832)}>Grow viewport</button>
     <div data-shell-scroller="" style={{ position: 'relative', height, overflowY: 'auto', paddingBottom: 96, boxSizing: 'border-box' }}>
-      <div data-shell-page-content="" style={{ minHeight: '100%' }}>
+      <div data-shell-page-content="" className="min-h-full has-[[data-list-motion][inert]]:min-h-[var(--shell-scroll-min-height,100%)]">
         <div style={{ height: 80 }} />
         <div ref={anchor} data-habit-list="" style={{ overflowAnchor: 'none' }}>
           <ListPresence>{Array.from({ length: count }, (_, index) => <ListMotionItem key={index}>

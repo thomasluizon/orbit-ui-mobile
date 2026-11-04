@@ -4,6 +4,8 @@ import { resolve } from 'node:path'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import postcss from 'postcss'
 import en from '@orbit/shared/i18n/en.json'
+import { SPACING } from '@orbit/shared/theme'
+import { measureShellScrollEnd, shellScrollViewports } from '@/e2e/layout/shell-scroll-extent'
 import { settleAnimations } from '@/e2e/layout/settle-animations'
 import tailwind from '@tailwindcss/postcss'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
@@ -42,6 +44,30 @@ beforeAll(async () => {
   `], { maxBuffer: 20 * 1024 * 1024 }).toString()
 }, 30_000)
 afterAll(async () => { await closeChrome(launch) })
+
+it.each(shellScrollViewports)('bounds Hoje after rows leave at $width x $height', async ({ width, height }) => {
+  const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' })
+  page.setDefaultTimeout(3000)
+  try {
+    await page.route('https://habit-list.test/', route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><style>${stylesheet}</style><div id="root"></div>` }))
+    await page.goto('https://habit-list.test/')
+    await page.addScriptTag({ content: script })
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 30)
+    await page.locator('[data-habit-row-control="menu"]').first().click()
+    await page.getByRole('menuitem', { name: en.common.select, exact: true }).click()
+    for (let index = 0; index < 9; index++) {
+      const control = page.locator('[data-habit-row-control="selection"][aria-pressed="false"]').first()
+      await control.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }))
+      await control.click()
+    }
+    await page.locator('[data-shell-scroller]').evaluate(measureShellScrollEnd)
+    await page.getByRole('button', { name: 'Skip selected', exact: true }).click()
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 20)
+    const measured = await page.locator('[data-shell-scroller]').evaluate(measureShellScrollEnd)
+    process.stdout.write(`${JSON.stringify({ width, height, ...measured })}\n`)
+    expect(measured.scrollerBottom - measured.lastBottom, JSON.stringify(measured)).toBeCloseTo(width >= 1024 ? SPACING.s32 : SPACING.s96, 0)
+  } finally { await page.close() }
+})
 
 it.each(([
   { reducedMotion: 'no-preference', width: 412, height: 915, fontScale: 1 },
@@ -98,18 +124,18 @@ it.each(([
       return { offset: element.scrollTop, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-shell-page-content]')!.style.minHeight }
     })
     expect(before.offset).toBe(650)
-    const observations = page.locator('[data-shell-scroller]').evaluate((element) => new Promise<{ departures: number; offsets: number[]; minimum: string; remaining: number; viewport: number }>((done) => {
-      const offsets: number[] = []
+    const observations = page.locator('[data-shell-scroller]').evaluate((element) => new Promise<{ departures: number; offsets: { offset: number; departing: boolean }[]; minimum: string; remaining: number; viewport: number; maximum: number }>((done) => {
+      const offsets: { offset: number; departing: boolean }[] = []
       let departures = 0
       const start = performance.now()
       let departureStarted: number | undefined
       const sample = () => {
-        offsets.push(element.scrollTop)
+        offsets.push({ offset: element.scrollTop, departing: element.querySelector('[data-list-motion][inert]') !== null })
         departures = Math.max(departures, element.querySelectorAll('[data-list-motion][inert] [data-testid="habit-row"]').length)
         if (departures > 0) departureStarted ??= performance.now()
         const remaining = element.querySelectorAll('[data-testid="habit-row"]').length
-        const settled = remaining === 0 && departureStarted !== undefined && performance.now() - departureStarted > 1000
-        if (settled || performance.now() - start > 5000) done({ departures, offsets, remaining, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-shell-page-content]')!.style.minHeight })
+        const settled = remaining === 0 && departureStarted !== undefined
+        if (settled || performance.now() - start > 5000) done({ departures, offsets, remaining, maximum: element.scrollHeight - element.clientHeight, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-shell-page-content]')!.style.minHeight })
         else requestAnimationFrame(sample)
       }
       requestAnimationFrame(sample)
@@ -118,7 +144,10 @@ it.each(([
     const observed = await observations
     expect(observed.departures, JSON.stringify({ observed, errors })).toBe(30)
     expect(observed.remaining).toBe(0)
-    expect(observed.offsets.every((offset) => Math.abs(offset - 650) < 1), JSON.stringify({ before, observed })).toBe(true)
+    expect(observed.offsets.filter(sample => sample.departing).every(sample => Math.abs(sample.offset - 650) < 1), JSON.stringify({ before, observed })).toBe(true)
+    expect(observed.offsets.at(-1)!.offset).toBe(observed.maximum)
+    if (height > width) expect(observed.offsets.at(-1)!.offset, JSON.stringify(observed)).toBe(0)
+    expect(observed.maximum).toBeLessThan(650)
     await page.locator('[data-shell-scroller]').evaluate((element) => { element.scrollTop = 0 })
     await page.waitForFunction(() => {
       const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
@@ -127,3 +156,31 @@ it.each(([
     expect(errors).toEqual([])
   } finally { await page.close() }
 })
+
+
+it.each(shellScrollViewports.flatMap(viewport => (['today', 'all'] as const).map(view => ({ ...viewport, view }))))(
+  'bounds the mounted Hoje $view scroll extent at $width x $height', async ({ width, height, view }) => {
+    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' })
+    const errors: string[] = []
+    page.on('pageerror', error => errors.push(error.message))
+    try {
+      await page.route('https://habit-list.test/', route => route.fulfill({ contentType: 'text/html',
+        body: `<!doctype html><style>${stylesheet}</style><div id="root" data-count="100"></div>` }))
+      await page.goto('https://habit-list.test/')
+      await page.addScriptTag({ content: script })
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 100)
+      if (view === 'all') {
+        await page.getByRole('radio', { name: en.habits.viewAll, exact: true }).click()
+        await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 100)
+      }
+      await page.evaluate(() => document.fonts.ready)
+      const geometry = await page.locator('[data-shell-scroller]').evaluate(measureShellScrollEnd)
+      const evidence = JSON.stringify(geometry)
+      expect(geometry.scrollTop, evidence).toBeGreaterThan(0)
+      expect(geometry.scrollTop, evidence).toBe(geometry.scrollHeight - geometry.clientHeight)
+      expect(geometry.lastTop, evidence).toBeGreaterThanOrEqual(geometry.scrollerTop)
+      expect(geometry.scrollerBottom - geometry.lastBottom, evidence).toBeCloseTo(width >= 1024 ? SPACING.s32 : SPACING.s96, 0)
+      expect(errors).toEqual([])
+    } finally { await page.close() }
+  },
+)
