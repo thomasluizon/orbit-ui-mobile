@@ -45,6 +45,47 @@ const green = () => ({
   ...Object.fromEntries(["test", "guards"].map((name, index) => [name, [{ total_count: 1, workflow_runs: [{ ...structuredClone(recorded.run), head_sha: sha, path: `.github/workflows/${name}.yml`, event: "push", check_suite_id: index + 1, status: "completed", conclusion: "success" }] }]])),
 })
 
+const executeWake = (attempts, environment = {}) => {
+  const directory = mkdtempSync(join(tmpdir(), "release-api-wake-"))
+  try {
+    writeFileSync(join(directory, "attempts.json"), JSON.stringify(attempts))
+    writeFileSync(join(directory, "count"), "0")
+    writeFileSync(join(directory, "calls"), "")
+    writeFileSync(join(directory, "summary"), "")
+    const transport = `
+      curl() {
+        printf '%s\\n' "$*" >> calls
+        local output count response
+        while (( $# )); do
+          if [ "$1" = --output ]; then output="$2"; shift; fi
+          shift
+        done
+        count=$(cat count)
+        printf '%s' "$((count + 1))" > count
+        response=$(jq -c --argjson index "$count" '.[$index] // .[-1]' attempts.json)
+        jq -r '.body' <<< "$response" > "$output"
+        jq -r '.code' <<< "$response"
+        return "$(jq -r '.exitCode // 0' <<< "$response")"
+      }
+      sleep() {
+        local advance="\${SLEEP_ADVANCE:-$1}"
+        if (( advance > deadline - SECONDS )); then advance=$((deadline - SECONDS)); fi
+        SECONDS=$((SECONDS + advance))
+      }
+    `
+    const result = spawnSync("bash", ["-c", `${transport}\n${stepNamed(web.jobs.staging, "Wake staging API").run}`], {
+      cwd: directory, encoding: "utf8", timeout: 10000, env: {
+        ...process.env, STAGING_NEXT_PUBLIC_EVENT_API_BASE: "https://api.example.invalid/",
+        GITHUB_STEP_SUMMARY: join(directory, "summary"), ...environment,
+      },
+    })
+    return { ...result, summary: readFileSync(join(directory, "summary"), "utf8"),
+      calls: readFileSync(join(directory, "calls"), "utf8").trim().split("\n").filter(Boolean) }
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+}
+
+const healthyApi = { status: "Healthy", commit: sha, checks: [{ name: "database", status: "Healthy", description: "Database reachable" }] }
+
 test("CI runs automatically on main and supports dispatch without overriding the event checkout", () => {
   for (const name of ["test", "guards"]) {
     const workflow = load(name)
@@ -142,13 +183,60 @@ test("staging smoke success is published only after the selected build passes sm
   assert.equal(smoke.env.SMOKE_BASE_URL, "${{ steps.health.outputs.deployment_url }}")
   assert.equal(smoke.env.SMOKE_TEST_EMAIL, "${{ secrets.STAGING_SMOKE_TEST_EMAIL }}")
   const record = stepNamed(web.jobs.staging, "Record staging smoke pass")
-  assert.ok(steps.indexOf(stepNamed(web.jobs.staging, "Check staging web health")) < steps.indexOf(smoke))
+  const wake = stepNamed(web.jobs.staging, "Wake staging API")
+  assert.equal(wake.env.STAGING_NEXT_PUBLIC_EVENT_API_BASE, "${{ vars.STAGING_NEXT_PUBLIC_EVENT_API_BASE }}")
+  assert.ok(steps.indexOf(stepNamed(web.jobs.staging, "Check staging web health")) < steps.indexOf(wake))
+  assert.equal(steps.indexOf(wake) + 1, steps.indexOf(smoke))
+  assert.equal(wake.if, undefined)
+  assert.equal(wake["continue-on-error"], undefined)
   assert.ok(steps.indexOf(record) > steps.indexOf(smoke))
   assert.equal(smoke["continue-on-error"], undefined)
   assert.equal(record.if, undefined)
   assert.match(record.run, /state=success/)
   assert.match(record.run, /web-staging-smoke/)
   assert.equal(web.jobs.staging.permissions.statuses, "write")
+})
+
+test("staging API wake retries until HTTP 200 and Healthy, then records the observed API commit", () => {
+  const body = JSON.stringify(healthyApi)
+  const result = executeWake([
+    { code: "000", body: "", exitCode: 1 },
+    { code: "503", body },
+    { code: "200", body: JSON.stringify({ ...healthyApi, status: "Unhealthy" }) },
+    { code: "200", body: "starting" },
+    { code: "200", body },
+  ])
+  assert.equal(result.status, 0, result.stdout + result.stderr)
+  assert.equal(result.calls.length, 5)
+  for (const call of result.calls) {
+    assert.match(call, /--max-time 10 /)
+    assert.match(call, / https:\/\/api\.example\.invalid\/health$/)
+  }
+  assert.match(result.summary, new RegExp(`commit ${sha}`))
+})
+
+test("staging API wake refuses an empty origin before making a request", () => {
+  const result = executeWake([], { STAGING_NEXT_PUBLIC_EVENT_API_BASE: "" })
+  assert.equal(result.status, 1, result.stdout + result.stderr)
+  assert.match(result.stderr, /Missing STAGING_NEXT_PUBLIC_EVENT_API_BASE/)
+  assert.deepEqual(result.calls, [])
+})
+
+test("staging API wake caps the final request at the remaining budget and reports the last body", () => {
+  const result = executeWake([{ code: "503", body: "database unavailable" }, { code: "000", body: "", exitCode: 1 }], { SLEEP_ADVANCE: "297" })
+  assert.equal(result.status, 1, result.stdout + result.stderr)
+  assert.equal(result.calls.length, 2)
+  assert.match(result.calls[1], /--max-time 3 /)
+  assert.match(result.stderr, /Staging API at https:\/\/api\.example\.invalid\/health/)
+  assert.match(result.stderr, /within 5 minutes\. Last observed body: database unavailable/)
+  assert.equal(result.summary, "")
+})
+
+test("staging API wake reports the absence of a response when transport never succeeds", () => {
+  const result = executeWake([{ code: "000", body: "", exitCode: 1 }], { SLEEP_ADVANCE: "300" })
+  assert.equal(result.status, 1, result.stdout + result.stderr)
+  assert.equal(result.calls.length, 1)
+  assert.match(result.stderr, /Last observed body: <no response>/)
 })
 
 // The commit-status fields come from components.schemas.status in GitHub's REST OpenAPI schema.
