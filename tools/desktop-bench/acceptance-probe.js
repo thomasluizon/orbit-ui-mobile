@@ -75,19 +75,20 @@
     let session = await fetch('/api/auth/session', { cache: 'no-store' })
     if (!session.ok && session.status !== 401) throw new Error(`BFF session check failed: HTTP ${session.status}`)
     if (__BENCH_EXPECT_AUTHENTICATED__ && !session.ok) throw new Error('Authenticated installed relaunch lost its BFF session')
-    if (location.pathname.includes('/login') || location.pathname.includes('/onboarding')) {
+    if (emailLink || location.pathname.includes('/login') || location.pathname.includes('/onboarding')) {
       if (session.ok && !emailLink) { location.assign('/'); return }
       if (!emailLink) { await emailSignIn(); return }
       await until(() => {
+        if (!location.pathname.includes('/login')) return true
         const failure = document.querySelector('[role="alert"]')?.textContent.trim()
         if (failure) throw new Error(`Email login failed: ${failure}`)
-        return !location.pathname.includes('/login')
+        return false
       }, 'email sign-in through the login form')
       session = await fetch('/api/auth/session', { cache: 'no-store' })
       if (document.cookie.includes('auth_token=')) throw new Error('BFF cookie is readable by JavaScript')
-      await report('email-completed')
     }
     if (!session.ok) throw new Error('Hoje requires an authenticated BFF session')
+    if (emailLink) await report('email-completed')
     await until(() => document.querySelector('[data-habit-id="bench-0000"]') && document.querySelector('[data-composer-input]:not([disabled])'), 'Hoje')
     await report('hoje', { route: location.pathname, nativeVersion: window.__ORBIT_DESKTOP_VERSION__ })
     while (true) {

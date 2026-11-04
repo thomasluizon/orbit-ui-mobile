@@ -257,8 +257,9 @@ test('email acceptance enters the production login flow instead of verifying and
   assert.ok(!requests.includes('/api/auth/verify-code'))
 })
 
-for (const failure of [false, true]) {
-  test(`the email link waits for production login completion and retains its failure: failure=${failure}`, async () => {
+for (const navigation of ['login-poll', 'page-load', 'session-request', 'failure']) {
+  test(`the email link retains production completion and failure across ${navigation}`, async () => {
+    const failure = navigation === 'failure'
     const requests: string[] = []
     const reports: { kind: string; message?: string }[] = []
     const browserWindow: { top?: unknown } = {}
@@ -268,9 +269,10 @@ for (const failure of [false, true]) {
     let finish!: () => void
     const completed = new Promise<void>(resolve => { finish = resolve })
     let resume!: () => void
+    let resolveSession: ((response: Response) => void) | undefined
     const context = {
       URLSearchParams, window: browserWindow, location,
-      document: { readyState: 'complete', cookie: '', querySelector(selector: string) {
+      document: { readyState: navigation === 'page-load' ? 'loading' : 'complete', cookie: '', querySelector(selector: string) {
         if (selector === '[role="alert"]') return failure ? { textContent: 'Verification code expired' } : null
         return {}
       } },
@@ -285,16 +287,19 @@ for (const failure of [false, true]) {
         }
         if (url === '/_bench/command') return new Promise<Response>(() => {})
         assert.equal(url, '/api/auth/session')
+        if (navigation === 'session-request' && !resolveSession) return new Promise<Response>(resolve => { resolveSession = resolve })
         return new Response(null, { status: location.pathname === '/login' ? 401 : 200 })
       },
     }
     runInNewContext(probeSource, context)
     if (!failure) {
-      for (let index = 0; index < 10 && !resume; index++) await Promise.resolve()
-      assert.ok(resume)
+      for (let index = 0; index < 10 && !resume && !resolveSession; index++) await Promise.resolve()
+      assert.ok(resume || resolveSession)
       assert.deepEqual(reports, [])
       location.pathname = '/'
-      resume()
+      context.document.readyState = 'complete'
+      if (resolveSession) resolveSession(new Response(null, { status: 200 }))
+      else resume()
     }
     await completed
     assert.deepEqual(reports.map(event => event.kind), failure ? ['error'] : ['email-completed', 'hoje'])
@@ -575,6 +580,21 @@ static AXUIElementRef fixtureApplication(pid_t pid) {
     if ([scenario isEqual:@"unnamed-button"]) button[@"AXEnabled"] = @NO;
     if ([scenario isEqual:@"web-system-button"]) { button[@"AXSubrole"] = @"AXCloseButton"; button[@"AXRoleDescription"] = @"close button"; }
     NSMutableDictionary *web = [@{@"AXRole": @"AXWebArea", @"AXChildren": @[button]} mutableCopy];
+    if ([scenario hasPrefix:@"alert-"]) {
+        NSData *capture = [NSData dataWithContentsOfFile:@ANNOUNCER_FIXTURE];
+        NSMutableDictionary *alert = [[NSJSONSerialization JSONObjectWithData:capture options:0 error:NULL] mutableCopy];
+        alert[@"AXRole"] = alert[@"role"];
+        alert[@"AXFocused"] = alert[@"focused"];
+        alert[@"acceptsFocus"] = alert[@"focusable"];
+        if ([scenario isEqual:@"alert-focusable"]) alert[@"acceptsFocus"] = @YES;
+        if ([scenario isEqual:@"alert-focused"]) alert[@"AXFocused"] = @YES;
+        if ([scenario isEqual:@"alert-named"]) alert[@"AXDescription"] = @"Today";
+        if ([scenario isEqual:@"alert-children"]) alert[@"AXChildren"] = @[@{@"AXRole": @"AXStaticText", @"AXTitle": @"Today"}];
+        if ([scenario isEqual:@"alert-controls"]) alert[@"AXChildren"] = @[@{@"AXRole": @"AXButton", @"AXTitle": @"Dismiss"}];
+        if ([scenario isEqual:@"alert-unnamed-control"]) alert[@"AXChildren"] = @[@{@"AXRole": @"AXButton"}];
+        if ([scenario isEqual:@"alert-button"]) alert[@"AXRole"] = @"AXButton";
+        web[@"AXChildren"] = @[button, alert];
+    }
     if ([scenario hasPrefix:@"empty-"]) {
         NSMutableDictionary *group = [@{@"AXRole": @"AXGroup", @"AXSubrole": @"AXEmptyGroup", @"AXRoleDescription": @"alert",
             @"AXDOMIdentifier": @"__next-route-announcer__", @"actions": @[@"AXPress", @"AXShowMenu", @"AXScrollToVisible"]} mutableCopy];
@@ -668,18 +688,20 @@ if (process.platform === 'darwin') {
   after(() => rmSync(directory, { recursive: true, force: true }))
   const source = join(directory, 'fixture.m')
   const executable = join(directory, 'fixture')
-  writeFileSync(source, nativeFixture.replace('NATIVE_SOURCE', JSON.stringify(fileURLToPath(new URL('./acceptance-ax.m', import.meta.url)))))
+  writeFileSync(source, nativeFixture
+    .replace('ANNOUNCER_FIXTURE', JSON.stringify(fileURLToPath(new URL('./__fixtures__/ax-route-announcer.json', import.meta.url))))
+    .replace('NATIVE_SOURCE', JSON.stringify(fileURLToPath(new URL('./acceptance-ax.m', import.meta.url)))))
   const compilation = spawnSync('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', source, '-o', executable], { encoding: 'utf8', timeout: 30000 })
   assert.equal(compilation.status, 0, compilation.stderr)
-  for (const scenario of ['empty-live', 'empty-named', 'description-button', 'system-controls', 'separator']) {
+  for (const scenario of ['alert-live', 'alert-named', 'alert-children', 'alert-controls', 'empty-live', 'empty-named', 'description-button', 'system-controls', 'separator']) {
     test(`native AX semantics accept ${scenario} without exempting unnamed app controls`, () => {
       const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
       assert.equal(capture.status, 0, capture.stderr)
       const snapshot = JSON.parse(capture.stdout)
       assert.equal(snapshot.error, null, JSON.stringify(snapshot))
       assert.equal(assertAccessibleTree(snapshot, 'darwin').controls,
-        scenario === 'system-controls' ? 6 : scenario === 'empty-named' ? 2 : 1)
-      if (scenario === 'empty-live') {
+        scenario === 'system-controls' ? 6 : ['empty-named', 'alert-controls'].includes(scenario) ? 2 : 1)
+      if (scenario === 'empty-live' || scenario.startsWith('alert-')) {
         const announcer = snapshot.nodes.find(node => node.AXDOMIdentifier === '__next-route-announcer__')
         assert.equal(Boolean(announcer.interactive), false)
       }
@@ -700,7 +722,7 @@ if (process.platform === 'darwin') {
       }
     })
   }
-  for (const scenario of ['unnamed-button', 'web-system-button', 'empty-focusable', 'empty-focused', 'empty-children', 'empty-generic', 'system-generic', 'system-no-description', 'unnamed-menu', 'disabled-unnamed-menu']) {
+  for (const scenario of ['alert-focusable', 'alert-focused', 'alert-button', 'alert-unnamed-control', 'unnamed-button', 'web-system-button', 'empty-focusable', 'empty-focused', 'empty-children', 'empty-generic', 'system-generic', 'system-no-description', 'unnamed-menu', 'disabled-unnamed-menu']) {
     test(`native AX semantics keep ${scenario} failing role and name acceptance`, () => {
       const capture = spawnSync(executable, [scenario], { encoding: 'utf8', timeout: 10000 })
       assert.equal(capture.status, 0, capture.stderr)

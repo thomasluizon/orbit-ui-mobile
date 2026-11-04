@@ -62,18 +62,15 @@
       requestAt = performance.now()
       const response = await originalFetch(...argumentsList)
       if (!response.ok) throw new Error(`Chat HTTP ${response.status}`)
-      void (async () => {
-        const reader = response.clone().body.getReader()
-        const decoder = new TextDecoder()
-        let text = ''
-        for (;;) {
-          const chunk = await reader.read()
-          if (chunk.done) break
-          text += decoder.decode(chunk.value, { stream: true })
-          if (text.includes('"type":"final"')) terminalAt = performance.now()
-        }
-      })().catch((error) => { void post({ kind: 'error', message: error.message }) })
-      return response
+      const decoder = new TextDecoder()
+      let text = ''
+      return new Response(response.body.pipeThrough(new TransformStream({
+        transform(chunk, controller) {
+          text += decoder.decode(chunk, { stream: true })
+          if (terminalAt === null && text.includes('"type":"final"')) terminalAt = performance.now()
+          controller.enqueue(chunk)
+        },
+      })), response)
     }
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(textarea, 'Give me one small step.')
     textarea.dispatchEvent(new Event('input', { bubbles: true }))
