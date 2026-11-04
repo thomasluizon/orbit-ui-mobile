@@ -178,15 +178,15 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "78556e66c7c45f96",
+      "digest": "77a448afd4434026",
       "calibratedAt": "2026-11-04",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },
     ".claude/skills/crank/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "11fdbdfe9ac81cb5",
-      "calibratedAt": "2026-10-25",
+      "digest": "8c3903e2c16783b4",
+      "calibratedAt": "2026-11-04",
       "verdict": "undeclared, inherits the session: toggles durable orchestrator scheduling within existing caps and quality gates, without changing model or effort routing."
     },
     ".claude/skills/deep-research/SKILL.md": {

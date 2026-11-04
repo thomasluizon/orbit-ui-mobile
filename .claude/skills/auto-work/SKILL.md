@@ -103,8 +103,10 @@ before any new admission; unfinished intake remains in run state for the success
    Apply the same disposition procedure and retain replies in the run log, acknowledging
    through `node tools/orbit-app-store-reviews.mjs --ack` with the same review receipt shape.
    Missing app credentials are a named external dependency, never an empty successful read.
-7. Read `node tools/plan-queue.mjs --board` and admit every finishable open ticket in that
-   order through `/orchestrate --auto`. Keep admitted and in-flight work. Skip only a ticket
+7. Read `node tools/plan-queue.mjs --board` and use `/orchestrate`'s `--auto` selection to admit
+   every finishable open ticket in that order within the current run. Append newly admitted
+   tickets to `remaining` through `writeRunState` and read back the queue; never enter a second
+   orchestrator or replace admitted and in-flight work. Skip only a ticket
    awaiting the owner personally or a named third party; log the reason once per ticket in
    `intake.boardBlocked`, updating it only when the reason changes. Dependency ordering and
    admission limits postpone launches under the canonical scheduler; they do not discard
