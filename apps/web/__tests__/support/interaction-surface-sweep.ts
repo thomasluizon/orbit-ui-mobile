@@ -45,7 +45,7 @@ function bundleDestinations() {
     function Destination() {
       const [creating, setCreating] = useState(false);
       const screens = { '/': <TodayPageClient initialToday="2026-09-12" initialHabits={null} initialProfile={profile} />, '/calendar': <CalendarPage />, '/progress': <ProgressPage />, '/profile': <ProfilePage /> };
-      return <DestinationShell onCreate={() => setCreating(true)}>{screens[configuration.route]}{creating ? <CreateHabitModal onClose={() => setCreating(false)} /> : null}</DestinationShell>;
+      return <DestinationShell onCreate={() => setCreating(true)}>{screens[configuration.route]}{creating ? <CreateHabitModal open onOpenChange={setCreating} /> : null}</DestinationShell>;
     }
     createRoot(document.getElementById('root')).render(<QueryClientProvider client={client}><NextIntlClientProvider locale={configuration.locale} messages={configuration.locale === 'en' ? en : ptBR} timeZone="UTC"><PreloadedProfileContext.Provider value={profile}><TodayProvider><Destination /></TodayProvider></PreloadedProfileContext.Provider></NextIntlClientProvider></QueryClientProvider>);`, {
     'server-only': '',
@@ -142,6 +142,89 @@ export function interactionSurfaceSweep(route: '/' | '/calendar' | '/progress' |
     })
     afterAll(async () => { await closeChrome(launch) }, 30_000)
 
+    async function renderDestination(page: Page, collapsed: boolean, failures: string[], assert: typeof expect) {
+      page.setDefaultTimeout(3000)
+      page.on('pageerror', failure => failures.push(failure.message))
+      await page.exposeFunction('surfaceFixture', (path: string) => fixture(path.replace(/^\/api\/proxy/, '')))
+      const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+      const documentUrl = `https://surface.example.test${route}`
+      await page.route(documentUrl, request => request.fulfill({
+        contentType: 'text/html',
+        body: `<!doctype html><html class="dark" lang="${locale}" style="${variables}"><head><style>${stylesheet}</style></head><body><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ route, locale, collapsed })}</script></body></html>`,
+      }))
+      await page.goto(documentUrl)
+      await page.route('**/*', intercepted => intercepted.request().isNavigationRequest() ? intercepted.abort('aborted') : intercepted.continue())
+      assert(await page.evaluate(() => window.location.origin)).toBe('https://surface.example.test')
+      await page.evaluate(() => {
+        let cookie = ''
+        Object.defineProperty(document, 'cookie', { configurable: true, get: () => cookie, set: value => { cookie = value } })
+        for (const name of ['localStorage', 'sessionStorage']) {
+          const entries = new Map<string, string>()
+          Object.defineProperty(window, name, { configurable: true, value: { getItem: (key: string) => entries.get(key) ?? null, setItem: (key: string, value: string) => entries.set(key, value), removeItem: (key: string) => entries.delete(key), clear: () => entries.clear(), key: (index: number) => [...entries.keys()][index] ?? null, get length() { return entries.size } } })
+        }
+      })
+      await page.addScriptTag({ content: script })
+      await assert.poll(() => failures).toEqual([])
+      await page.locator('[data-shell-column]').waitFor({ timeout: 3000 }).catch(async cause => {
+        throw new Error(JSON.stringify({ route, failures, rendered: await page.locator('#root').innerHTML() }), { cause })
+      })
+      await page.waitForFunction('window.surfaceClient.isFetching() === 0')
+      await loadAppFonts(page)
+      assert(failures, route).toEqual([])
+    }
+
+    if (route === '/profile' && locale === 'en') {
+      it('keeps the 480 px profile document mounted through links, forms and location redirects', async ({ expect }) => {
+        const page = await browser.newPage({ viewport: { width: 480, height: 1100 } })
+        const failures: string[] = []
+        try {
+          await renderDestination(page, false, failures, expect)
+          await page.locator('#root').evaluate(element => element.setAttribute('data-retained-document', 'true'))
+          await page.locator('a[href="/profile/account"]').click()
+          expect(page.url()).toBe('https://surface.example.test/profile')
+          expect(await page.locator('#root').getAttribute('data-retained-document')).toBe('true')
+          await page.evaluate(() => {
+            const form = document.createElement('form')
+            form.action = '/surface-submission'
+            const submit = document.createElement('button')
+            submit.textContent = 'Submit fixture form'
+            form.append(submit)
+            const redirect = document.createElement('button')
+            redirect.textContent = 'Redirect fixture document'
+            redirect.onclick = () => { globalThis.location.href = 'https://surface.example.test/login' }
+            document.body.prepend(form, redirect)
+          })
+          for (const name of ['Submit fixture form', 'Redirect fixture document']) {
+            await page.getByRole('button', { name, exact: true }).click()
+            expect(page.url()).toBe('https://surface.example.test/profile')
+            expect(await page.locator('#root').getAttribute('data-retained-document')).toBe('true')
+          }
+          await page.evaluate(() => history.pushState({}, '', '?date=2026-09-13'))
+          expect(page.url()).toBe('https://surface.example.test/profile?date=2026-09-13')
+          expect(await page.locator('#root').getAttribute('data-retained-document')).toBe('true')
+          expect(failures).toEqual([])
+        } finally { await page.close() }
+      })
+
+      it('opens, dismisses and reopens the collapsed shell create sheet without page errors', async ({ expect }) => {
+        const page = await browser.newPage({ viewport: { width: 1100, height: 1100 }, reducedMotion: 'reduce' })
+        const failures: string[] = []
+        try {
+          await renderDestination(page, true, failures, expect)
+          for (let attempt = 0; attempt < 2; attempt++) {
+            await page.getByRole('button', { name: 'Create habit', exact: true }).click()
+            const sheet = page.getByRole('dialog')
+            await sheet.waitFor({ state: 'visible' })
+            await page.keyboard.press('Escape')
+            await sheet.waitFor({ state: 'hidden' })
+            expect(failures).toEqual([])
+          }
+          await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+          expect(failures).toEqual([])
+        } finally { await page.close() }
+      })
+    }
+
     if (route === '/' && locale === 'en') {
       it('measures foreground neighbours independently from the modal backdrop', async () => {
         const page = await browser.newPage({ viewport: { width: 320, height: 640 } })
@@ -178,37 +261,11 @@ export function interactionSurfaceSweep(route: '/' | '/calendar' | '/progress' |
       })
     }
 
-    it.concurrent.for(cases)('discovers every rendered control at $width in $locale, collapsed=$collapsed on $route', { timeout: 120_000 }, async ({ width, locale, collapsed, route }, { expect }) => {
+    it.concurrent.for(cases)('discovers every rendered control at $width in $locale, collapsed=$collapsed on $route', { timeout: 120_000 }, async ({ width, collapsed, route }, { expect }) => {
       const page = await browser.newPage({ viewport: { width, height: 1100 }, reducedMotion: 'reduce' })
-      page.setDefaultTimeout(3000)
       const failures: string[] = []
-      page.on('pageerror', failure => failures.push(failure.message))
-      await page.exposeFunction('surfaceFixture', (path: string) => fixture(path.replace(/^\/api\/proxy/, '')))
       try {
-        const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
-        const documentUrl = `https://surface.example.test${route}`
-        await page.route(documentUrl, request => request.fulfill({
-          contentType: 'text/html',
-          body: `<!doctype html><html class="dark" lang="${locale}" style="${variables}"><head><style>${stylesheet}</style></head><body><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ route, locale, collapsed })}</script></body></html>`,
-        }))
-        await page.goto(documentUrl)
-        expect(await page.evaluate(() => window.location.origin)).toBe('https://surface.example.test')
-        await page.evaluate(() => {
-          let cookie = ''
-          Object.defineProperty(document, 'cookie', { configurable: true, get: () => cookie, set: value => { cookie = value } })
-          for (const name of ['localStorage', 'sessionStorage']) {
-            const entries = new Map<string, string>()
-            Object.defineProperty(window, name, { configurable: true, value: { getItem: (key: string) => entries.get(key) ?? null, setItem: (key: string, value: string) => entries.set(key, value), removeItem: (key: string) => entries.delete(key), clear: () => entries.clear(), key: (index: number) => [...entries.keys()][index] ?? null, get length() { return entries.size } } })
-          }
-        })
-        await page.addScriptTag({ content: script })
-        await expect.poll(() => failures).toEqual([])
-        await page.locator('[data-shell-column]').waitFor({ timeout: 3000 }).catch(async cause => {
-          throw new Error(JSON.stringify({ route, failures, rendered: await page.locator('#root').innerHTML() }), { cause })
-        })
-        await page.waitForFunction('window.surfaceClient.isFetching() === 0')
-        await loadAppFonts(page)
-        expect(failures, route).toEqual([])
+        await renderDestination(page, collapsed, failures, expect)
         expect(await inspectDiscoveredControls(page, page.locator('body'), expect), route).toBeGreaterThan(0)
         const entries = await page.locator('button:has(svg), [aria-haspopup="dialog"], [aria-haspopup="menu"]').all()
         for (const entry of entries) {
