@@ -7,8 +7,10 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
+import { contrastOnSurface, controlContrast } from '@orbit/shared/__tests__/contrast'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { measureNotificationFill } from '../../../e2e/layout/notification-fill-geometry'
 import { measureTitleWords } from '../../../e2e/layout/title-word-geometry'
 import { FailureScreen } from '@/components/ui/failure-screen'
 import { NotFoundContent } from '@/components/ui/not-found-content'
@@ -94,6 +96,46 @@ describe('notification row targets in Chromium', () => {
       await page.close()
     }
   })
+  it.each(CASES)('fills the whole read and unread row at $width in $locale and $mode', async ({ width, locale, mode }) => {
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}>
+      <ul style={{ padding: 16 }}>{[false, true].map((isRead) => <NotificationRow key={String(isRead)} item={createMockNotification({ isRead })} onOpen={vi.fn()} onDelete={vi.fn()} />)}</ul>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
+    try {
+      const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
+      await page.setContent(`<style>${stylesheet} :root { ${theme} }</style><div class="${mode}">${container.innerHTML}</div>`)
+      for (const row of await page.locator('li').all()) {
+        const [body, remove] = await row.locator('button').all()
+        for (const control of [body!, remove!]) {
+          await control.hover()
+          const measured = await row.evaluate(measureNotificationFill)
+          await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fill).toEqual(measured.row)
+          const colors = await row.evaluate((element) => {
+            const style = getComputedStyle(element)
+            const remove = element.querySelector('button:last-child')!
+            const text = Array.from(element.querySelectorAll('*')).filter((child) => Array.from(child.childNodes).some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())).map((child) => getComputedStyle(child).color)
+            return { text, layers: [style.getPropertyValue('--bg').trim(), style.backgroundColor, getComputedStyle(element, '::before').backgroundColor],
+              glyph: getComputedStyle(remove.querySelector('svg')!).color, actionFill: getComputedStyle(remove, '::before').backgroundColor }
+          })
+          for (const color of colors.text) expect(contrastOnSurface(color, colors.layers)).toBeGreaterThanOrEqual(4.5)
+          expect(contrastOnSurface(colors.glyph, [...colors.layers, colors.actionFill])).toBeGreaterThanOrEqual(3)
+          if (control === remove) expect(controlContrast(colors.glyph, colors.actionFill, colors.layers).step).toBeGreaterThanOrEqual(1.25)
+          await page.mouse.down()
+          expect((await row.evaluate(measureNotificationFill)).fill).toEqual(measured.row)
+          await page.mouse.move(0, 0)
+          expect((await row.evaluate(measureNotificationFill)).fill).toEqual(measured.row)
+          await page.mouse.up()
+        }
+        await page.keyboard.press('Tab')
+        await body!.focus()
+        expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
+        await remove!.focus()
+        expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
+        await remove!.evaluate((element) => element.blur())
+      }
+    } finally { await page.close() }
+  })
+
   it.each([320, 412].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('keeps notification words whole and error prose wrappable at $width in $locale', async ({ width, locale }) => {
     const titles = ['W'.repeat(60), 'Extraordinarily comprehensive internationalization responsibilities']
     const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}>

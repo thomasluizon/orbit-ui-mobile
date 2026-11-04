@@ -1,0 +1,41 @@
+import { expect } from '@playwright/test'
+import { API } from '@orbit/shared/api'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { notificationsResponseSchema } from '@orbit/shared/types/notification'
+import { test } from './upgrade-fixtures'
+import { setLayoutFixtureSession } from './profile-session'
+import { measureNotificationFill } from './notification-fill-geometry'
+
+for (const mode of ['light', 'dark'] as const) {
+  for (const width of [320, 412, 1352]) {
+    test.describe(`Notification row feedback at ${width}px in ${mode}`, () => {
+      test.use({ viewport: { width, height: 915 }, appLocale: 'pt-BR', colorScheme: mode, layoutProfile: { themePreference: mode } })
+      test('fills read and unread rows through body and delete interaction', async ({ page, context }) => {
+        const notifications = notificationsResponseSchema.parse({
+          items: [false, true].map((isRead) => createMockNotification({ id: `fill-${isRead}`, isRead })),
+          unreadCount: 1,
+        })
+        await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
+        await page.goto('/notifications')
+        const rows = page.locator('li[data-read]')
+        await expect(rows).toHaveCount(2)
+        for (const row of await rows.all()) {
+          const controls = await row.getByRole('button').all()
+          expect(controls).toHaveLength(2)
+          for (const control of controls) {
+            await control.hover()
+            await expect.poll(async () => {
+              const measured = await row.evaluate(measureNotificationFill)
+              return measured.fill
+            }).toEqual((await row.evaluate(measureNotificationFill)).row)
+            await page.mouse.down()
+            expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
+            await page.mouse.move(0, 0)
+            expect((await row.evaluate(measureNotificationFill)).fill).toEqual((await row.evaluate(measureNotificationFill)).row)
+            await page.mouse.up()
+          }
+        }
+      })
+    })
+  }
+}

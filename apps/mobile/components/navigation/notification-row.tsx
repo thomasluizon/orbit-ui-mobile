@@ -1,7 +1,7 @@
-import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { SMALL_PILL_VISIBLE_MIN, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PersonalText } from '@/components/ui/personal-text'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
-import { useState } from 'react'
+import { useRowFeedback } from '@/hooks/use-row-feedback'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { CircleDot, Gift, Trash2 } from '@/components/ui/icons'
@@ -26,21 +26,23 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
   onDelete: (item: NotificationItem) => void
 }>) {
   const { t } = useTranslation()
-  const [focused, setFocused] = useState(false)
-  const [deleteFocused, setDeleteFocused] = useState(false)
+  const bodyFeedback = useRowFeedback()
+  const deleteFeedback = useRowFeedback()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const targetKey = getNotificationTargetKey(item.url, item.habitId)
   return (
     <View testID={item.isRead ? 'notification-read' : 'notification-unread'}
       style={[styles.wrapper, !item.isRead && { backgroundColor: tokens.bgCard, boxShadow: `inset 0 0 0 1px ${tokens.hairline}` }]}>
+      <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+        style={[styles.fill, { backgroundColor: bodyFeedback.highlighted || deleteFeedback.highlighted ? tokens.bgHover : 'transparent' },
+          bodyFeedback.focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -3,
+            boxShadow: `inset 0 0 0 4px ${tokens.fg1}` }]} />
       <Pressable accessibilityRole="button"
         accessibilityLabel={`${item.title}. ${t(item.isRead ? 'notifications.read' : 'notifications.unread')}${targetKey ? `. ${t(targetKey)}` : ''}`}
         onPress={() => onOpen(item)}
-        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-        style={({ pressed }) => [styles.row, pressed && { backgroundColor: tokens.bgHover },
-          focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -3,
-            borderColor: tokens.fg1 }]}>
+        {...bodyFeedback.handlers}
+        style={styles.row}>
         <View testID="notification-dot-column" style={styles.dotColumn}>
           {!item.isRead ? <View testID="notification-unread-dot" style={[styles.dot, { backgroundColor: tokens.fg1 }]} /> : null}
         </View>
@@ -64,10 +66,12 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
       <Pressable accessibilityRole="button"
         accessibilityLabel={t('notifications.deleteNotification', { title: item.title })}
         onPress={() => onDelete(item)}
-        onFocus={() => setDeleteFocused(true)} onBlur={() => setDeleteFocused(false)}
-        style={({ pressed }) => [styles.deleteButton, pressed && { backgroundColor: tokens.bgHover },
-          deleteFocused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -3,
-            borderColor: tokens.fg1 }]}>
+        {...deleteFeedback.handlers}
+        style={styles.deleteButton}>
+        <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+          style={[styles.deleteFill, { backgroundColor: deleteFeedback.highlighted ? tokens.bgRowAction : 'transparent' },
+            deleteFeedback.focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -3,
+              boxShadow: `inset 0 0 0 4px ${tokens.fg1}` }]} />
         <View accessible={false} importantForAccessibility="no-hide-descendants" pointerEvents="none">
           <Trash2 size={20} color={tokens.statusBad} />
         </View>
@@ -77,9 +81,11 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
 }
 
 const styles = StyleSheet.create({
-  wrapper: { flexDirection: 'row', alignItems: 'stretch', gap: 4, borderRadius: 12 },
-  row: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: SPACING.s12, minHeight: TOUCH_TARGET_MIN, borderRadius: 12, overflow: 'hidden', borderWidth: 4, borderStyle: 'solid', borderColor: 'transparent' },
-  deleteButton: { width: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, flexShrink: 0, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', borderRadius: 999, borderWidth: 4, borderColor: 'transparent', overflow: 'hidden' },
+  fill: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12 },
+  deleteFill: { position: 'absolute', width: SMALL_PILL_VISIBLE_MIN, height: SMALL_PILL_VISIBLE_MIN, borderRadius: 999 },
+  wrapper: { position: 'relative', flexDirection: 'row', alignItems: 'stretch', gap: 4, borderRadius: 12 },
+  row: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: SPACING.s16, minHeight: TOUCH_TARGET_MIN, borderRadius: 12 },
+  deleteButton: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, flexShrink: 0, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
   dotColumn: { width: 8, flexShrink: 0, alignSelf: 'stretch', justifyContent: 'center' },
   dot: { width: 8, height: 8, borderRadius: 999 },
   content: { flex: 1, minWidth: 0, gap: 4 },
