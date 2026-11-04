@@ -1,4 +1,5 @@
 import { useEffect,useLayoutEffect,useRef,useState } from 'react'
+import { onlineManager } from '@tanstack/react-query'
 import { createUseParentPromptQueue, type ParentPromptInputs } from '@orbit/shared/hooks'
 import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
@@ -18,6 +19,7 @@ export function useParentPromptQueue(inputs: ParentPromptQueueInputs) {
     bulkLog: (items, parentPromptContinuation) => inputs.bulkLog.mutateAsync(parentPromptContinuation.length > 0 ? { items, parentPromptContinuation } : items),
     bulkSkip: (items, parentPromptContinuation) => inputs.bulkSkip.mutateAsync(parentPromptContinuation.length > 0 ? { items, parentPromptContinuation } : items),
     toggleKey: (id, date) => `${id}:${date}`,
+    canRefreshSettlement: () => onlineManager.isOnline(),
   })
   const { settleBulkHabitResolutions } = queue
   useEffect(() => subscribeBulkReplaySuccesses((success) => {

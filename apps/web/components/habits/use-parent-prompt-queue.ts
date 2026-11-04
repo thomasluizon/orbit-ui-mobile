@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect,useLayoutEffect,useRef } from 'react'
+import { onlineManager } from '@tanstack/react-query'
 import { createUseParentPromptQueue, type ParentPromptInputs } from '@orbit/shared/hooks'
 import { useAccountScopedState,useResetOnAccountChange } from '@/hooks/use-session-reset'
 import type { useHabitListQueries,useHabitListVisibility,useHabitRecentCompletions } from './use-habit-list-state'
@@ -16,5 +17,6 @@ export function useParentPromptQueue(inputs: ParentPromptQueueInputs) {
     logHabit: inputs.logHabit.mutateAsync, skipHabit: inputs.skipHabit.mutateAsync,
     bulkLog: (items) => inputs.bulkLog.mutateAsync(items), bulkSkip: (items) => inputs.bulkSkip.mutateAsync(items),
     refetch: inputs.habitsQuery.refetch, toggleKey: (id) => id,
+    canRefreshSettlement: () => onlineManager.isOnline(),
   })
 }

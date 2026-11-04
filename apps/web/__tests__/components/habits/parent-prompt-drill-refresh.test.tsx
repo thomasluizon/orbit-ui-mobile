@@ -1,7 +1,7 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockHabitScheduleChild, createMockHabitScheduleItem, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { makeEnrichedHabitDetail, makeHabitDetailChild } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitDetail } from '@orbit/shared/types/habit'
 import { normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -18,9 +18,9 @@ const date = '2026-09-12'
 let tree: ReactTestRenderer | undefined
 let client: QueryClient | undefined
 beforeEach(() => { vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); vi.useFakeTimers(); vi.setSystemTime(new Date(`${date}T12:00:00Z`)) })
-afterEach(async () => { await act(() => tree?.unmount()); tree = undefined; client?.clear(); vi.useRealTimers(); vi.unstubAllGlobals() })
+afterEach(async () => { await act(() => tree?.unmount()); tree = undefined; client?.clear(); onlineManager.setOnline(true); vi.useRealTimers(); vi.unstubAllGlobals() })
 
-async function mountDrillQueue() {
+async function mountDrillQueue(partialList = false) {
   const initial: HabitDetail = {
     ...makeEnrichedHabitDetail(), id: 'parent', frequencyUnit: null, isGeneral: true, isBadHabit: true,
     children: ['first', 'second'].map(id => ({
@@ -28,9 +28,13 @@ async function mountDrillQueue() {
     })),
   }
   let releaseDetail!: (detail: HabitDetail) => void
-  const detailResponse = new Promise<HabitDetail>(resolve => { releaseDetail = resolve })
+  let rejectDetail!: (error: Error) => void
+  const detailResponse = new Promise<HabitDetail>((resolve, reject) => { releaseDetail = resolve; rejectDetail = reject })
   vi.mocked(fetchJson).mockReset().mockResolvedValueOnce(initial).mockImplementation(() => detailResponse)
-  const snapshot = normalizeHabitQueryData([])
+  const snapshot = normalizeHabitQueryData(partialList ? [createMockHabitScheduleItem({
+    id: initial.id, frequencyUnit: null, isGeneral: true, isBadHabit: true, hasSubHabits: true,
+    children: [createMockHabitScheduleChild({ id: 'second', frequencyUnit: null, isGeneral: true, isBadHabit: true })],
+  })] : [])
   let updatedAt = 1
   let queue!: ReturnType<typeof useParentPromptQueue>
   let drill!: ReturnType<typeof useHabitListVisibility>['drill']
@@ -60,7 +64,10 @@ async function mountDrillQueue() {
   await act(() => { tree = create(<QueryClientProvider client={client!}><Probe /></QueryClientProvider>) })
   await act(() => drill.drillInto('parent'))
   return {
-    current: () => queue, drill: () => drill, log,
+    current: () => queue, drill: () => drill, log, refetch,
+    failDetail: async () => {
+      await act(async () => { rejectDetail(new TypeError('Network request failed')); await detailResponse.catch(() => {}) })
+    },
     resolve: async (path: 'direct' | 'callback' | 'bulk') => {
       await act(async () => {
         if (path === 'direct') await queue.handleDirectToggle(drill.settlementHabitsById.get('second')!, 'log')
@@ -92,6 +99,31 @@ it.each(['direct', 'callback', 'bulk'] as const)('waits for drill-only settlemen
   expect(queue.drill().settlementHabitsById.get('parent')?.isCompleted).toBe(true)
   expect(queue.current().parentPrompt).toBeNull()
   expect(queue.log.mock.calls.map(([input]) => input.habitId)).toEqual(path === 'direct' ? ['second'] : [])
+})
+
+it.each(([false, true] as const).flatMap(offline => (['direct', 'callback', 'bulk'] as const).map(path => ({ path, offline }))))('continues $path settlement after a drill refresh rejects, offline: $offline', async ({ path, offline }) => {
+  const queue = await mountDrillQueue(true)
+  await queue.resolve(path)
+  expect(queue.current().parentPrompt).toBeNull()
+  expect(queue.log.mock.calls.map(([input]) => input.habitId)).toEqual(path === 'direct' ? ['second'] : [])
+  if (offline) onlineManager.setOnline(false)
+  await queue.failDetail()
+  if (path === 'bulk') {
+    expect(queue.current().parentPrompt).toBeNull()
+    expect(queue.log).toHaveBeenCalledWith({ habitId: 'parent', date, intent: 'log' })
+  } else expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+})
+
+it.each(['direct', 'callback', 'bulk'] as const)('continues %s settlement offline without waiting for drill details', async path => {
+  const queue = await mountDrillQueue(true)
+  onlineManager.setOnline(false)
+  await queue.resolve(path)
+  expect(queue.refetch).not.toHaveBeenCalled()
+  expect(fetchJson).toHaveBeenCalledOnce()
+  if (path === 'bulk') {
+    expect(queue.current().parentPrompt).toBeNull()
+    expect(queue.log).toHaveBeenCalledWith({ habitId: 'parent', date, intent: 'log' })
+  } else expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
 })
 
 it.each(['direct', 'callback', 'bulk'] as const)('continues %s settlement when fresh drill details leave the parent open', async path => {

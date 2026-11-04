@@ -66,6 +66,7 @@ describe('parent undo presentation with mounted modal transitions', () => {
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     script = bundleGeometry(entry, {
+      'next/dynamic': "export { default } from 'next/dist/shared/lib/app-dynamic';",
       '@/hooks/use-time-format': 'export const useTimeFormat = () => ({displayTime: value => value});',
       'next/navigation': "export { unstable_isUnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'; export const useRouter = () => ({push: () => {}});",
     })
@@ -78,7 +79,7 @@ describe('parent undo presentation with mounted modal transitions', () => {
     const words = locale === 'en' ? en : ptBR
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     try {
-      await page.clock.install()
+      await page.clock.setFixedTime(new Date('2026-09-04T12:00:00Z'))
       await page.setContent(`<style>${stylesheet}</style><div id="root" data-locale="${locale}"></div>`)
       await page.addScriptTag({ content: script })
       await page.getByRole('button', { name: words.habits.actions.more }).click()
@@ -87,17 +88,24 @@ describe('parent undo presentation with mounted modal transitions', () => {
       await dialog.waitFor()
       expect(await page.locator('[data-kind]').count()).toBe(0)
       expect(await page.locator('[data-current]').textContent()).toBe(words.undo.habitSkipped)
+      await page.clock.pauseAt(new Date('2026-09-04T12:00:00Z'))
+      await page.clock.runFor(20000)
+      expect(await page.locator('[data-kind]').count()).toBe(0)
       if (dismissal === 'escape') await page.keyboard.press('Escape')
       else await dialog.getByRole('button', { name: {
         cancel: words.common.notNow, confirm: words.habits.autoSkipParentConfirm, close: words.common.close,
       }[dismissal] }).click()
+      await page.clock.runFor(100)
       await expect.poll(() => dialog.count()).toBe(0)
       await expect.poll(async () => ({
         notice: await page.locator('[data-shell-notice-content] [data-kind]').count(),
+        surface: await page.locator('[data-toast-motion]').count(),
         current: await page.locator('[data-current]').textContent(),
         overlays: await page.locator('[data-overlays]').textContent(),
-      })).toEqual({ notice: 1, current: words.undo.habitSkipped, overlays: '' })
-      await page.clock.runFor(4900)
+      })).toEqual({ notice: 1, surface: 1, current: words.undo.habitSkipped, overlays: '' })
+      const notice = page.locator('[data-shell-notice-content] [data-kind]')
+      expect(await notice.isVisible()).toBe(true)
+      await page.clock.runFor(4800)
       await page.getByRole('button', { name: words.undo.action, exact: true }).click()
       expect(await page.locator('#root').getAttribute('data-restored')).toBe('child')
     } finally { await page.close() }

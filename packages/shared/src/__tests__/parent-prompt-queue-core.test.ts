@@ -30,7 +30,7 @@ function parentPromptHarness() {
     getChildren: id => habits.filter(habit => habit.parentId === id), view: 'today', updatedAt: 1,
     visibility: { isRelevantToday: () => true, isDueOnSelectedDate: () => true }, logHabit, skipHabit,
     bulkLog, bulkSkip: bulkLog, markRecentlyCompleted: vi.fn(), clearRecentlyCompleted: vi.fn(),
-    showError: vi.fn(), t: key => key, refetch: vi.fn(async () => {}), toggleKey: (id, date) => `${id}:${date}` }
+    showError: vi.fn(), t: key => key, refetch: vi.fn(async () => {}), canRefreshSettlement: () => true, toggleKey: (id, date) => `${id}:${date}` }
   const render = () => {
     const queue = state.render(() => useQueue(inputs))
     for (const effect of effects.splice(0)) effect()

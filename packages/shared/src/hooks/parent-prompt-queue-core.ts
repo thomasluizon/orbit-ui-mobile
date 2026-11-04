@@ -28,6 +28,7 @@ export interface ParentPromptInputs {
   showError: (message: string) => void
   t: (key: string, values?: Record<string, string | number | Date>) => string
   refetch: () => Promise<unknown>
+  canRefreshSettlement: () => boolean
   toggleKey: (habitId: string, date: string) => string
 }
 
@@ -344,6 +345,10 @@ function afterParentRefetch(context: ParentPromptContext, record: ConfirmedResol
 }
 
 async function refetchParentSettlement(context: ParentPromptContext, record: ConfirmedResolutionRecord, settle: (settlement: ParentSettlementData) => void) {
+  if (!context.canRefreshSettlement()) {
+    afterParentRefetch(context, record, null, settle)
+    return
+  }
   const updatedAt = context.promptDataRef.current?.updatedAt ?? context.updatedAt
   try {
     await context.refetch()
@@ -542,11 +547,9 @@ async function handleDirectToggle(context: ParentPromptContext, habit: Normalize
     await mutation
     mutationSucceeded = true
     if (intent === 'unlog') releaseParentResolution(context, habitId, confirmedResolutions, habit.parentId)
-    const updatedAt = context.promptDataRef.current?.updatedAt ?? context.updatedAt
-    await refetch()
     if (intent === 'log' && habit.isBadHabit && confirmedResolutionsRef.current === confirmedResolutions) {
-      afterParentRefetch(context, confirmedResolutions, updatedAt, settlement => checkAndSettleParent(context, habitId, confirmedResolutions, settlement))
-    }
+      await refetchParentSettlement(context, confirmedResolutions, settlement => checkAndSettleParent(context, habitId, confirmedResolutions, settlement))
+    } else await refetch()
   } catch {
     if (!mutationSucceeded && intent === 'log') releaseParentResolution(context, habitId, confirmedResolutions, habit.parentId)
   } finally {

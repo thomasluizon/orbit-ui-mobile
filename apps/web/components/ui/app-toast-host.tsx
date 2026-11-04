@@ -1,26 +1,19 @@
 'use client'
 
-import { useCallback, useEffect } from 'react'
-import dynamic from 'next/dynamic'
+import { useCallback } from 'react'
 import { getModalError, type AppToastItem } from '@orbit/shared/stores'
 import { ActionRow } from './action-row'
 import { ErrorState } from './error-state'
 import { PillButton } from './pill-button'
 import { IconButton } from './icon-button'
 import { X } from './icons'
+import { Toast } from './toast'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence } from 'motion/react'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
 
-const Toast = dynamic(() => import('@/components/ui/toast').then((module) => module.Toast), { loading: () => null })
-
 export function AppToastHost({ placement = 'slot', modalId }: Readonly<{ placement?: 'slot' | 'page' | 'modal'; modalId?: string }>) {
-  useEffect(() => {
-    void import('@/components/ui/toast').catch((error: unknown) => {
-      window.dispatchEvent(new ErrorEvent('error', { error, message: String(error), cancelable: true }))
-    })
-  }, [])
   const currentToast = useAppToastStore((state) => state.currentToast)
   const queue = useAppToastStore((state) => state.queue)
   const triggerAction = useAppToastStore((state) => state.triggerAction)

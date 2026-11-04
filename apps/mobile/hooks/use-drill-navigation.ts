@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { onlineManager, useQueryClient } from '@tanstack/react-query'
 import { habitKeys, shouldRetryQuery, queryRetryDelay } from '@orbit/shared/query'
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { BackHandler } from 'react-native'
@@ -12,6 +12,7 @@ import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
 import { apiClient } from '@/lib/api-client'
 
 async function fetchHabitDetail(habitId: string): Promise<HabitDetail> {
+  if (!onlineManager.isOnline()) throw new TypeError('Network request failed')
   return apiClient<HabitDetail>(API.habits.get(habitId))
 }
 
@@ -125,6 +126,7 @@ export function useDrillNavigation(
             queryKey: habitKeys.detail(detailId),
             queryFn: () => fetchHabitDetail(detailId),
             staleTime: 0,
+            networkMode: 'always',
             retry: (failureCount, error) => extractBackendStatus(error) === 429 && shouldRetryQuery(failureCount, error),
             retryDelay: queryRetryDelay,
           })
@@ -152,15 +154,20 @@ export function useDrillNavigation(
         })
         setDrillError('')
       } catch (err: unknown) {
-        if (showFeedback && requestIdRef.current === requestId && activeParentIdRef.current === habitId) {
+        if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return
+        // WHY: Failed and offline refreshes must release settlement against cached children. https://github.com/thomasluizon/orbit-tickets/issues/1984
+        setSettlementUpdatedAtById(previous => {
+          const next = new Map(previous)
+          for (const id of drillHabitsById.keys()) next.set(id, lastUpdated)
+          return next
+        })
+        if (showFeedback) {
           setDrillError(getFriendlyErrorMessage(err, t, 'errors.fetchSubHabits', 'subHabit'))
         }
       } finally {
         if (requestIdRef.current === requestId) {
           feedbackPendingRef.current = false
-          if (showFeedback) {
-            setDrillLoading(false)
-          }
+          setDrillLoading(false)
         }
       }
     },
