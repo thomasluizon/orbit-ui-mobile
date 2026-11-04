@@ -6,6 +6,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { registerChromeLaunchHook } from '@/__tests__/support/chromium'
 import { calendarGeometryHarness } from '@/__tests__/support/calendar-header-geometry'
+import { readCalendarPeriodGeometry } from '@/e2e/layout/calendar-period-geometry'
 
 interface HeaderFrame {
   label: { left: number; right: number; center: number }
@@ -16,6 +17,7 @@ function expectSeparateChevrons(frame: HeaderFrame) {
   expect(frame.chevrons).toHaveLength(2)
   for (const box of frame.chevrons) {
     expect(Math.abs(frame.label.center - box.center), JSON.stringify(frame)).toBeLessThanOrEqual(2)
+    expect(box.left < frame.label.left || box.left > frame.label.right, JSON.stringify(frame)).toBe(true)
     expect(box.right <= frame.label.left || box.left >= frame.label.right, JSON.stringify(frame)).toBe(true)
   }
 }
@@ -36,7 +38,16 @@ describe('Range header rendered frames', () => {
       import { SegmentedControl } from './components/ui/segmented-control';
       import { buildCalendarRangeModel, formatCalendarSpanEnds } from '@orbit/shared/utils';
       import { buildCalendarHeaderState } from '@orbit/shared/utils/calendar-navigation';
+      import { readCalendarPeriodGeometry } from './e2e/layout/calendar-period-geometry';
       const configuration = JSON.parse(document.getElementById('configuration').textContent);
+      const frames = [];
+      window.rangeHeaderFrames = frames;
+      async function sample() {
+        const row = document.querySelector('[data-testid="calendar-range-navigation"]');
+        if (row) frames.push(await readCalendarPeriodGeometry(row, false));
+        requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
       function Header() {
         const t = useTranslations();
         const [view, setView] = useState('month');
@@ -70,33 +81,59 @@ describe('Range header rendered frames', () => {
         await page.setContent(`<style>${harness.stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ locale, messages })}</script>`)
         await page.addScriptTag({ content: script })
         await page.getByRole('radio', { name: messages.calendar.view.month, exact: true }).waitFor()
-        const frames = page.evaluate(async () => {
-          const snapshots = []
-          for (let frame = 0; frame < 60; frame++) {
-            await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
-            const row = document.querySelector('[data-testid="calendar-range-navigation"]')
-            if (!row) continue
-            const title = row.querySelector('[data-calendar-period-title]')!
-            const bounds = (element: Element) => {
-              const box = element.getBoundingClientRect()
-              return { left: box.left, right: box.right, center: (box.top + box.bottom) / 2 }
-            }
-            snapshots.push({ label: bounds(title), chevrons: [...row.querySelectorAll('button')].filter(button => button !== title).map(bounds) })
-          }
-          return snapshots
-        })
         await page.getByRole('radio', { name: messages.calendar.view.range, exact: true }).click()
+        const row = page.getByTestId('calendar-range-navigation')
+        expectSeparateChevrons(await row.evaluate(readCalendarPeriodGeometry))
         await loadAppFonts(page)
         const label = page.locator('[data-calendar-period-title]')
         const initial = await label.innerText()
         await page.getByRole('button', { name: messages.calendar.range.previous, exact: true }).click()
         expect(await label.innerText()).not.toBe(initial)
+        expectSeparateChevrons(await row.evaluate(readCalendarPeriodGeometry))
         await page.getByRole('button', { name: messages.calendar.range.next, exact: true }).click()
         expect(await label.innerText()).toBe(initial)
-        const snapshots = await frames
+        expectSeparateChevrons(await row.evaluate(readCalendarPeriodGeometry))
+        const snapshots = await page.evaluate(() => Reflect.get(window, 'rangeHeaderFrames') as HeaderFrame[])
         expect(snapshots.length).toBeGreaterThan(0)
         for (const snapshot of snapshots) expectSeparateChevrons(snapshot)
       } finally { await page.close() }
     },
   )
+
+  it('rejects a chevron moved inside the settled label box', async () => {
+    const page = await harness.browser.newPage({ viewport: { width: 840, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ locale: 'en', messages: en })}</script>`)
+      await page.addScriptTag({ content: script })
+      await page.getByRole('radio', { name: en.calendar.view.range, exact: true }).click()
+      const row = page.getByTestId('calendar-range-navigation')
+      expectSeparateChevrons(await row.evaluate(readCalendarPeriodGeometry))
+      await row.evaluate(element => {
+        const label = element.querySelector('[data-calendar-period-title]')!.getBoundingClientRect()
+        const chevron = element.querySelector('button')!
+        const box = chevron.getBoundingClientRect()
+        chevron.style.transform = `translateX(${label.left + 8 - box.left}px)`
+      })
+      const moved = await row.evaluate(readCalendarPeriodGeometry)
+      expect(() => expectSeparateChevrons(moved)).toThrow('expected false to be true')
+    } finally { await page.close() }
+  })
+
+  it('waits for shared header motion and measures every box in the same frame', async () => {
+    const page = await harness.browser.newPage({ viewport: { width: 840, height: 915 } })
+    try {
+      await page.setContent(`<style>${harness.stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ locale: 'en', messages: en })}</script>`)
+      await page.addScriptTag({ content: script })
+      await page.getByRole('radio', { name: en.calendar.view.range, exact: true }).click()
+      const row = page.getByTestId('calendar-range-navigation')
+      const before = await row.evaluate(readCalendarPeriodGeometry)
+      await row.evaluate(element => element.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(100px)' }], { duration: 150, fill: 'forwards' }))
+      const after = await row.evaluate(readCalendarPeriodGeometry)
+      expect(after.label.left - before.label.left).toBeCloseTo(100, 1)
+      expectSeparateChevrons(after)
+      for (const [index, chevron] of after.chevrons.entries()) {
+        expect(chevron.left - before.chevrons[index]!.left).toBeCloseTo(100, 1)
+      }
+    } finally { await page.close() }
+  })
 })

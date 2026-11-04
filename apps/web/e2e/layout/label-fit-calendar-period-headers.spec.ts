@@ -11,6 +11,7 @@ import { expectLabelsFit, expectLegendFits, markRequiredLabels, markUserText } f
 import { expectInteractionFill } from './label-interaction-fill'
 import { setLayoutProfileSession } from './profile-session'
 import { readExpandedControlGeometry } from './expanded-control-geometry'
+import { readCalendarPeriodGeometry } from './calendar-period-geometry'
 import { test } from './upgrade-fixtures'
 
 const habitTitle = 'Caminhar pelo bairro depois do trabalho e conversar com os amigos'
@@ -94,11 +95,15 @@ for (const width of [320, 360, 384, 412, 600, 840]) {
         await markRequiredLabels(label)
         await expectLabelsFit(page, row)
         const initialRange = await label.innerText()
-        const labelBox = await bounds(label)
-        for (const control of [previous, next]) {
-          const box = await bounds(control)
+        const { label: labelBox, chevrons } = await row.evaluate(readCalendarPeriodGeometry)
+        expect(chevrons).toHaveLength(2)
+        for (const box of chevrons) {
           expect(Math.abs(labelBox.center - box.center)).toBeLessThanOrEqual(2)
           expect(box.left < labelBox.left || box.left > labelBox.right).toBe(true)
+          expect(box.right <= labelBox.left || box.left >= labelBox.right).toBe(true)
+        }
+        for (const control of [previous, next]) {
+          const box = await bounds(control)
           expect(box.width).toBeGreaterThanOrEqual(48)
           expect(box.height).toBeGreaterThanOrEqual(48)
         }
