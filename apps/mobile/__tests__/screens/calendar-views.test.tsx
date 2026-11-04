@@ -948,6 +948,10 @@ describe("CalendarScreen views (mobile)", () => {
       if (scale === 1) {
         expect(label.lines).toBe(1);
         for (const control of measured.controls) expect(Math.abs((label.top + label.bottom - control.top - control.bottom) / 2)).toBeLessThanOrEqual(2);
+        const title = measured.controls.find((control) => control.labels.includes(label.label))!;
+        for (const chevron of measured.controls.filter((control) => control !== title)) {
+          expect(chevron.right <= title.left || chevron.left >= title.right, JSON.stringify(measured.controls)).toBe(true);
+        }
       }
       for (const control of measured.controls) {
         expect(control.left).toBeGreaterThanOrEqual(16);
