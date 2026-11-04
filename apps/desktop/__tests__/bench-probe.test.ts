@@ -12,7 +12,7 @@ import { createChatStoreState, type ChatStoreState } from '../../../packages/sha
 const probe = readFileSync(new URL('../../../tools/desktop-bench/probe.js', import.meta.url), 'utf8')
 const chatSource = probe.slice(probe.indexOf('  async function chat()'), probe.indexOf('  async function run()'))
 
-async function measureChat({ fragmented = false, interrupted = false } = {}) {
+async function measureChat({ fragmented = false, interrupted = false, dispatchDelayMs = 0 } = {}) {
   let chat: ChatStoreState
   chat = createChatStoreState(patch => { chat = { ...chat, ...(typeof patch === 'function' ? patch(chat) : patch) } })
   chat.beginReply()
@@ -81,7 +81,7 @@ async function measureChat({ fragmented = false, interrupted = false } = {}) {
     set value(value: string) { this.text = value }
     focus() {}
     dispatchEvent(event: { type: string }) {
-      if (event.type === 'keydown') sending = runComposerStream(context, { content: this.value, image: null, messageCost: 1 })
+      if (event.type === 'keydown') sending = delay(dispatchDelayMs).then(() => runComposerStream(context, { content: this.value, image: null, messageCost: 1 }))
     }
   }
   const textarea = new Textarea()
@@ -99,7 +99,7 @@ async function measureChat({ fragmented = false, interrupted = false } = {}) {
       const result = read()
       if (!result) throw new Error(label)
       return result
-    }, { interval: 1, timeout: 2000 }),
+    }, { interval: 1, timeout: 20000 }),
   }
   runInNewContext(`${chatSource}\nglobalThis.measure = chat`, sandbox)
   try {
@@ -113,8 +113,12 @@ async function measureChat({ fragmented = false, interrupted = false } = {}) {
   } finally { queryClient.clear() }
 }
 
-it.each([false, true])('measures the terminal event before the production composer aborts its completed request: fragmented=%s', async fragmented => {
-  const result = await measureChat({ fragmented })
+it.each([
+  { fragmented: false, dispatchDelayMs: 0 },
+  { fragmented: true, dispatchDelayMs: 0 },
+  { fragmented: false, dispatchDelayMs: 2500 },
+])('measures the terminal event before the production composer aborts its completed request: fragmented=$fragmented, dispatchDelayMs=$dispatchDelayMs', async options => {
+  const result = await measureChat(options)
   expect(result.outcome).toEqual({ kind: 'final' })
   expect(result.signals).toHaveLength(1)
   expect(result.signals[0]?.aborted).toBe(true)
@@ -122,12 +126,13 @@ it.each([false, true])('measures the terminal event before the production compos
   expect(result.failure).toBeUndefined()
   expect(result.responses).toEqual([{ status: 200, statusText: 'OK', contentType: 'text/event-stream' }])
   expect(result.measured?.finalEventMs).toBeGreaterThanOrEqual(0)
-})
+}, 60000)
 
 it('refuses a stream interrupted before the final event', async () => {
   const result = await measureChat({ interrupted: true })
   expect(result.outcome?.kind).toBe('failed')
   expect(result.failure).toBeInstanceOf(Error)
+  expect(result.failure).toMatchObject({ message: 'final rendered part' })
   expect(result.measured).toBeUndefined()
   expect(result.signals.every(signal => signal.aborted)).toBe(true)
-})
+}, 60000)
