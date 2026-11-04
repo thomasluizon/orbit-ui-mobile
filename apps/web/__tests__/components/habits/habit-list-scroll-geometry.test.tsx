@@ -134,7 +134,7 @@ it.each(([
         departures = Math.max(departures, element.querySelectorAll('[data-list-motion][inert] [data-testid="habit-row"]').length)
         if (departures > 0) departureStarted ??= performance.now()
         const remaining = element.querySelectorAll('[data-testid="habit-row"]').length
-        const settled = remaining === 0 && departureStarted !== undefined && performance.now() - departureStarted > 1000
+        const settled = remaining === 0 && departureStarted !== undefined
         if (settled || performance.now() - start > 5000) done({ departures, offsets, remaining, maximum: element.scrollHeight - element.clientHeight, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-shell-page-content]')!.style.minHeight })
         else requestAnimationFrame(sample)
       }
@@ -146,6 +146,7 @@ it.each(([
     expect(observed.remaining).toBe(0)
     expect(observed.offsets.filter(sample => sample.departing).every(sample => Math.abs(sample.offset - 650) < 1), JSON.stringify({ before, observed })).toBe(true)
     expect(observed.offsets.at(-1)!.offset).toBe(observed.maximum)
+    if (height > width) expect(observed.offsets.at(-1)!.offset, JSON.stringify(observed)).toBe(0)
     expect(observed.maximum).toBeLessThan(650)
     await page.locator('[data-shell-scroller]').evaluate((element) => { element.scrollTop = 0 })
     await page.waitForFunction(() => {

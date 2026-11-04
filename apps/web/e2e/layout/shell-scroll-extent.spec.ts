@@ -4,17 +4,20 @@ import { getAccountDay } from '@orbit/shared/utils'
 import { SPACING } from '@orbit/shared/theme'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
+import { profileSchema } from '@orbit/shared/types/profile'
 import { expect } from '@playwright/test'
-import { setLayoutFixtureSession } from './profile-session'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { LAYOUT_FIXED_TIME } from './clock.mjs'
+import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
 import { measureShellScrollEnd, shellScrollViewports } from './shell-scroll-extent'
-import { test } from './upgrade-fixtures'
+import { test } from './layout-test'
 
 for (const viewport of shellScrollViewports) {
   test.describe(`Hoje end of list at ${viewport.width} by ${viewport.height}`, () => {
-    test.use({ appLocale: 'en', viewport })
+    test.use({ viewport })
 
     test('stops at the last row and shell clearance', async ({ page, context }, testInfo) => {
-      const date = getAccountDay(new Date(), 'UTC')
+      const date = getAccountDay(new Date(LAYOUT_FIXED_TIME), 'UTC')
       const items = Array.from({ length: 32 }, (_, index) => makeHabitScheduleItem({
         id: `scroll-extent-${index}`, title: `Read chapter ${index}`, position: index,
         dueDate: date, scheduledDates: [date], children: [], hasSubHabits: false,
@@ -22,7 +25,11 @@ for (const viewport of shellScrollViewports) {
       const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
         items, page: 1, pageSize: items.length, totalCount: items.length, totalPages: 1,
       })
-      await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits,
+      const profile = profileSchema.parse({ ...profileFixture, language: 'en', timeZone: 'UTC' })
+      await setLayoutProfileSession(context, profile)
+      await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile },
+        { path: API.habits.count, body: { count: items.length } },
+        { path: API.habits.list, body: habits,
         afterMutation: { method: 'POST', path: API.habits.bulkSkip, body: { ...habits, items: items.slice(10), totalCount: items.length - 10 } } }])
       await page.goto('/')
       const scroller = page.locator('[data-shell-scroller]')

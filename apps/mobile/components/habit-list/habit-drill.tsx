@@ -189,7 +189,7 @@ export function HabitDrill({
       renderItem={renderItem}
       ListHeaderComponent={header}
       ListEmptyComponent={empty}
-      ListFooterComponent={drill.drillChildren.length > 0 ? addRow : null}
+      ListFooterComponent={presentation.items.length > 0 ? addRow : null}
       contentContainerStyle={[styles.listContent, bulkBarStyle, { minHeight: reservation.minimumHeight }]}
       refreshControl={refreshControl}
       onScroll={onListScroll}

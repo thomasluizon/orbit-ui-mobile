@@ -10,7 +10,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
 import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
-import { FlatList, LayoutAnimation, StyleSheet, View, type ViewStyle, type HostInstance } from 'react-native'
+import { FlatList, LayoutAnimation, StyleSheet, View, type FlatListProps, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, type ViewStyle, type HostInstance } from 'react-native'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
 import { makeMonthlyChildDaySchedule } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -3119,6 +3119,62 @@ describe('HabitList', () => {
       expect(rowIndex).toBe(2)
       expect(geometry.get('habit-row-1')!.top - geometry.get('habit-row-0')!.bottom).toBe(12)
     }
+  })
+
+  it('preserves drill bottom extent through retained exits and releases it afterward', async () => {
+    vi.useFakeTimers()
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    const children = Array.from({ length: 30 }, (_, index) => createMockHabit({
+      id: `child-${index}`, title: `Child ${index}`, parentId: parent.id,
+    }))
+    seedHabits([parent, ...children])
+    Object.assign(mockDrillState, { currentParentId: parent.id, currentParent: parent,
+      drillStack: [parent.id], drillChildren: children })
+    const content = () => <HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = createTestTree(content()) as GeometryTree })
+    const list = () => tree.root.findAllByType('FlatList')[0]!.props as unknown as FlatListProps<NormalizedHabit>
+    const renderSlot = (slot: FlatListProps<NormalizedHabit>['ListHeaderComponent']) =>
+      typeof slot === 'function' ? React.createElement(slot) : slot
+    await TestRenderer.act(() => list().onLayout!({ nativeEvent: { layout: { x: 0, y: 0, width: 412, height: 400 } } } as LayoutChangeEvent))
+    const measureContent = () => {
+      const props = list()
+      let composition!: GeometryTree
+      TestRenderer.act(() => {
+        composition = createTestTree(<View><View testID="drill-content" style={props.contentContainerStyle}>
+          {renderSlot(props.ListHeaderComponent)}
+          {props.data!.length > 0
+            ? Array.from(props.data!).map((item, index) => <React.Fragment key={item.id}>{props.renderItem!({ item, index,
+              separators: { highlight: () => {}, unhighlight: () => {}, updateProps: () => {} },
+            })}</React.Fragment>)
+            : renderSlot(props.ListEmptyComponent)}
+          {renderSlot(props.ListFooterComponent)}
+        </View></View>) as GeometryTree
+      })
+      const boxes = measureSafeArea(composition.toJSON(), host => host.props.testID, { width: 412, height: 400 })
+      const measured = boxes.get('drill-content')!
+      TestRenderer.act(() => composition.unmount())
+      return measured.bottom - measured.top
+    }
+    const before = measureContent()
+    const bottomOffset = before - 400
+    expect(bottomOffset).toBeGreaterThan(0)
+    await TestRenderer.act(() => list().onScroll!({ nativeEvent: {
+      contentOffset: { x: 0, y: bottomOffset }, contentSize: { width: 412, height: before },
+      layoutMeasurement: { width: 412, height: 400 },
+    } } as NativeSyntheticEvent<NativeScrollEvent>))
+    mockDrillState.drillChildren = []
+    await TestRenderer.act(() => tree.update(content()))
+    expect(list().data).toHaveLength(children.length)
+    const during = measureContent()
+    expect(during, JSON.stringify({ before, during, bottomOffset, maximumOffset: during - 400 })).toBe(before)
+    expect(list().ListFooterComponent).not.toBeNull()
+    await TestRenderer.act(() => { vi.advanceTimersByTime(300) })
+    expect(list().data).toHaveLength(0)
+    expect(list().ListFooterComponent).toBeNull()
+    const settled = measureContent()
+    expect(settled).toBe(400)
+    expect(settled).toBeLessThan(before)
   })
 
   it('uses a plain list for drill view', () => {
