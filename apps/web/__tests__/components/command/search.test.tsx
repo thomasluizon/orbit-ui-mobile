@@ -263,6 +263,39 @@ describe('habit search', () => {
     await waitFor(() => expect(screen.getByRole('option', { name: 'Walk' })).toHaveAttribute('data-selected', 'true'))
   })
 
+  it.each([
+    { keys: ['ArrowDown'], label: 'Log a habit', page: en.command.page.log },
+    { keys: ['ArrowDown', 'ArrowDown'], label: 'Skip a habit', page: en.command.page.skip },
+  ])('retains Down on the focused palette input when pending habits arrive for $label', async ({ keys, label, page }) => {
+    mocks.query.mockReturnValue(result([], true))
+    const view = mount()
+    const input = screen.getByRole('combobox')
+    input.focus()
+    expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'true')
+    for (const key of keys) fireEvent.keyDown(input, { key, code: key })
+    const selected = screen.getByRole('option', { name: label })
+    expect(input).toHaveFocus()
+    expect(selected).toHaveAttribute('aria-selected', 'true')
+
+    mocks.query.mockReturnValue(result([
+      createMockHabit({ id: 'walk', title: 'Walk' }),
+      createMockHabit({ id: 'run', title: 'Run' }),
+      createMockHabit({ id: 'read', title: 'Read' }),
+    ]))
+    view.rerender(<NextIntlClientProvider locale="en" messages={en}><CommandMenu navItems={[]} onCreateHabit={vi.fn()} onClose={vi.fn()} /></NextIntlClientProvider>)
+
+    await waitFor(() => expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'false'))
+    expect(input).toHaveFocus()
+    expect(selected).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('option', { name: 'Walk' })).toHaveAttribute('aria-selected', 'false')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByText(page)).toBeInTheDocument()
+    expect(mocks.push).not.toHaveBeenCalled()
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(mocks.skip).not.toHaveBeenCalled()
+    expect(screen.getByRole('option', { name: 'Walk' })).toHaveAttribute('aria-selected', 'true')
+  })
+
   it('keeps pointer movement separate from keyboard selection when search results load', async () => {
     mocks.query.mockReturnValue(result([], true))
     const view = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)

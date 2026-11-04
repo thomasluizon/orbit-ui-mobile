@@ -1,0 +1,228 @@
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { createMockHabitScheduleChild, createMockHabitScheduleItem, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { API } from '@orbit/shared/api'
+import { makeEnrichedHabitDetail, makeHabitDetailChild } from '@orbit/shared/test-support/habit-detail-fixtures'
+import type { HabitDetail } from '@orbit/shared/types/habit'
+import { normalizeHabitQueryData } from '@orbit/shared/utils'
+import { useParentPromptQueue } from '@/components/habits/use-parent-prompt-queue'
+import { useHabitListDrill, useHabitListVisibility, useHabitRecentCompletionState, useHabitRecentCompletions } from '@/components/habits/use-habit-list-state'
+import { apiClient } from '@/lib/api-client'
+
+vi.mock('expo-crypto', () => ({ randomUUID: () => 'test-mutation' }))
+vi.mock('@/lib/orbit-widget', () => ({ syncWidget: vi.fn() }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
+
+const date = '2026-09-12'
+let tree: ReactTestRenderer | undefined
+let client: QueryClient | undefined
+beforeEach(() => { vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true); vi.useFakeTimers(); vi.setSystemTime(new Date(`${date}T12:00:00Z`)) })
+afterEach(async () => { await act(() => tree?.unmount()); tree = undefined; client?.clear(); onlineManager.setOnline(true); vi.useRealTimers(); vi.unstubAllGlobals() })
+
+async function mountDrillQueue(partialList = false) {
+  const initial: HabitDetail = {
+    ...makeEnrichedHabitDetail(), id: 'parent', frequencyUnit: null, isGeneral: true, isBadHabit: true,
+    children: ['first', 'second'].map(id => ({
+      ...makeHabitDetailChild(), id, frequencyUnit: null, isGeneral: true, isBadHabit: true, isCompleted: id === 'first',
+    })),
+  }
+  let releaseDetail!: (detail: HabitDetail) => void
+  let rejectDetail!: (error: Error) => void
+  const detailResponse = new Promise<HabitDetail>((resolve, reject) => { releaseDetail = resolve; rejectDetail = reject })
+  vi.mocked(apiClient).mockReset().mockResolvedValueOnce(initial).mockImplementation(() => detailResponse)
+  const snapshot = normalizeHabitQueryData(partialList ? [createMockHabitScheduleItem({
+    id: initial.id, frequencyUnit: null, isGeneral: true, isBadHabit: true, hasSubHabits: true,
+    children: [createMockHabitScheduleChild({ id: 'second', frequencyUnit: null, isGeneral: true, isBadHabit: true })],
+  })] : [])
+  let updatedAt = 1
+  let queue!: ReturnType<typeof useParentPromptQueue>
+  let drill!: ReturnType<typeof useHabitListDrill>['drill']
+  const log = vi.fn().mockResolvedValue(undefined)
+  const bulkLog = { mutateAsync: vi.fn().mockResolvedValue({ results: [] }) }
+  const refetch = vi.fn(() => {
+    updatedAt += 1
+    tree!.update(<QueryClientProvider client={client!}><Probe /></QueryClientProvider>)
+    return Promise.resolve()
+  })
+  function Probe() {
+    const recent = useHabitRecentCompletionState({ selectedDateStr: date })
+    const completions = useHabitRecentCompletions({ selectedDateStr: date, setRecentlyCompletedDates: recent.setRecentlyCompletedDates })
+    const habitsQuery = { dataUpdatedAt: updatedAt, refetch }
+    const list = useHabitListVisibility({ movingHabitId: null }, snapshot, { selectedDateStr: date }, { searchQuery: '', showCompleted: false }, recent)
+    drill = useHabitListDrill({ ...snapshot, habitsQuery } as unknown as Parameters<typeof useHabitListDrill>[0], { selectedDateStr: date, todayStr: date }, { searchQuery: '', showCompleted: false, view: 'general' }, recent).drill
+    queue = useParentPromptQueue({
+      selectedDateStr: date, selectedDate: new Date(`${date}T12:00:00Z`), profile: createMockProfile({ timeZone: 'UTC' }),
+      habitsById: snapshot.habitsById, additionalHabitsById: drill.settlementHabitsById, additionalHabitsUpdatedAtById: drill.settlementUpdatedAtById,
+      getChildren: () => [], visibility: list.visibility, view: 'general', habitsQuery,
+      ...completions, bulkLog, bulkSkip: { mutateAsync: vi.fn() }, showError: vi.fn(), t: (key: string) => key,
+      logMutateAsync: log, skipMutation: { mutateAsync: vi.fn() }, refetch, accountTimeZone: 'UTC', settlementDateIsReadOnly: () => false,
+    } as unknown as Parameters<typeof useParentPromptQueue>[0])
+    return null
+  }
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  await act(() => { tree = create(<QueryClientProvider client={client!}><Probe /></QueryClientProvider>) })
+  await act(() => drill.drillInto('parent'))
+  return {
+    current: () => queue, drill: () => drill, log, refetch,
+    failDetail: async () => {
+      await act(async () => { rejectDetail(new TypeError('Network request failed')); await detailResponse.catch(() => {}) })
+    },
+    resolve: async (path: 'direct' | 'callback' | 'bulk') => {
+      await act(async () => {
+        if (path === 'direct') await queue.handleDirectToggle(drill.settlementHabitsById.get('second')!, 'log')
+        else if (path === 'callback') queue.checkAndPromptParentLog('second')
+        else queue.settleBulkHabitResolutions([{ habitId: 'second', mode: 'log' }], date)
+      })
+    },
+    finishDetail: async (parentCompleted: boolean) => {
+      await act(async () => {
+        releaseDetail({ ...initial, isCompleted: parentCompleted, children: initial.children.map(child => ({ ...child, isCompleted: true })) })
+        await detailResponse
+      })
+    },
+    replaceDetail: async (parentCompleted: boolean) => {
+      vi.mocked(apiClient).mockResolvedValue({ ...initial, isCompleted: parentCompleted, children: initial.children.map(child => ({ ...child, isCompleted: true })) })
+      await act(refetch)
+    },
+    openOtherParent: async () => {
+      vi.mocked(apiClient).mockImplementation(async path => path === API.habits.get('other') ? { ...initial, id: 'other', children: [] } : detailResponse)
+      await act(() => { void drill.drillInto('other') })
+    },
+  }
+}
+
+it.each(['direct', 'callback', 'bulk'] as const)('waits for drill-only settlement inventory after a %s slip', async path => {
+  const queue = await mountDrillQueue()
+  await queue.resolve(path)
+  expect(vi.mocked(apiClient)).toHaveBeenCalledTimes(2)
+  expect(queue.drill().settlementHabitsById.get('parent')?.isCompleted).toBe(false)
+  expect(queue.current().parentPrompt).toBeNull()
+  expect(queue.log.mock.calls.map(([input]) => input.habitId)).toEqual(path === 'direct' ? ['second'] : [])
+  await queue.finishDetail(true)
+  expect(queue.drill().settlementHabitsById.get('parent')?.isCompleted).toBe(true)
+  expect(queue.current().parentPrompt).toBeNull()
+  expect(queue.log.mock.calls.map(([input]) => input.habitId)).toEqual(path === 'direct' ? ['second'] : [])
+})
+
+it.each(([false, true] as const).flatMap(offline => (['direct', 'callback', 'bulk'] as const).map(path => ({ path, offline }))))('continues $path settlement after a drill refresh rejects, offline: $offline', async ({ path, offline }) => {
+  const queue = await mountDrillQueue(true)
+  await queue.resolve(path)
+  expect(queue.current().parentPrompt).toBeNull()
+  expect(queue.log.mock.calls.map(([input]) => input.habitId)).toEqual(path === 'direct' ? ['second'] : [])
+  if (offline) onlineManager.setOnline(false)
+  await queue.failDetail()
+  if (path === 'bulk') {
+    expect(queue.current().parentPrompt).toBeNull()
+    expect(queue.log).toHaveBeenCalledWith({ habitId: 'parent', date, intent: 'log' })
+  } else expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+})
+
+it.each(['direct', 'callback', 'bulk'] as const)('continues %s settlement offline without waiting for drill details', async path => {
+  const queue = await mountDrillQueue(true)
+  onlineManager.setOnline(false)
+  await queue.resolve(path)
+  expect(queue.refetch).not.toHaveBeenCalled()
+  expect(apiClient).toHaveBeenCalledOnce()
+  if (path === 'bulk') {
+    expect(queue.current().parentPrompt).toBeNull()
+    expect(queue.log).toHaveBeenCalledWith({ habitId: 'parent', date, intent: 'log' })
+  } else expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+})
+
+it.each(['direct', 'callback', 'bulk'] as const)('continues %s settlement when fresh drill details leave the parent open', async path => {
+  const queue = await mountDrillQueue()
+  await queue.resolve(path)
+  expect(queue.current().parentPrompt).toBeNull()
+  expect(queue.log.mock.calls.map(([input]) => input.habitId)).toEqual(path === 'direct' ? ['second'] : [])
+  await queue.finishDetail(false)
+  if (path === 'bulk') {
+    expect(queue.current().parentPrompt).toBeNull()
+    expect(queue.log).toHaveBeenCalledWith({ habitId: 'parent', date, intent: 'log' })
+  } else expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+})
+
+it.each(([false, true] as const).flatMap(parentCompleted =>
+  (['pending', 'finished'] as const).flatMap(reentry =>
+    (['direct', 'callback', 'bulk'] as const).map(path => ({ path, parentCompleted, reentry }))),
+))('preserves $path settlement across Back and $reentry cached re-entry, parent completed: $parentCompleted', async ({ path, parentCompleted, reentry }) => {
+  const queue = await mountDrillQueue()
+  await queue.resolve(path)
+  await act(() => queue.drill().drillBack())
+  expect(queue.drill().currentParentId).toBeNull()
+  if (reentry === 'pending') await act(() => queue.drill().drillInto('parent'))
+  expect(queue.current().parentPrompt).toBeNull()
+  expect(queue.log.mock.calls.map(([input]) => input.habitId)).toEqual(path === 'direct' ? ['second'] : [])
+  await queue.finishDetail(parentCompleted)
+  if (reentry === 'finished') await act(() => queue.drill().drillInto('parent'))
+  expect(queue.drill().currentParentId).toBe('parent')
+  expect(queue.drill().settlementHabitsById.get('parent')?.isCompleted).toBe(parentCompleted)
+  if (path === 'bulk' || parentCompleted) expect(queue.current().parentPrompt).toBeNull()
+  else expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+  expect(queue.log.mock.calls.filter(([input]) => input.habitId === 'parent')).toHaveLength(path === 'bulk' && !parentCompleted ? 1 : 0)
+})
+
+it.each(([false, true] as const).flatMap(offline =>
+  (['direct', 'callback', 'bulk'] as const).map(path => ({ path, offline })),
+))('releases cached $path settlement after Back when the refresh fails, offline: $offline', async ({ path, offline }) => {
+  const queue = await mountDrillQueue(true)
+  await queue.resolve(path)
+  await act(() => queue.drill().drillBack())
+  await act(() => queue.drill().drillInto('parent'))
+  expect(queue.current().parentPrompt).toBeNull()
+  if (offline) onlineManager.setOnline(false)
+  await queue.failDetail()
+  if (path === 'bulk') {
+    expect(queue.current().parentPrompt).toBeNull()
+    expect(queue.log).toHaveBeenCalledWith({ habitId: 'parent', date, intent: 'log' })
+  } else expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+})
+
+it.each(['direct', 'callback', 'bulk'] as const)('keeps newer settlement after Back when an older %s refresh finishes', async path => {
+  const queue = await mountDrillQueue()
+  await queue.resolve(path)
+  await act(() => queue.drill().drillBack())
+  await queue.replaceDetail(true)
+  expect(queue.drill().settlementHabitsById.get('parent')?.isCompleted).toBe(true)
+  await queue.finishDetail(false)
+  await act(() => queue.drill().drillInto('parent'))
+  expect(queue.drill().settlementHabitsById.get('parent')?.isCompleted).toBe(true)
+  expect(queue.current().parentPrompt).toBeNull()
+  expect(queue.log.mock.calls.map(([input]) => input.habitId)).toEqual(path === 'direct' ? ['second'] : [])
+})
+
+it.each(['direct', 'callback', 'bulk'] as const)('refreshes retained %s settlement when navigating to an uncached parent', async path => {
+  const queue = await mountDrillQueue()
+  await queue.resolve(path)
+  await act(() => queue.drill().drillBack())
+  await queue.openOtherParent()
+  expect(queue.current().parentPrompt).toBeNull()
+  await queue.finishDetail(false)
+  expect(queue.drill().currentParentId).toBe('other')
+  expect(queue.drill().currentParent?.id).toBe('other')
+  expect(queue.drill().drillError).toBe('')
+  expect(queue.drill().drillLoading).toBe(false)
+  if (path === 'bulk') expect(queue.log).toHaveBeenCalledWith({ habitId: 'parent', date, intent: 'log' })
+  else expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+})
+
+it('discards a pending settlement refresh when the drill inventory is reset', async () => {
+  const queue = await mountDrillQueue()
+  await queue.resolve('direct')
+  await act(() => queue.drill().drillReset())
+  await queue.finishDetail(true)
+  expect(queue.drill().currentParentId).toBeNull()
+  expect(queue.drill().settlementHabitsById.size).toBe(0)
+  expect(queue.current().parentPrompt).toBeNull()
+})
+
+it('removes an obsolete queued action when refreshed drill details prove the parent settled', async () => {
+  const queue = await mountDrillQueue()
+  await queue.resolve('direct')
+  await queue.finishDetail(false)
+  expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' } })
+  await queue.replaceDetail(true)
+  expect(queue.drill().settlementHabitsById.get('parent')?.isCompleted).toBe(true)
+  expect(queue.current().parentPrompt).toBeNull()
+})

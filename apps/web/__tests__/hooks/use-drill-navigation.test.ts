@@ -1,3 +1,4 @@
+import { buildChildrenIndex, getChildrenFromIndex, computeParentPromptChain } from '@orbit/shared/utils'
 import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -128,13 +129,44 @@ function makeDetailResponse(): HabitDetail {
 }
 
 describe('useDrillNavigation', () => {
-  const habitsById = new Map<string, NormalizedHabit>([
-    ['parent1', makeHabit({ id: 'parent1', title: 'Parent' })],
-  ])
-
   beforeEach(() => {
     mockFetch.mockReset()
   })
+
+  it('uses fresh enclosing children after undo and fresh direct parents after drilling again', async () => {
+    const parent = makeDetailResponse()
+    const completed = { ...parent.children[0]!, id: 'branch', isCompleted: true, children: [{ ...parent.children[0]!, id: 'leaf', isCompleted: true }] }
+    const sibling = { ...parent.children[0]!, id: 'sibling' }
+    parent.children = [completed, sibling]
+    const branch = { ...parent, ...completed, parentId: parent.id }
+    mockFetch.mockResolvedValueOnce(Response.json(parent)).mockResolvedValueOnce(Response.json(branch))
+    const { result } = renderHook(() => useDrillNavigation(new Map(), 0))
+    await act(async () => { await result.current.drillInto(parent.id) })
+    await act(async () => { await result.current.drillInto(branch.id) })
+    await act(async () => { await result.current.refreshCurrent() })
+    act(() => result.current.drillBack())
+    mockFetch.mockResolvedValueOnce(Response.json({ ...parent, children: [{ ...completed, isCompleted: false }, sibling] }))
+    await act(async () => { await result.current.refreshCurrent() })
+    const chain = () => {
+      const inventory = result.current.settlementHabitsById
+      const index = buildChildrenIndex(inventory)
+      return computeParentPromptChain(sibling.id, inventory, '2025-01-15', {
+        getChildren: id => getChildrenFromIndex(id, inventory, index), isRelevantToday: () => true,
+        isDueOnSelectedDate: () => true, skippedIds: new Set(), resolvedModes: new Map([[sibling.id, 'log']]),
+      }).map(({ habit }) => habit.id)
+    }
+    expect(result.current.settlementHabitsById.get(branch.id)?.isCompleted).toBe(false)
+    expect(chain()).toEqual([])
+    await act(async () => { await result.current.drillInto(branch.id) })
+    mockFetch.mockResolvedValueOnce(Response.json(branch))
+    await act(async () => { await result.current.refreshCurrent() })
+    expect(result.current.settlementHabitsById.get(branch.id)?.isCompleted).toBe(true)
+    expect(chain()).toEqual([parent.id])
+  })
+
+  const habitsById = new Map<string, NormalizedHabit>([
+    ['parent1', makeHabit({ id: 'parent1', title: 'Parent' })],
+  ])
 
   it.each(['today', 'general'] as const)('leaves the all drill when changing to %s', async (view) => {
     mockFetch.mockResolvedValue(Response.json(makeDetailResponse()))

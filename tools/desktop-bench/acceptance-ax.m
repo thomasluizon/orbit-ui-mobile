@@ -28,6 +28,9 @@ static BOOL focusable(AXUIElementRef element, NSDictionary *node) {
 static BOOL interactive(NSDictionary *node, NSArray *children, NSArray *actions, BOOL webContent) {
     NSString *role = node[@"role"];
     BOOL empty = ![node[@"name"] length] && !children.count && ![node[@"focused"] boolValue] && ![node[@"focusable"] boolValue];
+    // WebKit live regions advertise AXPress without being controls (#1983).
+    if (webContent && [role isEqual:@"AXGroup"] && [node[@"AXSubrole"] isEqual:@"AXApplicationAlert"] &&
+        ![node[@"focused"] boolValue] && ![node[@"focusable"] boolValue]) return NO;
     // An empty, unfocusable group is structural even when AXPress is advertised (#1560).
     if (empty && [role isEqual:@"AXGroup"] && [node[@"AXSubrole"] isEqual:@"AXEmptyGroup"]) return NO;
     // AppKit separators are disabled blank menu items: https://developer.apple.com/documentation/appkit/nsmenuitem/isseparatoritem

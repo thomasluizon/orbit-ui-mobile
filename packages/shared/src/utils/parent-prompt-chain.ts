@@ -3,6 +3,7 @@ import type { ParentPromptContinuation } from '../types/sync'
 import {
   computeParentPromptProgress,
   computeParentSettlementDecision,
+  getPersistedHabitResolution,
   type HabitResolution,
   type HabitResolutionMode,
   type ParentPromptProgressOptions,
@@ -47,7 +48,16 @@ export function computeParentResolutionProgress(
   resolutionSources: ReadonlyMap<string, ParentPromptAncestor>,
 ): ParentPromptProgress {
   const { progress } = parentPromptResolutionContext(habitsById, options, resolutionSources)
-  return computeParentPromptProgress({ ...progress, parentId })
+  return computeParentPromptProgress({ ...progress, parentId, parentIsBadHabit: habitsById.get(parentId)?.isBadHabit })
+}
+
+function parentSlipNeedsRefetch(parent: NormalizedHabit, options: Omit<ParentPromptProgressOptions, 'parentId'>): boolean {
+  if (!parent.isBadHabit) return false
+  const badChildren = options.getChildren(parent.id).filter(child => child.isBadHabit)
+  return badChildren.length > 0 && badChildren.every(child => {
+    const mode = options.resolvedModes?.get(child.id)
+    return mode === 'log' || (mode !== 'skip' && !options.skippedIds.has(child.id) && getPersistedHabitResolution(child) === 'log')
+  })
 }
 
 export function computeParentPromptChain(
@@ -56,16 +66,21 @@ export function computeParentPromptChain(
   date: string,
   options: Omit<ParentPromptProgressOptions, 'parentId'>,
   resolutionSources: ReadonlyMap<string, ParentPromptAncestor> = new Map(),
+  deferBadParentSlips = false,
 ): ParentPromptAncestor[] {
   const { knownHabits, progress } = parentPromptResolutionContext(habitsById, options, resolutionSources)
-  if (knownHabits.get(childId)?.isBadHabit) return []
   const ancestors: ParentPromptAncestor[] = []
-  let parentId = knownHabits.get(childId)?.parentId
+  const child = knownHabits.get(childId)
+  let parentId = child?.parentId
+  if (child?.isBadHabit && parentId && !knownHabits.get(parentId)?.isBadHabit) return ancestors
   while (parentId) {
     const parent = knownHabits.get(parentId) ?? null
-    const mode = computeParentSettlementDecision(parent, computeParentPromptProgress({ ...progress, parentId }), date)
-    if (!parent || !mode) break
-    ancestors.push({ habit: parent, mode })
+    if (!parent) break
+    const persisted = getPersistedHabitResolution(parent)
+    const mode = persisted ?? computeParentSettlementDecision(parent, computeParentPromptProgress({ ...progress, parentId, parentIsBadHabit: parent.isBadHabit }), date)
+    if (!mode) break
+    if (!persisted && deferBadParentSlips && mode === 'log' && parentSlipNeedsRefetch(parent, progress)) break
+    if (!persisted) ancestors.push({ habit: parent, mode })
     progress.resolvedModes.set(parent.id, mode)
     parentId = parent.parentId
   }

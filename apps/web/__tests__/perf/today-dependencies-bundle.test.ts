@@ -2,6 +2,38 @@
 import { execFileSync } from 'node:child_process'
 import { expect, it } from 'vitest'
 
+it('keeps Toast presentation outside the Today first-load graph with application aliases resolved', () => {
+  const outputs: { entryPoint?: string; path: string; inputs: string[]; imports: { path: string; kind: string }[] }[] = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', `
+    import { build, stop } from 'esbuild';
+    const { metafile } = await build({
+      entryPoints: ['app/(app)/layout.tsx', 'app/(app)/today-page-client.tsx'], bundle: true, write: false,
+      metafile: true, splitting: true, format: 'esm', outdir: 'today-notice-bundle',
+      platform: 'browser', jsx: 'automatic', tsconfig: 'tsconfig.json',
+      external: [
+        'react', 'react-dom', 'react-dom/*', 'next/*', 'next-intl', '@sentry/*', '@tanstack/*',
+        '@tabler/*', 'motion/*', 'zustand', 'zustand/*', '@orbit/shared/*', '@/app/actions/*', '@/lib/actions/*',
+      ],
+    });
+    process.stdout.write(JSON.stringify(Object.entries(metafile.outputs).map(([path, output]) => ({
+      path, entryPoint: output.entryPoint, inputs: Object.keys(output.inputs), imports: output.imports,
+    }))));
+    stop();
+  `], { encoding: 'utf8', maxBuffer: 5 * 1024 * 1024 }))
+  const initial = new Set(outputs.filter(output =>
+    output.entryPoint === 'app/(app)/layout.tsx' || output.entryPoint === 'app/(app)/today-page-client.tsx',
+  ).map(output => output.path))
+  expect(initial.size).toBe(2)
+  for (const path of initial) {
+    for (const dependency of outputs.find(output => output.path === path)!.imports) {
+      if (dependency.kind !== 'dynamic-import' && outputs.some(output => output.path === dependency.path)) initial.add(dependency.path)
+    }
+  }
+  for (const presentation of ['components/ui/toast.tsx', '/@radix-ui/react-toast/']) {
+    expect(outputs.filter(output => initial.has(output.path)).flatMap(output => output.inputs).filter(path => path.includes(presentation))).toEqual([])
+    expect(outputs.filter(output => !initial.has(output.path)).some(output => output.inputs.some(path => path.includes(presentation)))).toBe(true)
+  }
+})
+
 it.each(['lib/conversation-history.ts', 'lib/desktop-chat-checkpoint.ts'])('loads chat models when %s needs them', entryPoint => {
   const chunks: { initial: boolean; models: boolean }[] = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', `
     import { build, stop } from 'esbuild';

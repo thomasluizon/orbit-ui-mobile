@@ -38,9 +38,7 @@ export function reportAccountChanged(): void {
   if (!message) return
   const reloadLabel = translateApiFetchMessage('errors.api.reload')
   useVersionGateStore.getState().requireReload('accountChanged')
-  useAppToastStore.getState().showToast(reloadLabel
-    ? { kind: 'neutral', message, actionLabel: reloadLabel, onAction: () => globalThis.location.reload() }
-    : { kind: 'neutral', message })
+  useAppToastStore.getState().showError(message, reloadLabel ?? undefined, () => globalThis.location.reload())
 }
 
 export function reportAccountChangedIfNeeded(error: unknown): void {

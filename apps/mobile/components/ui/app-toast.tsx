@@ -1,3 +1,7 @@
+import { getModalError, type AppToastItem } from '@orbit/shared/stores'
+import { ActionRow } from './action-row'
+import { ErrorState } from './error-state'
+import { PillButton } from './pill-button'
 import { useResolvedMotionPreset } from '@/lib/motion'
 import Reanimated, { Easing, Keyframe, ReduceMotion } from 'react-native-reanimated'
 import * as Primitive from '@rn-primitives/toast'
@@ -88,7 +92,7 @@ function useToastMotion() {
   return { entering, exiting }
 }
 
-export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismiss?: () => void; persistent?: boolean }>) {
+export function Toast(props: Readonly<ToastProps & { onDismiss?: () => void; persistent?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -142,7 +146,7 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean; onDismi
         styles.toast,
         {
           backgroundColor: colors.background,
-          borderColor: props.outlined ? tokens.fg3 : tokens.hairline,
+          borderColor: tokens.hairline,
         },
       ]}
       testID={`toast-${props.kind}`}
@@ -169,15 +173,18 @@ export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placemen
   const { width: screenWidth } = useWindowDimensions()
   const overlayFrame = resolveCenteredOverlayFrame(screenWidth - insets.left - insets.right, 420)
   const currentToast = useAppToastStore((state) => state.currentToast)
+  const queue = useAppToastStore((state) => state.queue)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
   const dismissToast = useAppToastStore((state) => state.dismissToast)
   const toastId = currentToast?.id
   const dismiss = useCallback(() => { if (toastId !== undefined) dismissToast(toastId) }, [dismissToast, toastId])
-  const topOverlayId = useUIStore((state) => state.openOverlayIds.at(-1))
+  const activeModalId = useUIStore((state) => [...state.openOverlayIds].reverse().find(id => id.startsWith('sheet:') || id.startsWith('dialog:')))
 
   if (placement === 'sheet') {
-    if (!sheetId || topOverlayId !== sheetId) return null
-  } else if (topOverlayId?.startsWith('sheet:')) return null
+    const error = getModalError({ currentToast, queue })
+    return sheetId && activeModalId === sheetId && error ? <ModalErrorNotice item={error} /> : null
+  }
+  if (activeModalId) return null
   if (!currentToast) return null
 
   const toast = currentToast.toast
@@ -186,7 +193,7 @@ export function AppToast({ placement = 'overlay', sheetId }: Readonly<{ placemen
       ? { ...toast, onAction: triggerAction }
       : toast
 
-  if (placement !== 'overlay') return <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} outlined={placement === 'sheet'} />
+  if (placement !== 'overlay') return <Toast key={currentToast.id} {...hostedToast} onDismiss={dismiss} />
 
   return (
     <View pointerEvents="box-none" style={[styles.host, styles.overlay, { bottom: insets.bottom + 16, left: 0, width: screenWidth }]}>
@@ -284,4 +291,14 @@ function ToastLeadingMark({ props, tokens }: Readonly<{ props: ToastProps; token
       ) : null}
 
   </>
+}
+
+function ModalErrorNotice({ item }: Readonly<{ item: AppToastItem }>) {
+  const { t } = useTranslation()
+  const dismissToast = useAppToastStore(state => state.dismissToast)
+  const triggerAction = useAppToastStore(state => state.triggerAction)
+  return <ErrorState message={item.toast.message} action={<ActionRow>
+    {item.toast.actionLabel ? <PillButton size="sm" onClick={() => triggerAction(item.id)}>{item.toast.actionLabel}</PillButton> : null}
+    <IconButton label={t('common.close')} onClick={() => dismissToast(item.id)}><X size={20} /></IconButton>
+  </ActionRow>} />
 }

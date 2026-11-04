@@ -107,6 +107,6 @@ describe('production habit views', () => {
     const children = visibility.getVisibleChildren('parent', 'all')
     expect(computeHabitDayProgress(children, visibility.isDueOnSelectedDate, 'all')).toEqual({ done: 0, total: 2 })
     expect(computeHabitDayProgress(children, visibility.isDueOnSelectedDate)).toEqual({ done: 0, total: 1 })
-    expect(computeParentPromptProgress({ parentId: 'parent', getChildren: (id) => visibility.getVisibleChildren(id, 'all'), isDueOnSelectedDate: visibility.isDueOnSelectedDate, isRelevantToday: visibility.isRelevantToday, isListView: true, skippedIds: new Set(), resolvedModes: new Map([['today-child', 'log']]) })).toEqual({ done: 1, total: 2, loggedDone: 1 })
+    expect(computeParentPromptProgress({ parentId: 'parent', getChildren: (id) => visibility.getVisibleChildren(id, 'all'), isDueOnSelectedDate: visibility.isDueOnSelectedDate, isRelevantToday: visibility.isRelevantToday, isListView: true, skippedIds: new Set(), resolvedModes: new Map([['today-child', 'log']]) })).toEqual({ done: 1, total: 2, loggedDone: 1, slippedDone: 0 })
   })
 })

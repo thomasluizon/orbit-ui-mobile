@@ -1,6 +1,5 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { AppToastHost } from '@/components/ui/app-toast-host'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -8,14 +7,14 @@ vi.mock('@/components/ui/toast', () => { throw new Error('Toast chunk unavailabl
 
 afterEach(cleanup)
 
-it.each([
-  { name: 'application', ToastHost: AppToastHost },
-  { name: 'notification', ToastHost: NotificationDeleteNotice },
-])('reports a failed $name preload through browser error handling', async ({ ToastHost }) => {
+it.each(['application', 'notification'])('reports a failed %s preload through browser error handling', async name => {
   const reported: ErrorEvent[] = []
   const receiveError = (event: ErrorEvent) => { event.preventDefault(); reported.push(event) }
   window.addEventListener('error', receiveError)
   try {
+    const ToastHost = name === 'application'
+      ? (await import('@/components/ui/app-toast-host')).AppToastHost
+      : NotificationDeleteNotice
     render(<ToastHost />)
     await act(async () => { await vi.dynamicImportSettled() })
     expect(reported).toHaveLength(1)

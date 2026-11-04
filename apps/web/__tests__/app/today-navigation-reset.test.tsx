@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { formatAPIDate, getAccountDay } from '@orbit/shared/utils'
+import { createMockHabitScheduleItem, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { formatAPIDate, getAccountDay, normalizeHabitQueryData } from '@orbit/shared/utils'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
 import { TodayProvider } from '@/app/(app)/today-provider'
 import { DestinationShell } from '@/components/shell/destination-shell'
@@ -29,7 +29,10 @@ vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: 
 vi.mock('@/components/today/setup-checklist-card', () => ({ SetupChecklistCard: () => null }))
 vi.mock('@/components/today/today-astra', () => ({ TodayAstra: () => null }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
-vi.mock('@/app/(app)/use-today-habits-data', () => ({ useTodayHabitsData: () => ({ hasFetched: true, habitsCount: 1 }) }))
+vi.mock('@/app/(app)/use-today-habits-data', () => ({ useTodayHabitsData: () => ({
+  ...normalizeHabitQueryData([createMockHabitScheduleItem()]),
+  filters: {}, hasFetched: true, habitsCount: 1,
+}) }))
 vi.mock('@/app/(app)/use-today-selection', () => ({ useTodaySelection: () => ({ showBulkDeleteConfirm: false }) }))
 vi.mock('@/components/habits/selection-tray', () => ({ SelectionTray: () => null }))
 vi.mock('@/components/habits/habit-list', () => ({

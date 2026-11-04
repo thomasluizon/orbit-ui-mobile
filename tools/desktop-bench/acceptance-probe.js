@@ -1,6 +1,7 @@
 ;(() => {
   if (window.top !== window || window.__orbitAcceptance) return
   window.__orbitAcceptance = true
+  const emailLink = new URLSearchParams(location.search).has('code')
   const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
   const report = (kind, details = {}) => fetch('/_bench/events', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, ...details }) })
   async function until(read, label) {
@@ -14,18 +15,12 @@
   }
   async function emailSignIn() {
     if (document.cookie.includes('auth_token=')) throw new Error('The auth cookie must be httpOnly')
-    for (const [path, body] of [
-      ['send-code', { email: 'desktop-vm@example.invalid', language: 'en' }],
-      ['verify-code', { email: 'desktop-vm@example.invalid', language: 'en', code: '741852' }],
-    ]) {
-      const response = await fetch(`/api/auth/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-      if (!response.ok) throw new Error(`Email /api/auth/${path} failed: HTTP ${response.status}; response ${await response.text()}`)
-      const result = await response.json()
-      if ('token' in result || 'refreshToken' in result) throw new Error('BFF exposed a session token')
-    }
-    if (document.cookie.includes('auth_token=')) throw new Error('BFF cookie is readable by JavaScript')
-    await report('email-completed')
-    location.assign('/')
+    const response = await fetch('/api/auth/send-code', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'desktop-vm@example.invalid', language: 'en' }) })
+    if (!response.ok) throw new Error(`Email /api/auth/send-code failed: HTTP ${response.status}; response ${await response.text()}`)
+    const result = await response.json()
+    if ('token' in result || 'refreshToken' in result) throw new Error('BFF exposed a session token')
+    location.assign('/login?email=desktop-vm%40example.invalid&code=741852')
   }
   async function screen(name) {
     if (name === 'astra-close') document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }))
@@ -45,20 +40,29 @@
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', code: 'KeyK', metaKey: /Mac/.test(navigator.platform), ctrlKey: !/Mac/.test(navigator.platform), bubbles: true }))
     }
     if (name === 'palette' || name === 'palette-ready') {
+      document.addEventListener('keydown', recordPaletteKey, true)
       const state = await until(() => {
         const current = paletteState()
-        return current.inputFocused && current.results.length >= 3 && current.selected >= 0 && current
+        return !current.busy && current.inputFocused && current.results.length >= 3 && current.selected >= 0 && current
       }, 'palette input and selection')
       await report('palette', state)
       return
     }
     await report(name, name === 'palette' ? paletteState() : {})
   }
+  function recordPaletteKey(event) {
+    const input = document.querySelector('[cmdk-input]')
+    if (event.key !== 'ArrowDown' || !input) return
+    void report('palette-key', { key: event.key, code: event.code, trusted: event.isTrusted,
+      targetInput: event.target === input, documentFocused: document.hasFocus(), before: paletteState(),
+      metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey })
+  }
   function paletteState() {
     const input = document.querySelector('[cmdk-input]')
     const results = [...document.querySelectorAll('[cmdk-item]:not([aria-disabled="true"])')]
     const selected = results.findIndex((result) => result.getAttribute('aria-selected') === 'true')
-    return { inputFocused: document.activeElement === input, selected, results: results.map((result) => result.getAttribute('aria-label') || result.textContent.trim()),
+    return { busy: document.querySelector('[cmdk-list]')?.getAttribute('aria-busy') === 'true',
+      inputFocused: document.activeElement === input, selected, results: results.map((result) => result.getAttribute('aria-label') || result.textContent.trim()),
       inputName: input?.getAttribute('aria-label'), listId: input?.getAttribute('aria-controls'), activeDescendantId: input?.getAttribute('aria-activedescendant') }
   }
   async function update(expected) {
@@ -77,21 +81,30 @@
   }
   async function run() {
     await until(() => document.readyState === 'complete', 'page load')
-    const session = await fetch('/api/auth/session', { cache: 'no-store' })
+    let session = await fetch('/api/auth/session', { cache: 'no-store' })
     if (!session.ok && session.status !== 401) throw new Error(`BFF session check failed: HTTP ${session.status}`)
     if (__BENCH_EXPECT_AUTHENTICATED__ && !session.ok) throw new Error('Authenticated installed relaunch lost its BFF session')
-    if (location.pathname.includes('/login') || location.pathname.includes('/onboarding')) {
-      if (session.ok) location.assign('/')
-      else await emailSignIn()
-      return
+    if (emailLink || location.pathname.includes('/login') || location.pathname.includes('/onboarding')) {
+      if (session.ok && !emailLink) { location.assign('/'); return }
+      if (!emailLink) { await emailSignIn(); return }
+      await until(() => {
+        if (!location.pathname.includes('/login')) return true
+        const failure = document.querySelector('[role="alert"]')?.textContent.trim()
+        if (failure) throw new Error(`Email login failed: ${failure}`)
+        return false
+      }, 'email sign-in through the login form')
+      session = await fetch('/api/auth/session', { cache: 'no-store' })
+      if (document.cookie.includes('auth_token=')) throw new Error('BFF cookie is readable by JavaScript')
     }
     if (!session.ok) throw new Error('Hoje requires an authenticated BFF session')
+    if (emailLink) await report('email-completed')
     await until(() => document.querySelector('[data-habit-id="bench-0000"]') && document.querySelector('[data-composer-input]:not([disabled])'), 'Hoje')
     await report('hoje', { route: location.pathname, nativeVersion: window.__ORBIT_DESKTOP_VERSION__ })
     while (true) {
       const response = await fetch('/_bench/command')
       if (!response.ok) throw new Error(`Command request failed: ${response.status}`)
       const command = await response.text()
+      if (command === 'reload') { location.reload(); return }
       if (command.startsWith('update-')) await update(command.slice(7))
       else if (command.startsWith('focus-')) {
         await until(() => paletteState().selected === Number(command.slice(6)), 'next keyboard-selected result')

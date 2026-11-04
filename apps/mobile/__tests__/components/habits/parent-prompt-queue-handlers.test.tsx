@@ -65,3 +65,21 @@ it('subscribes to bulk replay once across rerenders with unchanged inputs', asyn
   tree = undefined
   expect(replay.unsubscribe).toHaveBeenCalledTimes(2)
 })
+
+
+it('settles the parent after a replay resolves a drill-only child', async () => {
+  vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-12T12:00:00Z'))
+  const { inputs } = queueInputs()
+  const parent = createMockHabit({ id: 'parent', scheduledDates: [inputs.selectedDateStr] })
+  const child = createMockHabit({ id: 'child', parentId: parent.id, scheduledDates: [inputs.selectedDateStr] })
+  inputs.habitsById.set(parent.id, parent)
+  inputs.additionalHabitsById = new Map([[child.id, child]])
+  function Probe() { useParentPromptQueue(inputs); return null }
+  await act(() => { tree = create(<Probe />) })
+  const replaySuccess = vi.mocked(subscribeBulkReplaySuccesses).mock.calls.at(-1)![0]
+  await act(async () => {
+    replaySuccess({ mutationId: 'replayed-child', type: 'bulkLogHabits', items: [{ habitId: child.id, date: inputs.selectedDateStr }] })
+    await Promise.resolve()
+  })
+  expect(inputs.logMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: inputs.selectedDateStr, intent: 'log' })
+})

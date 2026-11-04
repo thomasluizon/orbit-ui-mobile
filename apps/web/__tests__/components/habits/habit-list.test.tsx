@@ -203,6 +203,7 @@ const mockDrillState = {
   currentParentId: null as string | null,
   currentParent: null as NormalizedHabit | null,
   drillChildren: [] as NormalizedHabit[],
+  settlementHabitsById: new Map<string, NormalizedHabit>(),
   completedCount: 0,
   hasUnfilteredChildren: false,
   canRevealCompletedChildren: false,
@@ -348,8 +349,7 @@ vi.mock('@/stores/ui-store', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/stores/ui-store')>()
   return {
     setUIAccountScope: vi.fn(),
-    useUIStore: Object.assign(() => null, { getState: () => ({ setFilters: setFrequencyFilters,
-      checkAllDoneCelebration: actual.useUIStore.getState().checkAllDoneCelebration }) }),
+    useUIStore: Object.assign(() => null, { getState: () => ({ ...actual.useUIStore.getState(), setFilters: setFrequencyFilters }) }),
   }
 })
 
@@ -635,6 +635,7 @@ describe('HabitList', () => {
     mockDrillState.currentParentId = null
     mockDrillState.currentParent = null
     mockDrillState.drillChildren = []
+    mockDrillState.settlementHabitsById = new Map()
     mockDrillState.completedCount = 0
     mockDrillState.hasUnfilteredChildren = false
     mockDrillState.canRevealCompletedChildren = false
@@ -2274,9 +2275,8 @@ describe('HabitList', () => {
 
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
     const title = screen.getByText('habits.allDoneToday')
-    expect(title.parentElement?.className).not.toMatch(/items-center|text-center/)
-    expect(title).toHaveStyle({ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '500' })
-    expect(title.parentElement?.querySelector('[data-asset="orbit-mark"]')).toBeNull()
+    expect(title).toHaveStyle({ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: '500' })
+    expect(screen.getByTestId('habit-list-all-done').querySelector('[data-asset="orbit-mark-16"]')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'habits.seeUpcoming' })).toHaveAttribute('data-size', 'sm')
     expect(screen.getByRole('button', { name: 'habits.seeUpcoming' })).toHaveAttribute('data-variant', 'ghost')
   })
@@ -2319,6 +2319,22 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} showCompleted />)
     expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
     expect(screen.getByTestId('habit-card-done-due')).toBeInTheDocument()
+  })
+
+  it('restores the due list immediately when completion is undone', () => {
+    useActualHabitVisibility = true
+    accountHabitCount.count = 1
+    const due = createMockHabit({ id: 'due', scheduledDates: [TODAY], isLoggedInRange: true })
+    mockHabitsData.habitsById = new Map([[due.id, due]])
+    mockHabitsData.topLevelHabits = [due]
+    const page = renderWithProviders(<HabitList filters={defaultFilters} showCompleted={false} />)
+    expect(screen.getByTestId('habit-list-all-done')).toBeInTheDocument()
+    const undone = { ...due, isLoggedInRange: false }
+    mockHabitsData.habitsById = new Map([[undone.id, undone]])
+    mockHabitsData.topLevelHabits = [undone]
+    page.rerenderWithProviders(<HabitList filters={defaultFilters} showCompleted={false} />)
+    expect(screen.queryByTestId('habit-list-all-done')).not.toBeInTheDocument()
+    expect(screen.getByTestId('habit-card-due')).toBeInTheDocument()
   })
 
   it('shows all-done when a due row is completed without a range log flag', () => {
@@ -2736,7 +2752,43 @@ describe('HabitList', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeNull())
   })
 
-  it.each([true, false])('excludes bad habits from completion prompts with bad parent %s', async (badParent) => {
+  it.each([false, true].flatMap(isBadHabit => (['log', 'skip'] as const).map(first => ({ isBadHabit, first }))))('prompts in the drill after both children resolve, bad=$isBadHabit first=$first', async ({ isBadHabit, first }) => {
+    const { root, parent: originalParent, child: originalChild } = seedPromptChain()
+    const parent = { ...originalParent, isBadHabit }
+    const child = { ...originalChild, isBadHabit }
+    const second = createMockHabit({ id: 'second', title: 'Second', parentId: parent.id, isBadHabit, scheduledDates: [TODAY], dueDate: TODAY })
+    for (const habit of [parent, child, second]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id, second.id])
+    Object.assign(mockDrillState, { currentParentId: parent.id, currentParent: parent, drillStack: [root.id, parent.id], drillChildren: [child, second] })
+    const rendered = renderWithProviders(<HabitList filters={defaultFilters} />)
+    await act(async () => { fireEvent.click(screen.getByTestId(`${first}-child`)) })
+    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+    act(() => { mockHabitsDataUpdatedAt += 1; rendered.rerenderWithProviders(<HabitList filters={defaultFilters} />) })
+    await act(async () => { fireEvent.click(screen.getByTestId(`${first === 'log' ? 'skip' : 'log'}-second`)) })
+    await confirmVisibleSheet('habits.autoLogParentTitle', isBadHabit ? 'habits.autoLogParentConfirm' : 'chat.pendingOp.action.applyChanges')
+    expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }])
+  })
+
+  it.each([false, true].flatMap(isBadHabit => (['log', 'skip'] as const).map(first => ({ isBadHabit, first }))))('prompts in the drill for children absent from the schedule, bad=$isBadHabit first=$first', async ({ isBadHabit, first }) => {
+    const { root, parent: originalParent, child: originalChild } = seedPromptChain()
+    const parent = { ...originalParent, isBadHabit }
+    const child = { ...originalChild, isBadHabit }
+    const second = createMockHabit({ id: 'second', title: 'Second', parentId: parent.id, isBadHabit, scheduledDates: [TODAY], dueDate: TODAY })
+    for (const habit of [parent, child, second]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.habitsById.delete(child.id)
+    mockHabitsData.habitsById.delete(second.id)
+    mockHabitsData.childrenByParent.set(parent.id, [])
+    Object.assign(mockDrillState, { currentParentId: parent.id, currentParent: parent, drillStack: [root.id, parent.id], drillChildren: [child, second], settlementHabitsById: new Map([[child.id, child], [second.id, second]]) })
+    const rendered = renderWithProviders(<HabitList filters={defaultFilters} />)
+    await act(async () => { fireEvent.click(screen.getByTestId(`${first}-child`)) })
+    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+    act(() => { mockHabitsDataUpdatedAt += 1; rendered.rerenderWithProviders(<HabitList filters={defaultFilters} />) })
+    await act(async () => { fireEvent.click(screen.getByTestId(`${first === 'log' ? 'skip' : 'log'}-second`)) })
+    await confirmVisibleSheet('habits.autoLogParentTitle', isBadHabit ? 'habits.autoLogParentConfirm' : 'chat.pendingOp.action.applyChanges')
+    expect(bulkLogMutateAsync).toHaveBeenCalledExactlyOnceWith([{ habitId: parent.id, date: TODAY }])
+  })
+
+  it.each([true, false])('counts the remaining bad child only under a bad parent, bad=%s', async (badParent) => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', isBadHabit: badParent, hasSubHabits: true, scheduledDates: [TODAY] })
     const child = createMockHabit({ id: 'child', title: 'Child', isBadHabit: badParent, parentId: parent.id, scheduledDates: [TODAY] })
     const bad = createMockHabit({ id: 'bad', isBadHabit: true, parentId: parent.id, scheduledDates: [TODAY] })
@@ -2763,6 +2815,7 @@ describe('HabitList', () => {
       mockHabitsData.habitsById.delete('child')
       mockHabitsData.childrenByParent.set('parent', [])
       mockDrillState.drillChildren = []
+    mockDrillState.settlementHabitsById = new Map()
       mockHabitsDataUpdatedAt += 1
       rendered.rerenderWithProviders(<HabitList filters={defaultFilters} />)
     })
@@ -3019,13 +3072,14 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList())
 
     act(() => ref.current?.checkAndPromptParentLog(child.id))
+    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
 
     act(() => {
       mockHabitsData.habitsById.set(child.id, { ...child, isCompleted: false })
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList())
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -3053,6 +3107,7 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList())
 
     act(() => ref.current?.checkAndPromptParentLog(child.id))
+    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
 
     act(() => {
       mockHabitsData.habitsById.set(parent.id, {
@@ -3063,7 +3118,7 @@ describe('HabitList', () => {
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList())
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -3097,13 +3152,14 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList())
 
     act(() => ref.current?.checkAndPromptParentLog(child.id))
+    await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
 
     act(() => {
       mockHabitsData.habitsById.set(parent.id, { ...parent, dueDate: TOMORROW })
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList())
     })
-    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull())
 
     expect(bulkLogMutateAsync).not.toHaveBeenCalled()
     expect(bulkSkipMutateAsync).not.toHaveBeenCalled()
@@ -3174,7 +3230,7 @@ describe('HabitList', () => {
       mockHabitsDataUpdatedAt += 1
       rerenderWithProviders(renderList(timing === 'before effects'))
     })
-    if (timing === 'after effects') await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    if (timing === 'after effects') await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
 
     if (timing === 'after delayed dismissal') await act(async () => { sheetTestControls.completeDismissal(); await Promise.resolve() })
 

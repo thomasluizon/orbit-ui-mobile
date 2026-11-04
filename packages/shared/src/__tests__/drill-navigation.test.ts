@@ -6,6 +6,8 @@ import {
   canRevealCompletedDrillChildren,
   countCompletedDrillChildren,
   getDrillParent,
+  getDrillRefreshIds,
+  mergeDrillSettlementHabits,
   getRecentlyCompletedIdsForDate,
   getVisibleDrillChildren,
   loadDrillChildren,
@@ -206,6 +208,52 @@ describe('drill navigation utils', () => {
     ])
     expect(normalized.childrenByParent.has('child-2')).toBe(false)
   })
+})
+
+describe('getDrillRefreshIds', () => {
+  const retainedHabits = new Map([
+    createMockHabit({ id: 'child', parentId: 'root' }),
+    createMockHabit({ id: 'root' }),
+    createMockHabit({ id: 'grandchild', parentId: 'child' }),
+    createMockHabit({ id: 'other-root' }),
+    createMockHabit({ id: 'orphan', parentId: 'unretained-parent' }),
+    createMockHabit({ id: 'orphan-child', parentId: 'orphan' }),
+  ].map((habit) => [habit.id, habit]))
+
+  it.each([
+    { habitId: 'entered', expected: ['entered'] },
+    { habitId: null, expected: [] },
+  ])('refreshes only the entered habit without settlement refresh: $habitId', ({ habitId, expected }) => {
+    expect(getDrillRefreshIds(habitId, retainedHabits, false)).toEqual(expected)
+  })
+
+  it.each([
+    { habitId: 'entered', expected: ['entered'] },
+    { habitId: null, expected: [] },
+  ])('refreshes only the entered habit when no habits are retained: $habitId', ({ habitId, expected }) => {
+    expect(getDrillRefreshIds(habitId, new Map(), true)).toEqual(expected)
+  })
+
+  it('refreshes every retained root and excludes retained children during settlement', () => {
+    expect(getDrillRefreshIds(null, retainedHabits, true)).toEqual([
+      'root', 'other-root', 'orphan',
+    ])
+  })
+
+  it('appends an unretained entered habit after the settlement roots', () => {
+    expect(getDrillRefreshIds('entered', retainedHabits, true)).toEqual([
+      'root', 'other-root', 'orphan', 'entered',
+    ])
+  })
+
+  it.each(['root', 'other-root', 'child', 'grandchild', 'orphan', 'orphan-child'])(
+    'does not append a retained entered habit during settlement: %s',
+    (habitId) => {
+      expect(getDrillRefreshIds(habitId, retainedHabits, true)).toEqual([
+        'root', 'other-root', 'orphan',
+      ])
+    },
+  )
 })
 
 describe('getVisibleDrillChildren', () => {
@@ -554,4 +602,26 @@ describe('getDrillParent', () => {
   it('returns null for an unknown parent', () => {
     expect(getDrillParent('missing', habitsById, fetchedParents, drillChildrenMap)).toBeNull()
   })
+})
+
+
+it('retains the complete normalized drill inventory for parent settlement', () => {
+  const child = makeDetailChild({ id: 'child', isCompleted: true, children: [makeDetailChild({ id: 'nested' })] })
+  const normalized = normalizeHabitDetailForDrill(makeDetail({ children: [child] }), '2026-09-12')
+  const parents = new Map([[normalized.parent.id, normalized.parent]])
+  const inventory = mergeDrillSettlementHabits(parents, normalized)
+  expect([...inventory.keys()].sort((left, right) => left.localeCompare(right))).toEqual(['child', 'nested', 'parent-1'])
+  expect(inventory.get('nested')?.parentId).toBe(child.id)
+  expect(inventory.get(child.id)?.isCompleted).toBe(true)
+})
+
+it('replaces the fetched subtree without retaining removed children or losing other roots', () => {
+  const original = normalizeHabitDetailForDrill(makeDetail({ children: [makeDetailChild({
+    id: 'removed', children: [makeDetailChild({ id: 'removed-nested' })],
+  })] }), '2026-09-12')
+  const unrelated = createMockHabit({ id: 'unrelated' })
+  const previous = mergeDrillSettlementHabits(new Map([[unrelated.id, unrelated]]), original)
+  const refreshed = normalizeHabitDetailForDrill(makeDetail({ children: [makeDetailChild({ id: 'replacement' })] }), '2026-09-12')
+  const inventory = mergeDrillSettlementHabits(previous, refreshed)
+  expect([...inventory.keys()].sort((left, right) => left.localeCompare(right))).toEqual(['parent-1', 'replacement', 'unrelated'])
 })

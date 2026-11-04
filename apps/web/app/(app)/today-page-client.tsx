@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { animate, m, useMotionValue, useReducedMotion } from 'motion/react'
 import { motionEasings, motionDurations } from '@orbit/shared/theme'
+import { getAllDoneOnDate } from '@orbit/shared/utils'
 import { useTodayPage } from './use-today-page'
 import {
   TodayHeaderRegion,
@@ -116,6 +117,8 @@ function TodayPageContent({ initialToday, initialHabits, preloadedProfile }: Rea
   preloadedProfile?: Profile
 }>) {
   const view = useTodayPage(initialToday, initialHabits)
+  const completedDay = view.activeView === 'today' && !view.data.filters.frequencyUnit && view.nav.dateStr === view.nav.today &&
+    getAllDoneOnDate(view.data.habitsById, view.data.childrenByParent, view.nav.dateStr).allDone
 
   return (
     <div className="relative mx-auto w-full max-w-[740px]">
@@ -125,7 +128,7 @@ function TodayPageContent({ initialToday, initialHabits, preloadedProfile }: Rea
             <TodayAstra
               today={view.nav.today}
               isTodaySelected={view.activeView === 'today' && view.nav.dateStr === view.nav.today}
-              suppressed={view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || !view.data.hasFetched || view.data.showLoadError}
+              suppressed={completedDay || view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || !view.data.hasFetched || view.data.showLoadError}
             />
           </TodayHeaderRegion>
           <SetupChecklistCard />

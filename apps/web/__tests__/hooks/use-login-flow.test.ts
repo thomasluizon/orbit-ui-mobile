@@ -12,6 +12,9 @@ import { advanceSessionEpoch } from '@/lib/session-epoch'
 import { POST as verifyCodeRoute } from '@/app/api/auth/verify-code/route'
 import { setSessionCookies } from '@/lib/auth-api'
 import { resolveSessionTokens } from '@/lib/auth-api'
+import { hydrateProfilePresentation } from '@/lib/profile-presentation'
+import { applyThemeTokensToDOM } from '@/lib/theme-dom'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 vi.mock('@/lib/auth-api', () => ({
   ACCOUNT_ID_HEADER: 'x-account-id',
@@ -482,6 +485,37 @@ describe('useLoginFlow verify-code success', () => {
     expect(requestBodyFor('/api/auth/verify-code')).toMatchObject({ code: '246810' })
     expect(mocks.push).toHaveBeenCalledTimes(1)
   })
+})
+
+it.each(['dark', 'light'] as const)('persists the account %s launch mode before navigating from the acceptance email link', async mode => {
+  const realPresentation = await vi.importActual<typeof import('@/lib/profile-presentation')>('@/lib/profile-presentation')
+  vi.mocked(hydrateProfilePresentation).mockImplementationOnce(realPresentation.hydrateProfilePresentation)
+  const initial = mode === 'dark' ? 'light' : 'dark'
+  applyThemeTokensToDOM('orange', initial)
+  let acknowledge!: () => void
+  const saved = new Promise<void>(resolve => { acknowledge = resolve })
+  let storedMode = initial
+  const nativeReport = vi.fn(async () => {
+    const reported = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+    await saved
+    storedMode = reported
+  })
+  vi.stubGlobal('__ORBIT_DESKTOP_LAUNCH__', nativeReport)
+  const profile = createMockProfile({ themePreference: mode })
+  const { token: _token, refreshToken: _refreshToken, ...verified } = loginResponse
+  fetchMock.mockImplementation(input => Promise.resolve(jsonResponse(
+    toUrlString(input) === '/api/profile' ? profile : verified,
+  )))
+  mocks.search = new URLSearchParams({ email: loginResponse.email, code: '741852' }).toString()
+  render(React.createElement(LoginContent))
+  await waitFor(() => expect(nativeReport).toHaveBeenCalledOnce())
+  expect(document.documentElement).toHaveClass(mode)
+  expect(storedMode).toBe(initial)
+  expect(mocks.push).not.toHaveBeenCalled()
+  expect(mocks.assign).not.toHaveBeenCalled()
+  await act(async () => { acknowledge(); await saved })
+  await waitFor(() => expect(mocks.push).toHaveBeenCalledExactlyOnceWith('/'))
+  expect(storedMode).toBe(mode)
 })
 
 describe('useLoginFlow verify-code failure', () => {

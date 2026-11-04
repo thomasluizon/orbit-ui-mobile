@@ -5,6 +5,10 @@ import { useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { resetAuthStore, respondWithAccount } from '@/__tests__/support/account-change'
 import { installWebLocks } from '@/__tests__/helpers/web-locks'
+import { resolve } from 'node:path'
+import { API } from '@orbit/shared/api'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { applyThemeTokensToDOM } from '@/lib/theme-dom'
 
 const replace = vi.fn()
 const router = { replace }
@@ -26,6 +30,7 @@ describe('native sign-in in the auth composition', () => {
     installWebLocks()
     invoke.mockReset().mockResolvedValue(true)
     vi.stubGlobal('__TAURI_INTERNALS__', { invoke })
+    vi.stubGlobal('__ORBIT_DESKTOP_LAUNCH__', undefined)
     useOnboardingDraftStore.setState(useOnboardingDraftStore.getInitialState())
     useOnboardingDraftStore.getState().bufferHabit({ title: 'Read', frequencyUnit: 'Day', frequencyQuantity: 1 })
     useOnboardingDraftStore.getState().bufferFirstLog(0, '2026-07-05')
@@ -35,7 +40,69 @@ describe('native sign-in in the auth composition', () => {
     await useOnboardingDraftStore.persist.rehydrate()
     replace.mockClear()
   })
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    window.dispatchEvent(new Event('pagehide'))
+    vi.unstubAllGlobals()
+  })
+
+  it.each(['dark', 'light'] as const)('applies the account %s appearance and waits for the reusable native cover before navigating', async mode => {
+    const initial = mode === 'dark' ? 'light' : 'dark'
+    applyThemeTokensToDOM('orange', initial)
+    let contentfulPaint = () => {}
+    class PaintObserver {
+      static supportedEntryTypes = ['paint']
+      constructor(callback: (entries: { getEntries(): Array<{ name: string }> }) => void) {
+        contentfulPaint = () => callback({ getEntries: () => [{ name: 'first-contentful-paint' }] })
+      }
+      observe() {}
+      disconnect() {}
+    }
+    let applied = () => {}
+    invoke.mockImplementation((command, payload) => {
+      if (command === 'commit_desktop_login') return Promise.resolve(true)
+      if (payload.mode === mode) return new Promise<number>(resolve => { applied = () => resolve(7) })
+      return Promise.resolve(7)
+    })
+    vi.stubGlobal('__ORBIT_LAUNCH_ORIGIN__', window.location.origin)
+    vi.stubGlobal('PerformanceObserver', PaintObserver)
+    await import(`${resolve(__dirname, '../../../desktop/src-tauri/src/launch.js')}?account=${mode}`)
+    contentfulPaint()
+    await Promise.resolve()
+    render(<AuthLayout><div>Sign in</div></AuthLayout>)
+    await screen.findByText('Sign in')
+    respondWithAccount('desktop-account')
+    const sessionFetch = vi.mocked(fetch).getMockImplementation()!
+    const profile = createMockProfile({ themePreference: mode })
+    vi.mocked(fetch).mockImplementation((input, init) => input === API.profile.get
+      ? Promise.resolve(Response.json(profile)) : sessionFetch(input, init))
+    await act(async () => { nativeEvent('begin'); nativeEvent('ready') })
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(API.profile.get, expect.objectContaining({ cache: 'no-store' })))
+    expect(document.documentElement.style.colorScheme).toBe(mode)
+    expect(invoke).toHaveBeenLastCalledWith('desktop_launch', { generation: 7, mode, reveal: false })
+    expect(replace).not.toHaveBeenCalled()
+    await act(async () => { applied() })
+    expect(replace).toHaveBeenCalledExactlyOnceWith('/')
+  })
+
+  it.each(['attempt', 'account'])('ignores a profile appearance arriving after its sign-in %s changes', async changed => {
+    applyThemeTokensToDOM('orange', 'light')
+    render(<AuthLayout><div>Sign in</div></AuthLayout>)
+    await screen.findByText('Sign in')
+    respondWithAccount('desktop-account')
+    const sessionFetch = vi.mocked(fetch).getMockImplementation()!
+    let resolveProfile = (_response: Response) => {}
+    vi.mocked(fetch).mockImplementation((input, init) => input === API.profile.get
+      ? new Promise<Response>(resolve => { resolveProfile = resolve }) : sessionFetch(input, init))
+    await act(async () => { nativeEvent('begin'); nativeEvent('ready') })
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(API.profile.get, expect.objectContaining({ cache: 'no-store' })))
+    await act(async () => {
+      if (changed === 'attempt') nativeEvent('begin', 'b'.repeat(64))
+      else useAuthStore.getState().setAuth({ userId: 'other-account', name: 'Person', email: 'person@example.com' })
+      resolveProfile(Response.json(createMockProfile({ themePreference: 'dark' })))
+    })
+    expect(document.documentElement.style.colorScheme).toBe('light')
+    expect(replace).not.toHaveBeenCalled()
+  })
 
   it('adopts the owning anonymous answers before authenticated hydration', async () => {
     render(<AuthLayout><div>Sign in</div></AuthLayout>)

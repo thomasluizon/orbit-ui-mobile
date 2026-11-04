@@ -58,7 +58,7 @@ describe('parent prompt chains', () => {
     const current = new Map(habitsById)
     current.delete(child.id)
     const omitted = { ...options, resolvedModes: new Map(), getChildren: (id: string) => options.getChildren(id).filter((habit) => habit.id !== child.id) }
-    expect(computeParentResolutionProgress('parent', current, omitted, sources)).toEqual({ done: 1, total: 1, loggedDone: 0 })
+    expect(computeParentResolutionProgress('parent', current, omitted, sources)).toEqual({ done: 1, total: 1, loggedDone: 0, slippedDone: 0 })
     expect(computeParentPromptChain(child.id, current, date, omitted, sources).map(({ habit, mode }) => [habit.id, mode]))
       .toEqual([['parent', 'skip'], ['root', 'log']])
     expect(computeParentPromptChain(child.id, habitsById, date, { ...options, resolvedModes: new Map() }, sources)).toEqual([])

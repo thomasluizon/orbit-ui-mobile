@@ -8,7 +8,7 @@ import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useShellScrollToTopSlot } from '@/components/shell/shell-scroll-to-top-slot'
 import { ScrollToTopButton } from '@/components/ui/scroll-to-top-button'
-import { getTodayBoundary, updateScrollToTopState } from '@orbit/shared/utils'
+import { getAllDoneOnDate, getTodayBoundary, updateScrollToTopState } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { plural } from '@/lib/plural'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habit-queries'
@@ -188,6 +188,8 @@ function TodayScreenContent() {
   }), [activeView, date.dateStr, date.today, frequencyUnit, showGeneralOnToday, search.query])
   const habitsQuery = useHabits(filters, habitViewQueryOptions(activeView, date.today))
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
+  const completedDay = activeView === 'today' && !filters.frequencyUnit && date.dateStr === date.today &&
+    Boolean(habitsQuery.data && getAllDoneOnDate(habitsById, habitsQuery.data.childrenByParent, date.dateStr).allDone)
   const motion = useTodayMotion({
     filterMotionKey: date.dateStr,
     isRefetching: Boolean(habitsQuery.data && habitsQuery.isFetching && !search.open),
@@ -284,7 +286,7 @@ function TodayScreenContent() {
           showDate={activeView === 'today'}
           beforeDate={<TodayViewHeader search={search} activeView={activeView} onChangeView={changeView}
             today={date.today} focused={todayFocused} isTodaySelected={date.dateStr === date.today}
-            suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || !habitsQuery.data} />}
+            suppressed={completedDay || isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || !habitsQuery.data} />}
           headerActive={todayFocused}
           shortDayName={date.shortDayName}
           searchLabel={t(getSearchLabelKey(search.open))}

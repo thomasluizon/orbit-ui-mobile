@@ -7,6 +7,7 @@ import { ActionRow } from '@/components/ui/action-row'
 import { type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import Svg, { Circle } from 'react-native-svg'
 import { PillButton } from '@/components/ui/pill-button'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
@@ -111,6 +112,12 @@ export function HabitListAllDone({ onSeeUpcoming }: Readonly<{ onSeeUpcoming?: (
   const { t } = useTranslation()
   return (
     <View testID="habit-list-all-done" style={styles.allDone}>
+      <View testID="completed-day-mark" style={styles.allDoneMark} importantForAccessibility="no-hide-descendants">
+        <Svg width={44} height={44} viewBox="0 0 44 44" fill="none" style={StyleSheet.absoluteFill} accessible={false}>
+          <Circle cx={22} cy={22} r={20.5} stroke={tokens.fg1} strokeWidth={1.5} />
+        </Svg>
+        <OrbitMark size={16} accent={false} />
+      </View>
       <View style={styles.allDoneText}>
         <Text style={[styles.allDoneTitle, { color: tokens.fg1 }]}>{t('habits.allDoneToday')}</Text>
         <Text style={[styles.allDoneHint, { color: tokens.fg2 }]}>{t('habits.allDoneHint')}</Text>
@@ -143,22 +150,33 @@ export function HabitListFrequencyEmptyState({ frequencyUnit }: Readonly<{ frequ
 
 const styles = StyleSheet.create({
   allDone: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 24,
-    paddingVertical: SPACING.s8,
+    paddingVertical: SPACING.s48,
+    paddingHorizontal: SPACING.s24,
+  },
+  allDoneMark: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   allDoneText: {
+    alignItems: 'center',
     gap: 8,
   },
   allDoneTitle: {
     fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 20,
-    letterSpacing: -0.2,
+    fontSize: 22,
+    lineHeight: 26.4,
+    letterSpacing: -0.44,
+    textAlign: 'center',
   },
   allDoneHint: {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 21,
+    textAlign: 'center',
   },
   nothingOpen: {
     fontFamily: 'Geist_400Regular',

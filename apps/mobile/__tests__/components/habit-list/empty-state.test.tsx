@@ -1,10 +1,11 @@
 import React from 'react'
 import { StyleSheet, type StyleProp, type TextStyle } from 'react-native'
-import { measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
-import { describe, expect, it, vi } from 'vitest'
+import { type GeometryHost } from '@/__tests__/support/safe-area-geometry'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { expectPressFill } from '@/__tests__/support/press-feedback'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
 import {
@@ -12,9 +13,12 @@ import {
   HabitListAllDone,
 } from '@/components/habit-list/empty-state'
 
+const translations = vi.hoisted<{ labels: Record<string, string> }>(() => ({ labels: {} }))
+afterEach(() => { translations.labels = {} })
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string) => translations.labels[key] ?? key,
     i18n: { language: 'en' },
   }),
 }))
@@ -62,16 +66,43 @@ function pressableWithLabel(tree: TestTree, label: string): TestNode | undefined
 }
 
 describe('HabitListEmptyState', () => {
+  it.each([320, 360, 384, 412, 740, 1440])('centres the completed ring, copy and action at %s', (width) => {
+    const tree = render(<HabitListAllDone onSeeUpcoming={vi.fn()} />)
+    const finish = tree.root.findAll(node => node.props.testID === 'habit-list-all-done')[0]!
+    expect(StyleSheet.flatten(finish.props.style as StyleProp<TextStyle>).alignItems).toBe('center')
+    const mark = tree.root.findAllByType(OrbitMark)[0]
+    expect(mark).toBeDefined()
+    expect(mark!.props).toMatchObject({ size: 16, accent: false })
+    const ring = tree.root.findAll(node => node.props.testID === 'completed-day-mark')[0]!
+    expect(StyleSheet.flatten(ring.props.style as StyleProp<TextStyle>)).toMatchObject({ width: 44, height: 44 })
+    for (const words of [en, ptBR]) {
+      const labels = [words.habits.allDoneToday, words.habits.allDoneHint, words.habits.seeUpcoming]
+      translations.labels = {
+        'habits.allDoneToday': words.habits.allDoneToday,
+        'habits.allDoneHint': words.habits.allDoneHint,
+        'habits.seeUpcoming': words.habits.seeUpcoming,
+      }
+      const localized = render(<HabitListAllDone onSeeUpcoming={vi.fn()} />)
+      const host = localized.toJSON() as GeometryHost
+      const measured = measureProfileRow(host, Math.min(width - 32, 708), 1)
+      for (const label of labels) {
+        const text = measured.texts.find(text => text.label === label)!
+        expect(text.lines).toBe(1)
+        expect(text.clipped).toBe(false)
+        expect(text.left).toBeGreaterThanOrEqual(24)
+        expect(text.right).toBeLessThanOrEqual(Math.min(width - 32, 708) - 24)
+      }
+    }
+    expect(tree.root.findAllByType('AnimatedView')).toHaveLength(0)
+  })
   it('keeps completion text paired and separates the upcoming action', () => {
     const onSeeUpcoming = vi.fn()
     const tree = render(<HabitListAllDone onSeeUpcoming={onSeeUpcoming} />)
-    const geometry = measureSafeArea(tree.toJSON() as GeometryHost, host => {
-      if (host.type === 'Text' && host.children?.includes('habits.allDoneToday')) return 'title'
-      if (host.type === 'Text' && host.children?.includes('habits.allDoneHint')) return 'hint'
-      if (host.props.accessibilityRole === 'button') return 'action'
-    })
-    expect(geometry.get('hint')!.top - geometry.get('title')!.bottom).toBe(8)
-    expect(geometry.get('action')!.top - geometry.get('hint')!.bottom).toBeGreaterThanOrEqual(24)
+    const geometry = measureProfileRow(tree.toJSON() as GeometryHost, 380, 1)
+    const title = geometry.texts.find(text => text.label === 'habits.allDoneToday')!
+    const hint = geometry.texts.find(text => text.label === 'habits.allDoneHint')!
+    expect(hint.top - title.bottom).toBeCloseTo(8)
+    expect(geometry.controls[0]!.top - hint.bottom).toBeCloseTo(24)
     TestRenderer.act(() => { (pressableWithLabel(tree, 'habits.seeUpcoming')!.props.onPress as () => void)() })
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
   })
