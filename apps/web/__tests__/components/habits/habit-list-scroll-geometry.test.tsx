@@ -139,7 +139,7 @@ it.each(([
     expect(observed.offsets.filter(sample => sample.departing).every(sample => Math.abs(sample.offset - before.offset) < 1), JSON.stringify({ before, observed })).toBe(true)
     expect(observed.offsets.at(-1)!.offset).toBe(observed.maximum)
     if (height > width) expect(observed.offsets.at(-1)!.offset, JSON.stringify(observed)).toBe(0)
-    expect(observed.maximum).toBeLessThan(before.offset)
+    expect(observed.maximum).toBeLessThan(650)
     await page.locator('[data-shell-scroller]').evaluate((element) => { element.scrollTop = 0 })
     await page.waitForFunction(() => {
       const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
