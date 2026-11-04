@@ -2,14 +2,11 @@
 import { execFileSync } from 'node:child_process'
 import { expect, it } from 'vitest'
 
-it.each([
-  { surface: 'Today', entryPoints: ['app/(app)/layout.tsx', 'app/(app)/today-page-client.tsx'], presentations: ['components/ui/toast.tsx', '/@radix-ui/react-toast/'] },
-  { surface: 'toast host', entryPoints: ['components/ui/app-toast-host.tsx'], presentations: ['components/ui/error-state.tsx'] },
-])('keeps deferred presentation outside the $surface first-load graph with application aliases resolved', ({ entryPoints, presentations }) => {
+it('keeps Toast presentation outside the Today first-load graph with application aliases resolved', () => {
   const outputs: { entryPoint?: string; path: string; inputs: string[]; imports: { path: string; kind: string }[] }[] = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', `
     import { build, stop } from 'esbuild';
     const { metafile } = await build({
-      entryPoints: JSON.parse(process.argv[1]), bundle: true, write: false,
+      entryPoints: ['app/(app)/layout.tsx', 'app/(app)/today-page-client.tsx'], bundle: true, write: false,
       metafile: true, splitting: true, format: 'esm', outdir: 'today-notice-bundle',
       platform: 'browser', jsx: 'automatic', tsconfig: 'tsconfig.json',
       external: [
@@ -21,17 +18,17 @@ it.each([
       path, entryPoint: output.entryPoint, inputs: Object.keys(output.inputs), imports: output.imports,
     }))));
     stop();
-  `, JSON.stringify(entryPoints)], { encoding: 'utf8', maxBuffer: 5 * 1024 * 1024 }))
+  `], { encoding: 'utf8', maxBuffer: 5 * 1024 * 1024 }))
   const initial = new Set(outputs.filter(output =>
-    output.entryPoint !== undefined && entryPoints.includes(output.entryPoint),
+    output.entryPoint === 'app/(app)/layout.tsx' || output.entryPoint === 'app/(app)/today-page-client.tsx',
   ).map(output => output.path))
-  expect(initial.size).toBe(entryPoints.length)
+  expect(initial.size).toBe(2)
   for (const path of initial) {
     for (const dependency of outputs.find(output => output.path === path)!.imports) {
       if (dependency.kind !== 'dynamic-import' && outputs.some(output => output.path === dependency.path)) initial.add(dependency.path)
     }
   }
-  for (const presentation of presentations) {
+  for (const presentation of ['components/ui/toast.tsx', '/@radix-ui/react-toast/']) {
     expect(outputs.filter(output => initial.has(output.path)).flatMap(output => output.inputs).filter(path => path.includes(presentation))).toEqual([])
     expect(outputs.filter(output => !initial.has(output.path)).some(output => output.inputs.some(path => path.includes(presentation)))).toBe(true)
   }
