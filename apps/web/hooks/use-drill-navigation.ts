@@ -10,6 +10,7 @@ import {
   canRevealCompletedDrillChildren,
   getVisibleDrillChildren,
   getDrillParent,
+  getDrillRefreshIds,
   mergeDrillSettlementHabits,
   loadDrillChildren,
   mergeDrillChildrenMap,
@@ -94,6 +95,7 @@ export function useDrillNavigation(
   const currentParentId = drillStack.at(-1) ?? null
   const activeParentIdRef = useRef<string | null>(null)
   const requestIdRef = useRef(0)
+  const settlementRequestIdRef = useRef(0)
   const feedbackPendingRef = useRef(false)
   useEffect(() => {
     activeParentIdRef.current = currentParentId
@@ -101,6 +103,7 @@ export function useDrillNavigation(
 
   useEffect(() => () => {
     requestIdRef.current += 1
+    settlementRequestIdRef.current += 1
     feedbackPendingRef.current = false
     const parentId = activeParentIdRef.current
     activeParentIdRef.current = null
@@ -135,12 +138,13 @@ export function useDrillNavigation(
 
   const fetchDrillChildren = useCallback(
     async (habitId: string | null, silent = false, refreshSettlement = false) => {
-      if (activeParentIdRef.current !== habitId) return
-      const detailIds = refreshSettlement && drillHabitsById.size > 0
-        ? [...drillHabitsById.values()].filter(habit => !habit.parentId || !drillHabitsById.has(habit.parentId)).map(habit => habit.id)
-        : habitId ? [habitId] : []
+      if (!refreshSettlement && activeParentIdRef.current !== habitId) return
+      const detailIds = getDrillRefreshIds(habitId, drillHabitsById, refreshSettlement)
       if (detailIds.length === 0) return
       const requestId = ++requestIdRef.current
+      const settlementRequestId = ++settlementRequestIdRef.current
+      const isActiveNavigation = () => requestIdRef.current === requestId && activeParentIdRef.current === habitId
+      const canCommitSettlement = () => settlementRequestIdRef.current === settlementRequestId && (refreshSettlement || isActiveNavigation())
       const showFeedback = !silent || feedbackPendingRef.current
       feedbackPendingRef.current = showFeedback
       if (showFeedback) setDrillLoading(true)
@@ -156,7 +160,7 @@ export function useDrillNavigation(
             retryDelay: queryRetryDelay,
           }), todayStr)
         }))
-        if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return
+        if (!canCommitSettlement()) return
         setDrillHabitsById((previous) => refreshed.reduce(mergeDrillSettlementHabits, previous))
         setSettlementUpdatedAtById((previous) => {
           const next = new Map(previous)
@@ -171,16 +175,16 @@ export function useDrillNavigation(
         setDrillChildrenMap((prev) =>
           refreshed.reduce((current, normalized) => mergeDrillChildrenMap(current, normalized.childrenByParent), prev),
         )
-        setDrillError('')
+        if (isActiveNavigation()) setDrillError('')
       } catch (err: unknown) {
-        if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return
+        if (!canCommitSettlement()) return
         // WHY: Failed and offline refreshes must release settlement against cached children. https://github.com/thomasluizon/orbit-tickets/issues/1984
         setSettlementUpdatedAtById(previous => {
           const next = new Map(previous)
           for (const id of drillHabitsById.keys()) next.set(id, lastUpdated)
           return next
         })
-        if (showFeedback) {
+        if (showFeedback && isActiveNavigation()) {
           setDrillError(getFriendlyErrorMessage(err, t, 'errors.fetchSubHabits', 'subHabit'))
         }
       } finally {
@@ -202,10 +206,10 @@ export function useDrillNavigation(
       activeParentIdRef.current = habitId
       setDrillStack((prev) => [...prev, habitId])
       if (!drillChildrenMap.has(habitId)) {
-        await fetchDrillChildren(habitId)
+        await fetchDrillChildren(habitId, false, drillHabitsById.size > 0)
       }
     },
-    [drillChildrenMap, fetchDrillChildren, setDrillError, setDrillLoading, setDrillStack],
+    [drillChildrenMap, drillHabitsById, fetchDrillChildren, setDrillError, setDrillLoading, setDrillStack],
   )
 
   const drillBack = useCallback(() => {
@@ -218,6 +222,7 @@ export function useDrillNavigation(
 
   const drillReset = useCallback(() => {
     requestIdRef.current += 1
+    settlementRequestIdRef.current += 1
     feedbackPendingRef.current = false
     activeParentIdRef.current = null
     setDrillLoading(false)
@@ -229,7 +234,7 @@ export function useDrillNavigation(
 
   const refreshCurrent = useCallback(async () => {
     if (!currentParentId) return
-    await fetchDrillChildren(currentParentId, drillError === '')
+    await fetchDrillChildren(currentParentId, drillError === '', true)
   }, [currentParentId, drillError, fetchDrillChildren])
 
   const getDrillChildren = useCallback(
@@ -245,7 +250,10 @@ export function useDrillNavigation(
   useEffect(() => {
     if (lastUpdated === lastUpdatedRef.current) return
     lastUpdatedRef.current = lastUpdated
-    void Promise.resolve().then(() => fetchDrillChildren(currentParentId, true, true))
+    const settlementRequestId = settlementRequestIdRef.current
+    void Promise.resolve().then(() => {
+      if (settlementRequestIdRef.current === settlementRequestId) return fetchDrillChildren(currentParentId, true, true)
+    })
   }, [lastUpdated, currentParentId, fetchDrillChildren])
 
   useEffect(() => {

@@ -2,6 +2,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { API } from '@orbit/shared/api'
 import { makeEnrichedHabitDetail, makeHabitDetailChild } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitDetail } from '@orbit/shared/types/habit'
 import { normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -85,6 +86,10 @@ async function mountDrillQueue(partialList = false) {
       vi.mocked(apiClient).mockResolvedValue({ ...initial, isCompleted: parentCompleted, children: initial.children.map(child => ({ ...child, isCompleted: true })) })
       await act(refetch)
     },
+    openOtherParent: async () => {
+      vi.mocked(apiClient).mockImplementation(async path => path === API.habits.get('other') ? { ...initial, id: 'other', children: [] } : detailResponse)
+      await act(() => { void drill.drillInto('other') })
+    },
   }
 }
 
@@ -136,6 +141,80 @@ it.each(['direct', 'callback', 'bulk'] as const)('continues %s settlement when f
     expect(queue.current().parentPrompt).toBeNull()
     expect(queue.log).toHaveBeenCalledWith({ habitId: 'parent', date, intent: 'log' })
   } else expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+})
+
+it.each(([false, true] as const).flatMap(parentCompleted =>
+  (['pending', 'finished'] as const).flatMap(reentry =>
+    (['direct', 'callback', 'bulk'] as const).map(path => ({ path, parentCompleted, reentry }))),
+))('preserves $path settlement across Back and $reentry cached re-entry, parent completed: $parentCompleted', async ({ path, parentCompleted, reentry }) => {
+  const queue = await mountDrillQueue()
+  await queue.resolve(path)
+  await act(() => queue.drill().drillBack())
+  expect(queue.drill().currentParentId).toBeNull()
+  if (reentry === 'pending') await act(() => queue.drill().drillInto('parent'))
+  expect(queue.current().parentPrompt).toBeNull()
+  expect(queue.log.mock.calls.map(([input]) => input.habitId)).toEqual(path === 'direct' ? ['second'] : [])
+  await queue.finishDetail(parentCompleted)
+  if (reentry === 'finished') await act(() => queue.drill().drillInto('parent'))
+  expect(queue.drill().currentParentId).toBe('parent')
+  expect(queue.drill().settlementHabitsById.get('parent')?.isCompleted).toBe(parentCompleted)
+  if (path === 'bulk' || parentCompleted) expect(queue.current().parentPrompt).toBeNull()
+  else expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+  expect(queue.log.mock.calls.filter(([input]) => input.habitId === 'parent')).toHaveLength(path === 'bulk' && !parentCompleted ? 1 : 0)
+})
+
+it.each(([false, true] as const).flatMap(offline =>
+  (['direct', 'callback', 'bulk'] as const).map(path => ({ path, offline })),
+))('releases cached $path settlement after Back when the refresh fails, offline: $offline', async ({ path, offline }) => {
+  const queue = await mountDrillQueue(true)
+  await queue.resolve(path)
+  await act(() => queue.drill().drillBack())
+  await act(() => queue.drill().drillInto('parent'))
+  expect(queue.current().parentPrompt).toBeNull()
+  if (offline) onlineManager.setOnline(false)
+  await queue.failDetail()
+  if (path === 'bulk') {
+    expect(queue.current().parentPrompt).toBeNull()
+    expect(queue.log).toHaveBeenCalledWith({ habitId: 'parent', date, intent: 'log' })
+  } else expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+})
+
+it.each(['direct', 'callback', 'bulk'] as const)('keeps newer settlement after Back when an older %s refresh finishes', async path => {
+  const queue = await mountDrillQueue()
+  await queue.resolve(path)
+  await act(() => queue.drill().drillBack())
+  await queue.replaceDetail(true)
+  expect(queue.drill().settlementHabitsById.get('parent')?.isCompleted).toBe(true)
+  await queue.finishDetail(false)
+  await act(() => queue.drill().drillInto('parent'))
+  expect(queue.drill().settlementHabitsById.get('parent')?.isCompleted).toBe(true)
+  expect(queue.current().parentPrompt).toBeNull()
+  expect(queue.log.mock.calls.map(([input]) => input.habitId)).toEqual(path === 'direct' ? ['second'] : [])
+})
+
+it.each(['direct', 'callback', 'bulk'] as const)('refreshes retained %s settlement when navigating to an uncached parent', async path => {
+  const queue = await mountDrillQueue()
+  await queue.resolve(path)
+  await act(() => queue.drill().drillBack())
+  await queue.openOtherParent()
+  expect(queue.current().parentPrompt).toBeNull()
+  await queue.finishDetail(false)
+  expect(queue.drill().currentParentId).toBe('other')
+  expect(queue.drill().currentParent?.id).toBe('other')
+  expect(queue.drill().drillError).toBe('')
+  expect(queue.drill().drillLoading).toBe(false)
+  if (path === 'bulk') expect(queue.log).toHaveBeenCalledWith({ habitId: 'parent', date, intent: 'log' })
+  else expect(queue.current().parentPrompt).toMatchObject({ habit: { id: 'parent' }, mode: 'log' })
+})
+
+it('discards a pending settlement refresh when the drill inventory is reset', async () => {
+  const queue = await mountDrillQueue()
+  await queue.resolve('direct')
+  await act(() => queue.drill().drillReset())
+  await queue.finishDetail(true)
+  expect(queue.drill().currentParentId).toBeNull()
+  expect(queue.drill().settlementHabitsById.size).toBe(0)
+  expect(queue.current().parentPrompt).toBeNull()
 })
 
 it('removes an obsolete queued action when refreshed drill details prove the parent settled', async () => {

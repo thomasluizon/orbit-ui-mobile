@@ -17,6 +17,19 @@ export interface NormalizedDrillDetail {
   childrenByParent: Map<string, NormalizedHabit[]>
 }
 
+export function getDrillRefreshIds(
+  habitId: string | null,
+  retainedHabits: ReadonlyMap<string, NormalizedHabit>,
+  refreshSettlement: boolean,
+): string[] {
+  if (!refreshSettlement || retainedHabits.size === 0) return habitId ? [habitId] : []
+  const rootIds = [...retainedHabits.values()]
+    .filter(habit => !habit.parentId || !retainedHabits.has(habit.parentId))
+    .map(habit => habit.id)
+  if (habitId && !retainedHabits.has(habitId)) rootIds.push(habitId)
+  return rootIds
+}
+
 /**
  * Fetches a habit's detail through the injected platform fetcher and
  * normalizes it for drill-down navigation against today's date.
