@@ -399,6 +399,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
         ...moveQueryResult(args[0]),
         data: listQueryState.isError ? undefined : moveQueryResult(args[0]).data,
         isLoading: listQueryState.isLoading,
+        showLoading: listQueryState.isLoading,
         isError: listQueryState.isError || moveQueryResult(args[0]).isError,
         dataUpdatedAt: mockHabitsDataUpdatedAt,
         refetch: habitListRefetch,
@@ -1281,6 +1282,33 @@ describe('HabitList', () => {
       && resolvedStyle(node.props.style ?? {}).paddingLeft === 8)[0]!
     expect(resolvedStyle(body.props.style)).toMatchObject({ paddingLeft: 8, paddingVertical: 8 })
     } finally { dimensions.mockRestore() }
+  })
+
+  it('keeps the loading scroller mounted while the skeleton delay expires', async () => {
+    const { queryClient } = await vi.importActual<typeof import('@/lib/query-client')>('@/lib/query-client')
+    vi.useFakeTimers()
+    skipFlow.active = true
+    queryClient.clear()
+    offlineMocks.apiClient.mockImplementation(() => new Promise(() => undefined))
+    let tree: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(() => {
+        tree = createTestTree(<QueryClientProvider client={queryClient}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} /></QueryClientProvider>)
+      })
+      const loadingList = tree!.root.findAllByType(FlatList)[0]
+      expect(loadingList).toBeDefined()
+      expect(loadingList.props.data).toEqual([])
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(299) })
+      expect(loadingList.props.data).toEqual([])
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(1) })
+      expect(tree!.root.findAllByType(FlatList)[0]).toBe(loadingList)
+      expect(loadingList.props.data).toHaveLength(5)
+      expect(loadingList.props.accessibilityState).toEqual({ busy: true })
+    } finally {
+      if (tree) TestRenderer.act(() => tree.unmount())
+      queryClient.clear()
+      vi.useRealTimers()
+    }
   })
 
   it('keeps the Hoje habit list loading through 429 then renders the list', async () => {

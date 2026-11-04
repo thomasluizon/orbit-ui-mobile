@@ -1,17 +1,14 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createUseDelayedLoading } from '@orbit/shared/hooks'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { CancelledError, useQuery, useQueryClient } from '@tanstack/react-query'
-import { deduplicateHabitList, isCachedHabitDeleted, habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { CancelledError, hashKey, useQuery, useQueryClient } from '@tanstack/react-query'
+import { habitListQueryOptions, adjacentHabitDayFilters, isCachedHabitDeleted, habitKeys, QUERY_STALE_TIMES, type HabitListOptions } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
   buildHabitQueryString,
   buildUrlWithQuery,
-  fetchAllPaginatedItems,
-  habitListQueryFilters,
   normalizeHabitQueryData,
   createHabitQueryNormalizer,
-  loadHabitListSchedule,
-  shouldFetchAllHabitPages,
   sortNormalizedHabits,
 } from '@orbit/shared/utils'
 import type {
@@ -46,54 +43,33 @@ export const EMPTY_HABITS_BY_ID: Map<string, NormalizedHabit> = new Map()
 export const EMPTY_CHILDREN_BY_PARENT: Map<string, string[]> = new Map()
 export const EMPTY_NORMALIZED_HABITS: NormalizedHabit[] = []
 
-function withDefaultPageSize(filters: HabitsFilter): HabitsFilter {
-  if (filters.dateFrom || filters.pageSize) return filters
-  return { ...filters, pageSize: 200 }
+const useDelayedLoading = createUseDelayedLoading({ useState, useEffect })
+const habitListAdapters = {
+  getAccountGeneration,
+  readPage: async (filters: HabitsFilter) => habitPageSchema.parse(await apiClient<unknown>(
+    buildUrlWithQuery(API.habits.list, buildHabitQueryString(filters)),
+  )),
 }
 
-export function useHabits(filters: HabitsFilter, options: { completeDay?: boolean; scheduleDate?: string; enabled?: boolean } = {}) {
+export function useHabits(filters: HabitsFilter, options: HabitListOptions = {}) {
   const selectNormalizedHabits = useMemo<(items: HabitScheduleItem[]) => NormalizedHabitsData>(() => createHabitQueryNormalizer(), [])
-  const completeDay = options.completeDay ?? false
   const queryClient = useQueryClient()
   const scheduleDate = filters.dateFrom || filters.isGeneral ? undefined : options.scheduleDate
+  const queryOptions = { ...options, scheduleDate }
   const query = useQuery({
-    queryKey: habitKeys.list(habitListQueryFilters(filters, completeDay, scheduleDate)),
+    ...habitListQueryOptions(filters, queryOptions, queryClient, habitListAdapters),
     enabled: options.enabled,
-    queryFn: async (): Promise<HabitScheduleItem[]> => {
-      const accountGeneration = getAccountGeneration()
-      const readPage = async (pageFilters: HabitsFilter) => {
-        const page = habitPageSchema.parse(await apiClient<unknown>(
-          buildUrlWithQuery(API.habits.list, buildHabitQueryString(pageFilters)),
-        ))
-        if (getAccountGeneration() !== accountGeneration) throw new CancelledError({ silent: true })
-        return page
-      }
-      const readList = async () => {
-        const requestFilters = withDefaultPageSize(filters)
-        const firstPage = await readPage(requestFilters)
-
-        if (!shouldFetchAllHabitPages(requestFilters, completeDay, firstPage.totalPages)) {
-          queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
-          return firstPage.items
-        }
-
-        const items = await fetchAllPaginatedItems<HabitScheduleItem, PaginatedResponse<HabitScheduleItem>>(
-          async (page) => {
-            if (page === 1) return firstPage
-
-            const pageFilters = { ...requestFilters, page }
-            return readPage(pageFilters)
-          },
-        )
-        queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
-        return deduplicateHabitList(items)
-      }
-      return loadHabitListSchedule(readList(), scheduleDate, readPage)
-    },
     select: selectNormalizedHabits,
-    staleTime: QUERY_STALE_TIMES.habits,
     refetchOnReconnect: true,
   })
+  const showLoading = useDelayedLoading(query.isLoading, hashKey(habitKeys.list(filters)))
+  const { completeDay, prefetchAroundToday, enabled } = options
+  useEffect(() => {
+    if (!prefetchAroundToday || enabled === false || !query.isSuccess || query.isFetching) return
+    for (const neighbour of adjacentHabitDayFilters(filters, prefetchAroundToday)) {
+      void queryClient.prefetchQuery(habitListQueryOptions(neighbour, { completeDay }, queryClient, habitListAdapters))
+    }
+  }, [completeDay, enabled, filters, prefetchAroundToday, query.isFetching, query.isSuccess, query.dataUpdatedAt, queryClient])
 
   const getChildren = useCallback(
     (parentId: string): NormalizedHabit[] => {
@@ -110,6 +86,7 @@ export function useHabits(filters: HabitsFilter, options: { completeDay?: boolea
 
   return {
     ...query,
+    showLoading,
     getChildren,
   }
 }

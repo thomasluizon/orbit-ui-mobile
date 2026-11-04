@@ -620,7 +620,7 @@ function renderHabitLoadingState(state: Readonly<HabitListScreenState & { common
         onFocus={revealListFocus}
         onScroll={handleListScroll}
         scrollEventThrottle={16}
-        data={SKELETON_KEYS}
+        data={state.queries.habitsQuery.showLoading ? SKELETON_KEYS : []}
         keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
         keyExtractor={(item) => item}
         renderItem={renderSkeletonItem}

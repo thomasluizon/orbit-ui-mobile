@@ -761,7 +761,7 @@ describe('HabitList', () => {
     }
     renderWithProviders(<HabitList filters={{ dateFrom: TODAY, dateTo: TODAY, search: 'source', isCompleted: false, frequencyUnit: 'Day', tagIds: ['tag'] }} />)
     fireEvent.click(await screen.findByTestId(`move-${sourceId}`))
-    await waitFor(() => expect(requests).toHaveLength(5))
+    await waitFor(() => expect(requests).toHaveLength(7))
     expect(screen.getByRole('progressbar', { name: 'common.loading' })).toBeInTheDocument()
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
     expect(screen.queryByText('habits.moveParent.noDestinations')).not.toBeInTheDocument()
@@ -1239,6 +1239,10 @@ describe('HabitList', () => {
       fireEvent.click(retry)
       await act(async () => { await vi.advanceTimersByTimeAsync(0) })
       expect(refused).toHaveBeenCalledTimes(8)
+      expect(screen.queryAllByRole('progressbar')).toHaveLength(0)
+      await act(async () => { await vi.advanceTimersByTimeAsync(299) })
+      expect(screen.queryAllByRole('progressbar')).toHaveLength(0)
+      await act(async () => { await vi.advanceTimersByTimeAsync(1) })
       expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0)
     } finally {
       rendered.unmount()
