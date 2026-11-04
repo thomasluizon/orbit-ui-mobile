@@ -236,7 +236,7 @@ describe('list primitives on mobile', () => {
     expect(StyleSheet.flatten(valueText?.props.style)).toMatchObject({ flexShrink: 1, maxWidth: '50%' })
     press(bodyControl)
     press(actionControl)
-    void act(() => { (bodyControl.props.onPressIn as () => void)() })
+    void act(() => { (bodyControl.props.onPressIn as () => void)(); (actionControl.props.onPressIn as () => void)() })
     const bodyPressedStyle = StyleSheet.flatten(rowContent(bodyControl).props.style)
     const actionPressedStyle = StyleSheet.flatten(actionContent(actionControl, true).props.style)
     expect(bodyPressedStyle).toMatchObject({
@@ -245,9 +245,9 @@ describe('list primitives on mobile', () => {
     expect(actionPressedStyle).toMatchObject({
       transform: [{ scale: 0.96 }],
     })
-    expect(StyleSheet.flatten(rowFill(bodyControl).props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12 })
+    expect(StyleSheet.flatten(rowFill(tree.root).props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12 })
     expect(StyleSheet.flatten(resolvePressedStyle(bodyControl))).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
-    expect(StyleSheet.flatten(resolvePressedStyle(actionControl))).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 999, overflow: 'hidden' })
+    expect(StyleSheet.flatten(resolvePressedStyle(actionControl))).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgRowAction, borderRadius: 999, overflow: 'hidden' })
     expect(onClick).toHaveBeenCalledOnce()
     expect(onAction).toHaveBeenCalledOnce()
 

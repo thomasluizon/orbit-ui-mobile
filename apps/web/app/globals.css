@@ -376,12 +376,12 @@ select[aria-hidden="true"] {
   position: relative;
 }
 
-.orbit-list-action-surface:has(:is(button, a):is(:active, :focus-visible):not(:disabled)) {
+.orbit-list-action-surface:has(:is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):is(:active, :focus-visible):not(:disabled)) {
   --fg-3: var(--fg-2);
   --orbit-list-row-secondary: var(--fg-2);
 }
 
-.orbit-list-action-surface:has(:is(button, a):is(:active, :focus-visible):not(:disabled))::before {
+.orbit-list-action-surface:has(:is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):is(:active, :focus-visible):not(:disabled))::before {
   background: var(--bg-hover);
 }
 
@@ -403,16 +403,16 @@ select[aria-hidden="true"] {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .orbit-list-action-surface:has(:is(button, a):hover:not(:disabled)) {
+  .orbit-list-action-surface:has(:is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):hover:not(:disabled)) {
     --fg-3: var(--fg-2);
     --orbit-list-row-secondary: var(--fg-2);
   }
 
-  .orbit-list-action-surface:has(:is(button, a):hover:not(:disabled))::before {
+  .orbit-list-action-surface:has(:is(.orbit-list-row-body, .orbit-list-row-action, .icon-btn):hover:not(:disabled))::before {
     background: var(--bg-hover);
   }
 
-  .orbit-list-action-surface > .icon-btn:hover,
+  .orbit-list-action-surface > .icon-btn:hover:not(:disabled),
   .orbit-list-action-surface .orbit-list-row-action:hover {
     background: var(--bg-row-action);
   }

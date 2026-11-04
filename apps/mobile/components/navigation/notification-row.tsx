@@ -34,10 +34,10 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
   return (
     <View testID={item.isRead ? 'notification-read' : 'notification-unread'}
       style={[styles.wrapper, !item.isRead && { backgroundColor: tokens.bgCard, boxShadow: `inset 0 0 0 1px ${tokens.hairline}` }]}>
-      <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+      <View testID="notification-row-feedback" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
         style={[styles.fill, { backgroundColor: bodyFeedback.highlighted || deleteFeedback.highlighted ? tokens.bgHover : 'transparent' },
           bodyFeedback.focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -3,
-            boxShadow: `inset 0 0 0 4px ${tokens.fg1}` }]} />
+            borderWidth: 4, borderStyle: 'solid', borderColor: tokens.fg1 }]} />
       <Pressable accessibilityRole="button"
         accessibilityLabel={`${item.title}. ${t(item.isRead ? 'notifications.read' : 'notifications.unread')}${targetKey ? `. ${t(targetKey)}` : ''}`}
         onPress={() => onOpen(item)}
@@ -68,10 +68,10 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
         onPress={() => onDelete(item)}
         {...deleteFeedback.handlers}
         style={styles.deleteButton}>
-        <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+        <View testID="notification-delete-feedback" pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
           style={[styles.deleteFill, { backgroundColor: deleteFeedback.highlighted ? tokens.bgRowAction : 'transparent' },
             deleteFeedback.focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -3,
-              boxShadow: `inset 0 0 0 4px ${tokens.fg1}` }]} />
+              borderWidth: 4, borderStyle: 'solid', borderColor: tokens.fg1 }]} />
         <View accessible={false} importantForAccessibility="no-hide-descendants" pointerEvents="none">
           <Trash2 size={20} color={tokens.statusBad} />
         </View>
