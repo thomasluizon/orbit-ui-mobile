@@ -356,7 +356,10 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   const pullRequests = relaySuccessor
     ? [...new Map([...(previous.pullRequests ?? []), ...(state.pullRequests ?? [])].map((entry) => [`${entry.repositoryKey}#${entry.prNumber}`, entry])).values()]
     : state.pullRequests
-  writeAtomicFile(runStatePath(repoRoot), `${JSON.stringify({ ...state, ...(pullRequests ? { pullRequests } : {}), readinessLedger }, null, 2)}\n`)
+  const inherited = preserveLedger
+    ? Object.fromEntries(["autoWork", "intake"].filter((key) => previous[key] !== undefined).map((key) => [key, previous[key]]))
+    : {}
+  writeAtomicFile(runStatePath(repoRoot), `${JSON.stringify({ ...inherited, ...state, ...(pullRequests ? { pullRequests } : {}), readinessLedger }, null, 2)}\n`)
 }
 
 export const processStartIdentity = (pid) => {
@@ -441,7 +444,7 @@ export const readWakeSourceStates = (repoRoot = REPO_ROOT) => {
 export const readWakeSources = (repoRoot = REPO_ROOT) => readWakeSourceStates(repoRoot).live
 
 /** Relay waiters observe work that can outlive the session and are stopped at succession. */
-export const isRelayWaiter = (source) => source.kind === "file-waiter" || source.what?.startsWith("CI ") === true
+export const isRelayWaiter = (source) => source.kind === "auto-work-waiter" || source.kind === "file-waiter" || source.what?.startsWith("CI ") === true
 
 export const registerWakeSource = (source, repoRoot = REPO_ROOT) => {
   try {

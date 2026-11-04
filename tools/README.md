@@ -20,6 +20,10 @@ name or git status. Read `CONVENTIONS.md` before adding one.
 
 ## The orchestration core
 
+Auto-work run controls: `node tools/auto-work-state.mjs --enable` or `--disable` preserves the
+sleep lifecycle and source cursors. `node tools/wait-auto-work.mjs` registers a relay waiter for
+the next intake cycle, defaulting to fifteen minutes, and exits when the owning mode changes.
+
 | Tool | What it does | Usage |
 |---|---|---|
 | `create-milestone.mjs` | Creates one explicitly approved milestone after proving the exact title does not exist. Sends the locked description through stdin and never creates a ticket. | `node tools/create-milestone.mjs --title <title> --description-file <path\|->` |

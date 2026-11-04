@@ -61,6 +61,8 @@ export const cases = () => {
     T(`${UNIT}: ${label}`, JSON.stringify(actual) === JSON.stringify(expected), `got=${JSON.stringify(actual)} want=${JSON.stringify(expected)}`)
   }
   T(`${UNIT}: a complete sleep prompt has no missing requirement`, validateHandoffPrompt(sleepPrompt, { sleep: true }).length === 0, JSON.stringify(validateHandoffPrompt(sleepPrompt, { sleep: true })))
+  T(`${UNIT}: auto-work refuses a sleep-only relay`, validateHandoffPrompt(sleepPrompt, { sleep: true, autoWork: true }).length > 0)
+  T(`${UNIT}: auto-work accepts its entry point`, validateHandoffPrompt(sleepPrompt.replace("/sleep\n", "/auto-work\n"), { sleep: true, autoWork: true }).length === 0)
   const parenthesizedSleep = validateHandoffPrompt(sleepPrompt, { sleep: parseHandoffRequest("please (/handoff --sleep)")?.sleep })
   T(`${UNIT}: a parenthesized sleep handoff accepts an unattended prompt`, parenthesizedSleep.length === 0, JSON.stringify(parenthesizedSleep))
   const withoutSleepLine = validateHandoffPrompt(sleepPrompt.replace("/sleep\n", "# NEXT\n"), { sleep: true })

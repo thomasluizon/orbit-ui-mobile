@@ -77,14 +77,15 @@ const sectionBody = (lines, prefix) => {
 }
 
 /** Every requirement the prompt misses; `sleep` true or false adds that mode's rules, undefined checks only the shared ones. */
-export const validateHandoffPrompt = (text, { sleep, crank }) => {
+export const validateHandoffPrompt = (text, { sleep, crank, autoWork }) => {
   const lines = String(text ?? "").split("\n")
   const firstNonEmptyLine = lines.find((line) => line.trim() !== "")?.trim() ?? ""
   const firstHeading = lines.findIndex((line) => line.startsWith("## "))
   const opening = lines.slice(0, firstHeading < 0 ? lines.length : firstHeading).join("\n")
   const missing = []
-  if (sleep === true || crank === true) {
-    if (lines[0].replace(/\r$/, "") !== "/sleep") missing.push("the first line must be exactly `/sleep`, so the prompt runs with nothing added")
+  if (sleep === true || crank === true || autoWork === true) {
+    const entry = autoWork === true ? "/auto-work" : "/sleep"
+    if (lines[0].replace(/\r$/, "") !== entry) missing.push(`the first line must be exactly \`${entry}\`, so the prompt runs with nothing added`)
     if (headingLine(lines, "## Sleep") < 0) missing.push("a `## Sleep` section")
   } else if (sleep === false && firstNonEmptyLine.startsWith("/")) {
     missing.push("an attended prompt must not start with a slash command")
@@ -122,6 +123,9 @@ const readRequests = (repoRoot) => {
 /** New requests enable the matching run when recorded; later run writes supersede that intent. */
 export const handoffCrank = (request, state) =>
   typeof state?.crank === "boolean" ? state.crank : request?.crank === true
+
+export const handoffAutoWork = (request, state) =>
+  typeof state?.autoWork === "boolean" ? state.autoWork : request?.autoWork === true
 
 /** Records a handoff request from the owner's prompt or the machine's context relay hook and tool. */
 export const recordHandoffRequest = (sessionId, request, recordedAt, repoRoot = REPO_ROOT) => {

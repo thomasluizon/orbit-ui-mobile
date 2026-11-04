@@ -590,6 +590,8 @@ T("sleep-stop: a registered but DEAD wake source is not one", blocks(stop({ stat
 T("sleep-stop: a dead launcher with a live worker is reported separately",
   checkSleepStop({ state: sleeping, orphanedWakeSources: [{ pid: 100, workerPid: 200 }], sessionId: "s1", isWakeSourceAlive: dead })?.message.includes("orphaned worker pid 200"), true)
 T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping, remaining: [] }, sessionId: "s1", isWakeSourceAlive: dead }), null)
+T("auto-work: empty queue still requires a wake source", blocks(stop({ state: { ...sleeping, remaining: [], autoWork: true } })), true)
+T("auto-work: disabled mode restores queue exhaustion", checkSleepStop({ state: { ...sleeping, remaining: [], autoWork: false }, sessionId: "s1", isWakeSourceAlive: dead }), null)
 const salvaged = { ...sleeping, remaining: [], pullRequests: [{ repositoryKey: "ui", prNumber: 690, receiptPath: "C:/receipt.json" }] }
 T("sleep-stop: an open pull request with no READY receipt blocks the queue from reading as done", blocks(stop({ state: salvaged })), true)
 T("sleep-stop: the refusal names the repository-qualified pull request and receipt debt", stop({ state: salvaged })?.message.includes("ui#690") && stop({ state: salvaged })?.message.includes("READY final-head receipt"), true)
@@ -1277,7 +1279,7 @@ T("relay fixture: base configuration is available", stagingGit(["update-ref", "r
 for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "record-handoff-request.mjs", "require-handoff-prompt.mjs"]) cpSync(join(hooksDir, name), join(wakeHooks, name))
 const relayDecisionLog = join(wakeCheckout, ".git", "relay-decisions.md")
 writeFileSync(relayDecisionLog, "No open decisions.\n")
-const relayState = { sessionId: "relay-parent", sleep: true, remaining: ["#1091"], decisionLogPath: relayDecisionLog }
+const relayState = { autoWork: false, sessionId: "relay-parent", sleep: true, remaining: ["#1091"], decisionLogPath: relayDecisionLog }
 const relayOptions = { enabled: true, thresholdTokens: 400000, state: relayState, sessionId: relayState.sessionId, measuredTokens: 400000 }
 T("relay: below threshold is inert", checkRelayStop({ ...relayOptions, measuredTokens: 399999 }), null)
 T("relay: kill switch is inert", checkRelayStop({ ...relayOptions, enabled: false }), null)
@@ -1381,6 +1383,10 @@ writeRunState({ ...relayState, crank: true }, wakeCheckout)
 postToolRelay()
 T("relay crank: threshold records durable crank mode", readHandoffRequest("relay-parent", wakeCheckout)?.crank, true)
 T("relay crank: threshold preserves run mode", readRunState(wakeCheckout).crank, true)
+writeRunState({ ...relayState, autoWork: true }, wakeCheckout)
+postToolRelay()
+T("relay auto-work: threshold records durable mode", readHandoffRequest("relay-parent", wakeCheckout)?.autoWork, true)
+writeRunState({ ...readRunState(wakeCheckout), autoWork: false }, wakeCheckout)
 writeRunState(stopRelayState, wakeCheckout)
 recordHandoffRequest("relay-parent", stopRelayRequest, stopRelayRequest.recordedAt, wakeCheckout)
 const postToolCrossing = relayMeasurements.at(-1).result
