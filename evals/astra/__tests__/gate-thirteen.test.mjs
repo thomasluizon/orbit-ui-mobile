@@ -32,8 +32,7 @@ it.each(recorded.filter((row) => row.toolCalls.some((call) => call.name === 'ask
     for (const offers of [false, true]) {
       const vars = { ...context.vars, clientContext: { ...clientContext, supportsProactiveOffers: offers } }
       if (offers) call.arguments = { ...call.arguments, orbit_dismissed_offer_keys: [] }
-      const read = habitAccountRead(true)
-      if (offers) read.arguments.orbit_dismissed_offer_keys = []
+      const read = habitAccountRead(true, 'read', vars.clientContext)
       const verdict = await structural(decoded([read, call]), { ...context, vars })
       expect(verdict.pass, verdict.reason).toBe(true)
     }

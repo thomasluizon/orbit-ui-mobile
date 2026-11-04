@@ -116,6 +116,55 @@ it('uses only aiMessage for a legacy client even when operations and parts are p
 
 const fixtures = JSON.parse(readFileSync(new URL('../../../packages/shared/src/test-support/chat-parts.fixture.json', import.meta.url), 'utf8'))
 const focused = await import('../../../packages/shared/src/test-support/chat-fixtures.ts')
+const comparisonCases = [
+  { name: 'ahead with no baseline records', card: focused.focusedPeriodComparisonFixture,
+    titles: { en: 'September 2026 is ahead: 12 completions against 0 in August 2026.',
+      'pt-BR': 'Setembro de 2026 supera agosto de 2026: 12 conclusões, contra 0.' },
+    metric: { en: 'Completions', 'pt-BR': 'Conclusões' },
+    units: { en: ['completions', 'completions'], 'pt-BR': ['conclusões', 'conclusões'] } },
+  { name: 'behind with singular and plural habit counts',
+    card: { ...focused.completedHabitComparisonFixture, currentValue: 1, baselineValue: 3, absoluteDelta: -2, relativeDelta: -2 / 3,
+      current: { ...focused.completedHabitComparisonFixture.current, completedHabits: 1 },
+      baseline: { ...focused.completedHabitComparisonFixture.baseline, completedHabits: 3 } },
+    titles: { en: 'September 2026 is behind: 1 habit completed against 3 in August 2026.',
+      'pt-BR': 'Setembro de 2026 fica abaixo de agosto de 2026: 1 hábito concluído, contra 3.' },
+    metric: { en: 'Habits completed', 'pt-BR': 'Hábitos concluídos' },
+    units: { en: ['habit', 'habits'], 'pt-BR': ['hábito', 'hábitos'] } },
+  { name: 'equal day counts',
+    card: { ...focused.focusedPeriodComparisonFixture, metric: 'distinctLoggedDates', unit: 'days',
+      currentValue: 1, baselineValue: 1, absoluteDelta: 0, relativeDelta: 0,
+      current: { ...focused.focusedPeriodComparisonFixture.current, distinctLoggedDates: 1 },
+      baseline: { ...focused.focusedPeriodComparisonFixture.baseline, distinctLoggedDates: 1 } },
+    titles: { en: 'September 2026 and August 2026 have the same total: 1 day.',
+      'pt-BR': 'Setembro de 2026 e agosto de 2026 têm o mesmo total: 1 dia.' },
+    metric: { en: 'Days with logs', 'pt-BR': 'Dias com registros' },
+    units: { en: ['day', 'day'], 'pt-BR': ['dia', 'dia'] } },
+  { name: 'a partial month with localized figures',
+    card: { ...focused.focusedPeriodComparisonFixture, currentValue: 1234, absoluteDelta: 1234,
+      current: { ...focused.focusedPeriodComparisonFixture.current, positiveLogRecords: 1234,
+        window: { from: '2026-09-01', to: '2026-09-10' } } },
+    titles: { en: 'September 2026 (so far) is ahead: 1,234 completions against 0 in August 2026.',
+      'pt-BR': 'Setembro de 2026 (até agora) supera agosto de 2026: 1.234 conclusões, contra 0.' },
+    metric: { en: 'Completions', 'pt-BR': 'Conclusões' },
+    units: { en: ['completions', 'completions'], 'pt-BR': ['conclusões', 'conclusões'] } },
+]
+it.each(comparisonCases.flatMap(testCase => ['en', 'pt-BR'].map(locale => ({ ...testCase, locale }))))(
+  'projects the client comparison verdict and figures for $name in $locale', async ({ card, titles, metric, units, locale }) => {
+    const { output, error } = await receive({ parts: [{ type: 'block', kind: 'periodComparison', block: card }] }, locale)
+    expect(error).toBeUndefined()
+    expect(output?.error).toBeUndefined()
+    const partial = card.current.window.to === '2026-09-10'
+    const currentLabel = locale === 'en' ? `September 2026${partial ? ' (so far)' : ''}`
+      : `setembro de 2026${partial ? ' (até agora)' : ''}`
+    expect(JSON.parse(output.answer).parts[0].block).toEqual({
+      title: titles[locale], metric: metric[locale], bars: [
+        { label: currentLabel, value: new Intl.NumberFormat(locale).format(card.currentValue), unit: units[locale][0] },
+        { label: locale === 'en' ? 'August 2026' : 'agosto de 2026',
+          value: new Intl.NumberFormat(locale).format(card.baselineValue), unit: units[locale][1] },
+      ],
+    })
+    expect(output.answer).not.toContain('signed-query')
+  })
 const { gamificationCardCases } = await import('../../../packages/shared/src/test-support/gamification-card-fixtures.ts')
 it.each(gamificationCardCases.flatMap(testCase => ['en', 'pt-BR'].map(locale => ({ ...testCase, locale }))))(
   'grades the visible gamification $name answer in $locale', async ({ block, locale }) => {

@@ -53,7 +53,6 @@ function dismissal() {
 function answer(vars, state, index = 0) {
   const greeting = index > 0 && index <= 11
   const calls = greeting ? [] : [habitAccountRead(false, 'read', vars.clientContext)]
-  for (const call of calls) call.arguments.orbit_dismissed_offer_keys = []
   const response = { ...chatResponse(vars.evalRequestId, calls), aiMessage: greeting ? 'Hello.' : null,
     parts: greeting ? [{ type: 'text', text: 'Hello.' }] : [{ type: 'block', kind: 'habitList', block: {
       scope: 'today', items: state.habits.map((habit) => ({ id: habit.id, title: habit.title, emoji: null,
