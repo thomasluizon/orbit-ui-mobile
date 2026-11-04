@@ -124,6 +124,10 @@ async function actAsync(callback: () => Promise<void>): Promise<void> {
 }
 
 describe('mobile useDrillNavigation', () => {
+  beforeEach(() => {
+    mocks.apiClient.mockReset()
+  })
+
   it('uses fresh enclosing children after undo and fresh direct parents after drilling again', async () => {
     const completed = makeChild({ id: 'branch', isCompleted: true, children: [makeChild({ id: 'leaf', isCompleted: true })] })
     const sibling = makeChild({ id: 'sibling' })
@@ -152,10 +156,6 @@ describe('mobile useDrillNavigation', () => {
     await actAsync(() => holder.current.refreshCurrent())
     expect(holder.current.settlementHabitsById.get(branch.id)?.isCompleted).toBe(true)
     expect(chain()).toEqual([parent.id])
-  })
-
-  beforeEach(() => {
-    mocks.apiClient.mockReset()
   })
 
   it.each(['today', 'general'] as const)('leaves the all drill when changing to %s', async (view) => {

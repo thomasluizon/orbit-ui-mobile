@@ -129,6 +129,10 @@ function makeDetailResponse(): HabitDetail {
 }
 
 describe('useDrillNavigation', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
   it('uses fresh enclosing children after undo and fresh direct parents after drilling again', async () => {
     const parent = makeDetailResponse()
     const completed = { ...parent.children[0]!, id: 'branch', isCompleted: true, children: [{ ...parent.children[0]!, id: 'leaf', isCompleted: true }] }
@@ -163,10 +167,6 @@ describe('useDrillNavigation', () => {
   const habitsById = new Map<string, NormalizedHabit>([
     ['parent1', makeHabit({ id: 'parent1', title: 'Parent' })],
   ])
-
-  beforeEach(() => {
-    mockFetch.mockReset()
-  })
 
   it.each(['today', 'general'] as const)('leaves the all drill when changing to %s', async (view) => {
     mockFetch.mockResolvedValue(Response.json(makeDetailResponse()))

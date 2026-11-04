@@ -136,7 +136,7 @@ export function useDrillNavigation(
           return normalizeHabitDetailForDrill(detail, todayStr)
         }))
         if (!canCommitSettlement()) return
-        setDrillHabitsById((previous) => refreshed.reduce(mergeDrillSettlementHabits, previous))
+        setDrillHabitsById((previous) => refreshed.reduce((current, normalized) => mergeDrillSettlementHabits(current, normalized), previous))
         setSettlementUpdatedAtById((previous) => {
           const next = new Map(previous)
           for (const normalized of refreshed) {

@@ -514,7 +514,7 @@ function handleLogged(context: ParentPromptContext, habitId: string, markAsRecen
     markRecentlyCompleted(habitId)
   }
 
-  void checkAndPromptParentLog(context, habitId, true)
+  checkAndPromptParentLog(context, habitId, true)
 }
 
 async function handleDirectToggle(context: ParentPromptContext, habit: NormalizedHabit, intent: 'log' | 'unlog') {
