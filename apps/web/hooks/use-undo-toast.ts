@@ -3,6 +3,7 @@
 import { useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useUIStore } from '@/stores/ui-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
 /**
@@ -44,6 +45,7 @@ export function useUndoToast() {
           !event.shiftKey &&
           event.key.toLowerCase() === 'z'
         ) {
+          if (useUIStore.getState().openOverlayIds.some(id => id.startsWith('modal:'))) return
           if (useAppToastStore.getState().currentToast?.id !== state.toastId) return
           event.preventDefault()
           event.stopImmediatePropagation()

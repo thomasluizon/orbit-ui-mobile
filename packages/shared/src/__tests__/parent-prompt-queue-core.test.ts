@@ -30,7 +30,7 @@ function parentPromptHarness() {
     getChildren: id => habits.filter(habit => habit.parentId === id), view: 'today', updatedAt: 1,
     visibility: { isRelevantToday: () => true, isDueOnSelectedDate: () => true }, logHabit, skipHabit,
     bulkLog, bulkSkip: bulkLog, markRecentlyCompleted: vi.fn(), clearRecentlyCompleted: vi.fn(),
-    showError: vi.fn(), t: key => key, refetch: vi.fn(async () => {}), toggleKey: (id, date) => `${id}:${date}` }
+    showError: vi.fn(), t: key => key, refetch: vi.fn(async () => {}), canRefreshSettlement: () => true, toggleKey: (id, date) => `${id}:${date}` }
   const render = () => {
     const queue = state.render(() => useQueue(inputs))
     for (const effect of effects.splice(0)) effect()
@@ -97,20 +97,16 @@ describe('parent prompt transitions', () => {
 
 
 describe('confirmed parent resolutions', () => {
-  it('retains in-flight resolutions until settlement becomes idle', () => {
+  it('retains day resolutions across idle refetches', () => {
     const record = createConfirmedResolutionRecord('2026-09-12')
     const habit = createMockHabit({ id: 'child' })
     record.sources.set(habit.id, { habit, mode: 'log' })
     record.modes.set(habit.id, 'log')
-    record.activeSettlements = 1
-    refreshConfirmedResolutions(record, false, new Map())
-    expect(record.clearWhenIdle).toBe(true)
+    refreshConfirmedResolutions(record, new Map())
     expect(record.modes.get(habit.id)).toBe('log')
-    record.activeSettlements = 0
-    refreshConfirmedResolutions(record, false, new Map())
-    expect(record.modes.size).toBe(0)
-    expect(record.sources.size).toBe(0)
-    expect(record.clearWhenIdle).toBe(false)
+    refreshConfirmedResolutions(record, new Map())
+    expect(record.modes.get(habit.id)).toBe('log')
+    expect(record.sources.has(habit.id)).toBe(true)
   })
 
   it('drops persisted optimistic modes while retaining the source for a queued ancestor', () => {
@@ -119,7 +115,7 @@ describe('confirmed parent resolutions', () => {
     record.sources.set(child.id, { habit: child, mode: 'skip' })
     record.modes.set(child.id, 'skip')
     record.skippedIds.add(child.id)
-    refreshConfirmedResolutions(record, true, new Map([[child.id, child]]))
+    refreshConfirmedResolutions(record, new Map([[child.id, child]]))
     expect(record.modes.size).toBe(0)
     expect(record.skippedIds.size).toBe(0)
     expect(record.sources.has(child.id)).toBe(true)
@@ -196,4 +192,24 @@ describe('parent prompt controller', () => {
     queue.inputs.selectedDateStr = '2026-09-13'
     expect(queue.render().parentPrompt).toBeNull()
   })
+})
+
+
+it('prompts for a resolved child loaded only in the drill inventory', async () => {
+  const queue = parentPromptHarness()
+  queue.inputs.habitsById = new Map([[queue.parent.id, queue.parent]])
+  queue.inputs.getChildren = () => []
+  Object.assign(queue.inputs, { additionalHabitsById: new Map([[queue.child.id, queue.child]]) })
+  await queue.render().handleDirectToggle(queue.child, 'log')
+  expect(queue.render().parentPrompt?.habit.id).toBe(queue.parent.id)
+})
+
+
+it('keeps current schedule facts ahead of a stale drill child', async () => {
+  const queue = parentPromptHarness()
+  const sibling = createMockHabit({ id: 'sibling', parentId: queue.parent.id, scheduledDates: [queue.inputs.selectedDateStr] })
+  queue.inputs.habitsById.set(sibling.id, sibling)
+  queue.inputs.additionalHabitsById = new Map([[sibling.id, { ...sibling, isCompleted: true }]])
+  await queue.render().handleDirectToggle(queue.child, 'log')
+  expect(queue.render().parentPrompt).toBeNull()
 })

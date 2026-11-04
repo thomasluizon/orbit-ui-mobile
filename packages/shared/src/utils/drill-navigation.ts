@@ -4,7 +4,7 @@ import type {
   NormalizedHabit,
 } from '../types/habit'
 import { formatAPIDate } from './dates'
-import { fallbackChildOverdue } from './habit-normalization'
+import { buildChildrenIndex, fallbackChildOverdue } from './habit-normalization'
 import { isHabitLoggedOnDate } from './all-done'
 import {
   getChildrenFromIndex,
@@ -15,6 +15,19 @@ import {
 export interface NormalizedDrillDetail {
   parent: NormalizedHabit
   childrenByParent: Map<string, NormalizedHabit[]>
+}
+
+export function getDrillRefreshIds(
+  habitId: string | null,
+  retainedHabits: ReadonlyMap<string, NormalizedHabit>,
+  refreshSettlement: boolean,
+): string[] {
+  if (!refreshSettlement || retainedHabits.size === 0) return habitId ? [habitId] : []
+  const rootIds = [...retainedHabits.values()]
+    .filter(habit => !habit.parentId || !retainedHabits.has(habit.parentId))
+    .map(habit => habit.id)
+  if (habitId && !retainedHabits.has(habitId)) rootIds.push(habitId)
+  return rootIds
 }
 
 /**
@@ -43,6 +56,25 @@ export function mergeDrillChildrenMap(
     next.set(parentId, children)
   }
   return next
+}
+
+export function mergeDrillSettlementHabits(
+  previous: ReadonlyMap<string, NormalizedHabit>,
+  fetched: NormalizedDrillDetail,
+): Map<string, NormalizedHabit> {
+  const retained = new Map(previous)
+  const previousChildren = buildChildrenIndex(retained)
+  const replacedIds = [...previousChildren.get(fetched.parent.id) ?? []]
+  while (replacedIds.length > 0) {
+    const id = replacedIds.pop()!
+    retained.delete(id)
+    replacedIds.push(...previousChildren.get(id) ?? [])
+  }
+  return new Map([
+    ...retained,
+    ...[...fetched.childrenByParent.values()].flat().map(habit => [habit.id, habit] as const),
+    [fetched.parent.id, fetched.parent],
+  ])
 }
 
 function enrichDrillChild(

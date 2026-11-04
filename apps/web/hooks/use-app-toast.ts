@@ -12,12 +12,7 @@ export function useAppToast() {
   const dismissToast = useAppToastStore((state) => state.dismissToast)
 
   const showPersistentError = useCallback((message: string, reloadLabel: string) => {
-    return useAppToastStore.getState().showToast({
-      kind: 'neutral',
-      message,
-      actionLabel: reloadLabel,
-      onAction: () => globalThis.location.reload(),
-    })
+    return useAppToastStore.getState().showError(message, reloadLabel, () => globalThis.location.reload())
   }, [])
 
   return { showToast, showError, showPersistentError, showSuccess, showInfo, showQueued, dismissToast }

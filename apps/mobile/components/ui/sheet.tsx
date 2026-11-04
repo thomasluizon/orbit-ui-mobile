@@ -15,6 +15,7 @@ import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scr
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
+import { getModalError } from '@orbit/shared/stores'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { AppToast } from '@/components/ui/app-toast'
 
@@ -108,7 +109,7 @@ export function Sheet({
   const registerOpenOverlay = useUIStore((state) => state.registerOpenOverlay)
   const unregisterOpenOverlay = useUIStore((state) => state.unregisterOpenOverlay)
   const topOverlayId = useUIStore((state) => state.openOverlayIds.at(-1))
-  const currentToast = useAppToastStore((state) => state.currentToast)
+  const modalError = useAppToastStore(getModalError)
   const sheetRef = useRef<TrueSheet>(null)
   const exitActionRef = useRef<(() => void) | null>(null)
   const onCloseRef = useRef(onClose)
@@ -193,8 +194,8 @@ export function Sheet({
     onLayout: (event) => setHeaderHeight(event.nativeEvent.layout.height) })
   const expandedTitle = title && titleExpanded && titleMode === 'typed' ? <PersonalText expanded selectable style={styles.fullTitle}>{title}</PersonalText> : null
 
-  const showSheetToast = topOverlayId === sheetId && currentToast !== null
-  const footer = renderSheetFooter(actions, showSheetToast, sheetId, styles, setFooterHeight)
+  const showSheetError = topOverlayId === sheetId && modalError !== undefined
+  const footer = renderSheetFooter(actions, showSheetError, sheetId, styles, setFooterHeight)
   // WHY: Native padding owns the footer inset, so the measured child height needs no inset subtraction. https://github.com/lodev09/react-native-true-sheet/blob/v4.0.1/common/cpp/react/renderer/components/TrueSheetSpec/TrueSheetFooterViewShadowNode.cpp#L36-L56
   const reservedFooterHeight = footer ? footerHeight : 0
   const maxBodyHeight = Math.max(0, height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK - headerHeight - bottomInset)
@@ -304,15 +305,15 @@ function renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory,
 
 function renderSheetFooter(
   actions: ReactNode,
-  showSheetToast: boolean,
+  showSheetError: boolean,
   sheetId: string,
   styles: ReturnType<typeof createStyles>,
   setFooterHeight: (height: number) => void,
 ) {
-  if (!actions && !showSheetToast) return undefined
+  if (!actions && !showSheetError) return undefined
   return (
     <View style={styles.footer} onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}>
-      {showSheetToast ? <View style={styles.notice}><AppToast placement="sheet" sheetId={sheetId} /></View> : null}
+      {showSheetError ? <View style={styles.notice}><AppToast placement="sheet" sheetId={sheetId} /></View> : null}
       {actions ? <View style={styles.actions}><ActionRow>{actions}</ActionRow></View> : null}
     </View>
   )

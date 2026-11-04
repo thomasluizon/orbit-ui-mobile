@@ -97,12 +97,16 @@ describe('shared toast geometry', () => {
     } finally { await page.close() }
   })
 
-  it('centres a sheet-hosted action without changing its outlined placement', async () => {
+  it('holds a modal undo and centres its action after returning to the shell', async () => {
     useUIStore.setState({ openOverlayIds: ['modal:toast-stack'] })
     useAppToastStore.getState().showQueued(ptBR.notifications.deleteQueued, ptBR.notifications.deleteUndo, () => {})
     const view = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
-      <div data-sheet-toast=""><AppToastHost placement="modal" modalId="modal:toast-stack" /></div>
+      <div data-shell-notice-content=""><AppToastHost /></div>
+      <AppToastHost placement="modal" modalId="modal:toast-stack" />
     </NextIntlClientProvider>)
+    await act(async () => { await vi.dynamicImportSettled() })
+    expect(view.container.querySelector('[data-kind]')).toBeNull()
+    await act(() => useUIStore.setState({ openOverlayIds: [] }))
     await act(async () => { await vi.dynamicImportSettled() })
     const markup = view.container.innerHTML
     view.unmount()
@@ -112,7 +116,7 @@ describe('shared toast geometry', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${markup}`)
       await loadAppFonts(page)
-      const measured = await page.locator('[data-sheet-toast]').evaluate(measureToastStack)
+      const measured = await page.locator('[data-shell-notice-content]').evaluate(measureToastStack)
       expect(measured).toHaveLength(1)
       expect(Math.abs(measured[0]!.actionOffset!)).toBeLessThanOrEqual(1)
       expect(Math.abs(measured[0]!.closeOffset)).toBeLessThanOrEqual(1)
@@ -156,7 +160,6 @@ describe('shared toast geometry', () => {
         <Toast kind="working" message={message} />
         <Toast kind="done" message={message} onDone={() => {}} />
         <Toast kind="lost" message={message} detail={words.common.syncChangeDroppedDetail} actionLabel={words.common.retry} onAction={() => {}} />
-        <Toast outlined kind="neutral" message={message} />
       </>}>
         <div className="px-4"><div data-toast-column-reference="" /></div>
       </ShellWide>
@@ -189,7 +192,7 @@ describe('shared toast geometry', () => {
           copyFits: message.scrollWidth <= message.clientWidth,
         }
       }), words.common.close)
-      expect(measurements).toHaveLength(7)
+      expect(measurements).toHaveLength(6)
       for (const measured of measurements) {
         expect(measured).toMatchObject({
           width: measured.columnWidth, left: measured.columnLeft, right: measured.columnRight,

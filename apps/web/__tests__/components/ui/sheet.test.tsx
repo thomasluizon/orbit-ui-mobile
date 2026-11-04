@@ -266,35 +266,14 @@ describe('Sheet', () => {
     expect(document.querySelectorAll('[data-update-banner]')).toHaveLength(1)
   })
 
-  it('places an actionable toast only in the topmost sheet', async () => {
-    const undo = vi.fn()
+  it('holds an actionable toast outside every nested sheet', async () => {
     useUIStore.setState({ openOverlayIds: [] })
     useAppToastStore.setState({ currentToast: null, queue: [] })
-    render(
-      <>
-        <div data-shell-notice=""><AppToastHost /></div>
-        <Sheet title="Lower sheet">
-          <button type="button">Lower action</button>
-          <Sheet title="Upper sheet"><button type="button">Upper action</button></Sheet>
-        </Sheet>
-      </>,
-    )
-
-    act(() => { useAppToastStore.getState().showQueued('Removed', 'Undo', undo) })
-
-    const lower = screen.getByRole('dialog', { name: 'Lower sheet', hidden: true })
-    const upper = screen.getByRole('dialog', { name: 'Upper sheet' })
-    await waitFor(() => expect(upper.querySelector('[data-kind]')).toHaveTextContent('Removed'))
-    const announcement = upper.querySelector('[role="status"]:not([data-update-live-region])')
-    await waitFor(() => expect(announcement).toHaveTextContent('Removed'))
-    expect(announcement?.closest('[aria-hidden="true"], [inert]')).toBeNull()
-    expect(lower.querySelector('[data-kind]')).toBeNull()
-    expect(document.querySelector('[data-shell-notice] > [role="status"]')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
-    expect(undo).toHaveBeenCalledOnce()
-    expect(upper.querySelector('[data-kind]')?.closest('[aria-hidden="true"][inert]')).not.toBeNull()
-    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
-    await waitFor(() => expect(upper.querySelector('[data-kind]')).toBeNull())
+    render(<><AppToastHost /><Sheet title="Lower sheet"><Sheet title="Upper sheet" /></Sheet></>)
+    act(() => { useAppToastStore.getState().showQueued('Removed', 'Undo', vi.fn()) })
+    await act(async () => { await vi.dynamicImportSettled() })
+    expect(document.querySelector('[data-kind]')).toBeNull()
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Removed')
   })
   it('uses an accessible title without showing a visible heading', () => {
     render(<Sheet open accessibleTitle="Reschedule with AI"><p>Plan</p></Sheet>)

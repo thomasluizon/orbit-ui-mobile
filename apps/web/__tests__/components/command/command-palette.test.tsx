@@ -274,8 +274,8 @@ describe('CommandPalette', () => {
 
     const palette = screen.getByRole('dialog', { name: 'command.title' })
     expect(document.querySelector('[data-command-palette-background]')).toHaveAttribute('inert')
-    await waitFor(() => expect(palette.querySelector('[data-kind]')).toHaveTextContent('errors.updateHabit'))
-    expect(palette.querySelector('[role="status"]:not([data-update-live-region])')).toHaveAttribute('aria-live', 'polite')
+    await waitFor(() => expect(palette.querySelector('[role="alert"]')).toHaveTextContent('errors.updateHabit'))
+    expect(palette.querySelector('[role="alert"]')).toHaveAttribute('aria-live', 'polite')
     expect(mockSkipHabitMutate).toHaveBeenCalledOnce()
   })
 
@@ -300,7 +300,7 @@ describe('CommandPalette', () => {
     fireEvent.click(screen.getByText('Run'))
 
     const palette = screen.getByRole('dialog', { name: 'command.title' })
-    await waitFor(() => expect(palette.querySelector('[data-kind]')).toHaveTextContent('errors.api.accountChanged'))
+    await waitFor(() => expect(palette.querySelector('[role="alert"]')).toHaveTextContent('errors.api.accountChanged'))
     expect(palette).toContainElement(screen.getByRole('button', { name: 'errorScreen.reload' }))
     expect(document.querySelector('[data-command-palette-background]')).toHaveAttribute('inert')
   })
@@ -309,9 +309,7 @@ describe('CommandPalette', () => {
     const user = userEvent.setup()
     const reload = vi.fn()
     mockSkipHabitMutate.mockImplementation(() => {
-      useAppToastStore.getState().showToast({
-        kind: 'neutral', message: 'Account changed', actionLabel: 'Reload', onAction: reload,
-      })
+      useAppToastStore.getState().showError('Account changed', 'Reload', reload)
     })
     await renderPaletteContent(
       <CommandPaletteBackground>
@@ -329,15 +327,15 @@ describe('CommandPalette', () => {
     expect(mockSkipHabitMutate).toHaveBeenCalledWith(
       { habitId: 'h1' }, expect.objectContaining({ onError: expect.any(Function) }),
     )
-    await waitFor(() => expect(palette.querySelector('[data-kind]')).toHaveTextContent('Account changed'))
+    await waitFor(() => expect(palette.querySelector('[role="alert"]')).toHaveTextContent('Account changed'))
     const reloadButton = screen.getByRole('button', { name: 'Reload' })
     reloadButton.focus()
     expect(reloadButton).toHaveFocus()
     await user.keyboard('{Enter}')
     expect(reload).toHaveBeenCalledOnce()
-    expect(palette.querySelector('[data-kind]')?.closest('[aria-hidden="true"][inert]')).not.toBeNull()
+    expect(palette.querySelector('[role="alert"]')?.closest('[aria-hidden="true"][inert]')).not.toBeNull()
     expect(screen.queryByRole('button', { name: 'Reload' })).toBeNull()
-    await waitFor(() => expect(palette.querySelector('[data-kind]')).toBeNull())
+    await waitFor(() => expect(palette.querySelector('[role="alert"]')).toBeNull())
     expect(screen.getByRole('dialog', { name: 'command.title' })).toBeInTheDocument()
   })
 
@@ -457,7 +455,8 @@ describe('CommandPalette', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open sheet' }))
     const sheetDialog = await screen.findByRole('dialog', { name: 'Sheet owner' })
     act(() => { useAppToastStore.getState().showQueued('Still here', 'Undo', vi.fn()) })
-    await waitFor(() => expect(sheetDialog.querySelector('[data-kind]')).toHaveTextContent('Still here'))
+    await act(async () => { await vi.dynamicImportSettled() })
+    expect(sheetDialog.querySelector('[data-kind]')).toBeNull()
     expect(document.querySelector('[aria-label="command.title"] [data-kind]')).toBeNull()
     await waitFor(() =>
       expect(sheetDialog).toContainElement(document.activeElement as HTMLElement),
@@ -466,7 +465,8 @@ describe('CommandPalette', () => {
     await user.keyboard('{Escape}')
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sheet owner' })).toBeNull())
-    await waitFor(() => expect(screen.getByRole('dialog', { name: 'command.title' }).querySelector('[data-kind]')).toBeInTheDocument())
+    expect(screen.getByRole('dialog', { name: 'command.title' }).querySelector('[data-kind]')).toBeNull()
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Still here')
     expect(mockSetPaletteOpen).not.toHaveBeenCalledWith(false)
     await waitFor(() => expect(paletteInput).toHaveFocus())
 

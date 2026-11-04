@@ -441,20 +441,18 @@ describe('OnboardingFlow state model', () => {
   it('keeps Reload reachable inside the done dialog when finishing fails', async () => {
     const reload = vi.fn()
     mocks.finishOnboarding.mockImplementation(async () => {
-      useAppToastStore.getState().showToast({
-        kind: 'neutral', message: 'Account changed', actionLabel: 'Reload', onAction: reload,
-      })
+      useAppToastStore.getState().showError('Account changed', 'Reload', reload)
       throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 })
     })
     await reachDone(false)
     fireEvent.click(screen.getByRole('button', { name: 'finish' }))
 
     const dialog = screen.getByRole('dialog')
-    await waitFor(() => expect(dialog.querySelector('[role="status"]:not([data-update-live-region])')).toHaveTextContent('Account changed'))
+    await waitFor(() => expect(dialog.querySelector('[role="alert"]')).toHaveTextContent('Account changed'))
     const action = screen.getByRole('button', { name: 'Reload' })
     act(() => { fireEvent.click(action) })
     expect(reload).toHaveBeenCalledOnce()
-    expect(dialog.querySelector('[role="status"]:not([data-update-live-region])')).toBeNull()
+    expect(dialog.querySelector('[role="alert"]')).toBeNull()
     expect(dialog).toBeInTheDocument()
   })
 

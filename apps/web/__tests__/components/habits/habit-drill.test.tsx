@@ -13,7 +13,7 @@ describe('typed drill heading', () => {
     const drillBack = vi.fn()
     const drill = {
       drillStack: ['habit-1'], currentParentId: 'habit-1', currentParent: createMockHabit({ title: name }),
-      drillChildren: [], hasUnfilteredChildren: false, canRevealCompletedChildren: false, completedCount: 0,
+      drillChildren: [], settlementHabitsById: new Map(), settlementUpdatedAtById: new Map(), hasUnfilteredChildren: false, canRevealCompletedChildren: false, completedCount: 0,
       drillLoading: false, drillError: '', drillInto: vi.fn(async () => {}), drillBack, drillReset: vi.fn(),
       refreshCurrent: vi.fn(async () => {}), getDrillChildren: () => [],
     }

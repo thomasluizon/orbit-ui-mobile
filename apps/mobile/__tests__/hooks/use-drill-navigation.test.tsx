@@ -1,5 +1,5 @@
+import { buildChildrenIndex, getChildrenFromIndex, computeParentPromptChain, createApiClientError } from '@orbit/shared/utils'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createApiClientError } from '@orbit/shared/utils'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BackHandler } from '../../test-mocks/react-native'
@@ -126,6 +126,36 @@ async function actAsync(callback: () => Promise<void>): Promise<void> {
 describe('mobile useDrillNavigation', () => {
   beforeEach(() => {
     mocks.apiClient.mockReset()
+  })
+
+  it('uses fresh enclosing children after undo and fresh direct parents after drilling again', async () => {
+    const completed = makeChild({ id: 'branch', isCompleted: true, children: [makeChild({ id: 'leaf', isCompleted: true })] })
+    const sibling = makeChild({ id: 'sibling' })
+    const parent = makeDetail({ children: [completed, sibling] })
+    const branch = makeDetail({ id: completed.id, isCompleted: true, children: completed.children, parentId: parent.id })
+    mocks.apiClient.mockResolvedValueOnce(parent).mockResolvedValueOnce(branch)
+    const { holder } = renderDrill()
+    await actAsync(() => holder.current.drillInto(parent.id))
+    await actAsync(() => holder.current.drillInto(branch.id))
+    await actAsync(() => holder.current.refreshCurrent())
+    TestRenderer.act(() => holder.current.drillBack())
+    mocks.apiClient.mockResolvedValueOnce({ ...parent, children: [{ ...completed, isCompleted: false }, sibling] })
+    await actAsync(() => holder.current.refreshCurrent())
+    const chain = () => {
+      const inventory = holder.current.settlementHabitsById
+      const index = buildChildrenIndex(inventory)
+      return computeParentPromptChain(sibling.id, inventory, '2026-07-13', {
+        getChildren: id => getChildrenFromIndex(id, inventory, index), isRelevantToday: () => true,
+        isDueOnSelectedDate: () => true, skippedIds: new Set(), resolvedModes: new Map([[sibling.id, 'log']]),
+      }).map(({ habit }) => habit.id)
+    }
+    expect(holder.current.settlementHabitsById.get(branch.id)?.isCompleted).toBe(false)
+    expect(chain()).toEqual([])
+    await actAsync(() => holder.current.drillInto(branch.id))
+    mocks.apiClient.mockResolvedValueOnce(branch)
+    await actAsync(() => holder.current.refreshCurrent())
+    expect(holder.current.settlementHabitsById.get(branch.id)?.isCompleted).toBe(true)
+    expect(chain()).toEqual([parent.id])
   })
 
   it.each(['today', 'general'] as const)('leaves the all drill when changing to %s', async (view) => {

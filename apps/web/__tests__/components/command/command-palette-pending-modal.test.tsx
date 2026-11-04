@@ -53,6 +53,7 @@ async function openSheetOverPendingPalette() {
   })
   const { CommandPalette, CommandPaletteBackground } = await import('@/components/command/command-palette')
   const { Sheet } = await import('@/components/ui/sheet')
+  const { AppToastHost } = await import('@/components/ui/app-toast-host')
   const { useShellStore } = await import('@/stores/shell-store')
   const { useUIStore } = await import('@/stores/ui-store')
   const { useAppToastStore } = await import('@/stores/app-toast-store')
@@ -60,6 +61,7 @@ async function openSheetOverPendingPalette() {
   function Harness() {
     const [sheetOpen, setSheetOpen] = useState(false)
     return <CommandPaletteBackground>
+      <div data-shell-notice-content=""><AppToastHost /></div>
       <button type="button" onClick={() => useShellStore.getState().setPaletteOpen(true)}>Search</button>
       <button type="button" onClick={() => setSheetOpen(true)}>Open sheet</button>
       <CommandPalette navItems={[]} onCreateHabit={vi.fn()} />
@@ -78,19 +80,20 @@ async function openSheetOverPendingPalette() {
   await user.click(within(sheet).getByRole('textbox', { name: 'Sheet field' }))
   act(() => { useAppToastStore.getState().showQueued('Still here', 'Undo', vi.fn()) })
   await act(async () => { await import('@/components/ui/toast') })
-  await waitFor(() => expect(sheet.querySelector('[data-kind="neutral"][role="group"]')).toHaveTextContent('Still here'))
-  await waitFor(() => expect(screen.getAllByRole('status').some((region) => region.textContent.includes('Still here'))).toBe(true))
+  expect(document.querySelector('[data-kind]')).toBeNull()
+  expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Still here')
   return {
-    user, sheet, useShellStore, useUIStore,
+    user, sheet, useShellStore, useUIStore, useAppToastStore,
     release: () => act(async () => { releaseMenu(); await menuReady }),
   }
 }
 
-it('keeps focus and notices in the newer Sheet when the real pending menu import resolves', async () => {
-  const { sheet, release, useShellStore, useUIStore } = await openSheetOverPendingPalette()
+it('keeps focus in the newer Sheet and holds its notice when the pending menu import resolves', async () => {
+  const { sheet, release, useShellStore, useUIStore, useAppToastStore } = await openSheetOverPendingPalette()
   await release()
   await waitFor(() => expect(within(sheet).getByRole('textbox')).toHaveFocus())
-  expect(sheet.querySelector('[data-kind="neutral"][role="group"]')).toHaveTextContent('Still here')
+  expect(document.querySelector('[data-kind]')).toBeNull()
+  expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Still here')
   expect(useShellStore.getState().paletteOpen).toBe(false)
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
@@ -102,6 +105,7 @@ it('dismisses the newer Sheet with Escape while the superseded palette stays clo
   await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Options' })).not.toBeInTheDocument())
   expect(useShellStore.getState().paletteOpen).toBe(false)
   expect(useUIStore.getState().openOverlayIds).toEqual([])
+  await waitFor(() => expect(document.querySelector('[data-shell-notice-content] [data-kind]')).toHaveTextContent('Still here'))
   await release()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Open sheet' })).toHaveFocus()

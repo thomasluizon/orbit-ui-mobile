@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { notifyToastNavigation, subscribeToastNavigation } from '../hooks/toast-lifecycle-core'
-import { createAppToastStoreState, type AppToastStore } from '../stores/app-toast-store'
+import { getModalError, createAppToastStoreState, type AppToastStore } from '../stores/app-toast-store'
 
 function createQueue() {
   let state: AppToastStore
@@ -135,4 +135,21 @@ describe('shared action toast dismissal', () => {
     expect(get().currentToast).toBeNull()
     expect(get().queue).toEqual([])
   })
+})
+
+
+it('keeps a held child undo while a queued modal error is acknowledged', () => {
+  const { get } = createQueue()
+  const undo = vi.fn()
+  const reload = vi.fn()
+  const childId = get().showQueued('Skipped child', 'Undo', undo)
+  const errorId = get().showError('Account changed', 'Reload', reload)
+  expect(getModalError(get())?.id).toBe(errorId)
+  get().triggerAction(errorId)
+  expect(reload).toHaveBeenCalledOnce()
+  expect(undo).not.toHaveBeenCalled()
+  expect(get().currentToast?.id).toBe(childId)
+  expect(getModalError(get())).toBeUndefined()
+  get().triggerAction(childId)
+  expect(undo).toHaveBeenCalledOnce()
 })
