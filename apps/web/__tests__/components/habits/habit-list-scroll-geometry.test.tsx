@@ -10,6 +10,7 @@ import { settleAnimations } from '@/e2e/layout/settle-animations'
 import tailwind from '@tailwindcss/postcss'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { observeBulkSkip } from '@/__tests__/support/habit-list-scroll-observation'
 
 let browser: Browser
 let launch: BrowserLaunch | undefined
@@ -76,7 +77,7 @@ it.each(([
   { reducedMotion: 'reduce', width: 915, height: 412, fontScale: 1 },
   { reducedMotion: 'no-preference', width: 915, height: 412, fontScale: 2 },
   { reducedMotion: 'reduce', width: 915, height: 412, fontScale: 2 },
-] as const).flatMap((viewport) => (['pointer', 'keyboard'] as const).map((activation) => ({ ...viewport, activation }))))('anchors real HabitList bulk skips via $activation, motion=$reducedMotion at $width x $height and $fontScale text', async ({ reducedMotion, width, height, fontScale, activation }) => {
+] as const).flatMap((viewport) => (['pointer', 'keyboard'] as const).flatMap((activation) => [0, 1000].map((frameDelay) => ({ ...viewport, activation, frameDelay })))))('anchors real HabitList bulk skips via $activation, motion=$reducedMotion at $width x $height and $fontScale text, frame delay=$frameDelay', async ({ reducedMotion, width, height, fontScale, activation, frameDelay }) => {
   const page = await browser.newPage({ viewport: { width, height }, reducedMotion })
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -124,26 +125,15 @@ it.each(([
       return { offset: element.scrollTop, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-shell-page-content]')!.style.minHeight }
     })
     expect(before.offset).toBe(650)
-    const observations = page.locator('[data-shell-scroller]').evaluate((element) => new Promise<{ departures: number; offsets: { offset: number; departing: boolean }[]; minimum: string; remaining: number; viewport: number; maximum: number }>((done) => {
-      const offsets: { offset: number; departing: boolean }[] = []
-      let departures = 0
-      const start = performance.now()
-      let departureStarted: number | undefined
-      const sample = () => {
-        offsets.push({ offset: element.scrollTop, departing: element.querySelector('[data-list-motion][inert]') !== null })
-        departures = Math.max(departures, element.querySelectorAll('[data-list-motion][inert] [data-testid="habit-row"]').length)
-        if (departures > 0) departureStarted ??= performance.now()
-        const remaining = element.querySelectorAll('[data-testid="habit-row"]').length
-        const settled = remaining === 0 && departureStarted !== undefined
-        if (settled || performance.now() - start > 5000) done({ departures, offsets, remaining, maximum: element.scrollHeight - element.clientHeight, viewport: element.clientHeight, minimum: element.querySelector<HTMLElement>('[data-shell-page-content]')!.style.minHeight })
-        else requestAnimationFrame(sample)
-      }
-      requestAnimationFrame(sample)
-    }))
-    await page.getByRole('button', { name: 'Skip selected', exact: true }).click()
-    const observed = await observations
+    const observations = await page.locator('[data-shell-scroller]').evaluateHandle(observeBulkSkip, frameDelay)
+    const skip = page.getByRole('button', { name: 'Skip selected', exact: true })
+    if (activation === 'pointer') await skip.click()
+    else { await skip.focus(); await page.keyboard.press('Enter') }
+    const observed = await observations.evaluate((observation) => observation.finished)
+    await observations.dispose()
     expect(observed.departures, JSON.stringify({ observed, errors })).toBe(30)
     expect(observed.remaining).toBe(0)
+    expect(observed.offsets.some(sample => sample.departing)).toBe(true)
     expect(observed.offsets.filter(sample => sample.departing).every(sample => Math.abs(sample.offset - 650) < 1), JSON.stringify({ before, observed })).toBe(true)
     expect(observed.offsets.at(-1)!.offset).toBe(observed.maximum)
     if (height > width) expect(observed.offsets.at(-1)!.offset, JSON.stringify(observed)).toBe(0)
