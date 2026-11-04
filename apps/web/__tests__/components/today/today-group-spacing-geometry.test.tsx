@@ -8,7 +8,8 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { createMockHabitScheduleItem, createMockProactiveItem } from '@orbit/shared/__tests__/factories'
+import { normalizeHabitQueryData } from '@orbit/shared/utils'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
 import { useTodayNavigation } from '@/app/(app)/use-today-navigation'
 import { useHabitViewSearch } from '@/hooks/use-habit-view-search'
@@ -35,7 +36,8 @@ vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => (
 vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: () => ({
   activeView: 'today', search: useHabitViewSearch('today'), changeView: vi.fn(),
   nav: useTodayNavigation('2026-09-04'),
-  data: { hasFetched: state.surface !== 'loading', isFetching: state.surface === 'loading', showLoadError: false, filters: {}, refetch: vi.fn() },
+  data: { ...normalizeHabitQueryData(state.surface === 'empty' ? [] : [createMockHabitScheduleItem()]),
+    hasFetched: state.surface !== 'loading', isFetching: state.surface === 'loading', showLoadError: false, filters: {}, refetch: vi.fn() },
   habitListRef: { current: null }, selectedHabitIds: new Set(), selection: {},
 }) }))
 vi.mock('@/components/habits/habit-list', () => ({ HabitList: () => <div data-testid="spacing-list-surface">

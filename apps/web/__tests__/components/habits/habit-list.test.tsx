@@ -2274,9 +2274,8 @@ describe('HabitList', () => {
 
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
     const title = screen.getByText('habits.allDoneToday')
-    expect(title.parentElement?.className).not.toMatch(/items-center|text-center/)
-    expect(title).toHaveStyle({ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '500' })
-    expect(title.parentElement?.querySelector('[data-asset="orbit-mark"]')).toBeNull()
+    expect(title).toHaveStyle({ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: '500' })
+    expect(screen.getByTestId('habit-list-all-done').querySelector('[data-asset="orbit-mark-16"]')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'habits.seeUpcoming' })).toHaveAttribute('data-size', 'sm')
     expect(screen.getByRole('button', { name: 'habits.seeUpcoming' })).toHaveAttribute('data-variant', 'ghost')
   })
@@ -2319,6 +2318,22 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} showCompleted />)
     expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
     expect(screen.getByTestId('habit-card-done-due')).toBeInTheDocument()
+  })
+
+  it('restores the due list immediately when completion is undone', () => {
+    useActualHabitVisibility = true
+    accountHabitCount.count = 1
+    const due = createMockHabit({ id: 'due', scheduledDates: [TODAY], isLoggedInRange: true })
+    mockHabitsData.habitsById = new Map([[due.id, due]])
+    mockHabitsData.topLevelHabits = [due]
+    const page = renderWithProviders(<HabitList filters={defaultFilters} showCompleted={false} />)
+    expect(screen.getByTestId('habit-list-all-done')).toBeInTheDocument()
+    const undone = { ...due, isLoggedInRange: false }
+    mockHabitsData.habitsById = new Map([[undone.id, undone]])
+    mockHabitsData.topLevelHabits = [undone]
+    page.rerenderWithProviders(<HabitList filters={defaultFilters} showCompleted={false} />)
+    expect(screen.queryByTestId('habit-list-all-done')).not.toBeInTheDocument()
+    expect(screen.getByTestId('habit-card-due')).toBeInTheDocument()
   })
 
   it('shows all-done when a due row is completed without a range log flag', () => {

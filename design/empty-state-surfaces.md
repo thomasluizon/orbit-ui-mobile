@@ -26,18 +26,27 @@ keeps its growing allocation and its ScrollView keeps symmetric 16px thread inse
 disclosure follows the action within the shared component, so its 48px outer padding no longer
 separates those two elements. Short threads scroll without clipping either end.
 
-Hoje's `HabitListAllDone` pairs title and hint with 8px and separates that text block from
-its optional See tomorrow pill by 24px. Web owns it in `habits/habit-list/empty-state.tsx`;
-Android owns it in `habit-list/empty-state.tsx`. Both retain the same navigation callback.
+Hoje's `HabitListAllDone` centres a still 16px monochrome Orbit mark inside a complete
+44px neutral ring, followed by a display 22px acknowledgement and one factual line paired
+with 8px. The mark, text group and optional See tomorrow ghost pill use a 24px stack,
+24px inline padding and symmetric 48px block padding. Completion carries no accent or
+entrance animation, including under reduced motion. Web owns it in
+`habits/habit-list/empty-state.tsx`; Android owns it in `habit-list/empty-state.tsx`.
+Both retain the same navigation callback and the existing completed-day eligibility.
+The Hoje screen owner suppresses its Astra slot while this completion state applies,
+so a proactive item or summary cannot repeat the completion message. Undo restores the
+normal line and list in the next render, without a dismissal delay.
 
 Web `chat-empty-state-geometry.test.tsx` mounts the conversation owner and measures the
 visible group's centre, 48px mark and 24px disclosure gap, including compact, foldable and
 740px desktop columns in both locales. `habit-list-all-done-geometry.test.tsx` measures the
-8px text pairing and 24px action clearance. Shared primitive geometry and behaviour tests
+mark and ring sizes, centring, whole labels, 8px text pairing, 24px action clearance and
+the static reduced-motion state. Shared primitive geometry and behaviour tests
 retain title fit, both identity carriers and the single supplied action.
 
 Android `astra-full-screen-geometry.test.tsx` mounts Shell412 with the conversation, measures
 the group against its thread and checks the mark size. The habit-list empty-state test measures
-both completion gaps and invokes the retained action. Feedback primitive tests check both
+completion geometry at compact and wide widths, checks localized label fit and invokes
+the retained action. Feedback primitive tests check both
 48px identity carriers and the supplied action. These are style and Yoga checks, not device
 rendering evidence.

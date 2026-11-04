@@ -158,7 +158,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
   return {
     ...actual,
     EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
-    useHabits: () => ({ data: { habitsById: mocks.habitsById } }),
+    useHabits: () => ({ data: { habitsById: mocks.habitsById, childrenByParent: new Map() } }),
   }
 })
 
@@ -166,7 +166,7 @@ vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
 const actual = await importOriginal<typeof import('@/hooks/use-habit-queries')>()
 return { ...actual,
   EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
-  useHabits: () => ({ data: { habitsById: mocks.habitsById } }) }
+  useHabits: () => ({ data: { habitsById: mocks.habitsById, childrenByParent: new Map() } }) }
 })
 
 vi.mock('@/hooks/use-app-toast', () => ({

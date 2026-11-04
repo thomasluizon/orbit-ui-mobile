@@ -156,7 +156,7 @@ vi.mock('@/hooks/use-habits', () => ({
   useHabits: (filters: HabitsFilter) => {
     mocks.habitFilters.push(filters)
     return {
-      data: mocks.habitsFailed ? undefined : { habitsById: new Map([[pendingHabit.id, pendingHabit]]) },
+      data: mocks.habitsFailed ? undefined : { habitsById: new Map([[pendingHabit.id, pendingHabit]]), childrenByParent: new Map() },
       isFetching: mocks.habitsFetching,
       isError: mocks.habitsFailed,
     }
@@ -169,7 +169,7 @@ return { EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
   useHabits: (filters: HabitsFilter) => {
     mocks.habitFilters.push(filters)
     return {
-      data: mocks.habitsFailed ? undefined : { habitsById: new Map([[pendingHabit.id, pendingHabit]]) },
+      data: mocks.habitsFailed ? undefined : { habitsById: new Map([[pendingHabit.id, pendingHabit]]), childrenByParent: new Map() },
       isFetching: mocks.habitsFetching,
       isError: mocks.habitsFailed,
     }

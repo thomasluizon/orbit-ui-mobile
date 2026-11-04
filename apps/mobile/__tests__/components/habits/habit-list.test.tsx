@@ -2147,8 +2147,8 @@ describe('HabitList', () => {
     })
     allDone = tree!.root.findAll((node) => node.type === HabitListAllDone)[0]
     expect(allDone?.props.onSeeUpcoming).toBe(onSeeUpcoming)
-    expect(allDone?.findAll((node) => node.props.testID === 'orbit-mark')).toHaveLength(0)
-    expect(allDone?.findAll((node) => (node.props.style as { alignItems?: string } | undefined)?.alignItems === 'flex-start').length).toBeGreaterThan(0)
+    expect(allDone?.findAll((node) => node.props.testID === 'orbit-mark-16').length).toBeGreaterThan(0)
+    expect(allDone?.findAll((node) => node.props.testID === 'completed-day-mark').length).toBeGreaterThan(0)
     expect(allDone?.findAll((node) => node.props.testID === 'button-ghost-sm').length).toBeGreaterThan(0)
     const action = allDone?.props.onSeeUpcoming as (() => void) | undefined
     if (!action) throw new Error('Upcoming action is missing')
@@ -2192,6 +2192,23 @@ describe('HabitList', () => {
     expect(tree.root.findAll((node: any) => node.type === HabitListAllDone)).toHaveLength(1)
     expect(tree.root.findAll((node: any) => node.type === HabitRow)
       .map((node: any) => (node.props.habit as NormalizedHabit).id)).toContain('done-due')
+  })
+
+  it('restores the due list immediately when completion is undone', () => {
+    useActualHabitVisibility = true
+    const due = createMockHabit({ id: 'due', scheduledDates: [TODAY], isLoggedInRange: true })
+    seedHabits([due])
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => {
+      tree = createTestTree(<HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />)
+    })
+    expect(tree.root.findAll(node => node.type === HabitListAllDone)).toHaveLength(1)
+    seedHabits([{ ...due, isLoggedInRange: false }])
+    TestRenderer.act(() => {
+      tree.update(<HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />)
+    })
+    expect(tree.root.findAll(node => node.type === HabitListAllDone)).toHaveLength(0)
+    expect(tree.root.findAll(node => node.type === HabitRow).map(node => (node.props.habit as NormalizedHabit).id)).toContain(due.id)
   })
 
   it('shows all-done when a due row is completed without a range log flag', () => {
