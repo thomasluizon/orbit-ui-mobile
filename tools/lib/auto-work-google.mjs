@@ -31,6 +31,7 @@ export const googleToken = async (parameters, request = fetch) => {
   let token
   try { token = await response.json() } catch { throw new Error("Google token response is not valid JSON") }
   if (typeof token.access_token !== "string" || !token.access_token) throw new Error("Google token response has no access token")
+  if (token.refresh_token !== undefined && (typeof token.refresh_token !== "string" || !token.refresh_token)) throw new Error("Google token response has an invalid refresh token")
   return token
 }
 

@@ -44,6 +44,11 @@ export const cases = async () => {
   let malformed
   try { await googleToken({}, async () => new Response('access_token: "private-token"')) } catch (error) { malformed = error.message }
   T("google: malformed token responses cannot leak their body", malformed === "Google token response is not valid JSON")
+  let invalidRotationStored = false
+  let invalidRotationRefused = false
+  try { await authenticatedGmail({ read: () => credential, store: () => { invalidRotationStored = true },
+    request: async (url) => Response.json(String(url).includes("/profile") ? { emailAddress: MAILBOX } : { access_token: "access", refresh_token: 42 }) }) } catch { invalidRotationRefused = true }
+  T("google: an invalid token rotation cannot overwrite Keychain", invalidRotationRefused && !invalidRotationStored)
   const isolated = gmailClient("token", async () => Response.json({}))
   T("google: sending cannot be selected through the client", isolated.send === undefined && isolated.messages === undefined && isolated.drafts === undefined)
   for (const relative of ["../lib/auto-work-google.mjs", "../orbit-mail.mjs", "../authorize-orbit-mail.mjs"]) {

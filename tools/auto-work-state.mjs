@@ -13,7 +13,7 @@ if (!(args.length === 1 || (args.length === 2 && args[1] === "--crank" && args[0
     !["--enable", "--disable"].includes(args[0])) { console.error(USAGE); process.exit(2) }
 try {
   const state = readRunState()
-  if (!state?.sessionId || state.sleep !== true ||
+  if (!state?.sessionId || (args[0] === "--enable" && state.sleep !== true) ||
       (process.env.CLAUDE_CODE_SESSION_ID && process.env.CLAUDE_CODE_SESSION_ID !== state.sessionId)) throw new Error("Enter /sleep in this session first")
   const autoWork = args[0] === "--enable"
   writeRunState({ ...state, autoWork, ...(args.includes("--crank") ? { crank: true } : {}) })
