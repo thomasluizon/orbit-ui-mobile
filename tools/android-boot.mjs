@@ -79,8 +79,8 @@ function firstScreenLabels() {
 
 function processId(packageName) {
   const result = adb(["shell", "pidof", "-s", packageName])
-  if (result.error || (result.status !== 0 && result.status !== 1)) throw new Error("adb could not read the app process")
-  return result.stdout.trim()
+  if (result.error) throw new Error(`adb could not read the app process: ${result.error.message}`)
+  return result.status === 0 ? result.stdout.trim() : ""
 }
 
 function capture(output, uid) {
@@ -105,7 +105,7 @@ async function assertApp({ package: packageName, output }, uid) {
   while (Date.now() < deadline) {
     if (fatalLogcat(capture(output, uid))) return "app logcat contains a fatal startup error"
     const currentProcess = processId(packageName)
-    if (!currentProcess) return "app process exited before its first screen"
+    if (!currentProcess) return "app process unavailable before its first screen"
     if (firstProcess && firstProcess !== currentProcess) return "app process restarted during startup"
     firstProcess = currentProcess
     const xml = captureScreen(output)
@@ -130,6 +130,7 @@ async function run(options) {
   await infrastructure(["install", "--no-streaming", "-r", options.apk])
   await infrastructure(["shell", "pm", "clear", options.package])
   const packages = await infrastructure(["shell", "cmd", "package", "list", "packages", "--user", "0", "-U", options.package])
+  writeFileSync(join(options.output, "package-uid.txt"), packages)
   const record = packages.trim().split(/\r?\n/).find((line) => line.startsWith(`package:${options.package} uid:`))
   const uid = record?.slice(`package:${options.package} uid:`.length)
   if (!/^\d+$/.test(uid ?? "")) throw new Error("package manager did not report a unique app UID")
