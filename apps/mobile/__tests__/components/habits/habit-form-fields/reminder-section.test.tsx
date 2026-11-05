@@ -217,12 +217,6 @@ describe("ReminderSection", () => {
     const addButton = buttons(tree).find(
       (node) => descendantText(node) === "habits.form.reminderAdd",
     );
-    (addButton!.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
-    });
-    (addButton!.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
     press(tree, addButton!);
     const preset = HABIT_REMINDER_PRESETS[0];
     const presetButton = buttons(tree).find(
@@ -266,7 +260,7 @@ describe("ReminderSection", () => {
         "2",
       );
     });
-    chooseOption(tree, 'habits.form.reminderCustom', 'habits.form.reminderUnitHours')
+    chooseOption(tree, 'habits.form.reminderCustomUnit', 'habits.form.reminderUnitHours')
     const confirm = buttons(tree).find(
       (node) => node.props.accessibilityLabel === "common.add",
     );
@@ -410,17 +404,14 @@ it('fills reminder removal, add, custom units, directions, and commit', () => {
   const style = remove.props.style as (state: { pressed: boolean }) => unknown;
   expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ backgroundColor: tokens.bgHover, borderRadius: 999, overflow: 'hidden' });
   const pressText = (text: string) => press(tree, buttons(tree).find((node) => descendantText(node) === text)!);
-  const assertTextFill = (text: string, fill: string) => {
-    const control = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && descendantText(node) === text)[0]!;
-    if (control.props.onPressIn) TestRenderer.act(() => (control.props.onPressIn as () => void)());
-    const pressedStyle = typeof control.props.style === 'function' ? control.props.style({ pressed: true }) : control.props.style;
-    expect(StyleSheet.flatten(pressedStyle)).toMatchObject({ backgroundColor: fill, borderRadius: radius.full, overflow: 'hidden' });
-    if (control.props.onPressOut) TestRenderer.act(() => (control.props.onPressOut as () => void)());
-  };
-  assertTextFill('habits.form.reminderAdd', tokens.bgHover);
+  const add = buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!;
+  TestRenderer.act(() => (add.props.onPressIn as () => void)());
+  const fill = add.findAll((node) => node.type === 'View' && node.props['data-slot'] === 'list-row-body')[0]!;
+  expect(StyleSheet.flatten(fill.props.style)).toMatchObject({ backgroundColor: tokens.bgHover, borderRadius: 12 });
+  TestRenderer.act(() => (add.props.onPressOut as () => void)());
   pressText('habits.form.reminderAdd');
   pressText('habits.form.reminderCustom');
-  for (const label of ['habits.form.reminderCustom', 'habits.form.reminderDirection']) {
+  for (const label of ['habits.form.reminderCustomUnit', 'habits.form.reminderDirection']) {
     const control = tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'combobox' && node.props.accessibilityLabel === label)[0]!
     const style = control.props.style as (state: { pressed: boolean }) => ViewStyle[]
     expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ backgroundColor: tokens.bgHover, borderRadius: 12 })
@@ -434,7 +425,7 @@ it('opens the unit select from the edited custom reminder on the first press', (
   press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderCustom')!)
   const input = tree.root.findAll((node) => node.type === 'TextInput')[0]!
   TestRenderer.act(() => (input.props.onChangeText as (value: string) => void)('2'))
-  const trigger = tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'combobox' && node.props.accessibilityLabel === 'habits.form.reminderCustom')[0]
+  const trigger = tree.root.findAll((node) => typeof node.type === 'string' && node.props.role === 'combobox' && node.props.accessibilityLabel === 'habits.form.reminderCustomUnit')[0]
   expect(trigger).toBeDefined()
   expect(trigger!.props.accessibilityValue).toEqual({ text: 'habits.form.reminderUnitMin' })
   press(tree, trigger!)

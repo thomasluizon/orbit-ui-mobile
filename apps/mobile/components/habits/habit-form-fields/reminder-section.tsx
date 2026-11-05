@@ -1,5 +1,5 @@
+import { ListRow } from '@/components/ui/list-row'
 import { MAX_REMINDERS_PER_HABIT, MIN_RELATIVE_REMINDER_MINUTES, MAX_RELATIVE_REMINDER_MINUTES } from '@orbit/shared/validation'
-import { IconButton } from '@/components/ui/icon-button'
 import { useHabitFormInteraction } from './habit-form-interaction'
 import { Select } from '@/components/ui/select'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -93,7 +93,8 @@ export function ReminderSection({
   return (
     <View style={{ gap: 12 }}>
       {reminderEnabled && (
-        <View style={sectionStyles.body}>
+        <View style={{ gap: 24 }}>
+          <View style={sectionStyles.body}>
           <View style={sectionStyles.chipsRow}>
             {reminderTimes.map((time) => (
               <View key={time} style={sectionStyles.chip}>
@@ -125,10 +126,10 @@ export function ReminderSection({
           ) : null}
 
           {atLimit ? <Text style={sectionStyles.limitText}>{t("habits.form.relativeReminderMax", { count: MAX_REMINDERS_PER_HABIT })}</Text> : null}
-          {!atLimit ? <IconButton label={t("habits.form.reminderAdd")} disabled={disabled} onPress={() => {
+          {!atLimit ? <View style={{ paddingHorizontal: 8 }}><ListRow placement="column" icon="plus" title={t("habits.form.reminderAdd")} expanded={showAddReminder} disabled={disabled} onClick={() => {
               setShowAddReminder(!showAddReminder);
               setShowCustomInput(false);
-            }}><Plus size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
+            }} /></View> : null}
 
           {showAddReminder && !atLimit && (
             <View style={sectionStyles.dropdown}>
@@ -163,11 +164,11 @@ export function ReminderSection({
                       onSubmitEditing={addCustomReminder}
                     />
                   </View>
-                  <Select value={customUnit} onChange={(value) => setCustomUnit(value as 'min' | 'hours' | 'days')} disabled={disabled} label={t('habits.form.reminderCustom')} options={(['min', 'hours', 'days'] as const).map((unit) => ({ value: unit, label: t(`habits.form.reminderUnit${unit.charAt(0).toUpperCase() + unit.slice(1)}` as 'habits.form.reminderUnitMin') }))} />
-                  <Select value={customDirection} onChange={(value) => setCustomDirection(value as 'before' | 'after')} disabled={disabled} label={t('habits.form.reminderDirection')} options={[
+                  <View style={{ gap: 8 }}><Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{t('habits.form.reminderCustomUnit')}</Text><Select value={customUnit} onChange={(value) => setCustomUnit(value as 'min' | 'hours' | 'days')} disabled={disabled} label={t('habits.form.reminderCustomUnit')} options={(['min', 'hours', 'days'] as const).map((unit) => ({ value: unit, label: t(`habits.form.reminderUnit${unit.charAt(0).toUpperCase() + unit.slice(1)}` as 'habits.form.reminderUnitMin') }))} /></View>
+                  <View style={{ gap: 8 }}><Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{t('habits.form.reminderDirection')}</Text><Select value={customDirection} onChange={(value) => setCustomDirection(value as 'before' | 'after')} disabled={disabled} label={t('habits.form.reminderDirection')} options={[
                     { value: 'before', label: t('habits.form.reminderBefore') },
                     { value: 'after', label: t('habits.form.reminderAfter') },
-                  ]} />
+                  ]} /></View>
                   <View style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}>
                     <PillButton disabled={disabled} variant="ghost" size="sm" iconOnly label={t("common.add")} onClick={addCustomReminder}><Plus size={20} color={tokens.fg1} /></PillButton>
                   </View>
@@ -190,6 +191,7 @@ export function ReminderSection({
               </Pressable>
             </View>
           )}
+          </View>
           {children}
         </View>
       )}

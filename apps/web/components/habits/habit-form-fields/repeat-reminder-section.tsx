@@ -31,19 +31,19 @@ export function RepeatReminderSection({ value, enabled, general, timeZone, onCha
   const change = (next: RepeatReminderOptions | null) => onChange(next)
   const options = REPEAT_REMINDER_INTERVALS.map((minutes) => ({ value: String(minutes), label: minutes < 60 ? t('habits.form.repeatMinutes', { count: minutes }) : t('habits.form.repeatHours', { count: minutes / 60 }) }))
   return (
-    <div className="flex min-w-0 flex-col gap-3">
-      <ListRow placement="column" title={t('habits.form.reminder')} toggle={{ checked: enabled, onChange: () => { if (!enabled && general && !value) change({ intervalMinutes: 30, startAtUtc: new Date().toISOString() }); permission.toggleReminder() } }} />
+    <div className="flex min-w-0 flex-col gap-6">
+      <div data-timing-row className="px-2"><ListRow placement="column" title={t('habits.form.reminder')} toggle={{ checked: enabled, onChange: () => { if (!enabled && general && !value) change({ intervalMinutes: 30, startAtUtc: new Date().toISOString() }); permission.toggleReminder() } }} /></div>
       <ReminderPermissionNotice visible={permission.showNotice} t={t} />
-      {enabled ? <div className="flex min-w-0 flex-col gap-3">
-        <RadioGroup aria-label={t('habits.form.reminderKind')}>
+      {enabled ? <div className="flex min-w-0 flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-3"><h3 className="text-base font-medium text-[var(--fg-1)]">{t('habits.form.reminderKind')}</h3><RadioGroup aria-label={t('habits.form.reminderKind')}>
           {!general ? <RadioRow label={t('habits.form.definedTimes')} selected={!value} disabled={false} onSelect={() => change(null)} /> : null}
           <RadioRow label={t('habits.form.repeatEvery')} selected={Boolean(value)} disabled={false} onSelect={() => { if (!value) change({ intervalMinutes: 30, startAtUtc: new Date().toISOString() }) }} />
-        </RadioGroup>
+        </RadioGroup></div>
         {!value ? children : null}
-        {value ? <div className="flex min-w-0 flex-col gap-3">
-          <Select label={t('habits.form.repeatEvery')} value={String(value.intervalMinutes)} options={options} onChange={(interval) => change({ ...value, intervalMinutes: Number(interval) })} />
+        {value ? <div className="flex min-w-0 flex-col gap-6">
+          <div className="flex min-w-0 flex-col gap-2"><span className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.repeatInterval')}</span><Select label={t('habits.form.repeatInterval')} value={String(value.intervalMinutes)} options={options} onChange={(interval) => change({ ...value, intervalMinutes: Number(interval) })} /></div>
           <TimeField label={t('habits.form.repeatStart')} value={toTime24(repeatReminderClock(start, timeZone))} onChange={(clock) => { const instant = repeatReminderInstant(getAccountDateTime(new Date(start), timeZone).date, clock, timeZone); if (instant) change({ ...value, startAtUtc: instant }) }} />
-          <ListRow placement="column" title={t('habits.form.repeatAllDay')} toggle={{ checked: allDay, onChange: (checked) => change({ ...value, activeStart: checked ? null : '', activeEnd: checked ? null : '' }) }} />
+          <div data-timing-row className="px-2"><ListRow placement="column" title={t('habits.form.repeatAllDay')} toggle={{ checked: allDay, onChange: (checked) => change({ ...value, activeStart: checked ? null : '', activeEnd: checked ? null : '' }) }} /></div>
           {!allDay ? <div className="flex min-w-0 flex-col gap-3">
             <TimeField label={t('habits.form.repeatActiveStart')} value={toTime24(value.activeStart?.slice(0, 5) ?? '')} onChange={(activeStart) => change({ ...value, activeStart })} />
             <TimeField label={t('habits.form.repeatActiveEnd')} value={toTime24(value.activeEnd?.slice(0, 5) ?? '')} onChange={(activeEnd) => change({ ...value, activeEnd })} />

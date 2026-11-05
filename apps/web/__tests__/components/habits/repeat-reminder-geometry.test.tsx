@@ -115,7 +115,7 @@ describe('repeat reminder compact surfaces', () => {
         await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 2)
         await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
         const messages = locale === 'en' ? en : ptBR
-        const interval = page.getByRole('combobox', { name: messages.habits.form.repeatEvery, exact: true })
+        const interval = page.getByRole('combobox', { name: messages.habits.form.repeatInterval, exact: true })
         await page.keyboard.press('Tab')
         await interval.focus()
         await page.waitForFunction(() => [...document.querySelectorAll('[role="combobox"]')].some(element => element.matches(':focus-visible') && getComputedStyle(element).boxShadow.includes('2px')))

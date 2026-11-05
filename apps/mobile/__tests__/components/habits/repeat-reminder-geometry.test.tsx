@@ -1,3 +1,7 @@
+import { StyleSheet } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
+import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
+import { ScheduledReminderSection } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
 import React from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
@@ -55,4 +59,30 @@ it.each([320, 360, 384, 412].flatMap(width => ['en', 'pt-BR'].flatMap(locale => 
   expect(next.left).toBeGreaterThanOrEqual(0)
   expect(next.right).toBeLessThanOrEqual(width - 32)
   TestRenderer.act(() => row.unmount())
+})
+
+it.each([320, 1280].flatMap(width => [1, 2].flatMap(scale => (['dark', 'light'] as const).map(mode => ({ width, scale, mode })))) )('insets reminder remove paint and reserves the chip bottom at $width and $scale in $mode', ({ width, scale, mode }) => {
+  context.locale = 'en'
+  context.theme = mode
+  const tokens = createTokensV2('orange', mode)
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderSection value={null} enabled general={false} onToggle={vi.fn()} onChange={vi.fn()}><ReminderSection tokens={tokens} reminderEnabled reminderTimes={[15, 30]} reminderLabel={String} onReminderTimesChange={vi.fn()} /><ScheduledReminderSection tokens={tokens} reminderEnabled scheduledReminders={[{ when: 'day_before', time: '18:00' }]} onSetScheduledReminders={vi.fn()} onValidationError={vi.fn()} /></RepeatReminderSection>) })
+  for (const label of [en.habits.form.removeReminder, en.habits.form.removeScheduledReminder]) {
+    const remove = tree!.root.findAllByType('Pressable').find((node: { props: { accessibilityLabel: string } }) => node.props.accessibilityLabel === label)!
+    let chipNode = remove.parent
+    while (!StyleSheet.flatten(chipNode.props.style)?.paddingVertical) chipNode = chipNode.parent
+    const chip = StyleSheet.flatten(chipNode.props.style)
+    let rowNode = chipNode.parent
+    while (StyleSheet.flatten(rowNode.props.style)?.flexWrap !== 'wrap') rowNode = rowNode.parent
+    const row = StyleSheet.flatten(rowNode.props.style)
+    expect(chip.paddingVertical).toBeGreaterThanOrEqual(8)
+    expect(chip.paddingHorizontal).toBeGreaterThanOrEqual(8)
+    expect(chip.maxWidth).toBe('100%')
+    expect(row.paddingBottom).toBeGreaterThanOrEqual(8)
+  }
+  const bounds = measureInteractionFills(tree!.toJSON(), width - 32, true, scale)
+  const fill = bounds.find(part => part.host.props['data-slot'] === 'list-row-body')!
+  expect(fill.left).toBe(0)
+  expect(fill.right).toBe(width - 32)
+  TestRenderer.act(() => tree!.unmount())
 })
