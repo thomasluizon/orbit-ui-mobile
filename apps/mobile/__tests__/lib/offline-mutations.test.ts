@@ -1,3 +1,9 @@
+import React from 'react'
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { useBulkLogHabits } from '@/hooks/use-bulk-log-habits'
+import { useBulkSkipHabits } from '@/hooks/use-bulk-skip-habits'
+import { useParentPromptQueue } from '@/components/habits/use-parent-prompt-queue'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import type {
   MutationType,
@@ -8,7 +14,7 @@ import { logHabitResponseSchema } from '@orbit/shared/types/habit'
 import { calendarKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { ApiClientError, createApiClientError } from '@orbit/shared/utils'
-import { QueryClient, QueryObserver } from '@tanstack/react-query'
+import { QueryClient, QueryObserver, QueryClientProvider } from '@tanstack/react-query'
 import { FetchError } from '../../../../node_modules/expo/build/winter/fetch/FetchErrors.js'
 import { CodedError } from '../../../../node_modules/expo-modules-core/build/errors/CodedError.js'
 
@@ -42,6 +48,9 @@ import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { queuedHabitUpdateRequestSchema } from '@/lib/habit-update-request'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { consumePendingIdempotencyKey } from '@/lib/idempotency-key'
+
+vi.mock('expo-crypto', async () => ({ randomUUID: (await import('node:crypto')).randomUUID }))
+vi.mock('@/lib/orbit-widget', () => ({ syncWidgetData: async () => {} }))
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 const transientTransportFailures = [
@@ -743,6 +752,19 @@ describe('offline mutations', () => {
     )
   })
 
+  it.each([502, 503, 504])('does not queue gateway %i for an unprotected POST', async status => {
+    mocks.setOnline(true)
+    await expect(runQueuedMutation({
+      mutation: {
+        type: 'duplicateHabit', scope: 'habits', method: 'POST',
+        endpoint: API.habits.duplicate('00000000-0000-4000-8000-000000000001'), payload: null,
+        entityType: 'habit', targetEntityId: '00000000-0000-4000-8000-000000000001',
+      },
+      execute: () => Promise.reject(createApiClientError(status, null, 'Gateway unavailable')),
+    })).rejects.toMatchObject({ status })
+    expect(mocks.queued).toEqual([])
+  })
+
   it.each(['bulkLogHabits', 'bulkSkipHabits'] as const)(
     'replays %s with its original key and reports only validated successes',
     async (type) => {
@@ -789,6 +811,81 @@ describe('offline mutations', () => {
     },
   )
 
+  it.each(['log', 'skip'] as const)('recovers the selected parent %s chain after losing an online response', async mode => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    const date = '2026-09-12'
+    const root = createMockHabit({ id: 'root', scheduledDates: [date], hasSubHabits: true })
+    const parent = createMockHabit({ id: 'parent', parentId: root.id, scheduledDates: [date], hasSubHabits: true })
+    const leaf = createMockHabit({ id: 'leaf', parentId: parent.id, scheduledDates: [date], isCompleted: mode === 'log' })
+    const sibling = createMockHabit({ id: 'sibling', parentId: root.id, scheduledDates: [date], isCompleted: true })
+    const habitsById = new Map([root, parent, leaf, sibling].map(habit => [habit.id, habit]))
+    const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    client.setQueryData(profileKeys.detail(), createMockProfile({ timeZone: 'UTC' }))
+    let queue!: ReturnType<typeof useParentPromptQueue>
+    let tree: ReactTestRenderer | undefined
+    const showError = vi.fn()
+    function Owner() {
+      const bulkLog = useBulkLogHabits({ suppressParentSettlement: true })
+      const bulkSkip = useBulkSkipHabits({ suppressParentSettlement: true })
+      queue = useParentPromptQueue({
+        selectedDateStr: date, selectedDate: new Date(`${date}T12:00:00Z`),
+        profile: createMockProfile({ timeZone: 'UTC' }), accountTimeZone: 'UTC',
+        settlementDateIsReadOnly: () => false, habitsById,
+        getChildren: (id: string) => [...habitsById.values()].filter(habit => habit.parentId === id),
+        visibility: { isRelevantToday: () => true, isDueOnSelectedDate: () => true },
+        view: 'today', habitsQuery: { dataUpdatedAt: 1, refetch: async () => {} },
+        markRecentlyCompleted: vi.fn(), clearRecentlyCompleted: vi.fn(), showError, t: (key: string) => key,
+        bulkLog, bulkSkip, skipMutation: { mutateAsync: () => Promise.resolve({ skipId: 'skip' }) },
+        logMutateAsync: async () => {}, refetch: async () => {},
+      } as unknown as Parameters<typeof useParentPromptQueue>[0])
+      return null
+    }
+    const requests: { key: string; body: string }[] = []
+    const replay = new Map<string, { results: { index: number; habitId: string; status: string; logId: string | null; error: null }[] }>()
+    const settled: string[] = []
+    let lost = true
+    mocks.setOnline(true)
+    mocks.apiClient.mockImplementation((_endpoint, options) => {
+      const request = options as { idempotencyKey: string; body: string }
+      requests.push({ key: request.idempotencyKey, body: request.body })
+      const { items } = JSON.parse(request.body) as { items: { habitId: string }[] }
+      if (!replay.has(request.idempotencyKey)) replay.set(request.idempotencyKey, {
+        results: items.map(({ habitId }, index) => ({ index, habitId, status: 'Success', logId: habitId, error: null })),
+      })
+      if (lost) return Promise.reject(new TypeError('Network request failed'))
+      return Promise.resolve(replay.get(request.idempotencyKey))
+    })
+    const unsubscribe = subscribeBulkReplaySuccesses(success => { settled.push(...success.items.map(item => item.habitId)); return true })
+    try {
+      await act(() => { tree = create(React.createElement(QueryClientProvider, { client }, React.createElement(Owner))) })
+      await act(async () => {
+        if (mode === 'skip') await queue.skipFromRow(leaf)
+        else queue.checkAndPromptParentLog(leaf.id)
+      })
+      expect(queue.parentPrompt?.ancestors.map(({ habit, mode }) => [habit.id, mode])).toEqual([
+        ['parent', mode], ['root', 'log'],
+      ])
+      await act(() => queue.selectParentAncestor(1, true))
+      await act(() => queue.confirmParentSettlement())
+      expect(mocks.queued).toHaveLength(1)
+      expect(mocks.queued[0]?.id).toBe(requests[0]?.key)
+      if (mode === 'skip') expect(mocks.queued[0]?.parentPromptContinuation).toEqual([{ habitId: root.id, date, mode: 'log' }])
+      lost = false
+      await act(async () => { await flushQueuedMutations(); await flushQueuedMutations() })
+      expect(requests[1]).toEqual(requests[0])
+      expect([...replay.values()].flatMap(response => response.results.map(item => item.habitId)).sort((left, right) => left.localeCompare(right))).toEqual(['parent', 'root'])
+      expect(settled.sort((left, right) => left.localeCompare(right))).toEqual(['parent', 'root'])
+      expect(mocks.queued).toEqual([])
+      expect(queue.parentPrompt).toBeNull()
+    } finally {
+      unsubscribe()
+      cancelScheduledFlush()
+      await act(() => tree?.unmount())
+      client.clear()
+      vi.unstubAllGlobals()
+    }
+  })
+
   it.each(['Success', 'Failed'] as const)('retains a selected mixed-chain suffix until its first queued batch replays with %s', async (status) => {
     const parentPromptContinuation = [{ habitId: 'root', date: '2026-09-12', mode: 'log' as const }]
     await runQueuedMutation({
@@ -831,9 +928,9 @@ describe('offline mutations', () => {
     unsubscribeB()
   })
 
-  it.each(['bulkLogHabits', 'bulkSkipHabits'] as const)(
-    'reuses the %s key after the first response is lost',
-    async (type) => {
+  it.each((['bulkLogHabits', 'bulkSkipHabits'] as const).flatMap(type => [undefined, 502, 503, 504].map(status => ({ type, status }))))(
+    'reuses the $type key after the first response is lost with status $status',
+    async ({ type, status }) => {
       mocks.setOnline(true)
       const serverWrites = new Set<string>()
       let firstKey: string | null = null
@@ -846,7 +943,7 @@ describe('offline mutations', () => {
         execute: () => {
           firstKey = consumePendingIdempotencyKey()
           if (firstKey) serverWrites.add(firstKey)
-          return Promise.reject(new TypeError('Network request failed'))
+          return Promise.reject(status === undefined ? new TypeError('Network request failed') : createApiClientError(status, null, 'Gateway unavailable'))
         },
       })
       expect(result).toMatchObject({ queued: true })

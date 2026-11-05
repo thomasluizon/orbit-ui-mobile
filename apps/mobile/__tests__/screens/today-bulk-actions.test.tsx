@@ -307,6 +307,7 @@ describe('Hoje production bulk action path', () => {
     mocks.execute.mockReset().mockImplementation(successfulExecution)
     mocks.store.clearSelection = mocks.clearSelection
     mocks.clearSelection.mockReset()
+    mocks.store.selectAllHabits.mockReset()
     mocks.store.selectedHabitIds = new Set(['habit-1'])
     const habit = createMockHabit({ id: 'habit-1', dueDate: '2026-04-08', scheduledDates: ['2026-04-08'] })
     mocks.habitsById = new Map([[habit.id, habit]])
@@ -339,41 +340,49 @@ describe('Hoje production bulk action path', () => {
     expect(mocks.clearSelection).toHaveBeenCalledOnce()
   })
 
-  it('consumes rejected log and skip executions without an unhandled rejection', async () => {
+  it.each(['log', 'skip'] as const)('retains a rejected %s selection and replays Retry without an unhandled rejection', async (mode) => {
     const unhandledRejection = vi.fn()
     process.on('unhandledRejection', unhandledRejection)
     await renderToday()
 
     try {
       mocks.execute.mockRejectedValueOnce(new TypeError('Network request failed'))
-      await press(mocks.bulkBarProps?.onLog)
-      mocks.execute.mockRejectedValueOnce(new TypeError('Network request failed'))
-      await press(mocks.bulkBarProps?.onSkip)
+      await press(mocks.bulkBarProps?.[mode === 'log' ? 'onLog' : 'onSkip'])
       await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith({
+        kind: 'neutral',
+        message: 'habits.bulkBar.connectionRetry',
+        actionLabel: 'habits.bulkBar.retryFailed',
+        onAction: expect.any(Function),
+      })
+      expect(mocks.clearSelection).not.toHaveBeenCalled()
+      expect(mocks.store.selectAllHabits).toHaveBeenCalledExactlyOnceWith(['habit-1'])
+      expect(mocks.settleBulkHabitResolutions).not.toHaveBeenCalled()
+      expect(mocks.invalidateQueries).toHaveBeenCalled()
+      const firstRequest = mocks.execute.mock.calls[0]?.[0] as {
+        type: string; payload: unknown; idempotencyKey: string
+      }
+      expect(firstRequest.type).toBe(mode === 'log' ? 'bulkLogHabits' : 'bulkSkipHabits')
+      expect(firstRequest.idempotencyKey).toBeTypeOf('string')
+      await press(mocks.showToast.mock.calls[0]?.[0]?.onAction)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(mocks.execute).toHaveBeenNthCalledWith(2, expect.objectContaining({
+        type: firstRequest.type,
+        payload: firstRequest.payload,
+        idempotencyKey: firstRequest.idempotencyKey,
+      }))
+      expect(mocks.execute).toHaveBeenCalledTimes(2)
+      expect(mocks.clearSelection).toHaveBeenCalledOnce()
+      expect(mocks.settleBulkHabitResolutions).toHaveBeenCalledExactlyOnceWith([
+        { habitId: 'habit-1', mode },
+      ], '2026-04-08')
     } finally {
       process.removeListener('unhandledRejection', unhandledRejection)
     }
 
     expect(unhandledRejection).not.toHaveBeenCalled()
-    expect(mocks.showToast).toHaveBeenCalledTimes(2)
-    expect(mocks.showToast).toHaveBeenNthCalledWith(1, {
-      kind: 'neutral',
-      message: 'habits.bulkBar.connectionRefreshed',
-    })
-    expect(mocks.showToast).toHaveBeenNthCalledWith(2, {
-      kind: 'neutral',
-      message: 'habits.bulkBar.connectionRefreshed',
-    })
-    expect(mocks.showToast.mock.calls.every(([toast]) => toast.onAction === undefined)).toBe(true)
-    expect(mocks.clearSelection).toHaveBeenCalledTimes(2)
-    expect(mocks.settleBulkHabitResolutions).not.toHaveBeenCalled()
-    expect(mocks.invalidateQueries).toHaveBeenCalled()
-    expect(mocks.execute).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'bulkLogHabits',
-    }))
-    expect(mocks.execute).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'bulkSkipHabits',
-    }))
+    expect(mocks.showToast).toHaveBeenCalledOnce()
   })
 
   it('consumes a rejected delete execution and closes after refreshing', async () => {

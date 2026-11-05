@@ -676,6 +676,7 @@
       "partialFailure": "{count, plural, =0 {Não foi possível atualizar # linhas selecionadas.} one {Não foi possível atualizar # linha selecionada.} other {Não foi possível atualizar # linhas selecionadas.}}",
       "retryFailed": "Tentar de novo",
       "offlineFailure": "Nada mudou porque seu aparelho está sem conexão.",
+      "connectionRetry": "A conexão caiu. Tente de novo para terminar de atualizar os hábitos selecionados.",
       "connectionRefreshed": "A conexão caiu. A lista foi atualizada.",
       "move": "Mover selecionados",
       "moveLimit": "{limit, plural, =0 {Selecione até # hábitos para mover de uma vez.} one {Selecione até # hábito para mover de uma vez.} other {Selecione até # hábitos para mover de uma vez.}}"
