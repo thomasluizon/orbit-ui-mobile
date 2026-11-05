@@ -152,6 +152,8 @@ function CreateKeySheet({
   const [name, setName] = useAccountScopedState('')
   const [nameFocusRequest, setNameFocusRequest] = useAccountScopedState(0)
   const [expiryFocusRequest, setExpiryFocusRequest] = useAccountScopedState(0)
+  const [expiryExpanded, setExpiryExpanded] = useAccountScopedState<boolean | null>(null)
+  const showExpiry = expiryExpanded ?? expiresAt !== ''
   const expiryError = expiryFocusRequest > 0 && !validateApiKeyExpiry(expiresAt).valid
   const nameError = nameFocusRequest > 0 ? getApiKeyNameError(name) : null
   const dismissGuard = useDismissGuard({
@@ -163,7 +165,10 @@ function CreateKeySheet({
     const form = apiKeyFormSchema.safeParse({ name, expiresAt })
     if (!form.success) {
       if (getApiKeyNameError(name)) setNameFocusRequest((request) => request + 1)
-      else setExpiryFocusRequest((request) => request + 1)
+      else {
+        setExpiryExpanded(true)
+        setExpiryFocusRequest((request) => request + 1)
+      }
       return
     }
     const trimmedScope = scope.trim()
@@ -189,7 +194,7 @@ function CreateKeySheet({
           </ActionRow>
         )}
       >
-        <div className="flex flex-col" style={{ gap: 16 }}>
+        <div data-api-key-questions className="flex min-w-0 flex-col" style={{ gap: 12 }}>
           <Input
             label={t('orbitMcp.keyName')}
             placeholder={t('orbitMcp.keyNamePlaceholder')}
@@ -204,7 +209,8 @@ function CreateKeySheet({
             focusRequest={nameFocusRequest}
             onSubmit={() => void submit()}
           />
-          <Input
+          <div><ListRow wrapTitle placement="field" title={t('profile.apiKeys.setExpiry')} expanded={showExpiry} disabled={busy} onClick={() => setExpiryExpanded(!showExpiry)} /></div>
+          {showExpiry ? <Input
             label={t('orbitMcp.expiresAtLabel')}
             name="api-key-expiry"
             value={expiresAt}
@@ -217,7 +223,7 @@ function CreateKeySheet({
             mono
             disabled={busy}
             onSubmit={() => void submit()}
-          />
+          /> : null}
           {scoped ? (
             <Input
               label={t('profile.apiKeys.scopeLabel')}

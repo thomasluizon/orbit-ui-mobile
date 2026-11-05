@@ -159,6 +159,8 @@ function CreateKeySheet({
   const [name, setName] = useState('')
   const [nameFocusRequest, setNameFocusRequest] = useState(0)
   const [expiryFocusRequest, setExpiryFocusRequest] = useState(0)
+  const [expiryExpanded, setExpiryExpanded] = useState<boolean | null>(null)
+  const showExpiry = expiryExpanded ?? expiresAt !== ''
   const expiryError = expiryFocusRequest > 0 && !validateApiKeyExpiry(expiresAt).valid
   const nameError = nameFocusRequest > 0 ? getApiKeyNameError(name) : null
   const dismissGuard = useDismissGuard({
@@ -170,7 +172,10 @@ function CreateKeySheet({
     const form = apiKeyFormSchema.safeParse({ name, expiresAt })
     if (!form.success) {
       if (getApiKeyNameError(name)) setNameFocusRequest((request) => request + 1)
-      else setExpiryFocusRequest((request) => request + 1)
+      else {
+        setExpiryExpanded(true)
+        setExpiryFocusRequest((request) => request + 1)
+      }
       return
     }
     const trimmedScope = scope.trim()
@@ -196,7 +201,7 @@ function CreateKeySheet({
           </ActionRow>
         )}
       >
-        <View style={{ gap: 16 }}>
+        <View testID="api-key-questions" style={{ gap: 12 }}>
           <Input
             label={t('orbitMcp.keyName')}
             placeholder={t('orbitMcp.keyNamePlaceholder')}
@@ -211,7 +216,8 @@ function CreateKeySheet({
             focusRequest={nameFocusRequest}
             onSubmit={() => void submit()}
           />
-          <Input
+          <View><ListRow wrapTitle placement="field" title={t('profile.apiKeys.setExpiry')} expanded={showExpiry} disabled={busy} onClick={() => setExpiryExpanded(!showExpiry)} /></View>
+          {showExpiry ? <Input
             label={t('orbitMcp.expiresAtLabel')}
             name="api-key-expiry"
             value={expiresAt}
@@ -224,7 +230,7 @@ function CreateKeySheet({
             mono
             disabled={busy}
             onSubmit={() => void submit()}
-          />
+          /> : null}
           {scoped ? (
             <Input
               label={t('profile.apiKeys.scopeLabel')}
