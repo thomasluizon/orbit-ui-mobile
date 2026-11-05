@@ -393,7 +393,9 @@ function gateCharterRunsForPath(guardJobs, path) {
 
 function invocationScripts(value) {
   if (!value || typeof value !== "object") return []
-  return Object.entries(value).flatMap(([key, child]) => ["run", "script"].includes(key) && typeof child === "string" ? [child] : invocationScripts(child))
+  const emulatorScripts = value.uses?.startsWith("reactivecircus/android-emulator-runner@") && typeof value.with?.script === "string"
+    ? [value.with.script] : []
+  return [...emulatorScripts, ...Object.entries(value).flatMap(([key, child]) => key === "run" && typeof child === "string" ? [child] : invocationScripts(child))]
 }
 
 function invokedGateTools(repositoryRoot) {

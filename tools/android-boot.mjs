@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process"
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { setTimeout } from "node:timers/promises"
@@ -89,6 +89,14 @@ function capture(output, uid) {
   return logcat
 }
 
+function captureScreen(output) {
+  requireAdb(["shell", "rm", "-f", "/sdcard/orbit-boot.xml"])
+  requireAdb(["shell", "uiautomator", "dump", "/sdcard/orbit-boot.xml"])
+  const xml = requireAdb(["exec-out", "cat", "/sdcard/orbit-boot.xml"])
+  writeFileSync(join(output, "first-screen.xml"), xml)
+  return xml
+}
+
 async function assertApp({ package: packageName, output }, uid) {
   const labels = firstScreenLabels()
   const deadline = Date.now() + 90000
@@ -100,10 +108,7 @@ async function assertApp({ package: packageName, output }, uid) {
     if (!currentProcess) return "app process exited before its first screen"
     if (firstProcess && firstProcess !== currentProcess) return "app process restarted during startup"
     firstProcess = currentProcess
-    const dump = adb(["shell", "uiautomator", "dump", "/sdcard/orbit-boot.xml"])
-    if (dump.error || dump.status !== 0) throw new Error("uiautomator could not dump the first screen")
-    const xml = requireAdb(["exec-out", "cat", "/sdcard/orbit-boot.xml"])
-    writeFileSync(join(output, "first-screen.xml"), xml)
+    const xml = captureScreen(output)
     if (firstScreenRendered(xml, packageName, labels)) { rendered = true; break }
     await setTimeout(2000)
   }
@@ -133,11 +138,16 @@ async function run(options) {
     requireAdb(["shell", "am", "force-stop", options.package])
     requireAdb(["shell", "am", "start", "-W", "-n", `${options.package}/.MainActivity`])
     const failure = await assertApp(options, uid)
+    writeFileSync(join(options.output, "verdict.txt"), `${failure ?? "passed"}\n`)
     if (failure) { console.error(`Android boot failed: ${failure}`); return 1 }
     console.log("Android boot passed: first screen rendered, process survived, app logcat has no fatal errors.")
     return 0
   } finally {
     capture(options.output, uid)
+    if (!existsSync(join(options.output, "first-screen.xml"))) {
+      try { captureScreen(options.output) }
+      catch (error) { console.error(`Android boot XML unavailable: ${error.message}`) }
+    }
   }
 }
 
