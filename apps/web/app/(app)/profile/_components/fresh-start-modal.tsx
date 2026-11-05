@@ -341,16 +341,6 @@ function FreshStartConfirmStep({
 
   return (
     <div className="flex flex-col" style={{ gap: 16 }}>
-      <p
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 16,
-          color: 'var(--fg-2)',
-          lineHeight: 1.55,
-        }}
-      >
-        {t('profile.freshStart.confirmInstruction')}
-      </p>
       <Input
         label={t('profile.freshStart.confirmLabel')}
         mono

@@ -2856,9 +2856,9 @@
     },
     "web:control:profile.freshStart.confirmInstruction": {
       "targets": [
-        "web:content:profile.freshStart.confirmInstruction"
+        "web:control:profile.freshStart.confirmLabel"
       ],
-      "reason": "The same label is supplied through the redesigned component or its word binding."
+      "reason": "The confirmation field question now carries the typed-word instruction."
     },
     "web:control:profile.freshStart.processing": {
       "targets": [

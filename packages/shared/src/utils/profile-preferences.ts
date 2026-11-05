@@ -62,7 +62,7 @@ interface ProfilePickerLabels {
   weekStartOptions: { value: 0 | 1; label: string }[]
   clockFormatOptions: { value: '24h' | '12h'; label: string }[]
   pickerTitles: Record<'language' | 'timeZone' | 'weekStart' | 'clock', string>
-  pickerDescriptions: Partial<Record<'language' | 'weekStart', string>>
+  pickerDescriptions: Partial<Record<'weekStart', string>>
   timeZoneSearchLabel: string
   timeZoneNoResultsLabel: string
   timeZoneShowMoreLabel: string
@@ -73,13 +73,12 @@ export function buildProfilePickerLabels(translate: (key: string) => string): Pr
     weekStartOptions: buildWeekStartOptions(translate),
     clockFormatOptions: buildClockFormatOptions(translate),
     pickerTitles: {
-      language: translate('profile.language.title'),
-      timeZone: translate('profile.settingsRows.timezone'),
-      weekStart: translate('settings.weekStartDay.title'),
-      clock: translate('settings.clock.title'),
+      language: translate('profile.language.question'),
+      timeZone: translate('profile.timezonePicker.question'),
+      weekStart: translate('settings.weekStartDay.question'),
+      clock: translate('settings.clock.question'),
     },
     pickerDescriptions: {
-      language: translate('profile.language.description'),
       weekStart: translate('settings.weekStartDay.description'),
     },
     timeZoneSearchLabel: translate('profile.timezonePicker.search'),

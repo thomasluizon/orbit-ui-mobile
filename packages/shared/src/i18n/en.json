@@ -51,13 +51,14 @@
     "clock": {
       "title": "Clock",
       "hour24": "24 hour",
-      "hour12": "12 hour"
+      "hour12": "12 hour",
+      "question": "How do you want to see the time?"
     },
     "weekStartDay": {
-      "title": "First day",
-      "description": "Choose which day your week begins. This affects all calendars and day pickers.",
+      "description": "This applies to every calendar and date picker.",
       "monday": "Monday",
-      "sunday": "Sunday"
+      "sunday": "Sunday",
+      "question": "When does your week start?"
     },
     "theme": {
       "switchToLight": "Light mode",
@@ -462,7 +463,7 @@
     },
     "signIn": "Sign in",
     "enterCode": "Enter the code",
-    "email": "Email",
+    "email": "What is your email?",
     "emailPlaceholder": "name@example.com",
     "sendCode": "Continue",
     "turnstileLabel": "Security check",
@@ -472,7 +473,7 @@
     "turnstileRetry": "Try again",
     "codeSent": "Code sent.",
     "codeSentTo": "We sent a 6-digit code to {email}.",
-    "verificationCode": "6 digit code",
+    "verificationCode": "What code did you get?",
     "verify": "Sign in",
     "resendCode": "Resend code",
     "resendIn": "You can ask for another code in {time}",
@@ -2541,7 +2542,8 @@
       "create": "Create key",
       "createScoped": "Create a scoped key",
       "scopeTitle": "Scoped key",
-      "scopeLabel": "Scope",
+      "scopeLabel": "What can it access?",
+      "setExpiry": "Set expiry?",
       "scopeAction": "Create",
       "mcpTitle": "Connect over MCP",
       "stepUpBody": "To change keys or delete the account, sign in again. Orbit never asks for your password inside a conversation.",
@@ -2553,7 +2555,8 @@
     "timezonePicker": {
       "search": "Search timezones",
       "noResults": "No timezones found",
-      "showMore": "Show more timezones"
+      "showMore": "Show more timezones",
+      "question": "Which time zone are you in?"
     },
     "loading": "Loading profile",
     "sections": {
@@ -2563,7 +2566,7 @@
     },
     "editName": {
       "title": "Edit name",
-      "label": "Name",
+      "label": "What should we call you?",
       "required": "Enter a name.",
       "tooLong": "Use 50 characters or fewer.",
       "errorGeneric": "Something went wrong. Please try again."
@@ -2571,7 +2574,7 @@
     "language": {
       "title": "Language",
       "brazilianPortuguese": "Brazilian Portuguese",
-      "description": "Select your preferred language"
+      "question": "Which language do you prefer?"
     },
     "aiSummary": {
       "title": "Daily recap"
@@ -2591,8 +2594,8 @@
       "rowTitle": "Help and support",
       "description": "Tell us what happened. The more concrete it is, the faster we can fix it.",
       "email": "Reply to",
-      "subject": "What is it about",
-      "message": "What happened",
+      "subject": "What is it about?",
+      "message": "What happened?",
       "messagePlaceholder": "I logged the walk and it went back to pending after I closed the app.",
       "send": "Send",
       "success": "Your message arrived",
@@ -2674,8 +2677,7 @@
       "preserveAccount": "Your account (email and name)",
       "preserveSubscription": "Pro subscription status",
       "preservePreferences": "Theme, language, and timezone",
-      "confirmInstruction": "Type ORBIT below to confirm this action.",
-      "confirmLabel": "Confirmation",
+      "confirmLabel": "Should we go ahead? Type ORBIT.",
       "confirmPlaceholder": "ORBIT",
       "errorGeneric": "Something went wrong. Please try again."
     },
@@ -3960,7 +3962,7 @@
     "eyebrow": "Confirming: {operation}",
     "title": "Enter the code we sent",
     "body": "We sent 6 digits to {email}. It confirms this one action.",
-    "codeLabel": "6 digit code",
+    "codeLabel": "What code did you get?",
     "codeHint": "The code lasts 10 minutes.",
     "confirm": "Confirm",
     "checking": "Checking",
@@ -3998,7 +4000,7 @@
     "createHeading": "Create API Key",
     "revealHeading": "API Key Created",
     "noKeys": "No API keys yet",
-    "keyName": "Key name",
+    "keyName": "Where will you use it?",
     "keyNamePlaceholder": "e.g. Claude Desktop",
     "keyNameRequired": "Key name is required",
     "keyNameMaxLength": "Key name must be 50 characters or less",
@@ -4036,7 +4038,7 @@
     "permReadWrite": "Read/write",
     "expiresOn": "Expires {date}",
     "readOnlyKeyLabel": "Read-only key",
-    "expiresAtLabel": "Expires At (UTC, optional)",
+    "expiresAtLabel": "When should it expire? (UTC)",
     "expiryFormatExample": "2099-12-31T23:59",
     "invalidExpiry": "Enter a valid future expiry date."
   },

@@ -282,14 +282,6 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
           </View>
         ) : (
           <View style={styles.body}>
-            <Text
-              style={[
-                styles.modalDescription,
-                { color: tokens.fg2, textAlign: 'center' },
-              ]}
-            >
-              {t('profile.freshStart.confirmInstruction')}
-            </Text>
             <Text style={[styles.confirmLabel, { color: tokens.fg2 }]}>
               {t('profile.freshStart.confirmLabel')}
             </Text>

@@ -51,13 +51,14 @@
     "clock": {
       "title": "Relógio",
       "hour24": "24 horas",
-      "hour12": "12 horas"
+      "hour12": "12 horas",
+      "question": "Como você prefere ver as horas?"
     },
     "weekStartDay": {
-      "title": "Primeiro dia",
-      "description": "Escolha em que dia sua semana começa. Vale para os calendários e seletores.",
+      "description": "Vale para todos os calendários e seletores de data.",
       "monday": "Segunda-feira",
-      "sunday": "Domingo"
+      "sunday": "Domingo",
+      "question": "Em que dia começa a sua semana?"
     },
     "theme": {
       "switchToLight": "Modo claro",
@@ -462,7 +463,7 @@
     },
     "signIn": "Entrar",
     "enterCode": "Digite o código",
-    "email": "E-mail",
+    "email": "Qual é o seu e-mail?",
     "emailPlaceholder": "nome@exemplo.com",
     "sendCode": "Continuar",
     "turnstileLabel": "Verificação de segurança",
@@ -472,7 +473,7 @@
     "turnstileRetry": "Tentar novamente",
     "codeSent": "Código enviado.",
     "codeSentTo": "Enviamos um código de 6 dígitos para {email}.",
-    "verificationCode": "Código de 6 dígitos",
+    "verificationCode": "Qual código você recebeu?",
     "verify": "Entrar",
     "resendCode": "Reenviar código",
     "resendIn": "Você pode pedir outro código em {time}",
@@ -2541,7 +2542,8 @@
       "create": "Criar chave",
       "createScoped": "Criar chave com escopo",
       "scopeTitle": "Chave com escopo",
-      "scopeLabel": "Escopo",
+      "scopeLabel": "O que ela pode acessar?",
+      "setExpiry": "Definir validade?",
       "scopeAction": "Criar",
       "mcpTitle": "Conectar por MCP",
       "stepUpBody": "Para mexer em chaves ou apagar a conta, entre de novo. O Orbit nunca pede a sua senha dentro de uma conversa.",
@@ -2553,7 +2555,8 @@
     "timezonePicker": {
       "search": "Buscar fusos horários",
       "noResults": "Nenhum fuso horário encontrado",
-      "showMore": "Mostrar mais fusos horários"
+      "showMore": "Mostrar mais fusos horários",
+      "question": "Em qual fuso horário você está?"
     },
     "loading": "Carregando perfil",
     "sections": {
@@ -2563,7 +2566,7 @@
     },
     "editName": {
       "title": "Editar nome",
-      "label": "Nome",
+      "label": "Como podemos te chamar?",
       "required": "Digite um nome.",
       "tooLong": "Use no máximo 50 caracteres.",
       "errorGeneric": "Algo deu errado. Tente de novo."
@@ -2571,7 +2574,7 @@
     "language": {
       "title": "Idioma",
       "brazilianPortuguese": "Português do Brasil",
-      "description": "Escolha seu idioma"
+      "question": "Qual idioma você prefere?"
     },
     "aiSummary": {
       "title": "Resumo diário"
@@ -2591,8 +2594,8 @@
       "rowTitle": "Ajuda e suporte",
       "description": "Conte o que aconteceu. Quanto mais concreto, mais rápido a gente resolve.",
       "email": "Resposta para",
-      "subject": "Sobre o que é",
-      "message": "O que aconteceu",
+      "subject": "Sobre o que é?",
+      "message": "O que aconteceu?",
       "messagePlaceholder": "Registrei a caminhada e ela voltou para pendente depois de fechar o app.",
       "send": "Enviar",
       "success": "A sua mensagem chegou",
@@ -2674,8 +2677,7 @@
       "preserveAccount": "Sua conta (e-mail e nome)",
       "preserveSubscription": "O status da assinatura Pro",
       "preservePreferences": "Tema, idioma e fuso horário",
-      "confirmInstruction": "Digite ORBIT abaixo para confirmar.",
-      "confirmLabel": "Confirmação",
+      "confirmLabel": "Podemos seguir? Digite ORBIT.",
       "confirmPlaceholder": "ORBIT",
       "errorGeneric": "Algo deu errado. Tente de novo."
     },
@@ -3960,7 +3962,7 @@
     "eyebrow": "Confirmar: {operation}",
     "title": "Digite o código que enviamos",
     "body": "Enviamos um código de 6 dígitos para {email}. Ele vale só para esta ação.",
-    "codeLabel": "Código de 6 dígitos",
+    "codeLabel": "Qual código você recebeu?",
     "codeHint": "O código vale por 10 minutos.",
     "confirm": "Confirmar",
     "checking": "Conferindo",
@@ -3998,7 +4000,7 @@
     "createHeading": "Criar chave de API",
     "revealHeading": "Chave de API criada",
     "noKeys": "Nenhuma chave de API ainda",
-    "keyName": "Nome da chave",
+    "keyName": "Onde você vai usar a chave?",
     "keyNamePlaceholder": "ex: Claude Desktop",
     "keyNameRequired": "Dê um nome à chave",
     "keyNameMaxLength": "O nome da chave pode ter no máximo 50 caracteres",
@@ -4036,7 +4038,7 @@
     "permReadWrite": "Leitura e escrita",
     "expiresOn": "Expira em {date}",
     "readOnlyKeyLabel": "Chave somente leitura",
-    "expiresAtLabel": "Expira em (UTC, opcional)",
+    "expiresAtLabel": "Quando ela expira? (UTC)",
     "expiryFormatExample": "2099-12-31T23:59",
     "invalidExpiry": "Informe uma data de expiração futura válida."
   },
