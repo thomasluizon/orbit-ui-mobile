@@ -12,6 +12,11 @@
 | Create goal sheet | `goals/create-goal-sheet` | Title, type, target, unit, optional deadline, linked habits; validation, pending, failed save, dismissal and discard |
 | Linked habit picker | `goals/goal-habits-field` | Loading, failure and retry, habit creation and return with the goal draft retained, selection, capacity, long lists and search |
 
+The sheet asks What do you want to reach? first. Its answer, a saved target, unit or deadline, or a
+submit attempt reveals the type, target and deadline questions; they stay revealed and keep their
+values if the title is cleared. Linked habits stay visible for every entry. Add deadline is a visible
+field row. Edit goal and progress entry use the same question labels.
+
 The shell create action creates habits directly. There is no separate create menu or goal item to reroute.
 Astra conversation suggestion chips and accepted goal proposals retain their conversational flow.
 The create sheet and linked habit picker explain how selected habits to avoid affect progress:
