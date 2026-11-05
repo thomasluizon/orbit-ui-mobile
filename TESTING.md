@@ -60,6 +60,9 @@ native-copy guard by checking modules Metro actually includes.
 The independent boot proof job runs for gate and release-workflow changes, plus proof branch
 pushes. Other mobile pull requests run the bundle check without an emulator. The boot job builds
 an AAB without Play credentials and exercises the same composite action as `android-release.yml`.
+Before prebuild, it selects the newest successful `android-release.yml` run on `main` for the
+open or production track and exports its version through `ORBIT_APP_VERSION`. An unavailable or
+unrecognized release fails preparation. The release workflow retains its dispatched `app_version`.
 Release submission follows that action unconditionally. The
 action derives a universal APK from the shipping AAB with pinned, checksum-verified bundletool,
 uses a disposable installation key and compares the embedded Hermes bundle byte for byte.
@@ -74,9 +77,12 @@ unextracted ARM libraries, so the gate uses native x86_64 execution. The emulato
 GitHub Actions.
 
 `tools/android-boot.mjs` clears storage, cold starts once and waits up to 90 seconds for the
-signed-out onboarding title from either locale in a visible, enabled accessibility node owned
-by the app. It then waits 15 seconds for deferred startup work and requires the same process
-to survive. App-UID logcat must contain no native fatal, Java fatal, fatal React Native report or
+signed-out onboarding input label from either locale in a visible, enabled accessibility node
+owned by the app. The input remains visible when the keyboard clips the heading. It then waits
+15 seconds for deferred startup work and requires the same process and first screen to survive.
+The forced-update dialog fails immediately with a build-below-server-minimum verdict, including
+when it appears during settling over the first screen. App-UID logcat must contain no native fatal,
+Java fatal, fatal React Native report or
 invariant violation. A running splash process alone never passes. XML, logcat, process IDs,
 ABIs and AAB and bundle hashes are retained as `android-boot-evidence`, including on failure.
 Fatal JavaScript detection uses the native fatal channels and React Native's host-exception
@@ -88,6 +94,9 @@ is terminal; no failed launch is retried.
 
 The tools harness exercises source-map production through installed Metro, duplicate providers,
 accessibility ownership and geometry, fatal log classification and the release submission order.
+Recorded CI accessibility trees drive the boot command through keyboard-clipped onboarding and
+immediate or deferred forced updates. The harness also executes proof-version selection against
+the observed GitHub CLI response shape and loads the resulting Expo configuration.
 It does not replace the real GitHub emulator run. Push proof branches matching
 `chore/ticket-1997-proof-*` to run both independent gates without a Play submission. For a
 dependency regression proof, restore the affected package manifests and lockfile on the proof

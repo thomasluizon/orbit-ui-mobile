@@ -594,7 +594,7 @@
     "snapshot": "none",
     "constants": [
       {
-        "name": "startup, settle and infrastructure retry budgets",
+        "name": "startup, settle and infrastructure retry budgets; onboarding and forced-update assertions",
         "source": "TESTING.md Android startup gates"
       }
     ]

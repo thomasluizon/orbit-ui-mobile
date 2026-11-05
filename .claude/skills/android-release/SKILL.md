@@ -19,6 +19,11 @@ blocks Play submission. Review `android-boot-evidence` for XML, app-UID logcat, 
 ABI compatibility and artifact hashes. Never retry a failed app assertion as infrastructure.
 The separate `android-startup.yml` workflow proves the gate without Play upload credentials;
 its Hermes inventory job also rejects duplicate bundled native modules at pull request time.
+The proof derives `ORBIT_APP_VERSION` from the newest successful open or production release on
+`main` before prebuild; release dispatches continue using `app_version`. A forced-update dialog
+fails with an explicit build-below-server-minimum verdict, including after the settle period.
+The first-screen assertion reads the onboarding input label because the keyboard can clip its
+heading. Both workflows ship an x86_64 slice so the gate executes the AAB's native libraries.
 
 ## The workflow's inputs (from the workflow file, not memory)
 

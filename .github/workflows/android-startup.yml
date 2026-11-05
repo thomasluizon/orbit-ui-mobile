@@ -54,6 +54,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
           cache: npm
@@ -84,6 +86,9 @@ jobs:
 
   boot:
     name: Android AAB first screen
+    permissions:
+      contents: read
+      actions: read
     needs: scope
     if: ${{ github.event_name == 'push' || needs.scope.outputs.boot == 'true' }}
     runs-on: ubuntu-24.04
@@ -100,6 +105,8 @@ jobs:
         with:
           android: false
       - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
         with:
           node-version: 22
           cache: npm
@@ -111,6 +118,22 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --fund=false
       - name: Validate the startup proof configuration
         run: node tools/test-tools.mjs --only android-boot
+      - name: Select the last successful production app version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run list --repo "$GH_REPO" --workflow android-release.yml --branch main --status success --limit 100 --json displayTitle |
+            node --input-type=module -e '
+              import { appendFileSync, readFileSync } from "node:fs";
+              const runs = JSON.parse(readFileSync(0, "utf8"));
+              const release = runs.map((run) => /^Android Release (\d+\.\d+\.\d+) \(\d+\) to (?:open|production) on main$/.exec(run.displayTitle)).find(Boolean);
+              if (!release) throw new Error("No successful production Android release version found");
+              appendFileSync(process.env.GITHUB_ENV, `ORBIT_APP_VERSION=${release[1]}\n`);
+              console.log(`Startup proof uses ${release[0]}`);
+            '
       - name: Prepare a build without Play credentials
         working-directory: apps/mobile
         run: |

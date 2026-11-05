@@ -8,6 +8,7 @@ import { setTimeout } from "node:timers/promises"
 import { SaxesParser } from "saxes"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+const UPDATE_REQUIRED_FAILURE = "build version is below the server minimum (update-required dialog rendered)"
 const USAGE = `usage: android-boot.mjs --apk <universal.apk> --package <application id> --output <directory>
 
   Install an AAB-derived APK on the connected, already booted CI emulator.
@@ -70,11 +71,12 @@ async function infrastructure(args) {
   }
 }
 
-function firstScreenLabels() {
-  return ["en", "pt-BR"].map((locale) => {
-    const translations = JSON.parse(readFileSync(join(ROOT, "packages/shared/src/i18n", `${locale}.json`), "utf8"))
-    return translations.onboarding.flow.what.title
-  })
+function startupLabels() {
+  const translations = ["en", "pt-BR"].map((locale) => JSON.parse(readFileSync(join(ROOT, "packages/shared/src/i18n", `${locale}.json`), "utf8")))
+  return {
+    firstScreen: translations.map((locale) => locale.onboarding.flow.what.label),
+    updateRequired: translations.map((locale) => locale.forceUpdate.title),
+  }
 }
 
 function processId(packageName) {
@@ -98,7 +100,7 @@ function captureScreen(output) {
 }
 
 async function assertApp({ package: packageName, output }, uid) {
-  const labels = firstScreenLabels()
+  const labels = startupLabels()
   const deadline = Date.now() + 90000
   let firstProcess = ""
   let rendered = false
@@ -109,7 +111,8 @@ async function assertApp({ package: packageName, output }, uid) {
     if (firstProcess && firstProcess !== currentProcess) return "app process restarted during startup"
     firstProcess = currentProcess
     const xml = captureScreen(output)
-    if (firstScreenRendered(xml, packageName, labels)) { rendered = true; break }
+    if (firstScreenRendered(xml, packageName, labels.updateRequired)) return UPDATE_REQUIRED_FAILURE
+    if (firstScreenRendered(xml, packageName, labels.firstScreen)) { rendered = true; break }
     await setTimeout(2000)
   }
   if (!rendered) return "signed-out first screen did not render within 90 seconds"
@@ -118,6 +121,9 @@ async function assertApp({ package: packageName, output }, uid) {
   writeFileSync(join(output, "process.txt"), `initial=${firstProcess}\nsettled=${settledProcess}\n`)
   if (fatalLogcat(capture(output, uid))) return "app logcat contains a fatal error after settling"
   if (!settledProcess || settledProcess !== firstProcess) return "app process exited or restarted after its first screen"
+  const settledScreen = captureScreen(output)
+  if (firstScreenRendered(settledScreen, packageName, labels.updateRequired)) return UPDATE_REQUIRED_FAILURE
+  if (!firstScreenRendered(settledScreen, packageName, labels.firstScreen)) return "signed-out first screen unavailable after settling"
   return null
 }
 
