@@ -303,33 +303,12 @@ async function renderRoot() {
 }
 
 describe('Wrapped root shell', () => {
-  it('collapses Hoje with its own persisted preference and retains its mounted draft', async () => {
+  it('replaces the Hoje composer with one Astra button', async () => {
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
     const tree = await renderRoot()
-    const control = (label: string) => tree.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === label)[0]!
-    const input = tree.root.findAll(node => node.type === TextInput)[0]!
-    await TestRenderer.act(() => (input.props.onChangeText as (value: string) => void)('Changed Hoje draft'))
-    expect(control('shell.composer.collapse')).toBeDefined()
-    await TestRenderer.act(() => (control('shell.composer.collapse').props.onPress as () => void)())
-    expect((control('shell.composer.expand').props.accessibilityState as { expanded: boolean }).expanded).toBe(false)
-    expect(tree.root.findAll(node => node.type === TextInput)[0]!).toBe(input)
-    expect(input.props.value).toBe('Changed Hoje draft')
-    expect(tree.root.findAll(node => typeof node.type === 'string' && node.props.importantForAccessibility === 'no-hide-descendants' && node.props.accessibilityElementsHidden === true)).toHaveLength(1)
-    expect(useUIStore.getState()).toMatchObject({ todayComposerCollapsed: true, habitComposerCollapsed: false })
-    await TestRenderer.act(() => (control('shell.composer.expand').props.onPress as () => void)())
-    expect(tree.root.findAll(node => node.type === TextInput)[0]!).toBe(input)
-    expect(input.props.value).toBe('Changed Hoje draft')
-    expect(tree.root.findAll(node => typeof node.type === 'string' && typeof node.props.nativeID === 'string' && node.props.accessibilityElementsHidden === false && node.props.importantForAccessibility === 'auto')).toHaveLength(1)
-    await TestRenderer.act(() => (control('shell.composer.collapse').props.onPress as () => void)())
-    await TestRenderer.act(() => tree.update(<></>))
-    const saved = preferenceStorage.get('orbit-ui-store')!
-    preferenceStorage.clear()
-    useUIStore.setState(useUIStore.getInitialState())
-    preferenceStorage.set('orbit-ui-store', saved)
-    await useUIStore.persist.rehydrate()
-    const reloaded = await renderRoot()
-    expect(reloaded.root.findAll(node => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.expand')).toHaveLength(1)
+    expect(findByTestId(tree, 'composer-field')).toHaveLength(0)
+    expect(findByTestId(tree, 'astra-button')).toHaveLength(1)
   })
 
   it.each([true, false])('hosts portals once inside app and navigation providers when authenticated is %s', async (authenticated) => {
@@ -425,13 +404,13 @@ describe('Wrapped root shell', () => {
     expect(createFab?.props.accessibilityLabel).toBe('nav.createHabit')
   })
 
-  it.each([412, 1352])('keeps Hoje chip-free, preserves habit chips and an open conversation at %ipx', async (width) => {
+  it.each([412, 1352])('keeps Hoje composer-free, preserves habit chips and an open conversation at %ipx', async (width) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
     const tree = await renderRoot()
-    expect(findByTestId(tree, 'composer-idle')).toHaveLength(1)
-    expect(findByTestId(tree, 'composer-field')).toHaveLength(1)
+    expect(findByTestId(tree, 'composer-idle')).toHaveLength(0)
+    expect(findByTestId(tree, 'composer-field')).toHaveLength(0)
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'First suggestion')).toHaveLength(0)
     routeState.pathname = '/habits/habit-1'
     routeState.segments = ['habits', '[id]']
@@ -440,7 +419,7 @@ describe('Wrapped root shell', () => {
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
     await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
-    const open = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'todayAstra.openConversation')[0]
+    const open = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'shell.astraButton.open')[0]
     await TestRenderer.act(() => { (open?.props.onPress as () => void)(); tree.update(React.createElement(RootLayout)) })
     expect(findByTestId(tree, 'shell-conversation')).toHaveLength(1)
 
@@ -465,7 +444,7 @@ describe('Wrapped root shell', () => {
     routeState.segments = ['(tabs)']
     createState.conversationOpen = false
     await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
-    expect(findByTestId(tree, 'composer-idle')).toHaveLength(1)
+    expect(findByTestId(tree, 'composer-idle')).toHaveLength(0)
     await TestRenderer.act(() => tree.update(React.createElement(React.Fragment)))
   })
 
@@ -602,12 +581,12 @@ describe('Wrapped root shell', () => {
   })
 
   it.each(['/', '/calendar', '/progress', '/profile', '/habits/h1', '/search', '/about', '/support', '/preferences', '/advanced', '/ai-settings'])(
-    'shows composer only on Hoje and habit detail at %s', async (pathname) => {
+    'shows composer only on habit detail at %s', async (pathname) => {
       routeState.pathname = pathname
       routeState.segments = pathname === '/' ? ['(tabs)'] : [pathname.slice(1)]
       const tree = await renderRoot()
       expect(findByTestId(tree, 'shell-pinned-slot').length > 0).toBe(
-        ['/', '/habits/h1'].includes(pathname),
+        ['/habits/h1'].includes(pathname),
       )
       expect(findByTestId(tree, 'shell-header')).toHaveLength(0)
     },

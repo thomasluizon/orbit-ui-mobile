@@ -77,8 +77,8 @@ export type ShellWideNavProps = ShellWideBase &
     account?: string
     accountEmail?: string
     notifications?: React.ReactNode
-    /** Compact Hoje composer, habit detail composer at every width, or Hoje selection tray.
-     *  Resting wide Hoje has no bottom content. Transient chrome uses `notice`. */
+    /** Habit detail composer at every width or Hoje selection tray.
+     *  Resting Hoje has no bottom content. Transient chrome uses `notice`. */
     composer?: React.ReactNode
     /** Rejected on a destination: a flow's forward action exists only where `nav` is false. */
     action?: never

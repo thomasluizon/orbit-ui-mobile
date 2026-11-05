@@ -20,7 +20,7 @@ function ShellHydrationProbe() {
   const { isSupported: speechSupported } = useSpeechToText()
 
   return (
-    <DestinationShell onCreate={() => {}} composer={<div>Composer<textarea aria-label="Draft" defaultValue="Draft" /></div>}>
+    <DestinationShell onCreate={() => {}}>
       <RootNotificationHeader />
       <h1>Today</h1>
       {speechSupported ? <button type="button">Voice</button> : null}
@@ -65,17 +65,16 @@ describe('app shell hydration', () => {
     document.body.append(container)
     const recoverableError = vi.fn()
 
-    const firstComposer = container.querySelector('[data-shell-pinned-slot]')
-    const firstInput = container.querySelector('textarea')!
-    if (width < 1024) {
-      firstInput.focus()
-    }
+    const firstEntry = container.querySelector<HTMLButtonElement>('[data-astra-button]')!
+    expect(firstEntry).not.toBeNull()
+    firstEntry.focus()
     const firstSidebarBell = container.querySelector('[data-shell-sidebar] button[aria-label="notifications.bell"]')
     const firstAstraRow = container.querySelector('[data-shell-astra-row]')
     expect(firstAstraRow, 'sidebar Astra row exists in server HTML').not.toBeNull()
 
     expect(firstSidebarBell, 'sidebar bell exists in server HTML').not.toBeNull()
-    expect(firstComposer, 'compact composer exists before CSS chooses the chrome').not.toBeNull()
+    expect(container.querySelector('textarea')).toBeNull()
+    expect(container.querySelector('[data-shell-pinned-slot]')).toBeNull()
 
     setRecordingSupport(true)
     await act(async () => {
@@ -94,7 +93,7 @@ describe('app shell hydration', () => {
       expect(tabBar).not.toHaveClass('hidden')
     }
     expect(container.querySelectorAll('h1')).toHaveLength(1)
-    expect(container.querySelectorAll('[data-shell-pinned-slot]')).toHaveLength(width >= 1024 ? 0 : 1)
+    expect(container.querySelectorAll('[data-shell-pinned-slot]')).toHaveLength(0)
     expect(serverHtml).not.toContain('Voice')
     expect(recoverableError).not.toHaveBeenCalled()
     expect(container.querySelectorAll('[data-shell-sidebar]')).toHaveLength(1)
@@ -103,16 +102,10 @@ describe('app shell hydration', () => {
     if (width >= 1024) expect(container.querySelector('[data-shell-astra-row]')).toBe(firstAstraRow)
     expect(container.querySelectorAll('[data-root-notification-header]')).toHaveLength(width >= 1024 ? 0 : 1)
     expect(container.querySelector('[data-shell-sidebar] button[aria-label="notifications.bell"]')).toBe(firstSidebarBell)
-    if (width < 1024) {
-      expect(container.querySelector('[data-shell-pinned-slot]')).toBe(firstComposer)
-      expect(container.querySelector('textarea')).toBe(firstInput)
-      expect(firstInput).toHaveFocus()
-      expect(firstInput).toHaveValue('Draft')
-    }
-    if (width >= 1024) {
-      expect(container.querySelector('textarea')).toBeNull()
-      expect(container.querySelector('[data-shell-pinned-slot]')).toBeNull()
-    }
+    expect(container.querySelectorAll('[data-astra-button]')).toHaveLength(1)
+    expect(container.querySelector('[data-astra-button]')).toBe(firstEntry)
+    expect(firstEntry).toHaveFocus()
+    expect(container.querySelector('textarea')).toBeNull()
     expect(within(container).getByRole('button', { name: 'Voice' })).toBeVisible()
   })
 })

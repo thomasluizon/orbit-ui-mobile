@@ -2,7 +2,7 @@
  *  the destination column from its top inset to the viewport bottom, keeping the sidebar visible.
  *  The sidebar holds the lockup, search, the Astra row above the same four destinations as the compact
  *  tab bar, the notifications entry, the one filled create action and the account row.
- *  The Astra row is the wide front door. The destination bottom slot carries habit detail's composer
+ *  The Astra row and Hoje's floating button open the conversation. The bottom slot carries habit detail's composer
  *  or Hoje's active selection tray; resting wide Hoje passes nothing.
  *
  *  WHETHER NAVIGATION IS PRESENT IS THIS SHELL'S OWN BEHAVIOUR, NEVER A SCREEN'S STYLESHEET. `nav={false}`
@@ -102,13 +102,12 @@ export interface ShellWideNoNavProps extends ShellWideBase {
    *  scroller takes the full height, the way a screen with no header already does. The words in it are
    *  the caller's; the shell ships no words. */
   action?: any;
-  /** rejected on a flow: a flow that owns the screen has no front door to pin, and passing one would
-   *  put Astra under a person who has not finished deciding. The compact shell's composer-on-Hoje rule
-   *  does not reach here, because a flow is not a destination - that is what nav: false means. */
+  /** Rejected on a flow: its forward action owns the pinned slot. Astra's floating Hoje entry
+   *  belongs to a destination, so it is absent while a flow owns the screen. */
   composer?: never;
 }
 /** Discriminated on `nav`: the sidebar's props exist only where the sidebar does, and the pinned bottom
  *  slot is `composer` on a destination (habit detail's composer or Hoje's selection tray), and the
- *  one forward `action` on a flow. Shell412 also replaces the compact Hoje composer with selection. */
+ *  one forward `action` on a flow. Shell412 carries the same selection tray on Hoje. */
 export type ShellWideProps = ShellWideNavProps | ShellWideNoNavProps;
 export declare function ShellWide(props: ShellWideProps): any;

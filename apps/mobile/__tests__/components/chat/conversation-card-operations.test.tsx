@@ -101,13 +101,14 @@ function press(label: string) {
   const onPress = button.props.onPress as () => void
   onPress()
 }
-function start(operation: CardOperation) {
-  void act(() => {
+async function start(operation: CardOperation) {
+  await act(() => {
     if (operation === 'breakdown') {
       press('chat.preview.approve')
     } else press(operation === 'refresh' ? 'chat.operation.refresh' : operation === 'revise' ? 'chat.operation.remove Beber água' : 'habits.clarification.quickAction.daily')
   })
-  if (operation === 'breakdown') void act(() => { (tree.root.findAll(node => (node.type as unknown) === 'ConfirmBreakdown')[0]!.props.onConfirm as () => void)() })
+  if (operation === 'breakdown') await act(() => { (tree.root.findAll(node => (node.type as unknown) === 'ConfirmBreakdown')[0]!.props.onConfirm as () => void)() })
+  await act(async () => { await vi.waitFor(() => expect(mutations[operation]).toHaveBeenCalled()) })
 }
 function expectBusy(busy: boolean) { expect(tree.root.findAll(node => node.type === FlatList)[0]!.props.accessibilityState).toEqual({ busy }) }
 beforeEach(() => { vi.clearAllMocks(); viewport.offset = 163.5; viewport.height = 1400; viewport.visibleHeight = 500 })
@@ -117,7 +118,7 @@ it.each(cardOperations.flatMap(operation => [false, true].map(failure => ({ oper
   const deferred = deferOperation(operation)
   void act(() => { tree = create(<CardConversation operations={[operation]} />) })
   expectBusy(false)
-  start(operation)
+  await start(operation)
   expectBusy(true)
   await act(async () => { deferred.finish(failure); await Promise.resolve() })
   expectBusy(false)
@@ -125,7 +126,7 @@ it.each(cardOperations.flatMap(operation => [false, true].map(failure => ({ oper
 it.each([['refresh', 'revise'], ['breakdown', 'clarification']] as CardOperation[][])('keeps overlapping %s and %s busy until both settle', async (first, second) => {
   const one = deferOperation(first), two = deferOperation(second)
   void act(() => { tree = create(<CardConversation operations={[first, second]} />) })
-  start(first); start(second)
+  await start(first); await start(second)
   expectBusy(true)
   await act(async () => { one.finish(false); await Promise.resolve() })
   expectBusy(true)
@@ -158,7 +159,7 @@ it.each([false, true])('reveals the clarification preview actions unless reading
   await act(() => { tree = create(<CardConversation operations={['clarification']} />) })
   await act(() => { listProps().onContentSizeChange?.(412, 1400) })
   scroll(900)
-  start('clarification')
+  await start('clarification')
   if (reading) scroll(100)
   scrollToEnd.mockClear()
   await act(async () => {

@@ -59,8 +59,8 @@ vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactN
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children, useToday: () => '2026-09-12' }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, composer, compactComposer, notice, onCreate }: { children: ReactNode; composer?: ReactNode; compactComposer?: ReactNode; notice?: ReactNode; onCreate: () => void }) => (
-    <main aria-label="Destination shell"><nav aria-label="nav.mainNavigation" /><button onClick={onCreate}>Create habit</button>{composer ?? (!mocks.wide && compactComposer)}{children}<div data-shell-notice="">{notice}</div></main>
+  ShellWide: ({ children, composer, astraButton, notice, onCreate }: { children: ReactNode; composer?: ReactNode; astraButton?: ReactNode; notice?: ReactNode; onCreate: () => void }) => (
+    <main aria-label="Destination shell"><nav aria-label="nav.mainNavigation" /><button onClick={onCreate}>Create habit</button>{composer}{astraButton}{children}<div data-shell-notice="">{notice}</div></main>
   ),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null, CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))
@@ -228,12 +228,12 @@ it.each([false, true])('renders an authenticated unknown path without a composer
   expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
 })
 
-it.each([false, true])('keeps the Hoje composer only in the compact shell at wide=%s', (wide) => {
+it.each([false, true])('keeps Hoje without a composer at every width at wide=%s', (wide) => {
   mocks.pathname = '/'
   mocks.wide = wide
   useAuthStore.setState({ isAuthenticated: true })
   render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
-  expect(screen.queryByTestId('composer') !== null).toBe(!wide)
+  expect(screen.queryByTestId('composer')).toBeNull()
 })
 
 it('renders an unauthenticated unknown public path without the shell', () => {

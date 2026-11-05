@@ -5,6 +5,8 @@ import allowanceRefusals from '@orbit/shared/test-support/astra-allowance-refusa
 import type { InvalidateQueryFilters } from '@tanstack/react-query'
 import { makeOneSmallStepCard,questionBlockFixture,questionAnswersFixture,choiceBlockFixture,pickListBlockFixture,makeHeldHabitMessage,makeAgentOperationResult } from '@orbit/shared/test-support/chat-fixtures'
 import React from 'react'
+import type { ReactTestInstance } from 'react-test-renderer'
+import { AstraButton } from '@/components/shell/astra-button'
 import { useChatComposerAttachments } from '@/hooks/use-chat-composer-attachments'
 import Animated from 'react-native-reanimated'
 import { afterEach,beforeEach,describe,expect,it,onTestFinished,vi } from 'vitest'
@@ -196,7 +198,6 @@ vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingG
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
 vi.mock('@/components/navigation/destination-tab-bar', () => ({ DestinationTabBar: () => null }))
 vi.mock('@/components/search/search-header-action', () => ({ SearchHeader: () => null }))
-vi.mock('@/components/ui/fab', () => ({ Fab: () => null }))
 vi.mock('@/components/global-overlays', () => ({ OverlayLayer: () => null }))
 vi.mock('@/components/offline-notice', () => ({ useOfflineNoticeContent: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel: () => null }))
@@ -209,12 +210,12 @@ vi.mock('@/components/message-bubble', async importOriginal => {
 })
 vi.mock('@/components/ui/markdown', () => ({ Markdown: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
-vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
+vi.mock('@/components/chat/conversation', () => ({ AstraConversation: ({ chat }: { chat: ReturnType<typeof useChatComposer> }) => { mocks.composerProps = chat.composerProps; return <ShellComposer {...chat.composerProps} /> } }))
 vi.mock('@/components/shell/composer', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/shell/composer')>()
   return { Composer: (props: React.ComponentProps<typeof original.Composer>) => { mocks.composerProps = props; return <original.Composer {...props} /> } }
 })
-vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ composer }: { composer?: React.ReactNode }) => composer ?? null }))
+vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ composer, astraButton, conversationOpen, conversation }: { composer?: React.ReactNode; astraButton?: boolean; conversationOpen?: boolean; conversation?: React.ReactNode }) => conversationOpen ? conversation : <>{composer}{astraButton ? <AstraButton hasFab={false} scrollToTopHeight={0} /> : null}</> }))
 vi.mock('@/components/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/components/upgrade-required-screen', () => ({ UpgradeRequiredScreen: () => null }))
 vi.mock('@/lib/capture-mode', () => ({ captureBuildEnabled: false, captureRequestProbeIdFromUrl: () => null, captureRouteProbeId: () => 'capture-probe', shouldExposeOnboardingRoute: () => false }))
@@ -2231,9 +2232,8 @@ describe('mobile useChatComposer', () => {
   })
 
   it.each([
-    ['/', 'open', undefined],
-    ['/', 'direct-send', undefined],
-  ])('captures route intent through the layout %s %s callback before the first request', async (pathname, action, expectedIntent) => {
+    ['/', undefined],
+  ])('captures route intent through the layout %s floating entry before the first request', async (pathname, expectedIntent) => {
     mocks.pathname = pathname
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     await TestRenderer.act(async () => {
@@ -2241,11 +2241,14 @@ describe('mobile useChatComposer', () => {
       mountedTrees.push(tree)
       await Promise.resolve()
     })
+    await TestRenderer.act(() => {
+      const entry = mountedTrees.at(-1)!.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === 'astra-button')[0]!
+      ;(entry.props.onPress as () => void)()
+    })
     const composer = mocks.composerProps
-    if (!composer) throw new Error('Support composer did not render')
+    if (!composer) throw new Error('Conversation composer did not render')
     await TestRenderer.act(() => { composer.onChangeValue('my streak reset') })
     await TestRenderer.act(async () => {
-      if (action === 'open') mocks.composerProps?.onOpenConversation?.()
       mocks.composerProps?.onSend()
       await Promise.resolve()
     })
