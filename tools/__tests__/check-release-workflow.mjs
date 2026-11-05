@@ -114,6 +114,8 @@ async function checkProductionSteps() {
   `
   const ready = join(root, "release-workflow/ready")
   const release = join(root, "release-workflow/release")
+  rmSync(ready, { force: true })
+  rmSync(release, { force: true })
   const pending = run("Deploy web digest", `
     printf ready > "$READY"
     while [[ ! -f "$RELEASE" ]]; do command sleep 0.01; done
