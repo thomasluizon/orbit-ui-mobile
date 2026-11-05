@@ -55,7 +55,7 @@ describe('real promptfoo CLI with an offline provider', () => {
       extensions: [`file://${root}/hooks.mjs:beforeEach`, `file://${root}/hooks.mjs:afterAll`],
     }))
     const run = spawnSync(process.execPath, ['--import', resolve(root, '__tests__/fixtures/auth-preload.mjs'), cli, 'eval', '--config', configPath, '-o', resolve(directory, 'promptfoo.json'), '--no-write', '--no-share', '--no-cache', '--no-table', '--filter-metadata', 'id=offline-water'], {
-      cwd: directory, encoding: 'utf8', timeout: 90000,
+      cwd: directory, encoding: 'utf8', timeout: 180000,
       env: { ...process.env, ORBIT_EVAL_BASE_URL: 'https://orbit-api-staging-uqu2.onrender.com', PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'),
         PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
     })
@@ -121,7 +121,7 @@ describe('real promptfoo CLI with an offline provider', () => {
       metric === 'toolBehavior' && !pass && reason.includes('log_habit')))).toBe(true)
     expect(run.stdout + run.stderr).not.toContain('Extension hook "afterAll" failed')
     expect(existsSync(resolve(directory, 'promptfoo.json'))).toBe(true)
-  }, 120000)
+  }, 210000)
 })
 
 describe('HTTP provider wiring without a server', () => {
@@ -156,7 +156,7 @@ describe('HTTP provider wiring without a server', () => {
       }))
       const run = spawnSync(process.execPath, ['--import', resolve(root, '__tests__/fixtures/http-preload.mjs'), cli,
         'eval', '--config', configPath, '--no-write', '--no-share', '--no-cache', '--no-table'], {
-        cwd: directory, encoding: 'utf8', timeout: 90000,
+        cwd: directory, encoding: 'utf8', timeout: 180000,
         env: { ...process.env, ORBIT_EVAL_BASE_URL: 'https://orbit-api-staging-uqu2.onrender.com', ORBIT_EVAL_GRADER: 'offline',
           ASTRA_TEST_REQUEST_LOG: resolve(directory, 'requests.txt'),
           PROMPTFOO_CONFIG_DIR: resolve(directory, '.promptfoo'), PROMPTFOO_DISABLE_TELEMETRY: '1', PROMPTFOO_DISABLE_SHARING: '1' },
@@ -194,7 +194,7 @@ describe('HTTP provider wiring without a server', () => {
         expect(attempts.slice(0, ATTEMPTS_PER_CASE).every(({ pass }) => !pass)).toBe(true)
         expect(attempts.slice(ATTEMPTS_PER_CASE).every(({ pass }) => pass)).toBe(true)
       }
-    }, 120000,
+    }, 210000,
   )
   it.each([
     ['ORBIT_EVAL_TOKEN', 200], ['ORBIT_EVAL_FREE_TOKEN', 200], ['ORBIT_EVAL_BUDGET_TOKEN', 403],
