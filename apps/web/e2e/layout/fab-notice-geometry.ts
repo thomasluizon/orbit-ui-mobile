@@ -4,14 +4,14 @@ export async function expectCompactFabNoticeGeometry(page: Page, closeLabel: str
   await expect(async () => {
     const fab = page.locator('[data-shell-fab]')
     const notice = page.locator('[data-shell-notice]')
-    const composer = page.locator('[data-shell-pinned-slot]')
+    const composer = page.locator('[data-shell-bottom]')
     await expect(fab).toBeVisible()
     await expect(composer).toBeVisible()
 
     const gapWithoutNotice = await page.evaluate(() => {
       document.querySelector('[data-layout-notice-probe]')?.remove()
       const fab = document.querySelector('[data-shell-fab]')
-      const composer = document.querySelector('[data-shell-pinned-slot]')
+      const composer = document.querySelector('[data-shell-bottom]')
       if (!fab || !composer) throw new Error('Compact shell controls missing')
       return composer.getBoundingClientRect().top - fab.getBoundingClientRect().bottom
     })

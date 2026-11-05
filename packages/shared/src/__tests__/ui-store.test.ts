@@ -291,7 +291,7 @@ describe("shared ui store", () => {
       activeView: "all",
       calendarShowRecurring: true,
       habitComposerCollapsed: false,
-      todayComposerCollapsed: false,
+      conversationComposerCollapsed: false,
       allDoneCelebratedDate: "",
       dailyStreakMomentDate: "",
       setupChecklistDismissed: false,
@@ -310,19 +310,19 @@ describe("shared ui store", () => {
 
   it("persists the Hoje disclosure independently and expands missing or invalid preferences", () => {
     const store = createStoreHarness();
-    expect(store.getState().todayComposerCollapsed).toBe(false);
-    store.getState().setTodayComposerCollapsed(true);
+    expect(store.getState().conversationComposerCollapsed).toBe(false);
+    store.getState().setConversationComposerCollapsed(true);
     expect(migratePersistedUIState(getPersistedUIState(store.getState()))).toMatchObject({
-      todayComposerCollapsed: true, habitComposerCollapsed: false,
+      conversationComposerCollapsed: true, habitComposerCollapsed: false,
     });
     store.getState().setHabitComposerCollapsed(true);
-    store.getState().setTodayComposerCollapsed(false);
+    store.getState().setConversationComposerCollapsed(false);
     expect(migratePersistedUIState(getPersistedUIState(store.getState()))).toMatchObject({
-      todayComposerCollapsed: false, habitComposerCollapsed: true,
+      conversationComposerCollapsed: false, habitComposerCollapsed: true,
     });
     for (const value of [undefined, null, "true", 1, false]) {
-      expect(migratePersistedUIState({ todayComposerCollapsed: value, habitComposerCollapsed: true })).toMatchObject({
-        todayComposerCollapsed: false, habitComposerCollapsed: true,
+      expect(migratePersistedUIState({ conversationComposerCollapsed: value, habitComposerCollapsed: true })).toMatchObject({
+        conversationComposerCollapsed: false, habitComposerCollapsed: true,
       });
     }
   });

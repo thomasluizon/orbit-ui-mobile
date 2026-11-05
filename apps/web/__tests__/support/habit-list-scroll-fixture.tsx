@@ -10,9 +10,9 @@ import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-f
 import { bulkSkipResultSchema, type BulkSkipItemRequest } from '@orbit/shared/types/habit'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { AstraButton } from '@/components/shell/astra-button'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { ShellHeaderHostContext } from '@/components/shell/shell-header'
-import { Composer } from '@/components/shell/composer'
 import { useUIStore } from '@/stores/ui-store'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { TodayProvider } from '@/app/(app)/today-provider'
@@ -60,13 +60,13 @@ function Fixture() {
   const fabHidden = useUIStore((state) => state.todayFabHidden)
   return <ShellHeaderHostContext.Provider value={headerHost}><ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: () => {} }} registerHeaderHost={registerHeaderHost}
     tabBar={<BottomTabBar activeId="hoje" label="Navigation" onSelect={() => {}} items={[{ id: 'hoje', href: '/', label: 'Today' }]} />}
+    astraButton={document.getElementById('root')!.hasAttribute('data-astra') ? <AstraButton /> : undefined}
     fab={selecting || fabHidden ? undefined : <button>Create</button>}
     composer={selecting ? <SelectionTray selectedCount={view.selectedHabitIds.size} allSelected={view.selection.allSelected}
       skippableCount={view.selection.skippableCount}
       onSelectAll={view.selection.selectAll} onDeselectAll={view.selection.deselectAll} onBulkLog={() => {}}
       onBulkMove={() => {}} onBulkDelete={() => {}} onCancel={view.toggleSelectMode}
-      onBulkSkip={() => { void view.selection.confirmBulkSkip() }} /> : undefined}
-    compactComposer={selecting ? undefined : <Composer state="idle" words={en.shell.composer} value="" onChangeValue={() => {}} onSend={() => {}} suggestions={[]} collapsible collapseScope="today" />}>
+      onBulkSkip={() => { void view.selection.confirmBulkSkip() }} /> : undefined}>
     <div id="orbit-main" className="flex min-h-full flex-col"><RouteTransitionShell className="flex flex-1 flex-col">
       <div className="relative mx-auto w-full max-w-[740px]"><div className="flex min-w-0 flex-col gap-6">
         <TodayHeaderRegion view={view} />

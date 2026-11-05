@@ -198,6 +198,7 @@
       "m-overlay-habit-list-move-parent-dialog",
       "m-overlay-habits-habit-row",
       "m-overlay-habits-habit-row-trailing",
+      "m-overlay-shell-astra-button",
       "m-overlay-shell-composer",
       "m-overlay-today-today-date-control",
       "m-overlay-today-today-modals",
@@ -208,6 +209,7 @@
       "overlay-habit-list-confirm-dialogs",
       "overlay-habit-list-move-parent-overlay",
       "overlay-habits-habit-row-trailing",
+      "overlay-shell-astra-button",
       "overlay-shell-sidebar-account",
       "route-root"
     ],

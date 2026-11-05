@@ -1,7 +1,7 @@
 /** The mobile shell at 412. An optional pinned header, one scroller, and a pinned chrome block at the
- *  bottom carrying the composer above the tab bar. Safe-area aware.
+ *  bottom carrying habit detail's composer or Hoje's selection tray above the tab bar. Safe-area aware.
  *  The tab bar holds EXACTLY four destinations: Hoje, Calendario, Progresso, Perfil. There is no Astra tab.
- *  The conversation is a full-screen layer covering this shell and its tab bar, opened from the composer, never a route.
+ *  The conversation covers this shell and its tab bar. Hoje's floating Astra entry opens it, never a route.
  *
  *  WHETHER NAVIGATION IS PRESENT IS THIS SHELL'S OWN BEHAVIOUR, NEVER A SCREEN'S STYLESHEET. `nav={false}`
  *  renders NO TAB BAR AT ALL, and the type then rejects `tabBar` outright rather than accepting a null a
@@ -21,11 +21,8 @@ interface Shell412Base {
    * Progresso and Perfil put their bell-only minimum-height 48 row in children so it scrolls, with
    * no screen title. A detail header keeps its title and back control visible. */
   header?: any;
-  /** TRANSIENT PINNED CHROME - a Toast, a celebration line - directly ABOVE the pinned bottom slot
-   *  (the composer on Hoje, the action on a flow), never in its place. This slot exists because
-   *  transient panels were riding the composer slot and deleting Astra's front door while on screen, on
-   *  screens where D69 says the composer is present on Hoje. A toast belongs above a pinned
-   *  action just as it belongs above a composer; that is this slot's whole reason to exist. */
+  /** Transient pinned chrome above habit detail's composer, Hoje's selection tray or a flow's action.
+   *  With no bottom content it sits above the tab bar, outside Hoje's floating Astra area. */
   notice?: any;
   /** optional, floats above the composer. A screen that puts its create action in the header passes nothing. */
   fab?: any;
@@ -48,8 +45,8 @@ export interface Shell412NavProps extends Shell412Base {
   nav?: true;
   /** four destinations, never five. REQUIRED with navigation on. */
   tabBar: any;
-  /** Astra's front door, pinned above the tab bar on Hoje only; habit detail keeps its own composer. THE COMPOSER AND NOTHING
-   *  ELSE: a toast or a celebration goes in `notice`, above it, so it never evicts the front door. */
+  /** Habit detail's composer or Hoje's active selection tray, pinned above the tab bar.
+   *  Resting Hoje uses the floating Astra entry specified by the canvas amendment. */
   composer?: any;
   /** rejected on a destination: the pinned bottom slot is the composer (D69). A flow's forward action
    *  exists only where `nav` is false. */
@@ -68,9 +65,8 @@ export interface Shell412NoNavProps extends Shell412Base {
    *  the way a screen with no header already does. The words in it are the caller's; the shell ships
    *  no words. */
   action?: any;
-  /** rejected on a flow: a flow that owns the screen has no front door to pin, and passing one would
-   *  put Astra under a person who has not finished deciding. D69's composer-on-Hoje rule
-   *  does not reach here, because a flow is not a destination - that is what nav: false means. */
+  /** Rejected on a flow: its forward action owns the pinned slot. Astra's floating Hoje entry
+   *  belongs to a destination, so it is absent while a flow owns the screen. */
   composer?: never;
 }
 /** Discriminated on `nav`: the tab bar slot exists only where navigation does, and the pinned bottom

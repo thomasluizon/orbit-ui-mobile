@@ -10,7 +10,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { TypedTextarea } from '@/components/ui/typed-textarea'
 import { PersonalText } from '@/components/ui/personal-text'
 
-import { useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ClipboardEventHandler } from 'react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ClipboardEventHandler } from 'react'
 import {
   hasComposerContent,
   type ComposerAttachWords,
@@ -29,7 +29,6 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { revealFocusedControl } from '@/lib/focus-scroll'
-import { CompactComposerMenuContext } from './shell-pinned-content'
 
 type WebComposerProps = ComposerProps & {
   onPaste?: ClipboardEventHandler<HTMLTextAreaElement>
@@ -89,7 +88,7 @@ function AttachmentTray({
 
 function SuggestionStrip({ suggestions, label, disclosure }: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string; disclosure?: React.ReactNode }>) {
   const layoutRef = useRef<HTMLDivElement>(null)
-  const [layout, setLayout] = useState({ availableWidth: 0, gap: COMPOSER_CHIP_GAP })
+  const [layout, setLayout] = useState({ availableWidth: 0, gap: COMPOSER_CHIP_GAP, paddingStart: 0 })
   useEffect(() => {
     const host = layoutRef.current!
     const observer = new ResizeObserver(() => {
@@ -99,7 +98,7 @@ function SuggestionStrip({ suggestions, label, disclosure }: Readonly<Pick<Compo
         return content.getBoundingClientRect().width + Number.parseFloat(buttonStyle.paddingInlineStart) + Number.parseFloat(buttonStyle.paddingInlineEnd)
       })
       const next = { availableWidth, ...resolveComposerStripLayout(availableWidth, chipWidths) }
-      setLayout(previous => previous.availableWidth === next.availableWidth && previous.gap === next.gap ? previous : next)
+      setLayout(previous => previous.availableWidth === next.availableWidth && previous.gap === next.gap && previous.paddingStart === next.paddingStart ? previous : next)
     })
     observer.observe(host)
     host.querySelectorAll('[data-suggestion-content]').forEach(content => observer.observe(content))
@@ -114,7 +113,7 @@ function SuggestionStrip({ suggestions, label, disclosure }: Readonly<Pick<Compo
           role="group"
           data-focus-inset=""
           onFocusCapture={revealFocusedControl}
-          style={{ gap: layout.gap }}
+          style={{ gap: layout.gap, paddingInlineStart: layout.paddingStart }}
           className="flex min-w-0 items-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {suggestions.map(suggestion => (
@@ -202,11 +201,7 @@ function AllowanceStatus({ props, disclosure }: Readonly<{ props: ComposerProps;
 }
 
 function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComposerProps; onPaste?: () => void; onClear?: () => void }>) {
-  const compactMenu = useContext(CompactComposerMenuContext)
   const [open, setOpen] = useState(false)
-  useEffect(() => {
-    compactMenu?.onOpenChange(open)
-  }, [compactMenu, open])
   const menuId = useId()
   const anchorRef = useRef<HTMLButtonElement>(null)
   const { disabled, label, items: defaultItems } = buildComposerControls(props)
@@ -222,7 +217,7 @@ function ComposerControls({ props, onPaste, onClear }: Readonly<{ props: WebComp
       className="flex w-[48px] min-h-[48px] shrink-0 items-center justify-center rounded-full border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] disabled:opacity-40">
       <Plus size={20} strokeWidth={2} aria-hidden="true" className="text-[var(--fg-3)]" />
     </button></Menu.Trigger>
-    <Menu.Content id={menuId} presentation={compactMenu ? 'sheet' : 'auto'} returnFocus={compactMenu?.returnFocus} title={props.words.actions} items={items} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
+    <Menu.Content id={menuId} title={props.words.actions} items={items} onSelect={id => { if (id === 'clear') onClear?.(); else if (id === 'paste') onPaste?.(); else selectComposerAction(props, id) }} />
   </div></Menu.Root>
 }
 
@@ -507,7 +502,7 @@ function ComposerContent({ props, disclosure }: Readonly<{ props: WebComposerPro
 }
 
 export function Composer(props: Readonly<WebComposerProps>) {
-  const savedCollapsed = useUIStore(state => props.collapseScope === 'today' ? state.todayComposerCollapsed : state.habitComposerCollapsed)
+  const savedCollapsed = useUIStore(state => props.collapseScope === 'conversation' ? state.conversationComposerCollapsed : state.habitComposerCollapsed)
   const collapsed = Boolean(props.collapsible && savedCollapsed)
   const contentId = useId()
   const composerRef = useRef<HTMLDivElement>(null)
@@ -515,7 +510,7 @@ export function Composer(props: Readonly<WebComposerProps>) {
   function toggleCollapsed() {
     disclosureFocusPending.current = true
     const preferences = useUIStore.getState()
-    if (props.collapseScope === 'today') preferences.setTodayComposerCollapsed(!collapsed)
+    if (props.collapseScope === 'conversation') preferences.setConversationComposerCollapsed(!collapsed)
     else preferences.setHabitComposerCollapsed(!collapsed)
   }
   useEffect(() => {
@@ -528,8 +523,9 @@ export function Composer(props: Readonly<WebComposerProps>) {
     if (!props.autoFocus) return
     const composer = composerRef.current
     const input = composer?.querySelector<HTMLTextAreaElement>('[data-composer-input]:not([disabled])')
-    ;(input ?? composer)?.focus()
-    input?.setSelectionRange(input.value.length, input.value.length)
+    const expand = composer?.querySelector<HTMLButtonElement>('[data-composer-collapse-row]')
+    ;(expand ?? input ?? composer)?.focus()
+    if (!expand) input?.setSelectionRange(input.value.length, input.value.length)
   }, [props.autoFocus])
   useEffect(() => {
     if (!props.autoFocus) return

@@ -38,14 +38,12 @@ async function expectComposerKeyboardRings(page: Page, container: Locator, force
 }
 
 for (const width of [412, 1280] as const) {
-  test.describe(`Hoje composer at ${width}px`, () => {
+  test.describe(`Hoje Astra entry at ${width}px`, () => {
     test.use({ viewport: { width, height: 915 } })
     test('draws one focus ring', async ({ page }) => {
       await page.goto('/')
 
-      const pinnedComposer = page.locator('[data-shell-pinned-slot]')
-      if (width >= 1024) await page.locator('[data-shell-astra-row]').click()
-      else await pinnedComposer.locator('[data-composer-input]').focus()
+      await page.locator('[data-astra-button]').click()
       const conversation = page.locator('[data-shell-conversation="overlay"]')
       await expect(conversation).toBeVisible()
       await expect(page.locator('[data-composer-input]:visible')).toHaveCount(1)

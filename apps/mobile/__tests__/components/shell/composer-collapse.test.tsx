@@ -15,10 +15,10 @@ import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-are
 const clipboard = vi.hoisted(() => ({ getStringAsync: vi.fn().mockResolvedValue('Pasted draft'), hasStringAsync: vi.fn().mockResolvedValue(true) }))
 vi.mock('expo-clipboard', () => clipboard)
 vi.unmock('react-i18next')
-beforeEach(() => useUIStore.setState({ habitComposerCollapsed: false, todayComposerCollapsed: false }))
+beforeEach(() => useUIStore.setState({ habitComposerCollapsed: false, conversationComposerCollapsed: false }))
 afterEach(() => __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }))
 
-it.each([en, ptBR].flatMap(messages => (['habit', 'today'] as const).map(scope => ({ messages, scope }))))(
+it.each([en, ptBR].flatMap(messages => (['habit', 'conversation'] as const).map(scope => ({ messages, scope }))))(
   'retains the $scope draft, attachment and queue and collapses to one row', async ({ messages, scope }) => {
     await i18n.changeLanguage(messages === en ? 'en' : 'pt-BR')
     __setWindowDimensions({ width: 480, height: 640, scale: 1, fontScale: 1 })
@@ -48,7 +48,7 @@ it.each([en, ptBR].flatMap(messages => (['habit', 'today'] as const).map(scope =
       expect(tree.root.findAll(node => node.type === TextInput)[0]!).toBe(input)
       expect(input.props.value).toBe('Keep this draft')
       expect(useUIStore.getState()).toMatchObject({
-        habitComposerCollapsed: scope === 'habit', todayComposerCollapsed: scope === 'today',
+        habitComposerCollapsed: scope === 'habit', conversationComposerCollapsed: scope === 'conversation',
       })
       const host = { type: 'View', props: { style: { alignItems: 'stretch' as const } }, children: [tree.toJSON()] }
       const geometry = measureSafeArea(host, host => host.props.testID === 'composer-collapse-row' ? 'row' : undefined, { width: 480, height: 640 })
@@ -71,7 +71,7 @@ it.each([en, ptBR].flatMap(messages => (['habit', 'today'] as const).map(scope =
     } finally { await act(() => tree.unmount()) }
 })
 
-it.each(['habit', 'today'] as const)('places the $scope disclosure beside suggestions outside the pill', async scope => {
+it.each(['habit', 'conversation'] as const)('places the $scope disclosure beside suggestions outside the pill', async scope => {
   let tree!: GeometryTree
   await act(() => { tree = create(<Composer collapsible collapseScope={scope} state="idle" value=""
     onChangeValue={vi.fn()} onSend={vi.fn()} words={en.shell.composer}

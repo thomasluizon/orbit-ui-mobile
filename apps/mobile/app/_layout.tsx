@@ -1,5 +1,4 @@
 import { useAppToastNavigation } from '@/hooks/use-app-toast-navigation'
-import { resolveComposerDockSuggestions } from '@orbit/shared/chat'
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -282,7 +281,7 @@ function RootLayoutNav() {
                 {...chat.composerProps}
                 collapseScope={composerScope}
                 collapsible={composerScope !== undefined}
-                suggestions={resolveComposerDockSuggestions(pathname, chat.composerProps.suggestions)}
+                suggestions={chat.composerProps.suggestions}
                 onOpenConversation={() => setAstraConversationOpen(true)}
                 conversationLabel={t('todayAstra.openConversation')}
                 onSend={chat.composerProps.onSend}
@@ -297,6 +296,7 @@ function RootLayoutNav() {
             fab={pathname === '/' && !todayFabHidden && !astraConversationOpen
               ? <AppCreateFab onCreate={handleCreate} />
               : undefined}
+            astraButton={pathname === '/' && !isNotFound}
             fabPending={pathname === '/' && todayFabPending}
           >
             <RootStackScreens

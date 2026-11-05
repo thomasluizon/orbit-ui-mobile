@@ -153,7 +153,7 @@ async function inspectConversation(page: Page, width: number) {
     await expectWayfindingFocus(page, heading)
     await panel.locator('[data-composer-input]').focus()
     expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
-  }, () => page.locator(width >= 1024 ? '[data-shell-astra-row]' : '[data-shell-pinned-slot] [data-open-conversation]').click())
+  }, () => page.locator('[data-astra-button]').click())
 }
 
 for (const width of [600, 1352]) {

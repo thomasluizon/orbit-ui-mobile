@@ -12,6 +12,11 @@ export async function readCalendarPeriodGeometry(row: Element, settle = true) {
   }
   if (!settle) return measure()
   await document.fonts.ready
+  const animations = new Set<Animation>()
+  for (let element: Element | null = row; element; element = element.parentElement) {
+    for (const animation of element.getAnimations({ subtree: element === row })) animations.add(animation)
+  }
+  await Promise.allSettled([...animations].map(animation => animation.finished))
   let previous = measure()
   let stableFrames = 0
   for (let frame = 0; frame < 60 && stableFrames < 2; frame++) {

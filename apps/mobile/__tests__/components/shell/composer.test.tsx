@@ -803,38 +803,60 @@ describe('Composer (mobile)', () => {
     },
   )
 
-  it.each([en, ptBR])('hugs every returning suggestion across supported native widths', messages => {
+  it.each([en, ptBR].flatMap(messages => [1, 2].flatMap(fontScale => [false, true].map(collapsible => ({ messages, fontScale, collapsible })))))(
+    'hugs every returning suggestion across supported native widths with disclosure=$collapsible and text=$fontScale', ({ messages, fontScale, collapsible }) => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
     const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [createMockHabit()], totalHabitCount: 1,
       profile: createMockProfile({ lastCompletionDate: '2026-09-01' }), now: new Date('2026-09-10T12:00:00Z') })
     const labels = messages.shell.composer.chips.today
     const suggestions = toComposerSuggestions(chips.map(({ id }) => ({ id,
       label: labels[id.replace('today.', '') as keyof typeof labels], onSelect: vi.fn() })))
-    const tree = renderComposer(props({ suggestions, words: messages.shell.composer }))
+    const tree = renderComposer(props({ suggestions, words: messages.shell.composer, collapsible, collapseScope: 'conversation' }))
     const config = Yoga.Config.create()
     try {
-      for (const width of [320, 412, 600, 840, 1100, 1352, 320]) {
+      for (const width of [320, 360, 384, 412, 600, 840, 1100, 1352, 320]) {
+        const row = tree.root.findByProps({ testID: 'composer-suggestion-row' })
+        const disclosure = collapsible ? byLabel(tree.root, 'shell.composer.collapse')[0] : undefined
+        const available = width - 32 - (disclosure ? StyleSheet.flatten(disclosure.props.style).width + StyleSheet.flatten(row.props.style).gap : 0)
         const host = tree.root.findByProps({ testID: 'composer-suggestions-layout' })
-        TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: width - 32, height: 48 } } }))
-        for (const [index, suggestion] of suggestions.entries()) {
+        TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: available, height: 48 } } }))
+        const chipWidths = suggestions.map(suggestion => {
           const chip = byLabel(tree.root, suggestion.label)[0]
-          const contentWidth = [111, 154, 105, 160, 180, 120][index]!
+          const text = chip.findByType('Text')
+          const labelWidth = measureProfileRow({ type: 'View', props: { style: { alignItems: 'flex-start' } },
+            children: [{ type: 'Text', props: { style: text.props.style }, children: [text.props.children] }] }, 4000, fontScale).texts[0]!.width
+          const contentStyle = StyleSheet.flatten(chip.findByProps({ testID: 'composer-suggestion-content' }).props.style)
+          const style = StyleSheet.flatten(chip.props.style)
+          const inset = 2 * (style.paddingHorizontal + style.borderWidth)
+          const naturalWidth = labelWidth + chip.findByType(AstraGlyph).props.size + contentStyle.gap + inset
+          const contentWidth = Math.min(naturalWidth, style.maxWidth ?? naturalWidth) - inset
           TestRenderer.act(() => chip.findByProps({ testID: 'composer-suggestion-content' }).props.onLayout({
             nativeEvent: { layout: { x: 0, y: 0, width: contentWidth, height: 20 } },
           }))
           const target = Yoga.Node.create(config)
           const content = Yoga.Node.create(config)
           try {
-            const style = StyleSheet.flatten(chip.props.style)
             applyComposerLayoutStyle(target, style)
             applyComposerLayoutInsets(target, style)
             content.setMeasureFunc(() => ({ width: contentWidth, height: 20 }))
             target.insertChild(content, 0)
             target.calculateLayout(undefined, undefined)
-            expect(Math.abs(target.getComputedWidth() - content.getComputedWidth() - 24 - 2 * StyleSheet.hairlineWidth)).toBeLessThanOrEqual(1)
+            expect(Math.abs(target.getComputedWidth() - content.getComputedWidth() - inset)).toBeLessThanOrEqual(1)
+            return target.getComputedWidth()
           } finally { target.freeRecursive() }
+        })
+        const scroller = byLabel(tree.root, messages.shell.composer.suggestionsLabel)[0]
+        const stripStyle = StyleSheet.flatten(scroller.props.contentContainerStyle)
+        const starts = chipWidths.map((_, index) => Number(stripStyle.paddingStart ?? 0) + chipWidths.slice(0, index).reduce((sum, size) => sum + size + stripStyle.gap, 0))
+        const partial = starts.findIndex((start, index) => start < available && start + chipWidths[index]! > available)
+        if (starts.at(-1)! + chipWidths.at(-1)! > available) {
+          const evidence = JSON.stringify({ width, available, fontScale, chipWidths, starts, stripStyle })
+          expect(partial, evidence).toBeGreaterThanOrEqual(0)
+          expect(available - starts[partial]!, evidence).toBeGreaterThanOrEqual(16)
+          expect(starts[partial]! + chipWidths[partial]! - available, evidence).toBeGreaterThanOrEqual(16)
         }
       }
-    } finally { config.free(); TestRenderer.act(() => tree.unmount()) }
+    } finally { config.free(); TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
   })
 
   it('keeps content widths through narrow wide narrow layout callbacks', () => {

@@ -56,13 +56,13 @@ vi.mock('@/components/shell/shell-412', () => ({
   }) => <main>{header}{children}{composer}{tabBar}</main>,
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, composer, compactComposer, tabBar }: {
+  ShellWide: ({ children, header, composer, astraButton, tabBar }: {
     children: ReactNode
     header?: ReactNode
     composer?: ReactNode
-    compactComposer?: ReactNode
+    astraButton?: ReactNode
     tabBar?: ReactNode
-  }) => <main>{header}{children}{composer ?? compactComposer}{tabBar}</main>,
+  }) => <main>{header}{children}{composer}{astraButton}{tabBar}</main>,
 }))
 vi.mock('@/components/habits/habit-list', () => ({
   HabitList: () => <p>Morning walk</p>,
@@ -109,7 +109,7 @@ function TodayHarness() {
 
   return (
     <Suspense fallback={null}>
-      <DestinationShell onCreate={vi.fn()} composer={<p>Astra composer</p>}>
+      <DestinationShell onCreate={vi.fn()}>
         <h1>Today</h1>
         <output aria-label="Last action">{lastAction}</output>
         <button type="button" onClick={() => setToday('2026-09-14')}>Advance day</button>
@@ -159,7 +159,7 @@ describe('Today lazy overlays', () => {
     render(<TodayHarness />)
     expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.getByText('Astra composer')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBeVisible()
 
     await enterSelection()
     try {
@@ -173,7 +173,7 @@ describe('Today lazy overlays', () => {
     expectTodayVisible()
     fireEvent.click(within(tray).getByRole('button', { name: 'common.cancel' }))
     expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument()
-    expect(screen.getByText('Astra composer')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'shell.astraButton.open' })).toBeVisible()
     await enterSelection()
     const reopenedTray = await screen.findByTestId('bulk-action-bar')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

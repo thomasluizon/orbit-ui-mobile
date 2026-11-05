@@ -6,9 +6,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 import { Composer } from '@/components/shell/composer'
-import { CompactComposerMenuContext, useCompactComposerMenu } from '@/components/shell/shell-pinned-content'
-import { useViewportMatch } from '@/hooks/use-viewport-match'
-import { useRef } from 'react'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import { SidebarAccount } from '@/components/shell/sidebar-account'
 import { CalendarOptions } from '@/app/(app)/calendar/_components/calendar-options'
@@ -35,18 +32,12 @@ function ComposerMenu() {
   const [selections, setSelections] = useState(0)
   const [value, setValue] = useState('Retained draft')
   const [state, setState] = useState<'idle' | 'sending'>('idle')
-  const wide = useViewportMatch('(min-width: 1024px)')
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const compactMenu = useCompactComposerMenu(wide, bottomRef)
   const composerState = state === 'idle' ? { state: 'idle' as const } : { state: 'sending' as const }
   return <div data-shell>
-    <button data-shell-astra-row style={{ display: wide ? undefined : 'none' }}>Astra</button>
-    <div ref={bottomRef} style={{ position: 'fixed', bottom: 48, width: '100%' }}>
-      {!wide ? <CompactComposerMenuContext value={compactMenu}>
+    <div style={{ position: 'fixed', bottom: 48, width: '100%' }}>
         <Composer {...composerState} value={value} onChangeValue={setValue} onSend={() => { setValue(''); setState('sending') }} words={words.shell.composer}
           suggestions={[]} onAttachFile={() => {}} onAttachImage={() => setSelections((count) => count + 1)} onVoice={() => {}}
           attachWords={{ ...words.shell.composer.attach, remove: (name) => name }} voiceWords={words.shell.composer.voice} />
-      </CompactComposerMenuContext> : null}
     </div>
     <output aria-label="Composer selections">{selections}</output>
   </div>
