@@ -24,11 +24,12 @@ import {
   extractBackendStatus,
   isHabitDailySchedule,
   isHabitAstraLimitReached,
+  parseAPIDate,
   readTypedHabitPhrase,
   resolveSupportedLocale,
   shouldShowHabitAstraFallback,
 } from '@orbit/shared/utils'
-import { MAX_HABIT_DESCRIPTION_LENGTH, validateTagForm } from '@orbit/shared/validation'
+import { hasHabitMonthDaySchedule, MAX_HABIT_DESCRIPTION_LENGTH, validateTagForm } from '@orbit/shared/validation'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -48,6 +49,7 @@ import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
 import { HabitScheduleFields } from './habit-form-fields/habit-schedule-fields'
+import { HabitMonthDaysField } from './habit-form-fields/habit-month-days-field'
 import { HabitUnderstanding, HabitRepeatInterval } from './habit-form-fields/habit-understanding'
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
@@ -270,6 +272,9 @@ export function HabitFormFields({
   const days = useMemo(() => watchedDays ?? [], [watchedDays])
   const watchedQuantity = useWatch({ control: form.control, name: 'frequencyQuantity' })
   const intervalWeeks = useWatch({ control: form.control, name: 'intervalWeeks' }) ?? 1
+  const watchedMonthDays = useWatch({ control: form.control, name: 'monthDays' })
+  const monthDays = useMemo(() => watchedMonthDays ?? [], [watchedMonthDays])
+  const startDate = useWatch({ control: form.control, name: 'dueDate' }) ?? ''
   const frequencyUnit = useWatch({ control: form.control, name: 'frequencyUnit' })
   const frequencyQuantity = watchedQuantity ?? (frequencyUnit ? 0 : 3)
   const isFlexible = useWatch({ control: form.control, name: 'isFlexible' }) ?? false
@@ -332,10 +337,12 @@ export function HabitFormFields({
   }, [dueTime, form, setValue])
 
   const sentence = useMemo(
-    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, locale, translate, intervalWeeks),
-    [days, daysList, dueTime, frequencyQuantity, frequencyUnit, intervalWeeks, isFlexible, locale, translate],
+    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, locale, translate, intervalWeeks,
+      hasHabitMonthDaySchedule({ frequencyUnit, isFlexible, isGeneral: formHelpers.isGeneral }) ? monthDays : []),
+    [days, daysList, dueTime, formHelpers.isGeneral, frequencyQuantity, frequencyUnit, intervalWeeks, isFlexible, locale, monthDays, translate],
   )
   const daily = isHabitDailySchedule(days, isFlexible, frequencyUnit, frequencyQuantity)
+  const monthDayAnchor = (startDate ? parseAPIDate(startDate) : new Date()).getDate()
   const allowance = profile?.aiMessagesLimit ?? 5
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
   const astraFallbackCopy = useMemo(
@@ -474,6 +481,15 @@ export function HabitFormFields({
               disabled={disabled || lockedGeneral === true}
               onModeChange={controller.setScheduleMode}
               onChange={controller.setSchedule}
+            />
+            <HabitMonthDaysField
+              visible={itemType !== 'task' && hasHabitMonthDaySchedule({ frequencyUnit, isFlexible, isGeneral: formHelpers.isGeneral })}
+              monthDays={monthDays}
+              anchorDay={monthDayAnchor}
+              quantity={frequencyQuantity}
+              proposed={proposal.setup}
+              disabled={disabled || lockedGeneral === true}
+              onToggle={guard((day: number) => controller.toggleMonthDay(day, monthDayAnchor, monthDays))}
             />
       </HabitUnderstanding>
       <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />

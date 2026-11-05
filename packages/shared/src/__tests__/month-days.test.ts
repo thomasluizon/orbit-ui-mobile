@@ -6,7 +6,7 @@ import { summarizePendingOperationItem } from '../chat/pending-operation-item-su
 import { habitDetailSchema, habitScheduleItemSchema, updateHabitRequestSchema, createHabitRequestSchema } from '../types/habit'
 import { createApiClientError, getFriendlyErrorKey } from '../utils/error-utils'
 import { computeHabitFrequencyLabel } from '../utils/habit-card-helpers'
-import { buildHabitHistoryMonth } from '../utils/habit-detail-flow'
+import { buildHabitHistoryMonth, mergeHabitDetailWithScopedHabit } from '../utils/habit-detail-flow'
 import { applyHabitPhraseRead, buildHabitUnderstandingSentence, createHabitFormController, normalizeHabitFormData } from '../utils/habit-form-helpers'
 import { buildEditHabitFormState } from '../utils/habit-form-state'
 import { readHabitPhrase } from '../utils/habit-phrase-parser'
@@ -137,6 +137,13 @@ describe('a habit on chosen days of the month', () => {
     const habit = createMockHabit({ frequencyUnit: 'Month', frequencyQuantity: quantity, days: [], monthDays: [...monthDays] })
     expect(computeHabitFrequencyLabel(habit, english)).toBe(englishText)
     expect(computeHabitFrequencyLabel(habit, portuguese)).toBe(portugueseText)
+  })
+
+  it('carries month days from the habit detail into its schedule summary', () => {
+    const detail = habitDetailSchema.parse({ ...makeHabitDetail(), frequencyUnit: 'Month', frequencyQuantity: 1, days: [], monthDays: [8, 15] })
+    const habit = mergeHabitDetailWithScopedHabit(detail, undefined, '2026-11-05')
+    expect(computeHabitFrequencyLabel(habit, portuguese)).toBe('Todo dia 8 e 15')
+    expect(computeHabitFrequencyLabel(habit, english)).toBe('On the 8th and 15th')
   })
 
   it('keeps the plain monthly summary when no day is chosen', () => {
