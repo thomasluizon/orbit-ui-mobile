@@ -41,7 +41,7 @@ async function waitForFeedbackImport() {
 }
 
 describe.each(['loading', 'complete'] as const)('document %s', (readyState) => {
-  let retry: ReturnType<typeof vi.fn>
+  let retry: ReturnType<typeof vi.fn<() => void>>
   let showFailure: () => void
 
   beforeEach(async () => {
