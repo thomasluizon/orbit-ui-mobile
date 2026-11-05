@@ -127,7 +127,10 @@ describe('Range header rendered frames', () => {
       await page.getByRole('radio', { name: en.calendar.view.range, exact: true }).click()
       const row = page.getByTestId('calendar-range-navigation')
       const before = await row.evaluate(readCalendarPeriodGeometry)
-      await row.evaluate(element => element.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(100px)' }], { duration: 150, fill: 'forwards' }))
+      await row.evaluate(async element => {
+        const animation = element.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(100px)' }], { duration: 150, fill: 'forwards' })
+        await animation.ready
+      })
       const after = await row.evaluate(readCalendarPeriodGeometry)
       expect(after.label.left - before.label.left).toBeCloseTo(100, 1)
       expectSeparateChevrons(after)

@@ -10,8 +10,8 @@ const ordered = (habits) => [...habits].sort((left, right) => left.id.localeComp
 
 async function brainDumpSnapshot(vars) {
   requireEvalOrigin()
-  const { payload } = await publicApi(vars.credentialKey)('GET', 'profile/export')
-  if (!Array.isArray(payload?.habits)) throw new Error('Brain dump export lacks persisted habits.')
+  const { payload } = await publicApi(vars.credentialKey)('GET', 'eval/snapshot')
+  if (!Array.isArray(payload?.habits)) throw new Error('Brain dump snapshot lacks persisted habits.')
   return ordered(payload.habits)
 }
 

@@ -35,7 +35,7 @@ function lifecycle(detail) {
     if (path.includes('/confirm')) return { payload: { pendingOperationId: '11111111-1111-4111-8111-111111111111', confirmationToken: 'offline-confirmation' } }
     if (path.endsWith('/execute')) { executed = true; return { status: 200 } }
     if (path.startsWith('habits/')) return { payload: detail }
-    expect(path).toBe('profile/export')
+    expect(path).toBe('eval/snapshot')
     return { payload: { ...baseline, habits: executed ? [detail] : [] } }
   }
   return { api, requests }

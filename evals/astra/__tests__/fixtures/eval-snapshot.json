@@ -1,0 +1,107 @@
+{
+  "apiCommit": "de7eb6ad06b01df397e0b894ce464e9dd11c7cf8",
+  "snapshot": {
+    "exportedAtUtc": "2026-10-24T12:00:00Z",
+    "account": {
+      "name": "Eval account",
+      "email": "eval@example.invalid",
+      "createdAtUtc": "2026-10-24T12:00:00Z",
+      "plan": "pro"
+    },
+    "settings": {
+      "timeZone": "UTC",
+      "language": "en",
+      "weekStartDay": 1,
+      "themePreference": null,
+      "colorScheme": null,
+      "aiSummaryEnabled": true,
+      "proactiveAstraEnabled": true,
+      "uses24HourClock": null,
+      "storedProactiveAstraEnabled": true
+    },
+    "subscription": {
+      "plan": "Pro",
+      "isLifetimePro": false,
+      "source": null,
+      "interval": null,
+      "planExpiresAtUtc": null,
+      "trialEndsAtUtc": null
+    },
+    "habits": [],
+    "goals": [],
+    "tags": [],
+    "notifications": [],
+    "checklistTemplates": [],
+    "achievements": [],
+    "streakFreezes": [],
+    "referrals": [],
+    "apiKeys": [],
+    "friendships": [],
+    "cheers": [],
+    "blockedUsers": [],
+    "reports": [],
+    "friendFeedEvents": [],
+    "proactiveItems": [],
+    "notionConnection": null,
+    "notionTasks": [],
+    "conversations": [],
+    "conversationOffers": []
+  },
+  "habit": {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "title": "Water",
+    "description": null,
+    "emoji": null,
+    "isBadHabit": false,
+    "isGeneral": false,
+    "dueDate": "2026-10-24",
+    "endDate": null,
+    "frequencyUnit": "Day",
+    "frequencyQuantity": 1,
+    "days": [],
+    "checklistItems": [
+      {
+        "text": "Fill glass",
+        "isChecked": false
+      }
+    ],
+    "createdAtUtc": "2026-10-24T12:00:00Z",
+    "logs": [
+      {
+        "date": "2026-10-24",
+        "value": 1,
+        "note": null,
+        "createdAtUtc": "2026-10-24T12:00:00Z"
+      }
+    ],
+    "intervalWeeks": null
+  },
+  "goal": {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "title": "Read",
+    "description": null,
+    "targetValue": 10,
+    "currentValue": 0,
+    "unit": "pages",
+    "status": "Active",
+    "type": "Standard",
+    "deadline": null,
+    "createdAtUtc": "2026-10-24T12:00:00Z",
+    "completedAtUtc": null,
+    "progressLogs": []
+  },
+  "tag": {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "name": "Health",
+    "color": "#22c55e",
+    "createdAtUtc": "2026-10-24T12:00:00Z"
+  },
+  "checklistTemplate": {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "name": "Reading",
+    "items": [
+      "Open book"
+    ],
+    "createdAtUtc": "2026-10-24T12:00:00Z"
+  }
+}
