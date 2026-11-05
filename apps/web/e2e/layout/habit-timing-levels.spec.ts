@@ -29,13 +29,12 @@ for (const locale of ['en', 'pt-BR'] as const) {
             const editor = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
             await editor.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) }).click()
             const timing = page.getByRole('dialog', { name: messages.habits.form.timingAndReminder, exact: true })
-            const column = timing.locator('fieldset')
             const reminder = timing.getByRole('switch', { name: messages.habits.form.reminder, exact: true })
             await reminder.scrollIntoViewIfNeeded()
             await reminder.hover()
-            const edge = await column.evaluate(element => {
-              const bounds = element.getBoundingClientRect()
-              const fill = element.querySelector('[role="switch"][aria-label] [data-press-fill]')!.getBoundingClientRect()
+            const edge = await reminder.evaluate(element => {
+              const bounds = element.closest('fieldset')!.getBoundingClientRect()
+              const fill = element.querySelector('[data-press-fill]')!.getBoundingClientRect()
               return { left: fill.left - bounds.left, right: bounds.right - fill.right }
             })
             expect(Math.abs(edge.left)).toBeLessThanOrEqual(1)
