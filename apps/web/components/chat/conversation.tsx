@@ -423,7 +423,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
       <div className="shrink-0">
         {notice !== undefined ? <div data-shell-notice="">{notice}</div> : null}
         <PendingPromptIdea hasDraft={!!composerProps.value} disabledReason={disabledReason} onSelect={selectIdea} />
-        <Composer {...composerProps} inputSelection={inputSelection} onChangeValue={value => { setInputSelection(undefined); composerProps.onChangeValue(value) }} autoFocus suggestions={resolveConversationSuggestions(messages.length, composerProps.suggestions)} />
+        <Composer collapsible collapseScope="conversation" {...composerProps} inputSelection={inputSelection} onChangeValue={value => { setInputSelection(undefined); composerProps.onChangeValue(value) }} autoFocus suggestions={resolveConversationSuggestions(messages.length, composerProps.suggestions)} />
       </div>
 
       {selectedGoalId && (

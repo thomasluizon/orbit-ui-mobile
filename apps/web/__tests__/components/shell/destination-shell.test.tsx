@@ -84,7 +84,7 @@ vi.mock('@/stores/ui-store', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/stores/ui-store')>()
   return {
     ...original,
-    useUIStore: Object.assign((selector: (state: { setShowCreateModal: typeof mocks.setShowCreateModal; setActiveView: typeof mocks.setActiveView }) => unknown) => selector({ setShowCreateModal: mocks.setShowCreateModal, setActiveView: mocks.setActiveView }), { getState: original.useUIStore.getState }),
+    useUIStore: Object.assign((selector: (state: { setShowCreateModal: typeof mocks.setShowCreateModal; setActiveView: typeof mocks.setActiveView }) => unknown) => selector({ ...original.useUIStore.getState(), setShowCreateModal: mocks.setShowCreateModal, setActiveView: mocks.setActiveView }), { getState: original.useUIStore.getState }),
   }
 })
 vi.mock('@/components/command/command-palette', () => ({
@@ -93,18 +93,13 @@ vi.mock('@/components/command/command-palette', () => ({
     return <div data-testid="command-palette" />
   },
 }))
-vi.mock('@/components/ui/fab', () => ({
-  Fab: ({ label, onClick }: { label: string; onClick: () => void }) => (
-    <button type="button" aria-label={label} onClick={onClick} />
-  ),
-}))
 function MockComposerSlot({ composer, compactComposer }: Readonly<{ composer?: ReactNode; compactComposer?: ReactNode }>) {
   const pinnedComposer = composer ?? (!mocks.wide && compactComposer)
   return pinnedComposer ? <div data-shell-pinned-slot="">{pinnedComposer}</div> : null
 }
 
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, registerHeaderHost, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, compactComposer, scrollToTop, account, accountEmail, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
+  ShellWide: ({ children, registerHeaderHost, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, astraButton, scrollToTop, account, accountEmail, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
     children: ReactNode
     registerHeaderHost?: import('react').RefCallback<HTMLDivElement>
     header?: ReactNode
@@ -116,7 +111,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
     createRefusal?: ReactNode
     notice?: ReactNode
     composer?: ReactNode
-    compactComposer?: ReactNode
+    astraButton?: ReactNode
     scrollToTop?: ReactNode
     account?: string
     accountEmail?: string
@@ -140,7 +135,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
       </>}
       {mocks.wide && onPalette ? <button type="button" onClick={onPalette}>{paletteLabel}</button> : null}
       {mocks.wide && paletteHint ? <kbd>{paletteHint}</kbd> : null}
-      <MockComposerSlot composer={composer} compactComposer={compactComposer} />
+      <MockComposerSlot composer={composer} />{astraButton}
       {mocks.wide ? items?.map((item) => (
         <a href={item.href} key={item.id} aria-current={item.id === activeId ? 'page' : undefined} onClick={(event) => { event.preventDefault(); onSelect?.(item.id) }}>{item.label}</a>
       )) : tabBar}
@@ -392,9 +387,13 @@ describe('DestinationShell', () => {
   })
 
   it('passes the selection tray target through the destination composer slot', () => {
+    function Selection() {
+      useShellComposerSlot(true, () => <div data-testid="selection-composer" />, 'selection')
+      return <h1>Today</h1>
+    }
     render(
-      <DestinationShell onCreate={() => {}} composer={<div data-testid="selection-composer" />}>
-        <h1>Today</h1>
+      <DestinationShell onCreate={() => {}}>
+        <Selection />
       </DestinationShell>,
     )
 
@@ -858,53 +857,26 @@ describe('DestinationShell', () => {
     expect(screen.queryByText('One unread')).not.toBeInTheDocument()
   })
 
-  it.each([false, true])('shows composer only on Hoje and habit detail at wide=%s', (wide) => {
+  it.each([false, true])('replaces the Hoje composer with one Astra button at wide=%s', wide => {
+    mocks.wide = wide
+    render(<DestinationShell onCreate={() => {}} composer={<span>Old Hoje composer</span>}><h1>Today</h1></DestinationShell>)
+    expect(screen.queryByText('Old Hoje composer')).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'shell.astraButton.open' })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'shell.astraButton.open' }))
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    useUIStore.getState().setAstraConversationOpen(false)
+  })
+
+  it.each([false, true])('shows composer only on habit detail at wide=%s', (wide) => {
     mocks.wide = wide
     for (const pathname of ['/', '/calendar', '/progress', '/profile', '/habits/h1', '/about', '/support', '/search', '/ai-settings', '/preferences', '/advanced']) {
       mocks.pathname = pathname
       const view = render(<DestinationShell onCreate={() => {}} composer={<span>Composer</span>}><h1>Title</h1></DestinationShell>)
       expect(Boolean(view.container.querySelector('[data-shell-pinned-slot]'))).toBe(
-        pathname === '/habits/h1' || (pathname === '/' && !wide),
+        pathname === '/habits/h1',
       )
       view.unmount()
     }
-  })
-
-  it.each([false])('shows input and chips only on compact Hoje and preserves the conversation at wide=%s', (wide) => {
-    mocks.wide = wide
-    function App() {
-      const [open, setOpen] = useState(false)
-      return <DestinationShell onCreate={() => {}} conversation={<button type="button" onClick={() => setOpen(false)}>Close conversation</button>}
-        conversationOpen={open} conversationLabel="Conversation" composer={<Composer words={en.shell.composer} value="" state="idle"
-          suggestions={[
-            { id: 'first', label: 'First suggestion', onSelect: () => {} },
-            { id: 'second', label: 'Second suggestion', onSelect: () => {} },
-            { id: 'third', label: 'Third suggestion', onSelect: () => {} },
-          ]} onChangeValue={() => {}} onSend={() => {}} onOpenConversation={() => setOpen(true)} conversationLabel="Open conversation" />}>
-        <h1>Destination</h1>
-      </DestinationShell>
-    }
-    const view = render(<App />)
-    expect(screen.getByRole('textbox')).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: en.shell.composer.suggestionsLabel })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Open conversation' }))
-    expect(screen.getByTestId('conversation')).toBeInTheDocument()
-    for (const pathname of ['/calendar', '/progress', '/profile']) {
-      mocks.pathname = pathname
-      view.rerender(<App />)
-      expect(screen.getByTestId('conversation')).toBeInTheDocument()
-      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-      expect(screen.queryByRole('group', { name: en.shell.composer.suggestionsLabel })).not.toBeInTheDocument()
-      expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
-      expect(screen.getByRole('link', { name: 'nav.today' })).toBeInTheDocument()
-    }
-    fireEvent.click(screen.getByRole('button', { name: 'Close conversation' }))
-    expect(screen.queryByTestId('conversation')).not.toBeInTheDocument()
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    mocks.pathname = '/'
-    view.rerender(<App />)
-    expect(screen.getByRole('textbox')).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: en.shell.composer.suggestionsLabel })).toBeInTheDocument()
   })
 
   it.each([false, true])('retains Calendar on Search at wide=%s', (wide) => {

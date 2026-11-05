@@ -169,10 +169,6 @@ export function resolveComposerChipSurface(pathname: string): ComposerChipSurfac
   return 'today'
 }
 
-export function resolveComposerDockSuggestions(pathname: string, suggestions: ComposerSuggestions): ComposerSuggestions {
-  return pathname === '/' ? [] : suggestions
-}
-
 export function resolveConversationSuggestions(messageCount: number, suggestions: ComposerSuggestions): ComposerSuggestions {
   return messageCount === 0 ? suggestions : []
 }

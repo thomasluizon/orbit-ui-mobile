@@ -1,10 +1,10 @@
 import type { FabProps } from '@orbit/shared/contracts/actions'
-import { Pressable, StyleSheet } from 'react-native'
+import { Pressable, StyleSheet, type PressableProps } from 'react-native'
 import { useMemo } from 'react'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export function Fab({ label, children, onClick }: Readonly<FabProps>) {
+export function Fab({ label, children, onClick, neutral = false, ...buttonProps }: Readonly<FabProps & Omit<PressableProps, 'children' | 'onPress' | 'style'> & { neutral?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -13,14 +13,15 @@ export function Fab({ label, children, onClick }: Readonly<FabProps>) {
 
   return (
     <Pressable
+      {...buttonProps}
       onPress={onClick}
       accessibilityRole="button"
       accessibilityLabel={label}
-      testID="fab"
+      testID={buttonProps.testID ?? 'fab'}
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: tokens.primary,
+          backgroundColor: neutral ? tokens.bgElev : tokens.primary,
           boxShadow: `0 0 0 6px ${tokens.bg}`,
         },
         pressed ? styles.pressed : null,

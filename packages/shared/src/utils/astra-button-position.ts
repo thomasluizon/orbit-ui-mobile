@@ -39,7 +39,7 @@ export function snapAstraButton(requested: AstraButtonPoint | null, area: AstraB
   const heights = [point.y, ASTRA_BUTTON_GAP, maximum.y, ...obstacles.flatMap(obstacle => [obstacle.y - ASTRA_BUTTON_SIZE - ASTRA_BUTTON_GAP, obstacle.y + obstacle.height + ASTRA_BUTTON_GAP])]
   const candidates = [ASTRA_BUTTON_GAP, maximum.x].flatMap(x => heights.map(y => clampAstraButton({ x, y }, area)))
     .filter(candidate => !obstacles.some(obstacle => overlaps(candidate, obstacle)))
-  candidates.sort((first, second) => Math.abs(first.x - point.x) + Math.abs(first.y - point.y) - Math.abs(second.x - point.x) - Math.abs(second.y - point.y))
+  candidates.sort((first, second) => Math.abs(first.x - point.x) - Math.abs(second.x - point.x) || Math.abs(first.y - point.y) - Math.abs(second.y - point.y))
   return candidates[0] ?? null
 }
 

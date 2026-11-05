@@ -222,6 +222,15 @@
     "mainNavigation": "Navegação principal"
   },
   "shell": {
+    "astraButton": {
+      "open": "Abrir Astra",
+      "hint": "Arraste para mover ou use as ações de mover.",
+      "keyboardHint": "Arraste para mover ou use as teclas de seta.",
+      "left": "Mover para a esquerda",
+      "right": "Mover para a direita",
+      "up": "Mover para cima",
+      "down": "Mover para baixo"
+    },
     "collapseSidebar": "Recolher menu",
     "expandSidebar": "Expandir menu",
     "composer": {

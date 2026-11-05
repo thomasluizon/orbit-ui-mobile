@@ -20,7 +20,6 @@ import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shel
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useIsClient } from '@/hooks/use-is-client'
-import { CompactComposerMenuContext, useCompactComposerMenu } from './shell-pinned-content'
 import { PanelLeft, PanelLeftClose, Plus, Search } from '@/components/ui/icons'
 import { useShellStore } from '@/stores/shell-store'
 import { SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
@@ -55,7 +54,7 @@ type WithDestinationHrefs<Props> = Props extends { items: ShellWideItem[] }
   ? Omit<Props, 'items'> & { items: WebShellWideItem[]; themeAction?: ReactNode }
   : Props
 
-type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; compactComposer?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; fabPending?: boolean; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
+type ResponsiveShellProps = WithDestinationHrefs<ShellWideProps> & { registerHeaderHost?: RefCallback<HTMLDivElement>; astraButton?: ReactNode; tabBar?: ReactNode; fab?: ReactNode; fabPending?: boolean; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
 
 function SidebarItem({
   item,
@@ -251,9 +250,9 @@ function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true
   )
 }
 
-function getPinnedSlot(props: ResponsiveShellProps, wide = false) {
+function getPinnedSlot(props: ResponsiveShellProps) {
   if (props.nav === false) return props.action
-  return props.composer ?? (wide ? undefined : props.compactComposer)
+  return props.composer
 }
 
 function ShellBottomViewport({ floating, minimumHeight, children }: Readonly<{ floating: boolean; minimumHeight?: number; children: ReactNode }>) {
@@ -282,18 +281,13 @@ function getBottomViewportClasses(floating: boolean) {
     : { scrollOwner: 'overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]', columnMinimum: 'min-h-0', safeAreaPadding: 'pb-[var(--safe-bottom)] lg:pb-0', safeBottom: 'var(--safe-bottom)' }
 }
 
-function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<{
+function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
   props: ResponsiveShellProps
   conversationOpen: boolean
   visible: boolean
-  wide: boolean
 }>) {
   const navigationEnabled = props.nav !== false
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const compactMenu = useCompactComposerMenu(wide, bottomRef)
-  const pinnedSlot = getPinnedSlot(props, wide)
-  const compactOnly = navigationEnabled && props.composer === undefined && props.compactComposer !== undefined
-  const menuContext = compactOnly ? compactMenu : null
+  const pinnedSlot = getPinnedSlot(props)
   const floating = props.fab !== undefined || props.fabPending === true
   const { scrollOwner, columnMinimum, safeAreaPadding, safeBottom } = getBottomViewportClasses(floating)
   if (!visible) return null
@@ -301,7 +295,6 @@ function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<
 
   return (
     <div
-      ref={bottomRef}
       data-shell-bottom=""
       className={`z-sticky relative flex min-h-0 flex-col bg-[var(--bg)] ${safeAreaPadding}`}
       style={actionMinimum === undefined ? undefined : { minHeight: `calc(${actionMinimum}px + ${safeBottom})` }}
@@ -314,10 +307,8 @@ function ShellBottomChrome({ props, conversationOpen, visible, wide }: Readonly<
             </div>
           ) : null}
           {pinnedSlot !== undefined ? (
-            <div data-shell-pinned-slot="" hidden={conversationOpen} className={`pointer-events-none min-h-0 overscroll-contain ${scrollOwner} ${actionMinimum === undefined ? '' : 'py-1'} ${compactOnly ? 'lg:hidden' : 'lg:pb-4'}`} style={{ minHeight: actionMinimum }}>
-              <CompactComposerMenuContext.Provider value={menuContext}>
+            <div data-shell-pinned-slot="" hidden={conversationOpen} className={`pointer-events-none min-h-0 overscroll-contain ${scrollOwner} ${actionMinimum === undefined ? '' : 'py-1'} lg:pb-4`} style={{ minHeight: actionMinimum }}>
                 <div data-shell-pinned-content="" className="pointer-events-auto">{pinnedSlot}</div>
-              </CompactComposerMenuContext.Provider>
             </div>
           ) : null}
         </ShellBottomViewport>
@@ -460,13 +451,14 @@ function ShellWideBackground({
                 <div data-shell-fab-content="" className="pointer-events-none mx-auto flex w-full max-w-[740px] justify-end"><div data-shell-fab="" className="pointer-events-none [&_button]:pointer-events-auto">{props.fab}</div></div>
               </div>
             ) : null}
+            {props.astraButton}
             {props.scrollToTop !== undefined && !conversationOpen ? (
               <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">
                 <div className="pointer-events-auto">{props.scrollToTop}</div>
               </div>
             ) : null}
           </div>
-          <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} wide={wide} />
+          <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} />
           <div data-shell-create-refusal="" aria-live="polite" aria-atomic="true" className="min-h-0 overflow-y-auto px-4">{sidebarRefusal}</div>
           </div>
           </ShellDestinationViewport>

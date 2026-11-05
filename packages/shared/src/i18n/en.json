@@ -222,6 +222,15 @@
     "mainNavigation": "Main navigation"
   },
   "shell": {
+    "astraButton": {
+      "open": "Open Astra",
+      "hint": "Drag to move, or use the Move actions.",
+      "keyboardHint": "Drag to move, or use the arrow keys.",
+      "left": "Move left",
+      "right": "Move right",
+      "up": "Move up",
+      "down": "Move down"
+    },
     "collapseSidebar": "Collapse sidebar",
     "expandSidebar": "Expand sidebar",
     "composer": {

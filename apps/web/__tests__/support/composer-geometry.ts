@@ -107,7 +107,7 @@ export async function compileComposerGeometry() {
           return React.createElement(ShellWide, { items: [], activeId: 'hoje', navLabel: initialProps.words.actions,
             header: React.createElement('div', { style: { height: 48 } }),
             tabBar: React.createElement('div', { style: { height: 80 } }),
-            ...initialProps.testSurface === 'today' ? { compactComposer: composer, fab: React.createElement('div') } : { composer },
+            composer,
           }, React.createElement('div', { style: { height: 900 } }));
         }
         if (initialProps.withMessages === undefined) return React.createElement(Composer, composerProps);

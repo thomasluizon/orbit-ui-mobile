@@ -174,7 +174,7 @@ describe('Today create during first load', () => {
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(input).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'shell.composer.expand' })).toHaveFocus()
-    expect(useUIStore.getState()).toMatchObject({ todayComposerCollapsed: true, habitComposerCollapsed: false })
+    expect(useUIStore.getState()).toMatchObject({ conversationComposerCollapsed: true, habitComposerCollapsed: false })
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.expand' }))
     expect(screen.getByRole('textbox')).toBe(input)
     expect(input).toHaveValue('Changed Hoje draft')

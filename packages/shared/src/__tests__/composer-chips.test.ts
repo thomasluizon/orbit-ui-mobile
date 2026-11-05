@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createMockHabit, createMockProfile } from './factories'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
-import { buildComposerChips, resolveComposerChipSurface, resolveComposerDockSuggestions, resolveComposerStripLayout, type ComposerChipState } from '../chat/composer-chips'
+import { buildComposerChips, resolveComposerChipSurface, resolveComposerStripLayout, type ComposerChipState } from '../chat/composer-chips'
 import { toComposerSuggestions } from '../contracts/composer'
 
 const now = new Date('2026-09-12T12:00:00.000Z')
@@ -35,13 +35,6 @@ describe('composer chips', () => {
     expect(() => toComposerSuggestions(Array(7).fill(suggestions[0]))).toThrow()
   })
 
-  it('moves Today chips out of the dock while retaining habit detail chips and callbacks', () => {
-    const suggestions = toComposerSuggestions(buildComposerChips(state()).map((chip) => ({
-      id: chip.id, label: chip.key, onSelect: () => chip.id,
-    })))
-    expect(resolveComposerDockSuggestions('/', suggestions)).toEqual([])
-    expect(resolveComposerDockSuggestions('/habits/reading', suggestions)).toBe(suggestions)
-  })
   it.each([
     ['/habits/new', 'today'],
     ['/habits/reading', 'habitDetail'],
