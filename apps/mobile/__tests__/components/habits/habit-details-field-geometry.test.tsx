@@ -20,9 +20,20 @@ afterEach(() => __resetTestHostConfig())
 
 const cases = [320, 412].flatMap(width => [1, 2].flatMap(scale => (['en', 'pt-BR'] as const).flatMap(locale => (['dark', 'light'] as const).map(mode => ({ width, scale, locale, mode })))))
 
+type FillHost = ReturnType<typeof measureInteractionFills>[number]['host']
+
+function textOf(host: FillHost | string): string {
+  return typeof host === 'string' ? host : (host.children ?? []).map(textOf).join('')
+}
+
+function accessibleName(host: FillHost) {
+  return typeof host.props.accessibilityLabel === 'string' ? host.props.accessibilityLabel : textOf(host)
+}
+
 function expectFieldFill(tree: ReturnType<typeof TestRenderer.create>, width: number, scale: number, label: string) {
   const bounds = measureInteractionFills(tree.toJSON(), width, true, scale)
-  const control = bounds.find(part => 'accessibilityRole' in part.host.props && (part.host.props.accessibilityRole === 'switch' || part.host.props.accessibilityRole === 'button') && (part.host.props.accessibilityLabel == null || String(part.host.props.accessibilityLabel).startsWith(label)))
+  const controls = bounds.filter(part => part.host.props.accessibilityRole === 'switch' || part.host.props.accessibilityRole === 'button')
+  const control = controls.find(part => accessibleName(part.host).startsWith(label))
   expect(control).toBeDefined()
   expect(control!.left).toBe(0)
   expect(control!.right).toBe(width)
