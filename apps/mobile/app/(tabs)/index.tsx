@@ -65,7 +65,7 @@ function getSearchLabelKey(open: boolean) {
 function TodaySearchInput({ search }: Readonly<{ search: ReturnType<typeof useHabitViewSearch> }>) {
   const { t } = useTranslation()
   if (!search.open) return null
-  return <Input label={t('habits.search.title')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={search.text} onChange={search.changeText} focusRequest={1} />
+  return <Input label={t('habits.search.question')} hideLabel placeholder={t('habits.moveParent.searchPlaceholder')} value={search.text} onChange={search.changeText} focusRequest={1} />
 }
 
 function TodayViewHeader({ search, activeView, onChangeView, today, focused, isTodaySelected, suppressed }: Readonly<{

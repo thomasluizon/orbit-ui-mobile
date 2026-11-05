@@ -25,16 +25,6 @@ interface MoveParentOverlayProps extends MoveParentPickerProps {
   isMoving: boolean
 }
 
-const eyebrowStyle = {
-  margin: SPACING.s0,
-  fontFamily: 'var(--font-mono)',
-  fontSize: 12,
-  fontWeight: 500,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  color: 'var(--fg-3)',
-} as const
-
 function MoveTargetRow({
   option,
   selected,
@@ -94,6 +84,7 @@ export function MoveParentOverlay({
   const [searchQuery, setSearchQuery] = useState('')
   const hasPositionedRef = useRef(false)
   useEffect(() => { if (!open || inventoryState) hasPositionedRef.current = false }, [open, inventoryState])
+  const destinationQuestion = t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })
   const title = selectionOnly ? t('habits.form.parentHabit') : movingHabitCount === undefined ? t('habits.moveParent.title')
     : plural(t('habits.moveParent.titleMany', { count: movingHabitCount }), movingHabitCount)
   async function confirmMove() {
@@ -142,7 +133,7 @@ export function MoveParentOverlay({
         </ActionRow>
       }
     >
-      <div ref={focusRef} tabIndex={-1} className="flex flex-col min-h-0" style={{ gap: 8 }}>
+      <div ref={focusRef} tabIndex={-1} data-move-parent-questions="" className="flex flex-col min-h-0" style={{ gap: 16 }}>
         <MoveInventoryStatus selectionOnly={selectionOnly} state={inventoryState} onRetry={onRetryInventory} t={t} />
         {inventoryState !== 'loading' && inventoryState !== 'error' ? <>
 
@@ -153,7 +144,7 @@ export function MoveParentOverlay({
         ) : null}
         {showSearch && (
           <Input
-            label={t('habits.moveParent.searchPlaceholder')}
+            label={t('habits.moveParent.searchQuestion')}
             value={searchQuery}
             onChange={(query) => {
               setSearchQuery(query)
@@ -164,12 +155,13 @@ export function MoveParentOverlay({
           />
         )}
 
+        <div data-move-parent-destinations="" className="flex flex-col min-h-0" style={{ gap: 8 }}>
         {treeRows.length > 0 && (
-          <span style={eyebrowStyle}>{t('habits.moveParent.destinations')}</span>
+          <span data-field-question="" aria-hidden="true" className="text-sm font-medium text-[var(--fg-2)]">{destinationQuestion}</span>
         )}
 
         <RadioGroup
-          aria-label={t('habits.moveParent.destinations')}
+          aria-label={destinationQuestion}
           className="flex flex-col min-h-0"
         >
           {rootOption && (
@@ -196,6 +188,7 @@ export function MoveParentOverlay({
           ))}
           </div>
         </RadioGroup>
+        </div>
 
         <p role="status" className={error ? 'text-sm text-[var(--fg-2)]' : 'sr-only'}>{error}</p>
         {options.length > 0 && options.every((option) => option.disabled) && (

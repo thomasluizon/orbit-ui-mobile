@@ -66,6 +66,11 @@ describe('Share progress sheet geometry in Chromium', () => {
         return content.getBoundingClientRect().bottom - content.querySelector('[data-testid="share-card"]')!.getBoundingClientRect().bottom
       })
       expect(trailingSpace).toBeCloseTo(0)
+      const question = await page.locator('[data-share-period-question]').evaluate((group) => {
+        const label = group.querySelector('[data-field-question]')!
+        return group.querySelector('[data-segmented-control]')!.getBoundingClientRect().top - label.getBoundingClientRect().bottom
+      })
+      expect(question).toBeCloseTo(8, 0)
       await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
       await vi.waitFor(async () => {
         expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])

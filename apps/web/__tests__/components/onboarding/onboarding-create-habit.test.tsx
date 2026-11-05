@@ -100,9 +100,21 @@ describe('OnboardingCreateHabit', () => {
 
   it('shows direct controls without Astra framing', () => {
     render(<OnboardingCreateHabit {...base} />)
-    expect(screen.getByText('Pick the days and the time.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: en.onboarding.flow.when.direct })).toBeInTheDocument()
     expect(screen.getByTestId('time-field')).toBeInTheDocument()
     expect(screen.queryByText('Proposed by Astra')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['flexible', schedule, en.onboarding.flow.when.frequencyUnitLabel],
+    ['fixed', everyThirdMonday, en.onboarding.flow.when.daysQuestion],
+  ] as const)('asks the %s schedule as visible questions named once for assistive technology', (_mode, current, followUp) => {
+    render(<OnboardingCreateHabit {...base} schedule={current} />)
+    const questions = [...document.querySelectorAll('[data-field-question]')]
+    expect(questions.map((question) => question.textContent)).toEqual([en.onboarding.flow.when.scheduleMode, followUp])
+    for (const question of questions) expect(question).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByRole('radiogroup', { name: en.onboarding.flow.when.scheduleMode })).toBeInTheDocument()
+    expect(screen.getByRole(current.isFlexible ? 'radiogroup' : 'group', { name: followUp })).toBeInTheDocument()
   })
 
   it('requires a tap before editing a proposed schedule', () => {

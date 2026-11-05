@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import { expect, it } from 'vitest'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
@@ -18,7 +19,39 @@ const QUESTION_KEYS = [
   'profile.support.subject',
   'profile.support.message',
   'profile.freshStart.confirmLabel',
+  'chat.choice.freeText',
+  'chat.recordList.filter',
+  'chat.templates.searchQuestion',
+  'chat.habitSuggestions.promptQuestion',
+  'onboarding.flow.what.label',
+  'onboarding.flow.when.direct',
+  'onboarding.flow.when.scheduleMode',
+  'onboarding.flow.when.frequencyUnitLabel',
+  'onboarding.flow.when.daysQuestion',
+  'onboarding.flow.when.timeQuestion',
+  'shareCard.periodQuestion',
+  'habits.search.question',
+  'habits.moveParent.searchQuestion',
+  'habits.moveParent.destinations',
 ] as const
+
+/** The fields each screen shows together, so no two of them may ask the same question. */
+const SCREEN_QUESTIONS = {
+  signInEmail: ['auth.email'],
+  signInCode: ['auth.verificationCode'],
+  apiKeySheet: ['orbitMcp.keyName', 'profile.apiKeys.setExpiry', 'orbitMcp.expiresAtLabel', 'profile.apiKeys.scopeLabel'],
+  support: ['profile.support.subject', 'profile.support.message'],
+  freshStart: ['profile.freshStart.confirmLabel', 'profile.freshStart.confirmInstruction'],
+  onboardingWhat: ['onboarding.flow.what.title', 'onboarding.flow.what.label'],
+  onboardingWhen: ['onboarding.flow.when.direct', 'onboarding.flow.when.scheduleMode', 'onboarding.flow.when.frequencyUnitLabel', 'onboarding.flow.when.daysQuestion', 'onboarding.flow.when.timeQuestion'],
+  moveParent: ['habits.moveParent.searchQuestion', 'habits.moveParent.destinations'],
+  choiceBlock: ['chat.choice.freeText'],
+} as const
+
+/** ListRow titles this work introduced; `local/max-button-words` cannot read them through a variable. */
+const ROW_LABEL_KEYS = ['profile.apiKeys.setExpiry'] as const
+
+const { wordCount } = createRequire(import.meta.url)('../../../../eslint-rules/_control-labels.cjs') as { wordCount: (label: string) => number | null }
 
 const RETIRED_KEYS = ['profile.language.description', 'settings.weekStartDay.title'] as const
 
@@ -44,4 +77,17 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('
   expect(label).not.toContain('ORBIT')
   expect(hint).toContain('ORBIT')
   expect(hint).not.toMatch(/\?/)
+})
+
+it.each(Object.entries(SCREEN_QUESTIONS).flatMap(([screen, keys]) => [{ screen, keys, locale: 'en', messages: en }, { screen, keys, locale: 'pt-BR', messages: ptBR }]))('never asks the same question twice on $screen in $locale', ({ keys, messages }) => {
+  const questions = keys.map((key) => (lookup(messages, key) as string).trim().toLocaleLowerCase())
+  expect(questions.every(Boolean)).toBe(true)
+  expect(new Set(questions).size).toBe(questions.length)
+})
+
+it.each(ROW_LABEL_KEYS.flatMap((key) => [{ key, locale: 'en', messages: en }, { key, locale: 'pt-BR', messages: ptBR }]))('keeps the row question $key within two words in $locale', ({ key, messages }) => {
+  const count = wordCount(lookup(messages, key) as string)
+  expect(count).not.toBeNull()
+  expect(count).toBeGreaterThan(0)
+  expect(count).toBeLessThanOrEqual(2)
 })

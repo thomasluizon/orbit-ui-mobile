@@ -52,7 +52,7 @@ export function ShareCardSheet({ onClose }: Readonly<ShareCardSheetProps>) {
     <Sheet ref={sheetRef} title={t('shareCard.share')} accessibleTitle={t('shareCard.title')} onAttemptDismiss={() => { resetFeedback(); closeSheet(onClose) }} actions={actions}>
       <div className="min-w-0">
         <div className="flex min-w-0 flex-col gap-section-gap">
-          <SegmentedControl label={t('wrapped.periodGroup')} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth />
+          <div data-share-period-question="" className="flex min-w-0 flex-col gap-2"><span data-field-question="" aria-hidden="true" className="text-sm font-medium text-[var(--fg-2)]">{t('shareCard.periodQuestion')}</span><SegmentedControl label={t('shareCard.periodQuestion')} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={isSharing} onChange={(value) => { resetFeedback(); setPeriod(value) }} fullWidth /></div>
           {isLoading || (!recap && !isError) ? <div role="progressbar" aria-busy="true" aria-label={t('shareCard.loading')} className="flex min-h-[640px] flex-col justify-center gap-section-gap">
             {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
           </div> : null}

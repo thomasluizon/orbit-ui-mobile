@@ -181,6 +181,22 @@ describe('OnboardingCreateHabit data', () => {
     expect(renderedText).toContain(sentence)
   })
 
+  it.each([
+    ['flexible', schedule, 'onboarding.flow.when.frequencyUnitLabel'],
+    ['fixed', everyThirdMonday, 'onboarding.flow.when.daysQuestion'],
+  ] as const)('asks the %s schedule as visible questions named once for assistive technology', async (_mode, current, followUp) => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OnboardingCreateHabit {...base} proposed={false} correcting schedule={current} />)
+    })
+    const questions = tree.root.findAll((node) => node.props.testID === 'field-question' && typeof node.type === 'string')
+    const labels = questions.map((question) => question.findAll((node) => (node.type as unknown) === Text)[0]!)
+    expect(labels.map((label) => flattenText(label.props.children))).toEqual([i18n.t('onboarding.flow.when.scheduleMode'), i18n.t(followUp)])
+    for (const label of labels) expect(label.props.importantForAccessibility).toBe('no-hide-descendants')
+    expect(tree.root.findAll((node) => node.props.label === i18n.t('onboarding.flow.when.scheduleMode') && node.props.value !== undefined).length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.label === i18n.t('onboarding.flow.when.timeQuestion')).length).toBeGreaterThan(0)
+  })
+
   it('gives every weekday chip its full localized name', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {

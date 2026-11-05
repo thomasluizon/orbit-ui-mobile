@@ -4,6 +4,7 @@ import { createAstraAllowanceTranslator, type AstraAllowance } from '@orbit/shar
 
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 
+import type { ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { MAX_HABIT_INTERVAL_WEEKS, type FrequencyUnit } from '@orbit/shared/types/habit'
 import { formatWeekdaySchedule, toTime24, canRepeatOnboardingScheduleWeeks, clampOnboardingRepeatWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
@@ -97,13 +98,13 @@ function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, o
   </div>
 }
 
-export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps>) {
+function QuestionGroup({ question, children }: Readonly<{ question: string; children: ReactNode }>) {
+  return <div className="flex min-w-0 flex-col gap-2"><span data-field-question="" aria-hidden="true" className="text-sm font-medium text-[var(--fg-2)]">{question}</span>{children}</div>
+}
+
+function ScheduleQuestions(props: Readonly<OnboardingCreateHabitProps & { schedule: OnboardingSchedule; mode: OnboardingScheduleMode }>) {
   const t = useTranslations('onboarding.flow')
-  const locale = useLocale()
-  const translateDays = useTranslations()
-  const translate = createAstraAllowanceTranslator(translateDays, { aiMessagesPeriod: props.allowancePeriod }, locale)
-  const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
-  const mode = getOnboardingScheduleMode(schedule)
+  const { schedule, mode } = props
   const frequencyUnitOptions = [
     { value: 'Day', label: t('when.units.day') },
     { value: 'Week', label: t('when.units.week') },
@@ -112,24 +113,34 @@ export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps
   ] as const
   const intervalCount = schedule.frequencyQuantity ?? 1
   const intervalUnit = (schedule.frequencyUnit ?? 'Week').toLowerCase()
-  const proposalCadence = getCadencePresentation(schedule, useTranslations('onboarding.flow.when'), locale, translateDays)
-  const controls = (
-    <div className="flex flex-col gap-4">
-      <SegmentedControl fullWidth label={t('when.scheduleMode')} value={mode} options={[{ value: 'fixed', label: t('when.fixedMode') }, { value: 'flexible', label: t('when.flexibleMode') }, { value: 'interval', label: t('when.intervalMode') }, { value: 'oneTime', label: t('when.oneTimeMode') }]} onChange={props.onModeChange} />
+  const unitQuestion = <QuestionGroup question={t('when.frequencyUnitLabel')}><SegmentedControl fullWidth label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /></QuestionGroup>
+  return (
+    <div data-onboarding-questions="" className="flex flex-col gap-6">
+      <QuestionGroup question={t('when.scheduleMode')}><SegmentedControl fullWidth label={t('when.scheduleMode')} value={mode} options={[{ value: 'fixed', label: t('when.fixedMode') }, { value: 'flexible', label: t('when.flexibleMode') }, { value: 'interval', label: t('when.intervalMode') }, { value: 'oneTime', label: t('when.oneTimeMode') }]} onChange={props.onModeChange} /></QuestionGroup>
       {mode === 'flexible' ? (
-        <><SegmentedControl fullWidth label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.quantityLess')} moreLabel={t('when.quantityMore')} description={t(`when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} onChange={props.onQuantityChange} /></>
+        <div className="flex flex-col gap-3">{unitQuestion}<Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.quantityLess')} moreLabel={t('when.quantityMore')} description={t(`when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} onChange={props.onQuantityChange} /></div>
       ) : null}
       {mode === 'fixed' ? (
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-[var(--fg-2)]">{t('when.daysLabel')}</span>
-          <WeekdayPicker label={t('when.daysLabel')} days={schedule.days} dayOptions={DAYS.map(day => ({ value: day, label: t(`when.days.${day.toLowerCase()}`), accessibleLabel: t(`when.daysLong.${day.toLowerCase()}`) }))} onToggleDay={props.onToggleDay} />
+        <div className="flex flex-col gap-3">
+          <QuestionGroup question={t('when.daysQuestion')}><WeekdayPicker label={t('when.daysQuestion')} days={schedule.days} dayOptions={DAYS.map(day => ({ value: day, label: t(`when.days.${day.toLowerCase()}`), accessibleLabel: t(`when.daysLong.${day.toLowerCase()}`) }))} onToggleDay={props.onToggleDay} /></QuestionGroup>
+          {canRepeatOnboardingScheduleWeeks(schedule, props.canSaveRepeatWeeks) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('when.intervalLess')} moreLabel={t('when.intervalMore')} description={t('when.interval', { count: schedule.intervalWeeks })} onChange={props.onIntervalWeeksChange} /> : null}
         </div>
       ) : null}
-      {mode === 'interval' ? <><SegmentedControl fullWidth label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.frequencyLess')} moreLabel={t('when.frequencyMore')} description={t(`when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} onChange={props.onQuantityChange} /></> : null}
-      {canRepeatOnboardingScheduleWeeks(schedule, props.canSaveRepeatWeeks) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('when.intervalLess')} moreLabel={t('when.intervalMore')} description={t('when.interval', { count: schedule.intervalWeeks })} onChange={props.onIntervalWeeksChange} /> : null}
-      <TimeField label={t('when.timeLabel')} value={toTime24(schedule.dueTime)} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('when.timeHint')} />
+      {mode === 'interval' ? <div className="flex flex-col gap-3">{unitQuestion}<Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.frequencyLess')} moreLabel={t('when.frequencyMore')} description={t(`when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} onChange={props.onQuantityChange} /></div> : null}
+      <TimeField label={t('when.timeQuestion')} value={toTime24(schedule.dueTime)} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('when.timeHint')} />
     </div>
   )
+}
+
+export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps>) {
+  const t = useTranslations('onboarding.flow')
+  const locale = useLocale()
+  const translateDays = useTranslations()
+  const translate = createAstraAllowanceTranslator(translateDays, { aiMessagesPeriod: props.allowancePeriod }, locale)
+  const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
+  const mode = getOnboardingScheduleMode(schedule)
+  const proposalCadence = getCadencePresentation(schedule, useTranslations('onboarding.flow.when'), locale, translateDays)
+  const controls = <ScheduleQuestions {...props} schedule={schedule} mode={mode} />
   const correctScheduleLabel = props.emoji
     ? `${t('when.correctSchedule')}. ${t('when.emojiLabel')}`
     : t('when.correctSchedule')

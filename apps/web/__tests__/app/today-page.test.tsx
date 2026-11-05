@@ -221,7 +221,7 @@ describe('Hoje date control', () => {
     fireEvent.click(search)
     const close = screen.getByRole('button', { name: ptBr.habits.closeSearch })
     expect(close).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('textbox', { name: ptBr.habits.search.title })).toHaveFocus()
+    expect(screen.getByRole('textbox', { name: ptBr.habits.search.question })).toHaveFocus()
     fireEvent.click(close)
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.getByRole('button', { name: ptBr.habits.search.title })).toHaveAttribute('aria-expanded', 'false')

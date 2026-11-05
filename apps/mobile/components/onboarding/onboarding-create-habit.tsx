@@ -1,6 +1,6 @@
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { MAX_HABIT_INTERVAL_WEEKS, type FrequencyUnit } from '@orbit/shared/types/habit'
@@ -69,13 +69,13 @@ function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, c
   </View>
 }
 
-export function OnboardingCreateHabit(props: Readonly<Props>) {
-  const { t, i18n } = useTranslation()
-  const translate = createAstraAllowanceTranslator(t, { aiMessagesPeriod: props.allowancePeriod }, i18n.language)
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
-  const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
-  const mode = getOnboardingScheduleMode(schedule)
+function QuestionGroup({ question, color, children }: Readonly<{ question: string; color: string; children: ReactNode }>) {
+  return <View testID="field-question" style={styles.question}><Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.label, { color }]}>{question}</Text>{children}</View>
+}
+
+function ScheduleQuestions(props: Readonly<Props & { schedule: OnboardingSchedule; mode: OnboardingScheduleMode; tokens: ReturnType<typeof createTokensV2> }>) {
+  const { t } = useTranslation()
+  const { schedule, mode, tokens } = props
   const frequencyUnitOptions = [
     { value: 'Day', label: t('onboarding.flow.when.units.day') },
     { value: 'Week', label: t('onboarding.flow.when.units.week') },
@@ -84,15 +84,25 @@ export function OnboardingCreateHabit(props: Readonly<Props>) {
   ] as const
   const intervalCount = schedule.frequencyQuantity ?? 1
   const intervalUnit = (schedule.frequencyUnit ?? 'Week').toLowerCase()
-  const proposalCadence = getCadencePresentation(schedule, t, i18n.language)
-  const controls = <View style={styles.controls}>
-    <SegmentedControl fullWidth label={t('onboarding.flow.when.scheduleMode')} value={mode} options={[{ value: 'fixed', label: t('onboarding.flow.when.fixedMode') }, { value: 'flexible', label: t('onboarding.flow.when.flexibleMode') }, { value: 'interval', label: t('onboarding.flow.when.intervalMode') }, { value: 'oneTime', label: t('onboarding.flow.when.oneTimeMode') }]} onChange={props.onModeChange} />
-    {mode === 'flexible' ? <><SegmentedControl fullWidth label={t('onboarding.flow.when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.quantityLess')} moreLabel={t('onboarding.flow.when.quantityMore')} description={t(`onboarding.flow.when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} colors={tokens} onChange={props.onQuantityChange} /></> : null}
-    {mode === 'fixed' ? <><Text style={[styles.label, { color: tokens.fg2 }]}>{t('onboarding.flow.when.daysLabel')}</Text><WeekdayPicker label={t('onboarding.flow.when.daysLabel')} days={schedule.days} dayOptions={DAYS.map(day => ({ value: day, label: t(`onboarding.flow.when.days.${day.toLowerCase()}`), accessibleLabel: t(`onboarding.flow.when.daysLong.${day.toLowerCase()}`) }))} onToggleDay={props.onToggleDay} /></> : null}
-    {mode === 'interval' ? <><SegmentedControl fullWidth label={t('onboarding.flow.when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.frequencyLess')} moreLabel={t('onboarding.flow.when.frequencyMore')} description={t(`onboarding.flow.when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} colors={tokens} onChange={props.onQuantityChange} /></> : null}
-    {canRepeatOnboardingScheduleWeeks(schedule, props.canSaveRepeatWeeks) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('onboarding.flow.when.intervalLess')} moreLabel={t('onboarding.flow.when.intervalMore')} description={t('onboarding.flow.when.interval', { count: schedule.intervalWeeks })} colors={tokens} onChange={props.onIntervalWeeksChange} /> : null}
-    <TimeField label={t('onboarding.flow.when.timeLabel')} value={toTime24(schedule.dueTime)} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('onboarding.flow.when.timeHint')} />
+  const unitQuestion = <QuestionGroup question={t('onboarding.flow.when.frequencyUnitLabel')} color={tokens.fg2}><SegmentedControl fullWidth label={t('onboarding.flow.when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /></QuestionGroup>
+  return <View testID="onboarding-questions" style={styles.controls}>
+    <QuestionGroup question={t('onboarding.flow.when.scheduleMode')} color={tokens.fg2}><SegmentedControl fullWidth label={t('onboarding.flow.when.scheduleMode')} value={mode} options={[{ value: 'fixed', label: t('onboarding.flow.when.fixedMode') }, { value: 'flexible', label: t('onboarding.flow.when.flexibleMode') }, { value: 'interval', label: t('onboarding.flow.when.intervalMode') }, { value: 'oneTime', label: t('onboarding.flow.when.oneTimeMode') }]} onChange={props.onModeChange} /></QuestionGroup>
+    {mode === 'flexible' ? <View style={styles.group}>{unitQuestion}<Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.quantityLess')} moreLabel={t('onboarding.flow.when.quantityMore')} description={t(`onboarding.flow.when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} colors={tokens} onChange={props.onQuantityChange} /></View> : null}
+    {mode === 'fixed' ? <View style={styles.group}><QuestionGroup question={t('onboarding.flow.when.daysQuestion')} color={tokens.fg2}><WeekdayPicker label={t('onboarding.flow.when.daysQuestion')} days={schedule.days} dayOptions={DAYS.map(day => ({ value: day, label: t(`onboarding.flow.when.days.${day.toLowerCase()}`), accessibleLabel: t(`onboarding.flow.when.daysLong.${day.toLowerCase()}`) }))} onToggleDay={props.onToggleDay} /></QuestionGroup>{canRepeatOnboardingScheduleWeeks(schedule, props.canSaveRepeatWeeks) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('onboarding.flow.when.intervalLess')} moreLabel={t('onboarding.flow.when.intervalMore')} description={t('onboarding.flow.when.interval', { count: schedule.intervalWeeks })} colors={tokens} onChange={props.onIntervalWeeksChange} /> : null}</View> : null}
+    {mode === 'interval' ? <View style={styles.group}>{unitQuestion}<Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.frequencyLess')} moreLabel={t('onboarding.flow.when.frequencyMore')} description={t(`onboarding.flow.when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} colors={tokens} onChange={props.onQuantityChange} /></View> : null}
+    <TimeField label={t('onboarding.flow.when.timeQuestion')} value={toTime24(schedule.dueTime)} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('onboarding.flow.when.timeHint')} />
   </View>
+}
+
+export function OnboardingCreateHabit(props: Readonly<Props>) {
+  const { t, i18n } = useTranslation()
+  const translate = createAstraAllowanceTranslator(t, { aiMessagesPeriod: props.allowancePeriod }, i18n.language)
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
+  const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
+  const mode = getOnboardingScheduleMode(schedule)
+  const proposalCadence = getCadencePresentation(schedule, t, i18n.language)
+  const controls = <ScheduleQuestions {...props} schedule={schedule} mode={mode} tokens={tokens} />
   const correctScheduleLabel = props.emoji
     ? `${t('onboarding.flow.when.correctSchedule')}. ${t('onboarding.flow.when.emojiLabel')}`
     : t('onboarding.flow.when.correctSchedule')
@@ -103,4 +113,4 @@ export function OnboardingCreateHabit(props: Readonly<Props>) {
   </View>
 }
 
-const styles = StyleSheet.create({ root: { gap: 24 }, astraIntro: { gap: 8, alignItems: 'flex-start' }, intro: { alignItems: 'flex-start', flexDirection: 'row', gap: 12 }, title: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 26 }, controls: { gap: 16 }, label: { fontFamily: 'Geist_500Medium', fontSize: 14 }, proposal: { borderRadius: 20, gap: 16, padding: SPACING.s24 }, proposalPressed: { transform: [{ scale: 0.99 }] }, proposalTitle: { alignItems: 'center', flexDirection: 'row', gap: 12 }, proposalEmojiWell: { alignItems: 'center', borderRadius: 12, height: 44, justifyContent: 'center', width: 44 }, proposalEmoji: { fontSize: 22 }, proposalHabit: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 17 }, previewDays: { flexDirection: 'row', flexWrap: 'nowrap', gap: 4 }, previewDay: { flexGrow: 1, flexShrink: 1, flexBasis: 0, alignItems: 'center', borderRadius: 8, minHeight: 36, justifyContent: 'center', maxWidth: 36 }, previewDayText: { fontFamily: 'Geist_400Regular', fontSize: 14 }, previewTime: { gap: 8 }, previewTimeWell: { borderRadius: 12, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 }, previewTimeText: { fontFamily: 'Geist_400Regular', fontSize: 16 }, previewHint: { fontFamily: 'Geist_400Regular', fontSize: 12 }, sentence: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 }, emphasis: { fontFamily: 'Geist_500Medium' }, stepper: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, stepButton: { alignItems: 'center', borderRadius: 999, borderWidth: 1, minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN }, quantity: { fontFamily: 'GeistMono_500Medium', fontSize: 20, minWidth: 28, textAlign: 'center', fontVariant: ['tabular-nums'] }, description: { fontFamily: 'Geist_400Regular', fontSize: 14 }, disabled: { opacity: 0.4 } })
+const styles = StyleSheet.create({ root: { gap: 24 }, astraIntro: { gap: 8, alignItems: 'flex-start' }, intro: { alignItems: 'flex-start', flexDirection: 'row', gap: 12 }, title: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 26 }, controls: { gap: 24 }, group: { gap: 12 }, question: { gap: 8 }, label: { fontFamily: 'Geist_500Medium', fontSize: 14 }, proposal: { borderRadius: 20, gap: 16, padding: SPACING.s24 }, proposalPressed: { transform: [{ scale: 0.99 }] }, proposalTitle: { alignItems: 'center', flexDirection: 'row', gap: 12 }, proposalEmojiWell: { alignItems: 'center', borderRadius: 12, height: 44, justifyContent: 'center', width: 44 }, proposalEmoji: { fontSize: 22 }, proposalHabit: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 17 }, previewDays: { flexDirection: 'row', flexWrap: 'nowrap', gap: 4 }, previewDay: { flexGrow: 1, flexShrink: 1, flexBasis: 0, alignItems: 'center', borderRadius: 8, minHeight: 36, justifyContent: 'center', maxWidth: 36 }, previewDayText: { fontFamily: 'Geist_400Regular', fontSize: 14 }, previewTime: { gap: 8 }, previewTimeWell: { borderRadius: 12, paddingHorizontal: SPACING.s16, paddingVertical: SPACING.s12 }, previewTimeText: { fontFamily: 'Geist_400Regular', fontSize: 16 }, previewHint: { fontFamily: 'Geist_400Regular', fontSize: 12 }, sentence: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 }, emphasis: { fontFamily: 'Geist_500Medium' }, stepper: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, stepButton: { alignItems: 'center', borderRadius: 999, borderWidth: 1, minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN }, quantity: { fontFamily: 'GeistMono_500Medium', fontSize: 20, minWidth: 28, textAlign: 'center', fontVariant: ['tabular-nums'] }, description: { fontFamily: 'Geist_400Regular', fontSize: 14 }, disabled: { opacity: 0.4 } })

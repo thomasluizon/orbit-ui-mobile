@@ -91,7 +91,7 @@ it.each([320, 1280].flatMap((width) => [1, 2].flatMap((scale) => (['en', 'pt-BR'
       const group = bounds.find((part) => part.host.props.testID === 'api-key-expiry-group')!
       const name = bounds.find((part) => part.ancestors.at(-1) === root.slot && part.top === root.top)!
       const [row, region] = bounds.filter((part) => part.ancestors.at(-1) === group.slot)
-      expect(region!.host.props.nativeID).toEqual(expect.any(String))
+      expect((region!.host.props as { nativeID?: string }).nativeID).toEqual(expect.any(String))
       expect(group.top - name.bottom).toBe(16)
       expect(region!.top - row!.bottom).toBe(8)
       expect(region!.height).toBeGreaterThan(0)

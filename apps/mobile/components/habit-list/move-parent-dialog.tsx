@@ -128,6 +128,7 @@ export function MoveParentDialog({
     }
   }, [visible, inventoryState])
   const title = getMoveDialogTitle(t, selectionOnly, movingHabitCount)
+  const destinationQuestion = t('habits.moveParent.destinations', { count: movingHabitCount ?? 1 })
   async function confirmMove() {
     if (await onConfirm() === true) {
       closeSheet(hideDialog, hideDialog)
@@ -162,7 +163,7 @@ export function MoveParentDialog({
         </ActionRow>
       }
     >
-      <View style={{ flexShrink: 1, gap: 8 }}>
+      <View testID="move-parent-questions" style={{ flexShrink: 1, gap: 16 }}>
         <MoveInventoryStatus styles={styles} selectionOnly={selectionOnly} state={inventoryState} onRetry={onRetryInventory} t={t} />
         {inventoryState !== 'loading' && inventoryState !== 'error' ? <>
 
@@ -176,7 +177,7 @@ export function MoveParentDialog({
         {showSearch ? (
           <View style={styles.searchWrap}>
             <Input
-              label={t('habits.moveParent.searchPlaceholder')}
+              label={t('habits.moveParent.searchQuestion')}
               value={searchQuery}
               onChange={(query) => {
                 setSearchQuery(query)
@@ -189,11 +190,12 @@ export function MoveParentDialog({
           </View>
         ) : null}
 
+        <View testID="move-parent-destinations" style={styles.destinations}>
         {treeRows.length > 0 ? (
-          <Text style={styles.eyebrow}>{t('habits.moveParent.destinations')}</Text>
+          <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.destinationQuestion}>{destinationQuestion}</Text>
         ) : null}
 
-        <RadioGroup accessibilityLabel={t('habits.moveParent.destinations')} style={{ flexShrink: 1 }}>
+        <RadioGroup accessibilityLabel={destinationQuestion} style={{ flexShrink: 1 }}>
           {rootOption ? (
             <MoveTargetRow
               option={rootOption}
@@ -230,6 +232,7 @@ export function MoveParentDialog({
             ))}
           </ScrollView>
         </RadioGroup>
+        </View>
 
         <Text accessibilityLiveRegion="polite" style={[styles.moveDialogError, !error && styles.emptyError]}>{error}</Text>
         <MoveEmptyState t={t} options={options} isSearchEmpty={isSearchEmpty} styles={styles} />
@@ -246,21 +249,19 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 16,
       lineHeight: 24.8,
       color: tokens.fg2,
-      marginBottom: SPACING.s16,
     },
     searchWrap: {
       position: 'relative',
       justifyContent: 'center',
-      marginBottom: SPACING.s12,
     },
-    eyebrow: {
-      fontFamily: 'GeistMono_500Medium',
-      fontSize: 12,
-      letterSpacing: 0.96,
-      textTransform: 'uppercase',
-      color: tokens.fg3,
-      marginTop: SPACING.s4,
-      marginBottom: SPACING.s8,
+    destinations: {
+      flexShrink: 1,
+      gap: 8,
+    },
+    destinationQuestion: {
+      fontFamily: 'Geist_500Medium',
+      fontSize: 14,
+      color: tokens.fg2,
     },
     moveOptionsContent: {
       gap: INTERACTION_FILL_CLEARANCE,
