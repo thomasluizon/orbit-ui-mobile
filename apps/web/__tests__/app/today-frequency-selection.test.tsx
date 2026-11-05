@@ -8,6 +8,7 @@ import { TodayDateControl } from '@/app/(app)/today-shell'
 import { useTodaySelection } from '@/app/(app)/use-today-selection'
 import { HabitListFrequencyEmptyState } from '@/components/habits/habit-list/empty-state'
 import type { HabitListHandle } from '@/components/habits/habit-list'
+import { waitForLazyContent } from '@/__tests__/support/lazy-content'
 import { useUIStore } from '@/stores/ui-store'
 
 const mutations = vi.hoisted(() => ({ delete: vi.fn(), log: vi.fn(), skip: vi.fn() }))
@@ -82,6 +83,7 @@ beforeEach(() => {
 
 async function chooseFrequency(label: string) {
   fireEvent.pointerDown(screen.getByRole('button', { name: en.habits.listOptions }), { button: 0, ctrlKey: false })
+  await waitForLazyContent()
   fireEvent.click(await screen.findByRole('menuitem', { name: en.habits.frequencyFilter }))
   fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: label }))
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())

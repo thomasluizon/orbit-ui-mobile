@@ -1,0 +1,149 @@
+name: Android Startup
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+      - "packages/shared/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tools/check-android-bundle.mjs"
+      - "tools/android-boot.mjs"
+      - ".github/actions/android-boot/**"
+      - ".github/workflows/android-startup.yml"
+      - ".github/workflows/android-release.yml"
+  push:
+    branches: ["chore/ticket-1997-proof-*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-startup-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scope:
+    name: Select native boot proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      boot: ${{ steps.paths.outputs.boot }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - id: paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=$(git diff --name-only HEAD^1 HEAD)
+          if grep -Eq '^\.github/actions/android-boot/|^\.github/workflows/android-(release|startup)\.yml$|^tools/(android-boot|check-android-bundle)\.mjs$' <<< "$paths"; then
+            echo 'boot=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'boot=false' >> "$GITHUB_OUTPUT"
+          fi
+
+  bundle:
+    name: Android Hermes module inventory
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      EXPO_PUBLIC_API_BASE: https://api.useorbit.org
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Export Android Hermes bundle and source map
+        working-directory: apps/mobile
+        env:
+          CI: "1"
+          EXPO_NO_TELEMETRY: "1"
+          EXPO_NO_METRO_WORKSPACE_ROOT: "1"
+        run: npx expo export --platform android --source-maps --output-dir ../../.artifacts/android-bundle
+      - name: Require unique bundled native modules and component names
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t maps < <(find .artifacts/android-bundle/_expo/static/js/android -name '*.hbc.map' -type f)
+          test "${#maps[@]}" -eq 1
+          test -s "${maps[0]%.map}"
+          node tools/check-android-bundle.mjs --map "${maps[0]}"
+      - uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        with:
+          name: android-hermes-bundle
+          path: .artifacts/android-bundle
+          include-hidden-files: true
+          if-no-files-found: error
+
+
+  boot:
+    name: Android AAB first screen
+    permissions:
+      contents: read
+      actions: read
+    needs: scope
+    if: ${{ github.event_name == 'push' || needs.scope.outputs.boot == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_NO_METRO_WORKSPACE_ROOT: "1"
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
+      EXPO_PUBLIC_API_BASE: https://api.useorbit.org
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6
+        with:
+          android: false
+      - uses: actions/setup-node@v7
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: '1'
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
+      - run: npm ci --prefer-offline --no-audit --fund=false
+      - name: Validate the startup proof configuration
+        run: node tools/test-tools.mjs --only android-boot
+      - name: Select the last successful production app version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run list --repo "$GH_REPO" --workflow android-release.yml --branch main --status success --limit 100 --json displayTitle |
+            node --input-type=module -e '
+              import { appendFileSync, readFileSync } from "node:fs";
+              const runs = JSON.parse(readFileSync(0, "utf8"));
+              const release = runs.map((run) => /^Android Release (\d+\.\d+\.\d+) \(\d+\) to (?:open|production) on main$/.exec(run.displayTitle)).find(Boolean);
+              if (!release) throw new Error("No successful production Android release version found");
+              appendFileSync(process.env.GITHUB_ENV, `ORBIT_APP_VERSION=${release[1]}\n`);
+              console.log(`Startup proof uses ${release[0]}`);
+            '
+      - name: Prepare a build without Play credentials
+        working-directory: apps/mobile
+        run: |
+          node -e 'const fs = require("node:fs"); fs.writeFileSync("google-services.json", JSON.stringify({project_info:{project_number:"123456789",project_id:"android-boot-check",storage_bucket:"android-boot-check.invalid"},client:[{client_info:{mobilesdk_app_id:"1:123456789:android:0000000000000000",android_client_info:{package_name:"org.useorbit.app"}},api_key:[{current_key:"A"+"0".repeat(38)}]}],configuration_version:"1"}))'
+          npx expo prebuild --platform android --no-install
+      - name: Build the release AAB
+        working-directory: apps/mobile/android
+        run: ./gradlew --no-daemon --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64 bundleRelease
+      - name: Boot the built AAB without publishing
+        uses: ./.github/actions/android-boot
+        with:
+          aab: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          package: org.useorbit.app

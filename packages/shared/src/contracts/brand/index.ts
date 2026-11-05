@@ -7,7 +7,7 @@ export {
   ASTRA_GLYPH_PATHS,
   LOCKUP_MARK_PATHS,
   LOCKUP_WORD_PATH,
-  ORBIT_MARK_16_PATHS,
+  ORBIT_MARK_VIEW_BOX,
   ORBIT_MARK_PATHS,
   type BrandPath,
 } from './BrandPaths'

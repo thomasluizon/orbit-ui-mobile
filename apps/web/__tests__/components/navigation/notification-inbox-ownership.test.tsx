@@ -10,6 +10,7 @@ import { NotificationDeleteNotice } from '@/components/navigation/notification-d
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 import { useAuthStore } from '@/stores/auth-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { waitForLazyContent } from '@/__tests__/support/lazy-content'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -35,7 +36,6 @@ vi.mock('next-intl', async () => {
   return { useTranslations: () => createTranslator({ locale: 'en', messages }) }
 })
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
-vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/lib/api-fetch', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api-fetch')>()),
   fetchJson: vi.fn(),
@@ -115,6 +115,7 @@ it.each([412, 1352])('offers both inbox menu actions and small clear-all confirm
   render(shell(true))
   const trigger = screen.getByRole('button', { name: 'Alert options' })
   fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false })
+  await waitForLazyContent()
   const menu = await screen.findByRole('menu', { name: 'Alert options' })
   expect(menu).toHaveAttribute('id', trigger.getAttribute('aria-controls'))
   expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Mark all read', 'Clear all'])

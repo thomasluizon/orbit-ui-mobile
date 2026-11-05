@@ -18,7 +18,7 @@ function withoutReminderClock(habit) {
 }
 
 export async function readOfferState(api) {
-  const { payload } = await api('GET', 'profile/export')
+  const { payload } = await api('GET', 'eval/snapshot')
   if (!collections.every((field) => Array.isArray(payload?.[field]))) throw new Error('Offer readback lacks account collections.')
   const snapshot = Object.fromEntries(collections.map((field) => [field, payload[field].toSorted((left, right) => left.id.localeCompare(right.id))]))
   for (const [index, habit] of snapshot.habits.entries()) {

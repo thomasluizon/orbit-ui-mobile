@@ -75,7 +75,7 @@ export function CalendarSyncEventRow({
 
   return (
     <div
-      className="orbit-list-row-column flex flex-wrap items-start gap-x-4"
+      className="orbit-list-action-surface orbit-list-row-column flex flex-wrap items-start gap-x-4"
       data-focus-inset=""
       style={{
         borderRadius: 12,

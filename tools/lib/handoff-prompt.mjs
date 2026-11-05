@@ -1,6 +1,7 @@
 /** The handoff prompt contract, checked mechanically so a handoff cannot ignore the mode the owner asked for. */
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { createHash } from "node:crypto"
 import { join } from "node:path"
 
 import { REPO_ROOT, gitDirectoryOf, readRunState, writeRunState } from "./run-state.mjs"
@@ -12,7 +13,7 @@ const KEPT_REQUESTS = 20
 const SLEEP_TOKEN = /(?:^|[\s(])(?:--sleep|\/sleep)(?=$|[\s),;!?])/
 const CRANK_TOKEN = /(?:^|[\s(])(?:--crank|\/crank)(?=$|[\s),;!?])/
 // The hook documentation gives the typed text; the transcript stores the expanded command tags. Accept both.
-const HANDOFF_COMMAND = /<command-name>\/(handoff|wrap-up)<\/command-name>|(?:^|[\s(])\/(handoff|wrap-up)(?=$|[\s),;!?])/g
+const HANDOFF_COMMAND = /<command-name>\/(handoff|wrap-up)<\/command-name>|^[\t ]*\/(handoff|wrap-up)(?=$|[\s),;!?])/gm
 const TAGGED_ARGS = /<command-args>([\s\S]*?)<\/command-args>/
 const QUOTED_CONTENT = /(<pasted_content\b[^>]*>)|^[ \t]{0,3}(`{3,}|~{3,})[^\n]*(?:\n|$)|(`+)/gm
 const PASTED_TAG = /<(\/?)pasted_content\b([^>]*)>/g
@@ -62,7 +63,7 @@ export const parseHandoffRequest = (prompt) => {
   if (!first) return null
   const command = first[1] ?? first[2]
   const trailing = text.slice(first.index + first[0].length, next?.index ?? text.length)
-  const args = first[1] ? (TAGGED_ARGS.exec(trailing)?.[1] ?? "") : trailing
+  const args = first[1] ? (TAGGED_ARGS.exec(trailing)?.[1] ?? "") : trailing.split(/\r?\n|\s+\/(?:handoff|wrap-up)\b/)[0]
   const crank = CRANK_TOKEN.test(args)
   return { command, sleep: crank || SLEEP_TOKEN.test(args), crank }
 }
@@ -77,14 +78,15 @@ const sectionBody = (lines, prefix) => {
 }
 
 /** Every requirement the prompt misses; `sleep` true or false adds that mode's rules, undefined checks only the shared ones. */
-export const validateHandoffPrompt = (text, { sleep, crank }) => {
+export const validateHandoffPrompt = (text, { sleep, crank, autoWork }) => {
   const lines = String(text ?? "").split("\n")
   const firstNonEmptyLine = lines.find((line) => line.trim() !== "")?.trim() ?? ""
   const firstHeading = lines.findIndex((line) => line.startsWith("## "))
   const opening = lines.slice(0, firstHeading < 0 ? lines.length : firstHeading).join("\n")
   const missing = []
-  if (sleep === true || crank === true) {
-    if (lines[0].replace(/\r$/, "") !== "/sleep") missing.push("the first line must be exactly `/sleep`, so the prompt runs with nothing added")
+  if (sleep === true || crank === true || autoWork === true) {
+    const entry = autoWork === true ? "/auto-work" : "/sleep"
+    if (lines[0].replace(/\r$/, "") !== entry) missing.push(`the first line must be exactly \`${entry}\`, so the prompt runs with nothing added`)
     if (headingLine(lines, "## Sleep") < 0) missing.push("a `## Sleep` section")
   } else if (sleep === false && firstNonEmptyLine.startsWith("/")) {
     missing.push("an attended prompt must not start with a slash command")
@@ -123,6 +125,9 @@ const readRequests = (repoRoot) => {
 export const handoffCrank = (request, state) =>
   typeof state?.crank === "boolean" ? state.crank : request?.crank === true
 
+export const handoffAutoWork = (request, state) =>
+  typeof state?.autoWork === "boolean" ? state.autoWork : request?.autoWork === true
+
 /** Records a handoff request from the owner's prompt or the machine's context relay hook and tool. */
 export const recordHandoffRequest = (sessionId, request, recordedAt, repoRoot = REPO_ROOT) => {
   if (!sessionId || !request) return
@@ -140,3 +145,32 @@ export const recordHandoffRequest = (sessionId, request, recordedAt, repoRoot = 
 }
 
 export const readHandoffRequest = (sessionId, repoRoot = REPO_ROOT) => (sessionId ? readRequests(repoRoot)[sessionId] ?? null : null)
+
+const promptHash = (prompt) => createHash("sha256").update(prompt).digest("hex")
+
+/** An owner handoff binds intake to this predecessor and the exact prompt being handed over. */
+export const prepareOwnerHandoffRun = (sessionId, repoRoot = REPO_ROOT) => {
+  const state = readRunState(repoRoot)
+  if (state?.sessionId !== sessionId || state.autoWork !== true || readHandoffRequest(sessionId, repoRoot)?.origin !== "owner") return false
+  const prompt = readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8")
+  const missing = validateHandoffPrompt(prompt, { sleep: true, autoWork: true, crank: state.crank })
+  if (missing.length) throw new Error(`Owner handoff prompt misses: ${missing.join("; ")}`)
+  const ownerHandoff = { from: sessionId, promptHash: promptHash(prompt) }
+  writeRunState({ ...state, ownerHandoff }, repoRoot)
+  if (JSON.stringify(readRunState(repoRoot).ownerHandoff) !== JSON.stringify(ownerHandoff)) throw new Error("Owner intake handoff write was not confirmed")
+  return true
+}
+
+/** The actual incoming prompt, rather than a file read in its place, authorizes owner succession. */
+export const adoptOwnerHandoffRun = (sessionId, prompt, repoRoot = REPO_ROOT) => {
+  const previous = readRunState(repoRoot)
+  const record = previous?.ownerHandoff
+  if (!sessionId || sessionId === previous?.sessionId || previous?.autoWork !== true || record?.from !== previous?.sessionId ||
+      typeof prompt !== "string" || record.promptHash !== promptHash(prompt) || readHandoffRequest(record.from, repoRoot)?.origin !== "owner") return false
+  if (record.promptHash !== promptHash(readFileSync(join(repoRoot, HANDOFF_PROMPT_PATH), "utf8"))) return false
+  writeRunState({ ...previous, sessionId, sleep: true, decisionLogPath: null, relay: { from: previous.sessionId, pending: false },
+    ownerHandoff: { ...record, successorSessionId: sessionId } }, repoRoot)
+  const inherited = readRunState(repoRoot)
+  if (inherited.sessionId !== sessionId || JSON.stringify(inherited.intake) !== JSON.stringify(previous.intake)) throw new Error("Owner intake adoption was not confirmed")
+  return true
+}

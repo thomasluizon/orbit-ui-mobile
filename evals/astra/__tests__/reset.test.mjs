@@ -96,7 +96,7 @@ it.each(['en', 'pt-BR'])('seeds and reads back existing checked checklist items 
     { text: locale === 'en' ? 'Get a glass' : 'Pegar um copo', isChecked: true },
     { text: locale === 'en' ? 'Fill the glass' : 'Encher o copo', isChecked: false },
   ])
-  expect(requests.at(-1).path).toBe('profile/export')
+  expect(requests.at(-1).path).toBe('eval/snapshot')
 })
 it.each(['en', 'pt-BR'])('seeds and independently verifies a cached retrospective before the stale %s attempt', async (locale) => {
   const source = structuredClone(corpus.find((entry) => entry.metadata.id === `composition-stale-${locale}`))
@@ -222,7 +222,7 @@ it.each(['order', 'time', 'parent', 'missing-child', 'history'])('rejects an unv
       if (mode === 'parent') payload.children[1].parentHabitId = null
       if (mode === 'missing-child') payload.children.pop()
     }
-    if (mode === 'history' && path === '/api/profile/export') {
+    if (mode === 'history' && path === '/api/eval/snapshot') {
       const breakfast = payload.habits.find((habit) => habit.title === 'Breakfast')
       if (breakfast) breakfast.logs = []
     }
@@ -310,7 +310,7 @@ it('drives refresh, default reset, independent readback and ID substitution thro
   const source = structuredClone(corpus.find((entry) => entry.metadata.id === 'single-log-en'))
   const { test } = await prepareAttempt({ test: source })
   expect(requests.slice(0, 2).map(({ path }) => path)).toEqual(['health', 'auth/refresh'])
-  expect(requests.at(-1).path).toBe('profile/export')
+  expect(requests.at(-1).path).toBe('eval/snapshot')
   const account = JSON.parse(readFileSync(process.env.ORBIT_EVAL_CREDENTIALS_FILE, 'utf8')).ORBIT_EVAL_TOKEN
   expect(test.vars.input).toContain(account.habitId)
   expect(test.vars.expectations.required[0].arguments.habit_id).toBe(account.habitId)
@@ -361,7 +361,7 @@ it('the standalone reset also reads the exemption before resetting an exhausted 
   exhausted = true
   await runReset('single-read-en')
   expect(requests.slice(0, 3).map(({ path }) => path)).toEqual(['health', 'auth/refresh', 'config'])
-  expect(requests.at(-1).path).toBe('profile/export')
+  expect(requests.at(-1).path).toBe('eval/snapshot')
 })
 
 it.each(['free-at-limit', 'budget-exhausted'])('keeps the metered %s fixture path after preflight', async (fixture) => {
@@ -761,7 +761,7 @@ it('grounds the skipped identity independently of export order', async () => {
   const intercepted = globalThis.fetch
   vi.stubGlobal('fetch', async (url, options) => {
     const response = await intercepted(url, options)
-    if (new URL(url).pathname !== '/api/profile/export') return response
+    if (new URL(url).pathname !== '/api/eval/snapshot') return response
     const exported = await response.json()
     exported.habits.reverse()
     return Response.json(exported)

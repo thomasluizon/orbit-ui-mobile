@@ -3,6 +3,12 @@ export function inspectInteractionSurface(control: Element, clearance: number) {
     return control.matches('[data-composer-input-row] textarea[data-composer-input]') ? control.closest('[data-composer-input-row]')! : control
   }
   const element = paintOwner(control)
+  const styles = new Map<Element, CSSStyleDeclaration>()
+  function styleFor(node: Element) {
+    let style = styles.get(node)
+    if (!style) { style = getComputedStyle(node); styles.set(node, style) }
+    return style
+  }
   const pixels = (value: string) => Number.parseFloat(value) || 0
   const transparent = (value: string) => value === 'transparent' || /^rgba\([^)]*,\s*0(?:\.0+)?\)$/.test(value) || /\/\s*0(?:\.0+)?\)$/.test(value)
   const painted = (style: CSSStyleDeclaration) => !transparent(style.backgroundColor) || style.backgroundImage !== 'none'
@@ -14,7 +20,7 @@ export function inspectInteractionSurface(control: Element, clearance: number) {
     const box = node.getBoundingClientRect()
     if (box.width <= 1 || box.height <= 1 || box.right <= 0 || box.left >= innerWidth || box.bottom <= 0 || box.top >= innerHeight) return false
     for (let ancestor: Element | null = node; ancestor; ancestor = ancestor.parentElement) {
-      const style = getComputedStyle(ancestor)
+      const style = styleFor(ancestor)
       if (style.clipPath === 'inset(50%)' || style.position === 'absolute' && style.clip === 'rect(0px, 0px, 0px, 0px)') return false
     }
     return true
@@ -22,7 +28,7 @@ export function inspectInteractionSurface(control: Element, clearance: number) {
   const clipTextRect = (rect: DOMRect, parent: Element) => {
     let { left, right, top, bottom } = rect
     for (let ancestor: Element | null = parent; ancestor; ancestor = ancestor.parentElement) {
-      const style = getComputedStyle(ancestor)
+      const style = styleFor(ancestor)
       const clipsInline = style.overflowX !== 'visible' || style.textOverflow === 'ellipsis'
       const clipsBlock = style.overflowY !== 'visible'
       if (!clipsInline && !clipsBlock) continue
@@ -33,13 +39,15 @@ export function inspectInteractionSurface(control: Element, clearance: number) {
     return right > left && bottom > top ? { left, right, top, bottom } : null
   }
   const name = (node: Element) => `${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ''}[${node.getAttribute('aria-label') ?? node.getAttribute('data-testid') ?? node.textContent.trim().replace(/\s+/g, ' ').slice(0, 100)}]`
+  const layers = new Map<Element, Element | Document>()
   const layer = (node: Element): Element | Document => {
+    const cached = layers.get(node)
+    if (cached) return cached
     const overlay = node.closest('[role="dialog"], [role="menu"]')
-    if (overlay) return overlay
-    for (let ancestor: Element | null = node; ancestor; ancestor = ancestor.parentElement) {
-      if (getComputedStyle(ancestor).position === 'fixed') return ancestor
-    }
-    return document
+    const owner = overlay ?? (styleFor(node).position === 'fixed'
+      ? node : node.parentElement ? layer(node.parentElement) : document)
+    layers.set(node, owner)
+    return owner
   }
   const controlLayer = layer(element)
   const shellRegion = element.closest('[data-shell-scroller], [data-shell-bottom]')
@@ -79,7 +87,7 @@ export function inspectInteractionSurface(control: Element, clearance: number) {
     if (!visible(owner) || layer(owner) !== controlLayer) continue
     if (owner.closest('[data-notification-count]')) continue
     if (owner !== element && owner.matches(interactive)) continue
-    const style = getComputedStyle(owner)
+    const style = styleFor(owner)
     const boxes = [visible(owner) && painted(style) ? expand(owner.getBoundingClientRect(), style) : null,
       pseudoBox(owner, '::before'), pseudoBox(owner, '::after')].filter((box) => box !== null)
     for (const box of boxes) {
@@ -108,15 +116,15 @@ export function inspectInteractionSurface(control: Element, clearance: number) {
     }
     return violations
   }
-  const neighbours = [...document.body.querySelectorAll('*')].filter((node) =>
+  const neighbours = hasFill ? [...document.body.querySelectorAll('*')].filter((node) =>
     node !== element && !contentOwner.contains(node) && !node.contains(element) && layer(node) === controlLayer
     && (!shellRegion || !node.closest('[data-shell-scroller], [data-shell-bottom]') || node.closest('[data-shell-scroller], [data-shell-bottom]') === shellRegion)
     && !(element.matches('input.orbit-field-hover, textarea.orbit-field-hover') && node.matches('svg[aria-hidden="true"]:not([tabindex]):not([role])')
-      && node.parentElement === element.parentElement && getComputedStyle(node).pointerEvents === 'none')
+      && node.parentElement === element.parentElement && styleFor(node).pointerEvents === 'none')
     && visible(node) && !node.matches('svg[data-interaction-fill-graphics]')
-    && (!node.parentElement?.closest('svg') || node.matches('svg[data-interaction-fill-graphics] > path')))
+    && (!node.parentElement?.closest('svg') || node.matches('svg[data-interaction-fill-graphics] > path'))) : []
   const violations = hasFill ? neighbours.flatMap((neighbour) => {
-    const style = getComputedStyle(neighbour)
+    const style = styleFor(neighbour)
     const boxes = [painted(style) || neighbour.matches('img, svg, canvas, video, svg[data-interaction-fill-graphics] > path') ? expand(neighbour.getBoundingClientRect(), style) : null,
       pseudoBox(neighbour, '::before'), pseudoBox(neighbour, '::after')].filter((box) => box !== null)
     for (const child of neighbour.childNodes) {

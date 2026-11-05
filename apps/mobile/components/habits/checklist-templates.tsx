@@ -10,6 +10,8 @@ import {
 } from 'react-native'
 import { X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
+import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
+import { useRowFeedback } from '@/hooks/use-row-feedback'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'
 import {
@@ -192,19 +194,9 @@ export function ChecklistTemplates({
               </View>
             ) : null}
             {templates.map((template) => (
-              <View key={template.id} style={styles.templateRow}>
-                <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={template.name} focusInset style={({ pressed }) => [styles.templateLoad, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} onPress={() => handleLoad(template.id)}>
-                  <PersonalText onClampedChange={(clamped) => setClampedTemplates((current) => current[template.id] === clamped ? current : { ...current, [template.id]: clamped })} style={styles.templateName}>{template.name}</PersonalText>
-                </Pressable>
-                <View style={styles.templateActions}>
-                  <Icon name="template" size={20} color={tokens.fg3} />
-                  <Text style={styles.templateCount}>{t('habits.form.templateItemCount', { count: template.items.length })}</Text>
-                  <PersonalTextDetails iconOnly clamped={clampedTemplates[template.id]}>{template.name}</PersonalTextDetails>
-                  <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={`${t('common.delete')}: ${template.name}`} focusInset style={({ pressed }) => [styles.templateDelete, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} onPress={() => handleDelete(template.id)}>
-                    <Icon name="trash" size={20} color={tokens.statusBad} />
-                  </Pressable>
-                </View>
-              </View>
+              <TemplateRow key={template.id} template={template} disabled={disabled} styles={styles} tokens={tokens}
+                clamped={clampedTemplates[template.id]} onClampedChange={(clamped) => setClampedTemplates((current) => current[template.id] === clamped ? current : { ...current, [template.id]: clamped })}
+                onLoad={() => handleLoad(template.id)} onDelete={() => handleDelete(template.id)} />
             ))}
             {templates.length === 0 && !showSave ? <ChecklistTemplatesEmptyState canSave={items.length > 0} onSave={() => setShowSave(true)} styles={styles} translate={t} /> : null}
           </View>
@@ -213,6 +205,36 @@ export function ChecklistTemplates({
       ) : null}
     </>
   )
+}
+
+function TemplateRow({ template, disabled, styles, tokens, clamped, onClampedChange, onLoad, onDelete }: Readonly<{
+  template: ChecklistTemplate
+  disabled: boolean
+  styles: ReturnType<typeof createStyles>
+  tokens: AppTokens
+  clamped?: boolean
+  onClampedChange: (clamped: boolean) => void
+  onLoad: () => void
+  onDelete: () => void
+}>) {
+  const { t } = useTranslation()
+  const bodyFeedback = useRowFeedback(disabled)
+  const deleteFeedback = useRowFeedback(disabled)
+  const highlighted = bodyFeedback.highlighted || deleteFeedback.highlighted
+  return <View style={[styles.templateRow, { borderRadius: 12 }]}>
+    <View pointerEvents="none" accessible={false} testID="template-row-feedback" style={[StyleSheet.absoluteFill, { borderRadius: 12, backgroundColor: highlighted ? tokens.bgHover : 'transparent', outlineWidth: bodyFeedback.focused ? 2 : 0, outlineStyle: 'solid', outlineColor: tokens.fg1, outlineOffset: -2 }]} />
+    <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={template.name} {...bodyFeedback.handlers} style={styles.templateLoad} onPress={onLoad}>
+      <PersonalText onClampedChange={onClampedChange} style={styles.templateName}>{template.name}</PersonalText>
+    </Pressable>
+    <View style={styles.templateActions}>
+      <Icon name="template" size={20} color={tokens.fg3} />
+      <Text style={[styles.templateCount, highlighted ? { color: tokens.fg2 } : null]}>{t('habits.form.templateItemCount', { count: template.items.length })}</Text>
+      <PersonalTextDetails iconOnly clamped={clamped}>{template.name}</PersonalTextDetails>
+      <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={`${t('common.delete')}: ${template.name}`} focusInset {...deleteFeedback.handlers} style={[styles.templateDelete, { backgroundColor: deleteFeedback.highlighted ? tokens.bgRowAction : 'transparent' }]} onPress={onDelete}>
+        <Icon name="trash" size={20} color={tokens.statusBad} />
+      </Pressable>
+    </View>
+  </View>
 }
 
 function createStyles(tokens: AppTokens) {
@@ -225,7 +247,7 @@ function createStyles(tokens: AppTokens) {
     templateDelete: { overflow: 'hidden', width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
     formRow: { paddingTop: SPACING.s8 },
     container: {
-      gap: 4,
+      gap: 8,
     },
     saveRow: {
       flexDirection: 'row',

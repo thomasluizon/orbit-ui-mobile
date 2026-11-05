@@ -19,15 +19,14 @@ Sentry upload, and the Gradle staging directory all stay exactly as the reposito
 
 ## Why `--emulator` changes the ABIs
 
-`apps/mobile/app.json` sets `buildArchs` to `["armeabi-v7a", "arm64-v8a"]`, which is correct for Play:
-no real phone needs x86_64 and the bundle stays small. An x86_64 emulator cannot run that APK. React
-Native's SoLoader resolves `libreactnative.so` on the device's primary ABI, finds no `lib/x86_64/`,
-and kills the process in `MainApplication.onCreate`.
+`apps/mobile/app.json` sets local `buildArchs` defaults to `["armeabi-v7a", "arm64-v8a"]`.
+An x86_64 emulator needs its native slice: React Native's SoLoader resolves `libreactnative.so`
+on the device's primary ABI and exits when that library is absent.
 
-`--emulator` therefore passes `-PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64` to Gradle for
-that build only. `gradle.properties` documents this override. **Never fix this by editing
-`app.json`**: the generated `gradle.properties` is rewritten from `app.json` on every prebuild, and
-putting x86_64 there ships it to Play.
+`--emulator` passes `-PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64` to Gradle for the
+local build. The release and startup-proof workflows use the same override so the release boot
+gate can execute the shipping AAB on an x86_64 emulator before Play submission. Keep the local
+defaults in `app.json`; generated `gradle.properties` is rewritten from it on every prebuild.
 
 ## Step 1 - Build
 

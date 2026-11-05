@@ -113,6 +113,16 @@ import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
 }
 
 export const cases = async () => {
+  const autoCheckout = stageCheckout("auto-work")
+  writeRunState({ sessionId: "auto-parent", autoWork: true, crank: false, intake: { gmail: { completed: ["message-1"] } } }, autoCheckout)
+  writeRunState({ sessionId: "auto-parent", remaining: [] }, autoCheckout)
+  T("auto-work state: ordinary updates retain mode and source cursors", readRunState(autoCheckout).autoWork === true && readRunState(autoCheckout).intake?.gmail.completed[0] === "message-1")
+  writeRunState({ sessionId: "auto-child", relay: { from: "auto-parent" } }, autoCheckout)
+  T("auto-work state: relay writes inherit mode and cursors", readRunState(autoCheckout).autoWork === true && readRunState(autoCheckout).intake?.gmail.completed[0] === "message-1")
+  writeRunState({ sessionId: "auto-child", autoWork: false }, autoCheckout)
+  T("auto-work state: explicit disable wins", readRunState(autoCheckout).autoWork === false)
+  writeRunState({ sessionId: "unrelated" }, autoCheckout)
+  T("auto-work state: unrelated sessions do not inherit", readRunState(autoCheckout).autoWork === undefined && readRunState(autoCheckout).intake === undefined)
   const corruptRoot = stageCheckout("corrupt")
   writeFileSync(runStatePath(corruptRoot), "not json")
   let corruptError

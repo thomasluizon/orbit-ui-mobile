@@ -5,7 +5,7 @@ const preserved = ['id', 'title', 'description', 'frequencyUnit', 'frequencyQuan
   'relativeReminders', 'slipAlertEnabled', 'checklistItems', 'isBadHabit', 'isGeneral', 'isFlexible', 'endDate', 'emoji']
 
 export async function readRestartSnapshot(api) {
-  const { payload } = await api('GET', 'profile/export')
+  const { payload } = await api('GET', 'eval/snapshot')
   if (!Array.isArray(payload?.habits) || payload.habits.length !== 6) throw new Error('Restart readback needs all six fixture habits.')
   const snapshot = []
   for (const exported of payload.habits) {

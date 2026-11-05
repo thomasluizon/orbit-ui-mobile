@@ -1,3 +1,4 @@
+import { evalSnapshot } from './fixtures/eval-snapshot.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
@@ -25,7 +26,7 @@ async function seeded(locale) {
   vi.stubEnv('ORBIT_EVAL_BASE_URL', 'https://api.useorbit.org')
   vi.stubGlobal('fetch', async (url, options) => {
     const path = new URL(url).pathname.slice(5)
-    if (path === 'profile/export') return Response.json({ habits: [], goals: [goal], tags: [], checklistTemplates: [] })
+    if (path === 'eval/snapshot') return Response.json(evalSnapshot({ habits: [], goals: [goal], tags: [], checklistTemplates: [] }))
     if (path === 'goals') return Response.json({ items: [{ ...goal, trackingStatus: 'completed' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 })
     if (options.method === 'PUT' && path === `goals/${id}`) Object.assign(goal, JSON.parse(options.body))
     else if (options.method === 'PUT' && path === `goals/${id}/status`) goal.status = JSON.parse(options.body).status

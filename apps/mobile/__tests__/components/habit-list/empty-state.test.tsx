@@ -1,3 +1,4 @@
+import { ORBIT_MARK_PATHS } from '@orbit/shared/contracts/brand'
 import React from 'react'
 import { StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 import { type GeometryHost } from '@/__tests__/support/safe-area-geometry'
@@ -66,15 +67,17 @@ function pressableWithLabel(tree: TestTree, label: string): TestNode | undefined
 }
 
 describe('HabitListEmptyState', () => {
-  it.each([320, 360, 384, 412, 740, 1440])('centres the completed ring, copy and action at %s', (width) => {
+  it.each([320, 360, 384, 412, 740, 1440])('centres the normal Orbit logo, copy and action at %s', (width) => {
     const tree = render(<HabitListAllDone onSeeUpcoming={vi.fn()} />)
     const finish = tree.root.findAll(node => node.props.testID === 'habit-list-all-done')[0]!
     expect(StyleSheet.flatten(finish.props.style as StyleProp<TextStyle>).alignItems).toBe('center')
     const mark = tree.root.findAllByType(OrbitMark)[0]
     expect(mark).toBeDefined()
-    expect(mark!.props).toMatchObject({ size: 16, accent: false })
+    expect(tree.root.findAllByType('Path').map(path => path.props.d)).toEqual(ORBIT_MARK_PATHS.map(path => path.d))
+    expect(tree.root.findAllByType('Circle')).toHaveLength(0)
+    expect(mark!.props).toMatchObject({ size: 48, accent: false })
     const ring = tree.root.findAll(node => node.props.testID === 'completed-day-mark')[0]!
-    expect(StyleSheet.flatten(ring.props.style as StyleProp<TextStyle>)).toMatchObject({ width: 44, height: 44 })
+    expect(StyleSheet.flatten(ring.props.style as StyleProp<TextStyle>)).toMatchObject({ width: 48, height: 48 })
     for (const words of [en, ptBR]) {
       const labels = [words.habits.allDoneToday, words.habits.allDoneHint, words.habits.seeUpcoming]
       translations.labels = {
@@ -85,6 +88,10 @@ describe('HabitListEmptyState', () => {
       const localized = render(<HabitListAllDone onSeeUpcoming={vi.fn()} />)
       const host = localized.toJSON() as GeometryHost
       const measured = measureProfileRow(host, Math.min(width - 32, 708), 1)
+      const identity = measured.boxes.find(box => box.testID === 'completed-day-mark')!
+      expect(identity.width).toBe(48)
+      expect(identity.left + identity.width / 2).toBeCloseTo(Math.min(width - 32, 708) / 2)
+      expect(measured.texts[0]!.top - identity.bottom).toBeCloseTo(24)
       for (const label of labels) {
         const text = measured.texts.find(text => text.label === label)!
         expect(text.lines).toBe(1)
