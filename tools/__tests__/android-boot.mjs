@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
 import { join } from "node:path"
 import yaml from "js-yaml"
 import { fatalLogcat, firstScreenRendered } from "../android-boot.mjs"
@@ -43,5 +44,15 @@ export const cases = () => {
   if (bootIndex >= 0) {
     T("android-release: the checked and uploaded AAB are identical", steps[bootIndex].with.aab === steps[uploadIndex].with.releaseFiles)
     T("android-release: boot assertions cannot be skipped or ignored", !steps[bootIndex].if && !steps[bootIndex]["continue-on-error"])
+  }
+  const startup = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/android-startup.yml"), "utf8"))
+  const apiSource = readFileSync(join(REPO_ROOT, "apps/mobile/lib/api-base.ts"), "utf8")
+  const apiModule = `data:text/javascript,${encodeURIComponent(apiSource)}`
+  for (const job of ["bundle", "boot"]) {
+    const environment = startup.jobs[job].env ?? {}
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", `const module = await import(${JSON.stringify(apiModule)}); process.stdout.write(module.API_BASE)`], {
+      encoding: "utf8", env: { ...process.env, NODE_ENV: "production", EXPO_PUBLIC_API_BASE: environment.EXPO_PUBLIC_API_BASE ?? "" },
+    })
+    T(`android-startup: ${job} supplies production startup configuration`, result.status === 0 && result.stdout === "https://api.useorbit.org", result.stderr)
   }
 }
