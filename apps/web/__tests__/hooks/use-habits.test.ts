@@ -2464,7 +2464,7 @@ describe('useBulkLogHabits', () => {
     const { result, unmount } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
     try {
       await act(() => result.current.mutateAsync([{ habitId: 'h-1' }, { habitId: 'h-2', date: '2026-09-10' }]))
-      expect(bulkLogHabits).toHaveBeenCalledExactlyOnceWith([{ habitId: 'h-1' }, { habitId: 'h-2', date: '2026-09-10' }], 'account-a')
+      expect(bulkLogHabits).toHaveBeenCalledExactlyOnceWith([{ habitId: 'h-1' }, { habitId: 'h-2', date: '2026-09-10' }], 'account-a', expect.any(String))
     } finally {
       unmount()
       queryClient.clear()
@@ -2490,7 +2490,7 @@ describe('useBulkLogHabits', () => {
       await result.current.mutateAsync(items)
     })
 
-    expect(mockedBulkLog).toHaveBeenCalledWith(items, 'account-a')
+    expect(mockedBulkLog).toHaveBeenCalledWith(items, 'account-a', expect.any(String))
   })
 
   it('keeps an account switch refusal out of retryable failed rows', async () => {
@@ -2624,7 +2624,7 @@ describe('useBulkSkipHabits', () => {
       await result.current.mutateAsync(items)
     })
 
-    expect(mockedBulkSkip).toHaveBeenCalledWith(items, 'account-a')
+    expect(mockedBulkSkip).toHaveBeenCalledWith(items, 'account-a', expect.any(String))
   })
 
   it('skips dated occurrences without marking them logged', async () => {

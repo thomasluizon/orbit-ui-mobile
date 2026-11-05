@@ -1,3 +1,4 @@
+import { getAccountGeneration } from './session-epoch'
 import { API } from '@orbit/shared/api'
 import {
   removeDeletedHabitQueries, restoreDeletedHabitQueries,
@@ -33,7 +34,7 @@ import {
 } from '@orbit/shared/types/profile'
 import { bulkLogItemRequestSchema, bulkLogResultSchema, bulkSkipItemRequestSchema, bulkSkipResultSchema, habitDetailSchema, reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
 import { z } from 'zod'
-import { ApiClientError, isNetworkUnavailableError, extractBackendErrorCode, findHabitInList } from '@orbit/shared/utils'
+import { ApiClientError, getBulkCompletionReplay, isBulkGatewayFailure, isNetworkUnavailableError, extractBackendErrorCode, findHabitInList } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { validateResolvedHabitReferences } from './habit-update-request'
 import { apiClient } from './api-client'
@@ -160,6 +161,7 @@ function notifyFlushResult(result: OfflineFlushResult): void {
 }
 
 export interface QueuedMutationBuildOptions {
+  idempotencyKey?: string
   suppressParentSettlement?: boolean
   parentPromptContinuation?: ParentPromptContinuation
   type: MutationType
@@ -277,6 +279,7 @@ export function createTempEntityId(entityType: MutationEntityType): string {
 }
 
 export function buildQueuedMutation({
+  idempotencyKey,
   suppressParentSettlement,
   parentPromptContinuation,
   type,
@@ -294,7 +297,7 @@ export function buildQueuedMutation({
   return {
     ...(parentPromptContinuation ? { parentPromptContinuation } : {}),
     ...(suppressParentSettlement ? { suppressParentSettlement: true } : {}),
-    id: nextQueuedIdentifier('offline-mutation'),
+    id: idempotencyKey ?? nextQueuedIdentifier('offline-mutation'),
     timestamp: Date.now(),
     type,
     scope,
@@ -319,10 +322,12 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
   queuedResult,
   queuedResultFactory,
   isCurrent,
+  manualRetry = false,
 }: {
   mutation: QueuedMutationBuildOptions
   execute: (resolvedMutation: QueuedMutation) => Promise<TResult>
   isCurrent?: () => boolean
+  manualRetry?: boolean
   queuedResult?: TResult
   queuedResultFactory?: (mutationId: string, retained: boolean) => TQueuedResult
 }): Promise<TResult | TQueuedResult> {
@@ -332,6 +337,7 @@ export async function runQueuedMutation<TResult, TQueuedResult = TResult | Queue
     mutation: builtMutation,
     execute,
     isCurrent,
+    manualRetry,
     queuedResult,
     queuedResultFactory:
       queuedResultFactory ??
@@ -600,8 +606,9 @@ function scheduleBackoffFlush(replaceTimer?: ReturnType<typeof setTimeout>): voi
   })
 }
 
-function isTransientNetworkError(error: unknown): boolean {
+function isTransientNetworkError(error: unknown, endpoint: string): boolean {
   // WHY: Queue retries retain their broader transport policy: https://github.com/thomasluizon/orbit-tickets/issues/1980.
+  if ((endpoint === API.habits.bulkLog || endpoint === API.habits.bulkSkip) && isBulkGatewayFailure(error)) return true
   if (error instanceof TypeError || isNetworkUnavailableError(error)) return true
   if (!(error instanceof Error)) return false
 
@@ -702,12 +709,14 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   queuedResult,
   queuedResultFactory,
   isCurrent,
+  manualRetry = false,
 }: {
   mutation: QueuedMutation
   execute: (resolvedMutation: QueuedMutation) => Promise<TOnlineResult>
   queuedResult?: TQueuedResult
   queuedResultFactory?: (mutationId: string, retained: boolean) => TQueuedResult
   isCurrent?: () => boolean
+  manualRetry?: boolean
 }): Promise<TOnlineResult | TQueuedResult> {
   const [resolvedMutation, online] = await Promise.all([
     resolveMutationReferences(mutation),
@@ -739,7 +748,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     if (resolvedMutation.type === 'setTimeZone') releaseAccountTimezoneDependencies(resolvedMutation.id)
     return result
   } catch (error: unknown) {
-    if (!isTransientNetworkError(error) || isAutomaticReplayBlocked(resolvedMutation.type)) {
+    if (manualRetry || !isTransientNetworkError(error, resolvedMutation.endpoint) || isAutomaticReplayBlocked(resolvedMutation.type)) {
       throw error
     }
 
@@ -917,7 +926,7 @@ async function handleFlushFailure(
     }
     return { incrementFailed: true, stopReason: 'auth', dropped: null }
   }
-  const transientNetworkFailure = isTransientNetworkError(error)
+  const transientNetworkFailure = isTransientNetworkError(error, mutation.endpoint)
   const nextRetries = isAuthRefreshNetworkError(error) ? mutation.retries : mutation.retries + 1
   const dropMutation = shouldDropMutation(error, nextRetries, mutation.maxRetries)
   let dropped: DroppedMutation | null = null
@@ -1094,6 +1103,9 @@ async function deliverQueuedMutation(
   )
 
   await reportBulkReplaySuccess(mutation, response, accountId)
+  if (accountId === getAccountId() && (mutation.type === 'bulkLogHabits' || mutation.type === 'bulkSkipHabits')) {
+    getBulkCompletionReplay(queryClient, getAccountGeneration(), mutation.type === 'bulkLogHabits' ? 'log' : 'skip').resolve(mutation.id)
+  }
   await finalizeSuccessfulFlush(mutation, response, touchedScopes)
   return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
 }

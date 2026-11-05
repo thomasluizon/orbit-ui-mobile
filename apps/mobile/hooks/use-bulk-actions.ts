@@ -1,6 +1,6 @@
 import { useState, useCallback, useLayoutEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { HabitResolutionMode } from '@orbit/shared/utils'
+import type { BulkRetryChunk, HabitResolutionMode } from '@orbit/shared/utils'
 import { executeBulkMoveParent, getBulkActionFailures, isBulkCompletionAllowed, type BulkActionsOptions, type BulkResultItem } from '@orbit/shared/hooks'
 import { useBulkDeleteHabits } from '@/hooks/use-bulk-delete-habits'
 import { useBulkLogHabits } from '@/hooks/use-bulk-log-habits'
@@ -11,6 +11,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 
 interface BulkActionOutcome {
   results: readonly BulkResultItem[]
+  retryChunks?: BulkRetryChunk<{ habitId: string; date?: string }>[]
   ambiguousIds?: readonly string[]
   offlineFailureIds?: readonly string[]
   queuedIds?: readonly string[]
@@ -29,8 +30,8 @@ export function useBulkActions({
   const { t } = useTranslation()
   const { showToast } = useAppToast()
   const bulkDelete = useBulkDeleteHabits()
-  const bulkLog = useBulkLogHabits()
-  const bulkSkip = useBulkSkipHabits()
+  const bulkLog = useBulkLogHabits({ manualRetry: true })
+  const bulkSkip = useBulkSkipHabits({ manualRetry: true })
   const bulkMove = useBulkMoveHabitParent()
   const skippableHabitIds = Array.from(selectedHabitIds).filter(id => habitsById.get(id)?.isGeneral === false)
   const currentPermission = useRef({ selectedDateStr, completionReadOnly })
@@ -44,15 +45,12 @@ export function useBulkActions({
     outcome: BulkActionOutcome,
     retry: (ids: string[], retainedIds: string[]) => void,
     retainedIds: readonly string[] = [],
+    completion = false,
   ) => {
-    const { retryIds, reasonKeys } = getBulkActionFailures(outcome.results)
+    const { retryIds: failedIds, reasonKeys } = getBulkActionFailures(outcome.results)
+    const retryIds = [...new Set([...failedIds, ...(completion ? outcome.ambiguousIds ?? [] : [])])]
     const offlineFailureIds = outcome.offlineFailureIds ?? []
-    if (outcome.ambiguousIds?.length) {
-      showToast({
-        kind: 'neutral',
-        message: t('habits.bulkBar.connectionRefreshed'),
-      })
-    }
+
     const queuedIds = outcome.queuedIds ?? []
     const untouchedIds = [...new Set([...retainedIds, ...offlineFailureIds, ...queuedIds])]
     const selectedIds = [...new Set([...retryIds, ...untouchedIds])]
@@ -60,7 +58,11 @@ export function useBulkActions({
     else onPartialFailure(selectedIds)
     const messages = reasonKeys.map((key) => t(key))
     if (offlineFailureIds.length > 0) messages.push(t('habits.bulkBar.offlineFailure'))
-    if (retryIds.length > 0) messages.push(t('habits.bulkBar.partialFailure', { count: retryIds.length }))
+    if (outcome.ambiguousIds?.length) {
+      if (completion) messages.push(t('habits.bulkBar.connectionRetry'))
+      else showToast({ kind: 'neutral', message: t('habits.bulkBar.connectionRefreshed') })
+    }
+    if (failedIds.length > 0) messages.push(t('habits.bulkBar.partialFailure', { count: failedIds.length }))
     if (messages.length === 0) return
     const toast = { kind: 'neutral' as const, message: messages.join('\n') }
     if (retryIds.length === 0) showToast(toast)
@@ -87,16 +89,19 @@ export function useBulkActions({
     }
   }
 
-  async function executeCompletion(ids: string[], mode: HabitResolutionMode, retainedIds: string[] = []) {
+  async function executeCompletion(ids: string[], mode: HabitResolutionMode, retainedIds: string[] = [], retryChunks: BulkActionOutcome['retryChunks'] = []) {
     if (!isBulkCompletionAllowed(currentPermission.current, selectedDateStr, accountTimeZone)) return
     if (ids.length === 0) return
     const date = selectedDateStr
+    const accountGeneration = getAccountGeneration()
+    const items = ids.map((habitId) => ({ habitId, date }))
     const result = await (mode === 'log' ? bulkLog : bulkSkip).mutateAsync(
-      ids.map((habitId) => ({ habitId, date })),
+      retryChunks.length ? { items, retryChunks } : items,
     )
+    if (getAccountGeneration() !== accountGeneration) return
     applyBulkMutationSuccesses(result.results, mode, date, result.queuedIds)
     if (currentPermission.current.selectedDateStr !== date) return
-    finish(result, (failedIds, untouchedIds) => void executeCompletion(failedIds, mode, untouchedIds), retainedIds)
+    finish(result, (failedIds, untouchedIds) => getAccountGeneration() === accountGeneration && void executeCompletion(failedIds, mode, untouchedIds, result.retryChunks), retainedIds, true)
   }
 
   return {

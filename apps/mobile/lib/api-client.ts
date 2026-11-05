@@ -119,10 +119,16 @@ async function executeRequest(
   delete requestOptions.skipAuthRecovery
   delete requestOptions.isCurrent
   delete requestOptions.onResponseHeaders
-  const response = await fetch(`${API_BASE}${path}`, {
+  const send = () => fetch(`${API_BASE}${path}`, {
     ...requestOptions,
     headers: buildRequestHeaders(token, options),
   })
+  let response = await send()
+  if (options.idempotencyKey && (path === API.habits.bulkLog || path === API.habits.bulkSkip) &&
+    [502, 503, 504].includes(response.status)) {
+    if (options.isCurrent?.() === false) throw new Error('Account changed')
+    response = await send()
+  }
   if (response.ok) options.onResponseHeaders?.(response.headers)
 
   return {
@@ -294,7 +300,8 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
     const { response, requestId } = await executeRequest(path, options)
     return { data: await parseApiResponse<T>(response, requestId, path, schema, options.method, options.silent), authorizingToken: null }
   }
-  const idempotencyKey = options.idempotencyKey ?? consumePendingIdempotencyKey() ?? undefined
+  const pendingIdempotencyKey = consumePendingIdempotencyKey()
+  const idempotencyKey = options.idempotencyKey ?? pendingIdempotencyKey ?? undefined
   const effectiveOptions: ApiRequestOptions =
     idempotencyKey === undefined ? options : { ...options, idempotencyKey }
 

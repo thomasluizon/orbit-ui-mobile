@@ -171,11 +171,13 @@ export async function bulkDeleteHabits(
 export async function bulkLogHabits(
   items: BulkLogItemRequest[],
   intendedAccountId: string | null,
+  idempotencyKey?: string,
 ): Promise<ServerActionResult<BulkLogResult>> {
   return wrapServerAction(() => serverAuthMutate(
     API.habits.bulkLog,
     {
       method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
       body: JSON.stringify({ items }),
     },
     intendedAccountId,
@@ -186,11 +188,13 @@ export async function bulkLogHabits(
 export async function bulkSkipHabits(
   items: BulkSkipItemRequest[],
   intendedAccountId: string | null,
+  idempotencyKey?: string,
 ): Promise<ServerActionResult<BulkSkipResult>> {
   return wrapServerAction(() => serverAuthMutate(
     API.habits.bulkSkip,
     {
       method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
       body: JSON.stringify({ items }),
     },
     intendedAccountId,
