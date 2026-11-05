@@ -1,17 +1,18 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { createRef } from 'react'
 import { waitForLazyContent } from '@/__tests__/support/lazy-content'
+import * as InitialMenu from '@/components/ui/dropdown-menu'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
-let Menu: typeof import('@/components/ui/dropdown-menu')
-beforeEach(async () => {
+let Menu = InitialMenu
+afterEach(async () => {
+  vi.doUnmock('@/components/ui/dropdown-menu-content')
   vi.resetModules()
   Menu = await import('@/components/ui/dropdown-menu')
 })
-afterEach(() => { vi.doUnmock('@/components/ui/dropdown-menu-content') })
 
 it.each([
   { dismissal: 'Escape', customFocus: false },
