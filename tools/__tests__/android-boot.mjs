@@ -1,9 +1,9 @@
-import { readFileSync } from "node:fs"
+import { mkdirSync, readFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { join } from "node:path"
 import yaml from "js-yaml"
 import { fatalLogcat, firstScreenRendered } from "../android-boot.mjs"
-import { REPO_ROOT, T } from "./_harness.mjs"
+import { BASH, REPO_ROOT, root, T } from "./_harness.mjs"
 
 const packageName = "org.useorbit.app"
 const labels = ["en", "pt-BR"].map((locale) => JSON.parse(readFileSync(join(REPO_ROOT, "packages/shared/src/i18n", `${locale}.json`), "utf8")).onboarding.flow.what.title)
@@ -55,4 +55,11 @@ export const cases = () => {
     })
     T(`android-startup: ${job} supplies production startup configuration`, result.status === 0 && result.stdout === "https://api.useorbit.org", result.stderr)
   }
+  const configurationDirectory = join(root, "android-boot-firebase")
+  mkdirSync(configurationDirectory, { recursive: true })
+  const configurationStep = startup.jobs.boot.steps.find((step) => step.name === "Prepare a build without Play credentials")
+  const generated = spawnSync(BASH, ["-c", configurationStep.run.split("\n")[0]], { cwd: configurationDirectory, encoding: "utf8" })
+  T("android-startup: generates the actual proof Firebase configuration", generated.status === 0, generated.stderr)
+  const configuration = JSON.parse(readFileSync(join(configurationDirectory, "google-services.json"), "utf8"))
+  T("android-startup: the disposable key satisfies Firebase runtime validation", /^A[\w-]{38}$/.test(configuration.client[0].api_key[0].current_key))
 }
