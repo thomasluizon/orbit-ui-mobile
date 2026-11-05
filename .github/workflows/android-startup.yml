@@ -46,8 +46,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t maps < <(find .artifacts/android-bundle/_expo/static/js/android -name '*.map' -type f)
+          mapfile -t maps < <(find .artifacts/android-bundle/_expo/static/js/android -name '*.hbc.map' -type f)
           test "${#maps[@]}" -eq 1
+          test -s "${maps[0]%.map}"
           node tools/check-android-bundle.mjs --map "${maps[0]}"
       - uses: actions/upload-artifact@v7
         if: ${{ always() }}
