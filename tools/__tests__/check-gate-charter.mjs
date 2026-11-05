@@ -55,6 +55,14 @@ export const cases = () => {
     const workflow = { jobs: { existing: { steps: [{ name: "Resolve pull request changed paths", if: "github.event_name == 'pull_request'", env: { BASE_REF: "${{ github.base_ref }}" }, run: 'bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"' }, { run: script }] } } }
     check("check-gate-charter.mjs", `rejects changed-path ${label}`, ["--root", stageRepository(label, completeCharter(), { guardWorkflow: yaml.dump(workflow) })], { status: 1, stderr: /not scoped/ })
   }
+  const rangeStep = (range) => ({ jobs: { existing: { steps: [
+    { name: "Resolve pull request changed paths", if: "github.event_name == 'pull_request'", env: { BASE_REF: "${{ github.base_ref }}" }, run: 'bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"' },
+    { run: `node tools/check-existing.mjs --range ${range} --body-file "$RUNNER_TEMP/pull-request-body.md"` },
+  ] } } })
+  check("check-gate-charter.mjs", "accepts a gate that reads only the pull request commit range",
+    ["--root", stageRepository("pull-request-range", completeCharter(), { guardWorkflow: yaml.dump(rangeStep('"$PULL_REQUEST_RANGE"')) })], { status: 0 })
+  check("check-gate-charter.mjs", "rejects a commit range that is not the pull request range",
+    ["--root", stageRepository("other-range", completeCharter(), { guardWorkflow: yaml.dump(rangeStep('"origin/main..HEAD"')) })], { status: 1, stderr: /not scoped/ })
   const uninvoked = stageRepository("uninvoked", completeCharter())
   writeFileSync(join(uninvoked, "lefthook.yml"), "{}")
   check("check-gate-charter.mjs", "registered tool without invocation is refused", ["--root", uninvoked], { status: 1, stderr: /not invoked/ })

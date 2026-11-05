@@ -22,7 +22,7 @@
         "--disallowed-tools",
         "Task",
         "--effort",
-        "xhigh",
+        "high",
         "--model",
         "claude-opus-5-5"
       ]
@@ -58,7 +58,7 @@
         "--disallowed-tools",
         "Task",
         "--effort",
-        "max",
+        "high",
         "--model",
         "claude-opus-5-5"
       ]
@@ -76,7 +76,7 @@
         "--disallowed-tools",
         "Task",
         "--effort",
-        "medium",
+        "high",
         "--model",
         "claude-opus-5-5"
       ]
@@ -144,7 +144,7 @@
     ".claude/skills/android-release/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "c8c6079405b2152e",
+      "digest": "c50ebf7d4d890b90",
       "calibratedAt": "2026-11-05",
       "verdict": "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
     },
@@ -270,7 +270,7 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "493d2d8b5d9ce0f7",
+      "digest": "748e303e18294d0f",
       "calibratedAt": "2026-11-05",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
@@ -312,7 +312,7 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "b5b75d6e42f92546",
+      "digest": "72d614f3f340703a",
       "calibratedAt": "2026-11-05",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },

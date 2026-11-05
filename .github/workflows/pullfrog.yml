@@ -53,17 +53,19 @@ jobs:
         with:
           fetch-depth: 1
       # Claude is the reviewer, on the Claude Max subscription in CLAUDE_CODE_OAUTH_TOKEN. `model`
-      # is the curated anthropic/claude-opus alias, which this release resolves to
-      # anthropic/claude-opus-5-5 and which overrides the repository config. An Anthropic model with
-      # a Claude credential runs on the claude-code harness, which keeps the reviewfrog specialist
-      # sub-agent. The repository stores no ANTHROPIC_API_KEY, so the subscription pays.
-      # `effort` is the documented input; high is the rung the default position lands on. The step
-      # pins a release commit because a moving tag is an unpinned dependency. A failed Claude step
-      # fails the job, and no other engine reviews in its place.
+      # and `effort` are inputs that this release's action.yml declares. `model` takes the raw
+      # specifier anthropic/claude-opus-5-5, which this release maps back to its claude-opus alias,
+      # so the alias ladder (low, medium, high, xhigh, max) governs effort. `effort: xhigh` is
+      # position 0.75, which lands on the xhigh rung of that five-rung ladder. Both inputs override
+      # the repository config. An Anthropic model with a Claude credential runs on the claude-code
+      # harness, which keeps the reviewfrog specialist sub-agent. The repository stores no
+      # ANTHROPIC_API_KEY, so the subscription pays. The step pins a release commit because a
+      # moving tag is an unpinned dependency. A failed Claude step fails the job, and no other
+      # engine reviews in its place.
       - name: Run agent
         id: claude
         uses: pullfrog/pullfrog@895164fc90f5c493e72693c919c6cf269af158eb # v0, release 0.1.110
         with:
           prompt: ${{ inputs.prompt }}
-          model: anthropic/claude-opus
-          effort: high
+          model: anthropic/claude-opus-5-5
+          effort: xhigh

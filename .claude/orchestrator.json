@@ -63,15 +63,15 @@
         },
         "mechanical": {
           "model": "claude-opus-5-5",
-          "args": ["--effort", "medium"]
+          "args": ["--effort", "high"]
         },
         "deep": {
           "model": "claude-opus-5-5",
-          "args": ["--effort", "xhigh"]
+          "args": ["--effort", "high"]
         },
         "max": {
           "model": "claude-opus-5-5",
-          "args": ["--effort", "max"]
+          "args": ["--effort", "high"]
         }
       }
     }

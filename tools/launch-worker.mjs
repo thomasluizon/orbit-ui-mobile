@@ -10,7 +10,8 @@ import { assertOutsideRepository, researchEnvironment, researchInvocation, resea
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
-import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerConfigDirectory } from "./lib/orchestrator-config.mjs"
+import { logReachedUsageLimit } from "./lib/claude-usage-limit.mjs"
+import { MAIN_ACCOUNT, WORKER_ACCOUNT, readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerConfigDirectory } from "./lib/orchestrator-config.mjs"
 import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
@@ -43,11 +44,15 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      configDirectory, the account directory a claude worker runs under
   --help, -h         print this usage and exit 0
 
-Prints one JSON object on stdout when the worker is gone: issue, engine, tier, pid, logFile,
-startedAt, endedAt, exitCode, outcome, plus what the run left in the tree: commitsSinceLaunch,
-commits and treeClean. Progress goes to stderr, so stdout stays pipeable.
+Prints one JSON object on stdout when the worker is gone: issue, engine, tier, account, pid,
+logFile, startedAt, endedAt, exitCode, outcome, usageLimitReached and attempts, plus what the run
+left in the tree: commitsSinceLaunch, commits and treeClean. Progress goes to stderr, so stdout
+stays pipeable. A claude worker runs on the worker account. When its final result is a usage-limit
+error, the launcher relaunches the order once on the main account, the default Claude config;
+attempts names the account, log and outcome of each run, and each log file name ends in
+-worker-account.log or -main-account.log.
 outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY or SPAWN_FAILED.
-Research prints research, outputFile, published, engine, model, pid, logFile, startedAt, endedAt,
+Research prints research, outputFile, published, engine, model, account, pid, logFile, startedAt, endedAt,
 exitCode and outcome. It publishes only a non-empty final response from an engine that exits 0.
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
@@ -220,6 +225,9 @@ const acknowledgeSupervisionSample = () => {
 
 const workerPointer = (worktreePath, branch) =>
   `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
+/** The relaunch after a usage-limit stop continues a run that may already hold commits. */
+const continuationPointer = (worktreePath, branch) =>
+  `${workerPointer(worktreePath, branch)} An earlier worker on this branch stopped at its account's usage limit before it finished. Read git log and git status first, keep the work it already did, and finish the order.`
 
 /**
  * Resolve a bare command the way the platform's launcher does, so the result is a real file rather
@@ -268,10 +276,19 @@ const headlessInvocation = () => {
 
 const { executable, scriptArgs } = headlessInvocation()
 const workerArgs = research ? null : [...scriptArgs, ...invocation.args, workerPointer(runDirectory, branch)]
+/**
+ * A claude worker starts on the worker account. When that account reaches its usage limit, the one
+ * relaunch runs on the main account, the orchestrator's default Claude config. Other engines have
+ * no Claude account, so their account is null.
+ */
+const primaryAccount = configDirectory === null ? null : { name: WORKER_ACCOUNT, configDirectory }
+const fallbackAccount = { name: MAIN_ACCOUNT, configDirectory: null }
 /** Outside every repo: a log written into the worktree lands in the worker's own diff. */
 const logDirectory = join(tmpdir(), "orbit-workers")
 mkdirSync(logDirectory, { recursive: true })
-const logFile = join(logDirectory, `${issue}-${process.pid}-${Date.now()}.log`)
+/** Each log names the account its worker ran under. */
+const logFileFor = (account) => join(logDirectory, `${issue}-${process.pid}-${Date.now()}${account === null ? "" : `-${account.name}-account`}.log`)
+const logFile = logFileFor(primaryAccount)
 const reportFile = research ? join(researchStorage, "findings.txt") : null
 let researchArgs = null
 if (research) {
@@ -279,7 +296,7 @@ if (research) {
 }
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue: research ? null : issue, research, outputFile: researchPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ issue: research ? null : issue, research, outputFile: researchPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, account: primaryAccount?.name ?? null, configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, dryRun: true }, null, 2))
   process.exit(0)
 }
 
@@ -352,7 +369,7 @@ if (!reservation.allowed) {
   fail(2, `worker launch cap ${config.caps.workerLaunchesPerBranch} reached for ${repositoryKey} branch ${branch}. Earlier launches:\n${earlier}\nPass --relaunch-reason "<text>" to record and allow another launch.`)
 }
 
-console.error(`starting the ${engineName} worker for ${issue} in ${runDirectory}; log: ${logFile}`)
+const accountLabel = (account) => account === null ? "" : ` on the ${account.name} account${account.configDirectory === null ? " (default Claude config)" : ` (${account.configDirectory})`}`
 const startedAt = new Date().toISOString()
 /**
  * The orchestrator backgrounds this launcher. Register before any awaited setup or child spawn so
@@ -363,73 +380,13 @@ if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worke
   if (!research) clearWorkerLaunchReservation(process.pid, runDirectory)
   fail(3, "could not register the pending launcher wake source")
 }
-const logFd = openSync(logFile, "a")
 const reportFd = research && engineName === "claude" ? openSync(reportFile, "wx") : null
 process.on("exit", () => { if (research) clearWakeSource(process.pid) })
-// The gate cannot enter the worktree until both records name its pid. If this launcher dies
-// beforehand, its IPC channel closes and the gate exits without starting the real worker.
 const gatePath = fileURLToPath(new URL("./lib/worker-gate.cjs", import.meta.url))
-child = spawn(process.execPath, [gatePath], {
-  cwd: tmpdir(),
-  stdio: ["ignore", logFd, logFd, "ipc", ...(reportFd === null ? [] : [reportFd])],
-  windowsHide: true,
-  // POSIX only, and it is what makes killTree's `process.kill(-pid)` reach anything at all: the
-  // child becomes a process-group leader, so the group exists to be signalled. Windows needs the
-  // opposite, since detached there spawns a console window; taskkill /T already walks that tree.
-  detached: process.platform !== "win32",
-  env: workerAccountEnvironment(research ? githubAuth.environment : {
-    ...githubAuth.environment,
-    ORBIT_LAUNCH_WORKER: "1",
-    ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca",
-  }, configDirectory),
-})
-if (!child.pid || (!research && !recordReservedWorkerPid(process.pid, child.pid, runDirectory))) {
-  child.kill()
-  fail(3, "could not publish the worker pid in the worktree reservation")
-}
-
-if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worker ${issue}`, research, workerPid: child.pid, logFile, startedAt })) {
-  child.kill()
-  fail(3, "could not publish the worker pid in the wake source")
-}
-child.send({ executable, args: researchArgs ?? workerArgs, directory: runDirectory, ...(research ? { input: researchPrompt(promptFile), reportDescriptor: reportFd === null ? null : 4 } : {}) })
-
-let finishing = false
-const finish = (outcome, exitCode) => {
-  if (finishing) return
-  finishing = true
-  if (!research) releaseAdmission(admission.reservationId)
-  clearWakeSource(process.pid)
-  if (!research) clearWorkerLaunchReservation(process.pid, runDirectory)
-  closeSync(logFd)
-  if (reportFd !== null) closeSync(reportFd)
-  if (research) {
-    let published = false
-    if (outcome === "EXITED" && exitCode === 0) {
-      try {
-        const findings = readFileSync(reportFile, "utf8")
-        if (!findings.trim()) throw new Error("research returned no findings")
-        const checked = researchPaths(promptFile, researchPlan.outputFile)
-        writeFileSync(checked.outputFile, findings, { flag: "wx", mode: 0o600 })
-        published = true
-      } catch (error) { console.error(`could not publish research findings: ${error.message}`) }
-    }
-    console.log(JSON.stringify({ research: true, outputFile: researchPlan.outputFile, published, engine: engineName, model: invocation.model, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome }, null, 2))
-    process.exit(published ? 0 : 1)
-  }
-  const commits = startHead ? gitIn(["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
-  const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
-  const treeClean = porcelain.status === 0 && porcelain.stdout.trim() === ""
-  const result = { launcherPid: process.pid, sessionId: launchSessionId, repositoryKey, runDirectory, branch, issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, hardCeilingMinutes, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome, commitsSinceLaunch: commits.length, commits, treeClean }
-  const directory = join(workerLaunchDirectory(), "results")
-  mkdirSync(directory, { recursive: true })
-  const resultPath = join(directory, `${process.pid}.json`)
-  const unpublished = `${resultPath}.unpublished`
-  writeFileSync(unpublished, `${JSON.stringify(result)}\n`, { flag: "wx" })
-  renameSync(unpublished, resultPath)
-  console.log(JSON.stringify(result, null, 2))
-  if (outcome === "EXITED") process.exit(0)
-  process.exit(commits.length > 0 ? 4 : 1)
+const launchEnvironment = research ? githubAuth.environment : {
+  ...githubAuth.environment,
+  ORBIT_LAUNCH_WORKER: "1",
+  ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca",
 }
 
 /** The worker spawns its own children (git, npm, subagents), and killing the parent alone leaves
@@ -532,92 +489,177 @@ const cpuMillisecondsOfTree = (rootPid) => {
  */
 const CPU_PROGRESS_FRACTION = 0.015
 
-let outcome = "EXITED"
-const ceiling = setTimeout(() => {
-  outcome = "KILLED_HARD_CEILING"
-  console.error(`${issue} passed the ${hardCeilingMinutes} minute ceiling; killing the worker process tree`)
-  killTree(child.pid)
-}, hardCeilingMs)
-
 const logMegabyteCap = config.caps?.workerLogMegabytes
 const logByteCap = Number.isFinite(logMegabyteCap) && logMegabyteCap > 0 ? logMegabyteCap * 1024 * 1024 : null
 
-let progress = progressFingerprint()
-let lastProgressAt = supervisionNow() ?? Date.now()
-if (supervisionClockPath) publishSupervisionMarker(`${supervisionClockPath}.ready`, "ready")
-let lastLogSize = 0
-let cpuBaseline = null
-const sampleProgress = () => {
-  let logSize = null
-  try {
-    logSize = statSync(logFile).size
-  } catch {
-    /* a log that cannot be stat'd is neither a runaway nor progress */
+/**
+ * The hard ceiling, log cap and stall clock for one worker process. Each attempt gets its own,
+ * because a relaunched worker is a fresh process with its own log. `kill` records the outcome.
+ */
+const superviseAttempt = (workerPid, attemptLogFile) => {
+  let outcome = "EXITED"
+  const kill = (killedOutcome, message) => {
+    outcome = killedOutcome
+    console.error(message)
+    killTree(workerPid)
   }
-  if (logByteCap !== null && logSize !== null && logSize > logByteCap) {
-    outcome = "KILLED_LOG_RUNAWAY"
-    console.error(`${issue} wrote ${(logSize / 1048576).toFixed(2)} MB of worker log, past the ${logMegabyteCap} MB cap; killing the worker process tree`)
-    killTree(child.pid)
-    return
-  }
-  const noteProgress = () => {
-    const now = supervisionNow()
-    if (now !== null) lastProgressAt = now
-    if (logSize !== null) lastLogSize = logSize
-    cpuBaseline = null
-  }
-  const sampled = progressFingerprint()
-  if (sampled !== progress) {
-    progress = sampled
-    noteProgress()
-    return
-  }
-  // Log growth counts only when a byte cap can stop a flooding worker.
-  if (logByteCap !== null && logSize !== null && logSize > lastLogSize) {
-    noteProgress()
-    return
-  }
-  // An injected wall clock has no relationship to live process CPU. Clock-driven cases isolate
-  // the filesystem and log signals rather than letting real CPU reset a virtual stall interval.
-  const cpuMs = supervisionClockPath ? null : cpuMillisecondsOfTree(child.pid)
-  const now = supervisionNow()
-  if (now === null) return
-  if (cpuMs !== null) {
-    if (cpuBaseline === null || cpuMs < cpuBaseline.cpuMs) {
-      // First silent sample, or a child exited and took its CPU time out of the snapshot. Rebase
-      // rather than compare: measuring against the higher pre-exit total would demand the survivors
-      // re-earn a dead child's whole history before any burn counted again.
-      cpuBaseline = { cpuMs, at: now }
-    } else if (cpuMs - cpuBaseline.cpuMs >= (now - cpuBaseline.at) * CPU_PROGRESS_FRACTION) {
-      cpuBaseline = { cpuMs, at: now }
-      lastProgressAt = now
+  const ceiling = setTimeout(() => {
+    kill("KILLED_HARD_CEILING", `${issue} passed the ${hardCeilingMinutes} minute ceiling; killing the worker process tree`)
+  }, hardCeilingMs)
+  let progress = progressFingerprint()
+  let lastProgressAt = supervisionNow() ?? Date.now()
+  if (supervisionClockPath) publishSupervisionMarker(`${supervisionClockPath}.ready`, "ready")
+  let lastLogSize = 0
+  let cpuBaseline = null
+  const sampleProgress = () => {
+    let logSize = null
+    try {
+      logSize = statSync(attemptLogFile).size
+    } catch {
+      /* a log that cannot be stat'd is neither a runaway nor progress */
+    }
+    if (logByteCap !== null && logSize !== null && logSize > logByteCap) {
+      kill("KILLED_LOG_RUNAWAY", `${issue} wrote ${(logSize / 1048576).toFixed(2)} MB of worker log, past the ${logMegabyteCap} MB cap; killing the worker process tree`)
       return
     }
+    const noteProgress = () => {
+      const now = supervisionNow()
+      if (now !== null) lastProgressAt = now
+      if (logSize !== null) lastLogSize = logSize
+      cpuBaseline = null
+    }
+    const sampled = progressFingerprint()
+    if (sampled !== progress) {
+      progress = sampled
+      noteProgress()
+      return
+    }
+    // Log growth counts only when a byte cap can stop a flooding worker.
+    if (logByteCap !== null && logSize !== null && logSize > lastLogSize) {
+      noteProgress()
+      return
+    }
+    // An injected wall clock has no relationship to live process CPU. Clock-driven cases isolate
+    // the filesystem and log signals rather than letting real CPU reset a virtual stall interval.
+    const cpuMs = supervisionClockPath ? null : cpuMillisecondsOfTree(workerPid)
+    const now = supervisionNow()
+    if (now === null) return
+    if (cpuMs !== null) {
+      if (cpuBaseline === null || cpuMs < cpuBaseline.cpuMs) {
+        // First silent sample, or a child exited and took its CPU time out of the snapshot. Rebase
+        // rather than compare: measuring against the higher pre-exit total would demand the survivors
+        // re-earn a dead child's whole history before any burn counted again.
+        cpuBaseline = { cpuMs, at: now }
+      } else if (cpuMs - cpuBaseline.cpuMs >= (now - cpuBaseline.at) * CPU_PROGRESS_FRACTION) {
+        cpuBaseline = { cpuMs, at: now }
+        lastProgressAt = now
+        return
+      }
+    }
+    if (now - lastProgressAt < noProgressMs) return
+    kill("KILLED_NO_PROGRESS", `${issue} has not moved HEAD, written a file, grown its log or burned CPU for ${noProgressMinutes} minutes${measurement ? " (measurement cap)" : ""}; killing the worker process tree`)
   }
-  if (now - lastProgressAt < noProgressMs) return
-  outcome = "KILLED_NO_PROGRESS"
-  console.error(`${issue} has not moved HEAD, written a file, grown its log or burned CPU for ${noProgressMinutes} minutes${measurement ? " (measurement cap)" : ""}; killing the worker process tree`)
-  killTree(child.pid)
+  const sampler = setInterval(() => {
+    supervisionSample = null
+    sampleProgress()
+    acknowledgeSupervisionSample()
+  }, config.timeouts.pollSeconds * 1000)
+  return {
+    outcome: () => outcome,
+    markSpawnFailed: () => { outcome = "SPAWN_FAILED" },
+    stop: () => { clearTimeout(ceiling); clearInterval(sampler) },
+  }
 }
-const sampler = setInterval(() => {
-  supervisionSample = null
-  sampleProgress()
-  acknowledgeSupervisionSample()
-}, config.timeouts.pollSeconds * 1000)
 
-child.on("error", (error) => {
-  clearTimeout(ceiling)
-  clearInterval(sampler)
-  console.error(`could not start the ${engineName} worker: ${error.message}`)
-  finish("SPAWN_FAILED", null)
+/**
+ * Starts one worker process under `account` and resolves when it is gone. The gate cannot enter
+ * the worktree until both records name its pid. If this launcher dies beforehand, its IPC channel
+ * closes and the gate exits without starting the real worker.
+ */
+const runAttempt = (account, attemptLogFile, attemptArgs) => new Promise((settle) => {
+  console.error(`starting the ${engineName} worker for ${issue} in ${runDirectory}${accountLabel(account)}; log: ${attemptLogFile}`)
+  const attemptStartedAt = new Date().toISOString()
+  const logFd = openSync(attemptLogFile, "a")
+  const attemptChild = spawn(process.execPath, [gatePath], {
+    cwd: tmpdir(),
+    stdio: ["ignore", logFd, logFd, "ipc", ...(reportFd === null ? [] : [reportFd])],
+    windowsHide: true,
+    // POSIX only, and it is what makes killTree's `process.kill(-pid)` reach anything at all: the
+    // child becomes a process-group leader, so the group exists to be signalled. Windows needs the
+    // opposite, since detached there spawns a console window; taskkill /T already walks that tree.
+    detached: process.platform !== "win32",
+    env: workerAccountEnvironment(launchEnvironment, account),
+  })
+  child = attemptChild
+  if (!attemptChild.pid || (!research && !recordReservedWorkerPid(process.pid, attemptChild.pid, runDirectory))) {
+    attemptChild.kill()
+    fail(3, "could not publish the worker pid in the worktree reservation")
+  }
+  if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worker ${issue}`, research, workerPid: attemptChild.pid, logFile: attemptLogFile, startedAt })) {
+    attemptChild.kill()
+    fail(3, "could not publish the worker pid in the wake source")
+  }
+  attemptChild.send({ executable, args: attemptArgs, directory: runDirectory, ...(research ? { input: researchPrompt(promptFile), reportDescriptor: reportFd === null ? null : 4 } : {}) })
+  const supervisor = superviseAttempt(attemptChild.pid, attemptLogFile)
+  let settled = false
+  const end = (outcome, exitCode) => {
+    if (settled) return
+    settled = true
+    supervisor.stop()
+    closeSync(logFd)
+    const usageLimitReached = account !== null && outcome === "EXITED" && logReachedUsageLimit(attemptLogFile)
+    settle({ account: account?.name ?? null, configDirectory: account?.configDirectory ?? null, pid: attemptChild.pid ?? null, logFile: attemptLogFile, startedAt: attemptStartedAt, endedAt: new Date().toISOString(), exitCode, outcome, usageLimitReached })
+  }
+  attemptChild.on("error", (error) => {
+    console.error(`could not start the ${engineName} worker: ${error.message}`)
+    end("SPAWN_FAILED", null)
+  })
+  attemptChild.on("message", (message) => {
+    if (message?.type === "SPAWN_FAILED") supervisor.markSpawnFailed()
+  })
+  attemptChild.on("exit", (code) => end(supervisor.outcome(), code))
 })
 
-child.on("message", (message) => {
-  if (message?.type === "SPAWN_FAILED") outcome = "SPAWN_FAILED"
-})
+const finish = (attempts) => {
+  const last = attempts.at(-1)
+  const { outcome, exitCode } = last
+  if (!research) releaseAdmission(admission.reservationId)
+  clearWakeSource(process.pid)
+  if (!research) clearWorkerLaunchReservation(process.pid, runDirectory)
+  if (reportFd !== null) closeSync(reportFd)
+  if (research) {
+    let published = false
+    if (outcome === "EXITED" && exitCode === 0) {
+      try {
+        const findings = readFileSync(reportFile, "utf8")
+        if (!findings.trim()) throw new Error("research returned no findings")
+        const checked = researchPaths(promptFile, researchPlan.outputFile)
+        writeFileSync(checked.outputFile, findings, { flag: "wx", mode: 0o600 })
+        published = true
+      } catch (error) { console.error(`could not publish research findings: ${error.message}`) }
+    }
+    console.log(JSON.stringify({ research: true, outputFile: researchPlan.outputFile, published, engine: engineName, model: invocation.model, account: last.account, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome }, null, 2))
+    process.exit(published ? 0 : 1)
+  }
+  const commits = startHead ? gitIn(["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
+  const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
+  const treeClean = porcelain.status === 0 && porcelain.stdout.trim() === ""
+  const result = { launcherPid: process.pid, sessionId: launchSessionId, repositoryKey, runDirectory, branch, issue, engine: engineName, tier: invocation.tier, model: invocation.model, account: last.account, configDirectory: last.configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, pid: last.pid, logFile: last.logFile, startedAt, endedAt: last.endedAt, exitCode, outcome, usageLimitReached: last.usageLimitReached, attempts, commitsSinceLaunch: commits.length, commits, treeClean }
+  const directory = join(workerLaunchDirectory(), "results")
+  mkdirSync(directory, { recursive: true })
+  const resultPath = join(directory, `${process.pid}.json`)
+  const unpublished = `${resultPath}.unpublished`
+  writeFileSync(unpublished, `${JSON.stringify(result)}\n`, { flag: "wx" })
+  renameSync(unpublished, resultPath)
+  console.log(JSON.stringify(result, null, 2))
+  if (outcome === "EXITED") process.exit(0)
+  process.exit(commits.length > 0 ? 4 : 1)
+}
 
-child.on("exit", (code) => {
-  clearTimeout(ceiling)
-  clearInterval(sampler)
-  finish(outcome, code)
-})
+const attempts = [await runAttempt(primaryAccount, logFile, researchArgs ?? workerArgs)]
+// Ticket work only: research publishes one report file, and its order is rerun whole.
+if (!research && attempts[0].usageLimitReached && primaryAccount?.name === WORKER_ACCOUNT) {
+  console.error(`${issue} stopped at the worker account's usage limit; relaunching it once on the main account`)
+  attempts.push(await runAttempt(fallbackAccount, logFileFor(fallbackAccount), [...scriptArgs, ...invocation.args, continuationPointer(runDirectory, branch)]))
+}
+finish(attempts)

@@ -229,6 +229,17 @@ jobs:
             echo "Surface manifest skipped: no owned path changed."
           fi
         if: ${{ !cancelled() }}
+      - id: attribution__1
+        name: "Attribution: Pull request commits and body carry no attribution lines"
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST_RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" =~ ^refs/pull/([0-9]+)/merge$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/pulls/${BASH_REMATCH[1]}" --jq '.body // ""' > "$RUNNER_TEMP/pull-request-body.md"
+          node tools/check-attribution.mjs --range "$PULL_REQUEST_RANGE" --body-file "$RUNNER_TEMP/pull-request-body.md"
       - id: gate-charter__1
         name: "Gate Charter: Changed gates obey the charter"
         run: |

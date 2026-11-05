@@ -1364,15 +1364,16 @@ runs for merged tickets only, including those merged under D88/D90 standing auth
 |---|---|
 | Orchestrator | Opus 5.5 @ high, or Sol 6.1 @ high |
 | Implementer | the engine named by `worker` in `.claude/orchestrator.json`, at the order's `default`, `mechanical`, `deep` or `max` tier |
-| Reviewer | Pullfrog in GitHub Actions: `anthropic/claude-opus` at `high` effort, pinned in `.github/workflows/pullfrog.yml` |
+| Reviewer | Pullfrog in GitHub Actions: `anthropic/claude-opus-5-5` at `xhigh` effort, pinned in `.github/workflows/pullfrog.yml` |
 
-The shipped worker is `claude`: all four tiers use `claude-opus-5-5`, with `--effort high` on
-`default`, `medium` on `mechanical`, `xhigh` on `deep` and `max` on `max`. Use `default` for normal
-orders, `mechanical` for fully specified mechanical work, `deep` for a large ticket and `max` for
-a review round after one failed round. Never use `ultra`, which delegates to its own agents;
-worker orders forbid sub-agents outside the explicit UI sweep. The installed `claude` CLI accepts
-exactly `low`, `medium`, `high`, `xhigh` and `max` for `--effort`, and it warns and runs the
-default effort on any other value.
+The shipped worker is `claude`. All four tiers resolve to Opus 5.5 at high effort:
+`claude-opus-5-5` with `--effort high` on `default`, `mechanical`, `deep` and `max`, so each dry
+run prints `--effort high --model claude-opus-5-5`. The tier names stay as routing labels: use
+`default` for normal orders, `mechanical` for fully specified mechanical work, `deep` for a large
+ticket and `max` for a review round after one failed round. Never use `ultra`, which delegates to
+its own agents; worker orders forbid sub-agents outside the explicit UI sweep. The installed
+`claude` CLI accepts exactly `low`, `medium`, `high`, `xhigh` and `max` for `--effort`, and it
+warns and runs the default effort on any other value.
 
 This harness launches no reviewer. `launch-worker.mjs` resolves the requested worker tier; tier
 selection routes the resulting order, never the Pullfrog review itself. The Pullfrog step pays
@@ -1392,11 +1393,16 @@ does these steps:
 1. It refuses with exit 2, naming the variable, when the variable is unset or empty.
 2. It refuses with exit 2 when the variable names a path that is not an existing directory.
 3. It sets `CLAUDE_CONFIG_DIR` to that directory in the child environment.
-4. It removes `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` from the child environment,
-   because Claude Code ranks both above the sign-in in its config directory.
+4. It removes every variable in `CLAUDE_ACCOUNT_OVERRIDE_KEYS` (`tools/lib/orchestrator-config.mjs`)
+   from the child environment. The installed `claude` CLI selects each one ahead of the sign-in in
+   its config directory: `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`,
+   the cloud provider keys and selectors, the credential file descriptors and
+   `ANTHROPIC_CUSTOM_HEADERS`.
 
 Research launches through `--research` apply the same four steps. A `codex` launch reads no
-account directory and is unchanged.
+account directory and is unchanged. The dry run and the launch JSON name the account as
+`account` (`worker` or `main`), and each worker log file name ends in `-worker-account.log` or
+`-main-account.log`.
 
 ```bash
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --dry-run
@@ -1414,13 +1420,25 @@ nothing about whether that sign-in is valid, whether the model id is accepted, o
 the `args` array back for all four tiers: the launcher defaults `--tier` to `default`, so the
 explicit dry runs above are needed to show `mechanical`, `deep` and `max`.
 
-**When the worker account is out of usage, no new worker starts until its reset.** Record the
-reset time in the handoff inventory and in the step 11 report, then stop new launches. Workers
-already running finish on their own. Do not fall back to the orchestrator's account: never unset
-the variable, never point it at another config directory, and never pass a credential to the
-child. Do not switch `worker` to `codex`, because its allowance is the reason the workers moved.
-The order generator, `§5.7`'s queue, the readiness loop and the open pull requests continue,
-because review and merge spend no worker allowance.
+**When the worker account reaches its usage limit, the worker moves to the main account.** The
+main account is the orchestrator's default Claude config. `launch-worker.mjs` reads the worker's
+final stream-json `result` record. When that record is an error whose text starts with a usage
+limit message from the installed `claude` CLI, such as "You've hit your 5-hour limit", the
+launcher does these steps:
+
+1. It relaunches the same order once, in the same worktree, with `CLAUDE_CONFIG_DIR` removed and
+   every inherited override still removed. The order pointer tells the worker that an earlier
+   worker stopped at its limit, so it reads `git log` and `git status` and keeps that work.
+2. It records both runs in `attempts` in the launch JSON, each with its `account`,
+   `configDirectory`, `logFile`, `outcome` and `usageLimitReached`. The top-level `account`,
+   `pid` and `logFile` name the run that finished the launch.
+
+Any other failure, including a transient 429 that is not a usage limit, ends the launch with no
+relaunch. A main account run that also reaches its limit is not relaunched again; the result
+shows `usageLimitReached: true`. Then record the reset time in the handoff inventory and in the
+step 11 report, and stop new launches until a reset. Do not switch `worker` to `codex`, because
+its allowance is the reason the workers moved. The order generator, `§5.7`'s queue, the readiness
+loop and the open pull requests continue, because review and merge spend no worker allowance.
 
 **The engine's isolation flags are not decoration.** `--strict-mcp-config` with no `--mcp-config`
 beside it loads zero MCP servers, which is what stops a headless worker inheriting the user-scope

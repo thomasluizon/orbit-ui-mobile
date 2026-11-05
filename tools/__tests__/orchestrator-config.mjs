@@ -216,28 +216,15 @@ export const cases = async () => {
     engine.configDirEnv === "ORBIT_WORKER_CLAUDE_CONFIG_DIR",
     JSON.stringify(engine.configDirEnv),
   )
-  T(
-    `${NAME}: the shipped default implementer is claude-opus-5-5 at high effort`,
-    invocation.model === "claude-opus-5-5" && effortOf(invocation.args) === "high",
-    `.claude/orchestrator.json resolved ${invocation.model} with ${JSON.stringify(invocation.args)}`,
-  )
-  const mechanicalInvocation = resolveWorkerInvocation(engineName, engine, "mechanical")
-  T(
-    `${NAME}: the shipped mechanical implementer keeps the model and lowers effort`,
-    mechanicalInvocation.model === "claude-opus-5-5" && mechanicalInvocation.model === invocation.model && effortOf(mechanicalInvocation.args) === "medium",
-    JSON.stringify(mechanicalInvocation),
-  )
+  /** Owner order on #2029: every tier is Opus 5.5 at high effort. The tier names stay as routing labels. */
+  for (const tier of ["default", "mechanical", "deep", "max"]) {
+    const resolved = resolveWorkerInvocation(engineName, engine, tier)
+    T(`${NAME}: the shipped ${tier} implementer is claude-opus-5-5 at high effort`,
+      resolved.model === "claude-opus-5-5" && effortOf(resolved.args) === "high",
+      `.claude/orchestrator.json resolved ${resolved.model} with ${JSON.stringify(resolved.args)}`)
+  }
 
   const engineFailures = []
-  for (const [tier, effort] of [["deep", "xhigh"], ["max", "max"]]) {
-    const message = thrown(() => {
-      const resolved = resolveWorkerInvocation(engineName, engine, tier)
-      if (resolved.model !== "claude-opus-5-5" || effortOf(resolved.args) !== effort) {
-        throw new Error(JSON.stringify(resolved))
-      }
-    })
-    T(`${NAME}: the shipped ${tier} implementer is claude-opus-5-5 at ${effort} effort`, message === null, message)
-  }
   const codexEngine = real.workers.codex
   for (const [tier, effort] of [["default", "high"], ["mechanical", "medium"], ["deep", "xhigh"], ["max", "max"]]) {
     const resolved = resolveWorkerInvocation("codex", codexEngine, tier)
