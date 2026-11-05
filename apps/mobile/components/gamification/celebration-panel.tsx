@@ -4,7 +4,6 @@ import {
   Animated,
   StyleSheet, Text, View, useWindowDimensions, findNodeHandle, type HostInstance,
 } from 'react-native'
-import Svg, { Circle } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { motionDurations, motionEasings, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { isStreakCelebrationMilestone, type CelebrationQueueItem } from '@orbit/shared/stores'
@@ -21,8 +20,6 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
 import { DailyStreakMoment } from './daily-streak-moment'
 import { useCelebrationPresentation } from './use-celebration-presentation'
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
 function getCelebrationCopy(
   active: NonNullable<ReturnType<typeof useUIStore.getState>['activeCelebration']>,
@@ -159,7 +156,7 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss, o
         opacity, transform: [{ translateY: y }] }]}>
       <Text testID={daily ? 'daily-streak-announcement' : 'celebration-announcement'} accessibilityLiveRegion="polite"
         style={styles.announcement}>{announcement}</Text>
-      <CelebrationRing entering={entering} startedAt={snapshot.startedAt} />
+      <View style={styles.mark} importantForAccessibility="no-hide-descendants"><OrbitMark size={44} accent={false} /></View>
       <View style={[styles.copy, { minWidth: Math.min(width - 80, 112 * fontScale) }]} accessible accessibilityLabel={label}>
         {daily ? <DailyStreakMoment streak={active.payload.streak} entering={entering} /> : (
           <View importantForAccessibility="no-hide-descendants">
@@ -178,45 +175,10 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss, o
   )
 }
 
-function CelebrationRing({ entering, startedAt }: { entering: boolean; startedAt: number }) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-  const circle = useRef<Circle>(null)
-  const [length, setLength] = useState(0)
-  const [offset] = useState(() => new Animated.Value(0))
-  const measure = () => {
-    const measured = circle.current?.getTotalLength()
-    if (measured !== undefined && Number.isFinite(measured) && measured > 0) setLength(measured)
-  }
-  useLayoutEffect(() => {
-    offset.stopAnimation()
-    offset.setValue(0)
-    const remaining = startedAt + motionDurations.slow - Date.now()
-    if (!entering || !length || remaining <= 0) return
-    offset.setValue(length)
-    const animation = Animated.timing(offset, { toValue: 0, duration: remaining,
-      easing: toAnimatedEasing(motionEasings.enter), useNativeDriver: false })
-    animation.start()
-    return () => animation.stop()
-  }, [entering, length, offset, startedAt])
-  return (
-    <View testID="celebration-ring" style={styles.ring} importantForAccessibility="no-hide-descendants">
-      <Svg onLayout={measure} width={44} height={44} viewBox="0 0 44 44">
-        <Circle cx={22} cy={22} r={18} fill="none" stroke={tokens.statusEmpty} strokeWidth={2} />
-        <AnimatedCircle ref={circle} cx={22} cy={22} r={18} fill="none" stroke={tokens.fg1} strokeWidth={3}
-          strokeLinecap="round" strokeDasharray={length || undefined} strokeDashoffset={entering && length ? offset : 0}
-          rotation={-90} origin="22, 22" />
-      </Svg>
-      <View pointerEvents="none" style={styles.mark}><OrbitMark size={16} accent={false} /></View>
-    </View>
-  )
-}
-
 const styles = StyleSheet.create({
   panel: { alignItems: 'center', borderRadius: 20, borderWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 16, padding: SPACING.s24 },
   daily: { gap: 12, padding: SPACING.s16 },
-  ring: { height: 44, width: 44 },
-  mark: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' },
+  mark: { height: 44, width: 44, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, minWidth: 0, gap: 4 },
   eyebrow: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.72, textTransform: 'uppercase' },
   line: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24.65 },

@@ -46,9 +46,10 @@ The marks were generated privately under a paid Recraft plan with commercial rig
 **There is no 24 grid variant.** `DESIGN.md` enumerates 16, 48, 128, and 512 as asset sizes.
 The mark is neither type nor an icon, so it does not follow the type scale or the 24 icon grid.
 
-**Orbit selects its asset by size.** Below roughly 20px use its native 16 drawing; above that use
-the original. Astra uses its normal drawing at every size, with a shared viewBox fitted to its
-drawn bounds and centred in its container (#1797).
+**In-app marks use one drawing at every size.** `OrbitMark` uses the normal Orbit paths
+with a shared viewBox fitted to their drawn bounds, including at 16px (#2008). Astra uses its
+normal drawing with the same centring rule (#1797). The native 16 asset below remains an
+input to the standalone raster and favicon export pipeline. It is not an in-app variant.
 
 **The accent tints exactly one element.** `DESIGN.md:261` gives the accent four roles and this is the
 fourth: "The mark carries the accent on exactly one element, its moon." A second tinted element is a
