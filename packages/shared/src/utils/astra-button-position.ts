@@ -1,5 +1,6 @@
 export const ASTRA_BUTTON_SIZE = 60
 export const ASTRA_BUTTON_GAP = 16
+export const ASTRA_BUTTON_CLEARANCE = 24
 export const ASTRA_DRAG_THRESHOLD = 8
 export const ASTRA_POSITION_KEY = 'orbit-astra-button-position'
 
@@ -27,16 +28,16 @@ export function clampAstraButton(point: AstraButtonPoint, area: AstraButtonArea)
 }
 
 function overlaps(point: AstraButtonPoint, obstacle: AstraButtonObstacle) {
-  return point.x < obstacle.x + obstacle.width + ASTRA_BUTTON_GAP && point.x + ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP > obstacle.x
-    && point.y < obstacle.y + obstacle.height + ASTRA_BUTTON_GAP && point.y + ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP > obstacle.y
+  return point.x < obstacle.x + obstacle.width + ASTRA_BUTTON_CLEARANCE && point.x + ASTRA_BUTTON_SIZE + ASTRA_BUTTON_CLEARANCE > obstacle.x
+    && point.y < obstacle.y + obstacle.height + ASTRA_BUTTON_CLEARANCE && point.y + ASTRA_BUTTON_SIZE + ASTRA_BUTTON_CLEARANCE > obstacle.y
 }
 
 export function snapAstraButton(requested: AstraButtonPoint | null, area: AstraButtonArea, obstacles: readonly AstraButtonObstacle[]): AstraButtonPoint | null {
   if (area.width < ASTRA_BUTTON_SIZE + 2 * ASTRA_BUTTON_GAP || area.height < ASTRA_BUTTON_SIZE + 2 * ASTRA_BUTTON_GAP) return null
   const maximum = clampAstraButton({ x: area.width, y: area.height }, area)
   const fits = requested && requested.x <= maximum.x && requested.y <= maximum.y
-  const point = fits ? clampAstraButton(requested, area) : { x: maximum.x, y: maximum.y - ASTRA_BUTTON_SIZE - ASTRA_BUTTON_GAP }
-  const heights = [point.y, ASTRA_BUTTON_GAP, maximum.y, ...obstacles.flatMap(obstacle => [obstacle.y - ASTRA_BUTTON_SIZE - ASTRA_BUTTON_GAP, obstacle.y + obstacle.height + ASTRA_BUTTON_GAP])]
+  const point = fits ? clampAstraButton(requested, area) : { x: maximum.x, y: maximum.y - ASTRA_BUTTON_SIZE - ASTRA_BUTTON_CLEARANCE }
+  const heights = [point.y, ASTRA_BUTTON_GAP, maximum.y, ...obstacles.flatMap(obstacle => [obstacle.y - ASTRA_BUTTON_SIZE - ASTRA_BUTTON_CLEARANCE, obstacle.y + obstacle.height + ASTRA_BUTTON_CLEARANCE])]
   const candidates = [ASTRA_BUTTON_GAP, maximum.x].flatMap(x => heights.map(y => clampAstraButton({ x, y }, area)))
     .filter(candidate => !obstacles.some(obstacle => overlaps(candidate, obstacle)))
   candidates.sort((first, second) => Math.abs(first.x - point.x) - Math.abs(second.x - point.x) || Math.abs(first.y - point.y) - Math.abs(second.y - point.y))

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, StyleSheet, View, type GestureResponderEvent } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
-import { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, clampAstraButton, moveAstraButton, parseAstraButtonPosition, snapAstraButton, type AstraButtonArea, type AstraButtonPoint, type AstraMoveDirection } from '@orbit/shared/utils'
+import { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, clampAstraButton, moveAstraButton, parseAstraButtonPosition, snapAstraButton, type AstraButtonArea, type AstraButtonPoint, type AstraMoveDirection } from '@orbit/shared/utils'
 import { SHELL_CONTENT_MAX_WIDTH, zLayers, motionDurations } from '@orbit/shared/theme'
 import { Fab } from '@/components/ui/fab'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -84,7 +84,7 @@ export function AstraButton({ hasFab, scrollToTopHeight }: Readonly<{ hasFab: bo
       onResponderMove={event => { if (origin.current) setDragged(gesturePoint(event)) }}
       onResponderRelease={event => { if (origin.current) finish(gesturePoint(event)); origin.current = null }}
       onResponderTerminate={() => { origin.current = null; setDragged(null) }}
-      style={[styles.position, renderedPosition ? { left: 0, top: 0, transform: [{ translateX: renderedPosition.x }, { translateY: renderedPosition.y }, { scale: dragged ? 0.96 : 1 }] } : { right: 16, bottom: ASTRA_BUTTON_SIZE + 2 * ASTRA_BUTTON_GAP }]}>
+      style={[styles.position, renderedPosition ? { left: 0, top: 0, transform: [{ translateX: renderedPosition.x }, { translateY: renderedPosition.y }, { scale: dragged ? 0.96 : 1 }] } : { right: ASTRA_BUTTON_GAP, bottom: ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP + ASTRA_BUTTON_CLEARANCE }]}>
       <Fab neutral testID="astra-button" label={t('shell.astraButton.open')} accessibilityHint={t('shell.astraButton.hint')}
         accessibilityActions={(['left', 'right', 'up', 'down'] as const).map(direction => ({ name: direction, label: t(`shell.astraButton.${direction}`) }))}
         onAccessibilityAction={event => {

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type PointerEvent } from 'react'
 import { useTranslations } from 'next-intl'
-import { ASTRA_BUTTON_SIZE, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, clampAstraButton, moveAstraButton, parseAstraButtonPosition, snapAstraButton, type AstraButtonArea, type AstraButtonObstacle, type AstraButtonPoint, type AstraMoveDirection } from '@orbit/shared/utils'
+import { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, clampAstraButton, moveAstraButton, parseAstraButtonPosition, snapAstraButton, type AstraButtonArea, type AstraButtonObstacle, type AstraButtonPoint, type AstraMoveDirection } from '@orbit/shared/utils'
 import { Fab } from '@/components/ui/fab'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useUIStore } from '@/stores/ui-store'
@@ -80,7 +80,7 @@ export function AstraButton() {
   }
   return <div ref={hostRef} data-astra-button-area="" className="pointer-events-none absolute inset-y-0 left-[var(--safe-left)] right-[var(--safe-right)] z-sticky">
     {position || placement.area.width === 0 ? <div hidden={blocked} data-astra-button-position="" className="pointer-events-auto absolute motion-safe:transition-transform motion-safe:duration-[var(--duration-normal)] ease-[var(--ease-out)]"
-      style={{ ...(position ? { left: 0, top: 0, transform: `translate(${position.x}px, ${position.y}px)` } : { right: 16, bottom: 92 }), transitionDuration: dragged || !snapping ? '0ms' : undefined, width: ASTRA_BUTTON_SIZE, height: ASTRA_BUTTON_SIZE }}>
+      style={{ ...(position ? { left: 0, top: 0, transform: `translate(${position.x}px, ${position.y}px)` } : { right: ASTRA_BUTTON_GAP, bottom: ASTRA_BUTTON_SIZE + ASTRA_BUTTON_GAP + ASTRA_BUTTON_CLEARANCE }), transitionDuration: dragged || !snapping ? '0ms' : undefined, width: ASTRA_BUTTON_SIZE, height: ASTRA_BUTTON_SIZE }}>
       <Fab neutral label={t('shell.astraButton.open')} data-astra-button="" aria-describedby={descriptionId} style={{ touchAction: 'none' }}
         onPointerDown={event => {
           if (event.button !== 0 || !position) return

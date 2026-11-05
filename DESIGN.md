@@ -217,13 +217,14 @@ treatment: `--primary` glyph and `--primary-soft` label. The destination retains
 **The way in must be visible.** Hoje's Astra button reuses the create FAB's 60px circle,
 canvas occlusion ring and 0.96 press feedback, with the normal 24px Astra glyph. Its opaque
 neutral `--bg-elev` surface and `--fg-1` mark leave the next-action accent with creation.
-It starts at the trailing edge, 16px above the create FAB, and stays inside the content viewport
+It starts at the trailing edge, 24px above the create FAB, and stays inside the content viewport
 above the tab bar and notice/selection slots. Wide web uses the same button inside its content
 column and keeps the sidebar row. Habit detail retains its mark-only composer entry.
 
 A tap opens the existing conversation layer. A movement of at least 8px becomes a drag and
-never opens it. Release snaps to the nearer inline edge with 16px margins and clearance from
-the create FAB and the measured back-to-top pill. Position is a device preference, retained across
+never opens it. Release snaps to the nearer inline edge with 16px margins and 24px clearance from
+the create FAB and the measured back-to-top pill. The two FAB canvas rings retain 12px of visible
+separation. Position is a device preference, retained across
 launches; an outgrown position resets to the default when the viewport shrinks. Layout changes
 recheck obstacles. Sheets, selection and the conversation withhold the floating entry.
 Web keeps the button in normal tab order; Enter and Space open it and arrow keys move it.

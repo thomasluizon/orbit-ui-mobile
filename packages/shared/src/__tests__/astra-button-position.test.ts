@@ -6,14 +6,14 @@ describe('Astra button placement', () => {
     const area = { width, height: 600 }
     const obstacles = [{ x: width - 76, y: 524, width: 60, height: 60 }, { x: 0, y: 8, width, height: 64 }]
     const resting = snapAstraButton(null, area, obstacles)!
-    expect(resting).toEqual({ x: width - 76, y: 448 })
+    expect(resting).toEqual({ x: width - 76, y: 440 })
     for (const x of [16, width - 76]) {
       for (const y of [16, 120, 400, 524]) {
         const point = snapAstraButton({ x, y }, area, obstacles)!
         expect([16, width - 76]).toContain(point.x)
-        expect(point.y).toBeGreaterThanOrEqual(88)
+        expect(point.y).toBeGreaterThanOrEqual(96)
         expect(point.y + 60).toBeLessThanOrEqual(584)
-        if (point.x === width - 76) expect(point.y + 60 + 16).toBeLessThanOrEqual(524)
+        if (point.x === width - 76) expect(point.y + 60 + 24).toBeLessThanOrEqual(524)
       }
     }
   })
@@ -21,8 +21,8 @@ describe('Astra button placement', () => {
   it('retains valid positions and resets an outgrown device position to the default', () => {
     const saved = parseAstraButtonPosition('{"x":336,"y":200}')!
     expect(snapAstraButton(saved, { width: 412, height: 600 }, [])).toEqual(saved)
-    expect(snapAstraButton(saved, { width: 320, height: 400 }, [])).toEqual({ x: 244, y: 248 })
-    expect(snapAstraButton({ x: 16, y: 800 }, { width: 412, height: 400 }, [])).toEqual({ x: 336, y: 248 })
+    expect(snapAstraButton(saved, { width: 320, height: 400 }, [])).toEqual({ x: 244, y: 240 })
+    expect(snapAstraButton({ x: 16, y: 800 }, { width: 412, height: 400 }, [])).toEqual({ x: 336, y: 240 })
     expect(clampAstraButton({ x: -200, y: 1000 }, { width: 320, height: 400 })).toEqual({ x: 16, y: 324 })
   })
 

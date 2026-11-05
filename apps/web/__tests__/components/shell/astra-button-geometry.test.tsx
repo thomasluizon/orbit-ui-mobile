@@ -47,7 +47,7 @@ it.each([320, 412, 1352].flatMap(width => (['light', 'dark'] as const).flatMap(m
     expect(geometry.right).toBeLessThanOrEqual(width - 16)
     expect(geometry.top).toBeGreaterThanOrEqual(geometry.pillBottom)
     expect(geometry.bottom).toBeLessThanOrEqual(geometry.pageBottom)
-    if (geometry.createHeight) expect(geometry.bottom + 16).toBeLessThanOrEqual(geometry.createTop)
+    if (geometry.createHeight) expect(geometry.bottom + 24).toBeLessThanOrEqual(geometry.createTop)
     if (geometry.tabsHeight) expect(geometry.bottom).toBeLessThanOrEqual(geometry.tabsTop)
   } finally { await page.close() }
 })
