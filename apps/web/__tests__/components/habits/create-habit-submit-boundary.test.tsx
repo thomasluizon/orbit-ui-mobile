@@ -127,7 +127,7 @@ async function fillHabit(user: ReturnType<typeof userEvent.setup>, child: HTMLEl
   await user.click(within(child).getByRole('radio', { name: new RegExp(en.habits.form.typeHabit) }))
   await user.type(within(child).getByLabelText(en.habits.form.describe), 'Read every day')
   await user.type(within(child).getByLabelText(en.habits.form.datePhrase), '2030-01-15')
-  expect(within(child).getByRole('button', { name: /^Starts on,/ })).toHaveTextContent('2030')
+  expect(within(child).getByRole('button', { name: /^When do you start\?,/ })).toHaveTextContent('2030')
 }
 
 describe('nested habit submit ownership through the goal picker', () => {

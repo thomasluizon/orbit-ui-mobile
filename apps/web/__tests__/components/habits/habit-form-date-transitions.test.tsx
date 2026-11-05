@@ -261,7 +261,7 @@ describe('date ownership across form transitions', () => {
 
   function changeCadence(change: string, owner: ReturnType<typeof mountDateForm>) {
     if (change === 'unit') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.unitWeek' }))
-    if (change === 'quantity') fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '2' } })
+    if (change === 'quantity') fireEvent.change(screen.getByRole('spinbutton', { name: /^habits\.form\.(everyCount|timesCount)$/ }), { target: { value: '2' } })
     if (change === 'days') fireEvent.click(screen.getByRole('button', { name: owner.helpers().daysList[0]!.accessibleLabel }))
     if (change === 'interval') fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
     if (change === 'flexible') fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))

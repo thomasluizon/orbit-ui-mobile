@@ -69,13 +69,13 @@ describe('manual schedule creation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
     fireEvent.click(screen.getByRole('radio', { name: 'habits.form.every' }))
     fireEvent.click(screen.getByRole('radio', { name: `habits.form.unit${unit}` }))
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '12' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: /^habits\.form\.(everyCount|timesCount)$/ }), { target: { value: '12' } })
     expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: false, days: [] })
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
     expect(buildCreateHabitRequest(habitFormSchema.parse(helpers.form.getValues()), [], [], [], [])).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, intervalWeeks: 2 })
     fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesPerUnit' }))
     expect(helpers.form.getValues()).toMatchObject({ frequencyUnit: unit, frequencyQuantity: 12, isFlexible: true, days: [] })
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequency' }), { target: { value: '0' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: /^habits\.form\.(everyCount|timesCount)$/ }), { target: { value: '0' } })
     expect(screen.getByRole('spinbutton')).toHaveAccessibleDescription('habits.form.frequencyRequired')
     expect(helpers.validateAll()).toBe('habits.form.frequencyRequired')
     fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '' } })
@@ -101,7 +101,7 @@ describe('manual schedule creation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.askAstra' }))
     await waitFor(() => expect(helpers.form.getValues('days')).toEqual(['Monday']))
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
-    const quantity = screen.getByRole('spinbutton', { name: 'habits.form.frequency' })
+    const quantity = screen.getByRole('spinbutton', { name: /^habits\.form\.(everyCount|timesCount)$/ })
     for (const control of [quantity, screen.getByRole('radio', { name: 'habits.form.every' }), screen.getByRole('radio', { name: 'habits.form.unitDay' }), screen.getByRole('button', { name: helpers.daysList.find((day) => day.value === 'Monday')!.accessibleLabel })]) {
       expect(control.closest('[data-proposed]')).not.toBeNull()
     }
@@ -128,7 +128,7 @@ describe('manual schedule creation', () => {
     renderForm(createFormHelpers({ title: 'Read', isGeneral: true }), undefined, true, false, true)
     expect(screen.getByRole('radio', { name: /habits.form.every/ })).toHaveAttribute('aria-disabled', 'true')
     expect(screen.getByRole('radio', { name: /habits.form.unitMonth/ })).toHaveAttribute('aria-disabled', 'true')
-    expect(screen.getByRole('spinbutton', { name: 'habits.form.frequency' })).toBeDisabled()
+    expect(screen.getByRole('spinbutton', { name: /^habits\.form\.(everyCount|timesCount)$/ })).toBeDisabled()
   })
 })
 

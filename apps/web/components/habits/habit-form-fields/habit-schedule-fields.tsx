@@ -18,7 +18,8 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
   }
   if (hidden) return null
   return (
-    <section className="flex min-w-0 flex-col gap-4">
+    <section data-schedule-questions="" className="flex min-w-0 flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-2">
       <FormSectionLabel>{t('habits.form.frequency')}</FormSectionLabel>
       <RadioGroup aria-label={t('habits.form.frequency')}>
         <Proposed keepMounted inset proposed={proposed && (Boolean(unit) && !flexible)} scope="row" label={t('habits.detail.proposed')}>
@@ -28,10 +29,11 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
           <RadioRow proposed={proposed && flexible} label={t('habits.form.timesPerUnit')} selected={flexible} {...availability} onSelect={() => { if (!disabled) onModeChange(true) }} />
         </Proposed>
       </RadioGroup>
+      </div>
       <Proposed keepMounted inset proposed={proposed} scope="field" label={t('habits.detail.proposed')}>
         <Input
           proposed={proposed}
-          label={t('habits.form.frequency')}
+          label={t(flexible ? 'habits.form.timesCount' : 'habits.form.everyCount')}
           name="frequencyQuantity"
           autoComplete="off"
           kind="number"
@@ -52,8 +54,8 @@ export function HabitScheduleFields({ unit, quantity, flexible, disabled, onChan
             </Proposed>
           ))}
         </RadioGroup>
+        {flexible && unit && quantity !== null && !invalid ? <span className="text-sm leading-[1.5] text-[var(--fg-3)]">{t('habits.form.flexibleDescription', { n: quantity, unit })}</span> : null}
       </div>
-      {flexible && unit && quantity !== null && !invalid ? <span className="text-sm leading-[1.5] text-[var(--fg-3)]">{t('habits.form.flexibleDescription', { n: quantity, unit })}</span> : null}
     </section>
   )
 }
