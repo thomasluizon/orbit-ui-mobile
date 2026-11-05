@@ -2110,7 +2110,16 @@
         "interval_minutes": "Interval in minutes",
         "start_at_utc": "First reminder",
         "items": "Items",
-        "text": "Text"
+        "text": "Text",
+        "subject": "What is it about",
+        "message": "What happened",
+        "scopes": "Scope",
+        "expires_at_utc": "Expires At (UTC, optional)",
+        "code": "6 digit code",
+        "active_start": "Active from",
+        "active_end": "Active until",
+        "relative_reminders": "Remind me",
+        "due_end_time": "End Time"
       },
       "confirmTitle": "Approve this change?",
       "confirm": "Approve",
@@ -2677,7 +2686,8 @@
       "preserveAccount": "Your account (email and name)",
       "preserveSubscription": "Pro subscription status",
       "preservePreferences": "Theme, language, and timezone",
-      "confirmLabel": "Should we go ahead? Type ORBIT.",
+      "confirmInstruction": "Type ORBIT to confirm.",
+      "confirmLabel": "Ready to start over?",
       "confirmPlaceholder": "ORBIT",
       "errorGeneric": "Something went wrong. Please try again."
     },

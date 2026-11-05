@@ -1743,7 +1743,7 @@ describe('offered preview fields', () => {
     render(<PendingOperationCard pendingOperation={operation} onRevise={onRevise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: en.chat.operation.edit }))
     const times = ['active_start', 'active_end'] as const
-    for (const field of times) fireEvent.change(screen.getByRole('textbox', { name: en.habits.form[field === 'active_start' ? 'repeatActiveStart' : 'repeatActiveEnd'] }), { target: { value: '' } })
+    for (const field of times) fireEvent.change(screen.getByRole('textbox', { name: en.chat.operation.field[field] }), { target: { value: '' } })
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: en.common.save }))
     await waitFor(() => expect(onRevise).toHaveBeenCalledWith(operation.id, { previewFingerprint: 'preview-one', items: [{ itemId: '0', edits: { repeat_reminder: { interval_minutes: 120 } } }] }))
   })

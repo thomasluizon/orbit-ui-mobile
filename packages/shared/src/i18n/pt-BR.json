@@ -2110,7 +2110,16 @@
         "interval_minutes": "Intervalo em minutos",
         "start_at_utc": "Primeiro lembrete",
         "items": "Itens",
-        "text": "Texto"
+        "text": "Texto",
+        "subject": "Sobre o que é",
+        "message": "O que aconteceu",
+        "scopes": "Escopo",
+        "expires_at_utc": "Expira em (UTC, opcional)",
+        "code": "Código de 6 dígitos",
+        "active_start": "A partir das",
+        "active_end": "Até as",
+        "relative_reminders": "Me lembrar",
+        "due_end_time": "Horário final"
       },
       "confirmTitle": "Aprovar esta mudança?",
       "confirm": "Aprovar",
@@ -2677,7 +2686,8 @@
       "preserveAccount": "Sua conta (e-mail e nome)",
       "preserveSubscription": "O status da assinatura Pro",
       "preservePreferences": "Tema, idioma e fuso horário",
-      "confirmLabel": "Podemos seguir? Digite ORBIT.",
+      "confirmInstruction": "Digite ORBIT para confirmar.",
+      "confirmLabel": "Quer mesmo começar do zero?",
       "confirmPlaceholder": "ORBIT",
       "errorGeneric": "Algo deu errado. Tente de novo."
     },
