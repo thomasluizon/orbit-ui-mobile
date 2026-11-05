@@ -1,3 +1,4 @@
+import { getAccountGeneration } from './session-epoch'
 import { API } from '@orbit/shared/api'
 import {
   removeDeletedHabitQueries, restoreDeletedHabitQueries,
@@ -33,7 +34,7 @@ import {
 } from '@orbit/shared/types/profile'
 import { bulkLogItemRequestSchema, bulkLogResultSchema, bulkSkipItemRequestSchema, bulkSkipResultSchema, habitDetailSchema, reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
 import { z } from 'zod'
-import { ApiClientError, isBulkGatewayFailure, isNetworkUnavailableError, extractBackendErrorCode, findHabitInList } from '@orbit/shared/utils'
+import { ApiClientError, getBulkCompletionReplay, isBulkGatewayFailure, isNetworkUnavailableError, extractBackendErrorCode, findHabitInList } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { validateResolvedHabitReferences } from './habit-update-request'
 import { apiClient } from './api-client'
@@ -1102,6 +1103,9 @@ async function deliverQueuedMutation(
   )
 
   await reportBulkReplaySuccess(mutation, response, accountId)
+  if (accountId === getAccountId() && (mutation.type === 'bulkLogHabits' || mutation.type === 'bulkSkipHabits')) {
+    getBulkCompletionReplay(queryClient, getAccountGeneration(), mutation.type === 'bulkLogHabits' ? 'log' : 'skip').resolve(mutation.id)
+  }
   await finalizeSuccessfulFlush(mutation, response, touchedScopes)
   return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
 }

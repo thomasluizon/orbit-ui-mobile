@@ -89,6 +89,7 @@ describe('returning profile after other completion writes', () => {
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => {
+  advanceAccountGeneration()
   vi.setSystemTime(PINNED_TEST_TIME)
   vi.mocked(apiClient).mockClear()
 })

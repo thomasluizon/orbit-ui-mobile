@@ -21,21 +21,68 @@ export function normalizeBulkCompletionInput<T>(input: BulkCompletionInput<T>): 
   return Array.isArray(input) ? { items: input } : input
 }
 
-export function buildBulkCompletionChunks<T extends { habitId: string }>(
+export function buildBulkCompletionChunks<T extends { habitId: string; date?: string }>(
   input: BulkCompletionInput<T>,
   createIdempotencyKey: () => string,
 ): (BulkRetryChunk<T> & { indices: number[] })[] {
   const { items, retryChunks = [] } = normalizeBulkCompletionInput(input)
-  const retainedIds = new Set(retryChunks.flatMap(chunk => chunk.items.map(item => item.habitId)))
-  const remaining = items.filter(item => !retainedIds.has(item.habitId))
+  const retainedIds = new Set(retryChunks.flatMap(chunk => chunk.items.map(bulkItemIdentity)))
+  const remaining = items.filter(item => !retainedIds.has(bulkItemIdentity(item)))
   const chunks = [...retryChunks]
   for (let index = 0; index < remaining.length; index += 100) {
     chunks.push({ items: remaining.slice(index, index + 100), idempotencyKey: createIdempotencyKey() })
   }
   return chunks.map(chunk => ({
     ...chunk,
-    indices: chunk.items.map(item => items.findIndex(request => request.habitId === item.habitId)),
+    indices: chunk.items.map(item => items.findIndex(request => bulkItemIdentity(request) === bulkItemIdentity(item))),
   }))
+}
+
+interface BulkCompletionItem {
+  habitId: string
+  date?: string
+}
+
+function bulkItemIdentity(item: BulkCompletionItem): string {
+  return JSON.stringify([item.habitId, item.date])
+}
+
+class BulkCompletionReplay {
+  private readonly chunksByItem = new Map<string, BulkRetryChunk<BulkCompletionItem>>()
+
+  prepare(input: BulkCompletionInput<BulkCompletionItem>, createIdempotencyKey: () => string): (BulkRetryChunk<BulkCompletionItem> & { indices: number[] })[] {
+    const { items, retryChunks = [] } = normalizeBulkCompletionInput(input)
+    const retained = new Set<BulkRetryChunk<BulkCompletionItem>>()
+    for (const item of items) {
+      const chunk = this.chunksByItem.get(bulkItemIdentity(item))
+      if (chunk) retained.add(chunk)
+    }
+    for (const chunk of retryChunks) {
+      if (!chunk.items.some(item => this.chunksByItem.has(bulkItemIdentity(item)))) retained.add(chunk)
+    }
+    const chunks = buildBulkCompletionChunks({ items, retryChunks: [...retained] }, createIdempotencyKey)
+    for (const chunk of chunks) {
+      for (const item of chunk.items) this.chunksByItem.set(bulkItemIdentity(item), chunk)
+    }
+    return chunks
+  }
+
+  resolve(idempotencyKey: string): void {
+    for (const [identity, chunk] of this.chunksByItem) {
+      if (chunk.idempotencyKey === idempotencyKey) this.chunksByItem.delete(identity)
+    }
+  }
+}
+
+const replayOwners = new WeakMap<object, { generation: number; log: BulkCompletionReplay; skip: BulkCompletionReplay }>()
+
+export function getBulkCompletionReplay(owner: object, generation: number, mode: 'log' | 'skip'): BulkCompletionReplay {
+  let scope = replayOwners.get(owner)
+  if (!scope || scope.generation !== generation) {
+    scope = { generation, log: new BulkCompletionReplay(), skip: new BulkCompletionReplay() }
+    replayOwners.set(owner, scope)
+  }
+  return scope[mode]
 }
 
 export function isBulkGatewayFailure(error: unknown): boolean {

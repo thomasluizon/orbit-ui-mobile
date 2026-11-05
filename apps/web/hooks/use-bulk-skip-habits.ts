@@ -1,9 +1,10 @@
 'use client'
 
 import { settleBulkSkippedHabits,checkCompletionAfterSkip } from '@orbit/shared/query/skip-completion'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys,profileKeys,applyCachedHabitSkip } from '@orbit/shared/query'
-import { getAccountDay, buildBulkCompletionChunks, normalizeBulkCompletionInput, type BulkCompletionInput, type BulkRetryChunk } from '@orbit/shared/utils'
+import { getAccountDay, getBulkCompletionReplay, normalizeBulkCompletionInput, type BulkCompletionInput, type BulkRetryChunk } from '@orbit/shared/utils'
 import { snapshotHabitLists,restoreHabitLists } from '@/lib/habit-mutation-helpers'
 import type { BulkSkipItemRequest,BulkSkipResult } from '@orbit/shared/types/habit'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -26,10 +27,12 @@ export function useBulkSkipHabits() {
       const retryChunks: BulkRetryChunk<BulkSkipItemRequest>[] = []
       const results: BulkSkipResult['results'] = []
       const ambiguousIds: string[] = []
-      for (const chunk of buildBulkCompletionChunks(input, () => crypto.randomUUID())) {
+      const replay = getBulkCompletionReplay(queryClient, getAccountGeneration(), 'skip')
+      for (const chunk of replay.prepare(input, () => crypto.randomUUID())) {
         if (!account.stillCurrent()) break
         try {
           const response = await bulkSkipHabitsAction(chunk.items, intendedAccountId, chunk.idempotencyKey)
+          replay.resolve(chunk.idempotencyKey)
           results.push(...response.results.map((result) => ({ ...result, index: chunk.indices[result.index]! })))
         } catch (error) {
           if (reportsAccountChanged(error)) throw error

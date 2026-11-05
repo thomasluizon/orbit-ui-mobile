@@ -1,7 +1,8 @@
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { type HabitAccount,withAccountGuard } from './use-habit-mutation-shared'
 import { randomUUID } from 'expo-crypto'
 import type { UseMutationOptions } from '@tanstack/react-query'
-import { buildBulkCompletionChunks, normalizeBulkCompletionInput, type BulkCompletionInput, type BulkRetryChunk } from '@orbit/shared/utils'
+import { getBulkCompletionReplay, normalizeBulkCompletionInput, type BulkCompletionInput, type BulkRetryChunk } from '@orbit/shared/utils'
 import type { HabitListSnapshots } from '@orbit/shared/query'
 import { useQueryClient } from '@tanstack/react-query'
 import { useHabitMutation } from './use-habit-mutation'
@@ -35,7 +36,9 @@ function recordBulkFailure(
   error: unknown,
   failures: { ambiguousIds: string[]; offlineFailureIds: string[]; retryChunks: BulkRetryChunk<BulkLogItemRequest>[] },
   chunk: BulkRetryChunk<BulkLogItemRequest>,
+  replay: ReturnType<typeof getBulkCompletionReplay>,
 ): void {
+  if (error instanceof OfflineMutationPreflightError) replay.resolve(chunk.idempotencyKey)
   if (!(error instanceof OfflineMutationPreflightError)) failures.retryChunks.push({ items: chunk.items, idempotencyKey: chunk.idempotencyKey })
   const rejectedIds = error instanceof OfflineMutationPreflightError ? failures.offlineFailureIds : failures.ambiguousIds
   rejectedIds.push(...chunk.items.map(item => item.habitId))
@@ -52,7 +55,7 @@ function checkTodayCompletionAfterLogs(
   checkAllDoneCelebration(normalized, buildChildrenIndex(normalized), today)
 }
 
-export function useBulkLogHabits(options: { suppressParentSettlement?: boolean } = {}) {
+export function useBulkLogHabits(options: { suppressParentSettlement?: boolean; manualRetry?: boolean } = {}) {
   const context = useBulkLogHabitsContext(options)
   const { queryClient } = context
   return useHabitMutation<
@@ -107,7 +110,7 @@ export function useBulkLogHabits(options: { suppressParentSettlement?: boolean }
   })
 }
 
-function useBulkLogHabitsContext(options: { suppressParentSettlement?: boolean }) {
+function useBulkLogHabitsContext(options: { suppressParentSettlement?: boolean; manualRetry?: boolean }) {
   const queryClient = useQueryClient()
   const { checkAllDoneCelebration, showStreakMoment } = useUIStore.getState()
   return { queryClient, checkAllDoneCelebration, showStreakMoment, options }
@@ -133,12 +136,13 @@ function createBulkLogHabitsMutationFn(context: ReturnType<typeof useBulkLogHabi
       const offlineFailureIds: string[] = []
       const queuedIds: string[] = []
       let hasConfirmedSuccess = false
-      for (const chunk of buildBulkCompletionChunks({ ...normalizeBulkCompletionInput(input), items }, randomUUID)) {
+      const replay = getBulkCompletionReplay(queryClient, getAccountGeneration(), 'log')
+      for (const chunk of replay.prepare({ ...normalizeBulkCompletionInput(input), items }, randomUUID)) {
         if (!account.stillCurrent()) break
         try {
           const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({
             isCurrent: account.stillCurrent,
-            manualRetry: true,
+            manualRetry: options.manualRetry,
             idempotencyKey: chunk.idempotencyKey,
             type: 'bulkLogHabits',
             scope: 'habits',
@@ -159,15 +163,16 @@ function createBulkLogHabitsMutationFn(context: ReturnType<typeof useBulkLogHabi
               queuedMutationId: mutationId,
             }),
           })
-          if (isQueuedResult(response)) queuedIds.push(...chunk.items.map((item) => item.habitId))
-          if (!isQueuedResult(response) && response.results.some((result) => result.status === 'Success')) {
-            hasConfirmedSuccess = true
-          }
           const chunkResponse = { ...response, results: response.results.map((result) => ({ ...result, index: chunk.indices[result.index]! })) }
-          if (!isQueuedResult(response)) streakResponses.push(chunkResponse)
+          if (isQueuedResult(response)) queuedIds.push(...chunk.items.map((item) => item.habitId))
+          else {
+            replay.resolve(chunk.idempotencyKey)
+            hasConfirmedSuccess = hasConfirmedSuccess || response.results.some((result) => result.status === 'Success')
+            streakResponses.push(chunkResponse)
+          }
           results.push(...chunkResponse.results)
         } catch (error: unknown) {
-          recordBulkFailure(error, { ambiguousIds, offlineFailureIds, retryChunks }, chunk)
+          recordBulkFailure(error, { ambiguousIds, offlineFailureIds, retryChunks }, chunk, replay)
         }
       }
       return { results, streakResponses, ambiguousIds, offlineFailureIds, hasConfirmedSuccess, queuedIds, retryChunks }

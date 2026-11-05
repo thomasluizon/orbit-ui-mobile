@@ -1,9 +1,10 @@
 'use client'
 
 import { captureException } from '@sentry/nextjs'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys,habitKeys,updateHabitListsForDate,getTodayHabitList,invalidateDerivedHabitLogQueries,goalKeys,gamificationKeys } from '@orbit/shared/query'
-import { ApiClientError,buildUnresolvedBulkFailures,buildBulkCompletionChunks,normalizeBulkCompletionInput,isBulkGatewayFailure,type BulkCompletionInput,type BulkRetryChunk,getAccountDay,findHabitInList,buildSuccessfulLogPatch,deriveBulkLogStreakTransition,normalizeHabits,buildChildrenIndex } from '@orbit/shared/utils'
+import { ApiClientError,buildUnresolvedBulkFailures,getBulkCompletionReplay,normalizeBulkCompletionInput,isBulkGatewayFailure,type BulkCompletionInput,type BulkRetryChunk,getAccountDay,findHabitInList,buildSuccessfulLogPatch,deriveBulkLogStreakTransition,normalizeHabits,buildChildrenIndex } from '@orbit/shared/utils'
 import { optimisticPatchHabit } from '@/lib/habit-optimistic-helpers'
 import { snapshotHabitLists,updateHabitLists,restoreHabitLists,type HabitListSnapshots } from '@/lib/habit-mutation-helpers'
 import type { BulkLogItemRequest,BulkLogResult,HabitScheduleItem } from '@orbit/shared/types/habit'
@@ -55,7 +56,8 @@ export function useBulkLogHabits() {
       const account = captureAccountIntent()
       const results: BulkLogResult['results'] = []
       const streakResponses: BulkLogResult[] = []
-      for (const chunk of buildBulkCompletionChunks(input, () => crypto.randomUUID())) {
+      const replay = getBulkCompletionReplay(queryClient, getAccountGeneration(), 'log')
+      for (const chunk of replay.prepare(input, () => crypto.randomUUID())) {
         if (!account.stillCurrent()) break
         try {
           const response = await bulkLogHabitsAction(
@@ -63,6 +65,7 @@ export function useBulkLogHabits() {
             intendedAccountId,
             chunk.idempotencyKey,
           )
+          replay.resolve(chunk.idempotencyKey)
           const chunkResponse = { ...response, results: response.results.map((result) => ({ ...result, index: chunk.indices[result.index]! })) }
           streakResponses.push(chunkResponse)
           results.push(...chunkResponse.results)
@@ -74,6 +77,7 @@ export function useBulkLogHabits() {
             retryChunks.push({ items: chunk.items, idempotencyKey: chunk.idempotencyKey })
             continue
           }
+          replay.resolve(chunk.idempotencyKey)
           const index = chunk.indices[0]!
           results.push(...buildUnresolvedBulkFailures(
             items.slice(index),

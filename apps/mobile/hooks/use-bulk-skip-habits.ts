@@ -1,6 +1,7 @@
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { type HabitAccount,withAccountGuard } from './use-habit-mutation-shared'
 import { randomUUID } from 'expo-crypto'
-import { buildBulkCompletionChunks, normalizeBulkCompletionInput, type BulkCompletionInput, type BulkRetryChunk } from '@orbit/shared/utils'
+import { getBulkCompletionReplay, normalizeBulkCompletionInput, type BulkCompletionInput, type BulkRetryChunk } from '@orbit/shared/utils'
 import { settleBulkSkippedHabits,checkCompletionAfterSkip } from '@orbit/shared/query/skip-completion'
 import type { HabitListSnapshots } from '@orbit/shared/query'
 import { useQueryClient } from '@tanstack/react-query'
@@ -36,7 +37,7 @@ function recordBulkFailure(
   rejectedIds.push(...habitIds)
 }
 
-export function useBulkSkipHabits(options: { suppressParentSettlement?: boolean } = {}) {
+export function useBulkSkipHabits(options: { suppressParentSettlement?: boolean; manualRetry?: boolean } = {}) {
   const queryClient = useQueryClient()
 
   return useHabitMutation<
@@ -53,11 +54,12 @@ export function useBulkSkipHabits(options: { suppressParentSettlement?: boolean 
       const ambiguousIds: string[] = []
       const offlineFailureIds: string[] = []
       const queuedIds: string[] = []
-      for (const chunk of buildBulkCompletionChunks({ ...normalizeBulkCompletionInput(input), items }, randomUUID)) {
+      const replay = getBulkCompletionReplay(queryClient, getAccountGeneration(), 'skip')
+      for (const chunk of replay.prepare({ ...normalizeBulkCompletionInput(input), items }, randomUUID)) {
         if (!account.stillCurrent()) break
         try {
           const response = await performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({
-            manualRetry: true,
+            manualRetry: options.manualRetry,
             idempotencyKey: chunk.idempotencyKey,
             type: 'bulkSkipHabits',
             scope: 'habits',
@@ -77,9 +79,11 @@ export function useBulkSkipHabits(options: { suppressParentSettlement?: boolean 
               queuedMutationId: mutationId,
             }),
           })
+          if (!isQueuedResult(response)) replay.resolve(chunk.idempotencyKey)
           if (isQueuedResult(response)) queuedIds.push(...chunk.items.map((item) => item.habitId))
           results.push(...response.results.map((result) => ({ ...result, index: chunk.indices[result.index]! })))
         } catch (error: unknown) {
+          if (error instanceof OfflineMutationPreflightError) replay.resolve(chunk.idempotencyKey)
           const failedIds = chunk.items.map((item) => item.habitId)
           recordBulkFailure(error, failedIds, { ambiguousIds, offlineFailureIds, retryChunks }, chunk)
         }

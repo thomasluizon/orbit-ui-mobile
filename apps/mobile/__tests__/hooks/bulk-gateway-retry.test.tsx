@@ -72,7 +72,7 @@ afterEach(async () => {
 })
 
 describe('bulk gateway recovery', () => {
-  it.each(['log', 'skip'] as const)('keeps the %s replay key when a successful upstream write loses its response', async mode => {
+  it.each((['log', 'skip'] as const).flatMap(mode => (['toast', 'toolbar', 'remount'] as const).map(recovery => ({ mode, recovery }))))('keeps the $mode replay key after response loss through $recovery', async ({ mode, recovery }) => {
     const replay = new Map<string, object>()
     const requests: { key: string | null; body: string }[] = []
     let committed = 0
@@ -82,9 +82,10 @@ describe('bulk gateway recovery', () => {
       if (typeof init?.body !== 'string') throw new Error('Missing bulk body')
       requests.push({ key, body: init.body })
       const identity = key ?? `unkeyed-${requests.length}`
+      const { items } = JSON.parse(init.body) as { items: { habitId: string }[] }
       if (!replay.has(identity)) {
-        committed += ids.length
-        replay.set(identity, { results: ids.map((habitId, index) => ({
+        committed += items.length
+        replay.set(identity, { results: items.map(({ habitId }, index) => ({
           index, status: 'Success', habitId, error: null, errorCode: null,
           ...(mode === 'log' ? { logId: habitId } : {}),
         })), ...(mode === 'log' ? { previousStreak: 0, currentStreak: 1 } : {}) })
@@ -97,12 +98,26 @@ describe('bulk gateway recovery', () => {
     const retry = mocks.toast.mock.calls.at(-1)?.[0]?.onAction as () => Promise<void>
     expect(retry).toBeTypeOf('function')
     lost = false
-    await act(async () => { await retry() })
+    if (recovery !== 'toast') {
+      mocks.toast.mockClear()
+      selected = new Set(ids.slice(0, 3).reverse())
+      if (recovery === 'remount') await act(() => tree.update(<QueryClientProvider client={client}>{null}</QueryClientProvider>))
+      await act(() => tree.update(<QueryClientProvider client={client}><Owner /></QueryClientProvider>))
+    }
+    await act(async () => {
+      if (recovery === 'toast') await retry()
+      else await (mode === 'log' ? actions.confirmBulkLog() : actions.confirmBulkSkip())
+    })
     expect(committed).toBe(10)
     expect(requests[0]?.key).toBeTruthy()
     expect(requests.at(-1)).toEqual(requests[0])
     expect(selected.size).toBe(0)
     expect(settle).toHaveBeenCalledOnce()
+    if (recovery !== 'toast') {
+      await act(async () => { await retry() })
+      expect(committed).toBe(10)
+      expect(requests.at(-1)).toEqual(requests[0])
+    }
   })
 
   it.each(['log', 'skip'] as const)('retries only the original uncertain middle %s chunk', async mode => {
