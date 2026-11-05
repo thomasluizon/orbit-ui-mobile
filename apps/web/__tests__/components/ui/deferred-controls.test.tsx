@@ -96,6 +96,7 @@ it('preserves background focus through the first feedback action', async () => {
     await vi.dynamicImportSettled()
   })
   await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+  await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Undo' })).toBeVisible())
   const undo = screen.getByRole('button', { name: 'Undo' })
   expect(undo).toBeVisible()
   expect(focused).toHaveFocus()
