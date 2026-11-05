@@ -1,7 +1,8 @@
 import { load } from "js-yaml"
 import { execFileSync, spawnSync } from "node:child_process"
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { runBounded } from "../lib/bounded-process.mjs"
 import { BASH, T, root, stage, toolPath } from "./_harness.mjs"
 
 const workflow = readFileSync(toolPath("../.github/workflows/release.yml"), "utf8")
@@ -17,7 +18,7 @@ const renderFixture = JSON.parse(readFileSync(toolPath("__tests__/render-release
 const releaseFixture = JSON.parse(readFileSync(toolPath("__tests__/release-fixture.json"), "utf8"))
 const gateFixture = JSON.parse(readFileSync(toolPath("__tests__/fixtures/gate-github-responses.json"), "utf8"))
 
-function checkProductionSteps() {
+async function checkProductionSteps() {
   T("production uses its build and credential environment", workflow.includes("if: inputs.environment == 'production'") &&
     /production:\n[\s\S]*?environment:\n      name: production\n      deployment: false/.test(workflow))
   T("production selects its service directly", workflow.includes("SERVICE_ID: ${{ vars.RENDER_WEB_SERVICE_ID }}"))
@@ -50,9 +51,15 @@ function checkProductionSteps() {
       else curl_response "$@"; fi
     }
   `
-  const run = (name, stub, overrides = {}) => spawnSync(BASH, ["-c", `${stub}\n${readAdapter}\n${stepScript(name)}`], {
-    encoding: "utf8", cwd: root, env: { ...environment, ...overrides }, timeout: 5000,
-  })
+  const run = async (name, stub, overrides = {}) => {
+    // Fixture sleep owns retry time; completion uses the shared harness process bound.
+    const result = await runBounded(BASH, ["-c", `${stub}\n${readAdapter}\n${stepScript(name)}`], {
+      cwd: root, env: { ...environment, ...overrides }, timeoutMs: 180000,
+    })
+    T(`${name} fixture completes normally`, Number.isInteger(result.status) && result.signal === null &&
+      !result.error && !result.timedOut && !result.overflowed, JSON.stringify(result))
+    return result
+  }
   const healthStub = `
     curl() {
       printf '%s\\n' "$@" >> "$CALLS"
@@ -65,7 +72,7 @@ function checkProductionSteps() {
     sleep() { SECONDS=$((SECONDS + 181)); }
   `
   stage("release-workflow/calls", "")
-  const health = run("Check web health", healthStub, { RELEASE_ENVIRONMENT: "production" })
+  const health = await run("Check web health", healthStub, { RELEASE_ENVIRONMENT: "production" })
   const observed = new Set(readFileSync(calls, "utf8").trim().split("\n"))
   T("production checks service and public health and records the public URL", health.status === 0 &&
     observed.has(`${renderFixture.service.serviceDetails.url}/api/health`) &&
@@ -74,7 +81,7 @@ function checkProductionSteps() {
   T("production health does not request the retired application route",
     !observed.has(`${renderFixture.service.serviceDetails.url}/login`))
   const staleHealth = stage("release-workflow/stale-health.json", JSON.stringify({ ...renderFixture.health, commit: "b".repeat(40) }))
-  const mismatch = run("Check web health", healthStub, { RELEASE_ENVIRONMENT: "production", HEALTH_RESPONSE: staleHealth })
+  const mismatch = await run("Check web health", healthStub, { RELEASE_ENVIRONMENT: "production", HEALTH_RESPONSE: staleHealth })
   T("production rejects a healthy service running another commit", mismatch.status === 1 && mismatch.stderr.includes("did not report status ok and commit"), mismatch.stderr)
 
   const deployStub = `
@@ -105,9 +112,27 @@ function checkProductionSteps() {
     }
     sleep() { :; }
   `
+  const ready = join(root, "release-workflow/ready")
+  const release = join(root, "release-workflow/release")
+  const pending = run("Deploy web digest", `
+    printf ready > "$READY"
+    while [[ ! -f "$RELEASE" ]]; do command sleep 0.01; done
+    ${deployStub}
+  `, { DEPLOY_STATUS: "live", SERVICE_RESPONSE: shutdownServicePath, READY: ready, RELEASE: release })
+  let completed = false
+  void pending.then(() => { completed = true })
+  try {
+    while (!existsSync(ready) && !completed) await new Promise((resolve) => setTimeout(resolve, 10))
+  } finally {
+    writeFileSync(release, "release")
+  }
+  const released = await pending
+  T("production awaits fixture completion while the parent releases its readiness gate",
+    existsSync(ready) && released.status === 0 && released.signal === null && !released.error,
+    JSON.stringify({ status: released.status, signal: released.signal, error: String(released.error ?? ""), stdout: released.stdout, stderr: released.stderr }))
   for (const status of ["live", "canceled"]) {
     stage("release-workflow/calls", "")
-    const result = run("Deploy web digest", deployStub, { DEPLOY_STATUS: status, SERVICE_RESPONSE: shutdownServicePath })
+    const result = await run("Deploy web digest", deployStub, { DEPLOY_STATUS: status, SERVICE_RESPONSE: shutdownServicePath })
     T(`production follows its own deploy to ${status}`, result.status === (status === "live" ? 0 : 1) &&
       readFileSync(calls, "utf8").includes("services/srv-production/deploys/fixture-deploy"), result.stderr)
     const requests = readFileSync(calls, "utf8").trim().split("\n")
@@ -126,7 +151,7 @@ function checkProductionSteps() {
     ["unavailable", "", true],
   ]) {
     stage("release-workflow/calls", "")
-    const result = run("Deploy web digest", deployStub, { DEPLOY_STATUS: "live", SERVICE_FAILURE: String(failure),
+    const result = await run("Deploy web digest", deployStub, { DEPLOY_STATUS: "live", SERVICE_FAILURE: String(failure),
       SERVICE_RESPONSE: stage("release-workflow/shutdown-readback.json", response) })
     const requests = readFileSync(calls, "utf8").trim().split("\n")
     T(`production rejects ${label} shutdown readback before deploying`, result.status !== 0 &&
@@ -134,16 +159,16 @@ function checkProductionSteps() {
       result.stderr.includes("infra/production.tf") && requests.length === (failure ? 3 : 1) && !requests[0].includes("-X POST"), result.stdout + result.stderr)
   }
   stage("release-workflow/calls", "")
-  const staging = run("Deploy staging web digest", deployStub, { DEPLOY_STATUS: "live" })
+  const staging = await run("Deploy staging web digest", deployStub, { DEPLOY_STATUS: "live" })
   const stagingRequests = readFileSync(calls, "utf8").trim().split("\n")
   T("free staging deploys without reading or writing a shutdown setting", staging.status === 0 &&
     stagingRequests.length === 3 && stagingRequests[0].includes("/deploys?limit=100") && stagingRequests[1].includes("-X POST") &&
     stagingRequests[2].includes("/deploys/fixture-deploy") && !stagingRequests.some((request) => request.includes("PATCH")), staging.stderr)
-  const missing = run("Deploy web digest", "curl() { return 99; }", { SERVICE_ID: "" })
+  const missing = await run("Deploy web digest", "curl() { return 99; }", { SERVICE_ID: "" })
   T("missing production service fails before any request", missing.status === 1 && missing.stderr.includes("Missing RENDER_WEB_SERVICE_ID"))
   const payload = stage("release-workflow/payload", "")
   const recordStub = `curl() { cat >> "$PAYLOAD"; cat "$DEPLOYMENT_RESPONSE"; }`
-  const record = run("Record GitHub deployment", recordStub, { RELEASE_ENVIRONMENT: "production",
+  const record = await run("Record GitHub deployment", recordStub, { RELEASE_ENVIRONMENT: "production",
     SOURCE_REF: "main", DEPLOYMENT_URL: "https://public.example.invalid", PAYLOAD: payload })
   const records = readFileSync(payload, "utf8").trim().split("\n").map((line) => JSON.parse(line))
   T("production records a successful deployment at the built SHA", record.status === 0 &&
@@ -152,7 +177,7 @@ function checkProductionSteps() {
     records[1].environment === "production" && records[1].state === "success", record.stderr)
 }
 
-function checkRenderRetries() {
+async function checkRenderRetries() {
   const fixture = JSON.parse(readFileSync(toolPath("__tests__/render-web-deploy-fixture.json"), "utf8"))
   const directory = join(root, "render-retries")
   mkdirSync(directory, { recursive: true })
@@ -267,8 +292,8 @@ function checkRenderRetries() {
       const counter = stage("render-retries/count", "0")
       const pollCounter = join(directory, `${step}-${scenario}-poll`)
       rmSync(pollCounter, { force: true })
-      const result = spawnSync(BASH, ["-c", `${stub}\n${stepScript(step)}`], {
-        encoding: "utf8", cwd: root, timeout: 5000, env: {
+      const result = await runBounded(BASH, ["-c", `${stub}\n${stepScript(step)}`], {
+        cwd: root, timeoutMs: 180000, env: {
           ...process.env, GITHUB_WORKSPACE: toolPath(".."), SERVICE_ID: "srv-production", SERVICE_VARIABLE: "RENDER_WEB_SERVICE_ID",
           RENDER_API_KEY: "fixture", IMAGE: "ghcr.io/example/web", DIGEST: "sha256:fixture", SCENARIO: scenario,
           SERVICE_RESPONSE: stage("render-retries/service", JSON.stringify(renderFixture.shutdownService)),
@@ -279,8 +304,9 @@ function checkRenderRetries() {
         },
       })
       T(`${step} ${scenario} ${accepted ? "reaches live" : "fails"} with ${posts} POSTs`,
-        (accepted ? result.status === 0 && result.stdout.includes("is live") : result.status !== 0) &&
-        Number(readFileSync(counter, "utf8")) === posts, result.stdout + result.stderr)
+        (accepted ? result.status === 0 && result.stdout.includes("is live") : Number.isInteger(result.status) && result.status > 0) &&
+        result.signal === null && !result.error && !result.timedOut && !result.overflowed &&
+        Number(readFileSync(counter, "utf8")) === posts, JSON.stringify(result))
       if (scenario.startsWith("historical-")) {
         T(`${step} ${scenario} never follows the historical deploy`,
           !readFileSync(calls, "utf8").includes("/deploys/historical-deploy"), result.stdout + result.stderr)
@@ -371,7 +397,7 @@ function checkPinnedRelease() {
   T("production override is recorded with its reason", readFileSync(summary, "utf8").includes("force_unstaged: true") && readFileSync(summary, "utf8").includes("Staging service is unavailable"))
 }
 
-export function cases() {
+export async function cases() {
   T("release workflow exposes only production and staging", JSON.stringify(load(workflow).on.workflow_dispatch.inputs.environment.options) === JSON.stringify(["production", "staging"]))
   T("release selection guard is present", typeof guard === "string")
   if (!guard) return
@@ -405,8 +431,8 @@ export function cases() {
     ...process.env, GITHUB_REF_NAME: "feature/release", RELEASE_ENVIRONMENT: "production", SOURCE_BRANCH: "main",
   } })
   T("production dispatches the workflow from main", wrongWorkflow.status === 1 && wrongWorkflow.stdout.includes("Dispatch release.yml from main"))
-  checkRenderRetries()
-  checkProductionSteps()
+  await checkRenderRetries()
+  await checkProductionSteps()
   checkPinnedRelease()
   checkSourceIdentity()
 }
