@@ -129,15 +129,15 @@
     ".claude/skills/android-generate/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "1f698e5f8a11ecef",
-      "calibratedAt": "2026-10-17",
+      "digest": "a408fef9eb26c142",
+      "calibratedAt": "2026-11-05",
       "verdict": "current: a mechanical gradle build and emulator install, so low effort is right."
     },
     ".claude/skills/android-release/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "df727c99a615ea69",
-      "calibratedAt": "2026-10-24",
+      "digest": "c8c6079405b2152e",
+      "calibratedAt": "2026-11-05",
       "verdict": "current: derives version and track from workflow runs, verifies the exact remote ref, and dispatches only after owner confirmation; its checks are procedural, so low effort remains right."
     },
     ".claude/skills/astra-eval/SKILL.md": {
@@ -178,7 +178,7 @@
     ".claude/skills/auto-work/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "9390580aedd34cda",
+      "digest": "8616ce90b11737ad",
       "calibratedAt": "2026-11-05",
       "verdict": "undeclared, inherits the session: runs continuous source intake through the existing sleep lifecycle, classifies feedback and preserves independent crank and relay state without changing model or effort routing."
     },
@@ -220,8 +220,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "4f01d5dce7415dde",
-      "calibratedAt": "2026-11-04",
+      "digest": "488d1935843448a2",
+      "calibratedAt": "2026-11-05",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -262,8 +262,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "fc91a4c8c7e19b89",
-      "calibratedAt": "2026-11-04",
+      "digest": "bf7ba2f2ffc6df2f",
+      "calibratedAt": "2026-11-05",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -304,7 +304,7 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "15a5536a18c5d69d",
+      "digest": "e6ffcc46ed08a0ae",
       "calibratedAt": "2026-11-05",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },

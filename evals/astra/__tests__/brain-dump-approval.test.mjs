@@ -1,3 +1,4 @@
+import { evalSnapshot, snapshotFixture } from './fixtures/eval-snapshot.mjs'
 import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { deferredCreationCall } from './fixtures/producer.mjs'
@@ -21,10 +22,9 @@ function approvalApi(source, failure) {
   offlineCredentials()
   vi.stubEnv('ORBIT_EVAL_TOKEN', 'pro-access')
   const attempt = brainDumpAttempt(source)
-  const habits = [{ id: existingId, title: source.metadata.locale === 'pt-BR' ? 'Beber água' : 'Water',
-    description: null, emoji: null, isBadHabit: false, isGeneral: false, dueDate: attempt.test.vars.accountDate,
-    endDate: null, frequencyUnit: 'Day', frequencyQuantity: 1, days: [], checklistItems: [],
-    createdAtUtc: '2026-10-01T00:00:00Z', logs: [], intervalWeeks: null }]
+  const habits = [{ ...structuredClone(snapshotFixture.habit), id: existingId,
+    title: source.metadata.locale === 'pt-BR' ? 'Beber água' : 'Water', dueDate: attempt.test.vars.accountDate,
+    checklistItems: [], createdAtUtc: '2026-10-01T00:00:00Z', logs: [] }]
   const baseline = structuredClone(habits)
   let approved = false
   let pendingCount = 1
@@ -35,9 +35,9 @@ function approvalApi(source, failure) {
     const method = request.method
     requests.push({ path, method })
     if (path === 'chat') return Response.json(attempt.response, { headers: { 'x-orbit-request-id': attempt.test.vars.evalRequestId } })
-    if (path === 'profile/export') {
+    if (path === 'eval/snapshot') {
       if (!approved && failure === 'early-write') habits[0].title = 'Changed before approval'
-      return Response.json({ habits })
+      return Response.json(evalSnapshot({ habits }))
     }
     if (path === 'eval/pending-operations') {
       if (method === 'DELETE') { const cancelledCount = pendingCount; pendingCount = 0; return Response.json({ cancelledCount }) }

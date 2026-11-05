@@ -1,3 +1,4 @@
+import { evalSnapshot } from './fixtures/eval-snapshot.mjs'
 import { ATTEMPTS_PER_CASE } from '../attempts.mjs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as grades from '../assertions.mjs'
@@ -179,7 +180,7 @@ async function checkChecklistSave(test, starting, baseline) {
     if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
     if (path === '/api/auth/refresh') return refreshResponse()
     requests.push(`${options.method} ${path}`)
-    if (path === '/api/profile/export') return Response.json({ habits: stored })
+    if (path === '/api/eval/snapshot') return Response.json(evalSnapshot({ habits: stored }))
     if (path.endsWith('/confirm')) return Response.json({ pendingOperationId: pending.id, confirmationToken: 'offline-confirmation' })
     expect(path).toBe(`/api/ai/pending-operations/${pending.id}/execute`)
     stored = [{ ...baseline[0], checklistItems: checklist }]
@@ -197,8 +198,8 @@ async function checkChecklistSave(test, starting, baseline) {
   const approved = await approveStartingStep(parsed, vars)
   expect(approved.pass, approved.reason).toBe(true)
   expect(approved.metadata.savedStep.checklistItems).toEqual(checklist)
-  expect(requests).toEqual(['GET /api/profile/export', `POST /api/ai/pending-operations/${pending.id}/confirm`,
-    `POST /api/ai/pending-operations/${pending.id}/execute`, 'GET /api/profile/export'])
+  expect(requests).toEqual(['GET /api/eval/snapshot', `POST /api/ai/pending-operations/${pending.id}/confirm`,
+    `POST /api/ai/pending-operations/${pending.id}/execute`, 'GET /api/eval/snapshot'])
 }
 
 it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'smaller-legacy', 'save-task', 'save-checklist'].flatMap((family) => [true, false].map(supportsContext => [locale, family, supportsContext]))))(
@@ -213,7 +214,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => ['smaller', 'smaller-legacy', 'save-
       checklistItems: [{ text: 'Existing item', isChecked: true }, { text: 'Unchecked item', isChecked: false }] }]
     let starting
     vi.stubGlobal('fetch', async (url, options) => {
-      if (new URL(url).pathname === '/api/profile/export') return Response.json({ habits: baseline })
+      if (new URL(url).pathname === '/api/eval/snapshot') return Response.json(evalSnapshot({ habits: baseline }))
       expect(new URL(url).pathname).toBe('/api/chat')
       const request = new Request(url, options)
       const form = await request.formData()

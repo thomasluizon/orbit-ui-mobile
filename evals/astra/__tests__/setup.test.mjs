@@ -1,3 +1,4 @@
+import { evalSnapshot } from './fixtures/eval-snapshot.mjs'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -75,7 +76,7 @@ it.each(['valid', 'no-reminder', 'malformed-removal'])(
       const path = new URL(url).pathname
       if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
       if (path === '/api/auth/refresh') return refreshResponse()
-      if (path === '/api/profile/export') return Response.json({ habits: [], goals: [], tags: [], checklistTemplates: [] })
+      if (path === '/api/eval/snapshot') return Response.json(evalSnapshot({ habits: [], goals: [], tags: [], checklistTemplates: [] }))
       expect(path).toBe('/api/chat')
       chats++
       const request = new Request(url, options)
@@ -127,7 +128,7 @@ it('reports a missing starting-step setup tool as unavailable and sends no save 
     const path = new URL(url).pathname
     if (path === '/health') return Response.json({ status: 'Healthy', commit: null, checks: [] })
     if (path === '/api/auth/refresh') return refreshResponse()
-    if (path === '/api/profile/export') return Response.json({ habits: [{ id: 'water', title: 'Water', checklistItems: [{ text: 'Fill bottle', isChecked: false }] }] })
+    if (path === '/api/eval/snapshot') return Response.json(evalSnapshot({ habits: [{ id: 'water', title: 'Water', checklistItems: [{ text: 'Fill bottle', isChecked: false }] }] }))
     expect(path).toBe('/api/chat')
     const request = new Request(url, options)
     const form = await request.formData()

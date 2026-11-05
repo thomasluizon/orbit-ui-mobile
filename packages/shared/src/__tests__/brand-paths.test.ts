@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ASTRA_GLYPH_PATHS, ASTRA_GLYPH_VIEW_BOX } from '../contracts/brand'
+import { ASTRA_GLYPH_PATHS, ASTRA_GLYPH_VIEW_BOX, ORBIT_MARK_PATHS, ORBIT_MARK_VIEW_BOX } from '../contracts/brand'
 
 function cubicAt(start: number, first: number, second: number, end: number, time: number) {
   const remaining = 1 - time
@@ -50,16 +50,19 @@ function drawnCoordinates(path: string) {
   return { horizontal, vertical }
 }
 
-describe('Astra glyph frame', () => {
+describe.each([
+  { name: 'Astra', viewBox: ASTRA_GLYPH_VIEW_BOX, drawing: ASTRA_GLYPH_PATHS },
+  { name: 'Orbit', viewBox: ORBIT_MARK_VIEW_BOX, drawing: ORBIT_MARK_PATHS },
+])('$name frame', ({ viewBox, drawing }) => {
   it('contains every drawn coordinate and touches all four edges of its view box', () => {
-    const frame = ASTRA_GLYPH_VIEW_BOX.split(/\s+/).map(Number)
+    const frame = viewBox.split(/\s+/).map(Number)
     expect(frame).toHaveLength(4)
     expect(frame.every(Number.isFinite)).toBe(true)
     const [left, top, width, height] = frame as [number, number, number, number]
     expect(width).toBeGreaterThan(0)
     expect(height).toBeGreaterThan(0)
-    expect(ASTRA_GLYPH_PATHS.length).toBeGreaterThan(0)
-    const paths = ASTRA_GLYPH_PATHS.map(path => drawnCoordinates(path.d))
+    expect(drawing.length).toBeGreaterThan(0)
+    const paths = drawing.map(path => drawnCoordinates(path.d))
     const axes = [
       { coordinates: paths.flatMap(path => path.horizontal), minimum: left, maximum: left + width },
       { coordinates: paths.flatMap(path => path.vertical), minimum: top, maximum: top + height },

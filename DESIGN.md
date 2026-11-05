@@ -690,7 +690,7 @@ Designing any of these is the defect, not the omission.
   completing, a level up, and everything due today being done. Individual habit completions never
   receive a celebration. The first confirmed completion that extends today's account streak by one
   earns a daily streak moment in the same non-blocking shell notice slot. It counts from the previous
-  streak to the new number beside a day ring, then dismisses itself after 2500ms. It appears at most
+  streak to the new number beside the Orbit logo, then dismisses itself after 2500ms. It appears at most
   once per local day, including across reloads, and never for a past-day log, an undo, a slip on a
   habit to avoid, or an unchanged streak. A milestone uses the existing milestone panel instead.
 - **The separate onboarding, tour, feature guide and push prompt.** One system.
@@ -717,7 +717,9 @@ Identity comes from three things and nothing else:
 
 **The two are told apart by silhouette, not by a detail.** Orbit is a hollow ring. Astra is a solid letterform, a letter A carrying the same orbital band and the same solid dot. The rule is that short: **a solid letterform is Astra, a hollow ring is Orbit.** Silhouette survives at 16px, which the draft geometry's "circle with a core" did not, and that is why the earlier core rule was retired.
 
-**Asset sizes are enumerated: 16, 48, 128, 512.** The mark is neither type nor an icon, so it answers to neither the type scale nor the 24 icon grid. **At 16 the Orbit mark is redrawn natively rather than scaled**, because a stroke scaled down from the 24 grid renders soft, and at 16 it is monochrome `--fg-1` with no accent. Astra uses its normal drawing at every size.
+**Asset sizes are enumerated: 16, 48, 128, 512.** The mark is neither type nor an icon, so it answers to neither the type scale nor the 24 icon grid. Orbit and Astra use their normal drawings at every size, with shared viewBoxes fitted to their drawn bounds. The 16px in-app Orbit mark is monochrome `--fg-1` by default.
+
+**One Orbit drawing (#2008).** The owner's order is: "que cacete de logo é essa, coloca a do orbit". `OrbitMark` uses the normal `ORBIT_MARK_PATHS` at every size on web and Android. Its shared viewBox fits the drawn bounds and centres the logo without local offsets, including at 16px in the onboarding reminder preview. Hoje's completed-day identity is the still 48px monochrome `--fg-1` logo itself, with no surrounding ring. Its 8px title/hint pairing and 24px mark, text and action gaps stay. The streak notice uses the same logo at its existing 44px footprint, without a surrounding ring or mark animation; panel and figure motion keep their existing lifecycle. All other consumers retain their sizes and colour tokens. This owner order amends the granted drawing under D42.
 
 **One Astra drawing (#1797).** The owner's order is: "i dont understand this mini astra logo that is not even centralized vertically, on the top left and on the prompt suggestions, change to the normal logo and centralize it". `AstraGlyph` uses the normal `ASTRA_GLYPH_PATHS` at every size on web and Android. The shared viewBox fits the drawn bounds, with equal vertical space after aspect-ratio fitting. Consumers centre that drawing within their row, chip, button or header, without local offsets. This applies to the conversation header, suggestion and follow-up chips, Hoje composer entry and Astra line, idea cards, proactive actions and form fill controls. The normal mark remains legible at 16px with its cropped viewBox; existing sizes and colour tokens stay. This owner order amends any small Astra variant in the granted canvas under D42.
 
@@ -1639,14 +1641,13 @@ drag returns to rest. Sheet content remains scrollable and controls respond duri
 **Daily streak feedback is state indication, once per day.** One panel occupies the existing
 shell notice slot above the composer, leaving every underlying control interactive. Daily inset
 and gap are 16px and 12px; milestone and other fact inset and gap remain 24px and 16px. The
-44px neutral day ring centres a still monochrome `OrbitMark` at `size={16}`, `accent={false}`.
-Its track uses the empty role and its completed stroke uses `fg-1`, including during movement.
-Measure SVG length at runtime; absent measurement leaves a completed static ring.
+44px identity is a still monochrome `OrbitMark` at `size={44}`, `accent={false}`, using
+`--fg-1` without a surrounding ring. The normal logo carries the notice identity (#2008).
 
 | Phase | Purpose | Normal motion | Reduced motion |
 |---|---|---|---|
 | Enter | Preventing a jarring change | Fully opaque panel, +12px to 0 in 280ms, ease-out | Final panel immediately |
-| Daily figure and ring | State indication | Old/new figures cross-fade and move 12px within one clip; one measured ring sweep on the same 280ms timeline | Final figure, unit, mark and completed ring |
+| Daily figure | State indication | Old/new figures cross-fade and move 12px within one clip on the 280ms timeline; the logo stays still | Final figure, unit and logo |
 | Hold | Static fact | Final value and quiet localized day unit, no movement | Same fact |
 | Exit | Preventing a jarring change | Live presentation to +12px and opacity 0 in 220ms, ease-in | Immediate removal |
 
@@ -1655,7 +1656,7 @@ never animate layout dimensions. Static resting styles carry the final fact. At 
 panel grows and text may wrap without clipping the figure, unit, label or distinct 48px close.
 Only daily eligibility proves the previous value; milestones retain their complete final sentence.
 Other earned facts remain manual and acquire neither rolling figures nor an automatic deadline.
-The native rotating accent ring is replaced by the same single measured neutral sweep for parity.
+Both platforms use the same still logo in the shared notice composition.
 
 Daily automatic exit begins at 2280ms and retains its layout reservation through 2500ms. Hover
 or keyboard focus pauses that deadline, including during automatic exit: cancel the exit and its
@@ -1666,7 +1667,7 @@ item active until completion, with one exact-ID, account-generation-guarded, ide
 by animation completion and a bounded exit-deadline fallback. Cancel every callback on unmount,
 account replacement or invalidation; privacy and invalid facts take precedence over exit continuity.
 
-Reduced motion has no translation, scale, numeral change, sweep or delayed manual removal. A live
+Reduced motion has no translation, scale, numeral change or delayed manual removal. A live
 preference change settles a held fact without resetting its deadline and completes a pending exit
 immediately. Hiding or backgrounding settles cosmetic movement without a new pause reason. Preserve
 the valid deadline and compare the clock on resume: expired daily facts complete immediately,

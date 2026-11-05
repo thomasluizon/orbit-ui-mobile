@@ -2,7 +2,7 @@
 
 import { getMediaQuery, mediaQueryMatches } from '@/lib/media-query'
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 import { animate, motion, useMotionValue } from 'motion/react'
 import { motionDurations, motionEasings, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -166,7 +166,7 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss }:
         ? 'celebration-notice flex flex-wrap items-center gap-[12px] rounded-[20px] bg-[var(--bg-elev)] p-4 shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]'
         : 'celebration-notice flex flex-wrap items-center gap-4 rounded-[20px] bg-[var(--bg-elev)] p-6 shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline)]'}>
       <span role="status" aria-atomic="true" className="sr-only">{announcement}</span>
-      <CelebrationRing />
+      <span aria-hidden="true" className="flex size-[44px] shrink-0 items-center justify-center"><OrbitMark size={44} accent={false} /></span>
       {daily ? <DailyStreakMoment streak={active.payload.streak} entering={entering} /> : (
         <div className="celebration-copy min-w-0 flex-1" aria-hidden="true">
           <p className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--fg-3)]">{t(eyebrowKey)}</p>
@@ -178,24 +178,5 @@ function CelebrationItem({ active, reduced, closeRef, complete, beforeDismiss }:
         <X aria-hidden="true" size={20} />
       </Button>
     </motion.section>
-  )
-}
-
-function CelebrationRing() {
-  const [length, setLength] = useState(0)
-  const measure = useCallback((circle: SVGCircleElement | null) => {
-    const measured = circle && typeof circle.getTotalLength === 'function' ? circle.getTotalLength() : undefined
-    if (measured !== undefined && Number.isFinite(measured) && measured > 0) setLength(measured)
-  }, [])
-  return (
-    <div aria-hidden="true" className="relative size-[44px] shrink-0">
-      <svg className="size-[44px]" viewBox="0 0 44 44">
-        <circle cx="22" cy="22" r="18" fill="none" stroke="var(--status-empty)" strokeWidth="2" />
-        <circle ref={measure} className={length ? 'celebration-ring' : undefined} cx="22" cy="22" r="18" fill="none"
-          stroke="var(--fg-1)" strokeWidth="3" strokeLinecap="round" strokeDasharray={length || undefined}
-          style={{ '--celebration-ring-length': length } as React.CSSProperties} transform="rotate(-90 22 22)" />
-      </svg>
-      <span className="pointer-events-none absolute inset-0 flex items-center justify-center"><OrbitMark size={16} accent={false} /></span>
-    </div>
   )
 }

@@ -1,3 +1,4 @@
+import { ORBIT_MARK_PATHS } from '@orbit/shared/contracts/brand'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { render } from '@testing-library/react'
@@ -47,8 +48,8 @@ describe('daily streak static and numeral geometry in Chromium', () => {
             const final = await page.locator('[data-daily-streak-moment]').evaluate((panel) => {
               const previous = panel.querySelector('.daily-streak-previous')!
               const current = panel.querySelector('[data-current-streak]')!
-              const ring = panel.querySelector('circle:last-of-type')!
-              const mark = panel.querySelector('[data-asset="orbit-mark-16"]')!
+              const mark = panel.querySelector('[data-asset="orbit-mark"]')!
+              const paths = [...mark.querySelectorAll('path')]
               const button = panel.querySelector('button')!
               const clip = current.parentElement!
               const text = document.createRange()
@@ -58,8 +59,10 @@ describe('daily streak static and numeral geometry in Chromium', () => {
               return {
                 previousOpacity: getComputedStyle(previous).opacity,
                 currentOpacity: getComputedStyle(current).opacity, currentText: current.textContent,
-                neutral: getComputedStyle(ring).stroke === getComputedStyle(current).color,
-                ringOffset: getComputedStyle(ring).strokeDashoffset,
+                neutral: paths.every(path => getComputedStyle(path).fill === getComputedStyle(current).color),
+                paths: paths.map(path => path.getAttribute('d')), circles: panel.querySelectorAll('circle').length,
+                markCentred: Math.abs(mark.getBoundingClientRect().y + mark.getBoundingClientRect().height / 2
+                  - mark.parentElement!.getBoundingClientRect().y - mark.parentElement!.getBoundingClientRect().height / 2) < 1,
                 numberFits: bounds.width <= clip.getBoundingClientRect().width + 1,
                 noCloseOverlap: bounds.right <= close.left || bounds.bottom <= close.top || bounds.top >= close.bottom,
                 withinViewport: panel.getBoundingClientRect().right <= innerWidth,
@@ -69,8 +72,8 @@ describe('daily streak static and numeral geometry in Chromium', () => {
               }
             })
             expect(final, JSON.stringify({ mode, width, scale, final })).toMatchObject({ previousOpacity: '0', currentOpacity: '1',
-              currentText: new Intl.NumberFormat(locale).format(streak), neutral: true, ringOffset: '0px', numberFits: true,
-              noCloseOverlap: true, withinViewport: true, markSize: [16, 16], clipWidth })
+              currentText: new Intl.NumberFormat(locale).format(streak), neutral: true, circles: 0, paths: ORBIT_MARK_PATHS.map(path => path.d), numberFits: true,
+              markCentred: true, noCloseOverlap: true, withinViewport: true, markSize: [44, 44], clipWidth })
             expect(final.closeSize.every((size) => size >= 48)).toBe(true)
             await page.emulateMedia({ reducedMotion: 'reduce' })
             expect(await page.locator('.daily-streak-number').evaluate((number) => getComputedStyle(number).animationName)).toBe('none')

@@ -46,6 +46,7 @@ const CASE_MODULES = [
   ["lib/background-runs.mjs", "background-runs"],
   ["add-ticket-to-project.mjs", "add-ticket-to-project"],
   ["android-emulator.mjs", "android-emulator"],
+  ["android-boot.mjs", "android-boot"],
   ["ios-simulator.mjs", "ios-simulator"],
   ["android-sentry-diagnostic.mjs", "android-sentry-diagnostic"],
   ["arch-map.mjs", "arch-map"],
@@ -65,6 +66,7 @@ const CASE_MODULES = [
   ["check-lockup-crop.mjs", "check-lockup-crop"],
   ["check-lint-severity.mjs", "check-lint-severity"],
   ["check-native-module-copies.mjs", "check-native-module-copies"],
+  ["check-android-bundle.mjs", "check-android-bundle"],
   ["check-push-target.mjs", "check-push-target"],
   ["check-root-allowlist.mjs", "check-root-allowlist"],
   ["check-sonar-paths.mjs", "check-sonar-paths"],
@@ -207,6 +209,7 @@ for (const [file, module] of REPOSITORY_CASE_MODULES.filter(([, module]) => requ
 
 /** argv that must be refused before the tool does any work. One row per tools/ script. */
 const INVALID_INPUT = {
+  "android-boot.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "select-artifact-attempts.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "progress-window.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "start-relay-successor.mjs": { argv: ["--launch", "invalid"], status: 2 },
@@ -237,6 +240,7 @@ const INVALID_INPUT = {
   "check-sonar-paths.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-workspace-overrides.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-native-module-copies.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-android-bundle.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "comment-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "compose-prompt.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "collect-session-evidence.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
