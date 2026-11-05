@@ -76,7 +76,7 @@ GitHub Actions.
 `tools/android-boot.mjs` clears storage, cold starts once and waits up to 90 seconds for the
 signed-out onboarding title from either locale in a visible, enabled accessibility node owned
 by the app. It then waits 15 seconds for deferred startup work and requires the same process
-to survive. App-UID logcat must contain no native fatal, Java fatal, React Native error or
+to survive. App-UID logcat must contain no native fatal, Java fatal, fatal React Native report or
 invariant violation. A running splash process alone never passes. XML, logcat, process IDs,
 ABIs and AAB and bundle hashes are retained as `android-boot-evidence`, including on failure.
 Fatal JavaScript detection uses the native fatal channels and React Native's host-exception
