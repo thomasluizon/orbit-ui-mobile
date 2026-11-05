@@ -235,7 +235,7 @@ it('blocks an interrupted submission without making another request', async () =
   expect(existsSync(`${path}.refresh-failed`)).toBe(true)
 })
 
-it.each([502, 503, 504, 'network'])('recovers a single transient refresh %s before continuing the attempt', async (failure) => {
+it.each([502, 503, 504, 'network', 'body-network'])('recovers a single transient refresh %s before continuing the attempt', async (failure) => {
   const path = credentials()
   vi.useFakeTimers()
   const submissions = []
@@ -244,6 +244,9 @@ it.each([502, 503, 504, 'network'])('recovers a single transient refresh %s befo
     submissions.push({ at: Date.now(), token: JSON.parse(options.body).refreshToken, signal: options.signal })
     if (submissions.length === 1) {
       if (failure === 'network') throw new TypeError('SECRET_REFRESH_TOKEN')
+      if (failure === 'body-network') return new Response(new ReadableStream({
+        start(controller) { controller.error(new TypeError('SECRET_REFRESH_TOKEN')) },
+      }))
       return new Response(null, { status: failure })
     }
     return Response.json({ token: 'recovered-access', refreshToken: 'recovered-refresh' })
@@ -260,7 +263,7 @@ it.each([502, 503, 504, 'network'])('recovers a single transient refresh %s befo
   expect(existsSync(`${path}.refresh-failed`)).toBe(false)
 })
 
-it.each([502, 503, 504, 'network'])('bounds repeated transient refresh %s to one case and lets the next case recover', async (failure) => {
+it.each([502, 503, 504, 'network', 'body-network'])('bounds repeated transient refresh %s to one case and lets the next case recover', async (failure) => {
   const path = credentials()
   vi.useFakeTimers()
   const submissions = []
@@ -270,6 +273,9 @@ it.each([502, 503, 504, 'network'])('bounds repeated transient refresh %s to one
     submissions.push(Date.now())
     if (recovering) return Response.json({ token: 'recovered-access', refreshToken: 'recovered-refresh' })
     if (failure === 'network') throw new TypeError('SECRET_REFRESH_TOKEN')
+    if (failure === 'body-network') return new Response(new ReadableStream({
+      start(controller) { controller.error(new TypeError('SECRET_REFRESH_TOKEN')) },
+    }))
     return new Response(null, { status: failure })
   })
   const pending = beforeEach(attempt())

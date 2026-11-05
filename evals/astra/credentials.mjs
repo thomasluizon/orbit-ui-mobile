@@ -17,7 +17,13 @@ async function requestRefresh(url, options) {
     try { response = await fetch(url, { ...options, signal: AbortSignal.timeout(120000) }) } catch {
       failure = 'Refresh transport failed'
     }
-    if (response && ![502, 503, 504].includes(response.status)) return response
+    if (response && ![502, 503, 504].includes(response.status)) {
+      if (!response.ok) throw new Error(`Refresh rejected with HTTP ${response.status}.`)
+      try { return await response.json() } catch (error) {
+        if (error instanceof SyntaxError) throw new Error('Malformed refresh response.')
+        failure = 'Refresh transport failed'
+      }
+    }
     failure ??= `Refresh rejected with HTTP ${response.status}`
     if (attempt === refreshBackoffMilliseconds.length) {
       throw new TransientRefreshError(`${failure} after ${attempt + 1} attempts; a later case may retry.`)
@@ -155,16 +161,13 @@ async function rotateCredential(key) {
         body: JSON.stringify({ refreshToken: account.refreshToken }), redirect: 'error',
       }
       writeFileSync(`${path}.refresh-failed`, '', { mode: 0o600, flag: 'wx' })
-      let response
+      let session
       try {
-        response = await requestRefresh(refreshUrl, refreshOptions)
+        session = await requestRefresh(refreshUrl, refreshOptions)
       } catch (error) {
         if (error instanceof TransientRefreshError) unlinkSync(`${path}.refresh-failed`)
         throw error
       }
-      if (!response.ok) throw new Error(`Refresh rejected with HTTP ${response.status}.`)
-      let session
-      try { session = await response.json() } catch { throw new Error('Malformed refresh response.') }
       if (typeof session.token !== 'string' || !session.token.trim()
         || typeof session.refreshToken !== 'string' || !session.refreshToken.trim()) throw new Error('Malformed refresh response.')
       rotated = account.refreshToken !== session.refreshToken
