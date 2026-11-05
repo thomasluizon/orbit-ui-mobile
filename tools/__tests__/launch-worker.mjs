@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
+import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR, WORKER_CONFIG_DIRECTORY, WORKER_CONFIG_DIRECTORY_VARIABLE } from "./_harness.mjs"
 import { clearWorkerLaunchReservation, readWakeSourceStates, recordReservedWorkerPid, reserveWorkerLaunch, writeRunState } from "../lib/run-state.mjs"
 import { cases as lifecycleCases, cleanupLifecycleLaunch, launcherResult } from "./launch-worker-lifecycle.mjs"
 
@@ -11,7 +11,7 @@ const TOOL = "launch-worker.mjs"
 /**
  * Derived from the shipped .claude/orchestrator.json rather than hand-written, so a fixture cannot
  * agree with a guess about the schema while the real config carries something else. Only `command`
- * is swapped by default: the configured worker is `codex`, which is not installed in CI, and a
+ * is swapped by default: the configured worker is `claude`, which is not installed in CI, and a
  * gate that needs a model CLI on PATH is not hermetic.
  */
 const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
@@ -170,6 +170,36 @@ const launchAsync = (path, argv, env) => {
     child.on("close", (status) => resolve({ status, stdout, stderr }))
   })
   return { child, result, output: () => ({ stdout, stderr }) }
+}
+
+/**
+ * The claude worker runs under the account in its own config directory. The variable is required,
+ * its directory must exist, and the child sees that directory with no inherited API credential.
+ */
+const checkWorkerAccount = async () => {
+  const probeOutput = join(dirname(stage("launch-worker/account-probe/.keep", "")), "environment.json")
+  const probe = stage("launch-worker/account-probe.js", `require("node:fs").writeFileSync(${JSON.stringify(probeOutput)}, JSON.stringify({ configDirectory: process.env.CLAUDE_CONFIG_DIR ?? null, apiKey: process.env.ANTHROPIC_API_KEY ?? null, oauthToken: process.env.CLAUDE_CODE_OAUTH_TOKEN ?? null }))\n`)
+  const accountLaunch = launch("worker-account", launchConfig(stubEngine(probe)))
+  const accountArgv = ["--issue", "ORB-201", "--worktree", accountLaunch.worktree, "--prompt", accountLaunch.prompt]
+  const accountOptions = (env) => ({ path: accountLaunch.path, env })
+  check(TOOL, "a claude launch refuses an unset worker account variable, naming it",
+    [...accountArgv, "--dry-run"], { status: 2, stderr: new RegExp(`${WORKER_CONFIG_DIRECTORY_VARIABLE} is unset`) },
+    accountOptions({ [WORKER_CONFIG_DIRECTORY_VARIABLE]: "" }))
+  const absent = join(WORKER_CONFIG_DIRECTORY, "absent-account")
+  check(TOOL, "a claude launch refuses a worker account directory that does not exist",
+    [...accountArgv, "--dry-run"], { status: 2, stderr: new RegExp(`${WORKER_CONFIG_DIRECTORY_VARIABLE} names .*absent-account, which is not an existing directory`) },
+    accountOptions({ [WORKER_CONFIG_DIRECTORY_VARIABLE]: absent }))
+  const notDirectory = stage("launch-worker/account-file", "not a directory\n")
+  check(TOOL, "a claude launch refuses a worker account path that is a file",
+    [...accountArgv, "--dry-run"], { status: 2, stderr: /which is not an existing directory/ },
+    accountOptions({ [WORKER_CONFIG_DIRECTORY_VARIABLE]: notDirectory }))
+  const launched = check(TOOL, "a claude launch starts with the worker account directory", accountArgv, { status: 0 },
+    accountOptions({ ...githubAuthEnv(), ANTHROPIC_API_KEY: "orchestrator-api-key", CLAUDE_CODE_OAUTH_TOKEN: "orchestrator-oauth-token", CLAUDE_CONFIG_DIR: "/orchestrator/account" }))
+  discardLog(launched.stdout)
+  const observed = existsSync(probeOutput) ? JSON.parse(readFileSync(probeOutput, "utf8")) : null
+  T(`${TOOL}: the claude worker child runs under the worker account directory and no inherited credential`,
+    observed?.configDirectory === WORKER_CONFIG_DIRECTORY && observed.apiKey === null && observed.oauthToken === null,
+    JSON.stringify(observed))
 }
 
 const checkOccupiedWorktree = async () => {
@@ -590,17 +620,31 @@ export const cases = async () => {
         !JSON.parse(allowed.stdout).args.includes(offArgs[1]), allowed.stdout)
     }
   }
+  const codexConfig = launchConfig()
+  codexConfig.worker = "codex"
+  codexConfig.workers.codex.command = process.execPath
+  const codexFixture = launch("codex-isolation", codexConfig)
+  const codexArgv = ["--issue", "ORB-201", "--worktree", codexFixture.worktree, "--prompt", codexFixture.prompt, "--dry-run"]
+  const codexOrdinary = JSON.parse(check(TOOL, "a codex dry run resolves offline", codexArgv, { status: 0 }, { path: codexFixture.path }).stdout)
+  const codexMeasured = JSON.parse(check(TOOL, "a codex measurement dry run resolves offline", [...codexArgv, "--measurement"], { status: 0 }, { path: codexFixture.path }).stdout)
   const isolationArgs = ["exec", "--disable", "apps", "--ignore-user-config"]
   T(
     `${TOOL}: ordinary Codex workers disable account apps and user MCP servers`,
-    JSON.stringify(ordinaryPlan.args.slice(0, isolationArgs.length)) === JSON.stringify(isolationArgs),
-    `argv starts ${JSON.stringify(ordinaryPlan.args.slice(0, isolationArgs.length))}`,
+    JSON.stringify(codexOrdinary.args.slice(0, isolationArgs.length)) === JSON.stringify(isolationArgs),
+    `argv starts ${JSON.stringify(codexOrdinary.args.slice(0, isolationArgs.length))}`,
   )
   T(
     `${TOOL}: measurement Codex workers disable account apps and user MCP servers`,
-    JSON.stringify(measuredPlan.args.slice(0, isolationArgs.length)) === JSON.stringify(isolationArgs),
-    `argv starts ${JSON.stringify(measuredPlan.args.slice(0, isolationArgs.length))}`,
+    JSON.stringify(codexMeasured.args.slice(0, isolationArgs.length)) === JSON.stringify(isolationArgs),
+    `argv starts ${JSON.stringify(codexMeasured.args.slice(0, isolationArgs.length))}`,
   )
+  T(
+    `${TOOL}: a codex launch needs no worker account directory and names none`,
+    codexOrdinary.configDirectory === null &&
+      run(TOOL, codexArgv, { path: codexFixture.path, env: { [WORKER_CONFIG_DIRECTORY_VARIABLE]: "" } }).status === 0,
+    JSON.stringify(codexOrdinary),
+  )
+  await checkWorkerAccount()
   T(
     `${TOOL}: the measurement cap is longer than the ordinary one, and both are reported`,
     measuredPlan.measurement === true && ordinaryPlan.measurement === false && measuredPlan.noProgressMinutes > ordinaryPlan.noProgressMinutes,
@@ -701,19 +745,25 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
     plan !== null && plan.engine === real.worker && plan.tier === "default" && plan.model === engine.models.default.model,
     JSON.stringify(plan),
   )
+  const effortOf = (args) => args?.[args.indexOf("--effort") + 1]
   T(
-    `${TOOL}: the default tier resolves gpt-6.1-sol at high reasoning effort`,
-    plan !== null && plan.engine === "codex" && plan.model === "gpt-6.1-sol" && plan.args.includes('model_reasoning_effort="high"'),
+    `${TOOL}: the default tier resolves claude-opus-5-5 at high effort`,
+    plan !== null && plan.engine === "claude" && plan.model === "claude-opus-5-5" && effortOf(plan.args) === "high",
     JSON.stringify(plan?.args),
+  )
+  T(
+    `${TOOL}: the dry run names the worker account directory from the environment`,
+    plan !== null && plan.configDirectory === WORKER_CONFIG_DIRECTORY,
+    JSON.stringify(plan?.configDirectory),
   )
   const mechanicalDryRun = check(TOOL, "--dry-run resolves the mechanical tier", [...argv, "--tier", "mechanical", "--dry-run"], { status: 0 }, options)
   const mechanicalPlan = JSON.parse(mechanicalDryRun.stdout)
   T(
     `${TOOL}: each tier reports itself and resolves a different argument vector`,
     mechanicalPlan.tier === "mechanical" &&
-      mechanicalPlan.engine === "codex" &&
-      mechanicalPlan.model === "gpt-6.1-sol" &&
-      mechanicalPlan.args.includes('model_reasoning_effort="medium"') &&
+      mechanicalPlan.engine === "claude" &&
+      mechanicalPlan.model === "claude-opus-5-5" &&
+      effortOf(mechanicalPlan.args) === "medium" &&
       JSON.stringify(mechanicalPlan.args) !== JSON.stringify(plan?.args),
     JSON.stringify({ default: plan?.args, mechanical: mechanicalPlan.args }),
   )
@@ -721,9 +771,9 @@ if (process.argv[1]?.endsWith("worker-gate.cjs")) {
     const result = check(TOOL, `--dry-run resolves the ${tier} tier`, [...argv, "--tier", tier, "--dry-run"], { status: 0 }, options)
     const tierPlan = result.status === 0 ? JSON.parse(result.stdout) : null
     T(
-      `${TOOL}: the ${tier} tier resolves gpt-6.1-sol at ${effort} reasoning effort`,
-      tierPlan?.tier === tier && tierPlan.engine === "codex" && tierPlan.model === "gpt-6.1-sol" &&
-        tierPlan.args.includes(`model_reasoning_effort="${effort}"`),
+      `${TOOL}: the ${tier} tier resolves claude-opus-5-5 at ${effort} effort`,
+      tierPlan?.tier === tier && tierPlan.engine === "claude" && tierPlan.model === "claude-opus-5-5" &&
+        effortOf(tierPlan.args) === effort,
       result.stderr || JSON.stringify(tierPlan),
     )
   }

@@ -1,7 +1,7 @@
 /** A checkout behind its configured base must not launch with a stale orchestrator config. */
 
 import { spawnSync } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync, statSync } from "node:fs"
 import { dirname, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -191,4 +191,33 @@ export const resolveWorkerInvocation = (engineName, engine, tier = "default", { 
     throw new Error(`worker engine "${engineName}" models.${tier}.args must be an array of strings`)
   }
   return { tier, model: entry.model, args: [...engine.args, ...(allowSubagents ? [] : subagentOffArgs), ...(entry.args ?? []), "--model", entry.model] }
+}
+
+/** Stored credentials a Claude child would prefer over the sign-in in its config directory. */
+const ACCOUNT_CREDENTIAL_KEYS = ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]
+
+/**
+ * The claude worker signs in from its own config directory, so a worker never spends the
+ * orchestrator's account. The config names only the variable; the path lives in the environment.
+ * Returns null for an engine that has no account directory.
+ */
+export const workerConfigDirectory = (engineName, engine, environment = process.env) => {
+  if (engineName !== "claude") return null
+  const variable = nonEmptyString(engine?.configDirEnv, `workers.${engineName}.configDirEnv`)
+  const directory = environment[variable]
+  if (typeof directory !== "string" || directory.trim() === "") {
+    throw new Error(`${variable} is unset; export it as the worker account's Claude config directory before a claude launch`)
+  }
+  const resolved = resolve(directory)
+  if (!existsSync(resolved) || !statSync(resolved).isDirectory()) {
+    throw new Error(`${variable} names ${resolved}, which is not an existing directory`)
+  }
+  return resolved
+}
+
+export const workerAccountEnvironment = (environment, configDirectory) => {
+  if (configDirectory === null) return environment
+  const scoped = { ...environment, CLAUDE_CONFIG_DIR: configDirectory }
+  for (const key of ACCOUNT_CREDENTIAL_KEYS) delete scoped[key]
+  return scoped
 }

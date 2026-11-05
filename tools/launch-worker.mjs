@@ -10,7 +10,7 @@ import { assertOutsideRepository, researchEnvironment, researchInvocation, resea
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
-import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
+import { readOrchestratorConfig, resolveWorkerInvocation, workerAccountEnvironment, workerConfigDirectory } from "./lib/orchestrator-config.mjs"
 import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
@@ -39,7 +39,8 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
                      exact ## UI review sweep heading in the composed prompt file
   --relaunch-reason <text>
                      deliberate reason for launching after this branch reaches its configured cap
-  --dry-run          print the resolved plan as JSON and exit 0, spawning nothing
+  --dry-run          print the resolved plan as JSON and exit 0, spawning nothing. The plan names
+                     configDirectory, the account directory a claude worker runs under
   --help, -h         print this usage and exit 0
 
 Prints one JSON object on stdout when the worker is gone: issue, engine, tier, pid, logFile,
@@ -50,7 +51,8 @@ Research prints research, outputFile, published, engine, model, pid, logFile, st
 exitCode and outcome. It publishes only a non-empty final response from an engine that exits 0.
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
-            2 usage or config error, 3 the worker executable could not be resolved,
+            2 usage or config error, including an unset or missing worker account directory,
+            3 the worker executable could not be resolved,
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
             8 admission refused new ticket work before reservation
 Research exits 0 only after publishing findings, or 1 on engine, supervision or publication failure.`
@@ -167,6 +169,12 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
+let configDirectory
+try {
+  configDirectory = workerConfigDirectory(engineName, engine)
+} catch (error) {
+  fail(2, error.message)
+}
 const hardCeilingMinutes = hardCeilingArg === null ? config.timeouts.hardCeilingMinutes : Number(hardCeilingArg)
 if (hardCeilingArg !== null && !(Number.isFinite(hardCeilingMinutes) && hardCeilingMinutes > 0)) {
   fail(2, `${USAGE}\n\n--hard-ceiling-minutes must be a positive number, got "${hardCeilingArg}"`)
@@ -271,7 +279,7 @@ if (research) {
 }
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue: research ? null : issue, research, outputFile: researchPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ issue: research ? null : issue, research, outputFile: researchPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, configDirectory, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, dryRun: true }, null, 2))
   process.exit(0)
 }
 
@@ -369,11 +377,11 @@ child = spawn(process.execPath, [gatePath], {
   // child becomes a process-group leader, so the group exists to be signalled. Windows needs the
   // opposite, since detached there spawns a console window; taskkill /T already walks that tree.
   detached: process.platform !== "win32",
-  env: research ? githubAuth.environment : {
+  env: workerAccountEnvironment(research ? githubAuth.environment : {
     ...githubAuth.environment,
     ORBIT_LAUNCH_WORKER: "1",
     ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca",
-  },
+  }, configDirectory),
 })
 if (!child.pid || (!research && !recordReservedWorkerPid(process.pid, child.pid, runDirectory))) {
   child.kill()
