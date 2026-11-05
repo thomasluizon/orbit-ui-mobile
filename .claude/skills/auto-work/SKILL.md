@@ -55,7 +55,7 @@ before any new admission; unfinished intake remains in run state for the success
    cause, then `.claude/skills/ticket/SKILL.md`'s ticket construction through
    `node tools/create-ticket.mjs`. Keep the event, code location and verified cause in the
    ticket; a hypothesis alone does not qualify. A live production defect gets its own ticket;
-   fold it into an existing open ticket when that ticket already owns the same defect and area.
+   fold it into an existing open ticket when that ticket already owns the affected area.
    Use `tools/comment-ticket.mjs` for the source evidence when folding. Persist the issue id,
    last observed event and carrying ticket in `intake.sentry`, then read back the state. Admit
    its worker through `/orchestrate` in this cycle, within existing capacity. Retain the
