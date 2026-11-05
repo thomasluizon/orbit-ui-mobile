@@ -26,7 +26,7 @@ export function useBulkSkipHabits() {
       const retryChunks: BulkRetryChunk<BulkSkipItemRequest>[] = []
       const results: BulkSkipResult['results'] = []
       const ambiguousIds: string[] = []
-      for (const chunk of buildBulkCompletionChunks(input)) {
+      for (const chunk of buildBulkCompletionChunks(input, () => crypto.randomUUID())) {
         if (!account.stillCurrent()) break
         try {
           const response = await bulkSkipHabitsAction(chunk.items, intendedAccountId, chunk.idempotencyKey)

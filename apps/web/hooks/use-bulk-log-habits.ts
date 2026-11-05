@@ -55,7 +55,7 @@ export function useBulkLogHabits() {
       const account = captureAccountIntent()
       const results: BulkLogResult['results'] = []
       const streakResponses: BulkLogResult[] = []
-      for (const chunk of buildBulkCompletionChunks(input)) {
+      for (const chunk of buildBulkCompletionChunks(input, () => crypto.randomUUID())) {
         if (!account.stillCurrent()) break
         try {
           const response = await bulkLogHabitsAction(

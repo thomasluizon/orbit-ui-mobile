@@ -1,4 +1,5 @@
 import { type HabitAccount,withAccountGuard } from './use-habit-mutation-shared'
+import { randomUUID } from 'expo-crypto'
 import { buildBulkCompletionChunks, normalizeBulkCompletionInput, type BulkCompletionInput, type BulkRetryChunk } from '@orbit/shared/utils'
 import { settleBulkSkippedHabits,checkCompletionAfterSkip } from '@orbit/shared/query/skip-completion'
 import type { HabitListSnapshots } from '@orbit/shared/query'
@@ -52,7 +53,7 @@ export function useBulkSkipHabits(options: { suppressParentSettlement?: boolean 
       const ambiguousIds: string[] = []
       const offlineFailureIds: string[] = []
       const queuedIds: string[] = []
-      for (const chunk of buildBulkCompletionChunks({ ...normalizeBulkCompletionInput(input), items })) {
+      for (const chunk of buildBulkCompletionChunks({ ...normalizeBulkCompletionInput(input), items }, randomUUID)) {
         if (!account.stillCurrent()) break
         try {
           const response = await performQueuedApiMutation<BulkSkipResult, BulkSkipResult & QueuedMarker>({

@@ -1,4 +1,5 @@
 import { type HabitAccount,withAccountGuard } from './use-habit-mutation-shared'
+import { randomUUID } from 'expo-crypto'
 import type { UseMutationOptions } from '@tanstack/react-query'
 import { buildBulkCompletionChunks, normalizeBulkCompletionInput, type BulkCompletionInput, type BulkRetryChunk } from '@orbit/shared/utils'
 import type { HabitListSnapshots } from '@orbit/shared/query'
@@ -132,7 +133,7 @@ function createBulkLogHabitsMutationFn(context: ReturnType<typeof useBulkLogHabi
       const offlineFailureIds: string[] = []
       const queuedIds: string[] = []
       let hasConfirmedSuccess = false
-      for (const chunk of buildBulkCompletionChunks({ ...normalizeBulkCompletionInput(input), items })) {
+      for (const chunk of buildBulkCompletionChunks({ ...normalizeBulkCompletionInput(input), items }, randomUUID)) {
         if (!account.stillCurrent()) break
         try {
           const response = await performQueuedApiMutation<BulkLogResult, BulkLogResult & QueuedMarker>({

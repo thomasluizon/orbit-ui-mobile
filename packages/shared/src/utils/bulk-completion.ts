@@ -1,5 +1,4 @@
 import type { ParentPromptContinuation } from '../types/sync'
-import { createClientId } from './client-id'
 import { extractBackendStatus } from './error-utils'
 import { isNetworkUnavailableError } from './network-error'
 
@@ -24,13 +23,14 @@ export function normalizeBulkCompletionInput<T>(input: BulkCompletionInput<T>): 
 
 export function buildBulkCompletionChunks<T extends { habitId: string }>(
   input: BulkCompletionInput<T>,
+  createIdempotencyKey: () => string,
 ): (BulkRetryChunk<T> & { indices: number[] })[] {
   const { items, retryChunks = [] } = normalizeBulkCompletionInput(input)
   const retainedIds = new Set(retryChunks.flatMap(chunk => chunk.items.map(item => item.habitId)))
   const remaining = items.filter(item => !retainedIds.has(item.habitId))
   const chunks = [...retryChunks]
   for (let index = 0; index < remaining.length; index += 100) {
-    chunks.push({ items: remaining.slice(index, index + 100), idempotencyKey: createClientId('bulk') })
+    chunks.push({ items: remaining.slice(index, index + 100), idempotencyKey: createIdempotencyKey() })
   }
   return chunks.map(chunk => ({
     ...chunk,

@@ -11,6 +11,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 
 const mocks = vi.hoisted(() => ({ fetch: vi.fn<typeof fetch>(), toast: vi.fn() }))
+vi.mock('expo-crypto', async () => ({ randomUUID: (await import('node:crypto')).randomUUID }))
 vi.mock('@/lib/posthog', () => ({ captureHabitLogged: vi.fn() }))
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: { getState: () => ({ isAuthenticated: true, user: { userId: 'account-a' } }) },
@@ -55,6 +56,7 @@ beforeEach(async () => {
   mocks.toast.mockReset()
   settle.mockReset()
   vi.stubGlobal('fetch', mocks.fetch)
+  vi.stubGlobal('crypto', undefined)
 
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   client.setQueryData(habitKeys.list({}), ids.map(id => createMockHabitScheduleItem({ id })))
