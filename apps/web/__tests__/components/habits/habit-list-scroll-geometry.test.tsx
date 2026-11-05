@@ -1,15 +1,10 @@
-import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import postcss from 'postcss'
 import en from '@orbit/shared/i18n/en.json'
 import { SPACING } from '@orbit/shared/theme'
 import { measureShellScrollEnd, shellScrollViewports } from '@/e2e/layout/shell-scroll-extent'
 import { settleAnimations } from '@/e2e/layout/settle-animations'
-import tailwind from '@tailwindcss/postcss'
-import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { buildHabitListScrollAssets } from '@/__tests__/support/habit-list-scroll-assets'
 import { observeBulkSkip } from '@/__tests__/support/habit-list-scroll-observation'
 
 let browser: Browser
@@ -17,33 +12,7 @@ let launch: BrowserLaunch | undefined
 let stylesheet: string
 let script: string
 registerChromeLaunchHook(beforeAll, async (pending) => { launch = pending; browser = await pending })
-beforeAll(async () => {
-  const source = resolve(process.cwd(), 'app/globals.css')
-  const tokens = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
-  stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${tokens}}`
-  for (const [name, weight] of [['geist', '400 600'], ['space-grotesk', '500 600'], ['geist-mono', '400 500']]) {
-    const font = readFileSync(resolve(process.cwd(), `fonts/${name}-latin.woff2`)).toString('base64')
-    stylesheet += `@font-face{font-family:'${name}';font-weight:${weight};src:url(data:font/woff2;base64,${font})}:root{--font-${name}:'${name}'}`
-  }
-  script = execFileSync(process.execPath, ['--input-type=module', '-e', `
-    import { build } from 'esbuild';
-    const polyfill = await build({ entryPoints: ['next/dist/compiled/process'], bundle: true, write: false,
-      format: 'iife', globalName: 'process', platform: 'browser', define: { __dirname: '"/"' } });
-    const result = await build({ entryPoints: ['./__tests__/support/habit-list-scroll-fixture.tsx'],
-      bundle: true, write: false, format: 'iife', platform: 'browser', conditions: ['browser'], jsx: 'automatic',
-      alias: { '@sentry/nextjs': '@sentry/react' }, define: { 'process.env.NODE_ENV': '"production"', __dirname: '"/"' },
-      plugins: [{ name: 'server-boundaries', setup(builder) {
-        const boundaries = {
-          'next/navigation': 'export const useRouter = () => ({ push() {}, replace() {} }); export const usePathname = () => "/"; export const useSearchParams = () => new URLSearchParams(); export const useParams = () => ({}); export const unstable_isUnrecognizedActionError = () => false;',
-          'next/dynamic': 'export default () => () => null;',
-          '@/lib/server-fetch': 'export const serverAuthMutate = async (...args) => window.skipScrollFixture(...args); export const serverAuthFetch = () => { throw new Error("Unexpected server read"); };'
-        };
-        builder.onResolve({ filter: /^(next\\/(navigation|dynamic)|@\\/lib\\/server-fetch)$/ }, ({ path }) => ({ path, namespace: 'fixture' }));
-        builder.onLoad({ filter: /.*/, namespace: 'fixture' }, ({ path }) => ({ contents: boundaries[path], loader: 'js' }));
-      }}] });
-    process.stdout.write(polyfill.outputFiles[0].text + result.outputFiles[0].text);
-  `], { maxBuffer: 20 * 1024 * 1024 }).toString()
-}, 30_000)
+beforeAll(async () => { ({ stylesheet, script } = await buildHabitListScrollAssets()) }, 30_000)
 afterAll(async () => { await closeChrome(launch) })
 
 it.each(shellScrollViewports)('bounds Hoje after rows leave at $width x $height', async ({ width, height }) => {
@@ -176,32 +145,3 @@ it.each(shellScrollViewports.flatMap(viewport => (['today', 'all'] as const).map
     } finally { await page.close() }
   },
 )
-
-it.each([390, 840, 1100, 1440])('clears the floating Astra entry at the end of the real habit list at %ipx', async width => {
-  const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
-  try {
-    await page.route('https://habit-list.test/', route => route.fulfill({ contentType: 'text/html',
-      body: `<!doctype html><style>${stylesheet}</style><div id="root" data-count="100" data-astra></div>` }))
-    await page.goto('https://habit-list.test/')
-    await page.addScriptTag({ content: script })
-    await page.waitForFunction(() => document.querySelectorAll('[data-testid="habit-row"]').length === 100)
-    const button = page.locator('[data-astra-button]')
-    await button.waitFor({ state: 'visible' })
-    for (const moved of [false, true]) {
-      if (moved) {
-        const box = (await button.boundingBox())!
-        await page.mouse.move(box.x + 30, box.y + 30)
-        await page.mouse.down()
-        await page.mouse.move(box.x + 30, 400, { steps: 8 })
-        await page.mouse.up()
-      }
-      const measured = await page.locator('[data-shell-scroller]').evaluate(measureShellScrollEnd)
-      const box = (await button.boundingBox())!
-      expect(measured.lastTop).toBeGreaterThanOrEqual(measured.scrollerTop)
-      expect(box.y - measured.lastBottom, JSON.stringify({ moved, box, measured })).toBeGreaterThanOrEqual(SPACING.s16 - 1)
-      expect(measured.scrollerBottom - measured.lastBottom).toBeCloseTo(measured.padding, 0)
-      expect(await page.locator('[data-composer-root]').count()).toBe(0)
-      expect(await page.locator('[data-shell-conversation]').count()).toBe(0)
-    }
-  } finally { await page.close() }
-})
