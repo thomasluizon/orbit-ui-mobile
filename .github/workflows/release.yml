@@ -542,10 +542,10 @@ jobs:
           url="${STAGING_NEXT_PUBLIC_EVENT_API_BASE%/}/health"
           body_file=$(mktemp)
           trap 'rm -f "$body_file"' EXIT
-          deadline=$((SECONDS + 300))
+          deadline=$(($(date +%s) + 300))
           last_body='<no response>'
-          while (( SECONDS < deadline )); do
-            remaining=$((deadline - SECONDS))
+          while (( $(date +%s) < deadline )); do
+            remaining=$((deadline - $(date +%s)))
             if (( remaining <= 0 )); then break; fi
             request_timeout=10
             if (( remaining < request_timeout )); then request_timeout=$remaining; fi
@@ -558,7 +558,7 @@ jobs:
             fi
             body=$(cat "$body_file")
             if [ -n "$body" ]; then last_body="$body"; fi
-            remaining=$((deadline - SECONDS))
+            remaining=$((deadline - $(date +%s)))
             if (( remaining <= 0 )); then break; fi
             if (( remaining > 5 )); then sleep 5; else sleep "$remaining"; fi
           done
