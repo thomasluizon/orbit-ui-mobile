@@ -12,6 +12,16 @@ inside that composition. Hoje's completed-day title and hint keep their 8px pair
 between that text block and See tomorrow. The paired owners and verification live in
 [the empty-state inventory](../empty-state-surfaces.md).
 
+### One Orbit drawing amendment (#2008)
+
+Under D42, the owner's order amends the granted drawings: "que cacete de logo é essa, coloca a do orbit".
+Every `OrbitMark` uses the normal drawing with a shared viewBox fitted to its drawn bounds.
+Hoje's completed-day state centres the still 48px monochrome `--fg-1` logo itself, without
+an extra ring. Title and hint keep their 8px pairing; mark, text and action keep 24px gaps.
+Streak notices use the same still logo at their existing 44px footprint, without a second ring.
+The onboarding reminder header retains 16px and every other consumer retains its size.
+The normal logo replaces every separate small in-app Orbit drawing on web and Android.
+
 ### Navigation and overlay motion amendment (#1829)
 
 The owner requests transitions across the app, including spring settlement for sheets.
@@ -241,12 +251,12 @@ that disagrees with production is a trap rather than an authority.
 
 | Paired web and Android surface | Contract |
 |---|---|
-| Daily earned streak | Existing shell notice, 16px inset, 12px gap, 28px tabular previous/final figure and plural day unit. One still monochrome 16px OrbitMark inside the 44px neutral measured ring. |
-| Milestone streak | Same lifecycle and mark/ring, with the complete final milestone sentence, 24px inset and 16px gap; no invented previous value. |
-| Other earned facts | Existing copy, queue priority and manual lifetime, with coherent exit handoff and the neutral measured ring replacing the native rotating accent adapter. |
-| Entry, hold and manual exit | Fully opaque +12px entrance, daily figure and ring together in 280ms ease-out; static hold; live-value +12px/fade exit in 220ms ease-in. Retain the actual queue item through completion. |
+| Daily earned streak | Existing shell notice, 16px inset, 12px gap, 28px tabular previous/final figure and plural day unit. One still monochrome 44px normal OrbitMark, without a surrounding ring (#2008). |
+| Milestone streak | Same lifecycle and 44px logo, with the complete final milestone sentence, 24px inset and 16px gap; no invented previous value. |
+| Other earned facts | Existing copy, queue priority and manual lifetime, with coherent exit handoff and the same still 44px monochrome Orbit logo. |
+| Entry, hold and manual exit | Fully opaque +12px entrance, daily figure in 280ms ease-out, with a still logo; static hold; live-value +12px/fade exit in 220ms ease-in. Retain the actual queue item through completion. |
 | Daily automatic exit and pause | Exit at 2280ms, layout retained until 2500ms; late hover or keyboard focus cancels exit and fallback. Resume a fresh 2500ms schedule after every pause ends. Manual exit stays committed. |
-| Reduced motion and background | Final static mark, ring and value; immediate reduced-motion dismissal. Live changes preserve a held deadline or complete a pending exit. Background settles movement; resume uses the valid clock deadline without replay. |
+| Reduced motion and background | Final static logo and value; immediate reduced-motion dismissal. Live changes preserve a held deadline or complete a pending exit. Background settles movement; resume uses the valid clock deadline without replay. |
 | Privacy, announcements and keyboard | Exact ID and account generation guard every callback. Account replacement and invalidation clear immediately. One empty-then-updated polite atomic final announcement; no arrival focus movement, and guarded manual focus recovery. |
 
 The active celebration drawing and DESIGN.md carry this amendment together. Unit guards cover the
