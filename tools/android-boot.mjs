@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { setTimeout } from "node:timers/promises"
@@ -9,16 +9,19 @@ import { SaxesParser } from "saxes"
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const UPDATE_REQUIRED_FAILURE = "build version is below the server minimum (update-required dialog rendered)"
+const NOT_RESPONDING_FAILURE = "app is not responding before its first screen"
 const USAGE = `usage: android-boot.mjs --apk <universal.apk> --package <application id> --output <directory>
 
   Install an AAB-derived APK on the connected, already booted CI emulator.
   Clear app storage and cold start once. Require the signed-out first screen,
   a surviving process after a settle period and no app-UID fatal logcat entries.
+  Dismiss another process's Application Not Responding dialog with its Wait
+  control inside the same deadline; the app's own dialog fails the boot.
   Retry adb infrastructure before launch only; never restart a failing app.
 
   --apk <path>       universal APK produced from the shipping AAB
   --package <id>     Android application id from Expo config
-  --output <path>    retained XML, app logcat and process evidence
+  --output <path>    retained XML, app logcat, process and dismissal evidence
   --help, -h         print usage and exit 0
 
 exit codes: 0 first screen survived, 1 app assertion failed, 2 usage or infrastructure error`
@@ -34,17 +37,38 @@ function optionsFor(argv) {
   return { ...options, apk: resolve(options.apk), output: resolve(options.output) }
 }
 
-export function firstScreenRendered(xml, packageName, labels) {
-  let found = false
+function visibleNodes(xml, packageName, accept) {
   const parser = new SaxesParser()
   parser.on("opentag", ({ name, attributes }) => {
     if (name !== "node" || attributes.package !== packageName || attributes.enabled !== "true") return
-    const bounds = /^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$/.exec(attributes.bounds ?? "")
-    if (!bounds || Number(bounds[3]) <= Number(bounds[1]) || Number(bounds[4]) <= Number(bounds[2])) return
-    if (labels.includes(attributes.text) || labels.includes(attributes["content-desc"])) found = true
+    const bounds = /^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$/.exec(attributes.bounds ?? "")?.slice(1).map(Number)
+    if (bounds && bounds[2] > bounds[0] && bounds[3] > bounds[1]) accept(attributes, bounds)
   })
   parser.write(xml).close()
+}
+
+export function firstScreenRendered(xml, packageName, labels) {
+  let found = false
+  visibleNodes(xml, packageName, (attributes) => {
+    if (labels.includes(attributes.text) || labels.includes(attributes["content-desc"])) found = true
+  })
   return found
+}
+
+// AOSP android15-release core/res/res/layout/app_anr_dialog.xml names the dialog's Wait button aerr_wait.
+export function notRespondingWaitControl(xml) {
+  let center = null
+  visibleNodes(xml, "android", (attributes, [left, top, right, bottom]) => {
+    if (attributes["resource-id"] === "android:id/aerr_wait") center = { x: Math.floor((left + right) / 2), y: Math.floor((top + bottom) / 2) }
+  })
+  return center
+}
+
+// AOSP android15-release: DisplayContent.dump prints "  mCurrentFocus=" + WindowState.toString(), which is
+// "Window{<hash> u<user> <title>}" plus " EXITING" while it animates out, and AppNotRespondingDialog titles its
+// window "Application Not Responding: " + the process name of the application that stopped responding.
+export function notRespondingProcess(windowDump) {
+  return /^\s*mCurrentFocus=Window\{[0-9a-f]+ u\d+ Application Not Responding: ([^\s}]+)(?: EXITING)?\}\s*$/m.exec(windowDump)?.[1] ?? null
 }
 
 export function fatalLogcat(logcat) {
@@ -99,11 +123,18 @@ function captureScreen(output) {
   return xml
 }
 
+function dismissNotResponding(output, process, wait, xml, count) {
+  writeFileSync(join(output, `anr-dialog-${count}.xml`), xml)
+  requireAdb(["shell", "input", "tap", String(wait.x), String(wait.y)])
+  appendFileSync(join(output, "anr-dismissals.txt"), `${new Date(Date.now()).toISOString()} Application Not Responding: ${process} tapped Wait at ${wait.x},${wait.y}\n`)
+}
+
 async function assertApp({ package: packageName, output }, uid) {
   const labels = startupLabels()
   const deadline = Date.now() + 90000
   let firstProcess = ""
   let rendered = false
+  let dismissals = 0
   while (Date.now() < deadline) {
     if (fatalLogcat(capture(output, uid))) return "app logcat contains a fatal startup error"
     const currentProcess = processId(packageName)
@@ -113,6 +144,10 @@ async function assertApp({ package: packageName, output }, uid) {
     const xml = captureScreen(output)
     if (firstScreenRendered(xml, packageName, labels.updateRequired)) return UPDATE_REQUIRED_FAILURE
     if (firstScreenRendered(xml, packageName, labels.firstScreen)) { rendered = true; break }
+    const wait = notRespondingWaitControl(xml)
+    const process = wait && notRespondingProcess(requireAdb(["shell", "dumpsys", "window", "displays"]))
+    if (process === packageName || process?.startsWith(`${packageName}:`)) return NOT_RESPONDING_FAILURE
+    if (process) dismissNotResponding(output, process, wait, xml, ++dismissals)
     await setTimeout(2000)
   }
   if (!rendered) return "signed-out first screen did not render within 90 seconds"
