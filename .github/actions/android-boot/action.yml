@@ -23,6 +23,7 @@ runs:
         echo "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  $RUNNER_TEMP/bundletool.jar" | sha256sum -c -
         unzip -Z1 "$AAB" | sed -n 's|^base/lib/\([^/]*\)/.*|\1|p' | sort -u > "$evidence/aab-abis.txt"
         grep -Fx arm64-v8a "$evidence/aab-abis.txt"
+        grep -Fx x86_64 "$evidence/aab-abis.txt"
         keytool -genkeypair -keystore "$RUNNER_TEMP/boot-check.jks" -storepass:env BOOT_CHECK_PASSWORD -keypass:env BOOT_CHECK_PASSWORD -alias boot-check -keyalg RSA -validity 2 -dname CN=BootCheck
         printf '%s' "$BOOT_CHECK_PASSWORD" > "$RUNNER_TEMP/boot-check-password"
         java -jar "$RUNNER_TEMP/bundletool.jar" build-apks --bundle="$AAB" --output="$RUNNER_TEMP/boot.apks" --mode=universal --ks="$RUNNER_TEMP/boot-check.jks" --ks-key-alias=boot-check --ks-pass="file:$RUNNER_TEMP/boot-check-password" --key-pass="file:$RUNNER_TEMP/boot-check-password"

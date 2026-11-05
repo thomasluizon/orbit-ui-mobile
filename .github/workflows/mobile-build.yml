@@ -120,7 +120,7 @@ jobs:
 
       # Runs the Expo prebuild and the Gradle release assemble across the whole
       # native module graph, which is where a broken native dependency or a
-      # Gradle change actually surfaces. ARM slices only, matching what ships;
-      # the x86_64 slice existed for the emulator that no longer runs here.
+      # Gradle change actually surfaces. This compile checks the ARM slices;
+      # release and startup proof AABs also compile x86_64 for native emulator execution.
       - name: Build the release APK
         run: npm run android:apk -w @orbit/mobile

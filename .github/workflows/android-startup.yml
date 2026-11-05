@@ -87,7 +87,7 @@ jobs:
     needs: scope
     if: ${{ github.event_name == 'push' || needs.scope.outputs.boot == 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       CI: "1"
       EXPO_NO_TELEMETRY: "1"
@@ -118,7 +118,7 @@ jobs:
           npx expo prebuild --platform android --no-install
       - name: Build the release AAB
         working-directory: apps/mobile/android
-        run: ./gradlew --no-daemon --build-cache bundleRelease
+        run: ./gradlew --no-daemon --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64 bundleRelease
       - name: Boot the built AAB without publishing
         uses: ./.github/actions/android-boot
         with:

@@ -46,6 +46,11 @@ export const cases = () => {
     T("android-release: boot assertions cannot be skipped or ignored", !steps[bootIndex].if && !steps[bootIndex]["continue-on-error"])
   }
   const startup = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/android-startup.yml"), "utf8"))
+  const architectureFlag = "-PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64"
+  for (const buildSteps of [steps, startup.jobs.boot.steps]) {
+    const build = buildSteps.find((step) => /\.\/gradlew\b.*\bbundleRelease\b/.test(step.run ?? ""))
+    T("android-startup: shipping and proof AABs include the native emulator slice", build?.run.includes(architectureFlag))
+  }
   const apiSource = readFileSync(join(REPO_ROOT, "apps/mobile/lib/api-base.ts"), "utf8")
   const apiModule = `data:text/javascript,${encodeURIComponent(apiSource)}`
   for (const job of ["bundle", "boot"]) {

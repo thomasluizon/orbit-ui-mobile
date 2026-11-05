@@ -66,10 +66,12 @@ uses a disposable installation key and compares the embedded Hermes bundle byte 
 The shipping AAB is never rebuilt or replaced by the check.
 
 The runner is `ubuntu-24.04` for proof builds and releases, with an API 35 `google_apis` x86_64
-emulator and ARM translation. The action records the AAB ABIs
-and requires the emulator's ABI list to include `arm64-v8a` before installation. No additional
-ABI is compiled into the release. Translation adds emulator setup and startup time; native
-compilation retains the shipping ARM slices. The emulator runs only in GitHub Actions.
+emulator. Both AAB builds compile `armeabi-v7a`, `arm64-v8a` and `x86_64`. The action requires
+the native emulator slice in the AAB and the device ABI list before installation. The additional
+slice increases native compilation time and AAB size; the installed APK still comes from the
+shipping AAB. ARM translation cannot satisfy the React Native loader's direct APK lookup with
+unextracted ARM libraries, so the gate uses native x86_64 execution. The emulator runs only in
+GitHub Actions.
 
 `tools/android-boot.mjs` clears storage, cold starts once and waits up to 90 seconds for the
 signed-out onboarding title from either locale in a visible, enabled accessibility node owned

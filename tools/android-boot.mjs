@@ -126,7 +126,7 @@ async function run(options) {
   if ((await infrastructure(["shell", "getprop", "sys.boot_completed"])).trim() !== "1") throw new Error("emulator has not booted")
   const abis = (await infrastructure(["shell", "getprop", "ro.product.cpu.abilist"])).trim()
   writeFileSync(join(options.output, "emulator-abis.txt"), `${abis}\n`)
-  if (!abis.split(",").includes("arm64-v8a")) throw new Error("emulator image does not support the shipping arm64-v8a libraries")
+  if (!abis.split(",").includes("x86_64")) throw new Error("emulator image does not support the shipping x86_64 libraries")
   await infrastructure(["install", "--no-streaming", "-r", options.apk])
   await infrastructure(["shell", "pm", "clear", options.package])
   const packages = await infrastructure(["shell", "cmd", "package", "list", "packages", "--user", "0", "-U", options.package])
