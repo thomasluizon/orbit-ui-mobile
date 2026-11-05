@@ -698,7 +698,7 @@
       "repeatMinutes": "{count, plural, =0 {# minutos} one {# minuto} other {# minutos}}",
       "repeatHours": "{count, plural, =0 {# horas} one {# hora} other {# horas}}",
       "repeatStart": "Quando começo a repetir?",
-      "repeatAllDay": "O dia todo?",
+      "repeatAllDay": "Dia todo?",
       "repeatActiveStart": "Te aviso a partir de que horas?",
       "repeatActiveEnd": "Até que horas te aviso?",
       "repeatInvalid": "Escolha um intervalo e dois horários diferentes, ou permita lembretes o dia todo.",
@@ -987,7 +987,7 @@
       "addSubTask": "Adicionar subtarefa",
       "removeSubTask": "Remover subtarefa",
       "noSetTime": "Sem horário",
-      "addEndTime": "Tem hora para acabar?",
+      "addEndTime": "Tem fim?",
       "repeatInterval": "De quanto em quanto tempo?",
       "reminderCustomUnit": "Em qual unidade?"
     },

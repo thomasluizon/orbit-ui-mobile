@@ -987,7 +987,7 @@
       "addSubTask": "Add subtask",
       "removeSubTask": "Remove subtask",
       "noSetTime": "Any time",
-      "addEndTime": "Does it have an end time?",
+      "addEndTime": "Set end?",
       "repeatInterval": "How often?",
       "reminderCustomUnit": "In which unit?"
     },
