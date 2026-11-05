@@ -117,11 +117,12 @@ indicator, so the first reply replaces it at the same content edge. This partici
 supersedes the side-by-side avatar column amendment in
 `design/canvas/Orbit Astra Conversation.dc.html` (#1408).
 
-**Astra has no route, no Android tab and no bubble.** The wide web sidebar's Astra row opens
+**Astra has no route and no Android tab.** The wide web sidebar's Astra row opens
 its conversation as a layer; that row is navigation chrome, not a fifth destination.
 
-1. **The front door** is ONE persistent growing composer on Hoje in the compact shell
-   (Android at every width, web below 1024), and the sidebar Astra row on wide web.
+1. **The front door** on Hoje is one round draggable Astra button at every width on web and
+   Android. The wide web sidebar also retains its Astra row. Hoje has no composer dock.
+   The owner's order (#2005) is: "i want the astra composer to be removed on hoje. instead, put a round astra icon, similar to the + to create new habit, that opens astra. would be awesome if it could be dragged, like a floating button".
    **One set of 3 to 6 suggestion chips built from live state**, never from a static list, sits
    above the conversation input: what is overdue, which streak is at risk, which habit has no goal.
    The empty state adds no opener chips; the daily limit shows none. Chips hug their labels in
@@ -151,18 +152,17 @@ client asks for them deliberately.
 
 | platform | navigation | Astra |
 |---|---|---|
-| **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil; one row with capped labels and a full-size long-press viewer as specified below | composer above the tab bar, on Hoje only |
-| **web** | sidebar, the same four at 1024 and above; compact tab bar below 1024 with the same label cap and long-press viewer | sidebar Astra row on wide web; Hoje composer in the compact shell |
+| **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil; one row with capped labels and a full-size long-press viewer as specified below | draggable round Astra button on Hoje, above the tab bar |
+| **web** | sidebar, the same four at 1024 and above; compact tab bar below 1024 with the same label cap and long-press viewer | draggable round Astra button on Hoje at every width; sidebar Astra row on wide web |
 
 **No navigation drawer and no hamburger on either platform.** Navigation has four destinations.
 The wide web Astra row is a button opening a layer with no route. A bottom sheet, menu or dialog
 that holds secondary content is not navigation; in the compact shell (Android at every width, web
-below 1024) it is the default home for that content. The shell composer stays visible on Hoje in
-that compact shell only. Habit detail keeps its own composer at every width.
+below 1024) it is the default home for that content. The floating Astra entry stays visible on Hoje. Habit detail keeps its own composer at every width.
 Calendário, Progresso and Perfil clear the tab bar or the wide column bottom without a composer dock.
 Hoje's selection tray stays pinned at both widths while selection is active, with exit, select-all,
-delete, log, skip and move controls. It replaces the compact composer; on wide web it alone occupies
-the destination's bottom slot, named `composer` in the shell reference contract. Resting wide Hoje
+delete, log, skip and move controls. It occupies
+the destination's bottom slot, named `composer` in the shell reference contract, at every width. Resting wide Hoje
 passes no bottom content. Transient notices keep the separate `notice` slot.
 
 **The conversation opens full screen on both platforms.** In the compact shell it covers the whole
@@ -198,7 +198,7 @@ own entry, opens this same layer. Closing it restores the underlying surface and
 | Web conversation in the compact shell and wide content column | `apps/web/components/chat/conversation.tsx`, mounted by `apps/web/app/(app)/layout.tsx` | Empty, populated, streaming, working, loading, offline, at capacity and error |
 | Android conversation at every window width | `apps/mobile/components/chat/conversation.tsx`, mounted by `apps/mobile/app/_layout.tsx` | Empty, populated, streaming, working, loading, offline, at capacity and error |
 
-Sidebar, composer, proactive line, no-habits action, habit detail, notification, import and deep-link entries
+Sidebar, floating Astra button, proactive line, no-habits action, habit detail, notification, import and deep-link entries
 all open these owners through the conversation store; no entry owns a separate header.
 
 **Each composer pins to the bottom of its content column.** The sidebar carries the brand row with
@@ -214,21 +214,42 @@ The list gap is 4. While the conversation is open, only the Astra row draws the 
 treatment: `--primary` glyph and `--primary-soft` label. The destination retains
 `aria-current="page"` because the route stays unchanged, but draws no current-position treatment.
 
-**The way in must be visible.** In the compact shell the Astra glyph at the leading edge inside
-the composer pill is a real button with a hit area at the touch floor, a padded hover and press
-fill and a focus ring, labelled `Abrir conversa`, with no visible brand word (#1668). On wide web the sidebar Astra row opens the
-conversation. Habit detail's own composer glyph remains an entry at every width.
+**The way in must be visible.** Hoje's Astra button reuses the create FAB's 60px circle,
+canvas occlusion ring and 0.96 press feedback, with the normal 24px Astra glyph. Its opaque
+neutral `--bg-elev` surface and `--fg-1` mark leave the next-action accent with creation.
+It starts at the trailing edge, 24px above the create FAB, and stays inside the content viewport
+above the tab bar and notice/selection slots. Wide web uses the same button inside its content
+column and keeps the sidebar row. Habit detail retains its mark-only composer entry.
 
-**Named Astra navigation rows retain `Astra`; standalone actions retain their visible action label beside the canonical glyph (#1700).** Actions drop the appended brand word, never their label. Menu items use the same full row geometry, padding, hover, press and focus as their siblings, with the label supplying the accessible name once. Habit and goal analysis, empty-list entries and reschedule retries show their short action labels. Inline form-field fill controls for emoji, date, tags and frequency remain icon-only with specific accessible names; #1701 owns those controls and their hints. Composer entry, send and disclosure retain their drawn icon controls. Suggestion chips, idea cards and proactive prose keep their useful request text without appended branding. Composer send keeps one upward arrow while a reply runs, with its localized Add to queue name and no Astra mark. Input remains editable. Up to three waiting messages appear above the composer with individual remove controls; another send retains its draft and shows the queue limit inline. Successful replies send the next waiting message in order. Failure or Stop pauses automatic sending and retains the remaining messages for individual sending or removal. A separate Stop reply control remains reachable, and the thread owns running feedback. The session queue survives screen changes and clears on sign-out. Input prompts do not repeat the brand. Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, compact composer, habit-detail composer and Hoje slot retain their existing owners. Conversation headers, participant avatars and conversation-owned empty states keep their own rules. The owner's authority for #1700 is: "Revert this, just keep the changes that remove the bloat, be smart." The owner's copy authority for #1687 is: "i asked you to top putting Consultar astra string everywhere / what you did: removed the astra word from the app, including on the sidebar / fix this". This preserves navigation names while dropping appended branding from actions. Astra always carries the Astra mark (#1780): the Perfil Astra settings row, the Pro benefits
+A tap opens the existing conversation layer. A movement of at least 8px becomes a drag and
+never opens it. Release snaps to the nearer inline edge with 16px margins and 24px clearance from
+the create FAB and the measured back-to-top pill. The two FAB canvas rings retain 12px of visible
+separation. Position is a device preference, retained across
+launches; an outgrown position resets to the default when the viewport shrinks. Layout changes
+recheck obstacles. Sheets, selection and the conversation withhold the floating entry.
+The shell reserves end-of-list clearance from the button's current position plus a 16px gap,
+so the last row scrolls fully above it after dragging, moving or resizing. Web caps the inset used
+when scrolling to focus at half the scroller height so a short window can reveal its focused controls.
+Press and hold opens four named movement choices on both platforms; web also opens them on
+right-click or the context-menu key. Choosing a direction closes the sheet and moves the button
+without opening Astra. Web keeps the button in normal tab order; Enter and Space open it and
+arrow keys move it. Android also exposes four named Move accessibility actions. Initial and restored positions appear
+without entrance movement; snap animation follows a requested move. A new drag interrupts the snap
+at its displayed position. Reduced motion removes the snap animation.
+The conversation retains live suggestions, the draft, attachments, AI disclosure, composer
+disclosure, running reply control, queue and the proactive line's destination. Reopening a collapsed
+conversation focuses its visible expand control and preserves its draft.
+
+**Named Astra navigation rows retain `Astra`; standalone actions retain their visible action label beside the canonical glyph (#1700).** Actions drop the appended brand word, never their label. Menu items use the same full row geometry, padding, hover, press and focus as their siblings, with the label supplying the accessible name once. Habit and goal analysis, empty-list entries and reschedule retries show their short action labels. Inline form-field fill controls for emoji, date, tags and frequency remain icon-only with specific accessible names; #1701 owns those controls and their hints. Composer entry, send and disclosure retain their drawn icon controls. Suggestion chips, idea cards and proactive prose keep their useful request text without appended branding. Composer send keeps one upward arrow while a reply runs, with its localized Add to queue name and no Astra mark. Input remains editable. Up to three waiting messages appear above the composer with individual remove controls; another send retains its draft and shows the queue limit inline. Successful replies send the next waiting message in order. Failure or Stop pauses automatic sending and retains the remaining messages for individual sending or removal. A separate Stop reply control remains reachable, and the thread owns running feedback. The session queue survives screen changes and clears on sign-out. Input prompts do not repeat the brand. Keep useful action context, disabled reasons and request guards. Deterministic saves, accepting an existing proposal, static attribution, section headings and plan facts gain no mark. The wide sidebar, floating Astra button, habit-detail composer and proactive Hoje slot retain their own entries. Conversation headers, participant avatars and conversation-owned empty states keep their own rules. The owner's authority for #1700 is: "Revert this, just keep the changes that remove the bloat, be smart." The owner's copy authority for #1687 is: "i asked you to top putting Consultar astra string everywhere / what you did: removed the astra word from the app, including on the sidebar / fix this". This preserves navigation names while dropping appended branding from actions. Astra always carries the Astra mark (#1780): the Perfil Astra settings row, the Pro benefits
 Astra outcome and the lapsed-plan Astra messages line use `AstraGlyph` in place of a generic chat
 icon, keeping the shared row anatomy, icon size and colour.
 
-Hoje and habit detail composers each have one named disclosure control (#1796). The owner's
+Conversation and habit detail composers each have one named disclosure control (#1796). The owner's
 report is: "missing the arrow to minimize the astra composer". Collapsing leaves one compact row with
 its mark, retains the mounted draft, attachments and queued messages, and persists each surface's
 choice independently in device preferences. The same control expands it again. Both states remain
 in the shell's pinned allocation outside the habit scroller, with clearance following the actual
-composer height. Other composer surfaces stay expanded. The owner inventory lives in
+composer height. The conversation owns the former Hoje disclosure. The owner inventory lives in
 `design/astra-mark-only-surfaces.md`.
 
 The composer's text composition reserves one inert text-action slot across inline and Add-menu
@@ -372,7 +393,7 @@ refresh and plan behavior. Its first sentence occupies the same slot; pressing i
 summary as Astra's newest message, preserving the existing conversation. The AI disclosure remains in empty and populated
 conversations. Loading, error and retry use that same line;
 the free plan's line opens upgrade. A disabled summary preference or absent summary leaves no line.
-There is no separate daily-summary section, heading, AI badge, expand control or Astra button on Hoje.
+There is no separate daily-summary section, heading, AI badge or summary-specific Astra button on Hoje.
 
 
 The line and the push open the current item as Astra's first message, with its full text and one
@@ -382,7 +403,7 @@ its action is disabled with the limit or offline reason. An ended item keeps its
 its action with an explanation. The Perfil Astra notifications switch controls push delivery only.
 
 Astra reaches the person before the person opens the app. The push is a **pointer**, never the only
-copy: the same content sits at the top of Hoje, and **the whole line is its action**: one press target with a minimum height of 48 and one 20px Astra glyph, with a padded press and hover fill and no separate link. The sentence is prose: at most 2 lines, with the full text in the conversation. Its accessible name is the visible sentence; the destination goes in the Android hint and the web description. The name is never `Abrir conversa`, which the composer glyph owns. Two consequences are
+copy: the same content sits at the top of Hoje, and **the whole line is its action**: one press target with a minimum height of 48 and one 20px Astra glyph, with a padded press and hover fill and no separate link. The sentence is prose: at most 2 lines, with the full text in the conversation. Its accessible name is the visible sentence; the destination goes in the Android hint and the web description. The name is never `Abrir conversa`, which the habit-detail composer glyph owns. Two consequences are
 deliberate. The proactive layer has a visible place to be audited instead of only firing into the
 void, and a person who denies notification permission still gets the whole mechanism.
 
@@ -690,7 +711,7 @@ Designing any of these is the defect, not the omission.
   completing, a level up, and everything due today being done. Individual habit completions never
   receive a celebration. The first confirmed completion that extends today's account streak by one
   earns a daily streak moment in the same non-blocking shell notice slot. It counts from the previous
-  streak to the new number beside a day ring, then dismisses itself after 2500ms. It appears at most
+  streak to the new number beside the Orbit logo, then dismisses itself after 2500ms. It appears at most
   once per local day, including across reloads, and never for a past-day log, an undo, a slip on a
   habit to avoid, or an unchanged streak. A milestone uses the existing milestone panel instead.
 - **The separate onboarding, tour, feature guide and push prompt.** One system.
@@ -717,9 +738,11 @@ Identity comes from three things and nothing else:
 
 **The two are told apart by silhouette, not by a detail.** Orbit is a hollow ring. Astra is a solid letterform, a letter A carrying the same orbital band and the same solid dot. The rule is that short: **a solid letterform is Astra, a hollow ring is Orbit.** Silhouette survives at 16px, which the draft geometry's "circle with a core" did not, and that is why the earlier core rule was retired.
 
-**Asset sizes are enumerated: 16, 48, 128, 512.** The mark is neither type nor an icon, so it answers to neither the type scale nor the 24 icon grid. **At 16 the Orbit mark is redrawn natively rather than scaled**, because a stroke scaled down from the 24 grid renders soft, and at 16 it is monochrome `--fg-1` with no accent. Astra uses its normal drawing at every size.
+**Asset sizes are enumerated: 16, 48, 128, 512.** The mark is neither type nor an icon, so it answers to neither the type scale nor the 24 icon grid. Orbit and Astra use their normal drawings at every size, with shared viewBoxes fitted to their drawn bounds. The 16px in-app Orbit mark is monochrome `--fg-1` by default.
 
-**One Astra drawing (#1797).** The owner's order is: "i dont understand this mini astra logo that is not even centralized vertically, on the top left and on the prompt suggestions, change to the normal logo and centralize it". `AstraGlyph` uses the normal `ASTRA_GLYPH_PATHS` at every size on web and Android. The shared viewBox fits the drawn bounds, with equal vertical space after aspect-ratio fitting. Consumers centre that drawing within their row, chip, button or header, without local offsets. This applies to the conversation header, suggestion and follow-up chips, Hoje composer entry and Astra line, idea cards, proactive actions and form fill controls. The normal mark remains legible at 16px with its cropped viewBox; existing sizes and colour tokens stay. This owner order amends any small Astra variant in the granted canvas under D42.
+**One Orbit drawing (#2008).** The owner's order is: "que cacete de logo é essa, coloca a do orbit". `OrbitMark` uses the normal `ORBIT_MARK_PATHS` at every size on web and Android. Its shared viewBox fits the drawn bounds and centres the logo without local offsets, including at 16px in the onboarding reminder preview. Hoje's completed-day identity is the still 48px monochrome `--fg-1` logo itself, with no surrounding ring. Its 8px title/hint pairing and 24px mark, text and action gaps stay. The streak notice uses the same logo at its existing 44px footprint, without a surrounding ring or mark animation; panel and figure motion keep their existing lifecycle. All other consumers retain their sizes and colour tokens. This owner order amends the granted drawing under D42.
+
+**One Astra drawing (#1797).** The owner's order is: "i dont understand this mini astra logo that is not even centralized vertically, on the top left and on the prompt suggestions, change to the normal logo and centralize it". `AstraGlyph` uses the normal `ASTRA_GLYPH_PATHS` at every size on web and Android. The shared viewBox fits the drawn bounds, with equal vertical space after aspect-ratio fitting. Consumers centre that drawing within their row, chip, button or header, without local offsets. This applies to the conversation header, suggestion and follow-up chips, Hoje floating entry and Astra line, idea cards, proactive actions and form fill controls. The normal mark remains legible at 16px with its cropped viewBox; existing sizes and colour tokens stay. This owner order amends any small Astra variant in the granted canvas under D42.
 
 **The wordmark** is Space Grotesk 600 in natural case, `-0.02em`, `--fg-1`, carrying `translate="no"`. The horizontal lockup is a 28px mark, a 12px gap and a 22px wordmark. **The 28 measures the mark and the 12 separates ink from ink, never bounding boxes.** The 1024 art carries wide empty margin, so a literal 28 box draws ink about 8px tall beside a 15.4px cap height and the word swamps the mark; sized on the ink the mark stands 15.04px and the two read as one lockup. The lockup asset's viewBox is its ink, so clear space is the consumer's to add.
 
@@ -843,6 +866,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --bg-elev         #1C1C1E                     /* OPAQUE. Overlay panel, menus, popovers */
 --bg-elev-2       rgba(250,250,250,0.12)      /* the highest inline step -> #262628 */
 --bg-hover        rgba(250,250,250,0.13)      /* THE hover surface -> #28282A. 1.26:1 against the resting card */
+--bg-row-action   #09090B                    /* opaque action feedback on a lit row; preserves status-bad contrast */
 --bg-hover-opaque rgba(250,250,250,0.13)      /* overlay on an opaque control -> #39393B over elev. 1.477:1 step */
 --bg-sunk         rgba(0,0,0,0.28)            /* recessed wells -> #060608 */
 --hairline        rgba(255,255,255,0.08)      /* separator: divides content */
@@ -895,6 +919,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg-field #FFFFFF · --bg-well rgba(9,9,11,0.04)
 --bg-sunk rgba(9,9,11,0.04)
 --bg-hover rgba(9,9,11,0.11) /* #E4E4E4 over white, 1.271:1 step; #DFDFE0 over canvas, 1.276:1 step */
+--bg-row-action #FFFFFF /* opaque action feedback on a lit row; preserves status-bad contrast */
 --bg-hover-opaque rgba(9,9,11,0.11) /* overlay on an opaque control -> #E4E4E4 over white. 1.271:1 step */
 --status-done var(--fg-1) · empty var(--track-empty) · frozen var(--fg-2)
 --status-overdue #7D5700   /* 6.219:1 on canvas, 4.510:1 on well hover. White on it 6.491:1 */
@@ -1023,10 +1048,11 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 5.46 and 2
 1. **Replacement, the normal case.** One element carries `--bg-card` at rest and `--bg-hover` on
    hover. CSS `background-color` and React Native `backgroundColor` swap the value; neither
    composites. The stack is `--bg` under `--bg-hover`, `#28282A`, and `--fg-3` measures **4.57**.
-2. **Child over parent, one shipped case.** A hover child painted inside a card wrapper composites:
+2. **Row overlay over its resting card.** A hover child painted inside a card wrapper composites:
    `--bg` under `--bg-card` under `--bg-hover`, `#313133`. `--fg-3` measures **4.03** there and does
-   NOT clear the text floor. The unread notification row is that case, on both platforms: the
-   wrapper carries `--bg-card` and the inner control hovers.
+   NOT clear the text floor. The unread notification row uses this stack on both platforms: the
+   wrapper carries `--bg-card` and its full-row overlay paints hover, press and focus, including
+   behind the independent delete control.
 
 3. **Layer over an opaque control.** Keep the resting fill and composite `--bg-hover-opaque`
    (`bgHoverOpaque` on Android) above it. Dark uses the existing hover value, alpha 0.13 over
@@ -1036,7 +1062,7 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 5.46 and 2
    `--fg-2` measures **6.974:1 dark** and **7.858:1 light**; dark `--fg-3` falls below 4.5.
 
 **On a hover child inside a card, supporting text is `--fg-2` or lighter.** `--fg-2` measures 7.86 on that
-stack, `--fg-1` 11.82. The unread notification row already obeys this. Prefer replacement when you
+stack, `--fg-1` 11.82. The unread notification row obeys this with a full-row overlay. Its sibling delete paints a 44px circle on top using `--bg-row-action` (`bgRowAction` on Android): canvas ink `#09090B` in dark and white `#FFFFFF` in light. This opaque feedback preserves the `--status-bad` glyph above 3:1; another hover overlay would fail that floor in both themes. Prefer replacement when you
 build a new hover surface; compositing costs a whole neutral step and buys nothing.
 
 0.12 was also the exact value of `--bg-elev-2`, which the hover rule below forbids on its own.
@@ -1203,10 +1229,12 @@ price response does not shift the layout.
 - **Keep controls distinct from content, in both directions.** An interactive element carries a background, a border, or a consistent control zone. A static element never wears control styling.
 - **Name one focal element per view before building.** Make it win by size, weight, contrast and surrounding space, and demote everything else deliberately. Only one element animates prominently at a time.
 - **At any decision point keep simultaneously-considered options at 4 or fewer.** Top-level nav 5 or fewer, form fields 4 or fewer per visual group, 1 primary plus 1 to 2 secondary actions with the rest in a menu. 5 to 7 needs grouping or progressive disclosure; 8 or more is a defect.
+- **Every input surface follows three rules:** "Simple to understand first: not a wall of options or questions. It has levels." "Correct spacing, including hover and press spacing." "Questions, not system labels: 'when do you want to be reminded?', as a person talking to a person." Ask one question first, reveal its follow-up from the answer, and keep interaction paint inside the field column. Hidden follow-ups retain their draft values.
+
 - **Give flex and grid children `min-width: 0`** so long unbroken content shrinks instead of blowing out the track. **Never put a fixed width or a fixed height on a text container**; use `max-width`, and `min-height` where a floor is needed. Prose and descriptions may wrap. An app-authored label never wraps and never ends in an ellipsis: see **Labels at compact width**. Plan for substantial pt-BR growth rather than one universal percentage.
 - **Align to shared edges.** Every stray edge reads as noise. Use one spacing step per level of subordination.
 - **Order by importance.** The most important content sits near the top and the leading edge. Within a row, identifying content leads and metadata and actions trail. Think in leading and trailing, never left and right, and use logical properties (`margin-inline-start`, `padding-inline-end`, `inset-inline-start`, `text-align: start`) for anything direction-dependent.
-- **Hint at hidden content.** Progressive disclosure needs a visible affordance: a row of content-hugging chips shows at least 16px of the item cut by the scroll edge and hides at least 16px of it, choosing the gap from the spacing scale. Other scroll rows let the next item peek 16 to 32px past the scroll edge. A disclosure control whose label states what is hidden is an alternative.
+- **Hint at hidden content.** Progressive disclosure needs a visible affordance: a row of content-hugging chips shows at least 16px of the item cut by the scroll edge and hides at least 16px of it, choosing the gap from the spacing scale. Composer strips measure the rendered chip widths, including beside the disclosure control. When no gap produces the peek, use the smallest leading inset from the same scale that does, preserving chip order and content widths on both platforms. Other scroll rows let the next item peek 16 to 32px past the scroll edge. A disclosure control whose label states what is hidden is an alternative.
 - **Align shared elements across side-by-side cards to the same Y** and pin each card's CTA to its bottom, so the buttons form one line.
 - **Build multi-column layouts with CSS Grid**, never flexbox percentage math. Prefer container queries so a component adapts to its column rather than the viewport. Web only.
 - **Structural hacks are banned:** a negative margin undoing a parent's padding, an escape-hatch `calc()`, and absolute positioning used to dodge layout flow.
@@ -1264,7 +1292,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | CheckRow | whole-row checkbox hit target, required label, error replaces description, trailing mono value | `ui/check-row.tsx` | `ui/check-row.tsx` |
 | TimeField | min-height 54, radius 12, 24-hour wire value with `h23` or `h12` presentation | `ui/time-field.tsx` | `ui/time-field.tsx` |
 | DateRow | formatted immutable date and optional reason, with no control role, focus or chevron | `ui/date-row.tsx` | `ui/date-row.tsx` |
-| Composer | Hoje and habit detail reuse one named disclosure arrow and compact collapsed row, with independent device preferences, retained drafts, attachments and queued messages, and shell clearance following actual height (#1796; owner: "missing the arrow to minimize the astra composer"). Expanded: a growing pill, minimum height 56 (`--touch-comfy`): a mark-only Astra entry button at the leading edge inside (Hoje in the compact shell and habit detail at every width), one input, an attach `+` icon button, and one filled upward send arrow at the trailing edge, available for queuing while a reply runs. Trailing controls have adjacent 48px targets with one equal gap of the shared fill clearance (`INTERACTION_FILL_CLEARANCE`). The field retains usable input width and the row wraps when its named controls need more room (#1607). Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
+| Composer | Conversation and habit detail reuse one named disclosure arrow and compact collapsed row, with independent device preferences, retained drafts, attachments and queued messages, and shell clearance following actual height (#1796; owner: "missing the arrow to minimize the astra composer"). Expanded: a growing pill, minimum height 56 (`--touch-comfy`): a mark-only Astra entry button at the leading edge inside (habit detail at every width), one input, an attach `+` icon button, and one filled upward send arrow at the trailing edge, available for queuing while a reply runs. Trailing controls have adjacent 48px targets with one equal gap of the shared fill clearance (`INTERACTION_FILL_CLEARANCE`). The field retains usable input width and the row wraps when its named controls need more room (#1607). Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
 | Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
 | Toast | brief confirmation and undo only; stable live region; timed confirmation uses a 5000ms minimum; action toasts dismiss after the standard duration, manually, or on destination change; done uses `--status-done`; actionable errors and sync failures stay in a persistent surface | `ui/toast.tsx` | `ui/app-toast.tsx` |
 | Skeleton | one accessible busy unit shaped as habit row / settings row / stat tile / grid; opacity pulse only | `ui/skeleton.tsx` | same |
@@ -1392,7 +1420,7 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 - **Variants:** `primary` (accent fill, `--fg-on-primary` text, no glow), `secondary` (fg-1 fill, canvas text), `ghost` (transparent, inset 1.5px hairline-strong ring), `destructive` (status-bad fill), `caution` (status-overdue fill). `ConfirmDialog` builds its action row from `PillButton`, never a hand-rolled pill.
 - **Sizes:** `sm` is the default for every pill. Explicit `md` is reserved for the single primary action that ends a flow: a form submit, a Wrapped player action, or the full-width action of a mobile overlay. At most one `md` pill renders per view. A size keeps its visible height plus horizontal padding plus label, icon and gap. Small pills extend their hit area to 48px around their existing visible box. Keep the visible edges and action-row gaps unchanged; give clipping or native hit-testing parents room for the extension, and never overlap another target. Never hand-tune per call.
 - **Action rows:** two or more pills acting on the same section render through one `ActionRow`, in one size, on one line at the trailing edge with a 12px gap. Ghost actions precede the filled action. Wrap only when the row cannot fit, and retain the trailing edge on every wrapped line. Sheet footers apply this same rule.
-- **Per-item actions:** an action on one list item belongs in that row's own trailing action slot, never in a pill stacked under the item.
+- **Per-item actions:** body feedback fills the complete rounded row, including behind sibling trailing actions. Each trailing action retains its own feedback on top. Notifications keep the row lit through hover, press and keyboard focus on either the body or delete. An action on one list item belongs in that row's own trailing action slot, never in a pill stacked under the item.
 - **Width, hug by default.** A lone CTA in a wide container caps at about 360px and never spans a desktop content column. Full-width is sanctioned ONLY in: the single primary action of a mobile overlay, a form submit at or below the mobile breakpoint, and a full-screen empty-state primary CTA.
 - **Empty-state actions** follow the same action-row rule and hug their labels.
 - **Labels are verb-first and 1 to 2 words.** Strip words the surrounding title already carries. A confirmation button repeats the consequence, so the dialog is answerable without reading the body: "Delete habit", never "Yes".
@@ -1637,16 +1665,15 @@ Web sheets follow the grabber and settle with the shared sheet spring; a failed 
 drag returns to rest. Sheet content remains scrollable and controls respond during entry.
 
 **Daily streak feedback is state indication, once per day.** One panel occupies the existing
-shell notice slot above the composer, leaving every underlying control interactive. Daily inset
+shell notice slot above the bottom chrome, leaving every underlying control interactive. Daily inset
 and gap are 16px and 12px; milestone and other fact inset and gap remain 24px and 16px. The
-44px neutral day ring centres a still monochrome `OrbitMark` at `size={16}`, `accent={false}`.
-Its track uses the empty role and its completed stroke uses `fg-1`, including during movement.
-Measure SVG length at runtime; absent measurement leaves a completed static ring.
+44px identity is a still monochrome `OrbitMark` at `size={44}`, `accent={false}`, using
+`--fg-1` without a surrounding ring. The normal logo carries the notice identity (#2008).
 
 | Phase | Purpose | Normal motion | Reduced motion |
 |---|---|---|---|
 | Enter | Preventing a jarring change | Fully opaque panel, +12px to 0 in 280ms, ease-out | Final panel immediately |
-| Daily figure and ring | State indication | Old/new figures cross-fade and move 12px within one clip; one measured ring sweep on the same 280ms timeline | Final figure, unit, mark and completed ring |
+| Daily figure | State indication | Old/new figures cross-fade and move 12px within one clip on the 280ms timeline; the logo stays still | Final figure, unit and logo |
 | Hold | Static fact | Final value and quiet localized day unit, no movement | Same fact |
 | Exit | Preventing a jarring change | Live presentation to +12px and opacity 0 in 220ms, ease-in | Immediate removal |
 
@@ -1655,7 +1682,7 @@ never animate layout dimensions. Static resting styles carry the final fact. At 
 panel grows and text may wrap without clipping the figure, unit, label or distinct 48px close.
 Only daily eligibility proves the previous value; milestones retain their complete final sentence.
 Other earned facts remain manual and acquire neither rolling figures nor an automatic deadline.
-The native rotating accent ring is replaced by the same single measured neutral sweep for parity.
+Both platforms use the same still logo in the shared notice composition.
 
 Daily automatic exit begins at 2280ms and retains its layout reservation through 2500ms. Hover
 or keyboard focus pauses that deadline, including during automatic exit: cancel the exit and its
@@ -1666,7 +1693,7 @@ item active until completion, with one exact-ID, account-generation-guarded, ide
 by animation completion and a bounded exit-deadline fallback. Cancel every callback on unmount,
 account replacement or invalidation; privacy and invalid facts take precedence over exit continuity.
 
-Reduced motion has no translation, scale, numeral change, sweep or delayed manual removal. A live
+Reduced motion has no translation, scale, numeral change or delayed manual removal. A live
 preference change settles a held fact without resetting its deadline and completes a pending exit
 immediately. Hiding or backgrounding settles cosmetic movement without a new pause reason. Preserve
 the valid deadline and compare the clock on resume: expired daily facts complete immediately,

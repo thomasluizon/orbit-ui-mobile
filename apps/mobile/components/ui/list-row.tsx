@@ -1,3 +1,4 @@
+import { useRowFeedback } from '@/hooks/use-row-feedback'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PersonalText } from '@/components/ui/personal-text'
 import { INTERACTION_FILL_CLEARANCE, PADDING, SPACING, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -31,8 +32,8 @@ function alignsFirstLine({ textMode, description, value, toggle, trailing, readO
   return !!toggle || (textMode === 'label' && !!(description || value || (trailing && !readOnly)))
 }
 
-function getBodyStyle(hasDescription: boolean, column: boolean) {
-  return [styles.body, column ? styles.columnBody : styles.insetBody, hasDescription ? styles.descriptionBody : null]
+function getBodyStyle(hasDescription: boolean, column: boolean, field: boolean) {
+  return [styles.body, column ? styles.columnBody : styles.insetBody, field ? styles.fieldBody : null, hasDescription ? styles.descriptionBody : null]
 }
 
 function RowValue({ value, hidden, wrap, color, personal, expanded, label }: Readonly<{ value: ListRowProps['value']; hidden?: boolean; wrap: boolean; color: string; personal?: boolean; expanded?: boolean; label?: boolean }>) {
@@ -120,40 +121,28 @@ function useRowDisclosure(original: Readonly<ListRowProps & { ref?: Ref<View> }>
   return { props, ChevronIcon }
 }
 
-function useRowInteraction(disabled: boolean) {
-  const [pressed, setPressed] = useState(false)
-  const [focused, setFocused] = useState(false)
-  const [hovered, setHovered] = useState(false)
-  const highlighted = !disabled && (pressed || focused || hovered)
-  return { pressed, focused, highlighted,
-    onPressIn: () => setPressed(true), onPressOut: () => setPressed(false),
-    onFocus: () => setFocused(true), onBlur: () => setFocused(false),
-    onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false),
-  }
-}
-
 function rowAccessibilityState(props: ListRowProps) {
   return { ...(props.disabled || props.toggle?.pending ? { disabled: true } : {}), ...(props.expanded === undefined ? {} : { expanded: props.expanded }), ...(props.toggle ? { checked: props.toggle.checked } : {}), ...(props.toggle?.pending ? { busy: true } : {}) }
 }
 
-function RowFill({ props, interaction, tokens }: Readonly<{ props: ListRowProps; interaction?: ReturnType<typeof useRowInteraction>; tokens?: ReturnType<typeof createTokensV2> }>) {
-  const column = props.placement === 'column'
-  if (!column && !interaction) return null
+function RowFill({ props, interaction, tokens }: Readonly<{ props: ListRowProps; interaction?: ReturnType<typeof useRowFeedback>; tokens?: ReturnType<typeof createTokensV2> }>) {
+  const column = props.placement !== undefined
+  if (props.action || (!column && !interaction)) return null
   const highlightedStyle = interaction && tokens ? { backgroundColor: interaction.highlighted ? tokens.bgHover : 'transparent', outlineWidth: interaction.focused ? 2 : 0, outlineColor: tokens.fg1, outlineOffset: -2, outlineStyle: 'solid' as const } : null
-  return <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" data-slot={column ? 'list-row-body' : 'list-row-fill'} style={[column ? styles.outset : styles.insetFill, column && props.action ? { right: 0 } : null, column && hasSupportingLine(props) ? styles.descriptionBody : null, highlightedStyle]} />
+  return <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" data-slot={column ? 'list-row-body' : 'list-row-fill'} style={[column ? styles.outset : styles.insetFill, props.placement === 'field' ? styles.fieldFill : null, column && hasSupportingLine(props) ? styles.descriptionBody : null, highlightedStyle]} />
 }
 
-function RowControl({ ref, props, bodyStyle, interaction, tokens, children }: Readonly<{ ref?: Ref<View>; props: ListRowProps; bodyStyle: ReturnType<typeof getBodyStyle>; interaction: ReturnType<typeof useRowInteraction>; tokens: ReturnType<typeof createTokensV2>; children: ReactNode }>) {
-  const column = props.placement === 'column'
+function RowControl({ ref, props, bodyStyle, interaction, tokens, children }: Readonly<{ ref?: Ref<View>; props: ListRowProps; bodyStyle: ReturnType<typeof getBodyStyle>; interaction: ReturnType<typeof useRowFeedback>; tokens: ReturnType<typeof createTokensV2>; children: ReactNode }>) {
+  const column = props.placement !== undefined
   const slot = column ? undefined : 'list-row-body'
   if (props.readOnly || (!props.onClick && !props.toggle)) return <View data-slot={slot} style={bodyStyle}><RowFill props={props} />{children}</View>
   const toggle = props.toggle
   const disabled = Boolean(props.disabled || toggle?.pending)
-  const control = <NativePressable data-slot={slot} ref={ref} hitSlop={column ? { left: 16, right: 16 } : undefined}
+  const control = <NativePressable data-slot={slot} ref={ref} hitSlop={props.placement === 'column' ? { left: 16, right: 16 } : undefined}
     accessibilityRole={toggle ? "switch" : "button"} accessibilityLabel={toggle ? props.accessibilityLabel ?? props.title : props.accessibilityLabel}
     accessibilityState={rowAccessibilityState(props)} disabled={disabled}
     onPress={toggle ? undefined : props.onClick}
-    onPressIn={interaction.onPressIn} onPressOut={interaction.onPressOut} onFocus={interaction.onFocus} onBlur={interaction.onBlur} onHoverIn={interaction.onHoverIn} onHoverOut={interaction.onHoverOut}
+    onPressIn={interaction.handlers.onPressIn} onPressOut={interaction.handlers.onPressOut} onFocus={interaction.handlers.onFocus} onBlur={interaction.handlers.onBlur} onHoverIn={interaction.handlers.onHoverIn} onHoverOut={interaction.handlers.onHoverOut}
     style={[bodyStyle, getDisabledStyle(disabled)]}>
     <RowFill props={props} interaction={interaction} tokens={tokens} />
     {children}
@@ -183,10 +172,10 @@ function RowChevron({ ChevronIcon, disabled, tokens, lineStyle }: Readonly<{
   return <View data-slot="list-row-chevron" importantForAccessibility="no-hide-descendants" style={[styles.chevron, lineStyle]}><ChevronIcon size={24} color={disabled ? tokens.fg1 : tokens.fg3} strokeWidth={1.5} /></View>
 }
 
-function RowAction({ action, hasDescription, reducedMotion, tokens }: Readonly<{ action: ListRowProps['action']; hasDescription: boolean; reducedMotion: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
+function RowAction({ action, hasDescription, reducedMotion, tokens, feedback }: Readonly<{ action: ListRowProps['action']; hasDescription: boolean; reducedMotion: boolean; tokens: ReturnType<typeof createTokensV2>; feedback: ReturnType<typeof useRowFeedback> }>) {
   if (!action) return null
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.action, { marginVertical: hasDescription ? SPACING.s8 : SPACING.s4, marginEnd: SPACING.s16 }, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} {...feedback.handlers} style={[styles.action, { marginVertical: hasDescription ? SPACING.s8 : SPACING.s4, marginEnd: SPACING.s16 }, feedback.highlighted ? { backgroundColor: tokens.bgRowAction } : null]}>
       {({ pressed }) => (
         <AnimatedContent style={[reducedMotion ? null : PRESS_TRANSITION, styles.control, pressed && !reducedMotion ? { transform: [{ scale: 0.96 }] } : null]}>
           <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />
@@ -194,6 +183,21 @@ function RowAction({ action, hasDescription, reducedMotion, tokens }: Readonly<{
       )}
     </Pressable>
   )
+}
+
+function useListRowFeedback(disabled: boolean) {
+  const interaction = useRowFeedback(disabled)
+  const actionFeedback = useRowFeedback()
+  return { interaction, actionFeedback, highlighted: interaction.highlighted || actionFeedback.highlighted }
+}
+
+function listRowShellStyle(hasAction: boolean, column: boolean) {
+  return [styles.row, hasAction ? { gap: INTERACTION_FILL_CLEARANCE, borderRadius: 12, marginVertical: SPACING.s4, ...(column ? { marginHorizontal: -SPACING.s8, paddingHorizontal: SPACING.s8 } : {}) } : null]
+}
+
+function RowActionFill({ action, highlighted, focused, tokens }: Readonly<{ action: ListRowProps['action']; highlighted: boolean; focused: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
+  if (!action) return null
+  return <View pointerEvents="none" accessible={false} data-slot="list-row-fill" style={[StyleSheet.absoluteFill, { borderRadius: 12, backgroundColor: highlighted ? tokens.bgHover : 'transparent', outlineWidth: focused ? 2 : 0, outlineStyle: 'solid', outlineColor: tokens.fg1, outlineOffset: -2 }]} />
 }
 
 export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Ref<View> }>) {
@@ -205,11 +209,11 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { icon, description, danger = false, action, chevron = true, disabled = false, readOnly = false } = props
   const reducedMotion = usePrefersReducedMotion()
-  const interaction = useRowInteraction(Boolean(disabled || props.toggle?.pending))
+  const { interaction, actionFeedback, highlighted } = useListRowFeedback(Boolean(disabled || props.toggle?.pending))
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
-  const column = props.placement === 'column'
-  const bodyStyle = getBodyStyle(hasSupportingLine(props), column)
+  const column = props.placement !== undefined
+  const bodyStyle = getBodyStyle(hasSupportingLine(props), column, props.placement === 'field')
   const rowTrailing = rowAccessory(props)
   const switchLine = accessoryLineStyle(props, labelWrapped, titleLayout.height)
   const body: ReactNode = (
@@ -219,16 +223,17 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
           {renderLeadingIcon(icon, rowColors.iconColor)}
         </View>
       ) : null}
-      <RowTextContent {...props} labelWrapped={labelWrapped} firstLineHeight={titleLayout.height} onTitleLayout={(event) => { const firstLine = event.nativeEvent.lines[0]; if (firstLine) { const wrapped = event.nativeEvent.lines.length > 1; setTitleLayout((previous) => previous.wrapped === wrapped && previous.height === firstLine.height ? previous : { wrapped, height: firstLine.height }) } }} trailing={rowTrailing} titleColor={titleColor} valueColor={interaction.highlighted ? tokens.fg2 : tokens.fg3} />
+      <RowTextContent {...props} labelWrapped={labelWrapped} firstLineHeight={titleLayout.height} onTitleLayout={(event) => { const firstLine = event.nativeEvent.lines[0]; if (firstLine) { const wrapped = event.nativeEvent.lines.length > 1; setTitleLayout((previous) => previous.wrapped === wrapped && previous.height === firstLine.height ? previous : { wrapped, height: firstLine.height }) } }} trailing={rowTrailing} titleColor={titleColor} valueColor={highlighted ? tokens.fg2 : tokens.fg3} />
       {rowTrailing && props.textMode !== 'label' ? <View data-slot="list-row-trailing" style={[styles.trailing, switchLine]}>{rowTrailing}</View> : null}
       {!readOnly && !props.toggle && chevron ? <RowChevron ChevronIcon={ChevronIcon} disabled={disabled} tokens={tokens} lineStyle={switchLine} /> : null}
     </AnimatedContent>
   )
 
   return (
-    <View style={[styles.row, props.action ? { gap: INTERACTION_FILL_CLEARANCE } : null]}>
+    <View style={listRowShellStyle(Boolean(action), column)}>
+      <RowActionFill action={action} highlighted={highlighted} focused={interaction.focused} tokens={tokens} />
       <RowControl ref={ref} props={props} bodyStyle={bodyStyle} interaction={interaction} tokens={tokens}>{body}</RowControl>
-      <RowAction action={action} hasDescription={Boolean(description)} reducedMotion={reducedMotion} tokens={tokens} />
+      <RowAction feedback={actionFeedback} action={action} hasDescription={Boolean(description)} reducedMotion={reducedMotion} tokens={tokens} />
     </View>
   )
 }
@@ -239,6 +244,8 @@ const styles = StyleSheet.create({
   insetFill: { position: 'absolute', top: INTERACTION_FILL_CLEARANCE, bottom: INTERACTION_FILL_CLEARANCE, left: INTERACTION_FILL_CLEARANCE, right: INTERACTION_FILL_CLEARANCE, borderRadius: 12 },
   insetBody: { paddingHorizontal: PADDING.rowInline, overflow: 'hidden' },
   columnBody: { position: 'relative' },
+  fieldBody: { paddingHorizontal: SPACING.s8 },
+  fieldFill: { left: SPACING.s0, right: SPACING.s0 },
   outset: { minHeight: 52, paddingVertical: PADDING.rowBlock, position: 'absolute', top: 0, bottom: 0, left: INTERACTION_FILL_CLEARANCE - PADDING.rowInline, right: INTERACTION_FILL_CLEARANCE - PADDING.rowInline, borderRadius: 12 },
   descriptionBody: { minHeight: 68 },
   bodyContent: { minHeight: 24, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },

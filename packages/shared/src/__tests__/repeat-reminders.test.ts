@@ -60,8 +60,8 @@ import en from '../i18n/en.json'
 import pt from '../i18n/pt-BR.json'
 
 it.each([
-  [en, { takenAt: 'Done at {time}', changeTakenAt: 'Change time', doseDate: 'Date', doseTime: 'Time', repeatRecoveryTitle: "Couldn't log from the reminder", repeatRecoveryBody: 'Open the habit to log it.', form: { repeatInvalid: 'Choose a supported interval and two different active times, or turn on All day.' } }],
-  [pt, { takenAt: 'Feito às {time}', changeTakenAt: 'Alterar horário', doseDate: 'Data', doseTime: 'Horário', repeatRecoveryTitle: 'Não deu para registrar pelo lembrete', repeatRecoveryBody: 'Abra o hábito para registrar.', form: { repeatInvalid: 'Escolha um intervalo disponível e dois horários diferentes, ou ative Dia inteiro.' } }],
+  [en, { takenAt: 'Done at {time}', changeTakenAt: 'Change time', doseDate: 'Date', doseTime: 'Time', repeatRecoveryTitle: "Couldn't log from the reminder", repeatRecoveryBody: 'Open the habit to log it.', form: { repeatInvalid: 'Choose an interval and two different times, or allow reminders all day.' } }],
+  [pt, { takenAt: 'Feito às {time}', changeTakenAt: 'Alterar horário', doseDate: 'Data', doseTime: 'Horário', repeatRecoveryTitle: 'Não deu para registrar pelo lembrete', repeatRecoveryBody: 'Abra o hábito para registrar.', form: { repeatInvalid: 'Escolha um intervalo e dois horários diferentes, ou permita lembretes o dia todo.' } }],
 ])('uses the approved repeat copy in each locale', (locale, expected) => {
   expect(locale.habits).toMatchObject(expected)
 })

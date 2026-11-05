@@ -265,14 +265,15 @@ async function recordStreamCallbacks(
   return calls
 }
 
-it.each([429, 503])('honours a stream %s Retry-After without a 429 failure fan-out', async (status) => {
+it.each([429, 502, 503, 504])('honours a stream %s Retry-After without a 429 failure fan-out', async (status) => {
   vi.useFakeTimers()
   const controller = new AbortController()
   const open = vi.fn().mockResolvedValue(new Response(null, { status, headers: { 'Retry-After': '60' } }))
   const onFirstFailure = vi.fn()
+  const onError = vi.fn()
   const running = consumeAccountEventStream({
     open, resumed: true, signal: controller.signal,
-    onEvent: () => {}, onOpen: () => {}, onReconnect: () => {}, onFirstFailure,
+    onEvent: () => {}, onOpen: () => {}, onReconnect: () => {}, onFirstFailure, onError,
   })
   try {
     await vi.advanceTimersByTimeAsync(59_999)
@@ -280,6 +281,7 @@ it.each([429, 503])('honours a stream %s Retry-After without a 429 failure fan-o
     expect(onFirstFailure).toHaveBeenCalledTimes(status === 429 ? 0 : 1)
     await vi.advanceTimersByTimeAsync(1)
     expect(open).toHaveBeenCalledTimes(2)
+    expect(onError).not.toHaveBeenCalled()
   } finally {
     controller.abort()
     await running

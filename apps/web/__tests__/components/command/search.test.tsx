@@ -12,6 +12,7 @@ import { normalizeHabitQueryData } from '@orbit/shared/utils'
 import { CommandMenu } from '@/components/command/command-menu'
 import SearchPage from '@/app/(app)/search/page'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { waitForLazyContent } from '@/__tests__/support/lazy-content'
 
 const mocks = vi.hoisted(() => ({ timeZone: 'UTC', showError: vi.fn(), pending: false, back: vi.fn(), push: vi.fn(), log: vi.fn(), skip: vi.fn(), query: vi.fn(), retry: vi.fn(), wide: false }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push, back: mocks.back }) }))
@@ -596,12 +597,17 @@ describe('habit search', () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title, isOverdue: true, searchMatches: [{ field: 'title', value: null }] })]))
     mount()
     fireEvent.click(screen.getByRole('option', { name: page === 'log' ? 'Log a habit' : 'Skip a habit' }))
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveFocus())
     const disclosure = screen.getByRole('button', { name: en.common.showFullText.replace('{name}', title) })
     disclosure.focus()
+    expect(disclosure).toHaveFocus()
     await userEvent.keyboard('{Enter}')
+    await waitForLazyContent()
     expect(mocks[page]).not.toHaveBeenCalled()
     expect(await screen.findByRole('dialog', { name: title })).toBeInTheDocument()
     expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(mocks.skip).not.toHaveBeenCalled()
   })
 
   it.each(['log', 'skip'] as const)('selects a habit only after opening the %s page', async (page) => {

@@ -20,8 +20,10 @@ Web `components/navigation/notification-bell.tsx` retains its existing visible-o
 | Question scale | `components/chat/question-controls.tsx` | `components/chat/question-controls.tsx` | Five equal targets tile one row, each at least 48px wide and tall. Paint and selected or focus indicators stay inside a 4px inset on every side, retaining the shared 8px clearance between fills without gaps between targets |
 | Habit row body and sibling actions | `components/habits/habit-row.tsx`, `app/globals.css` | `components/habits/habit-row.tsx`, `habit-row-styles.ts` | Body feedback replaces the complete radius-20 row surface; at least 8px inline and 4px block content clearance, existing family neighbour gaps, independent check/disclosure/menu/selection feedback, strong body-feedback hairline, reversible web surface transition and immediate press/reduced-motion paint and a centred 28px check inside its 48px target; enlarged text and measured narrow metadata overflow retain first-title-line controls in the existing supporting-footer composition |
 | Habit detail pencil, reading heading and history | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | One 48px pencil owns its own fill; the static reading title retains 8px group gaps and has no rename fill. History's past, future, unavailable and loading branches share the main calendar's distributed 34px disc allocation inside unchanged full-column targets |
-| Grouped list rows | `components/ui/list-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx` | Paint and the single focus indicator sit 8px inside each row, retaining the full target and existing content padding |
-| Column list rows and column check rows | `components/ui/list-row.tsx`, `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx`, `components/ui/check-row.tsx` | 8px inline extension leaves 8px inside the page inset; a trailing row action gets an 8px gap and no fill extension toward it |
+| Notification rows | `components/navigation/notification-row.tsx`, `app/globals.css` | `components/navigation/notification-row.tsx` | The full radius-12 row owns hover, press and body focus feedback for read and unread records, including behind delete. Delete remains a sibling 48px target with independent 44px round feedback using `bgRowAction`; hovering, pressing or focusing delete keeps the row lit |
+| Grouped list rows | `components/ui/list-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx` | Rows without a sibling action retain their 8px inset paint. With an action, the complete radius-12 row owns feedback behind both controls; 4px block margins retain 8px between neighbouring fills |
+| Column list rows and column check rows | `components/ui/list-row.tsx`, `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx`, `components/ui/check-row.tsx` | 8px inline extension leaves 8px inside the page inset; a trailing row action gets an 8px control gap inside one full-row feedback shape, with 8px inline content clearance |
+| Timing sheet field rows | `components/ui/list-row.tsx`, `app/globals.css` | `components/ui/list-row.tsx` | Field placement keeps targets, hover, press and focus feedback on the field column edge, with 8px internal inline content clearance and inset focus. The timing questions, optional end disclosure and add-time action share this placement |
 | Personal check rows, including calendar selection | `components/ui/check-row.tsx`, `app/globals.css` | `components/ui/check-row.tsx` | The existing comfortable 56px checkbox target contains 40px paint with 8px internal padding and neighbour clearance. The calendar day circle keeps its 24px layout width and 16px end inset, with 16px transparent hit extensions and a 16px label gap |
 | About account fact | `app/(app)/about/page.tsx`, shared column CSS | `app/about.tsx` | 8px inline extension leaves 8px inside the page inset |
 | Calendar import events | `components/calendar-sync/calendar-sync-event-row.tsx`, shared column CSS | `components/calendar-sync/calendar-sync-event-row.tsx` | 8px inline extension leaves 8px inside the page inset |
@@ -41,13 +43,15 @@ Web `components/navigation/notification-bell.tsx` retains its existing visible-o
 | Unscheduled habit child explanation | `components/habits/habit-detail-screen.tsx` | `components/habits/habit-detail-screen.tsx` | Both platforms reserve 8px above the explanation, covering the menu control's outward focus indicator plus the shared clearance |
 | Progresso bar chart and Astra metrics and period insight | `components/ui/bar-chart.tsx` | `components/ui/bar-chart.tsx` | Transparent full-height columns paint feedback only on their own bar using the existing selected-bar foreground. No column background or column focus box approaches a neighbour. One inset focus indicator follows the padded moving readout and the live radio `:focus-visible` state, including a keyboard press after pointer focus and dense series; all columns remain visible without horizontal scrolling |
 | Calendar time grid | `components/calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` | Timed lanes retain 8px separation and inset focus; all-day rows retain 8px gaps and column padding; full-column date headers compose rounded hover, held press and focus paint inset by the shared 8px clearance from their cell edges and the pinned time gutter, with one inset focus indicator and press-only scale suppressed by reduced motion |
-| Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and an 8px checkbox gap; event fills retain 8px before their separate trailing action |
+| Picker and checklist template rows | `components/ui/picker-row.tsx`, `components/habits/checklist-templates.tsx` | Same paths | The complete radius-12 row owns body feedback behind the supporting count, disclosure and trailing action. Template delete retains its independent round feedback and loading action; template neighbours reserve 8px |
+| Astra habit block rows | `components/chat/habit-block-row.tsx` | Same path | Body feedback paints the complete radius-20 card behind the independent trailing check or supplied metric; supporting text and proposed titles retain their contrast foregrounds |
+| Calendar import selection | `components/calendar-sync/calendar-picker-section.tsx`, `components/ui/check-row.tsx` | Same paths | Shared personal rows reserve label padding and an 8px checkbox gap; event body feedback fills the complete radius-12 row behind the sibling disclosure and dismissal, with 8px inline content clearance and independent action feedback |
 | Goal titles and expanded personal text | `components/chat/goal-list-card.tsx`, `components/ui/personal-text-details.tsx` | Same paths | The 8px negative inline margin is part of the control box; the adjacent content reserves 8px and focus stays inset |
 | Truncated sheet titles | `components/ui/sheet.tsx`, `app/globals.css` | `components/ui/sheet.tsx` | Only measured truncation creates a control. Its text box keeps the existing 8px padding and radius 12, with an inset focus indicator and the header's 16px gap before Close. Fitting headings have no interaction fill |
 | Toast text action | `components/ui/toast.tsx` | `components/ui/app-toast.tsx` | The 4px negative margin on the text action is inside the toast padding and retains clearance from adjacent content; the close control is a PillButton |
 | Login legal sentence, including the callback email step | `app/(auth)/login/email-step.tsx` | `components/auth/email-step.tsx`, `app/login-styles.ts` | Terms and privacy links share 24px line spacing; web labels stay whole so their native focus outlines cannot span neighbouring links |
 
-The composer slot reaches three surfaces on both platforms: the Hoje dock and habit detail dock
+The composer slot reaches two surfaces on both platforms: the habit detail dock
 owned by `app/(app)/layout.tsx` on web and `app/_layout.tsx` on Android, and the full-screen Astra
 conversation owned by `components/chat/conversation.tsx`. They all use `components/shell/composer.tsx`.
 The slot swaps Paste and Clear without changing the attachment tray, Send target or pill radius.
@@ -208,3 +212,54 @@ matching Android's `ui/inset-focus-pressable` and covering onboarding and Wrappe
 
 The paired `ui/icon-button.tsx` owners preserve the existing ghost border for calendar
 chevrons while retaining the shared painted size and transparent target.
+
+
+## Notification feedback contrast
+
+The unread card retains its resting fill beneath one full-row overlay. Read rows use the same
+overlay over the canvas. Every title, timestamp, body and destination line uses `fg1` or `fg2`.
+The destination glyph uses `fg3`; the unread dot uses `fg1`. Delete retains `statusBad`.
+The opaque `bgRowAction` circle uses the canvas ink in dark and white in light to keep the
+red glyph above its 3:1 floor and the action feedback above the 1.25 surface-step floor.
+A second translucent hover overlay would drop the glyph below 3:1 in both themes.
+
+| Theme and row | Lit surface | Title `fg1` | Supporting text `fg2` | Destination glyph `fg3` | Delete glyph on row | Delete glyph on own feedback | Action feedback step |
+|---|---|---|---|---|---|---|---|
+| Dark unread | `#313133` | 11.818 | 7.857 | 4.029 | 3.409 | 5.225 | 1.533 |
+| Dark read | `#28282A` | 13.395 | 8.906 | 4.567 | 3.865 | 5.225 | 1.352 |
+| Light unread | `#E4E4E4` | 13.656 | 7.858 | 4.358 | 3.752 | 4.770 | 1.271 |
+| Light read | `#DFDFE0` | 13.038 | 7.502 | 4.161 | 3.582 | 4.770 | 1.332 |
+
+The mounted Chromium unit regression and the hermetic layout guard share the computed paint
+inspector. Both compare the painted box and radius to the complete read and unread row through
+body and delete hover and held press. The unit regression also covers keyboard focus and computed
+text and delete contrast in both themes and locales. The Android style regression presses both
+sibling controls in both themes and checks full-row absolute edges, radius, focus retention and
+release, independent delete activation and contrast. These checks prove style ownership and
+browser geometry; native device rendering remains outside their evidence.
+
+
+## Sibling action audit
+
+The paired ListRow primitive carries the full-row treatment into Perfil API keys and Assinatura
+invoice history. Checklist templates use a separate stacked row and receive the same treatment.
+Calendar import selection, review dismissal and disclosure share the full event row feedback.
+PickerRow covers linked habits, goals and tags, plus contextual picker controls supplied by callers.
+Astra HabitBlockRow covers answer options, habit lists, day summaries, rankings and period insights.
+Their body feedback includes the supplied trailing control or metric.
+
+Full-row feedback is the sole interaction overlay. Legacy body backgrounds, body pseudo-elements
+and column outset layers do not add hover, press or focus paint beneath it. Calendar selection
+and blocked-event fills retain their resting colors while the full row owns feedback. The keyboard focus
+perimeter belongs to the whole row, and web focus scrolling reveals that complete perimeter.
+Geometry coverage compares every hover-colored paint with the row box and rejects additional
+body paint in grouped lists, column lists, pickers, habit blocks and calendar import rows.
+
+The main HabitRow already replaces the complete row surface and retains independent completion,
+disclosure and overflow feedback. EventRow has either one complete body control or static text
+with a trailing action in its current consumers. Personal CheckRow retains its distinct disclosure
+and checkbox controls from the form contract, including calendar-day circles. GoalListCard and
+preview titles expose text disclosure or rename fields beside static figures or separate field
+actions rather than a row-body surface. Tag editors and pending operation editors use input fields
+with separate save, cancel or remove actions. RecordListCard uses static record content and an
+independent mark-read action. These surfaces have no split row-body fill to replace.

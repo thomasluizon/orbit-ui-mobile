@@ -1,5 +1,5 @@
-/** One-line composer on Hoje and habit detail, and inside the conversation.
- * Minimum height 56 at rest: Astra glyph inside the leading edge on Hoje and habit detail,
+/** One-line composer on habit detail and inside the conversation.
+ * Minimum height 56 at rest: Astra glyph inside the leading edge on habit detail,
  * input, one + menu control, filled send inside the trailing edge. The conversation omits the glyph.
  * Hoje suggestions live in the conversation; habit detail keeps 3 to 6 live chips in one scroll row.
  * App-authored labels never wrap or ellipsize. Input grows upward to five lines, then scrolls inside.

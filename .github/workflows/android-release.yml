@@ -55,7 +55,7 @@ concurrency:
 jobs:
   release-android:
     name: Build and publish Android app
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: ${{ (inputs.track == 'open' || inputs.track == 'production') && 'production' || 'android-internal' }}
       deployment: false
@@ -414,7 +414,7 @@ jobs:
           fi
 
           chmod +x gradlew
-          ./gradlew --no-daemon --build-cache bundleRelease
+          ./gradlew --no-daemon --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64 bundleRelease
 
           echo "ccache statistics for this build:"
           ccache --show-stats
@@ -509,6 +509,12 @@ jobs:
             echo "Release manifest artifact was not found." >&2
             exit 1
           fi
+
+      - name: Require the shipping AAB to reach its first screen
+        uses: ./.github/actions/android-boot
+        with:
+          aab: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          package: ${{ env.PLAY_PACKAGE_NAME }}
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v7

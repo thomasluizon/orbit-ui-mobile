@@ -3,7 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { openCurrentProactiveItem } from '@/lib/proactive-item'
 
-import { resolveComposerDockSuggestions, CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
+import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
 
 import { useEffect, useCallback, useId, useState, useSyncExternalStore, useLayoutEffect, Suspense } from 'react'
 import dynamic from 'next/dynamic'
@@ -342,17 +342,17 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         createRefusal={!isOnline && showCreateRefusal ? (
           <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} />
         ) : undefined}
-        composer={
+        composer={composerScope === 'habit' ?
           <Composer
             {...chat.composerProps}
             collapseScope={composerScope}
-            collapsible={composerScope !== undefined}
-            suggestions={resolveComposerDockSuggestions(pathname, chat.composerProps.suggestions)}
+            collapsible
+            suggestions={chat.composerProps.suggestions}
             inputId={chat.composerInputId}
             onOpenConversation={() => setAstraConversationOpen(true)}
             conversationLabel={t('todayAstra.openConversation')}
             onSend={chat.composerProps.onSend}
-          />
+          /> : undefined
         }
         conversation={(
           <AstraConversation

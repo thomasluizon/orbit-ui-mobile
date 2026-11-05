@@ -2,8 +2,9 @@ export function readControlPaint(element: Element) {
   for (const animation of element.getAnimations({ subtree: true })) {
     if (animation.effect?.getComputedTiming().endTime !== Infinity) animation.finish()
   }
-  const fill = element.querySelector('[data-press-fill]') ?? element
-  const pseudo = fill === element ? ['::before', '::after'].find((layer) => {
+  const surface = element.matches('.orbit-list-row-body, .orbit-notification-row:not(.orbit-notification-delete)') ? element.closest('.orbit-list-action-surface, .orbit-notification-surface') : null
+  const fill = surface ?? element.querySelector('[data-press-fill]') ?? element
+  const pseudo = surface ? '::before' : fill === element ? ['::before', '::after'].find((layer) => {
     const paint = getComputedStyle(element, layer)
     return !['none', 'normal'].includes(paint.content) && paint.position === 'absolute'
       && !/^(transparent|rgba\([^)]*,\s*0\))$/.test(paint.backgroundColor)
@@ -31,8 +32,8 @@ export function readControlPaint(element: Element) {
   const controlStyle = getComputedStyle(element)
   return {
     background: style.backgroundColor, opacity: style.opacity, effectiveOpacity, bounds, control, target,
-    reserveInline: element.matches('.orbit-list-row-shell .orbit-list-row-body, .orbit-list-row-column .orbit-list-row-body, .orbit-calendar-day-disclosure, .orbit-calendar-picker-control, .orbit-check-row-control'),
-    reserveBlock: element.matches('.orbit-list-row-shell:not(.orbit-list-row-column) .orbit-list-row-body, .orbit-calendar-day-disclosure, .orbit-check-row-control, .orbit-check-row-label[data-variant="calendar-day"]'),
+    reserveInline: !surface && element.matches('.orbit-list-row-shell .orbit-list-row-body, .orbit-list-row-column .orbit-list-row-body, .orbit-calendar-day-disclosure, .orbit-calendar-picker-control, .orbit-check-row-control') && !element.closest('.orbit-list-row-field'),
+    reserveBlock: !surface && element.matches('.orbit-list-row-shell:not(.orbit-list-row-column) .orbit-list-row-body, .orbit-calendar-day-disclosure, .orbit-check-row-control, .orbit-check-row-label[data-variant="calendar-day"]'),
     radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomRightRadius, style.borderBottomLeftRadius].map(radius),
     controlRadii: [controlStyle.borderTopLeftRadius, controlStyle.borderTopRightRadius, controlStyle.borderBottomRightRadius, controlStyle.borderBottomLeftRadius].map(radius),
   }

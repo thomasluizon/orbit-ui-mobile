@@ -14,6 +14,7 @@ import { chatResponseSchema } from '@orbit/shared/types/chat'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { measureNotificationFill } from '@/e2e/layout/notification-fill-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -100,22 +101,17 @@ it.each(['light', 'dark'] as const)('keeps proposed label and detail contrast on
     const row = page.locator('[data-answer-block="pickList"] [data-habit-block-row]').first()
     const labelArea = row.getByRole('button')
     await labelArea.hover()
-    const expectedFill = await row.evaluate(element => {
-      const probe = document.createElement('span')
-      probe.style.backgroundColor = 'var(--bg-hover)'
-      element.append(probe)
-      const color = getComputedStyle(probe).backgroundColor
-      probe.remove()
-      return color
-    })
-    await expect.poll(() => labelArea.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(expectedFill)
+    const expected = await row.evaluate(measureNotificationFill)
+    await expect.poll(async () => (await row.evaluate(measureNotificationFill)).fills).toEqual([expected.row])
+    expect((await row.evaluate(measureNotificationFill)).bodyPaints).toEqual([])
     const measured = await row.evaluate(element => ({
-      fill: getComputedStyle(element.querySelector('button')!).backgroundColor,
+      fill: getComputedStyle(element, '::before').backgroundColor,
+      resting: getComputedStyle(element).backgroundColor,
       colors: [...element.querySelectorAll<HTMLElement>('[data-personal-text], [data-habit-block-meta]')]
         .filter(text => text.getBoundingClientRect().height > 0).map(text => getComputedStyle(text).color),
     }))
     expect(measured.colors).toHaveLength(2)
     expect(measured.fill).not.toBe('rgba(0, 0, 0, 0)')
-    for (const color of measured.colors) expect(controlContrast(color, measured.fill, [tokens['--bg']!, tokens['--bg-card']!]).graphic).toBeGreaterThanOrEqual(4.5)
+    for (const color of measured.colors) expect(controlContrast(color, measured.fill, [tokens['--bg']!, measured.resting]).graphic).toBeGreaterThanOrEqual(4.5)
   } finally { await page.close() }
 })

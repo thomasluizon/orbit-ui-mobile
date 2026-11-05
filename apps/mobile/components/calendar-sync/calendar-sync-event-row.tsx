@@ -1,7 +1,8 @@
+import { useRowFeedback } from '@/hooks/use-row-feedback'
 import { PersonalText } from '@/components/ui/personal-text'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View, StyleSheet } from 'react-native'
 import { useState } from 'react'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { Bell, ChevronDown, X } from '@/components/ui/icons'
@@ -18,19 +19,19 @@ import { RadioGlyph } from '@/components/ui/select-check'
 import { Badge } from '@/components/ui/badge'
 import type { CalendarSyncStyles } from '@/components/calendar-sync/calendar-import-styles'
 
-function importIssueVisuals(hasImportIssue: boolean, tokens: AppTokensV2) {
+function importIssueVisuals(hasImportIssue: boolean, highlighted: boolean, tokens: AppTokensV2) {
   return hasImportIssue
-    ? { titleColor: tokens.fg3, selectorOpacity: 0.5 }
+    ? { titleColor: highlighted ? tokens.fg2 : tokens.fg3, selectorOpacity: 0.5 }
     : { titleColor: tokens.fg1, selectorOpacity: 1 }
 }
 
 function eventRowBackground(
   hasImportIssue: boolean,
-  pressed: boolean,
+  highlighted: boolean,
   selectedBackground: string,
   tokens: AppTokensV2,
 ) {
-  if (pressed) return tokens.bgHover
+  if (highlighted) return 'transparent'
   return hasImportIssue ? tokens.bgElev : selectedBackground
 }
 
@@ -42,6 +43,18 @@ function eventContentProps(expanded: boolean) {
   return expanded
     ? { pointerEvents: 'box-none' as const, importantForAccessibility: 'auto' as const }
     : { pointerEvents: 'none' as const, importantForAccessibility: 'no-hide-descendants' as const }
+}
+
+function eventRowHighlighted(hasImportIssue: boolean, body: boolean, dismiss: boolean, disclosure: boolean) {
+  return (!hasImportIssue && body) || dismiss || disclosure
+}
+
+function eventActionFill(highlighted: boolean, tokens: AppTokensV2) {
+  return { backgroundColor: highlighted ? tokens.bgRowAction : 'transparent' }
+}
+
+function EventRowFeedback({ highlighted, focused, tokens }: Readonly<{ highlighted: boolean; focused: boolean; tokens: AppTokensV2 }>) {
+  return <View pointerEvents="none" accessible={false} testID="calendar-event-feedback" style={[StyleSheet.absoluteFill, { borderRadius: 12, backgroundColor: highlighted ? tokens.bgHover : 'transparent', outlineWidth: focused ? 2 : 0, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 }]} />
 }
 
 interface CalendarSyncEventRowProps {
@@ -74,9 +87,9 @@ export function CalendarSyncEventRow({
   onDismiss,
 }: Readonly<CalendarSyncEventRowProps>) {
   const [expanded, setExpanded] = useState(initiallyExpanded)
-  const [pressed, setPressed] = useState(false)
-  const [hovered, setHovered] = useState(false)
-  const [focused, setFocused] = useState(false)
+  const bodyFeedback = useRowFeedback()
+  const dismissFeedback = useRowFeedback(dismissPending)
+  const disclosureFeedback = useRowFeedback()
   const disclosureLabel = [event.title, event.calendarName].filter(Boolean).join(', ')
   const { displayTime } = useTimeFormat()
   const { displayDate } = useDateFormat()
@@ -102,21 +115,19 @@ export function CalendarSyncEventRow({
   const timeLabel = event.startTime ? `${displayTime(event.startTime)}${endTimeSuffix}` : ''
   const selectedBackground = selected ? tintFromPrimary(tokens, 0.06) : 'transparent'
   const hasImportIssue = importIssue !== null
-  const issueVisuals = importIssueVisuals(hasImportIssue, tokens)
+  const highlighted = eventRowHighlighted(hasImportIssue, bodyFeedback.highlighted, dismissFeedback.highlighted, disclosureFeedback.highlighted)
+  const issueVisuals = importIssueVisuals(hasImportIssue, highlighted, tokens)
+  const focused = bodyFeedback.focused
   const accessibleLabel = eventAccessibleLabel(event, displayDate, timeLabel, recurrenceLabel, importIssueLabel)
 
   return (
     <View>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16, borderRadius: 12, marginHorizontal: -8, paddingHorizontal: 8 }}>
+      <EventRowFeedback highlighted={highlighted} focused={focused} tokens={tokens} />
       <View style={{ flex: 1, minWidth: 0 }}>
       <Pressable
         hitSlop={{ left: 16, right: 16 }}
-        onPressIn={() => setPressed(true)}
-        onPressOut={() => setPressed(false)}
-        onHoverIn={() => setHovered(true)}
-        onHoverOut={() => setHovered(false)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        {...bodyFeedback.handlers}
         onPress={() => onToggle(event.id)}
         disabled={importIssue !== null}
         accessibilityRole="checkbox"
@@ -125,7 +136,7 @@ export function CalendarSyncEventRow({
         accessibilityHint={importIssueLabel ?? undefined}
         style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: 12 }}
       >
-        <View pointerEvents="none" accessible={false} testID="calendar-event-fill" style={{ position: 'absolute', top: 0, bottom: 0, left: -12, right: -12, borderRadius: 12, overflow: 'hidden', backgroundColor: eventRowBackground(hasImportIssue, !hasImportIssue && (pressed || hovered || focused), selectedBackground, tokens), outlineWidth: focused ? 2 : 0, outlineColor: tokens.fg1, outlineStyle: 'solid', outlineOffset: -2 }} />
+        <View pointerEvents="none" accessible={false} testID="calendar-event-fill" style={{ position: 'absolute', top: 0, bottom: 0, left: -12, right: -12, borderRadius: 12, overflow: 'hidden', backgroundColor: eventRowBackground(hasImportIssue, highlighted, selectedBackground, tokens) }} />
       </Pressable>
       <View {...eventContentProps(expanded)} style={styles.eventRow}>
         <View pointerEvents="box-none" style={styles.eventBody}>
@@ -175,14 +186,15 @@ export function CalendarSyncEventRow({
       </View>
       {isReviewMode && suggestionId ? (
         <Pressable
+          {...dismissFeedback.handlers}
           onPress={() => onDismiss(suggestionId)}
           disabled={dismissPending}
           accessibilityRole="button"
           accessibilityLabel={t('calendar.autoSync.dismissSuggestion')}
-          style={({ pressed }) => [styles.dismissButton, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }, dismissPending && styles.quietActionDim]}
+          style={[styles.dismissButton, eventActionFill(dismissFeedback.highlighted, tokens), dismissPending && styles.quietActionDim]}
         ><X size={20} color={tokens.fg3} strokeWidth={1.8} /></Pressable>
       ) : null}
-      <InsetFocusPressable accessibilityRole="button" accessibilityLabel={t('contextMenu.viewDetails')} accessibilityHint={disclosureLabel} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown size={20} strokeWidth={1.5} color={tokens.fg3} accessible={false} /></InsetFocusPressable>
+      <InsetFocusPressable {...disclosureFeedback.handlers} accessibilityRole="button" accessibilityLabel={t('contextMenu.viewDetails')} accessibilityHint={disclosureLabel} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={{ minHeight: 48, minWidth: 48, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', ...eventActionFill(disclosureFeedback.highlighted, tokens) }}><ChevronDown size={20} strokeWidth={1.5} color={tokens.fg3} accessible={false} /></InsetFocusPressable>
       </View>
     </View>
   )

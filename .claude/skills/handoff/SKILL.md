@@ -24,6 +24,17 @@ standalone `/crank` while preparing this handoff.
 
 ## Context relay mode
 
+If `handoffAutoWork` from `tools/lib/handoff-prompt.mjs` resolves the matching run to true,
+the unattended prompt starts with exactly `/auto-work` instead of `/sleep`. Retain the Sleep
+section and the existing relay procedure. Carry `intake` source marks, pending items and any
+review workflow identity through run-state adoption; never copy or reset them in the prompt.
+The successor enters `/sleep` through the auto-work skill. Crank remains independently inherited.
+For an owner-started handoff, `relay-session.mjs --close-chain` prepares a durable intake carry
+even without an open reporting chain. It binds the current predecessor to the exact committed
+`NEXT.md` contents. The successor's `/sleep` entry calls `adoptOwnerHandoffRun` with its actual
+incoming prompt before any ordinary state write. The carry can be consumed once; changed
+prompts, unrelated runs and disabled auto-work cannot inherit it. Keep intake out of tracked text.
+
 `--relay` is the unattended context transition requested by `relay-at-threshold.mjs`.
 It includes `--sleep`, and `--crank` automatically when the run state has `crank: true`.
 It never invokes `/questions`, asks the owner anything, or ends the session before a successor
@@ -364,7 +375,8 @@ handoff and needs to know his tree is not clean. Nothing else, before or after.
 
 ### Under `--sleep`, prepare the next session's prompt
 
-Make `/sleep` the prompt's first line and only entry point, and give it a `## Sleep` section. State the goal, the in-flight inventory, and the next
+Make `/sleep` the prompt's first line and only entry point, or `/auto-work` while that mode is
+enabled, and give it a `## Sleep` section. State the goal, the in-flight inventory, and the next
 actions completely enough for an unattended next session to start without anyone adding instructions.
 `--sleep` changes `NEXT.md`; after committing, reply and end this session as usual.
 

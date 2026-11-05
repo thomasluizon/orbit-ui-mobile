@@ -175,6 +175,8 @@ describe('habit form identifiers across retained real owners', () => {
     const title = phrase(parent).title
     await user.click(within(parent).getByText(words.habits.form.timingAndReminder, { exact: true }))
     const timing = await screen.findByRole('dialog', { name: words.habits.form.timingAndReminder })
+    expect(within(timing).queryByRole('switch', { name: words.habits.form.reminder })).toBeNull()
+    await user.click(within(timing).getByRole('button', { name: words.habits.form.noSetTime }))
     const reminder = within(timing).getByRole('switch', { name: words.habits.form.reminder })
     if (reminder.getAttribute('aria-checked') !== 'true') await user.click(reminder)
     await user.click(within(timing).getByRole('radio', { name: words.habits.form.repeatEvery }))

@@ -1,4 +1,5 @@
 export { loadModule, MODULE_LOAD_TIMEOUT_MS } from './load-module'
+export { ASTRA_BUTTON_SIZE, ASTRA_BUTTON_GAP, ASTRA_BUTTON_CLEARANCE, ASTRA_DRAG_THRESHOLD, ASTRA_POSITION_KEY, parseAstraButtonPosition, clampAstraButton, snapAstraButton, moveAstraButton, type AstraButtonPoint, type AstraButtonArea, type AstraButtonObstacle, type AstraMoveDirection } from './astra-button-position'
 export { getSegmentedControlLayout } from './segmented-control'
 export { achievementEmoji } from './achievement-emoji'
 export { createStepUpSessionState, type StepUpSessionState } from './step-up-session'
@@ -848,3 +849,5 @@ export type { ParentPromptChain } from './parent-prompt-chain'
 
 export { SETTLE_DELAY_MS } from './engagement-prompt-timing'
 export { AuthRefreshNetworkError, isNetworkUnavailableError } from './network-error'
+export { buildBulkCompletionChunks, getBulkCompletionReplay, normalizeBulkCompletionInput, isBulkGatewayFailure } from './bulk-completion'
+export type { BulkCompletionInput, BulkRetryChunk } from './bulk-completion'

@@ -23,8 +23,8 @@ interface PickerRowProps {
 export function PickerRow({ name, selected, proposed = false, disabled, onToggle, value, valueClassName, valueHidden, controlClassName, actionsClassName, children }: Readonly<PickerRowProps>) {
   const [clamped, setClamped] = useState(false)
   return (
-    <div data-picker-row="" className="flex flex-col rounded-[12px] px-3 py-2" style={{ minHeight: 'max(120px, calc(2.8em + 72px))' }}>
-      <Primitive.Root pressed={selected} aria-label={name} disabled={disabled} className={`${controlClassName} group/picker`} onPressedChange={onToggle}>
+    <div data-picker-row="" className="orbit-list-action-surface flex flex-col rounded-[12px] px-3 py-2" style={{ minHeight: 'max(120px, calc(2.8em + 72px))' }}>
+      <Primitive.Root pressed={selected} aria-label={name} disabled={disabled} className={`${controlClassName} orbit-list-row-body group/picker`} onPressedChange={onToggle}>
         <PersonalText onClampedChange={setClamped} className={`w-full leading-[1.4]${proposed ? ' text-[var(--fg-3)] group-hover/picker:text-[var(--fg-2)] group-active/picker:text-[var(--fg-2)]' : ''}`}>{name}</PersonalText>
       </Primitive.Root>
       <div className={actionsClassName}>

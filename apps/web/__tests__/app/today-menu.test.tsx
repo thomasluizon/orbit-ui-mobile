@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { TodayDateControl, type TodayDateControlProps } from '@/app/(app)/today-shell'
 import { useUIStore } from '@/stores/ui-store'
+import { waitForLazyContent } from '@/__tests__/support/lazy-content'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => null }))
@@ -28,6 +29,7 @@ it.each([true, false])('resets options when the frequency menu reopens by keyboa
   render(<TodayDateControl {...props} />)
   const trigger = screen.getByRole('button', { name: 'Options' })
   await userEvent.click(trigger)
+  await waitForLazyContent()
   await userEvent.click(await screen.findByRole('menuitem', { name: 'habits.frequencyFilter' }))
   await screen.findByRole('menuitemcheckbox', { name: 'habits.filter.daily' })
   await userEvent.keyboard('{Escape}')

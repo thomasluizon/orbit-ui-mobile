@@ -15,14 +15,14 @@ const listing = JSON.parse(readFileSync(new URL("./fixtures/orca-relay-list.json
 const appState = JSON.parse(readFileSync(new URL("./fixtures/orca-relay-app-state.json", import.meta.url), "utf8"))
 const prompt = "/sleep\nRead .claude/specs/relay.md. Every identifier is a lead to verify.\n## Goal\nFinish the spec. gh issue list\n## In flight\nNone.\n## Sleep\nContinue.\n## Previous prompt, disposition\nCarried.\n"
 
-const fixture = (label, { tokens = 400000, calls = 20, crank = false, crankPrompt = crank } = {}) => {
+const fixture = (label, { tokens = 400000, calls = 20, crank = false, crankPrompt = crank, autoWork = false } = {}) => {
   const repo = stageRepo(`relay-${label}`)
   const checkout = repo.path
   repo.git(["checkout", "-qb", "relay-docs"])
   mkdirSync(join(checkout, ".claude", "handoffs"), { recursive: true })
   mkdirSync(join(checkout, ".claude", "specs"), { recursive: true })
   writeFileSync(join(checkout, ".claude", "orchestrator.json"), JSON.stringify(realOrchestratorConfig()))
-  writeFileSync(join(checkout, ".claude", "handoffs", "NEXT.md"), prompt + (crankPrompt ? "## Crank\nInvoke /crank immediately after /sleep entry.\n" : ""))
+  writeFileSync(join(checkout, ".claude", "handoffs", "NEXT.md"), (autoWork ? prompt.replace("/sleep\n", "/auto-work\n") : prompt) + (crankPrompt ? "## Crank\nInvoke /crank immediately after /sleep entry.\n" : ""))
   writeFileSync(join(checkout, ".claude", "specs", "relay.md"), "# Relay\n## Open questions\nAn owner question.\n")
   repo.git(["add", ".claude/handoffs/NEXT.md", ".claude/specs/relay.md", ".claude/orchestrator.json"])
   repo.git(["commit", "-qm", "handoff"])
@@ -32,7 +32,7 @@ const fixture = (label, { tokens = 400000, calls = 20, crank = false, crankPromp
   writeFileSync(decisionLogPath, "Decision and reasoning copied in full.\n")
   writeFileSync(transcriptPath, Array.from({ length: calls }, (_, index) => JSON.stringify({ type: "assistant", timestamp: new Date(Date.now() - (calls - index) * 1000).toISOString(),
     message: { id: `call-${index}`, model: "claude-opus-5-5", usage: { ...usage, cache_read_input_tokens: tokens - 670 } } })).join("\n") + "\n")
-  writeRunState({ sessionId: "predecessor", sleep: true, crank, remaining: ["#1091"], decisionLogPath, openOwnerQuestions: ["An owner question."],
+  writeRunState({ sessionId: "predecessor", sleep: true, crank, autoWork, intake: { gmail: { completed: ["message-1"] } }, remaining: ["#1091"], decisionLogPath, openOwnerQuestions: ["An owner question."],
     relay: { from: "predecessor", pending: true, measuredTokens: tokens, permissionMode: "bypassPermissions", transcriptPath, triggeredAt: new Date().toISOString() } }, checkout)
   return { ...repo, checkout, transcriptPath }
 }
@@ -259,6 +259,9 @@ export const cases = async () => {
     T("relay-session: successor receives the matching committed prompt", operations.some((args) => args[1] === "send" && args.includes("--text") && args[args.indexOf("--text") + 1].includes("## Crank") === newerRequest))
   }
   const cranked = fixture("crank-success", { crank: true })
+  const automatic = fixture("auto-work-success", { autoWork: true })
+  const automaticResult = await relaySession({ repoRoot: automatic.checkout, sessionId: "predecessor", execute: executeFor(automatic.checkout), wait: async () => {}, confirmMilliseconds: 10 })
+  T("relay-session: published auto-work prompt survives real adoption", readRunState(automatic.checkout).autoWork === true && readRunState(automatic.checkout).intake.gmail.completed[0] === "message-1" && readRunState(automatic.checkout).sessionId === automaticResult.successorSessionId)
   const crankedOperations = []
   const crankedResult = await relaySession({ repoRoot: cranked.checkout, sessionId: "predecessor", execute: executeFor(cranked.checkout, { commands: crankedOperations }), wait: async () => {}, confirmMilliseconds: 10 })
   T("relay-session: crank successor inherits the durable mode and queue", readRunState(cranked.checkout).crank === true && readRunState(cranked.checkout).sessionId === crankedResult.successorSessionId && readRunState(cranked.checkout).remaining[0] === "#1091")

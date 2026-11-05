@@ -19,16 +19,19 @@ export async function performQueuedApiMutation<
   queuedResult,
   queuedResultFactory,
   isCurrent,
+  manualRetry,
   ...mutation
 }: QueuedMutationBuildOptions & {
   execute?: (mutation: QueuedMutation) => Promise<TResult>
   isCurrent?: () => boolean
+  manualRetry?: boolean
   queuedResult?: TResult
   queuedResultFactory?: (mutationId: string, retained: boolean) => TQueuedResult
 }): Promise<TResult | TQueuedResult> {
   return runQueuedMutation({
     mutation,
     isCurrent,
+    manualRetry,
     execute:
       execute ??
       (async (resolvedMutation) => {
@@ -37,6 +40,7 @@ export async function performQueuedApiMutation<
           resolvedMutation.endpoint,
           {
             method: resolvedMutation.method,
+            idempotencyKey: resolvedMutation.id,
             body:
               resolvedMutation.payload === undefined
                 ? undefined

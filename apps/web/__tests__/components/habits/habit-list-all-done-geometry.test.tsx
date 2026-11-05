@@ -1,3 +1,4 @@
+import { ORBIT_MARK_PATHS } from '@orbit/shared/contracts/brand'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
@@ -40,8 +41,12 @@ describe('Hoje completion text and action geometry', () => {
           const [title, hint] = document.querySelectorAll('p')
           const action = document.querySelector('button')!.getBoundingClientRect()
           const finish = document.querySelector('[data-testid="habit-list-all-done"]')!.getBoundingClientRect()
-          const mark = document.querySelector('[data-asset="orbit-mark-16"]')?.getBoundingClientRect()
-          const ring = document.querySelector('[data-testid="completed-day-mark"]')?.getBoundingClientRect()
+          const logo = document.querySelector<SVGSVGElement>('[data-asset="orbit-mark"]')
+          const mark = logo?.getBoundingClientRect()
+          const carrier = document.querySelector('[data-testid="completed-day-mark"]')?.getBoundingClientRect()
+          const ink = [...(logo?.querySelectorAll('path') ?? [])].map(path => path.getBoundingClientRect())
+          const inkCentre = ink.length ? { x: (Math.min(...ink.map(rect => rect.left)) + Math.max(...ink.map(rect => rect.right))) / 2,
+            y: (Math.min(...ink.map(rect => rect.top)) + Math.max(...ink.map(rect => rect.bottom))) / 2 } : undefined
           const text = [title!, hint!, document.querySelector('button')!].map(element => {
             const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
             const rects: DOMRect[] = []
@@ -53,18 +58,26 @@ describe('Hoje completion text and action geometry', () => {
             return { lines: new Set(rects.map(rect => rect.top)).size,
               left: Math.min(...rects.map(rect => rect.left)), right: Math.max(...rects.map(rect => rect.right)) }
           })
-          return { textGap: hint!.getBoundingClientRect().top - title!.getBoundingClientRect().bottom,
+          return { inkCentre, markCentreY: mark && mark.top + mark.height / 2, paths: [...(logo?.querySelectorAll('path') ?? [])].map(path => path.getAttribute('d')),
+            circles: document.querySelectorAll('circle').length,
+            markGap: mark && title!.getBoundingClientRect().top - mark.bottom,
+            textGap: hint!.getBoundingClientRect().top - title!.getBoundingClientRect().bottom,
             actionGap: action.top - hint!.getBoundingClientRect().bottom,
             finish: { left: finish.left, right: finish.right, centre: finish.left + finish.width / 2 },
             mark: mark && { width: mark.width, height: mark.height, centre: mark.left + mark.width / 2 },
-            ring: ring && { width: ring.width, height: ring.height, centre: ring.left + ring.width / 2 },
+            carrier: carrier && { width: carrier.width, height: carrier.height, centre: carrier.left + carrier.width / 2 },
             actionCentre: action.left + action.width / 2, text,
             animations: document.getAnimations().length }
         })
-        expect(geometry.mark).toMatchObject({ width: 16, height: 16 })
-        expect(geometry.ring).toMatchObject({ width: 44, height: 44 })
+        expect(geometry.paths).toEqual(ORBIT_MARK_PATHS.map(path => path.d))
+        expect(geometry.circles).toBe(0)
+        expect(geometry.markGap).toBe(24)
+        expect(geometry.mark).toMatchObject({ width: 48, height: 48 })
+        expect(geometry.carrier).toMatchObject({ width: 48, height: 48 })
+        expect(geometry.inkCentre!.x).toBeCloseTo(geometry.mark!.centre, 2)
+        expect(geometry.inkCentre!.y).toBeCloseTo(geometry.markCentreY!, 2)
         expect(geometry.mark!.centre).toBeCloseTo(geometry.finish.centre, 0)
-        expect(geometry.ring!.centre).toBeCloseTo(geometry.finish.centre, 0)
+        expect(geometry.carrier!.centre).toBeCloseTo(geometry.finish.centre, 0)
         expect(geometry.actionCentre).toBeCloseTo(geometry.finish.centre, 0)
         for (const text of geometry.text) {
           expect(text.lines).toBe(1)

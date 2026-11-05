@@ -8,9 +8,9 @@ const ordered = (habits) => [...habits].sort((left, right) => left.id.localeComp
 
 export async function readStartingHabits(credentialKey) {
   requireEvalOrigin()
-  const { payload } = await publicApi(credentialKey)('GET', 'profile/export')
+  const { payload } = await publicApi(credentialKey)('GET', 'eval/snapshot')
   if (!Array.isArray(payload?.habits) || payload.habits.some((habit) => typeof habit.id !== 'string'
-    || typeof habit.title !== 'string' || !Array.isArray(habit.checklistItems))) throw new Error('Saved-step export lacks habit evidence.')
+    || typeof habit.title !== 'string' || !Array.isArray(habit.checklistItems))) throw new Error('Saved-step snapshot lacks habit evidence.')
   return ordered(payload.habits)
 }
 

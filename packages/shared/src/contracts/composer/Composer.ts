@@ -86,7 +86,7 @@ type ComposerBase = {
     onRemove: (id: string) => void
     onSend: (id: string) => void
   }
-  collapseScope?: 'today' | 'habit'
+  collapseScope?: 'conversation' | 'habit'
   collapsible?: boolean
   words: ComposerWords
   value: string

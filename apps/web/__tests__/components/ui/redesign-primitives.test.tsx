@@ -1,4 +1,4 @@
-import { ASTRA_GLYPH_PATHS } from '@orbit/shared/contracts/brand'
+import { ASTRA_GLYPH_PATHS, ORBIT_MARK_PATHS, ORBIT_MARK_VIEW_BOX } from '@orbit/shared/contracts/brand'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -77,12 +77,15 @@ describe('redesign primitives on web', () => {
     expect(onClick).toHaveBeenCalledOnce()
   })
 
-  it('selects native brand redraws and limits the mark accent to its moon', () => {
-    const { container, rerender } = render(<OrbitMark size={16} />)
-    expect(container.querySelector('svg')).toHaveAttribute('data-asset', 'orbit-mark-16')
+  it.each([16, 20, 24, 28, 40, 44, 48, 96, 128, 512])('uses the normal Orbit drawing at %ipx and limits accent to its moon', (size) => {
+    const { container, rerender } = render(<OrbitMark size={size} />)
+    expect(container.querySelector('svg')).toHaveAttribute('data-asset', 'orbit-mark')
+    expect([...container.querySelectorAll('path')].map(path => path.getAttribute('d'))).toEqual(ORBIT_MARK_PATHS.map(path => path.d))
+    expect(container.querySelector('svg')).toHaveAttribute('width', String(size))
+    expect(container.querySelector('svg')).toHaveAttribute('viewBox', ORBIT_MARK_VIEW_BOX)
     expect(container.querySelectorAll('path[data-part="moon"]')[0]).toHaveAttribute('fill', 'currentColor')
 
-    rerender(<OrbitMark size={24} accent />)
+    rerender(<OrbitMark size={size} accent />)
     expect(container.querySelector('svg')).toHaveAttribute('data-asset', 'orbit-mark-accent')
     const paths = container.querySelectorAll('path')
     expect(paths[0]).toHaveAttribute('fill', 'currentColor')

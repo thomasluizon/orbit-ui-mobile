@@ -3,7 +3,7 @@
 // context relay request, so the model cannot talk its way past it.
 
 import { resolve } from "node:path"
-import { HANDOFF_PROMPT_PATH, handoffCrank, validateHandoffPrompt } from "../../../tools/lib/handoff-prompt.mjs"
+import { HANDOFF_PROMPT_PATH, handoffAutoWork, handoffCrank, validateHandoffPrompt } from "../../../tools/lib/handoff-prompt.mjs"
 
 const GIT_COMMIT = /\bgit\b((?:\s+-C\s+(?:"[^"]+"|'[^']+'|\S+))*)[^;&|\n]*?\scommit\b/
 
@@ -22,7 +22,7 @@ const describe = (missing, mode) =>
 
 const modeOf = (request, state) => {
   const mode = request?.origin === "context-relay" ? "context-relay --sleep" : request?.sleep ? "--sleep" : request ? "attended" : "unrecorded"
-  return handoffCrank(request, state) ? `${mode} --crank` : mode
+  return `${mode}${handoffAutoWork(request, state) ? " --auto-work" : ""}${handoffCrank(request, state) ? " --crank" : ""}`
 }
 
 /**
@@ -33,7 +33,7 @@ export const checkHandoffCommit = ({ command, cwd, request, state, promptsForCom
   const directory = gitCommitDirectory(command, cwd)
   if (!directory) return null
   for (const text of promptsForCommit(directory)) {
-    const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined, crank: handoffCrank(request, state) })
+    const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined, crank: handoffCrank(request, state), autoWork: handoffAutoWork(request, state) })
     if (missing.length > 0) return { block: true, message: describe(missing, modeOf(request, state)) }
   }
   try {
@@ -48,6 +48,6 @@ export const checkHandoffCommit = ({ command, cwd, request, state, promptsForCom
 export const checkHandoffStop = ({ request, state, headPrompt, headPromptCommittedAt }) => {
   if (!request || headPrompt === null) return null
   if (!(Date.parse(headPromptCommittedAt) >= Date.parse(request.recordedAt))) return null
-  const missing = validateHandoffPrompt(headPrompt, { sleep: request.sleep === true, crank: handoffCrank(request, state) })
+  const missing = validateHandoffPrompt(headPrompt, { sleep: request.sleep === true, crank: handoffCrank(request, state), autoWork: handoffAutoWork(request, state) })
   return missing.length === 0 ? null : { block: true, message: describe(missing, modeOf(request, state)) }
 }

@@ -1,3 +1,7 @@
+import { StyleSheet } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
+import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
+import { ScheduledReminderSection } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
 import React from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
@@ -55,4 +59,62 @@ it.each([320, 360, 384, 412].flatMap(width => ['en', 'pt-BR'].flatMap(locale => 
   expect(next.left).toBeGreaterThanOrEqual(0)
   expect(next.right).toBeLessThanOrEqual(width - 32)
   TestRenderer.act(() => row.unmount())
+})
+
+it.each([320, 1280].flatMap(width => [1, 2].flatMap(scale => (['en', 'pt-BR'] as const).flatMap(locale => (['dark', 'light'] as const).map(mode => ({ width, scale, locale, mode }))))))('insets reminder remove paint and reserves the chip bottom at $width and $scale in $locale/$mode', ({ width, scale, locale, mode }) => {
+  context.locale = locale
+  context.theme = mode
+  const messages = locale === 'en' ? en : ptBR
+  const tokens = createTokensV2('orange', mode)
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<RepeatReminderSection value={null} enabled general={false} onToggle={vi.fn()} onChange={vi.fn()}><ReminderSection tokens={tokens} reminderEnabled reminderTimes={[15, 30]} reminderLabel={String} onReminderTimesChange={vi.fn()} /><ScheduledReminderSection tokens={tokens} reminderEnabled scheduledReminders={[{ when: 'day_before', time: '18:00' }]} onSetScheduledReminders={vi.fn()} onValidationError={vi.fn()} /></RepeatReminderSection>) })
+  const labels = new Set([messages.habits.form.removeReminder, messages.habits.form.removeScheduledReminder])
+  const removes = tree!.root.findAllByType('Pressable').filter((node: { props: { accessibilityLabel: string } }) => labels.has(node.props.accessibilityLabel))
+  expect(removes).toHaveLength(3)
+  for (const remove of removes) {
+    let chipNode = remove.parent
+    while (!StyleSheet.flatten(chipNode.props.style)?.paddingVertical) chipNode = chipNode.parent
+    const chip = StyleSheet.flatten(chipNode.props.style)
+    let rowNode = chipNode.parent
+    while (StyleSheet.flatten(rowNode.props.style)?.flexWrap !== 'wrap') rowNode = rowNode.parent
+    const row = StyleSheet.flatten(rowNode.props.style)
+    expect(chip.paddingVertical).toBeGreaterThanOrEqual(8)
+    expect(chip.paddingHorizontal).toBeGreaterThanOrEqual(8)
+    expect(chip.maxWidth).toBe('100%')
+    expect(row.paddingBottom).toBeGreaterThanOrEqual(8)
+  }
+  const bounds = measureInteractionFills(tree!.toJSON(), width - 32, true, scale)
+  const control = bounds.find(part => 'accessibilityRole' in part.host.props && part.host.props.accessibilityRole === 'switch' && part.host.props.accessibilityLabel === messages.habits.form.reminder)!
+  expect(control.left).toBe(0)
+  expect(control.right).toBe(width - 32)
+  const fill = bounds.find(part => part.host.props['data-slot'] === 'list-row-body')!
+  expect(fill.left).toBe(0)
+  expect(fill.right).toBe(width - 32)
+  TestRenderer.act(() => tree!.unmount())
+})
+
+it('starts the add-time row at the group edge when only clock reminders remain', () => {
+  context.locale = 'en'
+  context.theme = 'dark'
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ReminderSection tokens={createTokensV2()} reminderEnabled reminderTimes={[]} scheduledReminderCount={1} reminderLabel={String} onReminderTimesChange={vi.fn()} />) })
+  const bounds = measureInteractionFills(tree!.toJSON(), 288, true)
+  const fill = bounds.find(part => part.host.props['data-slot'] === 'list-row-body')!
+  expect(fill.top).toBeLessThanOrEqual(4)
+  TestRenderer.act(() => tree!.unmount())
+})
+
+it.each(['dark', 'light'] as const)('keeps the Portuguese add-time caption whole at 200% text in %s', (mode) => {
+  context.locale = 'pt-BR'
+  context.theme = mode
+  __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ReminderSection tokens={createTokensV2('orange', mode)} reminderEnabled reminderTimes={[]} scheduledReminderCount={1} reminderLabel={String} onReminderTimesChange={vi.fn()} />) })
+  const bounds = measureInteractionFills(tree!.toJSON(), 288, true, 2)
+  const title = bounds.find(part => part.host.type === 'Text' && part.host.props['data-slot'] === 'list-row-title' && part.host.children?.includes(ptBR.habits.form.reminderAdd))!
+  expect(title.host.props.numberOfLines).toBeUndefined()
+  expect(title.height).toBeGreaterThan(48)
+  expect(title.left).toBeGreaterThanOrEqual(0)
+  expect(title.right).toBeLessThanOrEqual(288)
+  TestRenderer.act(() => tree!.unmount())
 })

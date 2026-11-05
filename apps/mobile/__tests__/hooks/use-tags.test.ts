@@ -1,5 +1,5 @@
 import React from 'react'
-import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, QueryObserver, notifyManager } from '@tanstack/react-query'
 import { makeEnrichedHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
@@ -596,12 +596,14 @@ it.each(['rename', 'delete', 'assign'] as const)('keeps B saved and refetched wh
     return null
   }
   let renderer: { unmount: () => void } | undefined
+  let firstResult!: Promise<unknown>
   try {
     await TestRenderer.act(() => { renderer = TestRenderer.create(React.createElement(QueryClientProvider, { client }, React.createElement(Probe))) })
     await TestRenderer.act(async () => {
-      if (operation === 'rename') rename.mutate({ tagId: 'tag-1', name: 'Pending', color: '#123456' })
-      else if (operation === 'delete') remove.mutate('tag-1')
-      else first.mutate({ habitId: 'child-1', tagIds: ['tag-3'] })
+      const pending = operation === 'rename' ? rename.mutateAsync({ tagId: 'tag-1', name: 'Pending', color: '#123456' })
+        : operation === 'delete' ? remove.mutateAsync('tag-1')
+          : first.mutateAsync({ habitId: 'child-1', tagIds: ['tag-3'] })
+      firstResult = pending.catch((error: unknown) => error)
       await Promise.resolve()
     })
     expect(rejectFirst).toBeTypeOf('function')
@@ -609,8 +611,10 @@ it.each(['rename', 'delete', 'assign'] as const)('keeps B saved and refetched wh
     expect(client.getQueryData(otherKey)).toEqual(saved)
     expect(refetch).toHaveBeenCalledOnce()
     await TestRenderer.act(async () => {
-      rejectFirst(new Error('A failed'))
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      const failure = new Error('A failed')
+      rejectFirst(failure)
+      expect(await firstResult).toBe(failure)
+      await new Promise<void>((resolve) => notifyManager.schedule(resolve))
     })
     expect([rename, remove, first].some((mutation) => mutation.isError)).toBe(true)
     expect(client.getQueryData(otherKey)).toEqual(saved)

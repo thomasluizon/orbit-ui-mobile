@@ -58,6 +58,14 @@ export const cases = () => {
   const uninvoked = stageRepository("uninvoked", completeCharter())
   writeFileSync(join(uninvoked, "lefthook.yml"), "{}")
   check("check-gate-charter.mjs", "registered tool without invocation is refused", ["--root", uninvoked], { status: 1, stderr: /not invoked/ })
+  const composite = stageRepository("composite", completeCharter())
+  writeFileSync(join(composite, "lefthook.yml"), "{}")
+  mkdirSync(join(composite, ".github/actions/boot"), { recursive: true })
+  const actionPath = join(composite, ".github/actions/boot/action.yml")
+  writeFileSync(actionPath, yaml.dump({ runs: { using: "composite", steps: [{ uses: "reactivecircus/android-emulator-runner@verified-sha", with: { script: "node tools/check-existing.mjs" } }] } }))
+  check("check-gate-charter.mjs", "discovers gate invocations in emulator composite actions", ["--root", composite], { status: 0 })
+  writeFileSync(actionPath, yaml.dump({ script: "node tools/check-existing.mjs" }))
+  check("check-gate-charter.mjs", "an arbitrary script field cannot satisfy gate invocation", ["--root", composite], { status: 1, stderr: /not invoked/ })
   for (const [label, script, status] of [
     ["quoted-data", "cat <<'EOF'\nnode tools/check-existing.mjs\nEOF", 1],
     ["bare-data", "cat <<EOF\nnode tools/check-existing.mjs\nEOF", 1],

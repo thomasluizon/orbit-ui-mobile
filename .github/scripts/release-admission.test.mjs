@@ -50,6 +50,7 @@ const executeWake = (attempts, environment = {}) => {
   try {
     writeFileSync(join(directory, "attempts.json"), JSON.stringify(attempts))
     writeFileSync(join(directory, "count"), "0")
+    writeFileSync(join(directory, "clock"), "1000")
     writeFileSync(join(directory, "calls"), "")
     writeFileSync(join(directory, "summary"), "")
     const transport = `
@@ -67,10 +68,15 @@ const executeWake = (attempts, environment = {}) => {
         jq -r '.code' <<< "$response"
         return "$(jq -r '.exitCode // 0' <<< "$response")"
       }
+      date() {
+        [ "$*" = +%s ] || return 1
+        cat clock
+      }
       sleep() {
-        local advance="\${SLEEP_ADVANCE:-$1}"
-        if (( advance > deadline - SECONDS )); then advance=$((deadline - SECONDS)); fi
-        SECONDS=$((SECONDS + advance))
+        local advance="\${SLEEP_ADVANCE:-$1}" now
+        now=$(cat clock)
+        if (( advance > deadline - now )); then advance=$((deadline - now)); fi
+        printf '%s' "$((now + advance))" > clock
       }
     `
     const result = spawnSync("bash", ["-c", `${transport}\n${stepNamed(web.jobs.staging, "Wake staging API").run}`], {

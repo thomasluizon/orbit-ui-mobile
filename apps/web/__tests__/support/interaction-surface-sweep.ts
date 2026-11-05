@@ -1,3 +1,4 @@
+import { phaseTimings } from '@/__tests__/support/phase-timings'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -60,21 +61,24 @@ type Interaction = 'hover' | 'press' | 'focus'
 let nextScope = 0
 
 async function reachInteraction(page: Page, control: Locator, state: Interaction) {
-  await control.scrollIntoViewIfNeeded()
+  const phase = phaseTimings('sweep interaction')
   const outside = await control.evaluate(element => {
+    element.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })
     const box = element.getBoundingClientRect()
     return box.bottom <= 0 || box.top >= innerHeight || box.right <= 0 || box.left >= innerWidth
   })
   if (state !== 'focus' && outside) return false
   if (state === 'focus') { await page.keyboard.press('Shift'); await control.focus() }
   else { await control.hover(); if (state === 'press') await page.mouse.down() }
-  await control.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => done())))
   await control.evaluate(settleAnimations)
+  phase(state)
   return true
 }
 
 async function assertSurface(control: Locator, state: Interaction, assert: typeof expect) {
+  const phase = phaseTimings('sweep geometry')
   const geometry = await control.evaluate(inspectInteractionSurface, INTERACTION_FILL_CLEARANCE)
+  phase(state)
   const ancestors = geometry.violations.length ? await control.evaluate(element => {
     const rows = []
     for (let node: Element | null = element; node; node = node.parentElement) {
@@ -114,6 +118,7 @@ async function inspectDiscoveredControls(page: Page, scope: Locator, assert: typ
     for (const state of ['hover', 'press', 'focus'] as const) {
       if (!await reachInteraction(page, control, state)) continue
       await assertSurface(control, state, assert)
+      if (state === 'press' && await control.evaluate(element => element.hasAttribute('data-astra-button'))) await control.dispatchEvent('pointercancel')
       await page.mouse.move(0, 0)
       await page.mouse.up()
       await control.blur()
@@ -261,12 +266,15 @@ export function interactionSurfaceSweep(route: '/' | '/calendar' | '/progress' |
       })
     }
 
-    it.concurrent.for(cases)('discovers every rendered control at $width in $locale, collapsed=$collapsed on $route', { timeout: 120_000 }, async ({ width, collapsed, route }, { expect }) => {
+    it.for(cases)('discovers every rendered control at $width in $locale, collapsed=$collapsed on $route', { timeout: 120_000 }, async ({ width, collapsed, route }, { expect }) => {
+      const phase = phaseTimings(`sweep ${route} ${locale} ${width} collapsed=${collapsed}`)
       const page = await browser.newPage({ viewport: { width, height: 1100 }, reducedMotion: 'reduce' })
       const failures: string[] = []
       try {
         await renderDestination(page, collapsed, failures, expect)
+        phase('render')
         expect(await inspectDiscoveredControls(page, page.locator('body'), expect), route).toBeGreaterThan(0)
+        phase('destination controls')
         const entries = await page.locator('button:has(svg), [aria-haspopup="dialog"], [aria-haspopup="menu"]').all()
         for (const entry of entries) {
           if (!await entry.isVisible() || !await entry.isEnabled()) continue
@@ -279,6 +287,7 @@ export function interactionSurfaceSweep(route: '/' | '/calendar' | '/progress' |
             await page.keyboard.press('Escape')
           }
         }
+        phase('entry overlays')
         expect(failures, route).toEqual([])
       } finally { await page.mouse.up(); await page.close() }
     })

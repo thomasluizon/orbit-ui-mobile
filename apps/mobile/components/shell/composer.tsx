@@ -106,7 +106,7 @@ function SuggestionStrip({
           accessibilityLabel={label}
           showsHorizontalScrollIndicator={false}
           style={{ flexGrow: 0 }}
-          contentContainerStyle={[styles.suggestions, { gap: layout.gap }]}
+          contentContainerStyle={[styles.suggestions, { gap: layout.gap, paddingStart: layout.paddingStart }]}
         >
           {suggestions.map(suggestion => (
             <InsetFocusPressable
@@ -625,7 +625,7 @@ function ComposerContent({ props, tokens, focusTarget, disclosure }: Readonly<{ 
 export function Composer(props: Readonly<MobileComposerProps>) {
   const contentStyle = useShellContentStyle(SPACING.s16)
   const contentId = useId()
-  const savedCollapsed = useUIStore(state => props.collapseScope === 'today' ? state.todayComposerCollapsed : state.habitComposerCollapsed)
+  const savedCollapsed = useUIStore(state => props.collapseScope === 'conversation' ? state.conversationComposerCollapsed : state.habitComposerCollapsed)
   const collapsed = Boolean(props.collapsible && savedCollapsed)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -642,7 +642,7 @@ export function Composer(props: Readonly<MobileComposerProps>) {
   function toggleCollapsed() {
     disclosureFocusPending.current = true
     const preferences = useUIStore.getState()
-    if (props.collapseScope === 'today') preferences.setTodayComposerCollapsed(!collapsed)
+    if (props.collapseScope === 'conversation') preferences.setConversationComposerCollapsed(!collapsed)
     else preferences.setHabitComposerCollapsed(!collapsed)
   }
   useEffect(() => {

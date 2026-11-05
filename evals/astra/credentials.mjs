@@ -6,6 +6,23 @@ const readiness = new Map()
 const credentialHistory = new Set()
 const refreshes = new Map()
 const refreshQueues = new Map()
+const sessionRecovery = 'Recover a fresh session through the existing authentication flow, replace the private credentials file and remove its markers before the permitted rerun.'
+
+function uncertainRefresh(failure) {
+  return new Error(`TRANSIENT_INFRASTRUCTURE: ${failure} The stored refresh token may be consumed. ${sessionRecovery}`)
+}
+
+async function requestRefresh(url, options) {
+  let response
+  try { response = await fetch(url, { ...options, signal: AbortSignal.timeout(120000) }) } catch {
+    throw uncertainRefresh('Refresh transport failed.')
+  }
+  if ([502, 503, 504].includes(response.status)) throw uncertainRefresh(`Refresh returned HTTP ${response.status}.`)
+  if (!response.ok) throw new Error(`Refresh rejected with HTTP ${response.status}.`)
+  try { return await response.json() } catch (error) {
+    throw uncertainRefresh(error instanceof SyntaxError ? 'Malformed refresh response.' : 'Refresh transport failed.')
+  }
+}
 
 async function waitForHealthyApi(origin) {
   const deadline = Date.now() + 180000
@@ -124,7 +141,7 @@ async function rotateCredential(key) {
   try {
     const path = process.env.ORBIT_EVAL_CREDENTIALS_FILE
     if (!path) throw new Error('Missing credentials file.')
-    if (existsSync(`${path}.refresh-failed`)) throw new Error('A refresh already failed; recover the session before another run.')
+    if (existsSync(`${path}.refresh-failed`)) throw uncertainRefresh('A refresh already failed.')
     let rotated = false
     const token = await updateCredentials(async (credentials) => {
       const account = credentials[key]
@@ -133,20 +150,12 @@ async function rotateCredential(key) {
       const refreshUrl = `${apiOrigin()}/api/auth/refresh`
       const refreshOptions = {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'api-version': '2.0' },
-        body: JSON.stringify({ refreshToken: account.refreshToken }), redirect: 'error', signal: AbortSignal.timeout(120000),
+        body: JSON.stringify({ refreshToken: account.refreshToken }), redirect: 'error',
       }
       writeFileSync(`${path}.refresh-failed`, '', { mode: 0o600, flag: 'wx' })
-      let response
-      try {
-        response = await fetch(refreshUrl, refreshOptions)
-      } catch {
-        throw new Error('Refresh transport failed; recover the session before another run.')
-      }
-      if (!response.ok) throw new Error(`Refresh rejected with HTTP ${response.status}.`)
-      let session
-      try { session = await response.json() } catch { throw new Error('Malformed refresh response.') }
-      if (typeof session.token !== 'string' || !session.token.trim()
-        || typeof session.refreshToken !== 'string' || !session.refreshToken.trim()) throw new Error('Malformed refresh response.')
+      const session = await requestRefresh(refreshUrl, refreshOptions)
+      if (typeof session?.token !== 'string' || !session.token.trim()
+        || typeof session.refreshToken !== 'string' || !session.refreshToken.trim()) throw uncertainRefresh('Malformed refresh response.')
       rotated = account.refreshToken !== session.refreshToken
       account.refreshToken = session.refreshToken
       return session.token

@@ -7,9 +7,9 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { Composer } from '@/components/shell/composer'
 import { useUIStore } from '@/stores/ui-store'
 
-beforeEach(() => useUIStore.setState({ habitComposerCollapsed: false, todayComposerCollapsed: false }))
+beforeEach(() => useUIStore.setState({ habitComposerCollapsed: false, conversationComposerCollapsed: false }))
 
-it.each([en, ptBR].flatMap(messages => (['habit', 'today'] as const).map(scope => ({ messages, scope }))))(
+it.each([en, ptBR].flatMap(messages => (['habit', 'conversation'] as const).map(scope => ({ messages, scope }))))(
   'collapses $scope with its mounted draft, attachment and queue, and sends once', ({ messages, scope }) => {
     const onSend = vi.fn()
     const onRemove = vi.fn()
@@ -43,7 +43,7 @@ it.each([en, ptBR].flatMap(messages => (['habit', 'today'] as const).map(scope =
     expect(expand).toHaveTextContent('')
     expect(expand.querySelector('[data-asset="astra-mark"]')).not.toBeNull()
     expect(useUIStore.getState()).toMatchObject({
-      habitComposerCollapsed: scope === 'habit', todayComposerCollapsed: scope === 'today',
+      habitComposerCollapsed: scope === 'habit', conversationComposerCollapsed: scope === 'conversation',
     })
     fireEvent.click(screen.getByRole('button', { name: messages.shell.composer.expand }))
     expect(screen.getByRole('button', { name: messages.shell.composer.collapse })).toHaveFocus()
@@ -64,7 +64,7 @@ it.each([en, ptBR].flatMap(messages => (['habit', 'today'] as const).map(scope =
     expect(screen.queryByRole('textbox')).toBeNull()
 })
 
-it.each(['habit', 'today'] as const)('places the $scope disclosure beside suggestions outside the pill', scope => {
+it.each(['habit', 'conversation'] as const)('places the $scope disclosure beside suggestions outside the pill', scope => {
   render(<NextIntlClientProvider locale="en" messages={en}>
     <Composer collapsible collapseScope={scope} state="idle" value="" onChangeValue={vi.fn()} onSend={vi.fn()}
       words={en.shell.composer} suggestions={[

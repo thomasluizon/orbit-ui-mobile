@@ -34,8 +34,8 @@ function alignsFirstLine({ textMode, description, value, toggle, trailing, readO
   return !!toggle || (textMode === 'label' && !!(description || value || (trailing && !readOnly)))
 }
 
-function getBodyStyle(hasDescription: boolean, column: boolean) {
-  return { '--orbit-row-toggle-height': `${ROW_TOGGLE_HEIGHT}px`, '--orbit-row-text-line': ROW_TEXT_LINE, minHeight: hasDescription ? 'var(--row-h)' : 'var(--row-h-compact)', paddingBlock: PADDING.rowBlock, ...(column ? { position: 'relative' as const } : { paddingInline: PADDING.rowInline }) }
+function getBodyStyle(hasDescription: boolean, column: boolean, field: boolean) {
+  return { '--orbit-row-toggle-height': `${ROW_TOGGLE_HEIGHT}px`, '--orbit-row-text-line': ROW_TEXT_LINE, minHeight: hasDescription ? 'var(--row-h)' : 'var(--row-h-compact)', paddingBlock: PADDING.rowBlock, ...(column ? { position: 'relative' as const, paddingInline: field ? SPACING.s8 : undefined } : { paddingInline: PADDING.rowInline }) }
 }
 
 function getActionStyle(hasDescription: boolean) {
@@ -161,8 +161,8 @@ function switchAccessibility(props: WebListRowProps) {
 
 function rowControl(props: WebListRowProps, children: ReactNode, bodyStyle: ReturnType<typeof getBodyStyle>) {
   const { readOnly, href, onClick, disabled, accessibilityLabel, expanded, controls, toggle } = props
-  const fill = props.placement === 'column' ? <span aria-hidden="true" data-press-fill="" data-slot="list-row-body" className="orbit-list-row-outset" style={{ minHeight: bodyStyle.minHeight, paddingBlock: PADDING.rowBlock }} /> : null
-  const slot = props.placement === 'column' ? undefined : 'list-row-body'
+  const fill = props.placement !== undefined ? <span aria-hidden="true" data-press-fill="" data-slot="list-row-body" className="orbit-list-row-outset" style={{ minHeight: bodyStyle.minHeight, paddingBlock: PADDING.rowBlock }} /> : null
+  const slot = props.placement !== undefined ? undefined : 'list-row-body'
   const content = <>{fill}{children}</>
   return (readOnly || (!href && !onClick && !toggle) ? (
         <div data-slot={slot} className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{content}</div>
@@ -181,12 +181,12 @@ export function ListRow(original: Readonly<WebListRowProps>) {
   const { accessibilityLabel, action, chevron = true, href, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
   const content = <span data-slot="list-row-content" id={contentId} className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode, !!props.wrapTitle && !!props.trailing, alignsFirstLine(props))}>{body}{!readOnly && !props.toggle && chevron ? <RowChevron Chevron={Chevron} disabled={props.disabled} textMode={props.textMode} /> : null}</span>
-  const bodyStyle = getBodyStyle(hasSupportingLine(props), props.placement === 'column')
+  const bodyStyle = getBodyStyle(hasSupportingLine(props), props.placement !== undefined, props.placement === 'field')
 
   const actionBody = rowControl(props, content, bodyStyle)
 
   return (
-    <div data-text-mode={props.textMode} className={`orbit-list-row-shell flex items-stretch ${props.placement === 'column' ? 'orbit-list-row-column' : ''}`} style={{ minHeight: 52 }}>
+    <div data-text-mode={props.textMode} className={`orbit-list-row-shell ${action ? 'orbit-list-action-surface' : ''} flex items-stretch ${props.placement !== undefined ? 'orbit-list-row-column' : ''} ${props.placement === 'field' ? 'orbit-list-row-field' : ''}`} style={{ minHeight: 52, marginBlock: action ? SPACING.s4 : undefined }}>
       {(props.textMode === 'personal' || props.valueTextMode === 'personal') && props.personalExpanded !== undefined && !readOnly && (href || onClick) ? <PersonalTextAction className="flex-1" label={accessibilityLabel ?? rowAccessibleText(props)} contentClassName="flex min-w-0 flex-1 items-center" contentStyle={{ ...bodyStyle, opacity: props.disabled ? 0.5 : undefined }} control={actionBody} /> : actionBody}
       {action ? (
         <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-[var(--touch-min)] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={getActionStyle(!!props.description)}>

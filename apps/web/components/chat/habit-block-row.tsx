@@ -26,8 +26,8 @@ export function HabitBlockRow({ title, emoji, meta, reason, error, label, onOpen
     {error ? <span role="alert" className="text-xs text-[var(--status-bad-text)]">{error}</span> : null}
     {meta ? <span data-habit-block-meta="" className="text-xs leading-[1.5] text-[var(--fg-2)]">{meta}</span> : null}
     {reason ? <span title={reason} className="truncate text-xs text-[var(--fg-2)]">{reason}</span> : null}</span></>
-  return <div data-habit-block-row="" className="flex min-w-0 items-center gap-2 rounded-[20px] bg-[var(--bg-card)] p-2">
-     <button type="button" aria-label={label ?? title} aria-expanded={shownExpanded} aria-controls={shownExpanded == null ? undefined : textId} disabled={disabled} onClick={open} className="group/habit-block flex min-h-[48px] min-w-0 flex-1 items-center gap-2 rounded-[12px] border-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 disabled:opacity-60">{content}</button>
+  return <div data-habit-block-row="" className="orbit-list-action-surface flex min-w-0 items-center gap-2 rounded-[20px] bg-[var(--bg-card)] p-2">
+     <button type="button" aria-label={label ?? title} aria-expanded={shownExpanded} aria-controls={shownExpanded == null ? undefined : textId} disabled={disabled} onClick={open} className="orbit-list-row-body group/habit-block flex min-h-[48px] min-w-0 flex-1 items-center gap-2 rounded-[12px] border-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline-2 disabled:opacity-60">{content}</button>
     {control ? <div className="flex shrink-0 items-center">{control}</div> : null}
   </div>
 }

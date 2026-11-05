@@ -1,0 +1,380 @@
+{
+  "gmail": {
+    "source": "https://gmail.googleapis.com/$discovery/rest?version=v1",
+    "schemas": {
+      "ListMessagesResponse": {
+        "type": "object",
+        "properties": {
+          "nextPageToken": {
+            "type": "string"
+          },
+          "messages": {
+            "items": {
+              "$ref": "Message"
+            },
+            "type": "array"
+          },
+          "resultSizeEstimate": {
+            "format": "uint32",
+            "type": "integer"
+          }
+        }
+      },
+      "Message": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "threadId": {
+            "type": "string"
+          },
+          "labelIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "historyId": {
+            "format": "uint64",
+            "type": "string"
+          },
+          "snippet": {
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "MessagePart"
+          },
+          "classificationLabelValues": {
+            "items": {
+              "$ref": "ClassificationLabelValue"
+            },
+            "type": "array"
+          },
+          "raw": {
+            "format": "byte",
+            "type": "string"
+          },
+          "internalDate": {
+            "format": "int64",
+            "type": "string"
+          },
+          "sizeEstimate": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "type": "object"
+      },
+      "MessagePart": {
+        "type": "object",
+        "properties": {
+          "headers": {
+            "type": "array",
+            "items": {
+              "$ref": "MessagePartHeader"
+            }
+          },
+          "body": {
+            "$ref": "MessagePartBody"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "MessagePart"
+            }
+          },
+          "partId": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          }
+        }
+      },
+      "MessagePartBody": {
+        "properties": {
+          "attachmentId": {
+            "type": "string"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "data": {
+            "type": "string",
+            "format": "byte"
+          }
+        },
+        "type": "object"
+      },
+      "MessagePartHeader": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "Profile": {
+        "type": "object",
+        "properties": {
+          "messagesTotal": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "emailAddress": {
+            "type": "string"
+          },
+          "historyId": {
+            "format": "uint64",
+            "type": "string"
+          },
+          "threadsTotal": {
+            "format": "int32",
+            "type": "integer"
+          }
+        }
+      },
+      "Draft": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "$ref": "Message"
+          }
+        },
+        "type": "object"
+      },
+      "ListDraftsResponse": {
+        "properties": {
+          "drafts": {
+            "items": {
+              "$ref": "Draft"
+            },
+            "type": "array"
+          },
+          "nextPageToken": {
+            "type": "string"
+          },
+          "resultSizeEstimate": {
+            "type": "integer",
+            "format": "uint32"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "methods": {
+      "sendDraft": {
+        "path": "gmail/v1/users/{userId}/drafts/send",
+        "httpMethod": "POST",
+        "request": {
+          "$ref": "Draft"
+        },
+        "response": {
+          "$ref": "Message"
+        }
+      },
+      "attachmentsGet": {
+        "path": "gmail/v1/users/{userId}/messages/{messageId}/attachments/{id}",
+        "id": "gmail.users.messages.attachments.get",
+        "response": {
+          "$ref": "MessagePartBody"
+        },
+        "parameterOrder": [
+          "userId",
+          "messageId",
+          "id"
+        ],
+        "scopes": [
+          "https://mail.google.com/",
+          "https://www.googleapis.com/auth/gmail.addons.current.message.action",
+          "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
+          "https://www.googleapis.com/auth/gmail.modify",
+          "https://www.googleapis.com/auth/gmail.readonly"
+        ],
+        "flatPath": "gmail/v1/users/{userId}/messages/{messageId}/attachments/{id}",
+        "description": "Gets the specified message attachment.",
+        "httpMethod": "GET",
+        "parameters": {
+          "id": {
+            "required": true,
+            "type": "string",
+            "description": "The ID of the attachment.",
+            "location": "path"
+          },
+          "userId": {
+            "description": "The user's email address. The special value `me` can be used to indicate the authenticated user.",
+            "required": true,
+            "type": "string",
+            "location": "path",
+            "default": "me"
+          },
+          "messageId": {
+            "type": "string",
+            "required": true,
+            "location": "path",
+            "description": "The ID of the message containing the attachment."
+          }
+        }
+      }
+    }
+  },
+  "play": {
+    "source": "https://androidpublisher.googleapis.com/$discovery/rest?version=v3",
+    "schemas": {
+      "ReviewsListResponse": {
+        "properties": {
+          "reviews": {
+            "items": {
+              "$ref": "Review"
+            },
+            "type": "array"
+          },
+          "tokenPagination": {
+            "$ref": "TokenPagination"
+          },
+          "pageInfo": {
+            "$ref": "PageInfo"
+          }
+        },
+        "type": "object"
+      },
+      "Review": {
+        "properties": {
+          "reviewId": {
+            "type": "string"
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "Comment"
+            }
+          },
+          "authorName": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "developerComment": {
+            "$ref": "DeveloperComment"
+          },
+          "userComment": {
+            "$ref": "UserComment"
+          }
+        }
+      },
+      "UserComment": {
+        "type": "object",
+        "properties": {
+          "appVersionCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "deviceMetadata": {
+            "$ref": "DeviceMetadata"
+          },
+          "device": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "lastModified": {
+            "$ref": "Timestamp"
+          },
+          "thumbsDownCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "originalText": {
+            "type": "string"
+          },
+          "appVersionName": {
+            "type": "string"
+          },
+          "reviewerLanguage": {
+            "type": "string"
+          },
+          "starRating": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "androidOsVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "thumbsUpCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "Timestamp": {
+        "properties": {
+          "nanos": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "seconds": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
+        "type": "object"
+      },
+      "TokenPagination": {
+        "type": "object",
+        "properties": {
+          "previousPageToken": {
+            "type": "string"
+          },
+          "nextPageToken": {
+            "type": "string"
+          }
+        }
+      },
+      "DeveloperComment": {
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "lastModified": {
+            "$ref": "Timestamp"
+          }
+        },
+        "id": "DeveloperComment",
+        "type": "object"
+      },
+      "ReviewsReplyRequest": {
+        "type": "object",
+        "id": "ReviewsReplyRequest",
+        "properties": {
+          "replyText": {
+            "type": "string"
+          }
+        }
+      },
+      "ReviewsReplyResponse": {
+        "id": "ReviewsReplyResponse",
+        "type": "object",
+        "properties": {
+          "result": {
+            "$ref": "ReviewReplyResult"
+          }
+        }
+      }
+    }
+  }
+}

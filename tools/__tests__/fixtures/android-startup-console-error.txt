@@ -1,0 +1,11 @@
+E ReactNativeJS: '[Expo-IAP]', 'Error fetching products:', { [[expo-iap]: PurchaseError: Failed to query product]
+E ReactNativeJS:   name: '[expo-iap]: PurchaseError',
+E ReactNativeJS:   responseCode: -1,
+E ReactNativeJS:   debugMessage: 'Service connection is disconnected.',
+E ReactNativeJS:   code: 'query-product',
+E ReactNativeJS:   productId: undefined,
+E ReactNativeJS:   productIds: [ 'orbit_pro' ],
+E ReactNativeJS:   productType: 'subs',
+E ReactNativeJS:   isEmptyProductList: true,
+E ReactNativeJS:   subResponseCodeAndroid: undefined,
+E ReactNativeJS:   platform: 'android' }

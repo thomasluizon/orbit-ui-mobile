@@ -32,16 +32,10 @@ for (const width of [320, 360, 384, 412]) {
         await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habit.id)}`, route => route.fulfill({ json: habit }))
       })
 
-      test('grows on Hoje and in the conversation, then follows typed text', async ({ page }) => {
+      test('grows in the conversation opened from Hoje, then follows typed text', async ({ page }) => {
         await page.goto('/')
-        const dock = page.locator('[data-shell-bottom] [data-composer-root]')
-        await expect(dock).toHaveAttribute('data-state', 'idle')
-        await page.evaluate(() => document.fonts.ready)
-        for (const fontScale of [1, 1.5, 2, 1]) {
-          await page.evaluate(scale => { document.documentElement.style.fontSize = `${16 * scale}px` }, fontScale)
-          await expectPlaceholderFit(dock.locator('[data-composer-input]'), words.shell.composer.placeholder, fontScale)
-        }
-        const opener = dock.getByRole('button', { name: words.todayAstra.openConversation, exact: true })
+        await expect(page.locator('[data-shell-bottom] [data-composer-root]')).toHaveCount(0)
+        const opener = page.locator('[data-astra-button]')
         await expectInteractionFill(opener)
         await opener.click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')

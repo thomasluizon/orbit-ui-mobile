@@ -1,3 +1,4 @@
+import { evalSnapshot, snapshotFixture } from './fixtures/eval-snapshot.mjs'
 import { afterEach, expect, it, vi } from 'vitest'
 import { readOfferState, seedOfferFixture } from '../fixtures/offers.mjs'
 import { seedStaleRetrospective } from '../fixtures/reset.mjs'
@@ -39,10 +40,9 @@ function fixture(family, offerState = defaultStates[family], fault) {
     if (path === 'auth/refresh') return refreshResponse()
     const body = options.body ? JSON.parse(options.body) : undefined
     requests.push({ path, method: options.method, body })
-    if (path === 'profile/export') return Response.json(fault === 'collections' ? {} : { ...state,
-      habits: state.habits.map((habit) => Object.fromEntries(['id', 'title', 'description', 'emoji', 'isBadHabit', 'isGeneral',
-        'dueDate', 'endDate', 'frequencyUnit', 'frequencyQuantity', 'days', 'checklistItems', 'createdAtUtc', 'logs', 'intervalWeeks']
-        .filter((key) => Object.hasOwn(habit, key)).map((key) => [key, habit[key]]))) })
+    if (path === 'eval/snapshot') return Response.json(fault === 'collections' ? {} : evalSnapshot({ ...state,
+      habits: state.habits.map((habit) => Object.fromEntries(Object.keys(snapshotFixture.habit)
+        .filter((key) => Object.hasOwn(habit, key)).map((key) => [key, habit[key]]))) }))
     if (path === 'profile') return Response.json(profile)
     if (path === 'profile/timezone' && options.method === 'PUT') {
       if (!(fault === 'restore' && body.timeZone === 'America/Sao_Paulo')) profile.timeZone = body.timeZone
@@ -234,7 +234,7 @@ it.each(['resolved', 'stored', 'goal-link', 'empty'])('establishes the %s family
   if (family === 'empty') { state.habits = []; state.goals = [] }
   await seedOfferFixture(test, today)
   expect(test.vars.offerRequireReadback).toBe(true)
-  const lastExport = requests.findLastIndex(({ path }) => path === 'profile/export')
+  const lastExport = requests.findLastIndex(({ path }) => path === 'eval/snapshot')
   expect(requests.slice(lastExport + 1).map(({ path, method }) => ({ path, method })))
     .toEqual(state.habits.map((habit) => ({ path: `habits/${habit.id}`, method: 'GET' })))
   if (family === 'stored') expect(test.vars.offerBaseline.habits[0]).toMatchObject({ emoji: '💧', reminderEnabled: true, checklistItems: [{ text: 'Prepare water', isChecked: true }] })
@@ -305,7 +305,7 @@ it('compares persisted reminder settings while excluding the computed delivery c
   let reads = 0
   let reminderTimes = [30]
   const exported = { habits: [{ id: ids[0], title: 'Water' }], goals: [], tags: [], checklistTemplates: [] }
-  const api = async (_method, path) => path === 'profile/export' ? { payload: exported } : { payload: {
+  const api = async (_method, path) => path === 'eval/snapshot' ? { payload: exported } : { payload: {
     id: ids[0], title: 'Water', reminderEnabled: true, reminderTimes,
     nextReminderAtUtc: `2031-06-10T${String(8 + reads++).padStart(2, '0')}:00:00Z`,
     children: [{ id: ids[1], title: 'Refill', reminderEnabled: false, nextReminderAtUtc: `2031-06-10T${String(8 + reads).padStart(2, '0')}:00:00Z` }],

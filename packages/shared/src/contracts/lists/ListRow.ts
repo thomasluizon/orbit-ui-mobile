@@ -26,7 +26,7 @@ export interface ListRowBase {
   href?: string
   onClick?: () => void
   disabled?: boolean
-  placement?: 'column'
+  placement?: 'column' | 'field'
   toggle?: { checked: boolean; onChange: (checked: boolean) => void; pending?: boolean }
   compact?: boolean
 }

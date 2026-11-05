@@ -124,7 +124,7 @@ describe('Bottom tab geometry in Chromium', () => {
     async ({ messages, width, withComposer }) => {
       const view = render(<ShellWide items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation}
         astraRow={{ label: 'Astra', onOpen: vi.fn() }}
-        compactComposer={withComposer ? <Composer state="idle" value="" words={messages.shell.composer} suggestions={[]}
+        composer={withComposer ? <Composer state="idle" value="" words={messages.shell.composer} suggestions={[]}
           onChangeValue={vi.fn()} onSend={vi.fn()} /> : undefined}
         tabBar={<BottomTabBar label={messages.nav.mainNavigation} activeId="hoje" onSelect={vi.fn()}
           items={SHELL_DESTINATION_IDS.map((id) => ({ id, href: { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }[id],

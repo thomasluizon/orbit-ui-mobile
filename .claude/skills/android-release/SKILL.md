@@ -11,6 +11,20 @@ Dispatches `.github/workflows/android-release.yml`. It builds the embedded redes
 source maps, and **publishes to a Google Play track**. This is an outward, user-visible action, so it
 runs only after the user confirms the exact inputs.
 
+Before submission, the workflow derives an installable APK from that exact AAB and runs
+`.github/actions/android-boot` on a GitHub-hosted emulator. It compares the embedded Hermes
+bytes, clears app storage, cold starts once, requires the signed-out first screen through
+accessibility and checks process survival and app fatal logs after settling. A startup failure
+blocks Play submission. Review `android-boot-evidence` for XML, app-UID logcat, process IDs,
+ABI compatibility and artifact hashes. Never retry a failed app assertion as infrastructure.
+The separate `android-startup.yml` workflow proves the gate without Play upload credentials;
+its Hermes inventory job also rejects duplicate bundled native modules at pull request time.
+The proof derives `ORBIT_APP_VERSION` from the newest successful open or production release on
+`main` before prebuild; release dispatches continue using `app_version`. A forced-update dialog
+fails with an explicit build-below-server-minimum verdict, including after the settle period.
+The first-screen assertion reads the onboarding input label because the keyboard can clip its
+heading. Both workflows ship an x86_64 slice so the gate executes the AAB's native libraries.
+
 ## The workflow's inputs (from the workflow file, not memory)
 
 | Input | Required | Values |
@@ -89,13 +103,16 @@ The workflow refuses a non-main ref or a stale/malformed SHA before binding the 
 probe step. It uses the existing `production` environment and repository `SENTRY_AUTH_TOKEN`,
 serialized with production Android builds. It does not sign, build or publish anything.
 
-The helper verifies native CLI 3.6.0 and SDK 8.17.2 against the lock and the checked-out
-source SHA. Its immutable configured and comparison targets both select
+The helper verifies native CLI 3.8.0 and SDK 8.28.0 against the lock and the checked-out
+source SHA. The versions come from `package-lock.json` entries
+`apps/mobile/node_modules/@sentry/cli` and
+`apps/mobile/node_modules/@sentry/react-native`; update this guide and the checks in
+`tools/android-sentry-diagnostic.mjs` together when those locked versions change. Its immutable configured and comparison targets both select
 `orbit-ai-habit-tracker/orbit-mobile` on `https://sentry.io`. Each run must establish current
 organization and project route access through its fixed GETs. The tenant frontend URL never
 receives a credentialed request.
 
-Token-embedded organization and URL take priority in native CLI 3.6.0. The diagnostic privately
+Token-embedded organization and URL take priority in native CLI 3.8.0. The diagnostic privately
 recognizes `embedded_current_organization`, `embedded_previous_organization`, `configured_defaults`
 and `unknown` as distinct selections. The previous organization is recognized solely to diagnose a
 mismatch; it cannot become a healthy native selection. A previous binding can reach the fixed current
@@ -108,8 +125,10 @@ stop locally before authentication without claiming server rejection. Every trai
 removed from a nonempty URL; null or empty URL uses the configured host. Omitted URL remains
 unrecognized. Extra token metadata stays unused. No credential or decoded payload reaches a child.
 Changing only Expo configuration or `SENTRY_ORG` cannot override an old embedded organization.
-The [native configuration](https://github.com/getsentry/sentry-cli/blob/3.6.0/src/config.rs#L344-L371)
-and [token parser](https://github.com/getsentry/sentry-cli/blob/3.6.0/src/utils/auth_token/org_auth_token.rs#L14-L80)
+The [native configuration](https://github.com/getsentry/sentry-cli/blob/3.8.0/src/config.rs#L412-L442)
+and [URL selection](https://github.com/getsentry/sentry-cli/blob/3.8.0/src/config.rs#L143-L160),
+[URL normalization](https://github.com/getsentry/sentry-cli/blob/3.8.0/src/config.rs#L307-L317)
+and [token parser](https://github.com/getsentry/sentry-cli/blob/3.8.0/src/utils/auth_token/org_auth_token.rs#L14-L80)
 define this selection. Token re-encoding changes the full-token hash and is not a repair; see the
 [pinned issuance/hash producer](https://github.com/getsentry/sentry/blob/d4ac7c872436deb5d01d1e8673bae061758e3e0b/src/sentry/utils/security/orgauthtoken_token.py#L17-L58).
 
