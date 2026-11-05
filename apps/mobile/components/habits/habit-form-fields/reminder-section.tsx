@@ -126,7 +126,7 @@ export function ReminderSection({
           ) : null}
 
           {atLimit ? <Text style={sectionStyles.limitText}>{t("habits.form.relativeReminderMax", { count: MAX_REMINDERS_PER_HABIT })}</Text> : null}
-          {!atLimit ? <View style={{ paddingHorizontal: 8 }}><ListRow placement="column" icon="plus" title={t("habits.form.reminderAdd")} expanded={showAddReminder} disabled={disabled} onClick={() => {
+          {!atLimit ? <View style={{ paddingHorizontal: 8 }}><ListRow wrapTitle placement="column" icon="plus" title={t("habits.form.reminderAdd")} expanded={showAddReminder} disabled={disabled} onClick={() => {
               setShowAddReminder(!showAddReminder);
               setShowCustomInput(false);
             }} /></View> : null}

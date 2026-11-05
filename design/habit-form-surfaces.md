@@ -306,7 +306,7 @@ Each question is a separate vertical group. Reminder kind and repeat details hav
 gap and 12px internal gaps. Question and action rows reserve 8px inside their wrapper for the shared column
 fill, so hover and press stop at the field edge. Reminder chips wrap, reserve 8px below their
 row and 8px above and below their remove targets, and constrain growing text to the column.
-Add time is visible text. Permission feedback remains beside the reminder decision.
+Add time is visible text. Its caption and the timing entry wrap as text grows. Permission feedback remains beside the reminder decision.
 
 More details groups Steps, Avoid, Organize and End. Steps retains checklist templates and the
 sub-item editor, labelled Subtasks for Task. Avoid retains the slip alert and its plan boundary.

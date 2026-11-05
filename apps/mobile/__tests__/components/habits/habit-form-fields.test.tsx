@@ -2628,3 +2628,12 @@ it('keeps a prefilled native end-time question open after clearing its value', (
   expect(fields()[0]!.props.value).toBe('')
   expect(helpers.form.getValues('dueEndTime')).toBe('')
 })
+
+it('leaves the timing entry caption free to grow', () => {
+  formLocale.realController = false
+  useWatchMock.mockImplementation(({ control, name }: { control: { values: Record<string, unknown> }; name: string }) => control.values[name])
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ title: 'Read' })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />) })
+  const title = tree!.root.findAll((node: UnderstandingTestNode) => node.type === 'Text' && node.props['data-slot'] === 'list-row-title' && node.props.children === 'habits.form.timingAndReminder')[0]!
+  expect(title.props.numberOfLines).toBeUndefined()
+})

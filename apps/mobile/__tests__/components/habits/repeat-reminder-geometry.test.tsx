@@ -97,3 +97,18 @@ it('starts the add-time row at the group edge when only clock reminders remain',
   expect(fill.top).toBeLessThanOrEqual(4)
   TestRenderer.act(() => tree!.unmount())
 })
+
+it.each(['dark', 'light'] as const)('keeps the Portuguese add-time caption whole at 200% text in %s', (mode) => {
+  context.locale = 'pt-BR'
+  context.theme = mode
+  __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ReminderSection tokens={createTokensV2('orange', mode)} reminderEnabled reminderTimes={[]} scheduledReminderCount={1} reminderLabel={String} onReminderTimesChange={vi.fn()} />) })
+  const bounds = measureInteractionFills(tree!.toJSON(), 288, true, 2)
+  const title = bounds.find(part => part.host.type === 'Text' && part.host.props['data-slot'] === 'list-row-title' && part.host.children?.includes(ptBR.habits.form.reminderAdd))!
+  expect(title.host.props.numberOfLines).toBeUndefined()
+  expect(title.height).toBeGreaterThan(48)
+  expect(title.left).toBeGreaterThanOrEqual(0)
+  expect(title.right).toBeLessThanOrEqual(288)
+  TestRenderer.act(() => tree!.unmount())
+})

@@ -88,7 +88,7 @@ export function HabitTimingField({ formHelpers, controller, reminderTimes, onRem
   const clockReminders = <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} offsetReminderCount={dueTime ? reminderTimes.length : 0} hideDayBefore={itemType === 'task' && dueDate === getAccountDay(new Date(), profile?.timeZone)} onSetScheduledReminders={(items) => form.setValue('scheduledReminders', items, { shouldDirty: true })} onValidationError={showError} />
   return <>
     {/* eslint-disable-next-line local/max-button-words -- #1922 explicitly approves this timing-sheet entry label. */}
-    <ListRow icon="bell" title={t('habits.form.timingAndReminder')} description={summary} placement="column" disabled={disabled} onClick={() => setOpen(true)} />
+    <ListRow wrapTitle icon="bell" title={t('habits.form.timingAndReminder')} description={summary} placement="column" disabled={disabled} onClick={() => setOpen(true)} />
     {open ? <Sheet ref={sheetRef} open title={t('habits.form.timingAndReminder')} onClose={() => setOpen(false)} actions={<PillButton size="sm" onClick={() => closeSheet()}>{t('common.done')}</PillButton>}>
       <View testID="timing-levels" style={{ gap: 24, paddingBottom: 8 }}>
         {!isGeneral ? <HabitTimeQuestions formHelpers={formHelpers} controller={controller} showReminderQuestion={showReminderQuestion} onTimeAnswered={() => setTimeAnswered(true)} /> : null}

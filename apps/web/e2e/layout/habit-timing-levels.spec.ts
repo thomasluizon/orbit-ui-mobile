@@ -1,4 +1,4 @@
-import { expect } from '@playwright/test'
+import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -8,6 +8,16 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+
+async function expectWholeCaption(control: Locator) {
+  const fits = await control.locator('[data-slot="list-row-title"]').evaluate(element => {
+    const bounds = element.getBoundingClientRect()
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    return [...range.getClientRects()].every(line => line.left >= bounds.left - 1 && line.right <= bounds.right + 1)
+  })
+  expect(fits).toBe(true)
+}
 
 for (const locale of ['en', 'pt-BR'] as const) {
   for (const colorScheme of ['light', 'dark'] as const) {
@@ -27,7 +37,11 @@ for (const locale of ['en', 'pt-BR'] as const) {
             const messages = locale === 'en' ? en : ptBR
             await page.getByRole('button', { name: messages.habits.editHabit }).click()
             const editor = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
-            await editor.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) }).click()
+            const entry = editor.getByRole('button', { name: new RegExp(messages.habits.form.timingAndReminder) })
+            await entry.scrollIntoViewIfNeeded()
+            await page.evaluate(() => document.fonts.ready)
+            await expectWholeCaption(entry)
+            await entry.click()
             const timing = page.getByRole('dialog', { name: messages.habits.form.timingAndReminder, exact: true })
             const reminder = timing.getByRole('switch', { name: messages.habits.form.reminder, exact: true })
             await reminder.scrollIntoViewIfNeeded()
@@ -41,6 +55,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
             expect(Math.abs(edge.right)).toBeLessThanOrEqual(1)
             const add = timing.getByRole('button', { name: messages.habits.form.reminderAdd, exact: true })
             await expect(add).toHaveText(messages.habits.form.reminderAdd)
+            await expectWholeCaption(add)
             for (const label of [messages.habits.form.removeReminder, messages.habits.form.removeScheduledReminder]) {
               const removes = timing.getByRole('button', { name: label, exact: true })
               expect(await removes.count()).toBeGreaterThan(0)

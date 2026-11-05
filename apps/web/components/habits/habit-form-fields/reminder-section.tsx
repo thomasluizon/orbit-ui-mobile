@@ -115,7 +115,7 @@ export function ReminderSection({
           <div className="relative">
             {atLimit ? <p className="text-sm text-[var(--fg-3)]">{t('habits.form.relativeReminderMax', { count: MAX_REMINDERS_PER_HABIT })}</p> : null}
             {!atLimit ? <>
-            <div className="px-2"><ListRow placement="column" title={t('habits.form.reminderAdd')} icon="plus" expanded={showAddReminder} onClick={() => { setShowAddReminder(!showAddReminder); setShowCustomInput(false) }} /></div>
+            <div className="px-2"><ListRow wrapTitle placement="column" title={t('habits.form.reminderAdd')} icon="plus" expanded={showAddReminder} onClick={() => { setShowAddReminder(!showAddReminder); setShowCustomInput(false) }} /></div>
 
             {showAddReminder && (
               <div className="mt-2 rounded-[14px] bg-[var(--bg-sheet)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)] p-1">
