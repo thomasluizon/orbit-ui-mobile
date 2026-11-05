@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-11-02",
+  "calibratedAt": "2026-11-05",
   "classifier": {
     "model": "claude-sonnet-5-5",
     "promptDigest": "780092b4659dfd6e",
@@ -213,8 +213,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "a5dab8ac00888a04",
-      "calibratedAt": "2026-11-02",
+      "digest": "fad6b7a1e340a0c1",
+      "calibratedAt": "2026-11-05",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -255,8 +255,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "ec895d172ab191ac",
-      "calibratedAt": "2026-11-02",
+      "digest": "e440ca4d8be70249",
+      "calibratedAt": "2026-11-05",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -283,8 +283,8 @@
     ".claude/skills/release/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "1d906cbb5539edde",
-      "calibratedAt": "2026-11-02",
+      "digest": "713e04fb9e66892a",
+      "calibratedAt": "2026-11-05",
       "verdict": "current: sequences production and staging releases across services, checks live deployment evidence, and stops on ambiguous runs; high effort is right for decisions that control outward dispatch."
     },
     ".claude/skills/second-opinion/SKILL.md": {
@@ -297,8 +297,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "d129f22486743fee",
-      "calibratedAt": "2026-11-02",
+      "digest": "d529671681b20252",
+      "calibratedAt": "2026-11-05",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {
