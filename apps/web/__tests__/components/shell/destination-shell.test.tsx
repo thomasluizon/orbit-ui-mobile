@@ -93,9 +93,8 @@ vi.mock('@/components/command/command-palette', () => ({
     return <div data-testid="command-palette" />
   },
 }))
-function MockComposerSlot({ composer, compactComposer }: Readonly<{ composer?: ReactNode; compactComposer?: ReactNode }>) {
-  const pinnedComposer = composer ?? (!mocks.wide && compactComposer)
-  return pinnedComposer ? <div data-shell-pinned-slot="">{pinnedComposer}</div> : null
+function MockComposerSlot({ composer }: Readonly<{ composer?: ReactNode }>) {
+  return composer ? <div data-shell-pinned-slot="">{composer}</div> : null
 }
 
 vi.mock('@/components/shell/shell-wide', () => ({
