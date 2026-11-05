@@ -79,6 +79,9 @@ by the app. It then waits 15 seconds for deferred startup work and requires the 
 to survive. App-UID logcat must contain no native fatal, Java fatal, React Native error or
 invariant violation. A running splash process alone never passes. XML, logcat, process IDs,
 ABIs and AAB and bundle hashes are retained as `android-boot-evidence`, including on failure.
+Fatal JavaScript detection uses the native fatal channels and React Native's host-exception
+path, which destroys the runtime. An error-priority console message alone is not fatal;
+handled errors retain their ordinary application behavior and cannot substitute for a fatal report.
 Infrastructure adb commands before launch have three attempts with two-second delays and a
 30-second command deadline. Emulator boot has a five-minute budget. An app assertion failure
 is terminal; no failed launch is retried.

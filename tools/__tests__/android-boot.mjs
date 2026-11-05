@@ -31,10 +31,12 @@ export const cases = () => {
   for (const failure of [
     "E AndroidRuntime: FATAL EXCEPTION: mqt_native_modules",
     "E ReactNativeJS: Invariant Violation: Tried to register two views with the same name RNCSafeAreaProvider",
-    "E ReactNativeJS: Error: top-level module failed",
+    'W unknown:BridgelessReact: ReactHost{0}.handleHostException(message = "Error: top-level module failed")',
+    "F ReactNativeJS: fatal JavaScript runtime error",
     "F libc: Fatal signal 11 (SIGSEGV)",
   ]) T(`android-boot: rejects ${failure}`, fatalLogcat(failure))
   T("android-boot: accepts normal startup logs", !fatalLogcat("I ReactNativeJS: Running application\nI ReactNative: Application context initialized"))
+  T("android-boot: accepts the recorded handled console error after a surviving first screen", !fatalLogcat(readFileSync(join(REPO_ROOT, "tools/__tests__/fixtures/android-startup-console-error.txt"), "utf8")))
 
   const workflow = yaml.load(readFileSync(join(REPO_ROOT, ".github/workflows/android-release.yml"), "utf8"))
   const steps = workflow.jobs["release-android"].steps

@@ -47,7 +47,7 @@ export function firstScreenRendered(xml, packageName, labels) {
 }
 
 export function fatalLogcat(logcat) {
-  return /FATAL EXCEPTION|Fatal signal \d+|Invariant Violation|\b[EF]\s+ReactNativeJS\s*:|ReactNativeJS[^\n]*(?:Error:|Exception|fatal)/i.test(logcat)
+  return /FATAL EXCEPTION|Fatal signal \d+|Invariant Violation|\bF\s+ReactNativeJS\s*:|\bBridgelessReact\s*:\s*ReactHost\{-?\d+\}\.handleHostException\(/i.test(logcat)
 }
 
 function adb(args) {
